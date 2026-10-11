@@ -1,9 +1,9 @@
 import { Video, VideoControls, type VideoHandle, type VideoStatus } from '@hozo/media'
-import { MediaCaptions } from '@hozo/media/captions'
+import { MediaCaptionSelector, MediaCaptions } from '@hozo/media/captions'
 import { Button, Text, View } from '@hozo/primitives'
 import { Heading } from '@hozo/typography'
 import { useRef, useState } from 'react'
-import { squareCues } from './video-captions.ts'
+import { japaneseSquareCues, squareCaptionOptions, squareCues } from './video-captions.ts'
 
 /** The two hosts supply the same checked-in MP4 through their own asset loader. */
 export function VideoDemo({
@@ -20,7 +20,7 @@ export function VideoDemo({
   const [muted, setMuted] = useState(true)
   const [loop, setLoop] = useState(false)
   const [visible, setVisible] = useState(true)
-  const [captionsEnabled, setCaptionsEnabled] = useState(true)
+  const [captionId, setCaptionId] = useState<string | null>('en')
   return (
     <View className="w-full max-w-lg gap-4 rounded-2xl bg-white p-6">
       <Heading level={2} className="text-xl font-bold text-slate-900">
@@ -46,8 +46,8 @@ export function VideoDemo({
         <MediaCaptions
           src={src}
           status={visible ? status : null}
-          cues={squareCues}
-          enabled={captionsEnabled}
+          cues={captionId === 'ja' ? japaneseSquareCues : squareCues}
+          enabled={captionId !== null}
           accessibilityLabel="Animation captions"
         />
       )}
@@ -64,12 +64,11 @@ export function VideoDemo({
       )}
       <View className="gap-2">
         {captions && (
-          <Button
-            className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-            onPress={() => setCaptionsEnabled((value) => !value)}
-          >
-            {captionsEnabled ? 'Hide captions' : 'Show captions'}
-          </Button>
+          <MediaCaptionSelector
+            options={squareCaptionOptions}
+            value={captionId}
+            onValueChange={setCaptionId}
+          />
         )}
         {!customControls && (
           <>

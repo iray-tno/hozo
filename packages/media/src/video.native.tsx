@@ -9,14 +9,15 @@ export function Video(props: VideoProps) {
 }
 
 function SourceVideo(props: VideoProps) {
-  const [player, setPlayer] = useState<VideoPlayer | null>(null)
+  const [resource, setResource] = useState<VideoResource | null>(null)
+  const [hasLayout, setHasLayout] = useState(false)
   const latest = useRef(props)
   latest.current = props
-  const session = useRef<NativeVideoSession | null>(null)
+  const session = useRef<VideoResource | null>(null)
 
   function requireSession() {
     if (!session.current) throw new Error('Video is not mounted')
-    return session.current
+    return session.current.controller
   }
 
   useLayoutEffect(() => {
@@ -24,39 +25,57 @@ function SourceVideo(props: VideoProps) {
     // Effect replay gets a fresh resource instead of reusing a released player.
     const player = createVideoPlayer(null)
     const controller = new NativeVideoSession(player, props.src, () => latest.current)
-    session.current = controller
-    setPlayer(player)
-    const dispose = () => {
-      session.current = null
+    const resource: VideoResource = { player, controller, started: false, disposed: false, dispose }
+    session.current = resource
+    setResource(resource)
+    function dispose() {
+      if (resource.disposed) return
+      resource.disposed = true
+      if (session.current === resource) session.current = null
       try {
         controller.dispose()
       } finally {
         player.release()
       }
     }
-    try {
-      controller.start(latest.current)
-    } catch (error) {
-      dispose()
-      throw error
-    }
     return dispose
   }, [props.src])
 
+  useEffect(() => {
+    if (!resource || !hasLayout || resource.disposed || resource.started) return
+    // Preparing a paused player before its VideoView is attached/laid out can
+    // lose the initial frame during Android SurfaceView replacement. Wait for
+    // the host's layout event and the commit carrying this player, not a timer.
+    resource.started = true
+    try {
+      resource.controller.start(latest.current)
+    } catch (error) {
+      resource.dispose()
+      throw error
+    }
+  }, [resource, hasLayout])
+
   useImperativeHandle(props.ref, () => ({
     play: async () => requireSession().play(),
-    pause: () => session.current?.pause(),
+    pause: () => session.current?.controller.pause(),
     seekTo: (seconds) => requireSession().seekTo(seconds),
     getStatus: () => requireSession().getStatus(),
   }))
 
   useEffect(() => {
-    session.current?.setOptions({ autoPlay: props.autoPlay, loop: props.loop, muted: props.muted })
+    session.current?.controller.setOptions({
+      autoPlay: props.autoPlay,
+      loop: props.loop,
+      muted: props.muted,
+    })
   }, [props.autoPlay, props.loop, props.muted])
 
   return (
     <VideoView
-      player={player}
+      player={resource?.player ?? null}
+      onLayout={({ nativeEvent: { layout } }) =>
+        setHasLayout(layout.width > 0 && layout.height > 0)
+      }
       nativeControls={props.controls ?? true}
       contentFit={props.fit ?? 'contain'}
       accessibilityLabel={props.accessibilityLabel}
@@ -64,4 +83,12 @@ function SourceVideo(props: VideoProps) {
       style={{ width: '100%', height: 180, ...props.style }}
     />
   )
+}
+
+type VideoResource = {
+  player: VideoPlayer
+  controller: NativeVideoSession
+  started: boolean
+  disposed: boolean
+  dispose(): void
 }

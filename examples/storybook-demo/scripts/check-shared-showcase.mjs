@@ -26,6 +26,7 @@ if (!browser) {
 writeFileSync(
   path.join(directory, '_shared-interactions.html'),
   `<!doctype html>
+<meta charset="utf-8">
 <pre id="result">pending</pre><iframe id="story" width="1100" height="900"></iframe>
 <script>
 const result = document.getElementById('result')
@@ -47,6 +48,9 @@ async function loadStory(id) {
 }
 const load = (name) => loadStory('showcase-shared-web-and-native--' + name)
 async function run() {
+  // Non-ASCII expectations must be decoded like the authored fixture, not
+  // mojibake in the harness compared with correctly bundled caption text.
+  check(document.characterSet === 'UTF-8', 'Interaction harness requires UTF-8')
   const passed = []
   await load('preferences')
   const email = named('[role=checkbox]', 'Email notifications')
@@ -134,13 +138,22 @@ async function run() {
   await pause()
   const caption = () => frame.contentDocument.querySelector('[role=group][aria-label="Animation captions"]')
   check(caption()?.textContent.includes('A purple square travels toward the center.'), 'Observed first cue missing')
-  named('button', 'Hide captions').click(); await pause()
+  const selectCaption = value => {
+    const radio = frame.contentDocument.querySelector('input[type=radio][value="' + value + '"]')
+    check(radio, 'Missing caption option: ' + value)
+    radio.click()
+  }
+  const captionClock = captionVideo.currentTime
+  selectCaption('ja'); await pause()
+  check(caption()?.textContent.includes('紫の四角が中央に向かって動きます。'), 'Japanese cue missing')
+  check(captionVideo.paused && captionVideo.currentTime === captionClock, 'Selection changed playback')
+  selectCaption(''); await pause()
   check(!caption(), 'Captions did not hide')
-  named('button', 'Show captions').click(); await pause()
-  check(caption(), 'Captions did not return')
+  selectCaption('en'); await pause()
+  check(caption()?.textContent.includes('A purple square travels toward the center.'), 'English captions did not return')
   named('button', 'Remove video').click(); await pause()
   check(!caption(), 'Captions survived source removal')
-  passed.push('shared timed captions follow observations, toggle and source removal')
+  passed.push('shared timed captions follow observations, language selection, Off and source removal')
 
   // A popover's first focus goes into the panel. FloatingPositioner draws
   // the panel hidden until it has measured, and focus used to be tried in

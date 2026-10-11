@@ -45,7 +45,7 @@ fresh handle clocks drive seeks and retired request failures stay retired.
 Labels/time formatting can be localized. The ordinary platform controls and
 diagnostic playback probe are unchanged. Real browser keyboard and mocked
 Native adapter tests do not certify assistive-technology operation. Slider,
-volume and caption selection are not in this companion's first slice.
+volume and caption selection are not inside this playback companion.
 
 `Audio` and `AudioControls` use the independent `@hozo/media/audio` entry.
 Web owns a real HTML audio element, reusing the video adapter's
@@ -119,6 +119,21 @@ recovery. Shared host tests cover StrictMode, cancellation, reverse completion,
 disabled/deselected sources, loader replacement and render-time retirement.
 They are not Native networking or assistive-technology certification.
 
+`MediaCaptionSelector` now supplies a separate controlled language/Off radio
+group in `/captions`, shared by both hosts. Stable author ids identify options;
+`null` means Off. Requests do not change checked state until the caller updates
+the value, and disabled/current options do not emit. Invalid catalogs or a
+removed selected id are rejected, not silently rerouted. Applications own the
+cue/URL mapping, loading/error/retry state and catalog replacement policy.
+Selection does not mutate playback or install an embedded/fullscreen track.
+
+Web uses native HTML radios/fieldset with independent names and browser-owned
+Space/arrow/Tab behavior. Native exposes separately named radio Pressables
+with checked/disabled semantics and a non-color indicator. Both retain stable
+option hosts on reorder. The shared timed-caption story switches English,
+Japanese and Off without changing the observed paused clock. Real Chromium
+keyboard tests and mocked Native host tests are distinct from AT verification.
+
 1. Richer WebVTT/embedded subtitle contracts and further accessible content alternatives. The original
    issue's assumption that an external Web `<track src="…vtt">` can simply be
    forwarded to every Native engine is **not established**. Expo's exposed
@@ -163,6 +178,20 @@ source and binary provenance retained in the artifacts. This is emulator
 decoder/pixel evidence for the diagnostic probe, not a physical-device or
 screen-reader validation of `VideoControls`, nor proof of zero flakiness.
 
+The later [run 38158796411](https://github.com/iray-tno/hozo/actions/runs/38158796411)
+passed iOS but failed Android's initial paused frame: the source reported ready
+at time zero, while all 18 viewport captures were black. Logcat recorded a
+decoder output-surface generation change followed by `queueBuffer failed: -32`.
+This is a presentation failure, not a caption-selector failure; its exact
+relationship to Expo/Media3's SurfaceView lifecycle is not established.
+The Native host now waits for both the commit carrying its player and a
+positive-area host layout before asynchronous source loading. Resizing does
+not reload, and source replacement/effect replay retire their own resources.
+No delay, warm-up playback, forced seek, alternate surface or weaker pixel gate
+is used. Mocked ordering/lifetime tests do not prove that this resolves the
+emulator failure; a fresh-build run must still pass the same initial-frame,
+seek/play and remount pixel gates.
+
 During playback the diagnostic status label retains the first real decoder
 time whose two-decimal display is above 0.25s, rather than repainting at every
 tick: Android UIAutomator otherwise cannot obtain an idle AX tree. No time is
@@ -180,8 +209,8 @@ play/pause, seek/end/replay/loop, error recovery and source retirement. Both
 Storybooks use that same file and shared demo; Native tests exercise mocked
 Expo ownership/events and production Metro exports. A successful mock, clock
 or bundle is not evidence of Android/iOS audible output or assistive-technology
-operation. Native Audio output/interruption/silent-switch verification remains
-a follow-up, separate from the completed Video pixel probe.
+operation. Native Audio interruption/silent-switch verification remains a
+follow-up, separate from the completed Video pixel probe and Android output probe below.
 
 An opt-in Android `audio-output` scenario now captures the emulator's actual
 virtual sound-card output using QEMU's WAV backend. It uses a separate
@@ -215,6 +244,19 @@ low-level leaks that fall below aggregate silence limits. The volume command's
 response is retained; no fixed effective system gain is assumed. Reanalysis
 proves only that first captured output, not the unexecuted negative/lifetime
 phases or a successful full series; the failed result stays failed.
+
+The separate fresh-build [run 38153397087](https://github.com/iray-tno/hozo/actions/runs/38153397087)
+passed all three Android output checks at source
+`6c226b469cb4cb82a2da9599b25062105aca9d71`, with `binaryRun` equal to this run
+and diagnostics off. All four captures contain 6.014s of 44.1kHz stereo PCM.
+Playing/unmuted/remounted captures contain the expected rising notes at RMS
+0.001136/0.001093/0.001016; the nonempty muted capture has RMS/peak zero.
+Removal recorded zero new frames, separately from muted silence. Downloaded
+capture/fixture hashes and recomputed analyzer metrics match the evidence.
+Android reported effective music index 5 despite the request for 15: that
+request is not treated as a gain guarantee. Prior failures remain failures.
+This one series establishes virtual sound-card behavior, not physical-speaker
+or iOS audibility, AT/session behavior or zero flakiness.
 
 Sources: [Expo SDK 57 Video API](https://docs.expo.dev/versions/v57.0.0/sdk/video/),
 [Expo SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/).

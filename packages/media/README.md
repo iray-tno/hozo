@@ -132,10 +132,13 @@ The Native showcase additionally has an isolated Android `audio-output`
 diagnosis: QEMU records the virtual sound card, independent of the playback
 clock or Expo sample callbacks. It checks the original tone frequencies/order,
 nonempty silence while muted, restored output and resource removal/remount,
-retaining WAV recordings and failed observations. This measurement path is not
-a claimed pass until its actual CI evidence succeeds; analyzer/unit tests alone
-are not output evidence. Physical speakers, iOS capture and AT/session behavior
-still need their own checks. See the
+retaining WAV recordings and failed observations. Fresh-build
+[run 38153397087](https://github.com/iray-tno/hozo/actions/runs/38153397087)
+passed every phase: three-tone output, a nonempty silent muted recording,
+unmute, removal and remount. Recording/fixture hashes and recomputed metrics
+were verified separately. This establishes Android emulator virtual-output
+behavior, not physical speakers, iOS capture or AT/session behavior. One run
+does not establish zero flakiness. See the
 [Native showcase instructions](../../examples/native-showcase/README.md).
 
 ## Accessibility and evidence
@@ -177,8 +180,9 @@ its replacement. Pass `disabled` when your player is unavailable/unmounted.
 `accessibilityLabel` names the control group (default "Video playback controls").
 `labels` overrides `play`, `pause`, `backward`, `forward` and the
 `position(currentTime, duration)` formatter for localization. Names must not
-be empty. This first companion has no draggable slider, volume, caption selector or
-fullscreen controls; standard engine controls remain an alternative.
+be empty. This first companion has no draggable slider, volume or fullscreen
+controls; caption selection is a separate `/captions` companion. Standard engine
+controls remain an alternative.
 
 A label and native controls do not establish media accessibility. Authors must
 supply appropriate alternatives for content. Embedded track selection,
@@ -226,11 +230,66 @@ text in one accessible node. Neither sets a live region, which would speak
 each cue over the soundtrack. This inline companion does not appear in OS
 fullscreen/PiP, replace embedded subtitles, fetch external `.vtt` files by itself, or
 promise frame-exact synchronization (events are sampled by the engine). It
-has no language selector; applications own selection and toggle controls.
-It imports neither Expo engine. The `TimedCaptions` story demonstrates the
-same cue list, toggle, seek and removal on both platforms. Real Chromium
+does not own language selection; applications pass the chosen cue list and can
+use `MediaCaptionSelector` below. It imports neither Expo engine. The
+`TimedCaptions` story demonstrates English/Japanese selection, Off, seek and
+removal on both platforms. Real Chromium
 playback, shared interval tests and mocked Native rendering verify distinct
 layers, not TalkBack/VoiceOver or Native pixel certification.
+
+### Choosing a caption language
+
+`MediaCaptionSelector` from `/captions` is a controlled radio group on both
+platforms. Pass labeled options with stable unique `id`s, a selected `value`,
+and `onValueChange`. `null` explicitly selects Off. The selector sends requests;
+the caller must update its value and choose the associated cues or track URL:
+
+```tsx
+import { MediaCaptionSelector, MediaCaptions, useWebVTTCaptions } from '@hozo/media/captions'
+import { useState } from 'react'
+
+const languages = [
+  { id: 'en', label: 'English', url: '/captions/en.vtt' },
+  { id: 'ja', label: '日本語', url: '/captions/ja.vtt' },
+]
+
+// Inside a component; src/status describe the current recording.
+const [language, setLanguage] = useState<string | null>('en')
+const track = useWebVTTCaptions({
+  mediaSrc: src,
+  trackSrc: languages.find(option => option.id === language)?.url ?? null,
+})
+
+return <>
+  <MediaCaptionSelector options={languages} value={language} onValueChange={setLanguage}
+    accessibilityLabel="Caption language" offLabel="Captions off" />
+  <MediaCaptions src={track.mediaSrc} status={status} cues={track.cues}
+    enabled={language !== null} accessibilityLabel="Captions" />
+  {/* Display track.status/track.error and explicit retry separately, as below. */}
+</>
+```
+
+Web uses actual labeled HTML radios in a named fieldset: browser-owned Tab,
+Space and arrow navigation, unique radio names per selector, and no custom
+keyboard emulation. Native keeps each named radio separately reachable with
+supported checked/disabled states and a non-color selection indicator; it
+does not combine all choices into one accessibility node. Controls have at
+least 44px-high label/press targets. No live region announces playback ticks.
+
+`accessibilityLabel` defaults to "Caption language" and `offLabel` to "Captions
+off"; localize both and the option labels. Global `disabled` or an option's
+`disabled` prevents requests without changing the selected value. Selecting
+the current option does not deselect it. Empty names/ids/labels, duplicate ids
+or a selected id outside the catalog are errors. When removing the selected
+option, update the catalog and value together; there is no implicit fallback
+to a different language. Reordering retains each radio's stable identity.
+
+Selection never calls playback methods, fetches text or installs an engine
+subtitle track. Pair it with immutable cues or `useWebVTTCaptions`; the latter
+retires old cues during loading, Off and failure. This is inline caption UI,
+not embedded-track discovery, browser/OS fullscreen or PiP. Real Chromium
+keyboard tests, shared playback-story interaction and mocked Native semantics
+cover separate layers, not TalkBack/VoiceOver certification.
 
 ### Converting plain-text WebVTT
 

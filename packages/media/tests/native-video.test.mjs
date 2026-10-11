@@ -13,6 +13,7 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 
 test('Native host wires the real session, keeps callback updates, isolates sources and releases committed resources', async () => {
   const players = []
+  const view = { committedPlayer: null, layoutOnMount: false }
   function makePlayer() {
     const listeners = new Map()
     const player = {
@@ -30,6 +31,11 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
         this.released++
       },
       replaceAsync(src) {
+        assert.equal(
+          view.committedPlayer,
+          this,
+          'source loading follows the commit attaching its player',
+        )
         this.loads.push(src)
         return Promise.resolve()
       },
@@ -59,7 +65,20 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
     return player
   }
   const expo = {
-    VideoView: 'ExpoVideoView',
+    VideoView(props) {
+      const fixture = React.useRef(view).current
+      React.useLayoutEffect(() => {
+        fixture.committedPlayer = props.player
+        return () => {
+          if (fixture.committedPlayer === props.player) fixture.committedPlayer = null
+        }
+      }, [props.player, fixture])
+      React.useLayoutEffect(() => {
+        if (fixture.layoutOnMount)
+          props.onLayout({ nativeEvent: { layout: { width: 320, height: 180 } } })
+      }, [props.onLayout, fixture])
+      return React.createElement('ExpoVideoView', props)
+    },
     createVideoPlayer(source) {
       assert.equal(source, null, 'source loading uses replaceAsync, not the native constructor')
       return makePlayer()
@@ -88,6 +107,8 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   const ref = React.createRef()
   const events = []
   let renderer
+  const layout = (host, width = 320, height = 180) =>
+    host.props.onLayout({ nativeEvent: { layout: { width, height } } })
   const render = (src, onPlay, options = {}) =>
     React.createElement(Video, {
       src,
@@ -100,8 +121,20 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
     renderer = create(render('a.mp4', () => events.push('old')))
   })
   const a = players[0]
-  assert.deepEqual(a.loads, ['a.mp4'])
   const host = renderer.root.findByType('ExpoVideoView')
+  assert.equal(host.props.player, a)
+  assert.deepEqual(a.loads, [], 'a committed player does not load before the host has a size')
+  await act(async () => {
+    layout(host, 0, 180)
+    layout(host, 320, 0)
+  })
+  assert.deepEqual(a.loads, [], 'zero-area layouts cannot present an initial frame')
+  await act(async () => layout(host))
+  assert.deepEqual(a.loads, ['a.mp4'])
+  assert.equal(a.playing, false, 'presenting the initial frame must not require autoplay')
+  assert.equal(a.currentTime, 0)
+  await act(async () => layout(host, 640, 360))
+  assert.deepEqual(a.loads, ['a.mp4'], 'resizing the host must not reload its source')
   assert.equal(host.props.nativeControls, true)
   assert.equal(host.props.accessibilityLabel, 'Clip')
   await act(async () => {
@@ -135,6 +168,8 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   assert.equal(a.released, 1)
   assert.equal(a.listenerCount(), 0)
   assert.equal(players.length, 2)
+  assert.deepEqual(players[1].loads, [], 'a replacement source needs its own host layout')
+  await act(async () => layout(renderer.root.findByType('ExpoVideoView')))
   assert.deepEqual(players[1].loads, ['b.mp4'])
   assert.equal(ref.current.getStatus().src, 'b.mp4')
   assert.equal(ref.current.getStatus().status, 'loading')
@@ -162,12 +197,35 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   assert.equal(replayed.length, 2, 'StrictMode creates only committed/replayed players')
   assert.equal(replayed[0].released, 1)
   assert.equal(replayed[0].listenerCount(), 0)
+  assert.deepEqual(replayed[0].loads, [], 'a retired pre-layout player never prepares a decoder')
   assert.equal(replayed[1].released, 0)
   assert.equal(ref.current.getStatus().src, 'strict.mp4')
   assert.equal(renderer.root.findByType('ExpoVideoView').props.player, replayed[1])
+  assert.deepEqual(replayed[1].loads, [])
+  await act(async () => layout(renderer.root.findByType('ExpoVideoView')))
+  assert.deepEqual(replayed[1].loads, ['strict.mp4'])
   await act(async () => {
     renderer.unmount()
   })
   assert.equal(replayed[1].released, 1)
   assert.equal(replayed[1].listenerCount(), 0)
+
+  await act(async () => {
+    renderer = create(render('never-visible.mp4', () => {}))
+  })
+  const hidden = players.at(-1)
+  await act(async () => renderer.unmount())
+  assert.deepEqual(hidden.loads, [], 'unmounting before layout must not load the source')
+  assert.equal(hidden.released, 1)
+  assert.equal(hidden.listenerCount(), 0)
+
+  view.layoutOnMount = true
+  await act(async () => {
+    renderer = create(render('early-layout.mp4', () => {}))
+  })
+  const early = players.at(-1)
+  assert.deepEqual(early.loads, ['early-layout.mp4'], 'layout may arrive before the player commit')
+  await act(async () => renderer.unmount())
+  assert.equal(early.released, 1)
+  assert.equal(early.listenerCount(), 0)
 })
