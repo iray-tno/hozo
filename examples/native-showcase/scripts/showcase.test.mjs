@@ -235,6 +235,21 @@ test('shared Video retains the media host while its control variants compile sta
   }
 })
 
+test('shared captions retain the independent media companion on both showcase hosts', () => {
+  const file = path.join(root, '../showcase/src/video.tsx')
+  const output = transformHozoSource(readFileSync(file, 'utf8'), file)
+  assert.match(output, /from ['"]@hozo\/media\/captions['"]/)
+  assert.match(output, /<MediaCaptions\b/)
+  assert.match(output, /status=\{visible \? status : null\}/)
+  assert.match(output, /enabled=\{captionsEnabled\}/)
+  assert.doesNotMatch(output, /resolveClassName|<div\b|expo-video/)
+  for (const story of ['src/Video.stories.tsx', '../storybook-demo/src/Video.stories.tsx']) {
+    const source = readFileSync(path.join(root, story), 'utf8')
+    assert.match(source, /export const TimedCaptions/)
+    assert.match(source, /args: \{ customControls: true, captions: true \}/)
+  }
+})
+
 test('shared Audio retains its independent media entry; both hosts use the same owned fixture and disable recording', () => {
   const file = path.join(root, '../showcase/src/audio.tsx')
   const output = transformHozoSource(readFileSync(file, 'utf8'), file)

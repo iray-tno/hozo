@@ -117,7 +117,7 @@ Those decisions belong to the application/OS (see the
 [SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/)).
 The playback-only Native showcase disables microphone/recording permissions
 and background modes in its Expo config. Streams, recording, volume/rate,
-session/interruptions, transcripts and other content alternatives remain
+session/interruptions, complete transcripts and other content alternatives remain
 follow-ups. Authors still need appropriate alternatives for spoken content.
 
 Real Chromium tests use an original checked-in PCM WAV and measure non-silent
@@ -167,14 +167,60 @@ its replacement. Pass `disabled` when your player is unavailable/unmounted.
 `accessibilityLabel` names the control group (default "Video playback controls").
 `labels` overrides `play`, `pause`, `backward`, `forward` and the
 `position(currentTime, duration)` formatter for localization. Names must not
-be empty. This first companion has no draggable slider, volume, captions or
+be empty. This first companion has no draggable slider, volume, caption selector or
 fullscreen controls; standard engine controls remain an alternative.
 
 A label and native controls do not establish media accessibility. Authors must
-supply appropriate alternatives for content. External WebVTT tracks, captions,
+supply appropriate alternatives for content. External WebVTT tracks, embedded track selection,
 audio description, poster, fullscreen/PiP
 configuration and background playback are follow-ups in [#147](https://github.com/iray-tno/hozo/issues/147).
-Do not use this first slice to claim caption or screen-reader conformance.
+Do not use this first slice to claim complete caption or screen-reader conformance.
+
+### Plain-text timed captions
+
+`@hozo/media/captions` provides an engine-independent companion for either Video
+or Audio. Place it beside/below the player and pass the **observed** status:
+
+```tsx
+import { MediaCaptions, type MediaCue } from '@hozo/media/captions'
+
+const cues: readonly MediaCue[] = [
+  { start: 0, end: 2, text: '[Door opens]' },
+  { start: 2, end: 5, text: 'Welcome home.' },
+]
+
+// status comes from the player's onStatusChange, not a requested seek target.
+<MediaCaptions src={src} status={status} cues={cues}
+  enabled={captionsEnabled} accessibilityLabel="English captions" />
+```
+
+Cues are immutable plain-text arrays, ordered by `start` in seconds; replace
+the array to change tracks/language. Intervals include start and exclude end.
+Overlaps retain authored order, joined by newlines; gaps render nothing.
+Times must be finite with `0 <= start < end`, and cue text/names must be nonempty.
+Invalid requests throw instead of silently dropping text. Markup is literal
+text, not HTML, JSX, or a WebVTT parser. Cue preparation snapshots/indexes once
+per array; lookup skips future and wholly expired prefixes, although long
+overlaps can still scan a prefix.
+
+`src` identifies the media these cues describe. A null, loading, failed or
+different-source status clears the text; `enabled={false}` hides it. Paused
+and buffering playback retain captions at the last observed clock. Backward
+seeks/replay use that clock without a forward-only cursor or synthetic timer.
+Keep the correct cue list associated with each source; Hozo cannot verify
+whether authored text describes the recording. Full transcripts/audio
+descriptions remain author-supplied alternatives.
+
+Web renders a named group with readable text; Native combines the name and
+text in one accessible node. Neither sets a live region, which would speak
+each cue over the soundtrack. This inline companion does not appear in OS
+fullscreen/PiP, replace embedded subtitles, fetch external `.vtt` files, or
+promise frame-exact synchronization (events are sampled by the engine). It
+has no language selector; applications own selection and toggle controls.
+It imports neither Expo engine. The `TimedCaptions` story demonstrates the
+same cue list, toggle, seek and removal on both platforms. Real Chromium
+playback, shared interval tests and mocked Native rendering verify distinct
+layers, not TalkBack/VoiceOver or Native pixel certification.
 
 `pnpm --filter @hozo/media test` checks common state rules, DOM/Expo adapter
 events and Native component wiring. With Chrome it also decodes the checked-in

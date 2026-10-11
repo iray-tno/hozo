@@ -19,3 +19,4 @@ export default meta
 type Story = StoryObj<typeof meta>
 export const Default: Story = {}
 export const CustomControls: Story = { args: { customControls: true } }
+export const TimedCaptions: Story = { args: { customControls: true, captions: true } }
