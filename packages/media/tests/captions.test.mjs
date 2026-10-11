@@ -36,10 +36,10 @@ for (const native of [false, true]) {
       module.exports,
     )
     const { MediaCaptions } = module.exports
-    const cues = [
-      { start: 0, end: 1, text: 'First' },
-      { start: 1, end: 2, text: '<b>Second</b>\n[Door opens]' },
-    ]
+    const { parsePlainTextWebVTT } = await import('../dist/webvtt-index.js')
+    const cues = parsePlainTextWebVTT(
+      'WEBVTT\n\n00:00.000 --> 00:01.000\nFirst\n\n00:01.000 --> 00:02.000\n&lt;b&gt;Second&lt;/b&gt;\n[Door opens]',
+    )
     const status = {
       src: 'a.wav',
       status: 'ready',

@@ -8,6 +8,8 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
+const plainWebVTT =
+  '\uFEFFWEBVTT Original\n\nNOTE owned test cues\n\nfirst\n00:00.000 --> 00:01.000\nFirst square position\n\nsecond\n00:01.000 --> 00:04.000\n&lt;b&gt;Moving square&lt;/b&gt;\nNo speech\n'
 const executablePath = [
   process.env.CHROME_PATH,
   '/usr/bin/google-chrome',
@@ -29,8 +31,10 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
         import {createRoot} from 'react-dom/client'
         import {Video, VideoControls} from './src/index.ts'
         import {MediaCaptions} from './src/captions-index.ts'
-        const cues = [{start:0,end:1,text:'First square position'},
-          {start:1,end:4,text:'<b>Moving square</b>\\nNo speech'}]
+        import {parsePlainTextWebVTT} from './src/webvtt-index.ts'
+        window.vtt = ${JSON.stringify(plainWebVTT)}
+        const cues = parsePlainTextWebVTT(window.vtt)
+        window.parsedCues = cues
         window.statuses = []; window.errors = []; window.ended = 0
         window.ref = React.createRef()
         function App() {
@@ -118,6 +122,47 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     const captions = page.getByRole('group', { name: 'Clip captions', exact: true })
     assert.equal(await captions.textContent(), 'First square position')
     assert.equal(await captions.getAttribute('aria-live'), null)
+    // Compare against Chromium's actual WebVTT parser, not another handwritten
+    // copy of these timing/entity rules. Keep its track hidden: Hozo displays
+    // the same converted text and retains the existing playback pixel gates.
+    await page.evaluate(() => {
+      const video = document.querySelector('video')
+      const track = document.createElement('track')
+      const url = URL.createObjectURL(new Blob([window.vtt], { type: 'text/vtt' }))
+      window.referenceTrack = track
+      window.referenceTrackUrl = url
+      track.kind = 'captions'
+      track.src = url
+      track.addEventListener(
+        'load',
+        () => {
+          window.trackResult = Array.from(track.track.cues, (cue) => ({
+            start: cue.startTime,
+            end: cue.endTime,
+            text: cue.getCueAsHTML().textContent,
+          }))
+        },
+        { once: true },
+      )
+      track.addEventListener(
+        'error',
+        () => {
+          window.trackResult = 'track load failed'
+        },
+        { once: true },
+      )
+      video.append(track)
+      track.track.mode = 'hidden'
+    })
+    await page.waitForFunction(() => window.trackResult !== undefined)
+    assert.deepEqual(
+      await page.evaluate(() => window.trackResult),
+      await page.evaluate(() => window.parsedCues),
+    )
+    await page.evaluate(() => {
+      window.referenceTrack.remove()
+      URL.revokeObjectURL(window.referenceTrackUrl)
+    })
     const duration = await page.evaluate(() => window.ref.current.getStatus().duration)
     assert.ok(duration > 3 && duration < 6, `Recorded fixture duration ${duration}`)
     const toggle = page.getByRole('button', { name: 'Play video', exact: true })

@@ -178,6 +178,7 @@ const PACKAGES = {
       '.': './dist/index.js',
       './audio': './dist/audio-index.js',
       './captions': './dist/captions-index.js',
+      './webvtt': './dist/webvtt-index.js',
     },
     native: true,
     peerOverrides: { 'expo-audio': '>=57.0.5 <58' },

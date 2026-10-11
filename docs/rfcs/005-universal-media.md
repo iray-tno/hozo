@@ -79,13 +79,26 @@ different-source observations, supports overlapping cues, gaps, disable and
 backward seeks, and preserves line breaks without interpreting markup. It is
 readable on demand, never an automatic live announcement over the soundtrack.
 This is a deliberately smaller shared contract than browser `<track>`: no
-external VTT parsing, embedded track selection or OS fullscreen/PiP overlay.
+embedded track selection or OS fullscreen/PiP overlay.
 Engine event granularity limits synchronization; complete transcripts and
 audio descriptions remain authored alternatives. Captions alone do not certify
 media accessibility. A caller that requests external/embedded subtitles must
 not be silently rerouted to this different inline API.
 
-1. External/embedded subtitle contracts and further accessible content alternatives. The original
+The pure `/webvtt` entry now converts decoded text with
+`parsePlainTextWebVTT`, without React, DOM, Native hosts or media engines. Its
+bounded plain-text subset supports BOM/line-ending variants, identifiers,
+comments, millisecond timestamps, overlapping cues, multiple text lines and
+six named character references. It validates before returning the full cue
+array; invalid syntax or unsupported richer constructs throw a typed error
+with a one-based line. Layout/settings, STYLE/REGION, markup, karaoke, other
+references and stream clock maps are not silently discarded. This is not a
+complete/fault-tolerant WebVTT implementation. File/network acquisition,
+UTF-8 decoding, source/track lifecycle and errors displayed to the user remain
+application-owned. The two hosts' existing timed-caption example now converts
+the same bundled WebVTT text; it does not install a native subtitle track.
+
+1. External loading, richer WebVTT/embedded subtitle contracts and further accessible content alternatives. The original
    issue's assumption that an external Web `<track src="…vtt">` can simply be
    forwarded to every Native engine is **not established**. Expo's exposed
    subtitle selection targets tracks reported by its loaded source; assess
