@@ -1,11 +1,12 @@
 {
   "name": "@hozo/media",
   "version": "0.2.0",
-  "description": "Universal video playback: HTML video on Web and expo-video on Native.",
+  "description": "Universal video and audio playback with shared controls and platform-owned engines.",
   "keywords": [
     "react-native",
     "react",
     "video",
+    "audio",
     "media",
     "expo"
   ],
@@ -32,6 +33,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./audio": {
+      "react-native": {
+        "types": "./dist/audio-index.native.d.ts",
+        "default": "./dist/audio-index.native.js"
+      },
+      "types": "./dist/audio-index.d.ts",
+      "default": "./dist/audio-index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -54,13 +63,17 @@
   "peerDependencies": {
     "react": "^19.0.0",
     "react-native": ">=0.86",
-    "expo-video": ">=57.0.5 <58"
+    "expo-video": ">=57.0.5 <58",
+    "expo-audio": ">=57.0.5 <58"
   },
   "peerDependenciesMeta": {
     "react-native": {
       "optional": true
     },
     "expo-video": {
+      "optional": true
+    },
+    "expo-audio": {
       "optional": true
     }
   },
@@ -71,6 +84,7 @@
     "@types/react-test-renderer": "^19.1.0",
     "esbuild": "0.28.2",
     "expo-video": "~57.0.5",
+    "expo-audio": "~57.0.5",
     "playwright-core": "^1.63.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

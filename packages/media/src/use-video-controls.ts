@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { videoControlLabels, videoControlState } from './control-state.ts'
 import type { VideoControlsProps } from './control-types.ts'
-import type { VideoHandle } from './types.ts'
+import type { MediaHandle } from './types.ts'
 
 /** One command/observation policy; platform files only own rendering and names. */
 export function useVideoControls(props: VideoControlsProps) {
@@ -11,7 +11,7 @@ export function useVideoControls(props: VideoControlsProps) {
   latest.current = props
   const mounted = useRef(false)
   const [failure, setFailure] = useState<{
-    player: VideoHandle
+    player: MediaHandle
     src: string
     message: string
   } | null>(null)
@@ -27,14 +27,13 @@ export function useVideoControls(props: VideoControlsProps) {
     const player = current.player.current
     if (!player || !current.status || current.disabled) return
     const src = current.status.src
+    const isCurrent = () =>
+      mounted.current &&
+      latest.current.player.current === player &&
+      latest.current.status?.src === src
     const report = (error: unknown) => {
       // A rejected request from a retired source must not label its replacement.
-      if (
-        !mounted.current ||
-        latest.current.player.current !== player ||
-        latest.current.status?.src !== src
-      )
-        return
+      if (!isCurrent()) return
       setFailure({ player, src, message: error instanceof Error ? error.message : String(error) })
     }
     try {
@@ -51,14 +50,35 @@ export function useVideoControls(props: VideoControlsProps) {
       if (command === 'toggle') {
         if (observed.playing) player.pause()
         else {
-          if (observed.status === 'ended') player.seekTo(0)
-          void player.play().catch(report)
+          const play = () => {
+            if (isCurrent()) return player.play()
+          }
+          const rewind = observed.status === 'ended' ? player.seekTo(0) : undefined
+          // Audio seeks are asynchronous. Do not replay before the rewind, or
+          // restart a retired/re-disabled player when that request completes.
+          if (rewind && typeof rewind.then === 'function') {
+            void rewind
+              .then(() => {
+                if (!isCurrent() || latest.current.disabled) return
+                const after = player.getStatus()
+                if (
+                  after.src === src &&
+                  !after.playing &&
+                  !videoControlState(after, latest.current.disabled).toggleDisabled
+                )
+                  return play()
+              })
+              .catch(report)
+          } else void play()?.catch(report)
         }
       } else {
         // Use the handle's current clock, not a potentially old render snapshot.
         const step = current.seekStep ?? 10
         const target = Math.max(0, observed.currentTime + (command === 'backward' ? -step : step))
-        player.seekTo(observed.duration === null ? target : Math.min(target, observed.duration))
+        const seek = player.seekTo(
+          observed.duration === null ? target : Math.min(target, observed.duration),
+        )
+        if (seek && typeof seek.then === 'function') void seek.catch(report)
       }
     } catch (error) {
       report(error)

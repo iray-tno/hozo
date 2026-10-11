@@ -68,10 +68,10 @@ export function durationValue(value: number): number | null {
 
 export function seekTime(seconds: number, status: VideoStatus): number {
   if (!Number.isFinite(seconds) || seconds < 0) {
-    throw new RangeError('Video.seekTo requires finite, nonnegative seconds')
+    throw new RangeError('Media.seekTo requires finite, nonnegative seconds')
   }
   if (status.status === 'loading' || status.status === 'error') {
-    throw new Error('Video is not ready to seek')
+    throw new Error('Media is not ready to seek')
   }
   return status.duration === null ? seconds : Math.min(seconds, status.duration)
 }

@@ -235,6 +235,28 @@ test('shared Video retains the media host while its control variants compile sta
   }
 })
 
+test('shared Audio retains its independent media entry; both hosts use the same owned fixture and disable recording', () => {
+  const file = path.join(root, '../showcase/src/audio.tsx')
+  const output = transformHozoSource(readFileSync(file, 'utf8'), file)
+  assert.match(output, /from ['"]@hozo\/media\/audio['"]/)
+  assert.match(output, /<Audio\b/)
+  assert.doesNotMatch(output, /<audio\b|resolveClassName|expo-audio/)
+  for (const story of ['src/Audio.stories.tsx', '../storybook-demo/src/Audio.stories.tsx']) {
+    const source = readFileSync(path.join(root, story), 'utf8')
+    assert.match(source, /AudioDemo/)
+    assert.match(source, /hozo-audio\.wav/)
+    assert.match(source, /Media\/Audio/)
+  }
+  const config = JSON.parse(readFileSync(path.join(root, 'app.json'), 'utf8')).expo
+  const audio = config.plugins.find(([name]) => name === 'expo-audio')[1]
+  assert.deepEqual(audio, {
+    microphonePermission: false,
+    recordAudioAndroid: false,
+    enableBackgroundPlayback: false,
+    enableBackgroundRecording: false,
+  })
+})
+
 test('cold Native Storybook starts with a lightweight primitive, not implicit GPU work', () => {
   const { transformSync } = require('esbuild')
   const source = readFileSync(path.join(root, '.rnstorybook/index.tsx'), 'utf8')
@@ -551,6 +573,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === './patterns.tsx') return {}
     if (name === './svg-filters.tsx') return {}
     if (name === './video.tsx') return {}
+    if (name === './audio.tsx') return {}
     if (name === './video-probe.tsx') return {}
     throw new Error(`Unexpected form dependency: ${name}`)
   }

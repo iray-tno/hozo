@@ -9,6 +9,7 @@ const root = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(import.meta.url)
 const cli = path.join(path.dirname(require.resolve('expo/package.json')), 'bin/cli')
 const videoFixture = readFileSync(path.join(root, '../showcase/assets/hozo-video.mp4'))
+const audioFixture = readFileSync(path.join(root, '../showcase/assets/hozo-audio.wav'))
 
 // Real production Metro exports run in main's integration report, not every
 // PR. Separate output directories do not race the user's interactive bundle.
@@ -47,6 +48,8 @@ for (const platform of ['android', 'ios']) {
   for (const label of [
     'Primitives/Shared showcase',
     'Media/Video',
+    'Media/Audio',
+    'Three rising tones',
     'Moving square, silent video',
     'Native video playback',
     'Local video pixel probe',
@@ -70,6 +73,12 @@ for (const platform of ['android', 'ios']) {
   }
   assert.ok(bundle.includes('getStorybookUI'), `${platform}: missing on-device Storybook UI`)
   assert.ok(bundle.includes('ExpoVideo'), `${platform}: media must resolve to the Native engine`)
+  assert.ok(bundle.includes('ExpoAudio'), `${platform}: audio must resolve to the Native engine`)
+  const audios = metadata.fileMetadata[platform].assets.filter((asset) => asset.ext === 'wav')
+  assert.ok(
+    audios.some((asset) => readFileSync(path.join(output, asset.path)).equals(audioFixture)),
+    `${platform}: the exact local showcase audio was not exported`,
+  )
   const videos = metadata.fileMetadata[platform].assets.filter((asset) => asset.ext === 'mp4')
   assert.ok(
     videos.some((asset) => readFileSync(path.join(output, asset.path)).equals(videoFixture)),

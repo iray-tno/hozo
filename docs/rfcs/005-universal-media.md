@@ -1,6 +1,6 @@
 # Universal media: a shared playback contract, platform-owned engines
 
-Status: Video playback and shared basic controls, tracked by [#147](https://github.com/iray-tno/hozo/issues/147).
+Status: Video/Audio playback and shared basic controls, tracked by [#147](https://github.com/iray-tno/hozo/issues/147).
 
 `@hozo/media` is an opt-in domain, not part of the core facade. Web uses the
 actual HTML video element. Native's first engine is Expo SDK 57 `expo-video`;
@@ -47,15 +47,36 @@ diagnostic playback probe are unchanged. Real browser keyboard and mocked
 Native adapter tests do not certify assistive-technology operation. Slider,
 volume and captions are not in this companion's first slice.
 
-1. Audio, reusing the control/observation policy. Native audio has no
-   HTML-audio-equivalent visual control bar, so the UI needs explicit ownership.
-2. Captions/subtitle contracts and accessible content alternatives. The original
+`Audio` and `AudioControls` use the independent `@hozo/media/audio` entry.
+Web owns a real HTML audio element, reusing the video adapter's
+HTMLMediaElement lifetime/event policy. Native owns one committed `expo-audio`
+player per source. The original root Video entry does not import this engine,
+and Audio does not import `expo-video`; their optional peers are independent.
+Audio's `controls` default to the same Hozo-owned controls on both platforms,
+not a browser bar with no Native equivalent. `controls={false}` is headless
+playback; applications can attach `AudioControls` using the ref and observed
+status. This first Audio slice is not HTML/RN migration lowering.
+
+Audio's `seekTo` returns a promise on both platforms. Shared controls await an
+asynchronous ended-source rewind before playing and catch seek denials;
+unmounted, replaced or disabled players cannot be restarted by a late rewind.
+Accepted seeks still do not prove sample-exact positioning. Handles keep their
+identity across clock observations. Native end normalization accounts for
+Android's `ended` state and iOS's ready-state/one-shot finish event, without
+reporting a terminal end for loops. Live/unknown duration remains null.
+
+No global audio mode, silent-switch policy, recording permission, lock-screen
+controls or background behavior is configured by the component. Those are
+application/OS decisions. The showcase's Expo config explicitly disables
+recording permissions and background modes for this playback-only example.
+
+1. Captions/subtitle contracts and accessible content alternatives. The original
    issue's assumption that an external Web `<track src="…vtt">` can simply be
    forwarded to every Native engine is **not established**. Expo's exposed
    subtitle selection targets tracks reported by its loaded source; assess
    external sidecar support and an overlay/other-engine option before promising
    that universal API. Do not silently discard a requested caption track.
-3. Fullscreen/PiP, asset/header/stream formats, background/audio-session policy.
+2. Fullscreen/PiP, asset/header/stream formats, background/audio-session policy.
    Application/OS permission policy is not a silent library-global setting.
 
 The original issue also sketches `accessibilityState={{ playing }}`; playing
@@ -102,6 +123,16 @@ checks remain independent of this display. Unnamed iOS AX nodes are skipped,
 not interpreted as status; a loading-only tree still times out.
 The display and latch share one formatter, so a fractional tick such as
 0.250001s cannot pin the readable status at 0.25s and conceal later advances.
+
+Audio has an original checked-in four-second WAV (three quiet rising tones,
+no speech/music) with a reproducibility check. Real Chromium playback checks
+non-silent samples from the actual media element through an analyser, keyboard
+play/pause, seek/end/replay/loop, error recovery and source retirement. Both
+Storybooks use that same file and shared demo; Native tests exercise mocked
+Expo ownership/events and production Metro exports. A successful mock, clock
+or bundle is not evidence of Android/iOS audible output or assistive-technology
+operation. Native Audio output/interruption/silent-switch verification remains
+a follow-up, separate from the completed Video pixel probe.
 
 Sources: [Expo Video API](https://docs.expo.dev/versions/latest/sdk/video/),
 [Expo Audio API](https://docs.expo.dev/versions/latest/sdk/audio/).

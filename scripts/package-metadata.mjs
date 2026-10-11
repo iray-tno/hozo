@@ -172,9 +172,13 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'webview', 'iframe', 'embed'],
   },
   media: {
-    exports: { '.': './dist/index.js' },
+    description:
+      'Universal video and audio playback with shared controls and platform-owned engines.',
+    exports: { '.': './dist/index.js', './audio': './dist/audio-index.js' },
     native: true,
-    keywords: ['react-native', 'react', 'video', 'media', 'expo'],
+    peerOverrides: { 'expo-audio': '>=57.0.5 <58' },
+    peerMetadataOverrides: { 'expo-audio': { optional: true } },
+    keywords: ['react-native', 'react', 'video', 'audio', 'media', 'expo'],
     // Bootstrap a new manifest here rather than hand-writing generated fields.
     initial: {
       name: '@hozo/media',
@@ -193,6 +197,7 @@ const PACKAGES = {
       peerDependenciesMeta: {
         'react-native': { optional: true },
         'expo-video': { optional: true },
+        'expo-audio': { optional: true },
       },
       devDependencies: {
         '@types/node': '26.2.0',
@@ -201,6 +206,7 @@ const PACKAGES = {
         '@types/react-test-renderer': '^19.1.0',
         esbuild: '0.28.2',
         'expo-video': '~57.0.5',
+        'expo-audio': '~57.0.5',
         'playwright-core': '^1.63.0',
         react: '^19.2.8',
         'react-dom': '^19.2.8',
@@ -417,6 +423,7 @@ export function metadataFor(name) {
   const main = spec.exports['.']
   return {
     ...shared(name),
+    ...(spec.description ? { description: spec.description } : {}),
     main,
     types: main.startsWith('./dist')
       ? main.replace(/\.js$/, '.d.ts')
@@ -500,6 +507,12 @@ export function applyMetadata(name) {
   // of unrelated React/platform peer ranges in the same package.
   if (PACKAGES[name].peerOverrides) {
     merged.peerDependencies = { ...json.peerDependencies, ...PACKAGES[name].peerOverrides }
+  }
+  if (PACKAGES[name].peerMetadataOverrides) {
+    merged.peerDependenciesMeta = {
+      ...json.peerDependenciesMeta,
+      ...PACKAGES[name].peerMetadataOverrides,
+    }
   }
   if (PACKAGES[name].dependencyOverrides) {
     merged.dependencies = { ...json.dependencies, ...PACKAGES[name].dependencyOverrides }

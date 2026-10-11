@@ -2,7 +2,7 @@ import { durationValue, seekTime, VideoObserver } from './status.ts'
 import type { VideoCallbacks, VideoHandle, VideoOptions } from './types.ts'
 
 /** The keyed host owns one source; events from a retired element never cross it. */
-export class DomVideoSession implements VideoHandle {
+export class DomMediaSession implements VideoHandle {
   private observer: VideoObserver
   private active = true
   private removers: (() => void)[] = []
@@ -10,7 +10,7 @@ export class DomVideoSession implements VideoHandle {
   private autoplayAttempted = false
 
   constructor(
-    private element: HTMLVideoElement,
+    private element: HTMLMediaElement,
     private src: string,
     callbacks: () => VideoCallbacks,
   ) {
@@ -74,7 +74,7 @@ export class DomVideoSession implements VideoHandle {
   }
 
   async play() {
-    if (!this.active) throw new Error('Video source is no longer active')
+    if (!this.active) throw new Error('Media source is no longer active')
     try {
       await this.element.play()
     } catch (error) {
@@ -88,7 +88,7 @@ export class DomVideoSession implements VideoHandle {
   }
 
   seekTo(seconds: number) {
-    if (!this.active) throw new Error('Video source is no longer active')
+    if (!this.active) throw new Error('Media source is no longer active')
     try {
       this.element.currentTime = seekTime(seconds, this.getStatus())
     } catch (error) {
@@ -113,3 +113,7 @@ export class DomVideoSession implements VideoHandle {
     this.element.load()
   }
 }
+
+// Preserve the Video adapter's existing internal name while sharing the
+// actual HTMLMediaElement event/lifetime policy with Audio.
+export { DomMediaSession as DomVideoSession }
