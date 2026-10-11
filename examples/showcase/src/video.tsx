@@ -1,10 +1,16 @@
-import { Video, type VideoHandle, type VideoStatus } from '@hozo/media'
+import { Video, VideoControls, type VideoHandle, type VideoStatus } from '@hozo/media'
 import { Button, Text, View } from '@hozo/primitives'
 import { Heading } from '@hozo/typography'
 import { useRef, useState } from 'react'
 
 /** The two hosts supply the same checked-in MP4 through their own asset loader. */
-export function VideoDemo({ src }: { src: string }) {
+export function VideoDemo({
+  src,
+  customControls = false,
+}: {
+  src: string
+  customControls?: boolean
+}) {
   const video = useRef<VideoHandle>(null)
   const [status, setStatus] = useState<VideoStatus | null>(null)
   const [muted, setMuted] = useState(true)
@@ -24,7 +30,7 @@ export function VideoDemo({ src }: { src: string }) {
           src={src}
           accessibilityLabel="Moving square, silent video"
           testID="showcase-video"
-          controls
+          controls={!customControls}
           muted={muted}
           loop={loop}
           onStatusChange={setStatus}
@@ -36,29 +42,38 @@ export function VideoDemo({ src }: { src: string }) {
           ? `Video: ${status?.status ?? 'loading'}; ${status?.playing ? 'playing' : 'paused'}`
           : 'Video removed'}
       </Text>
-      {status?.error && <Text className="text-base text-red-700">{status.error.message}</Text>}
+      {!customControls && status?.error && (
+        <Text className="text-base text-red-700">{status.error.message}</Text>
+      )}
+      {customControls && (
+        <VideoControls player={video} status={status} disabled={!visible} seekStep={1} />
+      )}
       <View className="gap-2">
-        <Button
-          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-          disabled={!visible}
-          onPress={() => void video.current?.play().catch(() => {})}
-        >
-          Play video
-        </Button>
-        <Button
-          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-          disabled={!visible}
-          onPress={() => video.current?.pause()}
-        >
-          Pause video
-        </Button>
-        <Button
-          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
-          disabled={!visible || status?.status === 'loading' || status?.status === 'error'}
-          onPress={() => video.current?.seekTo(0)}
-        >
-          Restart video
-        </Button>
+        {!customControls && (
+          <>
+            <Button
+              className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              disabled={!visible}
+              onPress={() => void video.current?.play().catch(() => {})}
+            >
+              Play video
+            </Button>
+            <Button
+              className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              disabled={!visible}
+              onPress={() => video.current?.pause()}
+            >
+              Pause video
+            </Button>
+            <Button
+              className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+              disabled={!visible || status?.status === 'loading' || status?.status === 'error'}
+              onPress={() => video.current?.seekTo(0)}
+            >
+              Restart video
+            </Button>
+          </>
+        )}
         <Button
           className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
           onPress={() => setMuted((value) => !value)}

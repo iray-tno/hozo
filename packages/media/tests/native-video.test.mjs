@@ -75,7 +75,12 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   })
   const module = { exports: {} }
   new Function('require', 'module', 'exports', result.outputFiles[0].text)(
-    (name) => (name === 'expo-video' ? expo : require(name)),
+    (name) =>
+      name === 'expo-video'
+        ? expo
+        : name === 'react-native'
+          ? { View: 'RNView', Text: 'RNText', Pressable: 'RNPressable' }
+          : require(name),
     module,
     module.exports,
   )

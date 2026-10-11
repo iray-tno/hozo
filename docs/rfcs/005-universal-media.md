@@ -1,6 +1,6 @@
 # Universal media: a shared playback contract, platform-owned engines
 
-Status: Video basic-playback slice, tracked by [#147](https://github.com/iray-tno/hozo/issues/147).
+Status: Video playback and shared basic controls, tracked by [#147](https://github.com/iray-tno/hozo/issues/147).
 
 `@hozo/media` is an opt-in domain, not part of the core facade. Web uses the
 actual HTML video element. Native's first engine is Expo SDK 57 `expo-video`;
@@ -38,7 +38,16 @@ explicit seekability/capability reporting remains follow-up work.
 
 ## Boundaries and next slices
 
-1. Audio and shared accessible custom playback controls. Native audio has no
+`VideoControls` now supplies optional shared play/pause and stepped-seek UI.
+Its command policy is shared; Web renders semantic buttons/group and Native
+renders uncombined named Pressables. State follows observations, not requests;
+fresh handle clocks drive seeks and retired request failures stay retired.
+Labels/time formatting can be localized. The ordinary platform controls and
+diagnostic playback probe are unchanged. Real browser keyboard and mocked
+Native adapter tests do not certify assistive-technology operation. Slider,
+volume and captions are not in this companion's first slice.
+
+1. Audio, reusing the control/observation policy. Native audio has no
    HTML-audio-equivalent visual control bar, so the UI needs explicit ownership.
 2. Captions/subtitle contracts and accessible content alternatives. The original
    issue's assumption that an external Web `<track src="…vtt">` can simply be
@@ -77,6 +86,12 @@ scenarios are unchanged. Pixel polling is read-only, and a failed input is
 never repeated. Captures, failed observations, phase, source hash and timings
 are retained in `evidence.json`. No emulator success is claimed until these
 gates pass on the actual CI app, with its binary/source provenance.
+
+The fresh-build [run 38097310264](https://github.com/iray-tno/hozo/actions/runs/38097310264)
+passed these gates on Android (13 full-scenario checks) and iOS (12), with
+source and binary provenance retained in the artifacts. This is emulator
+decoder/pixel evidence for the diagnostic probe, not a physical-device or
+screen-reader validation of `VideoControls`, nor proof of zero flakiness.
 
 During playback the diagnostic status label retains the first real decoder
 time whose two-decimal display is above 0.25s, rather than repainting at every
