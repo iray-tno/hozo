@@ -63,7 +63,7 @@ test('published captions load neither playback engine on either platform', async
   for (const native of [false, true]) {
     const result = await build({
       stdin: {
-        contents: "export { MediaCaptions } from '@hozo/media/captions'",
+        contents: "export { MediaCaptions, useWebVTTCaptions } from '@hozo/media/captions'",
         resolveDir: fileURLToPath(new URL('../', import.meta.url)),
       },
       bundle: true,
