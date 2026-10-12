@@ -760,6 +760,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "Sub" => Some(Primitive::Sub),
         "Sup" => Some(Primitive::Sup),
         "Code" => Some(Primitive::Code),
+        "Preformatted" => Some(Primitive::Preformatted),
         "Small" => Some(Primitive::Small),
         "Mark" => Some(Primitive::Mark),
         "NoBreak" => Some(Primitive::NoBreak),
@@ -1561,7 +1562,7 @@ fn validate_semantic_children(
     for child in children {
         let Child::Node(child) = child else { continue };
         let allowed = match parent {
-            Primitive::Paragraph | Primitive::Heading => matches!(
+            Primitive::Paragraph | Primitive::Heading | Primitive::Preformatted => matches!(
                 child.primitive,
                 Primitive::Text
                     | Primitive::Badge
@@ -1602,6 +1603,7 @@ fn validate_semantic_children(
         let parent_name = match parent {
             Primitive::Paragraph => "Paragraph",
             Primitive::Heading => "Heading",
+            Primitive::Preformatted => "Preformatted",
             Primitive::List => "List",
             _ => continue,
         };

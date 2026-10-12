@@ -998,6 +998,7 @@ fn render_node(
                 | "Sub"
                 | "Sup"
                 | "Code"
+                | "Preformatted"
                 | "Small"
                 | "Mark"
                 | "NoBreak"
@@ -2946,6 +2947,36 @@ export function Login() {
         assert_eq!(
             output.jsx,
             "<p><strong>bold</strong><em>italic</em><u>underlined</u><s>deleted</s><sub>sub</sub><sup>sup</sup><code>const x = 1</code><small>fine print</small><mark>highlight</mark><span style={{ whiteSpace: 'nowrap' }}>100 km/h</span><ruby>漢字<rt>かんじ</rt></ruby></p>"
+        );
+    }
+
+    #[test]
+    fn preformatted_lowers_to_pre_and_keeps_its_text_as_written() {
+        // The whitespace is in a string expression, which JSX leaves alone,
+        // and the compiler must carry it the same way.
+        let source = r#"
+            import { Preformatted, Code } from '@hozo/core'
+            const el = <Preformatted><Code>{'a\n  b'}</Code></Preformatted>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+        assert_eq!(output.jsx, "<pre><code>{'a\\n  b'}</code></pre>");
+    }
+
+    #[test]
+    fn a_preformatted_block_inside_a_paragraph_is_a_nesting_warning() {
+        // `<pre>` is flow content and a `<p>` holds phrasing content only; the
+        // browser would close the paragraph before it.
+        let source = r#"
+            import { Paragraph, Preformatted } from '@hozo/core'
+            const el = <Paragraph><Preformatted>x</Preformatted></Paragraph>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        assert!(
+            parsed.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::InvalidSemanticNesting),
+            "{:?}",
+            parsed.diagnostics
         );
     }
 
