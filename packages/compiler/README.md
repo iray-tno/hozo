@@ -27,6 +27,31 @@ complaint.
 The loader tries them in order — an adjacent development addon first, then
 the platform package — and `HOZO_NATIVE_BINDING` overrides both.
 
+## Candidate stylesheet cascade
+
+The project candidate cache supplies CSS for class strings that cannot be fully
+compiled statically. Its ordinary utility selectors live in
+`@layer utilities.hozo-candidates`, below Tailwind's direct `utilities` rules.
+Raw HTML therefore keeps Tailwind's responsive/state cascade whichever stylesheet
+is imported first. The stylesheet declares the standard `theme, base, components,
+utilities` layer order; applications with a custom layer policy should account for it.
+
+Compiled dynamic class targets also receive the internal `hozo-candidate-owner`
+class. A second, unlayered copy of the utility rules matches only that exact target,
+using `:where()` to add no specificity. This preserves the existing Hozo static +
+dynamic override order, corresponding to Native's later dynamic style entries;
+simply layering every fallback rule would instead let unlayered static CSS win.
+Dynamic component class slots mark their own child target, not an entire subtree.
+Empty/absent class values remain empty/absent. Do not author the internal marker.
+
+This costs additional CSS declarations and a small generated Web class-string
+operation; keyframes are not duplicated. It introduces no new runtime dependency
+and does not change Native class resolution or add Native dynamic-variant support.
+The browser regression in
+[`candidate-cascade.test.mjs`](../../examples/storybook-demo/scripts/candidate-cascade.test.mjs)
+checks real Tailwind output, both import orders, multiple viewport widths, and
+compiled dynamic styles against the actual Native resolver's style-array result.
+
 ## Read-only module analysis
 
 `@hozo/compiler/analysis` exposes `analyzeModule(source, { compiler, file, root, targets })`.

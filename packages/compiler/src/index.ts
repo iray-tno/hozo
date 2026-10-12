@@ -224,11 +224,13 @@ export interface CandidateCache {
   /// Drops cached contributions from files absent from a complete walk.
   retainFiles(paths: string[]): number
   /// The Web stylesheet: rules under the classes' real Tailwind names, for
-  /// the browser's own CSS engine to match.
+  /// the browser's own CSS engine to match. Ordinary selectors sit in the
+  /// low-priority `utilities.hozo-candidates` layer; an unlayered copy applies
+  /// only to compiler-marked dynamic class targets, not their descendants.
   /// `order` is these candidates in the order Tailwind would write
-  /// them (see `@hozo/tailwind`'s `loadProjectClassOrder`). Every rule
-  /// here is a single class, so order is the whole cascade; without it
-  /// the set is alphabetical and `sm:` lands after `md:`.
+  /// them (see `@hozo/tailwind`'s `loadProjectClassOrder`). The ownership
+  /// marker adds no specificity, so ordering within each copy still matters;
+  /// without an order hint the set is alphabetical and `sm:` lands after `md:`.
   renderCss(theme?: Theme, order?: readonly string[]): string
   /// Every candidate held, to be handed to Tailwind for an order.
   candidates(): string[]

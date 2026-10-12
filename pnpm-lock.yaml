@@ -559,6 +559,9 @@ importers:
       '@guidepup/virtual-screen-reader':
         specifier: 0.32.1
         version: 0.32.1
+      '@hozo/compiler':
+        specifier: workspace:*
+        version: link:../../packages/compiler
       '@hozo/storybook':
         specifier: workspace:*
         version: link:../../packages/storybook
