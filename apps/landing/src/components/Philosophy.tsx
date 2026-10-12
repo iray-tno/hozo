@@ -101,7 +101,6 @@ export function Philosophy() {
               How styles compile &rarr;
             </Link>
           </View>
-
         </View>
       </View>
     </Section>
