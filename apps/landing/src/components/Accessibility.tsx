@@ -1,4 +1,5 @@
-import { Heading, List, ListItem, Paragraph, Section, Text, View } from '@hozo/core'
+import { Code, Heading, List, ListItem, Paragraph, Section, Text, View } from '@hozo/core'
+import { Svg } from '@hozo/svg'
 
 export function Accessibility() {
   return (
@@ -29,27 +30,27 @@ export function Accessibility() {
           <View className="p-8 rounded-2xl timber-panel border border-hinoki/18 flex flex-col justify-between">
             <View>
               <View className="w-10 h-10 rounded-xl bg-bengara/12 border border-bengara/30 items-center justify-center text-bengara mb-6">
-                <svg
+                <Svg
                   className="w-5 h-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   aria-hidden="true"
                 >
-                  <path
+                  <Svg.Path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
                   />
-                </svg>
+                </Svg>
               </View>
               <Heading level={3} className="text-xl font-bold text-shikkui mb-3">
                 Compile-Time ARIA Verification
               </Heading>
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
                 Directly derived from the machine-readable W3C specification via{' '}
-                <code className="text-shikkui-muted text-xs">aria-query</code>. Catches invalid
+                <Code className="text-shikkui-muted text-xs">aria-query</Code>. Catches invalid
                 roles, missing attributes, and malformed states during compilation before they ship
                 to production.
               </Paragraph>
@@ -68,12 +69,12 @@ export function Accessibility() {
             <List className="mt-6 text-xs text-stone-400 space-y-2 border-t border-hinoki/18 pt-4 list-none p-0 m-0">
               <ListItem className="flex flex-row items-center gap-2">
                 <Text className="text-tatami-light">✓</Text> Automatic semantic mapping (
-                <code className="text-shikkui-muted">header &rarr; heading</code>,{' '}
-                <code className="text-shikkui-muted">search &rarr; searchbox</code>)
+                <Code className="text-shikkui-muted">header &rarr; heading</Code>,{' '}
+                <Code className="text-shikkui-muted">search &rarr; searchbox</Code>)
               </ListItem>
               <ListItem className="flex flex-row items-center gap-2">
                 <Text className="text-tatami-light">✓</Text> Abstract role warnings (
-                <code className="text-shikkui-muted">role="widget"</code>)
+                <Code className="text-shikkui-muted">role="widget"</Code>)
               </ListItem>
             </List>
           </View>
@@ -82,20 +83,20 @@ export function Accessibility() {
           <View className="p-8 rounded-2xl timber-panel border border-hinoki/18 flex flex-col justify-between">
             <View>
               <View className="w-10 h-10 rounded-xl bg-hinoki/10 border border-hinoki/35 items-center justify-center text-hinoki mb-6">
-                <svg
+                <Svg
                   className="w-5 h-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   aria-hidden="true"
                 >
-                  <path
+                  <Svg.Path
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     strokeWidth="2"
                     d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
                   />
-                </svg>
+                </Svg>
               </View>
               <Heading level={3} className="text-xl font-bold text-shikkui mb-3">
                 Accessible Patterns (@hozo/patterns)

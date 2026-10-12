@@ -1,4 +1,4 @@
-import { Heading, Paragraph, Section, Text, View } from '@hozo/core'
+import { Code, Heading, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
 
 export function CodeShowcase() {
   return (
@@ -40,57 +40,57 @@ export function CodeShowcase() {
                 React Native / @hozo/core
               </Text>
             </View>
-            <pre className="font-mono text-xs sm:text-sm text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
-              <code>
-                <span className="text-hinoki">import</span> {'{ '}
-                <span className="text-shikkui">View</span>,{' '}
-                <span className="text-shikkui">Heading</span>,{' '}
-                <span className="text-shikkui">Paragraph</span>,{' '}
-                <span className="text-shikkui">Button</span>
-                {' }'} <span className="text-hinoki">from</span>{' '}
-                <span className="text-tatami-light">'@hozo/core'</span>
+            <Preformatted className="font-mono text-xs sm:text-sm text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
+              <Code>
+                <Text className="text-hinoki">import</Text> {'{ '}
+                <Text className="text-shikkui">View</Text>,{' '}
+                <Text className="text-shikkui">Heading</Text>,{' '}
+                <Text className="text-shikkui">Paragraph</Text>,{' '}
+                <Text className="text-shikkui">Button</Text>
+                {' }'} <Text className="text-hinoki">from</Text>{' '}
+                <Text className="text-tatami-light">'@hozo/core'</Text>
                 {'\n\n'}
-                <span className="text-hinoki">export function</span>{' '}
-                <span className="text-hinoki-light">NotificationCard</span>
+                <Text className="text-hinoki">export function</Text>{' '}
+                <Text className="text-hinoki-light">NotificationCard</Text>
                 {'({ '}
-                <span className="text-shikkui-muted">title</span>,{' '}
-                <span className="text-shikkui-muted">message</span>,{' '}
-                <span className="text-shikkui-muted">onDismiss</span>
+                <Text className="text-shikkui-muted">title</Text>,{' '}
+                <Text className="text-shikkui-muted">message</Text>,{' '}
+                <Text className="text-shikkui-muted">onDismiss</Text>
                 {' }) {\n'}
                 {'  '}
-                <span className="text-hinoki">return</span> ({'\n'}
-                {'    '}&lt;<span className="text-shikkui">View</span>{' '}
-                <span className="text-stone-400">role</span>=
-                <span className="text-tatami-light">"alert"</span>{' '}
-                <span className="text-stone-400">className</span>=
-                <span className="text-tatami-light">
+                <Text className="text-hinoki">return</Text> ({'\n'}
+                {'    '}&lt;<Text className="text-shikkui">View</Text>{' '}
+                <Text className="text-stone-400">role</Text>=
+                <Text className="text-tatami-light">"alert"</Text>{' '}
+                <Text className="text-stone-400">className</Text>=
+                <Text className="text-tatami-light">
                   "p-6 rounded-2xl bg-yakisugi-800 border border-hinoki/20"
-                </span>
+                </Text>
                 &gt;{'\n'}
-                {'      '}&lt;<span className="text-shikkui">Heading</span>{' '}
-                <span className="text-stone-400">level</span>={'{'}
-                <span className="text-bengara">2</span>
-                {'}'} <span className="text-stone-400">className</span>=
-                <span className="text-tatami-light">"text-xl font-bold text-shikkui mb-2"</span>
-                &gt;{'{title}'}&lt;/<span className="text-shikkui">Heading</span>&gt;{'\n'}
-                {'      '}&lt;<span className="text-shikkui">Paragraph</span>{' '}
-                <span className="text-stone-400">className</span>=
-                <span className="text-tatami-light">"text-stone-400 text-sm mb-4"</span>
-                &gt;{'{message}'}&lt;/<span className="text-shikkui">Paragraph</span>&gt;{'\n'}
-                {'      '}&lt;<span className="text-shikkui">Button</span>{' '}
-                <span className="text-stone-400">onPress</span>={'{onDismiss}'}{' '}
-                <span className="text-stone-400">className</span>=
-                <span className="text-tatami-light">
+                {'      '}&lt;<Text className="text-shikkui">Heading</Text>{' '}
+                <Text className="text-stone-400">level</Text>={'{'}
+                <Text className="text-bengara">2</Text>
+                {'}'} <Text className="text-stone-400">className</Text>=
+                <Text className="text-tatami-light">"text-xl font-bold text-shikkui mb-2"</Text>
+                &gt;{'{title}'}&lt;/<Text className="text-shikkui">Heading</Text>&gt;{'\n'}
+                {'      '}&lt;<Text className="text-shikkui">Paragraph</Text>{' '}
+                <Text className="text-stone-400">className</Text>=
+                <Text className="text-tatami-light">"text-stone-400 text-sm mb-4"</Text>
+                &gt;{'{message}'}&lt;/<Text className="text-shikkui">Paragraph</Text>&gt;{'\n'}
+                {'      '}&lt;<Text className="text-shikkui">Button</Text>{' '}
+                <Text className="text-stone-400">onPress</Text>={'{onDismiss}'}{' '}
+                <Text className="text-stone-400">className</Text>=
+                <Text className="text-tatami-light">
                   "bg-bengara px-4 py-2 rounded-lg text-shikkui font-medium"
-                </span>
+                </Text>
                 &gt;{'\n'}
                 {'        '}Dismiss{'\n'}
-                {'      '}&lt;/<span className="text-shikkui">Button</span>&gt;{'\n'}
-                {'    '}&lt;/<span className="text-shikkui">View</span>&gt;{'\n'}
+                {'      '}&lt;/<Text className="text-shikkui">Button</Text>&gt;{'\n'}
+                {'    '}&lt;/<Text className="text-shikkui">View</Text>&gt;{'\n'}
                 {'  '}){'\n'}
                 {'}'}
-              </code>
-            </pre>
+              </Code>
+            </Preformatted>
           </View>
 
           {/* Split Bottom: Web vs Native Output */}
@@ -119,46 +119,46 @@ export function CodeShowcase() {
                   No RNW Wrapper
                 </Text>
               </View>
-              <pre className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
-                <code>
-                  <span className="text-stone-500">
+              <Preformatted className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
+                <Code>
+                  <Text className="text-stone-500">
                     {'// Real compiler output: semantic DOM & scoped atomic CSS\n'}
-                  </span>
-                  <span className="text-hinoki">export function</span>{' '}
-                  <span className="text-hinoki-light">NotificationCard</span>
+                  </Text>
+                  <Text className="text-hinoki">export function</Text>{' '}
+                  <Text className="text-hinoki-light">NotificationCard</Text>
                   {'({ '}
-                  <span className="text-shikkui-muted">title</span>,{' '}
-                  <span className="text-shikkui-muted">message</span>,{' '}
-                  <span className="text-shikkui-muted">onDismiss</span>
+                  <Text className="text-shikkui-muted">title</Text>,{' '}
+                  <Text className="text-shikkui-muted">message</Text>,{' '}
+                  <Text className="text-shikkui-muted">onDismiss</Text>
                   {' }) {\n'}
                   {'  '}
-                  <span className="text-hinoki">return</span> ({'\n'}
-                  {'    '}&lt;<span className="text-tatami-light">div</span>{' '}
-                  <span className="text-hinoki-light">className</span>=
-                  <span className="text-tatami-light">"hozo-view hozo-0"</span>{' '}
-                  <span className="text-hinoki-light">role</span>=
-                  <span className="text-tatami-light">"alert"</span>&gt;{'\n'}
-                  {'      '}&lt;<span className="text-tatami-light">h2</span>{' '}
-                  <span className="text-hinoki-light">className</span>=
-                  <span className="text-tatami-light">"hozo-1"</span>&gt;{'{title}'}&lt;/
-                  <span className="text-tatami-light">h2</span>&gt;{'\n'}
-                  {'      '}&lt;<span className="text-tatami-light">p</span>{' '}
-                  <span className="text-hinoki-light">className</span>=
-                  <span className="text-tatami-light">"hozo-2"</span>&gt;{'{message}'}&lt;/
-                  <span className="text-tatami-light">p</span>&gt;{'\n'}
-                  {'      '}&lt;<span className="text-tatami-light">button</span>{' '}
-                  <span className="text-hinoki-light">className</span>=
-                  <span className="text-tatami-light">"hozo-3"</span>{' '}
-                  <span className="text-hinoki-light">type</span>=
-                  <span className="text-tatami-light">"button"</span>{' '}
-                  <span className="text-hinoki-light">onClick</span>={'{onDismiss}'}&gt;{'\n'}
+                  <Text className="text-hinoki">return</Text> ({'\n'}
+                  {'    '}&lt;<Text className="text-tatami-light">div</Text>{' '}
+                  <Text className="text-hinoki-light">className</Text>=
+                  <Text className="text-tatami-light">"hozo-view hozo-0"</Text>{' '}
+                  <Text className="text-hinoki-light">role</Text>=
+                  <Text className="text-tatami-light">"alert"</Text>&gt;{'\n'}
+                  {'      '}&lt;<Text className="text-tatami-light">h2</Text>{' '}
+                  <Text className="text-hinoki-light">className</Text>=
+                  <Text className="text-tatami-light">"hozo-1"</Text>&gt;{'{title}'}&lt;/
+                  <Text className="text-tatami-light">h2</Text>&gt;{'\n'}
+                  {'      '}&lt;<Text className="text-tatami-light">p</Text>{' '}
+                  <Text className="text-hinoki-light">className</Text>=
+                  <Text className="text-tatami-light">"hozo-2"</Text>&gt;{'{message}'}&lt;/
+                  <Text className="text-tatami-light">p</Text>&gt;{'\n'}
+                  {'      '}&lt;<Text className="text-tatami-light">button</Text>{' '}
+                  <Text className="text-hinoki-light">className</Text>=
+                  <Text className="text-tatami-light">"hozo-3"</Text>{' '}
+                  <Text className="text-hinoki-light">type</Text>=
+                  <Text className="text-tatami-light">"button"</Text>{' '}
+                  <Text className="text-hinoki-light">onClick</Text>={'{onDismiss}'}&gt;{'\n'}
                   {'        '}Dismiss{'\n'}
-                  {'      '}&lt;/<span className="text-tatami-light">button</span>&gt;{'\n'}
-                  {'    '}&lt;/<span className="text-tatami-light">div</span>&gt;{'\n'}
+                  {'      '}&lt;/<Text className="text-tatami-light">button</Text>&gt;{'\n'}
+                  {'    '}&lt;/<Text className="text-tatami-light">div</Text>&gt;{'\n'}
                   {'  '}){'\n'}
                   {'}'}
-                </code>
-              </pre>
+                </Code>
+              </Preformatted>
             </View>
 
             {/* Right: Native Output */}
@@ -185,47 +185,47 @@ export function CodeShowcase() {
                   React Native / Fabric
                 </Text>
               </View>
-              <pre className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
-                <code>
-                  <span className="text-stone-500">
+              <Preformatted className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
+                <Code>
+                  <Text className="text-stone-500">
                     {'// Real compiler output: StyleSheet & native primitives\n'}
-                  </span>
-                  <span className="text-hinoki">export function</span>{' '}
-                  <span className="text-hinoki-light">NotificationCard</span>
+                  </Text>
+                  <Text className="text-hinoki">export function</Text>{' '}
+                  <Text className="text-hinoki-light">NotificationCard</Text>
                   {'({ '}
-                  <span className="text-shikkui-muted">title</span>,{' '}
-                  <span className="text-shikkui-muted">message</span>,{' '}
-                  <span className="text-shikkui-muted">onDismiss</span>
+                  <Text className="text-shikkui-muted">title</Text>,{' '}
+                  <Text className="text-shikkui-muted">message</Text>,{' '}
+                  <Text className="text-shikkui-muted">onDismiss</Text>
                   {' }) {\n'}
                   {'  '}
-                  <span className="text-hinoki">return</span> ({'\n'}
-                  {'    '}&lt;<span className="text-shikkui">View</span>{' '}
-                  <span className="text-stone-400">style</span>={'{hozoStyles.hozo0}'}{' '}
-                  <span className="text-stone-400">role</span>=
-                  <span className="text-tatami-light">"alert"</span>&gt;{'\n'}
-                  {'      '}&lt;<span className="text-shikkui">Text</span>{' '}
-                  <span className="text-stone-400">style</span>={'{hozoStyles.hozo1}'}{' '}
-                  <span className="text-stone-400">accessibilityRole</span>=
-                  <span className="text-tatami-light">"header"</span>&gt;{'{title}'}&lt;/
-                  <span className="text-shikkui">Text</span>&gt;{'\n'}
-                  {'      '}&lt;<span className="text-shikkui">Text</span>{' '}
-                  <span className="text-stone-400">style</span>={'{hozoStyles.hozo2}'}&gt;
-                  {'{message}'}&lt;/<span className="text-shikkui">Text</span>&gt;{'\n'}
-                  {'      '}&lt;<span className="text-shikkui">Pressable</span>{' '}
-                  <span className="text-stone-400">style</span>={'{hozoStyles.hozo3}'}{' '}
-                  <span className="text-stone-400">accessibilityRole</span>=
-                  <span className="text-tatami-light">"button"</span>{' '}
-                  <span className="text-stone-400">onPress</span>={'{onDismiss}'}&gt;{'\n'}
-                  {'        '}&lt;<span className="text-shikkui">Text</span>{' '}
-                  <span className="text-stone-400">style</span>={'{hozoStyles.hozo3_text}'}
+                  <Text className="text-hinoki">return</Text> ({'\n'}
+                  {'    '}&lt;<Text className="text-shikkui">View</Text>{' '}
+                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo0}'}{' '}
+                  <Text className="text-stone-400">role</Text>=
+                  <Text className="text-tatami-light">"alert"</Text>&gt;{'\n'}
+                  {'      '}&lt;<Text className="text-shikkui">Text</Text>{' '}
+                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo1}'}{' '}
+                  <Text className="text-stone-400">accessibilityRole</Text>=
+                  <Text className="text-tatami-light">"header"</Text>&gt;{'{title}'}&lt;/
+                  <Text className="text-shikkui">Text</Text>&gt;{'\n'}
+                  {'      '}&lt;<Text className="text-shikkui">Text</Text>{' '}
+                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo2}'}&gt;
+                  {'{message}'}&lt;/<Text className="text-shikkui">Text</Text>&gt;{'\n'}
+                  {'      '}&lt;<Text className="text-shikkui">Pressable</Text>{' '}
+                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo3}'}{' '}
+                  <Text className="text-stone-400">accessibilityRole</Text>=
+                  <Text className="text-tatami-light">"button"</Text>{' '}
+                  <Text className="text-stone-400">onPress</Text>={'{onDismiss}'}&gt;{'\n'}
+                  {'        '}&lt;<Text className="text-shikkui">Text</Text>{' '}
+                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo3_text}'}
                   &gt;Dismiss&lt;/
-                  <span className="text-shikkui">Text</span>&gt;{'\n'}
-                  {'      '}&lt;/<span className="text-shikkui">Pressable</span>&gt;{'\n'}
-                  {'    '}&lt;/<span className="text-shikkui">View</span>&gt;{'\n'}
+                  <Text className="text-shikkui">Text</Text>&gt;{'\n'}
+                  {'      '}&lt;/<Text className="text-shikkui">Pressable</Text>&gt;{'\n'}
+                  {'    '}&lt;/<Text className="text-shikkui">View</Text>&gt;{'\n'}
                   {'  '}){'\n'}
                   {'}'}
-                </code>
-              </pre>
+                </Code>
+              </Preformatted>
             </View>
           </View>
         </View>

@@ -53,6 +53,9 @@ importers:
       '@hozo/example-three-kumimono':
         specifier: workspace:*
         version: link:../../examples/three-kumimono
+      '@hozo/svg':
+        specifier: workspace:*
+        version: link:../../packages/svg
       '@hozo/three':
         specifier: workspace:*
         version: link:../../packages/three

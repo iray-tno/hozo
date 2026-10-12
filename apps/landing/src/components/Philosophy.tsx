@@ -1,4 +1,4 @@
-import { Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
+import { Code, Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
 
 export function Philosophy() {
   return (
@@ -36,8 +36,8 @@ export function Philosophy() {
             </Heading>
             <Paragraph className="text-stone-400 text-sm leading-relaxed mb-4">
               Write standard components imported from{' '}
-              <code className="text-shikkui-muted text-xs font-mono">react-native</code> or{' '}
-              <code className="text-shikkui-muted text-xs font-mono">@hozo/core</code>. No
+              <Code className="text-shikkui-muted text-xs font-mono">react-native</Code> or{' '}
+              <Code className="text-shikkui-muted text-xs font-mono">@hozo/core</Code>. No
               proprietary DSL, no framework rewrites. Adopt incrementally in existing production
               codebases without breaking a line of business logic.
             </Paragraph>
@@ -67,7 +67,7 @@ export function Philosophy() {
             <Paragraph className="text-stone-400 text-sm leading-relaxed mb-4">
               ARIA is not an afterthought or runtime patch. Hozo treats W3C ARIA as a foundational
               grammar, validating roles and required attributes at build time via{' '}
-              <code className="text-shikkui-muted text-xs font-mono">aria-query</code> before code
+              <Code className="text-shikkui-muted text-xs font-mono">aria-query</Code> before code
               ever reaches production.
             </Paragraph>
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-xs text-shikkui-muted font-mono">
