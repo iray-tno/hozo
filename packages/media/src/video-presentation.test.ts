@@ -11,6 +11,7 @@ const status = (patch: Partial<VideoStatus> = {}): VideoStatus => ({
   buffering: false,
   currentTime: 0,
   duration: 4,
+  seekability: { status: 'unknown', reason: 'not-exposed' },
   error: null,
   ...patch,
 })
@@ -45,12 +46,25 @@ test('poster requires both viewing activity and a frame, in either order; metada
 
 test('authored callback mutation cannot rewrite the internal presentation snapshot', () => {
   const owner = new VideoPresentation(() => {})
-  const observed = status({ error: { src: 'clip.mp4', operation: 'play', message: 'denied' } })
+  const observed = status({
+    error: { src: 'clip.mp4', operation: 'play', message: 'denied' },
+    seekability: { status: 'available', origin: 'engine', ranges: [{ start: 0, end: 4 }] },
+  })
   owner.observe(observed)
   observed.currentTime = 99
   if (observed.error) observed.error.message = 'overwritten'
+  if (observed.seekability.status === 'available') {
+    const range = observed.seekability.ranges[0]
+    assert.ok(range)
+    range.end = 0
+  }
   assert.equal(owner.status?.currentTime, 0)
   assert.equal(owner.status?.error?.message, 'denied')
+  assert.deepEqual(owner.status?.seekability, {
+    status: 'available',
+    origin: 'engine',
+    ranges: [{ start: 0, end: 4 }],
+  })
 })
 
 test('DOM compositor watcher cancels/ignores retired callbacks and never interprets metadata as a frame', () => {

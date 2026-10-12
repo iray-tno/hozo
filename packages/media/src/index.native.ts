@@ -1,5 +1,7 @@
 export type { VideoControlsLabels, VideoControlsProps } from './control-types.ts'
 export type {
+  MediaSeekability,
+  MediaSeekRange,
   VideoError,
   VideoHandle,
   VideoPosterError,

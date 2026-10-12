@@ -110,6 +110,21 @@ test('real Audio decodes PCM, produces non-silent samples, uses keyboard control
     assert.equal(await page.locator('audio').getAttribute('aria-label'), 'Three tones')
     assert.equal(await page.evaluate(() => document.querySelector('audio').controls), false)
     assert.equal(await page.evaluate(() => window.ref.current.getStatus().duration), 4)
+    await page.waitForFunction(() => window.statuses.at(-1)?.seekability.status === 'available')
+    const seekEvidence = await page.evaluate(() => {
+      const element = document.querySelector('audio')
+      const ranges = Array.from({ length: element.seekable.length }, (_, index) => ({
+        start: element.seekable.start(index),
+        end: element.seekable.end(index),
+      }))
+      return { observed: window.ref.current.getStatus().seekability, ranges }
+    })
+    assert.ok(seekEvidence.ranges.length > 0)
+    assert.deepEqual(seekEvidence.observed, {
+      status: 'available',
+      origin: 'engine',
+      ranges: seekEvidence.ranges,
+    })
     await page.evaluate(() => {
       window.originalAudio = document.querySelector('audio')
       window.originalHandle = window.ref.current

@@ -32,6 +32,7 @@ test('loading and error cannot be played or sought, but observed buffering playb
     buffering: true,
     currentTime: 0,
     duration: null,
+    seekability: { status: 'unknown', reason: 'not-exposed' },
     error: null,
   }
   for (const snapshot of [null, status, { ...status, status: 'error' as const }]) {

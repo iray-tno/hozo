@@ -1,4 +1,5 @@
 import { mediaPlaybackOptions, samePlaybackRate } from './playback-rate.ts'
+import { domSeekability } from './seek-policy.ts'
 import { durationValue, seekTime, VideoObserver } from './status.ts'
 import type { VideoCallbacks, VideoError, VideoHandle, VideoOptions } from './types.ts'
 import { mediaVolume } from './volume.ts'
@@ -32,6 +33,7 @@ export class DomMediaSession implements VideoHandle {
     const times = () => ({
       currentTime: this.element.currentTime,
       duration: durationValue(this.element.duration),
+      seekability: domSeekability(this.element),
     })
     const ready = () => {
       this.observer.update({
@@ -48,9 +50,15 @@ export class DomMediaSession implements VideoHandle {
     })
     listen('durationchange', () => this.observer.update(times()))
     listen('timeupdate', () => this.observer.update(times()))
+    listen('progress', () => this.observer.update(times()))
+    listen('loadeddata', () => this.observer.update(times()))
+    listen('seeking', () => this.observer.update(times()))
+    listen('seeked', () => this.observer.update(times()))
+    listen('emptied', () => this.observer.update({ status: 'loading', playing: false, ...times() }))
     listen('play', () =>
       this.observer.update({
         status: 'ready',
+        ...times(),
         playing: true,
         error: this.rateError ?? this.volumeError,
       }),
@@ -68,7 +76,7 @@ export class DomMediaSession implements VideoHandle {
     } else if (this.element.readyState >= 1) {
       ready()
     } else {
-      this.observer.update({})
+      this.observer.update(times())
     }
   }
 
@@ -149,13 +157,18 @@ export class DomMediaSession implements VideoHandle {
     try {
       this.element.currentTime = seekTime(seconds, this.getStatus())
     } catch (error) {
-      this.observer.fail('seek', error)
+      // A silent range change detected by the command also belongs to its
+      // failure observation; do not republish an old "available" snapshot.
+      this.observer.fail('seek', error, domSeekability(this.element))
       throw error
     }
   }
 
   getStatus() {
-    return this.observer.snapshot()
+    const snapshot = this.observer.snapshot()
+    // Commands can run between progress/time events. Recheck ranges read-only,
+    // without callbacks or upgrading a retired resource's observations.
+    return this.active ? { ...snapshot, seekability: domSeekability(this.element) } : snapshot
   }
 
   dispose() {

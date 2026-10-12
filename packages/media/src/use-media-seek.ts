@@ -1,25 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { constrainSeek, interactiveSeekTarget, seekBounds } from './seek-policy.ts'
 import type { MediaSeekProps } from './seek-types.ts'
-import type { MediaHandle, MediaStatus } from './types.ts'
+import type { MediaHandle } from './types.ts'
 
 type Scope = { player: MediaHandle | null; src: string | undefined }
 type Draft = Scope & { seconds: number }
 type Failure = Scope & { message: string }
 const same = (a: Scope | null, b: Scope) => a?.player === b.player && a?.src === b.src
-
-function durationOf(status: MediaStatus | null) {
-  if (
-    !status ||
-    (status.status !== 'ready' && status.status !== 'ended') ||
-    status.duration === null ||
-    !Number.isFinite(status.duration) ||
-    status.duration <= 0 ||
-    !Number.isFinite(status.currentTime) ||
-    status.currentTime < 0
-  )
-    return null
-  return status.duration
-}
 
 function clock(seconds: number) {
   const whole = Math.floor(seconds)
@@ -49,7 +36,8 @@ export function useMediaSeek(props: MediaSeekProps) {
   const [failure, setFailure] = useState<Failure | null>(null)
   const [pending, setPending] = useState<Scope | null>(null)
   const inFlight = useRef<Scope | null>(null)
-  const duration = durationOf(props.status)
+  const bounds = seekBounds(props.status)
+  const duration = bounds?.duration ?? null
   const boundPlayer = scope.player
   const boundSource = scope.src
   useEffect(() => {
@@ -78,16 +66,16 @@ export function useMediaSeek(props: MediaSeekProps) {
     if (!current() || !scope.player || latest.current.disabled || same(inFlight.current, scope))
       return null
     const observed = scope.player.getStatus()
-    const duration = durationOf(observed)
-    if (observed.src !== scope.src || duration === null) return null
-    return { ...observed, duration }
+    if (observed.src !== scope.src || seekBounds(observed) === null) return null
+    return observed
   }
   const change = (seconds: number) => {
     if (!Number.isFinite(seconds)) return
     try {
       const observed = read()
       if (!observed) return
-      setDraft({ ...scope, seconds: Math.max(0, Math.min(seconds, observed.duration)) })
+      const target = interactiveSeekTarget(Math.max(0, seconds), observed)
+      if (target !== null) setDraft({ ...scope, seconds: target })
     } catch (error) {
       report(error)
     }
@@ -103,7 +91,8 @@ export function useMediaSeek(props: MediaSeekProps) {
       const observed = read()
       if (!observed || !scope.player) return
       setFailure(null)
-      const target = Math.max(0, Math.min(seconds, observed.duration))
+      const target = interactiveSeekTarget(Math.max(0, seconds), observed)
+      if (target === null) return
       const result = scope.player.seekTo(target)
       if (result && typeof result.then === 'function') {
         const request = { ...scope }
@@ -119,26 +108,34 @@ export function useMediaSeek(props: MediaSeekProps) {
     }
   }
 
-  const activeDraft = same(draft, scope) && !props.disabled && !same(pending, scope) ? draft : null
+  const activeDraft =
+    bounds && same(draft, scope) && !props.disabled && !same(pending, scope) ? draft : null
   const time = props.status?.currentTime ?? 0
+  const previewValue = (value: number) =>
+    props.status ? (interactiveSeekTarget(value, props.status) ?? value) : value
   return {
     /** Use as the Slider's React key, not a DOM id or a player command. */
     key,
     position: duration === null ? unavailable : position(time, duration),
     previewing: activeDraft !== null,
+    // This may remain unknown while best-effort Native seeking is enabled.
+    seekability: props.status?.seekability ?? {
+      status: 'unknown' as const,
+      reason: 'not-observed' as const,
+    },
     error: props.status?.error?.message ?? (same(failure, scope) ? failure?.message : undefined),
     slider:
-      duration === null
+      !bounds || duration === null || !props.status
         ? null
         : {
-            min: 0,
-            max: duration,
+            min: bounds.min,
+            max: bounds.max,
             step,
-            value: Math.min(duration, activeDraft?.seconds ?? time),
+            value: constrainSeek(activeDraft?.seconds ?? time, props.status) ?? bounds.min,
             disabled: !!props.disabled || !scope.player || same(pending, scope),
             accessibilityLabel: name,
             valueText: (value: number) =>
-              activeDraft ? preview(value, duration) : position(time, duration),
+              activeDraft ? preview(previewValue(value), duration) : position(time, duration),
             onValueChange: change,
             onValueCommit: commit,
             onValueCancel: cancel,

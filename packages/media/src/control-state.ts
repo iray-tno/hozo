@@ -1,4 +1,5 @@
 import type { VideoControlsProps } from './control-types.ts'
+import { constrainSeek, stepSeekTarget } from './seek-policy.ts'
 import type { VideoStatus } from './types.ts'
 
 function clock(seconds: number): string {
@@ -34,12 +35,12 @@ export function videoControlState(status: VideoStatus | null, disabled = false) 
   return {
     playing: status?.playing ?? false,
     // A buffering player must still be pausable even if its engine says loading.
-    toggleDisabled: disabled || !status || (!status.playing && !ready),
-    backwardDisabled: disabled || !ready || !status || status.currentTime <= 0,
-    forwardDisabled:
+    toggleDisabled:
       disabled ||
-      !ready ||
       !status ||
-      (status.duration !== null && status.currentTime >= status.duration),
+      (!status.playing &&
+        (!ready || (status.status === 'ended' && constrainSeek(0, status) === null))),
+    backwardDisabled: disabled || !ready || !status || stepSeekTarget(status, -1) === null,
+    forwardDisabled: disabled || !ready || !status || stepSeekTarget(status, 1) === null,
   }
 }

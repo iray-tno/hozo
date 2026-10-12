@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AudioControls } from './audio-controls.native.tsx'
 import { type AudioProps, type AudioStatus, validateAudioProps } from './audio-types.ts'
 import { NativeAudioSession } from './native-audio-session.ts'
+import { copyMediaStatus } from './status.ts'
 import { useAudioHandle } from './use-audio-handle.ts'
 
 export function Audio(props: AudioProps) {
@@ -19,7 +20,7 @@ function SourceAudio(props: AudioProps) {
     const controller = new NativeAudioSession(resource, props.src, () => ({
       ...latest.current,
       onStatusChange: (observed) => {
-        setStatus(observed)
+        setStatus(copyMediaStatus(observed))
         latest.current.onStatusChange?.(observed)
       },
     }))

@@ -71,6 +71,7 @@ test('Native async loading, autoplay, observed playback, seeking and dynamic opt
   assert.equal(session.getStatus().currentTime, 1)
   session.seekTo(100)
   assert.equal(fake.player.currentTime, 4)
+  assert.deepEqual(session.getStatus().seekability, { status: 'unknown', reason: 'not-exposed' })
   fake.emit('playToEnd')
   assert.equal(session.getStatus().status, 'ready', 'Expo loop-boundary is not terminal end')
   assert.throws(() => session.seekTo(Number.NaN), RangeError)

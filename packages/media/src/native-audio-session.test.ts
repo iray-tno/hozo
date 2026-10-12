@@ -80,7 +80,9 @@ test('Audio maps ready/buffering/unknown duration and engine errors, not request
   session.start({})
   assert.deepEqual(e.calls, [{ uri: 'a.wav' }])
   assert.equal(session.getStatus().status, 'loading')
+  assert.deepEqual(session.getStatus().seekability, { status: 'unknown', reason: 'not-exposed' })
   e.emit({ duration: 0 })
+  assert.deepEqual(session.getStatus().seekability, { status: 'unknown', reason: 'not-exposed' })
   assert.equal(session.getStatus().duration, null)
   e.emit({ isLive: true, duration: 120 })
   assert.equal(
@@ -159,6 +161,7 @@ test('Audio accepted async seeks await the engine, clamp known duration, and exp
   assert.equal(session.getStatus().currentTime, 0, 'request must not manufacture positioning')
   e.finishSeek()
   await seek
+  assert.deepEqual(session.getStatus().seekability, { status: 'unknown', reason: 'not-exposed' })
   const rejected = session.seekTo(1)
   e.failSeek()
   await assert.rejects(rejected, /seek failed/)

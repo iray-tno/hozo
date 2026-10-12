@@ -15,6 +15,7 @@ const status = (patch = {}) => ({
   buffering: false,
   currentTime: 1,
   duration: 8,
+  seekability: { status: 'unknown', reason: 'not-exposed' },
   error: null,
   ...patch,
 })
@@ -49,6 +50,76 @@ async function component(native, audio = false) {
 
 for (const native of [false, true]) {
   const platform = native ? 'Native' : 'Web'
+  for (const audio of [false, true])
+    test(`${platform} ${audio ? 'Audio' : 'Video'} controls share range direction, transient unavailability and fresh-command guards`, async (t) => {
+      const Controls = await component(native, audio)
+      const ranges = {
+        status: 'available',
+        origin: 'engine',
+        ranges: [
+          { start: 2, end: 4 },
+          { start: 6, end: 7 },
+        ],
+      }
+      const empty = { status: 'unavailable', origin: 'engine', reason: 'empty-ranges' }
+      let observed = status({ currentTime: 4, seekability: ranges })
+      const requests = []
+      const player = {
+        getStatus: () => observed,
+        seekTo: (value) => requests.push(value),
+        play: async () => requests.push('play'),
+        pause: () => requests.push('pause'),
+      }
+      let renderer
+      const render = (snapshot = observed) =>
+        React.createElement(Controls, {
+          player: { current: player },
+          status: snapshot,
+          seekStep: 1,
+        })
+      await act(async () => {
+        renderer = create(render())
+      })
+      t.after(async () => {
+        await act(async () => renderer.unmount())
+      })
+      const buttons = () => renderer.root.findAllByType(native ? 'RNPressable' : 'button')
+      const activate = (index) => buttons()[index].props[native ? 'onPress' : 'onClick']()
+      await act(async () => activate(2))
+      assert.deepEqual(requests, [6], 'forward does not stick on or move behind the 4s endpoint')
+      observed = status({ currentTime: 6, seekability: ranges })
+      await act(async () => renderer.update(render()))
+      await act(async () => activate(1))
+      assert.deepEqual(requests, [6, 4], 'backward crosses the gap in its requested direction')
+      const stale = observed
+      observed = status({ currentTime: 6, seekability: empty })
+      await act(async () => renderer.update(render(stale)))
+      await act(async () => activate(2))
+      assert.deepEqual(requests, [6, 4], 'even an enabled stale button rechecks current capability')
+      await act(async () => renderer.update(render()))
+      assert.ok(
+        buttons()
+          .slice(1)
+          .every((button) => button.props.disabled),
+      )
+      assert.equal(buttons()[0].props.disabled, false)
+      await act(async () => activate(0))
+      assert.equal(requests.at(-1), 'play', 'unseekable ready playback remains usable')
+      observed = status({ status: 'ended', currentTime: 8, seekability: empty })
+      await act(async () => renderer.update(render()))
+      const before = requests.length
+      assert.equal(buttons()[0].props.disabled, true)
+      await act(async () => activate(0))
+      assert.equal(requests.length, before, 'no misleading replay without a rewind target')
+      observed = status({ seekability: { status: 'unknown', reason: 'not-exposed' } })
+      await act(async () => renderer.update(render()))
+      assert.ok(
+        buttons().every((button) => !button.props.disabled),
+        'unknown does not forbid best effort',
+      )
+      await act(async () => activate(2))
+      assert.equal(requests.at(-1), 2)
+    })
   test(`${platform} Audio controls await rewind, catch async seeks and never restart disabled/retired players`, async () => {
     const Controls = await component(native, true)
     let observed = status({ status: 'ended', currentTime: 8 })

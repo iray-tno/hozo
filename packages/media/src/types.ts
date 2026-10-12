@@ -8,6 +8,18 @@ export interface MediaError {
   message: string
 }
 
+export interface MediaSeekRange {
+  /** Seconds on the source's media timeline, not byte/download ranges. */
+  start: number
+  end: number
+}
+
+/** Current engine evidence, not a promise that every seek will succeed. */
+export type MediaSeekability =
+  | { status: 'available'; origin: 'engine'; ranges: readonly MediaSeekRange[] }
+  | { status: 'unavailable'; origin: 'engine'; reason: 'empty-ranges' }
+  | { status: 'unknown'; reason: 'not-exposed' | 'not-observed' }
+
 export interface MediaStatus {
   src: string
   status: 'loading' | 'ready' | 'ended' | 'error'
@@ -16,6 +28,8 @@ export interface MediaStatus {
   currentTime: number
   /** Unknown or unbounded durations are null, not an invented zero. */
   duration: number | null
+  /** Empty engine ranges mean unavailable now; duration alone cannot prove support. */
+  seekability: MediaSeekability
   error: MediaError | null
 }
 
@@ -23,7 +37,7 @@ export interface MediaHandle {
   /** Resolves when the request is accepted; onPlay observes actual playback. */
   play(): Promise<void>
   pause(): void
-  /** Seconds; finite, nonnegative, clamped to a known duration. */
+  /** Seconds; finite, nonnegative, constrained to observed ranges or a known duration. */
   seekTo(seconds: number): void | Promise<void>
   getStatus(): MediaStatus
 }

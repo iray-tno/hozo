@@ -34,7 +34,8 @@ cannot seek our original Chrome fragmented MP4 with only an `mfra` index
 ([upstream](https://github.com/androidx/media/issues/3088)). The owned fixture
 now includes a `sidx` index without changing its encoded samples or timing.
 This fixes the measurement source, not arbitrary application containers;
-explicit seekability/capability reporting remains follow-up work.
+the capability slice below now reports what each engine exposes, without
+claiming to detect Native container support when Expo does not expose it.
 
 ## Boundaries and next slices
 
@@ -431,5 +432,38 @@ but ignored settings. Compiled controls retain the real media host and never
 play/seek merely to apply configuration. These are harness tests, not a claim
 of actual Native output; that requires a fresh-build measurement run.
 
-Sources: [Expo SDK 57 Video API](https://docs.expo.dev/versions/v57.0.0/sdk/video/),
+### Source-bound seek capability slice
+
+`MediaStatus.seekability` distinguishes engine-reported `available` ranges,
+current `unavailable/empty-ranges`, and `unknown/not-exposed|not-observed`.
+An empty observation is recoverable, not a permanent codec verdict. A finite
+duration, buffered data, accepted setter or successful previous seek cannot
+prove capability. Web reads actual `HTMLMediaElement.seekable` on relevant
+media/progress events and again read-only before a command, with detached
+snapshot ranges and retired-source isolation. Native Expo SDK 57's installed
+Audio/Video APIs expose no capability or range data, so they remain unknown;
+do not replace that lack of evidence with an invented false/true flag.
+
+The same pure policy serves commands, Slider previews/commits and step
+buttons. Observed gaps project to the nearest endpoint (ties earlier), while
+step buttons must retain their requested direction. Interactive Slider requests that would project back to the
+current gap endpoint instead advance to the next range in their requested
+direction, so keyboard/Native AX steps cannot get stuck. Imperative absolute
+seeks keep nearest-point projection. Empty ranges suppress
+seeking/replay but never suppress ready play or active pause. Unknown Native
+capability preserves readiness/duration-bounded best-effort seeking and
+visible errors; an application can explicitly disable it if confirmation is
+required. The Slider still requires a finite total duration; live/DVR-window
+presentation and embedded-engine controls are separate contracts.
+
+Tests compare Audio/Video status against actual Chromium seekable ranges and
+retain all existing decoder/playback/keyboard gates. Pure and mocked adapter/
+host tests cover discontinuities, transient empty/recovered ranges, silent
+range changes before commit, snapshot mutation, direction, denials and Native
+unknown behavior. They do not certify arbitrary source decoding, exact seeks,
+Native container capability or physical/AT operation. No probe seek, synthetic
+clock, warm-up playback, retry or host-specific author override is introduced.
+
+Sources: [HTML media seeking](https://html.spec.whatwg.org/multipage/media.html#dom-media-seekable),
+[Expo SDK 57 Video API](https://docs.expo.dev/versions/v57.0.0/sdk/video/),
 [Expo SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/).

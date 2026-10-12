@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { videoControlLabels, videoControlState } from './control-state.ts'
 import type { VideoControlsProps } from './control-types.ts'
+import { stepSeekTarget } from './seek-policy.ts'
 import type { MediaHandle } from './types.ts'
 
 /** One command/observation policy; platform files only own rendering and names. */
@@ -74,10 +75,9 @@ export function useVideoControls(props: VideoControlsProps) {
       } else {
         // Use the handle's current clock, not a potentially old render snapshot.
         const step = current.seekStep ?? 10
-        const target = Math.max(0, observed.currentTime + (command === 'backward' ? -step : step))
-        const seek = player.seekTo(
-          observed.duration === null ? target : Math.min(target, observed.duration),
-        )
+        const target = stepSeekTarget(observed, command === 'backward' ? -step : step)
+        if (target === null) return
+        const seek = player.seekTo(target)
         if (seek && typeof seek.then === 'function') void seek.catch(report)
       }
     } catch (error) {

@@ -12,6 +12,7 @@ const props: MediaCaptionsProps = {
     status: 'ready',
     currentTime: 0,
     duration: null,
+    seekability: { status: 'unknown', reason: 'not-exposed' },
     playing: false,
     buffering: false,
     error: null,
