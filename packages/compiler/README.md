@@ -37,10 +37,20 @@ is imported first. The stylesheet declares the standard `theme, base, components
 utilities` layer order; applications with a custom layer policy should account for it.
 
 Compiled dynamic class targets also receive the internal `hozo-candidate-owner`
-class. A second, unlayered copy of the utility rules matches only that exact target,
-using `:where()` to add no specificity. This preserves the existing Hozo static +
-dynamic override order, corresponding to Native's later dynamic style entries;
-simply layering every fallback rule would instead let unlayered static CSS win.
+class. A second, unlayered copy of the utility rules matches only that exact target.
+The marker sits inside `:where()`, so it adds nothing, and `:not(hozo-none)` adds one
+type selector's weight, (0,0,1). That settles static + dynamic on one element by
+specificity rather than by which stylesheet the bundler emits first:
+
+- a caller's class beats the component's resting look, its unconditional classes and
+  a branch the source picked (`size === 'sm' ? 'px-3' : 'px-4'`, written through a
+  weightless `:where([data-hozo-cond-…])`), all at (0,1,0);
+- the component's state rules, `:hover`, `[data-hozo-disabled]`, `[aria-…]` and the
+  rest at (0,2,0), beat the caller's class.
+
+Native orders its style array the same way: the caller's `hozoClasses(...)` goes after
+the resting entries and before the element's state entries. Simply layering every
+fallback rule would instead let unlayered static CSS win.
 Dynamic component class slots mark their own child target, not an entire subtree.
 Empty/absent class values remain empty/absent. Do not author the internal marker.
 

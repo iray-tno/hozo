@@ -399,11 +399,16 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
             continue;
         };
         let selector = css::escape_class_selector(&utility.class_name);
-        // Zero added specificity: this retains the old cascade on compiler-
-        // owned dynamic targets without raising it on ordinary HTML or on
-        // their descendants. Append before render_rule adds conditions and
-        // pseudo-elements, including group/peer and arbitrary selectors.
-        let owned_selector = format!("{selector}:where(.hozo-candidate-owner)");
+        // The owner class adds nothing (`:where`), so this never reaches
+        // ordinary HTML or a target's descendants. `:not(hozo-none)` -- an
+        // element nothing is called -- adds one type's worth, (0,0,1), and
+        // that is the whole cascade between a component and its caller
+        // (#881): above the component's resting look at (0,1,0), whichever
+        // stylesheet the bundler emits first, and below its state rules at
+        // (0,2,0), as on Native, where the caller's styles go between the two.
+        // Append before render_rule adds conditions and pseudo-elements,
+        // including group/peer and arbitrary selectors.
+        let owned_selector = format!("{selector}:where(.hozo-candidate-owner):not(hozo-none)");
         // One rule per group: a `container` is a width plus a max-width at
         // each breakpoint, which cannot be one rule.
         let mut rules = String::new();
@@ -2122,7 +2127,7 @@ export function Login() {
         assert!(css.contains("padding-top: 32px;"));
         assert!(css.starts_with("@layer theme, base, components, utilities;"));
         assert!(css.contains("@layer utilities.hozo-candidates {"));
-        assert!(css.contains(".p-8:where(.hozo-candidate-owner) {"));
+        assert!(css.contains(".p-8:where(.hozo-candidate-owner):not(hozo-none) {"));
     }
 
     #[test]
@@ -2950,7 +2955,7 @@ export function Login() {
         assert!(!output.jsx.contains(r#"="true""#));
 
         // And the CSS selector that attribute name feeds is present too.
-        assert!(output.css.contains("] {"));
+        assert!(output.css.contains("]) {"), "{}", output.css);
     }
 
     #[test]

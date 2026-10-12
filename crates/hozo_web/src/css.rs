@@ -1434,7 +1434,12 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
     match expr {
         ConditionExpr::Static(true) => String::new(),
         ConditionExpr::Static(false) => ":not(*)".to_string(),
-        ConditionExpr::Ref(expr_ref) => format!("[{}]", expr_ref_attribute(*expr_ref)),
+        // Weightless, because a branch the source picks is still the resting
+        // look: `size === 'sm' ? 'px-3' : 'px-4'` is (0,1,0) like a plain
+        // `px-4`, and so loses to a caller's class rather than beating it
+        // (#881). `:not()` and `:is()` take their arguments' weight, so the
+        // other arms stay weightless too.
+        ConditionExpr::Ref(expr_ref) => format!(":where([{}])", expr_ref_attribute(*expr_ref)),
         ConditionExpr::Not(inner) => format!(":not({})", condition_expr_selector(inner)),
         ConditionExpr::And(a, b) => format!("{}{}", condition_expr_selector(a), condition_expr_selector(b)),
         ConditionExpr::Or(a, b) => {
@@ -2447,7 +2452,7 @@ mod tests {
         let expr = ConditionExpr::And(Box::new(a), Box::new(ConditionExpr::Not(Box::new(b))));
         let (at_rule, selector) = condition_shape(&Condition::Expr(expr));
         assert!(at_rule.is_empty());
-        assert_eq!(selector, "&[data-hozo-cond-0-1]:not([data-hozo-cond-2-3])");
+        assert_eq!(selector, "&:where([data-hozo-cond-0-1]):not(:where([data-hozo-cond-2-3]))");
     }
 
     #[test]

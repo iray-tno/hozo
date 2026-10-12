@@ -1448,3 +1448,26 @@ fn an_unpaired_token_costs_nothing() {
     assert!(!output.jsx.contains("__hozoDark"), "{}", output.jsx);
     assert!(output.prelude.is_empty(), "{:?}", output.prelude);
 }
+
+/// A caller's runtime `className` wins over the component's resting look
+/// and loses to its state, the cascade the Web gets from specificity (#881).
+#[test]
+fn a_callers_class_goes_after_the_resting_look_and_before_the_state() {
+    let source = r#"
+            import clsx from 'clsx'
+            import { Button } from '@hozo/core'
+            const el = <Button disabled={off} className={clsx('p-2 md:p-3 disabled:opacity-50', big ? 'px-6' : 'px-1', className)}>Save</Button>
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    let at = |needle: &str| {
+        output.jsx.find(needle).unwrap_or_else(|| panic!("{needle} missing from {}", output.jsx))
+    };
+    let caller = at("hozoClasses(className)");
+    // The resting look, a breakpoint and a className branch, comes first.
+    assert!(at("hozoStyles.hozo0,") < caller, "{}", output.jsx);
+    assert!(at("hozoStyles.hozo0_md") < caller, "{}", output.jsx);
+    assert!(at("(big) && ") < caller, "{}", output.jsx);
+    // The element's own state comes after.
+    assert!(caller < at("(off) && hozoStyles.hozo0_disabled"), "{}", output.jsx);
+}

@@ -872,7 +872,7 @@ pub(super) fn render_node(
     let mut frames = crate::conditions::AnimatedFrames::default();
     let animates = component == "HozoAnimated";
     let transform_entry_start = style_entries.len();
-    build_style_entries(
+    let state_start = build_style_entries(
         &own_declarations,
         &base_name,
         source,
@@ -936,13 +936,18 @@ pub(super) fn render_node(
         }
     }
 
-    // After the compiled styles, so it wins the same way it would in the
-    // source: `cn('p-4', getDynamic())` puts the opaque part last, and RN
+    // After the compiled resting styles, so it wins the same way it would in
+    // the source: `cn('p-4', getDynamic())` puts the opaque part last, and RN
     // resolves a style array last-wins just like JSX's own duplicate-prop
-    // rule.
-    for expr_ref in &node.class_name_fallback {
-        style_array_parts.push(format!("hozoClasses({})", source_text(source, *expr_ref)));
-    }
+    // rule. Before the element's state styles, which a caller's class does
+    // not beat on Web either: a disabled button looks disabled whatever
+    // colour it was given (#881).
+    let fallback: Vec<String> = node
+        .class_name_fallback
+        .iter()
+        .map(|expr_ref| format!("hozoClasses({})", source_text(source, *expr_ref)))
+        .collect();
+    style_array_parts.splice(state_start..state_start, fallback);
 
     // The owner collects events for both inherited styles and child-authored
     // styles. A Text reads context; putting modality handlers on it does not
