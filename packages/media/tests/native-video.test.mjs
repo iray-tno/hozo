@@ -122,6 +122,7 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   })
   const a = players[0]
   const host = renderer.root.findByType('ExpoVideoView')
+  const initialHandle = ref.current
   assert.equal(host.props.player, a)
   assert.deepEqual(a.loads, [], 'a committed player does not load before the host has a size')
   await act(async () => {
@@ -148,6 +149,7 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
     )
   })
   assert.equal(players.length, 1, 'callback/config changes do not reload the movie')
+  assert.equal(ref.current, initialHandle, 'observations/configuration retain the source handle')
   assert.equal(a.muted, true)
   assert.equal(a.loop, true)
   assert.equal(renderer.root.findByType('ExpoVideoView').props.nativeControls, false)

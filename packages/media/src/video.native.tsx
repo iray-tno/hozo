@@ -1,5 +1,12 @@
 import { createVideoPlayer, type VideoPlayer, VideoView } from 'expo-video'
-import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { NativeVideoSession } from './native-session.ts'
 import { type VideoProps, validateVideoProps } from './types.ts'
 
@@ -15,10 +22,10 @@ function SourceVideo(props: VideoProps) {
   latest.current = props
   const session = useRef<VideoResource | null>(null)
 
-  function requireSession() {
+  const requireSession = useCallback(() => {
     if (!session.current) throw new Error('Video is not mounted')
     return session.current.controller
-  }
+  }, [])
 
   useLayoutEffect(() => {
     // Native resources belong to a committed host, never an abandoned render.
@@ -55,12 +62,17 @@ function SourceVideo(props: VideoProps) {
     }
   }, [resource, hasLayout])
 
-  useImperativeHandle(props.ref, () => ({
-    play: async () => requireSession().play(),
-    pause: () => session.current?.controller.pause(),
-    seekTo: (seconds) => requireSession().seekTo(seconds),
-    getStatus: () => requireSession().getStatus(),
-  }))
+  // Observations update props, not the source-owned command identity.
+  useImperativeHandle(
+    props.ref,
+    () => ({
+      play: async () => requireSession().play(),
+      pause: () => session.current?.controller.pause(),
+      seekTo: (seconds) => requireSession().seekTo(seconds),
+      getStatus: () => requireSession().getStatus(),
+    }),
+    [requireSession],
+  )
 
   useEffect(() => {
     session.current?.controller.setOptions({

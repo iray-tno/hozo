@@ -184,6 +184,54 @@ be empty. This first companion has no draggable slider, volume or fullscreen
 controls; caption selection is a separate `/captions` companion. Standard engine
 controls remain an alternative.
 
+### Direct seeking with a Slider
+
+`@hozo/media/seek` exports `useMediaSeek` for either Audio or Video. This leaf
+imports only React, not a widget, Native host or either playback engine. The
+application supplies its slider and presentation; for example:
+
+```tsx
+import { type MediaSeekProps, useMediaSeek } from '@hozo/media/seek'
+import { Slider } from '@hozo/patterns'
+import { Text } from '@hozo/primitives'
+
+function Seek(props: MediaSeekProps) {
+  const seek = useMediaSeek(props)
+  return <>
+    {seek.slider
+      ? <Slider key={seek.key} {...seek.slider}
+          style={{ position: 'relative', height: 44, width: '100%', backgroundColor: '#e2e8f0' }}
+          thumbStyle={{ position: 'absolute', top: 0, height: 44, width: 24, backgroundColor: '#4f46e5' }}
+          fillStyle={{ position: 'absolute', top: 0, height: 44, backgroundColor: '#c7d2fe' }} />
+      : <Text>{seek.position}</Text>}
+    {seek.error && <Text>{seek.error}</Text>}
+  </>
+}
+```
+
+Pass the player's ref and **observed** `onStatusChange` snapshot. Use `seek.key`
+as the Slider's React key: a new URI **or a replacement handle at the same URI**
+retires the old gesture owner. Style the slider, including its focus appearance,
+as appropriate for your application. This is an opt-in companion, not a change
+to platform controls or the Audio/Video engine.
+
+Drag changes only a local preview, identified by `previewing` and the default
+"Seek to …" value text. `position` continues to describe the observed clock.
+Release requests one seek; cancellation requests none. Keyboard and Native
+increment/decrement actions commit one step. Accepted requests do not invent
+an observed clock or change play/pause. Asynchronous Audio seeks disable this
+slider until settlement; current denials are exposed, retired denials ignored.
+Commit rechecks the handle/source, readiness, disabled state and live duration.
+
+Unknown/live, unready or invalid ranges return `slider: null` and a localized
+unavailable message, not a fabricated maximum. A finite duration is **not**
+proof that a container can seek: engine denials remain visible. `step` defaults
+to one positive finite second; `accessibilityLabel` defaults to "Playback
+position". `labels.unavailable`, `labels.position(seconds, duration)` and
+`labels.preview(seconds, duration)` customize wording. No automatic live
+announcement is attached to the advancing clock. Web keyboard and mocked
+Native gesture/accessibility-action tests are not AT/device certification.
+
 A label and native controls do not establish media accessibility. Authors must
 supply appropriate alternatives for content. Embedded track selection,
 audio description, poster, fullscreen/PiP

@@ -47,6 +47,26 @@ diagnostic playback probe are unchanged. Real browser keyboard and mocked
 Native adapter tests do not certify assistive-technology operation. Slider,
 volume and caption selection are not inside this playback companion.
 
+Direct seeking is a separate engine-independent `/seek` binding:
+`useMediaSeek({ player, status, disabled, step, labels })` supplies common
+controlled Slider props and a source/handle lifetime key. Applications compose
+their own slider; media imports no widget and adds no dependencies. The shared
+Audio and custom-Video examples use the existing patterns Slider on both hosts.
+
+The Slider's value is an explicitly named preview while dragging, not a fake
+decoder clock. Release sends one request, cancel/capture loss sends none, and
+keyboard/Native accessibility actions commit one step. The binding rechecks
+fresh handle observations, disables itself while an asynchronous seek settles,
+and does not change playback. Retired gestures and rejections cannot affect a
+replacement source/handle. Unknown or unready finite ranges supply no slider;
+finite duration does not certify container seekability. Applications connect
+the returned key to the widget to retire its own pointer/responder state.
+Native touch coordinates belong to the track, not its parent or thumb. Both
+Slider hosts retain the last input independently of React batching and expose
+`onValueCancel` separately from `onValueCommit`. Video handles now retain their
+identity across observations/options, as Audio handles already did. Native
+mocked gesture/adjustable semantics are not a TalkBack/VoiceOver claim.
+
 `Audio` and `AudioControls` use the independent `@hozo/media/audio` entry.
 Web owns a real HTML audio element, reusing the video adapter's
 HTMLMediaElement lifetime/event policy. Native owns one committed `expo-audio`
@@ -191,6 +211,15 @@ No delay, warm-up playback, forced seek, alternate surface or weaker pixel gate
 is used. Mocked ordering/lifetime tests do not prove that this resolves the
 emulator failure; a fresh-build run must still pass the same initial-frame,
 seek/play and remount pixel gates.
+
+The subsequent fresh-build [run 38164875376](https://github.com/iray-tno/hozo/actions/runs/38164875376)
+passed all 13 Android and 12 iOS full checks, including the unchanged Video
+gates. Both artifacts identify this run as `binaryRun` and the PR merge source
+`4fcadacb607bb872c2313d3840793127346f0366`, with diagnostics off. Android's
+initial/seek/remount pixel waits were 476/446/438ms; iOS's were
+1580/2143/3278ms. The prior failed result is retained. One successful fresh
+series after the ordering repair is not proof of zero flakiness or of its
+precise relationship to the native decoder error.
 
 During playback the diagnostic status label retains the first real decoder
 time whose two-decimal display is above 0.25s, rather than repainting at every

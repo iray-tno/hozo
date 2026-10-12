@@ -22,6 +22,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import {
+  I18nManager,
   type LayoutChangeEvent,
   PanResponder,
   type StyleProp,
@@ -35,6 +36,7 @@ export interface HozoSliderProps extends Partial<SliderRange> {
   defaultValue?: number
   onValueChange?: (value: number) => void
   onValueCommit?: (value: number) => void
+  onValueCancel?: () => void
   valueText?: (value: number) => string
   orientation?: 'horizontal' | 'vertical'
   disabled?: boolean
@@ -61,6 +63,7 @@ export function HozoSlider({
   defaultValue,
   onValueChange,
   onValueCommit,
+  onValueCancel,
   valueText,
   min = 0,
   max = 100,
@@ -80,13 +83,34 @@ export function HozoSlider({
 
   // Read inside the responder, which is created once and would otherwise
   // close over the first render's value forever.
-  const live = useRef({ current, range, vertical, disabled, value, onValueChange, onValueCommit })
-  live.current = { current, range, vertical, disabled, value, onValueChange, onValueCommit }
+  const live = useRef({
+    current,
+    range,
+    vertical,
+    disabled,
+    value,
+    onValueChange,
+    onValueCommit,
+    onValueCancel,
+  })
+  live.current = {
+    current,
+    range,
+    vertical,
+    disabled,
+    value,
+    onValueChange,
+    onValueCommit,
+    onValueCancel,
+  }
 
   const box = useRef({ left: 0, top: 0, width: 0, height: 0 })
+  const gesture = useRef<number | null>(null)
   const onLayout = useCallback((event: LayoutChangeEvent) => {
-    const { x, y, width, height } = event.nativeEvent.layout
-    box.current = { left: x, top: y, width, height }
+    const { width, height } = event.nativeEvent.layout
+    // locationX/Y are relative to this track, not its parent. Parent offsets
+    // from onLayout would shift every touch target inside a padded container.
+    box.current = { left: 0, top: 0, width, height }
   }, [])
 
   const change = useCallback((next: number) => {
@@ -104,25 +128,40 @@ export function HozoSlider({
         onPanResponderGrant: (event) => {
           const { locationX, locationY } = event.nativeEvent
           const at = live.current
-          change(
-            valueAt(
-              fractionAt({ x: locationX, y: locationY }, box.current, { vertical: at.vertical }),
-              at.range,
-            ),
+          if (at.disabled) return
+          gesture.current = valueAt(
+            fractionAt({ x: locationX, y: locationY }, box.current, {
+              vertical: at.vertical,
+              rtl: I18nManager.isRTL,
+            }),
+            at.range,
           )
+          change(gesture.current)
         },
         onPanResponderMove: (event) => {
           const { locationX, locationY } = event.nativeEvent
           const at = live.current
-          change(
-            valueAt(
-              fractionAt({ x: locationX, y: locationY }, box.current, { vertical: at.vertical }),
-              at.range,
-            ),
+          if (gesture.current === null || at.disabled) return
+          gesture.current = valueAt(
+            fractionAt({ x: locationX, y: locationY }, box.current, {
+              vertical: at.vertical,
+              rtl: I18nManager.isRTL,
+            }),
+            at.range,
           )
+          change(gesture.current)
         },
         onPanResponderRelease: () => {
-          live.current.onValueCommit?.(live.current.current)
+          if (gesture.current === null) return
+          const target = gesture.current
+          gesture.current = null
+          if (live.current.disabled) live.current.onValueCancel?.()
+          else live.current.onValueCommit?.(target)
+        },
+        onPanResponderTerminate: () => {
+          if (gesture.current === null) return
+          gesture.current = null
+          live.current.onValueCancel?.()
         },
       }),
     [change],
@@ -137,7 +176,14 @@ export function HozoSlider({
   }
 
   return (
-    <View style={style} onLayout={onLayout} {...responder.panHandlers}>
+    // Touches belong to the track, so locationX/Y cannot become thumb-local.
+    <View
+      accessible={false}
+      pointerEvents="box-only"
+      style={style}
+      onLayout={onLayout}
+      {...responder.panHandlers}
+    >
       {fillStyle === undefined ? null : (
         <View
           accessibilityElementsHidden
@@ -149,6 +195,7 @@ export function HozoSlider({
         />
       )}
       <View
+        accessible
         accessibilityRole="adjustable"
         accessibilityLabel={accessibilityLabel}
         accessibilityValue={{ min, max, now: current, text: valueText?.(current) }}
@@ -162,7 +209,10 @@ export function HozoSlider({
           if (event.nativeEvent.actionName === 'increment') step1('ArrowUp')
           if (event.nativeEvent.actionName === 'decrement') step1('ArrowDown')
         }}
-        style={thumbStyle}
+        style={[
+          thumbStyle,
+          vertical ? { bottom: `${fraction * 100}%` } : { start: `${fraction * 100}%` },
+        ]}
       />
     </View>
   )

@@ -3,6 +3,7 @@ import { MediaCaptionSelector, MediaCaptions } from '@hozo/media/captions'
 import { Button, Text, View } from '@hozo/primitives'
 import { Heading } from '@hozo/typography'
 import { useRef, useState } from 'react'
+import { MediaSeekControl } from './media-seek.tsx'
 import { japaneseSquareCues, squareCaptionOptions, squareCues } from './video-captions.ts'
 
 /** The two hosts supply the same checked-in MP4 through their own asset loader. */
@@ -60,7 +61,10 @@ export function VideoDemo({
         <Text className="text-base text-red-700">{status.error.message}</Text>
       )}
       {customControls && (
-        <VideoControls player={video} status={status} disabled={!visible} seekStep={1} />
+        <>
+          <VideoControls player={video} status={status} disabled={!visible} seekStep={1} />
+          <MediaSeekControl player={video} status={visible ? status : null} disabled={!visible} />
+        </>
       )}
       <View className="gap-2">
         {captions && (

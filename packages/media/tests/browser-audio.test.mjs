@@ -27,14 +27,19 @@ test('real Audio decodes PCM, produces non-silent samples, uses keyboard control
     import React, {useState} from 'react'
     import {createRoot} from 'react-dom/client'
     import {Audio} from './src/audio-index.ts'
+    import {useMediaSeek} from './src/seek-index.ts'
+    import {Slider} from '../patterns/src/slider.tsx'
     window.ref = React.createRef(); window.statuses = []; window.errors = []; window.ends = 0
     function App() {
       const [src, change] = useState('/tones.wav')
       const [mounted, mount] = useState(true)
       const [options, configure] = useState({muted:false, loop:false})
+      const [status, setStatus] = useState(null)
+      const seek = useMediaSeek({player:window.ref, status:mounted ? status : null})
       window.change = change; window.mount = mount; window.configure = configure
-      return mounted && <Audio ref={window.ref} src={src} accessibilityLabel="Three tones" {...options}
-        onStatusChange={s => window.statuses.push(s)} onError={e => window.errors.push(e)} onEnded={() => window.ends++}/>
+      return mounted && <><Audio ref={window.ref} src={src} accessibilityLabel="Three tones" {...options}
+        onStatusChange={s => {window.statuses.push(s);setStatus(s)}} onError={e => window.errors.push(e)} onEnded={() => window.ends++}/>
+        {seek.slider && <Slider key={seek.key} {...seek.slider}/>}</>
     }
     createRoot(document.getElementById('root')).render(<React.StrictMode><App/></React.StrictMode>)
     window.attachGraph = async () => {
@@ -104,6 +109,13 @@ test('real Audio decodes PCM, produces non-silent samples, uses keyboard control
     assert.equal(await page.locator('audio').getAttribute('aria-label'), 'Three tones')
     assert.equal(await page.evaluate(() => document.querySelector('audio').controls), false)
     assert.equal(await page.evaluate(() => window.ref.current.getStatus().duration), 4)
+    const scrubber = page.getByRole('slider', { name: 'Playback position', exact: true })
+    await scrubber.focus()
+    await page.keyboard.press('ArrowRight')
+    await page.waitForFunction(() => Math.abs(window.ref.current.getStatus().currentTime - 1) < 0.2)
+    assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
+    await page.keyboard.press('Home')
+    await page.waitForFunction(() => window.ref.current.getStatus().currentTime < 0.1)
     await page.waitForFunction(() => {
       const ranges = document.querySelector('audio').seekable
       return ranges.length && ranges.end(ranges.length - 1) >= 3.99

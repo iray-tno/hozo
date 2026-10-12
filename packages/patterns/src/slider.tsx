@@ -45,6 +45,8 @@ export interface HozoSliderProps extends Partial<SliderRange> {
    * a drag. `onValueChange` fires throughout; this fires once at the end.
    */
   onValueCommit?: (value: number) => void
+  /** A canceled/capture-lost drag is not a committed value. */
+  onValueCancel?: () => void
   /**
    * What the value is called, when the number is not the answer.
    *
@@ -75,6 +77,9 @@ export interface HozoSliderProps extends Partial<SliderRange> {
    * React Native's half has always taken one.
    */
   style?: CSSProperties
+  /** Inline presentation for applications composing a portable layout surface. */
+  thumbStyle?: CSSProperties
+  fillStyle?: CSSProperties
 }
 
 export function HozoSlider({
@@ -82,6 +87,7 @@ export function HozoSlider({
   defaultValue,
   onValueChange,
   onValueCommit,
+  onValueCancel,
   valueText,
   min = 0,
   max = 100,
@@ -94,10 +100,13 @@ export function HozoSlider({
   thumbClassName,
   fillClassName,
   style,
+  thumbStyle,
+  fillStyle,
 }: HozoSliderProps) {
   const range: SliderRange = { min, max, step, bigStep }
   const track = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
+  const gestureValue = useRef<number | null>(null)
   const [uncontrolled, setUncontrolled] = useState(() => snap(defaultValue ?? min, range))
   const current = snap(value ?? uncontrolled, range)
   const vertical = orientation === 'vertical'
@@ -131,12 +140,14 @@ export function HozoSlider({
     event.currentTarget.setPointerCapture(event.pointerId)
     dragging.current = true
     const next = valueUnder(event)
+    gestureValue.current = next
     if (next !== null) change(next)
   }
 
   const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!dragging.current || disabled) return
     const next = valueUnder(event)
+    gestureValue.current = next
     if (next !== null) change(next)
   }
 
@@ -144,7 +155,16 @@ export function HozoSlider({
     if (!dragging.current) return
     dragging.current = false
     event.currentTarget.releasePointerCapture(event.pointerId)
-    onValueCommit?.(current)
+    if (disabled) onValueCancel?.()
+    else onValueCommit?.(gestureValue.current ?? current)
+    gestureValue.current = null
+  }
+
+  const cancel = () => {
+    if (!dragging.current) return
+    dragging.current = false
+    gestureValue.current = null
+    onValueCancel?.()
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -175,13 +195,14 @@ export function HozoSlider({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={cancel}
+      onLostPointerCapture={cancel}
     >
-      {fillClassName === undefined ? null : (
+      {fillClassName === undefined && fillStyle === undefined ? null : (
         <div
           aria-hidden="true"
           className={fillClassName}
-          style={{ [vertical ? 'height' : 'width']: `${fraction * 100}%` }}
+          style={{ ...fillStyle, [vertical ? 'height' : 'width']: `${fraction * 100}%` }}
         />
       )}
       <div
@@ -195,7 +216,7 @@ export function HozoSlider({
         aria-disabled={disabled || undefined}
         tabIndex={disabled ? -1 : 0}
         className={thumbClassName}
-        style={{ [vertical ? 'bottom' : 'insetInlineStart']: `${fraction * 100}%` }}
+        style={{ ...thumbStyle, [vertical ? 'bottom' : 'insetInlineStart']: `${fraction * 100}%` }}
         onKeyDown={onKeyDown}
       />
     </div>

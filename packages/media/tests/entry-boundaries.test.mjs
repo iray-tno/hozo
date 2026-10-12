@@ -86,3 +86,27 @@ test('published captions load neither playback engine on either platform', async
     )
   }
 })
+
+test('published seek bindings import React but no widget, Native host or playback engine', async () => {
+  for (const native of [false, true]) {
+    const result = await build({
+      stdin: {
+        contents: "export { useMediaSeek } from '@hozo/media/seek'",
+        resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+      },
+      bundle: true,
+      write: false,
+      platform: native ? 'node' : 'browser',
+      conditions: native ? ['react-native'] : [],
+      metafile: true,
+      external: ['react'],
+    })
+    const imports = Object.values(result.metafile.outputs).flatMap((output) =>
+      output.imports.map((entry) => entry.path),
+    )
+    assert.deepEqual([...new Set(imports)], ['react'])
+    assert.ok(
+      !Object.keys(result.metafile.inputs).some((name) => /patterns|expo-|react-native/.test(name)),
+    )
+  }
+})

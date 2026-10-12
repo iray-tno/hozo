@@ -49,6 +49,14 @@
       "types": "./dist/captions-index.d.ts",
       "default": "./dist/captions-index.js"
     },
+    "./seek": {
+      "react-native": {
+        "types": "./dist/seek-index.native.d.ts",
+        "default": "./dist/seek-index.native.js"
+      },
+      "types": "./dist/seek-index.d.ts",
+      "default": "./dist/seek-index.js"
+    },
     "./webvtt": {
       "react-native": {
         "types": "./dist/webvtt-index.native.d.ts",
