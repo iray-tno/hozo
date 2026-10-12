@@ -6,6 +6,7 @@ import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { exerciseAudioOutput } from './audio-output.mjs'
+import { exerciseAudioSettingsOutput } from './audio-settings-output.mjs'
 import { readCanvasRounds } from './canvas-rounds.mjs'
 import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './device-evidence.mjs'
 import { waitForImage } from './image-ready.mjs'
@@ -333,7 +334,7 @@ try {
   adb('install', '-r', resolve(root, 'android/app/build/outputs/apk/release/app-release.apk'))
   adb('logcat', '-c')
   adb('shell', 'am', 'force-stop', app)
-  if (evidence.scenario === 'audio-output') {
+  if (evidence.scenario === 'audio-output' || evidence.scenario === 'audio-settings') {
     assert.equal(process.env.QEMU_AUDIO_DRV, 'wav', 'audio output needs the QEMU WAV backend')
     assert.ok(process.env.QEMU_WAV_PATH, 'missing QEMU output path')
     adb('shell', 'settings', 'put', 'system', 'sound_effects_enabled', '0')
@@ -353,7 +354,9 @@ try {
         '--get',
       ).toString(),
     }
-    await exerciseAudioOutput(
+    const exerciseOutput =
+      evidence.scenario === 'audio-settings' ? exerciseAudioSettingsOutput : exerciseAudioOutput
+    await exerciseOutput(
       {
         story,
         waitFor: (value) => waitFor(label(value), value),

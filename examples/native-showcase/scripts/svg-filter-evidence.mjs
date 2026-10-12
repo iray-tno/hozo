@@ -6,7 +6,7 @@ export const SVG_FILTER_KINDS = ['color', 'blur', 'shadow', 'composition', 'blen
 
 export function readAndroidScenario(value = 'full') {
   assert.ok(
-    ['full', 'svg-filters', 'audio-output'].includes(value),
+    ['full', 'svg-filters', 'audio-output', 'audio-settings'].includes(value),
     `Unknown Android scenario: ${value}`,
   )
   return value
