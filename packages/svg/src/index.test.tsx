@@ -117,3 +117,17 @@ test('Svg.Link is a secure semantic anchor with router intent', () => {
   assert.match(html, /data-hozo-navigation-replace=""/)
   assert.match(html, /data-hozo-navigation-prefetch=""/)
 })
+
+test('a named Svg is an image with that name without the compiler, as with it', () => {
+  const named = renderToStaticMarkup(
+    <Svg viewBox="0 0 8 8" accessibilityLabel="Complete">
+      <Svg.Circle cx={4} cy={4} r={3} />
+    </Svg>,
+  )
+  assert.match(named, /^<svg role="img" aria-label="Complete" viewBox="0 0 8 8">/)
+  assert.doesNotMatch(named, /accessibilityLabel/i)
+
+  // No name, no role: what the compiled output does too.
+  const unnamed = renderToStaticMarkup(<Svg viewBox="0 0 8 8" />)
+  assert.equal(unnamed, '<svg viewBox="0 0 8 8"></svg>')
+})

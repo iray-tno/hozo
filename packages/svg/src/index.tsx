@@ -53,7 +53,31 @@ function Tag({
   return <Element {...(rest as SVGProps<SVGSVGElement>)}>{children}</Element>
 }
 
-const Root = element<SVGSVGElement>('svg')
+export interface SvgRootProps extends Passthrough<SVGSVGElement> {
+  /**
+   * Names the drawing: an image with this name, as the compiled `<svg>` is.
+   *
+   * The compiler lowers it to `role="img"` and `aria-label`, and React
+   * Native's `Svg` takes it as a view prop. This fallback passed it through
+   * as an attribute no browser reads, and its type -- plain `SVGProps` --
+   * refused it, so the name every example writes was a type error and, when
+   * forced, did nothing uncompiled.
+   */
+  accessibilityLabel?: string
+}
+
+function Root({ accessibilityLabel, children, ...rest }: SvgRootProps) {
+  // Before the author's own props, so an explicit `role` or `aria-label`
+  // still wins, as a passthrough does on the compiled path.
+  const named =
+    accessibilityLabel === undefined ? undefined : { role: 'img', 'aria-label': accessibilityLabel }
+  return (
+    <svg {...named} {...(rest as SVGProps<SVGSVGElement>)}>
+      {children}
+    </svg>
+  )
+}
+Root.displayName = 'svg'
 
 // Named exports are the compiler ABI. Native lowering imports these names
 // directly; the namespace below is the author-facing API.
