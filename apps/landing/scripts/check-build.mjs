@@ -138,9 +138,9 @@ const snapshot = JSON.parse(
 // The API counters are deliberately not described as a pixel/device pass.
 // Keep that distinction and the path to the executable evidence visible.
 for (const text of [
-  'SVG Filter API / Compiler Boundary',
-  `${snapshot.svgFilterWeb.covered} / ${snapshot.svgFilterWeb.total}`,
-  `${snapshot.svgFilterNative.covered} / ${snapshot.svgFilterNative.total}`,
+  'SVG filter elements',
+  `${snapshot.svgFilterWeb.covered} / ${snapshot.svgFilterWeb.total} Web`,
+  `${snapshot.svgFilterNative.covered} / ${snapshot.svgFilterNative.total} Native`,
   'not prop parity, pixel equivalence or device rendering',
   'packages/tailwind-conformance/src/svg-filters.test.ts',
 ]) {
@@ -148,7 +148,20 @@ for (const text of [
 }
 
 checks.push(
-  [conformance.includes('Cross-Platform'), 'conformance page did not render title'],
+  [conformance.includes('measured against the originals'), 'conformance page did not render title'],
+  // The figures the old page hard-coded, and got wrong: they come from the
+  // snapshot now, so the page can no longer say what the snapshot does not.
+  [!conformance.includes('100%'), 'conformance page wrote a percentage it did not compute'],
+  [
+    conformance.includes(
+      `${snapshot.a11yContracts.primitives - snapshot.a11yContracts.uncontracted} of ${snapshot.a11yContracts.primitives} primitives`,
+    ),
+    'conformance page missing how many primitives have a contract',
+  ],
+  [
+    conformance.includes(`${snapshot.diagnostics.fires} / ${snapshot.diagnostics.declared}`),
+    'conformance page missing the diagnostics that fire',
+  ],
   [conformance.includes(snapshot.versions.tailwind), 'conformance page missing tailwind version'],
   [conformance.includes(snapshot.versions.reactNative), 'conformance page missing RN version'],
   [
