@@ -41,6 +41,65 @@ test('initial cover readiness belongs to the image, not a decoded video frame', 
   assert.equal(coverReady(null), false)
 })
 
+test('metadata does not authorize a disabled seek; dispatch once after the rendered control enables', async () => {
+  let time = 0
+  let clicks = 0
+  const control = {
+    textContent: '',
+    getAttribute: (name) => (name === 'aria-label' ? 'Seek forward 1 second' : null),
+    matches: () => time < 300,
+    click: () => {
+      assert.equal(time, 300)
+      clicks++
+    },
+  }
+  const readiness = createReadiness(
+    { contentDocument: { querySelectorAll: () => [control] } },
+    {
+      deadline: 1000,
+      now: () => time,
+      delay: async () => {
+        time += 100
+      },
+    },
+  )
+  assert.equal(readiness.metadataReady({ currentSrc: 'fixture.mp4', readyState: 1 }), true)
+  await readiness.clickEnabled('Seek forward 1 second')
+  assert.equal(clicks, 1)
+})
+
+test('a never-enabled or aria-disabled control times out without dispatch or retries', async () => {
+  for (const ariaDisabled of [false, true]) {
+    let time = 0
+    const readiness = createReadiness(
+      {
+        contentDocument: {
+          querySelectorAll: () => [
+            {
+              textContent: '',
+              getAttribute: (name) =>
+                name === 'aria-label' ? 'Seek' : ariaDisabled ? 'true' : null,
+              matches: () => !ariaDisabled,
+              click: () => assert.fail('must not dispatch to an unavailable control'),
+            },
+          ],
+        },
+      },
+      {
+        deadline: 100,
+        now: () => time,
+        delay: async () => {
+          time = 100
+        },
+      },
+    )
+    await assert.rejects(
+      readiness.clickEnabled('Seek'),
+      /Timed out waiting for enabled control Seek/,
+    )
+  }
+})
+
 test('wait observes delayed authored controls and rejects a stale story document', async () => {
   let time = 0
   const control = { getAttribute: () => 'Email notifications', textContent: '' }

@@ -50,12 +50,17 @@ function progress(stage, state = 'running', error) {
       tag:media.tagName, src:(media.currentSrc || '').slice(0,80),
       preload:media.preload, readyState:media.readyState, networkState:media.networkState,
       paused:media.paused, seeking:media.seeking, currentTime:media.currentTime,
+      seekable:Array.from({length:media.seekable.length}, (_, index) => ({start:media.seekable.start(index),end:media.seekable.end(index)})),
       error:media.error ? {code:media.error.code,message:media.error.message} : null,
+    })),
+    controls:[...(doc?.querySelectorAll('button') || [])].map(node => ({
+      name:node.getAttribute('aria-label') || node.textContent.trim(),
+      disabled:node.matches(':disabled'), ariaDisabled:node.getAttribute('aria-disabled'),
     })),
   }
   result.textContent = JSON.stringify(window.__sharedResult)
 }
-const {find, wait, storyReady, metadataReady, coverReady, settle} =
+const {find, wait, storyReady, metadataReady, coverReady, clickEnabled, settle} =
   (${createReadiness.toString()})(frame, {deadline:${deadline},onStage:progress})
 function check(value, message) { if (!value) throw new Error(message) }
 function named(selector, name) {
@@ -140,7 +145,7 @@ async function run() {
   const video = frame.contentDocument.querySelector('video')
   check(video?.controls && video.getAttribute('aria-label') === 'Moving square, silent video', 'Missing named video')
   await wait(() => metadataReady(video), 'video metadata')
-  named('button', 'Play video').click()
+  await clickEnabled('Play video')
   await wait(() => !video.paused && frame.contentDocument.body.textContent.includes('playing'), 'video playback')
   check(!video.paused && frame.contentDocument.body.textContent.includes('playing'), 'Showcase play did not update')
   named('button', 'Pause video').click()
@@ -232,8 +237,8 @@ async function run() {
   const posterVideo = frame.contentDocument.querySelector('video')
   await wait(() => metadataReady(posterVideo) && coverReady(frame.contentDocument.querySelector('img[aria-hidden=true]')), 'initial cover image')
   check(frame.contentDocument.querySelector('img[aria-hidden=true]')?.naturalWidth === 320, 'Initial cover is missing')
-  named('button', 'Seek forward 1 second').click()
-  await wait(() => !frame.contentDocument.querySelector('img') && posterVideo.paused, 'explicit seek reveals paused video')
+  await clickEnabled('Seek forward 1 second')
+  await wait(() => !frame.contentDocument.querySelector('img') && posterVideo.paused && !posterVideo.seeking && posterVideo.currentTime > 0, 'explicit seek reveals paused video')
   await settle()
   check(!frame.contentDocument.querySelector('img') && posterVideo.paused, 'Explicit seek did not reveal paused video')
   named('button', 'Remove video').click()

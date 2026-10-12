@@ -58,6 +58,17 @@ export function createReadiness(
   function coverReady(image) {
     return !!image && image.complete && image.naturalWidth === 320
   }
+  async function clickEnabled(name) {
+    // Metadata can arrive before seekable ranges and the control's rendered
+    // enabled state. A click on a disabled button is silently discarded.
+    const control = await wait(() => {
+      const node = find('button', name)
+      return node && !node.matches(':disabled') && node.getAttribute('aria-disabled') !== 'true'
+        ? node
+        : null
+    }, `enabled control ${name}`)
+    control.click()
+  }
   async function settle() {
     await afterRender()
     // An unchanged state has no positive completion signal. Retain the old
@@ -65,7 +76,7 @@ export function createReadiness(
     // without using that delay as proof that a story or media is ready.
     await delay(250)
   }
-  return { find, wait, storyReady, metadataReady, coverReady, settle }
+  return { find, wait, storyReady, metadataReady, coverReady, clickEnabled, settle }
 }
 
 export function validateCompletion(result, pageErrors = []) {
