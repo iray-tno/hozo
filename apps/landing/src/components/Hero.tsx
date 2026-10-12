@@ -89,32 +89,44 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </Link>
           </View>
 
-          {/* Key Metrics & Badges */}
+          {/* The four claims, each a link to the section that backs it */}
           <View className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl w-full text-left">
-            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
+            <Link
+              href="#performance"
+              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border hover:border-hinoki transition-colors"
+            >
               <Text className="text-lg sm:text-xl font-bold text-shikkui mb-1 block">
                 Static paths
               </Text>
               <Text className="text-xs text-stone-400 block">Zero-runtime styling</Text>
-            </View>
-            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
+            </Link>
+            <Link
+              href="#accessibility"
+              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border hover:border-hinoki transition-colors"
+            >
               <Text className="text-lg sm:text-xl font-bold text-hinoki mb-1 block">
                 Accessibility
               </Text>
               <Text className="text-xs text-stone-400 block">First-class by design</Text>
-            </View>
-            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
+            </Link>
+            <Link
+              href="#integrations"
+              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border hover:border-hinoki transition-colors"
+            >
               <Text className="text-lg sm:text-xl font-bold text-tatami-light mb-1 block">
                 Integrations
               </Text>
               <Text className="text-xs text-stone-400 block leading-tight">
                 Vite · Next.js · Metro · Storybook · TanStack
               </Text>
-            </View>
-            <View className="p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border">
+            </Link>
+            <Link
+              href="#architecture"
+              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border hover:border-hinoki transition-colors"
+            >
               <Text className="text-lg sm:text-xl font-bold text-bengara mb-1 block">Compiler</Text>
               <Text className="text-xs text-stone-400 block">Rust + oxc</Text>
-            </View>
+            </Link>
           </View>
         </View>
       </View>
