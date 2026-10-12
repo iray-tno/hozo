@@ -32,7 +32,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
 
       <!-- Page Header -->
       <section class="mb-12 max-w-4xl">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wood-subtle border border-wood text-hinoki text-xs font-mono mb-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hinoki/10 border border-hinoki/18 text-hinoki text-xs font-mono mb-4">
           <span>@hozo/tailwind</span>
           <span class="text-stone-600">•</span>
           <span>AOT Compilation · Zero Runtime</span>
@@ -46,13 +46,13 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
       </section>
 
       <!-- 3-Tier Style Resolution Pipeline -->
-      <div class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
+      <div class="mb-16 rounded-2xl border border-hinoki/18 bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
         <h2 class="text-xl sm:text-2xl font-bold text-shikkui mb-4">The 3-Tier Style Resolution Pipeline</h2>
         <p class="text-sm text-stone-300 leading-relaxed mb-6">
           To ensure 100% predictability with maximum runtime performance, Hozo executes styles through a three-tier pipeline:
         </p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 1: Static AOT</div>
             <h3 class="text-base font-bold text-shikkui mb-2">Build-Time Compilation</h3>
             <p class="text-xs text-stone-300 leading-relaxed">
@@ -60,7 +60,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 2: Dynamic Preflight</div>
             <h3 class="text-base font-bold text-shikkui mb-2">Branch Pre-Calculation</h3>
             <p class="text-xs text-stone-300 leading-relaxed">
@@ -68,7 +68,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 3: Candidate Sheet</div>
             <h3 class="text-base font-bold text-shikkui mb-2">Universal Fallback</h3>
             <p class="text-xs text-stone-300 leading-relaxed">
@@ -84,7 +84,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
           Cross-Platform Variants & Theming
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
             <h3 class="text-lg font-bold text-shikkui mb-2">Pseudo-Class Parity</h3>
             <p class="text-sm text-stone-300 leading-relaxed mb-4">
               Write standard Tailwind variants without platform-specific checks:
@@ -96,7 +96,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </ul>
           </div>
 
-          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
             <h3 class="text-lg font-bold text-shikkui mb-2">Tailwind v4 @theme Integration</h3>
             <p class="text-sm text-stone-300 leading-relaxed mb-4">
               Synchronize your design system tokens effortlessly:
@@ -125,7 +125,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono text-stone-400 mb-1">Full Catalogue Coverage</div>
             <div class="text-2xl font-bold text-shikkui mb-1">
               {snapshot.catalogue.match.toLocaleString()} / {snapshot.catalogue.comparable.toLocaleString()}
@@ -138,7 +138,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono text-stone-400 mb-1">Cascade Rule Ordering</div>
             <div class="text-2xl font-bold text-shikkui mb-1">
               {snapshot.candidateSheet.inOrder.toLocaleString()} / {snapshot.candidateSheet.comparable.toLocaleString()}
@@ -149,7 +149,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono text-stone-400 mb-1">Arbitrary Values Support</div>
             <div class="text-2xl font-bold text-shikkui mb-1">
               {snapshot.arbitrary.match.toLocaleString()} / {snapshot.arbitrary.candidates.toLocaleString()}
@@ -163,7 +163,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
           </div>
         </div>
 
-        <div class="p-5 rounded-xl bg-yakisugi-900/60 border border-wood text-xs text-stone-300 leading-relaxed">
+        <div class="p-5 rounded-xl bg-yakisugi-900/60 border border-hinoki/18 text-xs text-stone-300 leading-relaxed">
           <strong class="text-shikkui">Why exact fidelity matters on Web:</strong> In CSS, utility classes only work reliably when their order, selector structure, and variable declarations mirror the design system. Hozo doesn't invent its own CSS dialect &mdash; it lowers JSX primitives to semantic HTML elements with authentic scoped CSS classes.
         </div>
       </section>
@@ -184,7 +184,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
 
         <!-- Native Verdicts Explanation -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div class="p-4 rounded-xl border border-wood bg-yakisugi-950/80 border-l-4 border-l-emerald-400">
+          <div class="p-4 rounded-xl border border-hinoki/18 bg-yakisugi-950/80 border-l-4 border-l-emerald-400">
             <div class="flex items-center justify-between mb-1">
               <span class="font-bold text-shikkui text-sm">COVERED</span>
               <span class="text-xs font-mono font-bold text-emerald-400">{snapshot.native.covered}</span>
@@ -194,7 +194,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-4 rounded-xl border border-wood bg-yakisugi-950/80 border-l-4 border-l-amber-400">
+          <div class="p-4 rounded-xl border border-hinoki/18 bg-yakisugi-950/80 border-l-4 border-l-amber-400">
             <div class="flex items-center justify-between mb-1">
               <span class="font-bold text-shikkui text-sm">REFUSED (Known Gaps)</span>
               <span class="text-xs font-mono font-bold text-amber-400">{snapshot.native.refused}</span>
@@ -204,7 +204,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-4 rounded-xl border border-wood bg-yakisugi-950/80 border-l-4 border-l-hinoki">
+          <div class="p-4 rounded-xl border border-hinoki/18 bg-yakisugi-950/80 border-l-4 border-l-hinoki">
             <div class="flex items-center justify-between mb-1">
               <span class="font-bold text-shikkui text-sm">NO-OP (Honoured)</span>
               <span class="text-xs font-mono font-bold text-hinoki">{snapshot.native.noOp}</span>
@@ -216,8 +216,8 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
         </div>
 
         <!-- Refusal Breakdown Detail Table -->
-        <div class="rounded-xl border border-wood bg-yakisugi-950 overflow-hidden mb-6">
-          <div class="p-4 bg-yakisugi-900/60 border-b border-wood">
+        <div class="rounded-xl border border-hinoki/18 bg-yakisugi-950 overflow-hidden mb-6">
+          <div class="p-4 bg-yakisugi-900/60 border-b border-hinoki/18">
             <h3 class="text-sm font-bold text-shikkui flex items-center gap-2">
               <span>Why Candidates Are Refused on Native</span>
               <span class="text-[10px] font-normal px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
@@ -225,8 +225,8 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
               </span>
             </h3>
           </div>
-          <div class="divide-y divide-wood/40 text-xs font-mono">
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+          <div class="divide-y divide-hinoki/40 text-xs font-mono">
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
               <div class="flex items-center gap-2">
                 <span class="text-amber-400 font-semibold">REFUSED</span>
                 <span class="text-shikkui">box-content</span>
@@ -235,7 +235,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
                 React Native Yoga engine enforces <code class="font-mono text-stone-300">box-sizing: border-box</code> universally; content-box is not supported.
               </div>
             </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
               <div class="flex items-center gap-2">
                 <span class="text-amber-400 font-semibold">REFUSED</span>
                 <span class="text-shikkui">accent-* (accent-indigo-500)</span>
@@ -244,7 +244,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
                 No CSS <code class="font-mono text-stone-300">accent-color</code> equivalent exists for native controls; tint is handled via primitive props.
               </div>
             </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
               <div class="flex items-center gap-2">
                 <span class="text-amber-400 font-semibold">REFUSED</span>
                 <span class="text-shikkui">caret-* (caret-indigo-500)</span>
@@ -253,7 +253,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
                 Input caret color requires <code class="font-mono text-stone-300">selectionColor</code> on TextInput, not a general style property.
               </div>
             </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
               <div class="flex items-center gap-2">
                 <span class="text-amber-400 font-semibold">REFUSED</span>
                 <span class="text-shikkui">table, list, inline-*</span>
@@ -262,7 +262,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
                 HTML table & list layouts do not exist in React Native flexbox layout.
               </div>
             </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-wood/5">
+            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
               <div class="flex items-center gap-2">
                 <span class="text-hinoki font-semibold">NO-OP</span>
                 <span class="text-shikkui">box-border</span>
@@ -275,7 +275,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
         </div>
 
         <!-- Refusal Audit Summary Card -->
-        <div class="p-4 rounded-xl border border-wood bg-yakisugi-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+        <div class="p-4 rounded-xl border border-hinoki/18 bg-yakisugi-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
           <div>
             <div class="font-bold text-shikkui mb-0.5">Automated Refusal Audit against React Native `.d.ts`</div>
             <p class="text-stone-400">
@@ -317,13 +317,13 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
         <p class="text-sm text-stone-300 mb-6 max-w-2xl">
           Write responsive, stateful Tailwind components with zero wrappers and zero runtime cost.
         </p>
-        <div class="rounded-xl border border-wood bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
+        <div class="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
 <pre><code><span class="text-hinoki">import</span> &#123; View, Text, Pressable &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/core'</span>
 
 <span class="text-hinoki">export function</span> <span class="text-shikkui">InteractiveCard</span>() &#123;
   <span class="text-hinoki">return</span> (
     &lt;<span class="text-bengara">Pressable</span>
-      <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"p-6 rounded-2xl bg-yakisugi-900 border border-wood hover:border-hinoki active:scale-95 transition-all dark:bg-yakisugi-950"</span>
+      <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"p-6 rounded-2xl bg-yakisugi-900 border border-hinoki/18 hover:border-hinoki active:scale-95 transition-all dark:bg-yakisugi-950"</span>
       <span class="text-hinoki-light">accessibilityRole</span>=<span class="text-tatami-light">"button"</span>
     &gt;
       &lt;<span class="text-bengara">Text</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"text-lg font-bold text-shikkui group-hover:text-hinoki"</span>&gt;

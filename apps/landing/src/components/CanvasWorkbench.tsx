@@ -355,15 +355,15 @@ export function CanvasWorkbench() {
   return (
     <div
       ref={containerRef}
-      className="rounded-2xl border border-wood bg-yakisugi-950 overflow-hidden shadow-2xl"
+      className="rounded-2xl border border-hinoki/18 bg-yakisugi-950 overflow-hidden shadow-2xl"
     >
       {/* Workbench Header & Mode Selector */}
-      <div className="p-4 sm:p-6 border-b border-wood bg-yakisugi-900/60 flex flex-wrap items-center justify-between gap-4">
+      <div className="p-4 sm:p-6 border-b border-hinoki/18 bg-yakisugi-900/60 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-tatami-light animate-pulse" />
             <h3 className="text-lg font-bold text-shikkui">Interactive 2D Canvas Workbench</h3>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-wood-subtle text-hinoki border border-wood">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-hinoki/10 text-hinoki border border-hinoki/18">
               @hozo/canvas
             </span>
           </div>
@@ -373,7 +373,7 @@ export function CanvasWorkbench() {
         </div>
 
         {/* Mode Tabs */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-yakisugi-950 border border-wood">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-yakisugi-950 border border-hinoki/18">
           <button
             type="button"
             onClick={() => setMode('waves')}
@@ -424,13 +424,13 @@ export function CanvasWorkbench() {
 
         {/* Live HUD Overlay */}
         <div className="absolute top-4 left-4 flex flex-wrap items-center gap-2 pointer-events-none font-mono text-[11px]">
-          <span className="px-2.5 py-1 rounded-md bg-yakisugi-900/90 border border-wood text-emerald-400 backdrop-blur-sm">
+          <span className="px-2.5 py-1 rounded-md bg-yakisugi-900/90 border border-hinoki/18 text-emerald-400 backdrop-blur-sm">
             FPS: {fps}
           </span>
-          <span className="px-2.5 py-1 rounded-md bg-yakisugi-900/90 border border-wood text-shikkui backdrop-blur-sm">
+          <span className="px-2.5 py-1 rounded-md bg-yakisugi-900/90 border border-hinoki/18 text-shikkui backdrop-blur-sm">
             DOM Nodes: 1 &lt;canvas&gt;
           </span>
-          <span className="px-2.5 py-1 rounded-md bg-yakisugi-900/90 border border-wood text-hinoki backdrop-blur-sm">
+          <span className="px-2.5 py-1 rounded-md bg-yakisugi-900/90 border border-hinoki/18 text-hinoki backdrop-blur-sm">
             {mode === 'particles'
               ? `Points: ${density}`
               : mode === 'candlestick'
@@ -441,8 +441,8 @@ export function CanvasWorkbench() {
 
         {/* Candlestick Crosshair Tooltip */}
         {mode === 'candlestick' && hoveredCandle && (
-          <div className="absolute top-4 right-4 p-3 rounded-xl bg-yakisugi-900/95 border border-wood-strong text-xs font-mono backdrop-blur-md shadow-2xl pointer-events-none">
-            <div className="font-bold text-shikkui mb-1 border-b border-wood pb-1">
+          <div className="absolute top-4 right-4 p-3 rounded-xl bg-yakisugi-900/95 border border-hinoki/35 text-xs font-mono backdrop-blur-md shadow-2xl pointer-events-none">
+            <div className="font-bold text-shikkui mb-1 border-b border-hinoki/18 pb-1">
               Date: {hoveredCandle.date}
             </div>
             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[11px]">
@@ -466,7 +466,7 @@ export function CanvasWorkbench() {
       </div>
 
       {/* Control Bar */}
-      <div className="p-4 sm:p-5 border-t border-wood bg-yakisugi-900/60 flex flex-wrap items-center justify-between gap-4 text-xs">
+      <div className="p-4 sm:p-5 border-t border-hinoki/18 bg-yakisugi-900/60 flex flex-wrap items-center justify-between gap-4 text-xs">
         <div className="flex flex-wrap items-center gap-4 sm:gap-6">
           {/* Palette Selector */}
           <div className="flex items-center gap-2">
@@ -479,7 +479,7 @@ export function CanvasWorkbench() {
                   onClick={() => setPalette(p)}
                   className={`px-2.5 py-1 rounded text-[11px] font-mono capitalize transition-all ${
                     palette === p
-                      ? 'bg-wood-strong text-shikkui border border-hinoki/50'
+                      ? 'bg-hinoki/35 text-shikkui border border-hinoki/50'
                       : 'text-stone-400 hover:text-stone-200'
                   }`}
                 >
@@ -510,7 +510,7 @@ export function CanvasWorkbench() {
           <button
             type="button"
             onClick={() => setIsPlaying(!isPlaying)}
-            className="px-3 py-1 rounded bg-yakisugi-800 border border-wood text-shikkui hover:border-wood-strong transition-colors font-mono text-[11px]"
+            className="px-3 py-1 rounded bg-yakisugi-800 border border-hinoki/18 text-shikkui hover:border-hinoki/35 transition-colors font-mono text-[11px]"
           >
             {isPlaying ? 'Pause Loop' : 'Resume Loop'}
           </button>
@@ -529,7 +529,7 @@ export function CanvasWorkbench() {
 
       {/* Accessible Sibling DOM Table (Demonstrating Hozo's A11y invariant) */}
       {showTable && (
-        <div className="p-4 sm:p-6 border-t border-wood bg-yakisugi-950 max-h-64 overflow-y-auto">
+        <div className="p-4 sm:p-6 border-t border-hinoki/18 bg-yakisugi-950 max-h-64 overflow-y-auto">
           <div className="mb-3 flex items-center justify-between">
             <span className="text-xs font-bold text-hinoki uppercase tracking-wider font-mono">
               Semantic Sibling Table (Screen Reader Parity)
@@ -538,9 +538,9 @@ export function CanvasWorkbench() {
               Generated alongside Canvas draw calls
             </span>
           </div>
-          <table className="w-full text-left text-xs font-mono text-stone-300 divide-y divide-wood">
+          <table className="w-full text-left text-xs font-mono text-stone-300 divide-y divide-hinoki/18">
             <thead>
-              <tr className="text-stone-400 border-b border-wood">
+              <tr className="text-stone-400 border-b border-hinoki/18">
                 <th className="py-1.5">Interval / Date</th>
                 <th className="py-1.5">Open</th>
                 <th className="py-1.5">High</th>
@@ -549,9 +549,9 @@ export function CanvasWorkbench() {
                 <th className="py-1.5">Volume</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-wood/30">
+            <tbody className="divide-y divide-hinoki/30">
               {candlesRef.current.slice(-8).map((c) => (
-                <tr key={c.date} className="hover:bg-wood/10">
+                <tr key={c.date} className="hover:bg-hinoki/10">
                   <td className="py-1.5 text-stone-400">{c.date}</td>
                   <td className="py-1.5">${c.open}</td>
                   <td className="py-1.5 text-emerald-400">${c.high}</td>

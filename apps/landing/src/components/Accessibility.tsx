@@ -4,7 +4,7 @@ export function Accessibility() {
   return (
     <Section
       nativeID="accessibility"
-      className="py-24 border-t border-wood relative bg-gradient-to-b from-yakisugi-950 via-yakisugi-900 to-transparent"
+      className="py-24 border-t border-hinoki/18 relative bg-gradient-to-b from-yakisugi-950 via-yakisugi-900 to-transparent"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
@@ -26,9 +26,9 @@ export function Accessibility() {
 
         <View className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-5xl mx-auto items-stretch">
           {/* Feature 1: Compile-time Diagnostics */}
-          <View className="p-8 rounded-2xl timber-panel border border-wood flex flex-col justify-between">
+          <View className="p-8 rounded-2xl timber-panel border border-hinoki/18 flex flex-col justify-between">
             <View>
-              <View className="w-10 h-10 rounded-xl bg-bengara-subtle border border-bengara-subtle items-center justify-center text-bengara mb-6">
+              <View className="w-10 h-10 rounded-xl bg-bengara/12 border border-bengara/30 items-center justify-center text-bengara mb-6">
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -54,7 +54,7 @@ export function Accessibility() {
                 to production.
               </Paragraph>
 
-              <View className="p-4 rounded-xl bg-bengara-subtle border border-bengara-subtle font-mono text-xs text-shikkui">
+              <View className="p-4 rounded-xl bg-bengara/12 border border-bengara/30 font-mono text-xs text-shikkui">
                 <Text className="text-bengara font-semibold mb-1 block">
                   ✕ Hozo Diagnostic [ARIA_INCOMPLETE_PATTERN]
                 </Text>
@@ -65,7 +65,7 @@ export function Accessibility() {
               </View>
             </View>
 
-            <List className="mt-6 text-xs text-stone-400 space-y-2 border-t border-wood pt-4 list-none p-0 m-0">
+            <List className="mt-6 text-xs text-stone-400 space-y-2 border-t border-hinoki/18 pt-4 list-none p-0 m-0">
               <ListItem className="flex flex-row items-center gap-2">
                 <Text className="text-tatami-light">✓</Text> Automatic semantic mapping (
                 <code className="text-shikkui-muted">header &rarr; heading</code>,{' '}
@@ -79,9 +79,9 @@ export function Accessibility() {
           </View>
 
           {/* Feature 2: @hozo/patterns, built on @hozo/behaviors */}
-          <View className="p-8 rounded-2xl timber-panel border border-wood flex flex-col justify-between">
+          <View className="p-8 rounded-2xl timber-panel border border-hinoki/18 flex flex-col justify-between">
             <View>
-              <View className="w-10 h-10 rounded-xl bg-wood-subtle border border-wood-strong items-center justify-center text-hinoki mb-6">
+              <View className="w-10 h-10 rounded-xl bg-hinoki/10 border border-hinoki/35 items-center justify-center text-hinoki mb-6">
                 <svg
                   className="w-5 h-5"
                   fill="none"
@@ -107,22 +107,22 @@ export function Accessibility() {
               </Paragraph>
 
               <View className="grid grid-cols-2 gap-3 font-mono text-xs">
-                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
+                <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-hinoki" /> Dialog & Tooltip
                 </View>
-                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
+                <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-tatami-light" /> Combobox & Listbox
                 </View>
-                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
+                <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-bengara" /> Tabs & RadioGroup
                 </View>
-                <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-shikkui-muted flex flex-row items-center gap-2">
+                <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-shikkui-muted flex flex-row items-center gap-2">
                   <View className="w-2 h-2 rounded-full bg-hinoki-light" /> Menu & Toolbar
                 </View>
               </View>
             </View>
 
-            <List className="mt-6 text-xs text-stone-400 space-y-2 border-t border-wood pt-4 list-none p-0 m-0">
+            <List className="mt-6 text-xs text-stone-400 space-y-2 border-t border-hinoki/18 pt-4 list-none p-0 m-0">
               <ListItem className="flex flex-row items-center gap-2">
                 <Text className="text-tatami-light">✓</Text> WAI-ARIA compliant keyboard listeners
               </ListItem>

@@ -83,6 +83,7 @@ html {
     --hozo-color-yakisugi-950: #100f0e;
     --hozo-color-yakisugi-900: #141312;
     --hozo-color-yakisugi-800: #1c1a18;
+    --hozo-color-yakisugi-700: #252320;
     --hozo-color-kuri: #7a5c43;
   }
 
@@ -135,38 +136,10 @@ html {
     0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-/* Subtle architectural borders & backgrounds */
-.border-wood {
-  border-color: rgba(200, 168, 130, 0.18);
-}
-.border-wood-strong {
-  border-color: rgba(200, 168, 130, 0.35);
-}
-.border-bengara-subtle {
-  border-color: rgba(158, 61, 49, 0.3);
-}
-.border-tatami-subtle {
-  border-color: rgba(85, 99, 72, 0.3);
-}
-
-.bg-wood-subtle {
-  background-color: rgba(200, 168, 130, 0.1);
-}
-.bg-bengara-subtle {
-  background-color: rgba(158, 61, 49, 0.12);
-}
-.bg-tatami-subtle {
-  background-color: rgba(85, 99, 72, 0.15);
-}
-.bg-glow-hinoki {
-  background-color: rgba(200, 168, 130, 0.08);
-}
-.bg-glow-bengara {
-  background-color: rgba(158, 61, 49, 0.08);
-}
-.bg-yakisugi-header {
-  background-color: rgba(16, 15, 14, 0.92);
-}
+/* The wood, subtle and glow tints are opacity modifiers on the theme colors
+   (`border-hinoki/18`, `bg-bengara/12`) rather than classes of their own:
+   Hozo compiles a utility to `var(--hozo-color-<name>)`, and a hand-written
+   class has no such variable, so a compiled border-wood drew in currentColor. */
 
 /* Hinoki gold to Shikkui plaster gradient */
 .gradient-text {

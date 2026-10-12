@@ -5,7 +5,7 @@ export function TieredStyles() {
   return (
     <Section
       nativeID="performance"
-      className="py-24 border-t border-wood relative bg-gradient-to-b from-transparent via-yakisugi-950 to-transparent"
+      className="py-24 border-t border-hinoki/18 relative bg-gradient-to-b from-transparent via-yakisugi-950 to-transparent"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
@@ -27,10 +27,10 @@ export function TieredStyles() {
 
         <View className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Tier 1 */}
-          <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-tatami-light border-x border-b border-wood flex flex-col justify-between">
+          <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-tatami-light border-x border-b border-hinoki/18 flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-xs font-bold px-2.5 py-1 rounded bg-tatami-subtle text-tatami-light border border-tatami-subtle">
+                <Text className="text-xs font-bold px-2.5 py-1 rounded bg-tatami/15 text-tatami-light border border-tatami/30">
                   Tier 1 • Static
                 </Text>
                 <Text className="text-xs font-mono text-tatami-light font-semibold">
@@ -44,7 +44,7 @@ export function TieredStyles() {
                 Literal class names are extracted during build time. Emitted as genuine CSS classes
                 on Web and precomputed StyleSheet objects on Native.
               </Paragraph>
-              <div className="rounded-xl bg-yakisugi-950 border border-wood p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
+              <div className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
                 <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
@@ -61,7 +61,7 @@ export function TieredStyles() {
                 </Text>
               </div>
             </View>
-            <View className="text-xs text-stone-400 border-t border-wood pt-4">
+            <View className="text-xs text-stone-400 border-t border-hinoki/18 pt-4">
               &bull; Zero JavaScript runtime cost
               <br />
               &bull; Browser-native CSS cascade
@@ -69,10 +69,10 @@ export function TieredStyles() {
           </View>
 
           {/* Tier 2 */}
-          <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-hinoki border-x border-b border-wood flex flex-col justify-between">
+          <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-hinoki border-x border-b border-hinoki/18 flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-xs font-bold px-2.5 py-1 rounded bg-wood-subtle text-hinoki-light border border-wood">
+                <Text className="text-xs font-bold px-2.5 py-1 rounded bg-hinoki/10 text-hinoki-light border border-hinoki/18">
                   Tier 2 • Structural
                 </Text>
                 <Text className="text-xs font-mono text-hinoki font-semibold">Boolean Toggle</Text>
@@ -86,7 +86,7 @@ export function TieredStyles() {
                 pre-compiled for both branches while preserving AST shape. At runtime, only a fast
                 boolean toggle remains.
               </Paragraph>
-              <div className="rounded-xl bg-yakisugi-950 border border-wood p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
+              <div className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
                 <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
@@ -103,7 +103,7 @@ export function TieredStyles() {
                 </Text>
               </div>
             </View>
-            <View className="text-xs text-stone-400 border-t border-wood pt-4">
+            <View className="text-xs text-stone-400 border-t border-hinoki/18 pt-4">
               &bull; Precalculated CSS class names
               <br />
               &bull; Zero runtime style recalculation
@@ -111,10 +111,10 @@ export function TieredStyles() {
           </View>
 
           {/* Tier 3 */}
-          <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-bengara border-x border-b border-wood flex flex-col justify-between">
+          <View className="rounded-2xl timber-panel p-6 border-t-2 border-t-bengara border-x border-b border-hinoki/18 flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-xs font-bold px-2.5 py-1 rounded bg-bengara-subtle text-bengara-hover border border-bengara-subtle">
+                <Text className="text-xs font-bold px-2.5 py-1 rounded bg-bengara/12 text-bengara-hover border border-bengara/30">
                   Tier 3 • Dynamic
                 </Text>
                 <Text className="text-xs font-mono text-bengara font-semibold">
@@ -128,7 +128,7 @@ export function TieredStyles() {
                 For props and unknown dynamic variables, Hozo analyzes candidate classes across the
                 project and pre-generates them into a high-speed cached lookup.
               </Paragraph>
-              <div className="rounded-xl bg-yakisugi-950 border border-wood p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
+              <div className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
                 <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
@@ -144,7 +144,7 @@ export function TieredStyles() {
                 </Text>
               </div>
             </View>
-            <View className="text-xs text-stone-400 border-t border-wood pt-4">
+            <View className="text-xs text-stone-400 border-t border-hinoki/18 pt-4">
               &bull; Incremental candidate caching
               <br />
               &bull; Zero missing CSS rules

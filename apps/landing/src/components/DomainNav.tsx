@@ -21,7 +21,7 @@ export function DomainNav({ baseUrl = '', currentDomain }: DomainNavProps) {
     <View className="mb-10 w-full min-w-0">
       <Nav
         accessibilityLabel="Domain navigation"
-        className="flex flex-row items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-wood-subtle"
+        className="flex flex-row items-center gap-2 overflow-x-auto pb-2 scrollbar-none border-b border-hinoki/10"
       >
         <Link
           href={homeUrl}

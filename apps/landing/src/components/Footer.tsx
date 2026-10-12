@@ -11,7 +11,7 @@ export function Footer({ baseUrl = '' }: FooterProps) {
   return (
     <View
       role="contentinfo"
-      className="py-16 border-t border-wood bg-yakisugi-950 text-stone-400 text-sm"
+      className="py-16 border-t border-hinoki/18 bg-yakisugi-950 text-stone-400 text-sm"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="flex flex-col gap-8">
@@ -46,7 +46,7 @@ export function Footer({ baseUrl = '' }: FooterProps) {
             </View>
           </View>
 
-          <View className="flex flex-row flex-wrap items-center justify-center sm:justify-start gap-x-6 gap-y-3 pt-6 border-t border-wood text-xs font-medium">
+          <View className="flex flex-row flex-wrap items-center justify-center sm:justify-start gap-x-6 gap-y-3 pt-6 border-t border-hinoki/18 text-xs font-medium">
             <Link
               href={`${cleanBase}/#try-hozo`}
               className="hover:text-hinoki-light text-shikkui-muted transition-colors"

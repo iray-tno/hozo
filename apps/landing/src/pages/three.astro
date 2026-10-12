@@ -32,7 +32,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 
       <!-- Page Header -->
       <section class="mb-12 max-w-4xl">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wood-subtle border border-wood text-hinoki text-xs font-mono mb-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hinoki/10 border border-hinoki/18 text-hinoki text-xs font-mono mb-4">
           <span>@hozo/three</span>
           <span class="text-stone-600">•</span>
           <span>WebGL · WebGPU · Expo GL</span>
@@ -46,8 +46,8 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
       </section>
 
       <!-- Interactive Kumimono Workbench -->
-      <div class="mb-20 rounded-2xl border border-wood bg-yakisugi-900/60 p-4 sm:p-8 backdrop-blur-sm shadow-xl">
-        <div class="mb-6 border-b border-wood-subtle pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div class="mb-20 rounded-2xl border border-hinoki/18 bg-yakisugi-900/60 p-4 sm:p-8 backdrop-blur-sm shadow-xl">
+        <div class="mb-6 border-b border-hinoki/10 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="text-xl sm:text-2xl font-bold text-shikkui">Interactive Proof: Kumimono (組物)</h2>
             <p class="text-xs sm:text-sm text-stone-400 mt-1">
@@ -69,7 +69,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
           Architecture & Key Capabilities
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
             <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
               01
             </div>
@@ -84,7 +84,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
             </ul>
           </div>
 
-          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
             <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
               02
             </div>
@@ -99,7 +99,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
             </ul>
           </div>
 
-          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
             <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/30 flex items-center justify-center text-hinoki font-mono font-bold text-sm mb-4">
               03
             </div>
@@ -124,7 +124,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
         <p class="text-sm text-stone-300 mb-6 max-w-2xl">
           Author scenes with standard React patterns. Hozo compiles the scene to WebGL on the browser and maps directly to the Native GPU runtime on iOS/Android.
         </p>
-        <div class="rounded-xl border border-wood bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
+        <div class="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
 <pre><code><span class="text-hinoki">import</span> &#123; ThreeCanvas &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/three'</span>
 <span class="text-hinoki">import</span> &#123; useRef &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'react'</span>
 

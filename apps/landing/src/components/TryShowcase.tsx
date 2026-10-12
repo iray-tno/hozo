@@ -10,7 +10,10 @@ export function TryShowcase({
 }) {
   const base = baseUrl.replace(/\/$/, '')
   return (
-    <Section nativeID="try-hozo" className="py-16 sm:py-24 border-t border-wood bg-yakisugi-900">
+    <Section
+      nativeID="try-hozo"
+      className="py-16 sm:py-24 border-t border-hinoki/18 bg-yakisugi-900"
+    >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="max-w-3xl mb-8">
           <Heading
@@ -48,14 +51,14 @@ export function TryShowcase({
             {release ? (
               <Link
                 href={release.android}
-                className="showcase-action mt-auto inline-flex flex-row items-center justify-center rounded-lg px-4 py-3 bg-yakisugi-800 border border-wood hover:border-wood-strong text-hinoki-light text-sm font-semibold"
+                className="showcase-action mt-auto inline-flex flex-row items-center justify-center rounded-lg px-4 py-3 bg-yakisugi-800 border border-hinoki/18 hover:border-hinoki/35 text-hinoki-light text-sm font-semibold"
               >
                 Download Android APK
               </Link>
             ) : (
               <Link
                 href="https://github.com/iray-tno/hozo/releases"
-                className="showcase-action mt-auto inline-flex flex-row items-center justify-center rounded-lg px-4 py-3 bg-yakisugi-800 border border-wood hover:border-wood-strong text-hinoki-light text-sm font-semibold"
+                className="showcase-action mt-auto inline-flex flex-row items-center justify-center rounded-lg px-4 py-3 bg-yakisugi-800 border border-hinoki/18 hover:border-hinoki/35 text-hinoki-light text-sm font-semibold"
               >
                 Check native releases
               </Link>
@@ -71,14 +74,14 @@ export function TryShowcase({
             {release ? (
               <Link
                 href={release.ios}
-                className="showcase-action mt-auto inline-flex flex-row items-center justify-center rounded-lg px-4 py-3 bg-yakisugi-800 border border-wood hover:border-wood-strong text-hinoki-light text-sm font-semibold"
+                className="showcase-action mt-auto inline-flex flex-row items-center justify-center rounded-lg px-4 py-3 bg-yakisugi-800 border border-hinoki/18 hover:border-hinoki/35 text-hinoki-light text-sm font-semibold"
               >
                 Download Simulator app
               </Link>
             ) : (
               <Link
                 href="https://github.com/iray-tno/hozo/tree/main/examples/native-showcase"
-                className="showcase-action mt-auto inline-flex flex-row items-center justify-center rounded-lg px-4 py-3 bg-yakisugi-800 border border-wood hover:border-wood-strong text-hinoki-light text-sm font-semibold"
+                className="showcase-action mt-auto inline-flex flex-row items-center justify-center rounded-lg px-4 py-3 bg-yakisugi-800 border border-hinoki/18 hover:border-hinoki/35 text-hinoki-light text-sm font-semibold"
               >
                 Build the native showcase
               </Link>

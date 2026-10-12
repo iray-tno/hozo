@@ -10,7 +10,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
   return (
     <Section
       nativeID="domain-showcase"
-      className="py-24 border-t border-wood bg-yakisugi-950 relative overflow-hidden"
+      className="py-24 border-t border-hinoki/18 bg-yakisugi-950 relative overflow-hidden"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
@@ -38,7 +38,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
           {/* Card 1: Three.js 3D */}
           <Link
             href={`${cleanBase}/three/`}
-            className="group p-6 rounded-2xl timber-panel border border-wood hover:border-hinoki/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
+            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
           >
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
@@ -58,7 +58,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 Kumimono timber joinery proof with bounded shaders and demand rendering.
               </Paragraph>
             </View>
-            <View className="pt-4 border-t border-wood-subtle flex flex-row items-center justify-between text-xs font-semibold text-hinoki">
+            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-hinoki">
               <Text>Explore 3D Guide & Workbench</Text>
               <Text aria-hidden="true">&rarr;</Text>
             </View>
@@ -67,7 +67,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
           {/* Card 2: 2D Canvas */}
           <Link
             href={`${cleanBase}/canvas/`}
-            className="group p-6 rounded-2xl timber-panel border border-wood hover:border-tatami-light/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
+            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-tatami-light/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
           >
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
@@ -87,7 +87,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 Canvas on Web and React Native Skia on Mobile.
               </Paragraph>
             </View>
-            <View className="pt-4 border-t border-wood-subtle flex flex-row items-center justify-between text-xs font-semibold text-tatami-light">
+            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-tatami-light">
               <Text>Explore 2D Canvas Guide & Demo</Text>
               <Text aria-hidden="true">&rarr;</Text>
             </View>
@@ -96,7 +96,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
           {/* Card 3: Universal SVG */}
           <Link
             href={`${cleanBase}/svg/`}
-            className="group p-6 rounded-2xl timber-panel border border-wood hover:border-hinoki-light/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
+            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki-light/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
           >
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
@@ -116,7 +116,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 filter effects (feDropShadow, feGaussianBlur) and Svg.Link.
               </Paragraph>
             </View>
-            <View className="pt-4 border-t border-wood-subtle flex flex-row items-center justify-between text-xs font-semibold text-hinoki-light">
+            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-hinoki-light">
               <Text>Explore SVG Guide & Studio</Text>
               <Text aria-hidden="true">&rarr;</Text>
             </View>
@@ -125,7 +125,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
           {/* Card 4: Ahead-of-Time Tailwind */}
           <Link
             href={`${cleanBase}/tailwind/`}
-            className="group p-6 rounded-2xl timber-panel border border-wood hover:border-bengara/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
+            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-bengara/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
           >
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
@@ -145,7 +145,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 focus-visible:, dark:), and verified official engine fidelity.
               </Paragraph>
             </View>
-            <View className="pt-4 border-t border-wood-subtle flex flex-row items-center justify-between text-xs font-semibold text-bengara">
+            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-bengara">
               <Text>Explore Tailwind AOT & Conformance</Text>
               <Text aria-hidden="true">&rarr;</Text>
             </View>
@@ -154,7 +154,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
           {/* Card 5: StyleX CSS-in-JS */}
           <Link
             href={`${cleanBase}/stylex/`}
-            className="group p-6 rounded-2xl timber-panel border border-wood hover:border-hinoki/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg md:col-span-2 lg:col-span-1"
+            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg md:col-span-2 lg:col-span-1"
           >
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
@@ -174,7 +174,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 typed token contracts, seamlessly coexisting with Tailwind.
               </Paragraph>
             </View>
-            <View className="pt-4 border-t border-wood-subtle flex flex-row items-center justify-between text-xs font-semibold text-hinoki">
+            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-hinoki">
               <Text>Explore StyleX Guide & Contracts</Text>
               <Text aria-hidden="true">&rarr;</Text>
             </View>
@@ -183,7 +183,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
           {/* Card 6: Conformance & Evidence */}
           <Link
             href={`${cleanBase}/conformance/`}
-            className="group p-6 rounded-2xl timber-panel border border-wood hover:border-white/40 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg md:col-span-2 lg:col-span-1"
+            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-white/40 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg md:col-span-2 lg:col-span-1"
           >
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
@@ -203,7 +203,7 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 oracle fidelity against Tailwind, React Native Fabric, and W3C ARIA.
               </Paragraph>
             </View>
-            <View className="pt-4 border-t border-wood-subtle flex flex-row items-center justify-between text-xs font-semibold text-stone-300">
+            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-stone-300">
               <Text>View Automated Conformance</Text>
               <Text aria-hidden="true">&rarr;</Text>
             </View>

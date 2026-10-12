@@ -10,8 +10,8 @@ export function Hero({ baseUrl = '' }: HeroProps) {
   return (
     <Section className="relative pt-24 pb-12 sm:pt-32 sm:pb-20 md:pt-40 md:pb-28 overflow-hidden">
       {/* Timber & plaster architectural ambient lighting */}
-      <View className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[360px] bg-glow-hinoki rounded-full blur-[140px] pointer-events-none -z-10" />
-      <View className="absolute top-1/3 left-1/3 w-[420px] h-[320px] bg-glow-bengara rounded-full blur-[120px] pointer-events-none -z-10" />
+      <View className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[360px] bg-hinoki/8 rounded-full blur-[140px] pointer-events-none -z-10" />
+      <View className="absolute top-1/3 left-1/3 w-[420px] h-[320px] bg-bengara/8 rounded-full blur-[120px] pointer-events-none -z-10" />
 
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-4xl mx-auto flex flex-col items-center">
@@ -55,19 +55,19 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-bengara hover:bg-bengara-hover shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
               <span>Try the REPL</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-yakisugi-950 text-hinoki-light border border-wood">
+              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-yakisugi-950 text-hinoki-light border border-hinoki/18">
                 Playground
               </span>
             </Link>
             <Link
               href="#try-hozo"
-              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
+              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-hinoki/18 hover:border-hinoki/35 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
               <span>Try the showcase</span>
             </Link>
             <Link
               href={`${cleanBase}/conformance/`}
-              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-wood hover:border-wood-strong shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
+              className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-hinoki/18 hover:border-hinoki/35 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
               <span>View Conformance</span>
             </Link>
@@ -76,7 +76,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           {/* Quick Command Snippet */}
           <View
             nativeID="quick-install"
-            className="w-full max-w-xl min-w-0 p-4 rounded-xl bg-yakisugi-950 border border-wood text-xs text-shikkui-muted shadow-2xl text-left"
+            className="w-full max-w-xl min-w-0 p-4 rounded-xl bg-yakisugi-950 border border-hinoki/18 text-xs text-shikkui-muted shadow-2xl text-left"
           >
             <pre className="whitespace-pre-wrap break-words text-shikkui">
               <code>{'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'}</code>
@@ -93,7 +93,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           <View className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl w-full text-left">
             <Link
               href="#performance"
-              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border hover:border-hinoki transition-colors"
+              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-md border hover:border-hinoki transition-colors"
             >
               <Text className="text-lg sm:text-xl font-bold text-shikkui mb-1 block">
                 Static paths
@@ -102,7 +102,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </Link>
             <Link
               href="#accessibility"
-              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border hover:border-hinoki transition-colors"
+              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-md border hover:border-hinoki transition-colors"
             >
               <Text className="text-lg sm:text-xl font-bold text-hinoki mb-1 block">
                 Accessibility
@@ -111,7 +111,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </Link>
             <Link
               href="#integrations"
-              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border hover:border-hinoki transition-colors"
+              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-md border hover:border-hinoki transition-colors"
             >
               <Text className="text-lg sm:text-xl font-bold text-tatami-light mb-1 block">
                 Integrations
@@ -122,7 +122,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             </Link>
             <Link
               href="#architecture"
-              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-md border hover:border-hinoki transition-colors"
+              className="block p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-md border hover:border-hinoki transition-colors"
             >
               <Text className="text-lg sm:text-xl font-bold text-bengara mb-1 block">Compiler</Text>
               <Text className="text-xs text-stone-400 block">Rust + oxc</Text>
