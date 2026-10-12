@@ -1340,6 +1340,9 @@ importers:
       '@hozo/typography':
         specifier: workspace:^
         version: link:../typography
+      clsx:
+        specifier: ^2.1.1
+        version: 2.1.1
     devDependencies:
       '@types/react':
         specifier: ^19.2.18
