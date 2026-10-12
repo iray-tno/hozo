@@ -429,6 +429,7 @@ export function ThreeWebCanvas<TRenderer extends ThreeWebRenderer>({
         >
           {controls.map(({ label, object }) => (
             <button
+              data-hozo-pressable=""
               key={object.uuid}
               className={controlClassName}
               type="button"

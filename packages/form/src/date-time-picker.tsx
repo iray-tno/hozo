@@ -238,6 +238,7 @@ export function HozoDateTimePicker({
   return (
     <div className={className}>
       <button
+        data-hozo-pressable=""
         ref={triggerRef}
         type="button"
         aria-haspopup="dialog"
@@ -317,7 +318,12 @@ export function HozoDateTimePicker({
                     renderDay={renderDay}
                   />
                   {children ? children(half) : <HozoTimePicker {...half} />}
-                  <button type="button" className={doneClassName} onClick={() => change(false)}>
+                  <button
+                    type="button"
+                    data-hozo-pressable=""
+                    className={doneClassName}
+                    onClick={() => change(false)}
+                  >
                     {doneLabel}
                   </button>
                 </div>

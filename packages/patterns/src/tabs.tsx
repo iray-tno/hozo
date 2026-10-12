@@ -81,6 +81,7 @@ export function HozoTabs({
       >
         {tabs.map((tab, at) => (
           <button
+            data-hozo-pressable=""
             // Identified by position and nothing else: `defaultIndex`,
             // `onKeyDown(event, at)` and the roving `tabIndex` are all indices. A key
             // derived from anything else would be a second identity disagreeing with

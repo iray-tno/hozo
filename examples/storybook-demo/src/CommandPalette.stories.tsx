@@ -74,7 +74,7 @@ function PaletteGallery({ startOpen = false }: { startOpen?: boolean }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="self-start rounded-md bg-indigo-700 px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        className="cursor-pointer self-start rounded-md bg-indigo-700 px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
       >
         <Text className="text-white">Open command palette</Text>
       </button>

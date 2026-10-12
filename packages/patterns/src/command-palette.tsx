@@ -189,6 +189,7 @@ export function HozoCommandPalette({
                         key={command.id}
                         id={optionId(index)}
                         role="option"
+                        data-hozo-pressable=""
                         aria-selected={isActive}
                         aria-disabled={command.disabled || undefined}
                         data-hozo-active={isActive ? '' : undefined}

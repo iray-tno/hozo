@@ -66,7 +66,7 @@ test('on the Web: a modal dialog, a combobox pointing at the first command, grou
   assert.match(
     html,
     new RegExp(
-      `id="${activeId}" role="option" aria-selected="true"[^>]*class="is-active"[^>]*>Create project`,
+      `id="${activeId}" role="option" data-hozo-pressable="" aria-selected="true"[^>]*class="is-active"[^>]*>Create project`,
     ),
   )
   assert.match(

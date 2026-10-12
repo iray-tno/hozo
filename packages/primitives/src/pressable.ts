@@ -2,11 +2,13 @@ import {
   type HozoDomStyle,
   hozoDomStyle,
   hozoInteractive,
+  hozoViewBase,
   type ResponderProps,
   useResponderDomProps,
 } from '@hozo/engine'
 import {
   createElement,
+  Fragment,
   type HTMLAttributes,
   type KeyboardEvent,
   type MouseEvent,
@@ -236,6 +238,7 @@ export function HozoPressable({
     : {
         'aria-disabled': unavailable || undefined,
         'data-hozo-disabled': unavailable ? '' : undefined,
+        'data-hozo-pressable': undefined,
         tabIndex: undefined,
         onClick: undefined,
         onKeyDown: undefined,
@@ -340,22 +343,29 @@ export function HozoPressable({
       resolvedChildren,
     )
   }
+  // The base stylesheet carries the pointer cursor for `data-hozo-pressable`.
+  // Always in a fragment, so gaining a handler never remounts the element.
   return createElement(
-    'div',
-    {
-      ...common,
-      ...interaction,
-      onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-        if (event.key === 'Enter' || event.key === ' ') pressIn(event)
-        interaction.onKeyDown?.(event)
-        onKeyDown?.(event as never)
-      },
-      onKeyUp: (event: KeyboardEvent<HTMLElement>) => {
-        if (event.key === 'Enter' || event.key === ' ') pressOut(event)
-        interaction.onKeyUp?.(event)
-        onKeyUp?.(event as never)
-      },
-    } as unknown as HTMLAttributes<HTMLDivElement>,
-    resolvedChildren,
+    Fragment,
+    null,
+    hozoViewBase(),
+    createElement(
+      'div',
+      {
+        ...common,
+        ...interaction,
+        onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+          if (event.key === 'Enter' || event.key === ' ') pressIn(event)
+          interaction.onKeyDown?.(event)
+          onKeyDown?.(event as never)
+        },
+        onKeyUp: (event: KeyboardEvent<HTMLElement>) => {
+          if (event.key === 'Enter' || event.key === ' ') pressOut(event)
+          interaction.onKeyUp?.(event)
+          onKeyUp?.(event as never)
+        },
+      } as unknown as HTMLAttributes<HTMLDivElement>,
+      resolvedChildren,
+    ),
   )
 }

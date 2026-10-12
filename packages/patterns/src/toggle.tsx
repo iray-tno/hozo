@@ -116,6 +116,7 @@ export function HozoCheckbox({
   const { state, press } = useToggle(checked, defaultChecked, onCheckedChange)
   return (
     <button
+      data-hozo-pressable=""
       type="button"
       role="checkbox"
       aria-checked={state === 'mixed' ? 'mixed' : state}
@@ -142,6 +143,7 @@ export function HozoSwitch({
   const { state, press } = useToggle(checked, defaultChecked, onCheckedChange)
   return (
     <button
+      data-hozo-pressable=""
       type="button"
       role="switch"
       // Never `mixed`: the prop types forbid it and the role has no such

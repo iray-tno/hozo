@@ -147,6 +147,7 @@ export function HozoStepper({
           >
             {onStepPress ? (
               <button
+                data-hozo-pressable=""
                 type="button"
                 disabled={step.disabled}
                 className={classes}

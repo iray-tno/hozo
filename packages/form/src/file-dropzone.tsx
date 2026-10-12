@@ -106,6 +106,7 @@ export function HozoFileDropzone({
   return (
     <>
       <button
+        data-hozo-pressable=""
         type="button"
         aria-label={accessibilityLabel}
         disabled={disabled}

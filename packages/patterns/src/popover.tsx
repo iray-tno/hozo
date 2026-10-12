@@ -131,6 +131,7 @@ export function HozoPopover({
   return (
     <div className={className}>
       <button
+        data-hozo-pressable=""
         ref={triggerRef}
         type="button"
         aria-haspopup="dialog"

@@ -76,6 +76,7 @@ export function HozoChip({
   const label = accessibilityLabel ?? (typeof children === 'string' ? children : undefined)
   const remove = onRemove ? (
     <button
+      data-hozo-pressable=""
       type="button"
       aria-label={message('hozo.chip.remove', { label: label ?? '' }, removeLabel)}
       disabled={disabled}
@@ -104,6 +105,7 @@ export function HozoChip({
   }
   const toggleButton = (
     <button
+      data-hozo-pressable=""
       type="button"
       aria-pressed={on}
       aria-label={accessibilityLabel}

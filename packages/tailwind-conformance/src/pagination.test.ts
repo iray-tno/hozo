@@ -52,15 +52,19 @@ test('on the Web: a named navigation, the current page marked, the ends disabled
   // Previous is disabled on page 1 and keeps its place.
   assert.match(
     html,
-    /<button type="button" aria-label="Previous page" disabled="" class="hozo-1 hozo-3">/,
+    /<button data-hozo-pressable="" type="button" aria-label="Previous page" disabled="" class="hozo-1 hozo-3">/,
     html,
   )
   assert.match(
     html,
-    /<button type="button" aria-label="Page 1" aria-current="page" class="hozo-1 hozo-2">1<\/button>/,
+    /<button data-hozo-pressable="" type="button" aria-label="Page 1" aria-current="page" class="hozo-1 hozo-2">1<\/button>/,
     html,
   )
-  assert.match(html, /<button type="button" aria-label="Page 2" class="hozo-1">2<\/button>/, html)
+  assert.match(
+    html,
+    /<button data-hozo-pressable="" type="button" aria-label="Page 2" class="hozo-1">2<\/button>/,
+    html,
+  )
   assert.match(html, /<li aria-hidden="true" class="hozo-4">…<\/li>/, html)
   assert.match(html, /aria-label="Page 20"/, html)
   for (const name of ['hozo-0', 'hozo-1', 'hozo-2', 'hozo-3', 'hozo-4']) {

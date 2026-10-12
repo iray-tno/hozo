@@ -18,8 +18,11 @@ test('value-level Pressable renders callback children and native-shaped props', 
     }),
   )
 
-  assert.match(html, /^<div/)
+  // The base stylesheet first: it carries the pointer cursor.
+  assert.match(html, /^<style[^>]*data-href="hozo-view-base"/)
+  assert.match(html, /<\/style><div/)
   assert.match(html, /role="button"/)
+  assert.match(html, /data-hozo-pressable=""/)
   assert.match(html, /aria-label="Save draft"/)
   assert.match(html, /data-intent="save"/)
   assert.match(html, /tabindex="0"/)
@@ -44,6 +47,8 @@ test('disabled removes activation and exposes both accessibility and styling sta
   assert.match(html, /aria-disabled="true"/)
   assert.match(html, /data-hozo-disabled=""/)
   assert.match(html, /tabindex="-1"/)
+  // Not clickable, so not a pointer either.
+  assert.doesNotMatch(html, /data-hozo-pressable=/)
 })
 
 // #464 read `pressable.ts` as destructuring a `forwardedRef` prop that no
@@ -69,7 +74,7 @@ test('Pressable takes a ref, which is what Dialog restoreFocusTo holds (#464)', 
       'Continue',
     ),
   )
-  assert.match(html, /^<div/)
+  assert.match(html, /<\/style><div/)
   assert.match(html, />Continue<\/div>$/)
 
   // The case #464 raised: `Dialog`'s `restoreFocusTo` is

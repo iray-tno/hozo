@@ -17,7 +17,7 @@ test('the zone is a button named for what it does, holding its instruction', () 
   const html = render({})
   assert.match(
     html,
-    /^<button type="button" aria-label="Upload photo">Drop a photo here<\/button>/,
+    /^<button data-hozo-pressable="" type="button" aria-label="Upload photo">Drop a photo here<\/button>/,
     html,
   )
 })
@@ -37,6 +37,10 @@ test('a polite live region is there before anything is picked, so the first anno
 
 test('disabled reaches the button and the input', () => {
   const html = render({ disabled: true })
-  assert.match(html, /<button type="button" aria-label="Upload photo" disabled="">/, html)
+  assert.match(
+    html,
+    /<button data-hozo-pressable="" type="button" aria-label="Upload photo" disabled="">/,
+    html,
+  )
   assert.match(html, /<input type="file" disabled=""/, html)
 })
