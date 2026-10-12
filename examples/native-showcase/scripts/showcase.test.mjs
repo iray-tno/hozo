@@ -283,6 +283,23 @@ test('shared Audio retains its independent media entry; both hosts use the same 
   })
 })
 
+test('shared seek presentation preserves portable Slider styles and source-bound bindings on Native', () => {
+  const file = path.join(root, '../showcase/src/media-seek.tsx')
+  const output = transformHozoSource(readFileSync(file, 'utf8'), file)
+  assert.match(output, /from ['"]@hozo\/media\/seek['"]/)
+  assert.match(output, /<Slider\b/)
+  assert.match(output, /key=\{seek.key\}/)
+  assert.match(output, /\.\.\.seek.slider/)
+  assert.doesNotMatch(output, /<div\b|resolveClassName|fillClassName=/)
+  assert.match(output, /backgroundColor: '#4f46e5'/)
+  assert.match(output, /thumbStyle=/)
+  assert.match(output, /fillStyle=/)
+  for (const filename of ['video.tsx', 'audio.tsx']) {
+    const source = readFileSync(path.join(root, '../showcase/src', filename), 'utf8')
+    assert.match(source, /MediaSeekControl/)
+  }
+})
+
 test('cold Native Storybook starts with a lightweight primitive, not implicit GPU work', () => {
   const { transformSync } = require('esbuild')
   const source = readFileSync(path.join(root, '.rnstorybook/index.tsx'), 'utf8')

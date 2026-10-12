@@ -30,6 +30,8 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
         import React, {useState} from 'react'
         import {createRoot} from 'react-dom/client'
         import {Video, VideoControls} from './src/index.ts'
+        import {useMediaSeek} from './src/seek-index.ts'
+        import {Slider} from '../patterns/src/slider.tsx'
         import {MediaCaptions, useWebVTTCaptions} from './src/captions-index.ts'
         import {parsePlainTextWebVTT} from './src/webvtt-index.ts'
         window.vtt = ${JSON.stringify(plainWebVTT)}
@@ -44,12 +46,14 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
           const [status, setStatus] = useState(null)
           const [trackSrc, setTrack] = useState('/captions.vtt')
           const track = useWebVTTCaptions({mediaSrc:src, trackSrc, enabled:mounted})
+          const seek = useMediaSeek({player:window.ref, status: mounted ? status : null})
           window.captionState = track; window.setTrack = setTrack
           window.change = change; window.mount = mount; window.configure = configure
           return mounted && <><Video ref={window.ref} src={src} accessibilityLabel="Local silent clip"
             {...options} onStatusChange={s => {window.statuses.push(s); setStatus(s)}}
             onError={e => window.errors.push(e)} onEnded={() => window.ended++}/>
             <VideoControls player={window.ref} status={status} seekStep={1}/>
+            {seek.slider && <Slider key={seek.key} {...seek.slider} style={{position:'relative',width:320,height:44}} thumbClassName="seek-thumb"/>}
             <MediaCaptions src={track.mediaSrc} status={status} cues={track.cues} accessibilityLabel="Clip captions"/>
             <p role="status">{track.error ? track.error.message : 'Captions: ' + track.status}</p></>
         }
@@ -198,6 +202,110 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     await page.waitForFunction(() => window.captionState.status === 'ready')
     const duration = await page.evaluate(() => window.ref.current.getStatus().duration)
     assert.ok(duration > 3 && duration < 6, `Recorded fixture duration ${duration}`)
+    const scrubber = page.getByRole('slider', { name: 'Playback position', exact: true })
+    await page.evaluate(() => {
+      window.seekRequests = []
+      const original = window.ref.current.seekTo
+      window.ref.current.seekTo = (time) => {
+        window.seekRequests.push(time)
+        return original(time)
+      }
+    })
+    const track = page.locator('div[data-hozo-orientation="horizontal"]')
+    const box = await track.boundingBox()
+    assert.ok(box)
+    await track.evaluate((element) => {
+      element.addEventListener('pointerdown', (event) => {
+        window.seekPointer = event.pointerId
+        window.seekCaptureEvents = []
+      })
+      element.addEventListener('gotpointercapture', () => window.seekCaptureEvents.push('got'))
+      element.addEventListener('lostpointercapture', () => window.seekCaptureEvents.push('lost'))
+    })
+    await page.mouse.move(box.x + box.width / 4, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + (box.width * 3) / 4, box.y + box.height / 2)
+    await page.waitForFunction(() =>
+      document
+        .querySelector('[role=slider]')
+        ?.getAttribute('aria-valuetext')
+        ?.startsWith('Seek to '),
+    )
+    assert.equal(
+      await page.evaluate(() => window.ref.current.getStatus().currentTime),
+      0,
+      'drag is a preview, not a decoder seek',
+    )
+    await page.mouse.up()
+    await page.waitForFunction(() => Math.abs(window.ref.current.getStatus().currentTime - 3) < 0.2)
+    assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
+    await scrubber.focus()
+    await page.keyboard.press('Home')
+    await page.waitForFunction(() => window.ref.current.getStatus().currentTime < 0.1)
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    // setPointerCapture takes effect before the next pointer event. Releasing
+    // only its pending override is not capture loss and emits no lost event.
+    await page.mouse.move(box.x + box.width / 2 + 1, box.y + box.height / 2)
+    await page.waitForFunction(() => window.seekCaptureEvents.includes('got'))
+    await track.evaluate((element) => element.releasePointerCapture(window.seekPointer))
+    await page.mouse.move(box.x + box.width / 2 + 2, box.y + box.height / 2)
+    await page.waitForFunction(() => window.seekCaptureEvents.includes('lost'))
+    await page.mouse.up()
+    assert.deepEqual(
+      await page.evaluate(() => window.seekRequests),
+      [3, 0],
+      'real capture loss sends no seek request',
+    )
+    assert.equal(
+      await page.evaluate(() => window.ref.current.getStatus().currentTime),
+      0,
+      'capture loss must not commit the preview',
+    )
+    // A decoder observation and its React-rendered control are separate
+    // readiness facts. Do not send a relative key while the UI still shows
+    // the retired drag preview; assert that cancellation reached the UI too.
+    await page
+      .waitForFunction(() => {
+        const slider = document.querySelector('[role=slider]')
+        return (
+          slider?.getAttribute('aria-valuenow') === '0' &&
+          slider.getAttribute('aria-valuetext') === '0:00 / 0:04'
+        )
+      })
+      .catch(async (error) => {
+        console.error(
+          '[media] cancelled seek UI',
+          await page.evaluate(() => ({
+            observed: window.ref.current.getStatus(),
+            value: document.querySelector('[role=slider]')?.getAttribute('aria-valuenow'),
+            text: document.querySelector('[role=slider]')?.getAttribute('aria-valuetext'),
+          })),
+        )
+        throw error
+      })
+    await scrubber.focus()
+    await page.keyboard.press('ArrowRight')
+    await page
+      .waitForFunction(() => Math.abs(window.ref.current.getStatus().currentTime - 1) < 0.2)
+      .catch(async (error) => {
+        console.error(
+          '[media] slider keyboard seek',
+          await page.evaluate(() => ({
+            requests: window.seekRequests,
+            observed: window.ref.current.getStatus(),
+            actualTime: document.querySelector('video').currentTime,
+            value: document.querySelector('[role=slider]')?.getAttribute('aria-valuenow'),
+            text: document.querySelector('[role=slider]')?.getAttribute('aria-valuetext'),
+            focus: document.activeElement?.outerHTML,
+          })),
+        )
+        throw error
+      })
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('role')), 'slider')
+    assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
+    await page.keyboard.press('Home')
+    await page.waitForFunction(() => window.ref.current.getStatus().currentTime < 0.1)
     const toggle = page.getByRole('button', { name: 'Play video', exact: true })
     await toggle.focus()
     await page.keyboard.press('Enter')

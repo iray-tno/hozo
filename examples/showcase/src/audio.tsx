@@ -1,9 +1,11 @@
-import { Audio, type AudioStatus } from '@hozo/media/audio'
+import { Audio, type AudioHandle, type AudioStatus } from '@hozo/media/audio'
 import { Button, Text, View } from '@hozo/primitives'
 import { Heading } from '@hozo/typography'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { MediaSeekControl } from './media-seek.tsx'
 
 export function AudioDemo({ src }: { src: string }) {
+  const audio = useRef<AudioHandle>(null)
   const [status, setStatus] = useState<AudioStatus | null>(null)
   const [visible, setVisible] = useState(true)
   const [muted, setMuted] = useState(false)
@@ -18,6 +20,7 @@ export function AudioDemo({ src }: { src: string }) {
       </Text>
       {visible && (
         <Audio
+          ref={audio}
           src={src}
           accessibilityLabel="Three rising tones"
           muted={muted}
@@ -30,6 +33,7 @@ export function AudioDemo({ src }: { src: string }) {
           ? `Audio: ${status?.status ?? 'loading'}; ${status?.playing ? 'playing' : 'paused'}`
           : 'Audio removed'}
       </Text>
+      <MediaSeekControl player={audio} status={visible ? status : null} disabled={!visible} />
       <Button
         className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         onPress={() => setMuted((value) => !value)}

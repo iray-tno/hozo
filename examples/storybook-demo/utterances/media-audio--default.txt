@@ -8,6 +8,7 @@ button, Seek forward 10 seconds
 0:00 / 0:04
 end of group, Three rising tones playback controls
 Audio: ready; paused
+slider, Playback position, orientated horizontally, max value 4, min value 0, current value 0:00 / 0:04
 button, Mute audio
 button, Enable audio loop
 button, Remove audio

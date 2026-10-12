@@ -178,6 +178,7 @@ const PACKAGES = {
       '.': './dist/index.js',
       './audio': './dist/audio-index.js',
       './captions': './dist/captions-index.js',
+      './seek': './dist/seek-index.js',
       './webvtt': './dist/webvtt-index.js',
     },
     native: true,

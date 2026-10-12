@@ -1,4 +1,4 @@
-import { useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
 import { DomVideoSession } from './dom-session.ts'
 import { type VideoProps, validateVideoProps } from './types.ts'
 
@@ -13,10 +13,10 @@ function SourceVideo(props: VideoProps) {
   const latest = useRef(props)
   latest.current = props
 
-  function requireSession() {
+  const requireSession = useCallback(() => {
     if (!session.current) throw new Error('Video is not mounted')
     return session.current
-  }
+  }, [])
 
   // Initialize before publishing the ref: a present handle is usable even
   // in a parent's layout effect, not only after passive effects have run.
@@ -31,12 +31,17 @@ function SourceVideo(props: VideoProps) {
     }
   }, [props.src])
 
-  useImperativeHandle(props.ref, () => ({
-    play: async () => requireSession().play(),
-    pause: () => session.current?.pause(),
-    seekTo: (seconds) => requireSession().seekTo(seconds),
-    getStatus: () => requireSession().getStatus(),
-  }))
+  // Observations update props, not the source-owned command identity.
+  useImperativeHandle(
+    props.ref,
+    () => ({
+      play: async () => requireSession().play(),
+      pause: () => session.current?.pause(),
+      seekTo: (seconds) => requireSession().seekTo(seconds),
+      getStatus: () => requireSession().getStatus(),
+    }),
+    [requireSession],
+  )
 
   useEffect(() => {
     session.current?.setOptions({ autoPlay: props.autoPlay, loop: props.loop, muted: props.muted })
