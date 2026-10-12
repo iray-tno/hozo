@@ -18,6 +18,7 @@
     "@astrojs/react": "^6.0.5",
     "@hozo/core": "workspace:*",
     "@hozo/example-three-kumimono": "workspace:*",
+    "@hozo/svg": "workspace:*",
     "@hozo/three": "workspace:*",
     "@tailwindcss/vite": "^4.0.9",
     "astro": "^7.2.10",

@@ -1,4 +1,4 @@
-import { Heading, Paragraph, Section, Text, View } from '@hozo/core'
+import { Code, Heading, Paragraph, Section, Text, View } from '@hozo/core'
 import { StaticCard } from './StaticCard.tsx'
 
 export function TieredStyles() {
@@ -44,7 +44,7 @@ export function TieredStyles() {
                 Literal class names are extracted during build time. Emitted as genuine CSS classes
                 on Web and precomputed StyleSheet objects on Native.
               </Paragraph>
-              <div className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
+              <View className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
                 <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
@@ -59,12 +59,11 @@ export function TieredStyles() {
                   <Text className="text-hinoki-light">className</Text>=
                   <Text className="text-tatami-light">"hozo-view hozo-0"</Text> /&gt;
                 </Text>
-              </div>
+              </View>
             </View>
             <View className="text-xs text-stone-400 border-t border-hinoki/18 pt-4">
-              &bull; Zero JavaScript runtime cost
-              <br />
-              &bull; Browser-native CSS cascade
+              <Text>&bull; Zero JavaScript runtime cost</Text>
+              <Text>&bull; Browser-native CSS cascade</Text>
             </View>
           </View>
 
@@ -82,11 +81,11 @@ export function TieredStyles() {
               </Heading>
               <Paragraph className="text-stone-400 text-sm mb-6">
                 Conditionals like{' '}
-                <code className="text-shikkui-muted text-xs font-mono">cn(...)</code> are
+                <Code className="text-shikkui-muted text-xs font-mono">cn(...)</Code> are
                 pre-compiled for both branches while preserving AST shape. At runtime, only a fast
                 boolean toggle remains.
               </Paragraph>
-              <div className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
+              <View className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
                 <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
@@ -101,12 +100,11 @@ export function TieredStyles() {
                   <Text className="text-hinoki-light">className</Text>=
                   {`={"hozo-view " + (active ? "hozo-1" : "hozo-0")}`} /&gt;
                 </Text>
-              </div>
+              </View>
             </View>
             <View className="text-xs text-stone-400 border-t border-hinoki/18 pt-4">
-              &bull; Precalculated CSS class names
-              <br />
-              &bull; Zero runtime style recalculation
+              <Text>&bull; Precalculated CSS class names</Text>
+              <Text>&bull; Zero runtime style recalculation</Text>
             </View>
           </View>
 
@@ -128,7 +126,7 @@ export function TieredStyles() {
                 For props and unknown dynamic variables, Hozo analyzes candidate classes across the
                 project and pre-generates them into a high-speed cached lookup.
               </Paragraph>
-              <div className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
+              <View className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
                 <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
                 <Text className="text-shikkui block mb-3">
                   &lt;<Text className="text-hinoki">View</Text>{' '}
@@ -142,12 +140,11 @@ export function TieredStyles() {
                   <Text className="text-hinoki-light">className</Text>=
                   {`={hozoClasses(props.className)}`} /&gt;
                 </Text>
-              </div>
+              </View>
             </View>
             <View className="text-xs text-stone-400 border-t border-hinoki/18 pt-4">
-              &bull; Incremental candidate caching
-              <br />
-              &bull; Zero missing CSS rules
+              <Text>&bull; Incremental candidate caching</Text>
+              <Text>&bull; Zero missing CSS rules</Text>
             </View>
           </View>
         </View>

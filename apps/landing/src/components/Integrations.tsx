@@ -1,4 +1,4 @@
-import { Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
+import { Code, Heading, Link, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
 
 export interface IntegrationsProps {
   baseUrl?: string
@@ -52,27 +52,27 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 Executes ahead of the React plugin, lowering JSX directly to semantic DOM and
                 compiled CSS.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <code>
-                  <span className="text-hinoki">import</span> {'{ hozo }'}{' '}
-                  <span className="text-hinoki">from</span>{' '}
-                  <span className="text-tatami-light">'@hozo/vite'</span>
+              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+                <Code>
+                  <Text className="text-hinoki">import</Text> {'{ hozo }'}{' '}
+                  <Text className="text-hinoki">from</Text>{' '}
+                  <Text className="text-tatami-light">'@hozo/vite'</Text>
                   {'\n\n'}
-                  <span className="text-hinoki">export default</span> defineConfig({'{'}
+                  <Text className="text-hinoki">export default</Text> defineConfig({'{'}
                   {'\n'}
                   {'  '}
-                  <span className="text-stone-400">plugins:</span> [{'\n'}
+                  <Text className="text-stone-400">plugins:</Text> [{'\n'}
                   {'    '}hozo({'{ '}
-                  <span className="text-stone-400">css:</span>{' '}
-                  <span className="text-tatami-light">'src/theme.css'</span> {'}'}),
+                  <Text className="text-stone-400">css:</Text>{' '}
+                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'}),
                   {'\n'}
                   {'    '}react(),
                   {'\n'}
                   {'  '}],
                   {'\n'}
                   {'}'})
-                </code>
-              </pre>
+                </Code>
+              </Preformatted>
             </View>
           </View>
 
@@ -94,24 +94,24 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
               <Paragraph className="text-stone-400 text-xs mb-4">
                 Verified with Turbopack (Next.js 16) and Webpack with zero manual setup.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <code>
-                  <span className="text-hinoki">import</span> {'{ withHozo }'}{' '}
-                  <span className="text-hinoki">from</span>{' '}
-                  <span className="text-tatami-light">'@hozo/next'</span>
+              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+                <Code>
+                  <Text className="text-hinoki">import</Text> {'{ withHozo }'}{' '}
+                  <Text className="text-hinoki">from</Text>{' '}
+                  <Text className="text-tatami-light">'@hozo/next'</Text>
                   {'\n\n'}
-                  <span className="text-hinoki">export default</span> withHozo(
+                  <Text className="text-hinoki">export default</Text> withHozo(
                   {'\n'}
                   {'  '}
                   {'{ '}
-                  <span className="text-stone-500">{'/* next config */'}</span> {'}'},{'\n'}
+                  <Text className="text-stone-500">{'/* next config */'}</Text> {'}'},{'\n'}
                   {'  '}
                   {'{ '}
-                  <span className="text-stone-400">css:</span>{' '}
-                  <span className="text-tatami-light">'src/theme.css'</span> {'}'}
+                  <Text className="text-stone-400">css:</Text>{' '}
+                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'}
                   {'\n'})
-                </code>
-              </pre>
+                </Code>
+              </Preformatted>
             </View>
           </View>
 
@@ -134,21 +134,21 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 Compiles React Native components into optimized native StyleSheets and Fabric
                 primitives.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <code>
-                  <span className="text-hinoki">const</span> {'{ withHozo }'} = require(
-                  <span className="text-tatami-light">'@hozo/metro/config'</span>){'\n\n'}
+              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+                <Code>
+                  <Text className="text-hinoki">const</Text> {'{ withHozo }'} = require(
+                  <Text className="text-tatami-light">'@hozo/metro/config'</Text>){'\n\n'}
                   module.exports = withHozo(
                   {'\n'}
                   {'  '}getDefaultConfig(__dirname),
                   {'\n'}
                   {'  '}
                   {'{ '}
-                  <span className="text-stone-400">css:</span>{' '}
-                  <span className="text-tatami-light">'src/theme.css'</span> {'}'}
+                  <Text className="text-stone-400">css:</Text>{' '}
+                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'}
                   {'\n'})
-                </code>
-              </pre>
+                </Code>
+              </Preformatted>
             </View>
           </View>
 
@@ -170,20 +170,20 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
               <Paragraph className="text-stone-400 text-xs mb-4">
                 Zero-configuration preset built on top of the Vite Web backend.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto mb-4">
-                <code>
-                  <span className="text-hinoki">export default</span> {'{'}
+              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto mb-4">
+                <Code>
+                  <Text className="text-hinoki">export default</Text> {'{'}
                   {'\n'}
                   {'  '}
-                  <span className="text-stone-400">framework:</span>{' '}
-                  <span className="text-tatami-light">'@storybook/react-vite'</span>,{'\n'}
+                  <Text className="text-stone-400">framework:</Text>{' '}
+                  <Text className="text-tatami-light">'@storybook/react-vite'</Text>,{'\n'}
                   {'  '}
-                  <span className="text-stone-400">addons:</span> [
-                  <span className="text-tatami-light">'@hozo/storybook'</span>],
+                  <Text className="text-stone-400">addons:</Text> [
+                  <Text className="text-tatami-light">'@hozo/storybook'</Text>],
                   {'\n'}
                   {'}'}
-                </code>
-              </pre>
+                </Code>
+              </Preformatted>
               <Link
                 href={storybookUrl}
                 className="inline-flex flex-row items-center gap-1.5 text-xs font-semibold text-bengara hover:text-bengara-hover transition-colors"
@@ -212,23 +212,23 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
               <Paragraph className="text-stone-400 text-xs mb-4">
                 Full-stack SSR with TanStack Start, Nitro, and Hozo Vite compilation.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <code>
-                  <span className="text-hinoki">export default</span> defineConfig({'{'}
+              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+                <Code>
+                  <Text className="text-hinoki">export default</Text> defineConfig({'{'}
                   {'\n'}
                   {'  '}
-                  <span className="text-stone-400">plugins:</span> [{'\n'}
+                  <Text className="text-stone-400">plugins:</Text> [{'\n'}
                   {'    '}hozo({'{ '}
-                  <span className="text-stone-400">css:</span>{' '}
-                  <span className="text-tatami-light">'src/theme.css'</span> {'}'}),
+                  <Text className="text-stone-400">css:</Text>{' '}
+                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'}),
                   {'\n'}
                   {'    '}tanstackStart(),
                   {'\n'}
                   {'  '}],
                   {'\n'}
                   {'}'})
-                </code>
-              </pre>
+                </Code>
+              </Preformatted>
             </View>
           </View>
 

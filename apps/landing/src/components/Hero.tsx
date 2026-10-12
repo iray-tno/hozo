@@ -1,4 +1,4 @@
-import { Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
+import { Code, Heading, Link, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
 
 export interface HeroProps {
   baseUrl?: string
@@ -32,9 +32,8 @@ export function Hero({ baseUrl = '' }: HeroProps) {
                 and screen readers, without changing the headline anyone sees:
                 the visible line already has "Hozo" in the navbar above it. */}
             <Text className="sr-only">Hozo — </Text>
-            Write React Native.
-            <br />
-            <Text className="gradient-text">Ship Semantic Web & Native UI.</Text>
+            <Text className="block">Write React Native.</Text>
+            <Text className="block gradient-text">Ship Semantic Web & Native UI.</Text>
           </Heading>
 
           {/* Subtitle */}
@@ -54,22 +53,22 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               href={`${cleanBase}/repl/`}
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-bengara hover:bg-bengara-hover shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
-              <span>Try the REPL</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-yakisugi-950 text-hinoki-light border border-hinoki/18">
+              <Text>Try the REPL</Text>
+              <Text className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-yakisugi-950 text-hinoki-light border border-hinoki/18">
                 Playground
-              </span>
+              </Text>
             </Link>
             <Link
               href="#try-hozo"
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-hinoki/18 hover:border-hinoki/35 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
-              <span>Try the showcase</span>
+              <Text>Try the showcase</Text>
             </Link>
             <Link
               href={`${cleanBase}/conformance/`}
               className="px-6 py-3.5 rounded-xl font-semibold text-sm text-shikkui-muted hover:text-shikkui bg-yakisugi-800 hover:bg-yakisugi-700 border border-hinoki/18 hover:border-hinoki/35 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] inline-flex flex-row items-center gap-2"
             >
-              <span>View Conformance</span>
+              <Text>View Conformance</Text>
             </Link>
           </View>
 
@@ -78,9 +77,9 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             nativeID="quick-install"
             className="w-full max-w-xl min-w-0 p-4 rounded-xl bg-yakisugi-950 border border-hinoki/18 text-xs text-shikkui-muted shadow-2xl text-left"
           >
-            <pre className="whitespace-pre-wrap break-words text-shikkui">
-              <code>{'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'}</code>
-            </pre>
+            <Preformatted className="whitespace-pre-wrap break-words text-shikkui">
+              <Code>{'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'}</Code>
+            </Preformatted>
             <Link
               href="https://github.com/iray-tno/hozo#getting-started"
               className="inline-flex mt-3 text-hinoki-light underline hover:text-shikkui"
