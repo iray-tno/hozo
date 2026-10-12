@@ -248,6 +248,7 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         Primitive::Sub => ("Text", Vec::new()),
         Primitive::Sup => ("Text", Vec::new()),
         Primitive::Code => ("Text", Vec::new()),
+        Primitive::Preformatted => ("Text", Vec::new()),
         Primitive::Small => ("Text", Vec::new()),
         Primitive::Mark => ("Text", Vec::new()),
         Primitive::NoBreak => ("Text", Vec::new()),

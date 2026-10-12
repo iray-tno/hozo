@@ -253,6 +253,7 @@ pub(super) fn is_text_primitive(primitive: Primitive) -> bool {
             | Primitive::Sub
             | Primitive::Sup
             | Primitive::Code
+            | Primitive::Preformatted
             | Primitive::Small
             | Primitive::Mark
             | Primitive::NoBreak

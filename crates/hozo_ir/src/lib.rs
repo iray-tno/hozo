@@ -587,6 +587,8 @@ pub enum Primitive {
     Sup,
     /// Inline code literal: `<code>` on Web and monospace `Text` on React Native.
     Code,
+    /// Preformatted text, a code block above all: `<pre>` on Web and monospace `Text` on React Native, which keeps spaces and line breaks as written.
+    Preformatted,
     /// Side comments and small print: `<small>` on Web and small `Text` on React Native.
     Small,
     /// Highlighted/marked text: `<mark>` on Web and highlighted `Text` on React Native.

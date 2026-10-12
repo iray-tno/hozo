@@ -277,6 +277,7 @@ const HOZO_PRIMITIVES = [
   'Sub',
   'Sup',
   'Code',
+  'Preformatted',
   'Small',
   'Mark',
   'NoBreak',

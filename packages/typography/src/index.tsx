@@ -105,6 +105,19 @@ export function Code({ className, children, style, ...props }: TypographyUnivers
   )
 }
 
+/**
+ * A block whose spaces and line breaks are the content, a code sample above
+ * all. Holds phrasing content -- put a `Code` inside for code, as `<pre><code>`
+ * is written by hand.
+ */
+export function Preformatted({ className, children, style, ...props }: TypographyUniversalProps) {
+  return (
+    <pre className={className} style={style} {...domProps(props)}>
+      {children}
+    </pre>
+  )
+}
+
 export function Small({ className, children, style, ...props }: TypographyUniversalProps) {
   return (
     <small className={className} style={style} {...domProps(props)}>

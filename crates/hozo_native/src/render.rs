@@ -602,7 +602,9 @@ pub(super) fn render_node(
             property: StyleProperty::TextDecorationLine("line-through"),
             condition: Condition::Always,
         }],
-        Primitive::Code => vec![StyleDeclaration {
+        // The browser gives `<pre>` a monospace face from its own
+        // stylesheet; a `Text` has none to give.
+        Primitive::Code | Primitive::Preformatted => vec![StyleDeclaration {
             property: StyleProperty::FontFamily("monospace".to_string()),
             condition: Condition::Always,
         }],

@@ -153,6 +153,7 @@ const TAKES_A_LABEL = [
   'Nav',
   'NoBreak',
   'Paragraph',
+  'Preformatted',
   'Progress',
   'Ruby',
   'RubyText',
