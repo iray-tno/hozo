@@ -181,13 +181,17 @@ fn walk_inner(
             check_props(node, spec, diagnostics);
             check_context(node, spec, ancestors, diagnostics);
             check_owned(node, spec, diagnostics);
-            check_allowed(node, spec, diagnostics);
         }
     }
     // The name check also applies where no role was written, because the
     // role is then whatever the element is -- and for `View`, `Text` and
     // an unrolled `Pressable` that is `generic`, which prohibits a name.
     if let Some(spec) = own_role.or_else(|| implicit_role(node)).and_then(aria::role) {
+        // A button's native element already supplies its role; making the
+        // author spell it out must not decide whether an invalid state is
+        // found. Required/context/owned checks above stay explicit-only:
+        // native elements can supply those properties/relationships themselves.
+        check_allowed(node, spec, diagnostics);
         check_name_allowed(node, spec, diagnostics);
     }
     check_hidden_focusable(node, diagnostics);
@@ -347,15 +351,53 @@ fn check_owned(node: &Node, spec: &aria::AriaRole, diagnostics: &mut Vec<Diagnos
 
 /// The role a primitive means when the author wrote none.
 ///
-/// Only the ones that become an element with no role of its own. Every
-/// other primitive lowers to something that carries one -- `Section` to
-/// `<section>`, `Heading` to `<h2>` -- and the specification's entry for
-/// that role is what applies.
+/// Only meanings known from this node. An authored but opaque/Native-only
+/// role, or a spread that could change it, is not the primitive's default.
+/// Context-dependent roles (header/footer, summary, table header scope) and
+/// input types stay unknown rather than borrowing a nearby role's rules.
 fn implicit_role(node: &Node) -> Option<&'static str> {
+    if node.props.accessibility_role.is_some()
+        || node.props.has_spread()
+        || node.props.passthrough.iter().any(|p| {
+            matches!(p.name.as_deref(), Some("role" | "accessibilityRole"))
+        })
+    {
+        return None;
+    }
+    let has_href = node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href"));
     match node.primitive {
         Primitive::View | Primitive::Text | Primitive::ScrollView => Some("generic"),
-        Primitive::Pressable if node.props.accessibility_role.is_none() => Some("generic"),
+        Primitive::Pressable if has_href => Some("link"),
+        Primitive::Pressable => Some("generic"),
+        Primitive::Button if has_href => Some("link"),
+        Primitive::Button => Some("button"),
+        Primitive::Link if has_href => Some("link"),
+        Primitive::Image
+            if !node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("alt"))
+                || literal(node, "alt").is_some_and(|alt| !alt.is_empty()) => Some("img"),
         Primitive::Paragraph => Some("paragraph"),
+        Primitive::Heading => Some("heading"),
+        Primitive::Section if node.props.has_accessible_name() == Some(true) => Some("region"),
+        Primitive::Article => Some("article"),
+        Primitive::Nav => Some("navigation"),
+        Primitive::Main => Some("main"),
+        Primitive::Aside => Some("complementary"),
+        Primitive::Search => Some("search"),
+        Primitive::Figure => Some("figure"),
+        Primitive::Fieldset | Primitive::Details => Some("group"),
+        Primitive::List => Some("list"),
+        Primitive::ListItem => Some("listitem"),
+        Primitive::Separator
+            if !node.props.passthrough.iter().any(|p| {
+                p.name.as_deref() == Some("decorative") && p.literal.as_deref() != Some("false")
+            }) => Some("separator"),
+        Primitive::Progress => Some("progressbar"),
+        Primitive::Meter => Some("meter"),
+        Primitive::Dialog => Some("dialog"),
+        Primitive::Table => Some("table"),
+        Primitive::TableHeader | Primitive::TableBody | Primitive::TableFooter => Some("rowgroup"),
+        Primitive::TableRow => Some("row"),
+        Primitive::TableCell => Some("cell"),
         _ => None,
     }
 }
@@ -660,7 +702,7 @@ mod tests {
 
     fn codes(element: &str) -> Vec<DiagnosticCode> {
         let source = format!(
-            "import {{ Pressable, View, Text, Paragraph, Section }} from '@hozo/core'\n\
+            "import {{ Button, Link, Image, Heading, List, ListItem, Progress, Meter, Separator, Table, TableRow, TableCell, Pressable, View, Text, Paragraph, Section }} from '@hozo/core'\n\
              const el = {element}\n"
         );
         crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
@@ -679,6 +721,47 @@ mod tests {
             codes(r#"<Pressable accessibilityRole="button" accessibilityState={{ expanded: o }} onPress={go}>x</Pressable>"#)
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn implicit_roles_reject_states_the_same_way_as_explicit_roles() {
+        for element in [
+            r#"<Button accessibilityState={{ selected: s }} onPress={go}>x</Button>"#,
+            r#"<Button accessibilityState={{ checked: s }} onPress={go}>x</Button>"#,
+            r#"<Link href="/docs" accessibilityState={{ selected: s }}>x</Link>"#,
+            r#"<Image src="/image.png" accessibilityLabel="Picture" accessibilityState={{ checked: s }} />"#,
+            r#"<Heading accessibilityState={{ checked: s }}>x</Heading>"#,
+            r#"<List accessibilityState={{ checked: s }} />"#,
+            r#"<ListItem accessibilityState={{ selected: s }}>x</ListItem>"#,
+            r#"<Progress value={.5} accessibilityState={{ checked: s }} />"#,
+            r#"<Meter value={.5} accessibilityState={{ selected: s }} />"#,
+            r#"<Separator accessibilityState={{ checked: s }} />"#,
+            r#"<Table accessibilityState={{ checked: s }} />"#,
+            r#"<TableRow accessibilityState={{ checked: s }} />"#,
+            r#"<TableCell accessibilityState={{ checked: s }}>x</TableCell>"#,
+        ] {
+            assert_eq!(codes(element), vec![DiagnosticCode::AriaPropNotAllowed], "{element}");
+        }
+    }
+
+    #[test]
+    fn navigation_and_authored_roles_keep_their_own_allowed_states() {
+        for element in [
+            r#"<Button accessibilityState={{ expanded: s, busy: b, disabled: d }} onPress={go}>x</Button>"#,
+            r#"<Button accessibilityRole="checkbox" accessibilityState={{ checked: s }} onPress={go}>x</Button>"#,
+            r#"<Button href="/docs" accessibilityState={{ expanded: s }}>x</Button>"#,
+            r#"<Button accessibilityState={state}>x</Button>"#,
+            r#"<Button accessibilityState={{ ...state }}>x</Button>"#,
+            r#"<Button {...props} accessibilityState={{ selected: s }}>x</Button>"#,
+            r#"<Button accessibilityRole={role} accessibilityState={{ selected: s }}>x</Button>"#,
+            r#"<Button role={role} accessibilityState={{ selected: s }}>x</Button>"#,
+        ] {
+            assert!(codes(element).is_empty(), "{element}: {:?}", codes(element));
+        }
+        let source = "import { Button } from '@hozo/core'; const el = <Button href=\"/docs\" accessibilityState={{ selected: s }}>x</Button>";
+        let diagnostic = crate::parse_tsx(source).diagnostics.into_iter()
+            .find(|d| d.code == DiagnosticCode::AriaPropNotAllowed).unwrap();
+        assert!(diagnostic.message.contains("role=\"link\""));
     }
 
     #[test]
