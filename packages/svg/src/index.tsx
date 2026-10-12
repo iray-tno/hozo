@@ -17,12 +17,15 @@
 // candidate stylesheet supplies its CSS, which is the same arrangement
 // every other primitive in this package has.
 
-import type { ReactNode, SVGProps } from 'react'
+import { Children, Fragment, isValidElement, type ReactNode, type SVGProps } from 'react'
 import { SvgLink } from './svg-link.ts'
 
 export { SvgLink, type SvgLinkProps } from './svg-link.ts'
 
 type Passthrough<T> = SVGProps<T> & { children?: ReactNode }
+
+/** This package's own element components, which a name check can see into. */
+const SVG_ELEMENTS = new WeakSet<object>()
 
 function element<T>(tag: string) {
   const Component = (props: Passthrough<T>) => {
@@ -37,6 +40,7 @@ function element<T>(tag: string) {
     )
   }
   Component.displayName = tag
+  SVG_ELEMENTS.add(Component)
   return Component
 }
 
@@ -66,11 +70,43 @@ export interface SvgRootProps extends Passthrough<SVGSVGElement> {
   accessibilityLabel?: string
 }
 
+/**
+ * Whether a named drawing holds something a reader must still reach.
+ *
+ * The compiler's rule (`has_exposable_content` in `hozo_ir`), at run time:
+ * `img` makes its children presentational, so a drawing with words in it,
+ * a pressable shape, or anything it cannot see into is a `group` instead,
+ * which names it and leaves its children exposed.
+ */
+function hasExposableContent(children: ReactNode): boolean {
+  return Children.toArray(children).some((child) => {
+    if (typeof child === 'string' || typeof child === 'number') return String(child).trim() !== ''
+    if (!isValidElement(child)) return false
+    const props = child.props as {
+      children?: ReactNode
+      onClick?: unknown
+      onPress?: unknown
+      href?: unknown
+    }
+    if (child.type === SvgText || props.onClick || props.onPress || props.href) return true
+    if (child.type === Fragment || SVG_ELEMENTS.has(child.type as object)) {
+      return hasExposableContent(props.children)
+    }
+    // A component this cannot see into. Unknown is not "nothing".
+    return true
+  })
+}
+
 function Root({ accessibilityLabel, children, ...rest }: SvgRootProps) {
   // Before the author's own props, so an explicit `role` or `aria-label`
   // still wins, as a passthrough does on the compiled path.
   const named =
-    accessibilityLabel === undefined ? undefined : { role: 'img', 'aria-label': accessibilityLabel }
+    accessibilityLabel === undefined
+      ? undefined
+      : {
+          role: hasExposableContent(children) ? 'group' : 'img',
+          'aria-label': accessibilityLabel,
+        }
   return (
     <svg {...named} {...(rest as SVGProps<SVGSVGElement>)}>
       {children}
