@@ -16,5 +16,8 @@ export default defineConfig({
     // preflight inside `@layer base`. Disabling Hozo's injected preflight prevents
     // unlayered `* { margin: 0; padding: 0; }` from overriding Tailwind utility classes.
     plugins: [hozo({ preflight: false }), tailwindcss()],
+    // /tailwind/ compiles its sample at build time. Bundled, the compiler
+    // looks for its native addon beside the bundle instead of its package.
+    environments: { prerender: { resolve: { external: ['@hozo/compiler'] } } },
   },
 })

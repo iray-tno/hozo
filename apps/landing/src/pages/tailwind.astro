@@ -3,19 +3,34 @@ import { DomainNav } from '../components/DomainNav.tsx'
 import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import SiteHead from '../components/SiteHead.astro'
+import chipSource from '../components/tailwind/Chip.tsx?raw'
+import { ChipDemo } from '../components/tailwind/ChipDemo.tsx'
+import { compileSample, nativeGaps, probeVariants } from '../components/tailwind/compiled.ts'
+import {
+  TailwindConformanceLink,
+  TailwindIntro,
+  TailwindMeasured,
+  TailwindNativeGaps,
+  TailwindSample,
+  TailwindSampleIntro,
+  TailwindTheme,
+  TailwindVariants,
+} from '../components/tailwind/TailwindPage.tsx'
 import '../styles/global.css'
 import snapshot from '../../../../packages/tailwind-conformance/snapshot.json'
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
-const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFixed(1)}%`)
+const compiled = compileSample(chipSource)
+const variants = probeVariants()
+const gaps = nativeGaps(snapshot.native)
 ---
 
 <!doctype html>
 <html lang="en" class="scroll-smooth">
   <head>
     <SiteHead
-      title="Ahead-of-Time Tailwind CSS Compiler — Hozo"
-      description="Zero-runtime AOT compilation of Tailwind CSS classes into atomic CSS for Web and optimized React Native Fabric StyleSheets. Full pseudo-class and dark mode parity."
+      title="Tailwind CSS, Compiled — Hozo"
+      description="Tailwind classes on Hozo primitives, compiled at build time to scoped CSS on the Web and StyleSheet objects on iOS and Android, with every class a platform cannot honour named in a diagnostic."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -30,313 +45,15 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
     <main class="pt-24 pb-20 md:pt-32 md:pb-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <DomainNav baseUrl={baseUrl} currentDomain="tailwind" />
 
-      <!-- Page Header -->
-      <section class="mb-12 max-w-4xl">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hinoki/10 border border-hinoki/18 text-hinoki text-xs font-mono mb-4">
-          <span>@hozo/tailwind</span>
-          <span class="text-stone-600">•</span>
-          <span>AOT Compilation · Zero Runtime</span>
-        </div>
-        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-shikkui mb-5">
-          Ahead-of-Time <span class="text-hinoki">Tailwind CSS Compiler</span>
-        </h1>
-        <p class="text-base sm:text-lg text-stone-300 leading-relaxed">
-          Traditional React Native solutions run a heavy style parser in the client JavaScript bundle. Hozo compiles Tailwind classes ahead of time in Rust, emitting zero-runtime atomic CSS for Web and precalculated Fabric StyleSheets for Mobile.
-        </p>
-      </section>
-
-      <!-- 3-Tier Style Resolution Pipeline -->
-      <div class="mb-16 rounded-2xl border border-hinoki/18 bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
-        <h2 class="text-xl sm:text-2xl font-bold text-shikkui mb-4">The 3-Tier Style Resolution Pipeline</h2>
-        <p class="text-sm text-stone-300 leading-relaxed mb-6">
-          To ensure 100% predictability with maximum runtime performance, Hozo executes styles through a three-tier pipeline:
-        </p>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
-            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 1: Static AOT</div>
-            <h3 class="text-base font-bold text-shikkui mb-2">Build-Time Compilation</h3>
-            <p class="text-xs text-stone-300 leading-relaxed">
-              Static classes are scanned by <code class="text-hinoki">hozo_cache</code> and compiled into native atomic classes and constant StyleSheets. Zero bytes of runtime parser code ship to users.
-            </p>
-          </div>
-
-          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
-            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 2: Dynamic Preflight</div>
-            <h3 class="text-base font-bold text-shikkui mb-2">Branch Pre-Calculation</h3>
-            <p class="text-xs text-stone-300 leading-relaxed">
-              Ternary expressions (<code class="text-hinoki">isActive ? 'bg-hinoki' : 'bg-transparent'</code>) are evaluated at build time. Both branches are compiled into constant numeric lookups.
-            </p>
-          </div>
-
-          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
-            <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">Tier 3: Candidate Sheet</div>
-            <h3 class="text-base font-bold text-shikkui mb-2">Universal Fallback</h3>
-            <p class="text-xs text-stone-300 leading-relaxed">
-              Unresolvable runtime strings link to a pre-extracted candidate stylesheet derived from Tailwind v4, ensuring no dynamic class ever fails silently.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Cross-Platform Pseudos & Theming -->
-      <section class="mb-20">
-        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-8 tracking-tight">
-          Cross-Platform Variants & Theming
-        </h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
-            <h3 class="text-lg font-bold text-shikkui mb-2">Pseudo-Class Parity</h3>
-            <p class="text-sm text-stone-300 leading-relaxed mb-4">
-              Write standard Tailwind variants without platform-specific checks:
-            </p>
-            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
-              <li><strong class="text-shikkui">hover: & focus-visible:</strong> Native CSS pseudo-selectors on Web; Pressable state transitions on Native.</li>
-              <li><strong class="text-shikkui">dark:</strong> Lowered to CSS media queries on Web and paired dark token StyleSheets on Mobile.</li>
-              <li><strong class="text-shikkui">aria-* variants:</strong> Direct accessibility state binding across W3C and AccessibilityState.</li>
-            </ul>
-          </div>
-
-          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
-            <h3 class="text-lg font-bold text-shikkui mb-2">Tailwind v4 @theme Integration</h3>
-            <p class="text-sm text-stone-300 leading-relaxed mb-4">
-              Synchronize your design system tokens effortlessly:
-            </p>
-            <ul class="text-xs text-stone-400 space-y-2 list-disc list-inside">
-              <li><strong class="text-shikkui">Web:</strong> Tokens emit clean CSS custom properties (<code class="text-hinoki">var(--color-hinoki)</code>).</li>
-              <li><strong class="text-shikkui">Native:</strong> Tokens emit structured constants into the React Native StyleSheet dictionary.</li>
-              <li><strong class="text-shikkui">No Duplication:</strong> Single design token source of truth across the monorepo.</li>
-            </ul>
-          </div>
-        </div>
-      </section>
-
-      <!-- Section: Web Conformance Details -->
-      <section class="mb-16">
-        <div class="flex items-center gap-3 mb-6">
-          <div class="w-8 h-8 rounded-lg bg-hinoki/10 border border-hinoki/20 flex items-center justify-center text-hinoki font-bold">
-            W
-          </div>
-          <div>
-            <h2 class="text-xl sm:text-2xl font-bold text-shikkui tracking-tight">Web Lowering Conformance (hozo_web)</h2>
-            <p class="text-xs sm:text-sm text-stone-400">
-              Verified by comparing Hozo's compiled CSS directly against Tailwind's official compilation oracle.
-            </p>
-          </div>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
-          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
-            <div class="text-xs font-mono text-stone-400 mb-1">Full Catalogue Coverage</div>
-            <div class="text-2xl font-bold text-shikkui mb-1">
-              {snapshot.catalogue.match.toLocaleString()} / {snapshot.catalogue.comparable.toLocaleString()}
-            </div>
-            <div class="text-xs text-emerald-400 font-semibold mb-2">
-              {pct(snapshot.catalogue.match, snapshot.catalogue.comparable)} Match
-            </div>
-            <p class="text-xs text-stone-400 leading-relaxed">
-              Tailwind's IntelliSense catalogue of 23,286 entries tested across layout, typography, colors, borders, and effects.
-            </p>
-          </div>
-
-          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
-            <div class="text-xs font-mono text-stone-400 mb-1">Cascade Rule Ordering</div>
-            <div class="text-2xl font-bold text-shikkui mb-1">
-              {snapshot.candidateSheet.inOrder.toLocaleString()} / {snapshot.candidateSheet.comparable.toLocaleString()}
-            </div>
-            <div class="text-xs text-emerald-400 font-semibold mb-2">100% In Order</div>
-            <p class="text-xs text-stone-400 leading-relaxed">
-              Candidate stylesheet order perfectly preserves Tailwind's specificity tiers and breakpoint ascending rules.
-            </p>
-          </div>
-
-          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
-            <div class="text-xs font-mono text-stone-400 mb-1">Arbitrary Values Support</div>
-            <div class="text-2xl font-bold text-shikkui mb-1">
-              {snapshot.arbitrary.match.toLocaleString()} / {snapshot.arbitrary.candidates.toLocaleString()}
-            </div>
-            <div class="text-xs text-hinoki font-semibold mb-2">
-              {pct(snapshot.arbitrary.match, snapshot.arbitrary.candidates)} Fidelity
-            </div>
-            <p class="text-xs text-stone-400 leading-relaxed">
-              High fidelity for arbitrary value syntax like <code class="text-stone-300">p-[13px]</code>, <code class="text-stone-300">bg-[#0d1117]</code>, and CSS variable bindings across tested utilities.
-            </p>
-          </div>
-        </div>
-
-        <div class="p-5 rounded-xl bg-yakisugi-900/60 border border-hinoki/18 text-xs text-stone-300 leading-relaxed">
-          <strong class="text-shikkui">Why exact fidelity matters on Web:</strong> In CSS, utility classes only work reliably when their order, selector structure, and variable declarations mirror the design system. Hozo doesn't invent its own CSS dialect &mdash; it lowers JSX primitives to semantic HTML elements with authentic scoped CSS classes.
-        </div>
-      </section>
-
-      <!-- Section: Native Lowering & Refusal Breakdown -->
-      <section class="mb-16">
-        <div class="flex items-center gap-3 mb-6">
-          <div class="w-8 h-8 rounded-lg bg-bengara/15 border border-bengara/30 flex items-center justify-center text-bengara font-bold">
-            N
-          </div>
-          <div>
-            <h2 class="text-xl sm:text-2xl font-bold text-shikkui tracking-tight">Native Lowering & Refusal Audit (hozo_native)</h2>
-            <p class="text-xs sm:text-sm text-stone-400">
-              Lowers to React Native Fabric components and StyleSheet objects. Refusals are diagnosed at build time.
-            </p>
-          </div>
-        </div>
-
-        <!-- Native Verdicts Explanation -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          <div class="p-4 rounded-xl border border-hinoki/18 bg-yakisugi-950/80 border-l-4 border-l-emerald-400">
-            <div class="flex items-center justify-between mb-1">
-              <span class="font-bold text-shikkui text-sm">COVERED</span>
-              <span class="text-xs font-mono font-bold text-emerald-400">{snapshot.native.covered}</span>
-            </div>
-            <p class="text-xs text-stone-400 leading-relaxed">
-              Hozo emits a native StyleSheet property (flexbox, dimensions, typography, colors, borders, transforms).
-            </p>
-          </div>
-
-          <div class="p-4 rounded-xl border border-hinoki/18 bg-yakisugi-950/80 border-l-4 border-l-amber-400">
-            <div class="flex items-center justify-between mb-1">
-              <span class="font-bold text-shikkui text-sm">REFUSED (Known Gaps)</span>
-              <span class="text-xs font-mono font-bold text-amber-400">{snapshot.native.refused}</span>
-            </div>
-            <p class="text-xs text-stone-400 leading-relaxed">
-              React Native has no native equivalent. The compiler alerts you with a diagnostic rather than failing silently.
-            </p>
-          </div>
-
-          <div class="p-4 rounded-xl border border-hinoki/18 bg-yakisugi-950/80 border-l-4 border-l-hinoki">
-            <div class="flex items-center justify-between mb-1">
-              <span class="font-bold text-shikkui text-sm">NO-OP (Honoured)</span>
-              <span class="text-xs font-mono font-bold text-hinoki">{snapshot.native.noOp}</span>
-            </div>
-            <p class="text-xs text-stone-400 leading-relaxed">
-              React Native already performs this by default (e.g. <code class="text-stone-300">box-border</code>). Doing nothing satisfies the contract.
-            </p>
-          </div>
-        </div>
-
-        <!-- Refusal Breakdown Detail Table -->
-        <div class="rounded-xl border border-hinoki/18 bg-yakisugi-950 overflow-hidden mb-6">
-          <div class="p-4 bg-yakisugi-900/60 border-b border-hinoki/18">
-            <h3 class="text-sm font-bold text-shikkui flex items-center gap-2">
-              <span>Why Candidates Are Refused on Native</span>
-              <span class="text-[10px] font-normal px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20 font-mono">
-                Audited against RN types
-              </span>
-            </h3>
-          </div>
-          <div class="divide-y divide-hinoki/40 text-xs font-mono">
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
-              <div class="flex items-center gap-2">
-                <span class="text-amber-400 font-semibold">REFUSED</span>
-                <span class="text-shikkui">box-content</span>
-              </div>
-              <div class="text-stone-400 text-[11px] font-sans">
-                React Native Yoga engine enforces <code class="font-mono text-stone-300">box-sizing: border-box</code> universally; content-box is not supported.
-              </div>
-            </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
-              <div class="flex items-center gap-2">
-                <span class="text-amber-400 font-semibold">REFUSED</span>
-                <span class="text-shikkui">accent-* (accent-indigo-500)</span>
-              </div>
-              <div class="text-stone-400 text-[11px] font-sans">
-                No CSS <code class="font-mono text-stone-300">accent-color</code> equivalent exists for native controls; tint is handled via primitive props.
-              </div>
-            </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
-              <div class="flex items-center gap-2">
-                <span class="text-amber-400 font-semibold">REFUSED</span>
-                <span class="text-shikkui">caret-* (caret-indigo-500)</span>
-              </div>
-              <div class="text-stone-400 text-[11px] font-sans">
-                Input caret color requires <code class="font-mono text-stone-300">selectionColor</code> on TextInput, not a general style property.
-              </div>
-            </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
-              <div class="flex items-center gap-2">
-                <span class="text-amber-400 font-semibold">REFUSED</span>
-                <span class="text-shikkui">table, list, inline-*</span>
-              </div>
-              <div class="text-stone-400 text-[11px] font-sans">
-                HTML table & list layouts do not exist in React Native flexbox layout.
-              </div>
-            </div>
-            <div class="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-hinoki/5">
-              <div class="flex items-center gap-2">
-                <span class="text-hinoki font-semibold">NO-OP</span>
-                <span class="text-shikkui">box-border</span>
-              </div>
-              <div class="text-stone-400 text-[11px] font-sans">
-                Honoured by doing nothing: all React Native views already use border-box sizing.
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Refusal Audit Summary Card -->
-        <div class="p-4 rounded-xl border border-hinoki/18 bg-yakisugi-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
-          <div>
-            <div class="font-bold text-shikkui mb-0.5">Automated Refusal Audit against React Native `.d.ts`</div>
-            <p class="text-stone-400">
-              Of <strong>{snapshot.refusalAudit.refusals.toLocaleString()}</strong> total refusals audited, <strong>{snapshot.refusalAudit.confirmed.toLocaleString()}</strong> are confirmed impossible from React Native's official type definitions.
-            </p>
-          </div>
-          <div class="flex items-center gap-2 font-mono text-[11px]">
-            <span class="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-              {snapshot.refusalAudit.confirmed.toLocaleString()} Confirmed
-            </span>
-            <span class="px-2.5 py-1 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
-              {snapshot.refusalAudit.partial} Partial
-            </span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Conformance Link Card -->
-      <div class="mb-16 p-6 sm:p-8 rounded-2xl border border-hinoki/30 bg-hinoki/5 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div>
-          <h3 class="text-lg font-bold text-shikkui mb-1">Verify Full Differential Conformance</h3>
-          <p class="text-xs sm:text-sm text-stone-300">
-            View the automated cross-platform conformance snapshot comparing Tailwind, StyleX, ARIA, and Fabric.
-          </p>
-        </div>
-        <a
-          href={`${baseUrl}/conformance/`}
-          class="px-5 py-2.5 rounded-lg bg-hinoki text-yakisugi-950 font-bold text-xs sm:text-sm hover:bg-hinoki-light transition-colors shrink-0 text-center"
-        >
-          View Conformance Matrix &rarr;
-        </a>
-      </div>
-
-      <!-- Code Example -->
-      <section class="mb-16">
-        <h2 class="text-2xl sm:text-3xl font-bold text-shikkui mb-4 tracking-tight">
-          Universal Component Example
-        </h2>
-        <p class="text-sm text-stone-300 mb-6 max-w-2xl">
-          Write responsive, stateful Tailwind components with zero wrappers and zero runtime cost.
-        </p>
-        <div class="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
-<pre><code><span class="text-hinoki">import</span> &#123; View, Text, Pressable &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/core'</span>
-
-<span class="text-hinoki">export function</span> <span class="text-shikkui">InteractiveCard</span>() &#123;
-  <span class="text-hinoki">return</span> (
-    &lt;<span class="text-bengara">Pressable</span>
-      <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"p-6 rounded-2xl bg-yakisugi-900 border border-hinoki/18 hover:border-hinoki active:scale-95 transition-all dark:bg-yakisugi-950"</span>
-      <span class="text-hinoki-light">accessibilityRole</span>=<span class="text-tatami-light">"button"</span>
-    &gt;
-      &lt;<span class="text-bengara">Text</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"text-lg font-bold text-shikkui group-hover:text-hinoki"</span>&gt;
-        Ahead-of-Time Compiled Card
-      &lt;/<span class="text-bengara">Text</span>&gt;
-      &lt;<span class="text-bengara">Text</span> <span class="text-hinoki-light">className</span>=<span class="text-tatami-light">"text-sm text-stone-400 mt-2 leading-relaxed"</span>&gt;
-        Zero-runtime atomic CSS on Web. Fabric StyleSheet on Native.
-      &lt;/<span class="text-bengara">Text</span>&gt;
-    &lt;/<span class="text-bengara">Pressable</span>&gt;
-  )
-&#125;</code></pre>
-        </div>
-      </section>
+      <TailwindIntro tailwind={snapshot.versions.tailwind} />
+      <TailwindSampleIntro />
+      <ChipDemo client:visible />
+      <TailwindSample source={chipSource} compiled={compiled} />
+      <TailwindVariants rows={variants} />
+      <TailwindMeasured numbers={snapshot} />
+      <TailwindNativeGaps gaps={gaps} />
+      <TailwindTheme />
+      <TailwindConformanceLink baseUrl={baseUrl} />
     </main>
 
     <Footer baseUrl={baseUrl} />
