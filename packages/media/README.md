@@ -24,9 +24,10 @@ its engine. Neither `@hozo/core` nor a non-media screen gains this dependency.
 ## Video contract
 
 - `src`: nonempty URL or URI. For bundled files, Web can pass its bundler's URL;
-  Native can pass `expo-asset`'s resolved `localUri`. A numeric Metro asset ID,
-  request headers, DRM, and streams requiring special engine configuration are
-  not part of this first API.
+  Native can pass `expo-asset`'s resolved URI. Prepare numeric Metro asset IDs
+  with the separate `/source` companion below; they are not passed directly
+  to the player. Request headers, DRM, and streams requiring special engine
+  configuration are not part of this player API.
 - `accessibilityLabel`: required, nonempty name. `testID` names the test target.
 - `controls` and `playsInline` default to true. Controls are the browser/OS's
   own controls when no poster is supplied; appearance, keyboard and fullscreen behavior are platform-owned.
@@ -241,6 +242,83 @@ were verified separately. This establishes Android emulator virtual-output
 behavior, not physical speakers, iOS capture or AT/session behavior. One run
 does not establish zero flakiness. See the
 [Native showcase instructions](../../examples/native-showcase/README.md).
+
+## Preparing bundled media
+
+`@hozo/media/source` exports the React-only `useMediaSource` hook. It owns
+resolution state, not decoding, playback, cache files or a filesystem. Both
+hosts use the same lifecycle and explicit `resolveSource(source, signal)`
+adapter contract. Web URLs already produced by a bundler use `resolveMediaURI`;
+it validates/passes through the URI and performs **no fetch or format probe**:
+
+```tsx
+import { Audio } from '@hozo/media/audio'
+import { resolveMediaURI, useMediaSource } from '@hozo/media/source'
+import { Button, Text } from '@hozo/primitives'
+import clip from './tones.wav'
+
+function BundledSound() {
+  const asset = useMediaSource({ source: clip, resolveSource: resolveMediaURI })
+  if (asset.error) return <>
+    <Text>Audio asset: {asset.error.message}</Text>
+    <Button onPress={asset.reload}>Retry audio asset</Button>
+  </>
+  if (!asset.uri) return <Text>Loading bundled audio</Text>
+  return <Audio src={asset.uri} accessibilityLabel="Three rising tones" />
+}
+```
+
+For a numeric Native Metro asset, keep that same hook and select the opt-in
+Expo adapter instead. Install `expo-asset` with `npx expo install expo-asset`
+when using this entry (tested with SDK 57 / 57.0.18):
+
+```tsx
+import { useMediaSource } from '@hozo/media/source'
+import { resolveExpoMediaAsset } from '@hozo/media/source/expo'
+
+const bundledAudio: number = require('./tones.wav')
+// Inside a component, then use the same loading/error/retry presentation:
+const asset = useMediaSource({ source: bundledAudio, resolveSource: resolveExpoMediaAsset })
+```
+
+The ordinary hook/Audio/Video Web entries do not import Expo Asset. Only
+`/source/expo` imports this optional peer; it uses the SDK's module registry and
+`downloadAsync`, preferring `localUri` with its existing embedded-resource URI
+fallback. It does not accept an arbitrary numeric ID on Web or turn numbers
+into URL strings. Asset cache persistence/offline policy and downloads belong
+to the SDK/application, not Hozo. See [Expo Asset](https://docs.expo.dev/versions/v57.0.0/sdk/asset/).
+
+Options are an opaque `source`, a stable `resolveSource` function and optional
+`enabled` (default true). `source: null` or disabled is idle and resolves nothing.
+String/number inputs naturally retain identity; memoize immutable objects and
+custom adapters instead of creating them on every render. Any custom resolver
+must return a nonempty string URI, synchronously or asynchronously, suitable
+for the selected player. Hozo does not add universal filesystem, authentication,
+CORS bypass, codec/stream support or an engine header option through this hook.
+
+The result contains `source`, `status` (idle/loading/ready/error), `uri`,
+`error: { source, operation: 'resolve', message } | null` and stable `reload()`.
+URI resolution success is **not** media readiness: decoder failures continue
+through the player's separate status/error contract. Old URIs/errors disappear
+during render on source/resolver/enable changes or reload, before cleanup.
+StrictMode replay, A → B → A, reverse completion and unmount cannot publish
+retired results even if cancellation is unsupported. There is no automatic
+retry or Hozo-owned cross-source cache. Refresh hides the current URI until
+the new resolution settles; the application decides when to mount a player.
+
+Resolvers receive an AbortSignal, also aborted on retirement **after success**.
+The Expo adapter cannot cancel an SDK download, but suppresses its late result;
+Hozo does not delete SDK/shared cache files. Custom resolvers that create a
+temporary object/file URI must own its lifetime and can use the signal to
+release it. A returned URI does not transfer ownership to the playback engine.
+
+Both Storybooks now use this API for Audio, Video and separate artwork. Poster
+resolution/failure/retry never replaces the playable movie; while artwork is
+pending, it is not supplied to the player. Defer an initial player mount in the
+application if a cover must precede any video presentation. Mocked resolver/
+story tests and production Metro bundles are distinct from actual device file,
+offline, decoder and assistive-technology evidence. Existing real Chromium
+showcase playback, captions and poster interactions remain separate checks.
 
 ## Accessibility and evidence
 

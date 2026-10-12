@@ -110,3 +110,35 @@ test('published seek bindings import React but no widget, Native host or playbac
     )
   }
 })
+
+test('published source hook stays React-only and Expo adapter remains an explicit optional leaf', async () => {
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url)))
+  assert.equal(manifest.peerDependenciesMeta['expo-asset'].optional, true)
+  for (const native of [false, true])
+    for (const expo of [false, true]) {
+      const result = await build({
+        stdin: {
+          contents: expo
+            ? "export {resolveExpoMediaAsset} from '@hozo/media/source/expo'"
+            : "export {useMediaSource, resolveMediaURI} from '@hozo/media/source'",
+          resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+        },
+        bundle: true,
+        write: false,
+        platform: native ? 'node' : 'browser',
+        conditions: native ? ['react-native'] : [],
+        format: 'esm',
+        metafile: true,
+        external: ['react', 'expo-asset'],
+      })
+      const imports = Object.values(result.metafile.outputs).flatMap((output) =>
+        output.imports.map((entry) => entry.path),
+      )
+      assert.deepEqual([...new Set(imports)], [expo ? 'expo-asset' : 'react'])
+      assert.ok(
+        !Object.keys(result.metafile.inputs).some((file) =>
+          /expo-audio|expo-video|react-native|patterns/.test(file),
+        ),
+      )
+    }
+})

@@ -179,11 +179,13 @@ const PACKAGES = {
       './audio': './dist/audio-index.js',
       './captions': './dist/captions-index.js',
       './seek': './dist/seek-index.js',
+      './source': './dist/source-index.js',
+      './source/expo': './dist/expo-source-index.js',
       './webvtt': './dist/webvtt-index.js',
     },
     native: true,
-    peerOverrides: { 'expo-audio': '>=57.0.5 <58' },
-    peerMetadataOverrides: { 'expo-audio': { optional: true } },
+    peerOverrides: { 'expo-audio': '>=57.0.5 <58', 'expo-asset': '>=57.0.18 <58' },
+    peerMetadataOverrides: { 'expo-audio': { optional: true }, 'expo-asset': { optional: true } },
     keywords: ['react-native', 'react', 'video', 'audio', 'media', 'expo'],
     // Bootstrap a new manifest here rather than hand-writing generated fields.
     initial: {
@@ -213,6 +215,7 @@ const PACKAGES = {
         esbuild: '0.28.2',
         'expo-video': '~57.0.5',
         'expo-audio': '~57.0.5',
+        'expo-asset': '~57.0.18',
         'playwright-core': '^1.63.0',
         react: '^19.2.8',
         'react-dom': '^19.2.8',

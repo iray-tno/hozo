@@ -1,7 +1,9 @@
 import { VideoDemo, VideoPlaybackProbe } from '@hozo/example-showcase'
+import { useMediaSource } from '@hozo/media/source'
+import { resolveExpoMediaAsset } from '@hozo/media/source/expo'
+import { Button } from '@hozo/primitives'
 import type { Meta, StoryObj } from '@storybook/react-native'
-import { Asset } from 'expo-asset'
-import { type PropsWithChildren, useEffect, useState } from 'react'
+import type { PropsWithChildren } from 'react'
 import { ScrollView, Text, View } from 'react-native'
 
 // Make only the measurement viewport a named AX node. The ordinary engine
@@ -30,34 +32,44 @@ function LocalVideo({
   captions?: boolean
   poster?: boolean
 }) {
-  const [src, setSrc] = useState<string | null>(null)
-  const [posterSrc, setPosterSrc] = useState<string | undefined>()
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    let active = true
-    const asset = Asset.fromModule(require('../../showcase/assets/hozo-video.mp4'))
-    const cover = poster
-      ? Asset.fromModule(require('../../showcase/assets/hozo-video-poster.png'))
-      : null
-    void Promise.all([asset.downloadAsync(), cover?.downloadAsync()])
-      .then(() => {
-        if (!active) return
-        setPosterSrc(cover ? (cover.localUri ?? cover.uri) : undefined)
-        setSrc(asset.localUri ?? asset.uri)
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(cause instanceof Error ? cause.message : String(cause))
-      })
-    return () => {
-      active = false
-    }
-  }, [poster])
-  if (error) return <Text>Video asset: {error}</Text>
+  const asset = useMediaSource({
+    source: require('../../showcase/assets/hozo-video.mp4'),
+    resolveSource: resolveExpoMediaAsset,
+  })
+  const cover = useMediaSource({
+    source: poster ? require('../../showcase/assets/hozo-video-poster.png') : null,
+    resolveSource: resolveExpoMediaAsset,
+  })
+  const src = asset.uri
+  const posterSrc = cover.uri ?? undefined
+  if (asset.error)
+    return (
+      <>
+        <Text>Video asset: {asset.error.message}</Text>
+        <Button onPress={asset.reload}>Retry video asset</Button>
+      </>
+    )
   if (!src) return <Text>Loading bundled video</Text>
-  return probe ? (
-    <VideoPlaybackProbe src={src} poster={posterSrc} Viewport={NativeVideoViewport} />
-  ) : (
-    <VideoDemo src={src} customControls={customControls} captions={captions} poster={posterSrc} />
+  // Artwork resolution/retry must not unmount an already playable movie.
+  return (
+    <>
+      {probe ? (
+        <VideoPlaybackProbe src={src} poster={posterSrc} Viewport={NativeVideoViewport} />
+      ) : (
+        <VideoDemo
+          src={src}
+          customControls={customControls}
+          captions={captions}
+          poster={posterSrc}
+        />
+      )}
+      {cover.error && (
+        <>
+          <Text>Poster asset: {cover.error.message}</Text>
+          <Button onPress={cover.reload}>Retry poster asset</Button>
+        </>
+      )}
+    </>
   )
 }
 

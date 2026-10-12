@@ -432,6 +432,38 @@ but ignored settings. Compiled controls retain the real media host and never
 play/seek merely to apply configuration. These are harness tests, not a claim
 of actual Native output; that requires a fresh-build measurement run.
 
+### Source resolution companion
+
+`/source` owns a shared React-only `useMediaSource` lifetime, separate from
+Audio/Video resource allocation and decoding. Its opaque source and explicit,
+stable `resolveSource(source, signal)` adapter return a nonempty player URI,
+not capability/readiness evidence. `resolveMediaURI` simply validates a URL/URI
+already resolved by the app/bundler; it never fetches or probes it. The opt-in
+`/source/expo` adapter imports the optional Expo Asset peer, resolves positive
+integer Metro module IDs through `fromModule().downloadAsync()` and preserves
+the SDK's local-URI/embedded-resource fallback. Web's ordinary entries gain no
+Expo dependency and no number-to-URL emulation is introduced.
+
+Results identify source, idle/loading/ready/error, current URI, source-bound
+resolve error and explicit reload. Disable/deselect, source or adapter change,
+refresh, StrictMode and unmount retire request identity. The render result
+hides old data before cleanup, and a late success/failure cannot publish even
+if transport cancellation is unsupported. No resolution starts in render;
+ordinary clock/UI rerenders do not resolve again. A resolver's signal retires
+after successful resolution too, allowing its owner to release temporary URIs.
+SDK downloads/cache files are SDK/application-owned, never deleted by Hozo.
+
+Both showcases consume this contract with unchanged owned audio/video/poster
+fixtures and story IDs. Artwork gets a separate lifetime, so loading, failure
+and retry cannot restart a playable movie. During artwork resolution the player
+receives no poster; applications needing an initial cover before any video can
+defer their initial mount explicitly. Tests exercise both host entries,
+StrictMode/SSR, reverse completion, retry/disable/unmount, invalid output,
+SDK failures and rendered story ownership. Published-entry boundary checks,
+real Web showcase playback and Native production Metro exports are separate
+layers, not physical-device/offline/codec/AT certification. Header/DRM/stream
+policy and richer source descriptors remain separate player-engine work.
+
 ### Source-bound seek capability slice
 
 `MediaStatus.seekability` distinguishes engine-reported `available` ranges,
