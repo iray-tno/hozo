@@ -1,7 +1,8 @@
 import type { AudioPlayer, AudioStatus as ExpoAudioStatus } from 'expo-audio'
 import type { AudioHandle } from './audio-types.ts'
+import { mediaPlaybackOptions } from './playback-rate.ts'
 import { durationValue, seekTime, VideoObserver } from './status.ts'
-import type { VideoCallbacks, VideoOptions } from './types.ts'
+import type { VideoCallbacks, VideoError, VideoOptions } from './types.ts'
 import { mediaVolume } from './volume.ts'
 
 /** One committed player/source; never change global session, recording or lock-screen policy. */
@@ -11,6 +12,8 @@ export class NativeAudioSession implements AudioHandle {
   private subscription: { remove(): void } | null = null
   private options: VideoOptions = {}
   private autoplayAttempted = false
+  private rateError: VideoError | null = null
+  private loaded = false
 
   constructor(
     private player: AudioPlayer,
@@ -39,6 +42,12 @@ export class NativeAudioSession implements AudioHandle {
       return
     }
     const previous = this.getStatus()
+    if (status.isLoaded && !this.loaded) {
+      this.loaded = true
+      // iOS pitch configuration before replace targets the old/nil AVPlayerItem.
+      // Reapply to the newly loaded item, before autoplay and loop-item cloning.
+      this.applyRate(true)
+    } else if (!status.isLoaded) this.loaded = false
     // Expo's periodic snapshot may drop the transient error field while the
     // failed source remains unloaded. Do not present that as error recovery.
     if (previous.status === 'error' && !status.isLoaded) return
@@ -57,7 +66,7 @@ export class NativeAudioSession implements AudioHandle {
       buffering: status.isBuffering,
       currentTime: status.currentTime,
       duration: status.isLive ? null : durationValue(status.duration),
-      error: null,
+      error: this.rateError,
     })
     if (ended) this.observer.ended()
     this.maybeAutoplay()
@@ -65,21 +74,61 @@ export class NativeAudioSession implements AudioHandle {
   setOptions(options: VideoOptions) {
     if (!this.active) return
     const volume = mediaVolume(options.volume)
+    const requested = mediaPlaybackOptions(options)
+    const refreshLoop =
+      this.loaded && requested.preservesPitch !== mediaPlaybackOptions(this.options).preservesPitch
     this.options = options
     this.player.loop = options.loop ?? false
     this.player.muted = options.muted ?? false
     // Android's Expo mute setter restores its cached gain. Apply the authored
     // gain afterwards, including zero selected while muted, not that old cache.
     this.player.volume = volume
+    this.applyRate(refreshLoop)
     this.maybeAutoplay()
   }
+
+  private applyRate(refreshLoop = false) {
+    if (!this.active) return false
+    const { playbackRate, preservesPitch } = mediaPlaybackOptions(this.options)
+    try {
+      // Expo iOS clones the current item's pitch algorithm into its queued
+      // loop item. Rebuild that queue after new-item/pitch configuration so an
+      // old loop copy cannot undo an authored pitch-only change on the next lap.
+      if (refreshLoop && this.options.loop) this.player.loop = false
+      this.player.shouldCorrectPitch = preservesPitch
+      // Android samples preservesPitch inside the queued setPlaybackRate task.
+      // iOS uses spectral correction for high, matching Expo Video's algorithm.
+      this.player.setPlaybackRate(playbackRate, 'high')
+      this.rateError = null
+      if (this.getStatus().error?.operation === 'rate') this.observer.update({ error: null })
+      return true
+    } catch (cause) {
+      this.rateError = {
+        src: this.src,
+        operation: 'rate',
+        message: cause instanceof Error ? cause.message : String(cause),
+      }
+      this.observer.fail('rate', cause)
+      return false
+    } finally {
+      if (refreshLoop && this.options.loop && this.active) this.player.loop = true
+    }
+  }
   private maybeAutoplay() {
-    if (this.options.autoPlay && !this.autoplayAttempted && this.getStatus().status === 'ready') {
+    if (
+      this.options.autoPlay &&
+      !this.rateError &&
+      !this.autoplayAttempted &&
+      this.getStatus().status === 'ready'
+    ) {
       this.autoplayAttempted = true
       void this.play().catch(() => {})
     }
   }
   async play() {
+    if (!this.active) throw new Error('Audio source is no longer active')
+    if (!this.applyRate()) throw new Error(this.rateError?.message ?? 'Playback rate was rejected')
+    // Error recovery callbacks may synchronously unmount/replace this source.
     if (!this.active) throw new Error('Audio source is no longer active')
     try {
       this.player.play()

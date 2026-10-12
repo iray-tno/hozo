@@ -38,8 +38,17 @@ function SourceAudio(props: AudioProps) {
       loop: props.loop,
       muted: props.muted,
       volume: props.volume,
+      playbackRate: props.playbackRate,
+      preservesPitch: props.preservesPitch,
     })
-  }, [props.autoPlay, props.loop, props.muted, props.volume])
+  }, [
+    props.autoPlay,
+    props.loop,
+    props.muted,
+    props.volume,
+    props.playbackRate,
+    props.preservesPitch,
+  ])
   return (
     <>
       <audio

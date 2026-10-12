@@ -10,6 +10,8 @@ function fakePlayer() {
   const player = {
     status: 'idle',
     playing: false,
+    playbackRate: 1,
+    preservesPitch: true,
     currentTime: 0,
     duration: 0,
     loop: false,

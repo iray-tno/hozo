@@ -36,6 +36,11 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
         seeks: [],
         loop: false,
         muted: false,
+        playbackRate: 1,
+        shouldCorrectPitch: true,
+        setPlaybackRate(rate) {
+          this.playbackRate = rate
+        },
         addListener(name, callback) {
           assert.equal(name, 'playbackStatusUpdate')
           listener = callback
@@ -108,6 +113,10 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
     assert.throws(() => renderToStaticMarkup(render('invalid.wav', { volume })), RangeError)
   }
   assert.equal(players.length, 0, 'render alone allocates no native resource')
+  for (const playbackRate of [0, 0.1, 3, NaN, Infinity, null, '1']) {
+    assert.throws(() => renderToStaticMarkup(render('invalid.wav', { playbackRate })), RangeError)
+  }
+  assert.equal(players.length, 0, 'invalid rate is rejected before Native allocation')
   await act(async () => {
     renderer = create(render('a.wav'))
   })
@@ -147,6 +156,23 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
   await act(async () => a.emit({ playing: true, currentTime: 0.5 }))
   assert.deepEqual(events, ['new'])
   assert.equal(buttons()[0].props.accessibilityLabel, 'Pause audio')
+  await act(async () =>
+    renderer.update(
+      render('a.wav', {
+        playbackRate: 2,
+        preservesPitch: false,
+        onPlay: () => events.push('new'),
+      }),
+    ),
+  )
+  assert.equal(a.playbackRate, 2)
+  assert.equal(a.shouldCorrectPitch, false)
+  assert.equal(ref.current, handle)
+  assert.equal(players.length, 1)
+  assert.equal(a.plays, 1)
+  await act(async () => renderer.update(render('a.wav', { onPlay: () => events.push('new') })))
+  assert.equal(a.playbackRate, 1)
+  assert.equal(a.shouldCorrectPitch, true)
   let done = false
   const seek = ref.current.seekTo(10).then(() => {
     done = true

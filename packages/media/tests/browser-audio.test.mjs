@@ -5,6 +5,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
+import { exercisePlaybackRate } from './helpers/playback-rate.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const executablePath = [
@@ -142,6 +143,9 @@ test('real Audio decodes PCM, produces non-silent samples, uses keyboard control
       assert.equal(await page.evaluate(() => window.ref.current.getStatus().currentTime), 0)
       assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
     }
+    await exercisePlaybackRate(page, 'audio')
+    await page.evaluate(() => window.configure({ muted: false }))
+    await page.waitForFunction(() => !document.querySelector('audio').muted)
     const scrubber = page.getByRole('slider', { name: 'Playback position', exact: true })
     await scrubber.focus()
     await page.keyboard.press('ArrowRight')

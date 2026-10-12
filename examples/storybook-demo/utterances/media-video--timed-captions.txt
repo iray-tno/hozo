@@ -15,6 +15,8 @@ button, Seek forward 1 second
 0:00 / 0:04
 end of group, Video playback controls
 slider, Playback position, orientated horizontally, max value 4.0063, min value 0, current value 0:00 / 0:04
+Requested video speed: 1x; pitch correction on
+button, Set video speed to 2x
 group, Caption language
 Caption language
 radio, Captions off, not checked, position 1, set size 3

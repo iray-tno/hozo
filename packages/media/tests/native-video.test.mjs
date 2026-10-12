@@ -22,6 +22,8 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
       duration: 0,
       currentTime: 0,
       playing: false,
+      playbackRate: 1,
+      preservesPitch: true,
       loop: false,
       muted: false,
       timeUpdateEventInterval: 0,
@@ -125,6 +127,13 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
     )
   }
   assert.equal(players.length, 0, 'invalid gain is rejected before Native allocation')
+  for (const playbackRate of [0, 0.1, 3, NaN, Infinity, null, '1']) {
+    assert.throws(
+      () => renderToStaticMarkup(render('invalid.mp4', () => {}, { playbackRate })),
+      RangeError,
+    )
+  }
+  assert.equal(players.length, 0, 'invalid rate is rejected before Native allocation')
   for (const poster of ['', '  ', null, 42]) {
     assert.throws(
       () => renderToStaticMarkup(render('invalid.mp4', () => {}, { poster })),
@@ -184,6 +193,19 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
     await ref.current.play()
   })
   assert.deepEqual(events, ['new'])
+  await act(async () =>
+    renderer.update(
+      render('a.mp4', () => events.push('new'), {
+        playbackRate: 2,
+        preservesPitch: false,
+      }),
+    ),
+  )
+  assert.equal(a.playbackRate, 2)
+  assert.equal(a.preservesPitch, false)
+  assert.equal(ref.current, initialHandle)
+  assert.deepEqual(a.loads, ['a.mp4'])
+  assert.deepEqual(events, ['new'], 'speed changes must not invent additional onPlay callbacks')
   ref.current.seekTo(2)
   assert.equal(a.currentTime, 2)
   const retiredHandle = ref.current

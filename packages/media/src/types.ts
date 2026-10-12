@@ -1,9 +1,10 @@
 import type { Ref } from 'react'
+import { mediaPlaybackOptions } from './playback-rate.ts'
 import { mediaVolume } from './volume.ts'
 
 export interface MediaError {
   src: string
-  operation: 'load' | 'play' | 'seek' | 'volume'
+  operation: 'load' | 'play' | 'seek' | 'volume' | 'rate'
   message: string
 }
 
@@ -60,6 +61,10 @@ export interface VideoOptions {
   muted?: boolean
   /** Player gain, 0–1 inclusive; default 1. Independent of mute and OS volume. */
   volume?: number
+  /** Requested speed, 0.25–2 inclusive; default 1. Zero is not pause. */
+  playbackRate?: number
+  /** Request engine pitch correction; default true, not identical DSP on each host. */
+  preservesPitch?: boolean
 }
 
 export interface VideoProps extends VideoOptions, VideoCallbacks {
@@ -79,10 +84,12 @@ export interface VideoProps extends VideoOptions, VideoCallbacks {
   ref?: Ref<VideoHandle>
 }
 
-export function validateVideoProps({ src, accessibilityLabel, volume, poster }: VideoProps) {
+export function validateVideoProps(props: VideoProps) {
+  const { src, accessibilityLabel, volume, poster } = props
   if (!src.trim()) throw new TypeError('Video requires a nonempty src')
   if (!accessibilityLabel.trim()) throw new TypeError('Video requires an accessibilityLabel')
   mediaVolume(volume)
+  mediaPlaybackOptions(props)
   if (poster !== undefined && (typeof poster !== 'string' || !poster.trim())) {
     throw new TypeError('Video poster must be a nonempty URL or URI')
   }

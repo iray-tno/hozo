@@ -39,6 +39,12 @@ function engine(androidAudio = false) {
     duration: 4,
     loop: false,
     error: null,
+    playbackRate: 1,
+    preservesPitch: true,
+    shouldCorrectPitch: true,
+    setPlaybackRate(rate: number) {
+      this.playbackRate = rate
+    },
     get muted() {
       return muted
     },

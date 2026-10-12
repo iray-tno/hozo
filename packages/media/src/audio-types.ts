@@ -1,5 +1,6 @@
 import type { Ref } from 'react'
 import type { VideoControlsProps } from './control-types.ts'
+import { mediaPlaybackOptions } from './playback-rate.ts'
 import type { MediaHandle, VideoCallbacks, VideoError, VideoOptions, VideoStatus } from './types.ts'
 import { mediaVolume } from './volume.ts'
 
@@ -18,8 +19,10 @@ export interface AudioProps extends VideoOptions, VideoCallbacks {
   ref?: Ref<AudioHandle>
 }
 
-export function validateAudioProps({ src, accessibilityLabel, volume }: AudioProps) {
+export function validateAudioProps(props: AudioProps) {
+  const { src, accessibilityLabel, volume } = props
   if (!src.trim()) throw new TypeError('Audio requires a nonempty src')
   if (!accessibilityLabel.trim()) throw new TypeError('Audio requires an accessibilityLabel')
   mediaVolume(volume)
+  mediaPlaybackOptions(props)
 }
