@@ -500,7 +500,9 @@ better way to be wrong about an accessibility preference.
 Hozo emits `data-hozo-disabled`, `data-hozo-cond-*`,
 `data-hozo-pointer-events`, `data-hozo-hide-scrollbar` and
 `data-hozo-horizontal`, and `data-[…]:` lets an author select on any of
-them. This was recorded as open, with a test for settling it: one concrete
+them. (`data-hozo-cond-*` has since become a class, `hozo-cond-*`: an
+element the compiler keeps as a component did not render the attribute,
+#883. The name is still a pair of source offsets, and still private.) This was recorded as open, with a test for settling it: one concrete
 case of someone needing to select on Hozo's own state and having no other
 way to ask.
 

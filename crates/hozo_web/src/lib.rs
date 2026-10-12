@@ -1077,8 +1077,15 @@ fn render_node(
     // is matched by the project-wide candidate stylesheet
     // (`render_candidate_stylesheet`) -- the browser's own CSS engine does
     // the resolution, with no runtime code involved.
+    // A className branch's guard, as the class its rules select on: present
+    // when the source's condition holds. See `css::expr_ref_class`.
+    let guards: Vec<String> = collect_expr_refs(node)
+        .into_iter()
+        .map(|expr_ref| format!("({}) && '{}'", source_text(source, expr_ref), css::expr_ref_class(expr_ref)))
+        .collect();
     let mut attrs = if node.class_name_fallback.is_empty()
         && node.props.stylex_residuals.is_empty()
+        && guards.is_empty()
     {
         if classes.is_empty() {
             String::new()
@@ -1101,6 +1108,7 @@ fn render_node(
             });
         }
         let parts: Vec<String> = std::iter::once(format!(r#""{classes}""#))
+            .chain(guards)
             .chain(node.props.stylex_residuals.iter().map(|residual| {
                 format!("({}).className", residual.render_expression(source))
             }))
@@ -1603,17 +1611,6 @@ fn render_node(
         if let Some(rows) = text_input.number_of_lines.filter(|_| is_textarea(node)) {
             attrs.push_str(&format!(" rows={{{}}}", source_text(source, rows)));
         }
-    }
-
-    // CSS attribute selectors (`[data-hozo-cond-x-y]`, built in css.rs)
-    // match on an attribute's *presence*, not its string value -- so the
-    // guard must be wired as `{expr ? '' : undefined}` (React omits
-    // `undefined`-valued attributes entirely) rather than a literal
-    // "true"/"false" string, which would stay present either way and
-    // permanently match the selector.
-    for expr_ref in collect_expr_refs(node) {
-        let guard = source_text(source, expr_ref);
-        attrs.push_str(&format!(" {}={{{guard} ? '' : undefined}}", css::expr_ref_attribute(expr_ref)));
     }
 
     // `replace` belongs to an application router, not to HTML. Preserve
@@ -2938,7 +2935,7 @@ export function Login() {
     }
 
     #[test]
-    fn dynamic_class_name_guard_is_wired_as_a_presence_toggle() {
+    fn dynamic_class_name_guard_is_wired_as_a_class_toggle() {
         let source = r#"
             import { View } from '@hozo/core'
             import { cn } from 'clsx'
@@ -2947,15 +2944,31 @@ export function Login() {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
-        // The guard is re-emitted verbatim, wired to toggle attribute
-        // *presence* (not a literal "true"/"false" string, which would
-        // permanently match the CSS attribute selector either way).
-        assert!(output.jsx.contains("={active ? '' : undefined}"));
-        assert!(!output.jsx.contains(r#"="false""#));
-        assert!(!output.jsx.contains(r#"="true""#));
+        // The guard is re-emitted verbatim into the class list, so it goes
+        // wherever `className` goes -- not an attribute a component might
+        // not render (#883).
+        assert!(output.jsx.contains("(active) && 'hozo-cond-"), "{}", output.jsx);
+        assert!(!output.jsx.contains("data-hozo-cond"), "{}", output.jsx);
 
-        // And the CSS selector that attribute name feeds is present too.
-        assert!(output.css.contains("]) {"), "{}", output.css);
+        // And the weightless selector that class feeds is present too.
+        assert!(output.css.contains(":where(.hozo-cond-"), "{}", output.css);
+    }
+
+    /// A branch on an element that stays a component: `Button` with a spread
+    /// that may carry `href`. The guard has to arrive through `className`,
+    /// the one prop such a component passes on.
+    #[test]
+    fn a_branch_on_a_component_reaches_it_through_its_class_name() {
+        let source = r#"
+            import clsx from 'clsx'
+            import { Button } from '@hozo/primitives'
+            const el = <Button {...rest} className={clsx('p-2', small ? 'px-3' : 'px-4')}>Go</Button>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.contains("className={["), "{}", output.jsx);
+        assert!(output.jsx.contains("(small) && 'hozo-cond-"), "{}", output.jsx);
+        assert!(!output.jsx.contains("data-hozo-cond"), "{}", output.jsx);
     }
 
     #[test]

@@ -125,7 +125,7 @@ try {
     assert.match(source, /export function Chip/)
     const web = await listing('Web')
     assert.match(web, /role="checkbox"/)
-    assert.match(web, /data-hozo-cond-\d+-\d+/)
+    assert.match(web, /hozo-cond-\d+-\d+/)
     assert.match(web, /@media \(width >= 768px\)/)
     const native = await listing('iOS and Android')
     const keys = [...native.matchAll(/^\s*(hozo\w+): \{/gm)].map((match) => match[1])

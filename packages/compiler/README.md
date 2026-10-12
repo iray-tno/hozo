@@ -44,7 +44,7 @@ specificity rather than by which stylesheet the bundler emits first:
 
 - a caller's class beats the component's resting look, its unconditional classes and
   a branch the source picked (`size === 'sm' ? 'px-3' : 'px-4'`, written through a
-  weightless `:where([data-hozo-cond-…])`), all at (0,1,0);
+  weightless `:where(.hozo-cond-…)`, a class the branch toggles), all at (0,1,0);
 - the component's state rules, `:hover`, `[data-hozo-disabled]`, `[aria-…]` and the
   rest at (0,2,0), beat the caller's class.
 

@@ -5014,10 +5014,10 @@ impl Condition {
     /// The `data-hozo-*` attribute this condition selects on, if any.
     ///
     /// Those are Hozo's own working state rather than an interface. What
-    /// settles it is not a preference: the namespace already contains
-    /// `data-hozo-cond-142-197`, whose name is a pair of byte offsets into
-    /// the source file, so adding a blank line above the element renames
-    /// it. A namespace holding something that cannot be depended on is not
+    /// settles it is not a preference: the namespace contained
+    /// `data-hozo-cond-142-197` (a class, `hozo-cond-*`, since #883), whose
+    /// name is a pair of byte offsets into the source file, so adding a
+    /// blank line above the element renames it. A namespace holding something that cannot be depended on is not
     /// one anything should be depended on from.
     ///
     /// And nothing is lost by saying so. Every state an author could want
