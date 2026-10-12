@@ -29,6 +29,11 @@ export interface MediaHandle {
 
 export type VideoError = MediaError
 export type VideoStatus = MediaStatus
+export interface VideoPosterError {
+  src: string
+  poster: string
+  message: string
+}
 export interface VideoHandle extends MediaHandle {
   seekTo(seconds: number): void
 }
@@ -60,6 +65,10 @@ export interface VideoOptions {
 export interface VideoProps extends VideoOptions, VideoCallbacks {
   /** A URL or platform-resolvable URI. Numeric Metro assets are not part of v1. */
   src: string
+  /** Decorative URL/URI cover until viewing begins and a frame signal arrives. */
+  poster?: string
+  /** Poster failure does not turn a playable video into a decoder error. */
+  onPosterError?: (error: VideoPosterError) => void
   accessibilityLabel: string
   controls?: boolean
   /** Requests inline playback on Web; Native is inline until its controls open fullscreen. */
@@ -70,8 +79,11 @@ export interface VideoProps extends VideoOptions, VideoCallbacks {
   ref?: Ref<VideoHandle>
 }
 
-export function validateVideoProps({ src, accessibilityLabel, volume }: VideoProps) {
+export function validateVideoProps({ src, accessibilityLabel, volume, poster }: VideoProps) {
   if (!src.trim()) throw new TypeError('Video requires a nonempty src')
   if (!accessibilityLabel.trim()) throw new TypeError('Video requires an accessibilityLabel')
   mediaVolume(volume)
+  if (poster !== undefined && (typeof poster !== 'string' || !poster.trim())) {
+    throw new TypeError('Video poster must be a nonempty URL or URI')
+  }
 }

@@ -11,10 +11,12 @@ export function VideoDemo({
   src,
   customControls = false,
   captions = false,
+  poster,
 }: {
   src: string
   customControls?: boolean
   captions?: boolean
+  poster?: string
 }) {
   const video = useRef<VideoHandle>(null)
   const [status, setStatus] = useState<VideoStatus | null>(null)
@@ -34,6 +36,7 @@ export function VideoDemo({
         <Video
           ref={video}
           src={src}
+          poster={poster}
           accessibilityLabel="Moving square, silent video"
           testID="showcase-video"
           controls={!customControls}

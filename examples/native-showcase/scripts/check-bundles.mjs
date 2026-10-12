@@ -10,6 +10,7 @@ const require = createRequire(import.meta.url)
 const cli = path.join(path.dirname(require.resolve('expo/package.json')), 'bin/cli')
 const videoFixture = readFileSync(path.join(root, '../showcase/assets/hozo-video.mp4'))
 const audioFixture = readFileSync(path.join(root, '../showcase/assets/hozo-audio.wav'))
+const posterFixture = readFileSync(path.join(root, '../showcase/assets/hozo-video-poster.png'))
 
 // Real production Metro exports run in main's integration report, not every
 // PR. Separate output directories do not race the user's interactive bundle.
@@ -91,6 +92,11 @@ for (const platform of ['android', 'ios']) {
   assert.ok(
     videos.some((asset) => readFileSync(path.join(output, asset.path)).equals(videoFixture)),
     `${platform}: the exact local showcase video was not exported`,
+  )
+  const posters = metadata.fileMetadata[platform].assets.filter((asset) => asset.ext === 'png')
+  assert.ok(
+    posters.some((asset) => readFileSync(path.join(output, asset.path)).equals(posterFixture)),
+    `${platform}: the exact local poster was not exported`,
   )
   console.log(`[native-showcase] ${platform}: Storybook and all demo content bundled`)
 }

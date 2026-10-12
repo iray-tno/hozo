@@ -173,6 +173,21 @@ async function run() {
   check(frame.contentDocument.querySelector('audio')?.volume === 0.25, 'Remount lost application gain')
   passed.push('shared Audio gain, independent mute, paused updates and source remount')
 
+  await loadStory('media-video--poster')
+  const posterVideo = frame.contentDocument.querySelector('video')
+  if (posterVideo.readyState < 2) await new Promise((resolve, reject) => {
+    posterVideo.addEventListener('loadeddata', resolve, { once: true })
+    posterVideo.addEventListener('error', () => reject(new Error('Poster movie could not load')), { once: true })
+  })
+  await pause()
+  check(frame.contentDocument.querySelector('img[aria-hidden=true]')?.naturalWidth === 320, 'Initial cover is missing')
+  named('button', 'Seek forward 1 second').click(); await pause()
+  check(!frame.contentDocument.querySelector('img') && posterVideo.paused, 'Explicit seek did not reveal paused video')
+  named('button', 'Remove video').click(); await pause()
+  named('button', 'Mount video').click(); await pause()
+  check(frame.contentDocument.querySelector('img[aria-hidden=true]'), 'Remount did not reset the cover')
+  passed.push('shared poster initial cover, explicit seek reveal and source remount')
+
   // A popover's first focus goes into the panel. FloatingPositioner draws
   // the panel hidden until it has measured, and focus used to be tried in
   // that frame and land on nothing, leaving it on the trigger.
@@ -233,7 +248,7 @@ try {
   assert.ok(output && output !== 'pending', 'browser did not complete interactions')
   const result = JSON.parse(output.replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
   assert.equal(result.error, undefined, result.error)
-  assert.equal(result.passed.length, 8)
+  assert.equal(result.passed.length, 9)
   console.log(`[shared-showcase] ${result.passed.join('; ')}`)
 } finally {
   server.closeAllConnections()

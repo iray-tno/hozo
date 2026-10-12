@@ -1,0 +1,15 @@
+heading, Video playback, level 2
+Silent animation: a purple square moves from left to right across a dark background.
+Moving square, silent video
+Video: ready; paused
+group, Video playback controls
+Video playback controls
+button, Play video
+button, Seek backward 1 second, disabled
+button, Seek forward 1 second
+0:00 / 0:04
+end of group, Video playback controls
+slider, Playback position, orientated horizontally, max value 4.0063, min value 0, current value 0:00 / 0:04
+button, Unmute video
+button, Enable video loop
+button, Remove video

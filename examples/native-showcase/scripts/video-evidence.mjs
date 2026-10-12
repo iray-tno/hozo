@@ -166,3 +166,117 @@ export async function exerciseVideo(driver, evidence) {
     throw error
   }
 }
+
+export function posterFrame(image) {
+  const { width, height, pixels } = image
+  assert.ok(width >= 160 && height >= 90, 'poster viewport is clipped or too small')
+  const step = Math.max(1, Math.floor(Math.min(width, height) / 200))
+  const columns = Math.ceil(width / step)
+  assert.equal(pixels.length, columns * Math.ceil(height / step), 'invalid poster sampling grid')
+  let teal = 0
+  let dark = 0
+  let x = 0
+  let y = 0
+  for (const [index, [r, g, b]] of pixels.entries()) {
+    if (r < 50 && g < 65 && b < 90) dark++
+    if (r < 40 && g > 160 && b > 140) {
+      teal++
+      x += ((index % columns) * step + 0.5) / width
+      y += (Math.floor(index / columns) * step + 0.5) / height
+    }
+  }
+  const fraction = teal / pixels.length
+  assert.ok(fraction >= 0.06 && fraction <= 0.18, `local poster diamond missing: ${fraction}`)
+  assert.ok(dark / pixels.length >= 0.8, 'poster background missing')
+  const centreX = x / teal
+  const centreY = y / teal
+  assert.ok(
+    Math.abs(centreX - 0.5) < 0.05 && Math.abs(centreY - 0.5) < 0.05,
+    'poster diamond is not centered',
+  )
+  return { tealFraction: fraction, darkFraction: dark / pixels.length, centreX, centreY }
+}
+
+/** A separate cover round never changes the original no-poster first-frame gate. */
+export async function exerciseVideoPoster(driver, evidence) {
+  const result = { passed: false, captures: [], observations: [] }
+  evidence.videoPoster = result
+  result.posterFixtureSha256 = createHash('sha256')
+    .update(readFileSync(new URL('../../showcase/assets/hozo-video-poster.png', import.meta.url)))
+    .digest('hex')
+  result.videoFixtureSha256 = createHash('sha256')
+    .update(readFileSync(new URL('../../showcase/assets/hozo-video.mp4', import.meta.url)))
+    .digest('hex')
+  const paused = async () => {
+    const status = await driver.waitStatus(
+      (s) => s.status === 'ready' && !s.playing && s.time < 0.2 && s.duration > 3 && s.duration < 5,
+      'poster source is ready and paused at zero',
+    )
+    result.observations.push({ phase: result.phase, observedAt: Date.now(), ...status })
+  }
+  const capture = async (phase, measure) => {
+    result.phase = phase
+    const started = Date.now()
+    let metrics
+    await driver.waitForImage(
+      () => {
+        const name = `poster-${phase}-${result.captures.length + 1}`
+        result.captures.push(name)
+        return driver.capture(name, result.surface)
+      },
+      (image) => {
+        try {
+          metrics = measure(image)
+          result.observations.push({ phase, observedAt: Date.now(), ...metrics })
+          return true
+        } catch (error) {
+          result.observations.push({ phase, observedAt: Date.now(), error: String(error) })
+          return false
+        }
+      },
+      `poster ${phase}`,
+    )
+    return { ...metrics, waitMs: Date.now() - started }
+  }
+  try {
+    result.phase = 'load'
+    await driver.story('media-video--poster-evidence', 'Native video playback')
+    await paused()
+    result.surface = await driver.waitFor(VIDEO_PROBE_LABEL)
+    result.initial = await capture('initial', posterFrame)
+    result.phase = 'seek'
+    await driver.tap('Seek probe start')
+    result.viewing = await capture('viewing', (image) => {
+      const frame = videoFrame(image)
+      assert.ok(frame.centreX < 0.25, 'poster source did not show its first frame')
+      return frame
+    })
+    await paused()
+    result.phase = 'remove'
+    await driver.tap('Remove probe')
+    await driver.waitFor('Video probe removed')
+    assert.equal(driver.hasVideo(), false, 'poster viewport remains after unmount')
+    result.phase = 'remount'
+    await driver.tap('Mount probe')
+    await paused()
+    result.surface = await driver.waitFor(VIDEO_PROBE_LABEL)
+    result.remounted = await capture('remounted', posterFrame)
+    await driver.story('primitives-shared-showcase--buttons', 'Add one')
+    await driver.tap('Add one')
+    await driver.waitFor('Pressed 1 times')
+    result.passed = true
+    driver.record(
+      'video poster stays while paused, reveals a decoded frame after explicit seek and resets on remount',
+      {
+        initial: result.initial,
+        viewing: result.viewing,
+        remounted: result.remounted,
+        posterFixtureSha256: result.posterFixtureSha256,
+        videoFixtureSha256: result.videoFixtureSha256,
+      },
+    )
+  } catch (error) {
+    result.error = error.stack
+    throw error
+  }
+}

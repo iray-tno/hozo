@@ -125,6 +125,13 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
     )
   }
   assert.equal(players.length, 0, 'invalid gain is rejected before Native allocation')
+  for (const poster of ['', '  ', null, 42]) {
+    assert.throws(
+      () => renderToStaticMarkup(render('invalid.mp4', () => {}, { poster })),
+      /Video poster must be a nonempty URL or URI/,
+    )
+  }
+  assert.equal(players.length, 0, 'invalid poster is rejected before Native allocation')
   await act(async () => {
     renderer = create(render('a.mp4', () => events.push('old')))
   })

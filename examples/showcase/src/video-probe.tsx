@@ -43,9 +43,11 @@ export function nextVideoProbeStatus(previous: VideoStatus | null, next: VideoSt
 /** A real player, not a simulated clock; paused seeks isolate pixels from UI text. */
 export function VideoPlaybackProbe({
   src,
+  poster,
   Viewport = VideoViewport,
 }: {
   src: string
+  poster?: string
   Viewport?: ComponentType<PropsWithChildren>
 }) {
   const player = useRef<VideoHandle>(null)
@@ -60,6 +62,7 @@ export function VideoPlaybackProbe({
           <Video
             ref={player}
             src={src}
+            poster={poster}
             accessibilityLabel="Moving square, silent video"
             controls={false}
             muted

@@ -20,6 +20,12 @@ a dark background for about four seconds. No speech, music, or other audio is
 present. The adjacent showcase description supplies the visual alternative.
 It is covered by the repository's MIT license.
 
+`hozo-video-poster.png` is an original 320×180 opaque teal diamond on the same
+dark background, also MIT. `node scripts/generate-poster-fixture.mjs` reproduces
+it with Node's PNG/zlib encoding, without a browser or external assets. Its
+colour/shape deliberately differ from the MP4's purple square, so a static
+poster cannot masquerade as successful video presentation in pixel checks.
+
 Generated manually with `node scripts/generate-video-fixture.mjs` from
 `examples/showcase`. The script needs Chrome with AVC MediaRecorder support.
 Tests and demos use the checked-in file, never regenerate it or fetch a video

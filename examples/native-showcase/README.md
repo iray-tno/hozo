@@ -1,5 +1,15 @@
 # Native showcase
 
+`Media/Video/Poster` shares the ordinary poster/custom-control demo with Web.
+The full Android/iOS drivers additionally select `Media/Video/PosterEvidence`
+after the original no-poster Video round. They require the owned teal cover
+while ready/paused at zero, a real purple video frame after one explicit
+seek-to-zero, actual viewport removal and a fresh remount showing the cover.
+The cover cannot satisfy the video-pixel gate. `evidence.videoPoster` retains
+both fixture hashes, all screenshots/failed observations, phase and wait times.
+No input is repeated, no source is warmed up in the original round, and a mock
+or successful export is not a claim of actual Native cover rendering.
+
 A dedicated Expo development app running **React Native Storybook**. It is
 separate from `native-demo` (compiler/accessibility verification) and
 `three-native-probe` (GPU measurements). Verification stories are explicit;

@@ -38,6 +38,48 @@ explicit seekability/capability reporting remains follow-up work.
 
 ## Boundaries and next slices
 
+### Source-bound poster policy
+
+`Video` accepts an optional decorative `poster` URI and a separate `onPosterError`.
+Its cover stays on an initial paused source. Observed playing or an accepted
+explicit seek (including zero) begins viewing, but removing the cover additionally
+requires a source-owned frame signal. Metadata/readiness alone, denied commands,
+or a ticking status clock do not satisfy this gate. Pause/end/loop/quality changes
+do not restore a removed cover; a new source/remount resets it. Artwork updates
+retain the decoder and command handle and do not cover an already viewed source.
+
+Overlaying an image above platform video controls can conceal their buttons.
+Therefore a poster with controls enabled uses the same persistent Hozo controls
+below the viewport on both hosts. Without a poster the platform controls remain;
+with controls disabled the application still owns its UI. Changing the cover
+does not replace the viewport parent/host, and automatic reveal never removes the
+shared focused control. This is an explicit universal API, not raw HTML poster
+lowering or an automatic native fullscreen/PiP implementation.
+
+Web watches compositor submission through requestVideoFrameCallback; the older
+host fallback observes current decoded data (not metadata and not presented pixels).
+Native uses Expo's onFirstFrameRender. A committed Native player gets its own view
+key and positive-area layout identity, including effect replay, before loading.
+Retired view/frame callbacks cannot release the next player's cover or affect its
+load gate. A keyed decorative image owns its error lifetime; failures remove the
+image and report its media/cover sources, not a fabricated decoder failure.
+
+The owned PNG deliberately differs in colour/shape from the MP4's decoded frame.
+Actual Chromium screenshot checks cover paused poster, accepted play/seek reveal,
+source reset, stable host/handle/focus and HTTP image failure, both with compositor
+callbacks and the forced decoded-data fallback. Native full CI adds a separate
+round capturing cover → decoded paused frame after one explicit seek → remount
+cover, with source/image hashes, all failed captures, observations and wait times.
+The original no-poster initial-frame/seek/play/remount gates stay unchanged, with
+no warm-up, larger deadline or repeated input. Native success is not claimed from
+the new mocks/Metro exports; the fresh app's actual pixel evidence must pass.
+
+References: [Expo first-frame callback](https://docs.expo.dev/versions/v57.0.0/sdk/video/#onfirstframerender),
+[Web compositor callback](https://developer.mozilla.org/en-US/docs/Web/API/HTMLVideoElement/requestVideoFrameCallback),
+[current decoded data](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/loadeddata_event).
+
+### Other playback companions
+
 `VideoControls` now supplies optional shared play/pause and stepped-seek UI.
 Its command policy is shared; Web renders semantic buttons/group and Native
 renders uncombined named Pressables. State follows observations, not requests;
