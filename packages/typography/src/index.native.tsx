@@ -152,6 +152,12 @@ export function Code({ style, ...props }: TypographyNativeProps) {
   return <NativeText style={[{ fontFamily: 'monospace' }, style]} {...props} />
 }
 
+// A `Text` keeps spaces and line breaks as written already; what `<pre>`
+// adds on the Web that a `Text` lacks is the monospace face.
+export function Preformatted({ style, ...props }: TypographyNativeProps) {
+  return <NativeText style={[{ fontFamily: 'monospace' }, style]} {...props} />
+}
+
 export function Small({ style, ...props }: TypographyNativeProps) {
   const base = useContext(TextSize)
   const ratios = hozoPreflight ? TEXT_SIZE_RATIOS : BARE_TEXT_SIZE_RATIOS

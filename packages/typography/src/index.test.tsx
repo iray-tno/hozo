@@ -10,6 +10,7 @@ import {
   Mark,
   NoBreak,
   Paragraph,
+  Preformatted,
   Ruby,
   RubyText,
   Small,
@@ -43,6 +44,9 @@ test('typography primitives render semantic HTML tags', () => {
           漢字<RubyText>かんじ</RubyText>
         </Ruby>
       </Paragraph>
+      <Preformatted>
+        <Code>{'a\n  b'}</Code>
+      </Preformatted>
     </div>,
   )
 
@@ -58,6 +62,10 @@ test('typography primitives render semantic HTML tags', () => {
   assert.ok(html.includes('<sub>Subscript</sub>'), 'Sub rendered as sub')
   assert.ok(html.includes('<sup>Superscript</sup>'), 'Sup rendered as sup')
   assert.ok(html.includes('<code>const x = 1;</code>'), 'Code rendered as code')
+  assert.ok(
+    html.includes('<pre><code>a\n  b</code></pre>'),
+    'Preformatted rendered as pre, its text as written',
+  )
   assert.ok(html.includes('<small>Fine print</small>'), 'Small rendered as small')
   assert.ok(html.includes('<mark>Highlighted</mark>'), 'Mark rendered as mark')
   assert.ok(html.includes('white-space:nowrap'), 'NoBreak contains white-space:nowrap style')

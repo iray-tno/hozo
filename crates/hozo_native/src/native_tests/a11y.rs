@@ -218,6 +218,19 @@ fn typography_primitives_lower_to_native_text_with_styles() {
 }
 
 #[test]
+fn preformatted_lowers_to_monospace_text_on_native() {
+    let source = r#"
+            import { Preformatted } from '@hozo/core'
+            const el = <Preformatted>{'a\n  b'}</Preformatted>
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<Text"), "{}", output.jsx);
+    assert!(output.styles.contains("fontFamily: 'monospace'"), "{}", output.styles);
+}
+
+#[test]
 fn article_and_navigation_keep_roles_on_native() {
     let source = r#"
             import { Article, Nav, Heading } from '@hozo/core'

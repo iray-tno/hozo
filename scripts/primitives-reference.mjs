@@ -79,6 +79,7 @@ const SNIPPETS = {
   Nav: '<Nav>x</Nav>',
   NoBreak: '<NoBreak>x</NoBreak>',
   Paragraph: '<Paragraph>x</Paragraph>',
+  Preformatted: '<Preformatted><Code>x</Code></Preformatted>',
   Pressable: '<Pressable role="button" onPress={go}>x</Pressable>',
   Progress: '<Progress value={40} max={100} accessibilityLabel="Upload" />',
   Meter: '<Meter value={0.6} accessibilityLabel="Disk usage" />',

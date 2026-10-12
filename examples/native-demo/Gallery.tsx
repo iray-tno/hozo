@@ -100,6 +100,7 @@ import {
   OtpInput,
   Pagination,
   Paragraph,
+  Preformatted,
   Pressable,
   Progress,
   Ruby,
@@ -212,6 +213,7 @@ export default function Gallery() {
           <Strikethrough testID="gallery-Strikethrough">Strikethrough</Strikethrough>
           <Del testID="gallery-Del">Del</Del>
           <Code testID="gallery-Code">Code</Code>
+          <Preformatted testID="gallery-Preformatted">{'Preformatted\n  text'}</Preformatted>
           <Mark testID="gallery-Mark">Mark</Mark>
           <Small testID="gallery-Small">Small</Small>
           <NoBreak testID="gallery-NoBreak">NoBreak</NoBreak>
