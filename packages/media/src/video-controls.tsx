@@ -11,6 +11,7 @@ export function VideoControls(props: VideoControlsProps) {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {[controls.toggle, controls.backward, controls.forward].map((control) => (
           <button
+            data-hozo-pressable=""
             key={control.key}
             type="button"
             disabled={control.disabled}

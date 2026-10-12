@@ -11,5 +11,9 @@ export const HOZO_VIEW_BASE_CSS = `@layer base {
     padding: 0;
     border: 0 solid;
   }
+
+  :where([data-hozo-pressable]:not(:disabled, [data-hozo-disabled], [aria-disabled="true"])) {
+    cursor: pointer;
+  }
 }
 `

@@ -536,6 +536,7 @@ function Root({
             }
             return (
               <button
+                data-hozo-pressable=""
                 key={control.id}
                 type="button"
                 onClick={() => press(control.id, canvasPressEvent(point.point, point.surfacePoint))}

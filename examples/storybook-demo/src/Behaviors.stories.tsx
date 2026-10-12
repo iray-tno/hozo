@@ -367,7 +367,7 @@ function RovingToolbarItem({ index, label }: { index: number; label: string }) {
       // tab stop, and it is the *active* item -- so a ring only on the
       // inactive ones is a ring on every button a keyboard can never reach
       // without arrowing, and none on the one it lands on.
-      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
+      className={`cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 ${
         isActive
           ? 'bg-indigo-600 text-white shadow-sm'
           : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -536,7 +536,7 @@ function FloatingPopoverDemo() {
           ref={anchorRef}
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          className="cursor-pointer rounded-xl bg-indigo-600 px-8 py-3 text-sm font-semibold text-white shadow-md hover:bg-indigo-500 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
           {open ? 'Close Popover' : 'Click to Anchor Popover'}
         </button>
@@ -628,7 +628,7 @@ function TooltipDelayGroupingDemo() {
             >
               <button
                 type="button"
-                className="flex h-9 w-9 items-center justify-center rounded-md font-mono text-xs font-semibold text-slate-700 hover:bg-slate-100 focus:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+                className="cursor-pointer flex h-9 w-9 items-center justify-center rounded-md font-mono text-xs font-semibold text-slate-700 hover:bg-slate-100 focus:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
               >
                 {tool.icon}
               </button>
@@ -667,7 +667,7 @@ function HoverCardDemo() {
           ref={anchorRef}
           type="button"
           {...triggerProps}
-          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          className="cursor-pointer inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-800 shadow-sm hover:border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         >
           <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-tr from-indigo-500 to-sky-400 font-bold text-[10px] text-white">
             H

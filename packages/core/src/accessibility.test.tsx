@@ -186,6 +186,6 @@ test('every primitive carries the styling hook the generated CSS matches on', ()
     // Presence, not a value: React renders `data-x={false}` as the string
     // "false", which an attribute selector matches.
     const enabled = render(component, { accessibilityState: { disabled: false } })
-    assert.doesNotMatch(enabled, /data-hozo-disabled/, `${name} marks an enabled element disabled`)
+    assert.doesNotMatch(enabled, /data-hozo-disabled=/, `${name} marks an enabled element disabled`)
   }
 })

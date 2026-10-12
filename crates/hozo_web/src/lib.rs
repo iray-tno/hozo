@@ -89,6 +89,14 @@ const ARIA_STATE_ATTRS: &[(&str, &str)] = &[
 // Included here and generated into @hozo/engine for uncompiled components.
 // `base` keeps Tailwind's layered utilities stronger than these defaults;
 // :where keeps ordinary project rules stronger regardless of source order.
+//
+// It also gives `[data-hozo-pressable]` its pointer. A `<div role="button">`
+// never gets one from the browser, and since Tailwind v4's Preflight neither
+// does a `<button>`, so every component had to remember `cursor-pointer` and
+// several did not. Hozo marks what it makes clickable -- compiled controls,
+// the runtime primitives, and the elements `@hozo/patterns` and its siblings
+// render -- and the rule leaves out every way Hozo spells disabled, so a
+// marker can be static. Zero specificity, so an authored `cursor-*` wins.
 const VIEW_BASE_CSS: &str = include_str!("view-base.css");
 
 /// The plain rule is zero-specificity for the same reason `.hozo-view`
@@ -1408,6 +1416,9 @@ fn render_node(
             );
             source_evidence::expression(&mut attrs, &mut attr_copies, source, source_text(source, on_press), " {...hozoInteractive(", &suffix);
             *uses_key_activation = true;
+            // `hozoInteractive` marks the element `data-hozo-pressable`,
+            // and the rule that gives it a pointer lives with the view base.
+            *uses_view_base = true;
         } else if authored_target {
             diagnostics.push(hozo_ir::Diagnostic {
                 code: hozo_ir::DiagnosticCode::PropCollidesWithPlatformName,
@@ -1419,6 +1430,13 @@ fn render_node(
             });
         } else {
             source_evidence::expression(&mut attrs, &mut attr_copies, source, source_text(source, on_press), &format!(" {name}={{"), "}");
+            // A real `<button>` is a control already, but since Tailwind
+            // v4's Preflight its cursor is `default`. The same marker as a
+            // synthesized control; the rule itself skips `:disabled`.
+            if node.primitive == Primitive::Button && tag == "button" {
+                attrs.push_str(" data-hozo-pressable=\"\"");
+                *uses_view_base = true;
+            }
         }
     }
     if tag == "a" && node.props.on_press.is_none() {
@@ -3535,6 +3553,36 @@ const el = {element}"
         // Not separately: the helper supplies it, together with everything
         // it has to agree with.
         assert!(!output.jsx.contains("tabIndex"), "{}", output.jsx);
+    }
+
+    #[test]
+    fn a_control_brings_the_rule_that_gives_it_a_pointer() {
+        // `hozoInteractive` marks a synthesized control and the compiler
+        // marks a real `<button>`; either way the stylesheet that turns the
+        // marker into a pointer has to come with it, even with no View in
+        // the file.
+        for (source, marker) in [
+            (
+                "import { Pressable } from '@hozo/core'\nconst el = <Pressable accessibilityRole=\"button\" onPress={save}>S</Pressable>",
+                "hozoInteractive(save)",
+            ),
+            (
+                "import { Button } from '@hozo/core'\nconst el = <Button onPress={save}>S</Button>",
+                "data-hozo-pressable=\"\"",
+            ),
+
+        ] {
+            let parsed = hozo_parser::parse_tsx(source);
+            let output = lower(&parsed.roots[0].node, source, &Theme::default());
+            assert!(output.jsx.contains(marker), "{}", output.jsx);
+            assert!(output.css.contains(":where([data-hozo-pressable]"), "{}", output.css);
+        }
+
+        // A button that does nothing when clicked keeps the default cursor.
+        let source = "import { Button } from '@hozo/core'\nconst el = <Button>S</Button>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(!output.jsx.contains("data-hozo-pressable"), "{}", output.jsx);
     }
 
     #[test]

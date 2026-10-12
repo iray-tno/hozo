@@ -163,6 +163,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
             refs.current[at] = node
           }}
           role="option"
+          data-hozo-pressable=""
           aria-selected={chosen.includes(option.value)}
           aria-disabled={option.disabled || undefined}
           tabIndex={at === stop ? 0 : -1}

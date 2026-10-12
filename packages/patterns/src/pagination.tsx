@@ -136,6 +136,7 @@ export function HozoPagination({
     }
     return (
       <button
+        data-hozo-pressable=""
         type="button"
         aria-label={label}
         aria-current={state === 'current' ? 'page' : undefined}

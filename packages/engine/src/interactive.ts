@@ -49,6 +49,7 @@ export function hozoInteractive(onPress?: PressHandler, disabled?: unknown) {
         // a boolean here would have made every control permanently
         // disabled-looking. `undefined` is the only value React omits.
         'data-hozo-disabled': '',
+        'data-hozo-pressable': undefined,
         tabIndex: -1,
         onClick: undefined,
         onKeyDown: undefined,
@@ -60,6 +61,9 @@ export function hozoInteractive(onPress?: PressHandler, disabled?: unknown) {
         // is noise a screen reader has to read past.
         'aria-disabled': undefined,
         'data-hozo-disabled': undefined,
+        // The pointer cursor's hook (see the view base CSS): present only
+        // while clicking does something.
+        'data-hozo-pressable': onPress ? '' : undefined,
         tabIndex: 0,
         onClick: onPress,
         onKeyDown: hozoActivateKeyDown,

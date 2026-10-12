@@ -117,6 +117,7 @@ export function HozoTree({
             refs.current[at] = node
           }}
           role="treeitem"
+          data-hozo-pressable=""
           aria-level={row.level}
           aria-posinset={row.position}
           aria-setsize={row.setSize}

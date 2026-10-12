@@ -466,6 +466,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
     <div role="group" aria-label={accessibilityLabel} className={className}>
       <div className={headerClassName}>
         <button
+          data-hozo-pressable=""
           type="button"
           aria-label={previousMonthLabel}
           disabled={!backReachable}
@@ -483,6 +484,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           {monthLabel(shown, locale)}
         </div>
         <button
+          data-hozo-pressable=""
           type="button"
           aria-label={nextMonthLabel}
           disabled={!forwardReachable}

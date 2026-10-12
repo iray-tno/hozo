@@ -127,6 +127,7 @@ export function ThreeCanvas({
             }
             return (
               <button
+                data-hozo-pressable=""
                 key={control.id}
                 className={controlClassName}
                 data-testid={control.testID}

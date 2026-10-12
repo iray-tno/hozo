@@ -72,7 +72,7 @@ test('registered actions and destinations become native semantic controls', () =
   assert.match(html, /data-hozo-three-controls=""/)
   assert.match(
     html,
-    /<button data-testid="inspect-product" type="button">Inspect product<\/button>/,
+    /<button data-hozo-pressable="" data-testid="inspect-product" type="button">Inspect product<\/button>/,
   )
   assert.match(
     html,
@@ -113,6 +113,6 @@ test('an application can dress the control it could not reach', () => {
       ]}
     />,
   )
-  assert.match(html, /<button class="chip"/)
+  assert.match(html, /<button data-hozo-pressable="" class="chip"/)
   assert.match(html, /<a class="chip"/)
 })

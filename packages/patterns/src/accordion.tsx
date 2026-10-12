@@ -170,6 +170,7 @@ export function HozoAccordion(props: HozoAccordionProps) {
           <div key={key} className={sectionClassName}>
             <Heading className={headingClassName}>
               <button
+                data-hozo-pressable=""
                 ref={(node) => {
                   triggers.current[at] = node
                 }}

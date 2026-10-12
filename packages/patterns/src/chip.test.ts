@@ -16,7 +16,7 @@ test('a chip that does nothing is a label, with nothing to press', () => {
 
 test('a selectable chip is a toggle button that says whether it is pressed', () => {
   const off = render({ defaultSelected: false, className: 'c' })
-  assert.match(off, /^<button type="button" aria-pressed="false"/)
+  assert.match(off, /^<button data-hozo-pressable="" type="button" aria-pressed="false"/)
   assert.match(off, /data-hozo-state="unselected"/)
   assert.match(off, /class="c"/)
   const on = render({ selected: true })
@@ -26,7 +26,10 @@ test('a selectable chip is a toggle button that says whether it is pressed', () 
 
 test('a removable chip has its own remove button, named for what it removes', () => {
   const html = render({ onRemove: () => {} })
-  assert.match(html, /^<span>Remote<button type="button" aria-label="Remove Remote">/)
+  assert.match(
+    html,
+    /^<span>Remote<button data-hozo-pressable="" type="button" aria-label="Remove Remote">/,
+  )
   assert.match(html, /<span aria-hidden="true">×<\/span>/, 'the icon is not what is read')
 })
 
@@ -35,7 +38,7 @@ test('selectable and removable are two buttons, not one with two meanings', () =
   assert.equal((html.match(/<button/g) ?? []).length, 2)
   assert.match(
     html,
-    /^<span class="c" data-hozo-state="unselected"><button type="button" aria-pressed="false"/,
+    /^<span class="c" data-hozo-state="unselected"><button data-hozo-pressable="" type="button" aria-pressed="false"/,
   )
 })
 

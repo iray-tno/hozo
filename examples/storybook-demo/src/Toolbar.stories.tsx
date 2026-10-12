@@ -38,7 +38,7 @@ function control(label: string, hint: string, disabled = false) {
         {...props}
         ref={props.ref as Ref<HTMLButtonElement>}
         type="button"
-        className={CONTROL}
+        className={disabled ? CONTROL : `${CONTROL} cursor-pointer`}
         aria-label={hint}
         disabled={disabled}
       >

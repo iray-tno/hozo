@@ -317,17 +317,21 @@ export function Button({
     )
   }
   return (
-    <button
-      type="button"
-      className={className}
-      disabled={disabled}
-      data-hozo-disabled={disabled ? '' : undefined}
-      aria-label={accessibilityLabel}
-      aria-description={accessibilityHint}
-      data-testid={testID}
-      onClick={onPress as MouseEventHandler<HTMLButtonElement>}
-    >
-      {children}
-    </button>
+    <>
+      {hozoViewBase()}
+      <button
+        type="button"
+        className={className}
+        disabled={disabled}
+        data-hozo-disabled={disabled ? '' : undefined}
+        data-hozo-pressable={onPress && !disabled ? '' : undefined}
+        aria-label={accessibilityLabel}
+        aria-description={accessibilityHint}
+        data-testid={testID}
+        onClick={onPress as MouseEventHandler<HTMLButtonElement>}
+      >
+        {children}
+      </button>
+    </>
   )
 }

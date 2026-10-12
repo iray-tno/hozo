@@ -154,6 +154,7 @@ export function HozoColorPicker({
             const checked = index === selectedPreset
             return (
               <button
+                data-hozo-pressable=""
                 key={preset}
                 ref={(node) => {
                   swatches.current[index] = node
@@ -256,6 +257,7 @@ export function HozoColorPicker({
       />
       {eyeDropper ? (
         <button
+          data-hozo-pressable=""
           type="button"
           disabled={disabled}
           className={eyeDropperClassName}

@@ -74,7 +74,7 @@ test('on the Web with onStepPress: each step is a button carrying its class list
   })
   assert.match(
     html,
-    /<li aria-current="step" data-hozo-state="current"><button type="button" class="hozo-1 hozo-2" data-hozo-state="current">/,
+    /<li aria-current="step" data-hozo-state="current"><button data-hozo-pressable="" type="button" class="hozo-1 hozo-2" data-hozo-state="current">/,
     html,
   )
 })

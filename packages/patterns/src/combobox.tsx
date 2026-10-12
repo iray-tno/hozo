@@ -171,6 +171,7 @@ export function HozoCombobox<T>({
                       <div
                         key={`option-${index}`}
                         role="option"
+                        data-hozo-pressable=""
                         id={`${base}-option-${index}`}
                         aria-selected={at === active}
                         aria-disabled={option.disabled || undefined}

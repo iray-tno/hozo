@@ -245,6 +245,7 @@ export function HozoBottomSheet({
    */
   const handle = resizable ? (
     <button
+      data-hozo-pressable=""
       type="button"
       aria-label={handleAccessibilityLabel}
       className={handleClassName}

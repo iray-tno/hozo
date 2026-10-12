@@ -131,6 +131,7 @@ export function HozoMenu({
   return (
     <div className={className}>
       <button
+        data-hozo-pressable=""
         ref={triggerRef}
         type="button"
         aria-haspopup="menu"
@@ -173,6 +174,7 @@ export function HozoMenu({
                       itemRefs.current[at] = node
                     }}
                     role="menuitem"
+                    data-hozo-pressable=""
                     aria-disabled={item.disabled || undefined}
                     tabIndex={stops[at]}
                     className={itemClassName}

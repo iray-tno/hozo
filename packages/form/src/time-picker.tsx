@@ -258,6 +258,7 @@ export function HozoTimePicker({
    */
   const arrow = (name: 'hour' | 'minute', direction: 1 | -1, glyph: string) => (
     <button
+      data-hozo-pressable=""
       type="button"
       tabIndex={-1}
       aria-label={`${direction === 1 ? increaseLabel : decreaseLabel} ${
@@ -325,6 +326,7 @@ export function HozoTimePicker({
       {field('minute', textOf('minute'), minuteFieldLabel, current?.minute, 0, 59)}
       {twelve ? (
         <button
+          data-hozo-pressable=""
           type="button"
           aria-label={periodFieldLabel}
           disabled={disabled}
