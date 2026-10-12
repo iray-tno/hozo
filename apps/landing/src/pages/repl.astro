@@ -7,13 +7,12 @@
 // two answers whole, because a REPL that says a file compiles while the
 // build says it does not is worse than no REPL.
 //
-// An ultra-lightweight micro-editor (CodeJar ~2KB + PrismJS ~15KB) rather than
-// Monaco. Monaco is more than twice the size of the compiler (5-10MB+), whereas
-// CodeJar and PrismJS provide instant syntax highlighting, tab indentation, and
-// clean caret handling with under 20KB footprint.
+// CodeJar and Prism rather than Monaco: the editor should not outweigh the
+// compiler it is there to show.
 import { Footer } from '../components/Footer.tsx'
-import SiteHead from '../components/SiteHead.astro'
 import { Navbar } from '../components/Navbar.tsx'
+import { Repl, ReplIntro } from '../components/repl/ReplPage.tsx'
+import SiteHead from '../components/SiteHead.astro'
 import '../styles/global.css'
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
@@ -31,13 +30,6 @@ export function Card() {
   )
 }
 `
-
-const PANES = [
-  { id: 'repl-web-jsx', title: 'Web', note: 'JSX' },
-  { id: 'repl-web-css', title: 'Web', note: 'CSS' },
-  { id: 'repl-native-jsx', title: 'React Native', note: 'JSX' },
-  { id: 'repl-native-styles', title: 'React Native', note: 'StyleSheet' },
-]
 ---
 
 <!doctype html>
@@ -54,62 +46,12 @@ const PANES = [
       rel="stylesheet"
     />
   </head>
-  <body class="bg-[#0a0c10] text-slate-200 antialiased min-h-screen relative grid-background">
+  <body class="bg-yakisugi-950 text-shikkui antialiased min-h-screen relative grid-background">
     <Navbar baseUrl={baseUrl} />
 
-    <main class="pt-28 pb-24 md:pt-32 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="mb-8">
-        <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight text-white mb-4">
-          The compiler, <span class="gradient-text">in your browser</span>
-        </h1>
-        <p class="text-base sm:text-lg text-slate-300 max-w-3xl leading-relaxed">
-          The same compiler <code class="font-mono text-sm text-sky-300">@hozo/vite</code> and
-          <code class="font-mono text-sm text-sky-300">@hozo/metro</code> run, built to WebAssembly.
-          Nothing is sent anywhere: it compiles here, in this tab.
-        </p>
-        <p class="mt-3 text-sm text-slate-500 max-w-3xl">
-          Against Hozo's default theme — a project's own theme is read from its configuration, and a
-          page has no project.
-        </p>
-      </div>
-
-      <div class="grid lg:grid-cols-2 gap-6">
-        <section class="flex flex-col">
-          <header class="flex items-baseline justify-between mb-2">
-            <h2 class="text-sm font-semibold text-slate-300">Source</h2>
-            <span id="repl-status" class="font-mono text-xs text-slate-500">Loading…</span>
-          </header>
-          <div
-            id="repl-source"
-            role="textbox"
-            aria-multiline="true"
-            aria-label="TSX to compile"
-            class="w-full h-[22rem] lg:h-[34rem] rounded-xl bg-slate-950/80 border border-white/10 p-4 font-mono text-sm text-slate-200 leading-relaxed overflow-auto focus:outline-none focus:ring-2 focus:ring-indigo-500/60"
-          >{EXAMPLE}</div>
-
-          <h2 class="text-sm font-semibold text-slate-300 mt-6 mb-2">Diagnostics</h2>
-          <div id="repl-diagnostics" class="flex flex-col gap-2">
-            <p class="text-sm text-slate-500">Compiling…</p>
-          </div>
-        </section>
-
-        <section class="grid gap-4 content-start">
-          {
-            PANES.map((pane) => (
-              <div class="rounded-xl bg-slate-950/80 border border-white/10 overflow-hidden">
-                <header class="flex items-baseline gap-2 px-4 py-2 border-b border-white/10 bg-white/[0.02]">
-                  <span class="text-sm font-semibold text-slate-200">{pane.title}</span>
-                  <span class="font-mono text-xs text-slate-500">{pane.note}</span>
-                </header>
-                <pre
-                  id={pane.id}
-                  class="p-4 overflow-x-auto font-mono text-xs text-slate-300 leading-relaxed max-h-64"
-                />
-              </div>
-            ))
-          }
-        </section>
-      </div>
+    <main class="pt-24 pb-20 md:pt-32 md:pb-28 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <ReplIntro />
+      <Repl example={EXAMPLE} />
     </main>
 
     <Footer baseUrl={baseUrl} />
@@ -166,7 +108,13 @@ const PANES = [
       }
 
       /* CodeJar container styles */
+      #repl-source:focus-visible {
+        outline: 2px solid var(--color-hinoki);
+        outline-offset: 2px;
+      }
+      /* A View is a flex column; Prism's token spans must flow as text. */
       #repl-source {
+        display: block;
         tab-size: 2;
         -moz-tab-size: 2;
         white-space: pre-wrap;
