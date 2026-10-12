@@ -210,8 +210,11 @@ test('audio diagnosis is isolated, capture-enabled and does not change full/SVG 
     new URL('../../../.github/workflows/native-showcase.yml', import.meta.url),
     'utf8',
   )
-  assert.match(workflow, /options: \[full, svg-filters, audio-output\]/)
-  assert.match(workflow, /inputs.android-scenario == 'audio-output' && '-verbose' \|\| '-noaudio'/)
+  assert.match(workflow, /options: \[full, svg-filters, audio-output, audio-settings\]/)
+  assert.match(
+    workflow,
+    /\(inputs.android-scenario == 'audio-output' \|\| inputs.android-scenario == 'audio-settings'\) && '-verbose' \|\| '-noaudio'/,
+  )
   assert.match(workflow, /QEMU_AUDIO_DRV=wav/)
   assert.match(workflow, /QEMU_WAV_PATH=/)
   assert.match(workflow, /hozo-native-showcase-android-audio-evidence/)

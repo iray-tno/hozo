@@ -62,9 +62,9 @@ on:
         type: string
         default: '1'
       android-scenario:
-        description: 'Full showcase plus SVG, SVG only, or isolated actual Android audio output'
+        description: 'Full showcase, SVG only, or isolated actual Android audio output/settings'
         type: choice
-        options: [full, svg-filters, audio-output]
+        options: [full, svg-filters, audio-output, audio-settings]
         default: full
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'
@@ -165,11 +165,12 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
       - name: Enable an independent virtual sound-card capture for audio diagnosis
-        if: inputs.android-scenario == 'audio-output'
+        if: inputs.android-scenario == 'audio-output' || inputs.android-scenario == 'audio-settings'
         run: |
           mkdir -p artifacts/native-showcase-audio
+          mkdir -p artifacts/native-showcase-audio-settings
           echo 'QEMU_AUDIO_DRV=wav' >> "$GITHUB_ENV"
-          echo "QEMU_WAV_PATH=$GITHUB_WORKSPACE/artifacts/native-showcase-audio/qemu-output.wav" >> "$GITHUB_ENV"
+          echo "QEMU_WAV_PATH=$GITHUB_WORKSPACE/artifacts/${{ inputs.android-scenario == 'audio-settings' && 'native-showcase-audio-settings' || 'native-showcase-audio' }}/qemu-output.wav" >> "$GITHUB_ENV"
       - name: Exercise selected Android showcase scenario
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -179,7 +180,7 @@ jobs:
           profile: pixel_6
           ram-size: 4096M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect ${{ inputs.android-scenario == 'audio-output' && '-verbose' || '-noaudio' }} -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
+          emulator-options: -no-window -gpu swiftshader_indirect ${{ (inputs.android-scenario == 'audio-output' || inputs.android-scenario == 'audio-settings') && '-verbose' || '-noaudio' }} -no-boot-anim -camera-back none -no-snapshot-save -no-snapshot-load
           script: node examples/native-showcase/scripts/android-scenarios.mjs
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
@@ -192,6 +193,13 @@ jobs:
         with:
           name: hozo-native-showcase-android-audio-evidence
           path: artifacts/native-showcase-audio
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-android-audio-settings-evidence
+          path: artifacts/native-showcase-audio-settings
           if-no-files-found: ignore
           retention-days: 30
       - uses: actions/upload-artifact@v4

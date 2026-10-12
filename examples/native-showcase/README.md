@@ -472,6 +472,45 @@ speakers, iOS output, audio-session interruptions and TalkBack/VoiceOver
 operation remain separate checks. Do not describe these as measured until their
 own evidence exists.
 
+### Android gain/rate/pitch output diagnosis
+
+Select `platform=android`, `android-scenario=audio-settings`, diagnostics off
+and no reused build. `Media/Audio/SettingsOutputEvidence` keeps the ordinary
+Hozo Audio player playing through seven fixed phases: baseline, gain 25%, gain
+restored, .5x with pitch correction, 2x with correction, 2x without correction,
+then gain/rate/pitch reset. Play is sent once; settings never seek, restart or
+replace the player. The earlier `audio-output` mute/removal/remount series is
+unchanged and remains independently selectable. Neither diagnostic changes
+full/SVG, weekly or release gates.
+
+Each phase excludes one second for queued transitions and captures twelve
+seconds once from QEMU's sound-card sink. At least 11.5 seconds of PCM is
+required. The analyzer searches an independent frequency catalog covering
+original and half/double-shifted notes; requested labels/getters never feed
+its measured pulse frequencies, onset timestamps or active-window RMS.
+Complete pulses must include all three notes in cyclic source order and at
+least two independent intervals. The source onset gaps are 1, 1, 2 seconds;
+every resulting measured rate must lie within 20% of the requested rate.
+Corrected output retains 440/660/880Hz; uncorrected 2x must emit 880/1320/1760Hz.
+
+Gain compares median active-window RMS for each note against this run's
+baseline, not whole-recording energy affected by partial silence/loop phases.
+All three quarter-gain ratios must be 0.18–0.32, and restoration ratios 0.8–1.2.
+The settings-specific 40ms spectral windows require four 16-bit RMS steps and
+0.8 coherence so OS attenuation plus quarter gain does not erase tone identity.
+The original diagnostic's 16-step/0.85 gates remain unchanged. Missing/short
+output, wrong speed/pitch/order, noise, ignored settings or failed HID input
+stop immediately, preserving the failed capture instead of retrying it.
+
+`hozo-native-showcase-android-audio-settings-evidence` retains raw output,
+seven valid per-phase WAV slices, source/binary provenance, fixture/capture
+hashes, requested settings separately from observed metrics, pulse timelines,
+interval rates, per-note gain ratios, actions, thresholds and any failed phase.
+The analyzer/compiled-probe tests are not emulator evidence. Only an actual
+successful run establishes virtual output; physical speakers, iOS output,
+Video speed, exact DSP parity, AT and session/interruption behavior remain
+separate checks. The harness setup itself establishes none of those results.
+
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and
 disassemble the 3D scene; enable reduced motion; background/resume; switch away

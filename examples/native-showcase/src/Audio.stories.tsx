@@ -1,10 +1,10 @@
-import { AudioDemo, AudioPlaybackProbe } from '@hozo/example-showcase'
+import { AudioDemo, AudioPlaybackProbe, AudioSettingsProbe } from '@hozo/example-showcase'
 import { ScrollView, Text } from '@hozo/primitives'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { Asset } from 'expo-asset'
 import { useEffect, useState } from 'react'
 
-function LocalAudio({ probe = false }: { probe?: boolean }) {
+function LocalAudio({ probe = false, settings = false }: { probe?: boolean; settings?: boolean }) {
   const [src, setSrc] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
@@ -24,6 +24,7 @@ function LocalAudio({ probe = false }: { probe?: boolean }) {
   }, [])
   if (error) return <Text>Audio asset: {error}</Text>
   if (!src) return <Text>Loading bundled audio</Text>
+  if (settings) return <AudioSettingsProbe src={src} />
   return probe ? <AudioPlaybackProbe src={src} /> : <AudioDemo src={src} />
 }
 const meta = {
@@ -40,3 +41,4 @@ const meta = {
 export default meta
 export const Default: StoryObj<typeof meta> = {}
 export const OutputEvidence: StoryObj<typeof meta> = { args: { probe: true } }
+export const SettingsOutputEvidence: StoryObj<typeof meta> = { args: { settings: true } }

@@ -400,5 +400,36 @@ with owned fixture hashes verified. Cover/frame/remount waits were
 370/387/368ms (Android) and 1021/829/2305ms (iOS). This is emulator/simulator
 pixel evidence, not physical devices, audible output, AT or zero flakiness.
 
+### Independent Android settings-output slice
+
+The separate `audio-settings` diagnosis extends output evidence, not the
+production media API. The existing mute/removal/remount output scenario and
+full/SVG/release gates remain intact. A new canonical Audio story keeps one
+looping player alive through baseline → gain .25 → gain 1 → rate .5/pitch on →
+rate 2/pitch on → rate 2/pitch off → full reset. There is one play command, no
+seek/restart or synthetic application clock. Requested labels only acknowledge
+React UI updates; the QEMU sound-card PCM decides success.
+
+Before examining device output, fix each capture to one-second exclusion plus
+twelve seconds, minimum 11.5 seconds of PCM. Analyze 40ms windows, four 16-bit
+RMS quantization steps and 0.8 spectral coherence against the independent
+220/330/440/660/880/1320/1760Hz catalog. This lower settings-specific RMS floor
+allows quarter gain on the already attenuated mixer output; it does not alter
+the earlier diagnostic. Complete pulses must preserve the three-note order,
+include each note and supply at least two intervals. Measured source-gap/output-
+gap rates must individually lie within 20% of .5/1/2. Pitch-preserving output
+retains 440/660/880Hz; disabling correction at 2x must double each frequency.
+
+Compare per-note median active RMS against the same run baseline: all three
+quarter-gain ratios 0.18–0.32; volume and final settings restoration 0.8–1.2.
+Whole-clip RMS cannot certify gain because capture endpoints cut different
+amounts of silence. All seven recordings/observations/actions, provenance,
+hashes and failures survive; no input/capture is repeated until favourable.
+Independent synthetic recordings test arbitrary phases, opposite-polarity
+stereo, quarter gain, rejected noise/order/pitch/speed, and correctly labelled
+but ignored settings. Compiled controls retain the real media host and never
+play/seek merely to apply configuration. These are harness tests, not a claim
+of actual Native output; that requires a fresh-build measurement run.
+
 Sources: [Expo SDK 57 Video API](https://docs.expo.dev/versions/v57.0.0/sdk/video/),
 [Expo SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/).

@@ -18,6 +18,10 @@ export function runAndroidScenarios(value, run = execute) {
     run(scenario, 'artifacts/native-showcase-audio')
     return
   }
+  if (scenario === 'audio-settings') {
+    run(scenario, 'artifacts/native-showcase-audio-settings')
+    return
+  }
   run('svg-filters', 'artifacts/native-showcase-svg')
   if (scenario === 'full') run('full', 'artifacts/native-showcase')
 }

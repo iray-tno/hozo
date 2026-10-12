@@ -635,6 +635,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === './video.tsx') return {}
     if (name === './audio.tsx') return {}
     if (name === './audio-probe.tsx') return {}
+    if (name === './audio-settings-probe.tsx') return {}
     if (name === './video-probe.tsx') return {}
     throw new Error(`Unexpected form dependency: ${name}`)
   }
