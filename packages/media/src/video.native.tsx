@@ -79,8 +79,9 @@ function SourceVideo(props: VideoProps) {
       autoPlay: props.autoPlay,
       loop: props.loop,
       muted: props.muted,
+      volume: props.volume,
     })
-  }, [props.autoPlay, props.loop, props.muted])
+  }, [props.autoPlay, props.loop, props.muted, props.volume])
 
   return (
     <VideoView

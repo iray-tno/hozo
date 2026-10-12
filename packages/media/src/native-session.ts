@@ -1,6 +1,7 @@
 import type { VideoPlayer } from 'expo-video'
 import { durationValue, seekTime, VideoObserver } from './status.ts'
 import type { VideoCallbacks, VideoHandle, VideoOptions } from './types.ts'
+import { mediaVolume } from './volume.ts'
 
 /** A new Expo player per source avoids attributing an old asynchronous load to a new URI. */
 export class NativeVideoSession implements VideoHandle {
@@ -71,9 +72,11 @@ export class NativeVideoSession implements VideoHandle {
 
   setOptions(options: VideoOptions) {
     if (!this.active) return
+    const volume = mediaVolume(options.volume)
     this.options = options
     this.player.loop = options.loop ?? false
     this.player.muted = options.muted ?? false
+    this.player.volume = volume
     this.player.timeUpdateEventInterval = 0.25
     this.maybeAutoplay()
   }

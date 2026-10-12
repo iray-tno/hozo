@@ -35,6 +35,19 @@ its engine. Neither `@hozo/core` nor a non-media screen gains this dependency.
 - `autoPlay`, `muted`, `loop`: false by default. Autoplay is attempted once per
   source when ready; browser policy can deny it. Denial is reported, not retried
   forever or treated as a successful start. Changing loop/mute does not reload.
+- `volume`: player gain from 0 to 1 inclusive, default 1. Nonfinite/out-of-range
+  values throw before creating a host; they are not clamped differently by each
+  engine. Updating it does not reload, seek, play or pause. Mute is independent:
+  changing volume while muted keeps playback silent, and unmuting uses the latest
+  requested gain, including zero. Omitting it again resets the requested gain to 1.
+  This is not system volume, perceived loudness, an audio-session policy or an
+  observed volume field in `MediaStatus`. Browser/OS controls remain engine-owned.
+  A browser that throws or observably ignores the gain reports `onError` with
+  operation `volume`; that denial remains in status through readiness and
+  suppresses autoplay until an accepted value is supplied. Manual playback is
+  still an explicit caller request. No Web Audio graph or global session is
+  silently installed to bypass the host. Accepted assignment alone does not
+  establish effective output on every browser/device.
 - `fit`: contain (default), cover, fill. `style` is a deliberately shared subset
   (`width`, `height`, `borderRadius`, `backgroundColor`), defaulting to 100% × 180.
   Put the player inside a styled Hozo View for Tailwind layout; this first slice
@@ -48,7 +61,7 @@ its engine. Neither `@hozo/core` nor a non-media screen gains this dependency.
 `playing`, `buffering`, `currentTime` in seconds, `duration` in seconds or null,
 and `error`. `onPlay`/`onPause` observe playing-flag changes; a terminal end may
 also cause a pause. `onEnded` observes a terminal end, not every loop. `onError`
-includes src, operation (load/play/seek), and message. Load failure is terminal
+includes src, operation (load/play/seek/volume), and message. Load failure is terminal
 for that source; command denial is not a decoder failure.
 
 A changed src creates a fresh playback host, resets time/status, and retires old
@@ -78,7 +91,7 @@ used; this is not a silent fallback. Adding the native module requires a new
 app binary, not just a Metro reload.
 
 `src` and `accessibilityLabel` are required, nonempty strings. URLs/URIs,
-`autoPlay`, `loop`, `muted`, and the status/play/pause/end/error callbacks use
+`autoPlay`, `loop`, `muted`, `volume`, and the status/play/pause/end/error callbacks use
 the same observed contract as Video. By default Audio includes shared Hozo
 play/pause and backward/forward controls on **both** platforms. Native has no
 HTML-audio-style control bar, so Audio does not substitute a browser-only UI.
@@ -116,7 +129,7 @@ playback or lock-screen policy and never requests recording permission.
 Those decisions belong to the application/OS (see the
 [SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/)).
 The playback-only Native showcase disables microphone/recording permissions
-and background modes in its Expo config. Streams, recording, volume/rate,
+and background modes in its Expo config. Streams, recording, playback rate,
 session/interruptions, complete transcripts and other content alternatives remain
 follow-ups. Authors still need appropriate alternatives for spoken content.
 

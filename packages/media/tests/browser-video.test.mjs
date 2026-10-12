@@ -133,6 +133,38 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
         throw error
       })
     assert.equal(await page.locator('video').getAttribute('aria-label'), 'Local silent clip')
+    await page.evaluate(() => {
+      window.originalVideo = document.querySelector('video')
+      window.originalHandle = window.ref.current
+    })
+    for (const [volume, muted] of [
+      [0.25, true],
+      [0.7, true],
+      [0, false],
+      [1, true],
+    ]) {
+      await page.evaluate(({ volume, muted }) => window.configure({ volume, muted }), {
+        volume,
+        muted,
+      })
+      await page.waitForFunction(
+        ({ volume, muted }) => {
+          const video = document.querySelector('video')
+          return video.volume === volume && video.muted === muted
+        },
+        { volume, muted },
+      )
+      assert.equal(
+        await page.evaluate(
+          () =>
+            document.querySelector('video') === window.originalVideo &&
+            window.ref.current === window.originalHandle,
+        ),
+        true,
+      )
+      assert.equal(await page.evaluate(() => window.ref.current.getStatus().currentTime), 0)
+      assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
+    }
     assert.equal(await page.evaluate(() => document.querySelector('video').controls), true)
     const captions = page.getByRole('group', { name: 'Clip captions', exact: true })
     await page.waitForFunction(() => window.captionState.status === 'ready')

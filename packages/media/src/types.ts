@@ -1,8 +1,9 @@
 import type { Ref } from 'react'
+import { mediaVolume } from './volume.ts'
 
 export interface MediaError {
   src: string
-  operation: 'load' | 'play' | 'seek'
+  operation: 'load' | 'play' | 'seek' | 'volume'
   message: string
 }
 
@@ -52,6 +53,8 @@ export interface VideoOptions {
   autoPlay?: boolean
   loop?: boolean
   muted?: boolean
+  /** Player gain, 0–1 inclusive; default 1. Independent of mute and OS volume. */
+  volume?: number
 }
 
 export interface VideoProps extends VideoOptions, VideoCallbacks {
@@ -67,7 +70,8 @@ export interface VideoProps extends VideoOptions, VideoCallbacks {
   ref?: Ref<VideoHandle>
 }
 
-export function validateVideoProps({ src, accessibilityLabel }: VideoProps) {
+export function validateVideoProps({ src, accessibilityLabel, volume }: VideoProps) {
   if (!src.trim()) throw new TypeError('Video requires a nonempty src')
   if (!accessibilityLabel.trim()) throw new TypeError('Video requires an accessibilityLabel')
+  mediaVolume(volume)
 }

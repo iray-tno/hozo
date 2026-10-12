@@ -9,6 +9,7 @@ export function AudioDemo({ src }: { src: string }) {
   const [status, setStatus] = useState<AudioStatus | null>(null)
   const [visible, setVisible] = useState(true)
   const [muted, setMuted] = useState(false)
+  const [volume, setVolume] = useState(1)
   const [loop, setLoop] = useState(false)
   return (
     <View className="w-full max-w-lg gap-4 rounded-2xl bg-white p-6">
@@ -24,6 +25,7 @@ export function AudioDemo({ src }: { src: string }) {
           src={src}
           accessibilityLabel="Three rising tones"
           muted={muted}
+          volume={volume}
           loop={loop}
           onStatusChange={setStatus}
         />
@@ -34,6 +36,15 @@ export function AudioDemo({ src }: { src: string }) {
           : 'Audio removed'}
       </Text>
       <MediaSeekControl player={audio} status={visible ? status : null} disabled={!visible} />
+      <Text className="text-base text-slate-700">
+        {`Requested player volume: ${Math.round(volume * 100)}%${muted ? '; muted' : ''}`}
+      </Text>
+      <Button
+        className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        onPress={() => setVolume((value) => (value === 1 ? 0.25 : 1))}
+      >
+        {volume === 1 ? 'Set audio volume to 25%' : 'Set audio volume to 100%'}
+      </Button>
       <Button
         className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         onPress={() => setMuted((value) => !value)}

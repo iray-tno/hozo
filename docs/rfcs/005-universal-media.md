@@ -85,6 +85,32 @@ identity across clock observations. Native end normalization accounts for
 Android's `ended` state and iOS's ready-state/one-shot finish event, without
 reporting a terminal end for loops. Live/unknown duration remains null.
 
+Audio and Video now share `volume`, a finite player-gain request in [0, 1],
+defaulting to 1. Invalid values are rejected before host/resource allocation,
+not passed to differing engine clamps. Updates retain the source/handle and
+do not load, seek, play or pause. Mute and gain are independent; a zero selected
+while muted must remain silent after unmuting. Expo Audio 57 Android restores
+an internal previous-volume cache in its mute setter, so the Native adapter
+applies the current authored volume afterwards. Tests model its queued/coupled
+behavior, not merely two unrelated fields. Volume is not added to the observed
+status, and no system-volume or global audio-session control is introduced.
+
+The shared Audio story now demonstrates 25%/100% gain and independent mute
+on both hosts. Its visible percentage explicitly describes the request, not
+measured loudness. Real Chromium checks inspect actual Audio/Video properties,
+stable hosts/handles and unchanged paused clocks; mocked Native checks verify
+engine wiring and restore order. These do not measure Native output attenuation
+or certify iOS/Safari audible output. Engine/OS policy still owns effective
+output and platform controls.
+
+The Web adapter reports a thrown or observably ignored assignment as operation
+`volume`, retaining that nonterminal denial across metadata/canplay observations.
+It suppresses autoplay while the denial persists, rather than unexpectedly
+starting at a louder gain; an explicitly accepted value clears it. Manual play
+remains an explicit request. No user-agent sniffing, mute substitution or hidden
+Web Audio context is used. A successful property readback still cannot prove
+physical output attenuation; this only detects observable engine rejection.
+
 No global audio mode, silent-switch policy, recording permission, lock-screen
 controls or background behavior is configured by the component. Those are
 application/OS decisions. The showcase's Expo config explicitly disables
@@ -220,6 +246,15 @@ initial/seek/remount pixel waits were 476/446/438ms; iOS's were
 1580/2143/3278ms. The prior failed result is retained. One successful fresh
 series after the ordering repair is not proof of zero flakiness or of its
 precise relationship to the native decoder error.
+
+The next fresh-build [run 38187109693](https://github.com/iray-tno/hozo/actions/runs/38187109693)
+also passed all 13 Android and 12 iOS full checks. Both downloaded artifacts
+identify this run as `binaryRun`, its merge driver source
+`92d503f21f2a5d85830a1cbc5a515eb06b0d3304`, and the full scenario with
+diagnostics off (iOS also records demand rendering). Initial/seek/remount waits were 464/447/432ms on Android and
+2354/951/674ms on iOS. These are unchanged Video probe pixel gates, not a
+Native seek-slider or audible-volume measurement; earlier failures remain
+failures and two subsequent successes do not establish zero flakiness.
 
 During playback the diagnostic status label retains the first real decoder
 time whose two-decimal display is above 0.25s, rather than repainting at every

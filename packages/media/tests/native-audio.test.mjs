@@ -104,6 +104,9 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
       ...options,
     })
   assert.equal(renderToStaticMarkup(render('a.wav', { controls: false })), '')
+  for (const volume of [-1, 2, Number.NaN, Infinity, null, '0.5']) {
+    assert.throws(() => renderToStaticMarkup(render('invalid.wav', { volume })), RangeError)
+  }
   assert.equal(players.length, 0, 'render alone allocates no native resource')
   await act(async () => {
     renderer = create(render('a.wav'))
@@ -111,6 +114,7 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
   const a = players[0]
   assert.deepEqual(a.loads, [{ uri: 'a.wav' }])
   assert.equal(ref.current.getStatus().status, 'loading')
+  assert.equal(a.volume, 1)
   const buttons = () => renderer.root.findAllByType('RNPressable')
   assert.equal(buttons()[0].props.accessibilityLabel, 'Play audio')
   assert.equal(buttons()[0].props.disabled, true)
@@ -118,11 +122,21 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
   await act(async () => a.emit())
   assert.equal(ref.current, handle, 'clock observations cannot retire an in-flight seek handle')
   await act(async () =>
-    renderer.update(render('a.wav', { muted: true, loop: true, onPlay: () => events.push('new') })),
+    renderer.update(
+      render('a.wav', { muted: true, loop: true, volume: 0.25, onPlay: () => events.push('new') }),
+    ),
   )
   assert.equal(players.length, 1)
   assert.equal(a.muted, true)
+  assert.equal(a.volume, 0.25)
   assert.equal(a.loop, true)
+  await act(async () =>
+    renderer.update(render('a.wav', { volume: 0, onPlay: () => events.push('new') })),
+  )
+  assert.equal(a.volume, 0)
+  assert.equal(a.muted, false)
+  assert.equal(ref.current, handle)
+  assert.deepEqual(a.loads, [{ uri: 'a.wav' }])
   await act(async () => buttons()[0].props.onPress())
   assert.equal(a.plays, 1)
   assert.equal(
@@ -145,6 +159,7 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
   await act(async () => renderer.update(render('b.wav', { controls: false })))
   assert.equal(a.released, 1)
   assert.equal(players.length, 2)
+  assert.equal(players[1].volume, 1)
   assert.equal(renderer.toJSON(), null)
   assert.equal(ref.current.getStatus().src, 'b.wav')
   await assert.rejects(handle.play(), /not mounted/)
@@ -155,12 +170,15 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
   assert.equal(ref.current, null)
   const start = players.length
   await act(async () => {
-    renderer = create(React.createElement(React.StrictMode, null, render('strict.wav')))
+    renderer = create(
+      React.createElement(React.StrictMode, null, render('strict.wav', { volume: 0.4 })),
+    )
   })
   const replayed = players.slice(start)
   assert.equal(replayed.length, 2)
   assert.equal(replayed[0].released, 1)
   assert.equal(replayed[1].released, 0)
+  assert.equal(replayed[1].volume, 0.4)
   await act(async () => renderer.unmount())
   assert.equal(replayed[1].released, 1)
 })

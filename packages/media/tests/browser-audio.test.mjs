@@ -109,6 +109,39 @@ test('real Audio decodes PCM, produces non-silent samples, uses keyboard control
     assert.equal(await page.locator('audio').getAttribute('aria-label'), 'Three tones')
     assert.equal(await page.evaluate(() => document.querySelector('audio').controls), false)
     assert.equal(await page.evaluate(() => window.ref.current.getStatus().duration), 4)
+    await page.evaluate(() => {
+      window.originalAudio = document.querySelector('audio')
+      window.originalHandle = window.ref.current
+    })
+    for (const [volume, muted] of [
+      [0.25, false],
+      [0.7, true],
+      [0, true],
+      [0, false],
+      [1, false],
+    ]) {
+      await page.evaluate(({ volume, muted }) => window.configure({ volume, muted }), {
+        volume,
+        muted,
+      })
+      await page.waitForFunction(
+        ({ volume, muted }) => {
+          const audio = document.querySelector('audio')
+          return audio.volume === volume && audio.muted === muted
+        },
+        { volume, muted },
+      )
+      assert.equal(
+        await page.evaluate(
+          () =>
+            document.querySelector('audio') === window.originalAudio &&
+            window.ref.current === window.originalHandle,
+        ),
+        true,
+      )
+      assert.equal(await page.evaluate(() => window.ref.current.getStatus().currentTime), 0)
+      assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
+    }
     const scrubber = page.getByRole('slider', { name: 'Playback position', exact: true })
     await scrubber.focus()
     await page.keyboard.press('ArrowRight')

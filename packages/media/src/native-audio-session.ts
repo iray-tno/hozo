@@ -2,6 +2,7 @@ import type { AudioPlayer, AudioStatus as ExpoAudioStatus } from 'expo-audio'
 import type { AudioHandle } from './audio-types.ts'
 import { durationValue, seekTime, VideoObserver } from './status.ts'
 import type { VideoCallbacks, VideoOptions } from './types.ts'
+import { mediaVolume } from './volume.ts'
 
 /** One committed player/source; never change global session, recording or lock-screen policy. */
 export class NativeAudioSession implements AudioHandle {
@@ -63,9 +64,13 @@ export class NativeAudioSession implements AudioHandle {
   }
   setOptions(options: VideoOptions) {
     if (!this.active) return
+    const volume = mediaVolume(options.volume)
     this.options = options
     this.player.loop = options.loop ?? false
     this.player.muted = options.muted ?? false
+    // Android's Expo mute setter restores its cached gain. Apply the authored
+    // gain afterwards, including zero selected while muted, not that old cache.
+    this.player.volume = volume
     this.maybeAutoplay()
   }
   private maybeAutoplay() {

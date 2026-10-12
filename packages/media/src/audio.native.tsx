@@ -42,8 +42,13 @@ function SourceAudio(props: AudioProps) {
   }, [props.src])
   const player = useAudioHandle(session, props.ref)
   useEffect(() => {
-    session.current?.setOptions({ autoPlay: props.autoPlay, loop: props.loop, muted: props.muted })
-  }, [props.autoPlay, props.loop, props.muted])
+    session.current?.setOptions({
+      autoPlay: props.autoPlay,
+      loop: props.loop,
+      muted: props.muted,
+      volume: props.volume,
+    })
+  }, [props.autoPlay, props.loop, props.muted, props.volume])
   return (props.controls ?? true) ? (
     <AudioControls
       player={player}
