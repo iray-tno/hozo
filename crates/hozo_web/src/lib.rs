@@ -393,14 +393,21 @@ pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: b
 /// `resolve_theme_color`.
 pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> String {
     let mut out = String::new();
+    let mut owned = String::new();
     for name in class_names {
         let Some(utility) = hozo_parser::resolve_class_name(name) else {
             continue;
         };
         let selector = css::escape_class_selector(&utility.class_name);
+        // Zero added specificity: this retains the old cascade on compiler-
+        // owned dynamic targets without raising it on ordinary HTML or on
+        // their descendants. Append before render_rule adds conditions and
+        // pseudo-elements, including group/peer and arbitrary selectors.
+        let owned_selector = format!("{selector}:where(.hozo-candidate-owner)");
         // One rule per group: a `container` is a width plus a max-width at
         // each breakpoint, which cannot be one rule.
         let mut rules = String::new();
+        let mut owned_rules = String::new();
         // A theme animation: nothing to write when the theme does not
         // define it (the class reaches the page for the project's own CSS),
         // and its `@keyframes` beside the rule when it does, since this
@@ -444,22 +451,23 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
                 (true, Some(shaded)) => shaded,
                 _ => theme,
             };
-            let light = css::render_rule(&selector, condition, properties, palette);
-            rules.push_str(&light);
-            rules.push_str("\n\n");
-            if condition.mentions_dark() {
-                continue;
-            }
-            if let Some(dark) = &shaded_theme {
-                let shaded = css::render_rule(&selector, condition, properties, dark);
-                if shaded != light {
-                    rules.push_str(&css::render_rule(
-                        &selector,
-                        &condition.and_dark(),
-                        properties,
-                        dark,
-                    ));
-                    rules.push_str("\n\n");
+            for (target, output) in [(&selector, &mut rules), (&owned_selector, &mut owned_rules)] {
+                let light = css::render_rule(target, condition, properties, palette);
+                output.push_str(&light);
+                output.push_str("\n\n");
+                if !condition.mentions_dark() {
+                    if let Some(dark) = &shaded_theme {
+                        let shaded = css::render_rule(target, condition, properties, dark);
+                        if shaded != light {
+                            output.push_str(&css::render_rule(
+                                target,
+                                &condition.and_dark(),
+                                properties,
+                                dark,
+                            ));
+                            output.push_str("\n\n");
+                        }
+                    }
                 }
             }
         }
@@ -469,8 +477,18 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
             continue;
         }
         out.push_str(&rules);
+        owned.push_str(&owned_rules);
     }
-    out
+    if out.is_empty() {
+        return out;
+    }
+    // A named sublayer loses to Tailwind's direct utilities regardless of
+    // which stylesheet loads first. Declare the standard layer order too:
+    // candidates can arrive before the view's base styles in runtime hosts.
+    // The unlayered, marked copy preserves compiled + fallback precedence on
+    // Hozo targets; a bare layered copy would let compiled static declarations
+    // beat Native's later dynamic style. Keyframes are shared, not duplicated.
+    format!("@layer theme, base, components, utilities;\n@layer utilities.hozo-candidates {{\n{out}}}\n\n{owned}")
 }
 
 /// Every distinct `@keyframes` block the tree's animations need, in
@@ -1081,7 +1099,13 @@ fn render_node(
             }))
             .chain(node.class_name_fallback.iter().map(|r| source_text(source, *r).to_string()))
             .collect();
-        format!(" className={{[{}].filter(Boolean).join(' ')}}", parts.join(", "))
+        let mut value = format!("[{}].filter(Boolean).join(' ')", parts.join(", "));
+        if !node.class_name_fallback.is_empty() {
+            // Do not turn an empty class list into a truthy one: a runtime
+            // component can use emptiness to select its own defaults.
+            value.push_str(".replace(/\\S/, 'hozo-candidate-owner $&')");
+        }
+        format!(" className={{{value}}}")
     };
     // A component's other class lists, compiled the same way and handed to
     // it under the prop the author wrote (`removeClassName`).
@@ -1701,6 +1725,22 @@ fn render_node(
     // an unknown RN-specific prop is still carried as written, because a
     // visible React warning is safer than silently deleting app behavior.
     for prop in &node.props.passthrough {
+        if let Some(slot) = node.primitive.class_slots().iter()
+            .find(|slot| prop.name.as_deref() == Some(slot.class_prop))
+        {
+            let text = source_text(source, prop.span);
+            if let Some(expression) = text.split_once('=').map(|(_, value)| value.trim())
+                .and_then(|value| value.strip_prefix('{').and_then(|value| value.strip_suffix('}')))
+            {
+                // Slot classes land on a child, not the widget's root.
+                // Mark that exact target, evaluate once and preserve absent
+                // values so component defaults and descendant raw HTML stay
+                // untouched. Native resolves this same dynamic slot last.
+                source_evidence::expression(&mut attrs, &mut attr_copies, source, expression,
+                    &format!(" {}={{((value) => typeof value === 'string' ? value.replace(/\\S/, 'hozo-candidate-owner $&') : value)(", slot.class_prop), ")}");
+                continue;
+            }
+        }
         // React Native accepts a recursively nested StyleProp array; React
         // DOM accepts one object. Passing the array through does not throw:
         // React serializes its numeric indices as CSS property names and
@@ -2078,6 +2118,25 @@ export function Login() {
         assert!(css.contains(".p-8 {"));
         assert!(css.contains(".p-2 {"));
         assert!(css.contains("padding-top: 32px;"));
+        assert!(css.starts_with("@layer theme, base, components, utilities;"));
+        assert!(css.contains("@layer utilities.hozo-candidates {"));
+        assert!(css.contains(".p-8:where(.hozo-candidate-owner) {"));
+    }
+
+    #[test]
+    fn only_dynamic_class_targets_and_slots_get_candidate_ownership() {
+        let source = "import { View, Chip } from '@hozo/core'; const el = <View className={`p-3 ${tone}`} />";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.contains(".replace(/\\S/, 'hozo-candidate-owner $&')"), "{}", output.jsx);
+        let source = "import { View } from '@hozo/core'; const el = <View className=\"p-3\" />";
+        let parsed = hozo_parser::parse_tsx(source);
+        assert!(!lower(&parsed.roots[0].node, source, &Theme::default()).jsx.contains("hozo-candidate-owner"));
+        let source = "import { Chip } from '@hozo/core'; const el = <Chip label=\"Filter\" removeClassName={getClasses()} onRemove={remove} />";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.contains("removeClassName={((value) => typeof value === 'string'"), "{}", output.jsx);
+        assert_eq!(output.jsx.matches("getClasses()").count(), 1);
     }
 
     #[test]
