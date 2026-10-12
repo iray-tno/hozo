@@ -71,6 +71,12 @@ export const FeOffset = withClassName(NativeSvg.FeOffset)
 const SvgRoot = Platform.OS === 'android' ? withClassName(AndroidSvg) : withClassName(NativeSvg.Svg)
 
 export type { SvgLinkProps } from './svg-link.native.tsx'
+/**
+ * The root's props, under the name the Web entry gives them. React Native's
+ * `Svg` already takes `accessibilityLabel` as a view prop, so this is
+ * upstream's own type plus the compile-time `className`.
+ */
+export type SvgRootProps = NativeSvg.SvgProps & { className?: string }
 export { SvgLink }
 
 /** The SVG root and its platform-neutral element namespace. */
