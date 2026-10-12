@@ -1,28 +1,22 @@
 import { AudioDemo, AudioPlaybackProbe, AudioSettingsProbe } from '@hozo/example-showcase'
-import { ScrollView, Text } from '@hozo/primitives'
+import { useMediaSource } from '@hozo/media/source'
+import { resolveExpoMediaAsset } from '@hozo/media/source/expo'
+import { Button, ScrollView, Text } from '@hozo/primitives'
 import type { Meta, StoryObj } from '@storybook/react-native'
-import { Asset } from 'expo-asset'
-import { useEffect, useState } from 'react'
 
 function LocalAudio({ probe = false, settings = false }: { probe?: boolean; settings?: boolean }) {
-  const [src, setSrc] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    let active = true
-    const asset = Asset.fromModule(require('../../showcase/assets/hozo-audio.wav'))
-    void asset
-      .downloadAsync()
-      .then(() => {
-        if (active) setSrc(asset.localUri ?? asset.uri)
-      })
-      .catch((cause: unknown) => {
-        if (active) setError(cause instanceof Error ? cause.message : String(cause))
-      })
-    return () => {
-      active = false
-    }
-  }, [])
-  if (error) return <Text>Audio asset: {error}</Text>
+  const asset = useMediaSource({
+    source: require('../../showcase/assets/hozo-audio.wav'),
+    resolveSource: resolveExpoMediaAsset,
+  })
+  const src = asset.uri
+  if (asset.error)
+    return (
+      <>
+        <Text>Audio asset: {asset.error.message}</Text>
+        <Button onPress={asset.reload}>Retry audio asset</Button>
+      </>
+    )
   if (!src) return <Text>Loading bundled audio</Text>
   if (settings) return <AudioSettingsProbe src={src} />
   return probe ? <AudioPlaybackProbe src={src} /> : <AudioDemo src={src} />
