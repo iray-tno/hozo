@@ -144,7 +144,7 @@ expect(
 const barrels = [...bundle.matchAll(/,"([^"]+)"\);/g)]
   .map((match) => match[1])
   .filter((name) =>
-    /(^|[\/])packages[\/](core|patterns|primitives|behaviors|form)[\/]dist[\/]index(\.native)?\.js$/.test(
+    /(^|[\\/])packages[\\/](core|patterns|primitives|behaviors|form)[\\/]dist[\\/]index(\.native)?\.js$/.test(
       name,
     ),
   )
