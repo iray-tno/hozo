@@ -218,8 +218,8 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
 }
 
 pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: bool) -> LowerOutput {
-    // An `animate-<name>` the theme does not define has nothing to emit
-    // here: its class is carried, which is what lets the project's own CSS
+    // An `animate-<name>` or `rounded-<name>` the theme does not define
+    // has nothing to emit here: its class is carried, which is what lets the project's own CSS
     // run it. Taken out before rendering, so it leaves no empty rule and
     // no class behind -- the output an unknown class always had.
     let resolved;
@@ -597,8 +597,10 @@ fn scrolls_by_style(node: &Node) -> bool {
     })
 }
 
+/// A theme name the theme does not define: an animation, or a radius.
 fn unresolved_animation(property: &hozo_ir::StyleProperty, theme: &Theme) -> bool {
     matches!(property, hozo_ir::StyleProperty::ThemeAnimation(name) if theme.animation(name).is_none())
+        || property.theme_radius().is_some_and(|name| theme.radius(name).is_none())
 }
 
 fn mentions_unresolved_animation(node: &Node, theme: &Theme) -> bool {
@@ -4355,5 +4357,52 @@ mod theme_animation_tests {
         assert!(sheet.contains("@keyframes spin"), "{sheet}");
         assert!(sheet.contains("animation: spin 1s linear infinite;"), "{sheet}");
         assert!(!render_candidate_stylesheet(&["animate-none".to_string()], &Theme::default()).contains("@keyframes"));
+    }
+}
+
+#[cfg(test)]
+mod theme_radius_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn theme() -> Theme {
+        Theme::default().with_radii(HashMap::from([("hozo-control".to_string(), 8.0)]))
+    }
+
+    fn compile(class_name: &str, theme: &Theme) -> LowerOutput {
+        let source =
+            format!("import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, theme)
+    }
+
+    #[test]
+    fn a_theme_radius_is_its_value_in_pixels() {
+        let out = compile("rounded-hozo-control", &theme());
+        assert!(out.css.contains("border-radius: 8px;"), "{}", out.css);
+    }
+
+    #[test]
+    fn its_corner_forms_are_read_too() {
+        let out = compile("rounded-t-hozo-control rounded-ee-hozo-control", &theme());
+        assert!(out.css.contains("border-top-left-radius: 8px;"), "{}", out.css);
+        assert!(out.css.contains("border-top-right-radius: 8px;"), "{}", out.css);
+        assert!(out.css.contains("border-end-end-radius: 8px;"), "{}", out.css);
+    }
+
+    #[test]
+    fn a_name_the_theme_lacks_is_only_carried() {
+        let out = compile("rounded-unknown", &theme());
+        assert!(!out.css.contains("radius"), "{}", out.css);
+        assert!(!out.css.contains("hozo-0"), "{}", out.css);
+        assert!(out.jsx.contains("rounded-unknown"), "{}", out.jsx);
+    }
+
+    #[test]
+    fn the_dynamic_path_reads_it_as_well() {
+        let sheet = render_candidate_stylesheet(&["rounded-hozo-control".to_string()], &theme());
+        assert!(sheet.contains("border-radius: 8px;"), "{sheet}");
+        let sheet = render_candidate_stylesheet(&["rounded-unknown".to_string()], &theme());
+        assert!(!sheet.contains("radius"), "{sheet}");
     }
 }

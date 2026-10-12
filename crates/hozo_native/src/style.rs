@@ -35,15 +35,22 @@ use hozo_ir::{
     TransformFunction,
 };
 
-fn radius_number(radius: &Radius, theme: &Theme) -> String {
-    match radius {
+fn radius_number(radius: &Radius, theme: &Theme) -> Option<String> {
+    Some(match radius {
         Radius::Length(l) => number(l, theme),
         // RN has no infinity. Any radius past half the box's shorter side
         // already renders as a pill, so a large finite value is the
         // standard way to express this -- the approximation is forced here,
         // unlike on Web.
         Radius::Full => "9999".to_string(),
-    }
+        Radius::Theme(name) => number(&Length::Px(theme.radius(name)?), theme),
+    })
+}
+
+/// A radius style, or none when it names a token the theme does not
+/// define -- the same answer the Web gives, which emits nothing for it.
+fn radius_pair(key: &'static str, radius: &Radius, theme: &Theme) -> Vec<(&'static str, String)> {
+    radius_number(radius, theme).map(|value| vec![(key, value)]).unwrap_or_default()
 }
 
 /// React Native's `aspectRatio` is a number, where CSS writes a ratio.
@@ -605,33 +612,17 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::BorderRightStyle(s)
         | StyleProperty::BorderBottomStyle(s)
         | StyleProperty::BorderLeftStyle(s) => vec![("borderStyle", border_style_literal(s))],
-        StyleProperty::BorderRadius(r) => vec![(
-            "borderRadius",
-            match r {
-                Radius::Length(l) => number(l, theme),
-                // RN has no infinity. Any radius past half the box's
-                // shorter side already renders as a pill, so a large
-                // finite value is the standard way to express this -- the
-                // approximation is forced here, unlike on Web.
-                Radius::Full => "9999".to_string(),
-            },
-        )],
-        StyleProperty::BorderTopLeftRadius(r) => vec![("borderTopLeftRadius", radius_number(r, theme))],
-        StyleProperty::BorderTopRightRadius(r) => vec![("borderTopRightRadius", radius_number(r, theme))],
-        StyleProperty::BorderBottomRightRadius(r) => {
-            vec![("borderBottomRightRadius", radius_number(r, theme))]
-        }
-        StyleProperty::BorderBottomLeftRadius(r) => {
-            vec![("borderBottomLeftRadius", radius_number(r, theme))]
-        }
+        StyleProperty::BorderRadius(r) => radius_pair("borderRadius", r, theme),
+        StyleProperty::BorderTopLeftRadius(r) => radius_pair("borderTopLeftRadius", r, theme),
+        StyleProperty::BorderTopRightRadius(r) => radius_pair("borderTopRightRadius", r, theme),
+        StyleProperty::BorderBottomRightRadius(r) => radius_pair("borderBottomRightRadius", r, theme),
+        StyleProperty::BorderBottomLeftRadius(r) => radius_pair("borderBottomLeftRadius", r, theme),
         // React Native has the logical corner names too, so `rounded-s-*`
         // stays correct under RTL rather than being flattened to left/right.
-        StyleProperty::BorderStartStartRadius(r) => {
-            vec![("borderStartStartRadius", radius_number(r, theme))]
-        }
-        StyleProperty::BorderStartEndRadius(r) => vec![("borderStartEndRadius", radius_number(r, theme))],
-        StyleProperty::BorderEndStartRadius(r) => vec![("borderEndStartRadius", radius_number(r, theme))],
-        StyleProperty::BorderEndEndRadius(r) => vec![("borderEndEndRadius", radius_number(r, theme))],
+        StyleProperty::BorderStartStartRadius(r) => radius_pair("borderStartStartRadius", r, theme),
+        StyleProperty::BorderStartEndRadius(r) => radius_pair("borderStartEndRadius", r, theme),
+        StyleProperty::BorderEndStartRadius(r) => radius_pair("borderEndStartRadius", r, theme),
+        StyleProperty::BorderEndEndRadius(r) => radius_pair("borderEndEndRadius", r, theme),
         StyleProperty::FontSize(l) => vec![("fontSize", number(l, theme))],
         // RN's `fontWeight` type is a *string* ('100'..'900'/'normal'/
         // 'bold'), not a number -- unlike CSS's numeric font-weight.

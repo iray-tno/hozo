@@ -95,6 +95,10 @@ pub struct Theme {
     /// The project's own animations by name -- `wiggle` for
     /// `--animate-wiggle`. Tailwind's four are not here: Hozo has its own.
     animations: HashMap<String, ThemeAnimation>,
+    /// The project's own radius tokens in pixels, by name -- `control` for
+    /// `--radius-control`. Read for names outside Tailwind's built-in scale,
+    /// which the parser resolves itself.
+    radii: HashMap<String, f64>,
 }
 
 /// Tailwind's own default, and what every caller got before a theme could
@@ -112,6 +116,7 @@ impl Default for Theme {
             spacing_px: DEFAULT_SPACING_PX,
             preflight: false,
             animations: HashMap::new(),
+            radii: HashMap::new(),
         }
     }
 }
@@ -137,6 +142,7 @@ impl Theme {
             spacing_px: spacing_px.unwrap_or(DEFAULT_SPACING_PX),
             preflight,
             animations: HashMap::new(),
+            radii: HashMap::new(),
         }
     }
 
@@ -144,6 +150,18 @@ impl Theme {
     pub fn with_animations(mut self, animations: HashMap<String, ThemeAnimation>) -> Self {
         self.animations = animations;
         self
+    }
+
+    /// The same theme with the project's own radius tokens.
+    pub fn with_radii(mut self, radii: HashMap<String, f64>) -> Self {
+        self.radii = radii;
+        self
+    }
+
+    /// One of the project's own radius tokens, in pixels, by the name
+    /// `rounded-<name>` uses.
+    pub fn radius(&self, name: &str) -> Option<f64> {
+        self.radii.get(name).copied()
     }
 
     /// One of the project's own animations, by the name `animate-<name>`
@@ -213,6 +231,7 @@ impl Theme {
             spacing_px: self.spacing_px,
             preflight: self.preflight,
             animations: self.animations.clone(),
+            radii: self.radii.clone(),
         })
     }
 }

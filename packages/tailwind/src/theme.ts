@@ -81,6 +81,18 @@ export interface Theme {
    * the wrong size.
    */
   spacingPx?: number
+  /**
+   * The project's radius tokens in pixels: `control` for `--radius-control`,
+   * which `rounded-control` reads. A value that is not a plain length after
+   * its `var()` chain is followed is left out, so the backends emit nothing
+   * for the class rather than a radius nobody chose.
+   */
+  radii?: ThemeRadius[]
+}
+
+export interface ThemeRadius {
+  name: string
+  px: number
 }
 
 const toRgb = converter('rgb')
@@ -256,7 +268,35 @@ export async function loadTheme(
         : {}),
     })
   }
-  return { colors, spacingPx: readSpacing(design), animations: readAnimations(design, declared) }
+  return {
+    colors,
+    spacingPx: readSpacing(design),
+    animations: readAnimations(design, declared),
+    radii: readRadii(declared),
+  }
+}
+
+/**
+ * `--radius-*` in pixels, each through its `var()` chain:
+ * `--radius-control: var(--radius-lg)` is 8.
+ */
+function readRadii(declared: ReadonlyMap<string, string>): ThemeRadius[] {
+  const radii: ThemeRadius[] = []
+  for (const [name, declaration] of declared) {
+    if (!name.startsWith('--radius-')) continue
+    const px = lengthPx(dereference(declaration, declared))
+    if (px !== undefined) radii.push({ name: name.slice('--radius-'.length), px })
+  }
+  return radii
+}
+
+/** A `rem` or `px` length in pixels, or `undefined` for anything else. */
+function lengthPx(value: string): number | undefined {
+  const rem = /^(-?[\d.]+)rem$/.exec(value)
+  if (rem) return parseFloat(rem[1]!) * ROOT_FONT_SIZE_PX
+  const px = /^(-?[\d.]+)px$/.exec(value)
+  if (px) return parseFloat(px[1]!)
+  return undefined
 }
 
 /** Tailwind's own animations, which Hozo implements itself. */

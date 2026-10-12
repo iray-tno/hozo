@@ -2506,6 +2506,15 @@ impl StyleProperty {
     /// the two hundred properties there are; a new property cannot reach it
     /// without `value()` having classified it first, and `value()` does not
     /// compile until someone does.
+    /// The theme radius this property names, if any: `control` for
+    /// `rounded-control`. See `Radius::Theme`.
+    pub fn theme_radius(&self) -> Option<&str> {
+        match self.value() {
+            PropertyValue::Radius(Radius::Theme(name)) => Some(name),
+            _ => None,
+        }
+    }
+
     fn length(&self) -> Option<&Length> {
         match self.value() {
             PropertyValue::Length(length) => Some(length),
@@ -3318,6 +3327,11 @@ pub enum BorderStyle {
 pub enum Radius {
     Length(Length),
     Full,
+    /// A name only the project's theme can define: `control` for
+    /// `rounded-control` and `--radius-control`. The parser has no theme, so
+    /// it holds the name for each backend to look up, as it does for a
+    /// theme animation. A name the theme does not define emits nothing.
+    Theme(String),
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -349,6 +349,12 @@ export interface Theme {
   /** One spacing step in pixels; Tailwind's `--spacing`, 0.25rem by default. */
   spacingPx?: number
   /**
+   * The project's own radius tokens in pixels: `control` for
+   * `--radius-control`, which `rounded-control` reads. `@hozo/tailwind`'s
+   * `loadTheme` reads them.
+   */
+  radii?: { name: string; px: number }[]
+  /**
    * The project's own animations, `--animate-<name>` with its `@keyframes`
    * (decision 007, slice 3). `@hozo/tailwind`'s `loadTheme` reads them.
    */

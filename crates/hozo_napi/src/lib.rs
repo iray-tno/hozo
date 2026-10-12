@@ -1006,6 +1006,16 @@ pub struct JsTheme {
     /// `@keyframes` it names (decision 007, slice 3). Tailwind's four are
     /// left out by `@hozo/tailwind`; Hozo has its own.
     pub animations: Option<Vec<JsThemeAnimation>>,
+    /// The project's own radius tokens: `--radius-<name>`, resolved to
+    /// pixels by `@hozo/tailwind`.
+    pub radii: Option<Vec<JsThemeRadius>>,
+}
+
+#[napi(object)]
+pub struct JsThemeRadius {
+    /// `control`, for `--radius-control` and `rounded-control`.
+    pub name: String,
+    pub px: f64,
 }
 
 #[napi(object)]
@@ -1107,7 +1117,10 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
             },
         );
     }
-    hozo_ir::Theme::with_dark(colors, dark_colors, spacing_px, preflight).with_animations(animations)
+    let radii = theme.radii.unwrap_or_default().into_iter().map(|radius| (radius.name, radius.px)).collect();
+    hozo_ir::Theme::with_dark(colors, dark_colors, spacing_px, preflight)
+        .with_animations(animations)
+        .with_radii(radii)
 }
 
 /// Every binding a source file imports from one module, by local name.
