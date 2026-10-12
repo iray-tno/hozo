@@ -119,9 +119,9 @@ export function Kumimono({ baseUrl = '' }: { baseUrl?: string } = {}) {
           </Link>
         </View>
       </View>
-      {/* A div rather than a View: the observer and the WebGL canvas need the
-          element itself, and `data-*` here is what the browser check reads. */}
-      <div
+      {/* The observer and the WebGL canvas need the element itself, which a
+          View hands to `ref`; `data-*` here is what the browser check reads. */}
+      <View
         ref={root}
         className="kumimono-stage relative h-[440px] sm:h-[560px] overflow-hidden bg-[#080806] border border-[#c8a06a26] rounded-t-xl"
         data-playing={playing && visible}
@@ -160,7 +160,7 @@ export function Kumimono({ baseUrl = '' }: { baseUrl?: string } = {}) {
         >
           {study?.pieceCount ?? 0} parts · procedural geometry
         </Text>
-      </div>
+      </View>
       <View className="flex flex-row flex-wrap sm:flex-nowrap items-center gap-3.5 sm:gap-5 p-4 sm:px-6 sm:py-[18px] border border-t-0 border-[#c8a06a26] rounded-b-xl bg-[#100f0b] text-xs">
         <Button
           disabled={!study || error}
