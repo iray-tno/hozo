@@ -956,9 +956,11 @@ fn build_node(
                             // a backend whose theme lacks the name emits
                             // nothing for it, and the class is then what lets
                             // the project's own CSS run it.
-                            let theme_animation = properties
-                                .iter()
-                                .any(|property| matches!(property, StyleProperty::ThemeAnimation(_)));
+                            // A theme radius likewise: `rounded-<name>` is a
+                            // radius only if the project's theme says so.
+                            let theme_animation = properties.iter().any(|property| {
+                                matches!(property, StyleProperty::ThemeAnimation(_)) || property.theme_radius().is_some()
+                            });
                             if properties.is_empty() || theme_animation {
                                 carried_classes.push(token.to_string());
                             }

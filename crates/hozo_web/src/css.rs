@@ -170,13 +170,21 @@ fn border_style_keyword(style: &BorderStyle) -> &'static str {
     }
 }
 
-fn radius_value(radius: &Radius, theme: &Theme) -> String {
+fn radius_value(radius: &Radius, theme: &Theme) -> Option<String> {
     match radius {
-        Radius::Length(l) => length_px(l, theme),
+        Radius::Length(l) => Some(length_px(l, theme)),
         // Exactly what Tailwind emits -- CSS can state this, so there's no
         // reason to approximate it here.
-        Radius::Full => "calc(infinity * 1px)".to_string(),
+        Radius::Full => Some("calc(infinity * 1px)".to_string()),
+        Radius::Theme(name) => theme.radius(name).map(|px| length_px(&Length::Px(px), theme)),
     }
+}
+
+/// A radius declaration, or nothing when it names a token the theme does
+/// not define: the class is carried, so the project's own CSS still applies,
+/// as with a theme animation.
+fn radius_pair<'a>(property: &'a str, radius: &Radius, theme: &Theme) -> (&'a str, String) {
+    radius_value(radius, theme).map_or(("", String::new()), |value| (property, value))
 }
 
 /// The CSS longhand for each edge. Spelled out rather than concatenated
@@ -1214,15 +1222,15 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
             ("border-bottom-style", border_style_keyword(s).to_string())
         }
         StyleProperty::BorderLeftStyle(s) => ("border-left-style", border_style_keyword(s).to_string()),
-        StyleProperty::BorderRadius(r) => ("border-radius", radius_value(r, theme)),
-        StyleProperty::BorderTopLeftRadius(r) => ("border-top-left-radius", radius_value(r, theme)),
-        StyleProperty::BorderTopRightRadius(r) => ("border-top-right-radius", radius_value(r, theme)),
-        StyleProperty::BorderBottomRightRadius(r) => ("border-bottom-right-radius", radius_value(r, theme)),
-        StyleProperty::BorderBottomLeftRadius(r) => ("border-bottom-left-radius", radius_value(r, theme)),
-        StyleProperty::BorderStartStartRadius(r) => ("border-start-start-radius", radius_value(r, theme)),
-        StyleProperty::BorderStartEndRadius(r) => ("border-start-end-radius", radius_value(r, theme)),
-        StyleProperty::BorderEndStartRadius(r) => ("border-end-start-radius", radius_value(r, theme)),
-        StyleProperty::BorderEndEndRadius(r) => ("border-end-end-radius", radius_value(r, theme)),
+        StyleProperty::BorderRadius(r) => radius_pair("border-radius", r, theme),
+        StyleProperty::BorderTopLeftRadius(r) => radius_pair("border-top-left-radius", r, theme),
+        StyleProperty::BorderTopRightRadius(r) => radius_pair("border-top-right-radius", r, theme),
+        StyleProperty::BorderBottomRightRadius(r) => radius_pair("border-bottom-right-radius", r, theme),
+        StyleProperty::BorderBottomLeftRadius(r) => radius_pair("border-bottom-left-radius", r, theme),
+        StyleProperty::BorderStartStartRadius(r) => radius_pair("border-start-start-radius", r, theme),
+        StyleProperty::BorderStartEndRadius(r) => radius_pair("border-start-end-radius", r, theme),
+        StyleProperty::BorderEndStartRadius(r) => radius_pair("border-end-start-radius", r, theme),
+        StyleProperty::BorderEndEndRadius(r) => radius_pair("border-end-end-radius", r, theme),
         StyleProperty::FontSize(l) => ("font-size", length_px(l, theme)),
         StyleProperty::FontWeight(w) => ("font-weight", format!("{}", w.0)),
         StyleProperty::LineHeight(lh) => (

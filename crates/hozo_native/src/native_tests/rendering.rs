@@ -1170,3 +1170,23 @@ fn a_color_picker_is_hozo_color_picker_with_a_style_per_part() {
     }
     assert!(output.runtime_imports.contains(&"HozoColorPicker"), "{:?}", output.runtime_imports);
 }
+
+/// A radius only the project's theme defines (`--radius-hozo-control`),
+/// which `@hozo/ui` writes on nearly every component.
+#[test]
+fn a_theme_radius_is_its_value_and_an_unknown_one_is_nothing() {
+    let theme = Theme::default().with_radii(std::collections::HashMap::from([("hozo-control".to_string(), 8.0)]));
+    let compile = |class_name: &str| {
+        let source = format!("import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &theme)
+    };
+
+    let output = compile("rounded-hozo-control rounded-ss-hozo-control");
+    assert!(output.styles.contains("borderRadius: 8,"), "{}", output.styles);
+    assert!(output.styles.contains("borderStartStartRadius: 8,"), "{}", output.styles);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+
+    let output = compile("rounded-unknown");
+    assert!(!output.styles.contains("Radius"), "{}", output.styles);
+}

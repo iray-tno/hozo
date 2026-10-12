@@ -1357,9 +1357,27 @@ fn radius_from_suffix(suffix: &str) -> Option<Radius> {
         "2xl" => 16.0,
         "3xl" => 24.0,
         "4xl" => 32.0,
-        _ => return None,
+        _ => return theme_radius_name(suffix).map(|name| Radius::Theme(name.to_string())),
     };
     Some(Radius::Length(Length::Px(px)))
+}
+
+/// A name outside Tailwind's scale that only the project's theme can define
+/// (`--radius-control`), held for each backend to look up, as `animate-<name>`
+/// is. The parser has no theme, so it cannot know whether the name exists.
+///
+/// Not a corner. `rounded-t` and the rest are corner forms with no size,
+/// which Hozo does not compile; read as a token they would turn an unknown
+/// class into a radius named `t`.
+fn theme_radius_name(suffix: &str) -> Option<&str> {
+    let named = !suffix.is_empty()
+        && suffix.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        && suffix.as_bytes()[0].is_ascii_lowercase();
+    (named && !is_radius_corner(suffix)).then_some(suffix)
+}
+
+fn is_radius_corner(name: &str) -> bool {
+    matches!(name, "t" | "r" | "b" | "l" | "s" | "e" | "tl" | "tr" | "br" | "bl" | "ss" | "se" | "es" | "ee")
 }
 
 /// `rounded-<corner>-<size>`, where a corner may be a single corner, one
@@ -1369,8 +1387,12 @@ fn expand_border_radius(token: &str) -> Option<Vec<StyleProperty>> {
     // `rounded-lg` has no corner part; `rounded-t-lg` does. The corner is
     // never a valid size and vice versa, so trying the whole suffix as a
     // size first disambiguates without a lookahead.
+    // Only a real corner splits: `rounded-hozo-control` is one theme name,
+    // not a corner called `hozo`.
     let (corner, size) = match rest.split_once('-') {
-        Some((corner, size)) if radius_from_suffix(size).is_some() => (corner, size),
+        Some((corner, size)) if is_radius_corner(corner) && radius_from_suffix(size).is_some() => {
+            (corner, size)
+        }
         _ => return None,
     };
     let r = radius_from_suffix(size)?;
@@ -4547,6 +4569,28 @@ mod tests {
         );
         // Bare `inset-*` is still all four physical sides.
         assert_eq!(expand_utility("inset-0").1.len(), 4);
+    }
+
+    #[test]
+    fn a_radius_outside_the_scale_is_held_by_name_for_the_theme() {
+        let control = Radius::Theme("hozo-control".to_string());
+        assert_eq!(expand_utility("rounded-hozo-control").1, vec![StyleProperty::BorderRadius(control.clone())]);
+        // A corner splits off only when it is one: `hozo` is not.
+        assert_eq!(
+            expand_utility("rounded-t-hozo-control").1,
+            vec![
+                StyleProperty::BorderTopLeftRadius(control.clone()),
+                StyleProperty::BorderTopRightRadius(control),
+            ]
+        );
+        // The scale is still the scale, and a bare corner is still not a
+        // radius named after it.
+        assert_eq!(
+            expand_utility("rounded-lg").1,
+            vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(8.0)))]
+        );
+        assert!(expand_utility("rounded-t").1.is_empty());
+        assert!(expand_utility("rounded-[13px]").1.iter().all(|property| property.theme_radius().is_none()));
     }
 
     #[test]

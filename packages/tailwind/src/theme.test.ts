@@ -103,6 +103,31 @@ test('a project spacing scale reaches every spacing utility', async () => {
   assert.match(css, /border-top-width: 2px/)
 })
 
+test('a project radius token reaches both backends, through its var() chain', async () => {
+  // `@hozo/ui`'s theme writes these as references to Tailwind's own scale.
+  // Unread, `rounded-hozo-control` compiled to nothing and passed through.
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme { --radius-hozo-control: var(--radius-lg); --radius-pill: 20px; }`)
+  assert.deepEqual(
+    theme.radii?.filter((radius) => ['hozo-control', 'pill'].includes(radius.name)),
+    [
+      { name: 'hozo-control', px: 8 },
+      { name: 'pill', px: 20 },
+    ],
+  )
+
+  const source =
+    `import { View } from '@hozo/core'\n` +
+    `export function C() { return <View className="rounded-hozo-control rounded-t-pill" /> }\n`
+  const compiler = createCompiler(theme)
+  const css = compiler.compile(source)[0].css
+  assert.match(css, /border-radius: 8px/)
+  assert.match(css, /border-top-left-radius: 20px/)
+  const native = compiler.compileNative(source)[0].styles
+  assert.match(native, /borderRadius: 8,/)
+  assert.match(native, /borderTopRightRadius: 20,/)
+})
+
 test('a spacing scale Hozo cannot read leaves the default alone', async () => {
   // Guessing here would rescale every padding, margin and gap in the
   // project by a number nobody chose.
