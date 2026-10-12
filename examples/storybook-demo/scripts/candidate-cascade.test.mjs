@@ -252,3 +252,81 @@ test('owned candidates work without Tailwind, and empty roots/slots keep absent 
     `[candidate-cascade] ${cache.candidates().length} candidates, ${Buffer.byteLength(candidateCss)} CSS bytes, ${gzipSync(candidateCss).length} gzip bytes`,
   )
 })
+
+// #881. A component's own classes compile statically; its caller's
+// `className` arrives at runtime. The caller wins over the resting look --
+// unconditional classes and a branch the source picked -- and loses to the
+// element's state, on both platforms and whichever stylesheet comes first.
+test("a caller's className beats the component's resting look and loses to its state", {
+  skip: !executablePath,
+}, async () => {
+  const callerCache = openCandidateCache(path.join(directory, 'caller-candidates.json'))
+  callerCache.scanFile('app.ts', "export const caller = 'bg-red-500 px-8 opacity-100'", 1)
+  const callerCss = callerCache.renderCss(undefined, ['bg-red-500', 'px-8', 'opacity-100'])
+  const source =
+    "import clsx from 'clsx'\nimport { Button } from '@hozo/core'\n" +
+    "const Example = () => <Button disabled={off} className={clsx('bg-blue-500 p-2 disabled:opacity-50', big ? 'px-6' : 'px-1', caller)}>Save</Button>"
+  const web = compiler.compile(source)[0]
+  const native = compiler.compileNative(source)[0]
+  const { hozoClasses } = evaluate(callerCache.renderNativeModule().replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  })
+  const caller = 'bg-red-500 px-8 opacity-100'
+  for (const off of [false, true]) {
+    const nativeElement = evaluate(
+      `const hozoStyles = ${native.styles}\nmodule.exports = (${native.jsx})`,
+      {
+        off,
+        big: true,
+        caller,
+        hozoClasses,
+        Pressable: 'Pressable',
+        Text: 'Text',
+        StyleSheet: { create: (styles) => styles },
+        h: (type, props) => ({ type, props }),
+      },
+    )
+    const nativeStyle = Object.assign(
+      {},
+      ...[nativeElement.props.style].flat(Infinity).filter(Boolean),
+    )
+    assert.equal(
+      nativeStyle.backgroundColor,
+      '#fb2c36',
+      'Native: the caller beats the resting colour',
+    )
+    assert.equal(nativeStyle.paddingStart, 32, 'Native: the caller beats the picked branch')
+    assert.equal(nativeStyle.opacity, off ? 0.5 : 1, 'Native: the disabled state beats the caller')
+    const html = renderToStaticMarkup(
+      evaluate(`module.exports = (${web.jsx})`, { off, big: true, caller }),
+    )
+    for (const order of ['component-first', 'candidates-first']) {
+      const sheets = order === 'component-first' ? [web.css, callerCss] : [callerCss, web.css]
+      const page = await browser.newPage()
+      try {
+        await page.setContent(
+          `<style>html { font-size: 16px }</style>${sheets.map((css) => `<style>${css}</style>`).join('')}${html}`,
+        )
+        const actual = await page.locator('button').evaluate((element) => {
+          const style = getComputedStyle(element)
+          return {
+            background: style.backgroundColor,
+            padding: style.paddingLeft,
+            opacity: style.opacity,
+          }
+        })
+        assert.deepEqual(
+          actual,
+          {
+            background: 'oklch(0.637 0.237 25.331)',
+            padding: `${nativeStyle.paddingStart}px`,
+            opacity: String(nativeStyle.opacity),
+          },
+          `${order}, disabled ${off}`,
+        )
+      } finally {
+        await page.close()
+      }
+    }
+  }
+})

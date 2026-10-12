@@ -266,7 +266,7 @@ pub(super) fn build_style_entries(
     // the last frame, not part of the style array. `None` everywhere else,
     // which reports them instead.
     mut frames: Option<&mut AnimatedFrames>,
-) {
+) -> usize {
     // Before anything reads them: a paired token becomes a second
     // declaration, so everything below treats it as an ordinary condition.
     let with_dark = with_dark_copies(declarations, theme);
@@ -286,10 +286,18 @@ pub(super) fn build_style_entries(
     // same specificity on Web, so there it is source order that decides.
     let mut base_parts: Vec<String> = Vec::new();
     let mut conditional_parts: Vec<String> = Vec::new();
+    // Styles under a condition on the element itself -- `disabled:`,
+    // `aria-checked:`, `first:` -- kept apart so a caller's runtime
+    // `className` can go between them and the rest (#881). On Web these are
+    // (0,2,0) and beat the caller's (0,1,1) copy; the resting look -- no
+    // condition, a breakpoint, `dark:`, a className branch -- is (0,1,0) and
+    // loses to it.
+    let mut state_parts: Vec<String> = Vec::new();
 
     for (condition, props) in hozo_ir::group_by_condition(declarations) {
         // Read before the match below moves parts of `condition` out.
         let is_dark_only = condition.mentions_dark();
+        let conditional = if is_element_state(&condition) { &mut state_parts } else { &mut conditional_parts };
         let props = hozo_ir::dedupe_last_wins(props);
         if props.is_empty() {
             continue;
@@ -432,11 +440,11 @@ pub(super) fn build_style_entries(
             | Condition::Container { .. } | Condition::FormState(FormState::ReadOnly) => {
                 match guards::resolve(&condition, node, source, position, runtime, interaction_context) {
                     Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
-                    Ok(guards::Guard::Known(true)) => conditional_parts.extend(guarded("")),
+                    Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
                     Ok(guards::Guard::Known(false)) => {}
-                    Ok(guards::Guard::Dynamic(guard)) => conditional_parts.extend(guarded(&format!("{guard} && "))),
+                    Ok(guards::Guard::Dynamic(guard)) => conditional.extend(guarded(&format!("{guard} && "))),
                     Ok(guards::Guard::Interactive(guard)) => pressed_parts.extend(guarded(&format!("{guard} && "))),
-                    Ok(guards::Guard::Scoped { available, predicate }) => conditional_parts.extend(guarded(&format!("({available} && {predicate}) && "))),
+                    Ok(guards::Guard::Scoped { available, predicate }) => conditional.extend(guarded(&format!("({available} && {predicate}) && "))),
                     Err(reason) => diagnostics.push(unwired_variant(node, &reason, Severity::Error)),
                 }
             }
@@ -595,7 +603,7 @@ pub(super) fn build_style_entries(
                         } else if uses_interactive_state {
                             pressed_parts.extend(guarded(&prefix));
                         } else {
-                            conditional_parts.extend(guarded(&prefix));
+                            conditional.extend(guarded(&prefix));
                         }
                     }
                 }
@@ -725,7 +733,7 @@ pub(super) fn build_style_entries(
             )),
             Condition::Expr(expr) => {
                 let guard = render_condition_expr(source, expr);
-                conditional_parts.extend(guarded(&format!("({guard}) && ")));
+                conditional.extend(guarded(&format!("({guard}) && ")));
             }
             // Refused rather than shelved. React Native has no selector
             // engine at all -- not a missing feature but a different
@@ -780,9 +788,35 @@ pub(super) fn build_style_entries(
 
     style_array_parts.append(&mut base_parts);
     style_array_parts.append(&mut conditional_parts);
+    let state_start = style_array_parts.len();
+    style_array_parts.append(&mut state_parts);
     // `pressed_parts` is appended by the caller, after these, because only
     // there is it known whether the element can carry press state at all.
     // That puts `pressed:` last among the conditions rather than in source
     // order relative to them -- a divergence from Web only when a
     // `pressed:` utility and another conditional set the same property.
+    state_start
+}
+
+/// Whether a condition is about the element itself rather than its
+/// surroundings: its state, its ARIA attributes, its place among siblings.
+/// A breakpoint, `dark:`, an environment query and a className branch are
+/// not. See `state_parts`.
+fn is_element_state(condition: &Condition) -> bool {
+    match condition {
+        Condition::Disabled
+        | Condition::Enabled
+        | Condition::Aria(_)
+        | Condition::FirstChild
+        | Condition::LastChild
+        | Condition::Structural(_)
+        | Condition::FormState(_)
+        | Condition::Hover
+        | Condition::Focus
+        | Condition::FocusVisible
+        | Condition::Pressed => true,
+        Condition::Not(inner) => is_element_state(inner),
+        Condition::All(conditions) => conditions.iter().any(is_element_state),
+        _ => false,
+    }
 }
