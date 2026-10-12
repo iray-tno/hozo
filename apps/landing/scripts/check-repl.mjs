@@ -98,7 +98,7 @@ server.listen(0, () => {
       '--headless=new',
       '--disable-gpu',
       '--no-sandbox',
-      // Long enough for a 1.3MB module to be fetched and instantiated.
+      // Long enough for a 1.5MB module to be fetched and instantiated.
       '--virtual-time-budget=60000',
       '--dump-dom',
       `http://localhost:${port}/hozo/repl/`,
@@ -142,6 +142,17 @@ server.listen(0, () => {
         failures.push('the diagnostic the example produces was not reported')
       }
 
+      // The editor is a textbox once the script has made it editable, and
+      // not before: the built HTML has no role on it.
+      const editor = /<div[^>]*id="repl-source"[^>]*>/.exec(dom)?.[0] ?? ''
+      if (!editor.includes('role="textbox"') || !editor.includes('contenteditable')) {
+        failures.push('the editor is not an editable textbox after the script ran')
+      }
+      const built = readFileSync(path.join(dist, 'repl', 'index.html'), 'utf8')
+      if (/<div[^>]*id="repl-source"[^>]*role="textbox"/.test(built)) {
+        failures.push('the built HTML calls the editor a textbox before it can be typed in')
+      }
+
       if (failures.length > 0) {
         console.error(`repl: ${failures.length} problem(s)`)
         for (const failure of failures) console.error(`  - ${failure}`)
@@ -152,7 +163,9 @@ server.listen(0, () => {
         for (const line of requested) console.error(`  requested: ${line}`)
         process.exit(1)
       }
-      console.log('repl: compiles in a browser, four panes and the diagnostic')
+      console.log(
+        'repl: compiles in a browser, four panes and the diagnostic, editor a textbox once editable',
+      )
     },
   )
 })

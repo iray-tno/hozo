@@ -1,10 +1,10 @@
 // The REPL's client half: load the compiler, compile on a pause, render.
 //
-// The module is 1.3MB (450KB gzipped) and this is the only page that
-// wants it, so it is imported on the first keystroke rather than on load
-// -- a visitor who reads the page and leaves pays nothing for it. See the
-// `wasm` profile in the workspace `Cargo.toml` for what that number was
-// traded against.
+// The module is 1.5MB (490KB gzipped) and this is the only page that
+// wants it, so it is fetched by this page's script and no other. It is
+// fetched on load, because the editor starts with an example to compile.
+// See the `wasm` profile in the workspace `Cargo.toml` for what that number
+// was traded against.
 import { CodeJar } from 'codejar'
 import Prism from 'prismjs'
 import 'prismjs/components/prism-jsx'
@@ -106,6 +106,9 @@ const jar = CodeJar(source, highlightTsx, {
   tab: '  ',
   spellcheck: false,
 })
+// Only now can it be typed in, so only now is it a textbox.
+source.setAttribute('role', 'textbox')
+source.setAttribute('aria-multiline', 'true')
 
 // Highlight initial source
 highlightTsx(source)
@@ -142,7 +145,7 @@ const SEVERITY: Record<string, string> = {
 function renderDiagnostics(text: string, found: ReplDiagnostic[]) {
   if (found.length === 0) {
     diagnosticList.innerHTML =
-      '<p class="text-sm text-slate-500">No diagnostics. Everything here compiles.</p>'
+      '<p class="text-sm text-stone-500">No diagnostics. Everything here compiles.</p>'
     return
   }
   diagnosticList.innerHTML = found
@@ -151,9 +154,9 @@ function renderDiagnostics(text: string, found: ReplDiagnostic[]) {
       return `<div class="rounded-lg border ${tone} px-3 py-2">
         <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
           <code class="font-mono text-xs font-semibold">${escaped(diagnostic.code)}</code>
-          <span class="font-mono text-xs text-slate-500">${position(text, diagnostic.span_start)}</span>
+          <span class="font-mono text-xs text-stone-500">${position(text, diagnostic.span_start)}</span>
         </div>
-        <p class="mt-1 text-sm text-slate-300">${escaped(diagnostic.message)}</p>
+        <p class="mt-1 text-sm text-stone-300">${escaped(diagnostic.message)}</p>
       </div>`
     })
     .join('')
