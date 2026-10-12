@@ -17,6 +17,7 @@
     "@hozo/engine": "workspace:*",
     "@hozo/example-showcase": "workspace:*",
     "@hozo/form": "workspace:*",
+    "@hozo/media": "workspace:*",
     "@hozo/patterns": "workspace:*",
     "@hozo/primitives": "workspace:*",
     "@hozo/rn-compat": "workspace:*",

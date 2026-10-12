@@ -57,6 +57,22 @@
       "types": "./dist/seek-index.d.ts",
       "default": "./dist/seek-index.js"
     },
+    "./source": {
+      "react-native": {
+        "types": "./dist/source-index.native.d.ts",
+        "default": "./dist/source-index.native.js"
+      },
+      "types": "./dist/source-index.d.ts",
+      "default": "./dist/source-index.js"
+    },
+    "./source/expo": {
+      "react-native": {
+        "types": "./dist/expo-source-index.native.d.ts",
+        "default": "./dist/expo-source-index.native.js"
+      },
+      "types": "./dist/expo-source-index.d.ts",
+      "default": "./dist/expo-source-index.js"
+    },
     "./webvtt": {
       "react-native": {
         "types": "./dist/webvtt-index.native.d.ts",
@@ -88,7 +104,8 @@
     "react": "^19.0.0",
     "react-native": ">=0.86",
     "expo-video": ">=57.0.5 <58",
-    "expo-audio": ">=57.0.5 <58"
+    "expo-audio": ">=57.0.5 <58",
+    "expo-asset": ">=57.0.18 <58"
   },
   "peerDependenciesMeta": {
     "react-native": {
@@ -98,6 +115,9 @@
       "optional": true
     },
     "expo-audio": {
+      "optional": true
+    },
+    "expo-asset": {
       "optional": true
     }
   },
@@ -109,6 +129,7 @@
     "esbuild": "0.28.2",
     "expo-video": "~57.0.5",
     "expo-audio": "~57.0.5",
+    "expo-asset": "~57.0.18",
     "playwright-core": "^1.63.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
