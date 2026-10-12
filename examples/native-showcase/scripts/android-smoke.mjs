@@ -10,7 +10,12 @@ import { readCanvasRounds } from './canvas-rounds.mjs'
 import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './device-evidence.mjs'
 import { waitForImage } from './image-ready.mjs'
 import { exerciseSvgFilters, readAndroidScenario } from './svg-filter-evidence.mjs'
-import { exerciseVideo, VIDEO_PROBE_LABEL, videoStatus } from './video-evidence.mjs'
+import {
+  exerciseVideo,
+  exerciseVideoPoster,
+  VIDEO_PROBE_LABEL,
+  videoStatus,
+} from './video-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -194,25 +199,24 @@ async function fullShowcase() {
   screenshot('15-confirmation-saved')
   record('shared dialog opens, Android Back cancels, confirmation saves')
 
-  await exerciseVideo(
-    {
-      story,
-      waitFor: (text) => waitFor(label(text), `video control: ${text}`),
-      waitStatus: async (accept, description) => {
-        const node = await waitFor((node) => {
-          const status = videoStatus(node.text || node['content-desc'])
-          return status && accept(status)
-        }, description)
-        return videoStatus(node.text || node['content-desc'])
-      },
-      tap: (text) => tap(label(text), `video action: ${text}`),
-      hasVideo: () => nodes().some(label(VIDEO_PROBE_LABEL)),
-      capture: (name, node) => imageRegion(screenshot(name), node.rect),
-      waitForImage,
-      record,
+  const videoDriver = {
+    story,
+    waitFor: (text) => waitFor(label(text), `video control: ${text}`),
+    waitStatus: async (accept, description) => {
+      const node = await waitFor((node) => {
+        const status = videoStatus(node.text || node['content-desc'])
+        return status && accept(status)
+      }, description)
+      return videoStatus(node.text || node['content-desc'])
     },
-    evidence,
-  )
+    tap: (text) => tap(label(text), `video action: ${text}`),
+    hasVideo: () => nodes().some(label(VIDEO_PROBE_LABEL)),
+    capture: (name, node) => imageRegion(screenshot(name), node.rect),
+    waitForImage,
+    record,
+  }
+  await exerciseVideo(videoDriver, evidence)
+  await exerciseVideoPoster(videoDriver, evidence)
 
   await story('three-kumimono--assembly', '組物: timber bracket assembly')
   const canvas = await assembly('assembled')

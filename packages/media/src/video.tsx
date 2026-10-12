@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
 import { DomVideoSession } from './dom-session.ts'
-import { type VideoProps, validateVideoProps } from './types.ts'
+import { watchVideoFrame } from './dom-video-frame.ts'
+import { type VideoHandle, type VideoProps, validateVideoProps } from './types.ts'
+import { useVideoPresentation } from './use-video-presentation.ts'
+import { VideoControls } from './video-controls.tsx'
+import { VideoPoster } from './video-poster.tsx'
 
 export function Video(props: VideoProps) {
   validateVideoProps(props)
@@ -10,6 +14,8 @@ export function Video(props: VideoProps) {
 function SourceVideo(props: VideoProps) {
   const element = useRef<HTMLVideoElement>(null)
   const session = useRef<DomVideoSession | null>(null)
+  const player = useRef<VideoHandle>(null)
+  const { create, retire, beginViewing, status, showingPoster } = useVideoPresentation(props)
   const latest = useRef(props)
   latest.current = props
 
@@ -22,26 +28,40 @@ function SourceVideo(props: VideoProps) {
   // in a parent's layout effect, not only after passive effects have run.
   useLayoutEffect(() => {
     if (!element.current) return
-    const controller = new DomVideoSession(element.current, props.src, () => latest.current)
+    const owner = create()
+    const controller = new DomVideoSession(element.current, props.src, () => ({
+      ...latest.current,
+      onStatusChange: (observed) => {
+        owner.observe(observed)
+        latest.current.onStatusChange?.(observed)
+      },
+    }))
+    const stopFrames = watchVideoFrame(element.current, () => owner.frame())
     session.current = controller
     controller.start(latest.current)
     return () => {
+      stopFrames()
+      retire(owner)
       session.current = null
       controller.dispose()
     }
-  }, [props.src])
+  }, [props.src, create, retire])
 
   // Observations update props, not the source-owned command identity.
-  useImperativeHandle(
-    props.ref,
+  const commands = useCallback(
     () => ({
       play: async () => requireSession().play(),
       pause: () => session.current?.pause(),
-      seekTo: (seconds) => requireSession().seekTo(seconds),
+      seekTo: (seconds: number) => {
+        requireSession().seekTo(seconds)
+        beginViewing()
+      },
       getStatus: () => requireSession().getStatus(),
     }),
-    [requireSession],
+    [requireSession, beginViewing],
   )
+  useImperativeHandle(player, commands, [commands])
+  useImperativeHandle(props.ref, commands, [commands])
 
   useEffect(() => {
     session.current?.setOptions({
@@ -53,17 +73,47 @@ function SourceVideo(props: VideoProps) {
   }, [props.autoPlay, props.loop, props.muted, props.volume])
 
   return (
-    <video
-      ref={element}
-      src={props.src}
-      controls={props.controls ?? true}
-      playsInline={props.playsInline ?? true}
-      loop={props.loop}
-      muted={props.muted}
-      preload="metadata"
-      aria-label={props.accessibilityLabel}
-      data-testid={props.testID}
-      style={{ width: '100%', height: 180, ...props.style, objectFit: props.fit ?? 'contain' }}
-    />
+    <>
+      {/* Keep the host's parent stable when a poster is added/removed. */}
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: 180,
+          ...props.style,
+          overflow: 'hidden',
+        }}
+      >
+        <video
+          ref={element}
+          src={props.src}
+          controls={props.poster === undefined && (props.controls ?? true)}
+          playsInline={props.playsInline ?? true}
+          loop={props.loop}
+          muted={props.muted}
+          preload="metadata"
+          aria-label={props.accessibilityLabel}
+          data-testid={props.testID}
+          style={{
+            display: 'block',
+            width: '100%',
+            height: '100%',
+            objectFit: props.fit ?? 'contain',
+          }}
+        />
+        {showingPoster && props.poster !== undefined && (
+          <VideoPoster key={props.poster} {...props} poster={props.poster} />
+        )}
+      </div>
+      {props.poster !== undefined && (props.controls ?? true) && (
+        <div style={{ width: props.style?.width ?? '100%' }}>
+          <VideoControls
+            player={player}
+            status={status}
+            accessibilityLabel={`${props.accessibilityLabel} playback controls`}
+          />
+        </div>
+      )}
+    </>
   )
 }

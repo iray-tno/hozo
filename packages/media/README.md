@@ -29,7 +29,7 @@ its engine. Neither `@hozo/core` nor a non-media screen gains this dependency.
   not part of this first API.
 - `accessibilityLabel`: required, nonempty name. `testID` names the test target.
 - `controls` and `playsInline` default to true. Controls are the browser/OS's
-  own controls; appearance, keyboard and fullscreen behavior are platform-owned.
+  own controls when no poster is supplied; appearance, keyboard and fullscreen behavior are platform-owned.
   `playsInline` requests inline playback in the browser. Native starts inline;
   its controls may enter fullscreen. This is not a fullscreen/PiP contract.
 - `autoPlay`, `muted`, `loop`: false by default. Autoplay is attempted once per
@@ -69,6 +69,57 @@ listeners. Native loads asynchronously; the committed component host releases
 its Expo player after retiring its session, including StrictMode effect replay. Web cleanup
 pauses, removes the src and stops resource loading. Callback updates do not
 replace the source; stale asynchronous failures cannot report as the new movie.
+
+## Video poster
+
+```tsx
+<Video src={movieUri} poster={coverUri} accessibilityLabel="Product walkthrough"
+  onPosterError={error => console.warn(error.poster, error.message)} />
+```
+
+`poster` is an optional nonempty URL/URI; numeric Metro assets must first be
+resolved by the application, like `src`. The cover is decorative, uses the
+same viewport and `fit`, and never adds a second accessible name. Put any
+meaningful information in the media's name, description or authored alternative.
+
+The initial paused source retains its cover even after metadata and its first
+frame arrive. Observed playback, or an accepted explicit `seekTo` (including
+zero), begins viewing; the cover disappears only once a frame signal has also
+arrived. A rejected play/seek does not reveal it. Pause, end, loop boundaries
+and artwork changes do not cover an already viewed source again. A new `src`
+or remount resets the policy. This is a shared contract, not the browser's own
+`<video poster>` display flag, and a requested seek is not frame-exact positioning.
+
+With a poster and `controls` enabled, **both hosts use Hozo's shared controls
+below the viewport** throughout the source lifetime. The cover cannot hide OS
+buttons and automatic reveal cannot discard the focused control. Without `poster`,
+the original platform control bar is retained. `controls={false}` keeps author-owned controls;
+use `VideoControls` separately for localized labels or a custom layout. Fullscreen/
+PiP controls are not added by this slice. The portable width/height style describes
+the viewport; shared controls occupy additional space below it. Explicitly
+adding/removing `poster` changes the control mode; that author-driven UI change,
+unlike automatic reveal, may replace its focused control.
+
+Web prefers `requestVideoFrameCallback` (compositor submission). Older hosts
+fall back to current decoded data (`readyState >= HAVE_CURRENT_DATA`), checked
+at attachment and loadeddata/canplay/seeked; that fallback is **not** proof of
+presentation. Native uses Expo's `onFirstFrameRender`, not `readyToPlay`. Frame
+subscriptions and Native view/layout identities belong to their committed player,
+so old events/effect replay cannot unlock a replacement source's cover.
+
+Image failures are separately reported once as `{ src, poster, message }` through
+`onPosterError`. They remove the broken image but neither set a decoder error nor
+reload/pause the video. A new artwork URI creates a new image lifetime while the
+cover is still eligible; render/clock updates do not retry. Changing/removing artwork
+keeps the same media host/handle. There is no hidden playback, seek, timer or thumbnail
+generation to make a first frame arrive.
+
+Real Chromium tests compare **composed screenshots**, not video pixels hidden
+behind an opaque image: the checked-in teal diamond changes to the actual purple
+video square, and source replacement restores the diamond. Both Storybooks offer
+`Media/Video/Poster`; Native full CI also adds a separate `PosterEvidence` round,
+without weakening or warming up the original no-poster video gates. Mock/bundle
+success is not Native cover-pixel, physical-device or screen-reader certification.
 
 ## Audio
 

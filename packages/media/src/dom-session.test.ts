@@ -38,6 +38,22 @@ class FakeVideo extends EventTarget {
   }
 }
 
+test('poster requires an explicit nonempty URI rather than silently dropping unsupported assets', () => {
+  for (const poster of ['', '  ', null, 42]) {
+    assert.throws(
+      () =>
+        renderToStaticMarkup(
+          createElement(Video, {
+            src: 'a.mp4',
+            accessibilityLabel: 'Clip',
+            poster: poster as string,
+          }),
+        ),
+      /Video poster must be a nonempty URL or URI/,
+    )
+  }
+})
+
 test('Web renders named semantic video, native controls and portable style without Native imports', () => {
   const html = renderToStaticMarkup(
     createElement(Video, {
@@ -48,7 +64,8 @@ test('Web renders named semantic video, native controls and portable style witho
       fit: 'cover',
     }),
   )
-  assert.match(html, /^<video /)
+  assert.match(html, /^<div /)
+  assert.match(html, /<video /)
   assert.match(html, /aria-label="Silent clip"/)
   assert.match(html, /controls=""/)
   assert.match(html, /playsInline=""/)

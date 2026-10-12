@@ -261,6 +261,20 @@ test('shared captions retain the independent media companion on both showcase ho
   }
 })
 
+test('both showcase hosts resolve their own poster asset and retain the shared Video prop on Native', () => {
+  const file = path.join(root, '../showcase/src/video.tsx')
+  const output = transformHozoSource(readFileSync(file, 'utf8'), file)
+  assert.match(output, /poster=\{poster\}/)
+  for (const story of ['src/Video.stories.tsx', '../storybook-demo/src/Video.stories.tsx']) {
+    const source = readFileSync(path.join(root, story), 'utf8')
+    assert.match(source, /hozo-video-poster\.png/)
+    assert.match(source, /export const Poster:/)
+  }
+  const native = readFileSync(path.join(root, 'src/Video.stories.tsx'), 'utf8')
+  assert.match(native, /PosterEvidence: Story = \{ args: \{ probe: true, poster: true \} \}/)
+  assert.match(native, /poster=\{posterSrc\}/)
+})
+
 test('shared Audio retains its independent media entry; both hosts use the same owned fixture and disable recording', () => {
   const file = path.join(root, '../showcase/src/audio.tsx')
   const output = transformHozoSource(readFileSync(file, 'utf8'), file)
