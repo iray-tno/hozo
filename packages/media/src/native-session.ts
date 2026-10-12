@@ -36,10 +36,10 @@ export class NativeVideoSession implements VideoHandle {
         })
       }),
       this.player.addListener('timeUpdate', ({ currentTime }) =>
-        this.observer.update({ currentTime, duration: durationValue(this.player.duration) }),
+        this.observer.update({ currentTime, duration: this.duration() }),
       ),
       this.player.addListener('sourceLoad', ({ duration }) =>
-        this.observer.update({ duration: durationValue(duration) }),
+        this.observer.update({ duration: this.duration(duration) }),
       ),
       this.player.addListener('playToEnd', () => {
         // iOS Expo emits this even when it immediately seeks/replays a loop.
@@ -68,10 +68,16 @@ export class NativeVideoSession implements VideoHandle {
       buffering: status === 'loading',
       playing: this.player.playing,
       currentTime: this.player.currentTime,
-      duration: durationValue(this.player.duration),
+      duration: this.duration(),
       error: this.rateError,
     })
     this.maybeAutoplay()
+  }
+
+  private duration(value = this.player.duration) {
+    // A live engine can expose a finite DVR window, not a finite total.
+    // Re-read the flag on each observation; it is not a source-time guess.
+    return this.player.isLive ? null : durationValue(value)
   }
 
   setOptions(options: VideoOptions) {

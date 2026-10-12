@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { auditPage, waitForSettledStory } from './a11y-audit.mjs'
 
@@ -17,13 +18,65 @@ const executablePath = [
 if (process.env.CI) assert.ok(executablePath, 'CI must run the browser regressions')
 const axeSource = readFileSync(fileURLToPath(import.meta.resolve('axe-core/axe.min.js')), 'utf8')
 let browser
+let readerSource
 before(async () => {
-  if (executablePath)
+  if (executablePath) {
     browser = await chromium.launch({
       executablePath,
       headless: true,
       args: ['--no-sandbox', '--disable-gpu'],
     })
+    const bundle = await build({
+      stdin: {
+        contents: [
+          "import { virtual } from '@guidepup/virtual-screen-reader/browser.js'",
+          "import { walk } from './utterance-walk.mjs'",
+          "import { waitForSettledStory } from './a11y-audit.mjs'",
+          'window.__hozoVirtual = virtual',
+          'window.__hozoWalk = walk',
+          'window.__hozoStoryReady = waitForSettledStory',
+        ].join('\n'),
+        resolveDir: fileURLToPath(new URL('.', import.meta.url)),
+      },
+      bundle: true,
+      platform: 'browser',
+      format: 'iife',
+      write: false,
+    })
+    readerSource = bundle.outputFiles[0].text
+  }
+})
+
+test('a delayed story is read after readiness, not approved as an empty finished traversal', {
+  skip: !executablePath,
+}, async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setContent('<div id="storybook-root"></div>')
+    await page.addScriptTag({ content: readerSource })
+    const empty = await page.evaluate(async () => {
+      await __hozoVirtual.start({ container: document.getElementById('storybook-root'), window })
+      const result = await __hozoWalk(__hozoVirtual, 400)
+      await __hozoVirtual.stop()
+      return result
+    })
+    assert.equal(empty.finished, true)
+    assert.deepEqual(empty.log, [])
+    const rendered = await page.evaluate(async () => {
+      setTimeout(() => {
+        document.getElementById('storybook-root').innerHTML = '<h2>Preferences</h2>'
+      }, 650)
+      await __hozoStoryReady(2500)
+      await __hozoVirtual.start({ container: document.getElementById('storybook-root'), window })
+      const result = await __hozoWalk(__hozoVirtual, 400)
+      await __hozoVirtual.stop()
+      return result
+    })
+    assert.equal(rendered.finished, true)
+    assert.ok(rendered.log.includes('heading, Preferences, level 2'))
+  } finally {
+    await page.close()
+  }
 })
 after(async () => {
   await browser?.close()

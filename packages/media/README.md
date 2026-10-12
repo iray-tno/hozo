@@ -65,6 +65,16 @@ also cause a pause. `onEnded` observes a terminal end, not every loop. `onError`
 includes src, operation (load/play/seek/volume/rate), and message. Load failure is terminal
 for that source; command denial is not a decoder failure.
 
+Native Audio and Video honor the Expo engine's live observation: `duration`
+is null for a live source, even if the engine also returns a finite window
+length. Video rechecks `isLive` on source-load, status and time observations,
+so later finite observations can recover without caching a source-time guess.
+Shared controls therefore show an unknown total and the finite-duration
+`MediaSeekSlider` stays unavailable. This does not invent a seekability verdict:
+Native step buttons and imperative seeks remain best-effort requests with
+observable errors. DVR-window controls and arbitrary live-source decoding
+are separate work, not capabilities proven by this normalization.
+
 A changed src creates a fresh playback host, resets time/status, and retires old
 listeners. Native loads asynchronously; the committed component host releases
 its Expo player after retiring its session, including StrictMode effect replay. Web cleanup

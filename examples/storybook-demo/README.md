@@ -61,6 +61,30 @@ So **`KNOWN` is empty**, which is the state it should be judged by: a story that
 
 ## Development
 
+The built shared-showcase interaction check covers nine scenarios, including
+Video, captions, Audio, poster lifecycle, SVG filters and focus restoration.
+It waits for authored controls and observable operation results in real time,
+within one 60-second wall-clock budget including browser launch. A loaded
+iframe is not proof that React has rendered its controls. Paused Video uses
+`preload="metadata"`, so caption readiness cannot require `canplay`, and the
+initial poster is checked against its own image load rather than a decoded
+video frame. Disabled/inert/no-autoplay assertions cross a render turn and
+retain their original 250ms observation horizon. These checks do not replace the media package's decoder/pixel
+tests or physical-device and assistive-technology verification.
+
+`storybook-static-check/_shared-interactions-result.json` records the last
+reported waiting stage, completed scenarios and observed media state on success
+or failure. The parent DOM is also saved when the browser is still available.
+CI uploads these as `shared-showcase-interaction-evidence`; a timeout, browser
+error or incomplete scenario list still fails the test.
+
+Reading-order checks use the same settled-story barrier as the axe audit,
+within the existing 5.5-second load/preparation budget. An empty React root
+cannot be approved as an empty finished traversal. The 400-step traversal
+limit, six-minute run bound and checked-in utterance goldens are unchanged.
+Full reading results and preparation errors are saved in
+`storybook-static-check/_utterances-result.json` and uploaded with the evidence.
+
 Run the Storybook dev server:
 
 ```sh
