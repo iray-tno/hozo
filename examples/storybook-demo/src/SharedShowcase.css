@@ -22,6 +22,9 @@
   cursor: pointer;
 }
 
+/* `:disabled` too: the patterns' Checkbox and Switch are real `<button>`s and
+   say disabled with the attribute, not with `aria-disabled`. */
+.shared-showcase button:disabled,
 .shared-showcase button[aria-disabled="true"] {
   cursor: default;
 }
