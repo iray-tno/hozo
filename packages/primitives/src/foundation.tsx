@@ -16,6 +16,8 @@ import {
   type CSSProperties,
   type MouseEventHandler,
   type ReactNode,
+  type Ref,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -91,8 +93,29 @@ function universalDomProps(props: UniversalProps) {
   } as const
 }
 
-function useLayoutRef<T extends HTMLElement>(onLayout?: (event: HozoLayoutEvent) => void) {
+/**
+ * The element, for `onLayout` and the responder, and the caller's `ref` too.
+ *
+ * React Native's `View` takes a `ref`, and the compiled `<div>` passes one
+ * straight through. This fallback held its own ref for `onLayout` and gave
+ * the caller nothing, so whether `ref` worked depended on whether the
+ * compiler had run. `setRef` hands the node to both.
+ */
+function useLayoutRef<T extends HTMLElement>(
+  onLayout?: (event: HozoLayoutEvent) => void,
+  forwarded?: Ref<T>,
+) {
   const elementRef = useRef<T>(null)
+  // A new function only when the caller's ref changes, so React detaches the
+  // old one and attaches the new rather than re-running both every render.
+  const setRef = useCallback(
+    (node: T | null) => {
+      elementRef.current = node
+      if (typeof forwarded === 'function') forwarded(node)
+      else if (forwarded) forwarded.current = node
+    },
+    [forwarded],
+  )
   const callbackRef = useRef(onLayout)
   callbackRef.current = onLayout
 
@@ -122,22 +145,23 @@ function useLayoutRef<T extends HTMLElement>(onLayout?: (event: HozoLayoutEvent)
     return () => observer.disconnect()
   }, [])
 
-  return elementRef
+  return { elementRef, setRef }
 }
 
 export interface ViewProps extends UniversalProps, ResponderProps {
   className?: string
   children?: ReactNode
+  ref?: Ref<HTMLDivElement>
 }
 
-export function View({ className, children, onLayout, ...universal }: ViewProps) {
-  const ref = useLayoutRef<HTMLDivElement>(onLayout)
-  const responder = useResponderDomProps(ref, universal)
+export function View({ className, children, onLayout, ref, ...universal }: ViewProps) {
+  const { elementRef, setRef } = useLayoutRef<HTMLDivElement>(onLayout, ref)
+  const responder = useResponderDomProps(elementRef, universal)
   return (
     <>
       {hozoViewBase()}
       <div
-        ref={ref}
+        ref={setRef}
         className={hozoViewClassName(className)}
         {...universalDomProps(universal)}
         {...responder}
@@ -151,12 +175,13 @@ export function View({ className, children, onLayout, ...universal }: ViewProps)
 export interface TextProps extends UniversalProps {
   className?: string
   children?: ReactNode
+  ref?: Ref<HTMLSpanElement>
 }
 
-export function Text({ className, children, onLayout, ...universal }: TextProps) {
-  const ref = useLayoutRef<HTMLSpanElement>(onLayout)
+export function Text({ className, children, onLayout, ref, ...universal }: TextProps) {
+  const { setRef } = useLayoutRef<HTMLSpanElement>(onLayout, ref)
   return (
-    <span ref={ref} className={className} {...universalDomProps(universal)}>
+    <span ref={setRef} className={className} {...universalDomProps(universal)}>
       {children}
     </span>
   )
@@ -170,6 +195,7 @@ export interface ImageProps extends UniversalProps {
   accessibilityLabel?: string
   onLoad?: (event: unknown) => void
   onError?: (event: unknown) => void
+  ref?: Ref<HTMLImageElement>
 }
 
 export interface HozoImageSourceObject {
@@ -210,15 +236,16 @@ export function Image({
   onLoad,
   onError,
   onLayout,
+  ref,
   ...universal
 }: ImageProps) {
-  const ref = useLayoutRef<HTMLImageElement>(onLayout)
+  const { setRef } = useLayoutRef<HTMLImageElement>(onLayout, ref)
   const [failedSource, setFailedSource] = useState<HozoImageSource>()
   const webSrc =
     (failedSource === src ? undefined : webImageSource(src)) ?? webImageSource(defaultSource)
   return (
     <img
-      ref={ref}
+      ref={setRef}
       className={className}
       src={webSrc}
       alt={alt ?? accessibilityLabel ?? ''}
