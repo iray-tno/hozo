@@ -1,5 +1,6 @@
 import { durationValue, seekTime, VideoObserver } from './status.ts'
-import type { VideoCallbacks, VideoHandle, VideoOptions } from './types.ts'
+import type { VideoCallbacks, VideoError, VideoHandle, VideoOptions } from './types.ts'
+import { mediaVolume } from './volume.ts'
 
 /** The keyed host owns one source; events from a retired element never cross it. */
 export class DomMediaSession implements VideoHandle {
@@ -8,6 +9,7 @@ export class DomMediaSession implements VideoHandle {
   private removers: (() => void)[] = []
   private options: VideoOptions = {}
   private autoplayAttempted = false
+  private volumeError: VideoError | null = null
 
   constructor(
     private element: HTMLMediaElement,
@@ -30,7 +32,12 @@ export class DomMediaSession implements VideoHandle {
       duration: durationValue(this.element.duration),
     })
     const ready = () => {
-      this.observer.update({ status: 'ready', ...times(), buffering: false, error: null })
+      this.observer.update({
+        status: 'ready',
+        ...times(),
+        buffering: false,
+        error: this.volumeError,
+      })
       this.maybeAutoplay()
     }
     listen('loadedmetadata', ready)
@@ -39,7 +46,9 @@ export class DomMediaSession implements VideoHandle {
     })
     listen('durationchange', () => this.observer.update(times()))
     listen('timeupdate', () => this.observer.update(times()))
-    listen('play', () => this.observer.update({ status: 'ready', playing: true, error: null }))
+    listen('play', () =>
+      this.observer.update({ status: 'ready', playing: true, error: this.volumeError }),
+    )
     listen('playing', () => this.observer.update({ playing: true, buffering: false }))
     listen('pause', () => this.observer.update({ playing: false }))
     listen('waiting', () => this.observer.update({ buffering: true }))
@@ -59,14 +68,34 @@ export class DomMediaSession implements VideoHandle {
 
   setOptions(options: VideoOptions) {
     if (!this.active) return
+    const volume = mediaVolume(options.volume)
     this.options = options
     this.element.loop = options.loop ?? false
     this.element.muted = options.muted ?? false
+    try {
+      if (this.element.volume !== volume) this.element.volume = volume
+      // Some browsers accept assignment but ignore it. A writable JS property
+      // still cannot certify loudness; this detects only observable rejection.
+      if (this.element.volume !== volume)
+        throw new Error('This media engine ignored the requested volume')
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause)
+      this.volumeError = { src: this.src, operation: 'volume', message }
+      this.observer.fail('volume', cause)
+      return
+    }
+    this.volumeError = null
+    if (this.getStatus().error?.operation === 'volume') this.observer.update({ error: null })
     this.maybeAutoplay()
   }
 
   private maybeAutoplay() {
-    if (this.options.autoPlay && !this.autoplayAttempted && this.getStatus().status === 'ready') {
+    if (
+      this.options.autoPlay &&
+      !this.volumeError &&
+      !this.autoplayAttempted &&
+      this.getStatus().status === 'ready'
+    ) {
       this.autoplayAttempted = true
       // A denied autoplay is observable but must not become an unhandled rejection.
       void this.play().catch(() => {})

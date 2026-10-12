@@ -155,6 +155,24 @@ async function run() {
   check(!caption(), 'Captions survived source removal')
   passed.push('shared timed captions follow observations, language selection, Off and source removal')
 
+  await loadStory('media-audio--default')
+  const audio = frame.contentDocument.querySelector('audio')
+  check(audio?.volume === 1 && !audio.muted, 'Missing default Audio gain')
+  named('button', 'Set audio volume to 25%').click(); await pause()
+  check(audio.volume === 0.25 && audio.paused, 'Volume change must not start playback')
+  named('button', 'Mute audio').click(); await pause()
+  check(audio.muted && audio.volume === 0.25, 'Mute discarded the requested gain')
+  named('button', 'Set audio volume to 100%').click(); await pause()
+  check(audio.muted && audio.volume === 1, 'Changing gain unexpectedly unmuted Audio')
+  named('button', 'Unmute audio').click(); await pause()
+  check(!audio.muted && audio.volume === 1 && audio.paused, 'Unmute did not retain the new gain')
+  named('button', 'Set audio volume to 25%').click(); await pause()
+  named('button', 'Remove audio').click(); await pause()
+  check(!frame.contentDocument.querySelector('audio') && !audio.hasAttribute('src'), 'Audio removal did not retire source')
+  named('button', 'Remount audio').click(); await pause()
+  check(frame.contentDocument.querySelector('audio')?.volume === 0.25, 'Remount lost application gain')
+  passed.push('shared Audio gain, independent mute, paused updates and source remount')
+
   // A popover's first focus goes into the panel. FloatingPositioner draws
   // the panel hidden until it has measured, and focus used to be tried in
   // that frame and land on nothing, leaving it on the trigger.
@@ -215,7 +233,7 @@ try {
   assert.ok(output && output !== 'pending', 'browser did not complete interactions')
   const result = JSON.parse(output.replaceAll('&quot;', '"').replaceAll('&amp;', '&'))
   assert.equal(result.error, undefined, result.error)
-  assert.equal(result.passed.length, 7)
+  assert.equal(result.passed.length, 8)
   console.log(`[shared-showcase] ${result.passed.join('; ')}`)
 } finally {
   server.closeAllConnections()

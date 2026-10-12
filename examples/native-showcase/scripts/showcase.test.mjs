@@ -266,6 +266,9 @@ test('shared Audio retains its independent media entry; both hosts use the same 
   const output = transformHozoSource(readFileSync(file, 'utf8'), file)
   assert.match(output, /from ['"]@hozo\/media\/audio['"]/)
   assert.match(output, /<Audio\b/)
+  assert.match(output, /volume=\{volume\}/)
+  assert.match(output, /setVolume/)
+  assert.match(output, /Requested player volume:/)
   assert.doesNotMatch(output, /<audio\b|resolveClassName|expo-audio/)
   for (const story of ['src/Audio.stories.tsx', '../storybook-demo/src/Audio.stories.tsx']) {
     const source = readFileSync(path.join(root, story), 'utf8')

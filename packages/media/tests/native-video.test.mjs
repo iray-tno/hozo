@@ -5,6 +5,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import React, { act } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { create } from 'react-test-renderer'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -117,6 +118,13 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
       onPlay,
       ...options,
     })
+  for (const volume of [-1, 2, Number.NaN, Infinity, null, '0.5']) {
+    assert.throws(
+      () => renderToStaticMarkup(render('invalid.mp4', () => {}, { volume })),
+      RangeError,
+    )
+  }
+  assert.equal(players.length, 0, 'invalid gain is rejected before Native allocation')
   await act(async () => {
     renderer = create(render('a.mp4', () => events.push('old')))
   })
@@ -138,10 +146,12 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   assert.deepEqual(a.loads, ['a.mp4'], 'resizing the host must not reload its source')
   assert.equal(host.props.nativeControls, true)
   assert.equal(host.props.accessibilityLabel, 'Clip')
+  assert.equal(a.volume, 1)
   await act(async () => {
     renderer.update(
       render('a.mp4', () => events.push('new'), {
         muted: true,
+        volume: 0.25,
         loop: true,
         controls: false,
         fit: 'cover',
@@ -151,9 +161,15 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   assert.equal(players.length, 1, 'callback/config changes do not reload the movie')
   assert.equal(ref.current, initialHandle, 'observations/configuration retain the source handle')
   assert.equal(a.muted, true)
+  assert.equal(a.volume, 0.25)
   assert.equal(a.loop, true)
   assert.equal(renderer.root.findByType('ExpoVideoView').props.nativeControls, false)
   assert.equal(renderer.root.findByType('ExpoVideoView').props.contentFit, 'cover')
+  await act(async () => renderer.update(render('a.mp4', () => events.push('new'), { volume: 0 })))
+  assert.equal(a.volume, 0, 'volume-only updates reach the same engine')
+  assert.equal(a.muted, false)
+  assert.deepEqual(a.loads, ['a.mp4'])
+  assert.equal(ref.current, initialHandle)
   await act(async () => {
     a.status = 'readyToPlay'
     a.duration = 4
@@ -175,6 +191,7 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   assert.deepEqual(players[1].loads, ['b.mp4'])
   assert.equal(ref.current.getStatus().src, 'b.mp4')
   assert.equal(ref.current.getStatus().status, 'loading')
+  assert.equal(players[1].volume, 1, 'replacement sources receive their own default gain')
   a.emit('playToEnd')
   assert.equal(ref.current.getStatus().status, 'loading')
   await assert.rejects(async () => retiredHandle.play(), /not mounted/)
@@ -191,7 +208,7 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
       React.createElement(
         React.StrictMode,
         null,
-        render('strict.mp4', () => {}),
+        render('strict.mp4', () => {}, { volume: 0.4 }),
       ),
     )
   })
@@ -206,6 +223,7 @@ test('Native host wires the real session, keeps callback updates, isolates sourc
   assert.deepEqual(replayed[1].loads, [])
   await act(async () => layout(renderer.root.findByType('ExpoVideoView')))
   assert.deepEqual(replayed[1].loads, ['strict.mp4'])
+  assert.equal(replayed[1].volume, 0.4, 'effect replay applies authored gain to the fresh player')
   await act(async () => {
     renderer.unmount()
   })
