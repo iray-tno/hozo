@@ -1,3 +1,4 @@
+import { mediaPlaybackOptions, samePlaybackRate } from './playback-rate.ts'
 import { durationValue, seekTime, VideoObserver } from './status.ts'
 import type { VideoCallbacks, VideoError, VideoHandle, VideoOptions } from './types.ts'
 import { mediaVolume } from './volume.ts'
@@ -10,6 +11,7 @@ export class DomMediaSession implements VideoHandle {
   private options: VideoOptions = {}
   private autoplayAttempted = false
   private volumeError: VideoError | null = null
+  private rateError: VideoError | null = null
 
   constructor(
     private element: HTMLMediaElement,
@@ -36,7 +38,7 @@ export class DomMediaSession implements VideoHandle {
         status: 'ready',
         ...times(),
         buffering: false,
-        error: this.volumeError,
+        error: this.rateError ?? this.volumeError,
       })
       this.maybeAutoplay()
     }
@@ -47,7 +49,11 @@ export class DomMediaSession implements VideoHandle {
     listen('durationchange', () => this.observer.update(times()))
     listen('timeupdate', () => this.observer.update(times()))
     listen('play', () =>
-      this.observer.update({ status: 'ready', playing: true, error: this.volumeError }),
+      this.observer.update({
+        status: 'ready',
+        playing: true,
+        error: this.rateError ?? this.volumeError,
+      }),
     )
     listen('playing', () => this.observer.update({ playing: true, buffering: false }))
     listen('pause', () => this.observer.update({ playing: false }))
@@ -69,6 +75,7 @@ export class DomMediaSession implements VideoHandle {
   setOptions(options: VideoOptions) {
     if (!this.active) return
     const volume = mediaVolume(options.volume)
+    const { playbackRate, preservesPitch } = mediaPlaybackOptions(options)
     this.options = options
     this.element.loop = options.loop ?? false
     this.element.muted = options.muted ?? false
@@ -86,6 +93,26 @@ export class DomMediaSession implements VideoHandle {
     }
     this.volumeError = null
     if (this.getStatus().error?.operation === 'volume') this.observer.update({ error: null })
+    try {
+      this.element.preservesPitch = preservesPitch
+      if (!samePlaybackRate(this.element.playbackRate, playbackRate))
+        this.element.playbackRate = playbackRate
+      if (
+        !samePlaybackRate(this.element.playbackRate, playbackRate) ||
+        this.element.preservesPitch !== preservesPitch
+      )
+        throw new Error('This media engine ignored the requested playback rate or pitch policy')
+    } catch (cause) {
+      this.rateError = {
+        src: this.src,
+        operation: 'rate',
+        message: cause instanceof Error ? cause.message : String(cause),
+      }
+      this.observer.fail('rate', cause)
+      return
+    }
+    this.rateError = null
+    if (this.getStatus().error?.operation === 'rate') this.observer.update({ error: null })
     this.maybeAutoplay()
   }
 
@@ -93,6 +120,7 @@ export class DomMediaSession implements VideoHandle {
     if (
       this.options.autoPlay &&
       !this.volumeError &&
+      !this.rateError &&
       !this.autoplayAttempted &&
       this.getStatus().status === 'ready'
     ) {

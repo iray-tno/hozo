@@ -364,5 +364,41 @@ request is not treated as a gain guarantee. Prior failures remain failures.
 This one series establishes virtual sound-card behavior, not physical-speaker
 or iOS audibility, AT/session behavior or zero flakiness.
 
+### Shared playback speed slice
+
+Audio/Video share a finite 0.25–2 `playbackRate` request (default 1) and boolean
+`preservesPitch` (default true). This conservative audible interval intersects
+Expo Audio's mobile maximum and browsers' useful audio range. Reject invalid
+author input before allocating resources; do not clamp differently by host.
+Speed changes retain the source/handle/time and never implicitly start a
+paused player. Native Video defers paused requests to explicit play or observed
+platform activation because Expo iOS's rate setter assigns AVPlayer.rate.
+This permits a short default-speed interval on an OS-control activation, not
+a claim of atomic platform-control interception. Native Audio applies pitch
+before speed and reapplies it once a new iOS item becomes ready.
+
+Rate command denial remains source-bound through readiness and blocks autoplay.
+DOM and Native Video check acceptance readback (Float32 tolerance on Native).
+Android Audio's queued method has no acknowledgment: a stale immediate getter
+cannot be used to declare rejection or success. Synchronous refusal is reported,
+but asynchronous native refusal is not fully observable through this SDK.
+The public status continues to expose observations only; no requested rate is
+reported as measured speed. Pitch quality is engine-owned, not exact DSP parity.
+
+Tests include queued Android pitch/rate coupling, iOS item replacement, paused
+Video setter side effects, invalid atomicity, live/reset updates, denial and
+retirement. Real Chromium measures decoded media-time advancement against wall
+time at .5x/2x for the owned WAV and AVC clips. Native output-speed/pitch and
+physical-device/AT verification are follow-ups, not inferred from those tests.
+
+The preceding poster slice's fresh-build [run 38200149611](https://github.com/iray-tno/hozo/actions/runs/38200149611)
+passed 14 Android / 13 iOS full checks with diagnostics off; both evidence
+artifacts use that binaryRun and driver `aa026323feb607e5ee870ff297ad15f78d117b77`.
+Original video probes remained intact. Separate poster pixel gates show teal
+cover → purple decoded frame on accepted paused seek → teal cover after remount,
+with owned fixture hashes verified. Cover/frame/remount waits were
+370/387/368ms (Android) and 1021/829/2305ms (iOS). This is emulator/simulator
+pixel evidence, not physical devices, audible output, AT or zero flakiness.
+
 Sources: [Expo SDK 57 Video API](https://docs.expo.dev/versions/v57.0.0/sdk/video/),
 [Expo SDK 57 Audio API](https://docs.expo.dev/versions/v57.0.0/sdk/audio/).

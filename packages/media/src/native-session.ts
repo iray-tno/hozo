@@ -1,6 +1,7 @@
 import type { VideoPlayer } from 'expo-video'
+import { mediaPlaybackOptions, samePlaybackRate } from './playback-rate.ts'
 import { durationValue, seekTime, VideoObserver } from './status.ts'
-import type { VideoCallbacks, VideoHandle, VideoOptions } from './types.ts'
+import type { VideoCallbacks, VideoError, VideoHandle, VideoOptions } from './types.ts'
 import { mediaVolume } from './volume.ts'
 
 /** A new Expo player per source avoids attributing an old asynchronous load to a new URI. */
@@ -10,6 +11,7 @@ export class NativeVideoSession implements VideoHandle {
   private subscriptions: { remove(): void }[] = []
   private options: VideoOptions = {}
   private autoplayAttempted = false
+  private rateError: VideoError | null = null
 
   constructor(
     private player: VideoPlayer,
@@ -25,12 +27,14 @@ export class NativeVideoSession implements VideoHandle {
       this.player.addListener('statusChange', ({ status, error }) =>
         this.syncStatus(status, error?.message),
       ),
-      this.player.addListener('playingChange', ({ isPlaying }) =>
+      this.player.addListener('playingChange', ({ isPlaying }) => {
+        if (!this.active) return
+        if (isPlaying) this.applyRate()
         this.observer.update({
           playing: isPlaying,
           ...(isPlaying && this.getStatus().status === 'ended' ? { status: 'ready' } : {}),
-        }),
-      ),
+        })
+      }),
       this.player.addListener('timeUpdate', ({ currentTime }) =>
         this.observer.update({ currentTime, duration: durationValue(this.player.duration) }),
       ),
@@ -65,7 +69,7 @@ export class NativeVideoSession implements VideoHandle {
       playing: this.player.playing,
       currentTime: this.player.currentTime,
       duration: durationValue(this.player.duration),
-      error: null,
+      error: this.rateError,
     })
     this.maybeAutoplay()
   }
@@ -73,22 +77,64 @@ export class NativeVideoSession implements VideoHandle {
   setOptions(options: VideoOptions) {
     if (!this.active) return
     const volume = mediaVolume(options.volume)
+    mediaPlaybackOptions(options)
     this.options = options
     this.player.loop = options.loop ?? false
     this.player.muted = options.muted ?? false
     this.player.volume = volume
     this.player.timeUpdateEventInterval = 0.25
+    // Expo iOS assigns AVPlayer.rate in its rate setter, starting paused video.
+    // Keep a paused request pending until explicit/platform activation instead.
+    if (this.player.playing) this.applyRate()
     this.maybeAutoplay()
   }
 
+  private applyRate() {
+    if (!this.active) return false
+    const wasPlaying = this.player.playing
+    const { playbackRate, preservesPitch } = mediaPlaybackOptions(this.options)
+    try {
+      this.player.preservesPitch = preservesPitch
+      if (!samePlaybackRate(this.player.playbackRate, playbackRate))
+        this.player.playbackRate = playbackRate
+      if (
+        !samePlaybackRate(this.player.playbackRate, playbackRate) ||
+        this.player.preservesPitch !== preservesPitch
+      )
+        throw new Error('This media engine ignored the requested playback rate or pitch policy')
+      this.rateError = null
+      if (this.getStatus().error?.operation === 'rate') this.observer.update({ error: null })
+      return true
+    } catch (cause) {
+      // A rate setter may have started AVPlayer before a later readback fails.
+      // Do not leave that side effect running after a rejected paused request.
+      if (!wasPlaying && this.active) this.player.pause()
+      this.rateError = {
+        src: this.src,
+        operation: 'rate',
+        message: cause instanceof Error ? cause.message : String(cause),
+      }
+      this.observer.fail('rate', cause)
+      return false
+    }
+  }
+
   private maybeAutoplay() {
-    if (this.options.autoPlay && !this.autoplayAttempted && this.getStatus().status === 'ready') {
+    if (
+      this.options.autoPlay &&
+      !this.rateError &&
+      !this.autoplayAttempted &&
+      this.getStatus().status === 'ready'
+    ) {
       this.autoplayAttempted = true
       void this.play().catch(() => {})
     }
   }
 
   async play() {
+    if (!this.active) throw new Error('Video source is no longer active')
+    if (!this.applyRate()) throw new Error(this.rateError?.message ?? 'Playback rate was rejected')
+    // Clearing a prior denial notifies author callbacks, which may retire us.
     if (!this.active) throw new Error('Video source is no longer active')
     try {
       this.player.play()

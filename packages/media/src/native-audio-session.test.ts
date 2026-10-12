@@ -10,6 +10,11 @@ function engine() {
   const player = {
     loop: false,
     muted: false,
+    playbackRate: 1,
+    shouldCorrectPitch: true,
+    setPlaybackRate(rate: number) {
+      this.playbackRate = rate
+    },
     rejectPlay: false,
     rejectLoad: false,
     addListener(name: string, callback: (status: ExpoAudioStatus) => void) {

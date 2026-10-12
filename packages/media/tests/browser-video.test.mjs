@@ -6,6 +6,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
+import { exercisePlaybackRate } from './helpers/playback-rate.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 const plainWebVTT =
@@ -165,6 +166,7 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
       assert.equal(await page.evaluate(() => window.ref.current.getStatus().currentTime), 0)
       assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
     }
+    await exercisePlaybackRate(page, 'video')
     assert.equal(await page.evaluate(() => document.querySelector('video').controls), true)
     const captions = page.getByRole('group', { name: 'Clip captions', exact: true })
     await page.waitForFunction(() => window.captionState.status === 'ready')

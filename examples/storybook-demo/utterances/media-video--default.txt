@@ -2,6 +2,8 @@ heading, Video playback, level 2
 Silent animation: a purple square moves from left to right across a dark background.
 Moving square, silent video
 Video: ready; paused
+Requested video speed: 1x; pitch correction on
+button, Set video speed to 2x
 button, Play video
 button, Pause video
 button, Restart video

@@ -22,6 +22,7 @@ export function VideoDemo({
   const [status, setStatus] = useState<VideoStatus | null>(null)
   const [muted, setMuted] = useState(true)
   const [loop, setLoop] = useState(false)
+  const [playbackRate, setPlaybackRate] = useState(1)
   const [visible, setVisible] = useState(true)
   const [captionId, setCaptionId] = useState<string | null>('en')
   return (
@@ -42,6 +43,7 @@ export function VideoDemo({
           controls={!customControls}
           muted={muted}
           loop={loop}
+          playbackRate={playbackRate}
           onStatusChange={setStatus}
           style={{ height: 180, width: '100%', backgroundColor: '#0f172b' }}
         />
@@ -70,6 +72,13 @@ export function VideoDemo({
         </>
       )}
       <View className="gap-2">
+        <Text className="text-base text-slate-700">{`Requested video speed: ${playbackRate}x; pitch correction on`}</Text>
+        <Button
+          className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+          onPress={() => setPlaybackRate((value) => (value === 1 ? 2 : 1))}
+        >
+          {playbackRate === 1 ? 'Set video speed to 2x' : 'Set video speed to 1x'}
+        </Button>
         {captions && (
           <MediaCaptionSelector
             options={squareCaptionOptions}

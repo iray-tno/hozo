@@ -61,7 +61,7 @@ its engine. Neither `@hozo/core` nor a non-media screen gains this dependency.
 `playing`, `buffering`, `currentTime` in seconds, `duration` in seconds or null,
 and `error`. `onPlay`/`onPause` observe playing-flag changes; a terminal end may
 also cause a pause. `onEnded` observes a terminal end, not every loop. `onError`
-includes src, operation (load/play/seek/volume), and message. Load failure is terminal
+includes src, operation (load/play/seek/volume/rate), and message. Load failure is terminal
 for that source; command denial is not a decoder failure.
 
 A changed src creates a fresh playback host, resets time/status, and retires old
@@ -69,6 +69,43 @@ listeners. Native loads asynchronously; the committed component host releases
 its Expo player after retiring its session, including StrictMode effect replay. Web cleanup
 pauses, removes the src and stops resource loading. Callback updates do not
 replace the source; stale asynchronous failures cannot report as the new movie.
+
+## Shared playback speed
+
+Audio and Video accept `playbackRate` (finite 0.25–2 inclusive, default 1) and
+`preservesPitch` (boolean, default true). Invalid values throw before host
+allocation, not platform-specific clamping. Zero is not pause; use `pause()`.
+The common audible range deliberately excludes Expo Audio's larger/smaller
+platform-specific limits and browser slow-motion rates that can mute sound.
+Neither option reloads or seeks the source or changes its stable handle.
+Removing either prop restores its default request. Native Audio uses Expo's
+`setPlaybackRate(rate, 'high')` after setting pitch policy; newly loaded iOS
+items receive that policy again; their queued loop copy is rebuilt after an
+item/pitch-policy change so it cannot restore an old algorithm on the next lap.
+There is no global audio-session change.
+
+Changing speed never starts a paused player. Expo iOS Video's rate setter
+itself assigns `AVPlayer.rate`, so Native Video retains a paused request until
+`play()` or the platform's observed playback activation; an OS-control start
+can briefly precede the requested speed. Live updates apply to the playing
+engine. These props are requests, not additional observed fields in status.
+
+Thrown rate/pitch commands and observable DOM/Native Video readback rejection
+report source-bound `onError` with operation `rate`; the denial survives
+readiness, does not become a decoder error, and prevents automatic play.
+Native `play()` rejects if its rate command is rejected. An accepted update
+clears the rate denial. Expo Audio Android queues its setter without an
+acknowledgment; no immediate readback, optimistic status or success claim is
+invented for that queued work. Asynchronous native failures cannot all be
+detected through this SDK surface.
+
+Pitch correction is an engine request, not sample-identical stretching or
+verified audible pitch. Browser clock/wall-clock tests prove decoded speed
+changes for both owned clips, not Native speed, audible pitch, interruption
+or physical-device behavior. Native output/rate verification remains separate.
+See [Expo Audio](https://docs.expo.dev/versions/v57.0.0/sdk/audio/),
+[Expo Video](https://docs.expo.dev/versions/v57.0.0/sdk/video/) and
+[HTML media rates](https://developer.mozilla.org/en-US/docs/Web/API/HTMLMediaElement/playbackRate).
 
 ## Video poster
 

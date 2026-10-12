@@ -10,6 +10,7 @@ export function AudioDemo({ src }: { src: string }) {
   const [visible, setVisible] = useState(true)
   const [muted, setMuted] = useState(false)
   const [volume, setVolume] = useState(1)
+  const [playbackRate, setPlaybackRate] = useState(1)
   const [loop, setLoop] = useState(false)
   return (
     <View className="w-full max-w-lg gap-4 rounded-2xl bg-white p-6">
@@ -26,6 +27,7 @@ export function AudioDemo({ src }: { src: string }) {
           accessibilityLabel="Three rising tones"
           muted={muted}
           volume={volume}
+          playbackRate={playbackRate}
           loop={loop}
           onStatusChange={setStatus}
         />
@@ -39,6 +41,13 @@ export function AudioDemo({ src }: { src: string }) {
       <Text className="text-base text-slate-700">
         {`Requested player volume: ${Math.round(volume * 100)}%${muted ? '; muted' : ''}`}
       </Text>
+      <Text className="text-base text-slate-700">{`Requested audio speed: ${playbackRate}x; pitch correction on`}</Text>
+      <Button
+        className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+        onPress={() => setPlaybackRate((value) => (value === 1 ? 2 : 1))}
+      >
+        {playbackRate === 1 ? 'Set audio speed to 2x' : 'Set audio speed to 1x'}
+      </Button>
       <Button
         className="rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
         onPress={() => setVolume((value) => (value === 1 ? 0.25 : 1))}
