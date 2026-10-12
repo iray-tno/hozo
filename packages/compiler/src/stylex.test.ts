@@ -33,7 +33,7 @@ test('same-file static StyleX joins Tailwind in the Web IR', () => {
   const component = compile(source)[0]
   assert.ok(component)
   assert.doesNotMatch(component.jsx, /stylex\.props/)
-  assert.match(component.jsx, /data-hozo-cond-/)
+  assert.match(component.jsx, /hozo-cond-/)
   assert.match(component.css, /margin-top: 8px/)
   assert.match(component.css, /padding-top: 16px/)
   assert.match(component.css, /background-color: #ff0000/)
@@ -524,8 +524,8 @@ export const Card = ({ active }) => (
   assert.ok(higherBaseWeb)
   assert.equal(higherBaseWeb.diagnostics.length, 0)
   assert.match(higherBaseWeb.css, /padding-top: 4px/)
-  assert.match(higherBaseWeb.css, /data-hozo-cond-[^{]+\{[^}]*padding-right: 16px/)
-  assert.doesNotMatch(higherBaseWeb.css, /data-hozo-cond-[^{]+\{[^}]*padding-top:/)
+  assert.match(higherBaseWeb.css, /hozo-cond-[^{]+\{[^}]*padding-right: 16px/)
+  assert.doesNotMatch(higherBaseWeb.css, /hozo-cond-[^{]+\{[^}]*padding-top:/)
 
   const higherBaseNative = compileNative(higherBase)[0]
   assert.ok(higherBaseNative)
@@ -542,7 +542,7 @@ export const Card = ({ active }) => (
   assert.ok(higherConditionalWeb)
   assert.equal(higherConditionalWeb.diagnostics.length, 0)
   assert.match(higherConditionalWeb.css, /\.hozo-0 \{[\s\S]*padding-top: 16px/)
-  assert.match(higherConditionalWeb.css, /data-hozo-cond-[^{]+\{[\s\S]*padding-top: 4px/)
+  assert.match(higherConditionalWeb.css, /hozo-cond-[^{]+\{[\s\S]*padding-top: 4px/)
 
   const higherConditionalNative = compileNative(higherConditional)[0]
   assert.ok(higherConditionalNative)

@@ -1422,12 +1422,18 @@ fn breakpoint_min_width_px(bp: Breakpoint) -> u32 {
     }
 }
 
-/// A guard's CSS attribute-selector name, keyed by the source span of the
-/// opaque expression it wraps -- two `ConditionExpr::Ref`s pointing at the
-/// same span refer to the same runtime value, so they must resolve to the
-/// same attribute name.
-pub fn expr_ref_attribute(expr_ref: hozo_ir::ExprRef) -> String {
-    format!("data-hozo-cond-{}-{}", expr_ref.0.start, expr_ref.0.end)
+/// A guard's class, keyed by the source span of the opaque expression it
+/// wraps -- two `ConditionExpr::Ref`s pointing at the same span refer to the
+/// same runtime value, so they must resolve to the same class.
+///
+/// A class rather than the `data-hozo-cond-*` attribute it was: a class goes
+/// wherever `className` goes, and an attribute only as far as the element
+/// renders it. An element the compiler keeps as a component -- `Button` with
+/// a spread that may carry `href` -- passed the attribute to a component that
+/// rendered only the props it names, so the guard never reached the DOM and
+/// the negated branch always applied (#883).
+pub fn expr_ref_class(expr_ref: hozo_ir::ExprRef) -> String {
+    format!("hozo-cond-{}-{}", expr_ref.0.start, expr_ref.0.end)
 }
 
 fn condition_expr_selector(expr: &ConditionExpr) -> String {
@@ -1439,7 +1445,7 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
         // `px-4`, and so loses to a caller's class rather than beating it
         // (#881). `:not()` and `:is()` take their arguments' weight, so the
         // other arms stay weightless too.
-        ConditionExpr::Ref(expr_ref) => format!(":where([{}])", expr_ref_attribute(*expr_ref)),
+        ConditionExpr::Ref(expr_ref) => format!(":where(.{})", expr_ref_class(*expr_ref)),
         ConditionExpr::Not(inner) => format!(":not({})", condition_expr_selector(inner)),
         ConditionExpr::And(a, b) => format!("{}{}", condition_expr_selector(a), condition_expr_selector(b)),
         ConditionExpr::Or(a, b) => {
@@ -2452,7 +2458,7 @@ mod tests {
         let expr = ConditionExpr::And(Box::new(a), Box::new(ConditionExpr::Not(Box::new(b))));
         let (at_rule, selector) = condition_shape(&Condition::Expr(expr));
         assert!(at_rule.is_empty());
-        assert_eq!(selector, "&:where([data-hozo-cond-0-1]):not(:where([data-hozo-cond-2-3]))");
+        assert_eq!(selector, "&:where(.hozo-cond-0-1):not(:where(.hozo-cond-2-3))");
     }
 
     #[test]

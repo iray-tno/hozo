@@ -109,7 +109,7 @@ try {
     assert.doesNotMatch(web, /stylex/)
     assert.match(web, /border-radius: 12px/)
     assert.match(web, /background-color: #2563eb/)
-    assert.match(web, /data-hozo-cond-/)
+    assert.match(web, /hozo-cond-/)
     assert.match(await listing('iOS and Android'), /\(active\) && hozoStyles\.hozo0_cond_/)
     await page.getByText('No diagnostics.').waitFor()
 

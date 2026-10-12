@@ -97,8 +97,8 @@ export function TailwindSample({ source, compiled }: { source: string; compiled:
           parsed at runtime.
         </Tier>
         <Tier name="A ternary" title="Button">
-          Both branches are compiled. The Web keeps one class and switches a{' '}
-          <Code className="text-hinoki">data-hozo-cond-*</Code> attribute; Native picks between two
+          Both branches are compiled. The Web keeps one class and switches a second,{' '}
+          <Code className="text-hinoki">hozo-cond-*</Code>, beside it; Native picks between two
           styles.
         </Tier>
         <Tier name="A value from outside" title="View">

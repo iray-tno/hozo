@@ -330,3 +330,44 @@ test("a caller's className beats the component's resting look and loses to its s
     }
   }
 })
+
+// #883. A branch on an element the compiler keeps as a component -- the
+// `Button` primitive with a spread that may carry `href` -- reaches the DOM
+// only through `className`, the prop that component passes on. It was an
+// attribute the component dropped, so the negated branch always applied.
+test('a className branch on a component applies both ways', {
+  skip: !executablePath,
+}, async () => {
+  const { Button } = await import('@hozo/primitives')
+  const source =
+    "import clsx from 'clsx'\nimport { Button } from '@hozo/primitives'\n" +
+    "const Example = () => <Button {...rest} className={clsx('p-2', small ? 'px-3' : 'px-4')}>Go</Button>"
+  const web = compiler.compile(source)[0]
+  assert.doesNotMatch(web.jsx, /<button/, 'the element stays a component')
+  const page = await browser.newPage()
+  try {
+    for (const [small, padding] of [
+      [true, '12px'],
+      [false, '16px'],
+    ]) {
+      const html = renderToStaticMarkup(
+        evaluate(`module.exports = (${web.jsx})`, {
+          Button,
+          rest: {},
+          small,
+          hozoDomProps: (props) => props,
+        }),
+      )
+      await page.setContent(
+        `<style>html { font-size: 16px }</style><style>${web.css}</style>${html}`,
+      )
+      assert.equal(
+        await page.locator('button').evaluate((element) => getComputedStyle(element).paddingLeft),
+        padding,
+        `small ${small}`,
+      )
+    }
+  } finally {
+    await page.close()
+  }
+})
