@@ -71,8 +71,8 @@
   "a11yContracts": {
     "cases": 33,
     "covered": 33,
-    "primitives": 57,
-    "uncontracted": 9
+    "primitives": 73,
+    "uncontracted": 25
   },
   "ariaRoles": {
     "roles": 113,
@@ -100,15 +100,15 @@
     "skipped": 0
   },
   "candidateSheet": {
-    "rules": 20315,
+    "rules": 40630,
     "parses": true,
     "comparable": 20310,
     "inOrder": 20310
   },
   "refusalAudit": {
-    "refusals": 10368,
-    "checkable": 10034,
-    "confirmed": 10005,
+    "refusals": 10364,
+    "checkable": 10030,
+    "confirmed": 10001,
     "partial": 28,
     "suspect": 1,
     "uncheckable": 334
