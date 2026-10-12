@@ -106,6 +106,12 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
       ref,
       accessibilityLabel: 'Three tones',
       onPlay: () => events.push('old'),
+      onStatusChange: (snapshot) => {
+        // Authors may mutate their copy; they cannot disable internal controls.
+        snapshot.seekability.status = 'unavailable'
+        snapshot.seekability.origin = 'engine'
+        snapshot.seekability.reason = 'empty-ranges'
+      },
       ...options,
     })
   assert.equal(renderToStaticMarkup(render('a.wav', { controls: false })), '')
@@ -129,6 +135,15 @@ test('Native Audio owns committed resources, a stable observed handle, controls 
   assert.equal(buttons()[0].props.disabled, true)
   const handle = ref.current
   await act(async () => a.emit())
+  assert.equal(
+    buttons()[2].props.disabled,
+    false,
+    'authored nested mutation cannot disable the internal forward button',
+  )
+  assert.deepEqual(ref.current.getStatus().seekability, {
+    status: 'unknown',
+    reason: 'not-exposed',
+  })
   assert.equal(ref.current, handle, 'clock observations cannot retire an in-flight seek handle')
   await act(async () =>
     renderer.update(

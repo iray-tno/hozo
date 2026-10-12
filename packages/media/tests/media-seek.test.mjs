@@ -16,6 +16,7 @@ const status = (patch = {}) => ({
   buffering: false,
   currentTime: 1,
   duration: 8,
+  seekability: { status: 'unknown', reason: 'not-exposed' },
   error: null,
   ...patch,
 })
@@ -124,7 +125,7 @@ test('seek preview never changes observations, cancellation requests nothing, co
   assert.equal(p.last.slider.value, 4)
 })
 
-test('seek refuses missing/unready/unknown ranges and disabled input without inventing a maximum', async (t) => {
+test('seek refuses missing/unready/unknown durations and disabled input without inventing a maximum', async (t) => {
   const p = await harness(t)
   const old = p.last.slider
   for (const value of [
@@ -155,6 +156,70 @@ test('seek refuses missing/unready/unknown ranges and disabled input without inv
     await act(async () => p.last.slider.onValueCommit(value))
   assert.deepEqual(p.requests, [])
 })
+
+for (const native of [false, true])
+  test(`${native ? 'Native' : 'Web'} seek shares capability policy, clears unavailable previews and rechecks fresh ranges`, async (t) => {
+    const p = await harness(t, {}, false, native)
+    assert.deepEqual(p.last.seekability, { status: 'unknown', reason: 'not-exposed' })
+    assert.ok(p.last.slider, 'unknown is not silently turned into unsupported')
+    const ranged = status({
+      seekability: {
+        status: 'available',
+        origin: 'engine',
+        ranges: [
+          { start: 2, end: 4 },
+          { start: 6, end: 7 },
+        ],
+      },
+    })
+    p.observed(ranged)
+    await p.update({ status: ranged })
+    assert.equal(p.last.slider.min, 2)
+    assert.equal(p.last.slider.max, 7)
+    await act(async () => p.last.slider.onValueChange(5))
+    assert.equal(p.last.slider.value, 4, 'gap preview chooses the earlier equally near endpoint')
+    assert.equal(p.last.slider.valueText(4), 'Seek to 0:04 / 0:08')
+    assert.equal(
+      p.last.slider.valueText(5),
+      'Seek to 0:04 / 0:08',
+      'gesture wording uses the legal target too',
+    )
+    assert.deepEqual(p.requests, [])
+    const stale = p.last.slider
+    p.observed(
+      status({
+        seekability: {
+          status: 'available',
+          origin: 'engine',
+          ranges: [{ start: 6, end: 7 }],
+        },
+      }),
+    )
+    await act(async () => stale.onValueCommit(4))
+    assert.deepEqual(p.requests, [6], 'commit consults fresh range evidence')
+    await act(async () => p.last.slider.onValueChange(7))
+    const unavailable = status({
+      seekability: {
+        status: 'unavailable',
+        origin: 'engine',
+        reason: 'empty-ranges',
+      },
+    })
+    p.observed(unavailable)
+    await p.update({ status: unavailable })
+    assert.equal(p.last.slider, null)
+    assert.equal(p.last.previewing, false)
+    assert.equal(p.last.position, 'Seek unavailable')
+    await act(async () => {
+      stale.onValueChange(3)
+      stale.onValueCommit(3)
+    })
+    assert.deepEqual(p.requests, [6], 'empty ranges do not send any command')
+    p.observed(ranged)
+    await p.update({ status: ranged })
+    assert.ok(p.last.slider, 'empty ranges are a current observation, not a permanent ban')
+    assert.equal(p.last.previewing, false)
+  })
 
 test('source/handle replacement retires old gestures, including a replacement at the same URI', async (t) => {
   const p = await harness(t)
@@ -306,3 +371,42 @@ test('Native RTL touch positions use the platform direction and logical thumb po
   })
   assert.deepEqual(p.requests, [6], 'the right-hand end is the low end in RTL')
 })
+
+for (const native of [false, true])
+  test(`${native ? 'Native AX' : 'Web keyboard'} Slider steps escape discontinuous gap endpoints`, async (t) => {
+    const p = await harness(t, {}, true, native)
+    const seekability = {
+      status: 'available',
+      origin: 'engine',
+      ranges: [
+        { start: 2, end: 4 },
+        { start: 6, end: 7 },
+      ],
+    }
+    const thumb = () =>
+      p.renderer.root
+        .findAllByType(native ? 'NativeView' : 'div')
+        .find((node) =>
+          native ? node.props.accessibilityRole === 'adjustable' : node.props.role === 'slider',
+        )
+    const action = (forward) => {
+      if (native)
+        thumb().props.onAccessibilityAction({
+          nativeEvent: { actionName: forward ? 'increment' : 'decrement' },
+        })
+      else
+        thumb().props.onKeyDown({
+          key: forward ? 'ArrowRight' : 'ArrowLeft',
+          preventDefault() {},
+          currentTarget: {},
+        })
+    }
+    p.observed(status({ currentTime: 4, seekability }))
+    await p.update({ status: status({ currentTime: 4, seekability }) })
+    await act(async () => action(true))
+    assert.deepEqual(p.requests, [6], 'a one-second step must not snap back to 4s forever')
+    p.observed(status({ currentTime: 6, seekability }))
+    await p.update({ status: status({ currentTime: 6, seekability }) })
+    await act(async () => action(false))
+    assert.deepEqual(p.requests, [6, 4])
+  })

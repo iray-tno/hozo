@@ -271,9 +271,11 @@ accessibility state. The toggle keeps its host/focus when its name changes.
 The time text is not a live announcement on every playback tick.
 
 The play label only becomes pause after an engine observation. Requests use
-the current handle's clock, clamp seeks to a known duration and rewind an
-ended source before replay. Unknown duration stays unknown; seek buttons
-request a seek, not proof that the source/container supports one. A denied
+the current handle's clock, constrain seeks to current engine ranges (or a
+known duration when ranges are unknown), and rewind an ended source before
+replay. Empty observed ranges disable seek/replay, not ready play or active
+pause. Unknown duration stays unknown; seek buttons request a seek, not proof
+that the source/container supports one. A denied
 request is visible, and a retired source's asynchronous failure cannot label
 its replacement. Pass `disabled` when your player is unavailable/unmounted.
 
@@ -322,16 +324,54 @@ Release requests one seek; cancellation requests none. Keyboard and Native
 increment/decrement actions commit one step. Accepted requests do not invent
 an observed clock or change play/pause. Asynchronous Audio seeks disable this
 slider until settlement; current denials are exposed, retired denials ignored.
-Commit rechecks the handle/source, readiness, disabled state and live duration.
+Commit rechecks the handle/source, readiness, disabled state, duration and
+current seekable ranges. A gap snaps to the nearest endpoint (ties earlier);
+forward/backward buttons only move in their requested direction. Interactive
+steps do not get trapped on a gap endpoint: if nearest-point projection
+would leave the clock unchanged, use the next range in the requested direction.
+This applies to Slider previews/commits, including keyboard/Native AX steps;
+an imperative absolute `seekTo` keeps the nearest-point policy. Range reads
+do not issue test seeks, mutate playback or manufacture clock observations.
 
-Unknown/live, unready or invalid ranges return `slider: null` and a localized
-unavailable message, not a fabricated maximum. A finite duration is **not**
-proof that a container can seek: engine denials remain visible. `step` defaults
+Unknown/live durations, unready/invalid bounds or observed empty seekable
+ranges return `slider: null` and a localized unavailable message, not a
+fabricated maximum. Finite-duration sliders use the outer observed range
+bounds and project previews/commits out of gaps. Live-window/DVR slider UI is
+not part of this contract. A finite duration is **not** proof that a container
+can seek: engine denials remain visible. `step` defaults
 to one positive finite second; `accessibilityLabel` defaults to "Playback
 position". `labels.unavailable`, `labels.position(seconds, duration)` and
 `labels.preview(seconds, duration)` customize wording. No automatic live
 announcement is attached to the advancing clock. Web keyboard and mocked
 Native gesture/accessibility-action tests are not AT/device certification.
+
+### Seek capability observations
+
+Audio and Video expose `status.seekability` with the same contract, also
+returned by `useMediaSeek` for application wording/policy:
+
+- `available`, `origin: 'engine'`, `ranges: [{ start, end }]`: the engine
+  currently exposes nonempty seekable timeline ranges in seconds.
+- `unavailable`, `origin: 'engine'`, `reason: 'empty-ranges'`: no range is
+  currently exposed. This can recover as loading progresses; it is not a
+  permanent unsupported-format verdict.
+- `unknown`, `reason: 'not-exposed' | 'not-observed'`: the adapter has no
+  capability API or could not read it. Unknown does not mean unsupported.
+
+Web reads `HTMLMediaElement.seekable`, never `buffered` or the duration as
+proof. Media/progress events publish snapshots and command-time reads recheck
+ranges without callbacks. Published range arrays are detached from engine
+state. Expo SDK 57 Audio/Video do not expose seek capability/ranges: Native
+therefore retains `unknown/not-exposed`, even after a successful command.
+Best-effort Native buttons and finite-duration sliders remain available, with
+the existing readiness, bounds and denial handling. Applications that require
+confirmed capability can disable the companion when this status is unknown.
+
+An available range is not a guarantee of exact seeking, decoder success or
+pixel/audio output. No support is inferred from URI extensions or successful
+property assignment. These are different amounts of host evidence under one
+policy, not different meanings for the same request. See the
+[HTML media seeking contract](https://html.spec.whatwg.org/multipage/media.html#dom-media-seekable).
 
 A label and native controls do not establish media accessibility. Authors must
 supply appropriate alternatives for content. Embedded track selection,

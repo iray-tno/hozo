@@ -33,6 +33,7 @@ test('plain WebVTT handles BOM, LF/CRLF/CR, identifiers, comments, overlap and o
           buffering: false,
           currentTime: 1,
           duration: null,
+          seekability: { status: 'unknown', reason: 'not-exposed' },
           error: null,
         },
       },

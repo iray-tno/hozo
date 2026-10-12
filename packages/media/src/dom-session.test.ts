@@ -10,6 +10,15 @@ class FakeVideo extends EventTarget {
   readyState = 0
   currentTime = 0
   duration = Number.NaN
+  ranges: { start: number; end: number }[] | null = null
+  get seekable() {
+    const ranges = this.ranges ?? (this.duration > 0 ? [{ start: 0, end: this.duration }] : [])
+    return {
+      length: ranges.length,
+      start: (index: number) => ranges[index]?.start ?? NaN,
+      end: (index: number) => ranges[index]?.end ?? NaN,
+    }
+  }
   loop = false
   muted = false
   error: { message: string } | null = null
@@ -131,4 +140,49 @@ test('DOM retirement releases media and prevents events; StrictMode replay resto
   element.emit('error')
   assert.equal(next.getStatus().error?.message, 'Invalid clip')
   next.dispose()
+})
+
+test('DOM observes empty/recovered ranges and commands recheck silent changes without optimistic clocks', () => {
+  const element = new FakeVideo()
+  element.duration = 10
+  element.readyState = 1
+  element.ranges = []
+  const observations: import('./types.ts').MediaStatus[] = []
+  const session = new DomVideoSession(element as unknown as HTMLMediaElement, 'a.mp4', () => ({
+    onStatusChange: (value) => observations.push(value),
+  }))
+  session.start({})
+  assert.equal(session.getStatus().status, 'ready')
+  assert.equal(observations.at(-1)?.seekability.status, 'unavailable')
+  assert.throws(() => session.seekTo(4), /no observed seekable range/)
+  assert.equal(element.currentTime, 0)
+  assert.equal(session.getStatus().error?.operation, 'seek')
+  element.ranges = [
+    { start: 2, end: 4 },
+    { start: 6, end: 9 },
+  ]
+  element.emit('progress')
+  assert.equal(observations.at(-1)?.seekability.status, 'available')
+  const count = observations.length
+  element.ranges = [{ start: 7, end: 9 }]
+  session.seekTo(3)
+  assert.equal(element.currentTime, 7, 'not the old range or the duration')
+  assert.equal(session.getStatus().currentTime, 0, 'accepted assignment is not an observation')
+  assert.equal(observations.length, count, 'range readback emits no synthetic status update')
+  element.ranges = []
+  assert.throws(() => session.seekTo(8), /no observed seekable range/)
+  assert.equal(element.currentTime, 7)
+  assert.equal(
+    observations.at(-1)?.seekability.status,
+    'unavailable',
+    'the denial reports fresh range evidence before any progress event',
+  )
+  element.emit('progress')
+  assert.equal(observations.at(-1)?.seekability.status, 'unavailable')
+  session.dispose()
+  const after = observations.length
+  element.ranges = [{ start: 0, end: 10 }]
+  element.emit('progress')
+  assert.equal(observations.length, after)
+  assert.equal(session.getStatus().seekability.status, 'unavailable')
 })

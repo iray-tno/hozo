@@ -134,6 +134,21 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
         throw error
       })
     assert.equal(await page.locator('video').getAttribute('aria-label'), 'Local silent clip')
+    await page.waitForFunction(() => window.statuses.at(-1)?.seekability.status === 'available')
+    const seekEvidence = await page.evaluate(() => {
+      const element = document.querySelector('video')
+      const ranges = Array.from({ length: element.seekable.length }, (_, index) => ({
+        start: element.seekable.start(index),
+        end: element.seekable.end(index),
+      }))
+      return { observed: window.ref.current.getStatus().seekability, ranges }
+    })
+    assert.ok(seekEvidence.ranges.length > 0)
+    assert.deepEqual(seekEvidence.observed, {
+      status: 'available',
+      origin: 'engine',
+      ranges: seekEvidence.ranges,
+    })
     await page.evaluate(() => {
       window.originalVideo = document.querySelector('video')
       window.originalHandle = window.ref.current

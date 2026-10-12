@@ -1,3 +1,4 @@
+import { copyMediaStatus } from './status.ts'
 import type { VideoStatus } from './types.ts'
 
 /** One committed decoder lifetime. Metadata readiness is not a frame signal. */
@@ -18,7 +19,7 @@ export class VideoPresentation {
   observe(status: VideoStatus) {
     if (!this.active) return
     // An application callback must not mutate the internal controls' snapshot.
-    this.observed = { ...status, error: status.error ? { ...status.error } : null }
+    this.observed = copyMediaStatus(status)
     const started = status.playing && !this.viewing
     if (started) this.viewing = true
     this.changed(started)

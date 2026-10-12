@@ -7,3 +7,4 @@ export type {
   AudioProps,
   AudioStatus,
 } from './audio-types.ts'
+export type { MediaSeekability, MediaSeekRange } from './types.ts'

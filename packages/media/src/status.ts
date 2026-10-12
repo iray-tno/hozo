@@ -1,4 +1,14 @@
-import type { VideoCallbacks, VideoError, VideoStatus } from './types.ts'
+import { constrainSeek, copySeekability } from './seek-policy.ts'
+import type { MediaSeekability, VideoCallbacks, VideoError, VideoStatus } from './types.ts'
+
+/** Detach nested evidence before passing a snapshot across an author callback. */
+export function copyMediaStatus(status: VideoStatus): VideoStatus {
+  return {
+    ...status,
+    seekability: copySeekability(status.seekability),
+    error: status.error ? { ...status.error } : null,
+  }
+}
 
 /** Both engines report observations, not a optimistic play/pause prop mirror. */
 export class VideoObserver {
@@ -16,18 +26,22 @@ export class VideoObserver {
       buffering: false,
       currentTime: 0,
       duration: null,
+      // Expo's current player APIs expose no seek capability/ranges. A clock or
+      // accepted command cannot upgrade this to engine evidence.
+      seekability: { status: 'unknown', reason: 'not-exposed' },
       error: null,
     }
   }
 
   snapshot(): VideoStatus {
-    return { ...this.current, error: this.current.error ? { ...this.current.error } : null }
+    return copyMediaStatus(this.current)
   }
 
   update(patch: Partial<Omit<VideoStatus, 'src'>>) {
     if (!this.active) return
     const previous = this.current
     this.current = { ...previous, ...patch }
+    if (patch.seekability) this.current.seekability = copySeekability(patch.seekability)
     this.callbacks().onStatusChange?.(this.snapshot())
     if (!this.active) return
     if (previous.playing !== this.current.playing) {
@@ -42,7 +56,7 @@ export class VideoObserver {
     if (this.active) this.callbacks().onEnded?.()
   }
 
-  fail(operation: VideoError['operation'], cause: unknown) {
+  fail(operation: VideoError['operation'], cause: unknown, seekability?: MediaSeekability) {
     const error: VideoError = {
       src: this.current.src,
       operation,
@@ -52,7 +66,7 @@ export class VideoObserver {
     this.update(
       operation === 'load'
         ? { error, status: 'error', playing: false, buffering: false }
-        : { error },
+        : { error, ...(seekability ? { seekability } : {}) },
     )
     if (this.active) this.callbacks().onError?.({ ...error })
   }
@@ -73,5 +87,7 @@ export function seekTime(seconds: number, status: VideoStatus): number {
   if (status.status === 'loading' || status.status === 'error') {
     throw new Error('Media is not ready to seek')
   }
-  return status.duration === null ? seconds : Math.min(seconds, status.duration)
+  const target = constrainSeek(seconds, status)
+  if (target === null) throw new Error('Media has no observed seekable range')
+  return target
 }
