@@ -99,6 +99,29 @@ fn dynamic_class_name_guard_merges_into_the_style_array() {
 }
 
 #[test]
+fn the_two_branches_of_a_ternary_get_two_style_keys() {
+    // Both branches guard on the same span, `selected` and `!selected`.
+    // Named by span alone they shared a key, and the object literal kept
+    // the second: a selected chip drew the unselected style.
+    let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className={selected ? 'bg-red-500' : 'border'} />
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    let keys: Vec<&str> = output
+        .styles
+        .lines()
+        .filter_map(|line| line.trim().strip_suffix(": {"))
+        .collect();
+    assert_eq!(keys.len(), 2, "{}", output.styles);
+    assert_ne!(keys[0], keys[1], "{}", output.styles);
+    for key in &keys {
+        assert!(output.jsx.contains(&format!("hozoStyles.{key}")), "{key}: {}", output.jsx);
+    }
+}
+
+#[test]
 fn hover_and_focus_still_do_not_merge_into_anything() {
     // No RN mechanism for either (see module docs) -- still computed,
     // still not merged, unlike Disabled/Expr which now are.

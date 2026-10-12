@@ -986,26 +986,22 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
             }
             .to_string(),
         ),
-        Condition::Expr(expr) => {
-            let mut refs = Vec::new();
-            collect_expr_refs(expr, &mut refs);
-            Some(format!(
-                "cond_{}",
-                refs.iter().map(|r: &ExprRef| format!("{}_{}", r.0.start, r.0.end)).collect::<Vec<_>>().join("_")
-            ))
-        }
+        Condition::Expr(expr) => Some(format!("cond_{}", expr_key(expr))),
     }
 }
 
-fn collect_expr_refs(expr: &ConditionExpr, out: &mut Vec<ExprRef>) {
+/// A style key for a guard, from its shape as well as its spans.
+///
+/// Spans alone named `selected` and `!selected` alike, so the two branches
+/// of `selected ? 'a' : 'b'` became one duplicated key in the style object,
+/// and the second branch won on both sides of the ternary.
+fn expr_key(expr: &ConditionExpr) -> String {
     match expr {
-        ConditionExpr::Static(_) => {}
-        ConditionExpr::Ref(r) => out.push(*r),
-        ConditionExpr::Not(inner) => collect_expr_refs(inner, out),
-        ConditionExpr::And(a, b) | ConditionExpr::Or(a, b) => {
-            collect_expr_refs(a, out);
-            collect_expr_refs(b, out);
-        }
+        ConditionExpr::Static(value) => value.to_string(),
+        ConditionExpr::Ref(r) => format!("{}_{}", r.0.start, r.0.end),
+        ConditionExpr::Not(inner) => format!("not_{}", expr_key(inner)),
+        ConditionExpr::And(a, b) => format!("{}_and_{}", expr_key(a), expr_key(b)),
+        ConditionExpr::Or(a, b) => format!("{}_or_{}", expr_key(a), expr_key(b)),
     }
 }
 
