@@ -27,7 +27,7 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
   return (
     <View
       role="banner"
-      className="fixed top-0 left-0 right-0 z-50 border-b border-wood bg-yakisugi-header backdrop-blur-md"
+      className="fixed top-0 left-0 right-0 z-50 border-b border-hinoki/18 bg-yakisugi-950/92 backdrop-blur-md"
     >
       <View className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-12 sm:h-14 md:h-16 flex flex-row items-center justify-between gap-4">
         <View className="flex flex-row items-center gap-3 shrink-0">
@@ -40,7 +40,7 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
             <Text className="font-extrabold text-lg sm:text-xl tracking-tight text-shikkui">
               Hozo
             </Text>
-            <Text className="hidden sm:inline-flex text-xs px-2 py-0.5 rounded-full bg-wood-subtle text-hinoki border border-wood font-medium">
+            <Text className="hidden sm:inline-flex text-xs px-2 py-0.5 rounded-full bg-hinoki/10 text-hinoki border border-hinoki/18 font-medium">
               {`v${version}`}
             </Text>
           </Link>
@@ -87,7 +87,7 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
           <Link
             href="https://github.com/iray-tno/hozo"
             aria-label="Hozo on GitHub"
-            className="inline-flex flex-row items-center gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-yakisugi-800 hover:bg-yakisugi-700 text-shikkui border border-wood hover:border-wood-strong transition-all"
+            className="inline-flex flex-row items-center gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-yakisugi-800 hover:bg-yakisugi-700 text-shikkui border border-hinoki/18 hover:border-hinoki/35 transition-all"
           >
             <svg
               className="w-4 h-4 fill-current text-hinoki"

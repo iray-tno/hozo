@@ -16,14 +16,14 @@ export function SvgWorkbench() {
   const glowId = 'studio-glow'
 
   return (
-    <div className="rounded-2xl border border-wood bg-yakisugi-950 overflow-hidden shadow-2xl">
+    <div className="rounded-2xl border border-hinoki/18 bg-yakisugi-950 overflow-hidden shadow-2xl">
       {/* Header */}
-      <div className="p-4 sm:p-6 border-b border-wood bg-yakisugi-900/60 flex flex-wrap items-center justify-between gap-4">
+      <div className="p-4 sm:p-6 border-b border-hinoki/18 bg-yakisugi-900/60 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-hinoki animate-pulse" />
             <h3 className="text-lg font-bold text-shikkui">Interactive SVG & Filter Studio</h3>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-wood-subtle text-hinoki border border-wood">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-hinoki/10 text-hinoki border border-hinoki/18">
               @hozo/svg
             </span>
           </div>
@@ -34,7 +34,7 @@ export function SvgWorkbench() {
         </div>
 
         {/* Shape Preset Selector */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-yakisugi-950 border border-wood">
+        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-yakisugi-950 border border-hinoki/18">
           <button
             type="button"
             onClick={() => setShape('badge')}
@@ -72,7 +72,7 @@ export function SvgWorkbench() {
       </div>
 
       {/* Main Studio Grid: Left Live Preview, Right Controls */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-wood">
+      <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-hinoki/18">
         {/* Left: SVG Canvas Viewport */}
         <div className="lg:col-span-6 p-6 sm:p-10 flex flex-col items-center justify-center bg-[#0d0c0a] relative min-h-[360px]">
           <div className="w-64 h-64 flex items-center justify-center relative">
@@ -295,7 +295,7 @@ export function SvgWorkbench() {
                       className={`px-2.5 py-1 rounded text-[11px] font-mono transition-all flex items-center gap-1.5 ${
                         floodColor === c.value
                           ? 'border border-shikkui text-shikkui bg-yakisugi-800'
-                          : 'border border-wood text-stone-400 hover:text-stone-200'
+                          : 'border border-hinoki/18 text-stone-400 hover:text-stone-200'
                       }`}
                     >
                       <span
@@ -311,7 +311,7 @@ export function SvgWorkbench() {
           </div>
 
           {/* Quick Filter Presets */}
-          <div className="mt-6 pt-4 border-t border-wood flex items-center justify-between">
+          <div className="mt-6 pt-4 border-t border-hinoki/18 flex items-center justify-between">
             <span className="text-xs font-mono text-stone-400">Presets:</span>
             <div className="flex items-center gap-2">
               <button
@@ -323,7 +323,7 @@ export function SvgWorkbench() {
                   setOpacity(0.4)
                   setFloodColor('#c8a882')
                 }}
-                className="px-2.5 py-1 rounded bg-yakisugi-950 border border-wood text-[11px] text-stone-300 hover:text-shikkui"
+                className="px-2.5 py-1 rounded bg-yakisugi-950 border border-hinoki/18 text-[11px] text-stone-300 hover:text-shikkui"
               >
                 Soft Ambient
               </button>
@@ -336,7 +336,7 @@ export function SvgWorkbench() {
                   setOpacity(0.8)
                   setFloodColor('#9e3d31')
                 }}
-                className="px-2.5 py-1 rounded bg-yakisugi-950 border border-wood text-[11px] text-stone-300 hover:text-shikkui"
+                className="px-2.5 py-1 rounded bg-yakisugi-950 border border-hinoki/18 text-[11px] text-stone-300 hover:text-shikkui"
               >
                 Dramatic Crimson
               </button>
@@ -346,15 +346,15 @@ export function SvgWorkbench() {
       </div>
 
       {/* Code Preview Pane with Tabs */}
-      <div className="border-t border-wood bg-yakisugi-950">
-        <div className="px-4 py-2 border-b border-wood-subtle flex items-center justify-between bg-yakisugi-900/80">
+      <div className="border-t border-hinoki/18 bg-yakisugi-950">
+        <div className="px-4 py-2 border-b border-hinoki/10 flex items-center justify-between bg-yakisugi-900/80">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setCodeTab('jsx')}
               className={`px-3 py-1 rounded text-xs font-mono font-semibold transition-all ${
                 codeTab === 'jsx'
-                  ? 'bg-wood-strong text-hinoki border border-hinoki/30'
+                  ? 'bg-hinoki/35 text-hinoki border border-hinoki/30'
                   : 'text-stone-400 hover:text-shikkui'
               }`}
             >
@@ -365,7 +365,7 @@ export function SvgWorkbench() {
               onClick={() => setCodeTab('web')}
               className={`px-3 py-1 rounded text-xs font-mono font-semibold transition-all ${
                 codeTab === 'web'
-                  ? 'bg-wood-strong text-hinoki border border-hinoki/30'
+                  ? 'bg-hinoki/35 text-hinoki border border-hinoki/30'
                   : 'text-stone-400 hover:text-shikkui'
               }`}
             >
@@ -376,7 +376,7 @@ export function SvgWorkbench() {
               onClick={() => setCodeTab('native')}
               className={`px-3 py-1 rounded text-xs font-mono font-semibold transition-all ${
                 codeTab === 'native'
-                  ? 'bg-wood-strong text-hinoki border border-hinoki/30'
+                  ? 'bg-hinoki/35 text-hinoki border border-hinoki/30'
                   : 'text-stone-400 hover:text-shikkui'
               }`}
             >

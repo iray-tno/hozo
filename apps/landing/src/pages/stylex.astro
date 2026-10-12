@@ -32,7 +32,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
 
       <!-- Page Header -->
       <section class="mb-12 max-w-4xl">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-wood-subtle border border-wood text-hinoki text-xs font-mono mb-4">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-hinoki/10 border border-hinoki/18 text-hinoki text-xs font-mono mb-4">
           <span>@hozo/stylex</span>
           <span class="text-stone-600">•</span>
           <span>Meta StyleX · Type Safety</span>
@@ -46,13 +46,13 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
       </section>
 
       <!-- Why StyleX in Hozo Grid -->
-      <div class="mb-16 rounded-2xl border border-wood bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
+      <div class="mb-16 rounded-2xl border border-hinoki/18 bg-yakisugi-900/60 p-6 sm:p-8 backdrop-blur-sm shadow-xl">
         <h2 class="text-xl sm:text-2xl font-bold text-shikkui mb-4">Why StyleX Coexists with Tailwind in Hozo</h2>
         <p class="text-sm text-stone-300 leading-relaxed mb-6">
           Rather than forcing a single styling dogma, Hozo's intermediate representation (<code class="text-hinoki">hozo_ir</code>) accepts both utility classes and typed CSS-in-JS definitions:
         </p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">01: Deterministic Order</div>
             <h3 class="text-base font-bold text-shikkui mb-2">No Specificity Wars</h3>
             <p class="text-xs text-stone-300 leading-relaxed">
@@ -60,7 +60,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">02: Typed Token Contracts</div>
             <h3 class="text-base font-bold text-shikkui mb-2">Strict Design Systems</h3>
             <p class="text-xs text-stone-300 leading-relaxed">
@@ -68,7 +68,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="text-xs font-mono font-bold text-hinoki uppercase tracking-wider mb-2">03: Zero Runtime Cost</div>
             <h3 class="text-base font-bold text-shikkui mb-2">AOT Compilation</h3>
             <p class="text-xs text-stone-300 leading-relaxed">
@@ -84,7 +84,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
           Coexistence Without Friction
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
             <h3 class="text-lg font-bold text-shikkui mb-2">Dual-Frontend Compiler</h3>
             <p class="text-sm text-stone-300 leading-relaxed mb-4">
               Write Tailwind on marketing pages and StyleX in your component library:
@@ -96,7 +96,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </ul>
           </div>
 
-          <div class="p-6 rounded-xl border border-wood bg-yakisugi-900/40">
+          <div class="p-6 rounded-xl border border-hinoki/18 bg-yakisugi-900/40">
             <h3 class="text-lg font-bold text-shikkui mb-2">Smooth Migration Path</h3>
             <p class="text-sm text-stone-300 leading-relaxed mb-4">
               Migrate existing React Native or Web applications incrementally:
@@ -125,7 +125,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-mono text-stone-400">Compiler-Relevant</span>
               <span class="text-xs font-mono font-bold text-pink-400">100%</span>
@@ -138,7 +138,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-mono text-stone-400">Universal Properties</span>
               <span class="text-xs font-mono font-bold text-pink-400">100%</span>
@@ -151,7 +151,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-mono text-stone-400">Contextual / Interactive</span>
               <span class="text-xs font-mono font-bold text-pink-400">100%</span>
@@ -164,7 +164,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
             </p>
           </div>
 
-          <div class="p-5 rounded-xl border border-wood-subtle bg-yakisugi-950/80">
+          <div class="p-5 rounded-xl border border-hinoki/10 bg-yakisugi-950/80">
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-mono text-stone-400">Web-Only Extensions</span>
               <span class="text-xs font-mono font-bold text-stone-300">
@@ -181,7 +181,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
         </div>
 
         <!-- Practical fixtures card -->
-        <div class="p-5 rounded-xl bg-yakisugi-900/60 border border-wood grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
+        <div class="p-5 rounded-xl bg-yakisugi-900/60 border border-hinoki/18 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
           <div>
             <span class="text-stone-400 block mb-1">Representative Values</span>
             <strong class="text-shikkui text-base font-bold">{snapshot.stylexValues.covered} / {snapshot.stylexValues.cases}</strong>
@@ -208,7 +208,7 @@ const pct = (n: number, d: number) => (d === 0 ? '--' : `${((n / d) * 100).toFix
         <p class="text-sm text-stone-300 mb-6 max-w-2xl">
           Define typed styles with <code class="text-hinoki">stylex.create</code>. Hozo evaluates them statically and emits zero-runtime styles for both platforms.
         </p>
-        <div class="rounded-xl border border-wood bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
+        <div class="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
 <pre><code><span class="text-hinoki">import</span> * <span class="text-hinoki">as</span> stylex <span class="text-hinoki">from</span> <span class="text-tatami-light">'@stylexjs/stylex'</span>
 <span class="text-hinoki">import</span> &#123; View, Text &#125; <span class="text-hinoki">from</span> <span class="text-tatami-light">'@hozo/core'</span>
 

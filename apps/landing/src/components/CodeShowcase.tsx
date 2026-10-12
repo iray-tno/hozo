@@ -4,7 +4,7 @@ export function CodeShowcase() {
   return (
     <Section
       nativeID="code-showcase"
-      className="py-24 border-t border-wood relative bg-yakisugi-950"
+      className="py-24 border-t border-hinoki/18 relative bg-yakisugi-950"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full min-w-0">
         <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
@@ -24,9 +24,9 @@ export function CodeShowcase() {
         </View>
 
         {/* Code Comparison Box */}
-        <View className="rounded-2xl border border-wood bg-yakisugi-950 overflow-hidden shadow-2xl max-w-6xl mx-auto w-full min-w-0">
+        <View className="rounded-2xl border border-hinoki/18 bg-yakisugi-950 overflow-hidden shadow-2xl max-w-6xl mx-auto w-full min-w-0">
           {/* Top Bar: Source Input (Architectural Wooden Lintel / Nageshi) */}
-          <View className="border-b border-wood p-4 sm:p-6 bg-yakisugi-900 timber-grain timber-plank min-w-0">
+          <View className="border-b border-hinoki/18 p-4 sm:p-6 bg-yakisugi-900 timber-grain timber-plank min-w-0">
             <View className="flex flex-row flex-wrap items-center justify-between gap-2 mb-3">
               <View className="flex flex-row items-center gap-2 min-w-0">
                 <View className="w-3 h-3 rounded-full bg-bengara shrink-0" />
@@ -36,7 +36,7 @@ export function CodeShowcase() {
                   Universal Source: NotificationCard.tsx
                 </Text>
               </View>
-              <Text className="text-xs px-2.5 py-0.5 rounded bg-wood-subtle text-hinoki border border-wood-strong font-mono shrink-0">
+              <Text className="text-xs px-2.5 py-0.5 rounded bg-hinoki/10 text-hinoki border border-hinoki/35 font-mono shrink-0">
                 React Native / @hozo/core
               </Text>
             </View>
@@ -115,7 +115,7 @@ export function CodeShowcase() {
                   </svg>
                   <Text className="truncate">Web Lowering (DOM + CSS + W3C ARIA)</Text>
                 </View>
-                <Text className="text-[10px] font-mono px-2 py-0.5 rounded bg-wood-subtle text-hinoki-light border border-wood shrink-0">
+                <Text className="text-[10px] font-mono px-2 py-0.5 rounded bg-hinoki/10 text-hinoki-light border border-hinoki/18 shrink-0">
                   No RNW Wrapper
                 </Text>
               </View>
@@ -181,7 +181,7 @@ export function CodeShowcase() {
                   </svg>
                   <Text className="truncate">Native Lowering (Fabric / StyleSheet)</Text>
                 </View>
-                <Text className="text-[10px] font-mono px-2 py-0.5 rounded bg-tatami-subtle text-tatami-light border border-tatami-subtle shrink-0">
+                <Text className="text-[10px] font-mono px-2 py-0.5 rounded bg-tatami/15 text-tatami-light border border-tatami/30 shrink-0">
                   React Native / Fabric
                 </Text>
               </View>

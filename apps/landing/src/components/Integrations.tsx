@@ -12,7 +12,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
   return (
     <Section
       nativeID="integrations"
-      className="py-24 border-t border-wood relative bg-yakisugi-950"
+      className="py-24 border-t border-hinoki/18 relative bg-yakisugi-950"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
@@ -34,14 +34,14 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
         {/* Integrations Grid */}
         <View className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
           {/* Vite */}
-          <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
+          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-hinoki inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-wood-strong">
+                  <Text className="w-7 h-7 rounded-lg bg-hinoki/10 text-hinoki inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-hinoki/35">
                     V
                   </Text>
                   <Text>Vite</Text>
@@ -52,7 +52,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 Executes ahead of the React plugin, lowering JSX directly to semantic DOM and
                 compiled CSS.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-wood font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
                 <code>
                   <span className="text-hinoki">import</span> {'{ hozo }'}{' '}
                   <span className="text-hinoki">from</span>{' '}
@@ -77,14 +77,14 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           </View>
 
           {/* Next.js */}
-          <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
+          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-shikkui inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-wood">
+                  <Text className="w-7 h-7 rounded-lg bg-hinoki/10 text-shikkui inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-hinoki/18">
                     N
                   </Text>
                   <Text>Next.js</Text>
@@ -94,7 +94,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
               <Paragraph className="text-stone-400 text-xs mb-4">
                 Verified with Turbopack (Next.js 16) and Webpack with zero manual setup.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-wood font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
                 <code>
                   <span className="text-hinoki">import</span> {'{ withHozo }'}{' '}
                   <span className="text-hinoki">from</span>{' '}
@@ -116,14 +116,14 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           </View>
 
           {/* Metro (Expo / React Native) */}
-          <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
+          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-tatami-subtle text-tatami-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-tatami-subtle">
+                  <Text className="w-7 h-7 rounded-lg bg-tatami/15 text-tatami-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-tatami/30">
                     M
                   </Text>
                   <Text>Metro / Expo</Text>
@@ -134,7 +134,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 Compiles React Native components into optimized native StyleSheets and Fabric
                 primitives.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-wood font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
                 <code>
                   <span className="text-hinoki">const</span> {'{ withHozo }'} = require(
                   <span className="text-tatami-light">'@hozo/metro/config'</span>){'\n\n'}
@@ -153,14 +153,14 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           </View>
 
           {/* Storybook */}
-          <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
+          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-bengara-subtle text-bengara inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-bengara-subtle">
+                  <Text className="w-7 h-7 rounded-lg bg-bengara/12 text-bengara inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-bengara/30">
                     S
                   </Text>
                   <Text>Storybook</Text>
@@ -170,7 +170,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
               <Paragraph className="text-stone-400 text-xs mb-4">
                 Zero-configuration preset built on top of the Vite Web backend.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-wood font-mono text-[11px] text-shikkui-muted overflow-x-auto mb-4">
+              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto mb-4">
                 <code>
                   <span className="text-hinoki">export default</span> {'{'}
                   {'\n'}
@@ -195,14 +195,14 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           </View>
 
           {/* TanStack Start */}
-          <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
+          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-wood-subtle text-hinoki-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-wood">
+                  <Text className="w-7 h-7 rounded-lg bg-hinoki/10 text-hinoki-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-hinoki/18">
                     T
                   </Text>
                   <Text>TanStack Start</Text>
@@ -212,7 +212,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
               <Paragraph className="text-stone-400 text-xs mb-4">
                 Full-stack SSR with TanStack Start, Nitro, and Hozo Vite compilation.
               </Paragraph>
-              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-wood font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+              <pre className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
                 <code>
                   <span className="text-hinoki">export default</span> defineConfig({'{'}
                   {'\n'}
@@ -233,14 +233,14 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
           </View>
 
           {/* Conformance */}
-          <View className="p-6 rounded-2xl timber-panel border border-wood hover:border-wood-strong transition-all flex flex-col justify-between">
+          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
                 <Heading
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-tatami-subtle text-tatami-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-tatami-subtle">
+                  <Text className="w-7 h-7 rounded-lg bg-tatami/15 text-tatami-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-tatami/30">
                     C
                   </Text>
                   <Text>Conformance</Text>
@@ -251,7 +251,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 Automated differential test suite comparing Hozo 1:1 against the official Tailwind
                 engine.
               </Paragraph>
-              <View className="p-3 rounded-lg bg-yakisugi-900 border border-wood text-xs text-tatami-light font-mono mb-4">
+              <View className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 text-xs text-tatami-light font-mono mb-4">
                 <Text>&check; Continuous differential snapshots verified in CI</Text>
               </View>
               <Link

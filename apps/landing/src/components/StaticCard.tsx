@@ -17,7 +17,7 @@ import { Heading, Link, List, ListItem, Paragraph, Section, Text, View } from '@
  */
 export function StaticCard() {
   return (
-    <Section className="p-8 rounded-2xl bg-yakisugi-800 timber-grain timber-plank border-wood-strong shadow-xl border">
+    <Section className="p-8 rounded-2xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-xl border">
       <Heading level={3} className="text-2xl font-bold text-shikkui">
         Compiled at build time
       </Heading>
