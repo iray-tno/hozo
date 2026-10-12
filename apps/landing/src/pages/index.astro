@@ -10,7 +10,6 @@ import { Kumimono } from '../components/Kumimono.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import { Philosophy } from '../components/Philosophy.tsx'
 import SiteHead from '../components/SiteHead.astro'
-import { StaticCard } from '../components/StaticCard.tsx'
 import { TieredStyles } from '../components/TieredStyles.tsx'
 import { TryShowcase } from '../components/TryShowcase.tsx'
 import { loadShowcaseRelease } from '../lib/showcase-release'
@@ -78,19 +77,16 @@ const showcaseRelease = await loadShowcaseRelease()
     <Navbar baseUrl={baseUrl} />
     <main id="main-content" tabindex="-1">
       <Hero baseUrl={baseUrl} />
+      <!-- What it is, what it does, why it is better, how to start, then the
+           rest: one question per section, in the order a visitor asks them. -->
+      <CodeShowcase />
+      <Philosophy />
+      <Accessibility />
+      <TieredStyles />
+      <Integrations baseUrl={baseUrl} />
       <TryShowcase baseUrl={baseUrl} release={showcaseRelease} />
       <DomainShowcase baseUrl={baseUrl} />
       <Kumimono client:visible baseUrl={baseUrl} />
-      <Philosophy />
-      <TieredStyles />
-      <!-- No `client:` directive, deliberately. Astro renders this at
-           build time and ships no JavaScript for it; see StaticCard.tsx. -->
-      <div class="mx-auto max-w-3xl px-6 py-12">
-        <StaticCard />
-      </div>
-      <CodeShowcase />
-      <Accessibility />
-      <Integrations baseUrl={baseUrl} />
       <Architecture />
     </main>
     <Footer baseUrl={baseUrl} />

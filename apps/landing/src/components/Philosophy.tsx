@@ -1,4 +1,4 @@
-import { Heading, Paragraph, Section, Text, View } from '@hozo/core'
+import { Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
 
 export function Philosophy() {
   return (
@@ -6,13 +6,13 @@ export function Philosophy() {
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
           <Text className="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">
-            Core Principles
+            Why Hozo
           </Text>
           <Heading
             level={2}
             className="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4"
           >
-            Performant by Design. Accessible by Structure.
+            Keep the source. Lose the runtime.
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
             Cross-platform UI usually forces an unwanted compromise: heavy client-side wrappers on
@@ -22,7 +22,7 @@ export function Philosophy() {
           </Paragraph>
         </View>
 
-        <View className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+        <View className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {/* Pillar 1 */}
           <View className="p-8 rounded-2xl timber-panel relative overflow-hidden group hover:border-wood-strong transition-all border border-wood">
             <View className="w-12 h-12 rounded-xl bg-yakisugi-800 timber-grain timber-plank border border-wood-strong items-center justify-center text-hinoki font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono shadow-sm">
@@ -39,10 +39,18 @@ export function Philosophy() {
               codebases without breaking a line of business logic.
             </Paragraph>
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-xs text-shikkui-muted font-mono">
-              <Text className="text-hinoki">import</Text> {'{ View, Text }'}{' '}
-              <Text className="text-hinoki">from</Text>{' '}
-              <Text className="text-tatami-light">'react-native'</Text>
+              <Text>
+                <Text className="text-hinoki">import</Text> {'{ View, Text }'}{' '}
+                <Text className="text-hinoki">from</Text>{' '}
+                <Text className="text-tatami-light">'react-native'</Text>
+              </Text>
             </View>
+            <Link
+              href="#integrations"
+              className="mt-4 inline-flex text-sm font-semibold text-hinoki-light underline hover:text-shikkui"
+            >
+              Add it to your bundler &rarr;
+            </Link>
           </View>
 
           {/* Pillar 2 */}
@@ -62,6 +70,12 @@ export function Philosophy() {
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-xs text-shikkui-muted font-mono">
               Build-time W3C ARIA validation + Zero div-soup
             </View>
+            <Link
+              href="#accessibility"
+              className="mt-4 inline-flex text-sm font-semibold text-hinoki-light underline hover:text-shikkui"
+            >
+              How accessibility is checked &rarr;
+            </Link>
           </View>
 
           {/* Pillar 3 */}
@@ -80,31 +94,12 @@ export function Philosophy() {
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-xs text-tatami-light font-mono">
               Static (0 JS) &rarr; Structural (Boolean fold) &rarr; Dynamic fallback
             </View>
-          </View>
-
-          {/* Pillar 4 */}
-          <View className="p-8 rounded-2xl timber-panel relative overflow-hidden group hover:border-wood-strong transition-all border border-wood">
-            <View className="w-12 h-12 rounded-xl bg-yakisugi-800 timber-grain timber-plank border border-wood-strong items-center justify-center text-hinoki-light font-bold text-base mb-6 group-hover:scale-105 transition-transform font-mono shadow-sm">
-              04
-            </View>
-            <Heading level={3} className="text-xl font-bold text-shikkui mb-3">
-              True Platform Primitives
-            </Heading>
-            <Paragraph className="text-stone-400 text-sm leading-relaxed mb-4">
-              Semantic primitives from{' '}
-              <code className="text-shikkui-muted text-xs font-mono">@hozo/core</code> lower
-              cleanly:
-              <code className="text-shikkui-muted text-xs font-mono"> Heading</code> becomes genuine{' '}
-              <code className="text-shikkui-muted text-xs font-mono">&lt;h1&gt;-&lt;h6&gt;</code>,{' '}
-              <code className="text-shikkui-muted text-xs font-mono">Section</code> becomes{' '}
-              <code className="text-shikkui-muted text-xs font-mono">&lt;section&gt;</code>, and on
-              Mobile they lower to native React Native primitives rendered by Fabric.
-            </Paragraph>
-            <View className="p-3 rounded-lg bg-yakisugi-950 border border-wood text-xs text-hinoki-light font-mono">
-              <Text className="text-hinoki">import</Text> {'{ Heading, Section, Button }'}{' '}
-              <Text className="text-hinoki">from</Text>{' '}
-              <Text className="text-bengara">'@hozo/core'</Text>
-            </View>
+            <Link
+              href="#performance"
+              className="mt-4 inline-flex text-sm font-semibold text-hinoki-light underline hover:text-shikkui"
+            >
+              How styles compile &rarr;
+            </Link>
           </View>
         </View>
       </View>

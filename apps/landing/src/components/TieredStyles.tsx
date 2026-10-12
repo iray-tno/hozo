@@ -1,15 +1,16 @@
 import { Heading, Paragraph, Section, Text, View } from '@hozo/core'
+import { StaticCard } from './StaticCard.tsx'
 
 export function TieredStyles() {
   return (
     <Section
-      nativeID="tiered-styles"
+      nativeID="performance"
       className="py-24 border-t border-wood relative bg-gradient-to-b from-transparent via-yakisugi-950 to-transparent"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
           <Text className="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">
-            Style Engine
+            Performance
           </Text>
           <Heading
             level={2}
@@ -149,6 +150,11 @@ export function TieredStyles() {
               &bull; Zero missing CSS rules
             </View>
           </View>
+        </View>
+
+        {/* The proof, on this page: rendered by Astro with no island. */}
+        <View className="mt-12 max-w-3xl mx-auto">
+          <StaticCard />
         </View>
       </View>
     </Section>
