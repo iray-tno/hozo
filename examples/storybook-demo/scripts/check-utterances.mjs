@@ -38,6 +38,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { build } from 'esbuild'
+import { createReadiness } from './shared-showcase-readiness.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const args = process.argv.slice(2)
@@ -107,8 +108,10 @@ const bundle = await build({
     contents: [
       "import { virtual } from '@guidepup/virtual-screen-reader/browser.js'",
       "import { walk } from './utterance-walk.mjs'",
+      "import { waitForSettledStory } from './a11y-audit.mjs'",
       'window.__hozoVirtual = virtual',
       'window.__hozoWalk = walk',
+      'window.__hozoStoryReady = waitForSettledStory',
       '',
     ].join('\n'),
     resolveDir: here,
@@ -130,7 +133,6 @@ writeFileSync(
 <script>
 const IDS = ${JSON.stringify(ids)}
 const MAX_STEPS = ${MAX_STEPS}
-const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 function inject(frame) {
   return new Promise((resolve, reject) => {
     const doc = frame.contentDocument
@@ -163,12 +165,29 @@ async function run() {
   const frame = document.getElementById('f')
   const results = {}
   for (const id of IDS) {
-    frame.src = '/iframe.html?id=' + id + '&viewMode=story'
-    // No backticks in here: this whole script is inside a template literal.
-    await Promise.race([new Promise((r) => (frame.onload = r)), wait(5000)])
-    await wait(500)
     try {
-      await inject(frame)
+      // The previous load race (5s) plus sleep (500ms) could read an empty
+      // React root as a finished traversal. Keep that preparation bound,
+      // but require the target document and the same readiness as the axe
+      // audit. Neither longer goldens nor the reader's 400-step rule changes.
+      const deadline = Date.now() + 5500
+      const readiness = (${createReadiness.toString()})(frame, {deadline})
+      frame.src = '/iframe.html?id=' + id + '&viewMode=story'
+      let timer
+      try {
+        await Promise.race([
+          (async () => {
+            await readiness.wait(() => readiness.storyReady(id, () => true), 'story ' + id)
+            await inject(frame)
+            await frame.contentWindow.__hozoStoryReady(Math.max(1, deadline - Date.now()))
+          })(),
+          new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error('story did not load and settle before reading')), Math.max(1, deadline - Date.now()))
+          }),
+        ])
+      } finally {
+        clearTimeout(timer)
+      }
       results[id] = await read(frame)
     } catch (error) {
       results[id] = { error: String(error && error.message || error) }
@@ -383,6 +402,12 @@ server.listen(0, async () => {
       finish(1)
     }
 
+    // Retain the full observed phrases and preparation errors; an empty or
+    // failed read must never be "fixed" by approving a shorter golden.
+    writeFileSync(
+      path.join(STATIC, '_utterances-result.json'),
+      JSON.stringify(evaluated.result.value, null, 2),
+    )
     const problems = compare(evaluated.result.value)
     if (problems.length > 0) {
       console.error(`[utterances] ${problems.length} problem(s) across ${ids.length} stories:\n`)

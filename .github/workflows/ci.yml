@@ -121,6 +121,7 @@ jobs:
           path: |
             examples/storybook-demo/storybook-static-check/_shared-interactions-result.json
             examples/storybook-demo/storybook-static-check/_shared-interactions-dom.html
+            examples/storybook-demo/storybook-static-check/_utterances-result.json
           if-no-files-found: warn
       # The generated documentation: the primitives reference, from the
       # `Primitive` enum and from what the compiler emits, and the README
