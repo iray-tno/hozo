@@ -488,6 +488,15 @@ visible errors; an application can explicitly disable it if confirmation is
 required. The Slider still requires a finite total duration; live/DVR-window
 presentation and embedded-engine controls are separate contracts.
 
+Native Video, like Audio, honors the engine's live flag before interpreting
+a finite duration. Video source-load, status and time observations recheck
+`VideoPlayer.isLive`; a live window must not become a total duration or a
+finite Slider maximum. A later non-live finite observation restores the
+finite timeline. Seekability remains unknown/not-exposed, so play/pause and
+best-effort step/imperative seeks keep their existing contract. Adapter tests
+cover these observations and the shared control policy; they are not a
+live-stream decoder, DVR-window or device/AT verification.
+
 Tests compare Audio/Video status against actual Chromium seekable ranges and
 retain all existing decoder/playback/keyboard gates. Pure and mocked adapter/
 host tests cover discontinuities, transient empty/recovered ranges, silent

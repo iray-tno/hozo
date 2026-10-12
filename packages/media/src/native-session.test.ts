@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { VideoPlayer } from 'expo-video'
+import { videoControlLabels, videoControlState } from './control-state.ts'
 import { NativeVideoSession } from './native-session.ts'
+import { seekBounds } from './seek-policy.ts'
 
 function fakePlayer() {
   const listeners = new Map<string, Set<(event: never) => void>>()
@@ -14,6 +16,7 @@ function fakePlayer() {
     preservesPitch: true,
     currentTime: 0,
     duration: 0,
+    isLive: false,
     loop: false,
     muted: false,
     timeUpdateEventInterval: 0,
@@ -127,4 +130,80 @@ test('failed asynchronous load is observable without an unhandled promise', asyn
   assert.equal(session.getStatus().error?.operation, 'load')
   assert.equal(session.getStatus().error?.message, 'missing file')
   session.dispose()
+})
+
+for (const event of ['sourceLoad', 'statusChange', 'timeUpdate']) {
+  test(`Native Video ${event} does not publish a live window as total duration`, (t) => {
+    const fake = fakePlayer()
+    const durations: (number | null)[] = []
+    const session = new NativeVideoSession(fake.player as unknown as VideoPlayer, 'live', () => ({
+      onStatusChange: (status) => durations.push(status.duration),
+    }))
+    t.after(() => session.dispose())
+    session.start({})
+    fake.player.status = 'readyToPlay'
+    fake.player.duration = 120
+    const emit = () => fake.emit(event, { duration: 180, status: 'readyToPlay', currentTime: 30 })
+
+    fake.player.isLive = true
+    emit()
+    assert.equal(session.getStatus().duration, null)
+    assert.equal(durations.at(-1), null, 'callbacks must not receive a fabricated total either')
+    assert.deepEqual(session.getStatus().seekability, { status: 'unknown', reason: 'not-exposed' })
+    assert.equal(seekBounds(session.getStatus()), null)
+
+    fake.player.isLive = false
+    emit()
+    const finite = event === 'sourceLoad' ? 180 : 120
+    assert.equal(session.getStatus().duration, finite, 'a later finite observation is recoverable')
+    assert.equal(durations.at(-1), finite)
+
+    fake.player.isLive = true
+    emit()
+    assert.equal(session.getStatus().duration, null, 'the live flag is not cached at source load')
+    assert.equal(durations.at(-1), null)
+
+    fake.player.isLive = false
+    fake.player.duration = Infinity
+    fake.emit(event, { duration: Infinity, status: 'readyToPlay', currentTime: 30 })
+    assert.equal(session.getStatus().duration, null, 'unknown non-live duration remains unknown')
+  })
+}
+
+test('an initially live Video keeps playback and best-effort seeks without a finite Slider', async (t) => {
+  const fake = fakePlayer()
+  fake.player.status = 'readyToPlay'
+  fake.player.isLive = true
+  fake.player.duration = 120
+  fake.player.currentTime = 30
+  const session = new NativeVideoSession(fake.player as unknown as VideoPlayer, 'live', () => ({}))
+  t.after(() => session.dispose())
+  session.start({})
+  const status = session.getStatus()
+  assert.equal(status.duration, null)
+  assert.equal(seekBounds(status), null)
+  assert.equal(
+    videoControlLabels({ player: { current: session }, status }).labels.position(
+      status.currentTime,
+      status.duration,
+    ),
+    '0:30 / duration unknown',
+  )
+  assert.deepEqual(videoControlState(status), {
+    playing: false,
+    toggleDisabled: false,
+    backwardDisabled: false,
+    forwardDisabled: false,
+  })
+  await session.play()
+  assert.equal(fake.calls.at(-1), 'play')
+  fake.player.playing = true
+  fake.emit('playingChange', { isPlaying: true })
+  assert.equal(videoControlState(session.getStatus()).toggleDisabled, false)
+  session.pause()
+  assert.equal(fake.calls.at(-1), 'pause')
+  session.seekTo(3600)
+  assert.equal(fake.player.currentTime, 3600, 'unknown ranges do not invent a live-window bound')
+  assert.equal(session.getStatus().currentTime, 30, 'accepted commands are not clock evidence')
+  assert.deepEqual(session.getStatus().seekability, { status: 'unknown', reason: 'not-exposed' })
 })
