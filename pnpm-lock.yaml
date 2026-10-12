@@ -47,6 +47,9 @@ importers:
       '@astrojs/react':
         specifier: ^6.0.5
         version: 6.0.5(@types/node@26.2.0)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(esbuild@0.28.2)(jiti@2.7.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(terser@5.50.0)(yaml@2.9.0)
+      '@hozo/canvas':
+        specifier: workspace:*
+        version: link:../../packages/canvas
       '@hozo/core':
         specifier: workspace:*
         version: link:../../packages/core
