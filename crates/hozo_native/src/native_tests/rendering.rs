@@ -976,9 +976,48 @@ fn a_chip_is_hozo_chip_and_its_class_lists_are_style_props() {
     );
     assert!(!dynamic.jsx.contains("removeClassName"), "{}", dynamic.jsx);
 
-    // A state the pattern does not expose is reported, not silently dropped.
+    // The remove button now consumes a compiler callback with its own state.
     let hovered = compile(r#"<Chip onRemove={drop} removeClassName="hover:bg-red-500">x</Chip>"#);
-    assert!(!hovered.diagnostics.is_empty(), "{}", hovered.jsx);
+    assert!(hovered.diagnostics.is_empty(), "{:?}", hovered.diagnostics);
+    assert!(hovered.jsx.contains("hozoRemoveStyle={({ pressed, hovered, focused, focusVisible }) => [hovered && hozoStyles.hozo1_hover]}"), "{}", hovered.jsx);
+}
+
+#[test]
+fn chip_static_state_callbacks_keep_base_styles_and_explicit_overrides() {
+    let source = r#"import { Chip } from '@hozo/core'
+        const el = <Chip defaultSelected={false} onRemove={drop} disabled={busy}
+            className="bg-red-500 hover:bg-blue-500 active:opacity-50 md:focus:opacity-25 not-hover:text-white focus-visible:outline-2"
+            removeClassName="p-2 focus-visible:outline-2 motion-safe:hover:opacity-50"
+            style={extra} removeStyle={removeExtra}>Remote</Chip>"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("hozoStyle={({ pressed, hovered, focused, focusVisible }) => ["), "{}", output.jsx);
+    for guard in ["hovered &&", "pressed &&", "__hozoBp_md && focused &&", "!(hovered) &&", "__hozoEnv_motion_safe && hovered &&"] {
+        assert!(output.jsx.contains(guard), "{guard} missing from {}", output.jsx);
+    }
+    assert!(output.jsx.contains("style={[extra]}"), "{}", output.jsx);
+    assert!(output.jsx.contains("removeStyle={removeExtra}"), "{}", output.jsx);
+    assert!(output.styles.contains("color: '#fff'"), "{}", output.styles);
+    assert!(output.prelude.iter().any(|line| line.contains("__hozoBp_md")), "{:?}", output.prelude);
+    // These are static styles: no candidate-map lookup, per-slot hooks or
+    // extra Pressable wrapping, and no state can escape into a Text child.
+    assert!(!output.jsx.contains("hozoClasses(") && !output.jsx.contains("HozoText"), "{}", output.jsx);
+}
+
+#[test]
+fn pattern_state_callbacks_do_not_invent_other_slots_or_group_context() {
+    for element in [
+        r#"<Avatar name="Ada" statusClassName="hover:opacity-50" />"#,
+        r#"<Chip onRemove={drop} removeClassName="group-hover:opacity-50">x</Chip>"#,
+        r#"<Pressable accessibilityRole="button"><Chip defaultSelected={false} className="group-hover:opacity-50">x</Chip></Pressable>"#,
+        r#"<View className="hover:opacity-50" />"#,
+    ] {
+        let source = format!("import {{ Chip, Avatar, View, Pressable }} from '@hozo/core'\nconst el = {element}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{element}: {:?}", output.diagnostics);
+    }
 }
 
 #[test]

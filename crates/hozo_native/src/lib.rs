@@ -56,6 +56,7 @@ mod candidate;
 mod conditions;
 mod grid;
 mod interaction;
+mod pattern;
 mod keyframes;
 mod markup;
 mod render;
@@ -576,6 +577,7 @@ fn spaced_children(
         diagnostics,
         runtime,
         false,
+        None,
         theme,
         None,
     );

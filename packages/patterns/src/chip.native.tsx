@@ -22,11 +22,17 @@ export interface HozoChipProps {
    * file the compiler did not read leaves them here as strings, resolved
    * through the project's candidate map (#886) -- the toggle with its
    * interaction, `aria-checked` and `disabled` state -- before `style`.
+   * Static interaction classes use the private slot callback below instead
+   * of a candidate lookup; both paths feed the same owner and text split.
    */
   className?: string
   removeClassName?: string
   style?: StyleProp<ViewStyle | TextStyle>
   removeStyle?: StyleProp<ViewStyle | TextStyle>
+  /** @internal Static class styles, evaluated with this slot's real state. */
+  hozoStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
+  /** @internal The remove button never borrows its ancestor's focus. */
+  hozoRemoveStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
   testID?: string
 }
 
@@ -63,6 +69,8 @@ export function HozoChip({
   removeClassName,
   style,
   removeStyle,
+  hozoStyle,
+  hozoRemoveStyle,
   testID,
 }: HozoChipProps) {
   const message = useHozoMessage()
@@ -84,6 +92,7 @@ export function HozoChip({
         'aria-checked': on,
         'aria-disabled': Boolean(disabled),
       }),
+      hozoStyle?.(interaction),
       style,
     ])
   const removeLook = (interaction: InteractionState) =>
@@ -93,6 +102,7 @@ export function HozoChip({
         disabled: Boolean(disabled),
         'aria-disabled': Boolean(disabled),
       }),
+      hozoRemoveStyle?.(interaction),
       removeStyle,
     ])
   const name = accessibilityLabel ?? (typeof children === 'string' ? children : undefined)

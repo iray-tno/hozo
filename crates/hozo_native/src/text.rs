@@ -183,6 +183,7 @@ pub(super) fn wrap_in_text(
         diagnostics,
         runtime,
         interaction_context,
+        None,
         theme,
         // A text style moved onto the inserted `Text` is not on the element
         // that animates, so a `starting:` one is reported rather than kept.

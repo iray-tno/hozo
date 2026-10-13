@@ -871,6 +871,7 @@ pub(super) fn render_node(
 
     let mut frames = crate::conditions::AnimatedFrames::default();
     let animates = component == "HozoAnimated";
+    let pattern_style_prop = crate::pattern::interaction_style_prop(node.primitive, "className");
     let transform_entry_start = style_entries.len();
     let state_start = build_style_entries(
         &own_declarations,
@@ -883,7 +884,8 @@ pub(super) fn render_node(
         &mut pressed_parts,
         diagnostics,
         runtime,
-        interaction_context && renders_text(component),
+        interaction_context && renders_text(component) && pattern_style_prop.is_none(),
+        Some("className"),
         theme,
         animates.then_some(&mut frames),
     );
@@ -1062,7 +1064,8 @@ pub(super) fn render_node(
     // nor a plain link may borrow an outer button's hover/focus context.
     let child_interaction_context = rendered_component == "HozoPressable" || link_interaction
         || (interaction_context && !matches!(node.primitive, Primitive::Pressable | Primitive::Button | Primitive::Link));
-    let needs_pressed_fn = matches!(rendered_component, "Pressable" | "HozoPressable" | "HozoText" | "HozoLink")
+    let needs_pressed_fn = (matches!(rendered_component, "Pressable" | "HozoPressable" | "HozoText" | "HozoLink")
+        || pattern_style_prop.is_some())
         && (!pressed_parts.is_empty() || runtime_states);
     if needs_pressed_fn {
         style_array_parts.extend(pressed_parts);
@@ -1189,7 +1192,16 @@ pub(super) fn render_node(
             Some(inner.trim().to_string())
         })
         .collect();
-    style_array_parts.extend(authored_style);
+    // Pattern callbacks are a private generated-code ABI, not an authored
+    // style function. Keep the caller's style separate and last, so a state
+    // class cannot override it or put a function inside an RN style array.
+    if needs_pressed_fn && pattern_style_prop.is_some() {
+        if !authored_style.is_empty() {
+            props_text.push_str(&format!(" style={{[{}]}}", authored_style.join(", ")));
+        }
+    } else {
+        style_array_parts.extend(authored_style);
+    }
 
     if !transform_specs.is_empty() {
         runtime.need_component("hozoTransformStyles");
@@ -1207,7 +1219,8 @@ pub(super) fn render_node(
             "{ pressed }"
         };
         props_text.push_str(&format!(
-            " style={{({state}) => [{}]}}",
+            " {}={{({state}) => [{}]}}",
+            pattern_style_prop.unwrap_or("style"),
             style_array_parts.join(", ")
         ));
     } else if style_array_parts.len() == 1 && !style_array_parts[0].contains("&&") {
@@ -1629,9 +1642,20 @@ pub(super) fn render_node(
                 diagnostics,
                 runtime,
                 false,
+                Some(slot.class_prop),
                 theme,
                 None,
             );
+            if !pressed.is_empty() {
+                parts.extend(pressed);
+                let style_prop = crate::pattern::interaction_style_prop(node.primitive, slot.class_prop)
+                    .expect("a pattern interaction guard requires a consuming slot");
+                props_text.push_str(&format!(
+                    " {style_prop}={{({{ pressed, hovered, focused, focusVisible }}) => [{}]}}",
+                    parts.join(", "),
+                ));
+                parts.clear();
+            }
         }
         for prop in node.props.passthrough.iter().filter(|prop| prop.name.as_deref() == Some(slot.class_prop)) {
             let Some(expr) = prop_expr(prop) else { continue };

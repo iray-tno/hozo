@@ -30,6 +30,7 @@ impl Guard {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(super) fn resolve(
     condition: &Condition,
     node: &Node,
@@ -37,9 +38,10 @@ pub(super) fn resolve(
     position: SiblingPosition,
     runtime: &mut RuntimeNeeds,
     interaction_context: bool,
+    pattern_slot: Option<&str>,
 ) -> Result<Guard, String> {
     match condition {
-        Condition::Not(inner) => resolve(inner, node, source, position, runtime, interaction_context)
+        Condition::Not(inner) => resolve(inner, node, source, position, runtime, interaction_context, pattern_slot)
             .map(Guard::negate)
             .map_err(|reason| format!("`not-{}:` cannot be resolved: {reason}", condition_suffix(inner).unwrap_or_default())),
         Condition::Disabled => node.props.disabled.as_ref()
@@ -56,7 +58,8 @@ pub(super) fn resolve(
         // cases; a missing driver remains unknown, never false by default.
         Condition::FormState(FormState::ReadOnly) => read_only(&node.props.text_input, source),
         Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
-            if interaction::owns_events(node)
+            if pattern_slot.is_some_and(|slot| crate::pattern::interaction_style_prop(node.primitive, slot).is_some())
+                || interaction::owns_events(node)
                 || (interaction_context && !matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button)) {
                 // Both directions read the existing owner events. Web hover
                 // additionally asks about the primary input's capability;
