@@ -71,6 +71,9 @@
         "$TURBO_ROOT$/packages/patterns/src/**",
         "$TURBO_ROOT$/packages/ui/src/**",
         "$TURBO_ROOT$/packages/behaviors/src/pressable-interaction.ts",
+        "$TURBO_ROOT$/packages/behaviors/src/i18n.ts",
+        "$TURBO_ROOT$/packages/engine/src/navigation*.ts",
+        "$TURBO_ROOT$/packages/engine/src/navigation*.tsx",
         "$TURBO_ROOT$/packages/engine/src/transform-slots.ts"
       ]
     },

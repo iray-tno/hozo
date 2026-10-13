@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import {
   AccessibilityInfo,
   Modal,
-  Pressable,
   ScrollView,
   type StyleProp,
   Text,
@@ -15,6 +14,7 @@ import {
 } from 'react-native'
 import type { HozoCommand } from './command-palette.tsx'
 import { rankCommands } from './command-rules.ts'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { HozoCommand }
@@ -146,7 +146,11 @@ export function HozoCommandPalette({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[FILL_ABSOLUTE, hozoClasses(scrimClassName), scrimStyle]}
+          style={(interaction) => [
+            FILL_ABSOLUTE,
+            hozoClasses(scrimClassName, { ...interaction }),
+            scrimStyle,
+          ]}
           onPress={close}
         />
         <View
@@ -190,15 +194,21 @@ export function HozoCommandPalette({
                 ) : null}
                 {group.members.map((index) => {
                   const command = commands[index] as HozoCommand
-                  const [box, text] = splitTextStyle([
-                    hozoClasses(itemClassName),
-                    itemStyle,
-                    index === first && [hozoClasses(activeItemClassName), activeItemStyle],
-                  ])
-                  const [shortcutBox, shortcutText] = splitTextStyle([
-                    hozoClasses(shortcutClassName),
-                    shortcutStyle,
-                  ])
+                  const stateFor = (interaction: InteractionState) => ({
+                    ...interaction,
+                    disabled: Boolean(command.disabled),
+                    'aria-disabled': Boolean(command.disabled),
+                  })
+                  // The active command is the return-key target, not a press.
+                  // Both its look and its shortcut read the actual host facts.
+                  const look = (interaction: InteractionState) => {
+                    const state = stateFor(interaction)
+                    return splitTextStyle([
+                      hozoClasses(itemClassName, state),
+                      itemStyle,
+                      index === first && [hozoClasses(activeItemClassName, state), activeItemStyle],
+                    ])
+                  }
                   return (
                     <Pressable
                       key={command.id}
@@ -207,18 +217,28 @@ export function HozoCommandPalette({
                       accessibilityState={{ disabled: Boolean(command.disabled) }}
                       disabled={command.disabled}
                       onPress={() => run(index)}
-                      style={[ROW, box]}
+                      style={(interaction) => [ROW, look(interaction)[0]]}
                     >
-                      <Text style={[panelText, text]}>{command.label}</Text>
-                      {command.shortcut ? (
-                        <View
-                          style={shortcutBox}
-                          accessibilityElementsHidden
-                          importantForAccessibility="no-hide-descendants"
-                        >
-                          <Text style={[panelText, shortcutText]}>{command.shortcut}</Text>
-                        </View>
-                      ) : null}
+                      {(interaction) => {
+                        const [shortcutBox, shortcutText] = splitTextStyle([
+                          hozoClasses(shortcutClassName, stateFor(interaction)),
+                          shortcutStyle,
+                        ])
+                        return (
+                          <>
+                            <Text style={[panelText, look(interaction)[1]]}>{command.label}</Text>
+                            {command.shortcut ? (
+                              <View
+                                style={shortcutBox}
+                                accessibilityElementsHidden
+                                importantForAccessibility="no-hide-descendants"
+                              >
+                                <Text style={[panelText, shortcutText]}>{command.shortcut}</Text>
+                              </View>
+                            ) : null}
+                          </>
+                        )
+                      }}
                     </Pressable>
                   )
                 })}
