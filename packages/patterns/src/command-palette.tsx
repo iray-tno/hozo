@@ -7,7 +7,7 @@ import {
   useHozoMessage,
 } from '@hozo/behaviors'
 import { type KeyboardEvent, useEffect, useId, useState } from 'react'
-import { nextActive, rankCommands } from './command-rules.ts'
+import { currentCommand, nextActive, rankCommands } from './command-rules.ts'
 import { useScrollLock } from './scroll-lock.ts'
 
 export interface HozoCommand {
@@ -113,8 +113,7 @@ export function HozoCommandPalette({
     else groups.push({ name, members: [index] })
   }
   const order = groups.flatMap((group) => group.members)
-  const current =
-    active !== null && order.includes(active) ? active : nextActive(order, commands, null, 1)
+  const current = currentCommand(order, commands, active)
   const optionId = (index: number) => `${base}-option-${index}`
 
   if (!open) return null

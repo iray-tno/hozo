@@ -40,6 +40,13 @@ which slot is applied, never which interaction state is observed. Box and
 string label share that owner's style evaluation; the outer row and hidden
 ellipsis do not consume a control callback.
 
+CommandPalette's active-item class names the return-key target, not a
+pressed or focused element. Both backends use `currentCommand` to keep it
+enabled and visible; Native pointer hover selects it as Web pointer movement
+does, and a new query or reopen resets that choice. Web mouse-down prevents
+the option from taking input focus. This is a selection contract, not a
+reason to copy input focus onto an item or its hidden shortcut.
+
 Selection/disabled predicates need a separate per-slot semantic contract;
 this first slice does not infer internal state from authored props or remove
 their existing diagnostics. Other patterns and group selectors remain

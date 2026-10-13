@@ -13,7 +13,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import type { HozoCommand } from './command-palette.tsx'
-import { rankCommands } from './command-rules.ts'
+import { currentCommand, rankCommands } from './command-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -62,8 +62,9 @@ export interface HozoCommandPaletteProps {
  * the keyboard raised in its field and the matching commands below it, each a
  * button named for what it does, under its group's heading.
  *
- * There is no arrow-key focus to move on a phone, so `activeItemStyle` marks
- * the first match -- the one the keyboard's return key runs. How many match is
+ * There is no arrow-key focus to move on a phone, so `activeItemStyle` starts
+ * on the first enabled match. Pointer hover chooses a different command, as
+ * on the Web; the keyboard's return key runs that same target. How many match is
  * announced as the query narrows them, for the reason the Web half gives. The
  * modal closes on Android's back button and VoiceOver's escape gesture.
  */
@@ -98,8 +99,12 @@ export function HozoCommandPalette({
   const message = useHozoMessage()
   const { locale } = useHozoI18n()
   const [query, setQuery] = useState('')
+  const [active, setActive] = useState<number | null>(null)
   useEffect(() => {
-    if (!open) setQuery('')
+    if (!open) {
+      setQuery('')
+      setActive(null)
+    }
   }, [open])
 
   const ranked = rankCommands(commands, query, locale)
@@ -111,7 +116,7 @@ export function HozoCommandPalette({
     else groups.push({ name, members: [index] })
   }
   const order = groups.flatMap((group) => group.members)
-  const first = order.find((index) => !commands[index]?.disabled)
+  const current = currentCommand(order, commands, active)
   const count = order.length
 
   // The count, as the query narrows it: the Web half's live region.
@@ -127,8 +132,8 @@ export function HozoCommandPalette({
   }, [count, message, open, query])
 
   const close = () => onOpenChange?.(false)
-  const run = (index: number | undefined) => {
-    const command = index === undefined ? undefined : commands[index]
+  const run = (index: number | null) => {
+    const command = index === null ? undefined : commands[index]
     if (!command || command.disabled) return
     close()
     command.onSelect()
@@ -164,14 +169,17 @@ export function HozoCommandPalette({
         >
           <TextInput
             value={query}
-            onChangeText={setQuery}
+            onChangeText={(text) => {
+              setQuery(text)
+              setActive(null)
+            }}
             placeholder={placeholder}
             accessibilityLabel={placeholder ?? label}
             autoFocus
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="go"
-            onSubmitEditing={() => run(first)}
+            onSubmitEditing={() => run(current)}
             style={[panelText, hozoClasses(inputClassName), inputStyle as StyleProp<TextStyle>]}
           />
           <ScrollView
@@ -206,7 +214,10 @@ export function HozoCommandPalette({
                     return splitTextStyle([
                       hozoClasses(itemClassName, state),
                       itemStyle,
-                      index === first && [hozoClasses(activeItemClassName, state), activeItemStyle],
+                      index === current && [
+                        hozoClasses(activeItemClassName, state),
+                        activeItemStyle,
+                      ],
                     ])
                   }
                   return (
@@ -216,6 +227,9 @@ export function HozoCommandPalette({
                       accessibilityLabel={command.label}
                       accessibilityState={{ disabled: Boolean(command.disabled) }}
                       disabled={command.disabled}
+                      onHoverIn={() => {
+                        if (!command.disabled && index !== current) setActive(index)
+                      }}
                       onPress={() => run(index)}
                       style={(interaction) => [ROW, look(interaction)[0]]}
                     >
