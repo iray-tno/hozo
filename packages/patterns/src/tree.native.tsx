@@ -1,5 +1,7 @@
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { splitTextStyle } from './text-style.native.ts'
 
 import { type TreeNode, visibleRows } from './tree-rules.ts'
 
@@ -10,13 +12,13 @@ export interface HozoTreeProps {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886), a row with its `pressed`, `aria-selected`,
+   * `aria-expanded` and `disabled` state. A string label takes the text half
+   * of its row's styles. Each `*Style` prop comes after its class list.
    */
   className?: string
-  /** Source-level slot, carried like `className`; `rowStyle` is the runtime hook. */
+  /** The class list for each row, resolved like `className`. */
   rowClassName?: string
   nodes: readonly TreeNode[]
   defaultExpanded?: readonly string[]
@@ -43,6 +45,8 @@ export interface HozoTreeProps {
 }
 
 export function HozoTree({
+  className,
+  rowClassName,
   nodes,
   defaultExpanded = [],
   selectedId,
@@ -65,35 +69,55 @@ export function HozoTree({
   }, [])
 
   return (
-    <View accessibilityRole="list" accessibilityLabel={accessibilityLabel} style={style}>
-      {rows.map((row) => (
-        <Pressable
-          key={row.id}
-          accessibilityRole="menuitem"
-          accessibilityLabel={`${row.label}, level ${row.level}, ${row.position} of ${row.setSize}`}
-          accessibilityState={{
-            selected: row.id === selectedId,
-            disabled: row.disabled,
-            expanded: row.branch ? row.expanded : undefined,
-          }}
-          style={rowStyle}
-          onPress={() => {
-            if (row.disabled) return
-            if (row.branch) toggle(row.id)
-            else onSelect?.(row.id)
-          }}
-        >
-          {renderRow
-            ? renderRow({
-                id: row.id,
-                label: row.label,
-                level: row.level,
-                expanded: row.expanded,
-                branch: row.branch,
-              })
-            : row.label}
-        </Pressable>
-      ))}
+    <View
+      accessibilityRole="list"
+      accessibilityLabel={accessibilityLabel}
+      style={[hozoClasses(className), style]}
+    >
+      {rows.map((row) => {
+        const look = (pressed: boolean) =>
+          splitTextStyle(
+            hozoClasses(rowClassName, {
+              pressed,
+              disabled: Boolean(row.disabled),
+              'aria-selected': row.id === selectedId,
+              'aria-expanded': row.branch && row.expanded,
+              'aria-disabled': Boolean(row.disabled),
+            }),
+          )
+        return (
+          <Pressable
+            key={row.id}
+            accessibilityRole="menuitem"
+            accessibilityLabel={`${row.label}, level ${row.level}, ${row.position} of ${row.setSize}`}
+            accessibilityState={{
+              selected: row.id === selectedId,
+              disabled: row.disabled,
+              expanded: row.branch ? row.expanded : undefined,
+            }}
+            style={({ pressed }) => [look(pressed)[0], rowStyle]}
+            onPress={() => {
+              if (row.disabled) return
+              if (row.branch) toggle(row.id)
+              else onSelect?.(row.id)
+            }}
+          >
+            {({ pressed }) =>
+              renderRow ? (
+                renderRow({
+                  id: row.id,
+                  label: row.label,
+                  level: row.level,
+                  expanded: row.expanded,
+                  branch: row.branch,
+                })
+              ) : (
+                <Text style={look(pressed)[1]}>{row.label}</Text>
+              )
+            }
+          </Pressable>
+        )
+      })}
     </View>
   )
 }

@@ -1,4 +1,5 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { splitTextStyle as split } from './text-style.native.ts'
@@ -16,8 +17,9 @@ export interface HozoChipProps {
   /**
    * Tailwind classes, the same props the Web half takes. Read by the
    * compiler, which hands them over as `style` and `removeStyle` (#787); a
-   * file the compiler did not read leaves them here, where a Native pattern
-   * has no class list to resolve.
+   * file the compiler did not read leaves them here as strings, resolved
+   * through the project's candidate map (#886) -- the toggle with its
+   * `pressed`, `aria-checked` and `disabled` state -- before `style`.
    */
   className?: string
   removeClassName?: string
@@ -55,6 +57,8 @@ export function HozoChip({
   removeLabel,
   removeIcon = '×',
   disabled,
+  className,
+  removeClassName,
   style,
   removeStyle,
   testID,
@@ -70,8 +74,26 @@ export function HozoChip({
     onSelectedChange?.(next)
   }, [on, onSelectedChange, selected])
 
-  const [box, text] = split(style)
-  const [removeBox, removeText] = split(removeStyle)
+  const look = (pressed: boolean) =>
+    split([
+      hozoClasses(className, {
+        pressed,
+        disabled: Boolean(disabled),
+        'aria-checked': on,
+        'aria-disabled': Boolean(disabled),
+      }),
+      style,
+    ])
+  const removeLook = (pressed: boolean) =>
+    split([
+      hozoClasses(removeClassName, {
+        pressed,
+        disabled: Boolean(disabled),
+        'aria-disabled': Boolean(disabled),
+      }),
+      removeStyle,
+    ])
+  const [box, text] = look(false)
   const name = accessibilityLabel ?? (typeof children === 'string' ? children : undefined)
   const remove = onRemove ? (
     <Pressable
@@ -79,16 +101,18 @@ export function HozoChip({
       accessibilityLabel={message('hozo.chip.remove', { label: name ?? '' }, removeLabel)}
       accessibilityState={{ disabled: Boolean(disabled) }}
       disabled={disabled}
-      style={removeBox}
+      style={({ pressed }) => removeLook(pressed)[0]}
       onPress={onRemove}
     >
-      <Text
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-        style={removeText}
-      >
-        {removeIcon}
-      </Text>
+      {({ pressed }) => (
+        <Text
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={removeLook(pressed)[1]}
+        >
+          {removeIcon}
+        </Text>
+      )}
     </Pressable>
   ) : null
 
@@ -98,11 +122,11 @@ export function HozoChip({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: on, disabled: Boolean(disabled) }}
       disabled={disabled}
-      style={remove ? undefined : box}
+      style={({ pressed }) => (remove ? undefined : look(pressed)[0])}
       testID={remove ? undefined : testID}
       onPress={toggle}
     >
-      {label(children, text)}
+      {({ pressed }) => label(children, look(pressed)[1])}
     </Pressable>
   ) : (
     <Text style={text}>{children}</Text>

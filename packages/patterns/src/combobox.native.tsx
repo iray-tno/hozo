@@ -1,7 +1,8 @@
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, TextInput, View, type ViewStyle } from 'react-native'
-
+import { Pressable, type StyleProp, Text, TextInput, View, type ViewStyle } from 'react-native'
 import { filterOptions } from './combobox-rules.ts'
+import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoComboboxOption<T> {
   value: T
@@ -15,13 +16,12 @@ export interface HozoComboboxProps<T> {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886), with the state of the element it
+   * styles. Each `*Style` prop comes after its class list.
    */
   className?: string
-  /** Source-level styling slots, carried like `className`; use styles at runtime. */
+  /** Class lists for the parts, resolved like `className`. */
   inputClassName?: string
   listClassName?: string
   optionClassName?: string
@@ -38,6 +38,10 @@ export interface HozoComboboxProps<T> {
 }
 
 export function HozoCombobox<T>({
+  className,
+  inputClassName,
+  listClassName,
+  optionClassName,
   options,
   value,
   onValueChange,
@@ -67,8 +71,9 @@ export function HozoCombobox<T>({
   )
 
   return (
-    <View style={style}>
+    <View style={[hozoClasses(className), style]}>
       <TextInput
+        style={hozoClasses(inputClassName, { 'aria-expanded': open })}
         accessibilityRole="combobox"
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ expanded: open }}
@@ -81,12 +86,26 @@ export function HozoCombobox<T>({
         onFocus={() => setOpen(true)}
       />
       {open ? (
-        <View accessibilityRole="list" accessibilityLabel={accessibilityLabel} style={listStyle}>
+        <View
+          accessibilityRole="list"
+          accessibilityLabel={accessibilityLabel}
+          style={[hozoClasses(listClassName), listStyle]}
+        >
           {visible.length === 0
             ? emptyMessage
             : visible.map((index) => {
                 const option = options[index]
                 if (!option) return null
+                const look = (pressed: boolean) =>
+                  splitTextStyle(
+                    hozoClasses(optionClassName, {
+                      pressed,
+                      disabled: Boolean(option.disabled),
+                      'aria-selected': option.value === value,
+                      'aria-disabled': Boolean(option.disabled),
+                    }),
+                  )
+                const content = option.render ?? option.label
                 return (
                   <Pressable
                     key={`option-${index}`}
@@ -95,10 +114,16 @@ export function HozoCombobox<T>({
                       selected: option.value === value,
                       disabled: option.disabled,
                     }}
-                    style={optionStyle}
+                    style={({ pressed }) => [look(pressed)[0], optionStyle]}
                     onPress={() => commit(index)}
                   >
-                    {option.render ?? option.label}
+                    {({ pressed }) =>
+                      typeof content === 'string' ? (
+                        <Text style={look(pressed)[1]}>{content}</Text>
+                      ) : (
+                        content
+                      )
+                    }
                   </Pressable>
                 )
               })}

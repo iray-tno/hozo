@@ -1,4 +1,5 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type LayoutChangeEvent,
@@ -32,10 +33,9 @@ export interface HozoBottomSheetProps {
    * Tailwind classes, the same props the Web half takes.
    *
    * On a tag the compiler lowers they are gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else they are carried and ignored here -- this
-   * side has no CSS engine to resolve a class list against -- and the types
-   * still have to accept them, because an app is type-checked against the source
-   * the compiler reads rather than its output.
+   * `StyleSheet` entry. Here they arrive as strings and are resolved through
+   * the project's candidate map (#886), a pressable handle with its `pressed`
+   * state. Each `*Style` prop comes after its class list.
    */
   className?: string
   scrimClassName?: string
@@ -90,6 +90,10 @@ export function HozoBottomSheet({
   defaultDetent,
   dismissBelow,
   handleAccessibilityLabel: handleAccessibilityLabelProp,
+  className,
+  scrimClassName,
+  sheetClassName,
+  handleClassName,
   style,
   scrimStyle,
   sheetStyle,
@@ -169,7 +173,7 @@ export function HozoBottomSheet({
 
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={style}>
+      <View style={[hozoClasses(className), style]}>
         {/*
           The scrim is the tap that dismisses, which is the single-pointer
           alternative to dragging the sheet away. Hidden from the accessibility
@@ -180,7 +184,7 @@ export function HozoBottomSheet({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={scrimStyle}
+          style={[hozoClasses(scrimClassName), scrimStyle]}
           onPress={onClose}
         />
         <View
@@ -196,13 +200,17 @@ export function HozoBottomSheet({
           }}
           testID={testID}
           onLayout={onLayout}
-          style={[sheetStyle, { transform: [{ translateY: travelFor(fraction, height) }] }]}
+          style={[
+            hozoClasses(sheetClassName),
+            sheetStyle,
+            { transform: [{ translateY: travelFor(fraction, height) }] },
+          ]}
         >
           {resizable ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={handleAccessibilityLabel}
-              style={handleStyle}
+              style={({ pressed }) => [hozoClasses(handleClassName, { pressed }), handleStyle]}
               onPress={() => {
                 const next = cycleDetent(fraction, stops)
                 if (next !== null) setFraction(next)
@@ -213,7 +221,7 @@ export function HozoBottomSheet({
             <View
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={handleStyle}
+              style={[hozoClasses(handleClassName), handleStyle]}
               {...pan.panHandlers}
             />
           )}

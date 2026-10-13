@@ -6,6 +6,7 @@ import {
   type UseHoverTriggerOptions,
   useHoverTrigger,
 } from '@hozo/behaviors/native'
+import { hozoClasses } from '@hozo/engine/project'
 import {
   type ComponentRef,
   cloneElement,
@@ -34,10 +35,9 @@ export interface TooltipProps extends Omit<UseHoverTriggerOptions, 'anchorRef' |
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886), with the state of the element it
+   * styles. Each `*Style` prop comes after its class list.
    */
   className?: string
   content: ReactNode
@@ -76,6 +76,7 @@ export function Tooltip({
   open,
   defaultOpen,
   onOpenChange,
+  className,
   style,
 }: TooltipProps) {
   const anchorRef = useRef<NativeMeasurable | null>(null)
@@ -133,7 +134,7 @@ export function Tooltip({
       crossAxisOffset={crossAxisOffset}
       flip={flip}
       shift={shift}
-      style={style}
+      style={[hozoClasses(className), style]}
     >
       {content}
     </FloatingPositioner>
