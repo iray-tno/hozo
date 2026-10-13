@@ -44,7 +44,12 @@ async function load(native = false, slider = false, rtl = false) {
             I18nManager: { isRTL: rtl },
             PanResponder: { create: (handlers) => ({ panHandlers: handlers }) },
           }
-        : require(name),
+        : // The Slider's class props, resolved through the project's
+          // candidate map (#886); this package does not depend on it, and
+          // these tests are about seeking, so they resolve to nothing.
+          name === '@hozo/engine/project'
+          ? { hozoClasses: () => [] }
+          : require(name),
     module,
     module.exports,
   )
