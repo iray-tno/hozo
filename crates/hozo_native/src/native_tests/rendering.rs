@@ -1073,6 +1073,27 @@ fn a_pagination_is_hozo_pagination_with_a_style_per_state() {
 }
 
 #[test]
+fn pagination_compiles_control_state_slots_not_the_row_or_ellipsis() {
+    let compile = |props: &str| {
+        let source = format!("import {{ Pagination }} from '@hozo/core'\nconst el = <Pagination pageCount={{20}} {props} />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let output = compile(r#"itemClassName="px-2 hover:text-white active:opacity-50" currentItemClassName="bg-red-500 focus-visible:outline-4" disabledItemClassName="opacity-25 not-hover:border-2" itemStyle={extra} currentItemStyle={currentExtra} disabledItemStyle={disabledExtra}"#);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for prop in ["hozoItemStyle", "hozoCurrentItemStyle", "hozoDisabledItemStyle"] {
+        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible }}) => [")), "{}", output.jsx);
+    }
+    for expected in ["hovered &&", "pressed &&", "focusVisible &&", "!(hovered) &&", "itemStyle={extra}", "currentItemStyle={currentExtra}", "disabledItemStyle={disabledExtra}"] {
+        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    }
+    for slot in ["className", "ellipsisClassName"] {
+        let output = compile(&format!(r#"{slot}="focus-visible:outline-2""#));
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+    }
+}
+
+#[test]
 fn a_stepper_is_hozo_stepper_with_a_style_per_status() {
     let source = r#"
         import { Stepper } from '@hozo/core'

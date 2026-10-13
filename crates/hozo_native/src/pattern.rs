@@ -14,6 +14,9 @@ pub(super) fn interaction_style_prop(primitive: Primitive, class_prop: &str) -> 
         // The root, slider, thumb and hex input do not share this owner.
         (Primitive::ColorPicker, "swatchClassName") => Some("hozoSwatchStyle"),
         (Primitive::ColorPicker, "selectedSwatchClassName") => Some("hozoSelectedSwatchStyle"),
+        (Primitive::Pagination, "itemClassName") => Some("hozoItemStyle"),
+        (Primitive::Pagination, "currentItemClassName") => Some("hozoCurrentItemStyle"),
+        (Primitive::Pagination, "disabledItemClassName") => Some("hozoDisabledItemStyle"),
         _ => None,
     }
 }

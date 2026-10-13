@@ -175,3 +175,114 @@ test('on Native with getPageHref: links, which open their address when there is 
     stub.Linking.openURL = original
   }
 })
+
+const STATE_SOURCE = `import { Pagination } from '@hozo/core'
+export function C({ page, onPageChange, getPageHref, itemStyle, currentItemStyle, disabledItemStyle }) {
+  return <Pagination page={page} defaultPage={1} pageCount={10} onPageChange={onPageChange}
+    getPageHref={getPageHref} className="gap-2 text-slate-700"
+    itemClassName="px-2 hover:bg-blue-500 hover:text-black focus-visible:outline-2 active:opacity-50"
+    currentItemClassName="bg-red-500 hover:text-white focus-visible:outline-4"
+    disabledItemClassName="opacity-25 hover:opacity-50"
+    ellipsisClassName="px-1" itemStyle={itemStyle} currentItemStyle={currentItemStyle}
+    disabledItemStyle={disabledItemStyle} />
+}`
+
+function mountState(props: Record<string, unknown> = {}) {
+  const { C } = loadNativeModule(STATE_SOURCE)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C, props))
+  })
+  return root
+}
+function event(node: Tree, name: string) {
+  const handler = node.props[name]
+  assert.equal(typeof handler, 'function', `${name} is not wired`)
+  renderer.act(() => (handler as () => void)())
+}
+const control = (root: ReturnType<typeof renderer.create>, label: string) => {
+  const node = controls(root).find((node: Tree) => node.props.accessibilityLabel === label)
+  assert.ok(node, `${label} is not mounted`)
+  return node
+}
+
+test('compiled page classes update the actual box and label and follow the current page', () => {
+  const pages: number[] = []
+  const root = mountState({ onPageChange: (page: number) => pages.push(page) })
+  try {
+    const previous = control(root, 'Previous page')
+    assert.equal(previous.props.disabled, true)
+    assert.equal(flat(previous).opacity, 0.25)
+    event(previous, 'onHoverIn')
+    assert.equal(flat(previous).opacity, 0.5, 'disabled slot gets its own hover')
+    const page1 = control(root, 'Page 1')
+    const page2 = control(root, 'Page 2')
+    event(page2, 'onHoverIn')
+    assert.equal(flat(page2).backgroundColor, '#2b7fff')
+    assert.equal(flat(page2.findByType('Text')).color, '#000')
+    assert.equal(flat(page1).backgroundColor, '#fb2c36', 'current slot belongs to another host')
+    event(page2, 'onFocus')
+    assert.equal(flat(page2).outlineWidth, 2)
+    assert.equal(flat(page1).outlineWidth, undefined)
+    event(page2, 'onPressIn')
+    assert.equal(flat(page2).opacity, 0.5)
+    assert.equal(flat(page2).outlineWidth, undefined)
+    event(page2, 'onPressOut')
+    event(page2, 'onPress')
+    assert.deepEqual(pages, [2])
+    const current = control(root, 'Page 2')
+    assert.equal(current.props.accessibilityState?.selected, true)
+    assert.equal(flat(current).backgroundColor, '#fb2c36')
+    assert.equal(flat(current.findByType('Text')).color, '#fff', 'current slot follows selection')
+    event(current, 'onKeyDown')
+    assert.equal(flat(current).outlineWidth, 4)
+    assert.equal(control(root, 'Previous page').props.disabled, false)
+    assert.equal(flat(control(root, 'Previous page')).opacity, undefined)
+    const row = root.root.findAll((node: Tree) => node.type === 'View')[0]
+    assert.equal(flat(row).outlineWidth, undefined)
+    assert.equal(flat(row).backgroundColor, undefined)
+    const ellipses = root.root.findAll(
+      (node: Tree) =>
+        node.type === 'View' && node.props.importantForAccessibility === 'no-hide-descendants',
+    )
+    assert.ok(ellipses.length > 0)
+    for (const ellipsis of ellipses) assert.equal(flat(ellipsis).outlineWidth, undefined)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('compiled page styles retain explicit slot overrides, controlled state and link navigation', () => {
+  const opened: string[] = []
+  const pages: number[] = []
+  const original = stub.Linking.openURL
+  stub.Linking.openURL = async (url: string) => opened.push(url)
+  const root = mountState({
+    page: 1,
+    onPageChange: (page: number) => pages.push(page),
+    getPageHref: (page: number) => `myapp://catalog/${page}`,
+    itemStyle: { opacity: 0.9 },
+    currentItemStyle: { opacity: 0.8, outlineWidth: 6 },
+    disabledItemStyle: { opacity: 0.7 },
+  })
+  try {
+    const previous = control(root, 'Previous page')
+    const current = control(root, 'Page 1')
+    const next = control(root, 'Page 2')
+    event(previous, 'onHoverIn')
+    event(current, 'onFocus')
+    event(next, 'onPressIn')
+    assert.equal(flat(previous).opacity, 0.7)
+    assert.equal(flat(current).opacity, 0.8)
+    assert.equal(flat(current).outlineWidth, 6)
+    assert.equal(flat(next).opacity, 0.9)
+    assert.equal(next.props.accessibilityRole, 'link')
+    event(next, 'onPress')
+    assert.deepEqual(pages, [2])
+    assert.deepEqual(opened, ['myapp://catalog/2'])
+    assert.equal(control(root, 'Page 1').props.accessibilityState?.selected, true)
+  } finally {
+    renderer.act(() => root.unmount())
+    stub.Linking.openURL = original
+  }
+})

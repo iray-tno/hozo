@@ -33,6 +33,13 @@ existing slot order remains intact and the preset's background colour still
 comes last. Root, slider, thumb and hex-input slots are not swatch owners
 and are not enabled by this contract.
 
+Pagination's `itemClassName`, `currentItemClassName` and
+`disabledItemClassName` consume `hozoItemStyle`, `hozoCurrentItemStyle` and
+`hozoDisabledItemStyle` on the actual page control. Current/disabled select
+which slot is applied, never which interaction state is observed. Box and
+string label share that owner's style evaluation; the outer row and hidden
+ellipsis do not consume a control callback.
+
 Selection/disabled predicates need a separate per-slot semantic contract;
 this first slice does not infer internal state from authored props or remove
 their existing diagnostics. Other patterns and group selectors remain
