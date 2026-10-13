@@ -1,3 +1,4 @@
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { blendColor } from '@hozo/engine'
 import {
   createContext,
@@ -9,7 +10,6 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
-  useState,
 } from 'react'
 import {
   Animated,
@@ -51,10 +51,6 @@ export interface HozoPressableProps extends Omit<PressableProps, 'style'> {
   hozoFocusVisible?: boolean
 }
 
-const HOVERED = 1
-const FOCUSED = 2
-const PRESSED = 4
-const FOCUS_VISIBLE = 8
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
 
 /**
@@ -171,8 +167,6 @@ export function HozoPressable({
   hozoFocusVisible = false,
   ...props
 }: HozoPressableProps) {
-  const [interaction, setInteraction] = useState(0)
-  const interactionRef = useRef(0)
   const initialStyle =
     typeof style === 'function'
       ? style({ pressed: false, hovered: false, focused: false, focusVisible: false })
@@ -259,16 +253,9 @@ export function HozoPressable({
       : transformValues.get(spec.key)!,
   }))
   const animateInteraction = useCallback(
-    (next: number) => {
+    (next: HozoPressableState) => {
       if (!hozoTransition || typeof style !== 'function') return
-      const flattened = StyleSheet.flatten(
-        style({
-          pressed: (next & PRESSED) !== 0,
-          hovered: (next & HOVERED) !== 0,
-          focused: (next & FOCUSED) !== 0,
-          focusVisible: (next & FOCUS_VISIBLE) !== 0,
-        }),
-      )
+      const flattened = StyleSheet.flatten(style({ ...next }))
       const animations: Animated.CompositeAnimation[] = []
       if (hozoTransition.opacity) {
         const targetOpacity = typeof flattened?.opacity === 'number' ? flattened.opacity : 1
@@ -284,14 +271,7 @@ export function HozoPressable({
       }
       if (hozoTransition.transform) {
         const targets = new Map(
-          transformTargets(
-            style({
-              pressed: (next & PRESSED) !== 0,
-              hovered: (next & HOVERED) !== 0,
-              focused: (next & FOCUSED) !== 0,
-              focusVisible: (next & FOCUS_VISIBLE) !== 0,
-            }),
-          ).map((target) => [target.key, target.value]),
+          transformTargets(style({ ...next })).map((target) => [target.key, target.value]),
         )
         for (const spec of transformSpecs) {
           animations.push(
@@ -306,14 +286,7 @@ export function HozoPressable({
         }
       }
       if (hozoTransition.colors) {
-        const targets = colorTargets(
-          style({
-            pressed: (next & PRESSED) !== 0,
-            hovered: (next & HOVERED) !== 0,
-            focused: (next & FOCUSED) !== 0,
-            focusVisible: (next & FOCUS_VISIBLE) !== 0,
-          }),
-        )
+        const targets = colorTargets(style({ ...next }))
         for (const [key, range] of colorRanges) {
           const current = blendColor(range.from, range.to, colorFraction.current)
           const target = targets.get(key) ?? (key === 'backgroundColor' ? 'transparent' : current)
@@ -335,41 +308,23 @@ export function HozoPressable({
     },
     [colorProgress, colorRanges, hozoTransition, opacity, style, transformSpecs, transformValues],
   )
-  const setFlag = useCallback(
-    (flag: number, active: boolean) => {
-      const current = interactionRef.current
-      const next = active ? current | flag : current & ~flag
-      interactionRef.current = next
-      animateInteraction(next)
-      setInteraction(next)
-    },
-    [animateInteraction],
-  )
+  const { state: interaction, handlers } = usePressableInteraction({
+    focusVisible: hozoFocusVisible,
+    onChange: animateInteraction,
+  })
   const PressableComponent = pressableFor(hozoTransition)
-  const modality = useRef<'keyboard' | 'pointer'>('keyboard')
 
   // The style for the state this component is in, resolved here because
   // the animated path cannot hand React Native a callback -- see the
   // `style` prop below.
   const resolvedStyle = useMemo(
-    () =>
-      typeof style === 'function'
-        ? style({
-            pressed: (interaction & PRESSED) !== 0,
-            hovered: (interaction & HOVERED) !== 0,
-            focused: (interaction & FOCUSED) !== 0,
-            focusVisible: (interaction & FOCUS_VISIBLE) !== 0,
-          })
-        : style,
+    () => (typeof style === 'function' ? style({ ...interaction }) : style),
     [interaction, style],
   )
 
   const context = useMemo(
     () => ({
-      pressed: (interaction & PRESSED) !== 0,
-      hovered: (interaction & HOVERED) !== 0,
-      focused: (interaction & FOCUSED) !== 0,
-      focusVisible: (interaction & FOCUS_VISIBLE) !== 0,
+      ...interaction,
       transition: hozoTransition,
     }),
     [hozoTransition, interaction],
@@ -380,28 +335,25 @@ export function HozoPressable({
       <PressableComponent
         {...props}
         onHoverIn={(event: MouseEvent) => {
-          setFlag(HOVERED, true)
+          handlers.hoverIn()
           onHoverIn?.(event)
         }}
         onHoverOut={(event: MouseEvent) => {
-          setFlag(HOVERED, false)
+          handlers.hoverOut()
           onHoverOut?.(event)
         }}
         onFocus={(event: NativeSyntheticEvent<TargetedEvent>) => {
-          setFlag(FOCUSED, true)
-          if (hozoFocusVisible) setFlag(FOCUS_VISIBLE, modality.current === 'keyboard')
+          handlers.focus()
           onFocus?.(event)
         }}
         onBlur={(event: NativeSyntheticEvent<TargetedEvent>) => {
-          setFlag(FOCUSED, false)
-          if (hozoFocusVisible) setFlag(FOCUS_VISIBLE, false)
+          handlers.blur()
           onBlur?.(event)
         }}
         onPointerDown={
           hozoFocusVisible
             ? (event: Parameters<NonNullable<PressableProps['onPointerDown']>>[0]) => {
-                modality.current = 'pointer'
-                setFlag(FOCUS_VISIBLE, false)
+                handlers.pointerDown()
                 onPointerDown?.(event)
               }
             : onPointerDown
@@ -409,20 +361,17 @@ export function HozoPressable({
         onKeyDown={
           hozoFocusVisible
             ? (event: Parameters<NonNullable<PressableProps['onKeyDown']>>[0]) => {
-                modality.current = 'keyboard'
-                if ((interactionRef.current & FOCUSED) !== 0) setFlag(FOCUS_VISIBLE, true)
+                handlers.keyDown()
                 onKeyDown?.(event)
               }
             : onKeyDown
         }
         onPressIn={(event: GestureResponderEvent) => {
-          modality.current = 'pointer'
-          if (hozoFocusVisible) setFlag(FOCUS_VISIBLE, false)
-          setFlag(PRESSED, true)
+          handlers.pressIn()
           onPressIn?.(event)
         }}
         onPressOut={(event: GestureResponderEvent) => {
-          setFlag(PRESSED, false)
+          handlers.pressOut()
           onPressOut?.(event)
         }}
         // An array when there is a transition, a callback when there is
@@ -463,10 +412,8 @@ export function HozoPressable({
             : ({ pressed }: PressableStateCallbackType) =>
                 typeof style === 'function'
                   ? style({
-                      pressed: pressed || (interaction & PRESSED) !== 0,
-                      hovered: (interaction & HOVERED) !== 0,
-                      focused: (interaction & FOCUSED) !== 0,
-                      focusVisible: (interaction & FOCUS_VISIBLE) !== 0,
+                      ...interaction,
+                      pressed: pressed || interaction.pressed,
                     })
                   : style
         }

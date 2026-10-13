@@ -475,6 +475,10 @@ async function patternHarness(cacheName, look) {
   const flat = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
   const loaded = new Map()
   const load = (file) => {
+    // These tree tests feed explicit interaction facts into the style/label
+    // callbacks. The real shared tracker and host bridge are exercised by
+    // native-control-indicators.test.mjs without launching a browser.
+    if (file === 'pressable.native.tsx') return { Pressable: 'Pressable' }
     if (!loaded.has(file)) {
       const source = readFileSync(
         new URL(`../../../packages/patterns/src/${file}`, import.meta.url),
@@ -528,11 +532,12 @@ async function patternHarness(cacheName, look) {
     return found
   }
   // A pressable's box at a state, and the Text its children render then.
-  const at = (pressable, pressed) => {
+  const at = (pressable, pressed, extra = {}) => {
+    const state = { pressed, hovered: false, focused: false, focusVisible: false, ...extra }
     const children = pressable.props.children
-    const label = typeof children === 'function' ? children({ pressed }) : children
+    const label = typeof children === 'function' ? children(state) : children
     return {
-      box: flat(pressable.props.style({ pressed })),
+      box: flat(pressable.props.style(state)),
       text: flat(label?.type === 'Text' ? label.props.style : undefined),
     }
   }

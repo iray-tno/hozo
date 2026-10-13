@@ -22,6 +22,11 @@ const filename = (relative) => path.join(root, relative).replaceAll('\\', '/')
 const uiRoot = path.join(root, 'packages/ui')
 const theme = await loadTheme('@import "tailwindcss"; @import "./src/theme.css";', uiRoot)
 const cache = openCandidateCache()
+cache.scanFile(
+  'tab-state-look.ts',
+  "export const c = 'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50'",
+  1,
+)
 for (const file of ['toggle.tsx', 'radio.tsx']) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
@@ -52,7 +57,7 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
 }
 const bundled = await build({
   stdin: {
-    contents: `export { HozoCheckbox, HozoSwitch } from ${JSON.stringify(filename('packages/ui/src/toggle.tsx'))}; export { HozoRadioGroup } from ${JSON.stringify(filename('packages/ui/src/radio.tsx'))};`,
+    contents: `export { HozoCheckbox, HozoSwitch } from ${JSON.stringify(filename('packages/ui/src/toggle.tsx'))}; export { HozoRadioGroup } from ${JSON.stringify(filename('packages/ui/src/radio.tsx'))}; export { HozoTabs } from ${JSON.stringify(filename('packages/patterns/src/tabs.native.tsx'))}; export { usePressableInteraction } from ${JSON.stringify(filename('packages/behaviors/src/pressable-interaction.ts'))};`,
     resolveDir: root,
   },
   bundle: true,
@@ -64,6 +69,9 @@ const bundled = await build({
     {
       name: 'native-patterns',
       setup(builder) {
+        builder.onResolve({ filter: /^@hozo\/behaviors\/pressable-interaction$/ }, () => ({
+          path: filename('packages/behaviors/src/pressable-interaction.ts'),
+        }))
         builder.onResolve({ filter: /^@hozo\/patterns$/ }, () => ({
           path: 'native-patterns',
           namespace: 'probe',
@@ -93,7 +101,8 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
   module,
   module.exports,
 )
-const { HozoCheckbox, HozoSwitch, HozoRadioGroup } = module.exports
+const { HozoCheckbox, HozoSwitch, HozoRadioGroup, HozoTabs } = module.exports
+const { usePressableInteraction } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
 const indicators = (tree) =>
@@ -218,4 +227,71 @@ test('Native radio options have a real dot only for the selected option', async 
     flat(indicators(tree)[1].findAllByType('NativeView')[1].props.style).backgroundColor,
     color('hozo-accent'),
   )
+})
+
+test('Native tabs deliver hover, keyboard focus-visible and press state to both box and label', async (t) => {
+  const tree = await mount(t, HozoTabs, {
+    tabs: [
+      { label: 'One', content: 'Body' },
+      { label: 'Two', content: 'Other', disabled: true },
+    ],
+    tabClassName:
+      'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50',
+  })
+  const tab = () => tree.root.findAllByType('NativePressable')[0]
+  const box = () => flat(tab().props.style)
+  const text = () => flat(tab().findByType('NativeText').props.style)
+  const event = async (name) => {
+    await act(() => tab().props[name]({}))
+  }
+  assert.equal(box().backgroundColor, undefined)
+  await event('onHoverIn')
+  assert.equal(box().backgroundColor, color('hozo-accent'))
+  assert.equal(text().color, color('hozo-accent-text'))
+  await event('onHoverOut')
+  assert.equal(box().backgroundColor, undefined)
+  await event('onFocus')
+  assert.equal(box().outlineWidth, 2)
+  assert.equal(box().outlineColor, color('hozo-focus'))
+  assert.equal(text().fontWeight, '700')
+  await event('onPointerDown')
+  assert.equal(box().outlineWidth, undefined, 'pointer modality clears the focus ring')
+  await event('onKeyDown')
+  assert.equal(box().outlineWidth, 2, 'a key on the focused host restores it')
+  await event('onPressIn')
+  assert.equal(box().opacity, 0.5)
+  await event('onPressOut')
+  assert.equal(box().opacity, undefined)
+  await event('onBlur')
+  assert.equal(box().outlineWidth, undefined)
+  await event('onKeyDown')
+  assert.equal(box().outlineWidth, undefined, 'a key does not focus a blurred host')
+  const before = tree.root.findAllByType('NativePressable')[1].props.accessibilityState.selected
+  await press(tree.root.findAllByType('NativePressable')[1])
+  assert.equal(
+    tree.root.findAllByType('NativePressable')[1].props.accessibilityState.selected,
+    before,
+  )
+})
+
+test('the shared tracker notifies the animation driver synchronously and can omit focus-visible inference', async (t) => {
+  const seen = []
+  function Probe() {
+    const interaction = usePressableInteraction({ onChange: (state) => seen.push(state) })
+    return React.createElement('InteractionProbe', interaction)
+  }
+  const tree = await mount(t, Probe, {})
+  const current = () => tree.root.findByType('InteractionProbe').props
+  await act(() => {
+    current().handlers.hoverIn()
+    assert.equal(seen.at(-1).hovered, true, 'the native driver does not wait for a React commit')
+    current().handlers.focus()
+    current().handlers.keyDown()
+  })
+  assert.equal(current().state.focused, true)
+  assert.equal(current().state.focusVisible, false, 'inference is opt-in for the primitive')
+  await act(() => current().handlers.pressIn())
+  assert.equal(current().state.pressed, true)
+  await act(() => current().handlers.pressOut())
+  assert.equal(current().state.pressed, false)
 })

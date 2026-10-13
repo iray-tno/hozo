@@ -73,6 +73,18 @@ export function HoverPreview() {
 }
 ```
 
+## Native pressable interaction facts
+
+`@hozo/behaviors/pressable-interaction` exports `usePressableInteraction`.
+It returns `state` (`pressed`, `hovered`, `focused`, `focusVisible`) and
+eventless `handlers` for hover, focus, pointer/key modality and press changes.
+The host delivers those events and composes any caller handlers afterwards.
+Focus-visible inference is opt-in. The optional `onChange` callback receives
+the next facts synchronously for the existing Native animation driver.
+This is shared by the primitive and patterns; it has no listeners, subscriptions
+or animation allocations of its own, and does not subscribe to environment
+conditions such as media queries or colour scheme.
+
 <!-- generated: package-footer -->
 
 ---
