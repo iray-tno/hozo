@@ -241,7 +241,10 @@ test('plain Link retains function children, pressed-only host styles, disabled a
     assert.equal(host().props.disabled, true)
     assert.equal(host().props.onHoverIn, undefined)
     assert.equal(host().props.onFocus, undefined)
-    assert.equal(host().props.children({ pressed: true }).props.children, 'pressed')
+    assert.equal(
+      root!.root.findByType(stub.Pressable).props.children({ pressed: true }).props.children,
+      'pressed',
+    )
     assert.equal(stub.StyleSheet.flatten(host().props.style({ pressed: true })).opacity, 0.5)
     renderer.act(() => {
       root!.update(react.createElement(C, { disabled: false }))
