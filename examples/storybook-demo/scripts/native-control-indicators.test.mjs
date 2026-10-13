@@ -49,6 +49,35 @@ const NativeModal = ({ visible, ...props }) =>
   visible ? React.createElement('NativeModal', props, props.children) : null
 const announcements = []
 const openedURLs = []
+// Animation and responder scheduling are host facilities here, not GPU or
+// gesture-system evidence. The actual pattern callbacks still run unchanged.
+const NativeAnimatedView = (props) =>
+  React.createElement('NativeAnimatedView', props, props.children)
+const nativeAnimated = {
+  View: NativeAnimatedView,
+  Value: class {
+    constructor(value) {
+      this.value = value
+    }
+  },
+  timing: (value, config) => ({
+    start: (done) => {
+      value.value = config.toValue
+      done?.({ finished: true })
+    },
+    stop: () => {},
+  }),
+}
+const nativePanResponder = {
+  create: (config) => ({
+    panHandlers: {
+      onMoveShouldSetResponder: config.onMoveShouldSetPanResponder,
+      onResponderGrant: config.onPanResponderGrant,
+      onResponderMove: config.onPanResponderMove,
+      onResponderRelease: config.onPanResponderRelease,
+    },
+  }),
+}
 const NativePressable = ({ children, style, disabled, ...props }) => {
   const state = { pressed: false }
   return React.createElement(
@@ -78,6 +107,9 @@ const probeSources = [
   ),
   exportsFrom('HozoCommandPalette', 'packages/patterns/src/command-palette.native.tsx'),
   exportsFrom('HozoPagination', 'packages/patterns/src/pagination.native.tsx'),
+  exportsFrom('HozoPopover', 'packages/patterns/src/popover.native.tsx'),
+  exportsFrom('HozoDrawer', 'packages/patterns/src/drawer.native.tsx'),
+  exportsFrom('HozoBottomSheet', 'packages/patterns/src/bottom-sheet.native.tsx'),
   exportsFrom('HozoNavigationProvider', 'packages/engine/src/navigation-context.tsx'),
   exportsFrom('usePressableInteraction', 'packages/behaviors/src/pressable-interaction.ts'),
 ]
@@ -97,6 +129,22 @@ const bundled = await build({
       setup(builder) {
         builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
           path: filename('packages/behaviors/src/i18n.ts'),
+        }))
+        builder.onResolve({ filter: /^@hozo\/behaviors\/native$/ }, () => ({
+          path: 'native-behaviors',
+          namespace: 'native-behaviors',
+        }))
+        builder.onLoad({ filter: /.*/, namespace: 'native-behaviors' }, () => ({
+          contents: [
+            exportsFrom(
+              'FloatingPositioner',
+              'packages/behaviors/src/floating-positioner.native.tsx',
+            ),
+            exportsFrom('Portal', 'packages/behaviors/src/portal.native.tsx'),
+            exportsFrom('usePresence', 'packages/behaviors/src/presence.native.ts'),
+          ].join('\n'),
+          loader: 'ts',
+          resolveDir: root,
         }))
         builder.onResolve({ filter: /^@hozo\/engine\/navigation$/ }, () => ({
           path: filename('packages/engine/src/navigation-entry.native.ts'),
@@ -129,6 +177,10 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         ScrollView: NativeView,
         AccessibilityInfo: { announceForAccessibility: (message) => announcements.push(message) },
         Linking: { openURL: (url) => openedURLs.push(url) },
+        Animated: nativeAnimated,
+        Easing: { quad: (value) => value * value, out: (easing) => easing },
+        PanResponder: nativePanResponder,
+        I18nManager: { isRTL: false },
         Pressable: NativePressable,
         StyleSheet: { flatten: flat },
       }
@@ -142,6 +194,7 @@ const { HozoCheckbox, HozoSwitch, HozoRadioGroup, HozoTabs } = module.exports
 const { CheckboxPattern, SwitchPattern, RadioPattern, HozoAccordion } = module.exports
 const { HozoMenu, HozoListbox, HozoCombobox, HozoTree } = module.exports
 const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.exports
+const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
 const { usePressableInteraction } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
@@ -349,6 +402,31 @@ async function checkInteraction(tree, index = 0) {
   assert.equal(box().outlineWidth, undefined)
   assert.equal(box().opacity, undefined)
   assert.equal(text().fontWeight, undefined)
+}
+
+async function checkBoxInteraction(host) {
+  const style = () => flat(host().props.style)
+  const event = async (name) => {
+    await act(() => host().props[name]({}))
+  }
+  await event('onHoverIn')
+  assert.equal(style().backgroundColor, color('hozo-accent'))
+  await event('onHoverOut')
+  assert.equal(style().backgroundColor, undefined)
+  await event('onFocus')
+  assert.equal(style().opacity, 0.75)
+  assert.equal(style().outlineWidth, 2)
+  await event('onPointerDown')
+  assert.equal(style().outlineWidth, undefined)
+  await event('onKeyDown')
+  assert.equal(style().outlineWidth, 2)
+  await event('onPressIn')
+  assert.equal(style().opacity, 0.5)
+  await event('onPressOut')
+  assert.equal(style().opacity, 0.75)
+  await event('onBlur')
+  assert.equal(style().opacity, undefined)
+  assert.equal(style().outlineWidth, undefined)
 }
 
 for (const [name, Component] of [
@@ -772,6 +850,96 @@ test('Native Pagination delivers interaction facts to item/current/disabled slot
   })
   await press(fallback.root.findAllByType('NativePressable').at(-1))
   assert.deepEqual(openedURLs.slice(start), ['/fallback/2'])
+})
+
+test('Native Popover trigger interaction keeps controlled opening and disabled behavior', async (t) => {
+  const changes = []
+  const props = {
+    trigger: 'Show',
+    triggerClassName: `${interactionClasses} aria-expanded:border-2`,
+    onOpenChange: (value) => changes.push(value),
+  }
+  const tree = await mount(t, HozoPopover, props)
+  await checkInteraction(tree)
+  const host = () => tree.root.findByType('NativePressable')
+  assert.equal(host().props.accessibilityState.expanded, false)
+  assert.deepEqual(changes, [])
+  await press(host())
+  assert.equal(host().props.accessibilityState.expanded, true)
+  assert.equal(flat(host().props.style).borderTopWidth, 2)
+  assert.equal(tree.root.findAllByType('NativeAnimatedView').length, 1)
+  await press(host())
+  assert.deepEqual(changes, [true, false])
+  assert.equal(tree.root.findAllByType('NativeAnimatedView').length, 0)
+  const controlled = await mount(t, HozoPopover, { ...props, open: false })
+  await press(controlled.root.findByType('NativePressable'))
+  assert.equal(
+    controlled.root.findByType('NativePressable').props.accessibilityState.expanded,
+    false,
+  )
+  const disabled = await mount(t, HozoPopover, { ...props, disabled: true })
+  const before = changes.length
+  await press(disabled.root.findByType('NativePressable'))
+  assert.equal(changes.length, before)
+})
+
+for (const [name, Component] of [
+  ['Drawer', HozoDrawer],
+  ['BottomSheet', HozoBottomSheet],
+]) {
+  test(`Native ${name} scrim receives interaction without dismissing, and keeps native close paths`, async (t) => {
+    const closed = []
+    const tree = await mount(t, Component, {
+      open: true,
+      scrimClassName: interactionClasses,
+      onClose: () => closed.push(true),
+    })
+    const scrim = () => tree.root.findAllByType('NativePressable')[0]
+    await checkBoxInteraction(scrim)
+    assert.deepEqual(closed, [])
+    assert.equal(scrim().props.accessibilityElementsHidden, true)
+    assert.equal(scrim().props.importantForAccessibility, 'no-hide-descendants')
+    await press(scrim())
+    await act(() => tree.root.findByType('NativeModal').props.onRequestClose())
+    const panel = tree.root
+      .findAllByType('NativeView')
+      .find((node) => node.props.accessibilityViewIsModal)
+    await act(() => panel.props.onAccessibilityAction({ nativeEvent: { actionName: 'escape' } }))
+    assert.equal(closed.length, 3)
+    const override = await mount(t, Component, {
+      open: true,
+      scrimClassName: interactionClasses,
+      scrimStyle: { backgroundColor: '#123456' },
+    })
+    const own = () => override.root.findAllByType('NativePressable')[0]
+    await act(() => own().props.onHoverIn({}))
+    assert.equal(flat(own().props.style).backgroundColor, '#123456')
+  })
+}
+
+test('Native BottomSheet handle keeps detent and responder callbacks while delivering interaction', async (t) => {
+  const tree = await mount(t, HozoBottomSheet, {
+    open: true,
+    detents: [0.5, 1],
+    defaultDetent: 0.5,
+    handleClassName: interactionClasses,
+  })
+  const handle = () => tree.root.findAllByType('NativePressable')[1]
+  const panel = () =>
+    tree.root.findAllByType('NativeView').find((node) => node.props.accessibilityViewIsModal)
+  await act(() => panel().props.onLayout({ nativeEvent: { layout: { height: 400 } } }))
+  const travel = () => flat(panel().props.style).transform[0].translateY
+  assert.equal(travel(), 200)
+  await checkBoxInteraction(handle)
+  assert.equal(travel(), 200, 'interaction alone does not change the detent')
+  await press(handle())
+  assert.equal(travel(), 0)
+  await press(handle())
+  assert.equal(travel(), 200)
+  assert.equal(handle().props.onMoveShouldSetResponder({}, { dy: 3 }), true)
+  await act(() => handle().props.onResponderGrant({}))
+  await act(() => handle().props.onResponderMove({}, { dy: -200 }))
+  assert.equal(travel(), 0, 'shared pressable forwards the existing responder handlers')
 })
 
 test('the shared tracker notifies the animation driver synchronously and can omit focus-visible inference', async (t) => {

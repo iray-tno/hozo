@@ -5,11 +5,11 @@ import {
   type LayoutChangeEvent,
   Modal,
   PanResponder,
-  Pressable,
   type StyleProp,
   View,
   type ViewStyle,
 } from 'react-native'
+import { Pressable } from './pressable.native.tsx'
 import {
   clampToDetents,
   cycleDetent,
@@ -34,8 +34,8 @@ export interface HozoBottomSheetProps {
    *
    * On a tag the compiler lowers they are gone by runtime, replaced by a
    * `StyleSheet` entry. Here they arrive as strings and are resolved through
-   * the project's candidate map (#886), a pressable handle with its `pressed`
-   * state. Each `*Style` prop comes after its class list.
+   * the project's candidate map (#886), a pressable handle or scrim with its
+   * interaction state. Each `*Style` prop comes after its class list.
    */
   className?: string
   scrimClassName?: string
@@ -184,7 +184,7 @@ export function HozoBottomSheet({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[hozoClasses(scrimClassName), scrimStyle]}
+          style={(interaction) => [hozoClasses(scrimClassName, { ...interaction }), scrimStyle]}
           onPress={onClose}
         />
         <View
@@ -210,7 +210,10 @@ export function HozoBottomSheet({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={handleAccessibilityLabel}
-              style={({ pressed }) => [hozoClasses(handleClassName, { pressed }), handleStyle]}
+              style={(interaction) => [
+                hozoClasses(handleClassName, { ...interaction }),
+                handleStyle,
+              ]}
               onPress={() => {
                 const next = cycleDetent(fraction, stops)
                 if (next !== null) setFraction(next)

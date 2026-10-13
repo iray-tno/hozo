@@ -4,13 +4,13 @@ import {
   type LayoutChangeEvent,
   Modal,
   PanResponder,
-  Pressable,
   type StyleProp,
   View,
   type ViewStyle,
 } from 'react-native'
 import type { HozoDrawerSide } from './drawer-side.ts'
 import { useHozoDrawerSide } from './drawer-side-hook.native.ts'
+import { Pressable } from './pressable.native.tsx'
 import { clampToDetents, fractionAfter, restingFraction, travelFor } from './sheet-rules.ts'
 
 export type { HozoDrawerSide }
@@ -165,7 +165,7 @@ export function HozoDrawer({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[hozoClasses(scrimClassName), scrimStyle]}
+          style={(interaction) => [hozoClasses(scrimClassName, { ...interaction }), scrimStyle]}
           onPress={onClose}
         />
         <View

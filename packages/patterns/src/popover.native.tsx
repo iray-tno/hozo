@@ -1,15 +1,8 @@
 import { FloatingPositioner, type Placement, Portal, usePresence } from '@hozo/behaviors/native'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import {
-  Animated,
-  Easing,
-  Pressable,
-  type StyleProp,
-  Text,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import { Animated, Easing, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 /**
@@ -52,7 +45,7 @@ export interface HozoPopoverProps {
    *
    * On a tag the compiler lowers they are gone by runtime, replaced by a
    * `StyleSheet` entry. Here they arrive as strings and are resolved through
-   * the project's candidate map (#886), the trigger with its `pressed`,
+   * the project's candidate map (#886), the trigger with its interaction,
    * `aria-expanded` and `disabled` state. A string trigger takes the text half
    * of its styles. Each `*Style` prop comes after its class list.
    */
@@ -135,10 +128,10 @@ export function HozoPopover({
     [controlled, onOpenChange],
   )
 
-  const triggerLook = (pressed: boolean) =>
+  const triggerLook = (interaction: InteractionState) =>
     splitTextStyle(
       hozoClasses(triggerClassName, {
-        pressed,
+        ...interaction,
         disabled: Boolean(disabled),
         'aria-expanded': open,
         'aria-disabled': Boolean(disabled),
@@ -155,12 +148,12 @@ export function HozoPopover({
         // into both platforms' node info.
         accessibilityState={{ expanded: open, disabled: Boolean(disabled) }}
         disabled={disabled}
-        style={({ pressed }) => [triggerLook(pressed)[0], triggerStyle]}
+        style={(interaction) => [triggerLook(interaction)[0], triggerStyle]}
         onPress={() => change(!open)}
       >
-        {({ pressed }) =>
+        {(interaction) =>
           typeof trigger === 'string' ? (
-            <Text style={triggerLook(pressed)[1]}>{trigger}</Text>
+            <Text style={triggerLook(interaction)[1]}>{trigger}</Text>
           ) : (
             trigger
           )
