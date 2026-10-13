@@ -942,10 +942,18 @@ pub(super) fn render_node(
     // rule. Before the element's state styles, which a caller's class does
     // not beat on Web either: a disabled button looks disabled whatever
     // colour it was given (#881).
+    //
+    // A pressable hands the resolver the state it tracks, so a runtime
+    // `active:` or `hover:` class applies as a compiled one does (#886).
+    let runtime_states = !node.class_name_fallback.is_empty() && matches!(component, "Pressable" | "HozoLink");
+    let class_state = runtime_class_state(node, source, runtime_states);
     let fallback: Vec<String> = node
         .class_name_fallback
         .iter()
-        .map(|expr_ref| format!("hozoClasses({})", source_text(source, *expr_ref)))
+        .map(|expr_ref| match &class_state {
+            Some(state) => format!("hozoClasses({}, {state})", source_text(source, *expr_ref)),
+            None => format!("hozoClasses({})", source_text(source, *expr_ref)),
+        })
         .collect();
     style_array_parts.splice(state_start..state_start, fallback);
 
@@ -954,12 +962,14 @@ pub(super) fn render_node(
     // update the state its callback consumes.
     let needs_focus_visible = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
         interaction::uses_focus_visible(&declaration.condition)
-    }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_focus_visible));
+    }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_focus_visible))
+        || runtime_states;
     let needs_hover_or_focus = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
         condition_contains(&declaration.condition, |condition| {
             uses_hover(condition) || focus_state(condition).is_some()
         })
-    }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_interaction));
+    }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_interaction))
+        || runtime_states;
     // Navigation stays in HozoLink; the compiler selects the existing state
     // provider underneath it. A plain link imports no animation machinery.
     // A host-only pressed style can stay in RN's cheap style callback. Text
@@ -1053,7 +1063,7 @@ pub(super) fn render_node(
     let child_interaction_context = rendered_component == "HozoPressable" || link_interaction
         || (interaction_context && !matches!(node.primitive, Primitive::Pressable | Primitive::Button | Primitive::Link));
     let needs_pressed_fn = matches!(rendered_component, "Pressable" | "HozoPressable" | "HozoText" | "HozoLink")
-        && !pressed_parts.is_empty();
+        && (!pressed_parts.is_empty() || runtime_states);
     if needs_pressed_fn {
         style_array_parts.extend(pressed_parts);
     } else if !pressed_parts.is_empty() {

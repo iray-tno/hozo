@@ -24,18 +24,25 @@ use super::*;
 /// whole cascade -- which is exactly what React Native's own style-array
 /// merging already does.
 ///
-/// Conditional utilities (`hover:`, `md:`, `pressed:`) are the price. A
+/// Conditional utilities under a breakpoint or `dark:` are the price. A
 /// style object can't express them, and making it able to would mean
-/// per-component state tracking -- i.e. rebuilding the engine this design
-/// is choosing not to ship. They go into `unsupported` instead of being
-/// dropped, so the resolver can say so at the moment one is actually used
-/// rather than rendering silently wrong. A candidate merely *appearing* in
+/// subscribing to the window and the colour scheme -- i.e. rebuilding the
+/// engine this design is choosing not to ship. They go into `unsupported`
+/// instead of being dropped, so the resolver can say so at the moment one
+/// is actually used rather than rendering silently wrong.
+///
+/// The element's own state is different (#886). `hover:`, `active:`,
+/// `focus-visible:`, `disabled:` and `aria-*:` need no tracking here: the
+/// pressable rendering the element already tracks them, and the compiler
+/// hands them to `hozoClasses` beside the class string. They go into
+/// `states`, keyed by the state they need. A candidate merely *appearing* in
 /// the scan proves nothing (it may only ever be used on Web, or in a
 /// static `className` that compiled fine), which is why this is a runtime
 /// warning and not a build error.
 pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String {
     let mut supported: Vec<(&String, Vec<(String, String)>)> = Vec::new();
     let mut unsupported: Vec<(&String, String)> = Vec::new();
+    let mut states: Vec<(&String, Vec<StateGroup>)> = Vec::new();
     let mut transforms = Vec::new();
     // These are unconditional utility names. Conditional candidates are
     // refused below; projects with no controls keep the original tiny map.
@@ -49,6 +56,13 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
         // Any conditional group disqualifies the class, which is what
         // makes `container` land here: its max-widths are per-breakpoint.
         if utility.groups.iter().any(|(condition, _)| *condition != Condition::Always) {
+            // A state of the element itself is the exception (#886): the
+            // pressable rendering it already tracks that state and hands it
+            // to the resolver, so nothing here has to.
+            if let Some(groups) = state_groups(&utility.groups, theme) {
+                states.push((name, groups));
+                continue;
+            }
             unsupported.push((name, format!("`{name}` is conditional, and a runtime-resolved class can only carry unconditional styles on React Native. Write it as a static className so it compiles to a real style variant.")));
             continue;
         }
@@ -100,14 +114,37 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
         out.push_str(&format!("  {}: {},\n", quote(name), quote(reason)));
     }
     out.push_str("}\n\n");
+    // Only when there are any, so a project without state classes keeps the
+    // module it had.
+    let states_argument = if states.is_empty() {
+        ""
+    } else {
+        out.push_str("const states = {\n");
+        for (name, groups) in &states {
+            let groups: Vec<String> = groups
+                .iter()
+                .map(|(keys, pairs)| {
+                    let keys: Vec<String> = keys.iter().map(|key| quote(key)).collect();
+                    let pairs: Vec<String> =
+                        pairs.iter().map(|(key, value)| format!("{key}: {value}")).collect();
+                    format!("[[{}], {{ {} }}]", keys.join(", "), pairs.join(", "))
+                })
+                .collect();
+            out.push_str(&format!("  {}: [{}],\n", quote(name), groups.join(", ")));
+        }
+        out.push_str("}\n\n");
+        ", states"
+    };
     if needs_transform_slots {
         out.push_str("const transforms = new Map([\n");
         for (name, metadata) in transforms {
             out.push_str(&format!("  [styles[{}], {metadata}],\n", quote(name)));
         }
-        out.push_str("])\n\nexport const hozoClasses = createClassResolver(styles, unsupported, resolved => hozoTransformStyles(resolved, transforms))\n");
-    } else {
+        out.push_str(&format!("])\n\nexport const hozoClasses = createClassResolver(styles, unsupported, resolved => hozoTransformStyles(resolved, transforms){states_argument})\n"));
+    } else if states.is_empty() {
         out.push_str("export const hozoClasses = createClassResolver(styles, unsupported)\n");
+    } else {
+        out.push_str("export const hozoClasses = createClassResolver(styles, unsupported, undefined, states)\n");
     }
     // This module is already the one project-specific value Metro carries
     // onto the device. Keep the resolved reset choice beside the candidate
@@ -115,6 +152,51 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
     // as the compiler (#336).
     out.push_str(&format!("export const hozoPreflight = {}\n", theme.preflight()));
     out
+}
+
+/// The state keys that all have to hold, and the style pairs then.
+type StateGroup = (Vec<String>, Vec<(String, String)>);
+
+/// A utility's groups as state groups, if every one is conditioned on the
+/// element's own state and nothing else, and every property has a Native
+/// form. `None` sends it to `unsupported` as before.
+fn state_groups(groups: &[(Condition, Vec<StyleProperty>)], theme: &Theme) -> Option<Vec<StateGroup>> {
+    groups
+        .iter()
+        .map(|(condition, properties)| {
+            let keys = state_keys(condition)?;
+            if properties.iter().any(|property| property.unsupported_on_native().is_some()) {
+                return None;
+            }
+            let pairs: Vec<(String, String)> = style_pairs(properties, theme)
+                .into_iter()
+                .map(|(key, value)| (key.to_string(), value))
+                .collect();
+            Some((keys, pairs))
+        })
+        .collect()
+}
+
+/// The keys an element's state is handed to the resolver under. ARIA states
+/// keep their attribute names, so `aria-pressed` cannot be read as the
+/// pointer's `pressed`.
+fn state_keys(condition: &Condition) -> Option<Vec<String>> {
+    Some(match condition {
+        Condition::Hover => vec!["hovered".to_string()],
+        Condition::Pressed => vec!["pressed".to_string()],
+        Condition::Focus => vec!["focused".to_string()],
+        Condition::FocusVisible => vec!["focusVisible".to_string()],
+        Condition::Disabled => vec!["disabled".to_string()],
+        Condition::Aria(state) => vec![format!("aria-{state}")],
+        Condition::All(conditions) => {
+            let mut keys = Vec::new();
+            for condition in conditions {
+                keys.extend(state_keys(condition)?);
+            }
+            keys
+        }
+        _ => return None,
+    })
 }
 
 /// A JS string literal. Class names carry `:` `/` `[` `]` and reasons carry
@@ -224,17 +306,38 @@ mod tests {
 
     #[test]
     fn conditional_candidates_are_named_rather_than_silently_missing() {
-        // A style object can't carry `hover:`, and making it able to means
-        // per-component state tracking -- the engine this design is
-        // choosing not to ship. Reported when used, not at build time:
-        // appearing in the scan doesn't prove anything produces it.
-        let module =
-            render_candidate_module(&["hover:bg-blue-500".to_string()], &Theme::default());
-        assert!(!module.contains("styles = { \"hover"), "{module}");
+        // A style object can't carry `md:` or `dark:`, and making it able to
+        // means subscribing to the window and the colour scheme -- the engine
+        // this design is choosing not to ship. Reported when used, not at
+        // build time: appearing in the scan doesn't prove anything produces it.
+        let module = render_candidate_module(&["md:bg-blue-500".to_string()], &Theme::default());
+        assert!(!module.contains("styles = { \"md"), "{module}");
         assert!(
-            module.contains(r#""hover:bg-blue-500": "`hover:bg-blue-500` is conditional"#),
+            module.contains(r#""md:bg-blue-500": "`md:bg-blue-500` is conditional"#),
             "{module}"
         );
+    }
+
+    /// The element's own state is the exception (#886): the pressable that
+    /// renders it already tracks it, so the class is kept with the state it
+    /// needs and the resolver applies it when handed that state.
+    #[test]
+    fn state_candidates_are_kept_with_the_state_they_need() {
+        let module = render_candidate_module(
+            &[
+                "active:opacity-80".to_string(),
+                "hover:active:p-8".to_string(),
+                "aria-pressed:p-4".to_string(),
+                "disabled:cursor-not-allowed".to_string(),
+            ],
+            &Theme::default(),
+        );
+        assert!(module.contains(r#""active:opacity-80": [[["pressed"], { opacity: 0.8 }]],"#), "{module}");
+        assert!(module.contains(r#""hover:active:p-8": [[["hovered", "pressed"], "#), "{module}");
+        assert!(module.contains(r#""aria-pressed:p-4": [[["aria-pressed"], "#), "{module}");
+        // A state does not make a Web-only property portable.
+        assert!(module.contains(r#""disabled:cursor-not-allowed": ""#), "{module}");
+        assert!(module.contains("createClassResolver(styles, unsupported, undefined, states)"), "{module}");
     }
 
     #[test]

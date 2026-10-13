@@ -1463,7 +1463,7 @@ fn a_callers_class_goes_after_the_resting_look_and_before_the_state() {
     let at = |needle: &str| {
         output.jsx.find(needle).unwrap_or_else(|| panic!("{needle} missing from {}", output.jsx))
     };
-    let caller = at("hozoClasses(className)");
+    let caller = at("hozoClasses(className, { pressed, hovered, focused, focusVisible, disabled: Boolean(off) })");
     // The resting look, a breakpoint and a className branch, comes first.
     assert!(at("hozoStyles.hozo0,") < caller, "{}", output.jsx);
     assert!(at("hozoStyles.hozo0_md") < caller, "{}", output.jsx);

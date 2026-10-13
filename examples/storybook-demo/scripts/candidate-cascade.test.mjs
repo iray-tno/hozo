@@ -281,15 +281,20 @@ test("a caller's className beats the component's resting look and loses to its s
         caller,
         hozoClasses,
         Pressable: 'Pressable',
+        HozoPressable: 'HozoPressable',
         Text: 'Text',
         StyleSheet: { create: (styles) => styles },
         h: (type, props) => ({ type, props }),
       },
     )
-    const nativeStyle = Object.assign(
-      {},
-      ...[nativeElement.props.style].flat(Infinity).filter(Boolean),
-    )
+    // A pressable with a runtime class resolves its style per state (#886);
+    // at rest here.
+    const style = nativeElement.props.style
+    const resting =
+      typeof style === 'function'
+        ? style({ pressed: false, hovered: false, focused: false, focusVisible: false })
+        : style
+    const nativeStyle = Object.assign({}, ...[resting].flat(Infinity).filter(Boolean))
     assert.equal(
       nativeStyle.backgroundColor,
       '#fb2c36',
@@ -370,4 +375,54 @@ test('a className branch on a component applies both ways', {
   } finally {
     await page.close()
   }
+})
+
+// #886. A class string that reaches a pressable at runtime keeps its states
+// on Native: the compiler hands the resolver the state the pressable
+// tracks, and the candidate module keeps the classes that need it.
+test('a runtime class keeps its pressed and disabled looks on Native', () => {
+  const stateCache = openCandidateCache(path.join(directory, 'state-candidates.json'))
+  stateCache.scanFile(
+    'app.ts',
+    "export const look = 'bg-blue-500 active:opacity-80 disabled:opacity-50'",
+    1,
+  )
+  const source =
+    "import { Pressable } from '@hozo/core'\n" +
+    'const Example = () => <Pressable disabled={off} onPress={go} className={look}>Go</Pressable>'
+  const native = compiler.compileNative(source)[0]
+  const { hozoClasses } = evaluate(stateCache.renderNativeModule().replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  })
+  const styleFor = (off, pressed) => {
+    const element = evaluate(
+      `const hozoStyles = ${native.styles}\nmodule.exports = (${native.jsx})`,
+      {
+        off,
+        go: () => {},
+        look: 'bg-blue-500 active:opacity-80 disabled:opacity-50',
+        hozoClasses,
+        HozoPressable: 'HozoPressable',
+        Text: 'Text',
+        StyleSheet: { create: (styles) => styles },
+        h: (type, props) => ({ type, props }),
+      },
+    )
+    assert.equal(
+      typeof element.props.style,
+      'function',
+      'the pressable resolves its style per state',
+    )
+    const resolved = element.props.style({
+      pressed,
+      hovered: false,
+      focused: false,
+      focusVisible: false,
+    })
+    return Object.assign({}, ...[resolved].flat(Infinity).filter(Boolean))
+  }
+  assert.equal(styleFor(false, false).backgroundColor, '#2b7fff')
+  assert.equal(styleFor(false, false).opacity, undefined)
+  assert.equal(styleFor(false, true).opacity, 0.8)
+  assert.equal(styleFor(true, false).opacity, 0.5)
 })

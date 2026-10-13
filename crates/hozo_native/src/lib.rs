@@ -897,6 +897,37 @@ fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
     Some(format!("({})?.{state} === true", source_text(source, value)))
 }
 
+/// The state a runtime `className` is resolved against, as a JS object
+/// literal, or `None` when the element has none to give (#886).
+///
+/// `pointer` is a pressable's own: the names its style callback binds.
+/// `disabled` and the ARIA states come from the element's props, the same
+/// expressions a compiled `disabled:` or `aria-*:` reads, under the keys the
+/// candidate module stores them by.
+fn runtime_class_state(node: &Node, source: &str, pointer: bool) -> Option<String> {
+    let mut fields: Vec<String> = Vec::new();
+    if pointer {
+        fields.push("pressed, hovered, focused, focusVisible".to_string());
+    }
+    if let Some(disabled) = node.props.disabled.as_ref() {
+        fields.push(format!("disabled: Boolean({})", render_condition_expr(source, disabled)));
+    }
+    if node.props.accessibility_state.is_some() {
+        // A literal says which states it has; an opaque expression could
+        // carry any of React Native's.
+        let states: Vec<String> = match node.props.accessibility_state_keys.as_ref() {
+            Some(keys) => keys.clone(),
+            None => ["checked", "selected", "expanded", "busy", "disabled"].map(String::from).to_vec(),
+        };
+        for state in states {
+            if let Some(guard) = aria_state_guard(node, source, &state) {
+                fields.push(format!("'aria-{state}': {guard}"));
+            }
+        }
+    }
+    (!fields.is_empty()).then(|| format!("{{ {} }}", fields.join(", ")))
+}
+
 fn escape_jsx_text(text: &str) -> String {
     text.replace('{', "&#123;").replace('}', "&#125;")
 }
