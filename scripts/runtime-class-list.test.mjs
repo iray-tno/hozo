@@ -1,0 +1,114 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import test from 'node:test'
+import { AFTER, BEFORE, options, summarize } from './runtime-class-list.mjs'
+import { report } from './runtime-class-list-report.mjs'
+
+test('the runtime-list measurement keeps samples and validates bounded, reproducible options', () => {
+  const raw = [9, 1, 4, 2, 7]
+  assert.deepEqual(summarize(raw), { medianMs: 4, p90Ms: 9, minMs: 1, maxMs: 9, samplesMs: raw })
+  assert.deepEqual(raw, [9, 1, 4, 2, 7], 'summary must not sort the evidence in place')
+  assert.deepEqual(options(['--rows', '8,32', '--samples', '2', '--warmups', '0']).rows, [8, 32])
+  for (const args of [
+    ['--rows', '0'],
+    ['--rows', 'NaN'],
+    ['--samples', '0'],
+    ['--warmups', '-1'],
+    ['--typo', '1'],
+    ['--rows'],
+  ])
+    assert.throws(() => options(args))
+  assert.throws(() => summarize([]))
+  assert.throws(() => summarize([Number.NaN]))
+})
+
+test('the historical series is pinned and stays outside the ordinary PR test gate', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/runtime-class-list.yml', import.meta.url),
+    'utf8',
+  )
+  assert.ok(workflow.includes(BEFORE))
+  assert.ok(workflow.includes(AFTER))
+  assert.match(workflow, /workflow_dispatch:/)
+  assert.match(workflow, /pull_request:/)
+  assert.match(workflow, /paths:/)
+  assert.match(workflow, /if: always\(\)/)
+  assert.match(workflow, /actions\/upload-artifact@v4/)
+  assert.doesNotMatch(
+    readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8'),
+    /runtime-class-list\.mjs/,
+  )
+})
+
+function syntheticSeries() {
+  const currentCommit = 'a'.repeat(40)
+  const records = Object.fromEntries(
+    ['before', 'after', 'current'].map((name) => [
+      name,
+      {
+        schemaVersion: 1,
+        sourceCommit: name === 'before' ? BEFORE : name === 'after' ? AFTER : currentCommit,
+        driverCommit: currentCommit,
+        binarySha256: 'b'.repeat(64),
+        environment: { node: 'test', react: 'test' },
+        methodology: { rows: [4], samples: 3, warmups: 1 },
+        fixture: { source: 'same synthetic fixture' },
+        warnings: { runtime: name === 'before' ? ['active:opacity-50 is unsupported'] : [] },
+        results: ['plain', 'state-classes'].map((scenario) => ({
+          scenario,
+          rows: 4,
+          semantic: {
+            restingOpacity: null,
+            siblingOpacity: null,
+            stateSupported: name !== 'before' && scenario === 'state-classes',
+            pressedOpacity: name !== 'before' && scenario === 'state-classes' ? 0.5 : null,
+          },
+          mount: summarize([1, 3, 2]),
+          parentUpdate: summarize([2, 1, 3]),
+          oneRowPress: summarize([3, 2, 1]),
+        })),
+      },
+    ]),
+  )
+  return { records, currentCommit }
+}
+
+test('comparison labels unequal historical state support and rejects incomplete or mismatched evidence', () => {
+  const { records, currentCommit } = syntheticSeries()
+  const markdown = report(records, currentCommit)
+  assert.match(markdown, /not equal-feature speed comparisons/)
+  assert.match(markdown, /oneRowPress/)
+  for (const mutate of [
+    (copy) => {
+      copy.before.sourceCommit = currentCommit
+    },
+    (copy) => {
+      copy.after.driverCommit = BEFORE
+    },
+    (copy) => {
+      copy.after.environment.react = 'other'
+    },
+    (copy) => {
+      copy.before.results.pop()
+    },
+    (copy) => {
+      copy.current.results[1].semantic.stateSupported = false
+    },
+    (copy) => {
+      copy.current.results[1].semantic.siblingOpacity = 0.5
+    },
+    (copy) => {
+      copy.current.results[0].mount.samplesMs.pop()
+    },
+    (copy) => {
+      copy.current.results[0].mount.medianMs = 99
+    },
+    (copy) => {
+      copy.before.warnings.runtime = []
+    },
+  ]) {
+    const copy = structuredClone(records)
+    mutate(copy)
+    assert.throws(() => report(copy, currentCommit))
+  }
+})
