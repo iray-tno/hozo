@@ -1,5 +1,6 @@
 import { shouldRestoreFocus } from '@hozo/behaviors'
 import { moveAccessibilityFocus } from '@hozo/behaviors/native'
+import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
 import {
   AppState,
@@ -42,10 +43,9 @@ export interface DialogProps {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886), with the state of the element it
+   * styles. Each `*Style` prop comes after its class list.
    */
   className?: string
   open?: boolean
@@ -86,6 +86,7 @@ export function Dialog({
   accessibilityLabel,
   accessibilityHint,
   restoreFocusTo,
+  className,
   style,
   testID,
   children,
@@ -158,7 +159,7 @@ export function Dialog({
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
       <View
-        style={style as StyleProp<ViewStyle>}
+        style={[hozoClasses(className), style] as StyleProp<ViewStyle>}
         // A dialog is a container, not one combined accessibility element.
         // On iOS an accessible parent hides its descendant controls from AX.
         // Keep modal isolation without swallowing confirm/cancel buttons.

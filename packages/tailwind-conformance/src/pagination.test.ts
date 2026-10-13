@@ -124,11 +124,13 @@ test('on Native: the current page is selected and styled, the ends disabled and 
     8,
     'itemClassName missed it',
   )
-  const [label] = current.findAll((node: Tree) => node.type === 'Text')
+  // The label is a function of the press state (#886), rendered by React
+  // Native's Pressable and kept as written by this stub; read it at rest.
+  const label = current.props.children({ pressed: false })
   assert.equal(flat(label).color, '#fff', "the current page's text colour missed its label")
   const other = byLabel('Page 4')
   assert.equal(flat(other).backgroundColor, undefined)
-  const [otherLabel] = other.findAll((node: Tree) => node.type === 'Text')
+  const otherLabel = other.props.children({ pressed: false })
   assert.ok(flat(otherLabel).color, "the row's text colour missed an ordinary page")
   renderer.act(() => root.unmount())
 

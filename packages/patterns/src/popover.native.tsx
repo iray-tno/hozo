@@ -1,6 +1,16 @@
 import { FloatingPositioner, type Placement, Portal, usePresence } from '@hozo/behaviors/native'
+import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { Animated, Easing, Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import {
+  Animated,
+  Easing,
+  Pressable,
+  type StyleProp,
+  Text,
+  View,
+  type ViewStyle,
+} from 'react-native'
+import { splitTextStyle } from './text-style.native.ts'
 
 /**
  * How long the panel fades in and out, matching `@hozo/ui`'s Web panel
@@ -41,10 +51,10 @@ export interface HozoPopoverProps {
    * Tailwind classes, the same props the Web half takes.
    *
    * On a tag the compiler lowers they are gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else they are carried and ignored here -- this
-   * side has no CSS engine to resolve a class list against -- and the types
-   * still have to accept them, because an app is type-checked against the source
-   * the compiler reads rather than its output.
+   * `StyleSheet` entry. Here they arrive as strings and are resolved through
+   * the project's candidate map (#886), the trigger with its `pressed`,
+   * `aria-expanded` and `disabled` state. A string trigger takes the text half
+   * of its styles. Each `*Style` prop comes after its class list.
    */
   className?: string
   triggerClassName?: string
@@ -87,6 +97,9 @@ export function HozoPopover({
   open: controlled,
   onOpenChange,
   disabled,
+  className,
+  triggerClassName,
+  panelClassName,
   style,
   triggerStyle,
   panelStyle,
@@ -122,8 +135,18 @@ export function HozoPopover({
     [controlled, onOpenChange],
   )
 
+  const triggerLook = (pressed: boolean) =>
+    splitTextStyle(
+      hozoClasses(triggerClassName, {
+        pressed,
+        disabled: Boolean(disabled),
+        'aria-expanded': open,
+        'aria-disabled': Boolean(disabled),
+      }),
+    )
+
   return (
-    <View style={style}>
+    <View style={[hozoClasses(className), style]}>
       <Pressable
         ref={anchorRef}
         accessibilityRole="button"
@@ -132,10 +155,16 @@ export function HozoPopover({
         // into both platforms' node info.
         accessibilityState={{ expanded: open, disabled: Boolean(disabled) }}
         disabled={disabled}
-        style={triggerStyle}
+        style={({ pressed }) => [triggerLook(pressed)[0], triggerStyle]}
         onPress={() => change(!open)}
       >
-        {trigger}
+        {({ pressed }) =>
+          typeof trigger === 'string' ? (
+            <Text style={triggerLook(pressed)[1]}>{trigger}</Text>
+          ) : (
+            trigger
+          )
+        }
       </Pressable>
       {presence.mounted ? (
         <Portal>
@@ -155,7 +184,7 @@ export function HozoPopover({
               pointerEvents={leaving ? 'none' : 'auto'}
               accessibilityElementsHidden={leaving}
               importantForAccessibility={leaving ? 'no-hide-descendants' : 'auto'}
-              style={[panelStyle, { opacity }]}
+              style={[hozoClasses(panelClassName), panelStyle, { opacity }]}
             >
               {children}
             </Animated.View>

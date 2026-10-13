@@ -432,26 +432,9 @@ test('a runtime class keeps its pressed and disabled looks on Native', () => {
 // source against stand-ins for React Native and React: what is asserted is
 // the style each element is handed, not how React Native draws it.
 test("@hozo/patterns' Native Tabs applies its class props, selected and pressed included", async () => {
-  const { readFileSync } = await import('node:fs')
-  const tabsCache = openCandidateCache(path.join(directory, 'tabs-candidates.json'))
-  tabsCache.scanFile(
-    'app.ts',
-    "export const c = 'p-4 px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'",
-    1,
-  )
-  const { hozoClasses } = evaluate(tabsCache.renderNativeModule().replace(/^import .*$/gm, ''), {
-    createClassResolver,
-  })
-  const source = readFileSync(
-    new URL('../../../packages/patterns/src/tabs.native.tsx', import.meta.url),
-    'utf8',
-  )
-  const modules = {
-    react: { useState: (value) => [value, () => {}], useCallback: (fn) => fn },
-    'react-native': { View: 'View', Pressable: 'Pressable' },
-    '@hozo/engine/project': { hozoClasses },
-  }
-  const { HozoTabs } = evaluate(source, { require: (name) => modules[name] })
+  const look = 'p-4 px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'
+  const { load } = await patternHarness('tabs-candidates.json', look)
+  const { HozoTabs } = load('tabs.native.tsx')
   const tree = HozoTabs({
     className: 'p-4',
     tabClassName: 'px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50',
@@ -466,7 +449,7 @@ test("@hozo/patterns' Native Tabs applies its class props, selected and pressed 
   const walk = (node) => {
     if (!node || typeof node !== 'object') return
     if (node.type === 'Pressable') found.push(node)
-    for (const child of [node.props?.children].flat()) walk(child)
+    for (const child of [node.props?.children].flat(Infinity)) walk(child)
   }
   walk(tree)
   const [first, second] = found
@@ -479,15 +462,12 @@ test("@hozo/patterns' Native Tabs applies its class props, selected and pressed 
   assert.equal(at(second, false).opacity, 0.5, 'disabled')
 })
 
-// #886, slice 3: the rest of `@hozo/patterns`' Native components, each run
-// from its own source the way the Tabs test above runs it. A relative import
-// is loaded the same way, so `text-style.native.ts` -- which moves a label's
-// colour and weight off a Pressable onto its Text -- is the real one.
-test("@hozo/patterns' Native controls apply their class props with each one's state", async () => {
+// Runs `@hozo/patterns`' Native components from their own source, against
+// stand-ins for React, React Native and the hooks they read, with a real
+// candidate module scanned for `look` behind `@hozo/engine/project`.
+async function patternHarness(cacheName, look) {
   const { readFileSync } = await import('node:fs')
-  const cache = openCandidateCache(path.join(directory, 'controls-candidates.json'))
-  const look =
-    'p-2 text-red-500 aria-expanded:bg-blue-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'
+  const cache = openCandidateCache(path.join(directory, cacheName))
   cache.scanFile('app.ts', `export const c = '${look}'`, 1)
   const { hozoClasses } = evaluate(cache.renderNativeModule().replace(/^import .*$/gm, ''), {
     createClassResolver,
@@ -517,9 +497,20 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
             Pressable: 'Pressable',
             Text: 'Text',
             Modal: 'Modal',
+            TextInput: 'TextInput',
+            Linking: { openURL: () => {} },
             StyleSheet: { flatten: flat },
           },
           '@hozo/engine/project': { hozoClasses },
+          '@hozo/behaviors': {
+            hozoTextChildren: (children) => children,
+            useHozoMessage: () => (key, _values, fallback) => fallback ?? key,
+            useHozoI18n: () => ({ dir: 'ltr' }),
+          },
+          '@hozo/engine/navigation': {
+            activateHozoNavigation: () => {},
+            useHozoNavigation: () => ({}),
+          },
         }[name]
   const pressables = (tree) => {
     const found = []
@@ -527,7 +518,7 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
       if (!node || typeof node !== 'object') return
       // The ones that resolve a look; a Modal's backdrop has a fixed style.
       if (node.type === 'Pressable' && typeof node.props.style === 'function') found.push(node)
-      for (const child of [node.props?.children].flat()) walk(child)
+      for (const child of [node.props?.children].flat(Infinity)) walk(child)
     }
     walk(tree)
     return found
@@ -541,6 +532,17 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
       text: flat(label?.type === 'Text' ? label.props.style : undefined),
     }
   }
+
+  return { load, pressables, at, flat }
+}
+
+// #886, slice 3: the rest of `@hozo/patterns`' Native components, through
+// `patternHarness`. `text-style.native.ts` -- which moves a label's colour and
+// weight off a Pressable onto its Text -- is loaded as the real one.
+test("@hozo/patterns' Native controls apply their class props with each one's state", async () => {
+  const look =
+    'p-2 text-red-500 aria-expanded:bg-blue-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'
+  const { load, pressables, at } = await patternHarness('controls-candidates.json', look)
 
   const accordion = load('accordion.native.tsx').HozoAccordion({
     triggerClassName: look,
@@ -601,4 +603,60 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
   assert.equal(at(trigger, true).box.opacity, 0.8, 'menu: pressed trigger')
   assert.equal(at(trigger, false).text.color, '#fb2c36', 'menu: trigger label')
   assert.equal(at(item, false).box.opacity, 0.5, 'menu: disabled item')
+})
+
+// #886, slice 3, second batch: Tabs' labels, Chip, Pagination, Tree,
+// Combobox and Toolbar. Popover, Drawer, BottomSheet, Dialog and Tooltip
+// resolve the same way but sit on Animated, a Portal or a positioner,
+// which these stand-ins do not model.
+test("@hozo/patterns' second batch of Native controls apply their class props", async () => {
+  const look =
+    'p-2 text-red-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 aria-expanded:bg-blue-500 active:opacity-80 disabled:opacity-50'
+  const { load, pressables, at, flat } = await patternHarness('batch-candidates.json', look)
+
+  const [tab] = pressables(
+    load('tabs.native.tsx').HozoTabs({
+      tabClassName: look,
+      tabs: [{ label: 'One', content: 'x' }],
+    }),
+  )
+  assert.equal(at(tab, false).text.color, '#fb2c36', 'tabs: a string label takes the text half')
+  assert.equal(at(tab, false).box.color, undefined, 'tabs: and the box does not')
+
+  const chip = load('chip.native.tsx').HozoChip({
+    className: look,
+    defaultSelected: true,
+    children: 'Filter',
+  })
+  assert.equal(at(chip, false).box.backgroundColor, '#2b7fff', 'chip: checked')
+  assert.equal(at(chip, true).box.opacity, 0.8, 'chip: pressed')
+  assert.equal(at(chip, false).text.color, '#fb2c36', 'chip: label')
+
+  const pages = pressables(
+    load('pagination.native.tsx').HozoPagination({
+      itemClassName: look,
+      currentItemClassName: 'p-2',
+      pageCount: 3,
+      defaultPage: 1,
+    }),
+  )
+  const [previous, first, second] = pages
+  assert.equal(at(previous, false).box.opacity, 0.5, 'pagination: disabled previous')
+  assert.equal(at(first, false).box.backgroundColor, '#2b7fff', 'pagination: current page')
+  assert.equal(at(second, false).box.backgroundColor, undefined, 'pagination: another page')
+
+  const [branch, leaf] = pressables(
+    load('tree.native.tsx').HozoTree({
+      rowClassName: look,
+      defaultExpanded: ['a'],
+      selectedId: 'b',
+      nodes: [{ id: 'a', label: 'A', children: [{ id: 'b', label: 'B' }] }],
+    }),
+  )
+  assert.equal(at(branch, false).box.backgroundColor, '#2b7fff', 'tree: expanded branch')
+  assert.equal(at(leaf, false).box.backgroundColor, '#2b7fff', 'tree: selected leaf')
+  assert.equal(at(leaf, false).text.color, '#fb2c36', 'tree: label')
+
+  const toolbar = load('toolbar.native.tsx').HozoToolbar({ className: 'p-2', items: [] })
+  assert.equal(flat(toolbar.props.style).paddingTop, 8, 'toolbar: className')
 })

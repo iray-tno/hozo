@@ -13,6 +13,9 @@
 export const View = 'View'
 export const Text = 'Text'
 export const Pressable = 'Pressable'
+
+/** The state a Pressable is in before anyone touches it. */
+const RESTING = { pressed: false, hovered: false, focused: false, focusVisible: false }
 export const TextInput = 'TextInput'
 export const Image = 'Image'
 export const ScrollView = 'ScrollView'
@@ -66,8 +69,18 @@ export const StyleSheet = {
   // React Native would accept it is the type check's question, asked
   // against its declarations rather than its runtime.
   create: (styles) => styles,
-  flatten: (style) =>
-    Object.assign({}, ...(Array.isArray(style) ? style.filter(Boolean) : [style || {}])),
+  flatten: (style) => flattenStyle(style),
+}
+
+/**
+ * Recursive, as React Native's is: a pattern passes a class list's resolved
+ * styles as an array inside its style array. A Pressable's style callback is
+ * read at rest.
+ */
+function flattenStyle(style) {
+  if (typeof style === 'function') return flattenStyle(style(RESTING))
+  if (Array.isArray(style)) return Object.assign({}, ...style.map(flattenStyle))
+  return style || {}
 }
 
 // Drivable, unlike the rest of this file.

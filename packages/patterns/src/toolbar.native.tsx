@@ -1,3 +1,4 @@
+import { hozoClasses } from '@hozo/engine/project'
 import type { ReactNode } from 'react'
 import { type StyleProp, View, type ViewStyle } from 'react-native'
 
@@ -23,10 +24,9 @@ export interface HozoToolbarProps {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886), with the state of the element it
+   * styles. Each `*Style` prop comes after its class list.
    */
   className?: string
   /** Shared author prop; Native focus order does not use the Web arrow-key axis. */
@@ -36,9 +36,13 @@ export interface HozoToolbarProps {
   style?: StyleProp<ViewStyle>
 }
 
-export function HozoToolbar({ items, accessibilityLabel, style }: HozoToolbarProps) {
+export function HozoToolbar({ className, items, accessibilityLabel, style }: HozoToolbarProps) {
   return (
-    <View accessibilityRole="toolbar" accessibilityLabel={accessibilityLabel} style={style}>
+    <View
+      accessibilityRole="toolbar"
+      accessibilityLabel={accessibilityLabel}
+      style={[hozoClasses(className), style]}
+    >
       {items.map((item, at) => (
         // Identified by position and nothing else: `defaultIndex`,
         // `onKeyDown(event, at)` and the roving `tabIndex` are all indices. A key
