@@ -1,6 +1,7 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 import { type TreeNode, visibleRows } from './tree-rules.ts'
@@ -13,7 +14,7 @@ export interface HozoTreeProps {
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
    * `StyleSheet` entry. Here it arrives as a string and is resolved through
-   * the project's candidate map (#886), a row with its `pressed`, `aria-selected`,
+   * the project's candidate map (#886), a row with its interaction, `aria-selected`,
    * `aria-expanded` and `disabled` state. A string label takes the text half
    * of its row's styles. Each `*Style` prop comes after its class list.
    */
@@ -75,10 +76,10 @@ export function HozoTree({
       style={[hozoClasses(className), style]}
     >
       {rows.map((row) => {
-        const look = (pressed: boolean) =>
+        const look = (interaction: InteractionState) =>
           splitTextStyle(
             hozoClasses(rowClassName, {
-              pressed,
+              ...interaction,
               disabled: Boolean(row.disabled),
               'aria-selected': row.id === selectedId,
               'aria-expanded': row.branch && row.expanded,
@@ -95,14 +96,15 @@ export function HozoTree({
               disabled: row.disabled,
               expanded: row.branch ? row.expanded : undefined,
             }}
-            style={({ pressed }) => [look(pressed)[0], rowStyle]}
+            disabled={row.disabled}
+            style={(interaction) => [look(interaction)[0], rowStyle]}
             onPress={() => {
               if (row.disabled) return
               if (row.branch) toggle(row.id)
               else onSelect?.(row.id)
             }}
           >
-            {({ pressed }) =>
+            {(interaction) =>
               renderRow ? (
                 renderRow({
                   id: row.id,
@@ -112,7 +114,7 @@ export function HozoTree({
                   branch: row.branch,
                 })
               ) : (
-                <Text style={look(pressed)[1]}>{row.label}</Text>
+                <Text style={look(interaction)[1]}>{row.label}</Text>
               )
             }
           </Pressable>

@@ -1,6 +1,7 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
-import { Modal, Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { Modal, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoMenuItem {
@@ -15,8 +16,8 @@ export interface HozoMenuProps {
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
    * `StyleSheet` entry. Here it arrives as a string and is resolved through
-   * the project's candidate map (#886): the trigger with its `pressed` and
-   * `aria-expanded` state, an item with `pressed` and `disabled`. A string
+   * the project's candidate map (#886): the trigger with its interaction and
+   * `aria-expanded` state, an item with interaction and `disabled`. A string
    * label takes the text half. Each `*Style` prop comes after its class list.
    */
   className?: string
@@ -48,12 +49,12 @@ export function HozoMenu({
 }: HozoMenuProps) {
   const [open, setOpen] = useState(false)
 
-  const triggerLook = (pressed: boolean) =>
-    splitTextStyle(hozoClasses(triggerClassName, { pressed, 'aria-expanded': open }))
-  const itemLook = (pressed: boolean, disabled?: boolean) =>
+  const triggerLook = (interaction: InteractionState) =>
+    splitTextStyle(hozoClasses(triggerClassName, { ...interaction, 'aria-expanded': open }))
+  const itemLook = (interaction: InteractionState, disabled?: boolean) =>
     splitTextStyle(
       hozoClasses(itemClassName, {
-        pressed,
+        ...interaction,
         disabled: Boolean(disabled),
         'aria-disabled': Boolean(disabled),
       }),
@@ -70,12 +71,12 @@ export function HozoMenu({
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        style={({ pressed }) => [triggerLook(pressed)[0], triggerStyle]}
+        style={(interaction) => [triggerLook(interaction)[0], triggerStyle]}
         onPress={() => setOpen(true)}
       >
-        {({ pressed }) =>
+        {(interaction) =>
           typeof trigger === 'string' ? (
-            <Text style={triggerLook(pressed)[1]}>{trigger}</Text>
+            <Text style={triggerLook(interaction)[1]}>{trigger}</Text>
           ) : (
             trigger
           )
@@ -105,12 +106,13 @@ export function HozoMenu({
               key={`item-${at}`}
               accessibilityRole="menuitem"
               accessibilityState={{ disabled: item.disabled }}
-              style={({ pressed }) => [itemLook(pressed, item.disabled)[0], itemStyle]}
+              disabled={item.disabled}
+              style={(interaction) => [itemLook(interaction, item.disabled)[0], itemStyle]}
               onPress={() => select(at)}
             >
-              {({ pressed }) =>
+              {(interaction) =>
                 typeof item.label === 'string' ? (
-                  <Text style={itemLook(pressed, item.disabled)[1]}>{item.label}</Text>
+                  <Text style={itemLook(interaction, item.disabled)[1]}>{item.label}</Text>
                 ) : (
                   item.label
                 )
