@@ -32,16 +32,43 @@
     "test": {
       "dependsOn": ["^build"]
     },
+    "@hozo/compiler#test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/engine/src/**",
+        "$TURBO_ROOT$/packages/rn-compat/src/**",
+        "$TURBO_ROOT$/packages/typography/src/**"
+      ]
+    },
+    "@hozo/tailwind-conformance#test": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/*/src/**",
+        "$TURBO_ROOT$/crates/hozo_ir/src/lib.rs"
+      ]
+    },
+    "@hozo/migration-audit#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/typography/src/**"]
+    },
     "@hozo/media#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/examples/showcase/assets/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/examples/showcase/assets/**",
+        "$TURBO_ROOT$/packages/patterns/src/slider*.ts",
+        "$TURBO_ROOT$/packages/patterns/src/slider*.tsx"
+      ]
     },
     "@hozo/example-storybook#test": {
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/examples/showcase/src/**",
-        "$TURBO_ROOT$/examples/showcase/assets/**"
+        "$TURBO_ROOT$/examples/showcase/assets/**",
+        "$TURBO_ROOT$/packages/patterns/src/**"
       ]
     },
     "@hozo/example-native-showcase#test": {
@@ -49,7 +76,13 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/examples/showcase/src/**",
-        "$TURBO_ROOT$/examples/showcase/assets/**"
+        "$TURBO_ROOT$/examples/showcase/assets/**",
+        "$TURBO_ROOT$/examples/storybook-demo/src/**",
+        "$TURBO_ROOT$/packages/compiler/src/**",
+        "$TURBO_ROOT$/packages/metro/src/**",
+        "$TURBO_ROOT$/packages/patterns/src/**",
+        "$TURBO_ROOT$/packages/svg/src/**",
+        "$TURBO_ROOT$/packages/three/src/**"
       ]
     },
     "test:performance": {

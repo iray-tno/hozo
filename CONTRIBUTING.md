@@ -69,6 +69,16 @@ passes every local test and fails CI at the last step. Change the generator.
 `.node` file. Until you rebuild it, every JS test is measuring the previous
 version of your Rust change — including the ones that pass.
 
+**A raw source probe needs raw source cache inputs.** A test that reads or
+bundles another package by filesystem path must include those paths in its
+Turbo `test` task's `inputs`, alongside `$TURBO_DEFAULT$`. This includes local
+helpers reached by the probe, not just its entry point. Do not add a production
+dependency merely to make a test's cache change. Keep narrowly scoped probes
+narrow (media reads Slider and its rules); a test that enumerates every
+component package, such as class-name parity, legitimately needs all of them.
+`scripts/turbo-source-inputs.test.mjs` guards the known source probes outside
+Turbo. Add new probes there, and verify task hashes with `turbo --dry=json`.
+
 **You cannot rebuild the addon while the audit is running.** On Windows the
 running report holds the `.node` file open and the build fails with `EBUSY`.
 Let the audit finish, or don't start it.
