@@ -62,7 +62,11 @@ test('a compiled disclosure starts closed, opens on press, and closes again', ()
   const mounted = root
 
   const trigger = () => {
-    const found = mounted.root.findAll((node) => typeof node.props.onPress === 'function')
+    // Composite props repeat the host's callback. Count/deliver to the real
+    // Pressable leaf only, as native-render's event fixtures do, not twice.
+    const found = mounted.root.findAll(
+      (node) => node.type === 'Pressable' && typeof node.props.onPress === 'function',
+    )
     assert.equal(found.length, 1, 'the summary is the one thing that can be pressed')
     return found[0] as Instance
   }
