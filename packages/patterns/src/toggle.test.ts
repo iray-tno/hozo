@@ -80,3 +80,23 @@ test('neither control carries a class it was not given', () => {
   assert.match(render(Checkbox, { className: 'C' }), /class="C"/)
   assert.match(render(Switch, { className: 'S' }), /class="S"/)
 })
+
+test('the indicator is opt-in, decorative, and sees the actual default/mixed/disabled state', () => {
+  for (const checked of [false, true, 'mixed'] as const) {
+    const observed: unknown[] = []
+    const html = render(Checkbox, {
+      defaultChecked: checked,
+      disabled: true,
+      indicator: (state: unknown) => {
+        observed.push(state)
+        return { className: 'ring', markClassName: 'mark' }
+      },
+    })
+    assert.deepEqual(observed, [{ checked, disabled: true }])
+    assert.match(html, /<span aria-hidden="true" class="ring"/)
+    assert.match(html, /<span class="mark"><\/span>/)
+    assert.match(html, /Notify me<\/button>/)
+  }
+  assert.doesNotMatch(render(Checkbox), /<span/)
+  assert.doesNotMatch(render(Switch), /<span/)
+})

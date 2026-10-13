@@ -1,6 +1,8 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { controlIndicator } from './control-indicator.native.tsx'
+import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 import { optionKey } from './option-key.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -20,6 +22,8 @@ export interface HozoRadioOption<T> {
 }
 
 export interface HozoRadioGroupProps<T> {
+  /** Decorative option slots, derived from the very state that accessibilityState announces. */
+  indicator?: (state: { checked: boolean; disabled: boolean }) => HozoControlIndicatorClasses
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
@@ -53,6 +57,7 @@ export function HozoRadioGroup<T>({
   accessibilityLabel,
   style,
   optionStyle,
+  indicator,
 }: HozoRadioGroupProps<T>) {
   const [uncontrolled, setUncontrolled] = useState<T | undefined>(defaultValue)
   const current = value ?? uncontrolled
@@ -92,13 +97,26 @@ export function HozoRadioGroup<T>({
             style={({ pressed }) => [look(pressed)[0], optionStyle]}
             onPress={() => select(at)}
           >
-            {({ pressed }) =>
-              typeof option.label === 'string' ? (
-                <Text style={look(pressed)[1]}>{option.label}</Text>
-              ) : (
-                option.label
+            {({ pressed }) => {
+              const text =
+                typeof option.label === 'string' ? (
+                  <Text style={look(pressed)[1]}>{option.label}</Text>
+                ) : (
+                  option.label
+                )
+              if (!indicator) return text
+              return (
+                <>
+                  {controlIndicator(indicator({ checked, disabled: Boolean(option.disabled) }), {
+                    pressed,
+                    disabled: Boolean(option.disabled),
+                    'aria-checked': checked,
+                    'aria-disabled': Boolean(option.disabled),
+                  })}
+                  {text}
+                </>
               )
-            }
+            }}
           </Pressable>
         )
       })}

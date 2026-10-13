@@ -565,6 +565,9 @@ importers:
       '@hozo/storybook':
         specifier: workspace:*
         version: link:../../packages/storybook
+      '@hozo/tailwind':
+        specifier: workspace:*
+        version: link:../../packages/tailwind
       '@storybook/addon-a11y':
         specifier: 10.5.9
         version: 10.5.9(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))
@@ -586,6 +589,9 @@ importers:
       playwright-core:
         specifier: ^1.63.0
         version: 1.63.0
+      react-test-renderer:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       storybook:
         specifier: ^10.5.9
         version: 10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8)
