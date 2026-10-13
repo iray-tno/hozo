@@ -515,6 +515,14 @@ async function patternHarness(cacheName, look) {
             useHozoMessage: () => (key, _values, fallback) => fallback ?? key,
             useHozoI18n: () => ({ dir: 'ltr', locale: 'en' }),
           },
+          // Initial input state only in these structural probes. Real events
+          // and tracker updates are tested in the browser-free React probe.
+          '@hozo/behaviors/pressable-interaction': {
+            usePressableInteraction: () => ({
+              state: { pressed: false, hovered: false, focused: false, focusVisible: false },
+              handlers: {},
+            }),
+          },
           '@hozo/engine/navigation': {
             activateHozoNavigation: () => {},
             useHozoNavigation: () => ({}),
@@ -714,7 +722,16 @@ test("@hozo/patterns' Native slotted patterns apply their class props", async ()
     cellClassName: 'p-2',
     filledCellClassName: 'bg-blue-500',
   })
-  const cells = find(otp, (node) => node.type === 'View' && node.props.accessibilityElementsHidden)
+  const otpContents = otp.props.children({
+    pressed: false,
+    hovered: false,
+    focused: false,
+    focusVisible: false,
+  })
+  const cells = find(
+    otpContents,
+    (node) => node.type === 'View' && node.props.accessibilityElementsHidden,
+  )
   assert.equal(flat(cells[0].props.style).backgroundColor, '#2b7fff', 'otp: a filled cell')
   assert.equal(flat(cells[1].props.style).backgroundColor, undefined, 'otp: an empty cell')
   assert.equal(flat(cells[1].props.style).paddingTop, 8, 'otp: cellClassName')

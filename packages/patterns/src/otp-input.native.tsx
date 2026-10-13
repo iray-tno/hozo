@@ -1,16 +1,10 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, useRef, useState } from 'react'
-import {
-  Pressable,
-  type StyleProp,
-  Text,
-  TextInput,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import { type StyleProp, Text, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type OtpType, otpActiveIndex, otpValue } from './otp-rules.ts'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { OtpType }
@@ -33,7 +27,8 @@ export interface HozoOtpInputProps {
    * compiler, which hands them over as the style props below; a file it did
    * not read leaves them here as strings, resolved through the project's
    * candidate map (#886) before the matching style prop -- a cell with the
-   * input's `focused` state when it is the active one.
+   * input's focused/focus-visible state when it is the active one, and the
+   * wrapper's hover/press facts. Input focus never comes from the wrapper.
    */
   className?: string
   cellClassName?: string
@@ -83,11 +78,23 @@ export function HozoOtpInput({
   const message = useHozoMessage()
   const input = useRef<ComponentRef<typeof TextInput>>(null)
   const [uncontrolled, setUncontrolled] = useState(() => otpValue(defaultValue ?? '', length, type))
-  const [focused, setFocused] = useState(false)
+  const { state: inputInteraction, handlers: inputHandlers } = usePressableInteraction({
+    focusVisible: true,
+  })
+  const focused = inputInteraction.focused
   const code = value !== undefined ? otpValue(value, length, type) : uncontrolled
   const characters = Array.from(code)
   const active = otpActiveIndex(code, length)
-  const [box, text] = splitTextStyle([hozoClasses(className), style])
+  // The wrapper is an unfocusable hit target, not a second input. In
+  // particular a bubbled input focus must not give it a focus-visible ring.
+  const wrapperFacts = (interaction: InteractionState) => ({
+    ...interaction,
+    focused: false,
+    focusVisible: false,
+    disabled: Boolean(disabled),
+  })
+  const look = (interaction: InteractionState) =>
+    splitTextStyle([hozoClasses(className, wrapperFacts(interaction)), style])
 
   const change = (raw: string) => {
     const next = otpValue(raw, length, type)
@@ -101,53 +108,73 @@ export function HozoOtpInput({
       onPress={() => input.current?.focus()}
       disabled={disabled}
       accessible={false}
-      style={[ROW, box]}
+      focusable={false}
+      onPointerDown={inputHandlers.pointerDown}
+      onPressIn={inputHandlers.pointerDown}
+      onKeyDown={inputHandlers.keyDown}
+      style={(interaction) => [ROW, look(interaction)[0]]}
       testID={testID}
     >
-      {Array.from({ length }, (_, position) => position).map((index) => {
-        const character = characters[index]
-        const [cellBox, cellText] = splitTextStyle([
-          hozoClasses(cellClassName, {
-            focused: focused && index === active,
-            disabled: Boolean(disabled),
-          }),
-          cellStyle,
-          focused && index === active && [hozoClasses(activeCellClassName), activeCellStyle],
-          character !== undefined && [hozoClasses(filledCellClassName), filledCellStyle],
-        ])
+      {(interaction) => {
+        const text = look(interaction)[1]
         return (
-          <View
-            key={index}
-            style={[CENTRED, cellBox]}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
-            <Text style={[text, cellText]}>
-              {character === undefined ? '' : mask ? '•' : character}
-            </Text>
-          </View>
+          <>
+            {Array.from({ length }, (_, position) => position).map((index) => {
+              const character = characters[index]
+              const facts = {
+                ...wrapperFacts(interaction),
+                focused: focused && index === active,
+                focusVisible: inputInteraction.focusVisible && index === active,
+              }
+              const [cellBox, cellText] = splitTextStyle([
+                hozoClasses(cellClassName, facts),
+                cellStyle,
+                focused &&
+                  index === active && [hozoClasses(activeCellClassName, facts), activeCellStyle],
+                character !== undefined && [
+                  hozoClasses(filledCellClassName, facts),
+                  filledCellStyle,
+                ],
+              ])
+              return (
+                <View
+                  key={index}
+                  style={[CENTRED, cellBox]}
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                >
+                  <Text style={[text, cellText]}>
+                    {character === undefined ? '' : mask ? '•' : character}
+                  </Text>
+                </View>
+              )
+            })}
+            <TextInput
+              ref={input}
+              value={code}
+              onChangeText={change}
+              onFocus={inputHandlers.focus}
+              onBlur={inputHandlers.blur}
+              onPointerDown={inputHandlers.pointerDown}
+              onPressIn={inputHandlers.pointerDown}
+              onKeyDown={inputHandlers.keyDown}
+              keyboardType={type === 'number' ? 'number-pad' : 'default'}
+              textContentType="oneTimeCode"
+              autoComplete="sms-otp"
+              autoCorrect={false}
+              autoCapitalize="none"
+              secureTextEntry={mask}
+              maxLength={length * 2}
+              autoFocus={autoFocus}
+              editable={!disabled}
+              caretHidden
+              accessibilityLabel={accessibilityLabel}
+              accessibilityHint={message('hozo.otpInput.hint', { length })}
+              style={INPUT}
+            />
+          </>
         )
-      })}
-      <TextInput
-        ref={input}
-        value={code}
-        onChangeText={change}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        keyboardType={type === 'number' ? 'number-pad' : 'default'}
-        textContentType="oneTimeCode"
-        autoComplete="sms-otp"
-        autoCorrect={false}
-        autoCapitalize="none"
-        secureTextEntry={mask}
-        maxLength={length * 2}
-        autoFocus={autoFocus}
-        editable={!disabled}
-        caretHidden
-        accessibilityLabel={accessibilityLabel}
-        accessibilityHint={message('hozo.otpInput.hint', { length })}
-        style={INPUT}
-      />
+      }}
     </Pressable>
   )
 }

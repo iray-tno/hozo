@@ -183,9 +183,9 @@ test('a plain measured Pressable retains RN function children and its cheap styl
     )
     // RN, not the container, evaluates this function. A provider inserted
     // into the children slot would hide it from Pressable altogether.
-    // JSON omits children, and the string host stub does not execute RN's
-    // render prop. Inspect the received host props rather than that JSON.
-    const renderChildren = root!.root.findByType('Pressable').props.children as (state: {
+    // Inspect the RN stand-in's incoming props, before it executes the child
+    // callback. The rendered host now carries that callback's actual output.
+    const renderChildren = root!.root.findByType(stub.Pressable).props.children as (state: {
       pressed: boolean
     }) => { props: { children: string } }
     assert.equal(typeof renderChildren, 'function')

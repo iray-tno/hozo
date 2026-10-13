@@ -5,14 +5,27 @@
 // that means for what these tests establish -- in short, the tree Hozo
 // builds is checked, React Native's runtime is not.
 //
-// The components are strings, which `react-test-renderer` reports as host
+// Most components are strings, which `react-test-renderer` reports as host
 // elements: `<View style={...}>` comes back as
 // `{ type: 'View', props: { style } }`, so an assertion can be about what
 // Hozo put there rather than about what React Native did with it.
 
+import { createElement } from 'react'
+
 export const View = 'View'
 export const Text = 'Text'
-export const Pressable = 'Pressable'
+// RN executes a render-function child before handing it to the host. A bare
+// string drops that child instead, hiding the OTP input/cells (#908). Keep
+// style callbacks intact so the existing shape checks still inspect what an
+// owner hands RN (especially Animated's callback-vs-array contract); flatten
+// below evaluates them at rest when a test asks for the resolved look.
+export function Pressable({ children, ...props }) {
+  return createElement(
+    'Pressable',
+    props,
+    typeof children === 'function' ? children({ pressed: false }) : children,
+  )
+}
 
 /** The state a Pressable is in before anyone touches it. */
 const RESTING = { pressed: false, hovered: false, focused: false, focusVisible: false }
