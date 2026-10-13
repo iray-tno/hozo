@@ -2,6 +2,7 @@ import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { useChipRowInteraction } from './chip-row-interaction.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle as split } from './text-style.native.ts'
 
@@ -94,59 +95,77 @@ export function HozoChip({
       }),
       removeStyle,
     ])
-  const [box, text] = look(IDLE)
   const name = accessibilityLabel ?? (typeof children === 'string' ? children : undefined)
-  const remove = onRemove ? (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={message('hozo.chip.remove', { label: name ?? '' }, removeLabel)}
-      accessibilityState={{ disabled: Boolean(disabled) }}
-      disabled={disabled}
-      style={(interaction) => removeLook(interaction)[0]}
-      onPress={onRemove}
-    >
-      {(interaction) => (
-        <Text
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={removeLook(interaction)[1]}
-        >
-          {removeIcon}
-        </Text>
-      )}
-    </Pressable>
-  ) : null
+  const remove = (events?: ReturnType<typeof useChipRowInteraction>['events']['remove']) =>
+    onRemove ? (
+      <Pressable
+        {...events}
+        accessibilityRole="button"
+        accessibilityLabel={message('hozo.chip.remove', { label: name ?? '' }, removeLabel)}
+        accessibilityState={{ disabled: Boolean(disabled) }}
+        disabled={disabled}
+        style={(interaction) => removeLook(interaction)[0]}
+        onPress={onRemove}
+      >
+        {(interaction) => (
+          <Text
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={removeLook(interaction)[1]}
+          >
+            {removeIcon}
+          </Text>
+        )}
+      </Pressable>
+    ) : null
 
-  const body = selectable ? (
-    <Pressable
-      accessibilityRole="togglebutton"
-      accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ checked: on, disabled: Boolean(disabled) }}
-      disabled={disabled}
-      style={(interaction) => (remove ? undefined : look(interaction)[0])}
-      testID={remove ? undefined : testID}
-      onPress={toggle}
-    >
-      {/* A child can hover/activate its ancestor row, but cannot focus it.
-          Preserve that inherited text without inventing a focusable row. */}
-      {(interaction) =>
-        label(
-          children,
-          look(remove ? { ...interaction, focused: false, focusVisible: false } : interaction)[1],
-        )
-      }
-    </Pressable>
-  ) : (
-    <Text style={text}>{children}</Text>
-  )
+  const body = (row?: ReturnType<typeof useChipRowInteraction>) =>
+    selectable ? (
+      <Pressable
+        {...row?.events.toggle}
+        accessibilityRole="togglebutton"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ checked: on, disabled: Boolean(disabled) }}
+        disabled={disabled}
+        style={(interaction) => (onRemove ? undefined : look(interaction)[0])}
+        testID={onRemove ? undefined : testID}
+        onPress={toggle}
+      >
+        {/* Both controls can activate/hover the ancestor, never focus it. */}
+        {(interaction) => label(children, look(row?.state ?? interaction)[1])}
+      </Pressable>
+    ) : (
+      <Text style={look(row?.state ?? IDLE)[1]}>{children}</Text>
+    )
 
-  if (!remove && selectable) return body
+  if (!onRemove && selectable) return body()
   return (
-    <View style={[{ flexDirection: 'row', alignItems: 'center' }, box]} testID={testID}>
-      {body}
-      {remove}
-    </View>
+    <ChipRow selectable={selectable} disabled={disabled}>
+      {(row) => (
+        <View
+          {...row.events.row}
+          style={[{ flexDirection: 'row', alignItems: 'center' }, look(row.state)[0]]}
+          testID={testID}
+        >
+          {body(row)}
+          {remove(row.events.remove)}
+        </View>
+      )}
+    </ChipRow>
   )
+}
+
+// Allocate ancestor tracking only for an actual row, not standalone toggles.
+function ChipRow({
+  selectable,
+  disabled,
+  children,
+}: {
+  selectable: boolean
+  disabled?: boolean
+  children: (row: ReturnType<typeof useChipRowInteraction>) => ReactNode
+}) {
+  return children(useChipRowInteraction(selectable, disabled))
 }
 
 const IDLE: InteractionState = {

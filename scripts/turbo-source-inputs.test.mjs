@@ -38,6 +38,8 @@ const reads = {
     'packages/engine/src/navigation.ts',
     'packages/engine/src/transform-slots.ts',
     'packages/patterns/src/tabs.native.tsx',
+    'packages/patterns/src/chip.tsx',
+    'packages/patterns/src/chip-row-interaction.native.ts',
     'packages/patterns/src/text-style.native.ts',
     'examples/showcase/src/patterns.tsx',
   ],

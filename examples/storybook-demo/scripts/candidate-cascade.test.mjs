@@ -12,6 +12,7 @@ import { chromium } from 'playwright-core'
 import { createElement, Fragment } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
+import { chipAncestorFixture } from './chip-ancestor-fixture.mjs'
 
 const executablePath = [
   process.env.CHROME_PATH,
@@ -84,6 +85,50 @@ function evaluate(code, globals = {}) {
   runInNewContext(js, { module, h: createElement, Fragment, ...globals })
   return module.exports
 }
+
+test('the real Web Chip keeps ancestor hover/active on its row but child focus on its buttons', {
+  skip: !executablePath,
+}, async () => {
+  const { html, css } = await chipAncestorFixture()
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<style>${css}</style><div id="fixture">${html}</div>`)
+    const row = page.locator('#fixture > span')
+    const buttons = row.locator('button')
+    assert.equal(await buttons.count(), 2)
+    const look = () =>
+      row.evaluate((node) => ({
+        background: getComputedStyle(node).backgroundColor,
+        opacity: getComputedStyle(node).opacity,
+        focused: node.matches(':focus'),
+        focusVisible: node.matches(':focus-visible'),
+      }))
+    await buttons.nth(0).hover()
+    assert.equal((await look()).background, 'rgb(18, 52, 86)')
+    await buttons.nth(1).hover()
+    assert.equal((await look()).background, 'rgb(18, 52, 86)')
+    await buttons.nth(1).focus()
+    assert.equal((await look()).focused, false)
+    assert.equal((await look()).focusVisible, false)
+    assert.equal((await look()).opacity, '1')
+    assert.equal(
+      await buttons.nth(1).evaluate((node) => getComputedStyle(node).outlineWidth),
+      '2px',
+    )
+    await page.mouse.down()
+    assert.equal((await look()).opacity, '0.5')
+    await page.mouse.up()
+    assert.equal((await look()).opacity, '1')
+    const box = await row.boundingBox()
+    assert.ok(box)
+    await page.mouse.move(box.x + 2, box.y + 2)
+    assert.equal((await look()).background, 'rgb(18, 52, 86)', 'row padding is also hovered')
+    await page.mouse.move(500, 500)
+    assert.equal((await look()).background, 'rgba(0, 0, 0, 0)')
+  } finally {
+    await page.close()
+  }
+})
 
 test('the previous unlayered candidate sheet reproduces the reported raw-markup failure', {
   skip: !executablePath,

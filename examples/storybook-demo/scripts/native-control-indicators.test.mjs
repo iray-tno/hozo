@@ -1159,13 +1159,14 @@ test('Native Chip removal is independent and never lends child focus to the comp
   await checkInteraction(tree, 1)
   const hosts = () => tree.root.findAllByType('NativePressable')
   const row = () => tree.root.findByType('NativeView')
-  const originalBox = flat(row().props.style)
   await act(() => hosts()[0].props.onHoverIn({}))
+  assert.equal(flat(row().props.style).backgroundColor, color('hozo-accent'))
+  const hoveredBox = flat(row().props.style)
   await act(() => hosts()[0].props.onFocus({}))
   assert.deepEqual(
     flat(row().props.style),
-    originalBox,
-    'className stays on the row, not on either child button',
+    hoveredBox,
+    'child focus cannot give the hovered row a focus ring',
   )
   assert.equal(
     flat(hosts()[0].findByType('NativeText').props.style).fontWeight,
@@ -1175,6 +1176,7 @@ test('Native Chip removal is independent and never lends child focus to the comp
   assert.equal(hosts()[0].props.accessibilityState.checked, false)
   assert.deepEqual(removed, [])
   await act(() => hosts()[0].props.onPressIn({}))
+  assert.equal(flat(row().props.style).opacity, 0.5, 'activation reaches the ancestor box too')
   assert.equal(
     flat(hosts()[0].findByType('NativeText').props.style).fontWeight,
     '700',
@@ -1190,6 +1192,149 @@ test('Native Chip removal is independent and never lends child focus to the comp
   const plain = await mount(t, HozoChip, {})
   assert.equal(plain.root.findAllByType('NativePressable').length, 0)
   assert.equal(plain.root.findByType('NativeText').children.join(''), 'Updates')
+})
+
+test('Native Chip row aggregates sibling hover/press without adding a third control or borrowing focus', async (t) => {
+  const toggled = [],
+    removed = []
+  const props = {
+    defaultSelected: false,
+    onSelectedChange: (value) => toggled.push(value),
+    onRemove: () => removed.push(true),
+    className: `${interactionClasses} active:font-bold`,
+    removeClassName: 'focus-visible:outline-2',
+  }
+  const tree = await mount(t, HozoChip, props)
+  const row = () => tree.root.findByType('NativeView')
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  const event = async (at, name) => {
+    await act(() => hosts()[at].props[name]({}))
+  }
+  assert.equal(hosts().length, 2)
+  assert.equal(row().props.onPress, undefined)
+  assert.equal(row().props.accessibilityRole, undefined)
+  assert.equal(
+    row().props.onStartShouldSetResponderCapture,
+    undefined,
+    'observation does not take the responder',
+  )
+  await event(0, 'onHoverIn')
+  await event(1, 'onHoverIn')
+  await event(0, 'onHoverOut')
+  assert.equal(
+    flat(row().props.style).backgroundColor,
+    color('hozo-accent'),
+    'the remove button still hovers',
+  )
+  assert.equal(
+    flat(hosts()[0].findByType('NativeText').props.style).color,
+    color('hozo-accent-text'),
+    'the label inherits the row, not just its own toggle',
+  )
+  await event(1, 'onHoverOut')
+  assert.equal(flat(row().props.style).backgroundColor, undefined)
+  await act(() => row().props.onPointerEnter({}))
+  await event(0, 'onHoverIn')
+  await event(0, 'onHoverOut')
+  assert.equal(
+    flat(row().props.style).backgroundColor,
+    color('hozo-accent'),
+    'padding between controls still belongs to the row',
+  )
+  await event(1, 'onHoverIn')
+  await act(() => row().props.onPointerLeave({}))
+  assert.equal(
+    flat(row().props.style).backgroundColor,
+    undefined,
+    'ancestor exit clears even a missing child exit',
+  )
+  await event(0, 'onFocus')
+  await event(1, 'onFocus')
+  assert.equal(flat(row().props.style).outlineWidth, undefined)
+  assert.equal(flat(row().props.style).opacity, undefined)
+  assert.equal(
+    flat(hosts()[1].props.style).outlineWidth,
+    2,
+    'the remove button still owns its focus',
+  )
+  await event(0, 'onPressIn')
+  await event(1, 'onPressIn')
+  await event(0, 'onPressOut')
+  assert.equal(
+    flat(row().props.style).opacity,
+    0.5,
+    'one release cannot clear the other activation',
+  )
+  await event(1, 'onPressOut')
+  assert.equal(flat(row().props.style).opacity, undefined)
+  assert.deepEqual(toggled, [])
+  assert.deepEqual(removed, [])
+  await press(hosts()[0])
+  await press(hosts()[1])
+  assert.deepEqual(toggled, [true])
+  assert.deepEqual(removed, [true])
+  await event(0, 'onPressIn')
+  await act(() =>
+    tree.update(React.createElement(HozoChip, { ...props, disabled: true }, 'Updates')),
+  )
+  assert.equal(
+    flat(row().props.style).opacity,
+    undefined,
+    'disable clears a press whose release may never arrive',
+  )
+  await act(() => tree.update(React.createElement(HozoChip, props, 'Updates')))
+  await event(0, 'onHoverIn')
+  await act(() =>
+    tree.update(
+      React.createElement(
+        HozoChip,
+        { onRemove: props.onRemove, className: props.className },
+        'Updates',
+      ),
+    ),
+  )
+  assert.equal(hosts().length, 1)
+  assert.equal(
+    flat(row().props.style).backgroundColor,
+    undefined,
+    'an absent toggle cannot keep hovering',
+  )
+})
+
+test('Native Chip non-focusable row observes touch contacts and cancels without stealing child actions', async (t) => {
+  const removed = []
+  const tree = await mount(t, HozoChip, {
+    onRemove: () => removed.push(true),
+    className: interactionClasses,
+  })
+  const row = () => tree.root.findByType('NativeView')
+  const touch = async (name, identifiers) => {
+    await act(() =>
+      row().props[name]({
+        nativeEvent: { changedTouches: identifiers.map((identifier) => ({ identifier })) },
+      }),
+    )
+  }
+  await touch('onTouchStartCapture', [10, 20])
+  assert.equal(flat(row().props.style).opacity, 0.5)
+  await touch('onTouchEndCapture', [10])
+  assert.equal(flat(row().props.style).opacity, 0.5, 'the second contact still belongs to the row')
+  await touch('onTouchCancelCapture', [20])
+  assert.equal(flat(row().props.style).opacity, undefined)
+  assert.deepEqual(removed, [])
+  await press(tree.root.findByType('NativePressable'))
+  assert.deepEqual(removed, [true])
+  const plain = await mount(t, HozoChip, { className: interactionClasses })
+  await act(() => plain.root.findByType('NativeView').props.onPointerEnter({}))
+  assert.equal(
+    flat(plain.root.findByType('NativeView').props.style).backgroundColor,
+    color('hozo-accent'),
+  )
+  assert.equal(
+    flat(plain.root.findByType('NativeText').props.style).color,
+    color('hozo-accent-text'),
+  )
+  assert.equal(plain.root.findAllByType('NativePressable').length, 0)
 })
 
 test('Native OTP input focus, not wrapper focus, determines the active cell and focus-visible ring', async (t) => {
