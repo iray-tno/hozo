@@ -47,6 +47,16 @@ does, and a new query or reopen resets that choice. Web mouse-down prevents
 the option from taking input focus. This is a selection contract, not a
 reason to copy input focus onto an item or its hidden shortcut.
 
+Its `itemClassName` and `activeItemClassName` consume `hozoItemStyle` and
+`hozoActiveItemStyle` for **pointer state only**. The slot registry records
+this narrower capability: hover/press, supported negation and ambient stacks
+reuse the existing guards, while focus/focus-visible (also stacked/negated)
+remain errors. An unsupported focus predicate is not false, so negating it
+must not produce an unconditional style. Shortcut, input, scrim and other
+slots are not enabled by this slice. Existing runtime candidate focus
+behavior is unchanged and remains a separate ownership audit; these static
+callbacks do not certify or broaden it.
+
 Selection/disabled predicates need a separate per-slot semantic contract;
 this first slice does not infer internal state from authored props or remove
 their existing diagnostics. Other patterns and group selectors remain
