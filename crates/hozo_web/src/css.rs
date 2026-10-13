@@ -173,6 +173,7 @@ fn border_style_keyword(style: &BorderStyle) -> &'static str {
 fn radius_value(radius: &Radius, theme: &Theme) -> Option<String> {
     match radius {
         Radius::Length(l) => Some(length_px(l, theme)),
+        Radius::Scale { name, fallback_px } => Some(length_px(&Length::Px(theme.radius_or(name, *fallback_px)), theme)),
         // Exactly what Tailwind emits -- CSS can state this, so there's no
         // reason to approximate it here.
         Radius::Full => Some("calc(infinity * 1px)".to_string()),

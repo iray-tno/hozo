@@ -38,6 +38,7 @@ use hozo_ir::{
 fn radius_number(radius: &Radius, theme: &Theme) -> Option<String> {
     Some(match radius {
         Radius::Length(l) => number(l, theme),
+        Radius::Scale { name, fallback_px } => number(&Length::Px(theme.radius_or(name, *fallback_px)), theme),
         // RN has no infinity. Any radius past half the box's shorter side
         // already renders as a pill, so a large finite value is the
         // standard way to express this -- the approximation is forced here,

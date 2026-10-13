@@ -3327,6 +3327,12 @@ pub enum BorderStyle {
 pub enum Radius {
     Length(Length),
     Full,
+    /// A built-in Tailwind scale name, not an authored numeric length.
+    /// Keep its identity until the theme is available: `--radius-lg` can
+    /// override `rounded-lg` without changing `rounded-[8px]` or StyleX.
+    /// The fallback preserves theme-free output. A scale is always known,
+    /// unlike `Theme` below, so it need not carry the original class for CSS.
+    Scale { name: &'static str, fallback_px: f64 },
     /// A name only the project's theme can define: `control` for
     /// `rounded-control` and `--radius-control`. The parser has no theme, so
     /// it holds the name for each backend to look up, as it does for a

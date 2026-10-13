@@ -164,6 +164,13 @@ impl Theme {
         self.radii.get(name).copied()
     }
 
+    /// Resolve a built-in scale against the project, keeping the theme-free
+    /// default when it supplies no value. Both backends share this policy;
+    /// custom names still use `radius` and remain unresolved when absent.
+    pub fn radius_or(&self, name: &str, fallback_px: f64) -> f64 {
+        self.radius(name).unwrap_or(fallback_px)
+    }
+
     /// One of the project's own animations, by the name `animate-<name>`
     /// uses.
     pub fn animation(&self, name: &str) -> Option<&ThemeAnimation> {

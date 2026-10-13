@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 
-import { compile, compileNative, createCompiler } from '@hozo/compiler'
+import { compile, compileNative, createCompiler, openCandidateCache } from '@hozo/compiler'
 import { loadTheme, stylesheetPath, toHex } from './theme.ts'
 
 /** Writes a stylesheet somewhere Tailwind can resolve imports from. */
@@ -126,6 +126,52 @@ test('a project radius token reaches both backends, through its var() chain', as
   const native = compiler.compileNative(source)[0].styles
   assert.match(native, /borderRadius: 8,/)
   assert.match(native, /borderTopRightRadius: 20,/)
+})
+
+test('overriding the built-in radius scale reaches both compiled and candidate paths', async () => {
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme { --radius-lg: 10px; --radius-sm: 0px; --radius-hozo-control: var(--radius-lg); }`)
+  assert.equal(theme.radii?.find((radius) => radius.name === 'lg')?.px, 10)
+  const compiler = createCompiler(theme)
+  for (const [className, css, native] of [
+    ['rounded-lg', 'border-radius: 10px', 'borderRadius: 10,'],
+    ['rounded-t-lg', 'border-top-left-radius: 10px', 'borderTopRightRadius: 10,'],
+    ['rounded-s-lg', 'border-start-start-radius: 10px', 'borderEndStartRadius: 10,'],
+    ['rounded-ee-lg', 'border-end-end-radius: 10px', 'borderEndEndRadius: 10,'],
+    ['rounded-sm', 'border-radius: 0px', 'borderRadius: 0,'],
+    ['rounded-hozo-control', 'border-radius: 10px', 'borderRadius: 10,'],
+  ]) {
+    const source = `import { View } from '@hozo/core'; const el = <View className="${className}" />`
+    assert.ok(compiler.compile(source)[0].css.includes(css), className)
+    const output = compiler.compileNative(source)[0]
+    assert.ok(output.styles.includes(native), className)
+    assert.ok(output.jsx.includes('hozoStyles.hozo0'), 'the emitted style must be applied')
+  }
+  const cache = openCandidateCache()
+  cache.scanFile('classes.ts', "export const classes = 'rounded-lg rounded-s-lg'", 1)
+  assert.ok(cache.renderCss(theme).includes('border-radius: 10px'))
+  assert.ok(cache.renderCss(theme).includes('border-start-start-radius: 10px'))
+  assert.ok(cache.renderNativeModule(theme).includes('borderRadius: 10'))
+  assert.ok(cache.renderNativeModule(theme).includes('borderStartStartRadius: 10'))
+})
+
+test('explicit radii ignore scale overrides, while a default theme keeps every scale value', async () => {
+  const theme = await themeFrom(
+    `@import "tailwindcss"; @theme { --radius-lg: 10px; --radius-sm: 0px; }`,
+  )
+  const compiler = createCompiler(theme)
+  for (const className of ['rounded', 'rounded-none', 'rounded-full', 'rounded-[8px]']) {
+    const source = `import { View } from '@hozo/core'; const el = <View className="${className}" />`
+    assert.equal(compiler.compile(source)[0].css, compile(source)[0].css)
+    assert.equal(compiler.compileNative(source)[0].styles, compileNative(source)[0].styles)
+  }
+  const defaultCompiler = createCompiler(await themeFrom('@import "tailwindcss";'))
+  for (const name of ['xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl']) {
+    const source = `import { View } from '@hozo/core'; const el = <View className="rounded-${name}" />`
+    assert.equal(defaultCompiler.compile(source)[0].css, compile(source)[0].css)
+    assert.equal(defaultCompiler.compile(source)[0].jsx, compile(source)[0].jsx)
+    assert.equal(defaultCompiler.compileNative(source)[0].styles, compileNative(source)[0].styles)
+  }
 })
 
 test('a spacing scale Hozo cannot read leaves the default alone', async () => {

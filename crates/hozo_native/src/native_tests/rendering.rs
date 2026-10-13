@@ -1190,3 +1190,42 @@ fn a_theme_radius_is_its_value_and_an_unknown_one_is_nothing() {
     let output = compile("rounded-unknown");
     assert!(!output.styles.contains("Radius"), "{}", output.styles);
 }
+
+#[test]
+fn standard_radius_scales_prefer_the_theme_with_unchanged_defaults() {
+    for (name, fallback_px) in [("xs", 2.0), ("sm", 4.0), ("md", 6.0), ("lg", 8.0),
+                               ("xl", 12.0), ("2xl", 16.0), ("3xl", 24.0), ("4xl", 32.0)] {
+        let source = format!("import {{ View }} from '@hozo/core'; const el = <View className=\"rounded-{name}\" />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let compile = |theme: &Theme| lower(&parsed.roots[0].node, &source, theme);
+        let default = compile(&Theme::default());
+        assert!(default.styles.contains(&format!("borderRadius: {fallback_px},")), "{}", default.styles);
+        let same = Theme::default().with_radii(std::collections::HashMap::from([(name.to_string(), fallback_px)]));
+        assert_eq!(compile(&same).styles, default.styles);
+        let themed = Theme::default().with_radii(std::collections::HashMap::from([(name.to_string(), 10.0)]));
+        let out = compile(&themed);
+        assert!(out.styles.contains("borderRadius: 10,"), "{}", out.styles);
+        assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    }
+}
+
+#[test]
+fn scale_overrides_reach_corners_but_not_fixed_or_arbitrary_radii() {
+    let theme = Theme::default().with_radii(std::collections::HashMap::from([
+        ("lg".to_string(), 10.0), ("sm".to_string(), 0.0),
+        ("none".to_string(), 20.0), ("full".to_string(), 20.0),
+    ]));
+    let compile = |class_name: &str, theme: &Theme| {
+        let source = format!("import {{ View }} from '@hozo/core'; const el = <View className=\"{class_name}\" />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, theme)
+    };
+    let out = compile("rounded-t-lg rounded-ee-lg", &theme);
+    for property in ["borderTopLeftRadius", "borderTopRightRadius", "borderEndEndRadius"] {
+        assert!(out.styles.contains(&format!("{property}: 10,")), "{}", out.styles);
+    }
+    assert!(compile("rounded-sm", &theme).styles.contains("borderRadius: 0,"));
+    for class_name in ["rounded", "rounded-none", "rounded-full", "rounded-[8px]"] {
+        assert_eq!(compile(class_name, &theme).styles, compile(class_name, &Theme::default()).styles);
+    }
+}
