@@ -1210,6 +1210,29 @@ fn a_color_picker_is_hozo_color_picker_with_a_style_per_part() {
     assert!(output.runtime_imports.contains(&"HozoColorPicker"), "{:?}", output.runtime_imports);
 }
 
+#[test]
+fn color_picker_compiles_only_the_slots_with_real_swatch_interaction() {
+    let compile = |props: &str| {
+        let source = format!("import {{ ColorPicker }} from '@hozo/core'\nconst el = <ColorPicker accessibilityLabel=\"Theme\" {props} />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let output = compile(r#"swatchClassName="size-8 hover:opacity-50 not-focus:border-2" selectedSwatchClassName="border-2 md:focus-visible:outline-2" swatchStyle={extra} selectedSwatchStyle={selectedExtra}"#);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for expected in [
+        "hozoSwatchStyle={({ pressed, hovered, focused, focusVisible }) => [",
+        "hozoSelectedSwatchStyle={({ pressed, hovered, focused, focusVisible }) => [",
+        "hovered &&", "!(focused) &&", "__hozoBp_md && focusVisible &&",
+        "swatchStyle={extra}", "selectedSwatchStyle={selectedExtra}",
+    ] {
+        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    }
+    for slot in ["className", "sliderClassName", "thumbClassName", "inputClassName"] {
+        let output = compile(&format!(r#"{slot}="hover:opacity-50""#));
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+    }
+}
+
 /// A radius only the project's theme defines (`--radius-hozo-control`),
 /// which `@hozo/ui` writes on nearly every component.
 #[test]

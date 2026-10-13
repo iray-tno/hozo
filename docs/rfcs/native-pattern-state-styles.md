@@ -26,6 +26,13 @@ row. The latter receives only the remove button's state. Box and string
 label share their owner's evaluated style. No extra host, hook, subscription
 or animation node is introduced by the compiled callback.
 
+ColorPicker also supports `swatchClassName` (`hozoSwatchStyle`) and
+`selectedSwatchClassName` (`hozoSelectedSwatchStyle`). Both read the same
+radio's interaction; the selected slot is applied only while selected. Its
+existing slot order remains intact and the preset's background colour still
+comes last. Root, slider, thumb and hex-input slots are not swatch owners
+and are not enabled by this contract.
+
 Selection/disabled predicates need a separate per-slot semantic contract;
 this first slice does not infer internal state from authored props or remove
 their existing diagnostics. Other patterns and group selectors remain

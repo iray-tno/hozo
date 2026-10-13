@@ -37,6 +37,10 @@ export interface HozoColorPickerProps {
   style?: Style
   swatchStyle?: Style
   selectedSwatchStyle?: Style
+  /** @internal Static state classes, driven by each swatch's own host. */
+  hozoSwatchStyle?: (state: InteractionState) => Style
+  /** @internal Evaluated only on the currently selected swatch. */
+  hozoSelectedSwatchStyle?: (state: InteractionState) => Style
   sliderStyle?: Style
   thumbStyle?: Style
   inputStyle?: Style
@@ -70,6 +74,8 @@ export function HozoColorPicker({
   style,
   swatchStyle,
   selectedSwatchStyle,
+  hozoSwatchStyle,
+  hozoSelectedSwatchStyle,
   sliderStyle,
   thumbStyle,
   inputStyle,
@@ -133,9 +139,11 @@ export function HozoColorPicker({
                 onPress={() => chooseHex(preset)}
                 style={(interaction) => [
                   hozoClasses(swatchClassName, facts(interaction)),
+                  hozoSwatchStyle?.(interaction) as StyleProp<ViewStyle>,
                   swatchStyle as StyleProp<ViewStyle>,
                   checked && [
                     hozoClasses(selectedSwatchClassName, facts(interaction)),
+                    hozoSelectedSwatchStyle?.(interaction) as StyleProp<ViewStyle>,
                     selectedSwatchStyle as StyleProp<ViewStyle>,
                   ],
                   { backgroundColor: preset },
