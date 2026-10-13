@@ -54,6 +54,35 @@ export function C() { return <Avatar name="Ada" statusClassName="hover:opacity-5
   )
 })
 
+test('CommandPalette pointer slots use the theme, while input-owned focus still refuses the build', () => {
+  const compiler = createCompiler({
+    colors: [{ token: 'brand', oklch: '#123456', hex: '#123456' }],
+  })
+  const source = `import { CommandPalette } from '@hozo/core'
+export function C() { return <CommandPalette open commands={commands}
+  itemClassName="p-2 hover:bg-brand" activeItemClassName="border-2 active:text-brand" /> }
+`
+  const output = transformHozoSource(source, 'Commands.tsx', undefined, compiler)
+  assert.ok(output)
+  assert.match(output, /backgroundColor: '#123456'/)
+  assert.match(output, /color: '#123456'/)
+  assert.match(output, /hozoItemStyle=\{/)
+  assert.match(output, /hozoActiveItemStyle=\{/)
+  assert.doesNotMatch(output, /hozoClasses|HozoPressable|HozoText/)
+  for (const variant of ['focus', 'focus-visible', 'not-focus', 'hover:focus-visible']) {
+    assert.throws(
+      () =>
+        transformHozoSource(
+          source.replace('hover:bg-brand', `${variant}:bg-brand`),
+          'Commands.tsx',
+          undefined,
+          compiler,
+        ),
+      /Web input keeps focus/,
+    )
+  }
+})
+
 test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {
   const source = `import { Canvas } from '@hozo/canvas'
 export function Chart() {

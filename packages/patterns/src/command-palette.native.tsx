@@ -54,6 +54,10 @@ export interface HozoCommandPaletteProps {
   activeItemStyle?: Style
   shortcutStyle?: Style
   emptyStyle?: Style
+  /** @internal Static hover/press classes, evaluated by the actual item host. */
+  hozoItemStyle?: (state: InteractionState) => Style
+  /** @internal The return-key target's look, not an input-focus proxy. */
+  hozoActiveItemStyle?: (state: InteractionState) => Style
   testID?: string
 }
 
@@ -94,6 +98,8 @@ export function HozoCommandPalette({
   activeItemStyle,
   shortcutStyle,
   emptyStyle,
+  hozoItemStyle,
+  hozoActiveItemStyle,
   testID,
 }: HozoCommandPaletteProps) {
   const message = useHozoMessage()
@@ -213,9 +219,11 @@ export function HozoCommandPalette({
                     const state = stateFor(interaction)
                     return splitTextStyle([
                       hozoClasses(itemClassName, state),
+                      hozoItemStyle?.(interaction),
                       itemStyle,
                       index === current && [
                         hozoClasses(activeItemClassName, state),
+                        hozoActiveItemStyle?.(interaction),
                         activeItemStyle,
                       ],
                     ])

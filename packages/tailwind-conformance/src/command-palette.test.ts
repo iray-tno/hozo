@@ -291,3 +291,114 @@ for (const backend of ['Web', 'Native'] as const) {
     }
   })
 }
+
+const STATE_SOURCE = `import { CommandPalette } from '@hozo/core'
+export function C({ commands, itemStyle, activeItemStyle, onOpenChange }) {
+  return <CommandPalette open commands={commands} onOpenChange={onOpenChange}
+    itemClassName="px-2 hover:bg-blue-500 hover:text-white not-hover:text-black active:opacity-50"
+    activeItemClassName="border-2 hover:bg-green-500 active:opacity-25"
+    itemStyle={itemStyle} activeItemStyle={activeItemStyle} />
+}`
+
+test('the Web compiler puts the same static pointer classes on options, not the input or shortcut', async () => {
+  const { compile } = await import('@hozo/compiler')
+  const { renderWeb } = await import('./render.ts')
+  const [out] = compile(STATE_SOURCE, 'Commands.tsx')
+  assert.ok(out)
+  const [rendered] = renderWeb([{ name: 'C', jsx: out.jsx }], {
+    HozoCommandPalette: webPalette.HozoCommandPalette,
+    commands: COMMANDS,
+    onOpenChange: undefined,
+    itemStyle: undefined,
+    activeItemStyle: undefined,
+  })
+  const html = rendered?.html ?? ''
+  const options = [...html.matchAll(/<div[^>]*role="option"[^>]*class="([^"]+)"/g)]
+  assert.equal(options.length, COMMANDS.length)
+  assert.equal(options[0]?.[1]?.split(' ').length, 2, 'current option gets both slots')
+  assert.equal(options[1]?.[1]?.split(' ').length, 1)
+  assert.doesNotMatch(/<input[^>]*>/.exec(html)?.[0] ?? '', /class=/)
+  assert.match(html, /<span aria-hidden="true">⌘N<\/span>/)
+  for (const className of options[0]?.[1]?.split(' ') ?? []) {
+    assert.match(out.css, new RegExp(`\\.${className}:hover`), out.css)
+    assert.match(out.css, new RegExp(`\\.${className}:active`), out.css)
+  }
+})
+
+test('compiled pointer classes reach the item box and real label without turning the target into press state', () => {
+  const selected: string[] = []
+  const changes: boolean[] = []
+  const commands = [
+    { id: 'blocked', label: 'Blocked', disabled: true, onSelect: () => selected.push('blocked') },
+    { id: 'alpha', label: 'Alpha', onSelect: () => selected.push('alpha') },
+    { id: 'beta', label: 'Beta', onSelect: () => selected.push('beta') },
+  ]
+  const { C } = loadNativeModule(STATE_SOURCE)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(
+      react.createElement(C, { commands, onOpenChange: (open: boolean) => changes.push(open) }),
+    )
+  })
+  const item = (label: string) => {
+    const node = buttons(root).find((node: Tree) => node.props.accessibilityLabel === label)
+    assert.ok(node)
+    return node
+  }
+  const event = (node: Tree, name: string) => {
+    assert.equal(typeof node.props[name], 'function', `${name} is not wired`)
+    renderer.act(() => (node.props[name] as () => void)())
+  }
+  try {
+    assert.equal(flat(item('Alpha')).borderWidth ?? flat(item('Alpha')).borderTopWidth, 2)
+    assert.equal(flat(item('Alpha')).opacity, undefined, 'a target is not a pressed item')
+    assert.equal(flat(item('Alpha').findByType('Text')).color, '#000')
+    event(item('Beta'), 'onPressIn')
+    assert.equal(flat(item('Beta')).opacity, 0.5, 'pressing alone did not select the active slot')
+    event(item('Beta'), 'onPressOut')
+    assert.deepEqual(selected, [])
+    event(item('Beta'), 'onHoverIn')
+    assert.equal(flat(item('Beta')).backgroundColor, '#00c950', 'active slot follows the target')
+    assert.equal(flat(item('Beta').findByType('Text')).color, '#fff')
+    assert.equal(flat(item('Alpha')).backgroundColor, undefined, 'the idle sibling did not hover')
+    event(item('Beta'), 'onFocus')
+    assert.equal(flat(item('Beta')).opacity, undefined, 'focus is not press or target activation')
+    event(item('Beta'), 'onPressIn')
+    assert.equal(flat(item('Beta')).opacity, 0.25)
+    event(item('Beta'), 'onPressOut')
+    event(item('Beta'), 'onHoverOut')
+    assert.equal(flat(item('Beta')).backgroundColor, undefined)
+    assert.equal(flat(item('Beta').findByType('Text')).color, '#000')
+    event(item('Blocked'), 'onHoverIn')
+    assert.equal(flat(item('Beta')).borderWidth ?? flat(item('Beta')).borderTopWidth, 2)
+    assert.equal(item('Blocked').props.disabled, true)
+    renderer.act(() => (field(root).props.onSubmitEditing as () => void)())
+    assert.deepEqual(selected, ['beta'])
+    assert.deepEqual(changes, [false])
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('compiled command pointer slots preserve explicit item and active-item style precedence', () => {
+  const { C } = loadNativeModule(STATE_SOURCE)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(
+      react.createElement(C, {
+        commands: [{ id: 'a', label: 'Alpha', onSelect: () => {} }],
+        itemStyle: { opacity: 0.9, color: 'orange' },
+        activeItemStyle: { opacity: 0.8, color: 'purple' },
+      }),
+    )
+  })
+  try {
+    const item = buttons(root)[0]
+    renderer.act(() => (item.props.onHoverIn as () => void)())
+    renderer.act(() => (item.props.onPressIn as () => void)())
+    assert.equal(flat(item).opacity, 0.8)
+    assert.equal(flat(item.findByType('Text')).color, 'purple')
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})

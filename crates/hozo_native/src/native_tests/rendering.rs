@@ -1209,6 +1209,44 @@ fn a_command_palette_is_hozo_command_palette_with_a_style_per_part() {
 }
 
 #[test]
+fn command_item_pointer_states_compile_without_inventing_input_focus() {
+    let source = r#"import { CommandPalette } from '@hozo/core'
+        const el = <CommandPalette open commands={commands}
+            itemClassName="px-2 hover:bg-blue-500 active:opacity-50 not-hover:text-white md:hover:text-black"
+            activeItemClassName="border-2 hover:opacity-75 active:opacity-25"
+            itemStyle={extra} activeItemStyle={activeExtra} />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for prop in ["hozoItemStyle", "hozoActiveItemStyle"] {
+        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible }}) => [")), "{}", output.jsx);
+    }
+    for expected in ["hovered &&", "pressed &&", "!(hovered) &&", "__hozoBp_md && hovered &&", "itemStyle={extra}", "activeItemStyle={activeExtra}"] {
+        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    }
+    assert!(!output.jsx.contains("hozoClasses(") && !output.jsx.contains("HozoPressable"), "{}", output.jsx);
+}
+
+#[test]
+fn command_item_focus_is_refused_alone_stacked_and_negated() {
+    for slot in ["itemClassName", "activeItemClassName"] {
+        for variant in ["focus", "focus-visible", "not-focus", "not-focus-visible", "hover:focus", "md:not-focus-visible"] {
+            let source = format!(r#"import {{ CommandPalette }} from '@hozo/core'; const el = <CommandPalette commands={{commands}} {slot}="{variant}:opacity-50" />"#);
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error && d.message.contains("Web input keeps focus")), "{slot} {variant}: {:?}", output.diagnostics);
+            assert!(!output.jsx.contains("_focus"), "a refused predicate must not apply: {}", output.jsx);
+        }
+    }
+    for slot in ["className", "scrimClassName", "panelClassName", "inputClassName", "shortcutClassName", "groupHeadingClassName", "emptyClassName"] {
+        let source = format!(r#"import {{ CommandPalette }} from '@hozo/core'; const el = <CommandPalette commands={{commands}} {slot}="hover:opacity-50" />"#);
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+    }
+}
+
+#[test]
 fn a_color_picker_is_hozo_color_picker_with_a_style_per_part() {
     let source = r#"
         import { ColorPicker } from '@hozo/core'

@@ -58,7 +58,16 @@ pub(super) fn resolve(
         // cases; a missing driver remains unknown, never false by default.
         Condition::FormState(FormState::ReadOnly) => read_only(&node.props.text_input, source),
         Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
-            if pattern_slot.is_some_and(|slot| crate::pattern::interaction_style_prop(node.primitive, slot).is_some())
+            let pattern_owner = pattern_slot.and_then(|slot| crate::pattern::interaction_slot(node.primitive, slot));
+            if pattern_owner.as_ref().is_some_and(|slot| !slot.focus)
+                && matches!(condition, Condition::Focus | Condition::FocusVisible)
+            {
+                return Err(format!(
+                    "`{}:` on CommandPalette's item slots is not wired on Native: the Web input keeps focus, not its option. Native button focus is a different owner; use activeItemClassName for the return-key target instead of borrowing input focus.",
+                    condition_suffix(condition).unwrap_or_default(),
+                ));
+            }
+            if pattern_owner.is_some()
                 || interaction::owns_events(node)
                 || (interaction_context && !matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button)) {
                 // Both directions read the existing owner events. Web hover
