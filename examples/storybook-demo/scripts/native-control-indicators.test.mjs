@@ -26,7 +26,7 @@ const interactionClasses =
   'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus:opacity-75 focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25'`,
+  `export const c = '${interactionClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -110,6 +110,8 @@ const probeSources = [
   exportsFrom('HozoPopover', 'packages/patterns/src/popover.native.tsx'),
   exportsFrom('HozoDrawer', 'packages/patterns/src/drawer.native.tsx'),
   exportsFrom('HozoBottomSheet', 'packages/patterns/src/bottom-sheet.native.tsx'),
+  exportsFrom('HozoColorPicker', 'packages/patterns/src/color-picker.native.tsx'),
+  exportsFrom('HozoStepper', 'packages/patterns/src/stepper.native.tsx'),
   exportsFrom('HozoNavigationProvider', 'packages/engine/src/navigation-context.tsx'),
   exportsFrom('usePressableInteraction', 'packages/behaviors/src/pressable-interaction.ts'),
 ]
@@ -195,6 +197,7 @@ const { CheckboxPattern, SwitchPattern, RadioPattern, HozoAccordion } = module.e
 const { HozoMenu, HozoListbox, HozoCombobox, HozoTree } = module.exports
 const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.exports
 const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
+const { HozoColorPicker, HozoStepper } = module.exports
 const { usePressableInteraction } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
@@ -940,6 +943,166 @@ test('Native BottomSheet handle keeps detent and responder callbacks while deliv
   await act(() => handle().props.onResponderGrant({}))
   await act(() => handle().props.onResponderMove({}, { dy: -200 }))
   assert.equal(travel(), 0, 'shared pressable forwards the existing responder handlers')
+})
+
+test('Native ColorPicker swatches deliver interaction to both slots without changing the sample colour', async (t) => {
+  const changes = []
+  const swatchClasses =
+    'hover:border-2 focus:opacity-75 focus-visible:outline-2 focus-visible:outline-hozo-focus active:opacity-50'
+  for (const slot of ['swatchClassName', 'selectedSwatchClassName']) {
+    const beforeInteraction = changes.length
+    const tree = await mount(t, HozoColorPicker, {
+      accessibilityLabel: 'Colour',
+      presets: ['#ff0000', '#0000ff'],
+      defaultValue: '#ff0000',
+      onChange: (hex) => changes.push(hex),
+      [slot]: swatchClasses,
+    })
+    const hosts = () => tree.root.findAllByType('NativePressable')
+    const swatch = () => hosts()[0]
+    const box = () => flat(swatch().props.style)
+    const event = async (name) => {
+      await act(() => swatch().props[name]({}))
+    }
+    await event('onHoverIn')
+    assert.equal(box().borderTopWidth, 2)
+    assert.equal(
+      box().backgroundColor,
+      '#ff0000',
+      'the sample always paints the preset, not a hover colour',
+    )
+    assert.equal(flat(hosts()[1].props.style).borderTopWidth, undefined)
+    await event('onHoverOut')
+    assert.equal(box().borderTopWidth, undefined)
+    await event('onFocus')
+    assert.equal(box().opacity, 0.75)
+    assert.equal(box().outlineWidth, 2)
+    await event('onPointerDown')
+    assert.equal(box().outlineWidth, undefined)
+    await event('onKeyDown')
+    assert.equal(box().outlineWidth, 2)
+    await event('onPressIn')
+    assert.equal(box().opacity, 0.5)
+    await event('onPressOut')
+    await event('onBlur')
+    assert.equal(box().opacity, undefined)
+    assert.equal(swatch().props.accessibilityState.checked, true)
+    assert.equal(changes.length, beforeInteraction, 'interaction alone does not select a colour')
+    const before = changes.length
+    await press(hosts()[1])
+    assert.equal(changes.length, before + 1)
+    assert.equal(changes.at(-1), '#0000ff')
+    assert.deepEqual(
+      hosts().map((node) => node.props.accessibilityState.checked),
+      [false, true],
+    )
+  }
+})
+
+test('Native ColorPicker preserves disabled guards and selected slot style priority', async (t) => {
+  const changes = []
+  const tree = await mount(t, HozoColorPicker, {
+    accessibilityLabel: 'Colour',
+    presets: ['#ff0000', '#0000ff'],
+    defaultValue: '#ff0000',
+    disabled: true,
+    onChange: (hex) => changes.push(hex),
+    swatchClassName: 'disabled:opacity-25',
+    swatchStyle: { borderTopWidth: 3 },
+    selectedSwatchStyle: { borderTopWidth: 5 },
+  })
+  const hosts = tree.root.findAllByType('NativePressable')
+  assert.equal(flat(hosts[0].props.style).borderTopWidth, 5)
+  assert.equal(flat(hosts[1].props.style).borderTopWidth, 3)
+  assert.equal(flat(hosts[0].props.style).opacity, 0.25)
+  await press(hosts[1])
+  assert.deepEqual(changes, [])
+  assert.equal(tree.root.findByType('NativeTextInput').props.editable, false)
+})
+
+test('Native clickable Stepper passes host interaction to label, mark and description without advancing', async (t) => {
+  const pressed = []
+  const tree = await mount(t, HozoStepper, {
+    steps: [
+      { label: 'Profile', description: 'Your details' },
+      { label: 'Confirm', disabled: true },
+    ],
+    activeStep: 0,
+    onStepPress: (index) => pressed.push(index),
+    stepClassName: interactionClasses,
+    indicatorClassName: interactionClasses,
+    descriptionClassName: interactionClasses,
+  })
+  await checkInteraction(tree)
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  await act(() => hosts()[0].props.onHoverIn({}))
+  assert.deepEqual(
+    hosts()[0]
+      .findAllByType('NativeText')
+      .map((node) => flat(node.props.style).color),
+    [color('hozo-accent-text'), color('hozo-accent-text'), color('hozo-accent-text')],
+  )
+  assert.equal(flat(hosts()[1].props.style).backgroundColor, undefined)
+  await act(() => hosts()[0].props.onKeyDown({}))
+  await act(() => hosts()[0].props.onFocus({}))
+  assert.equal(
+    hosts()[0]
+      .findAllByType('NativeView')
+      .filter((node) => flat(node.props.style).outlineWidth === 2).length,
+    2,
+    'mark and description receive focus-visible',
+  )
+  assert.deepEqual(pressed, [])
+  assert.equal(hosts()[0].props.accessibilityState.selected, true)
+  await press(hosts()[1])
+  assert.deepEqual(pressed, [])
+  await press(hosts()[0])
+  assert.deepEqual(pressed, [0])
+  assert.equal(
+    hosts()[0].props.accessibilityState.selected,
+    true,
+    'activeStep remains owner-controlled',
+  )
+})
+
+test('Native Stepper status slots get interaction and descriptive steps remain non-interactive', async (t) => {
+  for (const [status, prefix] of [
+    ['completed', 'completed'],
+    ['current', 'current'],
+    ['error', 'error'],
+  ]) {
+    for (const part of ['Step', 'Indicator']) {
+      const tree = await mount(t, HozoStepper, {
+        steps: [{ label: 'One', status }],
+        activeStep: 0,
+        onStepPress: () => {},
+        [`${prefix}${part}ClassName`]: interactionClasses,
+      })
+      const host = () => tree.root.findByType('NativePressable')
+      await act(() => host().props.onHoverIn({}))
+      const box = part === 'Step' ? host() : host().findAllByType('NativeView')[0]
+      assert.equal(flat(box.props.style).backgroundColor, color('hozo-accent'))
+      assert.equal(
+        flat(host().findAllByType('NativeText')[0].props.style).color,
+        color('hozo-accent-text'),
+      )
+      await act(() => host().props.onFocus({}))
+      assert.equal(
+        flat((part === 'Step' ? host() : host().findAllByType('NativeView')[0]).props.style)
+          .outlineWidth,
+        2,
+      )
+    }
+  }
+  const staticTree = await mount(t, HozoStepper, {
+    steps: [{ label: 'One', description: 'Info' }],
+    activeStep: 0,
+    currentStepClassName: 'p-4',
+    indicatorClassName: 'p-4',
+  })
+  assert.equal(staticTree.root.findAllByType('NativePressable').length, 0)
+  assert.equal(staticTree.root.findAllByType('NativeText')[1].children.join(''), 'One')
+  assert.equal(flat(staticTree.root.findAllByType('NativeView')[1].props.style).paddingTop, 16)
 })
 
 test('the shared tracker notifies the animation driver synchronously and can omit focus-visible inference', async (t) => {

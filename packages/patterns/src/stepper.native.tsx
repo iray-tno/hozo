@@ -1,6 +1,7 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
-import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import {
   type HozoStep,
   type HozoStepStatus,
@@ -84,7 +85,11 @@ export function HozoStepper({
 }: HozoStepperProps) {
   const message = useHozoMessage()
   // A class list resolved ahead of the style prop that goes with it.
-  const styled = (classes: string | undefined, own: Style): Style => [hozoClasses(classes), own]
+  const styled = (
+    classes: string | undefined,
+    own: Style,
+    state?: Readonly<Record<string, unknown>>,
+  ): Style => [hozoClasses(classes, state), own]
   const byStatus = (status: HozoStepStatus, completed: Style, current: Style, error: Style) =>
     status === 'completed'
       ? completed
@@ -94,52 +99,67 @@ export function HozoStepper({
           ? error
           : undefined
   const [box, listText] = splitTextStyle(styled(className, style))
-  const [descriptionBox, descriptionText] = splitTextStyle(
-    styled(descriptionClassName, descriptionStyle),
-  )
 
   return (
     <View style={box} testID={testID}>
       {steps.map((step, index) => {
         const status = stepStatus(step, index, activeStep)
-        const [stepBox, stepText] = splitTextStyle([
-          styled(stepClassName, stepStyle),
-          byStatus(
-            status,
-            styled(completedStepClassName, completedStepStyle),
-            styled(currentStepClassName, currentStepStyle),
-            styled(errorStepClassName, errorStepStyle),
-          ),
-        ])
-        const [markBox, markText] = splitTextStyle([
-          styled(indicatorClassName, indicatorStyle),
-          byStatus(
-            status,
-            styled(completedIndicatorClassName, completedIndicatorStyle),
-            styled(currentIndicatorClassName, currentIndicatorStyle),
-            styled(errorIndicatorClassName, errorIndicatorStyle),
-          ),
-        ])
-        const content = (
-          <>
-            <View style={[CENTRED, markBox]}>
-              <Text style={[listText, stepText, markText]}>{stepMark(index, status)}</Text>
-            </View>
-            <View>
-              <Text style={[listText, stepText]}>{step.label}</Text>
-              {step.description ? (
-                <View style={descriptionBox}>
-                  <Text style={[listText, descriptionText]}>{step.description}</Text>
-                </View>
-              ) : null}
-            </View>
-          </>
-        )
+        // A clickable step owns the same facts for its box and all its labels.
+        // A descriptive step stays a View and has no fabricated interaction.
+        const look = (interaction?: InteractionState) => {
+          const state = interaction
+            ? {
+                ...interaction,
+                disabled: Boolean(step.disabled),
+                'aria-disabled': Boolean(step.disabled),
+                'aria-selected': status === 'current',
+              }
+            : undefined
+          const [stepBox, stepText] = splitTextStyle([
+            styled(stepClassName, stepStyle, state),
+            byStatus(
+              status,
+              styled(completedStepClassName, completedStepStyle, state),
+              styled(currentStepClassName, currentStepStyle, state),
+              styled(errorStepClassName, errorStepStyle, state),
+            ),
+          ])
+          const [markBox, markText] = splitTextStyle([
+            styled(indicatorClassName, indicatorStyle, state),
+            byStatus(
+              status,
+              styled(completedIndicatorClassName, completedIndicatorStyle, state),
+              styled(currentIndicatorClassName, currentIndicatorStyle, state),
+              styled(errorIndicatorClassName, errorIndicatorStyle, state),
+            ),
+          ])
+          const [descriptionBox, descriptionText] = splitTextStyle(
+            styled(descriptionClassName, descriptionStyle, state),
+          )
+          return { stepBox, stepText, markBox, markText, descriptionBox, descriptionText }
+        }
+        const content = (interaction?: InteractionState) => {
+          const { stepText, markBox, markText, descriptionBox, descriptionText } = look(interaction)
+          return (
+            <>
+              <View style={[CENTRED, markBox]}>
+                <Text style={[listText, stepText, markText]}>{stepMark(index, status)}</Text>
+              </View>
+              <View>
+                <Text style={[listText, stepText]}>{step.label}</Text>
+                {step.description ? (
+                  <View style={descriptionBox}>
+                    <Text style={[listText, descriptionText]}>{step.description}</Text>
+                  </View>
+                ) : null}
+              </View>
+            </>
+          )
+        }
         const common = {
           accessible: true,
           accessibilityLabel: stepLabel(message, step, index, steps.length, status),
           accessibilityHint: step.description,
-          style: [ROW, stepBox],
         }
         return onStepPress ? (
           <Pressable
@@ -151,17 +171,19 @@ export function HozoStepper({
               disabled: Boolean(step.disabled),
             }}
             disabled={step.disabled}
+            style={(interaction) => [ROW, look(interaction).stepBox]}
             onPress={() => onStepPress(index)}
           >
-            {content}
+            {(interaction) => content(interaction)}
           </Pressable>
         ) : (
           <View
             key={step.label}
             {...common}
             accessibilityState={{ selected: status === 'current' }}
+            style={[ROW, look().stepBox]}
           >
-            {content}
+            {content()}
           </View>
         )
       })}

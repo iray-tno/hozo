@@ -1,16 +1,10 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
-import {
-  Pressable,
-  type StyleProp,
-  TextInput,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import { type StyleProp, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { HozoSlider } from './slider.native.tsx'
 
 type Style = StyleProp<ViewStyle | TextStyle>
@@ -30,7 +24,7 @@ export interface HozoColorPickerProps {
    * compiler, which hands them over as the style props below; a file it did
    * not read leaves them here as strings, resolved through the project's
    * candidate map (#886) before the matching style prop, a swatch with its
-   * `pressed`, `aria-checked` and `disabled` state. There is no eye dropper
+   * interaction, `aria-checked` and `disabled` state. There is no eye dropper
    * here, so `eyeDropperClassName` is unused.
    */
   className?: string
@@ -123,6 +117,12 @@ export function HozoColorPicker({
           {presets.map((preset) => {
             const parsed = hexToHsla(preset) ?? FALLBACK
             const checked = hslaToHex(parsed) === hslaToHex({ ...hsla, a: alpha ? hsla.a : 1 })
+            const facts = (interaction: InteractionState) => ({
+              ...interaction,
+              disabled: Boolean(disabled),
+              'aria-checked': checked,
+              'aria-disabled': Boolean(disabled),
+            })
             return (
               <Pressable
                 key={preset}
@@ -131,16 +131,11 @@ export function HozoColorPicker({
                 accessibilityState={{ checked, disabled: Boolean(disabled) }}
                 disabled={disabled}
                 onPress={() => chooseHex(preset)}
-                style={({ pressed }) => [
-                  hozoClasses(swatchClassName, {
-                    pressed,
-                    disabled: Boolean(disabled),
-                    'aria-checked': checked,
-                    'aria-disabled': Boolean(disabled),
-                  }),
+                style={(interaction) => [
+                  hozoClasses(swatchClassName, facts(interaction)),
                   swatchStyle as StyleProp<ViewStyle>,
                   checked && [
-                    hozoClasses(selectedSwatchClassName),
+                    hozoClasses(selectedSwatchClassName, facts(interaction)),
                     selectedSwatchStyle as StyleProp<ViewStyle>,
                   ],
                   { backgroundColor: preset },
