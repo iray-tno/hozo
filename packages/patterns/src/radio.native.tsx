@@ -1,9 +1,10 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
 import { controlIndicator } from './control-indicator.native.tsx'
 import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 import { optionKey } from './option-key.ts'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoRadioOption<T> {
@@ -29,7 +30,7 @@ export interface HozoRadioGroupProps<T> {
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
    * `StyleSheet` entry. Here it arrives as a string and is resolved through
-   * the project's candidate map (#886), an option with its `pressed`,
+   * the project's candidate map (#886), an option with its interaction,
    * `aria-checked` and `disabled` state. A string label takes the text half
    * of its option's styles. Each `*Style` prop comes after its class list.
    */
@@ -80,10 +81,10 @@ export function HozoRadioGroup<T>({
     >
       {options.map((option, at) => {
         const checked = option.value === current
-        const look = (pressed: boolean) =>
+        const look = (interaction: InteractionState) =>
           splitTextStyle(
             hozoClasses(optionClassName, {
-              pressed,
+              ...interaction,
               disabled: Boolean(option.disabled),
               'aria-checked': checked,
               'aria-disabled': Boolean(option.disabled),
@@ -94,13 +95,14 @@ export function HozoRadioGroup<T>({
             key={optionKey(option.value, option.id, at)}
             accessibilityRole="radio"
             accessibilityState={{ checked, disabled: option.disabled }}
-            style={({ pressed }) => [look(pressed)[0], optionStyle]}
+            disabled={option.disabled}
+            style={(interaction) => [look(interaction)[0], optionStyle]}
             onPress={() => select(at)}
           >
-            {({ pressed }) => {
+            {(interaction) => {
               const text =
                 typeof option.label === 'string' ? (
-                  <Text style={look(pressed)[1]}>{option.label}</Text>
+                  <Text style={look(interaction)[1]}>{option.label}</Text>
                 ) : (
                   option.label
                 )
@@ -108,7 +110,7 @@ export function HozoRadioGroup<T>({
               return (
                 <>
                   {controlIndicator(indicator({ checked, disabled: Boolean(option.disabled) }), {
-                    pressed,
+                    ...interaction,
                     disabled: Boolean(option.disabled),
                     'aria-checked': checked,
                     'aria-disabled': Boolean(option.disabled),

@@ -20,7 +20,8 @@
 
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoAccordionItem {
@@ -45,7 +46,7 @@ interface Shared {
    *
    * On a tag the compiler lowers they are gone by runtime, replaced by a
    * `StyleSheet` entry. Here they arrive as strings and are resolved through
-   * the project's candidate map (#886), a trigger with its `pressed`,
+   * the project's candidate map (#886), a trigger with its interaction,
    * `aria-expanded` and `disabled` state. There is no heading element, so
    * `headingClassName` goes on the trigger before its own classes. Each
    * `*Style` prop comes after its class list.
@@ -141,28 +142,30 @@ export function HozoAccordion(props: HozoAccordionProps) {
         const expanded = open.includes(key)
         // Box and label: a Pressable is a View and drops a label's colour
         // and weight, so those go to the Text (see `splitTextStyle`).
-        const trigger = (pressed: boolean) =>
-          splitTextStyle([
-            hozoClasses(headingClassName),
-            hozoClasses(triggerClassName, {
-              pressed,
-              disabled: Boolean(item.disabled),
-              'aria-expanded': expanded,
-              'aria-disabled': Boolean(item.disabled),
-            }),
+        const trigger = (interaction: InteractionState) => {
+          const state = {
+            ...interaction,
+            disabled: Boolean(item.disabled),
+            'aria-expanded': expanded,
+            'aria-disabled': Boolean(item.disabled),
+          }
+          return splitTextStyle([
+            hozoClasses(headingClassName, state),
+            hozoClasses(triggerClassName, state),
           ])
+        }
         return (
           <View key={key} style={[hozoClasses(sectionClassName), sectionStyle]}>
             <Pressable
               accessibilityRole="header"
               accessibilityState={{ expanded, disabled: item.disabled }}
               disabled={item.disabled}
-              style={({ pressed }) => [trigger(pressed)[0], triggerStyle]}
+              style={(interaction) => [trigger(interaction)[0], triggerStyle]}
               onPress={() => toggle(at)}
             >
-              {({ pressed }) =>
+              {(interaction) =>
                 typeof item.header === 'string' ? (
-                  <Text style={[trigger(pressed)[1], triggerTextStyle]}>{item.header}</Text>
+                  <Text style={[trigger(interaction)[1], triggerTextStyle]}>{item.header}</Text>
                 ) : (
                   item.header
                 )
