@@ -1,7 +1,8 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, TextInput, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, TextInput, View, type ViewStyle } from 'react-native'
 import { filterOptions } from './combobox-rules.ts'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoComboboxOption<T> {
@@ -96,10 +97,10 @@ export function HozoCombobox<T>({
             : visible.map((index) => {
                 const option = options[index]
                 if (!option) return null
-                const look = (pressed: boolean) =>
+                const look = (interaction: InteractionState) =>
                   splitTextStyle(
                     hozoClasses(optionClassName, {
-                      pressed,
+                      ...interaction,
                       disabled: Boolean(option.disabled),
                       'aria-selected': option.value === value,
                       'aria-disabled': Boolean(option.disabled),
@@ -114,12 +115,13 @@ export function HozoCombobox<T>({
                       selected: option.value === value,
                       disabled: option.disabled,
                     }}
-                    style={({ pressed }) => [look(pressed)[0], optionStyle]}
+                    disabled={option.disabled}
+                    style={(interaction) => [look(interaction)[0], optionStyle]}
                     onPress={() => commit(index)}
                   >
-                    {({ pressed }) =>
+                    {(interaction) =>
                       typeof content === 'string' ? (
-                        <Text style={look(pressed)[1]}>{content}</Text>
+                        <Text style={look(interaction)[1]}>{content}</Text>
                       ) : (
                         content
                       )

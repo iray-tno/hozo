@@ -26,7 +26,7 @@ const interactionClasses =
   'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus:opacity-75 focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} aria-checked:border-2 aria-expanded:border-2 disabled:opacity-25'`,
+  `export const c = '${interactionClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -44,6 +44,9 @@ const hozoClasses = new Function(
 const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
 const NativeView = (props) => React.createElement('NativeView', props, props.children)
 const NativeText = (props) => React.createElement('NativeText', props, props.children)
+const NativeTextInput = (props) => React.createElement('NativeTextInput', props)
+const NativeModal = ({ visible, ...props }) =>
+  visible ? React.createElement('NativeModal', props, props.children) : null
 const NativePressable = ({ children, style, disabled, ...props }) => {
   const state = { pressed: false }
   return React.createElement(
@@ -57,9 +60,25 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
     typeof children === 'function' ? children(state) : children,
   )
 }
+const exportsFrom = (names, relative) =>
+  `export { ${names} } from ${JSON.stringify(filename(relative))};`
+const probeSources = [
+  exportsFrom('HozoCheckbox, HozoSwitch', 'packages/ui/src/toggle.tsx'),
+  exportsFrom('HozoRadioGroup', 'packages/ui/src/radio.tsx'),
+  exportsFrom('HozoTabs', 'packages/patterns/src/tabs.native.tsx'),
+  exportsFrom(
+    'HozoCheckbox as CheckboxPattern, HozoSwitch as SwitchPattern',
+    'packages/patterns/src/toggle.native.tsx',
+  ),
+  exportsFrom('HozoRadioGroup as RadioPattern', 'packages/patterns/src/radio.native.tsx'),
+  ...['Accordion', 'Menu', 'Listbox', 'Combobox', 'Tree'].map((name) =>
+    exportsFrom(`Hozo${name}`, `packages/patterns/src/${name.toLowerCase()}.native.tsx`),
+  ),
+  exportsFrom('usePressableInteraction', 'packages/behaviors/src/pressable-interaction.ts'),
+]
 const bundled = await build({
   stdin: {
-    contents: `export { HozoCheckbox, HozoSwitch } from ${JSON.stringify(filename('packages/ui/src/toggle.tsx'))}; export { HozoRadioGroup } from ${JSON.stringify(filename('packages/ui/src/radio.tsx'))}; export { HozoTabs } from ${JSON.stringify(filename('packages/patterns/src/tabs.native.tsx'))}; export { HozoCheckbox as CheckboxPattern, HozoSwitch as SwitchPattern } from ${JSON.stringify(filename('packages/patterns/src/toggle.native.tsx'))}; export { HozoRadioGroup as RadioPattern } from ${JSON.stringify(filename('packages/patterns/src/radio.native.tsx'))}; export { HozoAccordion } from ${JSON.stringify(filename('packages/patterns/src/accordion.native.tsx'))}; export { usePressableInteraction } from ${JSON.stringify(filename('packages/behaviors/src/pressable-interaction.ts'))};`,
+    contents: probeSources.join('\n'),
     resolveDir: root,
   },
   bundle: true,
@@ -94,6 +113,8 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
       return {
         View: NativeView,
         Text: NativeText,
+        TextInput: NativeTextInput,
+        Modal: NativeModal,
         Pressable: NativePressable,
         StyleSheet: { flatten: flat },
       }
@@ -105,6 +126,7 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
 )
 const { HozoCheckbox, HozoSwitch, HozoRadioGroup, HozoTabs } = module.exports
 const { CheckboxPattern, SwitchPattern, RadioPattern, HozoAccordion } = module.exports
+const { HozoMenu, HozoListbox, HozoCombobox, HozoTree } = module.exports
 const { usePressableInteraction } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
@@ -279,8 +301,8 @@ test('Native tabs deliver hover, keyboard focus-visible and press state to both 
 
 // Exercise RN events, not a fabricated resolver state. Each owner must deliver
 // those facts to both callbacks, while retaining its separate semantic state.
-async function checkInteraction(tree) {
-  const host = () => tree.root.findAllByType('NativePressable')[0]
+async function checkInteraction(tree, index = 0) {
+  const host = () => tree.root.findAllByType('NativePressable')[index]
   const box = () => flat(host().props.style)
   const text = () => flat(host().findByType('NativeText').props.style)
   const event = async (name) => {
@@ -445,6 +467,158 @@ test('the styled Native controls use their actual UI hover and keyboard-focus cl
     assert.equal(flat(host().props.style).outlineColor, color('hozo-focus'))
     assert.equal(flat(host().props.style).outlineWidth, 2)
   }
+})
+
+test('Native Menu trigger and items deliver interaction facts independently of opening and selection', async (t) => {
+  const selected = []
+  const tree = await mount(t, HozoMenu, {
+    trigger: 'Actions',
+    triggerClassName: `${interactionClasses} aria-expanded:border-2`,
+    itemClassName: `${interactionClasses} disabled:opacity-25`,
+    items: [
+      { label: 'Run', onSelect: () => selected.push('run') },
+      { label: 'Blocked', disabled: true, onSelect: () => selected.push('blocked') },
+    ],
+  })
+  await checkInteraction(tree)
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  assert.equal(hosts().length, 1, 'interaction alone does not open the modal')
+  await press(hosts()[0])
+  assert.equal(hosts()[0].props.accessibilityState.expanded, true)
+  assert.equal(flat(hosts()[0].props.style).borderTopWidth, 2)
+  assert.equal(hosts().length, 4, 'trigger, dismiss target, two menu items')
+  await checkInteraction(tree, 2)
+  assert.deepEqual(selected, [])
+  await act(() => hosts()[2].props.onHoverIn({}))
+  assert.equal(flat(hosts()[0].props.style).backgroundColor, undefined)
+  assert.equal(flat(hosts()[3].props.style).backgroundColor, undefined)
+  assert.equal(hosts()[3].props.disabled, true)
+  await press(hosts()[3])
+  assert.deepEqual(selected, [])
+  assert.equal(hosts().length, 4, 'disabled selection does not dismiss')
+  await press(hosts()[2])
+  assert.deepEqual(selected, ['run'])
+  assert.equal(hosts().length, 1)
+})
+
+test('Native Listbox keeps single, multiple and controlled selection separate from interaction', async (t) => {
+  const options = [
+    { value: 'a', label: 'A' },
+    { value: 'b', label: 'B' },
+    { value: 'c', label: 'C', disabled: true },
+  ]
+  const tree = await mount(t, HozoListbox, {
+    options,
+    defaultValue: 'a',
+    optionClassName: `${interactionClasses} aria-selected:border-2`,
+  })
+  await checkInteraction(tree)
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  assert.deepEqual(
+    hosts().map((node) => node.props.accessibilityState.selected),
+    [true, false, false],
+  )
+  assert.equal(flat(hosts()[0].props.style).borderTopWidth, 2)
+  await press(hosts()[2])
+  assert.equal(hosts()[2].props.disabled, true)
+  assert.equal(hosts()[0].props.accessibilityState.selected, true)
+  await press(hosts()[1])
+  assert.deepEqual(
+    hosts().map((node) => node.props.accessibilityState.selected),
+    [false, true, false],
+  )
+  const multiple = await mount(t, HozoListbox, { options, multiple: true, defaultValue: ['a'] })
+  await press(multiple.root.findAllByType('NativePressable')[1])
+  assert.deepEqual(
+    multiple.root
+      .findAllByType('NativePressable')
+      .map((node) => node.props.accessibilityState.selected),
+    [true, true, false],
+  )
+  const notified = []
+  const controlled = await mount(t, HozoListbox, {
+    options,
+    value: 'a',
+    onValueChange: (value) => notified.push(value),
+  })
+  await press(controlled.root.findAllByType('NativePressable')[1])
+  assert.deepEqual(notified, ['b'])
+  assert.deepEqual(
+    controlled.root
+      .findAllByType('NativePressable')
+      .map((node) => node.props.accessibilityState.selected),
+    [true, false, false],
+  )
+})
+
+test('Native Combobox options deliver interaction facts and retain filtering, disabled and commit behavior', async (t) => {
+  const selected = []
+  const tree = await mount(t, HozoCombobox, {
+    options: [
+      { value: 'a', label: 'Alpha' },
+      { value: 'b', label: 'Beta' },
+      { value: 'c', label: 'Blocked', disabled: true },
+    ],
+    optionClassName: interactionClasses,
+    onValueChange: (value) => selected.push(value),
+  })
+  const input = () => tree.root.findByType('NativeTextInput')
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  await act(() => input().props.onFocus({}))
+  await checkInteraction(tree)
+  assert.deepEqual(selected, [])
+  assert.equal(input().props.value, '')
+  assert.equal(input().props.accessibilityState.expanded, true)
+  await press(hosts()[2])
+  assert.equal(hosts()[2].props.disabled, true)
+  assert.deepEqual(selected, [])
+  await act(() => input().props.onChangeText('Be'))
+  assert.equal(hosts().length, 1)
+  assert.equal(hosts()[0].findByType('NativeText').children.join(''), 'Beta')
+  await checkInteraction(tree)
+  await press(hosts()[0])
+  assert.deepEqual(selected, ['b'])
+  assert.equal(input().props.value, 'Beta')
+  assert.equal(input().props.accessibilityState.expanded, false)
+  assert.equal(hosts().length, 0)
+})
+
+test('Native Tree interaction does not expand branches or select leaves', async (t) => {
+  const selected = []
+  const tree = await mount(t, HozoTree, {
+    nodes: [
+      { id: 'folder', label: 'Folder', children: [{ id: 'leaf', label: 'Leaf' }] },
+      {
+        id: 'blocked',
+        label: 'Blocked',
+        disabled: true,
+        children: [{ id: 'hidden', label: 'Hidden' }],
+      },
+    ],
+    selectedId: 'leaf',
+    rowClassName: `${interactionClasses} aria-expanded:border-2 aria-selected:border-2`,
+    onSelect: (id) => selected.push(id),
+  })
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  await checkInteraction(tree)
+  assert.equal(hosts().length, 2)
+  assert.equal(hosts()[0].props.accessibilityState.expanded, false)
+  assert.deepEqual(selected, [])
+  await press(hosts()[1])
+  assert.equal(hosts()[1].props.disabled, true)
+  assert.equal(hosts().length, 2)
+  await press(hosts()[0])
+  assert.equal(hosts().length, 3)
+  assert.equal(hosts()[0].props.accessibilityState.expanded, true)
+  assert.equal(flat(hosts()[0].props.style).borderTopWidth, 2)
+  await checkInteraction(tree, 1)
+  assert.equal(hosts()[1].props.accessibilityState.selected, true)
+  assert.equal(flat(hosts()[1].props.style).borderTopWidth, 2)
+  assert.deepEqual(selected, [])
+  await press(hosts()[1])
+  assert.deepEqual(selected, ['leaf'])
+  await press(hosts()[0])
+  assert.equal(hosts().length, 2)
 })
 
 test('the shared tracker notifies the animation driver synchronously and can omit focus-visible inference', async (t) => {

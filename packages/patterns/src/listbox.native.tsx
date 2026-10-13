@@ -1,7 +1,8 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
 import { optionKey } from './option-key.ts'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoListboxOption<T> {
@@ -26,7 +27,7 @@ interface Shared<T> {
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
    * `StyleSheet` entry. Here it arrives as a string and is resolved through
-   * the project's candidate map (#886), an option with its `pressed`,
+   * the project's candidate map (#886), an option with its interaction,
    * `aria-selected` and `disabled` state. A string label takes the text half
    * of its option's styles. Each `*Style` prop comes after its class list.
    */
@@ -102,10 +103,10 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
     >
       {options.map((option, at) => {
         const selected = chosen.includes(option.value)
-        const look = (pressed: boolean) =>
+        const look = (interaction: InteractionState) =>
           splitTextStyle(
             hozoClasses(optionClassName, {
-              pressed,
+              ...interaction,
               disabled: Boolean(option.disabled),
               'aria-selected': selected,
               'aria-disabled': Boolean(option.disabled),
@@ -117,12 +118,13 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
             key={optionKey(option.value, option.id, at)}
             accessibilityRole="menuitem"
             accessibilityState={{ selected, disabled: option.disabled }}
-            style={({ pressed }) => [look(pressed)[0], optionStyle]}
+            disabled={option.disabled}
+            style={(interaction) => [look(interaction)[0], optionStyle]}
             onPress={() => toggle(at)}
           >
-            {({ pressed }) =>
+            {(interaction) =>
               typeof content === 'string' ? (
-                <Text style={look(pressed)[1]}>{content}</Text>
+                <Text style={look(interaction)[1]}>{content}</Text>
               ) : (
                 content
               )
