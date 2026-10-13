@@ -1,3 +1,4 @@
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
 
@@ -12,13 +13,14 @@ export interface HozoTabsProps {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (`@hozo/engine/project`, which `withHozo`
+   * points at it), with the state each element is in -- a tab's `pressed`,
+   * `aria-selected` and `disabled` (#886). Each `*Style` prop comes after
+   * its class list, so an explicit style still wins.
    */
   className?: string
-  /** Source-level styling slots, carried like `className`; use styles at runtime. */
+  /** Class lists for the parts, resolved like `className`. */
   tabListClassName?: string
   tabClassName?: string
   panelClassName?: string
@@ -36,6 +38,10 @@ export interface HozoTabsProps {
 }
 
 export function HozoTabs({
+  className,
+  tabListClassName,
+  tabClassName,
+  panelClassName,
   tabs,
   defaultIndex = 0,
   index,
@@ -59,11 +65,11 @@ export function HozoTabs({
   )
 
   return (
-    <View style={style}>
+    <View style={[hozoClasses(className), style]}>
       <View
         accessibilityRole="tablist"
         accessibilityLabel={accessibilityLabel}
-        style={tabListStyle}
+        style={[hozoClasses(tabListClassName), tabListStyle]}
       >
         {tabs.map((tab, at) => (
           <Pressable
@@ -76,14 +82,24 @@ export function HozoTabs({
             key={`tab-${at}`}
             accessibilityRole="tab"
             accessibilityState={{ selected: at === selected, disabled: tab.disabled }}
-            style={tabStyle}
+            style={({ pressed }) => [
+              hozoClasses(tabClassName, {
+                pressed,
+                disabled: Boolean(tab.disabled),
+                'aria-selected': at === selected,
+                'aria-disabled': Boolean(tab.disabled),
+              }),
+              tabStyle,
+            ]}
             onPress={() => select(at)}
           >
             {tab.label}
           </Pressable>
         ))}
       </View>
-      <View style={panelStyle}>{tabs[selected]?.content ?? null}</View>
+      <View style={[hozoClasses(panelClassName), panelStyle]}>
+        {tabs[selected]?.content ?? null}
+      </View>
     </View>
   )
 }
