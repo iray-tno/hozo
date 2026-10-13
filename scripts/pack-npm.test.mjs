@@ -36,7 +36,11 @@ test('the public release publishes UI after all its Hozo dependencies', () => {
   const ui = manifests.find((manifest) => manifest.name === '@hozo/ui')
   assert.ok(ui)
   assert.ok(order.includes('ui'))
-  for (const dependency of Object.keys(ui.dependencies)) {
+  // Its own packages only: `clsx` comes from the registry and has no place
+  // in the order.
+  const hozo = Object.keys(ui.dependencies).filter((dependency) => dependency.startsWith('@hozo/'))
+  assert.ok(hozo.length > 0)
+  for (const dependency of hozo) {
     assert.ok(order.indexOf(dependency.replace('@hozo/', '')) >= 0)
     assert.ok(order.indexOf(dependency.replace('@hozo/', '')) < order.indexOf('ui'))
   }

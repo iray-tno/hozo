@@ -51,7 +51,8 @@
     "@hozo/form": "workspace:^",
     "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
-    "@hozo/typography": "workspace:^"
+    "@hozo/typography": "workspace:^",
+    "clsx": "^2.1.1"
   },
   "peerDependencies": {
     "react": "^19.0.0",
