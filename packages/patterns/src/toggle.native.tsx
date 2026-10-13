@@ -18,8 +18,10 @@
  * the same reason `RadioGroup` here is a `Pressable` and not a picker.
  */
 
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, type ViewStyle } from 'react-native'
+import { Pressable, type StyleProp, Text, type TextStyle, type ViewStyle } from 'react-native'
+import { splitTextStyle } from './text-style.native.ts'
 
 /** Checked, not checked, or -- for a checkbox only -- partly. */
 export type HozoCheckedState = boolean | 'mixed'
@@ -29,10 +31,10 @@ interface Shared {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886), with the control's `pressed`,
+   * `aria-checked` and `disabled` state. A string child takes the text half.
+   * `style` comes after it.
    */
   className?: string
   children?: ReactNode
@@ -72,10 +74,33 @@ function useToggle(
   return { state, press }
 }
 
+/** A control's resolved classes, split into its box and its label (#886). */
+function look(
+  className: string | undefined,
+  pressed: boolean,
+  checked: boolean,
+  disabled?: boolean,
+) {
+  return splitTextStyle(
+    hozoClasses(className, {
+      pressed,
+      disabled: Boolean(disabled),
+      'aria-checked': checked,
+      'aria-disabled': Boolean(disabled),
+    }),
+  )
+}
+
+/** A string child in a `Text` with the label's styles; anything else as it is. */
+function label(children: ReactNode, text: TextStyle) {
+  return typeof children === 'string' ? <Text style={text}>{children}</Text> : children
+}
+
 export function HozoCheckbox({
   checked,
   defaultChecked,
   onCheckedChange,
+  className,
   children,
   accessibilityLabel,
   disabled,
@@ -88,10 +113,10 @@ export function HozoCheckbox({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: state, disabled }}
       disabled={disabled}
-      style={style}
+      style={({ pressed }) => [look(className, pressed, state === true, disabled)[0], style]}
       onPress={press}
     >
-      {children}
+      {({ pressed }) => label(children, look(className, pressed, state === true, disabled)[1])}
     </Pressable>
   )
 }
@@ -100,6 +125,7 @@ export function HozoSwitch({
   checked,
   defaultChecked,
   onCheckedChange,
+  className,
   children,
   accessibilityLabel,
   disabled,
@@ -112,10 +138,10 @@ export function HozoSwitch({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: state === true, disabled }}
       disabled={disabled}
-      style={style}
+      style={({ pressed }) => [look(className, pressed, state === true, disabled)[0], style]}
       onPress={press}
     >
-      {children}
+      {({ pressed }) => label(children, look(className, pressed, state === true, disabled)[1])}
     </Pressable>
   )
 }

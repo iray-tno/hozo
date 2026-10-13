@@ -18,8 +18,10 @@
  * what makes a reader say "collapsed" or "expanded" on the header.
  */
 
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoAccordionItem {
   /** An identity of the caller's own; see the Web half. */
@@ -42,10 +44,11 @@ interface Shared {
    * Tailwind classes, the same props the Web half takes.
    *
    * On a tag the compiler lowers they are gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else they are carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and the
-   * types still have to accept them, because an app is type-checked against
-   * the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here they arrive as strings and are resolved through
+   * the project's candidate map (#886), a trigger with its `pressed`,
+   * `aria-expanded` and `disabled` state. There is no heading element, so
+   * `headingClassName` goes on the trigger before its own classes. Each
+   * `*Style` prop comes after its class list.
    */
   className?: string
   sectionClassName?: string
@@ -81,6 +84,11 @@ export function HozoAccordion(props: HozoAccordionProps) {
   const {
     items,
     accessibilityLabel,
+    className,
+    sectionClassName,
+    headingClassName,
+    triggerClassName,
+    panelClassName,
     style,
     sectionStyle,
     triggerStyle,
@@ -123,26 +131,46 @@ export function HozoAccordion(props: HozoAccordionProps) {
   )
 
   return (
-    <View accessibilityRole="none" accessibilityLabel={accessibilityLabel} style={style}>
+    <View
+      accessibilityRole="none"
+      accessibilityLabel={accessibilityLabel}
+      style={[hozoClasses(className), style]}
+    >
       {items.map((item, at) => {
         const key = keyOf(item, at)
         const expanded = open.includes(key)
+        // Box and label: a Pressable is a View and drops a label's colour
+        // and weight, so those go to the Text (see `splitTextStyle`).
+        const trigger = (pressed: boolean) =>
+          splitTextStyle([
+            hozoClasses(headingClassName),
+            hozoClasses(triggerClassName, {
+              pressed,
+              disabled: Boolean(item.disabled),
+              'aria-expanded': expanded,
+              'aria-disabled': Boolean(item.disabled),
+            }),
+          ])
         return (
-          <View key={key} style={sectionStyle}>
+          <View key={key} style={[hozoClasses(sectionClassName), sectionStyle]}>
             <Pressable
               accessibilityRole="header"
               accessibilityState={{ expanded, disabled: item.disabled }}
               disabled={item.disabled}
-              style={triggerStyle}
+              style={({ pressed }) => [trigger(pressed)[0], triggerStyle]}
               onPress={() => toggle(at)}
             >
-              {typeof item.header === 'string' ? (
-                <Text style={triggerTextStyle}>{item.header}</Text>
-              ) : (
-                item.header
-              )}
+              {({ pressed }) =>
+                typeof item.header === 'string' ? (
+                  <Text style={[trigger(pressed)[1], triggerTextStyle]}>{item.header}</Text>
+                ) : (
+                  item.header
+                )
+              }
             </Pressable>
-            {expanded ? <View style={panelStyle}>{item.content}</View> : null}
+            {expanded ? (
+              <View style={[hozoClasses(panelClassName), panelStyle]}>{item.content}</View>
+            ) : null}
           </View>
         )
       })}

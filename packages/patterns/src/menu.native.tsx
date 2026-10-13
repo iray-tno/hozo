@@ -1,5 +1,7 @@
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
-import { Modal, Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import { Modal, Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoMenuItem {
   label: string
@@ -12,13 +14,13 @@ export interface HozoMenuProps {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886): the trigger with its `pressed` and
+   * `aria-expanded` state, an item with `pressed` and `disabled`. A string
+   * label takes the text half. Each `*Style` prop comes after its class list.
    */
   className?: string
-  /** Source-level styling slots, carried like `className`; use styles at runtime. */
+  /** Class lists for the parts, resolved like `className`. */
   triggerClassName?: string
   menuClassName?: string
   itemClassName?: string
@@ -32,6 +34,10 @@ export interface HozoMenuProps {
 }
 
 export function HozoMenu({
+  className,
+  triggerClassName,
+  menuClassName,
+  itemClassName,
   trigger,
   items,
   accessibilityLabel,
@@ -42,6 +48,17 @@ export function HozoMenu({
 }: HozoMenuProps) {
   const [open, setOpen] = useState(false)
 
+  const triggerLook = (pressed: boolean) =>
+    splitTextStyle(hozoClasses(triggerClassName, { pressed, 'aria-expanded': open }))
+  const itemLook = (pressed: boolean, disabled?: boolean) =>
+    splitTextStyle(
+      hozoClasses(itemClassName, {
+        pressed,
+        disabled: Boolean(disabled),
+        'aria-disabled': Boolean(disabled),
+      }),
+    )
+
   const select = (at: number) => {
     if (items[at]?.disabled) return
     items[at]?.onSelect?.()
@@ -49,14 +66,20 @@ export function HozoMenu({
   }
 
   return (
-    <View style={style}>
+    <View style={[hozoClasses(className), style]}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        style={triggerStyle}
+        style={({ pressed }) => [triggerLook(pressed)[0], triggerStyle]}
         onPress={() => setOpen(true)}
       >
-        {trigger}
+        {({ pressed }) =>
+          typeof trigger === 'string' ? (
+            <Text style={triggerLook(pressed)[1]}>{trigger}</Text>
+          ) : (
+            trigger
+          )
+        }
       </Pressable>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <Pressable
@@ -69,7 +92,7 @@ export function HozoMenu({
           accessibilityViewIsModal
           accessibilityRole="menu"
           accessibilityLabel={accessibilityLabel}
-          style={menuStyle}
+          style={[hozoClasses(menuClassName), menuStyle]}
         >
           {items.map((item, at) => (
             <Pressable
@@ -82,10 +105,16 @@ export function HozoMenu({
               key={`item-${at}`}
               accessibilityRole="menuitem"
               accessibilityState={{ disabled: item.disabled }}
-              style={itemStyle}
+              style={({ pressed }) => [itemLook(pressed, item.disabled)[0], itemStyle]}
               onPress={() => select(at)}
             >
-              {item.label}
+              {({ pressed }) =>
+                typeof item.label === 'string' ? (
+                  <Text style={itemLook(pressed, item.disabled)[1]}>{item.label}</Text>
+                ) : (
+                  item.label
+                )
+              }
             </Pressable>
           ))}
         </View>
