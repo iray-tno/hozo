@@ -426,3 +426,55 @@ test('a runtime class keeps its pressed and disabled looks on Native', () => {
   assert.equal(styleFor(false, true).opacity, 0.8)
   assert.equal(styleFor(true, false).opacity, 0.5)
 })
+
+// #886, slice 2. `@hozo/patterns`' Native Tabs resolves its class props
+// through the project's resolver, with each tab's state. Run from its own
+// source against stand-ins for React Native and React: what is asserted is
+// the style each element is handed, not how React Native draws it.
+test("@hozo/patterns' Native Tabs applies its class props, selected and pressed included", async () => {
+  const { readFileSync } = await import('node:fs')
+  const tabsCache = openCandidateCache(path.join(directory, 'tabs-candidates.json'))
+  tabsCache.scanFile(
+    'app.ts',
+    "export const c = 'p-4 px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'",
+    1,
+  )
+  const { hozoClasses } = evaluate(tabsCache.renderNativeModule().replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  })
+  const source = readFileSync(
+    new URL('../../../packages/patterns/src/tabs.native.tsx', import.meta.url),
+    'utf8',
+  )
+  const modules = {
+    react: { useState: (value) => [value, () => {}], useCallback: (fn) => fn },
+    'react-native': { View: 'View', Pressable: 'Pressable' },
+    '@hozo/engine/project': { hozoClasses },
+  }
+  const { HozoTabs } = evaluate(source, { require: (name) => modules[name] })
+  const tree = HozoTabs({
+    className: 'p-4',
+    tabClassName: 'px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50',
+    tabs: [
+      { label: 'One', content: 'first' },
+      { label: 'Two', content: 'second', disabled: true },
+    ],
+  })
+  const flat = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
+  assert.equal(flat(tree.props.style).paddingTop, 16, 'the root applies className')
+  const found = []
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return
+    if (node.type === 'Pressable') found.push(node)
+    for (const child of [node.props?.children].flat()) walk(child)
+  }
+  walk(tree)
+  const [first, second] = found
+  const at = (tab, pressed) => flat(tab.props.style({ pressed }))
+  assert.equal(at(first, false).paddingStart, 12)
+  assert.equal(at(first, false).backgroundColor, '#2b7fff', 'the selected tab')
+  assert.equal(at(first, false).opacity, undefined)
+  assert.equal(at(first, true).opacity, 0.8, 'pressed')
+  assert.equal(at(second, false).backgroundColor, undefined, 'not selected')
+  assert.equal(at(second, false).opacity, 0.5, 'disabled')
+})

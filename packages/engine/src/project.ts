@@ -1,3 +1,5 @@
+import { createClassResolver } from './class-resolver.ts'
+
 /**
  * Project-wide Native defaults when no bundler integration supplies them.
  *
@@ -7,3 +9,12 @@
  * reset is the common case and was the fallback before this entry existed.
  */
 export const hozoPreflight = true
+
+/**
+ * The project's class resolver, for code the compiler does not lower --
+ * `@hozo/patterns`' Native components resolve their class props through it
+ * (#886). Redirected to the generated candidate module like `hozoPreflight`;
+ * unconfigured, there is no candidate map, so it resolves nothing, which is
+ * what those props did before.
+ */
+export const hozoClasses = createClassResolver({})
