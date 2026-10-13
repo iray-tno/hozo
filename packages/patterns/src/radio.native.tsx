@@ -1,6 +1,8 @@
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
 import { optionKey } from './option-key.ts'
+import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoRadioOption<T> {
   /**
@@ -22,13 +24,13 @@ export interface HozoRadioGroupProps<T> {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886), an option with its `pressed`,
+   * `aria-checked` and `disabled` state. A string label takes the text half
+   * of its option's styles. Each `*Style` prop comes after its class list.
    */
   className?: string
-  /** Source-level slot, carried like `className`; `optionStyle` is the runtime hook. */
+  /** The class list for each option, resolved like `className`. */
   optionClassName?: string
   /** Shared author prop; Native focus order does not use the Web arrow-key axis. */
   orientation?: 'horizontal' | 'vertical' | 'both'
@@ -42,6 +44,8 @@ export interface HozoRadioGroupProps<T> {
 }
 
 export function HozoRadioGroup<T>({
+  className,
+  optionClassName,
   options,
   defaultValue,
   value,
@@ -64,18 +68,40 @@ export function HozoRadioGroup<T>({
   )
 
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel={accessibilityLabel} style={style}>
-      {options.map((option, at) => (
-        <Pressable
-          key={optionKey(option.value, option.id, at)}
-          accessibilityRole="radio"
-          accessibilityState={{ checked: option.value === current, disabled: option.disabled }}
-          style={optionStyle}
-          onPress={() => select(at)}
-        >
-          {option.label}
-        </Pressable>
-      ))}
+    <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel={accessibilityLabel}
+      style={[hozoClasses(className), style]}
+    >
+      {options.map((option, at) => {
+        const checked = option.value === current
+        const look = (pressed: boolean) =>
+          splitTextStyle(
+            hozoClasses(optionClassName, {
+              pressed,
+              disabled: Boolean(option.disabled),
+              'aria-checked': checked,
+              'aria-disabled': Boolean(option.disabled),
+            }),
+          )
+        return (
+          <Pressable
+            key={optionKey(option.value, option.id, at)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked, disabled: option.disabled }}
+            style={({ pressed }) => [look(pressed)[0], optionStyle]}
+            onPress={() => select(at)}
+          >
+            {({ pressed }) =>
+              typeof option.label === 'string' ? (
+                <Text style={look(pressed)[1]}>{option.label}</Text>
+              ) : (
+                option.label
+              )
+            }
+          </Pressable>
+        )
+      })}
     </View>
   )
 }

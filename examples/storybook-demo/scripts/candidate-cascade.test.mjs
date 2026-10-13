@@ -478,3 +478,127 @@ test("@hozo/patterns' Native Tabs applies its class props, selected and pressed 
   assert.equal(at(second, false).backgroundColor, undefined, 'not selected')
   assert.equal(at(second, false).opacity, 0.5, 'disabled')
 })
+
+// #886, slice 3: the rest of `@hozo/patterns`' Native components, each run
+// from its own source the way the Tabs test above runs it. A relative import
+// is loaded the same way, so `text-style.native.ts` -- which moves a label's
+// colour and weight off a Pressable onto its Text -- is the real one.
+test("@hozo/patterns' Native controls apply their class props with each one's state", async () => {
+  const { readFileSync } = await import('node:fs')
+  const cache = openCandidateCache(path.join(directory, 'controls-candidates.json'))
+  const look =
+    'p-2 text-red-500 aria-expanded:bg-blue-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'
+  cache.scanFile('app.ts', `export const c = '${look}'`, 1)
+  const { hozoClasses } = evaluate(cache.renderNativeModule().replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  })
+  const flat = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
+  const loaded = new Map()
+  const load = (file) => {
+    if (!loaded.has(file)) {
+      const source = readFileSync(
+        new URL(`../../../packages/patterns/src/${file}`, import.meta.url),
+        'utf8',
+      )
+      loaded.set(file, evaluate(source, { require: (name) => modules(name) }))
+    }
+    return loaded.get(file)
+  }
+  const modules = (name) =>
+    name.startsWith('./')
+      ? load(name.slice(2))
+      : {
+          react: {
+            useState: (value) => [typeof value === 'function' ? value() : value, () => {}],
+            useCallback: (fn) => fn,
+          },
+          'react-native': {
+            View: 'View',
+            Pressable: 'Pressable',
+            Text: 'Text',
+            Modal: 'Modal',
+            StyleSheet: { flatten: flat },
+          },
+          '@hozo/engine/project': { hozoClasses },
+        }[name]
+  const pressables = (tree) => {
+    const found = []
+    const walk = (node) => {
+      if (!node || typeof node !== 'object') return
+      // The ones that resolve a look; a Modal's backdrop has a fixed style.
+      if (node.type === 'Pressable' && typeof node.props.style === 'function') found.push(node)
+      for (const child of [node.props?.children].flat()) walk(child)
+    }
+    walk(tree)
+    return found
+  }
+  // A pressable's box at a state, and the Text its children render then.
+  const at = (pressable, pressed) => {
+    const children = pressable.props.children
+    const label = typeof children === 'function' ? children({ pressed }) : children
+    return {
+      box: flat(pressable.props.style({ pressed })),
+      text: flat(label?.type === 'Text' ? label.props.style : undefined),
+    }
+  }
+
+  const accordion = load('accordion.native.tsx').HozoAccordion({
+    triggerClassName: look,
+    defaultExpanded: 'a',
+    items: [
+      { id: 'a', header: 'Open', content: 'x' },
+      { id: 'b', header: 'Shut', content: 'y', disabled: true },
+    ],
+  })
+  const [open, shut] = pressables(accordion)
+  assert.equal(at(open, false).box.backgroundColor, '#2b7fff', 'accordion: expanded')
+  assert.equal(at(open, false).box.color, undefined, 'accordion: the label colour leaves the box')
+  assert.equal(at(open, false).text.color, '#fb2c36', 'accordion: and reaches the Text')
+  assert.equal(at(open, true).box.opacity, 0.8, 'accordion: pressed')
+  assert.equal(at(shut, false).box.backgroundColor, undefined, 'accordion: collapsed')
+  assert.equal(at(shut, false).box.opacity, 0.5, 'accordion: disabled')
+
+  const radio = load('radio.native.tsx').HozoRadioGroup({
+    optionClassName: look,
+    defaultValue: 1,
+    options: [
+      { value: 1, label: 'One' },
+      { value: 2, label: 'Two' },
+    ],
+  })
+  const [one, two] = pressables(radio)
+  assert.equal(at(one, false).box.backgroundColor, '#2b7fff', 'radio: checked')
+  assert.equal(at(two, false).box.backgroundColor, undefined, 'radio: unchecked')
+  assert.equal(at(one, false).text.color, '#fb2c36', 'radio: label')
+
+  const listbox = load('listbox.native.tsx').HozoListbox({
+    optionClassName: look,
+    defaultValue: 'b',
+    options: [
+      { value: 'a', label: 'A' },
+      { value: 'b', label: 'B' },
+    ],
+  })
+  const [a, b] = pressables(listbox)
+  assert.equal(at(a, false).box.backgroundColor, undefined, 'listbox: unselected')
+  assert.equal(at(b, false).box.backgroundColor, '#2b7fff', 'listbox: selected')
+
+  const checkbox = load('toggle.native.tsx').HozoCheckbox({
+    className: look,
+    defaultChecked: true,
+    children: 'Agree',
+  })
+  assert.equal(at(checkbox, false).box.backgroundColor, '#2b7fff', 'checkbox: checked')
+  assert.equal(at(checkbox, false).text.color, '#fb2c36', 'checkbox: label')
+
+  const menu = load('menu.native.tsx').HozoMenu({
+    triggerClassName: look,
+    itemClassName: look,
+    trigger: 'More',
+    items: [{ label: 'Delete', disabled: true }],
+  })
+  const [trigger, item] = pressables(menu)
+  assert.equal(at(trigger, true).box.opacity, 0.8, 'menu: pressed trigger')
+  assert.equal(at(trigger, false).text.color, '#fb2c36', 'menu: trigger label')
+  assert.equal(at(item, false).box.opacity, 0.5, 'menu: disabled item')
+})

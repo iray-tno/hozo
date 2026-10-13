@@ -1,6 +1,8 @@
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, View, type ViewStyle } from 'react-native'
+import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
 import { optionKey } from './option-key.ts'
+import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoListboxOption<T> {
   /**
@@ -23,13 +25,13 @@ interface Shared<T> {
    * Tailwind classes, the same prop the Web half takes.
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here it arrives as a string and is resolved through
+   * the project's candidate map (#886), an option with its `pressed`,
+   * `aria-selected` and `disabled` state. A string label takes the text half
+   * of its option's styles. Each `*Style` prop comes after its class list.
    */
   className?: string
-  /** Source-level slot, carried like `className`; `optionStyle` is the runtime hook. */
+  /** The class list for each option, resolved like `className`. */
   optionClassName?: string
   options: readonly HozoListboxOption<T>[]
   accessibilityLabel?: string
@@ -54,7 +56,7 @@ export interface HozoListboxMultipleProps<T> extends Shared<T> {
 export type HozoListboxProps<T> = HozoListboxSingleProps<T> | HozoListboxMultipleProps<T>
 
 export function HozoListbox<T>(props: HozoListboxProps<T>) {
-  const { options, accessibilityLabel, style, optionStyle } = props
+  const { className, optionClassName, options, accessibilityLabel, style, optionStyle } = props
   const multiple = props.multiple === true
 
   const [uncontrolled, setUncontrolled] = useState<T[]>(() =>
@@ -96,22 +98,38 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
       accessibilityRole="list"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={multiple ? 'Choose one or more' : undefined}
-      style={style}
+      style={[hozoClasses(className), style]}
     >
-      {options.map((option, at) => (
-        <Pressable
-          key={optionKey(option.value, option.id, at)}
-          accessibilityRole="menuitem"
-          accessibilityState={{
-            selected: chosen.includes(option.value),
-            disabled: option.disabled,
-          }}
-          style={optionStyle}
-          onPress={() => toggle(at)}
-        >
-          {option.render ?? option.label}
-        </Pressable>
-      ))}
+      {options.map((option, at) => {
+        const selected = chosen.includes(option.value)
+        const look = (pressed: boolean) =>
+          splitTextStyle(
+            hozoClasses(optionClassName, {
+              pressed,
+              disabled: Boolean(option.disabled),
+              'aria-selected': selected,
+              'aria-disabled': Boolean(option.disabled),
+            }),
+          )
+        const content = option.render ?? option.label
+        return (
+          <Pressable
+            key={optionKey(option.value, option.id, at)}
+            accessibilityRole="menuitem"
+            accessibilityState={{ selected, disabled: option.disabled }}
+            style={({ pressed }) => [look(pressed)[0], optionStyle]}
+            onPress={() => toggle(at)}
+          >
+            {({ pressed }) =>
+              typeof content === 'string' ? (
+                <Text style={look(pressed)[1]}>{content}</Text>
+              ) : (
+                content
+              )
+            }
+          </Pressable>
+        )
+      })}
     </View>
   )
 }
