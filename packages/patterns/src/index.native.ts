@@ -56,6 +56,7 @@ export {
   type HozoCommandPaletteProps,
 } from './command-palette.native.tsx'
 export { rankCommands } from './command-rules.ts'
+export type { HozoControlIndicatorClasses as ControlIndicatorClasses } from './control-indicator-classes.ts'
 export { Dialog, type DialogProps, HozoDialog, type HozoDialogProps } from './dialog.native.tsx'
 export {
   HozoDrawer as Drawer,

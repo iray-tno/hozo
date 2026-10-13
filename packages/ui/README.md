@@ -50,6 +50,14 @@ Every component's class list is a complete literal chosen by a `switch`, not ass
 
 Consumers need `node_modules/@hozo/ui/src` inside their Tailwind content globs for the same reason.
 
+Checkbox, Switch and Radio use real decorative slots on both platforms, not
+`before:`/`after:`. Their pattern supplies its actual checked/mixed/disabled
+state to the look callback, including when it owns uncontrolled state. The
+outline/track and mark/knob are spans on Web and Views on Native, hidden from
+assistive technology and unable to intercept a press. Logical knob insets keep
+the same geometry in RTL. These indicators update immediately on both platforms;
+the former pseudo-element colour/transform transitions are not retained.
+
 ## `Field` is the one with substance in it
 
 `Button`, `Card` and `Stack` are class names. `Field` is wiring:

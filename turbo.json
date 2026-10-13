@@ -68,7 +68,9 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/examples/showcase/src/**",
         "$TURBO_ROOT$/examples/showcase/assets/**",
-        "$TURBO_ROOT$/packages/patterns/src/**"
+        "$TURBO_ROOT$/packages/patterns/src/**",
+        "$TURBO_ROOT$/packages/ui/src/**",
+        "$TURBO_ROOT$/packages/engine/src/transform-slots.ts"
       ]
     },
     "@hozo/example-native-showcase#test": {

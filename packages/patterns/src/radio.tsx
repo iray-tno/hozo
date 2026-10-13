@@ -1,5 +1,7 @@
 import { nextIndex, type Orientation, type RovingKey } from '@hozo/behaviors'
 import { type KeyboardEvent, type ReactNode, useCallback, useId, useRef, useState } from 'react'
+import { controlIndicator } from './control-indicator.tsx'
+import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 import { optionKey } from './option-key.ts'
 
 export interface HozoRadioOption<T> {
@@ -18,6 +20,8 @@ export interface HozoRadioOption<T> {
 }
 
 export interface HozoRadioGroupProps<T> {
+  /** Decorative option slots, derived from the very state that aria-checked announces. */
+  indicator?: (state: { checked: boolean; disabled: boolean }) => HozoControlIndicatorClasses
   options: readonly HozoRadioOption<T>[]
   defaultValue?: T
   value?: T
@@ -37,6 +41,7 @@ export function HozoRadioGroup<T>({
   accessibilityLabel,
   className,
   optionClassName,
+  indicator,
 }: HozoRadioGroupProps<T>) {
   const base = useId()
   const [uncontrolled, setUncontrolled] = useState<T | undefined>(defaultValue)
@@ -99,6 +104,9 @@ export function HozoRadioGroup<T>({
           onKeyDown={(event) => onKeyDown(event, at)}
           onClick={() => select(at)}
         >
+          {controlIndicator(
+            indicator?.({ checked: at === checked, disabled: Boolean(option.disabled) }),
+          )}
           {option.label}
         </div>
       ))}

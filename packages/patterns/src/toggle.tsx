@@ -30,15 +30,21 @@
  * `data-hozo-state` is how: it carries `checked`, `unchecked` or `mixed` on
  * every render, the way `TimePicker`'s arrows carry `data-hozo-step`, so one
  * class list can style all three without the application tracking state it
- * has already handed over.
+ * has already handed over. For a universal look, `indicator` receives that
+ * same state and returns classes for real decorative span/View slots rather
+ * than requiring Native to invent a CSS pseudo-element.
  */
 
 import { type ReactNode, useCallback, useState } from 'react'
+import { controlIndicator } from './control-indicator.tsx'
+import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 
 /** Checked, not checked, or -- for a checkbox only -- partly. */
 export type HozoCheckedState = boolean | 'mixed'
 
-interface Shared {
+interface Shared<T extends HozoCheckedState> {
+  /** Decorative slots painted from the pattern's actual state; no CSS is imposed. */
+  indicator?: (state: { checked: T; disabled: boolean }) => HozoControlIndicatorClasses
   /**
    * The label, and the accessible name.
    *
@@ -62,7 +68,7 @@ interface Shared {
   className?: string
 }
 
-export interface HozoCheckboxProps extends Shared {
+export interface HozoCheckboxProps extends Shared<HozoCheckedState> {
   checked?: HozoCheckedState
   defaultChecked?: HozoCheckedState
   /**
@@ -77,7 +83,7 @@ export interface HozoCheckboxProps extends Shared {
   onCheckedChange?: (checked: boolean) => void
 }
 
-export interface HozoSwitchProps extends Shared {
+export interface HozoSwitchProps extends Shared<boolean> {
   checked?: boolean
   defaultChecked?: boolean
   onCheckedChange?: (checked: boolean) => void
@@ -112,6 +118,7 @@ export function HozoCheckbox({
   accessibilityLabel,
   disabled,
   className,
+  indicator,
 }: HozoCheckboxProps) {
   const { state, press } = useToggle(checked, defaultChecked, onCheckedChange)
   return (
@@ -126,6 +133,7 @@ export function HozoCheckbox({
       data-hozo-state={attribute(state)}
       onClick={press}
     >
+      {controlIndicator(indicator?.({ checked: state, disabled: Boolean(disabled) }))}
       {children}
     </button>
   )
@@ -139,6 +147,7 @@ export function HozoSwitch({
   accessibilityLabel,
   disabled,
   className,
+  indicator,
 }: HozoSwitchProps) {
   const { state, press } = useToggle(checked, defaultChecked, onCheckedChange)
   return (
@@ -155,6 +164,7 @@ export function HozoSwitch({
       data-hozo-state={attribute(state)}
       onClick={press}
     >
+      {controlIndicator(indicator?.({ checked: state === true, disabled: Boolean(disabled) }))}
       {children}
     </button>
   )

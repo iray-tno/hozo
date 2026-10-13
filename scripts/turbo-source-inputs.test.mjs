@@ -23,6 +23,9 @@ const reads = {
   ],
   '@hozo/migration-audit#test': ['packages/typography/src/fonts.ts'],
   '@hozo/example-storybook#test': [
+    'packages/ui/src/toggle.tsx',
+    'packages/ui/src/theme.css',
+    'packages/engine/src/transform-slots.ts',
     'packages/patterns/src/tabs.native.tsx',
     'packages/patterns/src/text-style.native.ts',
     'examples/showcase/src/patterns.tsx',

@@ -5,22 +5,23 @@
  * choosing within it, which is what makes a radio group a radio group and not
  * a column of checkboxes. This file draws a ring and a dot.
  *
- * ## Drawn from `aria-checked`, which is the only state there is
+ * ## Drawn from the same state as `aria-checked`
  *
  * These options are `<div role="radio">` and not `<input type="radio">`, so
  * there is no `:checked` to select and no browser-drawn control to override --
  * which is the same reason `disabled:` compiles to `[data-hozo-disabled]` in
  * this project (decision 003, rule 2). `aria-checked:` is the attribute a
- * reader announces and therefore the one the dot is drawn from: one fact, read
- * twice, with no prop of ours to disagree with it.
+ * reader announces. The indicator callback gets that very checked state,
+ * so it remains one fact read twice, with no prop of ours to disagree with it.
  *
- * ## Two pseudo-elements and a padded row
+ * ## Two real decorative slots and a padded row
  *
- * `::before` is the 16px ring and `::after` is the 8px dot, both positioned
- * absolutely against the row, with `ps-9` keeping the label clear of them.
- * Centred with `-mt-2` and `-mt-1` -- half of each -- rather than a transform,
- * for the reason `Slider` gives: the margin is logical, so the control stays on
- * the leading edge when the document runs the other way.
+ * The 16px ring is positioned against the row; its 8px dot is centred inside
+ * it. `ps-9` keeps the label clear. With the 24px first line box and 8px
+ * padding, `start-2 top-3` centres the ring at (16, 20), and the dot shares
+ * that centre. Logical positioning keeps it on the leading edge in RTL.
+ * These are spans/Views hidden by the pattern, not pseudo-elements a Native
+ * backend has no way to paint. No drawing state is stored in this package.
  *
  * The alternative is a single circle that fills with the accent when chosen. It
  * is one class shorter and it reads as a checkbox with rounded corners; the
@@ -29,14 +30,28 @@
 
 import { RadioGroup as RadioGroupPattern, type RadioGroupProps } from '@hozo/patterns'
 
-export type HozoRadioGroupProps<T> = Omit<RadioGroupProps<T>, 'optionClassName'>
+export type HozoRadioGroupProps<T> = Omit<RadioGroupProps<T>, 'optionClassName' | 'indicator'>
 export type { RadioOption as HozoRadioOption } from '@hozo/patterns'
 
 const HORIZONTAL = 'flex flex-row flex-wrap gap-2'
 const VERTICAL = 'flex flex-col gap-1'
 
 const option =
-  "relative block w-full text-left text-sm leading-6 text-hozo-text cursor-pointer rounded-hozo-control ps-9 pe-3 py-2 hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus before:content-[''] before:absolute before:start-2 before:top-3 before:size-4 before:rounded-full before:border-2 before:border-hozo-border-strong before:bg-hozo-surface after:content-[''] after:absolute after:start-3 after:top-4 after:size-2 after:rounded-full aria-checked:before:border-hozo-accent aria-checked:after:bg-hozo-accent aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent aria-disabled:before:border-hozo-border"
+  'relative block w-full text-left text-sm leading-6 text-hozo-text cursor-pointer rounded-hozo-control ps-9 pe-3 py-2 hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
+
+export function radioIndicator({ checked, disabled }: { checked: boolean; disabled: boolean }) {
+  const className = disabled
+    ? 'absolute start-2 top-3 flex size-4 items-center justify-center rounded-full border-2 border-hozo-border bg-hozo-surface'
+    : checked
+      ? 'absolute start-2 top-3 flex size-4 items-center justify-center rounded-full border-2 border-hozo-accent bg-hozo-surface'
+      : 'absolute start-2 top-3 flex size-4 items-center justify-center rounded-full border-2 border-hozo-border-strong bg-hozo-surface'
+  const markClassName = checked
+    ? disabled
+      ? 'size-2 rounded-full bg-hozo-text-subtle'
+      : 'size-2 rounded-full bg-hozo-accent'
+    : undefined
+  return { className, markClassName }
+}
 
 export function HozoRadioGroup<T>({ className, orientation, ...rest }: HozoRadioGroupProps<T>) {
   const own = orientation === 'horizontal' ? HORIZONTAL : VERTICAL
@@ -46,6 +61,7 @@ export function HozoRadioGroup<T>({ className, orientation, ...rest }: HozoRadio
       orientation={orientation}
       className={className ? `${own} ${className}` : own}
       optionClassName={option}
+      indicator={radioIndicator}
     />
   )
 }

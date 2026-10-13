@@ -137,6 +137,18 @@ These arrived after 0.2.0 (#141, #144, #149, #150, #152, #153). What has checked
 
 A ✅ in the reader columns means a person read the phrases and approved them, never only that a job ran.
 
+## Decorative control indicators
+
+Checkbox, Switch and RadioGroup accept an optional `indicator` callback. It
+receives `{ checked, disabled }` from the same state used for the control's
+accessibility attributes (Checkbox includes `'mixed'`). Return
+`{ className, markClassName? }` for an outline/track and optional mark/knob.
+The pattern owns their span/View hosts, hides them from assistive technology,
+and leaves their look entirely to those classes. Native resolves each slot
+through the project's class resolver. No indicator nodes are added when this
+prop is omitted. This is how `@hozo/ui` paints its indicators without duplicating
+the pattern's controlled or uncontrolled state.
+
 <!-- generated: package-footer -->
 
 ---
