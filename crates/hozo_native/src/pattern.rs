@@ -11,6 +11,9 @@ pub(super) fn interaction_style_prop(primitive: Primitive, class_prop: &str) -> 
         // focus for a composite/plain row. Removal always has its own state.
         (Primitive::Chip, "className") => Some("hozoStyle"),
         (Primitive::Chip, "removeClassName") => Some("hozoRemoveStyle"),
+        // The root, slider, thumb and hex input do not share this owner.
+        (Primitive::ColorPicker, "swatchClassName") => Some("hozoSwatchStyle"),
+        (Primitive::ColorPicker, "selectedSwatchClassName") => Some("hozoSelectedSwatchStyle"),
         _ => None,
     }
 }

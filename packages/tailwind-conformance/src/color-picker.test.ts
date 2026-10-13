@@ -131,3 +131,87 @@ test('on Native: saturation to grey keeps the hue where it was', () => {
   assert.equal(slider('Hue').props.accessibilityValue?.text, '217 degrees, blue')
   renderer.act(() => root.unmount())
 })
+
+const STATE_SOURCE = `import { ColorPicker } from '@hozo/core'
+export function C({ onChange, disabled, swatchStyle, selectedSwatchStyle }) {
+  return <ColorPicker defaultValue="#3b82f6" presets={['#ef4444', '#3b82f6']}
+    onChange={onChange} disabled={disabled} accessibilityLabel="Theme colour"
+    swatchClassName="size-8 hover:bg-black hover:opacity-50 focus:opacity-75 focus-visible:outline-2 active:border-2"
+    selectedSwatchClassName="border-2 hover:opacity-25 focus-visible:outline-4"
+    swatchStyle={swatchStyle} selectedSwatchStyle={selectedSwatchStyle} />
+}`
+
+function mountState(props: Record<string, unknown> = {}) {
+  const { C } = loadNativeModule(STATE_SOURCE)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C, props))
+  })
+  return root
+}
+
+function event(node: Tree, name: string) {
+  const handler = node.props[name]
+  assert.equal(typeof handler, 'function', `${name} is not wired`)
+  renderer.act(() => (handler as () => void)())
+}
+
+test('compiled swatch interaction stays per radio, preserves its colour and follows selection', () => {
+  const changes: string[] = []
+  const root = mountState({ onChange: (hex: string) => changes.push(hex) })
+  try {
+    const [red, blue] = radios(root)
+    event(red, 'onHoverIn')
+    assert.equal(flat(red).opacity, 0.5)
+    assert.equal(flat(red).backgroundColor, '#ef4444', 'the preset colour wins over hover bg')
+    assert.equal(flat(blue).opacity, undefined, 'an idle sibling did not hover')
+    event(blue, 'onHoverIn')
+    assert.equal(flat(blue).opacity, 0.25, 'selected slot wins over the base slot')
+    event(blue, 'onFocus')
+    assert.equal(flat(blue).outlineWidth, 4, 'selected focus slot is evaluated by the same host')
+    assert.equal(flat(red).outlineWidth, undefined, 'focus is never borrowed from a sibling')
+    event(red, 'onPressIn')
+    assert.equal(flat(red).borderWidth ?? flat(red).borderTopWidth, 2)
+    event(red, 'onPressOut')
+    assert.equal(flat(red).borderWidth ?? flat(red).borderTopWidth, undefined)
+    event(blue, 'onPressIn')
+    assert.equal(flat(blue).outlineWidth, undefined)
+    assert.equal(flat(blue).borderWidth ?? flat(blue).borderTopWidth, 2)
+    event(blue, 'onPressOut')
+    event(red, 'onPress')
+    assert.deepEqual(changes, ['#ef4444'])
+    const [nextRed, nextBlue] = radios(root)
+    assert.equal(flat(nextRed).opacity, 0.25, 'selection moves the stateful slot')
+    assert.equal(flat(nextBlue).opacity, 0.75, 'still focused, but no longer selected')
+    assert.equal(nextRed.props.accessibilityState?.checked, true)
+    assert.equal(nextBlue.props.accessibilityState?.checked, false)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('compiled swatch styles keep explicit per-slot precedence and disabled hosts', () => {
+  const changes: string[] = []
+  const root = mountState({
+    disabled: true,
+    onChange: (hex: string) => changes.push(hex),
+    swatchStyle: { opacity: 0.8 },
+    selectedSwatchStyle: { opacity: 0.9, outlineWidth: 6 },
+  })
+  try {
+    const [red, blue] = radios(root)
+    event(red, 'onHoverIn')
+    event(blue, 'onHoverIn')
+    event(blue, 'onFocus')
+    assert.equal(flat(red).opacity, 0.8)
+    assert.equal(flat(blue).opacity, 0.9)
+    assert.equal(flat(blue).outlineWidth, 6)
+    assert.equal(red.props.disabled, true)
+    assert.equal(blue.props.accessibilityState?.disabled, true)
+    // A programmatically delivered callback is not a claim that a disabled
+    // device host receives focus or activates; RN owns that delivery.
+    assert.deepEqual(changes, [])
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
