@@ -1,6 +1,7 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoTab {
@@ -67,10 +68,10 @@ export function HozoTabs({
 
   // A tab's box and label: a Pressable is a View and drops a label's colour
   // and weight, so those go to its Text (see `splitTextStyle`).
-  const look = (tab: HozoTab, at: number, pressed: boolean) =>
+  const look = (tab: HozoTab, at: number, interaction: InteractionState) =>
     splitTextStyle(
       hozoClasses(tabClassName, {
-        pressed,
+        ...interaction,
         disabled: Boolean(tab.disabled),
         'aria-selected': at === selected,
         'aria-disabled': Boolean(tab.disabled),
@@ -95,12 +96,13 @@ export function HozoTabs({
             key={`tab-${at}`}
             accessibilityRole="tab"
             accessibilityState={{ selected: at === selected, disabled: tab.disabled }}
-            style={({ pressed }) => [look(tab, at, pressed)[0], tabStyle]}
+            disabled={tab.disabled}
+            style={(interaction) => [look(tab, at, interaction)[0], tabStyle]}
             onPress={() => select(at)}
           >
-            {({ pressed }) =>
+            {(interaction) =>
               typeof tab.label === 'string' ? (
-                <Text style={look(tab, at, pressed)[1]}>{tab.label}</Text>
+                <Text style={look(tab, at, interaction)[1]}>{tab.label}</Text>
               ) : (
                 tab.label
               )

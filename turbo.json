@@ -70,6 +70,7 @@
         "$TURBO_ROOT$/examples/showcase/assets/**",
         "$TURBO_ROOT$/packages/patterns/src/**",
         "$TURBO_ROOT$/packages/ui/src/**",
+        "$TURBO_ROOT$/packages/behaviors/src/pressable-interaction.ts",
         "$TURBO_ROOT$/packages/engine/src/transform-slots.ts"
       ]
     },

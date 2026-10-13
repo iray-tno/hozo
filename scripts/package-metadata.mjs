@@ -265,8 +265,12 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'navigation', 'router', 'deep-linking', 'universal'],
   },
   behaviors: {
-    exports: { '.': './dist/index.js', './native': './dist/native.js' },
-    noNative: ['./native'],
+    exports: {
+      '.': './dist/index.js',
+      './native': './dist/native.js',
+      './pressable-interaction': './dist/pressable-interaction.js',
+    },
+    noNative: ['./native', './pressable-interaction'],
     native: true,
     keywords: [
       'react-native',

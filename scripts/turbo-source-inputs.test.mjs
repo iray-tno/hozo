@@ -25,6 +25,7 @@ const reads = {
   '@hozo/example-storybook#test': [
     'packages/ui/src/toggle.tsx',
     'packages/ui/src/theme.css',
+    'packages/behaviors/src/pressable-interaction.ts',
     'packages/engine/src/transform-slots.ts',
     'packages/patterns/src/tabs.native.tsx',
     'packages/patterns/src/text-style.native.ts',
