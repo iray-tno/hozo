@@ -95,6 +95,12 @@ jobs:
 
       - name: Report (real app integration builds)
         run: node packages/test-reporter/src/run-command-junit.mjs integration pnpm test:integration || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storybook-a11y-evidence
+          path: examples/storybook-demo/storybook-static-check/_a11y-result.json
+          if-no-files-found: warn
 
       - name: Report (performance tripwires)
         run: node packages/test-reporter/src/run-command-junit.mjs performance pnpm test:performance || true

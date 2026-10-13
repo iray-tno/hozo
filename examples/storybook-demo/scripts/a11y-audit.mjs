@@ -46,10 +46,12 @@ export async function waitForSettledStory(timeout = 10000) {
   }
 }
 
-export async function auditPage(page, axeSource, timeout = 10000) {
+export async function auditPage(page, axeSource, timeout = 10000, onStage = () => {}) {
+  onStage('preparation')
   await page.evaluate(waitForSettledStory, timeout)
   // Storybook's a11y addon owns a separate axe instance. Retain ours before an
   // addon render can replace window.axe and race this explicitly awaited audit.
+  onStage('axe')
   await page.addScriptTag({ content: `${axeSource}\nwindow.__hozoAuditAxe = window.axe;` })
   return page.evaluate(async () => {
     const result = await window.__hozoAuditAxe.run(document.getElementById('storybook-root'), {

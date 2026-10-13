@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - 'examples/storybook-demo/scripts/a11y-audit*'
+      - 'examples/storybook-demo/scripts/a11y-catalogue*'
       - 'examples/storybook-demo/scripts/check-a11y.mjs'
       - 'examples/storybook-demo/package.json'
       - '.github/workflows/storybook-a11y.yml'
@@ -31,3 +32,9 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm turbo run test --filter=@hozo/example-storybook
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: storybook-a11y-evidence
+          path: examples/storybook-demo/storybook-static-check/_a11y-result.json
+          if-no-files-found: warn

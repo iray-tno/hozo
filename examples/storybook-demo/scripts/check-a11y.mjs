@@ -20,12 +20,13 @@
 // Use real time and bounded render/font/finite-animation readiness, not a bigger
 // guessed delay. All rules and both schemes remain enabled; no retries.
 
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
 import { auditPage } from './a11y-audit.mjs'
+import { createAuditReport, runAuditCatalogue, summarizeAudit } from './a11y-catalogue.mjs'
 
 const STATIC = path.resolve(process.argv[2] ?? 'storybook-static')
 /** Where a browser might be, per platform. Nothing is installed for this. */
@@ -95,89 +96,114 @@ const server = createServer((request, response) => {
 })
 let browser
 async function cleanup() {
-  await browser?.close()
-  server.close()
+  try {
+    await browser?.close()
+  } finally {
+    server.closeAllConnections()
+    await new Promise((resolve) => server.close(resolve))
+  }
 }
+const controller = new AbortController()
 for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
-  process.on(signal, async () => {
-    await cleanup()
-    process.exit(1)
-  })
+  process.on(signal, () => controller.abort())
 }
-const found = []
-const schemes = ['light', 'dark']
+const report = createAuditReport(ids)
+const started = performance.now()
 // Port 0 avoids stale-run/parallel-run collisions. Never block this event loop
 // with a synchronous browser child: the same process serves its requests.
-await new Promise((resolve) => server.listen(0, resolve))
-let watchdog
 try {
-  watchdog = setTimeout(
-    async () => {
-      console.error('[a11y] browser audit exceeded its four-minute wall-clock bound')
-      await cleanup()
-      process.exit(1)
-    },
-    4 * 60 * 1000,
-  )
+  await new Promise((resolve, reject) => {
+    server.once('error', reject)
+    server.listen(0, resolve)
+  })
   browser = await chromium.launch({
     executablePath,
     headless: true,
     args: ['--no-sandbox', '--disable-gpu'],
+    timeout: 30000,
   })
-  for (const scheme of schemes) {
-    const page = await browser.newPage({
-      colorScheme: scheme,
-      viewport: { width: 1200, height: 900 },
-    })
-    page.setDefaultTimeout(10000)
-    for (const id of ids) {
-      const errors = []
-      const onError = (error) => errors.push(error.message)
-      page.on('pageerror', onError)
-      try {
-        await page.goto(
-          `http://localhost:${server.address().port}/iframe.html?id=${id}&viewMode=story`,
-        )
-        const result = await auditPage(page, axeSource)
-        if (result.dark !== (scheme === 'dark'))
-          throw new Error(`asked for ${scheme}, page reports the opposite scheme`)
-        if (errors.length) throw new Error(errors.join('\n'))
-        found.push(...result.found.map((violation) => ({ ...violation, id, scheme })))
-      } catch (error) {
-        // Retain failures with their exact story and scheme, not a silent
-        // empty result or a retry that can turn a missing render green.
-        found.push({ id, scheme, impact: 'error', rule: 'axe', target: '', help: error.message })
-      } finally {
-        page.off('pageerror', onError)
+  await runAuditCatalogue(
+    report,
+    async (scheme) => {
+      const page = await browser.newPage({
+        colorScheme: scheme,
+        viewport: { width: 1200, height: 900 },
+      })
+      page.setDefaultTimeout(10000)
+      return {
+        close: () => page.close(),
+        async audit(id, onStage) {
+          const errors = []
+          const onError = (error) => errors.push(error.message)
+          page.on('pageerror', onError)
+          try {
+            onStage('navigation')
+            await page.goto(
+              `http://localhost:${server.address().port}/iframe.html?id=${id}&viewMode=story`,
+            )
+            const result = await auditPage(page, axeSource, 10000, onStage)
+            if (errors.length) throw new Error(errors.join('\n'))
+            return result
+          } finally {
+            page.off('pageerror', onError)
+          }
+        },
       }
-    }
-    await page.close()
-  }
+    },
+    {
+      started,
+      signal: controller.signal,
+      onBatch: (batch) =>
+        console.log(
+          `[a11y] batch ${batch.index} (${batch.scheme}): ${batch.audited}/${batch.expected} audited, ${batch.status}, ${Math.round(batch.elapsedMs)}ms`,
+        ),
+    },
+  )
+} catch (error) {
+  report.errors.push({ kind: 'driver-error', help: error.message })
 } finally {
-  clearTimeout(watchdog)
-  await cleanup()
+  try {
+    await cleanup()
+  } catch (error) {
+    report.errors.push({ kind: 'cleanup-error', help: error.message })
+  }
 }
-const fresh = found.filter((violation) => !(violation.rule in KNOWN))
-const seen = new Set(found.map((violation) => violation.rule))
-const stale = Object.entries(KNOWN).filter(([rule]) => !seen.has(rule))
+report.elapsedMs = performance.now() - started
+if (controller.signal.aborted && !report.errors.some((error) => error.kind === 'cancelled'))
+  report.errors.push({ kind: 'cancelled', help: 'Catalogue audit cancelled' })
+const verdict = summarizeAudit(report, KNOWN)
+writeFileSync(
+  path.join(STATIC, '_a11y-result.json'),
+  JSON.stringify({ ...report, verdict }, null, 2),
+)
+const { fresh, stale } = verdict
+console.log(
+  `[a11y] ${verdict.audited}/${verdict.expected} story/scheme cases audited in ${Math.round(report.elapsedMs)}ms`,
+)
+for (const error of report.errors) console.error(`[a11y] ${error.kind}: ${error.help}`)
+for (const entry of verdict.errors)
+  console.error(
+    `[a11y] execution error: ${entry.id} (${entry.scheme}), ${entry.stage}: ${entry.error}`,
+  )
+if (verdict.notRun.length)
+  console.error(
+    `[a11y] ${verdict.notRun.length} cases not audited (not axe violations); see _a11y-result.json`,
+  )
 if (stale.length) {
   console.error('[a11y] these are no longer violated and should leave KNOWN:\n')
   for (const [rule, issue] of stale) console.error(`  ${rule}  (#${issue})`)
-  process.exit(1)
 }
-if (!fresh.length) {
+if (verdict.passed) {
   console.log(
-    `[a11y] ${ids.length} stories in ${schemes.join(' and ')}, no new violations` +
-      (found.length
-        ? ` (${found.length} held against ${Object.values(KNOWN)
+    `[a11y] ${ids.length} stories in light and dark, no new violations` +
+      (verdict.violations
+        ? ` (${verdict.violations} held against ${Object.values(KNOWN)
             .map((n) => `#${n}`)
             .join(', ')})`
         : ''),
   )
-} else {
-  console.error(
-    `[a11y] ${fresh.length} violation(s) across ${ids.length} stories in ${schemes.join(' and ')}:\n`,
-  )
+} else if (fresh.length) {
+  console.error(`[a11y] ${fresh.length} actual axe violation(s):\n`)
   for (const violation of fresh) {
     console.error(
       `  ${violation.id} (${violation.scheme})\n` +
@@ -185,5 +211,5 @@ if (!fresh.length) {
         `    ${violation.help}\n    ${violation.details ?? ''}`,
     )
   }
-  process.exit(1)
 }
+process.exitCode = verdict.passed ? 0 : 1

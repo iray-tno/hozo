@@ -1,10 +1,15 @@
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { execFile } from 'node:child_process'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { auditPage, waitForSettledStory } from './a11y-audit.mjs'
+import { createAuditReport, runAuditCatalogue, summarizeAudit } from './a11y-catalogue.mjs'
 
 const executablePath = [
   process.env.CHROME_PATH,
@@ -138,6 +143,134 @@ test('a persistent contrast defect still fails after readiness', {
   } finally {
     await page.close()
   }
+})
+
+test('a real axe defect still fails the serial catalogue in both colour schemes', {
+  skip: !executablePath,
+}, async () => {
+  const report = createAuditReport(['bad-contrast'])
+  await runAuditCatalogue(report, async (scheme) => {
+    const page = await browser.newPage({ colorScheme: scheme })
+    return {
+      close: () => page.close(),
+      async audit(_id, onStage) {
+        await page.setContent(
+          `${content}<style>#panel { background: #fff !important; color: #ddd !important }</style>`,
+        )
+        return auditPage(page, axeSource, 10000, onStage)
+      },
+    }
+  })
+  const verdict = summarizeAudit(report)
+  assert.equal(verdict.passed, false)
+  assert.equal(verdict.complete, true)
+  assert.equal(verdict.audited, 2)
+  assert.equal(verdict.errors.length, 0)
+  assert.equal(verdict.notRun.length, 0)
+  assert.deepEqual(
+    new Set(
+      verdict.fresh.filter((entry) => entry.rule === 'color-contrast').map((entry) => entry.scheme),
+    ),
+    new Set(['light', 'dark']),
+  )
+})
+
+test('a browser batch timeout cancels a stuck preparation without inventing axe violations', {
+  skip: !executablePath,
+}, async () => {
+  const page = await browser.newPage({ colorScheme: 'light' })
+  try {
+    await page.setContent(content)
+    await page.evaluate(() => {
+      document
+        .getElementById('panel')
+        .animate([{ opacity: 0 }, { opacity: 1 }], { duration: 800 })
+        .pause()
+    })
+    const report = createAuditReport(['stuck', 'unvisited'], {
+      batchSize: 2,
+      batchTimeoutMs: 150,
+      catalogueTimeoutMs: 5000,
+    })
+    let dispatched = 0
+    await runAuditCatalogue(report, async () => ({
+      close: () => page.close(),
+      audit: async (_id, onStage) => {
+        dispatched++
+        return auditPage(page, axeSource, 10000, onStage)
+      },
+    }))
+    const verdict = summarizeAudit(report)
+    assert.equal(verdict.passed, false)
+    assert.equal(verdict.audited, 0)
+    assert.equal(verdict.violations, 0)
+    assert.equal(verdict.errors[0].stage, 'preparation')
+    assert.equal(verdict.notRun.length, 3)
+    assert.equal(dispatched, 1)
+    assert.equal(report.errors[0].kind, 'batch-timeout')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the actual CLI persists and distinguishes genuine findings from execution errors', {
+  skip: !executablePath,
+  timeout: 30000,
+}, async (context) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'hozo-a11y-cli-'))
+  // This exact mkdtemp result contains only this fixture and its audit evidence.
+  context.after(() => rmSync(directory, { recursive: true, force: true }))
+  writeFileSync(
+    path.join(directory, 'iframe.html'),
+    `<!doctype html>
+    <style>body {background: white; color: black; font: 16px Arial} .bad {color: #ddd}</style>
+    <div id="storybook-root"></div><script>
+      const id = new URL(location.href).searchParams.get('id')
+      document.getElementById('storybook-root').innerHTML = '<p class="' + (id === 'contrast' ? 'bad' : '') + '">Audit fixture</p>'
+      if (id === 'runtime-error') throw new Error('deliberate fixture render error')
+    </script>`,
+  )
+  const run = async (ids) => {
+    writeFileSync(
+      path.join(directory, 'index.json'),
+      JSON.stringify({ entries: Object.fromEntries(ids.map((id) => [id, { id, type: 'story' }])) }),
+    )
+    let failure
+    let output
+    try {
+      output = await promisify(execFile)(
+        process.execPath,
+        [fileURLToPath(new URL('./check-a11y.mjs', import.meta.url)), directory],
+        {
+          env: { ...process.env, CHROME_PATH: executablePath },
+          timeout: 20000,
+        },
+      )
+    } catch (error) {
+      failure = error
+      output = error
+    }
+    return {
+      failure,
+      output,
+      report: JSON.parse(readFileSync(path.join(directory, '_a11y-result.json'), 'utf8')),
+    }
+  }
+  const clean = await run(['clean'])
+  assert.equal(clean.failure, undefined)
+  assert.equal(clean.report.verdict.passed, true)
+  assert.equal(clean.report.verdict.audited, 2)
+  assert.match(clean.output.stdout, /2\/2 story\/scheme cases audited/)
+  const bad = await run(['contrast', 'runtime-error'])
+  assert.equal(bad.failure.code, 1)
+  assert.equal(bad.report.verdict.passed, false)
+  assert.equal(bad.report.verdict.audited, 2)
+  assert.equal(bad.report.verdict.errors.length, 2)
+  assert.equal(bad.report.verdict.notRun.length, 0)
+  assert.ok(bad.report.verdict.fresh.some((finding) => finding.rule === 'color-contrast'))
+  assert.ok(bad.report.verdict.fresh.every((finding) => finding.impact !== 'error'))
+  assert.match(bad.output.stderr, /execution error: runtime-error/)
+  assert.match(bad.output.stderr, /actual axe violation/)
 })
 
 test('a paused finite entrance fails within the original bound', {
