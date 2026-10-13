@@ -1,0 +1,81 @@
+// These harnesses deliberately read source rather than published output.
+// A ^build dependency alone is not a substitute for a raw source input:
+// media's Slider probe is not even a dependency of its package (#895).
+// Keep this check outside Turbo, in root pnpm test's publishing checks, so
+// replaying a consumer's cached success cannot replay this guard as well.
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import test from 'node:test'
+
+const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url), 'utf8'))
+const reads = {
+  '@hozo/media#test': [
+    'packages/patterns/src/slider.tsx',
+    'packages/patterns/src/slider.native.tsx',
+    'packages/patterns/src/slider-rules.ts',
+  ],
+  '@hozo/compiler#test': [
+    'packages/engine/src/class-resolver.ts',
+    'packages/engine/src/transform-slots.ts',
+    'packages/rn-compat/src/platform.ts',
+    'packages/typography/src/fonts.ts',
+  ],
+  '@hozo/migration-audit#test': ['packages/typography/src/fonts.ts'],
+  '@hozo/example-storybook#test': [
+    'packages/patterns/src/tabs.native.tsx',
+    'packages/patterns/src/text-style.native.ts',
+    'examples/showcase/src/patterns.tsx',
+  ],
+  '@hozo/example-native-showcase#test': [
+    'packages/patterns/src/dialog.native.tsx',
+    'packages/three/src/r3f-native.tsx',
+    'packages/svg/src/index.native.tsx',
+    'packages/compiler/src/index.ts',
+    'packages/metro/src/transform.ts',
+    'examples/storybook-demo/src/Video.stories.tsx',
+    'examples/storybook-demo/src/Audio.stories.tsx',
+    'examples/showcase/src/video-probe.tsx',
+  ],
+  '@hozo/tailwind-conformance#test': [
+    // class-name-parity enumerates *all* component packages. Its domain is
+    // intentionally wider than media's three Slider sources.
+    'packages/form/src/time-picker.native.tsx',
+    'packages/primitives/src/pressable.native.tsx',
+    'packages/patterns/src/toggle.native.tsx',
+    'packages/engine/src/responder.ts',
+    'crates/hozo_ir/src/lib.rs',
+  ],
+}
+
+for (const [task, files] of Object.entries(reads)) {
+  test(`${task} hashes the source its tests read outside their package`, () => {
+    const inputs = config.tasks[task]?.inputs ?? []
+    assert.ok(inputs.includes('$TURBO_DEFAULT$'), 'do not discard the consumer’s own sources')
+    assert.ok(config.tasks[task].dependsOn.includes('^build'), 'keep published dependency checks')
+    for (const file of files) {
+      assert.ok(
+        inputs.some(
+          (input) =>
+            input.startsWith('$TURBO_ROOT$/') &&
+            path.posix.matchesGlob(file, input.slice('$TURBO_ROOT$/'.length)),
+        ),
+        `${task} does not hash ${file}`,
+      )
+    }
+  })
+}
+
+test('media does not hash unrelated controls just to cover the Slider probe', () => {
+  const inputs = config.tasks['@hozo/media#test'].inputs
+  assert.ok(
+    !inputs.some(
+      (input) =>
+        input.startsWith('$TURBO_ROOT$/') &&
+        path.posix.matchesGlob(
+          'packages/patterns/src/dialog.native.tsx',
+          input.slice('$TURBO_ROOT$/'.length),
+        ),
+    ),
+  )
+})
