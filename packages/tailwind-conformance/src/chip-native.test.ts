@@ -142,9 +142,15 @@ for (const [shape, props] of Object.entries(SHAPES)) {
       )
     }
     // The label's colour is on the label, which is where a Text can draw it.
-    const [labelText] = root.root.findAll(
-      (node) => node.type === 'Text' && node.props.children === 'Remote',
-    )
+    // A toggle renders it from a function of the press state (#886), which
+    // this stub keeps as written; read it at rest.
+    const pressStateLabels = root.root
+      .findAll((node) => node.type === 'Pressable' && typeof node.props.children === 'function')
+      .map((node) => node.props.children({ pressed: false }))
+    const [labelText] = [
+      ...root.root.findAll((node) => node.type === 'Text' && node.props.children === 'Remote'),
+      ...pressStateLabels.filter((label) => label?.props?.children === 'Remote'),
+    ]
     assert.equal(flat(labelText).color, '#fff', "the chip's text colour missed its label")
     renderer.act(() => root?.unmount())
   })

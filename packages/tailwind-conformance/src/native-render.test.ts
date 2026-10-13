@@ -251,7 +251,10 @@ test('a Dialog renders its children only while it is open', () => {
   const [inner] = children(open)
   assert.equal(inner.props.accessibilityLabel, 'Confirm')
   assert.equal(inner.props.accessibilityViewIsModal, true)
-  assert.deepEqual(inner.props.style, {
+  const { StyleSheet } = require('react-native') as {
+    StyleSheet: { flatten: (style: unknown) => Record<string, unknown> }
+  }
+  assert.deepEqual(StyleSheet.flatten(inner.props.style), {
     paddingTop: 24,
     paddingRight: 24,
     paddingBottom: 24,
