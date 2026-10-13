@@ -11,14 +11,16 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// Bumped when the on-disk shape changes. A snapshot written by a
-/// different version is discarded rather than migrated -- this is a cache,
+/// Bumped when the on-disk shape or the meaning of scanned names changes.
+/// A snapshot written by a different version is discarded rather than migrated -- this is a cache,
 /// so rebuilding it is cheap and always correct, while a half-understood
 /// migration is neither.
 ///
 /// 3: the scan subtracts only what the project's source list compiles, so a
 /// snapshot from 2 is missing classes passed to same-named components.
-pub const SNAPSHOT_VERSION: u32 = 3;
+/// 4: quoted source arrays no longer hide their literal candidates. An
+/// unchanged file must be rescanned rather than retaining a version-3 miss.
+pub const SNAPSHOT_VERSION: u32 = 4;
 
 /// What one source file contributed.
 ///
@@ -26,6 +28,8 @@ pub const SNAPSHOT_VERSION: u32 = 3;
 /// resolve to. Names are a durable fact about the source; the properties
 /// are derived from Hozo's utility table, and caching them would keep
 /// serving the old values after that table changes.
+/// Changing which names are discovered or subtracted does require bumping
+/// the snapshot version: unchanged mtimes cannot repair an old missed name.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FileEntry {
     /// Modification time as milliseconds since the epoch, used only to
