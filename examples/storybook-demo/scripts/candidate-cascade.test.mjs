@@ -491,6 +491,9 @@ async function patternHarness(cacheName, look) {
           react: {
             useState: (value) => [typeof value === 'function' ? value() : value, () => {}],
             useCallback: (fn) => fn,
+            useRef: (current) => ({ current }),
+            useMemo: (fn) => fn(),
+            useEffect: () => {},
           },
           'react-native': {
             View: 'View',
@@ -498,6 +501,7 @@ async function patternHarness(cacheName, look) {
             Text: 'Text',
             Modal: 'Modal',
             TextInput: 'TextInput',
+            Image: 'Image',
             Linking: { openURL: () => {} },
             StyleSheet: { flatten: flat },
           },
@@ -505,7 +509,7 @@ async function patternHarness(cacheName, look) {
           '@hozo/behaviors': {
             hozoTextChildren: (children) => children,
             useHozoMessage: () => (key, _values, fallback) => fallback ?? key,
-            useHozoI18n: () => ({ dir: 'ltr' }),
+            useHozoI18n: () => ({ dir: 'ltr', locale: 'en' }),
           },
           '@hozo/engine/navigation': {
             activateHozoNavigation: () => {},
@@ -659,4 +663,54 @@ test("@hozo/patterns' second batch of Native controls apply their class props", 
 
   const toolbar = load('toolbar.native.tsx').HozoToolbar({ className: 'p-2', items: [] })
   assert.equal(flat(toolbar.props.style).paddingTop, 8, 'toolbar: className')
+})
+
+// #886, slice 3, third batch: the patterns with several slots. Avatar,
+// Stepper and OtpInput here; ColorPicker, CommandPalette and Slider resolve
+// the same way but sit on a slider, a portal or a responder these stand-ins
+// do not model.
+test("@hozo/patterns' Native slotted patterns apply their class props", async () => {
+  const look = 'p-2 p-4 text-red-500 bg-blue-500 opacity-50'
+  const { load, flat } = await patternHarness('slotted-candidates.json', look)
+  const find = (tree, test) => {
+    const found = []
+    const walk = (node) => {
+      if (!node || typeof node !== 'object') return
+      if (test(node)) found.push(node)
+      for (const child of [node.props?.children].flat(Infinity)) walk(child)
+    }
+    walk(tree)
+    return found
+  }
+
+  const avatar = load('avatar.native.tsx').HozoAvatar({
+    name: 'Ada Lovelace',
+    className: 'p-2',
+    fallbackClassName: 'bg-blue-500 text-red-500',
+  })
+  assert.equal(flat(avatar.props.style).paddingTop, 8, 'avatar: className')
+  const [initials] = find(avatar, (node) => node.type === 'Text')
+  assert.equal(flat(initials.props.style).color, '#fb2c36', 'avatar: fallback text')
+
+  const stepper = load('stepper.native.tsx').HozoStepper({
+    steps: [{ label: 'One' }, { label: 'Two' }],
+    activeStep: 0,
+    className: 'p-4',
+    currentStepClassName: 'opacity-50',
+  })
+  assert.equal(flat(stepper.props.style).paddingTop, 16, 'stepper: className')
+  const faded = find(stepper, (node) => flat(node.props?.style).opacity === 0.5)
+  assert.ok(faded.length > 0, 'stepper: the current step takes currentStepClassName')
+
+  const otp = load('otp-input.native.tsx').HozoOtpInput({
+    accessibilityLabel: 'Code',
+    length: 2,
+    defaultValue: '1',
+    cellClassName: 'p-2',
+    filledCellClassName: 'bg-blue-500',
+  })
+  const cells = find(otp, (node) => node.type === 'View' && node.props.accessibilityElementsHidden)
+  assert.equal(flat(cells[0].props.style).backgroundColor, '#2b7fff', 'otp: a filled cell')
+  assert.equal(flat(cells[1].props.style).backgroundColor, undefined, 'otp: an empty cell')
+  assert.equal(flat(cells[1].props.style).paddingTop, 8, 'otp: cellClassName')
 })

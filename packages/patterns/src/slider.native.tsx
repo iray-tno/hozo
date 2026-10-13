@@ -1,3 +1,4 @@
+import { hozoClasses } from '@hozo/engine/project'
 /**
  * A slider on React Native. See `slider.tsx` for the shape and the arithmetic,
  * which is shared: both halves import `slider-rules.ts`, so a drag lands in
@@ -45,10 +46,10 @@ export interface HozoSliderProps extends Partial<SliderRange> {
    * Tailwind classes, the same props the Web half takes.
    *
    * On a tag the compiler lowers they are gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else they are carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and the
-   * types still have to accept them, because an app is type-checked against
-   * the source the compiler reads rather than its output.
+   * `StyleSheet` entry. Here they arrive as strings and are resolved through
+   * the project's candidate map (#886), the thumb with its `disabled` state.
+   * Each `*Style` prop comes after its class list, and a fill is drawn when
+   * either is given.
    */
   className?: string
   thumbClassName?: string
@@ -72,6 +73,9 @@ export function HozoSlider({
   orientation = 'horizontal',
   disabled,
   accessibilityLabel,
+  className,
+  thumbClassName,
+  fillClassName,
   style,
   thumbStyle,
   fillStyle,
@@ -180,15 +184,16 @@ export function HozoSlider({
     <View
       accessible={false}
       pointerEvents="box-only"
-      style={style}
+      style={[hozoClasses(className), style]}
       onLayout={onLayout}
       {...responder.panHandlers}
     >
-      {fillStyle === undefined ? null : (
+      {fillStyle === undefined && fillClassName === undefined ? null : (
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={[
+            hozoClasses(fillClassName),
             fillStyle,
             vertical ? { height: `${fraction * 100}%` } : { width: `${fraction * 100}%` },
           ]}
@@ -210,6 +215,10 @@ export function HozoSlider({
           if (event.nativeEvent.actionName === 'decrement') step1('ArrowDown')
         }}
         style={[
+          hozoClasses(thumbClassName, {
+            disabled: Boolean(disabled),
+            'aria-disabled': Boolean(disabled),
+          }),
           thumbStyle,
           vertical ? { bottom: `${fraction * 100}%` } : { start: `${fraction * 100}%` },
         ]}

@@ -1,4 +1,5 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
 import {
   Image,
@@ -24,8 +25,8 @@ export interface HozoAvatarProps {
   /**
    * Tailwind classes, the same props the Web half takes. Read by the
    * compiler, which hands them over as the style props below; a file it did
-   * not read leaves them here, where a Native pattern has no class list to
-   * resolve.
+   * not read leaves them here as strings, resolved through the project's
+   * candidate map (#886) before the matching style prop.
    */
   className?: string
   imageClassName?: string
@@ -55,6 +56,10 @@ export function HozoAvatar({
   fallback,
   status,
   accessibilityLabel,
+  className,
+  imageClassName,
+  fallbackClassName,
+  statusClassName,
   style,
   imageStyle,
   fallbackStyle,
@@ -68,8 +73,11 @@ export function HozoAvatar({
   const showImage = src !== undefined && failed !== src
   const letters = initials ?? (name ? avatarInitials(name, locale) : '')
   const label = avatarLabel(message, name, status, accessibilityLabel)
-  const [box, text] = splitTextStyle(style)
-  const [fallbackBox, fallbackText] = splitTextStyle(fallbackStyle)
+  const [box, text] = splitTextStyle([hozoClasses(className), style])
+  const [fallbackBox, fallbackText] = splitTextStyle([
+    hozoClasses(fallbackClassName),
+    fallbackStyle,
+  ])
 
   const hidden = {
     accessibilityElementsHidden: true,
@@ -86,7 +94,7 @@ export function HozoAvatar({
       {showImage ? (
         <Image
           source={{ uri: src }}
-          style={[FILL, imageStyle]}
+          style={[FILL, hozoClasses(imageClassName), imageStyle]}
           onError={() => setFailed(src)}
           {...hidden}
         />
@@ -95,7 +103,7 @@ export function HozoAvatar({
           {letters ? <Text style={[text, fallbackText]}>{letters}</Text> : fallback}
         </View>
       )}
-      {status ? <View style={statusStyle} {...hidden} /> : null}
+      {status ? <View style={[hozoClasses(statusClassName), statusStyle]} {...hidden} /> : null}
     </View>
   )
 }
