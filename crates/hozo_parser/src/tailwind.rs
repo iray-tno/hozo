@@ -1331,10 +1331,10 @@ fn is_non_color_suffix(family: ColorFamily, suffix: &str) -> bool {
     }
 }
 
-/// Tailwind's `--radius-*` scale, in px (its own values are rem at the
-/// default 16px root). Bare `rounded` is 0.25rem, which is *not* the same
-/// as `rounded-sm` in v4 -- they happen to share a value here but are
-/// separate scale entries.
+/// Tailwind's `--radius-*` scale, held by name with a px fallback (its own
+/// values are rem at the default 16px root). Bare `rounded` is 0.25rem,
+/// which is *not* the same as `rounded-sm` in v4 -- they happen to share a
+/// value here but are separate scale entries.
 fn parse_border_radius(token: &str) -> Option<Radius> {
     radius_from_suffix(token.strip_prefix("rounded")?.strip_prefix('-').unwrap_or(""))
 }
@@ -1346,20 +1346,20 @@ fn radius_from_suffix(suffix: &str) -> Option<Radius> {
     if suffix == "full" {
         return Some(Radius::Full);
     }
-    let px = match suffix {
-        "" => 4.0,
-        "none" => 0.0,
-        "xs" => 2.0,
-        "sm" => 4.0,
-        "md" => 6.0,
-        "lg" => 8.0,
-        "xl" => 12.0,
-        "2xl" => 16.0,
-        "3xl" => 24.0,
-        "4xl" => 32.0,
+    let (name, fallback_px) = match suffix {
+        "" => return Some(Radius::Length(Length::Px(4.0))),
+        "none" => return Some(Radius::Length(Length::Px(0.0))),
+        "xs" => ("xs", 2.0),
+        "sm" => ("sm", 4.0),
+        "md" => ("md", 6.0),
+        "lg" => ("lg", 8.0),
+        "xl" => ("xl", 12.0),
+        "2xl" => ("2xl", 16.0),
+        "3xl" => ("3xl", 24.0),
+        "4xl" => ("4xl", 32.0),
         _ => return theme_radius_name(suffix).map(|name| Radius::Theme(name.to_string())),
     };
-    Some(Radius::Length(Length::Px(px)))
+    Some(Radius::Scale { name, fallback_px })
 }
 
 /// A name outside Tailwind's scale that only the project's theme can define
@@ -4587,7 +4587,7 @@ mod tests {
         // radius named after it.
         assert_eq!(
             expand_utility("rounded-lg").1,
-            vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(8.0)))]
+            vec![StyleProperty::BorderRadius(Radius::Scale { name: "lg", fallback_px: 8.0 })]
         );
         assert!(expand_utility("rounded-t").1.is_empty());
         assert!(expand_utility("rounded-[13px]").1.iter().all(|property| property.theme_radius().is_none()));
@@ -4595,7 +4595,7 @@ mod tests {
 
     #[test]
     fn rounded_corners_expand_to_the_longhands_tailwind_emits() {
-        let lg = Radius::Length(Length::Px(8.0));
+        let lg = Radius::Scale { name: "lg", fallback_px: 8.0 };
         assert_eq!(
             expand_utility("rounded-t-lg").1,
             vec![
@@ -4666,12 +4666,28 @@ mod tests {
     fn parses_radius_scale() {
         assert_eq!(
             expand_utility("rounded-lg"),
-            (Condition::Always, vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(8.0)))])
+            (Condition::Always, vec![StyleProperty::BorderRadius(Radius::Scale { name: "lg", fallback_px: 8.0 })])
         );
         assert_eq!(
             expand_utility("rounded"),
             (Condition::Always, vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(4.0)))])
         );
+    }
+
+    #[test]
+    fn radius_scales_keep_names_but_literals_and_fixed_intents_do_not() {
+        for (name, fallback_px) in [("xs", 2.0), ("sm", 4.0), ("md", 6.0), ("lg", 8.0),
+                                   ("xl", 12.0), ("2xl", 16.0), ("3xl", 24.0), ("4xl", 32.0)] {
+            let properties = expand_utility(&format!("rounded-{name}")).1;
+            assert_eq!(properties, vec![StyleProperty::BorderRadius(Radius::Scale { name, fallback_px })]);
+            // Built-in names always have a fallback, so their original CSS
+            // class need not be carried as if they were unknown custom names.
+            assert!(properties[0].theme_radius().is_none());
+        }
+        assert_eq!(expand_utility("rounded-none").1,
+                   vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(0.0)))]);
+        assert_eq!(expand_utility("rounded-[8px]").1,
+                   vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(8.0)))]);
     }
 
     #[test]

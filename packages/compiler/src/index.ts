@@ -353,7 +353,8 @@ export interface Theme {
   /**
    * The project's own radius tokens in pixels: `control` for
    * `--radius-control`, which `rounded-control` reads. `@hozo/tailwind`'s
-   * `loadTheme` reads them.
+   * `loadTheme` reads them, including overrides of built-in scale names
+   * such as `lg`. Missing scale values keep their theme-free defaults.
    */
   radii?: { name: string; px: number }[]
   /**

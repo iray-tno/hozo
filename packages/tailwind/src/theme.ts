@@ -83,9 +83,10 @@ export interface Theme {
   spacingPx?: number
   /**
    * The project's radius tokens in pixels: `control` for `--radius-control`,
-   * which `rounded-control` reads. A value that is not a plain length after
-   * its `var()` chain is followed is left out, so the backends emit nothing
-   * for the class rather than a radius nobody chose.
+   * which `rounded-control` reads. Built-in names such as `lg` override the
+   * scale too. A value that is not a plain length after its `var()` chain is
+   * followed is left out: custom names stay unresolved, while built-in names
+   * keep their defaults.
    */
   radii?: ThemeRadius[]
 }

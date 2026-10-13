@@ -12,6 +12,14 @@ So this loads the stylesheet through Tailwind's own resolver and reads the answe
 
 Spacing is carried as the project's *step*, not as pixels: `p-4` means "four spacing units", and a project that sets `--spacing` to something other than `0.25rem` moves every one of them together. Resolving to pixels at this layer would silently freeze the scale.
 
+Radius tokens are resolved at compile time for both Web and Native. For example,
+`@theme { --radius-lg: 10px; }` makes `rounded-lg` and its corner forms use 10px;
+custom names such as `--radius-control` work too. Supported values are pixels,
+rem lengths and references to other resolved radius tokens. Built-in scale names
+retain their defaults when no project value is available. Bare `rounded`,
+`rounded-none`, `rounded-full` and explicit values such as `rounded-[8px]` are
+not changed by scale overrides.
+
 The theme is read once per build. It is a project-wide fact, and re-reading it per module would run Tailwind's resolver hundreds of times for one answer.
 
 ## API
