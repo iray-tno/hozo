@@ -1,4 +1,5 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import {
   Pressable,
@@ -27,8 +28,10 @@ export interface HozoColorPickerProps {
   /**
    * Tailwind classes, the same props the Web half takes. Read by the
    * compiler, which hands them over as the style props below; a file it did
-   * not read leaves them here, where a Native pattern has no class list to
-   * resolve.
+   * not read leaves them here as strings, resolved through the project's
+   * candidate map (#886) before the matching style prop, a swatch with its
+   * `pressed`, `aria-checked` and `disabled` state. There is no eye dropper
+   * here, so `eyeDropperClassName` is unused.
    */
   className?: string
   swatchClassName?: string
@@ -64,6 +67,12 @@ export function HozoColorPicker({
   alpha = false,
   disabled,
   accessibilityLabel,
+  className,
+  swatchClassName,
+  selectedSwatchClassName,
+  sliderClassName,
+  thumbClassName,
+  inputClassName,
   style,
   swatchStyle,
   selectedSwatchStyle,
@@ -96,13 +105,13 @@ export function HozoColorPicker({
     if (next) update(alpha ? next : { ...next, a: 1 })
   }
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
-  const slider = sliderStyle as StyleProp<ViewStyle>
-  const thumb = thumbStyle as StyleProp<ViewStyle>
+  const slider = [hozoClasses(sliderClassName), sliderStyle] as StyleProp<ViewStyle>
+  const thumb = [hozoClasses(thumbClassName), thumbStyle] as StyleProp<ViewStyle>
 
   return (
     <View
       accessibilityLabel={accessibilityLabel}
-      style={style as StyleProp<ViewStyle>}
+      style={[hozoClasses(className), style] as StyleProp<ViewStyle>}
       testID={testID}
     >
       {presets && presets.length > 0 ? (
@@ -122,9 +131,18 @@ export function HozoColorPicker({
                 accessibilityState={{ checked, disabled: Boolean(disabled) }}
                 disabled={disabled}
                 onPress={() => chooseHex(preset)}
-                style={[
+                style={({ pressed }) => [
+                  hozoClasses(swatchClassName, {
+                    pressed,
+                    disabled: Boolean(disabled),
+                    'aria-checked': checked,
+                    'aria-disabled': Boolean(disabled),
+                  }),
                   swatchStyle as StyleProp<ViewStyle>,
-                  checked && (selectedSwatchStyle as StyleProp<ViewStyle>),
+                  checked && [
+                    hozoClasses(selectedSwatchClassName),
+                    selectedSwatchStyle as StyleProp<ViewStyle>,
+                  ],
                   { backgroundColor: preset },
                 ]}
               />
@@ -193,7 +211,7 @@ export function HozoColorPicker({
           setEditing(false)
           setDraft(hex)
         }}
-        style={inputStyle as StyleProp<TextStyle>}
+        style={[hozoClasses(inputClassName), inputStyle] as StyleProp<TextStyle>}
       />
     </View>
   )

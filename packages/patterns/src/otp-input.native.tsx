@@ -1,4 +1,5 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, useRef, useState } from 'react'
 import {
   Pressable,
@@ -30,8 +31,9 @@ export interface HozoOtpInputProps {
   /**
    * Tailwind classes, the same props the Web half takes. Read by the
    * compiler, which hands them over as the style props below; a file it did
-   * not read leaves them here, where a Native pattern has no class list to
-   * resolve.
+   * not read leaves them here as strings, resolved through the project's
+   * candidate map (#886) before the matching style prop -- a cell with the
+   * input's `focused` state when it is the active one.
    */
   className?: string
   cellClassName?: string
@@ -68,6 +70,10 @@ export function HozoOtpInput({
   autoFocus,
   disabled,
   accessibilityLabel,
+  className,
+  cellClassName,
+  activeCellClassName,
+  filledCellClassName,
   style,
   cellStyle,
   activeCellStyle,
@@ -81,7 +87,7 @@ export function HozoOtpInput({
   const code = value !== undefined ? otpValue(value, length, type) : uncontrolled
   const characters = Array.from(code)
   const active = otpActiveIndex(code, length)
-  const [box, text] = splitTextStyle(style)
+  const [box, text] = splitTextStyle([hozoClasses(className), style])
 
   const change = (raw: string) => {
     const next = otpValue(raw, length, type)
@@ -101,9 +107,13 @@ export function HozoOtpInput({
       {Array.from({ length }, (_, position) => position).map((index) => {
         const character = characters[index]
         const [cellBox, cellText] = splitTextStyle([
+          hozoClasses(cellClassName, {
+            focused: focused && index === active,
+            disabled: Boolean(disabled),
+          }),
           cellStyle,
-          focused && index === active && activeCellStyle,
-          character !== undefined && filledCellStyle,
+          focused && index === active && [hozoClasses(activeCellClassName), activeCellStyle],
+          character !== undefined && [hozoClasses(filledCellClassName), filledCellStyle],
         ])
         return (
           <View

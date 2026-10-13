@@ -1,4 +1,5 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import {
   AccessibilityInfo,
@@ -30,8 +31,8 @@ export interface HozoCommandPaletteProps {
   /**
    * Tailwind classes, the same props the Web half takes. Read by the
    * compiler, which hands them over as the style props below; a file it did
-   * not read leaves them here, where a Native pattern has no class list to
-   * resolve.
+   * not read leaves them here as strings, resolved through the project's
+   * candidate map (#886) before the matching style prop.
    */
   className?: string
   scrimClassName?: string
@@ -72,6 +73,16 @@ export function HozoCommandPalette({
   commands,
   placeholder,
   accessibilityLabel,
+  className,
+  scrimClassName,
+  panelClassName,
+  inputClassName,
+  listClassName,
+  groupHeadingClassName,
+  itemClassName,
+  activeItemClassName,
+  shortcutClassName,
+  emptyClassName,
   style,
   scrimStyle,
   panelStyle,
@@ -125,8 +136,8 @@ export function HozoCommandPalette({
   const label = message('hozo.commandPalette.label', {}, accessibilityLabel)
   // Text styles written on the palette or its panel reach every label in it,
   // as they would by inheritance on the Web.
-  const [rootBox, rootText] = splitTextStyle(style)
-  const [panelBox, ownText] = splitTextStyle(panelStyle)
+  const [rootBox, rootText] = splitTextStyle([hozoClasses(className), style])
+  const [panelBox, ownText] = splitTextStyle([hozoClasses(panelClassName), panelStyle])
   const panelText = { ...rootText, ...ownText }
 
   return (
@@ -135,7 +146,7 @@ export function HozoCommandPalette({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[FILL_ABSOLUTE, scrimStyle]}
+          style={[FILL_ABSOLUTE, hozoClasses(scrimClassName), scrimStyle]}
           onPress={close}
         />
         <View
@@ -157,15 +168,22 @@ export function HozoCommandPalette({
             autoCapitalize="none"
             returnKeyType="go"
             onSubmitEditing={() => run(first)}
-            style={[panelText, inputStyle as StyleProp<TextStyle>]}
+            style={[panelText, hozoClasses(inputClassName), inputStyle as StyleProp<TextStyle>]}
           />
-          <ScrollView keyboardShouldPersistTaps="handled" style={listStyle as StyleProp<ViewStyle>}>
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            style={[hozoClasses(listClassName), listStyle] as StyleProp<ViewStyle>}
+          >
             {groups.map((group) => (
               <View key={group.name ?? ''}>
                 {group.name !== undefined ? (
                   <Text
                     accessibilityRole="header"
-                    style={[panelText, groupHeadingStyle as StyleProp<TextStyle>]}
+                    style={[
+                      panelText,
+                      hozoClasses(groupHeadingClassName),
+                      groupHeadingStyle as StyleProp<TextStyle>,
+                    ]}
                   >
                     {group.name}
                   </Text>
@@ -173,10 +191,14 @@ export function HozoCommandPalette({
                 {group.members.map((index) => {
                   const command = commands[index] as HozoCommand
                   const [box, text] = splitTextStyle([
+                    hozoClasses(itemClassName),
                     itemStyle,
-                    index === first && activeItemStyle,
+                    index === first && [hozoClasses(activeItemClassName), activeItemStyle],
                   ])
-                  const [shortcutBox, shortcutText] = splitTextStyle(shortcutStyle)
+                  const [shortcutBox, shortcutText] = splitTextStyle([
+                    hozoClasses(shortcutClassName),
+                    shortcutStyle,
+                  ])
                   return (
                     <Pressable
                       key={command.id}
@@ -203,7 +225,9 @@ export function HozoCommandPalette({
               </View>
             ))}
             {count === 0 ? (
-              <Text style={[panelText, emptyStyle as StyleProp<TextStyle>]}>
+              <Text
+                style={[panelText, hozoClasses(emptyClassName), emptyStyle as StyleProp<TextStyle>]}
+              >
                 {message('hozo.commandPalette.empty')}
               </Text>
             ) : null}

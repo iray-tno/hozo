@@ -1,4 +1,5 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { hozoClasses } from '@hozo/engine/project'
 import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import {
   type HozoStep,
@@ -21,8 +22,8 @@ export interface HozoStepperProps {
   /**
    * Tailwind classes, the same props the Web half takes. Read by the
    * compiler, which hands them over as the style props below; a file it did
-   * not read leaves them here, where a Native pattern has no class list to
-   * resolve.
+   * not read leaves them here as strings, resolved through the project's
+   * candidate map (#886) before the matching style prop.
    */
   className?: string
   stepClassName?: string
@@ -59,6 +60,16 @@ export function HozoStepper({
   steps,
   activeStep,
   onStepPress,
+  className,
+  stepClassName,
+  completedStepClassName,
+  currentStepClassName,
+  errorStepClassName,
+  indicatorClassName,
+  completedIndicatorClassName,
+  currentIndicatorClassName,
+  errorIndicatorClassName,
+  descriptionClassName,
   style,
   stepStyle,
   completedStepStyle,
@@ -72,6 +83,8 @@ export function HozoStepper({
   testID,
 }: HozoStepperProps) {
   const message = useHozoMessage()
+  // A class list resolved ahead of the style prop that goes with it.
+  const styled = (classes: string | undefined, own: Style): Style => [hozoClasses(classes), own]
   const byStatus = (status: HozoStepStatus, completed: Style, current: Style, error: Style) =>
     status === 'completed'
       ? completed
@@ -80,20 +93,32 @@ export function HozoStepper({
         : status === 'error'
           ? error
           : undefined
-  const [box, listText] = splitTextStyle(style)
-  const [descriptionBox, descriptionText] = splitTextStyle(descriptionStyle)
+  const [box, listText] = splitTextStyle(styled(className, style))
+  const [descriptionBox, descriptionText] = splitTextStyle(
+    styled(descriptionClassName, descriptionStyle),
+  )
 
   return (
     <View style={box} testID={testID}>
       {steps.map((step, index) => {
         const status = stepStatus(step, index, activeStep)
         const [stepBox, stepText] = splitTextStyle([
-          stepStyle,
-          byStatus(status, completedStepStyle, currentStepStyle, errorStepStyle),
+          styled(stepClassName, stepStyle),
+          byStatus(
+            status,
+            styled(completedStepClassName, completedStepStyle),
+            styled(currentStepClassName, currentStepStyle),
+            styled(errorStepClassName, errorStepStyle),
+          ),
         ])
         const [markBox, markText] = splitTextStyle([
-          indicatorStyle,
-          byStatus(status, completedIndicatorStyle, currentIndicatorStyle, errorIndicatorStyle),
+          styled(indicatorClassName, indicatorStyle),
+          byStatus(
+            status,
+            styled(completedIndicatorClassName, completedIndicatorStyle),
+            styled(currentIndicatorClassName, currentIndicatorStyle),
+            styled(errorIndicatorClassName, errorIndicatorStyle),
+          ),
         ])
         const content = (
           <>
