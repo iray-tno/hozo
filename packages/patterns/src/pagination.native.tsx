@@ -35,6 +35,12 @@ export interface HozoPaginationProps {
   currentItemStyle?: StyleProp<ViewStyle | TextStyle>
   disabledItemStyle?: StyleProp<ViewStyle | TextStyle>
   ellipsisStyle?: StyleProp<ViewStyle | TextStyle>
+  /** @internal Static state styles consumed by each page control. */
+  hozoItemStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Applied only to the current control, with that host's facts. */
+  hozoCurrentItemStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Applied only to disabled boundary controls. */
+  hozoDisabledItemStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
   testID?: string
 }
 
@@ -68,6 +74,9 @@ export function HozoPagination({
   currentItemStyle,
   disabledItemStyle,
   ellipsisStyle,
+  hozoItemStyle,
+  hozoCurrentItemStyle,
+  hozoDisabledItemStyle,
   testID,
 }: HozoPaginationProps) {
   const message = useHozoMessage()
@@ -108,9 +117,18 @@ export function HozoPagination({
       }
       return splitTextStyle([
         hozoClasses(itemClassName, facts),
+        hozoItemStyle?.(interaction),
         itemStyle,
-        state === 'current' && [hozoClasses(currentItemClassName, facts), currentItemStyle],
-        state === 'disabled' && [hozoClasses(disabledItemClassName, facts), disabledItemStyle],
+        state === 'current' && [
+          hozoClasses(currentItemClassName, facts),
+          hozoCurrentItemStyle?.(interaction),
+          currentItemStyle,
+        ],
+        state === 'disabled' && [
+          hozoClasses(disabledItemClassName, facts),
+          hozoDisabledItemStyle?.(interaction),
+          disabledItemStyle,
+        ],
       ])
     }
     return (
