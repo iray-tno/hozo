@@ -13,7 +13,7 @@ export default {
 }
 ```
 
-## Story Catalog (39 Stories)
+## Story Catalog
 
 Hozo's Storybook showcases the entire universal component hierarchy across 5 clean sections:
 
@@ -41,10 +41,27 @@ Hozo's Storybook showcases the entire universal component hierarchy across 5 cle
 ## Automated Accessibility Testing
 
 Every story is automatically built and tested against **`axe-core`** in CI:
-- **54/54 stories passing** with **0 automated violations**, in **both colour schemes**.
+- The denominator comes from the built `index.json`: every story is audited in **both colour schemes**, with no retries or disabled rules. The current completed count is printed by the runner, not maintained here by hand.
 - Catches machine-testable issues: color contrast thresholds, missing labels, invalid ARIA roles/attributes, and duplicate IDs.
 - Twice, once per scheme, because `--headless=new` reports `prefers-color-scheme: dark` — so every run before [#666](https://github.com/iray-tno/hozo/issues/666) audited the dark render and never the light one. It did not matter while nothing here answered the scheme; `@hozo/ui`'s paired tokens made it two renders per story. The page reports the scheme it actually got and a mismatch fails the run, because a flag that quietly stopped working would put this back where it was while claiming to check both.
 - *Note*: Automated audits cover the rule-based subset of accessibility. Real NVDA and VoiceOver read the `patterns-*` stories weekly (`examples/screen-readers`); interactive keyboard trap behavior and the rest of real-world screen reader usability still require manual testing.
+
+The catalogue is split into batches of at most 32 stories per scheme, run
+serially with one browser/page active. Each batch has a four-minute limit;
+the catalogue has an eight-minute limit including browser launch (previously
+four minutes for the whole growing catalogue). Navigation and render/font/
+finite-animation readiness retain their ten-second bounds. Neither a timeout
+nor an unvisited story is an axe violation, but both still fail the check.
+An audited story can also fail on genuine axe findings. Known findings never
+suppress execution errors or incomplete coverage.
+
+`storybook-static-check/_a11y-result.json` records every expected story/scheme,
+its audited/error/not-run status, the last preparation stage, findings and
+durations, plus batch timings and budgets. CI, the dedicated browser-audit job
+and main's integration report upload it as `storybook-a11y-evidence` when
+available. The run log distinguishes actual violations from harness failures
+and includes the audited/expected denominator. No shorter reading-order golden
+or unchanged-state check is approved by this audit.
 
 And **`check-appearance.mjs`**, which asks the two questions none of the others can — axe reads the accessibility tree, the utterance goldens read text, and `@hozo/ui`'s own rules read class lists out of the source:
 
