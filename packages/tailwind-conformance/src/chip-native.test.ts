@@ -150,3 +150,116 @@ for (const [shape, props] of Object.entries(SHAPES)) {
     renderer.act(() => root?.unmount())
   })
 }
+
+// Full Metro lowering, not a hand-built style callback. Dispatching the real
+// pattern's handlers updates React state; only the RN hosts are stand-ins.
+const stateSource = (props: string, overrides = '') => `
+  import { Chip } from '@hozo/core'
+  export function C() {
+    return <Chip${props}
+      className="bg-red-500 hover:bg-blue-500 text-white hover:text-black focus:opacity-75 focus-visible:outline-2 active:opacity-50"
+      removeClassName="p-2 hover:bg-green-500 active:opacity-25 focus-visible:outline-2 focus-visible:font-bold"
+      ${overrides}>Remote</Chip>
+  }`
+
+function mountCompiled(source: string) {
+  const { C } = loadNativeModule(source)
+  let tree: { root: Instance; unmount: () => void } | undefined
+  renderer.act(() => {
+    tree = renderer.create(react.createElement(C))
+  })
+  assert.ok(tree)
+  return tree
+}
+
+const flat = (node: Instance) => stub.StyleSheet.flatten(node.props.style)
+const labelText = (tree: { root: Instance }) => {
+  const node = tree.root.findAll(
+    (node) => node.type === 'Text' && node.props.children === 'Remote',
+  )[0]
+  assert.ok(node)
+  return node
+}
+function dispatch(node: Instance, name: string) {
+  const handler = node.props[name]
+  assert.equal(typeof handler, 'function', `${name} is not wired`)
+  renderer.act(() => (handler as () => void)())
+}
+
+test('static Chip state classes reach the toggle and actual label, then return to rest', () => {
+  const tree = mountCompiled(stateSource(' defaultSelected={false}'))
+  try {
+    const toggle = pressables(tree)[0]
+    assert.ok(toggle)
+    assert.equal(flat(toggle).backgroundColor, '#fb2c36')
+    assert.equal(flat(labelText(tree)).color, '#fff')
+    dispatch(toggle, 'onHoverIn')
+    assert.equal(flat(toggle).backgroundColor, '#2b7fff')
+    assert.equal(flat(labelText(tree)).color, '#000')
+    dispatch(toggle, 'onFocus')
+    assert.equal(flat(toggle).opacity, 0.75)
+    assert.equal(flat(toggle).outlineWidth, 2)
+    dispatch(toggle, 'onPressIn')
+    assert.equal(flat(toggle).opacity, 0.5)
+    assert.equal(flat(toggle).outlineWidth, undefined, 'pointer clears keyboard focus ring')
+    dispatch(toggle, 'onPressOut')
+    dispatch(toggle, 'onBlur')
+    dispatch(toggle, 'onHoverOut')
+    assert.equal(flat(toggle).backgroundColor, '#fb2c36')
+    assert.equal(flat(labelText(tree)).color, '#fff')
+  } finally {
+    renderer.act(() => tree.unmount())
+  }
+})
+
+test('static Chip row classes observe child hover/press, but only removal owns its focus ring', () => {
+  const tree = mountCompiled(stateSource(' defaultSelected={false} onRemove={() => {}}'))
+  try {
+    const row = tree.root.findAll((node) => node.type === 'View')[0]
+    const [toggle, remove] = pressables(tree)
+    assert.ok(row && toggle && remove)
+    dispatch(remove, 'onFocus')
+    assert.equal(flat(remove).outlineWidth, 2)
+    assert.equal(flat(row).outlineWidth, undefined)
+    assert.equal(flat(row).opacity, undefined, 'child focus is not ancestor focus')
+    const icon = tree.root.findAll((node) => node.type === 'Text' && node.props.children === '×')[0]
+    assert.ok(icon)
+    assert.equal(flat(icon).fontWeight, '700')
+    dispatch(remove, 'onHoverIn')
+    assert.equal(flat(remove).backgroundColor, '#00c950')
+    assert.equal(flat(row).backgroundColor, '#2b7fff')
+    assert.equal(flat(labelText(tree)).color, '#000')
+    dispatch(toggle, 'onPressIn')
+    assert.equal(flat(row).opacity, 0.5)
+    assert.equal(flat(remove).opacity, undefined, 'toggle press is not remove press')
+    dispatch(toggle, 'onPressOut')
+    dispatch(remove, 'onPressIn')
+    assert.equal(flat(remove).opacity, 0.25)
+    assert.equal(flat(row).opacity, 0.5)
+  } finally {
+    renderer.act(() => tree.unmount())
+  }
+})
+
+test('explicit Chip styles still win over compiled base and state styles on both slots', () => {
+  const tree = mountCompiled(
+    stateSource(
+      ' defaultSelected={false} onRemove={() => {}}',
+      'style={{ backgroundColor: "purple", color: "orange", opacity: 0.9 }} removeStyle={{ opacity: 0.8 }}',
+    ),
+  )
+  try {
+    const row = tree.root.findAll((node) => node.type === 'View')[0]
+    const remove = pressables(tree)[1]
+    assert.ok(row && remove)
+    dispatch(remove, 'onHoverIn')
+    dispatch(remove, 'onPressIn')
+    assert.equal(flat(row).backgroundColor, 'purple')
+    assert.equal(flat(row).opacity, 0.9)
+    assert.equal(flat(labelText(tree)).color, 'orange')
+    assert.equal(flat(remove).opacity, 0.8)
+    assert.equal(flat(remove).padding ?? flat(remove).paddingTop, 8)
+  } finally {
+    renderer.act(() => tree.unmount())
+  }
+})

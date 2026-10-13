@@ -260,6 +260,7 @@ pub(super) fn build_style_entries(
     diagnostics: &mut Vec<Diagnostic>,
     runtime: &mut RuntimeNeeds,
     interaction_context: bool,
+    pattern_slot: Option<&str>,
     theme: &Theme,
     // Where `starting:` and `data-[state=closed]:` styles go, for an
     // element that can animate (`HozoAnimated`): they are the first and
@@ -438,7 +439,7 @@ pub(super) fn build_style_entries(
             | Condition::Structural(_) | Condition::Not(_) | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible
             | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark
             | Condition::Container { .. } | Condition::FormState(FormState::ReadOnly) => {
-                match guards::resolve(&condition, node, source, position, runtime, interaction_context) {
+                match guards::resolve(&condition, node, source, position, runtime, interaction_context, pattern_slot) {
                     Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
                     Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
                     Ok(guards::Guard::Known(false)) => {}
@@ -518,7 +519,7 @@ pub(super) fn build_style_entries(
                             | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
                             | Condition::Width { .. } | Condition::Dark | Condition::Container { .. }
                             | Condition::FormState(FormState::ReadOnly) => {
-                                match guards::resolve(atom, node, source, position, runtime, interaction_context) {
+                                match guards::resolve(atom, node, source, position, runtime, interaction_context, pattern_slot) {
                                     Ok(guards::Guard::Known(true)) => {}
                                     Ok(guards::Guard::Known(false)) => applies = false,
                                     Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),

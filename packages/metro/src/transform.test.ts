@@ -23,6 +23,37 @@ test('returns null when there is no @hozo/core usage', () => {
   assert.equal(transformHozoSource('export const x = 1\n', 'x.tsx'), null)
 })
 
+test('static Chip interaction slots compile with the project theme and no candidate module', () => {
+  const compiler = createCompiler({
+    colors: [{ token: 'brand', oklch: '#123456', hex: '#123456' }],
+  })
+  const source = `import { Chip } from '@hozo/core'
+export function C() { return <Chip defaultSelected={false} onRemove={drop}
+  className="bg-brand hover:opacity-50" removeClassName="focus-visible:text-brand"
+  style={{ opacity: 0.9 }}>Token</Chip> }
+`
+  const output = transformHozoSource(source, 'Chip.tsx', undefined, compiler)
+  assert.ok(output)
+  assert.match(output, /backgroundColor: '#123456'/)
+  assert.match(output, /color: '#123456'/)
+  assert.match(output, /hozoStyle=\{\(\{ pressed, hovered, focused \}\) =>/)
+  assert.match(output, /hozoRemoveStyle=\{\(\{ pressed, hovered, focused, focusVisible \}\) =>/)
+  assert.match(output, /style=\{\[\{ opacity: 0\.9 \}\]\}/)
+  assert.doesNotMatch(output, /hozoClasses|candidate|HozoPressable|HozoText/)
+})
+
+test('decorative pattern slots still reject static interaction classes in full Metro lowering', () => {
+  assert.throws(
+    () =>
+      transformHozoSource(
+        `import { Avatar } from '@hozo/core'
+export function C() { return <Avatar name="Ada" statusClassName="hover:opacity-50" /> }`,
+        'Avatar.tsx',
+      ),
+    /no readable interaction state/,
+  )
+})
+
 test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {
   const source = `import { Canvas } from '@hozo/canvas'
 export function Chart() {
