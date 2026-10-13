@@ -119,7 +119,7 @@ test('generated dynamic candidate modules execute the same resets and restore ax
   const cache = openCandidateCache()
   cache.scanFile(
     'Dynamic.tsx',
-    `const variants = ['rotate-45', 'scale-95', 'rotate-none', 'translate-y-3', 'translate-none', 'translate-x-2', 'transform-cpu']; const cx = () => variants.join(' ')`,
+    `const variants = 'rotate-45 scale-95 rotate-none translate-y-3 translate-none translate-x-2 transform-cpu'`,
     1,
   )
   const module = cache.renderNativeModule()
@@ -143,8 +143,170 @@ test('generated dynamic candidate modules execute the same resets and restore ax
   assert.equal(resolve('rotate-45 scale-95 rotate-none'), resolve('rotate-45 scale-95 rotate-none'))
 })
 
-test('ordinary generated candidate maps do not import or run the slot composer', () => {
+test('transform-free generated candidate maps do not import or run the slot composer', () => {
   const cache = openCandidateCache()
-  cache.scanFile('Plain.tsx', `const variants = ['rotate-45', 'scale-95', 'p-4']`, 1)
+  cache.scanFile('Plain.tsx', `const variants = 'p-4 bg-blue-500 hover:opacity-50'`, 1)
   assert.doesNotMatch(cache.renderNativeModule(), /hozoTransformStyles|transform-slots/)
+})
+
+function candidateResolver(classes: string[]) {
+  const cache = openCandidateCache()
+  cache.scanFile('States.tsx', `const classes = ${JSON.stringify(classes.join(' '))}`, 1)
+  const module = cache.renderNativeModule()
+  for (const name of classes) assert.ok(module.includes(`${JSON.stringify(name)}:`), module)
+  const executable = module.replace(/^import[^\n]*\n/gm, '').replace(/\bexport /g, '')
+  let compositions = 0
+  const resolve = new Function(
+    'createClassResolver',
+    'hozoTransformStyles',
+    `${executable}\nreturn hozoClasses`,
+  )(createClassResolver, (...args: Parameters<typeof hozoTransformStyles>) => {
+    compositions++
+    return hozoTransformStyles(...args)
+  })
+  return { module, resolve, compositions: () => compositions }
+}
+
+test('generated state transforms preserve other CSS families without needing a reset candidate', () => {
+  const { resolve } = candidateResolver([
+    'rotate-3',
+    'active:scale-95',
+    'hover:translate-x-2',
+    'hover:active:rotate-6',
+  ])
+  const classes = 'rotate-3 active:scale-95 hover:translate-x-2 hover:active:rotate-6'
+  const rest = resolve(classes, { pressed: false, hovered: false })
+  assert.deepEqual(flatten(rest).transform, [{ rotate: '3deg' }])
+  assert.deepEqual(flatten(resolve(classes, { pressed: true })).transform, [
+    { rotate: '3deg' },
+    { scaleX: 0.95 },
+    { scaleY: 0.95 },
+  ])
+  assert.deepEqual(flatten(resolve(classes, { hovered: true })).transform, [
+    { translateX: 8 },
+    { rotate: '3deg' },
+  ])
+  assert.deepEqual(flatten(resolve(classes, { pressed: true, hovered: true })).transform, [
+    { translateX: 8 },
+    { rotate: '6deg' },
+    { scaleX: 0.95 },
+    { scaleY: 0.95 },
+  ])
+  assert.equal(resolve(classes, { pressed: false }), rest, 'inactive state reuses the cached base')
+  assert.deepEqual(
+    flatten(rest).transform,
+    [{ rotate: '3deg' }],
+    'state composition did not mutate it',
+  )
+})
+
+test('conditional candidate resets clear only their family and restore on release', () => {
+  const { resolve } = candidateResolver([
+    'translate-x-2',
+    'rotate-3',
+    'scale-95',
+    'rotate-x-30',
+    'active:scale-none',
+    'hover:rotate-none',
+    'disabled:transform-none',
+  ])
+  const classes =
+    'translate-x-2 rotate-3 scale-95 rotate-x-30 active:scale-none hover:rotate-none disabled:transform-none'
+  const base = resolve(classes, {})
+  assert.deepEqual(flatten(base).transform, [
+    { translateX: 8 },
+    { rotate: '3deg' },
+    { scaleX: 0.95 },
+    { scaleY: 0.95 },
+    { rotateX: '30deg' },
+  ])
+  assert.deepEqual(flatten(resolve(classes, { pressed: true })).transform, [
+    { translateX: 8 },
+    { rotate: '3deg' },
+    { rotateX: '30deg' },
+  ])
+  assert.deepEqual(
+    flatten(resolve(classes, { pressed: true, hovered: true, disabled: true })).transform,
+    [{ translateX: 8 }],
+  )
+  assert.equal(resolve(classes, {}), base)
+})
+
+test('a state-only transform receives slot metadata and a transform-free string bypasses composition', () => {
+  const { resolve, compositions } = candidateResolver([
+    'active:scale-95',
+    'p-4',
+    'hover:opacity-50',
+  ])
+  const plain = resolve('p-4')
+  assert.equal(resolve('p-4', { pressed: true }), plain)
+  assert.equal(flatten(resolve('p-4 hover:opacity-50', { hovered: true })).opacity, 0.5)
+  assert.equal(compositions(), 0, 'unrelated class strings must not allocate a slot composer')
+  assert.deepEqual(flatten(resolve('active:scale-95', { pressed: true })).transform, [
+    { scaleX: 0.95 },
+    { scaleY: 0.95 },
+  ])
+  assert.equal(compositions(), 1)
+})
+
+test('unconditional candidate transforms compose once and keep the cached array', () => {
+  const { resolve, compositions } = candidateResolver(['rotate-3', 'scale-95', 'p-4'])
+  const first = resolve('p-4 rotate-3 scale-95')
+  assert.deepEqual(flatten(first).transform, [
+    { rotate: '3deg' },
+    { scaleX: 0.95 },
+    { scaleY: 0.95 },
+  ])
+  assert.equal(resolve('p-4 rotate-3 scale-95'), first)
+  assert.equal(compositions(), 1)
+  assert.equal(flatten(first).paddingTop, 16)
+})
+
+test('composition does not silently admit arbitrary transform lists that remain unsupported on Native', () => {
+  const classes = 'rotate-3 transform-[translateX(4px)_rotate(20deg)] active:transform-[scale(.5)]'
+  const { resolve, module } = candidateResolver(classes.split(' '))
+  const warnings: string[] = []
+  const original = console.warn
+  console.warn = (message: string) => warnings.push(message)
+  try {
+    assert.deepEqual(flatten(resolve(classes, { pressed: true })).transform, [{ rotate: '3deg' }])
+    assert.equal(warnings.length, 2)
+    assert.ok(warnings.some((message) => message.includes('Web-only')))
+    assert.ok(warnings.some((message) => message.includes('active:transform-')))
+    assert.doesNotMatch(module, /\[states\["active:transform-/)
+  } finally {
+    console.warn = original
+  }
+})
+
+test('conditional transform-cpu restores only function registers after a conditional reset', () => {
+  const classes = 'rotate-3 rotate-x-30 active:transform-none hover:transform-cpu'
+  const { resolve } = candidateResolver(classes.split(' '))
+  const resting = resolve(classes, {})
+  assert.deepEqual(flatten(resting).transform, [{ rotate: '3deg' }, { rotateX: '30deg' }])
+  assert.deepEqual(flatten(resolve(classes, { pressed: true })).transform, [{ rotate: '3deg' }])
+  assert.deepEqual(flatten(resolve(classes, { pressed: true, hovered: true })).transform, [
+    { rotate: '3deg' },
+    { rotateX: '30deg' },
+  ])
+  assert.equal(resolve(classes, {}), resting)
+})
+
+test('the compiled dynamic Pressable callback consumes the generated state-transform result', () => {
+  const { resolve } = candidateResolver(['rotate-3', 'active:scale-95'])
+  const source = `import { Pressable } from '@hozo/core'
+export function C({ classes }) { return <Pressable accessibilityRole="button" className={classes} /> }`
+  const [output] = compileNative(source)
+  assert.ok(output)
+  assert.ok(!output.diagnostics.some((diagnostic) => diagnostic.severity === 'error'))
+  const style = new Function('hozoClasses', 'classes', `return (${styleExpression(output.jsx)})`)(
+    resolve,
+    'rotate-3 active:scale-95',
+  )
+  assert.equal(typeof style, 'function')
+  assert.deepEqual(flatten(style({ pressed: true })).transform, [
+    { rotate: '3deg' },
+    { scaleX: 0.95 },
+    { scaleY: 0.95 },
+  ])
 })
