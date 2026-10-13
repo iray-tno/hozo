@@ -67,3 +67,42 @@ test('returns the same array for a repeated class string', () => {
   const cx = createClassResolver(STYLES)
   assert.equal(cx('p-4'), cx('p-4'), 'a new array each render would defeat RN memoization')
 })
+
+// #886. A class whose only condition is the element's own state, resolved
+// against the state its pressable hands in.
+const STATES = {
+  'active:opacity-80': [[['pressed'], { opacity: 0.8 }]],
+  'disabled:opacity-50': [[['disabled'], { opacity: 0.5 }]],
+  'hover:active:p-8': [[['hovered', 'pressed'], { paddingTop: 32 }]],
+} as const
+
+test('a state class applies when its state holds, after the unconditional ones', () => {
+  const cx = createClassResolver(STYLES, {}, undefined, STATES)
+  const value = 'active:opacity-80 bg-blue-500'
+  assert.deepEqual(cx(value, { pressed: false }), [STYLES['bg-blue-500']])
+  assert.deepEqual(cx(value, { pressed: true }), [STYLES['bg-blue-500'], { opacity: 0.8 }])
+})
+
+test('a stacked state class needs every state it names', () => {
+  const cx = createClassResolver(STYLES, {}, undefined, STATES)
+  assert.deepEqual(cx('hover:active:p-8', { pressed: true }), [])
+  assert.deepEqual(cx('hover:active:p-8', { pressed: true, hovered: true }), [{ paddingTop: 32 }])
+})
+
+test('without a state, a state class is named once and left out', () => {
+  const cx = createClassResolver(STYLES, {}, undefined, STATES)
+  const warn = mock.method(console, 'warn', () => {})
+  try {
+    assert.deepEqual(cx('p-4 disabled:opacity-50'), [STYLES['p-4']])
+    cx('p-4 disabled:opacity-50')
+    assert.equal(warn.mock.callCount(), 1)
+    assert.match(warn.mock.calls[0].arguments[0] as string, /disabled:opacity-50/)
+  } finally {
+    warn.mock.restore()
+  }
+})
+
+test('a string with no state classes keeps its one cached array, state or not', () => {
+  const cx = createClassResolver(STYLES, {}, undefined, STATES)
+  assert.equal(cx('p-4', { pressed: true }), cx('p-4'))
+})
