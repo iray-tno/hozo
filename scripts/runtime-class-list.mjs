@@ -346,7 +346,7 @@ export async function measure(config) {
       cache:
         'shared generated candidate resolver warmed by untimed trials; compilation and bundling excluded',
       timing:
-        'act includes synchronous render/commit/effects; unmount, assertions and host lookup excluded',
+        'scene construction and act synchronous render/commit/effects included; unmount, assertions and host lookup excluded',
       warningPolicy: 'captured, retained; not discarded or timed as console I/O',
       stateBaseline:
         'before #888 state classes are refused; state-classes timings are NOT equivalent styling workloads',

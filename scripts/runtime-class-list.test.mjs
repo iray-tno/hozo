@@ -49,7 +49,7 @@ function syntheticSeries() {
         schemaVersion: 1,
         sourceCommit: name === 'before' ? BEFORE : name === 'after' ? AFTER : currentCommit,
         driverCommit: currentCommit,
-        binarySha256: 'b'.repeat(64),
+        binarySha256: (name === 'before' ? 'b' : name === 'after' ? 'c' : 'd').repeat(64),
         environment: { node: 'test', react: 'test' },
         methodology: { rows: [4], samples: 3, warmups: 1 },
         fixture: { source: 'same synthetic fixture' },
@@ -81,6 +81,9 @@ test('comparison labels unequal historical state support and rejects incomplete 
   for (const mutate of [
     (copy) => {
       copy.before.sourceCommit = currentCommit
+    },
+    (copy) => {
+      copy.after.binarySha256 = copy.before.binarySha256
     },
     (copy) => {
       copy.after.driverCommit = BEFORE

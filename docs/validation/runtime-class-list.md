@@ -21,6 +21,13 @@ resolver and Native component sources, not the installed released Hozo.
 This isolates source changes from dependency upgrades and avoids reusing an
 already-loaded addon from a different revision.
 
+The workflow retains third-party Rust build caches but cleans all Hozo
+compiler crate artifacts before each revision. Separate checkouts have the
+same package IDs and source mtimes older than the first build: sharing a
+target directory alone can make Cargo reuse the first binary incorrectly.
+The comparison also rejects identical before/after addon hashes. Cleaning
+and rebuilding occur before timing, not inside the measured work.
+
 ## What it measures
 
 Each row is compiled through the actual Metro source transformer. It
@@ -36,8 +43,8 @@ The simulated RN Pressable executes style callbacks instead of merely
 retaining their shape. Counts assert that the requested rows actually
 rendered; style checks assert base padding/colour and pressed opacity.
 Candidate maps are warm and shared across trials. Compilation, bundling,
-assertions, host lookups and unmount are outside timers. React synchronous
-render/commit/effects are inside `act`. Known renderer deprecation messages
+assertions, host lookups and unmount are outside timers. Scene construction
+and React synchronous render/commit/effects inside `act` are timed. Known renderer deprecation messages
 and Hozo diagnostics are retained without timing console I/O; unexpected
 render errors fail the run.
 

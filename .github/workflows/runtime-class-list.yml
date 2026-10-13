@@ -55,6 +55,11 @@ jobs:
               source="$GITHUB_WORKSPACE/.benchmark-$variant"
               ln -s "$GITHUB_WORKSPACE/target" "$source/target"
             fi
+            # These checkouts have the same package IDs and older mtimes
+            # than the first build. Cargo can otherwise reuse that binary
+            # despite different source contents. Retain third-party caches,
+            # but force every Hozo compiler crate to rebuild for this source.
+            cargo clean --manifest-path "$source/Cargo.toml" -p hozo_ir -p hozo_parser -p hozo_native -p hozo_web -p hozo_cache -p hozo_napi > "artifacts/runtime-class-list/$variant-clean.log" 2>&1
             node "$source/packages/compiler/scripts/build-native.mjs" > "artifacts/runtime-class-list/$variant-build.log" 2>&1
             node scripts/runtime-class-list.mjs --root "$source" --output "artifacts/runtime-class-list/$variant.json" > "artifacts/runtime-class-list/$variant.log" 2>&1
           done

@@ -11,6 +11,11 @@ export function report(records, currentCommit) {
   assert.equal(records.before.sourceCommit, beforeCommit)
   assert.equal(records.after.sourceCommit, afterCommit)
   assert.equal(records.current.sourceCommit, currentCommit)
+  assert.notEqual(
+    records.before.binarySha256,
+    records.after.binarySha256,
+    'before/after #888 reused the same addon',
+  )
   for (const [name, value] of Object.entries(records)) {
     assert.equal(value.schemaVersion, 1, name)
     assert.equal(value.driverCommit, records.current.driverCommit, 'different benchmark drivers')
@@ -88,7 +93,7 @@ export function report(records, currentCommit) {
     '',
     'Interpretation boundaries:',
     '',
-    '- Actual compiled Row components render through the real revision-specific HozoPressable and class resolver; every requested row mounts and updates, while one press re-renders only that row.',
+    '- Actual compiled Row components render through the revision-specific selected Pressable/HozoPressable and class resolver; every requested row mounts and updates, while one press re-renders only that row.',
     '- **Before #888 refuses state classes. Its state-classes timings are not equal-feature speed comparisons.** Later revisions supply the pressed opacity, verified on the rendered host.',
     '- Shared driver dependencies, serial fresh processes and separately rebuilt addons keep source revisions distinct. Candidate maps are warm; compilation/bundling, unmount and assertions are outside timers.',
     '- Development react-test-renderer + simulated RN hosts: no Hermes, production React, layout, native bridge, GPU, pixels, frame budget or physical-device conclusion.',
