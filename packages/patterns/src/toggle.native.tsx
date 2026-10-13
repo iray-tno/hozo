@@ -20,9 +20,10 @@
 
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, type TextStyle, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, type ViewStyle } from 'react-native'
 import { controlIndicator } from './control-indicator.native.tsx'
 import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 /** Checked, not checked, or -- for a checkbox only -- partly. */
@@ -36,7 +37,7 @@ interface Shared<T extends HozoCheckedState> {
    *
    * On a tag the compiler lowers it is gone by runtime, replaced by a
    * `StyleSheet` entry. Here it arrives as a string and is resolved through
-   * the project's candidate map (#886), with the control's `pressed`,
+   * the project's candidate map (#886), with the control's interaction,
    * `aria-checked` and `disabled` state. A string child takes the text half.
    * `style` comes after it.
    */
@@ -81,13 +82,13 @@ function useToggle(
 /** A control's resolved classes, split into its box and its label (#886). */
 function look(
   className: string | undefined,
-  pressed: boolean,
+  interaction: InteractionState,
   checked: boolean,
   disabled?: boolean,
 ) {
   return splitTextStyle(
     hozoClasses(className, {
-      pressed,
+      ...interaction,
       disabled: Boolean(disabled),
       'aria-checked': checked,
       'aria-disabled': Boolean(disabled),
@@ -118,16 +119,16 @@ export function HozoCheckbox({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: state, disabled }}
       disabled={disabled}
-      style={({ pressed }) => [look(className, pressed, state === true, disabled)[0], style]}
+      style={(interaction) => [look(className, interaction, state === true, disabled)[0], style]}
       onPress={press}
     >
-      {({ pressed }) => {
-        const text = label(children, look(className, pressed, state === true, disabled)[1])
+      {(interaction) => {
+        const text = label(children, look(className, interaction, state === true, disabled)[1])
         if (!indicator) return text
         return (
           <>
             {controlIndicator(indicator({ checked: state, disabled: Boolean(disabled) }), {
-              pressed,
+              ...interaction,
               disabled: Boolean(disabled),
               'aria-checked': state === true,
               'aria-disabled': Boolean(disabled),
@@ -158,16 +159,16 @@ export function HozoSwitch({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: state === true, disabled }}
       disabled={disabled}
-      style={({ pressed }) => [look(className, pressed, state === true, disabled)[0], style]}
+      style={(interaction) => [look(className, interaction, state === true, disabled)[0], style]}
       onPress={press}
     >
-      {({ pressed }) => {
-        const text = label(children, look(className, pressed, state === true, disabled)[1])
+      {(interaction) => {
+        const text = label(children, look(className, interaction, state === true, disabled)[1])
         if (!indicator) return text
         return (
           <>
             {controlIndicator(indicator({ checked: state === true, disabled: Boolean(disabled) }), {
-              pressed,
+              ...interaction,
               disabled: Boolean(disabled),
               'aria-checked': state === true,
               'aria-disabled': Boolean(disabled),
