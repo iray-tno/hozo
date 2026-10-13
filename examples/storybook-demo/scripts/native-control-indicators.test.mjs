@@ -47,6 +47,8 @@ const NativeText = (props) => React.createElement('NativeText', props, props.chi
 const NativeTextInput = (props) => React.createElement('NativeTextInput', props)
 const NativeModal = ({ visible, ...props }) =>
   visible ? React.createElement('NativeModal', props, props.children) : null
+const announcements = []
+const openedURLs = []
 const NativePressable = ({ children, style, disabled, ...props }) => {
   const state = { pressed: false }
   return React.createElement(
@@ -74,6 +76,9 @@ const probeSources = [
   ...['Accordion', 'Menu', 'Listbox', 'Combobox', 'Tree'].map((name) =>
     exportsFrom(`Hozo${name}`, `packages/patterns/src/${name.toLowerCase()}.native.tsx`),
   ),
+  exportsFrom('HozoCommandPalette', 'packages/patterns/src/command-palette.native.tsx'),
+  exportsFrom('HozoPagination', 'packages/patterns/src/pagination.native.tsx'),
+  exportsFrom('HozoNavigationProvider', 'packages/engine/src/navigation-context.tsx'),
   exportsFrom('usePressableInteraction', 'packages/behaviors/src/pressable-interaction.ts'),
 ]
 const bundled = await build({
@@ -90,6 +95,12 @@ const bundled = await build({
     {
       name: 'native-patterns',
       setup(builder) {
+        builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
+          path: filename('packages/behaviors/src/i18n.ts'),
+        }))
+        builder.onResolve({ filter: /^@hozo\/engine\/navigation$/ }, () => ({
+          path: filename('packages/engine/src/navigation-entry.native.ts'),
+        }))
         builder.onResolve({ filter: /^@hozo\/behaviors\/pressable-interaction$/ }, () => ({
           path: filename('packages/behaviors/src/pressable-interaction.ts'),
         }))
@@ -115,6 +126,9 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         Text: NativeText,
         TextInput: NativeTextInput,
         Modal: NativeModal,
+        ScrollView: NativeView,
+        AccessibilityInfo: { announceForAccessibility: (message) => announcements.push(message) },
+        Linking: { openURL: (url) => openedURLs.push(url) },
         Pressable: NativePressable,
         StyleSheet: { flatten: flat },
       }
@@ -127,6 +141,7 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
 const { HozoCheckbox, HozoSwitch, HozoRadioGroup, HozoTabs } = module.exports
 const { CheckboxPattern, SwitchPattern, RadioPattern, HozoAccordion } = module.exports
 const { HozoMenu, HozoListbox, HozoCombobox, HozoTree } = module.exports
+const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.exports
 const { usePressableInteraction } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
@@ -304,7 +319,7 @@ test('Native tabs deliver hover, keyboard focus-visible and press state to both 
 async function checkInteraction(tree, index = 0) {
   const host = () => tree.root.findAllByType('NativePressable')[index]
   const box = () => flat(host().props.style)
-  const text = () => flat(host().findByType('NativeText').props.style)
+  const text = () => flat(host().findAllByType('NativeText')[0].props.style)
   const event = async (name) => {
     await act(() => host().props[name]({}))
   }
@@ -619,6 +634,144 @@ test('Native Tree interaction does not expand branches or select leaves', async 
   assert.deepEqual(selected, ['leaf'])
   await press(hosts()[0])
   assert.equal(hosts().length, 2)
+})
+
+test('Native CommandPalette items and shortcuts receive host facts without changing the return-key target', async (t) => {
+  const selected = []
+  const changes = []
+  const tree = await mount(t, HozoCommandPalette, {
+    open: true,
+    commands: [
+      { id: 'blocked', label: 'Blocked', disabled: true, onSelect: () => selected.push('blocked') },
+      { id: 'alpha', label: 'Alpha', shortcut: '⌘A', onSelect: () => selected.push('alpha') },
+      { id: 'beta', label: 'Beta', onSelect: () => selected.push('beta') },
+    ],
+    onOpenChange: (open) => changes.push(open),
+    scrimClassName: interactionClasses,
+    itemClassName: `${interactionClasses} disabled:opacity-25`,
+    activeItemClassName: 'border-2',
+    shortcutClassName: interactionClasses,
+  })
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  const alpha = () => hosts().find((node) => node.props.accessibilityLabel === 'Alpha')
+  assert.equal(
+    flat(alpha().props.style).borderTopWidth,
+    2,
+    'first enabled command is the return-key target',
+  )
+  const index = hosts().findIndex((node) => node.props.accessibilityLabel === 'Alpha')
+  await checkInteraction(tree, index)
+  assert.deepEqual(selected, [])
+  assert.deepEqual(changes, [])
+  await act(() => alpha().props.onHoverIn({}))
+  const shortcut = () => alpha().findByType('NativeView')
+  assert.equal(flat(shortcut().props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(
+    flat(shortcut().findByType('NativeText').props.style).color,
+    color('hozo-accent-text'),
+  )
+  assert.equal(shortcut().props.importantForAccessibility, 'no-hide-descendants')
+  await act(() => alpha().props.onKeyDown({}))
+  await act(() => alpha().props.onFocus({}))
+  assert.equal(flat(shortcut().props.style).outlineWidth, 2)
+  assert.equal(flat(shortcut().findByType('NativeText').props.style).fontWeight, '700')
+  await act(() => alpha().props.onPressIn({}))
+  assert.equal(flat(shortcut().props.style).opacity, 0.5)
+  await act(() => alpha().props.onPressOut({}))
+  const blocked = hosts().find((node) => node.props.accessibilityLabel === 'Blocked')
+  assert.equal(blocked.props.disabled, true)
+  assert.equal(flat(blocked.props.style).opacity, 0.25)
+  await press(blocked)
+  assert.deepEqual(selected, [])
+  const input = () => tree.root.findByType('NativeTextInput')
+  await act(() => input().props.onSubmitEditing())
+  assert.deepEqual(selected, ['alpha'], 'hover/focus/press do not change the return-key target')
+  assert.deepEqual(changes, [false])
+  const announcementStart = announcements.length
+  await act(() => input().props.onChangeText('Beta'))
+  assert.equal(announcements.length, announcementStart + 1)
+  assert.equal(hosts().filter((node) => node.props.accessibilityRole === 'button').length, 1)
+  await act(() => input().props.onSubmitEditing())
+  assert.deepEqual(selected, ['alpha', 'beta'])
+  await act(() => hosts()[0].props.onHoverIn({}))
+  assert.equal(flat(hosts()[0].props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(hosts()[0].props.style).position, 'absolute')
+  await press(hosts()[0])
+  assert.deepEqual(changes, [false, false, false])
+})
+
+test('Native CommandPalette active slot delivers interaction facts and keeps explicit style order', async (t) => {
+  const commands = [{ id: 'a', label: 'Alpha', onSelect: () => {} }]
+  const tree = await mount(t, HozoCommandPalette, {
+    open: true,
+    commands,
+    activeItemClassName: interactionClasses,
+  })
+  await checkInteraction(tree, 1)
+  const override = await mount(t, HozoCommandPalette, {
+    open: true,
+    commands,
+    itemClassName: interactionClasses,
+    itemStyle: { backgroundColor: '#111111', color: '#222222' },
+    activeItemStyle: { backgroundColor: '#333333', color: '#444444' },
+  })
+  const item = () => override.root.findAllByType('NativePressable')[1]
+  await act(() => item().props.onHoverIn({}))
+  assert.equal(flat(item().props.style).backgroundColor, '#333333')
+  assert.equal(flat(item().findByType('NativeText').props.style).color, '#444444')
+})
+
+test('Native Pagination delivers interaction facts to item/current/disabled slots and still navigates', async (t) => {
+  const navigated = []
+  const changed = []
+  function RoutedPagination(props) {
+    return React.createElement(
+      HozoNavigationProvider,
+      {
+        adapter: {
+          navigate: (request) => {
+            navigated.push(request.href)
+            return true
+          },
+        },
+      },
+      React.createElement(HozoPagination, props),
+    )
+  }
+  const tree = await mount(t, RoutedPagination, {
+    pageCount: 3,
+    defaultPage: 2,
+    getPageHref: (page) => `/pages/${page}`,
+    onPageChange: (page) => changed.push(page),
+    itemClassName: interactionClasses,
+    currentItemClassName: 'aria-selected:border-2',
+    disabledItemClassName: 'disabled:opacity-25',
+  })
+  await checkInteraction(tree)
+  assert.deepEqual(navigated, [])
+  assert.deepEqual(changed, [])
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  assert.equal(hosts()[2].props.accessibilityState.selected, true)
+  assert.equal(flat(hosts()[2].props.style).borderTopWidth, 2)
+  assert.equal(hosts()[0].props.accessibilityRole, 'link')
+  await press(hosts()[0])
+  assert.deepEqual(changed, [1])
+  assert.deepEqual(navigated, ['/pages/1'])
+  assert.equal(hosts()[0].props.disabled, true)
+  assert.equal(flat(hosts()[0].props.style).opacity, 0.25)
+  await press(hosts()[0])
+  assert.deepEqual(changed, [1])
+  for (const slot of ['currentItemClassName', 'disabledItemClassName']) {
+    const slotted = await mount(t, HozoPagination, { pageCount: 3, [slot]: interactionClasses })
+    await checkInteraction(slotted, slot === 'currentItemClassName' ? 1 : 0)
+  }
+  const start = openedURLs.length
+  const fallback = await mount(t, HozoPagination, {
+    pageCount: 3,
+    getPageHref: (page) => `/fallback/${page}`,
+  })
+  await press(fallback.root.findAllByType('NativePressable').at(-1))
+  assert.deepEqual(openedURLs.slice(start), ['/fallback/2'])
 })
 
 test('the shared tracker notifies the animation driver synchronously and can omit focus-visible inference', async (t) => {

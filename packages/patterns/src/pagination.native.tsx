@@ -2,16 +2,9 @@ import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { activateHozoNavigation, useHozoNavigation } from '@hozo/engine/navigation'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import {
-  Linking,
-  Pressable,
-  type StyleProp,
-  Text,
-  type TextStyle,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import { Linking, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { paginationItems } from './pagination-rules.ts'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoPaginationProps {
@@ -30,7 +23,7 @@ export interface HozoPaginationProps {
    * compiler, which hands them over as the style props below; a file it did
    * not read leaves them here as strings, resolved through the project's
    * candidate map (#886) before the matching style prop, an item with its
-   * `pressed`, `aria-selected` and `disabled` state.
+   * interaction, `aria-selected` and `disabled` state.
    */
   className?: string
   itemClassName?: string
@@ -105,19 +98,21 @@ export function HozoPagination({
     content: ReactNode,
     state: 'current' | 'disabled' | 'idle',
   ) => {
-    // Resolved per press: the item's classes take its `pressed` state (#886).
-    const look = (pressed: boolean) =>
-      splitTextStyle([
-        hozoClasses(itemClassName, {
-          pressed,
-          disabled: state === 'disabled',
-          'aria-selected': state === 'current',
-          'aria-disabled': state === 'disabled',
-        }),
+    // Every class slot belongs to this host; current/disabled are not modality.
+    const look = (interaction: InteractionState) => {
+      const facts = {
+        ...interaction,
+        disabled: state === 'disabled',
+        'aria-selected': state === 'current',
+        'aria-disabled': state === 'disabled',
+      }
+      return splitTextStyle([
+        hozoClasses(itemClassName, facts),
         itemStyle,
-        state === 'current' && [hozoClasses(currentItemClassName), currentItemStyle],
-        state === 'disabled' && [hozoClasses(disabledItemClassName), disabledItemStyle],
+        state === 'current' && [hozoClasses(currentItemClassName, facts), currentItemStyle],
+        state === 'disabled' && [hozoClasses(disabledItemClassName, facts), disabledItemStyle],
       ])
+    }
     return (
       <Pressable
         key={key}
@@ -125,12 +120,12 @@ export function HozoPagination({
         accessibilityLabel={label}
         accessibilityState={{ selected: state === 'current', disabled: state === 'disabled' }}
         disabled={state === 'disabled'}
-        style={({ pressed }) => look(pressed)[0]}
+        style={(interaction) => look(interaction)[0]}
         onPress={() => go(target)}
       >
-        {({ pressed }) =>
+        {(interaction) =>
           typeof content === 'string' || typeof content === 'number' ? (
-            <Text style={[rowText, look(pressed)[1]]}>{content}</Text>
+            <Text style={[rowText, look(interaction)[1]]}>{content}</Text>
           ) : (
             content
           )
