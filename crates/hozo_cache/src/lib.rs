@@ -308,6 +308,20 @@ mod tests {
     }
 
     #[test]
+    fn pre_quoted_array_scan_results_are_discarded_even_with_the_same_mtime() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("candidates.json");
+        std::fs::write(&path,
+            r#"{"version":3,"files":{"Array.tsx":{"modified_ms":1,"class_names":[],"uses_tailwind":false}}}"#,
+        ).unwrap();
+        let mut cache = CandidateCache::open(Box::new(JsonFileStore::new(&path)));
+        assert!(!cache.is_current("Array.tsx", 1));
+        cache.record("Array.tsx", 1, vec!["p-4".into()], true);
+        assert_eq!(cache.union(), vec!["p-4"]);
+        assert!(cache.uses_tailwind());
+    }
+
+    #[test]
     fn the_same_cache_works_over_a_different_store() {
         // The point of the split: callers never mention the format.
         for store in [

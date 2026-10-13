@@ -162,6 +162,18 @@ fn is_consumed(consumed: &[SourceSpan], start: usize, end: usize) -> bool {
     consumed.iter().any(|span| start < span.end as usize && end > span.start as usize)
 }
 
+// A bracket at a token boundary followed by a string (possibly through
+// nested array openings) is source syntax, not an arbitrary property or
+// selector. Brackets inside an existing utility such as content-['x'] are
+// deliberately not classified here.
+fn quoted_array_content_start(bytes: &[u8], opening: usize) -> Option<usize> {
+    let mut next = opening + 1;
+    while bytes.get(next).is_some_and(|byte| *byte == b'[' || byte.is_ascii_whitespace()) {
+        next += 1;
+    }
+    bytes.get(next).filter(|byte| matches!(**byte, b'\'' | b'"' | b'`')).map(|_| next)
+}
+
 fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
     let bytes = source.as_bytes();
     let mut found: Vec<String> = Vec::new();
@@ -170,10 +182,22 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
     // boolean because a variant can hold another one: `[&[data-x=y]]:p-4` is
     // two levels and ends at the second closing bracket.
     let mut depth: usize = 0;
+    let mut array_opening_end = 0;
 
     for i in 0..=bytes.len() {
+        // Skip the whole recognized opening once. Re-peeking at each '['
+        // in a deeply nested array would turn the scan quadratic.
+        if i < array_opening_end {
+            continue;
+        }
         let byte = if i < bytes.len() { Some(bytes[i]) } else { None };
         let inside = depth > 0;
+        if !inside && start.is_none() && byte == Some(b'[') {
+            if let Some(end) = quoted_array_content_start(bytes, i) {
+                array_opening_end = end;
+                continue;
+            }
+        }
         if let Some(b) = byte {
             if inside && is_bracket_byte(b) {
                 if b == b'[' {
@@ -259,6 +283,46 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
             scan_class_candidates(source),
             vec!["data-[hozo-state=checked]:before:bg-red-500"]
         );
+    }
+
+    #[test]
+    fn quoted_class_arrays_keep_their_first_and_subsequent_candidates() {
+        for source in [
+            r#"const c = ["p-4","hover:opacity-50"]"#,
+            "const c = ['p-4', 'hover:opacity-50']",
+            r#"const c = [["p-4"],["hover:opacity-50"]]"#,
+            "const c = [ ['p-4'], ['hover:opacity-50'] ]",
+            "const c = [`p-4`,`hover:opacity-50`]",
+            "const c = [\n'p-4',\n'hover:opacity-50'\n]",
+        ] {
+            let found = scan_class_candidates(source);
+            assert_eq!(found, vec!["p-4", "hover:opacity-50"], "{source}: {found:?}");
+        }
+    }
+
+    #[test]
+    fn quoted_arrays_do_not_change_arbitrary_quotes_or_consumed_span_subtraction() {
+        let source = r#"import { View } from '@hozo/core'
+            const el = <View className="p-4" />
+            const c = ["hover:opacity-50", "content-['x']", `[&[data-x="y"]]:p-8`]
+        "#;
+        let found = scan_class_candidates(source);
+        assert!(!found.contains(&"p-4".to_string()), "{found:?}");
+        assert!(found.contains(&"hover:opacity-50".to_string()), "{found:?}");
+        assert!(found.contains(&"content-['x']".to_string()), "{found:?}");
+        assert!(found.contains(&"[&[data-x=\"y\"]]:p-8".to_string()), "{found:?}");
+        for candidate in ["content-['x']", "[&[data-x=\"y\"]]:p-8", "[font-family:'Arial']", "data-[state='busy']:opacity-50"] {
+            let found = scan_class_candidates(&format!("const c = `{candidate}`"));
+            assert!(found.contains(&candidate.to_string()), "{candidate}: {found:?}");
+        }
+    }
+
+    #[test]
+    fn deeply_nested_quoted_array_openings_do_not_swallow_the_literal() {
+        let source = format!("const c = {}\"p-4\"{}", "[".repeat(512), "]".repeat(512));
+        // The byte scan needs no recursion or repeated lookahead for this
+        // deep opening, independently of how the AST handles its nesting.
+        assert_eq!(scan_class_candidates(&source), vec!["p-4"]);
     }
 
     #[test]
