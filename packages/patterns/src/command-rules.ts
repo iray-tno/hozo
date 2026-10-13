@@ -83,3 +83,18 @@ export function nextActive(
   const next = Math.min(Math.max(position + step, 0), enabled.length - 1)
   return enabled[next] as number
 }
+
+/**
+ * The active command must still be an enabled, visible result. Both
+ * backends use this for the highlighted item and the return-key target;
+ * retaining an index after filtering/disabling must not split the two.
+ */
+export function currentCommand(
+  order: readonly number[],
+  commands: readonly RankableCommand[],
+  active: number | null,
+): number | null {
+  return active !== null && order.includes(active) && !commands[active]?.disabled
+    ? active
+    : nextActive(order, commands, null, 1)
+}

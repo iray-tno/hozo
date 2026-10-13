@@ -178,3 +178,116 @@ test('on Native: a press runs that command; a disabled one does not', () => {
   assert.equal(buttons(root)[1].props.disabled, true)
   renderer.act(() => root.unmount())
 })
+
+// These Web trees use the test loader's Native headless wrappers. They
+// execute the actual palette's state/handlers, not DOM focus or CSS. The
+// options' non-focusable markup and mouse-down cancellation are inspected;
+// physical focus and pointer delivery still need browser/device evidence.
+for (const backend of ['Web', 'Native'] as const) {
+  test(`${backend}: pointer targeting, filtering and disabled updates share the highlighted return-key target`, () => {
+    const selected: string[] = []
+    const changes: boolean[] = []
+    const commands = COMMANDS.map((command) => ({
+      ...command,
+      onSelect: () => selected.push(command.id),
+    }))
+    const Component = backend === 'Web' ? webPalette.HozoCommandPalette : loadNativeModule(SOURCE).C
+    const props = {
+      open: true,
+      portal: false,
+      commands,
+      activeItemClassName: 'return-target',
+      onOpenChange: (open: boolean) => changes.push(open),
+    }
+    let root: ReturnType<typeof renderer.create>
+    renderer.act(() => {
+      root = renderer.create(react.createElement(Component, props))
+    })
+    const items = () =>
+      backend === 'Web'
+        ? root.root.findAll((node: Tree) => node.type === 'div' && node.props.role === 'option')
+        : buttons(root)
+    const item = (label: string) => {
+      const found = items().find((node: Tree) =>
+        backend === 'Web'
+          ? node.props.children?.[0] === label
+          : node.props.accessibilityLabel === label,
+      )
+      assert.ok(found, `${backend} did not mount ${label}`)
+      return found
+    }
+    const input = () =>
+      backend === 'Web' ? root.root.findAll((node: Tree) => node.type === 'input')[0] : field(root)
+    const active = (node: Tree) =>
+      backend === 'Web'
+        ? String(node.props.className).includes('return-target')
+        : flat(node).backgroundColor !== undefined
+    const hover = (node: Tree) =>
+      renderer.act(() =>
+        (node.props[backend === 'Web' ? 'onMouseMove' : 'onHoverIn'] as () => void)(),
+      )
+    const submit = () =>
+      renderer.act(() => {
+        if (backend === 'Web') {
+          ;(input().props.onKeyDown as (event: unknown) => void)({
+            key: 'Enter',
+            preventDefault: () => {},
+            nativeEvent: { isComposing: false },
+          })
+        } else (input().props.onSubmitEditing as () => void)()
+      })
+    try {
+      assert.equal(active(item('Create project')), true)
+      hover(item('Settings'))
+      assert.equal(active(item('Settings')), true)
+      assert.equal(active(item('Create project')), false)
+      hover(item('Delete project'))
+      assert.equal(active(item('Settings')), true, 'disabled hover does not become the target')
+      assert.deepEqual(selected, [], 'a pointer target is not an activation')
+      if (backend === 'Web') {
+        let prevented = false
+        const option = item('Settings')
+        ;(option.props.onMouseDown as (event: unknown) => void)({
+          preventDefault: () => (prevented = true),
+        })
+        assert.equal(prevented, true, 'the input keeps focus on mouse down')
+        assert.equal(option.props.tabIndex, undefined, 'the option is not a focusable input')
+      }
+      submit()
+      assert.deepEqual(selected, ['settings'])
+      assert.deepEqual(changes, [false])
+
+      // The target is still a result, but a new query chooses its best match.
+      renderer.act(() => {
+        if (backend === 'Web') {
+          ;(input().props.onChange as (event: unknown) => void)({ target: { value: 'e' } })
+        } else (input().props.onChangeText as (text: string) => void)('e')
+      })
+      assert.equal(active(item('Create project')), true)
+      assert.equal(active(item('Settings')), false)
+      hover(item('Settings'))
+      renderer.act(() => {
+        root.update(
+          react.createElement(Component, {
+            ...props,
+            commands: commands.map((command) =>
+              command.id === 'settings' ? { ...command, disabled: true } : command,
+            ),
+          }),
+        )
+      })
+      assert.equal(active(item('Create project')), true, 'a disabled target is replaced')
+      assert.equal(active(item('Settings')), false)
+      submit()
+      assert.deepEqual(selected, ['settings', 'new'])
+      renderer.act(() => {
+        root.update(react.createElement(Component, { ...props, open: false }))
+      })
+      renderer.act(() => root.update(react.createElement(Component, props)))
+      assert.equal(input().props.value, '', 'reopening clears the query')
+      assert.equal(active(item('Create project')), true, 'reopening clears the pointer target')
+    } finally {
+      renderer.act(() => root.unmount())
+    }
+  })
+}

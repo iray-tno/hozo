@@ -729,7 +729,7 @@ test('Native Tree interaction does not expand branches or select leaves', async 
   assert.equal(hosts().length, 2)
 })
 
-test('Native CommandPalette items and shortcuts receive host facts without changing the return-key target', async (t) => {
+test('Native CommandPalette current item and shortcut receive host facts independently of activation', async (t) => {
   const selected = []
   const changes = []
   const tree = await mount(t, HozoCommandPalette, {
@@ -778,7 +778,7 @@ test('Native CommandPalette items and shortcuts receive host facts without chang
   assert.deepEqual(selected, [])
   const input = () => tree.root.findByType('NativeTextInput')
   await act(() => input().props.onSubmitEditing())
-  assert.deepEqual(selected, ['alpha'], 'hover/focus/press do not change the return-key target')
+  assert.deepEqual(selected, ['alpha'], 'interaction with the current item does not select another')
   assert.deepEqual(changes, [false])
   const announcementStart = announcements.length
   await act(() => input().props.onChangeText('Beta'))

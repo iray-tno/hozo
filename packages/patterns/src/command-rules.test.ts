@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { nextActive, rankCommands } from './command-rules.ts'
+import { currentCommand, nextActive, rankCommands } from './command-rules.ts'
 
 const COMMANDS = [
   { label: 'Create project' },
@@ -45,4 +45,23 @@ test('the active command moves past disabled ones and stops at the ends', () => 
   assert.equal(nextActive(order, COMMANDS, 2, 1), 2)
   assert.equal(nextActive(order, COMMANDS, null, -1), 2)
   assert.equal(nextActive([4], COMMANDS, null, 1), null)
+})
+
+test('the current command retains a visible enabled target, otherwise takes the first enabled result', () => {
+  const order = [4, 2, 0]
+  assert.equal(currentCommand(order, COMMANDS, null), 2)
+  assert.equal(currentCommand(order, COMMANDS, 0), 0)
+  assert.equal(currentCommand(order, COMMANDS, 4), 2, 'disabled targets are never current')
+  assert.equal(currentCommand([2], COMMANDS, 0), 2, 'a filtered target is not retained')
+  assert.equal(currentCommand([], COMMANDS, 0), null)
+  assert.equal(currentCommand([4], COMMANDS, 4), null)
+  assert.equal(
+    currentCommand(
+      order,
+      COMMANDS.map((command) => ({ ...command, disabled: true })),
+      0,
+    ),
+    null,
+    'a previously enabled target can become disabled',
+  )
 })
