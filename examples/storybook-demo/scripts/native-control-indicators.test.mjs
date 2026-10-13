@@ -26,7 +26,7 @@ const interactionClasses =
   'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus:opacity-75 focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2'`,
+  `export const c = '${interactionClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -112,6 +112,8 @@ const probeSources = [
   exportsFrom('HozoBottomSheet', 'packages/patterns/src/bottom-sheet.native.tsx'),
   exportsFrom('HozoColorPicker', 'packages/patterns/src/color-picker.native.tsx'),
   exportsFrom('HozoStepper', 'packages/patterns/src/stepper.native.tsx'),
+  exportsFrom('HozoChip', 'packages/patterns/src/chip.native.tsx'),
+  exportsFrom('HozoOtpInput', 'packages/patterns/src/otp-input.native.tsx'),
   exportsFrom('HozoNavigationProvider', 'packages/engine/src/navigation-context.tsx'),
   exportsFrom('usePressableInteraction', 'packages/behaviors/src/pressable-interaction.ts'),
 ]
@@ -130,7 +132,16 @@ const bundled = await build({
       name: 'native-patterns',
       setup(builder) {
         builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
-          path: filename('packages/behaviors/src/i18n.ts'),
+          path: 'public-behaviors',
+          namespace: 'public-behaviors',
+        }))
+        builder.onLoad({ filter: /.*/, namespace: 'public-behaviors' }, () => ({
+          contents: [
+            exportsFrom('useHozoMessage, useHozoI18n', 'packages/behaviors/src/i18n.ts'),
+            exportsFrom('hozoTextChildren', 'packages/behaviors/src/text-child.native.tsx'),
+          ].join('\n'),
+          loader: 'ts',
+          resolveDir: root,
         }))
         builder.onResolve({ filter: /^@hozo\/behaviors\/native$/ }, () => ({
           path: 'native-behaviors',
@@ -198,6 +209,7 @@ const { HozoMenu, HozoListbox, HozoCombobox, HozoTree } = module.exports
 const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.exports
 const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
 const { HozoColorPicker, HozoStepper } = module.exports
+const { HozoChip, HozoOtpInput } = module.exports
 const { usePressableInteraction } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
@@ -205,10 +217,10 @@ const indicators = (tree) =>
   tree.root
     .findAllByType('NativeView')
     .filter((node) => node.props.importantForAccessibility === 'no-hide-descendants')
-async function mount(t, Component, props) {
+async function mount(t, Component, props, options) {
   let tree
   await act(() => {
-    tree = create(React.createElement(Component, props, 'Updates'))
+    tree = create(React.createElement(Component, props, 'Updates'), options)
   })
   t.after(async () => {
     await act(() => tree.unmount())
@@ -1103,6 +1115,198 @@ test('Native Stepper status slots get interaction and descriptive steps remain n
   assert.equal(staticTree.root.findAllByType('NativePressable').length, 0)
   assert.equal(staticTree.root.findAllByType('NativeText')[1].children.join(''), 'One')
   assert.equal(flat(staticTree.root.findAllByType('NativeView')[1].props.style).paddingTop, 16)
+})
+
+test('Native Chip standalone toggle delivers interaction without changing selection and preserves controlled state', async (t) => {
+  const changed = []
+  const tree = await mount(t, HozoChip, {
+    defaultSelected: true,
+    className: `${interactionClasses} aria-checked:border-2`,
+    onSelectedChange: (value) => changed.push(value),
+  })
+  await checkInteraction(tree)
+  const host = () => tree.root.findByType('NativePressable')
+  assert.deepEqual(changed, [])
+  assert.equal(host().props.accessibilityState.checked, true)
+  assert.equal(flat(host().props.style).borderTopWidth, 2)
+  await press(host())
+  assert.deepEqual(changed, [false])
+  assert.equal(host().props.accessibilityState.checked, false)
+  const controlled = await mount(t, HozoChip, {
+    selected: true,
+    onSelectedChange: (value) => changed.push(value),
+  })
+  await press(controlled.root.findByType('NativePressable'))
+  assert.equal(controlled.root.findByType('NativePressable').props.accessibilityState.checked, true)
+  const disabled = await mount(t, HozoChip, {
+    defaultSelected: true,
+    disabled: true,
+    onSelectedChange: (value) => changed.push(value),
+  })
+  const before = changed.length
+  await press(disabled.root.findByType('NativePressable'))
+  assert.equal(changed.length, before)
+})
+
+test('Native Chip removal is independent and never lends child focus to the composite row', async (t) => {
+  const removed = []
+  const tree = await mount(t, HozoChip, {
+    defaultSelected: false,
+    onRemove: () => removed.push(true),
+    className: `${interactionClasses} active:font-bold`,
+    removeClassName: interactionClasses,
+  })
+  await checkInteraction(tree, 1)
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  const row = () => tree.root.findByType('NativeView')
+  const originalBox = flat(row().props.style)
+  await act(() => hosts()[0].props.onHoverIn({}))
+  await act(() => hosts()[0].props.onFocus({}))
+  assert.deepEqual(
+    flat(row().props.style),
+    originalBox,
+    'className stays on the row, not on either child button',
+  )
+  assert.equal(
+    flat(hosts()[0].findByType('NativeText').props.style).fontWeight,
+    undefined,
+    'the row is not focused when its child is',
+  )
+  assert.equal(hosts()[0].props.accessibilityState.checked, false)
+  assert.deepEqual(removed, [])
+  await act(() => hosts()[0].props.onPressIn({}))
+  assert.equal(
+    flat(hosts()[0].findByType('NativeText').props.style).fontWeight,
+    '700',
+    'ancestor active text is still inherited',
+  )
+  await act(() => hosts()[0].props.onPressOut({}))
+  await press(hosts()[1])
+  assert.deepEqual(removed, [true])
+  assert.equal(hosts()[0].props.accessibilityState.checked, false)
+  const disabled = await mount(t, HozoChip, { disabled: true, onRemove: () => removed.push(true) })
+  await press(disabled.root.findByType('NativePressable'))
+  assert.equal(removed.length, 1)
+  const plain = await mount(t, HozoChip, {})
+  assert.equal(plain.root.findAllByType('NativePressable').length, 0)
+  assert.equal(plain.root.findByType('NativeText').children.join(''), 'Updates')
+})
+
+test('Native OTP input focus, not wrapper focus, determines the active cell and focus-visible ring', async (t) => {
+  let focusRequests = 0
+  const tree = await mount(
+    t,
+    HozoOtpInput,
+    {
+      accessibilityLabel: 'Code',
+      length: 3,
+      defaultValue: '1',
+      className: interactionClasses,
+      cellClassName: interactionClasses,
+      filledCellClassName: 'aria-disabled:opacity-25',
+    },
+    {
+      createNodeMock: (node) =>
+        node.type === 'NativeTextInput'
+          ? {
+              focus: () => {
+                focusRequests += 1
+              },
+            }
+          : null,
+    },
+  )
+  const wrapper = () => tree.root.findByType('NativePressable')
+  const input = () => tree.root.findByType('NativeTextInput')
+  const cells = () =>
+    tree.root.findAllByType('NativeView').filter((node) => node.props.accessibilityElementsHidden)
+  assert.equal(wrapper().props.accessible, false)
+  assert.equal(wrapper().props.focusable, false)
+  await act(() => wrapper().props.onHoverIn({}))
+  assert.equal(flat(wrapper().props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(cells()[0].props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(
+    flat(cells()[0].findByType('NativeText').props.style).color,
+    color('hozo-accent-text'),
+  )
+  await act(() => wrapper().props.onFocus({}))
+  assert.equal(
+    cells().some((node) => flat(node.props.style).outlineWidth === 2),
+    false,
+    'wrapper focus cannot invent input focus',
+  )
+  assert.equal(flat(wrapper().props.style).outlineWidth, undefined)
+  await act(() => input().props.onFocus({}))
+  assert.deepEqual(
+    cells().map((node) => flat(node.props.style).outlineWidth),
+    [undefined, 2, undefined],
+  )
+  assert.equal(flat(cells()[1].findByType('NativeText').props.style).fontWeight, '700')
+  await act(() => input().props.onPointerDown({}))
+  assert.equal(flat(cells()[1].props.style).outlineWidth, undefined)
+  assert.equal(
+    flat(cells()[1].props.style).opacity,
+    0.75,
+    'pointer modality does not blur the input',
+  )
+  await act(() => input().props.onKeyDown({}))
+  assert.equal(flat(cells()[1].props.style).outlineWidth, 2)
+  await act(() => input().props.onChangeText('12'))
+  assert.deepEqual(
+    cells().map((node) => flat(node.props.style).outlineWidth),
+    [undefined, undefined, 2],
+  )
+  await act(() => wrapper().props.onPressIn({}))
+  assert.equal(flat(cells()[2].props.style).opacity, 0.5)
+  await act(() => wrapper().props.onPressOut({}))
+  await press(wrapper())
+  assert.equal(focusRequests, 1, 'the ref still receives a focus request')
+  await act(() => input().props.onBlur({}))
+  assert.equal(
+    cells().some((node) => flat(node.props.style).outlineWidth === 2),
+    false,
+  )
+  assert.equal(input().props.value, '12')
+  assert.equal(input().props.style.opacity, 0.011)
+  assert.equal(input().props.autoComplete, 'sms-otp')
+})
+
+test('Native OTP active and filled slots receive their real state; controlled, masked and disabled input contracts remain', async (t) => {
+  for (const slot of ['activeCellClassName', 'filledCellClassName']) {
+    const tree = await mount(t, HozoOtpInput, {
+      accessibilityLabel: 'Code',
+      length: 2,
+      defaultValue: '1',
+      [slot]: interactionClasses,
+    })
+    const wrapper = () => tree.root.findByType('NativePressable')
+    const input = () => tree.root.findByType('NativeTextInput')
+    await act(() => input().props.onFocus({}))
+    await act(() => wrapper().props.onHoverIn({}))
+    const cells = tree.root.findAllByType('NativeView')
+    const at = slot === 'activeCellClassName' ? 1 : 0
+    assert.equal(flat(cells[at].props.style).backgroundColor, color('hozo-accent'))
+  }
+  const changed = [],
+    completed = []
+  const tree = await mount(t, HozoOtpInput, {
+    accessibilityLabel: 'Code',
+    length: 2,
+    value: '1',
+    mask: true,
+    onChange: (value) => changed.push(value),
+    onComplete: (value) => completed.push(value),
+  })
+  const input = () => tree.root.findByType('NativeTextInput')
+  await act(() => input().props.onChangeText('1a2'))
+  assert.deepEqual(changed, ['12'])
+  assert.deepEqual(completed, ['12'])
+  assert.equal(input().props.value, '1', 'the owner still controls the code')
+  assert.equal(input().props.secureTextEntry, true)
+  assert.equal(tree.root.findAllByType('NativeText')[0].children.join(''), '•')
+  const disabled = await mount(t, HozoOtpInput, { accessibilityLabel: 'Code', disabled: true })
+  assert.equal(disabled.root.findByType('NativeTextInput').props.editable, false)
+  assert.equal(disabled.root.findByType('NativePressable').props.disabled, true)
 })
 
 test('the shared tracker notifies the animation driver synchronously and can omit focus-visible inference', async (t) => {

@@ -27,6 +27,7 @@ const reads = {
     'packages/ui/src/theme.css',
     'packages/behaviors/src/pressable-interaction.ts',
     'packages/behaviors/src/i18n.ts',
+    'packages/behaviors/src/text-child.native.tsx',
     'packages/behaviors/src/presence.native.ts',
     'packages/behaviors/src/portal.native.tsx',
     'packages/behaviors/src/floating-positioner.native.tsx',
