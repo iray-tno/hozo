@@ -175,7 +175,11 @@ test('compiled OTP input classes style only the real field decoration and follow
     )
     assert.equal(flat(cells(root)[0].findByType('Text')).color, '#fb2c36')
     event(input(root)[0], 'onPointerDown')
-    assert.equal(flat(frame(root)).outlineWidth, 2)
+    assert.equal(
+      flat(frame(root)).outlineWidth,
+      4,
+      'typing fields retain visible focus after a pointer',
+    )
     event(input(root)[0], 'onKeyDown')
     assert.equal(flat(frame(root)).outlineWidth, 4)
     const wrapper = root.root.findAll((node: Tree) => node.type === 'Pressable')[0]
@@ -183,8 +187,8 @@ test('compiled OTP input classes style only the real field decoration and follow
     event(wrapper, 'onPressIn')
     assert.equal(
       flat(frame(root)).outlineWidth,
-      2,
-      'pointer modality may clear focus-visible, not actual focus',
+      4,
+      'wrapper pointer input must not clear the real typing field focus indicator',
     )
     event(wrapper, 'onPressOut')
     event(input(root)[0], 'onBlur')
@@ -195,6 +199,28 @@ test('compiled OTP input classes style only the real field decoration and follow
     assert.equal(flat(frame(root)).outlineWidth, 1)
     assert.equal(input(root)[0].props.editable, false)
     assert.equal(root.root.findAll((node: Tree) => node.type === 'TextInput').length, 1)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('a pointer-first OTP focus also indicates the real input until blur', () => {
+  const { C } = loadNativeModule(FOCUS_SOURCE)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C))
+  })
+  try {
+    const wrapper = root.root.findByType('Pressable')
+    event(wrapper, 'onPressIn')
+    event(input(root)[0], 'onPointerDown')
+    assert.equal(flat(frame(root)).outlineWidth, undefined)
+    event(input(root)[0], 'onFocus')
+    assert.equal(flat(frame(root)).outlineWidth, 4)
+    assert.equal(input(root).length, 1)
+    for (const cell of cells(root)) assert.equal(flat(cell).outlineWidth, undefined)
+    event(input(root)[0], 'onBlur')
+    assert.equal(flat(frame(root)).outlineWidth, undefined)
   } finally {
     renderer.act(() => root.unmount())
   }

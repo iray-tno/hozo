@@ -85,7 +85,9 @@ export function HozoOtpInput({
   const input = useRef<ComponentRef<typeof TextInput>>(null)
   const [uncontrolled, setUncontrolled] = useState(() => otpValue(defaultValue ?? '', length, type))
   const { state: inputInteraction, handlers: inputHandlers } = usePressableInteraction({
-    focusVisible: true,
+    // A typing field keeps visible focus even when a touch opened its keyboard.
+    // Wrapper buttons retain their own pointer policy; cells are not owners.
+    focusVisible: 'keyboard-input',
   })
   const focused = inputInteraction.focused
   const code = value !== undefined ? otpValue(value, length, type) : uncontrolled

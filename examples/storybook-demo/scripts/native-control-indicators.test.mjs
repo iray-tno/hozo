@@ -1388,11 +1388,11 @@ test('Native OTP input focus, not wrapper focus, determines the active cell and 
   )
   assert.equal(flat(cells()[1].findByType('NativeText').props.style).fontWeight, '700')
   await act(() => input().props.onPointerDown({}))
-  assert.equal(flat(cells()[1].props.style).outlineWidth, undefined)
+  assert.equal(flat(cells()[1].props.style).outlineWidth, 2)
   assert.equal(
     flat(cells()[1].props.style).opacity,
     0.75,
-    'pointer modality does not blur the input',
+    'pointer input does not blur a typing field or remove its visible focus',
   )
   await act(() => input().props.onKeyDown({}))
   assert.equal(flat(cells()[1].props.style).outlineWidth, 2)
@@ -1447,7 +1447,7 @@ test('Native OTP runtime input focus paints an independent, noninteractive field
     )
   }
   await act(() => input().props.onPointerDown({}))
-  assert.equal(flat(frame().props.style).outlineWidth, undefined)
+  assert.equal(flat(frame().props.style).outlineWidth, 2)
   assert.equal(flat(frame().props.style).opacity, 0.75, 'pointer modality does not blur')
   await act(() => input().props.onKeyDown({}))
   assert.equal(flat(frame().props.style).outlineWidth, 2)
