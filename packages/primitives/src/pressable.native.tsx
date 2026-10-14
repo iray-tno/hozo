@@ -181,6 +181,14 @@ export function HozoPressable({
     () => ({ ...interaction, transition: hozoTransition }),
     [hozoTransition, interaction],
   )
+  // Resolve the owner's snapshot once, not once again inside RN's host.
+  // RN can report pressed before our event state commits; only that case
+  // needs a separate evaluation with its more recent pressed flag.
+  const restingLook = useMemo(
+    () =>
+      hozoTransition ? undefined : typeof style === 'function' ? style({ ...interaction }) : style,
+    [hozoTransition, interaction, style],
+  )
   // Assemble native props once, with no trailing conditional spread on the
   // hot no-motion path. Private animation data never goes through RN props.
   const Component: ElementType = hozoTransition ? TransitionPressable : Pressable
@@ -231,9 +239,9 @@ export function HozoPressable({
         hozoTransition
           ? style
           : ({ pressed }: PressableStateCallbackType) =>
-              typeof style === 'function'
+              pressed && !interaction.pressed && typeof style === 'function'
                 ? style({ ...interaction, pressed: pressed || interaction.pressed })
-                : style
+                : restingLook
       }
     />
   )
@@ -253,8 +261,17 @@ function TransitionPressable({
   ...props
 }: Omit<HozoPressableProps, 'hozoFocusVisible' | 'hozoTransition'>) {
   // This private owner is mounted only inside both providers, for motion.
-  const { transition, ...interaction } = useContext(InteractionContext)!
-  const hozoTransition = transition!
+  const context = useContext(InteractionContext)!
+  const hozoTransition = context.transition!
+  const interaction = useMemo(
+    () => ({
+      pressed: context.pressed,
+      hovered: context.hovered,
+      focused: context.focused,
+      focusVisible: context.focusVisible,
+    }),
+    [context.pressed, context.hovered, context.focused, context.focusVisible],
+  )
   const driver = useContext(AnimationDriverContext)!
   const initialStyle = typeof style === 'function' ? style({ ...interaction }) : style
   const initialOpacity = StyleSheet.flatten(initialStyle)?.opacity
