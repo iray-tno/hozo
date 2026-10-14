@@ -127,6 +127,7 @@ import {
   Term,
   TermList,
   Text,
+  TextInput,
   Time,
   Underline,
   View,
@@ -146,6 +147,16 @@ export default function Gallery() {
         <Heading level={1} className="text-xl" testID="gallery-Heading">
           Gallery
         </Heading>
+
+        {/* A canonical disabled input is still a real field, not a button
+            or an exception in the census. No keyboard opens during its walk. */}
+        <TextInput
+          testID="gallery-TextInput"
+          accessibilityLabel="Example disabled field"
+          value="Example"
+          disabled
+          className="rounded-lg border border-slate-400 px-3 py-2 text-slate-900 disabled:opacity-50"
+        />
 
         <Pressable
           className="rounded-lg bg-fuchsia-600 p-3 transition-colors duration-200 hover:bg-fuchsia-700 focus-visible:bg-fuchsia-800"
