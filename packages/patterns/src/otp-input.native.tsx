@@ -1,9 +1,9 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoClasses } from '@hozo/engine/project'
-import { type ComponentRef, useRef, useState } from 'react'
+import { type ComponentRef, useLayoutEffect, useRef, useState } from 'react'
 import { type StyleProp, Text, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
-import { type OtpType, otpActiveIndex, otpValue } from './otp-rules.ts'
+import { type OtpSelection, type OtpType, otpActiveIndex, otpCaret, otpValue } from './otp-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -21,6 +21,8 @@ export interface HozoOtpInputProps {
   mask?: boolean
   autoFocus?: boolean
   disabled?: boolean
+  readOnly?: boolean
+  showCaret?: boolean
   accessibilityLabel: string
   /**
    * Tailwind classes, the same props the Web half takes. Read by the
@@ -67,6 +69,8 @@ export function HozoOtpInput({
   mask = false,
   autoFocus,
   disabled,
+  readOnly,
+  showCaret = true,
   accessibilityLabel,
   className,
   cellClassName,
@@ -90,9 +94,19 @@ export function HozoOtpInput({
     focusVisible: 'keyboard-input',
   })
   const focused = inputInteraction.focused
+  const [selection, setSelection] = useState<OtpSelection | null>(null)
   const code = value !== undefined ? otpValue(value, length, type) : uncontrolled
+  // RN may deliver change and selection before React commits a render.
+  // Record the actual buffer synchronously so a batched selection does not
+  // get labelled with the previous value. Sanitized buffers stay untrusted.
+  const selectionValue = useRef(code)
+  useLayoutEffect(() => {
+    selectionValue.current = code
+  }, [code])
   const characters = Array.from(code)
-  const active = otpActiveIndex(code, length)
+  const caret = otpCaret(code, length, selection)
+  const active = caret?.index ?? otpActiveIndex(code, length)
+  const show = showCaret && focused && !disabled && !readOnly
   const hasInputStyle = Boolean(inputClassName || inputStyle || hozoInputStyle)
   const [inputBox, inputText] = splitTextStyle([
     hozoClasses(inputClassName, {
@@ -117,6 +131,8 @@ export function HozoOtpInput({
   const change = (raw: string) => {
     const next = otpValue(raw, length, type)
     if (value === undefined) setUncontrolled(next)
+    selectionValue.current = raw
+    setSelection(null)
     onChange?.(next)
     if (Array.from(next).length === length && next !== code) onComplete?.(next)
   }
@@ -164,6 +180,33 @@ export function HozoOtpInput({
                   <Text style={[text, cellText]}>
                     {character === undefined ? '' : mask ? '•' : character}
                   </Text>
+                  {show && caret?.index === index ? (
+                    <Text
+                      testID="hozo-otp-caret"
+                      pointerEvents="none"
+                      accessible={false}
+                      accessibilityElementsHidden
+                      importantForAccessibility="no-hide-descendants"
+                      style={[
+                        text,
+                        cellText,
+                        {
+                          position: 'absolute',
+                          transform: [
+                            {
+                              translateX:
+                                character === undefined
+                                  ? 0
+                                  : (caret.after ? 0.5 : -0.5) *
+                                    (cellText?.fontSize ?? text?.fontSize ?? 16),
+                            },
+                          ],
+                        },
+                      ]}
+                    >
+                      │
+                    </Text>
+                  ) : null}
                 </View>
               )
             })}
@@ -184,7 +227,13 @@ export function HozoOtpInput({
               value={code}
               onChangeText={change}
               onFocus={inputHandlers.focus}
-              onBlur={inputHandlers.blur}
+              onBlur={() => {
+                inputHandlers.blur()
+                setSelection(null)
+              }}
+              onSelectionChange={(event) =>
+                setSelection({ value: selectionValue.current, ...event.nativeEvent.selection })
+              }
               onPointerDown={inputHandlers.pointerDown}
               onPressIn={inputHandlers.pointerDown}
               onKeyDown={inputHandlers.keyDown}
@@ -196,7 +245,9 @@ export function HozoOtpInput({
               secureTextEntry={mask}
               maxLength={length * 2}
               autoFocus={autoFocus}
-              editable={!disabled}
+              editable={!disabled && !readOnly}
+              readOnly={readOnly || disabled}
+              accessibilityState={{ disabled: Boolean(disabled) }}
               caretHidden
               accessibilityLabel={accessibilityLabel}
               accessibilityHint={message('hozo.otpInput.hint', { length })}
