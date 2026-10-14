@@ -789,7 +789,9 @@ pub(super) fn render_node(
     // them: React Native's View has no `fontSize`, so leaving them here
     // would be a style that renders nothing while the same source renders
     // correctly on Web.
-    let (text_declarations, own_declarations): (Vec<_>, Vec<_>) = if renders_text(component) {
+    // TextInput paints its value, not JSX children. Its own font/colour
+    // belongs on the field too; do not hand it to nonexistent child Text.
+    let (text_declarations, own_declarations): (Vec<_>, Vec<_>) = if renders_text(component) || component == "TextInput" {
         (Vec::new(), style.clone())
     } else {
         style.iter().cloned().partition(|d| is_text_property(&d.property))
@@ -871,7 +873,8 @@ pub(super) fn render_node(
 
     let mut frames = crate::conditions::AnimatedFrames::default();
     let animates = component == "HozoAnimated";
-    let pattern_style_prop = crate::pattern::interaction_style_prop(node.primitive, "className");
+    let pattern_style_prop = crate::pattern::interaction_style_prop(node.primitive, "className")
+        .or_else(|| (node.primitive == Primitive::TextInput).then_some("hozoStyle"));
     let transform_entry_start = style_entries.len();
     let state_start = build_style_entries(
         &own_declarations,
@@ -1021,6 +1024,9 @@ pub(super) fn render_node(
     let rendered_component = if renders_backdrop_filter {
         runtime.need_component("HozoBackdropFilter");
         "HozoBackdropFilter"
+    } else if component == "TextInput" && !pressed_parts.is_empty() {
+        runtime.need_component("HozoTextInput");
+        "HozoTextInput"
     } else if component == "Pressable" && needs_interaction_host {
         runtime.need_component("HozoPressable");
         "HozoPressable"
@@ -1048,7 +1054,7 @@ pub(super) fn render_node(
     // need their own adapter; a provider must not invent a measurable box
     // for them or hide their identity from their owning component.
     let measures_host = declares_container && matches!(rendered_component,
-        "View" | "Animated.View" | "Text" | "Animated.Text" | "TextInput" | "Image"
+        "View" | "Animated.View" | "Text" | "Animated.Text" | "TextInput" | "HozoTextInput" | "Image"
         | "ScrollView" | "Pressable" | "HozoPressable" | "HozoLink" | "HozoFlatList"
         | "HozoText" | "HozoTextSize" | "HozoRelativeText" | "HozoAnimated"
         | "HozoRuby" | "HozoDetails" | "HozoBadge" | "Svg"
@@ -1897,7 +1903,7 @@ pub(super) fn render_node(
 
     // React Native's TextInput takes no children either.
     let tag = if measures_host { "HozoContainer" } else { rendered_component };
-    let rendered = if component == "TextInput" || component == "Image" {
+    let rendered = if component == "TextInput" || rendered_component == "HozoTextInput" || component == "Image" {
         format!("<{tag}{props_text} />")
     } else {
         format!("<{tag}{props_text}>{inner}</{tag}>")

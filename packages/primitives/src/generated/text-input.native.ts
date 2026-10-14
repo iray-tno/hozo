@@ -1,4 +1,1 @@
-export {
-  TextInput as HozoTextInput,
-  type TextInputProps as HozoTextInputProps,
-} from 'react-native'
+export { HozoTextInput, type HozoTextInputProps } from '../text-input.native.tsx'
