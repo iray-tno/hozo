@@ -13,6 +13,40 @@ const { HozoPressable, HozoText } = require('../../primitives/src/pressable.nati
 const motion = { duration: 100, easing: 'linear', opacity: true, transform: true, colors: true }
 const flat = (style: unknown) => StyleSheet.flatten(style)
 
+test('a cached owner look still observes RN pressed before the owner event commits', () => {
+  let evaluations = 0
+  const style = (state: Record<string, boolean>) => {
+    evaluations += 1
+    return { opacity: state.pressed ? 0.5 : 1 }
+  }
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(React.createElement(HozoPressable, { style }))
+  })
+  const host = () => root.root.findByType('Pressable')
+  try {
+    assert.equal(evaluations, 1)
+    const idle = host().props.style({ pressed: false })
+    assert.equal(idle.opacity, 1)
+    assert.equal(host().props.style({ pressed: false }), idle)
+    assert.equal(evaluations, 1, 'host reevaluated the same snapshot')
+    assert.equal(host().props.style({ pressed: true }).opacity, 0.5)
+    assert.equal(evaluations, 2, 'RN pressed was ignored before the owner caught up')
+    renderer.act(() => host().props.onPressIn({}))
+    assert.equal(
+      host().props.style({ pressed: false }).opacity,
+      0.5,
+      'owner pressed is not cleared by RN false',
+    )
+    assert.equal(evaluations, 3)
+    renderer.act(() => host().props.onPressOut({}))
+    assert.equal(host().props.style({ pressed: false }).opacity, 1)
+    assert.equal(evaluations, 4)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
 function countAnimations(
   run: (counts: { values: number; listeners: Set<string>; stops: number }) => void,
 ) {

@@ -10,6 +10,11 @@ on:
         type: string
         required: false
         default: ''
+      cpu-profile:
+        description: 'Capture CPU profiles for diagnosis (timings include profiler overhead)'
+        type: boolean
+        required: false
+        default: false
   pull_request:
     paths:
       - '.github/workflows/runtime-class-list.yml'
@@ -59,6 +64,7 @@ jobs:
       - name: Measure revisions sequentially
         env:
           BASELINE_REF: ${{ inputs.baseline }}
+          CPU_PROFILE: ${{ inputs.cpu-profile }}
         shell: bash
         run: |
           mkdir -p artifacts/runtime-class-list target
@@ -76,7 +82,11 @@ jobs:
             # but force every Hozo compiler crate to rebuild for this source.
             cargo clean --manifest-path "$source/Cargo.toml" -p hozo_ir -p hozo_parser -p hozo_native -p hozo_web -p hozo_cache -p hozo_napi > "artifacts/runtime-class-list/$variant-clean.log" 2>&1
             node "$source/packages/compiler/scripts/build-native.mjs" > "artifacts/runtime-class-list/$variant-build.log" 2>&1
-            node scripts/runtime-class-list.mjs --root "$source" --output "artifacts/runtime-class-list/$variant.json" > "artifacts/runtime-class-list/$variant.log" 2>&1
+            profile_flags=()
+            if [ "$CPU_PROFILE" = true ]; then
+              profile_flags=(--cpu-prof --cpu-prof-name="$variant.cpuprofile" --cpu-prof-dir="$GITHUB_WORKSPACE/artifacts/runtime-class-list")
+            fi
+            node "${profile_flags[@]}" scripts/runtime-class-list.mjs --root "$source" --output "artifacts/runtime-class-list/$variant.json" > "artifacts/runtime-class-list/$variant.log" 2>&1
           done
       - name: Verify evidence and publish the comparison
         env:

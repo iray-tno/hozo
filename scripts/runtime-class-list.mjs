@@ -337,6 +337,7 @@ export async function measure(config) {
       logicalCpus: os.availableParallelism(),
     },
     methodology: {
+      cpuProfiling: process.execArgv.some((argument) => argument.startsWith('--cpu-prof')),
       samples: config.samples,
       warmups: config.warmups,
       rows: config.rows,

@@ -182,8 +182,8 @@ export function HozoPressable({
     [hozoTransition, interaction],
   )
   // Resolve the owner's snapshot once, not once again inside RN's host.
-  // RN can report pressed before our event state commits; only that case
-  // needs a separate evaluation with its more recent pressed flag.
+  // RN's pressed flag can disagree with the owner snapshot. Active wins,
+  // as before; only that case needs a separate style evaluation.
   const restingLook = useMemo(
     () =>
       hozoTransition ? undefined : typeof style === 'function' ? style({ ...interaction }) : style,

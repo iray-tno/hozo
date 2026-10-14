@@ -79,6 +79,11 @@ export function report(records, currentCommit, baselineCommit) {
       : []),
     '',
     `${records.current.methodology.samples} retained samples after ${records.current.methodology.warmups} untimed warmups per case. Values below are median milliseconds, not thresholds. Raw samples, p90, warnings and emitted code are in each JSON artifact.`,
+    ...(records.current.methodology.cpuProfiling
+      ? [
+          'CPU sampling enabled: these timings include profiler overhead and must not be compared with unprofiled runs.',
+        ]
+      : []),
     '',
     baselineCommit
       ? '| Classes | Rows | Operation | Before | After #888 | Baseline | Current | Current / baseline |'
