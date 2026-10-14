@@ -1,8 +1,32 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { AFTER, BEFORE, options, summarize } from './runtime-class-list.mjs'
+import { AFTER, BEFORE, options, renderDriver, summarize } from './runtime-class-list.mjs'
 import { report } from './runtime-class-list-report.mjs'
+
+test('renderer timing capability changes only at load and the public performance API is restored', () => {
+  const measure = globalThis.performance.measure
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis.performance, 'measure')
+  const renderer = {}
+  assert.equal(
+    renderDriver(() => {
+      assert.equal(globalThis.performance.measure, undefined)
+      return renderer
+    }),
+    renderer,
+  )
+  assert.equal(globalThis.performance.measure, measure)
+  assert.deepEqual(Object.getOwnPropertyDescriptor(globalThis.performance, 'measure'), descriptor)
+  assert.throws(
+    () =>
+      renderDriver(() => {
+        throw new Error('load failed')
+      }),
+    /load failed/,
+  )
+  assert.equal(globalThis.performance.measure, measure)
+  assert.deepEqual(Object.getOwnPropertyDescriptor(globalThis.performance, 'measure'), descriptor)
+})
 
 test('the runtime-list measurement keeps samples and validates bounded, reproducible options', () => {
   const raw = [9, 1, 4, 2, 7]

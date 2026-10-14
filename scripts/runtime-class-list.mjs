@@ -19,7 +19,7 @@ const require = createRequire(path.join(driverRoot, 'packages/tailwind-conforman
 const React = require('react')
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 
-function renderDriver() {
+export function renderDriver(load = () => require('react-test-renderer')) {
   // React 19's development User Timing track diffs every changed prop and
   // Node clones each measure.detail. Profiling found this observer cost
   // dominating list updates. Disable only that renderer capability at load,
@@ -27,7 +27,7 @@ function renderDriver() {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis.performance, 'measure')
   Object.defineProperty(globalThis.performance, 'measure', { value: undefined, configurable: true })
   try {
-    return require('react-test-renderer')
+    return load()
   } finally {
     if (descriptor) Object.defineProperty(globalThis.performance, 'measure', descriptor)
     else delete globalThis.performance.measure
@@ -235,6 +235,9 @@ export { NativePressable as Pressable } from 'benchmark-host';`,
 
 export async function measure(config) {
   const renderer = renderDriver()
+  const debugEntryCount = () =>
+    performance.getEntriesByType('measure').filter((entry) => entry.detail?.devtools).length
+  const beforeDebugEntries = debugEntryCount()
   const prepared = await prepare(config.root)
   const results = []
   const runtimeWarnings = []
@@ -331,6 +334,7 @@ export async function measure(config) {
     console.warn = originalWarn
     console.error = originalError
   }
+  assert.equal(debugEntryCount(), beforeDebugEntries, 'React User Timing observer is still active')
   return {
     schemaVersion: 1,
     binarySha256: prepared.binarySha256,
