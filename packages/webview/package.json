@@ -1,6 +1,6 @@
 {
   "name": "@hozo/webview",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Universal embedded web content for Hozo: an iframe on the Web and react-native-webview on Native.",
   "keywords": [
     "react-native",

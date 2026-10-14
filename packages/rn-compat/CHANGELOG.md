@@ -1,5 +1,13 @@
 # @hozo/rn-compat
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [[`8d58223`](https://github.com/iray-tno/hozo/commit/8d5822322607b6214fa7f57d233a9173a45815b6), [`8d58223`](https://github.com/iray-tno/hozo/commit/8d5822322607b6214fa7f57d233a9173a45815b6), [`8d58223`](https://github.com/iray-tno/hozo/commit/8d5822322607b6214fa7f57d233a9173a45815b6)]:
+  - @hozo/primitives@0.3.0
+  - @hozo/engine@0.3.0
+
 ## 0.2.0
 
 - Use React 19 ref props in ActivityIndicator, Animated.View and Touchable wrappers while preserving author-facing ref behaviour.
