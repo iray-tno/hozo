@@ -7,10 +7,13 @@ const beforeCommit = 'cc1914bf49aaddd642d850bed77cb503e3e9966d'
 const afterCommit = '6333a72ba5720fc3b25f4eeab0bbd66b5bf131b4'
 const operations = ['mount', 'parentUpdate', 'oneRowPress']
 
-export function report(records, currentCommit) {
+export function report(records, currentCommit, baselineCommit) {
   assert.equal(records.before.sourceCommit, beforeCommit)
   assert.equal(records.after.sourceCommit, afterCommit)
   assert.equal(records.current.sourceCommit, currentCommit)
+  if (baselineCommit) assert.equal(records.baseline?.sourceCommit, baselineCommit)
+  else
+    assert.equal(records.baseline, undefined, 'baseline needs an explicit expected source commit')
   assert.notEqual(
     records.before.binarySha256,
     records.after.binarySha256,
@@ -71,11 +74,18 @@ export function report(records, currentCommit) {
     '',
     `Before #888: \`${beforeCommit}\`; after #888: \`${afterCommit}\`; current: \`${currentCommit}\`.`,
     `Driver: \`${records.current.driverCommit}\`. Node ${records.current.environment.node}, React ${records.current.environment.react}.`,
+    ...(baselineCommit
+      ? [`Optimization baseline: \`${baselineCommit}\`, built and measured on the same runner.`]
+      : []),
     '',
     `${records.current.methodology.samples} retained samples after ${records.current.methodology.warmups} untimed warmups per case. Values below are median milliseconds, not thresholds. Raw samples, p90, warnings and emitted code are in each JSON artifact.`,
     '',
-    '| Classes | Rows | Operation | Before | After #888 | Current | Current / before |',
-    '| --- | ---: | --- | ---: | ---: | ---: | ---: |',
+    baselineCommit
+      ? '| Classes | Rows | Operation | Before | After #888 | Baseline | Current | Current / baseline |'
+      : '| Classes | Rows | Operation | Before | After #888 | Current | Current / before |',
+    baselineCommit
+      ? '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |'
+      : '| --- | ---: | --- | ---: | ---: | ---: | ---: |',
   ]
   for (const result of records.current.results) {
     const match = (name) =>
@@ -83,9 +93,10 @@ export function report(records, currentCommit) {
         (entry) => entry.scenario === result.scenario && entry.rows === result.rows,
       )
     for (const operation of operations) {
-      const old = match('before')[operation].medianMs
+      const before = match('before')[operation].medianMs
+      const old = baselineCommit ? match('baseline')[operation].medianMs : before
       lines.push(
-        `| ${result.scenario} | ${result.rows} | ${operation} | ${old.toFixed(3)} | ${match('after')[operation].medianMs.toFixed(3)} | ${result[operation].medianMs.toFixed(3)} | ${old > 0 ? `${(result[operation].medianMs / old).toFixed(2)}×` : 'n/a'} |`,
+        `| ${result.scenario} | ${result.rows} | ${operation} | ${before.toFixed(3)} | ${match('after')[operation].medianMs.toFixed(3)} | ${baselineCommit ? `${old.toFixed(3)} | ` : ''}${result[operation].medianMs.toFixed(3)} | ${old > 0 ? `${(result[operation].medianMs / old).toFixed(2)}×` : 'n/a'} |`,
       )
     }
   }
@@ -104,18 +115,23 @@ export function report(records, currentCommit) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const [, , directory, currentCommit] = process.argv
+  const [, , directory, currentCommit, baselineArgument] = process.argv
+  const baselineCommit = baselineArgument || undefined
   assert.ok(
     directory && /^[a-f0-9]{40}$/.test(currentCommit ?? ''),
-    'usage: node scripts/runtime-class-list-report.mjs ARTIFACT_DIR CURRENT_SHA',
+    'usage: node scripts/runtime-class-list-report.mjs ARTIFACT_DIR CURRENT_SHA [BASELINE_SHA]',
+  )
+  assert.ok(
+    baselineCommit === undefined || /^[a-f0-9]{40}$/.test(baselineCommit),
+    'invalid baseline SHA',
   )
   const records = Object.fromEntries(
-    ['before', 'after', 'current'].map((name) => [
+    ['before', 'after', ...(baselineCommit ? ['baseline'] : []), 'current'].map((name) => [
       name,
       JSON.parse(readFileSync(path.join(directory, `${name}.json`), 'utf8')),
     ]),
   )
-  const markdown = report(records, currentCommit)
+  const markdown = report(records, currentCommit, baselineCommit)
   writeFileSync(path.join(directory, 'summary.md'), markdown)
   process.stdout.write(markdown)
 }

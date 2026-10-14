@@ -4,6 +4,12 @@ name: runtime-class-list
 
 on:
   workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Optional post-888 source ref to compare the current optimization against'
+        type: string
+        required: false
+        default: ''
   pull_request:
     paths:
       - '.github/workflows/runtime-class-list.yml'
@@ -36,6 +42,11 @@ jobs:
         with:
           ref: 6333a72ba5720fc3b25f4eeab0bbd66b5bf131b4
           path: .benchmark-after
+      - uses: actions/checkout@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.baseline != ''
+        with:
+          ref: ${{ inputs.baseline }}
+          path: .benchmark-baseline
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
@@ -45,11 +56,15 @@ jobs:
           cache: pnpm
       # All three source revisions use this one pinned dependency install.
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
-      - name: Measure all three revisions sequentially
+      - name: Measure revisions sequentially
+        env:
+          BASELINE_REF: ${{ inputs.baseline }}
         shell: bash
         run: |
           mkdir -p artifacts/runtime-class-list target
-          for variant in before after current; do
+          variants='before after current'
+          if [ -n "$BASELINE_REF" ]; then variants='before after baseline current'; fi
+          for variant in $variants; do
             source="$GITHUB_WORKSPACE"
             if [ "$variant" != current ]; then
               source="$GITHUB_WORKSPACE/.benchmark-$variant"
@@ -66,7 +81,11 @@ jobs:
       - name: Verify evidence and publish the comparison
         env:
           CURRENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: node scripts/runtime-class-list-report.mjs artifacts/runtime-class-list "$CURRENT_SHA" >> "$GITHUB_STEP_SUMMARY"
+          BASELINE_REF: ${{ inputs.baseline }}
+        run: |
+          baseline_sha=''
+          if [ -n "$BASELINE_REF" ]; then baseline_sha=$(git -C .benchmark-baseline rev-parse HEAD); fi
+          node scripts/runtime-class-list-report.mjs artifacts/runtime-class-list "$CURRENT_SHA" "$baseline_sha" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

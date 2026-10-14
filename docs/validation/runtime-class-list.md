@@ -14,6 +14,13 @@ retains build/run logs, raw samples, environment, source/driver commits,
 addon SHA-256, the authored fixture, Metro output, generated candidate map
 and diagnostics. Failed runs also upload their available evidence.
 
+When evaluating an optimization, optionally provide a **post-#888 baseline**
+ref in the workflow's `baseline` input. It is rebuilt and measured as a fourth
+revision on the same runner, with the same driver/dependencies/settings. The
+comparison validates its resolved commit and reports current/baseline ratios.
+Do not attribute speed changes by comparing wall-clock numbers from different
+runners. Leave this input empty for the original three-revision series.
+
 The driver uses one fixed dependency installation across revisions and
 rebuilds each revision's addon before starting a fresh measurement process.
 It reads the revision's own export map, compiler, Metro transformer, class

@@ -115,3 +115,16 @@ test('comparison labels unequal historical state support and rejects incomplete 
     assert.throws(() => report(copy, currentCommit))
   }
 })
+
+test('an optimization baseline is measured on the same runner and must match its explicit commit', () => {
+  const { records, currentCommit } = syntheticSeries()
+  const baselineCommit = 'e'.repeat(40)
+  records.baseline = { ...structuredClone(records.current), sourceCommit: baselineCommit }
+  const markdown = report(records, currentCommit, baselineCommit)
+  assert.match(markdown, /Current \/ baseline/)
+  assert.ok(markdown.includes(baselineCommit))
+  assert.throws(() => report(records, currentCommit))
+  assert.throws(() => report(records, currentCommit, BEFORE))
+  records.baseline.environment.react = 'different'
+  assert.throws(() => report(records, currentCommit, baselineCommit))
+})
