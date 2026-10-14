@@ -164,7 +164,7 @@ if (failures.length > 0) {
   process.exit(1)
 }
 
-console.log(`bundle check passed (${bundle.length} bytes)`)
+console.log(`bundle check passed (${bundle.length} bytes; Hozo modules ${hozoBytes} bytes)`)
 
 // The project's own theme rather than Tailwind's defaults. `global.css`
 // sets `--spacing` to 0.2rem, so `p-6` is 19.2px and not 24; and

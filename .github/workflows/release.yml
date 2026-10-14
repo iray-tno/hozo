@@ -29,8 +29,42 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      release-signing:
+        description: 'Verify fixed Android signing without publishing (requires both showcase signing secrets)'
+        type: boolean
+        default: false
 
 jobs:
+  # A green package build does not exercise the real Metro application.
+  # Gate both dry runs and publication on the existing size/barrel/theme
+  # checks and minified production increment; do not recalibrate them here.
+  native-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm turbo run build --filter='./packages/*'
+      - run: pnpm --filter @hozo/example-native-demo test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-integration-bundles
+          path: examples/native-demo/dist/
+          if-no-files-found: warn
+          retention-days: 14
+
   showcase:
     uses: ./.github/workflows/native-showcase.yml
     permissions:
@@ -38,7 +72,7 @@ jobs:
       actions: read
     with:
       release-assets: true
-      release-signing: ${{ startsWith(github.ref, 'refs/tags/v') }}
+      release-signing: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.release-signing }}
     secrets:
       SHOWCASE_ANDROID_KEYSTORE_BASE64: ${{ secrets.SHOWCASE_ANDROID_KEYSTORE_BASE64 }}
       SHOWCASE_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.SHOWCASE_ANDROID_KEYSTORE_PASSWORD }}
@@ -62,7 +96,7 @@ jobs:
           path: artifacts/showcase-input
       - run: node scripts/showcase-release.mjs prepare
         env:
-          HOZO_RELEASE_SIGNING: ${{ startsWith(github.ref, 'refs/tags/v') && '1' || '' }}
+          HOZO_RELEASE_SIGNING: ${{ (startsWith(github.ref, 'refs/tags/v') || inputs.release-signing) && '1' || '' }}
       - uses: actions/upload-artifact@v4
         with:
           name: hozo-showcase-release-assets
@@ -142,7 +176,7 @@ jobs:
   # hours and only while nothing depends on the package.
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, showcase-assets]
+    needs: [build, showcase-assets, native-integration]
     runs-on: ubuntu-latest
     permissions:
       # npm trusted publishing, and the provenance attestation either way.
@@ -271,7 +305,7 @@ jobs:
   # manifests until publishing.
   artifacts-dry-run:
     if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
-    needs: [build, showcase-assets]
+    needs: [build, showcase-assets, native-integration]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

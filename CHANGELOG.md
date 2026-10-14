@@ -58,6 +58,10 @@ packages and Rust library crates continue to release together.
 - Styled Button gains a Native pressed look. Checkbox and Switch use real
   indicators on both platforms. Non-transition Pressables/Text avoid animation
   values and listeners; large-list initial-mount tradeoffs remain under measurement.
+- Interrupted colour transitions can read their own interpolated RGBA colour,
+  so a second interaction continues from the observed intermediate colour instead
+  of jumping to an endpoint. Motion owners share timing/state probes without
+  adding animation work to plain Pressables.
 - Metro rewrites recognized named barrel imports to defining modules, avoiding
   unrelated component imports. Unknown and namespace imports remain conservative.
 

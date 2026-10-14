@@ -1,5 +1,11 @@
 function rgba(color: string): [number, number, number, number] | null {
   if (color === 'transparent') return [0, 0, 0, 0]
+  // An interrupted blend must be able to read its own serialized result.
+  const blended = /^rgba\((\d+), (\d+), (\d+), ([\d.e+-]+)\)$/.exec(color)
+  if (blended) {
+    const channels = blended.slice(1).map(Number) as [number, number, number, number]
+    return channels.every(Number.isFinite) ? channels : null
+  }
   const match = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(color)
   if (!match) return null
   let hex = match[1]!

@@ -26,15 +26,20 @@ test('native showcase evidence and binaries are a pre-publication release gate',
   assert.match(jobs.get('showcase'), /release-signing: .*startsWith\(github.ref, 'refs\/tags\/v'\)/)
   assert.match(jobs.get('showcase-assets'), /needs: showcase/)
   assert.match(jobs.get('showcase-assets'), /showcase-release.mjs prepare/)
+  assert.match(jobs.get('native-integration'), /pnpm --filter @hozo\/example-native-demo test/)
+  assert.match(jobs.get('native-integration'), /pnpm --filter @hozo\/compiler build:native/)
+  assert.match(jobs.get('native-integration'), /hozo-native-integration-bundles/)
+  assert.doesNotMatch(jobs.get('native-integration'), /continue-on-error|\|\| true/)
   for (const name of ['publish', 'artifacts-dry-run']) {
-    assert.match(jobs.get(name), /needs: \[build, showcase-assets\]/)
+    assert.match(jobs.get(name), /needs: \[build, showcase-assets, native-integration\]/)
     assert.match(jobs.get(name), /pattern: '\{x86_64,aarch64\}-\*'/)
+    assert.doesNotMatch(jobs.get(name), /always\(\)|continue-on-error/)
   }
   assert.match(jobs.get('crates'), /needs: publish/)
   assert.match(jobs.get('github-release'), /needs: \[crates, showcase-assets\]/)
   assert.match(jobs.get('github-release'), /contents: write/)
   assert.match(jobs.get('github-release'), /showcase-release.mjs publish/)
-  assert.doesNotMatch(release, /continue-on-error|always\(\)/)
+  assert.doesNotMatch(release, /continue-on-error/)
 })
 
 test('bootstrap is manual, explicit, and uses only bootstrap credentials', () => {
@@ -44,6 +49,27 @@ test('bootstrap is manual, explicit, and uses only bootstrap credentials', () =>
   assert.match(bootstrap, /secrets\.NPM_BOOTSTRAP_TOKEN/)
   assert.match(bootstrap, /secrets\.CARGO_BOOTSTRAP_TOKEN/)
   assert.doesNotMatch(bootstrap, /secrets\.(?:NPM_TOKEN|CARGO_REGISTRY_TOKEN)/)
+})
+
+test('manual signing verification never enables registry or release writes', () => {
+  const jobs = new Map(
+    [...release.matchAll(/^ {2}([\w-]+):\r?\n([\s\S]*?)(?=^ {2}[\w-]+:\r?$|$(?![\s\S]))/gm)].map(
+      ([, name, body]) => [name, body],
+    ),
+  )
+  assert.match(release.split('jobs:')[0], /release-signing:[\s\S]*type: boolean\s+default: false/)
+  assert.match(
+    jobs.get('showcase'),
+    /release-signing: \$\{\{ startsWith\(github.ref, 'refs\/tags\/v'\) \|\| inputs.release-signing \}\}/,
+  )
+  assert.match(
+    jobs.get('showcase-assets'),
+    /HOZO_RELEASE_SIGNING: \$\{\{ \(startsWith\(github.ref, 'refs\/tags\/v'\) \|\| inputs.release-signing\) && '1' \|\| '' \}\}/,
+  )
+  for (const name of ['publish', 'crates', 'github-release']) {
+    assert.match(jobs.get(name), /^ {4}if: startsWith\(github.ref, 'refs\/tags\/v'\)\r?$/m)
+    assert.doesNotMatch(jobs.get(name), /inputs\.release-signing/)
+  }
 })
 
 test('only npm bootstrap jobs can attest provenance with OIDC', () => {

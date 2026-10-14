@@ -13,6 +13,96 @@ const { HozoPressable, HozoText } = require('../../primitives/src/pressable.nati
 const motion = { duration: 100, easing: 'linear', opacity: true, transform: true, colors: true }
 const flat = (style: unknown) => StyleSheet.flatten(style)
 
+test('an ownerless callback Text uses idle facts without a motion child', () => {
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(
+      React.createElement(
+        HozoText,
+        {
+          style: (state: Record<string, boolean>) => {
+            assert.deepEqual(state, {
+              pressed: false,
+              hovered: false,
+              focused: false,
+              focusVisible: false,
+            })
+            return { color: '#123456' }
+          },
+        },
+        'Outside',
+      ),
+    )
+  })
+  try {
+    assert.equal(flat(root.root.findByType('Text').props.style).color, '#123456')
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('an interrupted Text colour transition starts from its observed intermediate colour', () => {
+  const { blendColor } = require('@hozo/engine')
+  Animated.__hozoResetTimings()
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(
+      React.createElement(
+        HozoPressable,
+        { hozoTransition: motion },
+        React.createElement(
+          HozoText,
+          {
+            style: (state: Record<string, boolean>) => ({
+              color: state.focused ? '#00ff00' : state.hovered ? '#ff0000' : '#000000',
+            }),
+          },
+          'Animated',
+        ),
+      ),
+    )
+  })
+  const host = () => root.root.findByType('Pressable')
+  const range = () =>
+    flat(root.root.findByType('Text').props.style).color.__animatedInterpolation.outputRange
+  try {
+    renderer.act(() => host().props.onHoverIn({}))
+    assert.equal(range()[1], '#ff0000')
+    assert.equal(Animated.__hozoTimings.length, 1)
+    renderer.act(() => Animated.__hozoTimings[0].value.setValue(0.5))
+    renderer.act(() => host().props.onFocus({}))
+    assert.deepEqual(range(), [blendColor('#000000', '#ff0000', 0.5), '#00ff00'])
+    assert.equal(Animated.__hozoTimings.length, 2)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('colour and transform probes visit all sixteen interaction combinations in the same order', () => {
+  const probes: string[] = []
+  const style = (state: Record<string, boolean>) => {
+    probes.push(
+      ['pressed', 'hovered', 'focused', 'focusVisible'].map((key) => Number(state[key])).join(''),
+    )
+    return {
+      backgroundColor: state.focusVisible ? '#123456' : '#abcdef',
+      transform: [{ translateX: state.hovered ? 4 : 0 }],
+    }
+  }
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(React.createElement(HozoPressable, { style, hozoTransition: motion }))
+  })
+  try {
+    const expected = Array.from({ length: 16 }, (_, index) => index.toString(2).padStart(4, '0'))
+    assert.equal(probes[0], '0000', 'initial style uses the current owner')
+    assert.deepEqual(probes.slice(1, 17), expected, 'colour states changed or were omitted')
+    assert.deepEqual(probes.slice(17, 33), expected, 'transform states changed or were omitted')
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
 test('a cached owner look still observes RN pressed before the owner event commits', () => {
   let evaluations = 0
   const style = (state: Record<string, boolean>) => {

@@ -7,7 +7,8 @@ crates.io is written. Keep the run link with the release notes.
 1. Normal CI, documentation checks and the complete conformance snapshot check
    must pass. The slow main report is not replaced by the PR's bounded checks.
 2. Dispatch `release.yml`: all eight platform bindings, the npm artifact checks,
-   packaged-crate verification, Android and iOS showcase build/device checks and
+   packaged-crate verification, real Native demo dev/production bundle guards,
+   Android and iOS showcase build/device checks and
    showcase asset/evidence assembly must succeed, with publish jobs skipped.
 3. Dispatch `packed-consumer.yml`. Node 22 and 24 consume fresh local tarballs
    outside the workspace, with no module aliases or development binding override.
@@ -102,6 +103,12 @@ after the new identities are configured. See
 
 ## Showcase signing and release gate
 
+Android evidence separates framework readiness and first APK installation from
+the interaction/rendering scenarios. The driver records read-only boot-animation,
+boot-completion and package-manager observations, then attempts installation once
+with its own cold-install deadline. Failed readiness/installation remains failed
+evidence; neither preparation retries a tap nor changes a pixel/interaction deadline.
+
 Before the next version tag, create a dedicated fixed Android key. Do not reuse a
 private production-app key, commit this key, or paste its password into a PR/chat.
 In a private directory with a JDK installed, run (the password is prompted):
@@ -131,13 +138,17 @@ key only to its own ephemeral runner-temp directory, passes passwords through
 environment variables rather than command arguments, and removes that directory
 on success or failure. APK certificate fingerprints are public, not secrets.
 
-Before publishing, manually run `native-showcase` on the intended source with
+Before publishing, dispatch `release.yml` on the intended source with
+`release-signing=true`. This checks fixed-key signing and signed evidence assembly
+alongside the binding, package and Native bundle gates, without publishing anything.
+Alternatively, manually run `native-showcase` on the intended source with
 `platform=both`, `release-assets=true`, `release-signing=true`, fresh builds,
 diagnostics off and the default full/demand scenarios. This verifies the actual
 fixed-key signing path without publishing anything. Fork/untrusted PR checks do
 not receive the signing secrets; ordinary PR/weekly builds keep debug signing.
-The release dry run also deliberately uses debug signing, so **it alone does not
-verify fixed-key signing**. Missing keys fail a real tag release before npm starts;
+By default the release dry run uses debug signing, so **a dry run without the
+signing option does not verify fixed-key signing**. Tags always require fixed-key
+signing, regardless of the manual option. Missing keys fail before npm starts;
 there is no fallback to debug signing for a published showcase.
 
 ### Order and failure handling

@@ -1,5 +1,12 @@
 # @hozo/storybook
 
+## 0.3.0
+
+### Patch Changes
+
+- Updated dependencies [[`8d58223`](https://github.com/iray-tno/hozo/commit/8d5822322607b6214fa7f57d233a9173a45815b6)]:
+  - @hozo/vite@0.3.0
+
 ## 0.2.0
 
 - Correct the Vite peer range to `^8.0.0` in line with the Vite integration.

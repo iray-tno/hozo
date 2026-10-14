@@ -1,5 +1,7 @@
 # @hozo/native
 
+## 0.3.0
+
 ## 0.2.0
 
 - Introduce the optional Android New Architecture module and `moveAccessibilityFocus` / focus-outcome types.

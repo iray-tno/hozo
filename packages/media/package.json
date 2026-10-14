@@ -1,6 +1,6 @@
 {
   "name": "@hozo/media",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Universal video and audio playback with shared controls and platform-owned engines.",
   "keywords": [
     "react-native",
