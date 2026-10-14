@@ -58,6 +58,8 @@ const reads = {
     // intentionally wider than media's three Slider sources.
     'packages/form/src/time-picker.native.tsx',
     'packages/primitives/src/pressable.native.tsx',
+    'packages/ui/src/input.tsx',
+    'packages/ui/src/theme.css',
     'packages/patterns/src/toggle.native.tsx',
     'packages/engine/src/responder.ts',
     'crates/hozo_ir/src/lib.rs',

@@ -950,7 +950,7 @@ pub(super) fn render_node(
     //
     // A pressable hands the resolver the state it tracks, so a runtime
     // `active:` or `hover:` class applies as a compiled one does (#886).
-    let runtime_states = !node.class_name_fallback.is_empty() && matches!(component, "Pressable" | "HozoLink");
+    let runtime_states = !node.class_name_fallback.is_empty() && matches!(component, "Pressable" | "HozoLink" | "TextInput");
     let class_state = runtime_class_state(node, source, runtime_states);
     let fallback: Vec<String> = node
         .class_name_fallback
@@ -1024,7 +1024,7 @@ pub(super) fn render_node(
     let rendered_component = if renders_backdrop_filter {
         runtime.need_component("HozoBackdropFilter");
         "HozoBackdropFilter"
-    } else if component == "TextInput" && !pressed_parts.is_empty() {
+    } else if component == "TextInput" && (!pressed_parts.is_empty() || runtime_states) {
         runtime.need_component("HozoTextInput");
         "HozoTextInput"
     } else if component == "Pressable" && needs_interaction_host {

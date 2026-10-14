@@ -85,7 +85,7 @@ test('a state class applies when its state holds, after the unconditional ones',
 
 test('a stacked state class needs every state it names', () => {
   const cx = createClassResolver(STYLES, {}, undefined, STATES)
-  assert.deepEqual(cx('hover:active:p-8', { pressed: true }), [])
+  assert.deepEqual(cx('hover:active:p-8', { pressed: true, hovered: false }), [])
   assert.deepEqual(cx('hover:active:p-8', { pressed: true, hovered: true }), [{ paddingTop: 32 }])
 })
 
@@ -105,4 +105,28 @@ test('without a state, a state class is named once and left out', () => {
 test('a string with no state classes keeps its one cached array, state or not', () => {
   const cx = createClassResolver(STYLES, {}, undefined, STATES)
   assert.equal(cx('p-4', { pressed: true }), cx('p-4'))
+})
+
+test('partial owner state names missing facts once without treating known false as missing', () => {
+  const cx = createClassResolver(STYLES, {}, undefined, STATES)
+  const warn = mock.method(console, 'warn', () => {})
+  try {
+    const classes = 'p-4 hover:active:p-8 disabled:opacity-50'
+    assert.deepEqual(cx(classes, { focused: true }), [STYLES['p-4']])
+    cx(classes, { focused: false })
+    assert.equal(warn.mock.callCount(), 2)
+    assert.match(warn.mock.calls[0].arguments[0] as string, /hovered, pressed/)
+    assert.match(warn.mock.calls[1].arguments[0] as string, /disabled/)
+    assert.deepEqual(cx(classes, { hovered: false, pressed: false, disabled: false }), [
+      STYLES['p-4'],
+    ])
+    assert.equal(warn.mock.callCount(), 2)
+    assert.deepEqual(cx(classes, { hovered: true, pressed: true, disabled: true }), [
+      STYLES['p-4'],
+      { paddingTop: 32 },
+      { opacity: 0.5 },
+    ])
+  } finally {
+    warn.mock.restore()
+  }
 })

@@ -1155,6 +1155,20 @@ fn text_input_focus_styles_use_the_field_and_keep_value_typography() {
 }
 
 #[test]
+fn runtime_text_input_classes_receive_only_field_focus_facts() {
+    let source = "import { TextInput } from '@hozo/core'; function C({extra}) {return <TextInput accessibilityLabel=\"Field\" className={extra} style={custom} ref={input} />}";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.iter().all(|d| d.code == DiagnosticCode::DynamicClassNameNotResolved), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoTextInput "), "{}", output.jsx);
+    assert!(output.jsx.contains("hozoClasses(extra, { focused, focusVisible })"), "{}", output.jsx);
+    for expected in ["hozoStyle=", "style={[custom]}", "ref={input}"] {
+        assert!(output.jsx.contains(expected), "{}", output.jsx);
+    }
+    assert!(!output.jsx.contains("hozoClasses(extra, { pressed"), "{}", output.jsx);
+}
+
+#[test]
 fn a_stepper_is_hozo_stepper_with_a_style_per_status() {
     let source = r#"
         import { Stepper } from '@hozo/core'

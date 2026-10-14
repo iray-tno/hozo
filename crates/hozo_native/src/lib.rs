@@ -902,14 +902,19 @@ fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
 /// The state a runtime `className` is resolved against, as a JS object
 /// literal, or `None` when the element has none to give (#886).
 ///
-/// `pointer` is a pressable's own: the names its style callback binds.
+/// `interaction` uses the owner's readable facts, not a parent's context.
+/// A field reports focus only: its tracker does not wire hover or press.
 /// `disabled` and the ARIA states come from the element's props, the same
 /// expressions a compiled `disabled:` or `aria-*:` reads, under the keys the
 /// candidate module stores them by.
-fn runtime_class_state(node: &Node, source: &str, pointer: bool) -> Option<String> {
+fn runtime_class_state(node: &Node, source: &str, interaction: bool) -> Option<String> {
     let mut fields: Vec<String> = Vec::new();
-    if pointer {
-        fields.push("pressed, hovered, focused, focusVisible".to_string());
+    if interaction {
+        fields.push(if node.primitive == Primitive::TextInput {
+            "focused, focusVisible"
+        } else {
+            "pressed, hovered, focused, focusVisible"
+        }.to_string());
     }
     if let Some(disabled) = node.props.disabled.as_ref() {
         fields.push(format!("disabled: Boolean({})", render_condition_expr(source, disabled)));
