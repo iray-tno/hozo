@@ -27,6 +27,10 @@ const fixtureRoot = path.join(root, 'scripts/fixtures/packed-consumer')
 const slash = (value) => value.replaceAll('\\', '/')
 const json = (file) => JSON.parse(readFileSync(file, 'utf8'))
 
+// Opt-in domains do not enter core's dependency closure. They still need
+// an installed-package check before their first release.
+export const WEB_CONSUMER_PACKAGES = ['core', 'compiler', 'vite', 'ui', 'three', 'media', 'webview']
+
 function fixtureHash(directory) {
   const hash = createHash('sha256')
   function visit(at, relative = '') {
@@ -184,7 +188,7 @@ async function main() {
       names.map((name) => [name, json(path.join(root, 'packages', name, 'package.json'))]),
     )
     const selected = consumerClosure(
-      ['compiler', 'vite', 'metro', 'core', 'ui', 'three', 'native', 'behaviors'],
+      [...WEB_CONSUMER_PACKAGES, 'metro', 'native', 'behaviors'],
       manifests,
     )
     const tarballs = {}
@@ -260,7 +264,7 @@ async function main() {
     }
     evidence.peers = { web: webPeers, native: nativePeers }
     for (const [kind, peers, hozo] of [
-      ['web', webPeers, ['core', 'compiler', 'vite', 'ui', 'three']],
+      ['web', webPeers, WEB_CONSUMER_PACKAGES],
       ['native', nativePeers, ['core', 'compiler', 'metro', 'ui', 'native', 'behaviors']],
     ]) {
       const app = path.join(work, kind)
@@ -292,6 +296,7 @@ async function main() {
       pnpm(`typecheck-${kind}`, ['exec', 'tsc', '--noEmit'], app)
       if (kind === 'web') {
         command('execute-compiler-ssr-three', process.execPath, ['probe.mjs'], app)
+        command('execute-web-opt-in-media-webview', process.execPath, ['opt-in-probe.mjs'], app)
         pnpm('build-vite', ['exec', 'vite', 'build'], app)
         await browserCheck(app, output, evidence)
         save()

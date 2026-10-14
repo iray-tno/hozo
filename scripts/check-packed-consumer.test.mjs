@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { consumerClosure, consumerEnvironment } from './check-packed-consumer.mjs'
+import {
+  consumerClosure,
+  consumerEnvironment,
+  WEB_CONSUMER_PACKAGES,
+} from './check-packed-consumer.mjs'
 import { mapSources } from './fixtures/packed-consumer/native/map-sources.mjs'
 
 test('consumer closure packs transitive packages without adding them as app dependencies', () => {
@@ -25,6 +29,18 @@ test('a cyclic manifest walk terminates', () => {
       ]),
     ),
     ['a', 'b'],
+  )
+})
+
+test('opt-in media and WebView are explicit Web consumers, not borrowed through core', () => {
+  assert.ok(WEB_CONSUMER_PACKAGES.includes('media'))
+  assert.ok(WEB_CONSUMER_PACKAGES.includes('webview'))
+  assert.equal(new Set(WEB_CONSUMER_PACKAGES).size, WEB_CONSUMER_PACKAGES.length)
+  const manifests = new Map(WEB_CONSUMER_PACKAGES.map((name) => [name, {}]))
+  assert.deepEqual(consumerClosure(WEB_CONSUMER_PACKAGES, manifests), [...manifests.keys()].sort())
+  assert.throws(
+    () => consumerClosure(WEB_CONSUMER_PACKAGES, new Map([['core', {}]])),
+    /not an installable/,
   )
 })
 
