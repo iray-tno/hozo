@@ -59,6 +59,15 @@ The report validates all three revisions, matching environment/settings,
 complete cases/sample counts and medians against raw evidence. It reports
 median/p90/raw samples rather than a runner-clock regression threshold.
 
+React 19's development User Timing observer is disabled when the renderer
+loads; the global performance API is immediately restored. CPU profiles
+found that prop-diff logging and Node's cloning of measure details dominated
+the old update timings. DEV/act behavior checks remain enabled. This is a
+**different measurement condition** from the original observer-enabled
+series: keep those artifacts, but do not compare milliseconds between the
+two protocols. Optional CPU profiling also adds sampling overhead and is
+explicitly recorded; its timings must not be compared with unprofiled runs.
+
 ## What the numbers do not mean
 
 Before #888 **does not support state classes**. Its warning and absence of

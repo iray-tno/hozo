@@ -17,8 +17,22 @@ export const AFTER = '6333a72ba5720fc3b25f4eeab0bbd66b5bf131b4'
 const driverRoot = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(path.join(driverRoot, 'packages/tailwind-conformance/package.json'))
 const React = require('react')
-const renderer = require('react-test-renderer')
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
+
+function renderDriver() {
+  // React 19's development User Timing track diffs every changed prop and
+  // Node clones each measure.detail. Profiling found this observer cost
+  // dominating list updates. Disable only that renderer capability at load,
+  // restore the public API immediately, and retain act/DEV behavior checks.
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis.performance, 'measure')
+  Object.defineProperty(globalThis.performance, 'measure', { value: undefined, configurable: true })
+  try {
+    return require('react-test-renderer')
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis.performance, 'measure', descriptor)
+    else delete globalThis.performance.measure
+  }
+}
 
 export function summarize(values) {
   assert.ok(values.length > 0 && values.every((value) => Number.isFinite(value) && value >= 0))
@@ -220,6 +234,7 @@ export { NativePressable as Pressable } from 'benchmark-host';`,
 }
 
 export async function measure(config) {
+  const renderer = renderDriver()
   const prepared = await prepare(config.root)
   const results = []
   const runtimeWarnings = []
@@ -337,13 +352,14 @@ export async function measure(config) {
       logicalCpus: os.availableParallelism(),
     },
     methodology: {
+      reactDevtoolsUserTiming: false,
       cpuProfiling: process.execArgv.some((argument) => argument.startsWith('--cpu-prof')),
       samples: config.samples,
       warmups: config.warmups,
       rows: config.rows,
       dependencies: 'shared driver installation',
       renderer:
-        'development react-test-renderer with simulated RN hosts; no device, layout, GPU, bridge or FPS evidence',
+        'development react-test-renderer with User Timing observer disabled and simulated RN hosts; no device, layout, GPU, bridge or FPS evidence',
       cache:
         'shared generated candidate resolver warmed by untimed trials; compilation and bundling excluded',
       timing:

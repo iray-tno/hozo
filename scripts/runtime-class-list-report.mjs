@@ -84,6 +84,11 @@ export function report(records, currentCommit, baselineCommit) {
           'CPU sampling enabled: these timings include profiler overhead and must not be compared with unprofiled runs.',
         ]
       : []),
+    ...(records.current.methodology.reactDevtoolsUserTiming === false
+      ? [
+          'React development User Timing observer disabled in this series; do not compare its milliseconds to legacy observer-enabled measurements. DEV/act checks remain enabled.',
+        ]
+      : []),
     '',
     baselineCommit
       ? '| Classes | Rows | Operation | Before | After #888 | Baseline | Current | Current / baseline |'
