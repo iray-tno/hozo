@@ -65,9 +65,34 @@ registry identity with the explicit bootstrap workflow, then configure its
 Trusted Publisher. Dry runs do neither; those remain release prerequisites.
 
 Native type acceptance of shared widget styling slots is not proof of their
-visual appearance. Native patterns currently carry class-name slots without
-resolving them at runtime; use their style props for the runtime appearance.
-This smoke checks a UI Button bundle, not every widget's styling on a device.
+visual appearance. Native patterns now resolve class-name slots through the
+project's runtime resolver and share primitive interaction facts. Static
+interaction-slot support remains explicitly scoped: see
+[Native pattern state styles](rfcs/native-pattern-state-styles.md). This smoke
+checks a UI Button bundle, not every widget's styling on a device, nor the
+large-list initial-mount tradeoff tracked in #922.
+
+## Version preparation and new packages
+
+Review pending changesets against the commits since the last release; the
+generated version branch alone cannot detect a missing release note. Keep the
+root changelog's release summary and breaking/report-schema migration steps in
+the same preparation work.
+
+If the version workflow reports that GitHub Actions cannot create pull requests,
+its generated `changeset-release/main` branch may still exist. Either enable that
+repository setting or create the version PR manually after reviewing the branch.
+Do not treat that permissions failure as a passing release gate, or push a tag
+without the version PR's checks and intended-source verification.
+
+Before the final tag, compare every generated public package name with its
+registry identity. For an unpublished name, use `bootstrap-publish` with that
+exact target and a temporary `NPM_BOOTSTRAP_TOKEN`; configure its npm Trusted
+Publisher for `iray-tno/hozo` and `release.yml` afterwards. Never retry bootstrap
+for an existing package, put the token in a PR/log, or use it to bypass normal
+OIDC release authentication. Remove the temporary secret and revoke its token
+after the new identities are configured. See
+[Publishing](../CONTRIBUTING.md#publishing).
 
 ## Showcase signing and release gate
 

@@ -1,5 +1,98 @@
 # Hozo changelog
 
+## 0.3.0
+
+Hozo 0.3.0 adds opt-in media and embedded web content, project-aware migration
+analysis, more accessible widgets and broader Native state styling. Public npm
+packages and Rust library crates continue to release together.
+
+### New packages
+
+- **`@hozo/media`** provides Video and independent Audio players: HTML media
+  elements on Web, `expo-video` / `expo-audio` engines on Native. Shared controls
+  consume observed player state; seeking uses observed ranges. Posters, timed
+  captions, plain-text WebVTT loading, caption selection, volume and playback
+  rate/pitch requests follow the source's lifetime. `/source` handles resolution
+  and disposal, with a separate optional `/source/expo` asset adapter. Native
+  playback requires its Expo engine. See the [media guide](packages/media/README.md).
+- **`@hozo/webview`** embeds web content through a named iframe on Web or optional
+  `react-native-webview` on Native. Without that Native peer it presents a named
+  browser link. Web messages are scoped to the owning frame; `title` is required.
+  See the [WebView guide](packages/webview/README.md).
+
+### Components and application integration
+
+- Add **Avatar, Chip, Pagination, Stepper, OtpInput, CommandPalette and ColorPicker**
+  in `@hozo/patterns`, with styled counterparts in `@hozo/ui`. Their names,
+  selection/status descriptions and keyboard behavior are part of the component
+  contract, not supplied by colour alone.
+- Add semantic **Table** components, with native column sizing measured across
+  cells; **Badge**, **Skeleton** and a Native **Meter** gauge extend status/data
+  display. Skeleton descendants respect reduced motion.
+- Add **FileDropzone** in `@hozo/form`, with accepted/refused file announcements
+  and an application-provided or optional Expo Native picker. Add **Icon** in
+  `@hozo/svg`, consuming the application's icon data without bundling an icon set.
+- Add **Preformatted** in `@hozo/typography`: `<pre>` on Web, whitespace-preserving
+  monospace Text on Native. Uncompiled View, Text and Image now forward host refs.
+- **HozoI18nProvider** connects component strings, locale and reading direction
+  to the application's i18n library. English fallbacks and structural i18next /
+  react-intl adapters are included; no translation library is required. Drawer
+  also accepts logical `start` / `end` sides.
+
+### Compiler, styling and Native runtime
+
+- Project Tailwind animations and keyframes reach both backends. StyleX conditions
+  inside property values are supported. Project radius tokens and built-in radius
+  overrides are respected; quoted class arrays contribute runtime candidates.
+- Supported Native conditions can be negated and stacked across environment,
+  breakpoints, containers and element/interaction facts. Link state styling uses
+  the shared owner; transform resets and runtime state transforms preserve their
+  CSS families. Unsupported predicates still produce diagnostics.
+- Caller classes can override resting component styles without erasing explicit
+  state styles. Web fallback candidate rules remain below raw Tailwind utilities,
+  and conditional classes reach elements retained as components.
+- Native patterns resolve their class-name slots through the project's resolver
+  and share primitive interaction facts. Static interaction slots are wired for
+  Chip, ColorPicker swatches, Pagination controls and CommandPalette pointer-state
+  items. This does not enable every static slot or semantic predicate.
+- Styled Button gains a Native pressed look. Checkbox and Switch use real
+  indicators on both platforms. Non-transition Pressables/Text avoid animation
+  values and listeners; large-list initial-mount tradeoffs remain under measurement.
+- Metro rewrites recognized named barrel imports to defining modules, avoiding
+  unrelated component imports. Unknown and namespace imports remain conservative.
+
+### Migration audit
+
+The audit now consumes the compiler-owned `@hozo/compiler/analysis` result,
+including full lowering findings and authored/unmapped locations. It inventories
+JS/TS source separately from context modules, discovers `src/` and `app/` layouts,
+and prepares static theme, preflight, platform-scoped StyleX and tsconfig facts.
+Executable configuration is not run; absent, invalid and unassessed context remain
+distinct. Supplied static font facts can inform diagnostics, not prove device fonts.
+
+React Native import, JSX tag, surviving reference and copied-value journals explain
+actual rewrite decisions. Baseline comparison and `--fail-on error|new-errors`
+support CI gating without conflating compiler output with production/runtime proof.
+Interactive stdout is Markdown; piped stdout remains JSON. Bluesky-specific ALF
+checks remain in its pinned corpus measurement rather than the generic report.
+
+**JSON consumers need schema 3.** Older baselines cannot establish a schema-3
+semantic comparison; generate a new baseline under the documented context policy.
+See the [audit guide](packages/migration-audit/README.md).
+
+### Upgrading and remaining boundaries
+
+Update your installed `@hozo/*` packages together to 0.3.0. Media and WebView are
+opt-in rather than additions to the core facade. Native media needs the tested
+Expo engines; applications that do not use media do not gain them.
+
+Media engine policy, autoplay, DRM, fullscreen/PiP and device rendering are not
+made identical across platforms. Native static state-slot coverage, device styling
+acceptance, Dialog TalkBack focus restoration and iOS Three cold-render performance
+remain tracked work. Compiler conformance and successful builds are not claims of
+universal device behavior. Three renderer selection and supported capability
+boundaries remain those documented for 0.2.0; this release does not add a new GPU backend.
+
 ## 0.2.0
 
 Hozo 0.2.0 adds Three.js rendering, forms, styled UI, motion and SVG filters,
