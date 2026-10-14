@@ -4,6 +4,17 @@ name: runtime-class-list
 
 on:
   workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Optional post-888 source ref to compare the current optimization against'
+        type: string
+        required: false
+        default: ''
+      cpu-profile:
+        description: 'Capture CPU profiles for diagnosis (timings include profiler overhead)'
+        type: boolean
+        required: false
+        default: false
   pull_request:
     paths:
       - '.github/workflows/runtime-class-list.yml'
@@ -36,6 +47,11 @@ jobs:
         with:
           ref: 6333a72ba5720fc3b25f4eeab0bbd66b5bf131b4
           path: .benchmark-after
+      - uses: actions/checkout@v4
+        if: github.event_name == 'workflow_dispatch' && inputs.baseline != ''
+        with:
+          ref: ${{ inputs.baseline }}
+          path: .benchmark-baseline
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
@@ -45,11 +61,16 @@ jobs:
           cache: pnpm
       # All three source revisions use this one pinned dependency install.
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
-      - name: Measure all three revisions sequentially
+      - name: Measure revisions sequentially
+        env:
+          BASELINE_REF: ${{ inputs.baseline }}
+          CPU_PROFILE: ${{ inputs.cpu-profile }}
         shell: bash
         run: |
           mkdir -p artifacts/runtime-class-list target
-          for variant in before after current; do
+          variants='before after current'
+          if [ -n "$BASELINE_REF" ]; then variants='before after baseline current'; fi
+          for variant in $variants; do
             source="$GITHUB_WORKSPACE"
             if [ "$variant" != current ]; then
               source="$GITHUB_WORKSPACE/.benchmark-$variant"
@@ -61,12 +82,20 @@ jobs:
             # but force every Hozo compiler crate to rebuild for this source.
             cargo clean --manifest-path "$source/Cargo.toml" -p hozo_ir -p hozo_parser -p hozo_native -p hozo_web -p hozo_cache -p hozo_napi > "artifacts/runtime-class-list/$variant-clean.log" 2>&1
             node "$source/packages/compiler/scripts/build-native.mjs" > "artifacts/runtime-class-list/$variant-build.log" 2>&1
-            node scripts/runtime-class-list.mjs --root "$source" --output "artifacts/runtime-class-list/$variant.json" > "artifacts/runtime-class-list/$variant.log" 2>&1
+            profile_flags=()
+            if [ "$CPU_PROFILE" = true ]; then
+              profile_flags=(--cpu-prof --cpu-prof-name="$variant.cpuprofile" --cpu-prof-dir="$GITHUB_WORKSPACE/artifacts/runtime-class-list")
+            fi
+            node "${profile_flags[@]}" scripts/runtime-class-list.mjs --root "$source" --output "artifacts/runtime-class-list/$variant.json" > "artifacts/runtime-class-list/$variant.log" 2>&1
           done
       - name: Verify evidence and publish the comparison
         env:
           CURRENT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: node scripts/runtime-class-list-report.mjs artifacts/runtime-class-list "$CURRENT_SHA" >> "$GITHUB_STEP_SUMMARY"
+          BASELINE_REF: ${{ inputs.baseline }}
+        run: |
+          baseline_sha=''
+          if [ -n "$BASELINE_REF" ]; then baseline_sha=$(git -C .benchmark-baseline rev-parse HEAD); fi
+          node scripts/runtime-class-list-report.mjs artifacts/runtime-class-list "$CURRENT_SHA" "$baseline_sha" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

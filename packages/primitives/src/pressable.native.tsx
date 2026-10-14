@@ -88,6 +88,8 @@ export function pressableFor(transition: HozoTransition | undefined): ElementTyp
 const AnimatedText = Animated.createAnimatedComponent(Text)
 type InteractionContextValue = HozoPressableState & { transition?: HozoTransition }
 const InteractionContext = createContext<InteractionContextValue | null>(null)
+type AnimationDriver = { current: ((state: HozoPressableState) => void) | null }
+const AnimationDriverContext = createContext<AnimationDriver | null>(null)
 
 function easingFor(name: HozoTransition['easing']) {
   switch (name) {
@@ -167,10 +169,111 @@ export function HozoPressable({
   hozoFocusVisible = false,
   ...props
 }: HozoPressableProps) {
-  const initialStyle =
-    typeof style === 'function'
-      ? style({ pressed: false, hovered: false, focused: false, focusVisible: false })
-      : style
+  // Keep the event/context owner mounted when motion is added or removed.
+  // Only the optional animation child owns nodes and progress listeners.
+  const driver = useRef<((state: HozoPressableState) => void) | null>(null)
+  const animate = useCallback((state: HozoPressableState) => driver.current?.(state), [])
+  const { state: interaction, handlers } = usePressableInteraction({
+    focusVisible: hozoFocusVisible,
+    onChange: hozoTransition ? animate : undefined,
+  })
+  const context = useMemo(
+    () => ({ ...interaction, transition: hozoTransition }),
+    [hozoTransition, interaction],
+  )
+  // Resolve the owner's snapshot once, not once again inside RN's host.
+  // RN's pressed flag can disagree with the owner snapshot. Active wins,
+  // as before; only that case needs a separate style evaluation.
+  const restingLook = useMemo(
+    () =>
+      hozoTransition ? undefined : typeof style === 'function' ? style({ ...interaction }) : style,
+    [hozoTransition, interaction, style],
+  )
+  // Assemble native props once, with no trailing conditional spread on the
+  // hot no-motion path. Private animation data never goes through RN props.
+  const Component: ElementType = hozoTransition ? TransitionPressable : Pressable
+  const host = (
+    <Component
+      {...props}
+      onHoverIn={(event: MouseEvent) => {
+        handlers.hoverIn()
+        onHoverIn?.(event)
+      }}
+      onHoverOut={(event: MouseEvent) => {
+        handlers.hoverOut()
+        onHoverOut?.(event)
+      }}
+      onFocus={(event: NativeSyntheticEvent<TargetedEvent>) => {
+        handlers.focus()
+        onFocus?.(event)
+      }}
+      onBlur={(event: NativeSyntheticEvent<TargetedEvent>) => {
+        handlers.blur()
+        onBlur?.(event)
+      }}
+      onPointerDown={
+        hozoFocusVisible
+          ? (event: Parameters<NonNullable<PressableProps['onPointerDown']>>[0]) => {
+              handlers.pointerDown()
+              onPointerDown?.(event)
+            }
+          : onPointerDown
+      }
+      onKeyDown={
+        hozoFocusVisible
+          ? (event: Parameters<NonNullable<PressableProps['onKeyDown']>>[0]) => {
+              handlers.keyDown()
+              onKeyDown?.(event)
+            }
+          : onKeyDown
+      }
+      onPressIn={(event: GestureResponderEvent) => {
+        handlers.pressIn()
+        onPressIn?.(event)
+      }}
+      onPressOut={(event: GestureResponderEvent) => {
+        handlers.pressOut()
+        onPressOut?.(event)
+      }}
+      style={
+        hozoTransition
+          ? style
+          : ({ pressed }: PressableStateCallbackType) =>
+              pressed && !interaction.pressed && typeof style === 'function'
+                ? style({ ...interaction, pressed: pressed || interaction.pressed })
+                : restingLook
+      }
+    />
+  )
+  return (
+    <InteractionContext.Provider value={context}>
+      {hozoTransition ? (
+        <AnimationDriverContext.Provider value={driver}>{host}</AnimationDriverContext.Provider>
+      ) : (
+        host
+      )}
+    </InteractionContext.Provider>
+  )
+}
+
+function TransitionPressable({
+  style,
+  ...props
+}: Omit<HozoPressableProps, 'hozoFocusVisible' | 'hozoTransition'>) {
+  // This private owner is mounted only inside both providers, for motion.
+  const context = useContext(InteractionContext)!
+  const hozoTransition = context.transition!
+  const interaction = useMemo(
+    () => ({
+      pressed: context.pressed,
+      hovered: context.hovered,
+      focused: context.focused,
+      focusVisible: context.focusVisible,
+    }),
+    [context.pressed, context.hovered, context.focused, context.focusVisible],
+  )
+  const driver = useContext(AnimationDriverContext)!
+  const initialStyle = typeof style === 'function' ? style({ ...interaction }) : style
   const initialOpacity = StyleSheet.flatten(initialStyle)?.opacity
   const opacity = useRef(
     new Animated.Value(typeof initialOpacity === 'number' ? initialOpacity : 1),
@@ -202,11 +305,15 @@ export function HozoPressable({
   }
   const colorProgress = useRef(new Animated.Value(0)).current
   const colorFraction = useRef(0)
+  const animation = useRef<Animated.CompositeAnimation | null>(null)
   useEffect(() => {
     const listener = colorProgress.addListener(({ value }) => {
       colorFraction.current = value
     })
-    return () => colorProgress.removeListener(listener)
+    return () => {
+      colorProgress.removeListener(listener)
+      animation.current?.stop()
+    }
   }, [colorProgress])
   const animatedColors = Object.fromEntries(
     [...colorRanges].map(([key, range]) => [
@@ -304,14 +411,19 @@ export function HozoPressable({
           }),
         )
       }
-      Animated.parallel(animations).start()
+      animation.current = Animated.parallel(animations)
+      animation.current.start()
     },
     [colorProgress, colorRanges, hozoTransition, opacity, style, transformSpecs, transformValues],
   )
-  const { state: interaction, handlers } = usePressableInteraction({
-    focusVisible: hozoFocusVisible,
-    onChange: animateInteraction,
-  })
+  // Install only the committed driver. A speculative render must not replace
+  // the callback used synchronously by the parent's event machine.
+  useLayoutEffect(() => {
+    driver.current = animateInteraction
+    return () => {
+      if (driver.current === animateInteraction) driver.current = null
+    }
+  }, [animateInteraction, driver])
   const PressableComponent = pressableFor(hozoTransition)
 
   // The style for the state this component is in, resolved here because
@@ -322,103 +434,45 @@ export function HozoPressable({
     [interaction, style],
   )
 
-  const context = useMemo(
-    () => ({
-      ...interaction,
-      transition: hozoTransition,
-    }),
-    [hozoTransition, interaction],
-  )
-
   return (
-    <InteractionContext.Provider value={context}>
-      <PressableComponent
-        {...props}
-        onHoverIn={(event: MouseEvent) => {
-          handlers.hoverIn()
-          onHoverIn?.(event)
-        }}
-        onHoverOut={(event: MouseEvent) => {
-          handlers.hoverOut()
-          onHoverOut?.(event)
-        }}
-        onFocus={(event: NativeSyntheticEvent<TargetedEvent>) => {
-          handlers.focus()
-          onFocus?.(event)
-        }}
-        onBlur={(event: NativeSyntheticEvent<TargetedEvent>) => {
-          handlers.blur()
-          onBlur?.(event)
-        }}
-        onPointerDown={
-          hozoFocusVisible
-            ? (event: Parameters<NonNullable<PressableProps['onPointerDown']>>[0]) => {
-                handlers.pointerDown()
-                onPointerDown?.(event)
-              }
-            : onPointerDown
-        }
-        onKeyDown={
-          hozoFocusVisible
-            ? (event: Parameters<NonNullable<PressableProps['onKeyDown']>>[0]) => {
-                handlers.keyDown()
-                onKeyDown?.(event)
-              }
-            : onKeyDown
-        }
-        onPressIn={(event: GestureResponderEvent) => {
-          handlers.pressIn()
-          onPressIn?.(event)
-        }}
-        onPressOut={(event: GestureResponderEvent) => {
-          handlers.pressOut()
-          onPressOut?.(event)
-        }}
-        // An array when there is a transition, a callback when there is
-        // not, and the difference is not a preference.
-        //
-        // `AnimatedProps` builds the animated node from `props.style`, and
-        // its first act is to skip anything that is not an object:
-        //
-        //     if (key === 'style') {
-        //       // Ignore `style` if it is not an object (or array).
-        //       if (typeof value === 'object' && value != null) {
-        //
-        // A callback is a function, so no node was ever attached. Pressable
-        // still called it, so the `Animated.Value`s it returned reached the
-        // view as plain objects where colours and numbers belong -- and a
-        // `backgroundColor` that is an object is not a colour, so the view
-        // dropped it. The compiled `bg-brand` button rendered with no
-        // background at all, and its white label with it, for as long as
-        // this code has existed. Found by the first screenshot anything
-        // ever took of the acceptance screen (#297).
-        //
-        // The state the callback would have supplied is state this
-        // component already keeps: `pressed` is set from `onPressIn` and
-        // `onPressOut`, which is what drives Pressable's own flag too.
-        style={
-          hozoTransition
-            ? // Cast because `Animated.createAnimatedComponent` types
-              // `style` as a resolved ViewStyle, while the whole point of
-              // an animated component is that it may hold `Animated.Value`s.
-              ([
-                resolvedStyle,
-                {
-                  ...(hozoTransition.opacity ? { opacity } : null),
-                  ...(hozoTransition.transform ? { transform: animatedTransform } : null),
-                  ...(hozoTransition.colors ? animatedColors : null),
-                },
-              ] as unknown as StyleProp<ViewStyle>)
-            : ({ pressed }: PressableStateCallbackType) =>
-                typeof style === 'function'
-                  ? style({
-                      ...interaction,
-                      pressed: pressed || interaction.pressed,
-                    })
-                  : style
-        }
-      />
-    </InteractionContext.Provider>
+    <PressableComponent
+      {...props}
+      // An array when there is a transition, a callback when there is
+      // not, and the difference is not a preference.
+      //
+      // `AnimatedProps` builds the animated node from `props.style`, and
+      // its first act is to skip anything that is not an object:
+      //
+      //     if (key === 'style') {
+      //       // Ignore `style` if it is not an object (or array).
+      //       if (typeof value === 'object' && value != null) {
+      //
+      // A callback is a function, so no node was ever attached. Pressable
+      // still called it, so the `Animated.Value`s it returned reached the
+      // view as plain objects where colours and numbers belong -- and a
+      // `backgroundColor` that is an object is not a colour, so the view
+      // dropped it. The compiled `bg-brand` button rendered with no
+      // background at all, and its white label with it, for as long as
+      // this code has existed. Found by the first screenshot anything
+      // ever took of the acceptance screen (#297).
+      //
+      // The state the callback would have supplied is state the enclosing
+      // event owner already keeps: `pressed` is set from `onPressIn` and
+      // `onPressOut`, which is what drives Pressable's own flag too.
+      style={
+        // Cast because `Animated.createAnimatedComponent` types
+        // `style` as a resolved ViewStyle, while the whole point of
+        // an animated component is that it may hold `Animated.Value`s.
+        [
+          resolvedStyle,
+          {
+            ...(hozoTransition.opacity ? { opacity } : null),
+            ...(hozoTransition.transform ? { transform: animatedTransform } : null),
+            ...(hozoTransition.colors ? animatedColors : null),
+          },
+        ] as unknown as StyleProp<ViewStyle>
+      }
+    />
   )
 }
 
@@ -432,8 +486,24 @@ export function HozoText({ style, ...props }: HozoTextProps) {
   const context = useContext(InteractionContext)
   const state = context ?? { pressed: false, hovered: false, focused: false, focusVisible: false }
   const resolved = typeof style === 'function' ? style(state) : style
+  if (!context?.transition?.colors || typeof style !== 'function') {
+    return <Text {...props} style={resolved} />
+  }
+  return <TransitionText {...props} context={context} resolved={resolved} />
+}
+
+function TransitionText({
+  context,
+  resolved,
+  ...props
+}: Omit<HozoTextProps, 'style'> & {
+  context: InteractionContextValue
+  resolved: StyleProp<TextStyle>
+}) {
+  const state = context
   const target = StyleSheet.flatten(resolved)?.color
   const progress = useRef(new Animated.Value(1)).current
+  const animation = useRef<Animated.CompositeAnimation | null>(null)
   const fraction = useRef(1)
   const previousTarget = useRef(typeof target === 'string' ? target : '')
   const range = useRef<ColorRange>({ from: previousTarget.current, to: previousTarget.current })
@@ -456,19 +526,23 @@ export function HozoText({ style, ...props }: HozoTextProps) {
     const listener = progress.addListener(({ value }) => {
       fraction.current = value
     })
-    return () => progress.removeListener(listener)
+    return () => {
+      progress.removeListener(listener)
+      animation.current?.stop()
+    }
   }, [progress])
   useLayoutEffect(() => {
     if (!pending || !context?.transition?.colors) return
     progress.setValue(0)
     fraction.current = 0
-    Animated.timing(progress, {
+    animation.current = Animated.timing(progress, {
       toValue: 1,
       duration: context.transition.duration,
       delay: context.transition.delay ?? 0,
       easing: easingFor(context.transition.easing),
       useNativeDriver: false,
-    }).start()
+    })
+    animation.current.start()
     // `context?`, not `context`: the context defaults to null, and this
     // component is explicitly written to work without one -- see the
     // `if (!context ...)` below. A dependency array is evaluated on every
@@ -482,7 +556,6 @@ export function HozoText({ style, ...props }: HozoTextProps) {
           outputRange: [range.current.from, range.current.to],
         })
       : undefined
-  if (!context || typeof style !== 'function') return <Text {...props} style={resolved} />
   return (
     <AnimatedText {...props} style={[resolved, animatedColor ? { color: animatedColor } : null]} />
   )
