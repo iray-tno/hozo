@@ -125,3 +125,137 @@ test('on Native: a PIN is entered as a password and drawn as dots', () => {
   assert.deepEqual(texts.slice(0, 3), ['•', '•', ''])
   renderer.act(() => root.unmount())
 })
+
+const FOCUS_SOURCE = `
+  import { OtpInput } from '@hozo/core'
+  export function C({ value = '12', disabled, inputStyle, inputClassName }) {
+    return <OtpInput length={4} value={value} disabled={disabled} accessibilityLabel="Code"
+      cellClassName="size-10 border" activeCellClassName="bg-blue-500" filledCellClassName="text-red-500"
+      inputClassName="rounded-lg focus:outline-2 focus-visible:outline-4 md:focus:outline-offset-2 not-focus:opacity-50 disabled:outline-1"
+      inputStyle={inputStyle} />
+  }`
+
+function event(node: Tree, name: string) {
+  assert.equal(typeof node.props[name], 'function', `${name} is not wired`)
+  renderer.act(() => (node.props[name] as (event: unknown) => void)({ nativeEvent: {} }))
+}
+const frame = (root: ReturnType<typeof renderer.create>) =>
+  root.root.findAll((node: Tree) => node.type === 'View' && node.props.pointerEvents === 'none')[0]
+const cells = (root: ReturnType<typeof renderer.create>) =>
+  root.root.findAll(
+    (node: Tree) =>
+      node.type === 'View' &&
+      node.props.pointerEvents !== 'none' &&
+      node.props.importantForAccessibility === 'no-hide-descendants',
+  )
+
+test('compiled OTP input classes style only the real field decoration and follow its modality', () => {
+  const { C } = loadNativeModule(FOCUS_SOURCE)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C))
+  })
+  try {
+    assert.equal(input(root).length, 1)
+    assert.equal(flat(frame(root)).borderRadius, 8)
+    assert.equal(flat(frame(root)).opacity, 0.5, 'not-focus is evaluated on the input')
+    assert.equal(frame(root).props.accessible, false)
+    assert.equal(frame(root).props.importantForAccessibility, 'no-hide-descendants')
+    event(input(root)[0], 'onFocus')
+    assert.equal(flat(frame(root)).opacity, undefined)
+    assert.equal(flat(frame(root)).outlineWidth, 4)
+    assert.equal(flat(input(root)[0]).opacity, 0.011, 'decoration must not make glyphs visible')
+    assert.equal(flat(input(root)[0]).color, 'transparent')
+    assert.equal(input(root)[0].props.caretHidden, true)
+    for (const cell of cells(root)) assert.equal(flat(cell).outlineWidth, undefined)
+    assert.equal(
+      flat(cells(root)[2]).backgroundColor,
+      '#2b7fff',
+      'activeCellClassName still selects the next cell',
+    )
+    assert.equal(flat(cells(root)[0].findByType('Text')).color, '#fb2c36')
+    event(input(root)[0], 'onPointerDown')
+    assert.equal(flat(frame(root)).outlineWidth, 2)
+    event(input(root)[0], 'onKeyDown')
+    assert.equal(flat(frame(root)).outlineWidth, 4)
+    const wrapper = root.root.findAll((node: Tree) => node.type === 'Pressable')[0]
+    event(wrapper, 'onHoverIn')
+    event(wrapper, 'onPressIn')
+    assert.equal(
+      flat(frame(root)).outlineWidth,
+      2,
+      'pointer modality may clear focus-visible, not actual focus',
+    )
+    event(wrapper, 'onPressOut')
+    event(input(root)[0], 'onBlur')
+    assert.equal(flat(frame(root)).outlineWidth, undefined)
+    assert.equal(flat(frame(root)).opacity, 0.5)
+    assert.equal(flat(cells(root)[2]).backgroundColor, undefined)
+    renderer.act(() => root.update(react.createElement(C, { disabled: true })))
+    assert.equal(flat(frame(root)).outlineWidth, 1)
+    assert.equal(input(root)[0].props.editable, false)
+    assert.equal(root.root.findAll((node: Tree) => node.type === 'TextInput').length, 1)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('explicit OTP input styles win without changing hit geometry or transparent glyphs', () => {
+  const { C } = loadNativeModule(FOCUS_SOURCE)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(
+      react.createElement(C, {
+        inputStyle: { outlineWidth: 7, borderRadius: 12, color: '#123456', opacity: 1, width: 30 },
+      }),
+    )
+  })
+  try {
+    event(input(root)[0], 'onFocus')
+    assert.equal(flat(frame(root)).outlineWidth, 7)
+    assert.equal(flat(frame(root)).borderRadius, 12)
+    assert.equal(flat(frame(root)).opacity, 1, 'paint is not attenuated by the TextInput')
+    assert.equal(flat(frame(root)).width, '100%')
+    assert.equal(flat(input(root)[0]).width, '100%')
+    assert.equal(flat(input(root)[0]).color, 'transparent')
+    assert.equal(flat(input(root)[0]).opacity, 0.011)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('OTP ambient focus hooks also produce executable output for one-line component bodies', () => {
+  const source = FOCUS_SOURCE.replace("from '@hozo/core'", "from '@hozo/core';").replace(
+    /\s*\n\s*/g,
+    ' ',
+  )
+  const { C } = loadNativeModule(source)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C))
+  })
+  try {
+    event(input(root)[0], 'onFocus')
+    assert.equal(flat(frame(root)).outlineWidth, 4)
+    assert.equal(input(root).length, 1)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('Web lowering keeps the same input focus selectors off virtual cells', () => {
+  const [out] = compile(FOCUS_SOURCE, 'Otp.tsx')
+  const [{ html }] = renderWeb([{ name: 'C', jsx: out.jsx }], {
+    HozoOtpInput: webOtp.HozoOtpInput,
+    value: '12',
+    disabled: false,
+    inputStyle: undefined,
+    inputClassName: undefined,
+  })
+  assert.match(html, /<input[^>]*class="hozo-4"/)
+  assert.match(out.css, /\.hozo-4:focus/)
+  assert.match(out.css, /\.hozo-4:focus-visible/)
+  const virtual = html.match(/<span aria-hidden="true"[^>]*>/g) ?? []
+  assert.equal(virtual.length, 4)
+  for (const cell of virtual) assert.doesNotMatch(cell, /hozo-4/)
+})

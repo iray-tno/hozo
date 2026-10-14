@@ -640,6 +640,7 @@ impl Primitive {
                 ClassSlot { class_prop: "cellClassName", style_prop: "cellStyle" },
                 ClassSlot { class_prop: "activeCellClassName", style_prop: "activeCellStyle" },
                 ClassSlot { class_prop: "filledCellClassName", style_prop: "filledCellStyle" },
+                ClassSlot { class_prop: "inputClassName", style_prop: "inputStyle" },
             ],
             Primitive::Stepper => &[
                 ClassSlot { class_prop: "stepClassName", style_prop: "stepStyle" },

@@ -209,7 +209,9 @@ export function transformHozoSource(
       edits.push({
         start: component.hookSlot,
         end: component.hookSlot,
-        text: `\n  ${fresh.join('\n  ')}`,
+        // The original statement may follow the opening brace on the same
+        // line. End the inserted declarations too, so ASI can separate return.
+        text: `\n  ${fresh.join('\n  ')}\n`,
       })
     }
   })

@@ -10,6 +10,7 @@ pub(super) struct InteractionSlot {
     // Some Web slots are pointer targets while focus stays on an input.
     // Native button focus must not silently become that slot's CSS focus.
     pub focus: bool,
+    pub pointer: bool,
     // A Stepper slot can become a descriptive row at runtime. Interaction
     // predicates (including negation) require the button to exist; base and
     // ambient styles still apply to the descriptive row.
@@ -34,10 +35,12 @@ pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option
         (Primitive::Stepper, "completedStepClassName") => ("hozoCompletedStepStyle", true),
         (Primitive::Stepper, "currentStepClassName") => ("hozoCurrentStepStyle", true),
         (Primitive::Stepper, "errorStepClassName") => ("hozoErrorStepStyle", true),
+        (Primitive::OtpInput, "inputClassName") => ("hozoInputStyle", true),
         _ => return None,
     };
     let optional_owner = (primitive == Primitive::Stepper).then_some("onStepPress");
-    Some(InteractionSlot { style_prop, focus, optional_owner })
+    let pointer = primitive != Primitive::OtpInput;
+    Some(InteractionSlot { style_prop, focus, pointer, optional_owner })
 }
 
 pub(super) fn interaction_style_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {

@@ -1172,6 +1172,36 @@ fn a_table_is_runtime_parts_whose_cells_keep_their_text_styles() {
 }
 
 #[test]
+fn otp_input_focus_belongs_to_the_field_not_wrapper_or_virtual_cells() {
+    let compile = |props: &str| {
+        let source = format!("import {{ OtpInput }} from '@hozo/core'\nconst el = <OtpInput accessibilityLabel=\"Code\" {props} />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let output = compile(r#"disabled={blocked} inputClassName="rounded-lg focus:outline-2 focus-visible:outline-4 not-focus:opacity-50 md:not-focus-visible:outline-1 disabled:opacity-25" inputStyle={extra}"#);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("hozoInputStyle={({ pressed, hovered, focused, focusVisible }) => ["), "{}", output.jsx);
+    for expected in ["focused &&", "focusVisible &&", "!(focused) &&", "!(focusVisible)", "inputStyle={extra}", "disabled={blocked}"] {
+        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    }
+    let base = compile(r#"inputClassName="rounded-lg""#);
+    assert!(base.diagnostics.is_empty(), "{:?}", base.diagnostics);
+    assert!(base.jsx.contains("inputStyle={hozoStyles.hozo1}"), "{}", base.jsx);
+    assert!(!base.jsx.contains("hozoInputStyle"), "{}", base.jsx);
+    for slot in ["className", "cellClassName", "activeCellClassName", "filledCellClassName"] {
+        for condition in ["focus", "not-focus-visible", "md:not-focus"] {
+            let output = compile(&format!(r#"{slot}="{condition}:outline-2""#));
+            assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}/{condition}: {:?}", output.diagnostics);
+        }
+    }
+    for condition in ["hover", "active", "not-hover", "md:not-active"] {
+        let output = compile(&format!(r#"inputClassName="{condition}:opacity-50""#));
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error && d.message.contains("different owner")), "{condition}: {:?}", output.diagnostics);
+        assert!(!output.jsx.contains("hozoInputStyle"), "{}", output.jsx);
+    }
+}
+
+#[test]
 fn an_otp_input_is_hozo_otp_input_with_a_style_per_cell_state() {
     let source = r#"
         import { OtpInput } from '@hozo/core'

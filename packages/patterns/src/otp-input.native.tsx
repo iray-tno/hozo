@@ -34,12 +34,15 @@ export interface HozoOtpInputProps {
   cellClassName?: string
   activeCellClassName?: string
   filledCellClassName?: string
-  /** Web only: the ring on the focused input. Carried and unused here. */
+  /** The input's decoration, driven by input focus rather than a virtual cell. */
   inputClassName?: string
   style?: Style
   cellStyle?: Style
   activeCellStyle?: Style
   filledCellStyle?: Style
+  inputStyle?: Style
+  /** Compiler-only input focus callback; cells never consume input focus predicates. */
+  hozoInputStyle?: (state: InteractionState) => Style
   testID?: string
 }
 
@@ -69,10 +72,13 @@ export function HozoOtpInput({
   cellClassName,
   activeCellClassName,
   filledCellClassName,
+  inputClassName,
   style,
   cellStyle,
   activeCellStyle,
   filledCellStyle,
+  inputStyle,
+  hozoInputStyle,
   testID,
 }: HozoOtpInputProps) {
   const message = useHozoMessage()
@@ -85,6 +91,16 @@ export function HozoOtpInput({
   const code = value !== undefined ? otpValue(value, length, type) : uncontrolled
   const characters = Array.from(code)
   const active = otpActiveIndex(code, length)
+  const hasInputStyle = Boolean(inputClassName || inputStyle || hozoInputStyle)
+  const [inputBox, inputText] = splitTextStyle([
+    hozoClasses(inputClassName, {
+      focused: inputInteraction.focused,
+      focusVisible: inputInteraction.focusVisible,
+      disabled: Boolean(disabled),
+    }),
+    hozoInputStyle?.(inputInteraction),
+    inputStyle,
+  ])
   // The wrapper is an unfocusable hit target, not a second input. In
   // particular a bubbled input focus must not give it a focus-visible ring.
   const wrapperFacts = (interaction: InteractionState) => ({
@@ -149,6 +165,18 @@ export function HozoOtpInput({
                 </View>
               )
             })}
+            {hasInputStyle ? (
+              // TextInput's near-zero opacity is for autofill and invisible
+              // glyphs, not its focus outline. Paint that input decoration
+              // separately without adding a hit target or accessible field.
+              <View
+                pointerEvents="none"
+                accessible={false}
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={[inputBox, INPUT_FRAME]}
+              />
+            ) : null}
             <TextInput
               ref={input}
               value={code}
@@ -170,7 +198,7 @@ export function HozoOtpInput({
               caretHidden
               accessibilityLabel={accessibilityLabel}
               accessibilityHint={message('hozo.otpInput.hint', { length })}
-              style={INPUT}
+              style={hasInputStyle ? [inputBox, inputText, INPUT_FRAME, INPUT] : INPUT}
             />
           </>
         )
@@ -181,6 +209,36 @@ export function HozoOtpInput({
 
 const ROW: ViewStyle = { flexDirection: 'row', alignSelf: 'flex-start' }
 const CENTRED: ViewStyle = { alignItems: 'center', justifyContent: 'center' }
+// Same fixed overlay geometry and transparent background as the Web input.
+// Classes decorate it but cannot move the one field away from its cells.
+const INPUT_FRAME: ViewStyle = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  width: '100%',
+  height: '100%',
+  margin: 0,
+  marginTop: 0,
+  marginBottom: 0,
+  marginLeft: 0,
+  marginRight: 0,
+  marginStart: 0,
+  marginEnd: 0,
+  padding: 0,
+  paddingTop: 0,
+  paddingBottom: 0,
+  paddingLeft: 0,
+  paddingRight: 0,
+  paddingStart: 0,
+  paddingEnd: 0,
+  borderTopWidth: 0,
+  borderRightWidth: 0,
+  borderBottomWidth: 0,
+  borderLeftWidth: 0,
+  backgroundColor: 'transparent',
+}
 /**
  * Over the cells. Not opacity 0, which Android can treat as not there for
  * focus and autofill; nearly transparent is enough to draw nothing.

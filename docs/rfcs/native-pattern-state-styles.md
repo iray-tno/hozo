@@ -75,6 +75,23 @@ and descriptions are spans, not their parent's focus owner; static callbacks
 do not certify the existing runtime candidate propagation to those children.
 Internal disabled/current state does not yet enable semantic variants.
 
+OtpInput's `inputClassName` is now a class slot (`inputStyle`), with
+`hozoInputStyle` consuming only the real input's focus/focus-visible facts,
+including supported negation and ambient stacks. No wrapper hover/press is
+borrowed: those input predicates remain diagnosed. The virtual cells are Web
+spans, not focus owners; `activeCellClassName` still selects the next cell
+while focused but does not enable a cell's focus variants. Existing runtime
+candidate propagation to cells is unchanged, not certified by this slice.
+
+Native paints the field decoration in an absolute, non-hit-testable,
+accessibility-hidden View only when input styles exist. The same evaluated
+style reaches the actual TextInput, while its invisible glyph/caret policy
+and fixed overlay geometry remain intact. The decoration is not attenuated
+by the TextInput's autofill-safe near-zero opacity. An authored inputStyle
+overrides compiled look, not the field's behavior/geometry; this matches the
+Web input's fixed inline overlay, transparent background and zero border.
+This introduces no second field, focus owner, modality tracker or hook.
+
 Tests must execute full Metro lowering and then drive the real Native
 pattern's handlers. A JSX callback or unused StyleSheet entry alone is not
 evidence. Host stand-ins establish wiring and React state, not physical

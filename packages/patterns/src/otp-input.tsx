@@ -30,8 +30,8 @@ export interface HozoOtpInputProps {
   filledCellClassName?: string
   /**
    * The input itself, which is the element that takes focus: where a
-   * `focus-visible:` ring goes. Web only -- on React Native focus is the
-   * keyboard and the active cell, and there is no ring to draw.
+   * `focus-visible:` ring goes. Native paints its decoration separately from
+   * the transparent TextInput; neither the wrapper nor a cell takes focus.
    */
   inputClassName?: string
   testID?: string
