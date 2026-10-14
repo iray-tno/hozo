@@ -882,6 +882,11 @@ fn environment_name(query: Environment) -> &'static str {
 }
 
 fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
+    if state == "invalid" {
+        // CSS matches the literal "true", not arbitrary truthy values or
+        // the grammar/spelling tokens. Evaluate the prop expression once.
+        return node.props.aria_invalid.map(|value| format!("String(({})) === 'true'", source_text(source, value)));
+    }
     let value = node.props.accessibility_state?;
     // An object literal says which keys it has, so one that does not name
     // this state cannot drive it. An opaque expression could carry
@@ -897,6 +902,33 @@ fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
     // Tailwind's boolean aria variants match the literal true state;
     // checked="mixed" is a real RN state, but not aria-checked="true".
     Some(format!("({})?.{state} === true", source_text(source, value)))
+}
+
+/// One read-only predicate for static guards and runtime candidate states.
+/// RN lets a defined readOnly override editable; absence is not false.
+fn read_only_guard(node: &Node, source: &str) -> Option<String> {
+    let props = &node.props.text_input;
+    let base = read_only_prop_guard(props, source);
+    // A canonical disabled field cannot be edited, just as :read-only
+    // matches a disabled HTML input. The disabled semantic fact is separate.
+    if let Some(disabled) = node.props.disabled.as_ref().filter(|_| node.primitive == Primitive::TextInput) {
+        return Some(format!("Boolean({}) || ({})", render_condition_expr(source, disabled), base.unwrap_or_else(|| "false".to_string())));
+    }
+    base
+}
+
+fn read_only_prop_guard(props: &hozo_ir::TextInputProps, source: &str) -> Option<String> {
+    if let Some(read_only) = props.read_only.as_ref() {
+        let driver = render_condition_expr(source, read_only);
+        return Some(match (read_only, props.editable.as_ref()) {
+            (ConditionExpr::Static(_), _) | (_, None) => driver,
+            (_, Some(editable)) => format!(
+                "({driver}) !== undefined ? ({driver}) : ({}) === false",
+                render_condition_expr(source, editable)
+            ),
+        });
+    }
+    props.editable.as_ref().map(|editable| format!("({}) === false", render_condition_expr(source, editable)))
 }
 
 /// The state a runtime `className` is resolved against, as a JS object
@@ -918,6 +950,14 @@ fn runtime_class_state(node: &Node, source: &str, interaction: bool) -> Option<S
     }
     if let Some(disabled) = node.props.disabled.as_ref() {
         fields.push(format!("disabled: Boolean({})", render_condition_expr(source, disabled)));
+    }
+    if let Some(guard) = aria_state_guard(node, source, "invalid") {
+        fields.push(format!("'aria-invalid': {guard}"));
+    }
+    if node.primitive == Primitive::TextInput {
+        if let Some(guard) = read_only_guard(node, source) {
+            fields.push(format!("readOnly: Boolean({guard})"));
+        }
     }
     if node.props.accessibility_state.is_some() {
         // A literal says which states it has; an opaque expression could

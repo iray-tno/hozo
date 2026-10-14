@@ -1175,6 +1175,14 @@ fn build_node(
                 props.accessibility_state_keys = object_literal_keys(attr);
                 capture_prop_expr(attr, &mut props.accessibility_state, &mut props.passthrough, scope, diagnostics, consumed)
             }
+            "aria-invalid" => {
+                props.aria_invalid = match &attr.value {
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => Some(to_expr_ref(container.expression.span())),
+                    Some(JSXAttributeValue::StringLiteral(literal)) => Some(to_expr_ref(literal.span)),
+                    _ => None,
+                };
+                props.passthrough.push(passthrough_prop(attr, scope, diagnostics, consumed));
+            }
             "accessibilityValue" => {
                 props.accessibility_value_keys = object_literal_keys(attr);
                 capture_prop_expr(attr, &mut props.accessibility_value, &mut props.passthrough, scope, diagnostics, consumed)

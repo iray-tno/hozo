@@ -33,7 +33,7 @@ export type HozoTextAreaProps = Omit<
 const wrapper = 'flex w-full flex-col gap-1'
 
 const field =
-  'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm leading-6 text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-invalid:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed'
+  'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm leading-6 text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed'
 
 /**
  * `self-end`, because a count reads as a count when it sits under the right-hand

@@ -1,12 +1,13 @@
 import { hozoTextChildren } from '@hozo/behaviors'
 import { HozoTextSizeContext } from '@hozo/engine'
-import React, { type ComponentType, type ReactNode, type Ref } from 'react'
+import React, { type ComponentRef, type ComponentType, type ReactNode, type Ref } from 'react'
 import {
   type AccessibilityRole,
   type HostInstance,
   Pressable as RNPressable,
   type PressableProps as RNPressableProps,
   Text as RNText,
+  TextInput as RNTextInput,
   type TextProps as RNTextProps,
   type StyleProp,
   StyleSheet,
@@ -14,6 +15,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { HozoLink } from './link.native.tsx'
+import { type NativeTextInputProps, nativeTextInputProps } from './text-input-props.native.ts'
 
 export type {
   HozoResponderEvent,
@@ -24,10 +26,15 @@ export type {
 } from '@hozo/engine'
 export type {
   ImageProps,
-  TextInputProps,
   ViewProps,
 } from 'react-native'
-export { Image, TextInput, View } from 'react-native'
+export { Image, View } from 'react-native'
+export type TextInputProps = NativeTextInputProps & { ref?: Ref<ComponentRef<typeof RNTextInput>> }
+
+/** The canonical disabled contract also applies outside compiler-owned JSX. */
+export function TextInput({ ref, ...props }: TextInputProps) {
+  return <RNTextInput {...nativeTextInputProps(props)} ref={ref} />
+}
 export type {
   HozoImageSource,
   HozoImageSourceObject,

@@ -4,8 +4,9 @@ import {
 } from '@hozo/behaviors/pressable-interaction'
 import type { ComponentRef, Ref } from 'react'
 import { TextInput, type TextInputProps } from 'react-native'
+import { type NativeTextInputProps, nativeTextInputProps } from './text-input-props.native.ts'
 
-export interface HozoTextInputProps extends TextInputProps {
+export interface HozoTextInputProps extends NativeTextInputProps {
   ref?: Ref<ComponentRef<typeof TextInput>>
   /** Compiler-only style evaluation on this input, not an ancestor Pressable. */
   hozoStyle?: (state: HozoPressableInteractionState) => TextInputProps['style']
@@ -19,7 +20,17 @@ export interface HozoTextInputProps extends TextInputProps {
  * A keyboard-input field indicates focus even after a pointer/touch focuses
  * it (Selectors 4 §9.4). A button's pointer modality is not its policy.
  */
-export function HozoTextInput({
+export function HozoTextInput(props: HozoTextInputProps) {
+  // A prop-only adapter needs no state subscription. The focus child exists
+  // only for a compiler callback and still renders exactly one RN field.
+  if (!props.hozoStyle) {
+    const { hozoStyle: _hozoStyle, ref, ...hostProps } = props
+    return <TextInput {...nativeTextInputProps(hostProps)} ref={ref} />
+  }
+  return <FocusedTextInput {...props} />
+}
+
+function FocusedTextInput({
   ref,
   hozoStyle,
   style,
@@ -30,7 +41,7 @@ export function HozoTextInput({
   const { state, handlers } = usePressableInteraction({ focusVisible: 'keyboard-input' })
   return (
     <TextInput
-      {...props}
+      {...nativeTextInputProps(props)}
       ref={ref}
       style={[hozoStyle?.(state), style]}
       onFocus={(event) => {
