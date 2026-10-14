@@ -62,6 +62,19 @@ this first slice does not infer internal state from authored props or remove
 their existing diagnostics. Other patterns and group selectors remain
 unsupported until their own owner and consuming ABI are verified.
 
+Stepper's `stepClassName`, `completedStepClassName`, `currentStepClassName`
+and `errorStepClassName` consume `hozoStepStyle`, `hozoCompletedStepStyle`,
+`hozoCurrentStepStyle` and `hozoErrorStepStyle` on each actual step button.
+Static interaction classes require an authored `onStepPress`; status selects
+the slot, not the interaction owner. Its callback adds `interactionAvailable`:
+if the handler becomes absent at runtime, only base/ambient entries apply to
+the descriptive row. Availability guards the resolved predicate, including
+negation and stacks, so an absent button is never interpreted as not-hovered.
+Root, indicator and description slots remain outside this contract. Web marks
+and descriptions are spans, not their parent's focus owner; static callbacks
+do not certify the existing runtime candidate propagation to those children.
+Internal disabled/current state does not yet enable semantic variants.
+
 Tests must execute full Metro lowering and then drive the real Native
 pattern's handlers. A JSX callback or unused StyleSheet entry alone is not
 evidence. Host stand-ins establish wiring and React state, not physical

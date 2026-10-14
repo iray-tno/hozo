@@ -14,6 +14,7 @@ import { splitTextStyle } from './text-style.native.ts'
 export type { HozoStep, HozoStepStatus }
 
 type Style = StyleProp<ViewStyle | TextStyle>
+type StepStyle = (state: InteractionState & { interactionAvailable: boolean }) => Style
 
 export interface HozoStepperProps {
   steps: readonly HozoStep[]
@@ -46,6 +47,11 @@ export interface HozoStepperProps {
   currentIndicatorStyle?: Style
   errorIndicatorStyle?: Style
   descriptionStyle?: Style
+  /** Compiler-only callbacks for the step button, never its decorative children. */
+  hozoStepStyle?: StepStyle
+  hozoCompletedStepStyle?: StepStyle
+  hozoCurrentStepStyle?: StepStyle
+  hozoErrorStepStyle?: StepStyle
   testID?: string
 }
 
@@ -81,6 +87,10 @@ export function HozoStepper({
   currentIndicatorStyle,
   errorIndicatorStyle,
   descriptionStyle,
+  hozoStepStyle,
+  hozoCompletedStepStyle,
+  hozoCurrentStepStyle,
+  hozoErrorStepStyle,
   testID,
 }: HozoStepperProps) {
   const message = useHozoMessage()
@@ -107,6 +117,14 @@ export function HozoStepper({
         // A clickable step owns the same facts for its box and all its labels.
         // A descriptive step stays a View and has no fabricated interaction.
         const look = (interaction?: InteractionState) => {
+          const compiledState = {
+            pressed: false,
+            hovered: false,
+            focused: false,
+            focusVisible: false,
+            ...interaction,
+            interactionAvailable: interaction !== undefined,
+          }
           const state = interaction
             ? {
                 ...interaction,
@@ -116,12 +134,26 @@ export function HozoStepper({
               }
             : undefined
           const [stepBox, stepText] = splitTextStyle([
-            styled(stepClassName, stepStyle, state),
+            hozoClasses(stepClassName, state),
+            hozoStepStyle?.(compiledState),
+            stepStyle,
             byStatus(
               status,
-              styled(completedStepClassName, completedStepStyle, state),
-              styled(currentStepClassName, currentStepStyle, state),
-              styled(errorStepClassName, errorStepStyle, state),
+              [
+                hozoClasses(completedStepClassName, state),
+                hozoCompletedStepStyle?.(compiledState),
+                completedStepStyle,
+              ],
+              [
+                hozoClasses(currentStepClassName, state),
+                hozoCurrentStepStyle?.(compiledState),
+                currentStepStyle,
+              ],
+              [
+                hozoClasses(errorStepClassName, state),
+                hozoErrorStepStyle?.(compiledState),
+                errorStepStyle,
+              ],
             ),
           ])
           const [markBox, markText] = splitTextStyle([

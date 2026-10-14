@@ -59,6 +59,14 @@ pub(super) fn resolve(
         Condition::FormState(FormState::ReadOnly) => read_only(&node.props.text_input, source),
         Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
             let pattern_owner = pattern_slot.and_then(|slot| crate::pattern::interaction_slot(node.primitive, slot));
+            if let Some(owner) = pattern_owner.as_ref().and_then(|slot| slot.optional_owner) {
+                if !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some(owner)) {
+                    return Err(format!(
+                        "`{}:` on Stepper's step slots needs an authored `{owner}`: without it the step is descriptive, not a button. No button interaction is borrowed by its indicator or description.",
+                        condition_suffix(condition).unwrap_or_default(),
+                    ));
+                }
+            }
             if pattern_owner.as_ref().is_some_and(|slot| !slot.focus)
                 && matches!(condition, Condition::Focus | Condition::FocusVisible)
             {

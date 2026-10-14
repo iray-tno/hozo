@@ -1094,6 +1094,39 @@ fn pagination_compiles_control_state_slots_not_the_row_or_ellipsis() {
 }
 
 #[test]
+fn stepper_compiles_only_authored_button_slots_and_scopes_negation_to_that_owner() {
+    let compile = |props: &str| {
+        let source = format!("import {{ Stepper }} from '@hozo/core'\nconst el = <Stepper steps={{steps}} activeStep={{1}} {props} />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let output = compile(r#"onStepPress={handler} stepClassName="px-2 hover:text-white active:opacity-50 not-hover:border-2" completedStepClassName="focus:bg-blue-500" currentStepClassName="bg-red-500 focus-visible:outline-4" errorStepClassName="md:not-hover:opacity-25" stepStyle={extra} currentStepStyle={currentExtra}"#);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for prop in ["hozoStepStyle", "hozoCompletedStepStyle", "hozoCurrentStepStyle", "hozoErrorStepStyle"] {
+        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible, interactionAvailable }}) => [")), "{}", output.jsx);
+    }
+    for expected in ["interactionAvailable && (hovered &&", "interactionAvailable && (pressed &&", "interactionAvailable && (!(hovered) &&", "focused &&", "focusVisible &&", "stepStyle={extra}", "currentStepStyle={currentExtra}"] {
+        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    }
+    for slot in ["stepClassName", "completedStepClassName", "currentStepClassName", "errorStepClassName"] {
+        for condition in ["hover", "not-hover", "md:not-focus-visible"] {
+            let output = compile(&format!(r#"{slot}="{condition}:opacity-50""#));
+            assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error && d.message.contains("onStepPress")), "{slot}/{condition}: {:?}", output.diagnostics);
+            assert!(!output.jsx.contains("interactionAvailable"), "{}", output.jsx);
+        }
+    }
+    // Even with a handler, the ol and decorative spans are not step buttons.
+    for slot in ["className", "indicatorClassName", "completedIndicatorClassName", "currentIndicatorClassName", "errorIndicatorClassName", "descriptionClassName"] {
+        let output = compile(&format!(r#"onStepPress={{handler}} {slot}="not-focus-visible:outline-2""#));
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+    }
+    for condition in ["aria-selected", "disabled", "hover:aria-selected"] {
+        let output = compile(&format!(r#"onStepPress={{handler}} stepClassName="{condition}:opacity-50""#));
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{condition}: {:?}", output.diagnostics);
+    }
+}
+
+#[test]
 fn a_stepper_is_hozo_stepper_with_a_style_per_status() {
     let source = r#"
         import { Stepper } from '@hozo/core'
