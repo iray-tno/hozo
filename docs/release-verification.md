@@ -138,13 +138,17 @@ key only to its own ephemeral runner-temp directory, passes passwords through
 environment variables rather than command arguments, and removes that directory
 on success or failure. APK certificate fingerprints are public, not secrets.
 
-Before publishing, manually run `native-showcase` on the intended source with
+Before publishing, dispatch `release.yml` on the intended source with
+`release-signing=true`. This checks fixed-key signing and signed evidence assembly
+alongside the binding, package and Native bundle gates, without publishing anything.
+Alternatively, manually run `native-showcase` on the intended source with
 `platform=both`, `release-assets=true`, `release-signing=true`, fresh builds,
 diagnostics off and the default full/demand scenarios. This verifies the actual
 fixed-key signing path without publishing anything. Fork/untrusted PR checks do
 not receive the signing secrets; ordinary PR/weekly builds keep debug signing.
-The release dry run also deliberately uses debug signing, so **it alone does not
-verify fixed-key signing**. Missing keys fail a real tag release before npm starts;
+By default the release dry run uses debug signing, so **a dry run without the
+signing option does not verify fixed-key signing**. Tags always require fixed-key
+signing, regardless of the manual option. Missing keys fail before npm starts;
 there is no fallback to debug signing for a published showcase.
 
 ### Order and failure handling
