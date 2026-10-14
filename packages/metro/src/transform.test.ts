@@ -83,6 +83,50 @@ export function C() { return <CommandPalette open commands={commands}
   }
 })
 
+test('OTP focus styles use the project theme and input owner, never the cells or wrapper', () => {
+  const compiler = createCompiler({
+    colors: [{ token: 'brand', oklch: '#123456', hex: '#123456' }],
+  })
+  const source = `import { OtpInput } from '@hozo/core'
+export function C() { return <OtpInput accessibilityLabel="Code"
+  inputClassName="rounded-lg focus-visible:outline-brand md:focus:outline-2 not-focus:opacity-50"
+  inputStyle={{ outlineWidth: 5 }} /> }
+`
+  const output = transformHozoSource(source, 'Otp.tsx', undefined, compiler)
+  assert.ok(output)
+  assert.match(output, /outlineColor: '#123456'/)
+  assert.match(output, /hozoInputStyle=\{\(\{ pressed, hovered, focused, focusVisible \}\) =>/)
+  assert.match(output, /__hozoBp_md && focused/)
+  assert.match(output, /useHozoBreakpoint\('md'\)\n return/)
+  assert.match(output, /!\(focused\) &&/)
+  assert.match(output, /inputStyle=\{\{ outlineWidth: 5 \}\}/)
+  assert.doesNotMatch(output, /hozoClasses|candidate|HozoPressable|HozoText/)
+  for (const slot of ['className', 'cellClassName', 'activeCellClassName', 'filledCellClassName']) {
+    assert.throws(
+      () =>
+        transformHozoSource(
+          source.replace('inputClassName=', `${slot}=`),
+          'Otp.tsx',
+          undefined,
+          compiler,
+        ),
+      /no readable interaction state/,
+    )
+  }
+  for (const variant of ['hover', 'active', 'not-hover', 'md:not-active']) {
+    assert.throws(
+      () =>
+        transformHozoSource(
+          source.replace('focus-visible:outline-brand', `${variant}:outline-brand`),
+          'Otp.tsx',
+          undefined,
+          compiler,
+        ),
+      /different owner/,
+    )
+  }
+})
+
 test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {
   const source = `import { Canvas } from '@hozo/canvas'
 export function Chart() {

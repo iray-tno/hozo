@@ -75,6 +75,14 @@ pub(super) fn resolve(
                     condition_suffix(condition).unwrap_or_default(),
                 ));
             }
+            if pattern_owner.as_ref().is_some_and(|slot| !slot.pointer)
+                && matches!(condition, Condition::Pressed | Condition::Hover)
+            {
+                return Err(format!(
+                    "`{}:` on OtpInput's input slot is not wired on Native: only input focus/modality is observed. Wrapper hover/press is a different owner and is not borrowed by the input or cells.",
+                    condition_suffix(condition).unwrap_or_default(),
+                ));
+            }
             if pattern_owner.is_some()
                 || interaction::owns_events(node)
                 || (interaction_context && !matches!(node.primitive, Primitive::Link | Primitive::Pressable | Primitive::Button)) {

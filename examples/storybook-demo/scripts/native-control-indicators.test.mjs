@@ -1416,6 +1416,48 @@ test('Native OTP input focus, not wrapper focus, determines the active cell and 
   assert.equal(input().props.autoComplete, 'sms-otp')
 })
 
+test('Native OTP runtime input focus paints an independent, noninteractive field decoration', async (t) => {
+  const tree = await mount(t, HozoOtpInput, {
+    accessibilityLabel: 'Code',
+    length: 3,
+    defaultValue: '1',
+    inputClassName: 'focus-visible:outline-2 focus-visible:outline-hozo-focus focus:opacity-75',
+  })
+  const input = () => tree.root.findByType('NativeTextInput')
+  const wrapper = () => tree.root.findByType('NativePressable')
+  const frame = () =>
+    tree.root.findAllByType('NativeView').find((node) => node.props.pointerEvents === 'none')
+  assert.equal(tree.root.findAllByType('NativeTextInput').length, 1)
+  assert.equal(frame().props.accessible, false)
+  assert.equal(frame().props.importantForAccessibility, 'no-hide-descendants')
+  assert.equal(flat(frame().props.style).outlineWidth, undefined)
+  await act(() => wrapper().props.onFocus({}))
+  assert.equal(flat(frame().props.style).outlineWidth, undefined, 'wrapper is not input focus')
+  await act(() => input().props.onFocus({}))
+  assert.equal(flat(frame().props.style).outlineWidth, 2)
+  assert.equal(flat(frame().props.style).outlineColor, color('hozo-focus'))
+  assert.equal(flat(frame().props.style).opacity, 0.75)
+  assert.equal(flat(input().props.style).opacity, 0.011)
+  assert.equal(flat(input().props.style).color, 'transparent')
+  for (const cell of tree.root.findAllByType('NativeView').filter((node) => node !== frame())) {
+    assert.equal(
+      flat(cell.props.style).outlineWidth,
+      undefined,
+      'no virtual cell takes input focus',
+    )
+  }
+  await act(() => input().props.onPointerDown({}))
+  assert.equal(flat(frame().props.style).outlineWidth, undefined)
+  assert.equal(flat(frame().props.style).opacity, 0.75, 'pointer modality does not blur')
+  await act(() => input().props.onKeyDown({}))
+  assert.equal(flat(frame().props.style).outlineWidth, 2)
+  await act(() => input().props.onChangeText('12'))
+  assert.equal(flat(frame().props.style).outlineWidth, 2)
+  await act(() => input().props.onBlur({}))
+  assert.equal(flat(frame().props.style).outlineWidth, undefined)
+  assert.equal(flat(frame().props.style).opacity, undefined)
+})
+
 test('Native OTP active and filled slots receive their real state; controlled, masked and disabled input contracts remain', async (t) => {
   for (const slot of ['activeCellClassName', 'filledCellClassName']) {
     const tree = await mount(t, HozoOtpInput, {
