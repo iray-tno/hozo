@@ -1,0 +1,42 @@
+name: input-state-coverage-measure
+
+# Isolated measurement branch only; not part of the feature PR chain.
+on:
+  push:
+    branches: [chore/input-state-coverage-measure]
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: '2'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native:release
+      - run: pnpm exec turbo run build --filter='@hozo/tailwind-conformance...' --concurrency=2
+      - name: Generate an unvalidated snapshot artifact for exact comparison
+        run: |
+          mkdir -p artifacts/input-state-measure
+          git rev-parse HEAD > artifacts/input-state-measure/source-commit.txt
+          # Generation is not a passing gate: main still uses --check.
+          env -u CI pnpm --filter @hozo/tailwind-conformance report > artifacts/input-state-measure/report.txt 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: input-state-conformance-measure
+          path: |
+            artifacts/input-state-measure
+            packages/tailwind-conformance/snapshot.json
