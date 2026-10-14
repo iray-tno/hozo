@@ -916,11 +916,14 @@ fn missing_read_only_drivers_and_other_form_states_remain_refused_when_negated()
         assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{variant}: {:?}", out.diagnostics);
         assert!(!out.jsx.contains("_readonly") && !out.jsx.contains("_notreadonly"), "{}", out.jsx);
     }
-    for variant in ["not-required", "not-invalid", "md:not-placeholder-shown", "read-only:focus"] {
+    for variant in ["not-required", "not-invalid", "md:not-placeholder-shown"] {
         let out = compile_read_only_input("readOnly={locked}", &format!("{variant}:p-4"));
         assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{variant}: {:?}", out.diagnostics);
         assert!(!out.jsx.contains("hozoStyles"), "{}", out.jsx);
     }
+    let focused = compile_read_only_input("readOnly={locked}", "read-only:focus:p-4");
+    assert!(focused.diagnostics.is_empty(), "{:?}", focused.diagnostics);
+    assert!(focused.jsx.contains("HozoTextInput") && focused.jsx.contains("(locked) && focused &&"), "{}", focused.jsx);
 }
 
 #[test]

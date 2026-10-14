@@ -29,7 +29,8 @@ export function usePressableInteraction({
   focusVisible = false,
   onChange,
 }: {
-  focusVisible?: boolean
+  /** Text fields indicate focus even after a pointer brings up their keyboard. */
+  focusVisible?: boolean | 'keyboard-input'
   onChange?: (state: HozoPressableInteractionState) => void
 } = {}) {
   const [mask, setMask] = useState(0)
@@ -52,7 +53,8 @@ export function usePressableInteraction({
       hoverOut: () => set(HOVERED, false),
       focus: () => {
         set(FOCUSED, true)
-        if (focusVisible) set(FOCUS_VISIBLE, modality.current === 'keyboard')
+        if (focusVisible)
+          set(FOCUS_VISIBLE, focusVisible === 'keyboard-input' || modality.current === 'keyboard')
       },
       blur: () => {
         set(FOCUSED, false)
@@ -60,7 +62,7 @@ export function usePressableInteraction({
       },
       pointerDown: () => {
         modality.current = 'pointer'
-        if (focusVisible) set(FOCUS_VISIBLE, false)
+        if (focusVisible === true) set(FOCUS_VISIBLE, false)
       },
       keyDown: () => {
         modality.current = 'keyboard'
@@ -68,7 +70,7 @@ export function usePressableInteraction({
       },
       pressIn: () => {
         modality.current = 'pointer'
-        if (focusVisible) set(FOCUS_VISIBLE, false)
+        if (focusVisible === true) set(FOCUS_VISIBLE, false)
         set(PRESSED, true)
       },
       pressOut: () => set(PRESSED, false),

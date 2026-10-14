@@ -1127,6 +1127,34 @@ fn stepper_compiles_only_authored_button_slots_and_scopes_negation_to_that_owner
 }
 
 #[test]
+fn text_input_focus_styles_use_the_field_and_keep_value_typography() {
+    let compile = |props: &str| {
+        let source = format!("import {{ TextInput }} from '@hozo/core'\nfunction C() {{ return <TextInput accessibilityLabel=\"Field\" {props} /> }}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let plain = compile(r#"className="text-red-500 text-sm border""#);
+    assert!(plain.diagnostics.is_empty(), "{:?}", plain.diagnostics);
+    assert!(plain.jsx.starts_with("<TextInput style="), "{}", plain.jsx);
+    assert!(plain.runtime_imports.is_empty(), "{:?}", plain.runtime_imports);
+    assert!(plain.styles.contains("color: '#fb2c36'"), "{}", plain.styles);
+    assert!(plain.styles.contains("fontSize: 14"), "{}", plain.styles);
+    let output = compile(r#"className="px-2 text-red-500 focus:text-blue-500 focus-visible:outline-4 not-focus:opacity-50 md:not-focus-visible:outline-1" style={extra} ref={input} onFocus={focused} onBlur={blurred}"#);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.starts_with("<HozoTextInput ") && output.jsx.contains("hozoStyle="), "{}", output.jsx);
+    assert!(output.runtime_imports.contains(&"HozoTextInput"), "{:?}", output.runtime_imports);
+    for expected in ["focused &&", "focusVisible &&", "!(focused) &&", "!(focusVisible)", "style={[extra]}", "ref={input}", "onFocus={focused}", "onBlur={blurred}"] {
+        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    }
+    assert!(output.styles.contains("color: '#2b7fff'"), "{}", output.styles);
+    assert!(!output.jsx.contains("HozoPressable") && !output.jsx.contains("HozoText "), "{}", output.jsx);
+    for condition in ["hover", "active", "not-hover", "md:not-active", "hover:focus-visible", "not-focus-within"] {
+        let output = compile(&format!(r#"className="{condition}:opacity-50""#));
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{condition}: {:?}", output.diagnostics);
+    }
+}
+
+#[test]
 fn a_stepper_is_hozo_stepper_with_a_style_per_status() {
     let source = r#"
         import { Stepper } from '@hozo/core'
