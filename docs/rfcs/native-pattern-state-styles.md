@@ -83,6 +83,12 @@ spans, not focus owners; `activeCellClassName` still selects the next cell
 while focused but does not enable a cell's focus variants. Existing runtime
 candidate propagation to cells is unchanged, not certified by this slice.
 
+The input uses the shared tracker's `keyboard-input` policy, like static
+TextInput focus styles: touch or pointer input does not remove a typing
+field's visible focus. Button modality remains separate. See
+[Native input state styles](../native-input-state-styles.md) for the Web
+input exception and the limits of this Native policy.
+
 Native paints the field decoration in an absolute, non-hit-testable,
 accessibility-hidden View only when input styles exist. The same evaluated
 style reaches the actual TextInput, while its invisible glyph/caret policy
