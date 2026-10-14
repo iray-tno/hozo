@@ -22,7 +22,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { createRequire, registerHooks } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-
+import type { Compiler } from '@hozo/compiler'
 import { transformHozoSource } from '@hozo/metro'
 
 const require = createRequire(import.meta.url)
@@ -225,8 +225,15 @@ export function loadNativeModule(
    * device.
    */
   near?: string,
+  /** A real candidate sheet/theme for project-aware runtime class probes. */
+  project?: { root: string; compiler: Compiler },
 ): Record<string, unknown> {
-  const transformed = transformHozoSource(source, 'Component.tsx')
+  const transformed = transformHozoSource(
+    source,
+    project ? path.join(project.root, 'Component.tsx') : 'Component.tsx',
+    project?.root,
+    project?.compiler,
+  )
   if (transformed === null) {
     throw new Error('the transformer declined this source')
   }

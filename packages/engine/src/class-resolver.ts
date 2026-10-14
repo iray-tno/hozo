@@ -36,6 +36,8 @@ interface Resolved {
   /** The same, before `compose`, for composing again with state styles. */
   raw: StyleObject[]
   groups: StateGroup[]
+  /** Parallel to groups: retain the candidate name for missing-fact warnings. */
+  groupClasses: string[]
   /** State classes in this string, named if it is resolved without a state. */
   stateClasses: string[]
 }
@@ -81,6 +83,7 @@ export function createClassResolver(
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
     const groups: StateGroup[] = []
+    const groupClasses: string[] = []
     const stateClasses: string[] = []
     for (const name of value.split(/\s+/)) {
       if (name === '') {
@@ -94,6 +97,7 @@ export function createClassResolver(
       const conditional = states[name]
       if (conditional) {
         groups.push(...conditional)
+        groupClasses.push(...conditional.map(() => name))
         stateClasses.push(name)
         continue
       }
@@ -103,7 +107,7 @@ export function createClassResolver(
       const reason = unsupported[name]
       if (reason) warn(name, reason)
     }
-    return { base: compose ? compose(base) : base, raw: base, groups, stateClasses }
+    return { base: compose ? compose(base) : base, raw: base, groups, groupClasses, stateClasses }
   }
 
   return function hozoClasses(value: unknown, state?: ClassState): StyleObject[] {
@@ -124,13 +128,28 @@ export function createClassResolver(
         warn(
           name,
           `\`${name}\` applies in a state, and this element hands its classes no state to ` +
-            'resolve it against. Put it on a Pressable, Button or Link, or write it as a static ' +
+            'resolve it against. Put it on an owner that supplies this state, or write it as a static ' +
             'className so it compiles to a real style variant.',
         )
       }
       return resolved.base
     }
-    const active = resolved.groups.filter(([keys]) => keys.every((key) => Boolean(state[key])))
+    const active = resolved.groups.filter(([keys], index) => {
+      // Absent is not false. A focused field must not silently claim that it
+      // measured hover/press, or that a spread supplied a disabled driver.
+      if (!keys.every((key) => Object.hasOwn(state, key))) {
+        const name = resolved.groupClasses[index]!
+        if (!warned.has(name)) {
+          const missing = keys.filter((key) => !Object.hasOwn(state, key))
+          warn(
+            name,
+            `\`${name}\` needs state (${missing.join(', ')}) this element does not supply.`,
+          )
+        }
+        return false
+      }
+      return keys.every((key) => Boolean(state[key]))
+    })
     if (active.length === 0) return resolved.base
     const all = [...resolved.raw, ...active.map(([, style]) => style)]
     // A state style can carry a transform, which `compose` folds into one;

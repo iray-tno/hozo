@@ -6,7 +6,13 @@ the compiler's existing condition guards. The generated `HozoTextInput`
 consumes a private `hozoStyle` callback; an authored style remains last.
 All field props, caller handlers and the native ref still reach one RN
 TextInput, without a View, Pressable, context provider or animation host.
-Inputs with no focus conditions remain direct RN TextInput in compiled code.
+Inputs with no focus conditions or opaque class expressions remain direct RN
+TextInput in compiled code. A dynamic class expression instead uses the same
+field helper and candidate resolver, receiving only `focused` and
+`focusVisible` as interaction facts. Missing hover/press or semantic drivers
+are named once per candidate, not silently interpreted as measured false.
+This includes the current source-distributed `@hozo/ui Input`; its themed
+runtime focus classes now follow the real field, not an ancestor.
 
 TextInput paints its value. Its own font and color styles must not be
 forwarded to nonexistent JSX text children; the compiler now keeps them on

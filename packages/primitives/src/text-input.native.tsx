@@ -12,7 +12,7 @@ export interface HozoTextInputProps extends TextInputProps {
 }
 
 /**
- * Generated-code host only when static classes need input focus. Ordinary
+ * Generated-code host when static or dynamic classes need input focus. Ordinary
  * compiled inputs stay RN TextInput. No extra box, context, animation or
  * subscriptions; the same native field keeps its ref, events and semantics.
  *
