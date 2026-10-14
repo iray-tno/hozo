@@ -42,6 +42,12 @@ after every required check completes.
   Native uses the `react-native` export condition, not the Web declarations.
 - Both compilation backends execute; canonical components render on the server;
   an ordinary portable Three scene can be projected.
+- The opt-in Media and WebView Web packages install from their own tarballs.
+  Ordinary Media sub-entries import without Native/Expo peers; the optional
+  `/source/expo` path resolves but is not imported without its required expo-asset.
+  Installed declarations accept the player/frame props, and named video, audio
+  and iframe hosts render on the server. This is not playback, decoding or Native
+  opt-in-engine evidence.
 - A Vite production build discovers the installed source-distributed UI package.
   A real browser checks the application's overridden theme colour and exercises
   pointer and keyboard activation. Neither React Native nor RNW is installed in
