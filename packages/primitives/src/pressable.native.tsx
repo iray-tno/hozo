@@ -179,65 +179,63 @@ export function HozoPressable({
     () => ({ ...interaction, transition: hozoTransition }),
     [hozoTransition, interaction],
   )
-  const hostProps = {
-    ...props,
-    onHoverIn: (event: MouseEvent) => {
-      handlers.hoverIn()
-      onHoverIn?.(event)
-    },
-    onHoverOut: (event: MouseEvent) => {
-      handlers.hoverOut()
-      onHoverOut?.(event)
-    },
-    onFocus: (event: NativeSyntheticEvent<TargetedEvent>) => {
-      handlers.focus()
-      onFocus?.(event)
-    },
-    onBlur: (event: NativeSyntheticEvent<TargetedEvent>) => {
-      handlers.blur()
-      onBlur?.(event)
-    },
-    onPointerDown: hozoFocusVisible
-      ? (event: Parameters<NonNullable<PressableProps['onPointerDown']>>[0]) => {
-          handlers.pointerDown()
-          onPointerDown?.(event)
-        }
-      : onPointerDown,
-    onKeyDown: hozoFocusVisible
-      ? (event: Parameters<NonNullable<PressableProps['onKeyDown']>>[0]) => {
-          handlers.keyDown()
-          onKeyDown?.(event)
-        }
-      : onKeyDown,
-    onPressIn: (event: GestureResponderEvent) => {
-      handlers.pressIn()
-      onPressIn?.(event)
-    },
-    onPressOut: (event: GestureResponderEvent) => {
-      handlers.pressOut()
-      onPressOut?.(event)
-    },
-  }
+  // Assemble native props once. Building an intermediate hostProps object
+  // and spreading it again measurably penalizes full-list parent updates.
+  const Component: ElementType = hozoTransition ? TransitionPressable : Pressable
   return (
     <InteractionContext.Provider value={context}>
-      {hozoTransition ? (
-        <TransitionPressable
-          {...hostProps}
-          style={style}
-          hozoTransition={hozoTransition}
-          interaction={interaction}
-          driver={driver}
-        />
-      ) : (
-        <Pressable
-          {...hostProps}
-          style={({ pressed }: PressableStateCallbackType) =>
-            typeof style === 'function'
-              ? style({ ...interaction, pressed: pressed || interaction.pressed })
-              : style
-          }
-        />
-      )}
+      <Component
+        {...props}
+        onHoverIn={(event: MouseEvent) => {
+          handlers.hoverIn()
+          onHoverIn?.(event)
+        }}
+        onHoverOut={(event: MouseEvent) => {
+          handlers.hoverOut()
+          onHoverOut?.(event)
+        }}
+        onFocus={(event: NativeSyntheticEvent<TargetedEvent>) => {
+          handlers.focus()
+          onFocus?.(event)
+        }}
+        onBlur={(event: NativeSyntheticEvent<TargetedEvent>) => {
+          handlers.blur()
+          onBlur?.(event)
+        }}
+        onPointerDown={
+          hozoFocusVisible
+            ? (event: Parameters<NonNullable<PressableProps['onPointerDown']>>[0]) => {
+                handlers.pointerDown()
+                onPointerDown?.(event)
+              }
+            : onPointerDown
+        }
+        onKeyDown={
+          hozoFocusVisible
+            ? (event: Parameters<NonNullable<PressableProps['onKeyDown']>>[0]) => {
+                handlers.keyDown()
+                onKeyDown?.(event)
+              }
+            : onKeyDown
+        }
+        onPressIn={(event: GestureResponderEvent) => {
+          handlers.pressIn()
+          onPressIn?.(event)
+        }}
+        onPressOut={(event: GestureResponderEvent) => {
+          handlers.pressOut()
+          onPressOut?.(event)
+        }}
+        style={
+          hozoTransition
+            ? style
+            : ({ pressed }: PressableStateCallbackType) =>
+                typeof style === 'function'
+                  ? style({ ...interaction, pressed: pressed || interaction.pressed })
+                  : style
+        }
+        {...(hozoTransition ? { hozoTransition, interaction, driver } : null)}
+      />
     </InteractionContext.Provider>
   )
 }
