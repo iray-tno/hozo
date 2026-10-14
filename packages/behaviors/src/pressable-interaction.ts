@@ -35,8 +35,8 @@ export function usePressableInteraction({
 } = {}) {
   const [mask, setMask] = useState(0)
   const live = useRef(0)
-  // Matches the primitive's existing policy: initial focus is keyboard-like;
-  // a pointer/press clears it, and a key makes a currently focused host visible.
+  // Buttons use the existing modality policy: a pointer/press clears visible
+  // focus, a key restores it. Keyboard-input fields instead keep it until blur.
   const modality = useRef<'keyboard' | 'pointer'>('keyboard')
   const set = useCallback(
     (flag: number, active: boolean) => {
