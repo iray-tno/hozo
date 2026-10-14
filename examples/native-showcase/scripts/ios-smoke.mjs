@@ -25,6 +25,7 @@ import { selectIosSimulator, waitForIosBoot } from './ios-simulator.mjs'
 import { selectStableIosText, waitForIosStorySelection } from './ios-story-selector.mjs'
 import { iosSvgEvidence, iosSvgRegion, readIosScenario } from './ios-svg-filter-evidence.mjs'
 import { waitForIosControl } from './ios-ui-wait.mjs'
+import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters } from './svg-filter-evidence.mjs'
 import {
   exerciseVideo,
@@ -160,8 +161,17 @@ function screenshot(name, includeTree = true) {
 }
 
 async function story(id, expected) {
-  simctl('openurl', udid, `hozo-showcase://storybook?STORYBOOK_STORY_ID=${id}`)
-  await waitFor(label(expected), `story ${id}`, 60_000, true)
+  const url = `hozo-showcase://storybook?STORYBOOK_STORY_ID=${id}`
+  return observeStoryRoute(
+    {
+      id,
+      expected,
+      url,
+      dispatch: () => simctl('openurl', udid, url),
+      waitForExpected: () => waitFor(label(expected), `story ${id}`, 60_000, true),
+    },
+    evidence,
+  )
 }
 
 function record(name, details = {}) {
@@ -623,6 +633,17 @@ try {
 } catch (error) {
   evidence.error = error.stack
   evidence.errorCause = error.cause?.message
+  evidence.failureTree = { refreshed: false }
+  try {
+    if (udid) {
+      // latestTree otherwise belongs to the last successful wait, potentially
+      // before the failed URL command. Label freshness rather than guessing.
+      nodes()
+      evidence.failureTree = { refreshed: true, capturedAt: Date.now() }
+    }
+  } catch (captureError) {
+    evidence.failureTree.error = String(captureError)
+  }
   try {
     if (udid) screenshot('failure')
   } catch {

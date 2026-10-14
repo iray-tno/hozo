@@ -6,11 +6,13 @@ import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { prepareAndroid } from './android-startup.mjs'
+import { waitForAndroidControl } from './android-ui-wait.mjs'
 import { exerciseAudioOutput } from './audio-output.mjs'
 import { exerciseAudioSettingsOutput } from './audio-settings-output.mjs'
 import { readCanvasRounds } from './canvas-rounds.mjs'
 import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './device-evidence.mjs'
 import { waitForImage } from './image-ready.mjs'
+import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters, readAndroidScenario } from './svg-filter-evidence.mjs'
 import {
   exerciseVideo,
@@ -39,8 +41,8 @@ const adb = (...args) => execFileSync('adb', args, { timeout: 30_000, maxBuffer:
 const label = (value) => (node) => matchLabel(node, value)
 let latestXml = ''
 
-function collectSystemState(prefix) {
-  if (!evidence.diagnostic) return
+function collectSystemState(prefix, force = false) {
+  if (!evidence.diagnostic && !force) return
   const reads = {
     logcat: ['logcat', '-b', 'all', '-d'],
     cpu: ['shell', 'dumpsys', 'cpuinfo'],
@@ -65,18 +67,7 @@ function nodes() {
 }
 
 async function waitFor(predicate, description, timeout = 60_000) {
-  const deadline = Date.now() + timeout
-  let lastError
-  do {
-    try {
-      const found = nodes().find(predicate)
-      if (found) return found
-    } catch (error) {
-      lastError = error
-    }
-    await pause(1_000)
-  } while (Date.now() < deadline)
-  throw new Error(`Timed out: ${description}`, { cause: lastError })
+  return waitForAndroidControl(predicate, description, { readNodes: nodes, timeout })
 }
 
 async function tap(predicate, description) {
@@ -92,18 +83,18 @@ function screenshot(name) {
 }
 
 async function story(id, expected) {
-  adb(
-    'shell',
-    'am',
-    'start',
-    '-W',
-    '-a',
-    'android.intent.action.VIEW',
-    '-d',
-    `hozo-showcase://storybook?STORYBOOK_STORY_ID=${id}`,
-    app,
+  const url = `hozo-showcase://storybook?STORYBOOK_STORY_ID=${id}`
+  return observeStoryRoute(
+    {
+      id,
+      expected,
+      url,
+      dispatch: () =>
+        adb('shell', 'am', 'start', '-W', '-a', 'android.intent.action.VIEW', '-d', url, app),
+      waitForExpected: () => waitFor(label(expected), `story ${id}`),
+    },
+    evidence,
   )
-  await waitFor(label(expected), `story ${id}`)
 }
 
 function record(name, details = {}) {
@@ -403,7 +394,10 @@ try {
   evidence.passed = true
 } catch (error) {
   evidence.error = error.stack
-  collectSystemState('failure-system')
+  evidence.blockingSystemDialog = error.blockingDialog
+  // Collect once on failure even in a functional run; startup/package checks
+  // cannot prove that System UI remains responsive after cold installation.
+  collectSystemState('failure-system', true)
   try {
     screenshot('failure')
   } catch {
