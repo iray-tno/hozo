@@ -108,6 +108,17 @@ type TransformTarget = { key: string; value: number; degrees: boolean }
 const transformRank = (key: string) =>
   key.startsWith('translate') ? 0 : key.startsWith('rotate') ? 1 : 2
 
+// Both motion probes need the full Cartesian product, in the same order.
+// Called only by the transition child, never by a plain Pressable.
+function interactionStates(): HozoPressableState[] {
+  return Array.from({ length: 16 }, (_, bits) => ({
+    pressed: !!(bits & 8),
+    hovered: !!(bits & 4),
+    focused: !!(bits & 2),
+    focusVisible: !!(bits & 1),
+  }))
+}
+
 function transformTargets(style: StyleProp<ViewStyle>): TransformTarget[] {
   const merged = new Map<string, TransformTarget>()
   const visit = (part: StyleProp<ViewStyle>) => {
@@ -279,22 +290,12 @@ function TransitionPressable({
     new Animated.Value(typeof initialOpacity === 'number' ? initialOpacity : 1),
   ).current
   const colorSpecs = useMemo(() => {
-    if (!hozoTransition?.colors || typeof style !== 'function') return [] as ColorKey[]
+    if (!hozoTransition.colors || typeof style !== 'function') return [] as ColorKey[]
     const found = new Set<ColorKey>()
-    for (const pressed of [false, true]) {
-      for (const hovered of [false, true]) {
-        for (const focused of [false, true]) {
-          for (const focusVisible of [false, true]) {
-            for (const key of colorTargets(
-              style({ pressed, hovered, focused, focusVisible }),
-            ).keys())
-              found.add(key)
-          }
-        }
-      }
-    }
+    for (const state of interactionStates())
+      for (const key of colorTargets(style(state)).keys()) found.add(key)
     return [...found]
-  }, [hozoTransition?.colors, style])
+  }, [hozoTransition.colors, style])
   const initialColors = colorTargets(initialStyle)
   const colorRanges = useRef(new Map<ColorKey, ColorRange>()).current
   for (const key of colorSpecs) {
@@ -325,20 +326,13 @@ function TransitionPressable({
     ]),
   )
   const transformSpecs = useMemo(() => {
-    if (!hozoTransition?.transform || typeof style !== 'function') return []
-    const states = [false, true].flatMap((pressed) =>
-      [false, true].flatMap((hovered) =>
-        [false, true].flatMap((focused) =>
-          [false, true].map((focusVisible) => ({ pressed, hovered, focused, focusVisible })),
-        ),
-      ),
-    )
+    if (!hozoTransition.transform || typeof style !== 'function') return []
     const merged = new Map<string, TransformTarget>()
-    for (const state of states) {
+    for (const state of interactionStates()) {
       for (const target of transformTargets(style(state))) merged.set(target.key, target)
     }
     return [...merged.values()].sort((a, b) => transformRank(a.key) - transformRank(b.key))
-  }, [hozoTransition?.transform, style])
+  }, [hozoTransition.transform, style])
   const transformValues = useRef(new Map<string, Animated.Value>()).current
   const initialTargets = new Map(
     transformTargets(initialStyle).map((target) => [target.key, target]),
@@ -361,7 +355,7 @@ function TransitionPressable({
   }))
   const animateInteraction = useCallback(
     (next: HozoPressableState) => {
-      if (!hozoTransition || typeof style !== 'function') return
+      if (typeof style !== 'function') return
       const flattened = StyleSheet.flatten(style({ ...next }))
       const animations: Animated.CompositeAnimation[] = []
       if (hozoTransition.opacity) {

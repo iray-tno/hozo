@@ -13,6 +13,31 @@ const { HozoPressable, HozoText } = require('../../primitives/src/pressable.nati
 const motion = { duration: 100, easing: 'linear', opacity: true, transform: true, colors: true }
 const flat = (style: unknown) => StyleSheet.flatten(style)
 
+test('colour and transform probes visit all sixteen interaction combinations in the same order', () => {
+  const probes: string[] = []
+  const style = (state: Record<string, boolean>) => {
+    probes.push(
+      ['pressed', 'hovered', 'focused', 'focusVisible'].map((key) => Number(state[key])).join(''),
+    )
+    return {
+      backgroundColor: state.focusVisible ? '#123456' : '#abcdef',
+      transform: [{ translateX: state.hovered ? 4 : 0 }],
+    }
+  }
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(React.createElement(HozoPressable, { style, hozoTransition: motion }))
+  })
+  try {
+    const expected = Array.from({ length: 16 }, (_, index) => index.toString(2).padStart(4, '0'))
+    assert.equal(probes[0], '0000', 'initial style uses the current owner')
+    assert.deepEqual(probes.slice(1, 17), expected, 'colour states changed or were omitted')
+    assert.deepEqual(probes.slice(17, 33), expected, 'transform states changed or were omitted')
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
 test('a cached owner look still observes RN pressed before the owner event commits', () => {
   let evaluations = 0
   const style = (state: Record<string, boolean>) => {
