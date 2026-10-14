@@ -2,6 +2,11 @@
 
 ## 0.3.0
 
+### Patch Changes
+
+- Interrupted colour transitions read the RGBA string produced by their previous
+  blend, preserving the intermediate colour when a new transition starts.
+
 ### Minor Changes
 
 - [#923](https://github.com/iray-tno/hozo/pull/923) [`8d58223`](https://github.com/iray-tno/hozo/commit/8d5822322607b6214fa7f57d233a9173a45815b6) Thanks [@iray-tno](https://github.com/iray-tno)! - Resolve Native pattern class-name slots through the project's runtime class resolver. Pattern controls now share the primitive interaction engine and deliver hover, focus, focus-visible and pressed facts to their actual owners instead of reporting pressed alone.

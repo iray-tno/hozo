@@ -104,6 +104,21 @@ function easingFor(name: HozoTransition['easing']) {
   }
 }
 
+function transitionTiming(
+  value: Animated.Value,
+  toValue: number,
+  transition: HozoTransition,
+  useNativeDriver: boolean,
+) {
+  return Animated.timing(value, {
+    toValue,
+    duration: transition.duration,
+    delay: transition.delay ?? 0,
+    easing: easingFor(transition.easing),
+    useNativeDriver,
+  })
+}
+
 type TransformTarget = { key: string; value: number; degrees: boolean }
 const transformRank = (key: string) =>
   key.startsWith('translate') ? 0 : key.startsWith('rotate') ? 1 : 2
@@ -360,15 +375,7 @@ function TransitionPressable({
       const animations: Animated.CompositeAnimation[] = []
       if (hozoTransition.opacity) {
         const targetOpacity = typeof flattened?.opacity === 'number' ? flattened.opacity : 1
-        animations.push(
-          Animated.timing(opacity, {
-            toValue: targetOpacity,
-            duration: hozoTransition.duration,
-            delay: hozoTransition.delay ?? 0,
-            easing: easingFor(hozoTransition.easing),
-            useNativeDriver: true,
-          }),
-        )
+        animations.push(transitionTiming(opacity, targetOpacity, hozoTransition, true))
       }
       if (hozoTransition.transform) {
         const targets = new Map(
@@ -376,13 +383,12 @@ function TransitionPressable({
         )
         for (const spec of transformSpecs) {
           animations.push(
-            Animated.timing(transformValues.get(spec.key)!, {
-              toValue: targets.get(spec.key) ?? identityFor(spec),
-              duration: hozoTransition.duration,
-              delay: hozoTransition.delay ?? 0,
-              easing: easingFor(hozoTransition.easing),
-              useNativeDriver: true,
-            }),
+            transitionTiming(
+              transformValues.get(spec.key)!,
+              targets.get(spec.key) ?? identityFor(spec),
+              hozoTransition,
+              true,
+            ),
           )
         }
       }
@@ -395,15 +401,7 @@ function TransitionPressable({
         }
         colorProgress.setValue(0)
         colorFraction.current = 0
-        animations.push(
-          Animated.timing(colorProgress, {
-            toValue: 1,
-            duration: hozoTransition.duration,
-            delay: hozoTransition.delay ?? 0,
-            easing: easingFor(hozoTransition.easing),
-            useNativeDriver: false,
-          }),
-        )
+        animations.push(transitionTiming(colorProgress, 1, hozoTransition, false))
       }
       animation.current = Animated.parallel(animations)
       animation.current.start()
@@ -477,6 +475,10 @@ export interface HozoTextProps extends Omit<TextProps, 'style'> {
 
 /** Text whose interaction state and transition are owned by an enclosing HozoPressable. */
 export function HozoText({ style, ...props }: HozoTextProps) {
+  // Public Text is valid outside an owner. Dependency arrays run before
+  // early returns, so the former shared component's context.transition
+  // dependency threw there. Keep the nullable gate here; the motion child
+  // mounts only with a real owner and an enabled colour transition.
   const context = useContext(InteractionContext)
   const state = context ?? { pressed: false, hovered: false, focused: false, focusVisible: false }
   const resolved = typeof style === 'function' ? style(state) : style
@@ -494,13 +496,14 @@ function TransitionText({
   context: InteractionContextValue
   resolved: StyleProp<TextStyle>
 }) {
+  const transition = context.transition!
   const state = context
   const target = StyleSheet.flatten(resolved)?.color
   const progress = useRef(new Animated.Value(1)).current
   const animation = useRef<Animated.CompositeAnimation | null>(null)
   const fraction = useRef(1)
-  const previousTarget = useRef(typeof target === 'string' ? target : '')
-  const range = useRef<ColorRange>({ from: previousTarget.current, to: previousTarget.current })
+  const initialColor = typeof target === 'string' ? target : ''
+  const range = useRef<ColorRange>({ from: initialColor, to: initialColor })
   const interaction = `${state.pressed}:${state.hovered}:${state.focused}:${state.focusVisible}`
   const previousInteraction = useRef(interaction)
   // Carry the state key, not just true/false. Consecutive interaction
@@ -514,7 +517,6 @@ function TransitionText({
       to: target as string,
     }
     previousInteraction.current = interaction
-    previousTarget.current = target as string
   }
   useEffect(() => {
     const listener = progress.addListener(({ value }) => {
@@ -526,30 +528,18 @@ function TransitionText({
     }
   }, [progress])
   useLayoutEffect(() => {
-    if (!pending || !context?.transition?.colors) return
+    if (!pending) return
     progress.setValue(0)
     fraction.current = 0
-    animation.current = Animated.timing(progress, {
-      toValue: 1,
-      duration: context.transition.duration,
-      delay: context.transition.delay ?? 0,
-      easing: easingFor(context.transition.easing),
-      useNativeDriver: false,
-    })
+    animation.current = transitionTiming(progress, 1, transition, false)
     animation.current.start()
-    // `context?`, not `context`: the context defaults to null, and this
-    // component is explicitly written to work without one -- see the
-    // `if (!context ...)` below. A dependency array is evaluated on every
-    // render, before any of them, so `context.transition` threw for a
-    // HozoText used outside a HozoPressable.
-  }, [context?.transition, pending, progress])
-  const animatedColor =
-    context?.transition?.colors && range.current.from
-      ? progress.interpolate({
-          inputRange: [0, 1],
-          outputRange: [range.current.from, range.current.to],
-        })
-      : undefined
+  }, [transition, pending, progress])
+  const animatedColor = range.current.from
+    ? progress.interpolate({
+        inputRange: [0, 1],
+        outputRange: [range.current.from, range.current.to],
+      })
+    : undefined
   return (
     <AnimatedText {...props} style={[resolved, animatedColor ? { color: animatedColor } : null]} />
   )
