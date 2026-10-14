@@ -26,15 +26,20 @@ test('native showcase evidence and binaries are a pre-publication release gate',
   assert.match(jobs.get('showcase'), /release-signing: .*startsWith\(github.ref, 'refs\/tags\/v'\)/)
   assert.match(jobs.get('showcase-assets'), /needs: showcase/)
   assert.match(jobs.get('showcase-assets'), /showcase-release.mjs prepare/)
+  assert.match(jobs.get('native-integration'), /pnpm --filter @hozo\/example-native-demo test/)
+  assert.match(jobs.get('native-integration'), /pnpm --filter @hozo\/compiler build:native/)
+  assert.match(jobs.get('native-integration'), /hozo-native-integration-bundles/)
+  assert.doesNotMatch(jobs.get('native-integration'), /continue-on-error|\|\| true/)
   for (const name of ['publish', 'artifacts-dry-run']) {
-    assert.match(jobs.get(name), /needs: \[build, showcase-assets\]/)
+    assert.match(jobs.get(name), /needs: \[build, showcase-assets, native-integration\]/)
     assert.match(jobs.get(name), /pattern: '\{x86_64,aarch64\}-\*'/)
+    assert.doesNotMatch(jobs.get(name), /always\(\)|continue-on-error/)
   }
   assert.match(jobs.get('crates'), /needs: publish/)
   assert.match(jobs.get('github-release'), /needs: \[crates, showcase-assets\]/)
   assert.match(jobs.get('github-release'), /contents: write/)
   assert.match(jobs.get('github-release'), /showcase-release.mjs publish/)
-  assert.doesNotMatch(release, /continue-on-error|always\(\)/)
+  assert.doesNotMatch(release, /continue-on-error/)
 })
 
 test('bootstrap is manual, explicit, and uses only bootstrap credentials', () => {

@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { prepareAndroid } from './android-startup.mjs'
 import { exerciseAudioOutput } from './audio-output.mjs'
 import { exerciseAudioSettingsOutput } from './audio-settings-output.mjs'
 import { readCanvasRounds } from './canvas-rounds.mjs'
@@ -331,7 +332,18 @@ try {
   evidence.android = adb('shell', 'getprop', 'ro.build.version.release').toString().trim()
   // Preserve cold-boot failures before the normal driver clears logcat.
   collectSystemState('before-app')
-  adb('install', '-r', resolve(root, 'android/app/build/outputs/apk/release/app-release.apk'))
+  await prepareAndroid(
+    {
+      read: (args) => adb(...args),
+      install: (timeout) =>
+        execFileSync(
+          'adb',
+          ['install', '-r', resolve(root, 'android/app/build/outputs/apk/release/app-release.apk')],
+          { timeout, maxBuffer: 16 * 1024 * 1024 },
+        ),
+    },
+    evidence,
+  )
   adb('logcat', '-c')
   adb('shell', 'am', 'force-stop', app)
   if (evidence.scenario === 'audio-output' || evidence.scenario === 'audio-settings') {
