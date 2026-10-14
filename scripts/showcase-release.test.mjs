@@ -272,6 +272,37 @@ test('the build-tools V2 Signer record observed in the failed CI is a certificat
   )
 })
 
+test('the fixed-key V3.0 Signer output from release run 38527491847 preserves the certificate identity', () => {
+  const fingerprint = 'd6da5d11edb78c04a26e0a05f34deb7477ba5688e1571f80a03dbaf0053a146f'
+  const output = [
+    'V3.0 Signer: certificate DN: CN=Hozo Showcase',
+    `V3.0 Signer: certificate SHA-256 digest: ${fingerprint}`,
+    'V3.0 Signer: certificate SHA-1 digest: 3dcea30588fbfd6c4dbd6b7c4eb11790f0ba3a7b',
+    'V3.0 Signer: certificate MD5 digest: 787dd1d465f43059e2b2f6c57f84ab7d',
+  ].join('\r\n')
+  assert.equal(signingCertificateSha256(output), fingerprint)
+  assert.equal(
+    signingCertificateSha256(`${output}\nV3.1 Signer: certificate SHA-256 digest: ${fingerprint}`),
+    fingerprint,
+  )
+  assert.throws(
+    () =>
+      signingCertificateSha256(
+        `${output}\nV2 Signer: certificate SHA-256 digest: ${'b'.repeat(64)}`,
+      ),
+    /single signing certificate/,
+  )
+  for (const record of [
+    `V3.0 Signer: public key SHA-256 digest: ${fingerprint}`,
+    `V3.0 Signer: certificate SHA-256 digest: ${fingerprint}ff`,
+    `V3.0 Signer: certificate SHA-256 digest: ${'z'.repeat(64)}`,
+    `V3.2 Signer: certificate SHA-256 digest: ${fingerprint}`,
+    `V5.0 Signer: certificate SHA-256 digest: ${fingerprint}`,
+    `Source Stamp Signer: certificate SHA-256 digest: ${fingerprint}`,
+  ])
+    assert.throws(() => signingCertificateSha256(record), /fingerprint is missing/)
+})
+
 test('Android re-signs before fingerprinting, uses env passwords and removes only its temporary key directory', (t) => {
   const { root } = fixture(t)
   const apk = path.join(
@@ -294,7 +325,7 @@ test('Android re-signs before fingerprinting, uses env passwords and removes onl
       writeFileSync(args[args.indexOf('--out') + 1], 'fixed signed')
     } else if (args.includes('--print-certs')) {
       assert.equal(readFileSync(apk, 'utf8'), 'fixed signed')
-      return `V2 Signer: certificate SHA-256 digest: ${'b'.repeat(64)}\n`
+      return `V3.0 Signer: certificate SHA-256 digest: ${'b'.repeat(64)}\n`
     }
     return ''
   }
