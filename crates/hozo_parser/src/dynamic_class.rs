@@ -16,7 +16,7 @@ use oxc_ast::ast::{
     JSXExpression, LogicalExpression, LogicalOperator, StringLiteral, TemplateLiteral,
 };
 use oxc_span::{GetSpan, Span};
-use oxc_syntax::module_record::ModuleRecord;
+use oxc_syntax::module_record::{ImportImportName, ModuleRecord};
 
 use crate::tailwind;
 
@@ -28,6 +28,13 @@ use crate::tailwind;
 /// than doing full scope resolution. Rare in practice; falls back safely if
 /// the name isn't imported from one of these packages at all.
 const RECOGNIZED_CX_MODULES: [&str; 3] = ["clsx", "classnames", "tailwind-merge"];
+
+/// Hozo's own helper (#873), so merging a caller's `className` needs no
+/// dependency. Engine owns it and core re-exports it, so both are read.
+/// Only the `cx` export is: anything else imported from them, such as a
+/// component, is not a class joiner.
+const HOZO_CX_MODULES: [&str; 2] = ["@hozo/core", "@hozo/engine"];
+const HOZO_CX_NAME: &str = "cx";
 
 #[derive(Default)]
 pub struct Decomposed {
@@ -157,8 +164,14 @@ fn is_recognized_cx_identifier(
 ) -> Option<()> {
     let name = ident.name.as_str();
     module_record.import_entries.iter().find_map(|entry| {
+        let module = entry.module_request.name.as_str();
+        let is_hozo_cx = HOZO_CX_MODULES.contains(&module)
+            && matches!(
+                &entry.import_name,
+                ImportImportName::Name(n) if n.name.as_str() == HOZO_CX_NAME
+            );
         (entry.local_name.name.as_str() == name
-            && RECOGNIZED_CX_MODULES.contains(&entry.module_request.name.as_str()))
+            && (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx))
         .then_some(())
     })
 }
@@ -460,6 +473,34 @@ mod tests {
         // silently (mis)compiled as if it behaved like clsx.
         assert_eq!(out.declarations.len(), 0);
         assert_eq!(out.fallback.len(), 1);
+    }
+
+    #[test]
+    fn hozo_core_cx_is_recognized_as_clsx_is() {
+        let source = "
+import { View, cx } from '@hozo/core'
+const el = <View className={cx('p-4 hover:bg-blue-500', className)} />
+";
+        let out = decompose_source(source);
+        assert_eq!(carried(source), ["className"]);
+        assert!(out.declarations.iter().any(|d| d.condition != Condition::Always));
+        // Renamed on import, it is still core's helper.
+        let renamed = "import { cx as join } from '@hozo/core'
+const el = <View className={join('p-4', className)} />";
+        assert_eq!(carried(renamed), ["className"]);
+        // Where it is owned, for the packages below core.
+        let engine = "import { cx } from '@hozo/engine'
+const el = <View className={cx('p-4', className)} />";
+        assert_eq!(carried(engine), ["className"]);
+    }
+
+    #[test]
+    fn another_import_from_hozo_core_is_not_a_cx() {
+        // A component imported from core, called like a function, is not
+        // trusted to join classes just because of where it came from.
+        let source = "import { View, Text } from '@hozo/core'
+const el = <View className={Text('p-4', className)} />";
+        assert_eq!(carried(source), ["Text('p-4', className)"]);
     }
 
     #[test]

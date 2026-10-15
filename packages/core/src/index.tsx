@@ -17,6 +17,9 @@ export {
   useCommandShortcut,
   useHozoI18n,
 } from '@hozo/behaviors'
+// Joins class strings in the shape the compiler decomposes (#873). Engine
+// owns it so that packages below core can use it without a cycle.
+export { type CxValue, cx } from '@hozo/engine'
 export {
   type Autocomplete,
   avatarInitials,

@@ -1474,3 +1474,18 @@ fn a_callers_class_goes_after_the_resting_look_and_before_the_state() {
     // The element's own state comes after.
     assert!(caller < at("(off) && hozoStyles.hozo0_disabled"), "{}", output.jsx);
 }
+
+/// `cx` from `@hozo/core` merges a caller's className with no dependency,
+/// and keeps the component's own state styles, as `clsx` does (#873).
+#[test]
+fn core_cx_keeps_a_components_state_styles_beside_a_callers_class() {
+    let source = r#"
+            import { Button, cx } from '@hozo/core'
+            const el = <Button disabled={off} className={cx('p-2 disabled:opacity-50', className)}>Save</Button>
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.jsx.contains("(off) && hozoStyles.hozo0_disabled"), "{}", output.jsx);
+    assert!(output.jsx.contains("hozoClasses(className, "), "{}", output.jsx);
+    assert!(!output.jsx.contains("cx("), "{}", output.jsx);
+}
