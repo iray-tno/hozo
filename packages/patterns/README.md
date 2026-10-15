@@ -116,6 +116,16 @@ export function Settings({ open, onClose }) {
 
 ## Verification Matrix: `Chip`, `Avatar`, `Pagination`, `Stepper`, `OtpInput`, `CommandPalette`, `ColorPicker`
 
+`OtpInput` has one focus owner: its real input. Put `focus:*` and
+`focus-visible:*` on `inputClassName`. The wrapper and virtual cells do not
+borrow that focus on either platform.
+Use unconditional classes in `activeCellClassName` to decorate the current
+insertion cell while the field is focused, and `filledCellClassName` for cells
+containing a character. Neither adds a focus stop. The virtual caret follows
+the actual input selection independently of these class lists.
+Negated runtime state variants still report their existing unsupported-class
+diagnostics; this does not expand which variants compile on a virtual cell.
+
 These arrived after 0.2.0 (#141, #144, #149, #150, #152, #153). What has checked them, and what has not:
 
 | | axe (every PR) | Virtual reader (every PR) | NVDA (weekly) | VoiceOver, macOS (weekly) | TalkBack | iOS VoiceOver |

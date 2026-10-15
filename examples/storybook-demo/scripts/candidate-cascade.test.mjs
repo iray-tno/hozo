@@ -142,6 +142,133 @@ function evaluate(code, globals = {}) {
   return module.exports
 }
 
+test('OTP focus belongs to the one input, not active or filled decorative cells', {
+  skip: !executablePath,
+}, async () => {
+  const cellClasses =
+    'border-2 opacity-50 font-normal focus:outline-4 focus-visible:font-bold focus:focus-visible:border-4'
+  const inputClasses = 'focus:outline-4 focus-visible:font-bold'
+  const css = (await compile('@tailwind utilities;')).build([
+    ...cellClasses.split(' '),
+    ...inputClasses.split(' '),
+  ])
+  const bundle = await build({
+    stdin: {
+      contents: `
+        import React from 'react';
+        import {createRoot} from 'react-dom/client';
+        import {OtpInput} from '@hozo/patterns';
+        const slots = ['cellClassName', 'activeCellClassName', 'filledCellClassName'];
+        createRoot(document.getElementById('root')).render(<>
+          <button id="before">Before</button>
+          {slots.map(slot => <OtpInput key={slot} testID={slot} accessibilityLabel={slot}
+            length={3} defaultValue="1" inputClassName=${JSON.stringify(inputClasses)}
+            {...{[slot]: ${JSON.stringify(cellClasses)}}}/>) }
+          <button id="after">After</button>
+        </>);
+      `,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<style>${css}</style><div id="root"></div>`)
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.locator('#before').focus()
+    for (const slot of ['cellClassName', 'activeCellClassName', 'filledCellClassName']) {
+      const root = page.getByTestId(slot)
+      const field = root.locator('input')
+      const cells = root.locator(':scope > span[aria-hidden]')
+      assert.equal(await field.count(), 1)
+      assert.equal(await cells.count(), 3)
+      // Real Tab navigation: the virtual cells must not insert extra stops.
+      await page.keyboard.press('Tab')
+      assert.equal(await field.evaluate((e) => e === document.activeElement), true, slot)
+      await page.keyboard.press('End')
+      assert.equal(await field.evaluate((e) => getComputedStyle(e).outlineWidth), '4px', slot)
+      assert.equal(await root.evaluate((e) => e.matches(':focus')), false, slot)
+      const assertCells = async () => {
+        const styles = await cells.evaluateAll((nodes) =>
+          nodes.map((e) => {
+            const style = getComputedStyle(e)
+            return {
+              focused: e.matches(':focus'),
+              visible: e.matches(':focus-visible'),
+              outline: style.outlineWidth,
+              weight: style.fontWeight,
+            }
+          }),
+        )
+        for (const style of styles) {
+          assert.equal(style.focused, false, slot)
+          assert.equal(style.visible, false, slot)
+          assert.notEqual(style.outline, '4px', slot)
+          assert.notEqual(style.weight, '700', slot)
+        }
+      }
+      await assertCells()
+      const target = slot === 'activeCellClassName' ? 1 : 0
+      assert.deepEqual(
+        await cells.nth(target).evaluate((e) => {
+          const style = getComputedStyle(e)
+          return [style.opacity, style.borderTopWidth, style.fontWeight]
+        }),
+        ['0.5', '2px', '400'],
+        `${slot}: unconditional decoration still applies`,
+      )
+      await field.press('Home')
+      await page.waitForFunction((slot) => {
+        const root = document.querySelector(`[data-testid="${slot}"]`)
+        return (
+          root.querySelector('[data-hozo-otp-caret]')?.parentElement ===
+          root.querySelector('span[aria-hidden]')
+        )
+      }, slot)
+      await assertCells()
+      assert.equal(await root.locator('[data-hozo-otp-caret]').getAttribute('aria-hidden'), 'true')
+      assert.equal(
+        await root
+          .locator('[data-hozo-otp-caret]')
+          .evaluate((e) => getComputedStyle(e).pointerEvents),
+        'none',
+      )
+      await field.press('Shift+ArrowRight')
+      assert.equal(
+        await root.locator('[data-hozo-otp-caret]').count(),
+        0,
+        'a selection range hides the caret',
+      )
+      // Blur independently of Tab, then restore the field so the next Tab
+      // continues the real browser's order rather than a simulated iterator.
+      await field.evaluate((e) => e.blur())
+      await page.waitForFunction(
+        (slot) => !document.querySelector(`[data-testid="${slot}"] [data-hozo-otp-caret]`),
+        slot,
+      )
+      await assertCells()
+      if (slot === 'activeCellClassName')
+        assert.equal(await cells.nth(0).evaluate((e) => getComputedStyle(e).opacity), '1')
+      await field.focus()
+    }
+    await page.keyboard.press('Tab')
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'after')
+    await page.keyboard.press('Shift+Tab')
+    assert.equal(
+      await page.getByLabel('filledCellClassName').evaluate((e) => e === document.activeElement),
+      true,
+    )
+  } finally {
+    await page.close()
+  }
+})
+
 test('standalone NativeSelect SSR shares the pointer policy without hydration', {
   skip: !executablePath,
 }, async () => {

@@ -28,9 +28,10 @@ export interface HozoOtpInputProps {
    * Tailwind classes, the same props the Web half takes. Read by the
    * compiler, which hands them over as the style props below; a file it did
    * not read leaves them here as strings, resolved through the project's
-   * candidate map (#886) before the matching style prop -- a cell with the
-   * input's focused/focus-visible state when it is the active one, and the
-   * wrapper's hover/press facts. Input focus never comes from the wrapper.
+   * candidate map (#886) before the matching style prop. Cells retain the
+   * wrapper's hover/press facts, but never borrow the input's focus: their Web
+   * hosts are unfocusable spans. Use activeCellClassName for the insertion
+   * cell's look, and inputClassName for focus/focus-visible styling.
    */
   className?: string
   cellClassName?: string
@@ -155,11 +156,10 @@ export function HozoOtpInput({
           <>
             {Array.from({ length }, (_, position) => position).map((index) => {
               const character = characters[index]
-              const facts = {
-                ...wrapperFacts(interaction),
-                focused: focused && index === active,
-                focusVisible: inputInteraction.focusVisible && index === active,
-              }
+              // Being the insertion cell is not DOM focus. Even the active
+              // cell cannot borrow focus/focus-visible from the field; the
+              // class-list gate below already owns its active decoration.
+              const facts = wrapperFacts(interaction)
               const [cellBox, cellText] = splitTextStyle([
                 hozoClasses(cellClassName, facts),
                 cellStyle,
