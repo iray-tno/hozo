@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
-
+import { readAnalysisAliases } from './analysis-config.ts'
 import {
   type CandidateCache,
   type ClassHelper,
@@ -718,4 +718,86 @@ export function writeFileIfChanged(file: string, content: string): boolean {
 export function importSpecifier(fromFile: string, target: string): string {
   const relative = path.relative(path.dirname(fromFile), target).replaceAll('\\', '/')
   return relative.startsWith('.') ? relative : `./${relative}`
+}
+
+const RESOLVABLE = ['.tsx', '.ts', '.jsx', '.js', '.mts', '.mjs']
+
+/**
+ * A resolver that needs no bundler: relative specifiers, and the project's
+ * tsconfig `paths` (so `@/lib/utils` resolves as an Expo or Vite project
+ * writes it). For the integration that has to decide before its bundler's
+ * resolver can be asked: Metro, whose cache key is computed at startup.
+ * A specifier it cannot resolve is a helper not found, which a declaration
+ * can still supply.
+ */
+export function staticResolver(
+  root: string,
+): (specifier: string, importer: string) => string | undefined {
+  let paths: Record<string, string[]> = {}
+  try {
+    const alias = readAnalysisAliases(root)
+    if (alias.fact.status === 'resolved') paths = alias.fact.value.paths
+  } catch {
+    // An unreadable tsconfig leaves only relative specifiers.
+  }
+  const probe = (base: string) => {
+    if (RESOLVABLE.includes(path.extname(base)) && existsSync(base)) return base
+    for (const stem of [base, path.join(base, 'index')]) {
+      for (const extension of RESOLVABLE) {
+        if (existsSync(stem + extension)) return stem + extension
+      }
+    }
+    return undefined
+  }
+  return (specifier, importer) => {
+    if (specifier.startsWith('.')) return probe(path.resolve(path.dirname(importer), specifier))
+    for (const [key, targets] of Object.entries(paths)) {
+      const [prefix, suffix] = key.split('*')
+      const matches =
+        suffix === undefined
+          ? key === specifier
+          : specifier.startsWith(prefix ?? '') && specifier.endsWith(suffix)
+      if (!matches) continue
+      const capture =
+        suffix === undefined
+          ? ''
+          : specifier.slice((prefix ?? '').length, specifier.length - suffix.length)
+      for (const target of targets) {
+        const found = probe(target.replace('*', capture))
+        if (found) return found
+      }
+    }
+    return undefined
+  }
+}
+
+/**
+ * Every class helper each file of the project calls, by absolute importer,
+ * found with `staticResolver` (#964). Files that call none are left out.
+ */
+export function projectClassHelpers(
+  root: string,
+  files: readonly string[],
+): Record<string, ClassHelper[]> {
+  const resolve = staticResolver(root)
+  const out: Record<string, ClassHelper[]> = {}
+  for (const file of files) {
+    const importer = path.resolve(file)
+    let source: string
+    try {
+      source = readFileSync(importer, 'utf8')
+    } catch {
+      continue
+    }
+    if (!source.includes('className')) continue
+    const found: ClassHelper[] = []
+    for (const { specifier, imported } of classHelperCandidates(source)) {
+      const target = resolve(specifier, importer)
+      if (target && SCRIPT.test(target) && helperExports(target).includes(imported)) {
+        found.push({ module: specifier, name: imported })
+      }
+    }
+    if (found.length > 0) out[importer] = found
+  }
+  return out
 }

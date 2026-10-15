@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 
-import { transform, withHozo } from './index.ts'
+import { getCacheKey, transform, withHozo } from './index.ts'
 
 const ITEM = `import { Pressable } from '@hozo/core'
 import { cn } from '@/lib/utils'
@@ -40,4 +40,50 @@ test("a declared helper keeps the pressable's own pressed style", async () => {
   assert.match(declared, /hozoClasses\(className, /)
   const undeclared = await compiled({})
   assert.doesNotMatch(undeclared, /hozo\w*_pressed:/)
+})
+
+const UTILS = `import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+`
+
+/** A project with shadcn's `cn` behind a tsconfig `@/` alias, on disk. */
+async function detected(options: Parameters<typeof withHozo>[1]) {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-metro-found-'))
+  try {
+    mkdirSync(path.join(root, 'src', 'lib'), { recursive: true })
+    writeFileSync(
+      path.join(root, 'tsconfig.json'),
+      JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { '@/*': ['./src/*'] } } }),
+    )
+    writeFileSync(path.join(root, 'src', 'lib', 'utils.ts'), UTILS)
+    const item = path.join(root, 'src', 'Item.tsx')
+    writeFileSync(item, ITEM)
+    const upstream = path.join(root, 'upstream.cjs')
+    writeFileSync(upstream, 'module.exports = { transform: (params) => params.src }\n')
+    await withHozo(
+      { projectRoot: root, transformer: { babelTransformerPath: upstream } },
+      { root, ...options },
+    )
+    const output = (await transform({
+      src: ITEM,
+      filename: item,
+      options: { projectRoot: root, platform: 'ios' },
+    })) as string
+    return { output, key: getCacheKey({ projectRoot: root }) }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+}
+
+test("shadcn/ui's cn is found through the tsconfig alias, with no declaration", async () => {
+  const found = await detected({})
+  assert.match(found.output, /hozo\w*_pressed:/)
+  assert.match(found.output, /hozoClasses\(className, /)
+  // Undone by a declaration, and the cache key says the output changed.
+  const refused = await detected({
+    classHelpers: [{ module: '@/lib/utils', name: 'cn', recognize: false }],
+  })
+  assert.doesNotMatch(refused.output, /hozo\w*_pressed:/)
+  assert.notEqual(found.key, refused.key)
 })
