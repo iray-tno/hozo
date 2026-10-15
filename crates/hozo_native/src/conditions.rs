@@ -445,6 +445,7 @@ pub(super) fn build_style_entries(
                     Ok(guards::Guard::Known(false)) => {}
                     Ok(guards::Guard::Dynamic(guard)) => conditional.extend(guarded(&format!("{guard} && "))),
                     Ok(guards::Guard::Interactive(guard)) => pressed_parts.extend(guarded(&format!("{guard} && "))),
+                    Ok(guards::Guard::InteractiveScoped { available, predicate }) => pressed_parts.extend(guarded(&format!("({available} && {predicate}) && "))),
                     Ok(guards::Guard::Scoped { available, predicate }) => conditional.extend(guarded(&format!("({available} && {predicate}) && "))),
                     Err(reason) => diagnostics.push(unwired_variant(node, &reason, Severity::Error)),
                 }
@@ -525,6 +526,10 @@ pub(super) fn build_style_entries(
                                     Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
                                     Ok(guards::Guard::Interactive(guard)) => {
                                         guards.push(guard);
+                                        uses_interactive_state = true;
+                                    }
+                                    Ok(guards::Guard::InteractiveScoped { available, predicate }) => {
+                                        guards.push(format!("({available} && {predicate})"));
                                         uses_interactive_state = true;
                                     }
                                     Ok(guards::Guard::Scoped { available, predicate }) => {

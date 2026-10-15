@@ -1721,11 +1721,9 @@ pub(super) fn render_node(
                 let owner = crate::pattern::interaction_slot(node.primitive, slot.class_prop)
                     .expect("a pattern interaction guard requires a consuming slot");
                 let availability = if owner.optional_owner.is_some() {
-                    // Guard after resolving/negating/stacking the predicate:
-                    // absence of the optional button must never mean not-hover.
-                    pressed = pressed.into_iter()
-                        .map(|part| format!("interactionAvailable && ({part})"))
-                        .collect();
+                    // Only event predicates require a button. The guard
+                    // resolver keeps that availability outside negation;
+                    // semantic predicates also apply to descriptive rows.
                     ", interactionAvailable"
                 } else {
                     ""

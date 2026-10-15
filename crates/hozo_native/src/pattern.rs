@@ -29,6 +29,16 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             _ => None,
         };
     }
+    if primitive == Primitive::Stepper && matches!(class_prop, "stepClassName" | "completedStepClassName" | "currentStepClassName" | "errorStepClassName") {
+        return match condition {
+            Condition::Disabled => Some("__hozoSlotDisabled"),
+            Condition::Enabled => Some("__hozoSlotEnabled"),
+            // Web uses aria-current on the li, not either of these attributes
+            // on the button or descriptive row that owns the classes.
+            Condition::Aria(state) if matches!(state.as_str(), "selected" | "disabled") => Some("false"),
+            _ => None,
+        };
+    }
     None
 }
 
@@ -37,6 +47,8 @@ pub(super) fn semantic_parameters(primitive: Primitive) -> &'static str {
         ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed"
     } else if primitive == Primitive::Pagination {
         ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled"
+    } else if primitive == Primitive::Stepper {
+        ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled"
     } else {
         ""
     }

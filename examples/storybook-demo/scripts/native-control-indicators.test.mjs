@@ -1308,6 +1308,86 @@ test('Native Stepper decorative status slots retain base and explicit styles wit
   }
 })
 
+test('Native Stepper runtime semantics follow the class owner, not selected or disabled announcements', async (t) => {
+  const semantics = 'disabled:opacity-25 aria-disabled:border-4 aria-selected:outline-4'
+  const steps = ['completed', 'current', 'error', 'upcoming'].map((status) => ({
+    label: status,
+    description: 'Details',
+    status,
+    disabled: true,
+  }))
+  const changes = []
+  const props = {
+    steps,
+    activeStep: 0,
+    onStepPress: (index) => changes.push(index),
+    stepClassName: semantics,
+    completedStepClassName: semantics,
+    currentStepClassName: semantics,
+    errorStepClassName: semantics,
+    indicatorClassName: semantics,
+    completedIndicatorClassName: semantics,
+    currentIndicatorClassName: semantics,
+    errorIndicatorClassName: semantics,
+    descriptionClassName: semantics,
+  }
+  const tree = await mount(t, HozoStepper, props)
+  const hosts = () => tree.root.findAllByType('NativePressable')
+  const check = (row, disabled) => {
+    assert.equal(flat(row.props.style).opacity, disabled ? 0.25 : undefined)
+    assert.equal(flat(row.props.style).borderTopWidth, undefined, 'no aria-disabled attribute')
+    assert.equal(flat(row.props.style).outlineWidth, undefined, 'selected is not aria-selected')
+    const views = row.findAllByType('NativeView')
+    // In descriptive mode findAll also includes the row itself.
+    const decorations = views.filter((node) => node !== row)
+    for (const node of decorations) {
+      assert.equal(flat(node.props.style).opacity, undefined, 'spans are never disabled')
+      assert.equal(flat(node.props.style).borderTopWidth, undefined)
+      assert.equal(flat(node.props.style).outlineWidth, undefined)
+    }
+  }
+  for (const [index, row] of hosts().entries()) {
+    assert.deepEqual(row.props.accessibilityState, { selected: index === 1, disabled: true })
+    check(row, true)
+    await press(row)
+  }
+  assert.deepEqual(changes, [], 'disabled activation is still suppressed')
+  await act(() =>
+    tree.update(
+      React.createElement(HozoStepper, {
+        ...props,
+        steps: steps.map((step) => ({ ...step, disabled: false })),
+      }),
+    ),
+  )
+  for (const row of hosts()) check(row, false)
+  await press(hosts()[3])
+  assert.deepEqual(changes, [3])
+  await act(() =>
+    tree.update(React.createElement(HozoStepper, { ...props, onStepPress: undefined })),
+  )
+  assert.equal(hosts().length, 0)
+  const rows = tree.root.findAllByType('NativeView').filter((node) => node.props.accessible)
+  assert.equal(rows.length, 4)
+  assert.deepEqual(rows[1].props.accessibilityState, { selected: true })
+  for (const row of rows) check(row, false)
+  await act(() =>
+    tree.update(
+      React.createElement(HozoStepper, {
+        ...props,
+        stepStyle: { opacity: 0.9 },
+        currentStepStyle: { opacity: 0.8 },
+        indicatorStyle: { opacity: 0.7 },
+        descriptionStyle: { opacity: 0.6 },
+      }),
+    ),
+  )
+  assert.equal(flat(hosts()[1].props.style).opacity, 0.8)
+  assert.equal(flat(hosts()[3].props.style).opacity, 0.9)
+  assert.equal(flat(hosts()[1].findAllByType('NativeView')[0].props.style).opacity, 0.7)
+  assert.equal(flat(hosts()[1].findAllByType('NativeView')[2].props.style).opacity, 0.6)
+})
+
 test('Native Chip standalone toggle delivers interaction without changing selection and preserves controlled state', async (t) => {
   const changed = []
   const tree = await mount(t, HozoChip, {

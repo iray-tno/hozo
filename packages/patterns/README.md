@@ -140,6 +140,27 @@ Use `currentItemClassName` for current-page decoration; arbitrary aria-current
 value selectors are not added here. Boundary activation stays disabled on
 Native for both roles, and explicit slot styles retain precedence.
 
+## Semantic state of Stepper class slots
+
+Stepper's four step/status class props belong to a button when `onStepPress`
+is provided, otherwise to a descriptive list item. Only the button can match
+`disabled:*`/`enabled:*`. A descriptive row matches neither positive predicate,
+but does match their negations in literal compiled classes, even when its
+step data says `disabled`. Event predicates, including negated ones, still
+require the optional button; its absence must not activate `not-hover:*`.
+Neither owner writes `aria-selected` or `aria-disabled`. Native's current-step
+`selected` announcement and real disabled activation guard remain unchanged;
+they are not CSS attributes. Use `currentStepClassName` for current status
+(Web uses `aria-current="step"` on the list item).
+
+Candidate classes and private compiled callbacks use the same owner facts.
+Indicators and descriptions do not borrow disabled/enabled or ARIA semantics;
+text still inherits the step's typography before explicit slot overrides.
+This adds no compiled decorative state handling and does not expand
+arbitrary dynamic classes, runtime negation/enabled variants, or
+arbitrary aria-current value selectors. Existing hover/press propagation is
+unchanged, not a new cross-platform parity claim.
+
 ## Focus ownership of decorative slots
 
 `OtpInput` has one focus owner: its real input. Put `focus:*` and
@@ -165,8 +186,8 @@ focus ring. Decorative indicator/status-indicator and description class props
 do not borrow `focus:*` or `focus-visible:*`. Their text still inherits the
 step's typography, including focus-driven text styles, unless the decorative
 slot overrides it. Explicit slot styles retain precedence. Static decorative
-focus variants remain diagnosed; this does not change the existing hover,
-press or semantic-state propagation, or add a focus stop to descriptive steps.
+focus variants remain diagnosed; this does not change the existing hover or
+press propagation, or add a focus stop to descriptive steps.
 
 ## Verification Matrix: `Chip`, `Avatar`, `Pagination`, `Stepper`, `OtpInput`, `CommandPalette`, `ColorPicker`
 

@@ -1172,9 +1172,9 @@ fn stepper_compiles_only_authored_button_slots_and_scopes_negation_to_that_owner
     let output = compile(r#"onStepPress={handler} stepClassName="px-2 hover:text-white active:opacity-50 not-hover:border-2" completedStepClassName="focus:bg-blue-500" currentStepClassName="bg-red-500 focus-visible:outline-4" errorStepClassName="md:not-hover:opacity-25" stepStyle={extra} currentStepStyle={currentExtra}"#);
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     for prop in ["hozoStepStyle", "hozoCompletedStepStyle", "hozoCurrentStepStyle", "hozoErrorStepStyle"] {
-        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible, interactionAvailable }}) => [")), "{}", output.jsx);
+        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible, interactionAvailable, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled }}) => [")), "{}", output.jsx);
     }
-    for expected in ["interactionAvailable && (hovered &&", "interactionAvailable && (pressed &&", "interactionAvailable && (!(hovered) &&", "focused &&", "focusVisible &&", "stepStyle={extra}", "currentStepStyle={currentExtra}"] {
+    for expected in ["(interactionAvailable && hovered) &&", "(interactionAvailable && pressed) &&", "(interactionAvailable && !(hovered)) &&", "(interactionAvailable && focused) &&", "(interactionAvailable && focusVisible) &&", "stepStyle={extra}", "currentStepStyle={currentExtra}"] {
         assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
     }
     for slot in ["stepClassName", "completedStepClassName", "currentStepClassName", "errorStepClassName"] {
@@ -1189,10 +1189,38 @@ fn stepper_compiles_only_authored_button_slots_and_scopes_negation_to_that_owner
         let output = compile(&format!(r#"onStepPress={{handler}} {slot}="not-focus-visible:outline-2""#));
         assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
     }
-    for condition in ["aria-selected", "disabled", "hover:aria-selected"] {
+    for condition in ["aria-checked", "not-aria-expanded", "hover:aria-pressed"] {
         let output = compile(&format!(r#"onStepPress={{handler}} stepClassName="{condition}:opacity-50""#));
         assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{condition}: {:?}", output.diagnostics);
     }
+}
+
+#[test]
+fn stepper_semantics_describe_the_class_owner_even_without_a_button() {
+    for slot in ["stepClassName", "completedStepClassName", "currentStepClassName", "errorStepClassName"] {
+        let source = format!(r#"import {{ Stepper }} from '@hozo/core'
+          const el = <Stepper steps={{steps}} activeStep={{0}}
+            {slot}="px-2 disabled:opacity-50 enabled:border-2 not-disabled:bg-blue-500 not-enabled:outline-4 not-aria-selected:font-bold not-aria-disabled:text-red-500 disabled:not-enabled:underline"
+            />"#);
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{slot}: {:?}", output.diagnostics);
+        for predicate in ["__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "!(__hozoSlotDisabled) &&", "!(__hozoSlotEnabled) &&", "__hozoSlotDisabled && !(__hozoSlotEnabled) &&"] {
+            assert!(output.jsx.contains(predicate), "{predicate}: {}", output.jsx);
+        }
+        // The callback needs local facts, not an event-owner gate around all
+        // entries: descriptive rows must match both negative pseudo-classes.
+        assert!(!output.jsx.contains("interactionAvailable &&"), "{}", output.jsx);
+        assert!(output.styles.contains("fontWeight: '700'") && output.styles.contains("color: '#fb2c36'"), "{}", output.styles);
+    }
+    let source = r#"import { Stepper } from '@hozo/core'
+      const el = <Stepper steps={steps} activeStep={0} onStepPress={handler}
+        stepClassName="not-disabled:not-hover:opacity-50" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("(interactionAvailable && !(hovered))"), "{}", output.jsx);
+    assert!(output.jsx.contains("!(__hozoSlotDisabled)"), "{}", output.jsx);
 }
 
 #[test]

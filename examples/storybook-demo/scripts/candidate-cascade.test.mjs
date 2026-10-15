@@ -343,6 +343,113 @@ test('Chip semantic classes observe the Web class owner across standalone and co
   }
 })
 
+test('Stepper semantic classes distinguish button disabled state from descriptive rows and announcements', {
+  skip: !executablePath,
+}, async () => {
+  const classes =
+    'border-0 border-solid p-0 opacity-100 disabled:opacity-25 enabled:px-2 not-disabled:py-1 not-enabled:border-4 aria-selected:opacity-50 aria-disabled:px-4'
+  const css = (await compile('@theme { --spacing: 0.25rem; } @tailwind utilities;')).build(
+    classes.split(' '),
+  )
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Stepper} from '@hozo/patterns';
+        window.stepperSemanticSelections = [];
+        createRoot(document.getElementById('root')).render(<>{[false, true].flatMap(clickable =>
+          [false, true].map(disabled => <section key={clickable + '-' + disabled}
+            id={'steps-' + clickable + '-' + disabled}><Stepper activeStep={1}
+              steps={['completed','current','error','upcoming'].map(status => ({label:status,status,disabled,description:'Details'}))}
+              {...(clickable ? {onStepPress: index => window.stepperSemanticSelections.push(index)} : {})}
+              stepClassName=${JSON.stringify(classes)}
+              completedStepClassName=${JSON.stringify(classes)}
+              currentStepClassName=${JSON.stringify(classes)}
+              errorStepClassName=${JSON.stringify(classes)}
+              indicatorClassName=${JSON.stringify(classes)}
+              completedIndicatorClassName=${JSON.stringify(classes)}
+              currentIndicatorClassName=${JSON.stringify(classes)}
+              errorIndicatorClassName=${JSON.stringify(classes)}
+              descriptionClassName=${JSON.stringify(classes)} /></section>)
+        )}</>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(`<style>${css}</style><div id="step-aria-control" aria-selected="true"
+      aria-disabled="true" class="${classes}"></div><div id="root"></div>`)
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(() => document.querySelectorAll('#root li').length === 16)
+    const read = (locator) =>
+      locator.evaluate((e) => {
+        const style = getComputedStyle(e)
+        return {
+          disabled: e.matches(':disabled'),
+          enabled: e.matches(':enabled'),
+          selected: e.getAttribute('aria-selected'),
+          ariaDisabled: e.getAttribute('aria-disabled'),
+          opacity: style.opacity,
+          border: style.borderTopWidth,
+          padding: [style.paddingTop, style.paddingLeft],
+        }
+      })
+    assert.equal((await read(page.locator('#step-aria-control'))).opacity, '0.5')
+    assert.equal((await read(page.locator('#step-aria-control'))).padding[1], '16px')
+    for (const clickable of [false, true])
+      for (const disabled of [false, true]) {
+        const rows = page.locator(`#steps-${clickable}-${disabled} li`)
+        for (let index = 0; index < 4; index++) {
+          const row = rows.nth(index)
+          const owner = clickable ? row.locator('button') : row
+          assert.deepEqual(
+            await read(owner),
+            {
+              disabled: clickable && disabled,
+              enabled: clickable && !disabled,
+              selected: null,
+              ariaDisabled: null,
+              opacity: clickable && disabled ? '0.25' : '1',
+              border: clickable && !disabled ? '0px' : '4px',
+              padding: [
+                clickable && disabled ? '0px' : '4px',
+                clickable && !disabled ? '8px' : '0px',
+              ],
+            },
+            `${clickable}/${disabled}/${index}`,
+          )
+          assert.equal(await row.getAttribute('aria-current'), index === 1 ? 'step' : null)
+          // Decorations are spans: they match neither positive pseudo-class,
+          // even when their enclosing button is disabled or current.
+          for (const position of [0, 2]) {
+            assert.deepEqual(await read(owner.locator('span[aria-hidden="true"]').nth(position)), {
+              disabled: false,
+              enabled: false,
+              selected: null,
+              ariaDisabled: null,
+              opacity: '1',
+              border: '4px',
+              padding: ['4px', '0px'],
+            })
+          }
+          if (clickable && !disabled) await owner.click()
+        }
+      }
+    assert.deepEqual(await page.evaluate(() => window.stepperSemanticSelections), [0, 1, 2, 3])
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('Stepper focus stays on each button while decorative slots inherit only its typography', {
   skip: !executablePath,
 }, async () => {

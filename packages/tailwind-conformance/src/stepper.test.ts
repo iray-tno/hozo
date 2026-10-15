@@ -276,3 +276,129 @@ test('authored step and current styles remain last after compiled interaction en
     renderer.act(() => root.unmount())
   }
 })
+
+const SEMANTIC_SOURCE = `
+  import { Stepper } from '@hozo/core'
+  export function C({ steps, activeStep = 0, onStepPress, stepStyle, currentStepStyle }) {
+    return <Stepper steps={steps} activeStep={activeStep} onStepPress={onStepPress}
+      stepClassName="px-2 disabled:opacity-25 enabled:border-2 not-disabled:rounded-lg not-enabled:outline-4 aria-selected:font-bold not-aria-selected:text-red-500 aria-disabled:italic not-aria-disabled:underline not-disabled:not-hover:mt-3"
+      completedStepClassName="disabled:bg-blue-500 not-enabled:pt-1"
+      currentStepClassName="disabled:bg-blue-500 not-enabled:pt-1"
+      errorStepClassName="disabled:bg-blue-500 not-enabled:pt-1"
+      stepStyle={stepStyle} currentStepStyle={currentStepStyle} />
+  }`
+
+test('compiled step semantics distinguish buttons from descriptive rows without borrowing announcements', () => {
+  const { C } = loadNativeModule(SEMANTIC_SOURCE)
+  const steps = ['completed', 'current', 'error', 'upcoming'].map((status) => ({
+    label: status,
+    description: 'Details',
+    status,
+    disabled: true,
+  }))
+  let root: ReturnType<typeof renderer.create>
+  const render = (props = {}) =>
+    renderer.act(() => {
+      const element = react.createElement(C, { steps, ...props })
+      if (root) root.update(element)
+      else root = renderer.create(element)
+    })
+  const rows = () =>
+    root.root.findAll((node: Tree) => node.type === 'View' && node.props.accessible === true)
+  const buttons = () => root.root.findAll((node: Tree) => node.type === 'Pressable')
+  const checkText = (node: Tree) => {
+    for (const text of node.findAll((child: Tree) => child.type === 'Text')) {
+      assert.equal(
+        flat(text).color,
+        '#fb2c36',
+        'negative aria-selected must match even for current',
+      )
+      assert.equal(flat(text).fontWeight, undefined, 'selected announcement is not aria-selected')
+      assert.equal(flat(text).fontStyle, undefined, 'disabled button does not write aria-disabled')
+      assert.equal(flat(text).textDecorationLine, 'underline')
+    }
+  }
+  try {
+    render()
+    assert.equal(buttons().length, 0)
+    for (const [index, row] of rows().entries()) {
+      assert.equal(flat(row).opacity, undefined, 'disabled data does not disable a li')
+      assert.equal(flat(row).borderTopWidth, undefined, 'a li is not enabled either')
+      assert.equal(flat(row).borderRadius, 8, 'not-disabled survives absent button')
+      assert.equal(flat(row).outlineWidth, 4, 'not-enabled survives absent button')
+      assert.equal(flat(row).paddingStart, 8)
+      assert.equal(flat(row).marginTop, undefined, 'not-hover still requires an event owner')
+      assert.equal(flat(row).backgroundColor, undefined)
+      assert.equal(
+        flat(row).paddingTop,
+        index === 3 ? undefined : 4,
+        'status semantics survive owner absence',
+      )
+      checkText(row)
+    }
+    assert.deepEqual(rows()[1].props.accessibilityState, { selected: true })
+    const onStepPress = () => {}
+    render({ onStepPress })
+    for (const [index, button] of buttons().entries()) {
+      assert.equal(button.props.disabled, true)
+      assert.deepEqual(button.props.accessibilityState, { selected: index === 1, disabled: true })
+      assert.equal(flat(button).opacity, 0.25)
+      assert.equal(flat(button).borderTopWidth, undefined)
+      assert.equal(flat(button).borderRadius, undefined)
+      assert.equal(flat(button).outlineWidth, 4)
+      assert.equal(flat(button).backgroundColor, index === 3 ? undefined : '#2b7fff')
+      checkText(button)
+    }
+    render({ steps: steps.map((step) => ({ ...step, disabled: false })), onStepPress })
+    for (const button of buttons()) {
+      assert.equal(flat(button).opacity, undefined)
+      assert.equal(flat(button).borderTopWidth, 2)
+      assert.equal(flat(button).outlineWidth, undefined)
+      assert.equal(flat(button).borderRadius, 8)
+      assert.equal(flat(button).marginTop, 12, 'enabled unhovered button matches the stack')
+      checkText(button)
+    }
+    event(buttons()[3], 'onHoverIn')
+    assert.equal(flat(buttons()[3]).marginTop, undefined)
+    render()
+    assert.equal(
+      flat(rows()[3]).marginTop,
+      undefined,
+      'no old interaction leaks into a descriptive row',
+    )
+    render({
+      onStepPress,
+      stepStyle: { opacity: 0.9, color: '#123456' },
+      currentStepStyle: { opacity: 0.8 },
+    })
+    assert.equal(flat(buttons()[1]).opacity, 0.8)
+    assert.equal(flat(buttons()[3]).opacity, 0.9)
+    assert.equal(
+      flat(buttons()[1].findAll((node: Tree) => node.type === 'Text')[2]).color,
+      '#123456',
+    )
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('literal semantic-only step classes need no authored interaction driver', () => {
+  const { C } = loadNativeModule(`import { Stepper } from '@hozo/core'
+    export function C() {return <Stepper steps={[{label:'One',disabled:true}]} activeStep={0}
+      stepClassName="disabled:opacity-25 enabled:border-2 not-disabled:rounded-lg not-enabled:outline-4 not-aria-selected:font-bold" />}`)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C))
+  })
+  try {
+    const row = root.root.findAll((node: Tree) => node.type === 'View' && node.props.accessible)[0]
+    assert.equal(flat(row).opacity, undefined)
+    assert.equal(flat(row).borderTopWidth, undefined)
+    assert.equal(flat(row).borderRadius, 8)
+    assert.equal(flat(row).outlineWidth, 4)
+    assert.equal(flat(row.findAll((node: Tree) => node.type === 'Text')[1]).fontWeight, '700')
+    assert.deepEqual(row.props.accessibilityState, { selected: true })
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
