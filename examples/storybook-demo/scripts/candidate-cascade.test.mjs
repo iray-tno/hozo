@@ -146,10 +146,14 @@ test('standalone NativeSelect SSR shares the pointer policy without hydration', 
   skip: !executablePath,
 }, async () => {
   const utilities = ['cursor-default', 'cursor-auto', 'cursor-wait', 'cursor-not-allowed']
+  cache.scanFile('picker-cursors.ts', `export const classes = '${utilities.join(' ')}'`, 1)
   const cssVariants = [
     ['Hozo candidates', cache.renderCss(undefined, utilities)],
     ['Tailwind', (await compile('@tailwind utilities;')).build(utilities)],
   ]
+  for (const [name, css] of cssVariants) {
+    for (const utility of utilities) assert.ok(css.includes(`.${utility}`), `${name}: ${utility}`)
+  }
   // NativeSelect is a platform-owned picker, not a DOM primitive that may
   // be substituted. Exercise the same module-lowering boundary as bundlers;
   // an unchanged module is still rendered through its published form entry.
