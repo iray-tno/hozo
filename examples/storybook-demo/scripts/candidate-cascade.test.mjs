@@ -343,6 +343,154 @@ test('Chip semantic classes observe the Web class owner across standalone and co
   }
 })
 
+test('ColorPicker semantic classes read each radio checked and disabled state without invented ARIA', {
+  skip: !executablePath,
+}, async () => {
+  const classes =
+    'size-8 border-0 border-solid outline-0 rounded-none opacity-100 disabled:opacity-25 enabled:rounded-lg not-disabled:mt-1 not-enabled:mb-1 aria-checked:border-2 not-aria-checked:border-4 aria-disabled:outline-8 aria-selected:opacity-50 not-aria-disabled:pt-1 not-aria-selected:pb-1'
+  const selectedClasses =
+    'aria-checked:mt-2 not-aria-checked:mb-2 disabled:opacity-50 enabled:outline-2 not-enabled:outline-4'
+  const css = (
+    await compile('@theme { --spacing: 0.25rem; --radius-lg: 8px; } @tailwind utilities;')
+  ).build([...classes.split(' '), ...selectedClasses.split(' ')])
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {ColorPicker} from '@hozo/patterns';
+        window.colorPickerSemanticChanges = [];
+        const root = createRoot(document.getElementById('root'));
+        window.renderColorPickerSemantics = value => root.render(<>{[false, true].map(disabled =>
+          <section key={String(disabled)} id={'colors-' + disabled}>
+            <ColorPicker accessibilityLabel="Theme colour" presets={['#ef4444','#3b82f6']}
+              value={value} defaultValue="#3b82f6" disabled={disabled}
+              onChange={hex => window.colorPickerSemanticChanges.push([disabled, hex])}
+              swatchClassName=${JSON.stringify(classes)}
+              selectedSwatchClassName=${JSON.stringify(selectedClasses)}/>
+          </section>)}<section id="equivalent-colors"><ColorPicker accessibilityLabel="Equivalent colours"
+            presets={['#f00','#ff0000','not-a-colour','#000000']} value={value ?? '#ff0000'}
+            swatchClassName=${JSON.stringify(classes)} selectedSwatchClassName=${JSON.stringify(selectedClasses)}/>
+          </section></>);
+        window.renderColorPickerSemantics();`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(`<style>${css}</style><div id="color-aria-control"
+      aria-disabled="true" aria-selected="true" class="${classes}"></div><div id="root"></div>`)
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(
+      () => document.querySelectorAll('#root button[role="radio"]').length === 8,
+    )
+    const control = await page.locator('#color-aria-control').evaluate((e) => {
+      const css = getComputedStyle(e)
+      return [css.outlineWidth, css.opacity]
+    })
+    assert.deepEqual(control, ['8px', '0.5'], 'absent-attribute selectors must have real CSS')
+    const radios = (disabled) => page.locator(`#colors-${disabled} button[role="radio"]`)
+    const check = async (disabled, selected) => {
+      for (let index = 0; index < 2; index++) {
+        const checked = index === selected
+        assert.deepEqual(
+          await radios(disabled)
+            .nth(index)
+            .evaluate((e) => {
+              const css = getComputedStyle(e)
+              return {
+                checked: e.getAttribute('aria-checked'),
+                disabled: e.matches(':disabled'),
+                enabled: e.matches(':enabled'),
+                ariaDisabled: e.getAttribute('aria-disabled'),
+                selected: e.getAttribute('aria-selected'),
+                border: css.borderTopWidth,
+                radius: css.borderTopLeftRadius,
+                opacity: css.opacity,
+                outline: css.outlineWidth,
+                margins: [css.marginTop, css.marginBottom],
+                padding: [css.paddingTop, css.paddingBottom],
+                background: css.backgroundColor,
+              }
+            }),
+          {
+            checked: String(checked),
+            disabled,
+            enabled: !disabled,
+            ariaDisabled: null,
+            selected: null,
+            border: checked ? '2px' : '4px',
+            radius: disabled ? '0px' : '8px',
+            opacity: disabled ? (checked ? '0.5' : '0.25') : '1',
+            outline: checked ? (disabled ? '4px' : '2px') : '0px',
+            margins: [checked ? '8px' : disabled ? '0px' : '4px', disabled ? '4px' : '0px'],
+            padding: ['4px', '4px'],
+            background: index === 0 ? 'rgb(239, 68, 68)' : 'rgb(59, 130, 246)',
+          },
+          `${disabled}/${selected}/${index}`,
+        )
+      }
+    }
+    await check(false, 1)
+    await check(true, 1)
+    const equivalent = page.locator('#equivalent-colors button[role="radio"]')
+    const readEquivalent = () =>
+      equivalent.evaluateAll((nodes) =>
+        nodes.map((e) => ({
+          checked: e.getAttribute('aria-checked') === 'true',
+          border: getComputedStyle(e).borderTopWidth,
+        })),
+      )
+    assert.deepEqual(
+      await readEquivalent(),
+      [true, false, false, false].map((checked) => ({
+        checked,
+        border: checked ? '2px' : '4px',
+      })),
+    )
+    await radios(false).nth(0).click()
+    await check(false, 0)
+    await check(true, 1)
+    assert.deepEqual(await page.evaluate(() => window.colorPickerSemanticChanges), [
+      [false, '#ef4444'],
+    ])
+    for (const radio of await radios(true).all()) assert.equal(await radio.isDisabled(), true)
+    await page.evaluate(() => window.renderColorPickerSemantics('#ef4444'))
+    await page.waitForFunction(
+      () =>
+        document.querySelector('#colors-true button[role="radio"]').getAttribute('aria-checked') ===
+        'true',
+    )
+    await check(true, 0)
+    await check(false, 0)
+    await page.evaluate(() => window.renderColorPickerSemantics('#000000'))
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelectorAll('#equivalent-colors button[role="radio"]')[3]
+          .getAttribute('aria-checked') === 'true',
+    )
+    assert.deepEqual(
+      await readEquivalent(),
+      [false, false, false, true].map((checked) => ({
+        checked,
+        border: checked ? '2px' : '4px',
+      })),
+      'invalid preset fallback is not a checked colour',
+    )
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('Stepper semantic classes distinguish button disabled state from descriptive rows and announcements', {
   skip: !executablePath,
 }, async () => {

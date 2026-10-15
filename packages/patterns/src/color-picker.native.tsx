@@ -8,6 +8,11 @@ import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { HozoSlider } from './slider.native.tsx'
 
 type Style = StyleProp<ViewStyle | TextStyle>
+type SwatchState = InteractionState & {
+  disabled: boolean
+  enabled: boolean
+  'aria-checked': boolean
+}
 
 export interface HozoColorPickerProps {
   value?: string
@@ -38,9 +43,9 @@ export interface HozoColorPickerProps {
   swatchStyle?: Style
   selectedSwatchStyle?: Style
   /** @internal Static state classes, driven by each swatch's own host. */
-  hozoSwatchStyle?: (state: InteractionState) => Style
+  hozoSwatchStyle?: (state: SwatchState) => Style
   /** @internal Evaluated only on the currently selected swatch. */
-  hozoSelectedSwatchStyle?: (state: InteractionState) => Style
+  hozoSelectedSwatchStyle?: (state: SwatchState) => Style
   sliderStyle?: Style
   thumbStyle?: Style
   inputStyle?: Style
@@ -107,6 +112,12 @@ export function HozoColorPicker({
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
   const slider = [hozoClasses(sliderClassName), sliderStyle] as StyleProp<ViewStyle>
   const thumb = [hozoClasses(thumbClassName), thumbStyle] as StyleProp<ViewStyle>
+  // As on Web, a radio group has one checked preset, not every equivalent
+  // spelling of its colour. An invalid preset's visual fallback is not a match.
+  const selectedPreset = presets?.findIndex((preset) => {
+    const parsed = hexToHsla(preset)
+    return parsed !== null && hslaToHex(parsed) === hex
+  })
 
   return (
     <View
@@ -120,15 +131,9 @@ export function HozoColorPicker({
           accessibilityLabel={message('hozo.colorPicker.presets')}
           style={ROW}
         >
-          {presets.map((preset) => {
+          {presets.map((preset, index) => {
             const parsed = hexToHsla(preset) ?? FALLBACK
-            const checked = hslaToHex(parsed) === hslaToHex({ ...hsla, a: alpha ? hsla.a : 1 })
-            const facts = (interaction: InteractionState) => ({
-              ...interaction,
-              disabled: Boolean(disabled),
-              'aria-checked': checked,
-              'aria-disabled': Boolean(disabled),
-            })
+            const checked = index === selectedPreset
             return (
               <Pressable
                 key={preset}
@@ -137,17 +142,30 @@ export function HozoColorPicker({
                 accessibilityState={{ checked, disabled: Boolean(disabled) }}
                 disabled={disabled}
                 onPress={() => chooseHex(preset)}
-                style={(interaction) => [
-                  hozoClasses(swatchClassName, facts(interaction)),
-                  hozoSwatchStyle?.(interaction) as StyleProp<ViewStyle>,
-                  swatchStyle as StyleProp<ViewStyle>,
-                  checked && [
-                    hozoClasses(selectedSwatchClassName, facts(interaction)),
-                    hozoSelectedSwatchStyle?.(interaction) as StyleProp<ViewStyle>,
-                    selectedSwatchStyle as StyleProp<ViewStyle>,
-                  ],
-                  { backgroundColor: preset },
-                ]}
+                style={(interaction) => {
+                  // One snapshot for candidate classes and generated callbacks.
+                  // Native's disabled announcement does not write aria-disabled
+                  // on the Web button; checked is the radio's actual attribute.
+                  const state = {
+                    ...interaction,
+                    disabled: Boolean(disabled),
+                    enabled: !disabled,
+                    'aria-checked': checked,
+                    'aria-disabled': false,
+                    'aria-selected': false,
+                  }
+                  return [
+                    hozoClasses(swatchClassName, state),
+                    hozoSwatchStyle?.(state) as StyleProp<ViewStyle>,
+                    swatchStyle as StyleProp<ViewStyle>,
+                    checked && [
+                      hozoClasses(selectedSwatchClassName, state),
+                      hozoSelectedSwatchStyle?.(state) as StyleProp<ViewStyle>,
+                      selectedSwatchStyle as StyleProp<ViewStyle>,
+                    ],
+                    { backgroundColor: preset },
+                  ]
+                }}
               />
             )
           })}

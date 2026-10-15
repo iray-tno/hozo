@@ -1481,8 +1481,8 @@ fn color_picker_compiles_only_the_slots_with_real_swatch_interaction() {
     let output = compile(r#"swatchClassName="size-8 hover:opacity-50 not-focus:border-2" selectedSwatchClassName="border-2 md:focus-visible:outline-2" swatchStyle={extra} selectedSwatchStyle={selectedExtra}"#);
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     for expected in [
-        "hozoSwatchStyle={({ pressed, hovered, focused, focusVisible }) => [",
-        "hozoSelectedSwatchStyle={({ pressed, hovered, focused, focusVisible }) => [",
+        "hozoSwatchStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked }) => [",
+        "hozoSelectedSwatchStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked }) => [",
         "hovered &&", "!(focused) &&", "__hozoBp_md && focusVisible &&",
         "swatchStyle={extra}", "selectedSwatchStyle={selectedExtra}",
     ] {
@@ -1490,6 +1490,35 @@ fn color_picker_compiles_only_the_slots_with_real_swatch_interaction() {
     }
     for slot in ["className", "sliderClassName", "thumbClassName", "inputClassName"] {
         let output = compile(&format!(r#"{slot}="hover:opacity-50""#));
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+    }
+}
+
+#[test]
+fn color_picker_semantics_belong_to_each_radio_not_the_group() {
+    for slot in ["swatchClassName", "selectedSwatchClassName"] {
+        let source = format!(r#"import {{ ColorPicker }} from '@hozo/core'
+          const el = <ColorPicker accessibilityLabel="Theme"
+            {slot}="disabled:opacity-25 enabled:border-2 not-disabled:mt-1 not-enabled:mb-1 aria-checked:outline-4 not-aria-checked:rounded-lg not-aria-disabled:pt-1 not-aria-selected:pb-1 aria-checked:hover:opacity-50 disabled:not-enabled:border-4" />"#);
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{slot}: {:?}", output.diagnostics);
+        for expected in ["disabled: __hozoSlotDisabled", "enabled: __hozoSlotEnabled", "'aria-checked': __hozoSlotAriaChecked", "__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "!(__hozoSlotDisabled) &&", "!(__hozoSlotEnabled) &&", "!(__hozoSlotAriaChecked) &&", "__hozoSlotAriaChecked && hovered &&"] {
+            assert!(output.jsx.contains(expected), "{expected}: {}", output.jsx);
+        }
+        assert!(!output.jsx.contains("interactionAvailable"), "{}", output.jsx);
+        // A truly unknown state is still an error, including under negation.
+        let unsupported = source.replace("not-aria-selected:pb-1", "not-aria-expanded:pb-1");
+        let parsed = hozo_parser::parse_tsx(&unsupported);
+        let output = lower(&parsed.roots[0].node, &unsupported, &Theme::default());
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{:?}", output.diagnostics);
+    }
+    // No ARIA facts are invented for the group, track, thumb or hex field.
+    for slot in ["className", "sliderClassName", "thumbClassName", "inputClassName"] {
+        let source = format!(r#"import {{ ColorPicker }} from '@hozo/core'
+          const el = <ColorPicker accessibilityLabel="Theme" {slot}="aria-checked:opacity-50" />"#);
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
         assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
     }
 }

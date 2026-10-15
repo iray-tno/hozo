@@ -47,6 +47,10 @@ const reads = {
     'packages/patterns/src/command-palette.native.tsx',
     'packages/patterns/src/stepper.native.tsx',
     'packages/patterns/src/stepper-rules.ts',
+    'packages/patterns/src/color-picker.tsx',
+    'packages/patterns/src/color-picker.native.tsx',
+    'packages/patterns/src/color-rules.ts',
+    'packages/patterns/src/color-words.ts',
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [

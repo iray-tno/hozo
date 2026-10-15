@@ -215,3 +215,191 @@ test('compiled swatch styles keep explicit per-slot precedence and disabled host
     renderer.act(() => root.unmount())
   }
 })
+
+const SEMANTIC_SOURCE = `import { ColorPicker } from '@hozo/core'
+export function C({ value, defaultValue = '#3b82f6', onChange, disabled, swatchStyle, selectedSwatchStyle }) {
+  return <ColorPicker value={value} defaultValue={defaultValue} onChange={onChange}
+    disabled={disabled} presets={['#ef4444', '#3b82f6']} accessibilityLabel="Theme colour"
+    swatchClassName="size-8 disabled:opacity-25 enabled:rounded-lg not-disabled:mt-1 not-enabled:mb-1 aria-checked:border-2 not-aria-checked:border-4 aria-disabled:outline-8 aria-selected:opacity-50 not-aria-disabled:pt-1 not-aria-selected:pb-1 aria-checked:hover:opacity-75 not-aria-checked:not-hover:ml-2"
+    selectedSwatchClassName="aria-checked:mt-2 not-aria-checked:mb-2 disabled:opacity-50 enabled:outline-2 not-enabled:outline-4"
+    swatchStyle={swatchStyle} selectedSwatchStyle={selectedSwatchStyle} />
+}`
+
+test('compiled radio semantics follow selection and disabled changes without borrowing absent ARIA', () => {
+  const { C } = loadNativeModule(SEMANTIC_SOURCE)
+  const changes: string[] = []
+  let root: ReturnType<typeof renderer.create>
+  const render = (props = {}) =>
+    renderer.act(() => {
+      const element = react.createElement(C, {
+        onChange: (hex: string) => changes.push(hex),
+        ...props,
+      })
+      if (root) root.update(element)
+      else root = renderer.create(element)
+    })
+  const check = (selected: number, disabled: boolean) => {
+    for (const [index, radio] of radios(root).entries()) {
+      const checked = index === selected
+      assert.deepEqual(radio.props.accessibilityState, { checked, disabled })
+      assert.equal(Boolean(radio.props.disabled), disabled)
+      assert.equal(flat(radio).backgroundColor, ['#ef4444', '#3b82f6'][index])
+      assert.equal(flat(radio).borderTopWidth, checked ? 2 : 4)
+      assert.equal(flat(radio).borderRadius, disabled ? undefined : 8)
+      assert.equal(flat(radio).paddingTop, 4, 'aria-disabled is absent even on a disabled button')
+      assert.equal(flat(radio).paddingBottom, 4, 'selection uses checked, not aria-selected')
+      assert.equal(flat(radio).opacity, disabled ? (checked ? 0.5 : 0.25) : undefined)
+      assert.equal(
+        flat(radio).outlineWidth,
+        checked ? (disabled ? 4 : 2) : undefined,
+        'no absent-ARIA outline, and selected slot styles stay selected-only',
+      )
+      assert.equal(flat(radio).marginTop, checked ? 8 : disabled ? undefined : 4)
+      assert.equal(
+        flat(radio).marginBottom,
+        disabled ? 4 : undefined,
+        'negated checked styles cannot run inside the selected-only slot',
+      )
+    }
+  }
+  try {
+    render()
+    check(1, false)
+    assert.equal(flat(radios(root)[0]).marginLeft, 8)
+    event(radios(root)[0], 'onHoverIn')
+    assert.equal(flat(radios(root)[0]).marginLeft, undefined)
+    assert.equal(flat(radios(root)[0]).opacity, undefined, 'unchecked hover is not checked hover')
+    event(radios(root)[1], 'onHoverIn')
+    assert.equal(flat(radios(root)[1]).opacity, 0.75)
+    event(radios(root)[0], 'onPress')
+    assert.deepEqual(changes, ['#ef4444'])
+    assert.equal(
+      flat(radios(root)[0]).opacity,
+      0.75,
+      'checked stack moves to the hovered new radio',
+    )
+    assert.equal(flat(radios(root)[1]).opacity, undefined)
+    event(radios(root)[0], 'onHoverOut')
+    event(radios(root)[1], 'onHoverOut')
+    check(0, false)
+    render({ disabled: true })
+    check(0, true)
+    render({ value: '#3b82f6', disabled: true })
+    check(1, true)
+    render({ value: '#3b82f6', disabled: false })
+    check(1, false)
+    event(radios(root)[0], 'onPress')
+    assert.equal(changes.at(-1), '#ef4444')
+    check(1, false)
+    render({ value: '#ef4444' })
+    check(0, false)
+    render({
+      value: '#3b82f6',
+      disabled: true,
+      swatchStyle: { opacity: 0.8, borderTopWidth: 3, backgroundColor: '#000' },
+      selectedSwatchStyle: { opacity: 0.9, borderTopWidth: 5, backgroundColor: '#fff' },
+    })
+    assert.equal(flat(radios(root)[0]).opacity, 0.8)
+    assert.equal(flat(radios(root)[1]).opacity, 0.9)
+    assert.equal(flat(radios(root)[0]).borderTopWidth, 3)
+    assert.equal(flat(radios(root)[1]).borderTopWidth, 5)
+    assert.equal(flat(radios(root)[1]).backgroundColor, '#3b82f6', 'preset colour is still last')
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('literal swatch semantic classes require no authored disabled or accessibilityState prop', () => {
+  const { C } = loadNativeModule(`import { ColorPicker } from '@hozo/core'
+    export function C() {return <ColorPicker accessibilityLabel="Theme" defaultValue="#3b82f6"
+      presets={['#ef4444','#3b82f6']}
+      swatchClassName="disabled:opacity-25 enabled:rounded-lg aria-checked:border-2 not-aria-checked:border-4"
+      selectedSwatchClassName="aria-checked:outline-2" />}`)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C))
+  })
+  try {
+    const all = radios(root)
+    assert.equal(flat(all[0]).borderTopWidth, 4)
+    assert.equal(flat(all[1]).borderTopWidth, 2)
+    assert.equal(flat(all[0]).outlineWidth, undefined)
+    assert.equal(flat(all[1]).outlineWidth, 2)
+    for (const radio of all) {
+      assert.equal(flat(radio).opacity, undefined)
+      assert.equal(flat(radio).borderRadius, 8)
+    }
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('only the first valid matching preset owns checked semantics on Web and compiled Native', () => {
+  const { C } = loadNativeModule(`import { ColorPicker } from '@hozo/core'
+    export function C({presets,value}) {return <ColorPicker accessibilityLabel="Theme"
+      presets={presets} value={value} swatchClassName="aria-checked:border-2"
+      selectedSwatchClassName="aria-checked:outline-4" />}`)
+  for (const { presets, value, expected } of [
+    {
+      presets: ['#f00', '#ff0000', 'not-a-colour', '#000000'],
+      value: '#ff0000',
+      expected: [true, false, false, false],
+    },
+    {
+      presets: ['#f00', '#ff0000', 'not-a-colour', '#000000'],
+      value: '#000000',
+      expected: [false, false, false, true],
+    },
+    { presets: ['bad-colour', 'not-a-colour'], value: '#000000', expected: [false, false] },
+  ]) {
+    const html = renderToStaticMarkup(
+      react.createElement(webPicker.HozoColorPicker, {
+        presets,
+        value,
+        accessibilityLabel: 'Theme',
+      }),
+    )
+    assert.deepEqual(
+      [...html.matchAll(/role="radio" aria-checked="(true|false)"/g)].map(
+        (match) => match[1] === 'true',
+      ),
+      expected,
+      'actual Web selection oracle',
+    )
+    let root: ReturnType<typeof renderer.create>
+    renderer.act(() => {
+      root = renderer.create(react.createElement(C, { presets, value }))
+    })
+    try {
+      assert.deepEqual(
+        radios(root).map((radio: Tree) => radio.props.accessibilityState.checked),
+        expected,
+      )
+      for (const [index, radio] of radios(root).entries()) {
+        assert.equal(flat(radio).borderTopWidth, expected[index] ? 2 : undefined)
+        assert.equal(flat(radio).outlineWidth, expected[index] ? 4 : undefined)
+      }
+    } finally {
+      renderer.act(() => root.unmount())
+    }
+  }
+})
+
+test('full ColorPicker lowering keeps unsupported semantic owners and predicates diagnosed', () => {
+  for (const [slot, classes] of [
+    ['className', 'aria-checked:opacity-50'],
+    ['sliderClassName', 'not-aria-checked:opacity-50'],
+    ['thumbClassName', 'aria-checked:hover:opacity-50'],
+    ['inputClassName', 'aria-checked:opacity-50'],
+    ['swatchClassName', 'aria-expanded:opacity-50'],
+    ['selectedSwatchClassName', 'not-aria-expanded:opacity-50'],
+  ]) {
+    assert.throws(
+      () =>
+        loadNativeModule(`import { ColorPicker } from '@hozo/core'
+      export function C() {return <ColorPicker accessibilityLabel="Theme" ${slot}="${classes}" />}`),
+      /NOT_WIRED_ON_NATIVE/,
+      `${slot}: ${classes}`,
+    )
+  }
+})

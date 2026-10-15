@@ -28,9 +28,12 @@ const otpCellFocusClasses =
   'border-2 opacity-50 font-normal focus:outline-4 focus-visible:font-bold focus:focus-visible:border-4'
 const otpUnsupportedFocusClasses =
   'not-focus:opacity-50 not-focus-visible:font-normal not-focus:not-focus-visible:border-2'
+const swatchSemanticClasses =
+  'aria-checked:border-2 aria-selected:outline-4 aria-disabled:border-4 disabled:opacity-25 aria-checked:hover:opacity-50'
+const selectedSwatchSemanticClasses = 'aria-checked:rounded-lg disabled:opacity-50'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
+  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -1148,6 +1151,117 @@ test('Native ColorPicker preserves disabled guards and selected slot style prior
   await press(hosts[1])
   assert.deepEqual(changes, [])
   assert.equal(tree.root.findByType('NativeTextInput').props.editable, false)
+})
+
+test('Native ColorPicker runtime semantics share radio ownership without invented ARIA attributes', async (t) => {
+  const changes = []
+  const props = {
+    presets: ['#ff0000', '#0000ff'],
+    defaultValue: '#0000ff',
+    accessibilityLabel: 'Colour',
+    onChange: (hex) => changes.push(hex),
+    swatchClassName: swatchSemanticClasses,
+    selectedSwatchClassName: selectedSwatchSemanticClasses,
+  }
+  const tree = await mount(t, HozoColorPicker, props)
+  const hosts = () =>
+    tree.root
+      .findAllByType('NativePressable')
+      .filter((node) => node.props.accessibilityRole === 'radio')
+  const check = (selected, disabled) => {
+    for (const [index, radio] of hosts().entries()) {
+      assert.deepEqual(radio.props.accessibilityState, { checked: index === selected, disabled })
+      assert.equal(flat(radio.props.style).borderTopWidth, index === selected ? 2 : undefined)
+      assert.equal(flat(radio.props.style).outlineWidth, undefined, 'no aria-selected attribute')
+      assert.equal(flat(radio.props.style).borderRadius, index === selected ? 8 : undefined)
+      assert.equal(
+        flat(radio.props.style).opacity,
+        disabled ? (index === selected ? 0.5 : 0.25) : undefined,
+      )
+      assert.equal(flat(radio.props.style).backgroundColor, props.presets[index])
+    }
+  }
+  check(1, false)
+  await act(() => hosts()[0].props.onHoverIn({}))
+  assert.equal(
+    flat(hosts()[0].props.style).opacity,
+    undefined,
+    'hovered unchecked radio stays unchecked',
+  )
+  await act(() => hosts()[1].props.onHoverIn({}))
+  assert.equal(flat(hosts()[1].props.style).opacity, 0.5)
+  await press(hosts()[0])
+  assert.deepEqual(changes, ['#ff0000'])
+  assert.equal(flat(hosts()[0].props.style).opacity, 0.5, 'checked hover follows selection')
+  assert.equal(flat(hosts()[1].props.style).opacity, undefined)
+  await act(() => hosts()[0].props.onHoverOut({}))
+  await act(() => hosts()[1].props.onHoverOut({}))
+  check(0, false)
+  await act(() => tree.update(React.createElement(HozoColorPicker, { ...props, disabled: true })))
+  check(0, true)
+  await press(hosts()[1])
+  assert.deepEqual(changes, ['#ff0000'], 'real disabled guard remains')
+  await act(() =>
+    tree.update(
+      React.createElement(HozoColorPicker, {
+        ...props,
+        value: '#0000ff',
+        disabled: true,
+      }),
+    ),
+  )
+  check(1, true)
+  await act(() =>
+    tree.update(
+      React.createElement(HozoColorPicker, {
+        ...props,
+        value: '#0000ff',
+        disabled: false,
+      }),
+    ),
+  )
+  check(1, false)
+  await press(hosts()[0])
+  assert.equal(changes.at(-1), '#ff0000')
+  check(1, false)
+  await act(() =>
+    tree.update(
+      React.createElement(HozoColorPicker, {
+        ...props,
+        value: '#ff0000',
+        disabled: true,
+        swatchStyle: { opacity: 0.8, borderTopWidth: 3, backgroundColor: '#000' },
+        selectedSwatchStyle: { opacity: 0.9, borderTopWidth: 5, backgroundColor: '#fff' },
+      }),
+    ),
+  )
+  assert.equal(flat(hosts()[0].props.style).opacity, 0.9)
+  assert.equal(flat(hosts()[1].props.style).opacity, 0.8)
+  assert.equal(flat(hosts()[0].props.style).borderTopWidth, 5)
+  assert.equal(flat(hosts()[1].props.style).borderTopWidth, 3)
+  assert.equal(flat(hosts()[0].props.style).backgroundColor, '#ff0000', 'preset meaning stays last')
+  for (const [value, expected] of [
+    ['#ff0000', [true, false, false, false]],
+    ['#000000', [false, false, false, true]],
+  ]) {
+    await act(() =>
+      tree.update(
+        React.createElement(HozoColorPicker, {
+          ...props,
+          presets: ['#f00', '#ff0000', 'not-a-colour', '#000000'],
+          value,
+        }),
+      ),
+    )
+    assert.deepEqual(
+      hosts().map((node) => node.props.accessibilityState.checked),
+      expected,
+    )
+    for (const [index, radio] of hosts().entries()) {
+      assert.equal(flat(radio.props.style).borderTopWidth, expected[index] ? 2 : undefined)
+      assert.equal(flat(radio.props.style).borderRadius, expected[index] ? 8 : undefined)
+    }
+  }
 })
 
 test('Native clickable Stepper keeps focus on the button, not its decorative mark or description', async (t) => {
