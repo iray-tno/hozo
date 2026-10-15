@@ -1,0 +1,40 @@
+name: responsive-leading-measure
+on:
+  push:
+    branches: [chore/responsive-leading-measure]
+permissions:
+  contents: read
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: '2'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native:release
+      - run: pnpm exec turbo run build --filter='@hozo/tailwind-conformance...' --concurrency=2
+      - name: Record source
+        run: |
+          mkdir -p artifacts/responsive-leading
+          git rev-parse HEAD > artifacts/responsive-leading/source-commit.txt
+      - name: Compare actual browser typography against Tailwind
+        run: pnpm --filter @hozo/example-storybook exec node --test --test-concurrency=1 --test-name-pattern='responsive font sizes preserve' scripts/candidate-cascade.test.mjs > artifacts/responsive-leading/browser.txt 2>&1
+      - name: Generate an unvalidated conformance snapshot
+        run: env -u CI pnpm --filter @hozo/tailwind-conformance report > artifacts/responsive-leading/report.txt 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: responsive-leading-evidence
+          path: |
+            artifacts/responsive-leading
+            packages/tailwind-conformance/snapshot.json
