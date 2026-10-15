@@ -114,7 +114,7 @@ export function HozoStepper({
     <View style={box} testID={testID}>
       {steps.map((step, index) => {
         const status = stepStatus(step, index, activeStep)
-        // A clickable step owns the same facts for its box and all its labels.
+        // A clickable step owns its box's facts; its text styles are inherited.
         // A descriptive step stays a View and has no fabricated interaction.
         const look = (interaction?: InteractionState) => {
           const compiledState = {
@@ -156,17 +156,20 @@ export function HozoStepper({
               ],
             ),
           ])
+          // Web indicators and descriptions are unfocusable spans. Keep the
+          // button's text inheritance without making their own focus rules true.
+          const decorationState = state ? { ...state, focused: false, focusVisible: false } : state
           const [markBox, markText] = splitTextStyle([
-            styled(indicatorClassName, indicatorStyle, state),
+            styled(indicatorClassName, indicatorStyle, decorationState),
             byStatus(
               status,
-              styled(completedIndicatorClassName, completedIndicatorStyle, state),
-              styled(currentIndicatorClassName, currentIndicatorStyle, state),
-              styled(errorIndicatorClassName, errorIndicatorStyle, state),
+              styled(completedIndicatorClassName, completedIndicatorStyle, decorationState),
+              styled(currentIndicatorClassName, currentIndicatorStyle, decorationState),
+              styled(errorIndicatorClassName, errorIndicatorStyle, decorationState),
             ),
           ])
           const [descriptionBox, descriptionText] = splitTextStyle(
-            styled(descriptionClassName, descriptionStyle, state),
+            styled(descriptionClassName, descriptionStyle, decorationState),
           )
           return { stepBox, stepText, markBox, markText, descriptionBox, descriptionText }
         }
@@ -181,7 +184,7 @@ export function HozoStepper({
                 <Text style={[listText, stepText]}>{step.label}</Text>
                 {step.description ? (
                   <View style={descriptionBox}>
-                    <Text style={[listText, descriptionText]}>{step.description}</Text>
+                    <Text style={[listText, stepText, descriptionText]}>{step.description}</Text>
                   </View>
                 ) : null}
               </View>

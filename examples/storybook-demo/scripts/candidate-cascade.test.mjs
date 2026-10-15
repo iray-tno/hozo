@@ -142,6 +142,114 @@ function evaluate(code, globals = {}) {
   return module.exports
 }
 
+test('Stepper focus stays on each button while decorative slots inherit only its typography', {
+  skip: !executablePath,
+}, async () => {
+  const decorationClasses =
+    'border-2 focus:outline-4 focus-visible:font-bold focus:focus-visible:border-4'
+  const buttonClasses = 'focus:outline-4 focus-visible:font-bold'
+  const css = (
+    await compile(
+      '@theme { --font-weight-normal: 400; --font-weight-bold: 700; } @tailwind utilities;',
+    )
+  ).build([...decorationClasses.split(' '), ...buttonClasses.split(' '), 'font-normal'])
+  assert.ok(css.includes('font-weight: var(--font-weight-bold)'))
+  const bundle = await build({
+    stdin: {
+      contents: `
+        import React from 'react';
+        import {createRoot} from 'react-dom/client';
+        import {Stepper} from '@hozo/patterns';
+        window.stepperSelections = [];
+        const steps = ['completed', 'current', 'error', 'upcoming'].map(status => ({
+          label: status, status, description: 'Details for ' + status,
+        })).concat({label: 'Disabled', disabled: true});
+        const inherited = ${JSON.stringify(decorationClasses)};
+        createRoot(document.getElementById('root')).render(<>
+          {['inherit', 'own'].map(mode => {
+            const classes = mode === 'own' ? 'font-normal ' + inherited : inherited;
+            return <section key={mode} id={mode}><Stepper steps={steps} activeStep={1}
+              onStepPress={index => window.stepperSelections.push([mode, index])}
+              stepClassName=${JSON.stringify(buttonClasses)}
+              indicatorClassName={classes} completedIndicatorClassName={classes}
+              currentIndicatorClassName={classes} errorIndicatorClassName={classes}
+              descriptionClassName={classes}/></section>;
+          })}
+        </>);
+      `,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(
+      `<style>${css}</style><button id="before">Before</button><div id="root"></div><button id="after">After</button>`,
+    )
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(() => document.querySelectorAll('#root button').length === 10)
+    await page.locator('#before').focus()
+    for (const mode of ['inherit', 'own']) {
+      for (let index = 0; index < 4; index++) {
+        await page.keyboard.press('Tab')
+        const button = page.locator(`#${mode} button`).nth(index)
+        assert.equal(await button.evaluate((e) => e === document.activeElement), true)
+        assert.equal(await button.evaluate((e) => getComputedStyle(e).outlineWidth), '4px')
+        assert.equal(await button.evaluate((e) => getComputedStyle(e).fontWeight), '700')
+        const spans = button.locator('span[aria-hidden="true"]')
+        assert.equal(await spans.count(), 3, 'mark, label and description')
+        for (const position of [0, 2]) {
+          const decoration = spans.nth(position)
+          const facts = await decoration.evaluate((e) => {
+            e.focus()
+            const style = getComputedStyle(e)
+            return {
+              focused: e.matches(':focus'),
+              visible: e.matches(':focus-visible'),
+              outline: style.outlineWidth,
+              weight: style.fontWeight,
+              border: style.borderTopWidth,
+            }
+          })
+          assert.equal(facts.focused, false)
+          assert.equal(facts.visible, false)
+          assert.notEqual(facts.outline, '4px')
+          assert.equal(facts.border, '2px')
+          assert.equal(facts.weight, mode === 'inherit' ? '700' : '400')
+        }
+        assert.equal(await button.evaluate((e) => e === document.activeElement), true)
+        await page.keyboard.press('Enter')
+      }
+      assert.equal(await page.locator(`#${mode} button`).nth(4).isDisabled(), true)
+    }
+    await page.keyboard.press('Tab')
+    assert.equal(await page.locator('#after').evaluate((e) => e === document.activeElement), true)
+    await page.keyboard.press('Shift+Tab')
+    assert.equal(
+      await page
+        .locator('#own button')
+        .nth(3)
+        .evaluate((e) => e === document.activeElement),
+      true,
+    )
+    assert.deepEqual(
+      await page.evaluate(() => window.stepperSelections),
+      ['inherit', 'own'].flatMap((mode) => [0, 1, 2, 3].map((index) => [mode, index])),
+    )
+    assert.deepEqual(errors, [], 'browser callbacks must not throw')
+  } finally {
+    await page.close()
+  }
+})
+
 test('CommandPalette shortcuts remain decorative while the real input keeps DOM focus', {
   skip: !executablePath,
 }, async () => {

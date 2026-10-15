@@ -133,6 +133,15 @@ View, not another focusable command. Native shortcuts do not borrow an item's
 button's focus handling, the Web input's active-descendant model, or which
 static shortcut variants the compiler accepts.
 
+`Stepper`'s clickable step owns focus, not its indicator or description.
+Use `stepClassName` or its status-specific step class props for the button's
+focus ring. Decorative indicator/status-indicator and description class props
+do not borrow `focus:*` or `focus-visible:*`. Their text still inherits the
+step's typography, including focus-driven text styles, unless the decorative
+slot overrides it. Explicit slot styles retain precedence. Static decorative
+focus variants remain diagnosed; this does not change the existing hover,
+press or semantic-state propagation, or add a focus stop to descriptive steps.
+
 ## Verification Matrix: `Chip`, `Avatar`, `Pagination`, `Stepper`, `OtpInput`, `CommandPalette`, `ColorPicker`
 
 These arrived after 0.2.0 (#141, #144, #149, #150, #152, #153). What has checked them, and what has not:

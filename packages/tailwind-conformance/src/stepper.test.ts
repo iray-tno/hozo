@@ -138,6 +138,32 @@ const STATE_SOURCE = `
       stepStyle={stepStyle} currentStepStyle={currentStepStyle} />
   }`
 
+test('full Native lowering keeps decorative step focus variants diagnosed', () => {
+  for (const slot of [
+    'indicatorClassName',
+    'completedIndicatorClassName',
+    'currentIndicatorClassName',
+    'errorIndicatorClassName',
+    'descriptionClassName',
+  ]) {
+    for (const classes of [
+      'focus:outline-2',
+      'focus-visible:font-bold',
+      'not-focus:opacity-50',
+      'focus:focus-visible:outline-2',
+    ]) {
+      assert.throws(
+        () =>
+          loadNativeModule(`import {Stepper} from '@hozo/core'
+        export function C() {return <Stepper steps={[]} activeStep={0} onStepPress={() => {}}
+          ${slot}="${classes}"/>}`),
+        /NOT_WIRED_ON_NATIVE/,
+        `${slot}: ${classes}`,
+      )
+    }
+  }
+})
+
 function event(node: Tree, name: string) {
   assert.equal(typeof node.props[name], 'function', `${name} is not wired`)
   renderer.act(() => (node.props[name] as (event: unknown) => void)({ nativeEvent: {} }))
@@ -241,6 +267,11 @@ test('authored step and current styles remain last after compiled interaction en
     assert.equal(flat(buttons[1]).outlineWidth, 6)
     assert.equal(flat(buttons[3]).opacity, 0.9)
     assert.equal(flat(buttons[3].findAll((node: Tree) => node.type === 'Text')[1]).color, '#123456')
+    assert.equal(
+      flat(buttons[0].findAll((node: Tree) => node.type === 'Text')[2]).color,
+      '#123456',
+      'the description inherits the step text before its own overrides',
+    )
   } finally {
     renderer.act(() => root.unmount())
   }
