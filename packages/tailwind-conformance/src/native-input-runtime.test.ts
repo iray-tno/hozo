@@ -21,7 +21,7 @@ const theme = await loadTheme(
 const color = (token: string) => theme.colors.find((item) => item.token === token)?.hex
 const flat = (node: Tree) => stub.StyleSheet.flatten(node.props.style)
 
-test('the real UI Input dynamic classes follow its field, preserve events/ref and warn for missing facts', () => {
+test('the real UI Input keeps static states while caller dynamic classes follow its field and warn for missing facts', () => {
   // An actual generated candidate module, not a second evaluator or copied
   // styles. Keeping it under this package gives its imports normal resolution.
   const project = mkdtempSync(path.join(root, 'packages/tailwind-conformance/.input-project-'))
@@ -152,8 +152,9 @@ test('the real UI Input dynamic classes follow its field, preserve events/ref an
       assert.equal(field().props.readOnly, disabled ? true : readOnly)
       assert.equal(field().props.disabled, undefined, 'canonical prop is not leaked to RN')
     }
-    // The multiline resize warning is new; the missing state warnings are not.
-    assert.equal(warn.mock.callCount(), count + 1)
+    // Library classes are static; switching multiline adds no unsupported
+    // resize warning and does not repeat the caller's missing-state warnings.
+    assert.equal(warn.mock.callCount(), count)
   } finally {
     if (tree) renderer.act(() => tree.unmount())
     warn.mock.restore()

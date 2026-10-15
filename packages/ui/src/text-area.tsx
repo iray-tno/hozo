@@ -5,11 +5,10 @@
  * scrolling, and the character count that is a description rather than a live
  * region. This file draws a field and a counter.
  *
- * ## The same list as `Input`'s multiline, minus `resize-y`
+ * ## Measured growth rather than a resize handle
  *
- * `Input` offers a `multiline` that is a plain textarea, and its list ends in
- * `min-h-24 resize-y` -- a fixed minimum and a grab handle, because nothing is
- * measuring it. Here the height is measured, so a resize handle would be a second
+ * `Input` offers a `multiline` with `min-h-24` and no drag handle on either
+ * platform. Here the height is measured, so a resize handle would be a second
  * opinion about it: drag it taller and the next keystroke takes it back. The
  * minimum is `minRows` instead, which is a number of lines rather than a number
  * of pixels and therefore survives a change of text size.

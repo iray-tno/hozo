@@ -106,9 +106,9 @@
     "inOrder": 20310
   },
   "refusalAudit": {
-    "refusals": 10364,
-    "checkable": 10030,
-    "confirmed": 10001,
+    "refusals": 10363,
+    "checkable": 10029,
+    "confirmed": 10000,
     "partial": 28,
     "suspect": 1,
     "uncheckable": 334

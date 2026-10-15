@@ -188,6 +188,47 @@ fn placeholder_colour_on_something_that_has_no_placeholder_is_refused() {
 }
 
 #[test]
+fn placeholder_pseudo_colour_and_dark_mode_are_props_not_value_styles() {
+    let source = "import {TextInput} from '@hozo/core'; export function C() { return <TextInput accessibilityLabel=\"Field\" className=\"text-green-500 placeholder:text-red-500 dark:placeholder:text-blue-500\"/> }";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(output.jsx.contains("placeholderTextColor={__hozoDark ? '#2b7fff' : '#fb2c36'}"), "{}", output.jsx);
+    assert!(output.styles.contains("color: '#00c950'"));
+    assert!(!output.styles.contains("#fb2c36"));
+    assert!(!output.styles.contains("#2b7fff"));
+    assert_eq!(output.prelude, ["const __hozoDark = useHozoDark()"]);
+}
+
+#[test]
+fn unsupported_placeholder_styles_and_stacks_still_diagnose() {
+    for classes in [
+        "placeholder:font-bold",
+        "focus:placeholder:text-red-500",
+        "placeholder:text-red-500 md:placeholder:text-blue-500",
+        "placeholder:text-current",
+        "placeholder:text-inherit",
+        "placeholder:text-[color(display-p3_1_0_0)]",
+    ] {
+        let source = format!("import {{TextInput}} from '@hozo/core'; export function C() {{ return <TextInput accessibilityLabel=\"Field\" className=\"{classes}\"/> }}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{classes}: {:?}", output.diagnostics);
+    }
+}
+
+#[test]
+fn an_authored_placeholder_prop_wins_and_a_plain_colour_needs_no_hook() {
+    let source = "import {TextInput} from '@hozo/core'; const e = <TextInput accessibilityLabel=\"Field\" placeholderTextColor={authored} className=\"placeholder:text-red-500\"/>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert_eq!(output.jsx.matches("placeholderTextColor=").count(), 1);
+    assert!(output.jsx.contains("placeholderTextColor={authored}"));
+    assert!(output.prelude.is_empty());
+}
+
+#[test]
 fn caret_colour_lowers_to_text_inputs_cursor_prop() {
     let source = r#"
             import { TextInput } from '@hozo/core'

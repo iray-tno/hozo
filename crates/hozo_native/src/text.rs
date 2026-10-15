@@ -392,21 +392,89 @@ pub(super) fn font_relative_reason(property: &StyleProperty) -> Option<String> {
         _ => None,
     }
 }
-/// Whether a property sizes something against the viewport (`h-screen`,
-/// `min-w-screen`), which React Native can express but not statically.
-/// `placeholder-*` as React Native carries it: a prop on `TextInput`,
-/// not a style on anything.
+/// `placeholder-*` and `placeholder:text-*` as React Native carries them:
+/// a prop on `TextInput`, not a style on anything.
 ///
 /// Lives here rather than in `unsupported_on_native` because the answer
 /// depends on the node -- on a `TextInput` it lowers, anywhere else there
 /// is no placeholder for it to colour.
-pub(super) fn placeholder_props(node: &Node, theme: &Theme) -> Option<Vec<(&'static str, String)>> {
-    let colour = node.style.iter().find_map(|d| match &d.property {
-        StyleProperty::PlaceholderColor(c) => Some(c),
+pub(super) fn placeholder_colour(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, bool)> {
+    match (&declaration.property, &declaration.condition) {
+        (StyleProperty::PlaceholderColor(c), Condition::Always) => Some((c, false)),
+        (StyleProperty::PlaceholderColor(c), Condition::Dark) => Some((c, true)),
+        (
+            StyleProperty::TextColor(c),
+            Condition::PseudoElement(hozo_ir::PseudoElement::Placeholder),
+        ) if absolute_placeholder_colour(c) => Some((c, false)),
+        (StyleProperty::TextColor(c), Condition::All(conditions))
+            if absolute_placeholder_colour(c)
+                && conditions.len() == 2
+                && conditions.contains(&Condition::Dark)
+                && conditions.contains(&Condition::PseudoElement(hozo_ir::PseudoElement::Placeholder)) =>
+        {
+            Some((c, true))
+        }
+        // Colour is one RN prop, not arbitrary pseudo-element typography or
+        // an interaction callback. Unsupported stacks still diagnose.
         _ => None,
-    })?;
-    (node.primitive == Primitive::TextInput)
-        .then(|| vec![("placeholderTextColor", style::placeholder_color(colour, theme))])
+    }
+}
+
+// This new pseudo-element adapter is deliberately narrower than CSS. A
+// current/inherited colour needs context, and arbitrary CSS colour functions
+// are not automatically RN ColorValues. Do not bless those just because a
+// colour-shaped prop was emitted; resolved tokens and hex need no CSS engine.
+fn absolute_placeholder_colour(colour: &hozo_ir::Color) -> bool {
+    match colour {
+        hozo_ir::Color::Token(token) => !matches!(hozo_ir::split_color_alpha(token).0, "current" | "inherit"),
+        hozo_ir::Color::Keyword("transparent") => true,
+        hozo_ir::Color::Css(value) => value.strip_prefix('#').is_some_and(|hex| {
+            matches!(hex.len(), 3 | 4 | 6 | 8) && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
+        }),
+        _ => false,
+    }
+}
+
+pub(super) fn placeholder_props(
+    node: &Node,
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+) -> Option<Vec<(&'static str, String)>> {
+    if node.primitive != Primitive::TextInput
+        || !node.style.iter().any(|d| placeholder_colour(d).is_some())
+    {
+        return None;
+    }
+    let dark_theme = theme.dark();
+    let mut light = None;
+    let mut dark = None;
+    for declaration in &node.style {
+        let Some((colour, dark_only)) = placeholder_colour(declaration) else { continue };
+        if dark_only {
+            dark = Some(style::placeholder_color(colour, dark_theme.as_ref().unwrap_or(theme)));
+        } else {
+            let value = style::placeholder_color(colour, theme);
+            if let Some(palette) = &dark_theme {
+                let shaded = style::placeholder_color(colour, palette);
+                if shaded != value {
+                    dark = Some(shaded);
+                }
+            }
+            light = Some(value);
+        }
+    }
+    // A paired token must follow the same scheme as the rest of the field.
+    // No hook for a field with only an unpaired, unconditional colour.
+    let value = if let Some(dark) = dark {
+        runtime.hooks.push(RuntimeHook::Dark);
+        format!(
+            "__hozoDark ? {dark} : {}",
+            light.unwrap_or_else(|| "undefined".to_string())
+        )
+    } else {
+        light?
+    };
+    Some(vec![("placeholderTextColor", value)])
 }
 
 pub(super) fn placeholder_only_reason(property: &StyleProperty) -> Option<String> {

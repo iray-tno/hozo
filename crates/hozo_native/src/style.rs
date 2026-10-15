@@ -528,6 +528,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::TextDecorationLine("overline") => Vec::new(),
         StyleProperty::TextDecorationLine(v) => vec![("textDecorationLine", js_string(v))],
         StyleProperty::OverflowX(_) | StyleProperty::OverflowY(_) => Vec::new(),
+        // The platform has no drag handle to turn off. Other resize values
+        // remain refused upstream, not converted to this reset.
+        StyleProperty::Keyword("resize", "none") => Vec::new(),
         StyleProperty::Keyword(..) => Vec::new(),
         // Every one of these is a vendor-prefixed Web property or a text
         // shaping control React Native doesn't have; refused upstream.

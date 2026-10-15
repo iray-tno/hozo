@@ -40,7 +40,7 @@ export type HozoComboboxProps<T> = Omit<
 export type { ComboboxOption as HozoComboboxOption } from '@hozo/patterns'
 
 const field =
-  'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed'
+  'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-auto resize-none'
 
 const list =
   'flex flex-col gap-1 max-h-60 overflow-y-auto rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1 shadow-hozo-surface'

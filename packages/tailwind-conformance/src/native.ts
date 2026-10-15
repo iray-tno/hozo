@@ -27,6 +27,8 @@ export type NativeVerdict = 'COVERED' | 'REFUSED' | 'SILENT' | 'NO_OP'
  * does: an unexplained allowlist is where a real drop goes to hide.
  */
 const DELIBERATE_NO_OPS: Record<string, string> = {
+  'resize-none':
+    'React Native has no user-resize handle; disabling it already holds, unlike resize-x/y/both',
   'whitespace-normal':
     "React Native's Text wraps by default, so this asks for what it already does",
   'line-clamp-none':

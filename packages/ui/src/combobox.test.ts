@@ -21,7 +21,7 @@ import test from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
-import { Combobox, type ComboboxOption } from './index.ts'
+import { Combobox, type ComboboxOption, Input } from './index.ts'
 
 const src = path.join(import.meta.dirname, '..', 'src')
 const read = (name: string) => readFileSync(path.join(src, name), 'utf8')
@@ -39,7 +39,10 @@ const OPTIONS: ComboboxOption<string>[] = [
 ]
 
 test('the field is the same list Input uses, to the class', () => {
-  assert.equal(list('combobox.tsx', 'field'), list('input.tsx', 'oneLine'))
+  // Read the actual element's classes, not a constant the compiler cannot
+  // resolve. Input keeps its own literal inside clsx for static lowering.
+  const html = renderToStaticMarkup(createElement(Input, { accessibilityLabel: 'Name' }))
+  assert.equal(list('combobox.tsx', 'field'), /class="([^"]*)"/.exec(html)?.[1])
 })
 
 test('a highlight is a tint; a selection is a tint and a weight', () => {

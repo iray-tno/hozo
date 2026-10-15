@@ -3088,6 +3088,10 @@ impl StyleProperty {
                 "`mix-blend-plus-darker`: React Native's blend modes have plus-lighter and not plus-darker"
                     .to_string(),
             ),
+            // RN has no user-resize handle. Asking for *none* therefore has
+            // its exact effect already; this does not sanction dropping a
+            // request for a horizontal/vertical/both handle below.
+            StyleProperty::Keyword("resize", "none") => None,
             StyleProperty::Keyword(property, _)
                 if !matches!(*property, 
                     "user-select"

@@ -11,8 +11,9 @@ TextInput in compiled code. A dynamic class expression instead uses the same
 field helper and candidate resolver, receiving only `focused` and
 `focusVisible` as interaction facts. Missing hover/press or semantic drivers
 are named once per candidate, not silently interpreted as measured false.
-This includes the current source-distributed `@hozo/ui Input`; its themed
-runtime focus classes now follow the real field, not an ancestor.
+Caller-provided dynamic classes on source-distributed `@hozo/ui Input` follow
+the real field too, not an ancestor. Its own literal classes now compile
+statically through `clsx`, without hiding their states behind a runtime string.
 
 TextInput paints its value. Its own font and color styles must not be
 forwarded to nonexistent JSX text children; the compiler now keeps them on
@@ -49,6 +50,22 @@ input cannot re-enable editing by passing readOnly=false. Static and runtime
 read-only styles share one predicate; a disabled field is non-editable, while
 the disabled semantic fact remains separate.
 
-#887 still leaves the resize/cursor policy and full static UI rewrite open.
+Input has no drag-to-resize handle on either platform. `resize-none` disables
+the browser handle and is a deliberate Native no-op because RN never supplies
+one; `resize`, `resize-x` and `resize-y` remain refused on Native. Multiline
+Input has a minimum height, not content measurement; use TextArea for shared
+auto-growing behavior. The disabled cursor uses `auto`, as Button does, rather
+than silently dropping `not-allowed` on Native. These choices replace Input's
+previous browser-only resize handle and not-allowed cursor.
+
+Static palette/theme/hex `placeholder:text-*` colours lower to `placeholderTextColor`, including
+the theme's paired dark colour and explicit `dark:placeholder:text-*`. They
+do not recolour the entered value. Other pseudo-element styles (for example
+font weight), context-dependent or arbitrary CSS-function colours, and
+conditional stacks beyond dark mode still diagnose; an
+authored `placeholderTextColor` prop wins. Static UI Input renders distinct
+input/textarea branches on Web, rather than silently compiling a dynamic
+multiline prop to input. Only caller-provided classes need the candidate sheet.
+
 Host stand-ins establish lowering, state and ref/handler forwarding;
 they do not certify physical keyboard delivery, assistive focus or pixels.
