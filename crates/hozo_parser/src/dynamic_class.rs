@@ -30,9 +30,11 @@ use crate::tailwind;
 const RECOGNIZED_CX_MODULES: [&str; 3] = ["clsx", "classnames", "tailwind-merge"];
 
 /// Hozo's own helper (#873), so merging a caller's `className` needs no
-/// dependency. Only the `cx` export is: anything else imported from core,
-/// such as a component, is not a class joiner.
-const HOZO_CX: (&str, &str) = ("@hozo/core", "cx");
+/// dependency. Engine owns it and core re-exports it, so both are read.
+/// Only the `cx` export is: anything else imported from them, such as a
+/// component, is not a class joiner.
+const HOZO_CX_MODULES: [&str; 2] = ["@hozo/core", "@hozo/engine"];
+const HOZO_CX_NAME: &str = "cx";
 
 #[derive(Default)]
 pub struct Decomposed {
@@ -163,10 +165,10 @@ fn is_recognized_cx_identifier(
     let name = ident.name.as_str();
     module_record.import_entries.iter().find_map(|entry| {
         let module = entry.module_request.name.as_str();
-        let is_hozo_cx = module == HOZO_CX.0
+        let is_hozo_cx = HOZO_CX_MODULES.contains(&module)
             && matches!(
                 &entry.import_name,
-                ImportImportName::Name(n) if n.name.as_str() == HOZO_CX.1
+                ImportImportName::Name(n) if n.name.as_str() == HOZO_CX_NAME
             );
         (entry.local_name.name.as_str() == name
             && (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx))
@@ -486,6 +488,10 @@ const el = <View className={cx('p-4 hover:bg-blue-500', className)} />
         let renamed = "import { cx as join } from '@hozo/core'
 const el = <View className={join('p-4', className)} />";
         assert_eq!(carried(renamed), ["className"]);
+        // Where it is owned, for the packages below core.
+        let engine = "import { cx } from '@hozo/engine'
+const el = <View className={cx('p-4', className)} />";
+        assert_eq!(carried(engine), ["className"]);
     }
 
     #[test]
