@@ -22,6 +22,7 @@
  */
 
 import { TextInput, type TextInputProps } from '@hozo/primitives'
+import clsx from 'clsx'
 
 export interface HozoInputProps extends TextInputProps {
   /**
@@ -35,17 +36,18 @@ export interface HozoInputProps extends TextInputProps {
 }
 
 /**
- * Both lists remain runtime candidates until the Web-only resize/cursor
- * policy is settled (#887). The Native field now supplies its own focus
- * and named semantic drivers; opacity or a spread is not a state driver.
- * These are not yet the fully static class lists used by Button.
+ * A literal inside `clsx` lets the compiler keep the library's state styles
+ * static even when the caller adds a dynamic className, just like Button.
+ * Each branch has its own literal: Web needs a statically known `multiline`
+ * to choose textarea rather than input. Named props below supply the real
+ * state drivers rather than guessing from `rest`.
+ *
+ * No drag-to-resize handle on either platform: `resize-none` removes the
+ * browser handle and asks for what RN already does. `resize-y` is still
+ * refused on Native, not silently ignored. Use TextArea for measured growth.
+ * The disabled cursor is `auto`, the same portable choice as Button; RN
+ * cannot express `not-allowed`.
  */
-const oneLine =
-  'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed'
-
-const manyLines =
-  'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed min-h-24 resize-y'
-
 export function HozoInput({
   multiline,
   className,
@@ -55,16 +57,34 @@ export function HozoInput({
   'aria-invalid': invalid,
   ...rest
 }: HozoInputProps) {
-  const own = multiline === true ? manyLines : oneLine
+  if (multiline === true) {
+    return (
+      <TextInput
+        {...rest}
+        multiline={true}
+        disabled={disabled}
+        editable={editable}
+        readOnly={readOnly}
+        aria-invalid={invalid}
+        className={clsx(
+          'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-auto resize-none min-h-24',
+          className,
+        )}
+      />
+    )
+  }
   return (
     <TextInput
       {...rest}
-      multiline={multiline}
+      multiline={false}
       disabled={disabled}
       editable={editable}
       readOnly={readOnly}
       aria-invalid={invalid}
-      className={className ? `${own} ${className}` : own}
+      className={clsx(
+        'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-auto resize-none',
+        className,
+      )}
     />
   )
 }

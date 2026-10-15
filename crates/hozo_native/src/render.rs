@@ -152,7 +152,7 @@ pub(super) fn render_node(
     // Same shape as truncation: a CSS concept React Native keeps on a prop,
     // absorbed before the refusal check so the thing that *does* express it
     // isn't reported as impossible.
-    let placeholder = placeholder_props(node, theme);
+    let placeholder = placeholder_props(node, theme, runtime);
     // The caret colour is another TextInput prop rather than a style. Kept
     // separate from placeholder because React Native names the two props
     // independently and either utility may appear alone.
@@ -161,7 +161,19 @@ pub(super) fn render_node(
     // `leading-tight`/`tracking-wide` are relative to the font size, which
     // React Native's equivalents aren't. Resolved here, before the refusal
     // check, so only the ones that genuinely can't be resolved are refused.
-    let style = lower_inline_flex(fold_font_relative(&node.style, inherited));
+    // A placeholder colour travels as a prop, never as the field's own text
+    // colour or a pseudo-element StyleSheet entry. Consume only declarations
+    // the prop adapter actually handles, leaving every other pseudo/style
+    // stack visible to the usual diagnostics.
+    let field_style: Option<Vec<_>> = placeholder.is_some().then(|| {
+        node.style.iter()
+            .filter(|declaration| placeholder_colour(declaration).is_none())
+            .cloned().collect()
+    });
+    let style = lower_inline_flex(fold_font_relative(
+        field_style.as_deref().unwrap_or(&node.style),
+        inherited,
+    ));
     // A skeleton's animation runs only when motion is allowed, whatever the
     // class said: `animate-pulse` on one is read as
     // `motion-safe:animate-pulse` (decision 007, section 5). The Web half is
@@ -377,10 +389,12 @@ pub(super) fn render_node(
             continue;
         }
         if matches!(declaration.property, StyleProperty::PlaceholderColor(_)) {
-            if placeholder.is_some() {
-                continue;
-            }
             if let Some(reason) = placeholder_only_reason(&declaration.property) {
+                let reason = if node.primitive == Primitive::TextInput {
+                    "conditional placeholder colours beyond dark mode are not wired to TextInput's placeholderTextColor prop".to_string()
+                } else {
+                    reason
+                };
                 diagnostics.push(unwired_variant(node, &reason, Severity::Error));
                 continue;
             }
@@ -1332,7 +1346,9 @@ pub(super) fn render_node(
     // Styles that RN expresses as props (see `truncation_props`).
     // `numberOfLines` takes a number, so it's braced rather than quoted.
     for (key, value) in placeholder.into_iter().flatten() {
-        props_text.push_str(&format!(" {key}={{{value}}}"));
+        if !authored.contains(&key) {
+            props_text.push_str(&format!(" {key}={{{value}}}"));
+        }
     }
     for (key, value) in caret.into_iter().flatten() {
         props_text.push_str(&format!(" {key}={{{value}}}"));

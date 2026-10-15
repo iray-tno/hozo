@@ -1,5 +1,32 @@
 use super::*;
 
+#[test]
+fn only_disabling_user_resize_is_already_true_on_native() {
+    for primitive in ["View", "TextInput"] {
+        for utility in ["resize-none", "resize", "resize-x", "resize-y"] {
+            let source = format!(
+                "import {{ {primitive} }} from '@hozo/core'; export function C() {{ return <{primitive} accessibilityLabel=\"Field\" className=\"{utility}\"/> }}"
+            );
+            let parsed = hozo_parser::parse_tsx(&source);
+            let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+            if utility == "resize-none" {
+                assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+                assert!(!out.styles.contains("resize"), "{}", out.styles);
+                assert!(out.runtime_imports.is_empty());
+            } else {
+                assert!(out.diagnostics.iter().any(|d| {
+                    d.code == DiagnosticCode::WebOnlyPropertyOnNative && d.message.contains("resize")
+                }), "{utility}: {:?}", out.diagnostics);
+            }
+        }
+    }
+    // A reset must not hide an earlier request for a missing handle.
+    let source = "import {TextInput} from '@hozo/core'; const e = <TextInput accessibilityLabel=\"Field\" className=\"resize-y resize-none\"/>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::WebOnlyPropertyOnNative));
+}
+
 const LOGIN_EXAMPLE: &str = r#"
 import { View, Text, Button } from '@hozo/core'
 
