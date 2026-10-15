@@ -148,10 +148,15 @@ test('OTP focus belongs to the one input, not active or filled decorative cells'
   const cellClasses =
     'border-2 opacity-50 font-normal focus:outline-4 focus-visible:font-bold focus:focus-visible:border-4'
   const inputClasses = 'focus:outline-4 focus-visible:font-bold'
-  const css = (await compile('@tailwind utilities;')).build([
-    ...cellClasses.split(' '),
-    ...inputClasses.split(' '),
-  ])
+  const css = (
+    await compile(
+      '@theme { --font-weight-normal: 400; --font-weight-bold: 700; } @tailwind utilities;',
+    )
+  ).build([...cellClasses.split(' '), ...inputClasses.split(' ')])
+  assert.ok(
+    css.includes('font-weight: var(--font-weight-bold)'),
+    'the focus typography rule must exist',
+  )
   const bundle = await build({
     stdin: {
       contents: `
@@ -193,6 +198,7 @@ test('OTP focus belongs to the one input, not active or filled decorative cells'
       assert.equal(await field.evaluate((e) => e === document.activeElement), true, slot)
       await page.keyboard.press('End')
       assert.equal(await field.evaluate((e) => getComputedStyle(e).outlineWidth), '4px', slot)
+      assert.equal(await field.evaluate((e) => getComputedStyle(e).fontWeight), '700', slot)
       assert.equal(await root.evaluate((e) => e.matches(':focus')), false, slot)
       const assertCells = async () => {
         const styles = await cells.evaluateAll((nodes) =>
