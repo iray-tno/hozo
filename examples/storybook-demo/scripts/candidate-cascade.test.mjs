@@ -521,13 +521,16 @@ test('owned static plus dynamic styles still match the Native style array, witho
   const { hozoClasses } = evaluate(cache.renderNativeModule().replace(/^import .*$/gm, ''), {
     createClassResolver,
   })
-  const nativeElement = evaluate(`${native.styles}\nmodule.exports = (${native.jsx})`, {
-    dynamic: 'p-4 flex-row',
-    hozoClasses,
-    View: 'View',
-    StyleSheet: { create: (styles) => styles },
-    h: (type, props) => ({ type, props }),
-  })
+  const nativeElement = evaluate(
+    `const hozoStyles = ${native.styles}\nmodule.exports = (${native.jsx})`,
+    {
+      dynamic: 'p-4 flex-row',
+      hozoClasses,
+      View: 'View',
+      StyleSheet: { create: (styles) => styles },
+      h: (type, props) => ({ type, props }),
+    },
+  )
   const nativeStyle = Object.assign(
     {},
     ...[nativeElement.props.style].flat(Infinity).filter(Boolean),
