@@ -92,7 +92,10 @@ const PACKAGES = {
       './canvas': './dist/canvas.js',
       './diagnostics': './dist/diagnostics.js',
       './sources': './dist/sources.js',
+      './manifest': './dist/manifest.js',
     },
+    // Builds the manifest a component package ships (#950).
+    bin: { 'hozo-manifest': './dist/manifest-cli.js' },
     keywords: ['react-native', 'compiler', 'rust', 'napi', 'tailwind'],
   },
   core: {
@@ -119,10 +122,17 @@ const PACKAGES = {
   ui: {
     // The consumer compiles these components against its own theme. A dist
     // entry would bypass that compilation; CSS imports must survive shaking.
-    exports: { '.': './src/index.ts', './theme.css': './src/theme.css' },
+    exports: {
+      '.': './src/index.ts',
+      './theme.css': './src/theme.css',
+      './hozo.manifest.json': './hozo.manifest.json',
+    },
     // Local consumer builds can leave generated CSS next to the source. It
     // belongs to that consumer's theme, not the source-distributed tarball.
-    files: ['src', '!src/**/*.hozo.css'],
+    // The manifest is what a caller's build reads instead of the source
+    // (#950); `scripts/component-manifests.mjs` keeps it current.
+    files: ['src', '!src/**/*.hozo.css', 'hozo.manifest.json'],
+    hozo: { manifest: './hozo.manifest.json' },
     sideEffects: ['./src/**/*.css'],
     keywords: ['react-native', 'react', 'design-system', 'tailwind', 'accessibility'],
   },
@@ -445,6 +455,8 @@ export function metadataFor(name) {
         ? main
         : undefined,
     exports: exportsField,
+    ...(spec.bin ? { bin: spec.bin } : {}),
+    ...(spec.hozo ? { hozo: spec.hozo } : {}),
     // Bundlers cannot cross a package boundary safely until the package says
     // which modules execute work merely by being imported. One explicit
     // runtime exception preserves the Native ambient listeners; every other

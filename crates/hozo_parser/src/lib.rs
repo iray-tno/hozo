@@ -12,6 +12,7 @@ mod jsx;
 mod scan;
 mod stylex;
 mod tailwind;
+mod text_forwarding;
 mod unfold;
 pub(crate) mod tailwind_variants;
 
@@ -23,6 +24,10 @@ pub use rn_imports::{
 pub use rn_usage::{analyze_react_native_usage, ReactNativeBindingUsage, ReactNativeReference, ReactNativeUsage};
 pub use jsx::is_primitive_name;
 pub use unfold::unfold_jsx_calls;
+pub use text_forwarding::{
+    summarize_text_forwarding, ForwardingComponent, ForwardingProp, ForwardingReexport, ForwardingVariant,
+    TextForwardingSummary,
+};
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
 pub use scan::{
     resolve_class_name, scan_class_candidates, scan_class_candidates_with, source_uses_tailwind,

@@ -150,6 +150,20 @@ export interface StylexModuleExportSummary {
   members: StylexModuleMemberSummary[]
 }
 
+/** What one file's exported components hand their children as text styles (#950). */
+export interface TextForwardingSummary {
+  components: TextForwardingComponent[]
+  /** `export { A as B } from './x'`, to follow an entry to its definitions. */
+  reexports: { specifier: string; imported: string; exported: string }[]
+}
+
+export interface TextForwardingComponent {
+  name: string
+  props: { name: string; default?: string | null; values: string[] }[]
+  variants: { when: string[]; classes: string }[]
+  disabledProp?: string | null
+}
+
 /** AST-independent facts the project graph caches for one source module. */
 export interface StylexModuleSummary {
   exports: StylexModuleExportSummary[]
@@ -277,6 +291,7 @@ interface NativeBinding {
   topLevelBindings(source: string): string[]
   foreignPrimitives(source: string, sources: string[]): string[]
   summarizeStylexModule(source: string, sourceFile?: string): StylexModuleSummary
+  summarizeTextForwarding(source: string): TextForwardingSummary
   CandidateCache: CandidateCacheConstructor
   Compiler: CompilerConstructor
 }
@@ -617,6 +632,15 @@ export function moduleImports(source: string, module: string): string[] {
  */
 export function topLevelBindings(source: string): string[] {
   return loadNative().topLevelBindings(source)
+}
+
+/**
+ * What each component exported from this file hands its children as text
+ * styles, read from the file alone. A component whose shape is not one the
+ * reader knows has no entry. See `./manifest.ts`.
+ */
+export function summarizeTextForwarding(source: string): TextForwardingSummary {
+  return loadNative().summarizeTextForwarding(source)
 }
 
 /**

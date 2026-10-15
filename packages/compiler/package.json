@@ -23,6 +23,9 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "sideEffects": false,
+  "bin": {
+    "hozo-manifest": "./dist/manifest-cli.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -51,6 +54,10 @@
     "./sources": {
       "types": "./dist/sources.d.ts",
       "default": "./dist/sources.js"
+    },
+    "./manifest": {
+      "types": "./dist/manifest.d.ts",
+      "default": "./dist/manifest.js"
     },
     "./package.json": "./package.json"
   },

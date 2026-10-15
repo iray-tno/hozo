@@ -28,12 +28,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./theme.css": "./src/theme.css",
+    "./hozo.manifest.json": "./hozo.manifest.json",
     "./package.json": "./package.json"
   },
   "files": [
     "CHANGELOG.md",
     "src",
     "!src/**/*.hozo.css",
+    "hozo.manifest.json",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
     "!src/**/*.bench.ts"
@@ -68,5 +70,8 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-native": "^0.87.1"
+  },
+  "hozo": {
+    "manifest": "./hozo.manifest.json"
   }
 }

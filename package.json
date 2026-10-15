@@ -14,6 +14,8 @@
     "changeset": "changeset",
     "check:packages": "node scripts/check-packages.mjs",
     "dev": "turbo run dev",
+    "manifests": "node scripts/component-manifests.mjs",
+    "manifests:check": "node scripts/component-manifests.mjs --check",
     "docs:check": "pnpm docs:primitives:check && pnpm docs:layout:check && pnpm docs:readmes:check",
     "docs:layout": "node scripts/repository-layout.mjs",
     "docs:layout:check": "node scripts/repository-layout.mjs --check",
