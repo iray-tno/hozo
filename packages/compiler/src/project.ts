@@ -5,7 +5,6 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'no
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
-import { globbySync, isGitIgnoredSync } from 'globby'
 
 import {
   type CandidateCache,
@@ -14,6 +13,7 @@ import {
   type StylexExternalBinding,
 } from './index.ts'
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
+import { gitIgnoredSync, walkFiles } from './walk.ts'
 
 export {
   type CachedStylexModule,
@@ -231,7 +231,7 @@ function gitRootAbove(from: string): string | undefined {
 /**
  * A test for the ignores declared *above* the project.
  *
- * Globby's `gitignore` reads only the `.gitignore` files at or below the
+ * The walk's `gitignore` reads only the `.gitignore` files at or below the
  * directory it is handed, which in a monorepo is the one place they are
  * not: `storybook-static/`, `dist/`, `.next/` are declared once at the
  * repository root and inherited by every package. So `respectGitignore`
@@ -253,15 +253,15 @@ function gitRootAbove(from: string): string | undefined {
  */
 function notIgnoredAbove(root: string): (file: string) => boolean {
   const gitRoot = gitRootAbove(root)
-  // Nothing above to inherit from, or globby already read it in place.
+  // Nothing above to inherit from, or the walk already read it in place.
   if (gitRoot === undefined || gitRoot === path.resolve(root)) return () => true
-  const ignored = isGitIgnoredSync({ cwd: gitRoot })
+  const ignored = gitIgnoredSync(gitRoot)
   return (file) => !ignored(file)
 }
 
 /**
- * Returns authored source files in stable order. Globby supplies gitignore
- * semantics and avoids following directory symlinks, preventing pnpm links
+ * Returns authored source files in stable order. The walk (`./walk.ts`)
+ * supplies gitignore semantics and avoids following directory symlinks, preventing pnpm links
  * and temporary checkouts from expanding one project walk into another.
  *
  * An `include` the project supplied wins over gitignore, which the default
@@ -286,12 +286,8 @@ export function discoverSources(root: string, options: ContentOptions = {}): str
   // which answers a different question, about what to commit -- does not
   // get to overrule it.
   const respectGitignore = (options.respectGitignore ?? true) && options.include === undefined
-  const files = globbySync(options.include ?? DEFAULT_INCLUDE, {
+  const files = walkFiles(options.include ?? DEFAULT_INCLUDE, {
     cwd: root,
-    absolute: true,
-    onlyFiles: true,
-    unique: true,
-    followSymbolicLinks: false,
     gitignore: respectGitignore,
     ignore: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
   })
@@ -337,12 +333,8 @@ function packageSources(root: string, options: ContentOptions): string[] {
     if (dir === undefined) continue
     // Rooted at the package, so `DEFAULT_EXCLUDE`'s `node_modules` rule means
     // "not a package nested inside this one" rather than "not this package".
-    for (const file of globbySync(DEFAULT_INCLUDE, {
+    for (const file of walkFiles(DEFAULT_INCLUDE, {
       cwd: dir,
-      absolute: true,
-      onlyFiles: true,
-      unique: true,
-      followSymbolicLinks: false,
       gitignore: false,
       // Workspace checkouts contain fixtures omitted from Hozo's published
       // packages. Scanning them leaks test-only strings into production CSS
@@ -440,12 +432,8 @@ export function semanticModuleEligible(file: string, target: 'web' | 'native'): 
  * empty up front, and it cannot create one for a file it never listed.
  */
 export function discoverTransformedSources(root: string, options: ContentOptions = {}): string[] {
-  return globbySync(['**/*.mdx'], {
+  return walkFiles(['**/*.mdx'], {
     cwd: root,
-    absolute: true,
-    onlyFiles: true,
-    unique: true,
-    followSymbolicLinks: false,
     gitignore: false,
     ignore: [...DEFAULT_EXCLUDE, ...(options.exclude ?? [])],
   })

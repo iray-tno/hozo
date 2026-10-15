@@ -748,12 +748,15 @@ importers:
 
   packages/compiler:
     dependencies:
-      globby:
-        specifier: ^14.1.0
-        version: 14.1.0
+      ignore:
+        specifier: ^7.0.6
+        version: 7.0.6
       jsonc-parser:
         specifier: ^3.3.1
         version: 3.3.1
+      tinyglobby:
+        specifier: ^0.2.17
+        version: 0.2.17
     devDependencies:
       '@babel/core':
         specifier: 7.29.7
@@ -4368,10 +4371,6 @@ packages:
   '@sinclair/typebox@0.27.12':
     resolution: {integrity: sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g==}
 
-  '@sindresorhus/merge-streams@2.3.0':
-    resolution: {integrity: sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg==}
-    engines: {node: '>=18'}
-
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
@@ -6842,10 +6841,6 @@ packages:
     resolution: {integrity: sha512-Wjlyrolmm8uDpm/ogGyXZXb1Z+Ca2B8NbJwqBVg0axK9GbBeoS7yGV6vjXnYdGm6X53iehEuxxbyiKp8QmN4Vw==}
     engines: {node: 18 || 20 || >=22}
 
-  globby@14.1.0:
-    resolution: {integrity: sha512-0Ia46fDOaT7k4og1PDW4YbodWWr3scS2vAr2lTbsplOt2WkKp0vQbkI9wKis/T5LV/dqPjO3bpS/z6GTJB82LA==}
-    engines: {node: '>=18'}
-
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
@@ -8158,10 +8153,6 @@ packages:
     resolution: {integrity: sha512-3O/iVVsJAPsOnpwWIeD+d6z/7PmqApyQePUtCndjatj/9I5LylHvt5qluFaBT3I5h3r1ejfR056c+FCv+NnNXg==}
     engines: {node: 18 || 20 || >=22}
 
-  path-type@6.0.0:
-    resolution: {integrity: sha512-Vj7sf++t5pBD637NSfkxpHSMfWaeig5+DKWLhcqIYx6mWQz5hdJTGDVMQiJcw1ZYkhs7AazKDGpRVji1LJCZUQ==}
-    engines: {node: '>=18'}
-
   pathe@2.0.3:
     resolution: {integrity: sha512-WUjGcAqP1gQacoQe+OBJsFA7Ld4DyXuUIjZ5cc75cLHvJ7dtNsTugphxIADwspS+AraAUePCKrSVtPLFj/F88w==}
 
@@ -8881,10 +8872,6 @@ packages:
 
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
-
-  slash@5.1.0:
-    resolution: {integrity: sha512-ZA6oR3T/pEyuqwMgAKT0/hAv8oAXckzbkmR0UkUosQ+Mc4RxGoJkRmwHgHufaenlyAgE1Mxgpdcrf75y6XcnDg==}
-    engines: {node: '>=14.16'}
 
   slice-ansi@2.1.0:
     resolution: {integrity: sha512-Qu+VC3EwYLldKa1fCxuuvULvSJOKEgk9pi8dZeCVK7TqBfUNTH4sFkk4joj8afVSfAYgJoSOetjx9QWOJ5mYoQ==}
@@ -14663,8 +14650,6 @@ snapshots:
 
   '@sinclair/typebox@0.27.12': {}
 
-  '@sindresorhus/merge-streams@2.3.0': {}
-
   '@standard-schema/spec@1.1.0': {}
 
   '@storybook/addon-a11y@10.5.9(storybook@10.5.9(@types/react@19.2.18)(prettier@3.9.6)(react@19.2.8))':
@@ -17851,15 +17836,6 @@ snapshots:
       minipass: 7.1.3
       path-scurry: 2.0.2
 
-  globby@14.1.0:
-    dependencies:
-      '@sindresorhus/merge-streams': 2.3.0
-      fast-glob: 3.3.3
-      ignore: 7.0.6
-      path-type: 6.0.0
-      slash: 5.1.0
-      unicorn-magic: 0.3.0
-
   gopd@1.2.0: {}
 
   graceful-fs@4.2.11: {}
@@ -19575,8 +19551,6 @@ snapshots:
       lru-cache: 11.5.2
       minipass: 7.1.3
 
-  path-type@6.0.0: {}
-
   pathe@2.0.3: {}
 
   pathval@2.0.1: {}
@@ -20790,8 +20764,6 @@ snapshots:
       is-arrayish: 0.3.4
 
   sisteransi@1.0.5: {}
-
-  slash@5.1.0: {}
 
   slice-ansi@2.1.0:
     dependencies:

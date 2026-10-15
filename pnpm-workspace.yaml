@@ -34,11 +34,11 @@ overrides:
 auditConfig:
   ignoreGhsas:
     # braces, deeply nested patterns can exhaust the stack. No release after
-    # 3.0.3. Reaches the tree through `@hozo/compiler` > globby > fast-glob >
-    # micromatch, which consumers install too, so this one is ours: the
-    # patterns are the project's own include and exclude globs, not input
-    # from users of the built app. Tracked to removal by dropping globby from
-    # the compiler (#946).
+    # 3.0.3. No longer through `@hozo/compiler`, which dropped globby for
+    # tinyglobby (#946). It still reaches the workspace through React
+    # Native's own toolchain -- the community CLI and Metro, via fast-glob
+    # and micromatch -- which a React Native app installs whatever Hozo does.
+    # Remove when a patch ships or that toolchain moves off micromatch.
     - GHSA-vfj7-8cjw-p6xm
     # node-forge. No release after 1.4.0, and the newest @expo/cli (57.0.30)
     # still asks for ^1.3.3, so moving Expo does not drop it. Development
