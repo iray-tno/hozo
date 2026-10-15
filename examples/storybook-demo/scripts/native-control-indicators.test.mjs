@@ -1108,7 +1108,7 @@ test('Native ColorPicker preserves disabled guards and selected slot style prior
   assert.equal(tree.root.findByType('NativeTextInput').props.editable, false)
 })
 
-test('Native clickable Stepper passes host interaction to label, mark and description without advancing', async (t) => {
+test('Native clickable Stepper keeps focus on the button, not its decorative mark or description', async (t) => {
   const pressed = []
   const tree = await mount(t, HozoStepper, {
     steps: [
@@ -1137,8 +1137,16 @@ test('Native clickable Stepper passes host interaction to label, mark and descri
     hosts()[0]
       .findAllByType('NativeView')
       .filter((node) => flat(node.props.style).outlineWidth === 2).length,
-    2,
-    'mark and description receive focus-visible',
+    0,
+    'decorative mark and description cannot borrow focus-visible',
+  )
+  assert.equal(flat(hosts()[0].props.style).outlineWidth, 2, 'the button keeps its own ring')
+  assert.deepEqual(
+    hosts()[0]
+      .findAllByType('NativeText')
+      .map((node) => flat(node.props.style).fontWeight),
+    ['700', '700', '700'],
+    'parent focus typography is inherited, not a child focus predicate',
   )
   assert.deepEqual(pressed, [])
   assert.equal(hosts()[0].props.accessibilityState.selected, true)
@@ -1178,7 +1186,7 @@ test('Native Stepper status slots get interaction and descriptive steps remain n
       assert.equal(
         flat((part === 'Step' ? host() : host().findAllByType('NativeView')[0]).props.style)
           .outlineWidth,
-        2,
+        part === 'Step' ? 2 : undefined,
       )
     }
   }
@@ -1191,6 +1199,71 @@ test('Native Stepper status slots get interaction and descriptive steps remain n
   assert.equal(staticTree.root.findAllByType('NativePressable').length, 0)
   assert.equal(staticTree.root.findAllByType('NativeText')[1].children.join(''), 'One')
   assert.equal(flat(staticTree.root.findAllByType('NativeView')[1].props.style).paddingTop, 16)
+})
+
+test('Native Stepper decorative status slots retain base and explicit styles without borrowing focus', async (t) => {
+  for (const status of ['upcoming', 'completed', 'current', 'error']) {
+    const changes = []
+    const props = {
+      steps: [{ label: 'One', description: 'Info', status }],
+      activeStep: 0,
+      onStepPress: (index) => changes.push(index),
+      stepClassName: 'focus:outline-4 focus-visible:font-bold',
+      indicatorClassName: otpCellFocusClasses,
+      descriptionClassName: otpCellFocusClasses,
+      ...(status === 'upcoming' ? {} : { [`${status}IndicatorClassName`]: otpCellFocusClasses }),
+    }
+    const tree = await mount(t, HozoStepper, props)
+    const host = () => tree.root.findByType('NativePressable')
+    const decorations = () => {
+      const views = host().findAllByType('NativeView')
+      const texts = host().findAllByType('NativeText')
+      return [
+        [views[0], texts[0]],
+        [views[2], texts[2]],
+      ]
+    }
+    const check = () => {
+      for (const [box, text] of decorations()) {
+        assert.equal(flat(box.props.style).outlineWidth, undefined, status)
+        assert.equal(flat(box.props.style).borderTopWidth, 2, status)
+        assert.equal(flat(text.props.style).fontWeight, '400', status)
+      }
+    }
+    check()
+    await act(() => host().props.onKeyDown({}))
+    await act(() => host().props.onFocus({}))
+    assert.equal(flat(host().props.style).outlineWidth, 4)
+    assert.equal(flat(host().findAllByType('NativeText')[1].props.style).fontWeight, '700')
+    check()
+    await act(() => host().props.onBlur({}))
+    assert.equal(flat(host().props.style).outlineWidth, undefined)
+    check()
+    await act(() =>
+      tree.update(
+        React.createElement(HozoStepper, {
+          ...props,
+          indicatorStyle: { outlineWidth: 6, fontWeight: '500' },
+          descriptionStyle: { outlineWidth: 7, fontWeight: '600' },
+          ...(status === 'upcoming'
+            ? {}
+            : {
+                [`${status}IndicatorStyle`]: { outlineWidth: 8, fontWeight: '800' },
+              }),
+        }),
+      ),
+    )
+    await act(() => host().props.onKeyDown({}))
+    await act(() => host().props.onFocus({}))
+    const [[mark, markText], [description, descriptionText]] = decorations()
+    assert.equal(flat(mark.props.style).outlineWidth, status === 'upcoming' ? 6 : 8)
+    assert.equal(flat(markText.props.style).fontWeight, status === 'upcoming' ? '500' : '800')
+    assert.equal(flat(description.props.style).outlineWidth, 7)
+    assert.equal(flat(descriptionText.props.style).fontWeight, '600')
+    assert.deepEqual(changes, [], 'focus does not activate or advance a step')
+    await press(host())
+    assert.deepEqual(changes, [0])
+  }
 })
 
 test('Native Chip standalone toggle delivers interaction without changing selection and preserves controlled state', async (t) => {
