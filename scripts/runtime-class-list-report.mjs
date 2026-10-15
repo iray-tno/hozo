@@ -53,15 +53,25 @@ export function report(records, currentCommit, baselineCommit) {
         result.semantic.pressedOpacity,
         name !== 'before' && result.scenario === 'state-classes' ? 0.5 : null,
       )
+      assert.equal(
+        Boolean(result.phases),
+        value.methodology.react === 'production',
+        'phases are reported by the production build only',
+      )
       for (const operation of operations) {
-        const samples = result[operation].samplesMs
-        assert.equal(samples.length, value.methodology.samples, 'sample count changed')
-        assert.ok(samples.every((sample) => Number.isFinite(sample) && sample >= 0))
-        assert.equal(
-          result[operation].medianMs,
-          [...samples].sort((a, b) => a - b)[Math.ceil(samples.length * 0.5) - 1],
-          'median differs from raw evidence',
-        )
+        for (const series of [
+          result[operation],
+          ...Object.values(result.phases?.[operation] ?? {}),
+        ]) {
+          const samples = series.samplesMs
+          assert.equal(samples.length, value.methodology.samples, 'sample count changed')
+          assert.ok(samples.every((sample) => Number.isFinite(sample) && sample >= 0))
+          assert.equal(
+            series.medianMs,
+            [...samples].sort((a, b) => a - b)[Math.ceil(samples.length * 0.5) - 1],
+            'median differs from raw evidence',
+          )
+        }
       }
     }
   }
@@ -84,11 +94,15 @@ export function report(records, currentCommit, baselineCommit) {
           'CPU sampling enabled: these timings include profiler overhead and must not be compared with unprofiled runs.',
         ]
       : []),
-    ...(records.current.methodology.reactDevtoolsUserTiming === false
+    ...(records.current.methodology.react === 'production'
       ? [
-          'React development User Timing observer disabled in this series; do not compare its milliseconds to legacy observer-enabled measurements. DEV/act checks remain enabled.',
+          'Production React, driven by its mock scheduler: no act and no DEV checks. Do not compare these milliseconds with a development series.',
         ]
-      : []),
+      : records.current.methodology.reactDevtoolsUserTiming === false
+        ? [
+            'React development User Timing observer disabled in this series; do not compare its milliseconds to legacy observer-enabled measurements. DEV/act checks remain enabled.',
+          ]
+        : []),
     '',
     baselineCommit
       ? '| Classes | Rows | Operation | Before | After #888 | Baseline | Current | Current / baseline |'
@@ -110,6 +124,26 @@ export function report(records, currentCommit, baselineCommit) {
       )
     }
   }
+  if (records.current.results[0].phases) {
+    // Which phase a difference is in: render and commit, or passive effects.
+    const names = ['before', 'after', ...(baselineCommit ? ['baseline'] : []), 'current']
+    lines.push(
+      '',
+      'Mount by phase, median ms (render and commit / passive effects):',
+      '',
+      `| Classes | Rows | ${names.join(' | ')} |`,
+      `| --- | ---: | ${names.map(() => '---:').join(' | ')} |`,
+    )
+    for (const { scenario, rows } of records.current.results) {
+      const cells = names.map((name) => {
+        const { commitMs, passiveMs } = records[name].results.find(
+          (entry) => entry.scenario === scenario && entry.rows === rows,
+        ).phases.mount
+        return `${commitMs.medianMs.toFixed(3)} / ${passiveMs.medianMs.toFixed(3)}`
+      })
+      lines.push(`| ${scenario} | ${rows} | ${cells.join(' | ')} |`)
+    }
+  }
   lines.push(
     '',
     'Interpretation boundaries:',
@@ -117,7 +151,9 @@ export function report(records, currentCommit, baselineCommit) {
     '- Actual compiled Row components render through the revision-specific selected Pressable/HozoPressable and class resolver; every requested row mounts and updates, while one press re-renders only that row.',
     '- **Before #888 refuses state classes. Its state-classes timings are not equal-feature speed comparisons.** Later revisions supply the pressed opacity, verified on the rendered host.',
     '- Shared driver dependencies, serial fresh processes and separately rebuilt addons keep source revisions distinct. Candidate maps are warm; compilation/bundling, unmount and assertions are outside timers.',
-    '- Development react-test-renderer + simulated RN hosts: no Hermes, production React, layout, native bridge, GPU, pixels, frame budget or physical-device conclusion.',
+    records.current.methodology.react === 'production'
+      ? '- Production react-test-renderer + simulated RN hosts: no Hermes, layout, native bridge, GPU, pixels, frame budget or physical-device conclusion. The stub Animated is a plain object, so real Animated node cost is not in these numbers.'
+      : '- Development react-test-renderer + simulated RN hosts: no Hermes, production React, layout, native bridge, GPU, pixels, frame budget or physical-device conclusion.',
     '- A single runner and a small sample do not prove general speed or absence of regressions. No noisy wall-clock pass/fail threshold.',
     '',
   )

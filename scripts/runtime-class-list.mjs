@@ -16,8 +16,57 @@ export const BEFORE = 'cc1914bf49aaddd642d850bed77cb503e3e9966d'
 export const AFTER = '6333a72ba5720fc3b25f4eeab0bbd66b5bf131b4'
 const driverRoot = fileURLToPath(new URL('../', import.meta.url))
 const require = createRequire(path.join(driverRoot, 'packages/tailwind-conformance/package.json'))
-const React = require('react')
-globalThis.IS_REACT_ACT_ENVIRONMENT = true
+// Loaded by `loadReact`, once per process: which build loads is decided by
+// NODE_ENV at the first `require('react')`, so nothing may load it earlier.
+let React
+
+/**
+ * The React build and how a unit of work is driven to completion in it.
+ *
+ * Development keeps the original protocol: `act`, with its checks. A
+ * production React has no `act` (#922), so there the renderer's scheduler
+ * is React's own mock one -- what React's tests use -- and the work is
+ * flushed by hand. That also separates the two phases `act` cannot: render
+ * and commit (up to the paint the commit requests), then passive effects.
+ */
+export function loadReact(build) {
+  if (build === 'production') {
+    process.env.NODE_ENV = 'production'
+    const fromRenderer = createRequire(require.resolve('react-test-renderer'))
+    const mock = pathToFileURL(fromRenderer.resolve('scheduler/unstable_mock')).href
+    registerHooks({
+      resolve: (specifier, context, next) =>
+        specifier === 'scheduler' ? { url: mock, shortCircuit: true } : next(specifier, context),
+    })
+    React = require('react')
+    assert.equal(React.act, undefined, 'a development React loaded despite NODE_ENV')
+    const Scheduler = fromRenderer('scheduler/unstable_mock')
+    return {
+      renderer: require('react-test-renderer'),
+      run(work) {
+        const start = performance.now()
+        work()
+        Scheduler.unstable_flushUntilNextPaint()
+        const committed = performance.now()
+        Scheduler.unstable_flushAll()
+        const end = performance.now()
+        assert.equal(Scheduler.unstable_hasPendingWork(), false)
+        return { totalMs: end - start, commitMs: committed - start, passiveMs: end - committed }
+      },
+    }
+  }
+  React = require('react')
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  const renderer = renderDriver()
+  return {
+    renderer,
+    run(work) {
+      const start = performance.now()
+      React.act(work)
+      return { totalMs: performance.now() - start }
+    },
+  }
+}
 
 export function renderDriver(load = () => require('react-test-renderer')) {
   // React 19's development User Timing track diffs every changed prop and
@@ -47,12 +96,32 @@ export function summarize(values) {
   }
 }
 
+/**
+ * Each operation's totals, the series every build reports, and under
+ * `phases` whatever the build could separate. Production splits render and
+ * commit from passive effects; development, inside `act`, cannot.
+ */
+export function summarizeOperations(timings) {
+  const result = {}
+  for (const [operation, samples] of Object.entries(timings)) {
+    result[operation] = summarize(samples.map(({ totalMs }) => totalMs))
+    const phases = Object.keys(samples[0]).filter((key) => key !== 'totalMs')
+    if (phases.length === 0) continue
+    result.phases ??= {}
+    result.phases[operation] = Object.fromEntries(
+      phases.map((phase) => [phase, summarize(samples.map((sample) => sample[phase]))]),
+    )
+  }
+  return result
+}
+
 export function options(args) {
   const result = {
     root: driverRoot,
     rows: [32, 256, 1024],
     samples: 9,
     warmups: 2,
+    react: 'development',
     output: undefined,
   }
   for (let i = 0; i < args.length; i += 2) {
@@ -63,6 +132,7 @@ export function options(args) {
     else if (key === '--rows') result.rows = value.split(',').map(Number)
     else if (key === '--samples') result.samples = Number(value)
     else if (key === '--warmups') result.warmups = Number(value)
+    else if (key === '--react') result.react = value
     else throw new Error(`unknown option ${key}`)
   }
   assert.ok(
@@ -70,6 +140,7 @@ export function options(args) {
   )
   assert.ok(Number.isInteger(result.samples) && result.samples > 0 && result.samples <= 100)
   assert.ok(Number.isInteger(result.warmups) && result.warmups >= 0 && result.warmups <= 10)
+  assert.ok(['development', 'production'].includes(result.react), `unknown React build`)
   return result
 }
 
@@ -234,7 +305,7 @@ export { NativePressable as Pressable } from 'benchmark-host';`,
 }
 
 export async function measure(config) {
-  const renderer = renderDriver()
+  const { renderer, run } = loadReact(config.react)
   const debugEntryCount = () =>
     performance.getEntriesByType('measure').filter((entry) => entry.detail?.devtools).length
   const beforeDebugEntries = debugEntryCount()
@@ -258,9 +329,7 @@ export async function measure(config) {
     for (const scenario of ['plain', 'state-classes']) {
       const look = `p-4 bg-blue-500${scenario === 'plain' ? '' : ' active:opacity-50'}`
       for (const rows of config.rows) {
-        const mountTimes = []
-        const updateTimes = []
-        const pressTimes = []
+        const timings = { mount: [], parentUpdate: [], oneRowPress: [] }
         let semantic
         const scene = (tick) =>
           React.createElement(
@@ -274,16 +343,12 @@ export async function measure(config) {
           let root
           try {
             prepared.resetRenders()
-            let start = performance.now()
-            React.act(() => {
+            const mount = run(() => {
               root = renderer.create(scene(0))
             })
-            const mountMs = performance.now() - start
             assert.equal(prepared.renderCount(), rows, 'the requested rows were not mounted')
             prepared.resetRenders()
-            start = performance.now()
-            React.act(() => root.update(scene(1)))
-            const updateMs = performance.now() - start
+            const parentUpdate = run(() => root.update(scene(1)))
             assert.equal(prepared.renderCount(), rows, 'parent update did not render every row')
             const hosts = root.root.findAllByType('NativePressable')
             assert.equal(hosts.length, rows)
@@ -293,9 +358,7 @@ export async function measure(config) {
             assert.equal(resting.paddingTop, 16)
             assert.ok(resting.backgroundColor)
             prepared.resetRenders()
-            start = performance.now()
-            React.act(() => hosts[0].props.onPressIn())
-            const pressMs = performance.now() - start
+            const oneRowPress = run(() => hosts[0].props.onPressIn())
             assert.equal(prepared.renderCount(), 1, 'one press must not re-render idle siblings')
             const activeOpacity = flatten(hosts[0].props.style).opacity
             semantic = {
@@ -312,20 +375,18 @@ export async function measure(config) {
                 'state-capable candidate output did not reach the real rendered host',
               )
             if (trial >= 0) {
-              mountTimes.push(mountMs)
-              updateTimes.push(updateMs)
-              pressTimes.push(pressMs)
+              timings.mount.push(mount)
+              timings.parentUpdate.push(parentUpdate)
+              timings.oneRowPress.push(oneRowPress)
             }
           } finally {
-            if (root) React.act(() => root.unmount())
+            if (root) run(() => root.unmount())
           }
         }
         results.push({
           scenario,
           rows,
-          mount: summarize(mountTimes),
-          parentUpdate: summarize(updateTimes),
-          oneRowPress: summarize(pressTimes),
+          ...summarizeOperations(timings),
           semantic,
         })
       }
@@ -356,6 +417,7 @@ export async function measure(config) {
       logicalCpus: os.availableParallelism(),
     },
     methodology: {
+      react: config.react,
       reactDevtoolsUserTiming: false,
       cpuProfiling: process.execArgv.some((argument) => argument.startsWith('--cpu-prof')),
       samples: config.samples,
@@ -363,11 +425,15 @@ export async function measure(config) {
       rows: config.rows,
       dependencies: 'shared driver installation',
       renderer:
-        'development react-test-renderer with User Timing observer disabled and simulated RN hosts; no device, layout, GPU, bridge or FPS evidence',
+        config.react === 'production'
+          ? 'production react-test-renderer driven by React mock scheduler, simulated RN hosts; no Hermes, device, layout, GPU, bridge or FPS evidence'
+          : 'development react-test-renderer with User Timing observer disabled and simulated RN hosts; no device, layout, GPU, bridge or FPS evidence',
       cache:
         'shared generated candidate resolver warmed by untimed trials; compilation and bundling excluded',
       timing:
-        'scene construction and act synchronous render/commit/effects included; unmount, assertions and host lookup excluded',
+        config.react === 'production'
+          ? 'scene construction, render/commit up to the requested paint (commitMs), then passive effects (passiveMs); unmount, assertions and host lookup excluded'
+          : 'scene construction and act synchronous render/commit/effects included; unmount, assertions and host lookup excluded',
       warningPolicy: 'captured, retained; not discarded or timed as console I/O',
       stateBaseline:
         'before #888 state classes are refused; state-classes timings are NOT equivalent styling workloads',

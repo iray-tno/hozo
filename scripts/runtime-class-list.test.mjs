@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { AFTER, BEFORE, options, renderDriver, summarize } from './runtime-class-list.mjs'
+import {
+  AFTER,
+  BEFORE,
+  options,
+  renderDriver,
+  summarize,
+  summarizeOperations,
+} from './runtime-class-list.mjs'
 import { report } from './runtime-class-list-report.mjs'
 
 test('renderer timing capability changes only at load and the public performance API is restored', () => {
@@ -138,6 +145,38 @@ test('comparison labels unequal historical state support and rejects incomplete 
     mutate(copy)
     assert.throws(() => report(copy, currentCommit))
   }
+})
+
+test('a production series reports and validates mount phases next to its totals', () => {
+  const timings = {
+    mount: [
+      { totalMs: 3, commitMs: 2, passiveMs: 1 },
+      { totalMs: 5, commitMs: 4, passiveMs: 1 },
+      { totalMs: 4, commitMs: 4, passiveMs: 0 },
+    ],
+    parentUpdate: [1, 2, 3].map((totalMs) => ({ totalMs, commitMs: totalMs, passiveMs: 0 })),
+    oneRowPress: [1, 2, 3].map((totalMs) => ({ totalMs, commitMs: totalMs, passiveMs: 0 })),
+  }
+  const summarized = summarizeOperations(timings)
+  assert.deepEqual(summarized.mount.samplesMs, [3, 5, 4])
+  assert.deepEqual(summarized.phases.mount.passiveMs.samplesMs, [1, 1, 0])
+  // Development, inside `act`, has nothing to split.
+  assert.equal(summarizeOperations({ mount: [{ totalMs: 1 }] }).phases, undefined)
+  assert.equal(options(['--react', 'production']).react, 'production')
+  assert.throws(() => options(['--react', 'profiling']))
+
+  const { records, currentCommit } = syntheticSeries()
+  for (const record of Object.values(records)) {
+    record.methodology.react = 'production'
+    for (const result of record.results) Object.assign(result, summarizeOperations(timings))
+  }
+  assert.match(report(records, currentCommit), /Mount by phase/)
+  const missing = structuredClone(records)
+  delete missing.current.results[0].phases
+  assert.throws(() => report(missing, currentCommit))
+  const edited = structuredClone(records)
+  edited.after.results[0].phases.mount.passiveMs.medianMs = 9
+  assert.throws(() => report(edited, currentCommit))
 })
 
 test('an optimization baseline is measured on the same runner and must match its explicit commit', () => {

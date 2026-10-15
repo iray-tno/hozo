@@ -10,6 +10,11 @@ on:
         type: string
         required: false
         default: ''
+      react:
+        description: 'React build: development keeps the act protocol; production splits commit from passive effects'
+        type: choice
+        options: [development, production]
+        default: development
       cpu-profile:
         description: 'Capture CPU profiles for diagnosis (timings include profiler overhead)'
         type: boolean
@@ -65,6 +70,7 @@ jobs:
         env:
           BASELINE_REF: ${{ inputs.baseline }}
           CPU_PROFILE: ${{ inputs.cpu-profile }}
+          REACT_BUILD: ${{ inputs.react || 'development' }}
         shell: bash
         run: |
           mkdir -p artifacts/runtime-class-list target
@@ -86,7 +92,7 @@ jobs:
             if [ "$CPU_PROFILE" = true ]; then
               profile_flags=(--cpu-prof --cpu-prof-name="$variant.cpuprofile" --cpu-prof-dir="$GITHUB_WORKSPACE/artifacts/runtime-class-list")
             fi
-            node "${profile_flags[@]}" scripts/runtime-class-list.mjs --root "$source" --output "artifacts/runtime-class-list/$variant.json" > "artifacts/runtime-class-list/$variant.log" 2>&1
+            node "${profile_flags[@]}" scripts/runtime-class-list.mjs --root "$source" --react "$REACT_BUILD" --output "artifacts/runtime-class-list/$variant.json" > "artifacts/runtime-class-list/$variant.log" 2>&1
           done
       - name: Verify evidence and publish the comparison
         env:
