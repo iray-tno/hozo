@@ -710,7 +710,7 @@ test('CommandPalette semantic classes follow option attributes while shortcuts o
   skip: !executablePath,
 }, async () => {
   const classes =
-    'm-0 border-0 border-solid opacity-100 font-normal text-black disabled:ml-8 enabled:mr-8 not-disabled:mt-1 not-enabled:mb-1 aria-selected:font-bold aria-selected:text-blue-500 not-aria-selected:border-2 aria-disabled:opacity-50 not-aria-disabled:rounded-lg aria-checked:outline-8 not-aria-checked:pt-1'
+    'm-0 border-0 border-solid outline-0 opacity-100 font-normal text-black disabled:ml-8 enabled:mr-8 not-disabled:mt-1 not-enabled:mb-1 aria-selected:font-bold aria-selected:text-blue-500 not-aria-selected:border-2 aria-disabled:opacity-50 not-aria-disabled:rounded-lg aria-checked:outline-8 not-aria-checked:pt-1'
   const activeClasses = 'aria-selected:border-4 not-aria-selected:outline-8'
   const shortcutClasses =
     'border-0 border-solid aria-selected:border-4 aria-disabled:opacity-25 disabled:ml-8 enabled:mr-8'
