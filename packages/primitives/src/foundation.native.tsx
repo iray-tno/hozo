@@ -108,6 +108,7 @@ export interface LinkProps {
   rel?: string
   download?: boolean | string
   onPress?: (event: { defaultPrevented?: boolean }) => void
+  disabled?: boolean
   style?: StyleProp<TextStyle>
   testID?: string
   nativeID?: string

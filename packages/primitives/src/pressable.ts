@@ -326,6 +326,13 @@ export function HozoPressable({
       HozoLink,
       {
         ...common,
+        // common is already DOM-shaped. HozoLink normalizes its canonical
+        // identity/name props itself; omitting these let its undefined
+        // defaults overwrite the id and label just passed in common.
+        nativeID,
+        testID,
+        accessibilityLabel,
+        accessibilityHint,
         ref: setRef as Ref<HTMLAnchorElement>,
         href,
         external,
@@ -335,7 +342,7 @@ export function HozoPressable({
         rel,
         download,
         disabled: unavailable,
-        accessibilityRole,
+        accessibilityRole: accessibilityRole ?? role,
         onPress: unavailable ? undefined : (activate as never),
         onKeyDown,
         onKeyUp,

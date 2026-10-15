@@ -97,9 +97,11 @@ for (const [name, render] of Object.entries(cases)) {
   })
 }
 
-test('an author who wrote tabIndex keeps it, disabled or not', () => {
+test('an authored tabIndex cannot put an unavailable destination back in the tab order', () => {
   const html = compiled('<Link href="/docs" disabled={true} tabIndex={0}>Docs</Link>')
-  assert.match(html, /tabindex="0"/i, html)
+  assert.match(html, /tabindex="-1"/i, html)
+  const enabled = compiled('<Link href="/docs" disabled={false} tabIndex={0}>Docs</Link>')
+  assert.match(enabled, /tabindex="0"/i, enabled)
 })
 
 test('a Button without a destination keeps its native disabled', () => {
