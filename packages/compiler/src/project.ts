@@ -9,9 +9,11 @@ import { performance } from 'node:perf_hooks'
 import {
   type CandidateCache,
   type ClassHelper,
+  classHelperCandidates,
   type FontAvailability,
   openCandidateCache,
   type StylexExternalBinding,
+  summarizeClassHelpers,
 } from './index.ts'
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
 import { gitIgnoredSync, walkFiles } from './walk.ts'
@@ -236,6 +238,47 @@ export function resolveClassHelpers(
       out.set(key(helper), { module: helper.module, name: helper.name })
   }
   return [...out.values()]
+}
+
+const SCRIPT = /.(?:[cm]?[jt]sx?)$/
+const summaries = new Map<string, { modifiedMs: number; exports: string[] }>()
+
+/** What a helper file exports as joiners, read again only when it changes. */
+function helperExports(file: string): string[] {
+  const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs
+  if (modifiedMs === undefined) return []
+  const cached = summaries.get(file)
+  if (cached?.modifiedMs === modifiedMs) return cached.exports
+  const exports = summarizeClassHelpers(readFileSync(file, 'utf8'))
+  summaries.set(file, { modifiedMs, exports })
+  return exports
+}
+
+/**
+ * The project's own class-joining functions this file calls, found by
+ * following each candidate import to the file it resolves to (#964).
+ *
+ * `resolve` is the bundler's own resolution, so aliases such as `@/` mean
+ * what they mean in the build. `onDependency` is told every file read, so a
+ * bundler that can re-transform this file when one changes (Vite's
+ * `addWatchFile`) does. The result goes through `resolveClassHelpers` with
+ * the project's declarations, which win.
+ */
+export async function findClassHelpers(
+  source: string,
+  importer: string,
+  resolve: (specifier: string, importer: string) => Promise<string | undefined>,
+  onDependency?: (file: string) => void,
+): Promise<ClassHelper[]> {
+  const found: ClassHelper[] = []
+  for (const { specifier, imported } of classHelperCandidates(source)) {
+    const resolved = await resolve(specifier, importer)
+    const file = resolved?.split('?')[0]
+    if (!file || !SCRIPT.test(file)) continue
+    onDependency?.(file)
+    if (helperExports(file).includes(imported)) found.push({ module: specifier, name: imported })
+  }
+  return found
 }
 
 export interface ScanStats {

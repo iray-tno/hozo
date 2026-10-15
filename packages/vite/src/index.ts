@@ -33,6 +33,7 @@ import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { foldedPrimitiveCalls, lowerModule, sideEffectImport } from '@hozo/compiler/lower'
 import {
   discoverSources,
+  findClassHelpers,
   type HozoProjectOptions,
   importSpecifier,
   isTransformedSource,
@@ -241,6 +242,18 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         }
       }
 
+      // The project's own class-joining functions this file calls (#964),
+      // found through Vite's own resolution and watched, so editing the
+      // helper re-transforms its callers. Set immediately before lowering,
+      // with no await in between: the compiler is shared by every file.
+      const helpers = await findClassHelpers(
+        source,
+        absoluteFile,
+        async (specifier, importer) =>
+          (await this.resolve(specifier, importer, { skipSelf: true }))?.id,
+        (dependency) => this.addWatchFile(dependency),
+      )
+      compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))
       const lowered = lowerModule(source, id, file, compiler, root, stylexModules, {
         unloweredReactNativeJsx: options.unloweredReactNativeJsx,
       })
@@ -367,7 +380,6 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           warn: (message) => this.warn(message),
         })
         compiler = createCompiler(theme, options.sources, options.fontAvailability)
-        compiler.setClassHelpers(resolveClassHelpers(options.classHelpers))
 
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves
