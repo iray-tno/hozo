@@ -50,6 +50,16 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             _ => None,
         };
     }
+    if primitive == Primitive::CommandPalette && matches!(class_prop, "itemClassName" | "activeItemClassName") {
+        return match condition {
+            // Web options are divs, not disabled/enabled form controls.
+            Condition::Disabled | Condition::Enabled => Some("false"),
+            Condition::Aria(state) if state == "disabled" => Some("__hozoSlotAriaDisabled"),
+            Condition::Aria(state) if state == "selected" => Some("__hozoSlotAriaSelected"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        };
+    }
     None
 }
 
@@ -62,6 +72,8 @@ pub(super) fn semantic_parameters(primitive: Primitive) -> &'static str {
         ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled"
     } else if primitive == Primitive::ColorPicker {
         ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked"
+    } else if primitive == Primitive::CommandPalette {
+        ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected"
     } else {
         ""
     }

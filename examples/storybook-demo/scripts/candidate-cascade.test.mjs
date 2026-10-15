@@ -706,6 +706,183 @@ test('Stepper focus stays on each button while decorative slots inherit only its
   }
 })
 
+test('CommandPalette semantic classes follow option attributes while shortcuts only inherit typography', {
+  skip: !executablePath,
+}, async () => {
+  const classes =
+    'm-0 border-0 border-solid opacity-100 font-normal text-black disabled:ml-8 enabled:mr-8 not-disabled:mt-1 not-enabled:mb-1 aria-selected:font-bold aria-selected:text-blue-500 not-aria-selected:border-2 aria-disabled:opacity-50 not-aria-disabled:rounded-lg aria-checked:outline-8 not-aria-checked:pt-1'
+  const activeClasses = 'aria-selected:border-4 not-aria-selected:outline-8'
+  const shortcutClasses =
+    'border-0 border-solid aria-selected:border-4 aria-disabled:opacity-25 disabled:ml-8 enabled:mr-8'
+  const css = (
+    await compile(
+      '@theme { --spacing: 0.25rem; --radius-lg: 8px; --font-weight-normal: 400; --font-weight-bold: 700; --color-black: #000; --color-blue-500: #2b7fff; } @tailwind utilities;',
+    )
+  ).build([...classes.split(' '), ...activeClasses.split(' '), ...shortcutClasses.split(' ')])
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {CommandPalette} from '@hozo/patterns';
+        window.paletteSemanticSelections = []; window.paletteSemanticClosures = [];
+        const root = createRoot(document.getElementById('root'));
+        window.renderPaletteSemantics = (disabledNames = ['Blocked'], open = true) =>
+          root.render(<CommandPalette open={open} portal={false}
+            commands={['Blocked','Alpha','Beta'].map(label => ({id:label,label,shortcut:label[0],
+              disabled:disabledNames.includes(label),onSelect:()=>window.paletteSemanticSelections.push(label)}))}
+            onOpenChange={open => window.paletteSemanticClosures.push(open)}
+            itemClassName=${JSON.stringify(classes)} activeItemClassName=${JSON.stringify(activeClasses)}
+            shortcutClassName=${JSON.stringify(shortcutClasses)}/>);
+        window.renderPaletteSemantics();`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(
+      `<style>${css}</style><button id="pseudo-control" disabled aria-checked="true" class="${classes}">Control</button><div id="root"></div>`,
+    )
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'combobox')
+    assert.deepEqual(
+      await page.locator('#pseudo-control').evaluate((e) => {
+        const css = getComputedStyle(e)
+        return [css.marginLeft, css.outlineWidth]
+      }),
+      ['32px', '8px'],
+      'non-matching pseudo-class/ARIA rules must have real CSS',
+    )
+    const field = page.getByRole('combobox')
+    const option = (label) => page.getByRole('option', { name: label, exact: true })
+    const check = async (
+      current,
+      disabledNames = ['Blocked'],
+      visible = ['Blocked', 'Alpha', 'Beta'],
+    ) => {
+      assert.equal(await page.getByRole('option').count(), visible.length)
+      for (const label of visible) {
+        const selected = label === current
+        const disabled = disabledNames.includes(label)
+        assert.deepEqual(
+          await option(label).evaluate((e) => {
+            const css = getComputedStyle(e)
+            return {
+              selected: e.getAttribute('aria-selected'),
+              ariaDisabled: e.getAttribute('aria-disabled'),
+              checked: e.getAttribute('aria-checked'),
+              disabled: e.matches(':disabled'),
+              enabled: e.matches(':enabled'),
+              margins: [css.marginTop, css.marginRight, css.marginBottom, css.marginLeft],
+              border: css.borderTopWidth,
+              outline: css.outlineWidth,
+              opacity: css.opacity,
+              padding: css.paddingTop,
+              weight: css.fontWeight,
+              color: css.color,
+            }
+          }),
+          {
+            selected: String(selected),
+            ariaDisabled: disabled ? 'true' : null,
+            checked: null,
+            disabled: false,
+            enabled: false,
+            margins: ['4px', '0px', '4px', '0px'],
+            border: selected ? '4px' : '2px',
+            outline: '0px',
+            opacity: disabled ? '0.5' : '1',
+            padding: '4px',
+            weight: selected ? '700' : '400',
+            color: selected ? 'rgb(43, 127, 255)' : 'rgb(0, 0, 0)',
+          },
+          label,
+        )
+        const shortcut = option(label).locator('span[aria-hidden]')
+        assert.deepEqual(
+          await shortcut.evaluate((e) => {
+            e.focus()
+            const css = getComputedStyle(e)
+            return {
+              selected: e.getAttribute('aria-selected'),
+              ariaDisabled: e.getAttribute('aria-disabled'),
+              disabled: e.matches(':disabled'),
+              enabled: e.matches(':enabled'),
+              focused: e.matches(':focus'),
+              border: css.borderTopWidth,
+              opacity: css.opacity,
+              weight: css.fontWeight,
+              color: css.color,
+              margins: [css.marginLeft, css.marginRight],
+            }
+          }),
+          {
+            selected: null,
+            ariaDisabled: null,
+            disabled: false,
+            enabled: false,
+            focused: false,
+            border: '0px',
+            opacity: '1',
+            weight: selected ? '700' : '400',
+            color: selected ? 'rgb(43, 127, 255)' : 'rgb(0, 0, 0)',
+            margins: ['0px', '0px'],
+          },
+          `${label} shortcut`,
+        )
+      }
+      assert.equal(
+        await field.getAttribute('aria-activedescendant'),
+        current === null ? null : await option(current).getAttribute('id'),
+      )
+      assert.equal(
+        await field.evaluate((e) => e === document.activeElement),
+        true,
+        'input keeps physical focus',
+      )
+    }
+    await check('Alpha')
+    // aria-disabled divs still receive DOM clicks. Bypass Playwright's own
+    // ARIA actionability refusal to test the component's real run guard.
+    await option('Blocked').click({ force: true })
+    await check('Alpha')
+    assert.deepEqual(await page.evaluate(() => window.paletteSemanticSelections), [])
+    await option('Beta').hover()
+    await check('Beta')
+    await page.keyboard.press('Enter')
+    assert.deepEqual(await page.evaluate(() => window.paletteSemanticSelections), ['Beta'])
+    await field.fill('Alpha')
+    await page.waitForFunction(() => document.querySelectorAll('[role="option"]').length === 1)
+    await check('Alpha', ['Blocked'], ['Alpha'])
+    await field.fill('')
+    await page.waitForFunction(() => document.querySelectorAll('[role="option"]').length === 3)
+    await page.evaluate(() => window.renderPaletteSemantics(['Blocked', 'Alpha', 'Beta']))
+    await page.waitForFunction(
+      () => !document.querySelector('[role="combobox"]').hasAttribute('aria-activedescendant'),
+    )
+    await check(null, ['Blocked', 'Alpha', 'Beta'])
+    await page.keyboard.press('Enter')
+    assert.deepEqual(await page.evaluate(() => window.paletteSemanticSelections), ['Beta'])
+    assert.deepEqual(await page.evaluate(() => window.paletteSemanticClosures), [false])
+    await page.evaluate(() => window.renderPaletteSemantics(['Blocked'], false))
+    await page.waitForFunction(() => !document.querySelector('[role="combobox"]'))
+    await page.evaluate(() => window.renderPaletteSemantics())
+    await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'combobox')
+    assert.equal(await field.inputValue(), '')
+    await check('Alpha')
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('CommandPalette shortcuts remain decorative while the real input keeps DOM focus', {
   skip: !executablePath,
 }, async () => {

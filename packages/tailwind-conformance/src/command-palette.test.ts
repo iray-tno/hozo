@@ -419,3 +419,155 @@ test('compiled command pointer slots preserve explicit item and active-item styl
     renderer.act(() => root.unmount())
   }
 })
+
+const SEMANTIC_SOURCE = `import { CommandPalette } from '@hozo/core'
+export function C({ commands, open = true, onOpenChange, itemStyle, activeItemStyle, shortcutStyle }) {
+  return <CommandPalette open={open} commands={commands} onOpenChange={onOpenChange}
+    itemClassName="px-2 disabled:ml-8 enabled:mr-8 not-disabled:mt-1 not-enabled:mb-1 aria-selected:bg-blue-500 aria-selected:font-bold not-aria-selected:border-2 aria-disabled:opacity-50 not-aria-disabled:rounded-lg aria-checked:outline-8 not-aria-checked:pt-1 aria-selected:hover:text-white aria-disabled:not-hover:pb-1"
+    activeItemClassName="aria-selected:border-4 not-aria-selected:outline-8 not-enabled:pl-1"
+    shortcutClassName="text-xs" itemStyle={itemStyle} activeItemStyle={activeItemStyle} shortcutStyle={shortcutStyle} />
+}`
+
+test('compiled command option semantics follow target, filtering and availability without borrowing button pseudo-classes', () => {
+  const { C } = loadNativeModule(SEMANTIC_SOURCE)
+  const selected: string[] = []
+  const changes: boolean[] = []
+  const commands = ['Blocked', 'Alpha', 'Beta'].map((label) => ({
+    id: label,
+    label,
+    shortcut: label[0],
+    disabled: label === 'Blocked',
+    onSelect: () => selected.push(label),
+  }))
+  let root: ReturnType<typeof renderer.create>
+  const render = (props = {}) =>
+    renderer.act(() => {
+      const element = react.createElement(C, {
+        commands,
+        onOpenChange: (open: boolean) => changes.push(open),
+        ...props,
+      })
+      if (root) root.update(element)
+      else root = renderer.create(element)
+    })
+  const item = (label: string) => {
+    const found = buttons(root).find((node: Tree) => node.props.accessibilityLabel === label)
+    assert.ok(found, `${label} did not mount`)
+    return found
+  }
+  const event = (node: Tree, name: string) =>
+    renderer.act(() => {
+      assert.equal(typeof node.props[name], 'function', name)
+      ;(node.props[name] as () => void)()
+    })
+  const check = (current: string | null, disabled: readonly string[] = ['Blocked']) => {
+    for (const node of buttons(root)) {
+      const active = node.props.accessibilityLabel === current
+      const blocked = disabled.includes(node.props.accessibilityLabel as string)
+      assert.deepEqual(
+        node.props.accessibilityState,
+        { disabled: blocked },
+        'Native announcements stay button-shaped',
+      )
+      assert.equal(Boolean(node.props.disabled), blocked)
+      assert.equal(flat(node).marginLeft, undefined, 'a Web option is not :disabled')
+      assert.equal(flat(node).marginRight, undefined, 'a Web option is not :enabled')
+      assert.equal(flat(node).marginTop, 4, 'both negations apply to a div')
+      assert.equal(flat(node).marginBottom, 4)
+      assert.equal(flat(node).paddingTop, 4, 'no aria-checked attribute')
+      assert.equal(
+        flat(node).outlineWidth,
+        undefined,
+        'active-only negative selected rule stays off',
+      )
+      assert.equal(flat(node).opacity, blocked ? 0.5 : undefined)
+      assert.equal(flat(node).borderTopWidth, active ? 4 : 2)
+      assert.equal(flat(node).backgroundColor, active ? '#2b7fff' : undefined)
+      assert.equal(flat(node).borderRadius, blocked ? undefined : 8)
+      const texts = node.findAll((child: Tree) => child.type === 'Text')
+      assert.equal(texts.length, 2)
+      for (const text of texts)
+        assert.equal(
+          flat(text).fontWeight,
+          active ? '700' : undefined,
+          'option typography reaches its shortcut through inheritance',
+        )
+    }
+  }
+  try {
+    render()
+    check('Alpha')
+    event(item('Beta'), 'onHoverIn')
+    check('Beta')
+    assert.equal(flat(item('Beta').findAll((node: Tree) => node.type === 'Text')[1]).color, '#fff')
+    event(item('Beta'), 'onHoverOut')
+    check('Beta')
+    assert.equal(
+      flat(item('Beta').findAll((node: Tree) => node.type === 'Text')[1]).color,
+      undefined,
+    )
+    assert.deepEqual(selected, [])
+    renderer.act(() => (field(root).props.onSubmitEditing as () => void)())
+    assert.deepEqual(selected, ['Beta'])
+    assert.deepEqual(changes, [false])
+    renderer.act(() => (field(root).props.onChangeText as (text: string) => void)('Alpha'))
+    check('Alpha')
+    assert.equal(buttons(root).length, 1)
+    renderer.act(() => (field(root).props.onChangeText as (text: string) => void)(''))
+    render({ commands: commands.map((command) => ({ ...command, disabled: true })) })
+    check(null, ['Blocked', 'Alpha', 'Beta'])
+    renderer.act(() => (field(root).props.onSubmitEditing as () => void)())
+    assert.deepEqual(selected, ['Beta'], 'no target means no activation or closure')
+    render({
+      commands: commands.map((command) => ({ ...command, disabled: command.label === 'Beta' })),
+    })
+    check('Blocked', ['Beta'])
+    render({ open: false })
+    render()
+    check('Alpha')
+    render({
+      itemStyle: { opacity: 0.9, color: '#123456' },
+      activeItemStyle: { opacity: 0.8, color: '#654321' },
+    })
+    assert.equal(flat(item('Alpha')).opacity, 0.8)
+    assert.equal(flat(item('Beta')).opacity, 0.9)
+    assert.equal(
+      flat(item('Alpha').findAll((node: Tree) => node.type === 'Text')[1]).color,
+      '#654321',
+    )
+    render({ shortcutStyle: { color: '#abcdef', fontWeight: '400' } })
+    assert.equal(
+      flat(item('Alpha').findAll((node: Tree) => node.type === 'Text')[0]).fontWeight,
+      '700',
+    )
+    assert.equal(
+      flat(item('Alpha').findAll((node: Tree) => node.type === 'Text')[1]).fontWeight,
+      '400',
+    )
+    assert.equal(
+      flat(item('Alpha').findAll((node: Tree) => node.type === 'Text')[1]).color,
+      '#abcdef',
+    )
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('full lowering keeps unknown option semantics and non-option class owners diagnosed', () => {
+  for (const [slot, classes] of [
+    ['itemClassName', 'not-aria-expanded:opacity-50'],
+    ['activeItemClassName', 'aria-pressed:hover:opacity-50'],
+    ['shortcutClassName', 'aria-selected:opacity-50'],
+    ['inputClassName', 'aria-selected:opacity-50'],
+    ['listClassName', 'aria-selected:opacity-50'],
+    ['panelClassName', 'aria-disabled:opacity-50'],
+  ]) {
+    assert.throws(
+      () =>
+        loadNativeModule(`import { CommandPalette } from '@hozo/core'
+      export function C() {return <CommandPalette commands={[]} ${slot}="${classes}" />}`),
+      /NOT_WIRED_ON_NATIVE/,
+      `${slot}: ${classes}`,
+    )
+  }
+})

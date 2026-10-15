@@ -182,6 +182,28 @@ remains last because it communicates the colour itself. This does not add
 semantic state to the picker group, track, thumb or hex-input class props,
 or expand arbitrary dynamic-class or runtime negation/enabled support.
 
+## Semantic state of CommandPalette options
+
+`itemClassName` and `activeItemClassName` belong to Web option divs: neither
+`:disabled` nor `:enabled` matches them. Use `aria-disabled:*` for unavailable
+commands and `aria-selected:*` for the highlighted return-key target; literal
+compiled classes support their negations and supported stacks. `not-disabled:*`
+and `not-enabled:*` both match an option. It has no `aria-checked` attribute.
+These facts are shared by candidate classes and generated callbacks, without
+requiring a corresponding prop on the palette itself.
+
+Native still presents real buttons and suppresses disabled activation. The
+active slot follows the same filtered/enabled target as Return; a target is
+not a press. A decorative shortcut owns none of the option's semantic
+attributes, but inherits its text styles before its own class/style overrides.
+Explicit item and active-item styles keep their precedence.
+
+This does not wire static focus variants on option slots (Web input retains
+focus), or static semantic variants on the shortcut, wrapper, panel or input.
+Existing runtime item focus and decorative hover/press behavior is unchanged,
+not a new cross-platform focus/pointer claim. Runtime negation/enabled and
+arbitrary dynamic-class support are not expanded here.
+
 ## Focus ownership of decorative slots
 
 `OtpInput` has one focus owner: its real input. Put `focus:*` and
