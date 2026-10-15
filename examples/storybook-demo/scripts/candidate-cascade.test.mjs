@@ -4,12 +4,13 @@ import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { createClassResolver } from '@hozo/engine'
 import { Button as ButtonFallback } from '@hozo/primitives'
-import { transformSync } from 'esbuild'
+import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { createElement, Fragment } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -138,6 +139,123 @@ function evaluate(code, globals = {}) {
   runInNewContext(js, { module, h: createElement, Fragment, ...globals })
   return module.exports
 }
+
+test('disabled navigation keeps compiled, fallback and spread hosts out of Tab order and activation', {
+  skip: !executablePath,
+}, async () => {
+  const fixtures = []
+  for (const name of ['Button', 'Link', 'Pressable']) {
+    for (const mode of ['compiled', 'fallback', 'spread']) {
+      const id = `${name}-${mode}`
+      const attrs = 'href="#docs" disabled={blocked} onPress={onPress} nativeID={id}'
+      const element =
+        mode === 'spread'
+          ? `<${name} {...{href: '#docs', disabled: blocked, onPress}} nativeID={id}>Docs</${name}>`
+          : `<${name} ${attrs}>Docs</${name}>`
+      const jsx =
+        mode === 'fallback'
+          ? element
+          : compiler.compile(
+              `import {${name}} from '@hozo/core'; function C({blocked, onPress, id}) {return ${element}}`,
+            )[0].jsx
+      fixtures.push({ id, jsx })
+    }
+  }
+  // Measured/responder-capable Pressable keeps its richer host. It must
+  // delegate the same anchor contract rather than become a disabled div.
+  fixtures.push({
+    id: 'Pressable-measured',
+    jsx: compiler.compile(
+      `import {Pressable} from '@hozo/core'; function C({blocked, onPress, id}) {return <Pressable href="#docs" onLayout={()=>{}} disabled={blocked} onPress={onPress} nativeID={id}>Docs</Pressable>}`,
+    )[0].jsx,
+  })
+  const definitions = fixtures
+    .map(({ jsx }, index) => `function C${index}({blocked, onPress, id}) {return ${jsx}}`)
+    .join('\n')
+  const bundle = await build({
+    stdin: {
+      contents: `
+      import React, {useEffect, useState} from 'react';
+      import {createRoot} from 'react-dom/client';
+      import {Button, Link, Pressable} from '@hozo/primitives';
+      ${definitions}
+      window.activations = [];
+      const cases = [${fixtures.map(({ id }, index) => `{id:${JSON.stringify(id)}, C:C${index}}`).join(',')}];
+      function App() {
+        const [blocked, setBlocked] = useState(true);
+        window.setBlocked = setBlocked;
+        useEffect(() => {document.body.dataset.blocked = String(blocked)}, [blocked]);
+        return <><button id="before">Before</button>{cases.map(({id,C}) =>
+          <C key={id} id={id} blocked={blocked} onPress={event=>{window.activations.push(id);event.preventDefault()}}/>
+        )}<button id="after">After</button></>
+      }
+      createRoot(document.getElementById('root')).render(<App/>);
+    `,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  try {
+    await page.setContent('<div id="root"></div>')
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(() => document.body.dataset.blocked === 'true')
+    const assertDisabled = async () => {
+      for (const { id } of fixtures) {
+        const host = page.locator(`#${id}`)
+        assert.equal(await host.evaluate((e) => e.tagName), 'A', id)
+        assert.equal(await host.getAttribute('disabled'), null, id)
+        assert.equal(await host.getAttribute('aria-disabled'), 'true', id)
+        assert.equal(await host.getAttribute('data-hozo-disabled'), '', id)
+        assert.equal(await host.getAttribute('tabindex'), '-1', id)
+        await host.evaluate((e) => e.click())
+        const cancelled = await host.evaluate(
+          (e) =>
+            !e.dispatchEvent(
+              new MouseEvent('auxclick', { button: 1, bubbles: true, cancelable: true }),
+            ),
+        )
+        assert.equal(cancelled, true, `${id}: auxiliary activation must be prevented`)
+        await host.focus()
+        await page.keyboard.press('Enter')
+      }
+      assert.deepEqual(await page.evaluate(() => window.activations), [])
+      await page.locator('#before').focus()
+      await page.keyboard.press('Tab')
+      assert.equal(await page.evaluate(() => document.activeElement.id), 'after')
+      await page.keyboard.press('Shift+Tab')
+      assert.equal(await page.evaluate(() => document.activeElement.id), 'before')
+    }
+    await assertDisabled()
+    await page.evaluate(() => window.setBlocked(false))
+    await page.waitForFunction(() => document.body.dataset.blocked === 'false')
+    await page.locator('#before').focus()
+    for (const { id } of fixtures) {
+      await page.keyboard.press('Tab')
+      assert.equal(await page.evaluate(() => document.activeElement.id), id)
+      assert.equal(await page.locator(`#${id}`).getAttribute('data-hozo-disabled'), null)
+      await page.keyboard.press('Enter')
+    }
+    assert.deepEqual(
+      await page.evaluate(() => window.activations),
+      fixtures.map(({ id }) => id),
+    )
+    await page.evaluate(() => {
+      window.activations = []
+      window.setBlocked(true)
+    })
+    await page.waitForFunction(() => document.body.dataset.blocked === 'true')
+    await assertDisabled()
+  } finally {
+    await page.close()
+  }
+})
 
 test('Button host IDs and metadata work with DOM listeners without React hydration', {
   skip: !executablePath,

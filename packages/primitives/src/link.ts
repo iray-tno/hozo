@@ -46,6 +46,7 @@ export interface HozoLinkProps
   accessibilityHint?: string
   accessibilityRole?: string
   disabled?: boolean
+  focusable?: boolean
   /** Leaves the app: `_blank` and a `rel` that severs `window.opener`. */
   external?: boolean
   /** Ask an installed router to replace its current history entry. */
@@ -71,6 +72,9 @@ export function HozoLink({
   accessibilityHint,
   accessibilityRole,
   disabled,
+  focusable,
+  tabIndex,
+  onAuxClick,
   external,
   replace,
   prefetch,
@@ -104,6 +108,11 @@ export function HozoLink({
       // There is no `disabled` on an anchor. The pair below is what a
       // disabled link is: announced as unavailable, and not followed.
       'aria-disabled': disabled ? true : undefined,
+      // HTML anchors have no disabled state. Do not let even an explicit
+      // positive tabindex put an unavailable destination in the Tab order.
+      tabIndex: disabled
+        ? -1
+        : (tabIndex ?? (focusable === undefined ? undefined : focusable ? 0 : -1)),
       // `disabled:` compiles to `[data-hozo-disabled]` rather than to
       // `:disabled`, which matches form controls only. Without the
       // attribute the utility silently stops matching on this element
@@ -119,6 +128,9 @@ export function HozoLink({
             event.preventDefault()
           }
         : onPress,
+      onAuxClick: disabled
+        ? (event: React.MouseEvent<HTMLAnchorElement>) => event.preventDefault()
+        : onAuxClick,
     },
     children,
   )

@@ -48,6 +48,26 @@ test('browser-owned link affordances are not intercepted', () => {
   assert.equal(click(undefined, { defaultPrevented: true }), null)
 })
 
+test('unavailable Hozo anchors are not router requests, including before React mounts', () => {
+  assert.equal(click({ href: '/disabled', 'data-hozo-disabled': '' }), null)
+  const event = clickEvent()
+  const anchor = {
+    hasAttribute: (name: string) => name === 'data-hozo-disabled',
+  }
+  let prevented = false
+  routeNavigationClick(
+    {
+      ...event,
+      target: { closest: () => anchor } as unknown as EventTarget,
+      preventDefault: () => (prevented = true),
+    },
+    { navigate: () => assert.fail('must not call a router for an unavailable destination') },
+    () => assert.fail('must not fall back to browser navigation'),
+  )
+  assert.equal(prevented, true)
+  assert.deepEqual(click({ href: '/aria-only', 'aria-disabled': 'true' }), { href: '/aria-only' })
+})
+
 test('a synchronous adapter decline leaves the browser click untouched', () => {
   let prevented = false
   const adapter: HozoNavigationAdapter = { navigate: () => false }

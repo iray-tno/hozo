@@ -15,6 +15,8 @@ use source_evidence::Rendered;
 mod tag_evidence_tests;
 #[cfg(test)]
 mod source_evidence_tests;
+#[cfg(test)]
+mod disabled_navigation_tests;
 
 use hozo_ir::{Diagnostic, Node, Primitive, Theme};
 
@@ -1010,7 +1012,10 @@ fn render_node(
         (None, state) => state,
     };
 
-    let is_hozo_component = tag.starts_with("Hozo")
+    // A retained alias is a component too. Looking only at its spelling
+    // renamed nativeID/onPress/disabled for the DOM before the fallback
+    // could decide whether it was an action or a destination (#943).
+    let is_hozo_component = shape == markup::UNDECIDED || tag.starts_with("Hozo")
         || matches!(
             tag,
             "View"
@@ -1208,7 +1213,7 @@ fn render_node(
                 // `disabled` folds into `hozoInteractive` when there is
                 // one; emitting it here too put `aria-disabled` on the
                 // element twice and let the later win by accident.
-                if synthesized_control && *key == "disabled" {
+                if (synthesized_control || tag == "a") && *key == "disabled" {
                     continue;
                 }
                 let written = node
@@ -1411,7 +1416,7 @@ fn render_node(
         attrs.push_str(&format!(" open={{{}}}", render_condition_expr(source, open)));
     }
     if let Some(on_press) = node.props.on_press {
-        let name = if tag == "Pressable" { "onPress" } else { "onClick" };
+        let name = if is_hozo_component { "onPress" } else { "onClick" };
         // Not when the author already wrote the name this maps onto.
         //
         // `onPress` is React Native's spelling and becomes `onClick` here,
@@ -1492,11 +1497,36 @@ fn render_node(
             }
         }
     }
-    if tag == "a" && node.props.on_press.is_none() {
+    if tag == "a" && node.props.on_press.is_none()
+        && !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("onClick"))
+    {
         if let Some(disabled) = &disabled_expr {
             attrs.push_str(&format!(
                 " onClick={{({disabled}) ? (event) => event.preventDefault() : undefined}}"
             ));
+        }
+    }
+    if tag == "a" {
+        if let Some(disabled) = &disabled_expr {
+            attrs.push_str(&format!(" aria-disabled={{{disabled}}}"));
+            // Keep href available to copying/context menus, but not in the
+            // sequential keyboard order while unavailable (decision 001).
+            // An authored tabindex is restored only in the enabled branch.
+            let authored_tab = node.props.passthrough.iter()
+                .find(|prop| prop.name.as_deref() == Some("tabIndex"));
+            if let Some(prop) = authored_tab {
+                let value = attribute_value_slice(source, prop.span).unwrap_or("true");
+                source_evidence::expression(&mut attrs, &mut attr_copies, source, value,
+                    &format!(" tabIndex={{({disabled}) ? -1 : ("), ")}");
+            } else {
+                let enabled = node.props.focusable.as_ref().map(|value|
+                    format!("({}) ? 0 : -1", render_condition_expr(source, value))
+                ).unwrap_or_else(|| "undefined".to_string());
+                attrs.push_str(&format!(" tabIndex={{({disabled}) ? -1 : ({enabled})}}"));
+            }
+            if !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("onAuxClick")) {
+                attrs.push_str(&format!(" onAuxClick={{({disabled}) ? (event) => event.preventDefault() : undefined}}"));
+            }
         }
     }
     for (name, value) in [
@@ -1517,13 +1547,13 @@ fn render_node(
             source_evidence::expression(&mut attrs, &mut attr_copies, source, source_text(source, value), &format!(" {name}={{"), "}");
         }
     }
-    if let Some(disabled) = node.props.disabled.as_ref().filter(|_| !synthesized_control) {
+    if let Some(disabled) = node.props.disabled.as_ref().filter(|_| !synthesized_control && tag != "a") {
         // `disabled` is a real, React-boolean-aware HTML attribute only on
         // actual form controls (<button> here) -- react omits it entirely
         // when the value is falsy. Everything else Hozo maps to a <div>
         // (Pressable, View, Text), where the native attribute has no
         // effect at all, so ARIA is the honest choice there instead.
-        let attr_name = if node.primitive == Primitive::Button || tag == "Pressable" { "disabled" } else { "aria-disabled" };
+        let attr_name = if is_hozo_component || matches!(tag, "button" | "input" | "textarea" | "select") { "disabled" } else { "aria-disabled" };
         attrs.push_str(&format!(" {attr_name}={{{}}}", render_condition_expr(source, disabled)));
     }
 
@@ -1535,15 +1565,19 @@ fn render_node(
     // -1` needs no translation and stays a passthrough, which is also why
     // an author who wrote both gets theirs: passthrough props are emitted
     // last.
-    if let Some(value) = node.props.focusable.as_ref().filter(|_| !is_hozo_component) {
-        attrs.push_str(&match value {
+    if let Some(value) = node.props.focusable.as_ref().filter(|_| !(tag == "a" && disabled_expr.is_some())) {
+        if is_hozo_component {
+            attrs.push_str(&boolean_attribute("focusable", value, source));
+        } else {
+            attrs.push_str(&match value {
             // `<View focusable />` and `focusable={false}` are both known
             // at compile time, so they become the attribute they mean
             // rather than a ternary over a constant.
             hozo_ir::ConditionExpr::Static(true) => " tabIndex={0}".to_string(),
             hozo_ir::ConditionExpr::Static(false) => " tabIndex={-1}".to_string(),
             other => format!(" tabIndex={{({}) ? 0 : -1}}", render_condition_expr(source, other)),
-        });
+            });
+        }
     }
 
     // The styling hook, on every element Hozo marks disabled and by
@@ -1742,6 +1776,19 @@ fn render_node(
     // an unknown RN-specific prop is still carried as written, because a
     // visible React warning is safer than silently deleting app behavior.
     for prop in &node.props.passthrough {
+        if tag == "a" {
+            if let Some(disabled) = &disabled_expr {
+                if prop.name.as_deref() == Some("tabIndex") {
+                    continue; // Emitted once above, guarded by disabled.
+                }
+                if let Some(name @ ("onClick" | "onAuxClick")) = prop.name.as_deref() {
+                    let value = attribute_value_slice(source, prop.span).unwrap_or("true");
+                    source_evidence::expression(&mut attrs, &mut attr_copies, source, value,
+                        &format!(" {name}={{({disabled}) ? (event) => event.preventDefault() : "), "}");
+                    continue;
+                }
+            }
+        }
         if let Some(slot) = node.primitive.class_slots().iter()
             .find(|slot| prop.name.as_deref() == Some(slot.class_prop))
         {
@@ -3409,7 +3456,7 @@ const el = <Meter value={used} max={total} />
             ),
             (
                 r#"<Button {...rest}>Docs</Button>"#,
-                r#"<Button {...hozoDomProps(rest)}>Docs</Button>"#,
+                r#"<Button {...rest}>Docs</Button>"#,
             ),
         ];
         for (input, expected) in cases {
@@ -3437,7 +3484,7 @@ const el = <Meter value={used} max={total} />
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert_eq!(
             output.jsx,
-            r#"<ButtonPrimitive {...hozoDomProps(rest)}>Docs</ButtonPrimitive>"#
+            r#"<ButtonPrimitive {...rest}>Docs</ButtonPrimitive>"#
         );
     }
 

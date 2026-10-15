@@ -284,6 +284,7 @@ export interface LinkProps {
   replace?: boolean
   prefetch?: boolean
   onPress?: MouseEventHandler<HTMLAnchorElement>
+  disabled?: boolean
 }
 
 export function Link({ children, ...props }: LinkProps) {

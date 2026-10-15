@@ -37,7 +37,7 @@ export function navigationRequestForClick(event: RoutableClick): HozoNavigationR
   }
 
   const anchor = event.target.closest('a[href]')
-  if (!anchor) return null
+  if (!anchor || anchor.hasAttribute('data-hozo-disabled')) return null
 
   const href = anchor.getAttribute('href')
   const target = anchor.getAttribute('target')?.toLowerCase()
@@ -61,7 +61,18 @@ export function routeNavigationClick(
   fallback: HozoNavigationFallback,
 ): void | Promise<void> {
   const request = navigationRequestForClick(event)
-  if (!request) return
+  // Also protects server-rendered Hozo anchors before their React handlers
+  // mount. A router must not turn an unavailable link into navigation, nor
+  // decline it to the browser. The marker is behavior; bare ARIA is not.
+  if (!request) {
+    if (
+      canFindClosest(event.target) &&
+      event.target.closest('a[href]')?.hasAttribute('data-hozo-disabled')
+    ) {
+      event.preventDefault()
+    }
+    return
+  }
 
   const handled = adapter.navigate(request)
   // A synchronous decline leaves the untouched anchor to the browser. An
