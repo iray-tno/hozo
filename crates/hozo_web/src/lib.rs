@@ -187,6 +187,11 @@ const CONTENT_BASE_CSS: &str = "@property --hozo-content {
 
 ";
 
+// Do not leak an ancestor's leading register into a child with its own
+// text-size utility. Line-height itself still inherits normally. This is
+// Tailwind's registration, and also works when no Tailwind sheet is loaded.
+const LEADING_BASE_CSS: &str = "@property --tw-leading {\n  syntax: \"*\";\n  inherits: false;\n}\n\n";
+
 const POINTER_EVENTS_BASE_CSS: &str = "[data-hozo-pointer-events='none'] { pointer-events: none; }\n\
 [data-hozo-pointer-events='auto'] { pointer-events: auto; }\n\
 [data-hozo-pointer-events='box-none'] { pointer-events: none; }\n\
@@ -271,6 +276,9 @@ pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: b
     }
     if uses_generated_content(root) {
         css.push_str(CONTENT_BASE_CSS);
+    }
+    if contains_prop(root, |node| node.style.iter().any(|d| matches!(d.property, hozo_ir::StyleProperty::LineHeight(_)))) {
+        css.push_str(LEADING_BASE_CSS);
     }
     if contains_primitive(root, Primitive::Skeleton) {
         css.push_str(SKELETON_BASE_CSS);
@@ -394,6 +402,7 @@ pub fn lower_with_evidence(root: &Node, source: &str, theme: &Theme, evidence: b
 pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> String {
     let mut out = String::new();
     let mut owned = String::new();
+    let mut uses_leading = false;
     for name in class_names {
         let Some(utility) = hozo_parser::resolve_class_name(name) else {
             continue;
@@ -445,6 +454,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
         }
         let shaded_theme = theme.dark();
         for (condition, properties) in &utility.groups {
+            uses_leading |= properties.iter().any(|p| matches!(p, hozo_ir::StyleProperty::LineHeight(_)));
             // The same pairing `render_node` does, on the other path a class
             // can reach the output by. A utility in this sheet is written
             // once and used by every element that names it, so a project
@@ -486,6 +496,9 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     }
     if out.is_empty() {
         return out;
+    }
+    if uses_leading {
+        out.insert_str(0, LEADING_BASE_CSS);
     }
     // A named sublayer loses to Tailwind's direct utilities regardless of
     // which stylesheet loads first. Declare the standard layer order too:
@@ -2662,6 +2675,20 @@ export function Login() {
         let css = css_for("translate-x-4 translate-y-8");
         assert!(css.contains("translate: 16px 32px;"), "{css}");
         assert_eq!(css.matches("translate:").count(), 1, "{css}");
+    }
+
+    #[test]
+    fn responsive_text_defaults_read_the_explicit_leading_register() {
+        for classes in ["text-lg sm:text-xl leading-relaxed", "leading-relaxed sm:text-xl text-lg"] {
+            let css = css_for(classes);
+            assert!(css.contains("--tw-leading: 1.625;"), "{css}");
+            assert!(css.contains("line-height: var(--tw-leading, 28px);"), "{css}");
+            assert!(css.contains("@property --tw-leading"), "{css}");
+            assert!(css.contains("inherits: false"), "{css}");
+        }
+        let sheet = render_candidate_stylesheet(&["text-xl".to_string(), "leading-relaxed".to_string()], &Theme::default());
+        assert_eq!(sheet.matches("@property --tw-leading").count(), 1);
+        assert!(sheet.contains("--tw-leading: 1.625;"));
     }
 
     #[test]

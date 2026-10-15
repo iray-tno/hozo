@@ -1237,6 +1237,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::LineHeight(lh) => (
             "line-height",
             match lh {
+                LineHeight::FontDefault(l) => format!("var(--tw-leading, {})", length_px(l, theme)),
                 LineHeight::Length(l) => length_px(l, theme),
                 LineHeight::Ratio(r) => format!("{r}"),
             },
@@ -2199,6 +2200,12 @@ fn render_shape(
                 continue;
             }
             let (name, value) = property_and_value(prop, theme);
+            if matches!(prop, StyleProperty::LineHeight(LineHeight::Length(_) | LineHeight::Ratio(_))) {
+                // Same register as Tailwind so an authored leading also
+                // survives font-size rules in other breakpoint groups and
+                // classes supplied by the caller's candidate sheet.
+                body.push_str(&format!("  --tw-leading: {value};\n"));
+            }
             // A theme animation the theme does not define has no declaration
             // to write; its class is carried instead.
             if name.is_empty() {

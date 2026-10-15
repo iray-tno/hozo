@@ -345,8 +345,15 @@ pub(super) fn fold_font_relative(
             .or_else(|| find(inherited, &Condition::Always))
     };
 
-    declarations
+    let explicit_leading = |condition: &Condition| {
+        declarations.iter().any(|d| {
+            matches!(d.property, StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)))
+                && (&d.condition == condition || d.condition == Condition::Always)
+        })
+    };
+    let mut folded: Vec<_> = declarations
         .iter()
+        .filter(|d| !matches!(d.property, StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(_))) || !explicit_leading(&d.condition))
         .map(|declaration| {
             let Some(size) = font_size(&declaration.condition) else {
                 return declaration.clone();
@@ -366,7 +373,34 @@ pub(super) fn fold_font_relative(
             };
             StyleDeclaration { property, condition: declaration.condition.clone() }
         })
-        .collect()
+        .collect();
+
+    // A ratio must be recomputed when a font-size condition changes. CSS
+    // retains --tw-leading and multiplies at used-value time; RN needs the
+    // corresponding absolute number under the intersection of both guards.
+    // No runtime measurement or extra subscription: reuse existing guards.
+    for leading in declarations {
+        let StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) = &leading.property else { continue };
+        if font_size(&leading.condition).is_none() { continue; }
+        for font in declarations {
+            let StyleProperty::FontSize(Length::Px(size)) = &font.property else { continue };
+            if font.condition == Condition::Always || leading.condition == font.condition { continue; }
+            if leading.condition == Condition::Always && declarations.iter().any(|d| {
+                d.condition == font.condition && matches!(d.property,
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)))
+            }) { continue; }
+            let condition = if leading.condition == Condition::Always {
+                font.condition.clone()
+            } else {
+                Condition::all(vec![leading.condition.clone(), font.condition.clone()])
+            };
+            folded.push(StyleDeclaration {
+                property: StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(size * ratio))),
+                condition,
+            });
+        }
+    }
+    folded
 }
 
 /// Why a font-relative metric couldn't be honoured when `fold_font_relative`

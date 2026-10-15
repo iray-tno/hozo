@@ -2524,7 +2524,7 @@ impl StyleProperty {
             PropertyValue::Length(length) => Some(length),
             PropertyValue::Dimension(Dimension::Length(length)) => Some(length),
             PropertyValue::Radius(Radius::Length(length)) => Some(length),
-            PropertyValue::LineHeight(LineHeight::Length(length)) => Some(length),
+            PropertyValue::LineHeight(LineHeight::Length(length) | LineHeight::FontDefault(length)) => Some(length),
             PropertyValue::LetterSpacing(LetterSpacing::Px(length)) => Some(length),
             _ => None,
         }
@@ -3938,6 +3938,10 @@ pub enum LetterSpacing {
 #[derive(Debug, Clone, PartialEq)]
 pub enum LineHeight {
     Length(Length),
+    /// A text-size utility's fallback, not an authored `leading-*` value.
+    /// Keep the provenance: an explicit leading wins even when a responsive
+    /// text size is active, and even when that size appears later in a list.
+    FontDefault(Length),
     /// React Native has no unitless line height -- its `lineHeight` is an
     /// absolute number -- and the font size to multiply by isn't known at
     /// compile time, so this form is Web-only.
@@ -4379,15 +4383,13 @@ pub enum MaskStop {
 ///
 /// Whether a value was asked for or came with something else.
 ///
-/// Only for the two `transition-*` supplies, because they are the only
-/// place Hozo resolves a Tailwind register whose fallback and whose
-/// override live in different utilities. Everything else that composes
-/// this way keeps both halves as separate properties.
+/// Used when a utility supplies a fallback that loses to a separate explicit
+/// utility: transition timing and a text size's default line height.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Origin {
     /// A utility that exists to set this: `duration-75`, `ease-in`.
     Written,
-    /// The fallback a `transition-*` utility carries.
+    /// The fallback a `transition-*` or text-size utility carries.
     Default,
 }
 
@@ -5137,7 +5139,7 @@ pub fn group_by_condition(declarations: &[StyleDeclaration]) -> Vec<(Condition, 
 /// value), keeping only the last occurrence of each while preserving
 /// overall relative order.
 pub fn dedupe_last_wins(props: Vec<StyleProperty>) -> Vec<StyleProperty> {
-    // Written order decides everything except the two values a
+    // Written order decides everything except values a text-size or
     // `transition-*` utility carries as fallbacks. Those lose to their own
     // utility wherever it appears, because Tailwind reads them through a
     // register rather than a declaration: `duration-75 transition` is 75ms
@@ -5247,7 +5249,7 @@ impl StyleProperty {
         )
     }
 
-    /// Where this value came from, for the two properties that have an
+    /// Where this value came from, for properties that have an
     /// answer. See `Origin`.
     pub fn origin(&self) -> Option<Origin> {
         match self {
@@ -5257,6 +5259,8 @@ impl StyleProperty {
             StyleProperty::TransitionDuration(_, origin)
             | StyleProperty::TransitionDelay(_, origin)
             | StyleProperty::TransitionTimingFunction(_, origin) => Some(*origin),
+            StyleProperty::LineHeight(LineHeight::FontDefault(_)) => Some(Origin::Default),
+            StyleProperty::LineHeight(_) => Some(Origin::Written),
             _ => None,
         }
     }

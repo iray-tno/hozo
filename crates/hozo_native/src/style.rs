@@ -636,7 +636,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         // element to resolve it against, and it was refused by name there --
         // emitting nothing keeps the object valid if that error is ignored.
         StyleProperty::LineHeight(lh) => match lh {
-            LineHeight::Length(l) => vec![("lineHeight", number(l, theme))],
+            LineHeight::Length(l) | LineHeight::FontDefault(l) => vec![("lineHeight", number(l, theme))],
             LineHeight::Ratio(_) => Vec::new(),
         },
         StyleProperty::LetterSpacing(ls) => match ls {

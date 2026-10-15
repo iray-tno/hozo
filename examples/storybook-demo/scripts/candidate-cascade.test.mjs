@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
@@ -72,6 +73,57 @@ after(async () => {
   await browser?.close()
   // This exact mkdtemp result owns only this test's candidate snapshot.
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('responsive font sizes preserve explicit leading against real Tailwind at every breakpoint', {
+  skip: !executablePath,
+}, async () => {
+  const root = path.dirname(createRequire(import.meta.url).resolve('tailwindcss/package.json'))
+  const oracle = await compile('@import "tailwindcss";', {
+    base: root,
+    loadStylesheet: async (id) => {
+      const file = id === 'tailwindcss' ? path.join(root, 'index.css') : id
+      return { path: file, base: path.dirname(file), content: readFileSync(file, 'utf8') }
+    },
+  })
+  const cases = [
+    'text-lg sm:text-xl leading-relaxed',
+    'leading-relaxed sm:text-xl text-lg',
+    'text-lg sm:text-xl leading-6',
+    'leading-6 sm:text-xl text-lg',
+    'text-lg sm:text-xl leading-relaxed sm:leading-tight',
+    'text-lg sm:leading-tight md:text-xl',
+    'text-lg sm:text-xl',
+  ]
+  const css = oracle.build(cases.flatMap((classes) => classes.split(' ')))
+  const page = await browser.newPage()
+  try {
+    for (const classes of cases) {
+      const [web] = compiler.compile(
+        `import {Paragraph} from '@hozo/core'; export function C() { return <Paragraph className="${classes}">One<br/>Two<br/>Three</Paragraph> }`,
+      )
+      assert.deepEqual(web.diagnostics, [])
+      const { C } = evaluate(`export function C(){return ${web.jsx}}`)
+      const html = renderToStaticMarkup(createElement(C))
+      for (const width of [375, 639, 640, 767, 768, 1280]) {
+        await page.setViewportSize({ width, height: 700 })
+        await page.setContent(
+          `<style>${css}</style><style>${web.css}</style><div id="compiled">${html}</div><div id="oracle"><p class="${classes}">One<br/>Two<br/>Three</p></div>`,
+        )
+        const measure = (selector) =>
+          page.locator(selector).evaluate((element) => {
+            const style = getComputedStyle(element)
+            return [style.fontSize, style.lineHeight, element.getBoundingClientRect().height]
+          })
+        const actual = await measure('#compiled > p')
+        assert.deepEqual(actual, await measure('#oracle > p'), `${classes} at ${width}px`)
+        if (classes === cases[0] && width === 1280)
+          assert.deepEqual(actual, ['20px', '32.5px', 97.5])
+      }
+    }
+  } finally {
+    await page.close()
+  }
 })
 
 function evaluate(code, globals = {}) {

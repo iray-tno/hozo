@@ -3420,14 +3420,10 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
         return props;
     }
     if let Some((size, line_height)) = parse_font_size(token) {
-        // Order matters: the line-height goes second so that an explicit
-        // `leading-*` written *after* this class overrides it under
-        // last-wins flattening. Note this is order-sensitive where real
-        // Tailwind isn't -- Tailwind routes `leading-*` through a
-        // `--tw-leading` custom property that wins regardless of class
-        // order. Writing `leading-6 text-xl` therefore differs: Tailwind
-        // keeps leading-6, Hozo takes text-xl's 28px.
-        return vec![StyleProperty::FontSize(size), StyleProperty::LineHeight(LineHeight::Length(line_height))];
+        // This is a fallback, not an explicit leading. Preserve that fact
+        // through condition grouping so responsive font sizes cannot erase
+        // an authored leading on either backend (#939).
+        return vec![StyleProperty::FontSize(size), StyleProperty::LineHeight(LineHeight::FontDefault(line_height))];
     }
 
     parse_utility(token).into_iter().collect()
@@ -3609,7 +3605,7 @@ mod tests {
             expand_utility("text-xl"),
             (
                 Condition::Always,
-                vec![StyleProperty::FontSize(Length::Px(20.0)), StyleProperty::LineHeight(LineHeight::Length(Length::Px(28.0)))]
+                vec![StyleProperty::FontSize(Length::Px(20.0)), StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(28.0)))]
             )
         );
         assert_eq!(
@@ -3637,7 +3633,7 @@ mod tests {
             expand_utility("disabled:text-xl"),
             (
                 Condition::Disabled,
-                vec![StyleProperty::FontSize(Length::Px(20.0)), StyleProperty::LineHeight(LineHeight::Length(Length::Px(28.0)))]
+                vec![StyleProperty::FontSize(Length::Px(20.0)), StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(28.0)))]
             )
         );
         assert_eq!(
@@ -4741,7 +4737,7 @@ mod tests {
                     Condition::Always,
                     vec![
                         StyleProperty::FontSize(Length::Px(size)),
-                        StyleProperty::LineHeight(LineHeight::Length(Length::Px(line_height))),
+                        StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(line_height))),
                     ]
                 ),
                 "{token}"
@@ -4752,7 +4748,7 @@ mod tests {
             expand_utility("text-5xl").1,
             vec![
                 StyleProperty::FontSize(Length::Px(48.0)),
-                StyleProperty::LineHeight(LineHeight::Length(Length::Px(48.0)))
+                StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(48.0)))
             ]
         );
     }
@@ -4772,17 +4768,17 @@ mod tests {
     }
 
     #[test]
-    fn explicit_leading_after_a_text_size_wins() {
-        // Hozo resolves this by source order (last wins), so `leading-*`
-        // must be written after `text-*` to take effect. Real Tailwind is
-        // order-independent here (it routes leading through a --tw-leading
-        // custom property) -- a known, documented divergence.
+    fn explicit_leading_beats_a_text_size_fallback_in_either_order() {
         let (_, text_props) = expand_utility("text-xl");
         let (_, leading_props) = expand_utility("leading-6");
-        let combined: Vec<_> = text_props.into_iter().chain(leading_props).collect();
-        let deduped = hozo_ir::dedupe_last_wins(combined);
-        assert!(deduped.contains(&StyleProperty::LineHeight(LineHeight::Length(Length::Spacing(6.0)))));
-        assert!(!deduped.contains(&StyleProperty::LineHeight(LineHeight::Length(Length::Px(28.0)))));
+        for combined in [
+            text_props.iter().chain(&leading_props).cloned().collect(),
+            leading_props.iter().chain(&text_props).cloned().collect(),
+        ] {
+            let deduped = hozo_ir::dedupe_last_wins(combined);
+            assert!(deduped.contains(&StyleProperty::LineHeight(LineHeight::Length(Length::Spacing(6.0)))));
+            assert!(!deduped.contains(&StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(28.0)))));
+        }
     }
 
     #[test]
