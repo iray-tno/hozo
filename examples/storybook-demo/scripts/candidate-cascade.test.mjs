@@ -1436,7 +1436,12 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
 test("@hozo/patterns' second batch of Native controls apply their class props", async () => {
   const look =
     'p-2 text-red-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 aria-expanded:bg-blue-500 active:opacity-80 disabled:opacity-50'
-  const { load, pressables, at, flat } = await patternHarness('batch-candidates.json', look)
+  const chipLook =
+    'p-2 text-red-500 aria-pressed:bg-blue-500 aria-checked:outline-4 active:opacity-80 disabled:opacity-50'
+  const { load, pressables, at, flat } = await patternHarness(
+    'batch-candidates.json',
+    `${look} ${chipLook}`,
+  )
 
   const [tab] = pressables(
     load('tabs.native.tsx').HozoTabs({
@@ -1448,11 +1453,16 @@ test("@hozo/patterns' second batch of Native controls apply their class props", 
   assert.equal(at(tab, false).box.color, undefined, 'tabs: and the box does not')
 
   const chip = load('chip.native.tsx').HozoChip({
-    className: look,
+    className: chipLook,
     defaultSelected: true,
     children: 'Filter',
   })
-  assert.equal(at(chip, false).box.backgroundColor, '#2b7fff', 'chip: checked')
+  assert.equal(at(chip, false).box.backgroundColor, '#2b7fff', 'chip: aria-pressed selection')
+  assert.equal(
+    at(chip, false).box.outlineWidth,
+    undefined,
+    'chip: RN checked is not CSS aria-checked',
+  )
   assert.equal(at(chip, true).box.opacity, 0.8, 'chip: pressed')
   assert.equal(at(chip, false).text.color, '#fb2c36', 'chip: label')
 
