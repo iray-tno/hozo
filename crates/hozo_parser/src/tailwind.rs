@@ -2812,6 +2812,12 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     // value, which is why there is a shortlist at all: `aria-sort` takes
     // four words and is written `aria-[sort=ascending]:` instead.
     if let Some(rest) = token.strip_prefix("aria-") {
+        // Tailwind does not name `aria-invalid:` by default. Its exact
+        // attribute-value spelling shares our boolean ARIA condition; do
+        // not invent a shorthand or pretend all arbitrary ARIA is supported.
+        if let Some(tail) = rest.strip_prefix("[invalid=true]:") {
+            return (Condition::Aria("invalid".to_string()), tail);
+        }
         if let Some((state, tail)) = rest.split_once(':') {
             if crate::tailwind_variants::ARIA_VARIANT_STATES.contains(&state) {
                 return (Condition::Aria(state.to_string()), tail);

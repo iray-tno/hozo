@@ -39,7 +39,7 @@ export type HozoNativeSelectProps = Omit<
 >
 
 const field =
-  'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm leading-6 text-hozo-text border-hozo-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-invalid:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed'
+  'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm leading-6 text-hozo-text border-hozo-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed'
 
 export function HozoNativeSelect(props: HozoNativeSelectProps) {
   return <NativeSelectBase {...props} className={field} />

@@ -31,7 +31,24 @@ pointer input does not clear it. Existing button modality is unchanged.
 
 Hover/press, focus-within and their unsupported negations still diagnose on
 TextInput. The compiler does not guess those facts from an outer Pressable.
-This is the focus slice of #887, not completion of the UI Input rewrite:
-aria-invalid, internal disabled drivers and the resize/cursor policy remain
-separate. Host stand-ins establish lowering, state and ref/handler forwarding;
+The UI Input explicitly supplies disabled, editable, readOnly and
+`aria-invalid` drivers to static and dynamic styles. `aria-invalid:` is not
+a default Tailwind variant; use its supported `aria-[invalid=true]:` spelling.
+Both boolean true and the string "true" match, not false, grammar or spelling.
+Native's invalid border reads that authored prop, not an invented
+`accessibilityState.invalid`. RN has no corresponding invalid attribute, so
+the Native adapter consumes it for styles only; this does **not** claim that
+VoiceOver or TalkBack announces invalidity. Use the field's error/description
+contract and verify assistive behavior independently.
+
+A canonical disabled input disables editing and reports the disabled state
+on Native. Its prop adapter is shared by value-level and generated hosts,
+preserving existing accessibilityState keys. Read-only alone does not become
+disabled. A defined readOnly wins over editable, matching RN, and a disabled
+input cannot re-enable editing by passing readOnly=false. Static and runtime
+read-only styles share one predicate; a disabled field is non-editable, while
+the disabled semantic fact remains separate.
+
+#887 still leaves the resize/cursor policy and full static UI rewrite open.
+Host stand-ins establish lowering, state and ref/handler forwarding;
 they do not certify physical keyboard delivery, assistive focus or pixels.

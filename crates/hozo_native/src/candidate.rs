@@ -207,6 +207,7 @@ fn state_keys(condition: &Condition) -> Option<Vec<String>> {
         Condition::Focus => vec!["focused".to_string()],
         Condition::FocusVisible => vec!["focusVisible".to_string()],
         Condition::Disabled => vec!["disabled".to_string()],
+        Condition::FormState(FormState::ReadOnly) => vec!["readOnly".to_string()],
         Condition::Aria(state) => vec![format!("aria-{state}")],
         Condition::All(conditions) => {
             let mut keys = Vec::new();

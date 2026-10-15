@@ -180,7 +180,13 @@ test('and it renders', () => {
   }
   walk(tree)
 
-  for (const name of ['gallery-Heading', 'gallery-Ruby', 'gallery-Summary', 'gallery-Progress']) {
+  for (const name of [
+    'gallery-Heading',
+    'gallery-Ruby',
+    'gallery-Summary',
+    'gallery-Progress',
+    'gallery-TextInput',
+  ]) {
     assert.ok(ids.has(name), `${name} is not in the rendered tree`)
   }
 })

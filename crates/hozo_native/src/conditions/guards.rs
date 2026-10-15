@@ -56,7 +56,7 @@ pub(super) fn resolve(
         // This form state is a real TextInput prop, not DOM constraint
         // validation. Use one answer for the positive, stacked and negated
         // cases; a missing driver remains unknown, never false by default.
-        Condition::FormState(FormState::ReadOnly) => read_only(&node.props.text_input, source),
+        Condition::FormState(FormState::ReadOnly) => read_only(node, source),
         Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
             if node.primitive == Primitive::TextInput {
                 return match condition {
@@ -116,7 +116,8 @@ pub(super) fn resolve(
         Condition::Aria(state) => aria_state_guard(node, source, state)
             .map(|guard| Guard::Dynamic(format!("({guard})")))
             .ok_or_else(|| format!(
-                "`aria-{state}:` needs an `accessibilityState` on the same element to drive it on Native, and this one has none. On Web the same class works from the attribute alone."
+                "`aria-{state}:` needs {} on the same element to drive it on Native, and this one has none. On Web the same class works from the attribute alone.",
+                if state == "invalid" { "an `aria-invalid` prop" } else { "an `accessibilityState`" }
             )),
         Condition::Environment(query) => {
             let query = native_environment(*query).ok_or_else(|| environment_unwired_message(*query))?;
@@ -183,28 +184,18 @@ fn ambient(hook: RuntimeHook, runtime: &mut RuntimeNeeds) -> Guard {
 /// Read the same input state as RN TextInput: a defined readOnly wins;
 /// undefined falls back to editable. Prop presence alone is not precedence.
 /// With neither spelling, preserve the diagnostic instead of guessing false.
-fn read_only(props: &hozo_ir::TextInputProps, source: &str) -> Result<Guard, String> {
-    if let Some(read_only) = props.read_only.as_ref() {
-        return Ok(match read_only {
-            ConditionExpr::Static(value) => Guard::Known(*value),
-            driver => {
-                let driver = render_condition_expr(source, driver);
-                let driver = match props.editable.as_ref() {
-                    Some(editable) => format!(
-                        "({driver}) !== undefined ? ({driver}) : ({}) === false",
-                        render_condition_expr(source, editable)
-                    ),
-                    None => driver,
-                };
-                // An OR or ternary must not escape the other atoms in a
-                // stacked conjunction. Negation then groups the same guard.
-                Guard::Dynamic(format!("({driver})"))
-            }
-        });
+fn read_only(node: &Node, source: &str) -> Result<Guard, String> {
+    let props = &node.props.text_input;
+    if node.props.disabled.is_none() {
+        match (props.read_only.as_ref(), props.editable.as_ref()) {
+            (Some(ConditionExpr::Static(value)), _) => return Ok(Guard::Known(*value)),
+            (None, Some(ConditionExpr::Static(value))) => return Ok(Guard::Known(!value)),
+            _ => {}
+        }
     }
-    props.editable.as_ref().map(|editable| match editable {
-        ConditionExpr::Static(value) => Guard::Known(!value),
-        // An omitted/undefined editable prop keeps the host editable.
-        driver => Guard::Dynamic(format!("(({}) === false)", render_condition_expr(source, driver))),
-    }).ok_or_else(|| "`read-only:` needs a `readOnly` or `editable` prop on the same TextInput to drive it, and this one has neither.".into())
+    // Group the complete predicate: an OR or ternary must not escape a
+    // stacked conjunction. Runtime classes consume this same answer.
+    crate::read_only_guard(node, source)
+        .map(|guard| Guard::Dynamic(format!("({guard})")))
+        .ok_or_else(|| "`read-only:` needs a `readOnly` or `editable` prop on the same TextInput to drive it, and this one has neither.".into())
 }

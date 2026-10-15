@@ -1208,6 +1208,9 @@ pub struct PropSet {
     pub native_id_literal: Option<String>,
     pub pointer_events: Option<ExprRef>,
     pub accessibility_state: Option<ExprRef>,
+    /// The authored invalid attribute, also retained as a passthrough prop.
+    /// It is not an RN accessibilityState key; styles must read this exact value.
+    pub aria_invalid: Option<ExprRef>,
     /// The keys `accessibility_state`'s object literal writes, when it is
     /// one this can be read statically.
     ///

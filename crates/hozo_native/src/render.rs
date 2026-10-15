@@ -1024,7 +1024,7 @@ pub(super) fn render_node(
     let rendered_component = if renders_backdrop_filter {
         runtime.need_component("HozoBackdropFilter");
         "HozoBackdropFilter"
-    } else if component == "TextInput" && (!pressed_parts.is_empty() || runtime_states) {
+    } else if component == "TextInput" && (!pressed_parts.is_empty() || runtime_states || node.props.disabled.is_some() || node.props.aria_invalid.is_some()) {
         runtime.need_component("HozoTextInput");
         "HozoTextInput"
     } else if component == "Pressable" && needs_interaction_host {

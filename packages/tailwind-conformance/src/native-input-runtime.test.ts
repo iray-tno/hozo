@@ -32,7 +32,7 @@ test('the real UI Input dynamic classes follow its field, preserve events/ref an
     cache.scanFile('input.tsx', source, 1)
     cache.scanFile(
       'extra.ts',
-      "const classes = 'hover:opacity-25 active:opacity-50 focus:text-hozo-accent'",
+      "const classes = 'hover:opacity-25 active:opacity-50 focus:text-hozo-accent read-only:opacity-50'",
       1,
     )
     const sheet = path.join(project, 'node_modules/.hozo')
@@ -89,13 +89,7 @@ test('the real UI Input dynamic classes follow its field, preserve events/ref an
         (warning) => warning.includes('active:opacity-50') && warning.includes('does not supply'),
       ),
     )
-    assert.ok(
-      warnings.some(
-        (warning) =>
-          warning.includes('disabled:bg-hozo-surface-raised') &&
-          warning.includes('does not supply'),
-      ),
-    )
+    assert.ok(!warnings.some((warning) => warning.includes('disabled:bg-hozo-surface-raised')))
     assert.ok(!warnings.some((warning) => warning.includes('focus-visible:outline-2')))
     const count = warn.mock.callCount()
     renderer.act(() =>
@@ -112,6 +106,52 @@ test('the real UI Input dynamic classes follow its field, preserve events/ref an
     renderer.act(() => field().props.onBlur(blur))
     assert.equal(flat(field()).color, color('hozo-text'))
     assert.deepEqual(calls, [focus, press, 'Grace', 'imperative focus', blur])
+    for (const invalid of [true, false, 'true', 'false', 'grammar', 'spelling', undefined]) {
+      renderer.act(() =>
+        tree.update(react.createElement(Input, { ...props, 'aria-invalid': invalid })),
+      )
+      assert.equal(
+        flat(field()).borderColor,
+        color(invalid === true || invalid === 'true' ? 'hozo-danger' : 'hozo-border-strong'),
+      )
+      assert.equal(
+        field().props['aria-invalid'],
+        undefined,
+        'RN has no invalid attribute; do not claim AT mapping',
+      )
+    }
+    for (const [disabled, readOnly, editable, locked] of [
+      [true, false, true, true],
+      [false, true, true, true],
+      [false, false, false, false],
+      [false, undefined, false, true],
+      [false, undefined, true, false],
+    ]) {
+      renderer.act(() =>
+        tree.update(
+          react.createElement(Input, {
+            ...props,
+            disabled,
+            readOnly,
+            editable,
+            className: 'read-only:opacity-50',
+            accessibilityState: { busy: true },
+          }),
+        ),
+      )
+      assert.equal(field(), original)
+      assert.equal(flat(field()).opacity, locked ? 0.5 : undefined)
+      assert.equal(
+        flat(field()).backgroundColor,
+        color(disabled ? 'hozo-surface-raised' : 'hozo-surface'),
+      )
+      assert.equal(flat(field()).color, color(disabled ? 'hozo-text-subtle' : 'hozo-text'))
+      assert.equal(field().props.accessibilityState.busy, true)
+      assert.equal(field().props.accessibilityState.disabled, disabled ? true : undefined)
+      assert.equal(field().props.editable, disabled ? false : editable)
+      assert.equal(field().props.readOnly, disabled ? true : readOnly)
+      assert.equal(field().props.disabled, undefined, 'canonical prop is not leaked to RN')
+    }
     // The multiline resize warning is new; the missing state warnings are not.
     assert.equal(warn.mock.callCount(), count + 1)
   } finally {
