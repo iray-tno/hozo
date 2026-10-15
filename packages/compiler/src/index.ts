@@ -307,6 +307,8 @@ interface NativeBinding {
   foreignPrimitives(source: string, sources: string[]): string[]
   summarizeStylexModule(source: string, sourceFile?: string): StylexModuleSummary
   summarizeTextForwarding(source: string): TextForwardingSummary
+  classHelperCandidates(source: string): { specifier: string; imported: string }[]
+  summarizeClassHelpers(source: string): string[]
   CandidateCache: CandidateCacheConstructor
   Compiler: CompilerConstructor
 }
@@ -669,6 +671,24 @@ export function topLevelBindings(source: string): string[] {
  */
 export function summarizeTextForwarding(source: string): TextForwardingSummary {
   return loadNative().summarizeTextForwarding(source)
+}
+
+/**
+ * The imports this file calls inside a `className` that are not joiners the
+ * compiler already recognizes: the ones worth resolving to see whether they
+ * are (#964). See `findClassHelpers` in `./project.ts`.
+ */
+export function classHelperCandidates(source: string): { specifier: string; imported: string }[] {
+  return loadNative().classHelperCandidates(source)
+}
+
+/**
+ * The names this file exports that only hand their arguments to a joiner
+ * the compiler recognizes, as shadcn/ui's `cn` does (#964). `default` for a
+ * default export.
+ */
+export function summarizeClassHelpers(source: string): string[] {
+  return loadNative().summarizeClassHelpers(source)
 }
 
 /**

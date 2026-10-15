@@ -7,6 +7,7 @@ mod rn_imports;
 pub mod aria;
 mod aria_check;
 mod canvas;
+mod class_helpers;
 mod dynamic_class;
 mod jsx;
 mod scan;
@@ -25,6 +26,7 @@ pub use rn_usage::{analyze_react_native_usage, ReactNativeBindingUsage, ReactNat
 pub use jsx::is_primitive_name;
 pub use unfold::unfold_jsx_calls;
 pub use dynamic_class::ClassHelper;
+pub use class_helpers::{class_helper_candidates, summarize_class_helpers, ClassHelperCandidate};
 pub use text_forwarding::{
     apply_text_forwarding, summarize_text_forwarding, ForwardingComponent, ForwardingProp,
     ForwardingReexport, ForwardingTable, ForwardingVariant,

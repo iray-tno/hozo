@@ -722,3 +722,29 @@ export const Card = ({ className }) => <View className={cn('p-4 hover:p-6', clas
   const companion = readFileSync(path.join(declared, 'Card.tsx.hozo.css'), 'utf8')
   assert.match(companion, /:hover/)
 })
+
+test("shadcn/ui's cn is found with no declaration, and recognize: false undoes it (#964)", async () => {
+  const card = `import { View } from '@hozo/core'
+import { cn } from '@/lib/utils'
+export const Card = ({ className }) => <View className={cn('p-4 hover:p-6', className)} />
+`
+  const utils = `import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+`
+  const transformCard = async (options: HozoOptions) => {
+    const root = project({ 'Card.tsx': card, 'lib/utils.ts': utils })
+    const server = await serve(root, options, { '@/lib/utils': path.join(root, 'lib', 'utils.ts') })
+    const result = await server.transformRequest('/Card.tsx')
+    assert.ok(result, 'the module was not transformed')
+    return result.code
+  }
+  assert.doesNotMatch(await transformCard({}), /\bcn\(/, 'the helper was not found')
+  assert.match(
+    await transformCard({
+      classHelpers: [{ module: '@/lib/utils', name: 'cn', recognize: false }],
+    }),
+    /\bcn\(/,
+    'the declaration did not override what was found',
+  )
+})

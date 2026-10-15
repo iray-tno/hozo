@@ -458,6 +458,29 @@ pub struct ClassHelper {
     pub name: String,
 }
 
+/// An import a file calls inside a `className` that is not a joiner the
+/// compiler already recognizes: worth resolving to see if it is one (#964).
+#[napi(object)]
+pub struct ClassHelperCandidate {
+    pub specifier: String,
+    pub imported: String,
+}
+
+#[napi]
+pub fn class_helper_candidates(source: String) -> Vec<ClassHelperCandidate> {
+    hozo_parser::class_helper_candidates(&source)
+        .into_iter()
+        .map(|c| ClassHelperCandidate { specifier: c.specifier, imported: c.imported })
+        .collect()
+}
+
+/// The names a file exports that only join their arguments as `clsx` does
+/// (#964). `default` for a default export.
+#[napi]
+pub fn summarize_class_helpers(source: String) -> Vec<String> {
+    hozo_parser::summarize_class_helpers(&source)
+}
+
 /// One package's text forwarding, as its manifest lists it.
 #[napi(object)]
 pub struct TextForwardingModule {

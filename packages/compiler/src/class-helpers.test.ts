@@ -55,3 +55,38 @@ test('declarations add to what was found, and recognize: false takes one away', 
   )
   assert.deepEqual(resolveClassHelpers(), [])
 })
+
+test('a helper is found by following the import to the file it resolves to', async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const path = (await import('node:path')).default
+  const { findClassHelpers } = await import('./project.ts')
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-helpers-'))
+  try {
+    mkdirSync(path.join(root, 'lib'))
+    const utils = path.join(root, 'lib', 'utils.ts')
+    writeFileSync(
+      utils,
+      `import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+export function format(n: number) { return String(n) }
+`,
+    )
+    const read: string[] = []
+    const resolve = async (specifier: string) => (specifier === '@/lib/utils' ? utils : undefined)
+    const found = await findClassHelpers(SHADCN, path.join(root, 'Item.tsx'), resolve, (file) =>
+      read.push(file),
+    )
+    assert.deepEqual(found, [{ module: '@/lib/utils', name: 'cn' }])
+    assert.deepEqual(read, [utils])
+
+    // Edited into something that is not a pure join, it is no longer one.
+    writeFileSync(utils, `import clsx from 'clsx'\nexport const cn = (...c) => clsx('p-2', c)\n`)
+    const { utimesSync } = await import('node:fs')
+    utimesSync(utils, new Date(), new Date(Date.now() + 5000))
+    assert.deepEqual(await findClassHelpers(SHADCN, path.join(root, 'Item.tsx'), resolve), [])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
