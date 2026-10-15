@@ -764,7 +764,15 @@ pub(super) fn render_node(
     // nothing above -- each of those arms matches a primitive that lowers
     // to `Text` anyway -- and it is what makes a rule one pixel tall.
     let style: Vec<StyleDeclaration> = if renders_text(component) {
-        inherited.iter().cloned().chain(semantic_defaults).chain(style).collect()
+        // Provenance resolves competing utilities on the *same* element.
+        // A child's own font fallback still outranks an inherited leading;
+        // do not let the parent's Written marker reverse CSS inheritance.
+        let inherited: Vec<_> = inherited.iter().filter(|parent| {
+            !matches!(parent.property, StyleProperty::LineHeight(_)) || !style.iter().any(|own| {
+                own.condition == parent.condition && matches!(own.property, StyleProperty::LineHeight(_))
+            })
+        }).cloned().collect();
+        inherited.into_iter().chain(semantic_defaults).chain(style).collect()
     } else {
         semantic_defaults.into_iter().chain(style).collect()
     };
