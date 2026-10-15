@@ -10,6 +10,10 @@ pub(super) enum Guard {
     // Unlike a prop or ambient hook, this binding exists only inside the
     // interaction style callback. Negation must keep that ownership.
     Interactive(String),
+    // An optional button supplies events only while it exists. Its absence
+    // is not not-hover, but semantic predicates still describe the row.
+    // Keep availability outside negation, not around the whole callback.
+    InteractiveScoped { available: String, predicate: String },
     // The availability check is not defensive: CSS matches nothing without
     // an applicable measured ancestor, in either direction. Negation flips
     // the width predicate, never that ancestor's existence.
@@ -22,6 +26,10 @@ impl Guard {
             Self::Known(value) => Self::Known(!value),
             Self::Dynamic(expression) => Self::Dynamic(format!("!({expression})")),
             Self::Interactive(expression) => Self::Interactive(format!("!({expression})")),
+            Self::InteractiveScoped { available, predicate } => Self::InteractiveScoped {
+                available,
+                predicate: format!("!({predicate})"),
+            },
             Self::Scoped { available, predicate } => Self::Scoped {
                 available,
                 predicate: format!("!({predicate})"),
@@ -106,7 +114,11 @@ pub(super) fn resolve(
                     Condition::Hover => "hovered",
                     _ => focus_state(condition).unwrap(),
                 };
-                Ok(Guard::Interactive(state.to_string()))
+                Ok(if pattern_owner.is_some_and(|slot| slot.optional_owner.is_some()) {
+                    Guard::InteractiveScoped { available: "interactionAvailable".into(), predicate: state.into() }
+                } else {
+                    Guard::Interactive(state.to_string())
+                })
             } else {
                 // A style object which the JSX never references is a silent
                 // drop, not support. Refuse when no owner can drive it.

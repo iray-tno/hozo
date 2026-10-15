@@ -14,7 +14,9 @@ import { splitTextStyle } from './text-style.native.ts'
 export type { HozoStep, HozoStepStatus }
 
 type Style = StyleProp<ViewStyle | TextStyle>
-type StepStyle = (state: InteractionState & { interactionAvailable: boolean }) => Style
+type StepStyle = (
+  state: InteractionState & { interactionAvailable: boolean; disabled: boolean; enabled: boolean },
+) => Style
 
 export interface HozoStepperProps {
   steps: readonly HozoStep[]
@@ -117,22 +119,24 @@ export function HozoStepper({
         // A clickable step owns its box's facts; its text styles are inherited.
         // A descriptive step stays a View and has no fabricated interaction.
         const look = (interaction?: InteractionState) => {
+          // These are facts of the Web class owner: a disabled/enabled button
+          // or a descriptive li, neither of which writes these aria attributes.
+          // Native selected announcements below intentionally stay independent.
+          const state = {
+            ...interaction,
+            disabled: interaction !== undefined && Boolean(step.disabled),
+            enabled: interaction !== undefined && !step.disabled,
+            'aria-disabled': false,
+            'aria-selected': false,
+          }
           const compiledState = {
             pressed: false,
             hovered: false,
             focused: false,
             focusVisible: false,
-            ...interaction,
+            ...state,
             interactionAvailable: interaction !== undefined,
           }
-          const state = interaction
-            ? {
-                ...interaction,
-                disabled: Boolean(step.disabled),
-                'aria-disabled': Boolean(step.disabled),
-                'aria-selected': status === 'current',
-              }
-            : undefined
           const [stepBox, stepText] = splitTextStyle([
             hozoClasses(stepClassName, state),
             hozoStepStyle?.(compiledState),
@@ -157,8 +161,14 @@ export function HozoStepper({
             ),
           ])
           // Web indicators and descriptions are unfocusable spans. Keep the
-          // button's text inheritance without making their own focus rules true.
-          const decorationState = state ? { ...state, focused: false, focusVisible: false } : state
+          // button's text inheritance without lending them button semantics.
+          const decorationState = {
+            ...state,
+            disabled: false,
+            enabled: false,
+            focused: false,
+            focusVisible: false,
+          }
           const [markBox, markText] = splitTextStyle([
             styled(indicatorClassName, indicatorStyle, decorationState),
             byStatus(
