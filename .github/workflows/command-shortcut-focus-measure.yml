@@ -1,0 +1,33 @@
+name: command-shortcut-focus-measure
+on:
+  push:
+    branches: [chore/command-shortcut-focus-measure]
+permissions:
+  contents: read
+jobs:
+  web-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm exec turbo run build --filter=@hozo/compiler... --filter=@hozo/primitives... --filter=@hozo/form... --filter=@hozo/patterns... --concurrency=1
+      - name: Execute the browser oracle and retain source identity
+        run: |
+          mkdir -p artifacts/command-shortcut-web
+          git rev-parse HEAD > artifacts/command-shortcut-web/source.txt
+          node --test --test-concurrency=1 --test-name-pattern='CommandPalette shortcuts' examples/storybook-demo/scripts/candidate-cascade.test.mjs | tee artifacts/command-shortcut-web/result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: command-shortcut-focus-web
+          path: artifacts/command-shortcut-web/
+          if-no-files-found: warn
