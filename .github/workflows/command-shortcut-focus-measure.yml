@@ -21,6 +21,7 @@ jobs:
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm exec turbo run build --filter=@hozo/compiler... --filter=@hozo/primitives... --filter=@hozo/form... --filter=@hozo/patterns... --concurrency=1
       - name: Execute the browser oracle and retain source identity
+        shell: bash
         run: |
           mkdir -p artifacts/command-shortcut-web
           git rev-parse HEAD > artifacts/command-shortcut-web/source.txt
