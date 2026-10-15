@@ -5,14 +5,15 @@
 //! time. A condition is never evaluated or interpreted here, only
 //! delimited: it's captured as an opaque `ExprRef` and re-emitted verbatim
 //! by a later lowering stage. Anything that isn't one of the recognized
-//! shapes below (a literal, a `&&`-guard, a ternary, or a call to a
+//! shapes below (a literal, a `&&`-guard, a ternary, a template literal whose
+//! interpolations stand between classes, or a call to a
 //! verified `cn`/`clsx`/`classnames` import) becomes a fallback leaf rather
 //! than failing the whole node -- fallback is per-leaf, not per-node.
 
 use hozo_ir::{Condition, ConditionExpr, ExprRef, SourceSpan, StyleDeclaration};
 use oxc_ast::ast::{
     Argument, CallExpression, ConditionalExpression, Expression, IdentifierReference,
-    JSXExpression, LogicalExpression, LogicalOperator, StringLiteral,
+    JSXExpression, LogicalExpression, LogicalOperator, StringLiteral, TemplateLiteral,
 };
 use oxc_span::{GetSpan, Span};
 use oxc_syntax::module_record::ModuleRecord;
@@ -73,6 +74,7 @@ enum Target<'a, 'b> {
     Logical(&'b LogicalExpression<'a>),
     Conditional(&'b ConditionalExpression<'a>),
     Call(&'b CallExpression<'a>),
+    Template(&'b TemplateLiteral<'a>),
     Spread(Span),
     Other(Span),
 }
@@ -85,6 +87,7 @@ fn classify_expression<'a, 'b>(expr: &'b Expression<'a>) -> Target<'a, 'b> {
         }
         Expression::ConditionalExpression(cond) => Target::Conditional(cond),
         Expression::CallExpression(call) => Target::Call(call),
+        Expression::TemplateLiteral(template) => Target::Template(template),
         other => Target::Other(other.span()),
     }
 }
@@ -97,6 +100,7 @@ fn classify_argument<'a, 'b>(arg: &'b Argument<'a>) -> Target<'a, 'b> {
         }
         Argument::ConditionalExpression(cond) => Target::Conditional(cond),
         Argument::CallExpression(call) => Target::Call(call),
+        Argument::TemplateLiteral(template) => Target::Template(template),
         Argument::SpreadElement(spread) => Target::Spread(spread.span()),
         other => Target::Other(other.span()),
     }
@@ -110,6 +114,7 @@ fn classify_jsx_expression<'a, 'b>(expr: &'b JSXExpression<'a>) -> Target<'a, 'b
         }
         JSXExpression::ConditionalExpression(cond) => Target::Conditional(cond),
         JSXExpression::CallExpression(call) => Target::Call(call),
+        JSXExpression::TemplateLiteral(template) => Target::Template(template),
         other => Target::Other(other.span()),
     }
 }
@@ -255,6 +260,65 @@ fn decompose(
             }
             if !fell_back {
                 out.consumed.push(SourceSpan { start: lit.span.start, end: lit.span.end });
+            }
+        }
+        // `` `p-4 hover:bg-blue-500 ${className}` ``, the way a merge is
+        // written without a helper (#874). The text between interpolations
+        // is classes, as a string literal's is; each interpolation is a
+        // part of its own, decomposed as one, so only what cannot be read
+        // falls back.
+        //
+        // The whole template falls back instead when that would split a
+        // class: `` `bg-${tone}-500` `` is one class assembled at runtime, and
+        // neither its text nor its interpolation is a class alone. Also when
+        // the text holds a class Hozo cannot compile: a string literal is
+        // carried as written in that case, and a template's text on its own
+        // is not an expression that could be.
+        Target::Template(template) => {
+            let whole = guard.unwrap_or(template.span);
+            let text = |index: usize| {
+                let quasi = &template.quasis[index];
+                quasi.value.cooked.as_ref().map_or(quasi.value.raw.as_str(), |cooked| cooked.as_str())
+            };
+            // Every interpolation stands between whitespace or the ends.
+            let separated = (0..template.expressions.len()).all(|index| {
+                let before = text(index);
+                let after = text(index + 1);
+                (index == 0 && before.is_empty() || before.ends_with(char::is_whitespace))
+                    && (index + 1 == template.quasis.len() - 1 && after.is_empty()
+                        || after.starts_with(char::is_whitespace))
+            });
+            let compilable = (0..template.quasis.len()).all(|index| {
+                text(index).split_whitespace().all(|token| {
+                    if tailwind::has_unstripped_variant(token) {
+                        return false;
+                    }
+                    let (token_condition, properties) = tailwind::expand_utility(token);
+                    !properties.is_empty() && (token_condition == Condition::Always || condition.is_none())
+                })
+            });
+            if !separated || !compilable {
+                fall_back_to(out, whole);
+                return;
+            }
+            for (index, quasi) in template.quasis.iter().enumerate() {
+                for token in text(index).split_whitespace() {
+                    let (token_condition, properties) = tailwind::expand_utility(token);
+                    let token_condition = if token_condition == Condition::Always {
+                        to_condition(condition.clone())
+                    } else {
+                        token_condition
+                    };
+                    for property in properties {
+                        out.declarations.push(StyleDeclaration { property, condition: token_condition.clone() });
+                    }
+                }
+                if !text(index).trim().is_empty() {
+                    out.consumed.push(SourceSpan { start: quasi.span.start, end: quasi.span.end });
+                }
+            }
+            for expression in &template.expressions {
+                decompose(classify_expression(expression), condition.clone(), guard, out, module_record);
             }
         }
         Target::Logical(logical) => {
@@ -501,5 +565,49 @@ const el = <View className={{{expression}}} />
         // every dynamic className into a runtime string.
         assert!(carried(&wrap("cond ? 'p-4' : 'p-8'")).is_empty());
         assert!(carried(&wrap("cn('p-4', 'bg-blue-500')")).is_empty());
+    }
+
+    // #874: a template literal, the merge written without a helper.
+
+    #[test]
+    fn a_template_compiles_its_text_and_carries_only_what_it_cannot_read() {
+        let source = wrap("`p-4 hover:bg-blue-500 ${className}`");
+        let out = decompose_source(&source);
+        assert_eq!(carried(&source), ["className"]);
+        // padding's four sides, and the hover background with its own condition.
+        assert_eq!(out.declarations.len(), 5, "{:?}", out.declarations);
+        assert!(out.declarations.iter().any(|d| d.condition != Condition::Always));
+    }
+
+    #[test]
+    fn an_interpolation_decomposes_as_any_other_part() {
+        let source = wrap("`p-4 ${big ? 'px-8' : 'px-2'}`");
+        let out = decompose_source(&source);
+        assert!(out.fallback.is_empty(), "{:?}", carried(&source));
+        let has_not = out
+            .declarations
+            .iter()
+            .any(|d| matches!(&d.condition, Condition::Expr(ConditionExpr::Not(_))));
+        assert!(has_not, "the ternary's false branch keeps its guard");
+    }
+
+    #[test]
+    fn a_class_assembled_across_text_and_interpolation_falls_back_whole() {
+        assert_eq!(carried(&wrap("`bg-${tone}-500`")), ["`bg-${tone}-500`"]);
+        assert_eq!(carried(&wrap("`p-4 ${a}${b}`")), ["`p-4 ${a}${b}`"]);
+        assert_eq!(carried(&wrap("`p-4${extra}`")), ["`p-4${extra}`"]);
+    }
+
+    #[test]
+    fn a_template_whose_text_holds_a_class_hozo_cannot_compile_falls_back_whole() {
+        // A string literal is carried as written; a template's text alone is
+        // not an expression, so the template goes as a whole.
+        assert_eq!(carried(&wrap("`p-4 my-card ${x}`")), ["`p-4 my-card ${x}`"]);
+    }
+
+    #[test]
+    fn a_template_inside_clsx_decomposes_too() {
+        let source = wrap("cn(`p-4 ${className}`, 'bg-blue-500')");
+        assert_eq!(carried(&source), ["className"]);
     }
 }
