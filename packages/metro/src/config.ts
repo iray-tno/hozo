@@ -2,9 +2,11 @@ import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import type { ClassHelper } from '@hozo/compiler'
 import {
   CACHE_DIR,
   type HozoProjectOptions,
+  projectClassHelpers,
   StylexModuleCache,
   type StylexResolutionRequest,
   type StylexResolvedBindings,
@@ -69,6 +71,12 @@ export interface HozoMetroState {
   sources?: readonly string[]
   /** The project's declared class-joining functions (#964). */
   classHelpers?: HozoProjectOptions['classHelpers']
+  /**
+   * The class helpers each file calls, found when Metro started (#964), by
+   * absolute file. Found here rather than in a worker so `getCacheKey`,
+   * which Metro asks for once at startup, can hash what was found.
+   */
+  foundClassHelpers?: Record<string, ClassHelper[]>
   /**
    * Whether the project ships a CSS reset -- `preflight` with `'auto'`
    * already resolved, here rather than in the worker on purpose.
@@ -188,7 +196,7 @@ export async function withHozo<T extends MetroConfigShape>(
       ? configuredUpstream
       : undefined
 
-  const { preflight } = await generateCandidateModule(projectRoot, {
+  const { preflight, files } = await generateCandidateModule(projectRoot, {
     css: options.css,
     content: options.content,
     preflight: options.preflight,
@@ -199,11 +207,16 @@ export async function withHozo<T extends MetroConfigShape>(
     ? path.join(projectRoot, CACHE_DIR, 'font-faces.css')
     : undefined
   if (fontFaceCssPath) writeFileIfChanged(fontFaceCssPath, `${fontFaceCss}\n`)
+  // Read once, now: a helper edited while Metro runs needs a restart, as
+  // the candidate module does.
+  // The candidate scan's own walk, rather than a second one.
+  const foundClassHelpers = projectClassHelpers(projectRoot, files)
   const state: HozoMetroState = {
     upstreamTransformer,
     css: options.css,
     sources: options.sources,
     classHelpers: options.classHelpers,
+    ...(Object.keys(foundClassHelpers).length > 0 ? { foundClassHelpers } : {}),
     preflight,
     fontFaceCssPath,
     fontAvailability: options.fontAvailability,

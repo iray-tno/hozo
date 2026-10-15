@@ -203,7 +203,7 @@ runtime fallback below. On the Web the classes still apply. On React Native,
 `hover:`, `active:`, `disabled:` and `focus-visible:` cannot be carried by
 the fallback, so the component loses its state styles.
 
-So on Vite, Hozo follows the import to the helper's file and reads it. A
+So Hozo follows the import to the helper's file and reads it. A
 function that only hands its arguments to `clsx`, `classnames`,
 `tailwind-merge` or `cx`, as `cn` does, is then read as `clsx` is (#964).
 Anything else can be declared, and a declaration wins over what was found:
@@ -214,7 +214,10 @@ hozo({ classHelpers: [{ module: '@/lib/utils', name: 'cn' }] })
 
 `module` is the specifier as callers write it, and `recognize: false` undoes
 a function found automatically. The same option works for `withHozo` on
-Metro, which does not find helpers by itself yet. Or use `cx` from
+Metro. Vite resolves the import as the build does and re-reads the helper
+when it changes. Metro reads helpers once when it starts, resolving relative
+imports and tsconfig `paths`, so a helper edited while it runs needs a
+restart, and one behind any other alias needs declaring. Or use `cx` from
 `@hozo/core`, which needs neither.
 
 **Truly dynamic — a runtime fallback.**

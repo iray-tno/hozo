@@ -55,6 +55,8 @@ export interface GeneratedCandidateModule {
   usesTailwind: boolean
   /** The one resolved answer shared by the compiler and runtime fallbacks. */
   preflight: boolean
+  /** The files the walk found, for anything else that needs the same list. */
+  files: string[]
 }
 
 /**
@@ -76,7 +78,7 @@ export async function generateCandidateModule(
     css: options.css,
     warn: (message) => console.warn(message),
   })
-  const { cache, stats } = scanProject(projectRoot, options.content, options.sources)
+  const { cache, stats, files } = scanProject(projectRoot, options.content, options.sources)
   if (options.debug) {
     // eslint-disable-next-line no-console
     console.info(scanSummary(stats))
@@ -84,5 +86,5 @@ export async function generateCandidateModule(
   const preflight = preflightEnabled(options.preflight, cache.usesTailwind)
   const modulePath = candidateModulePath(projectRoot)
   writeFileIfChanged(modulePath, cache.renderNativeModule({ colors: [], ...theme, preflight }))
-  return { modulePath, usesTailwind: cache.usesTailwind, preflight }
+  return { modulePath, usesTailwind: cache.usesTailwind, preflight, files }
 }

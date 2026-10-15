@@ -9,13 +9,13 @@
 // The full integration is covered by development and minified production
 // Metro bundles; physical-device validation remains separate.
 
+import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { type Compiler, createCompiler, type FontAvailability, type Theme } from '@hozo/compiler'
 import { dependencyTextForwarding } from '@hozo/compiler/manifest'
 import {
   CACHE_DIR,
-  type ClassHelperOption,
   importSpecifier,
   resolveClassHelpers,
   StylexModuleCache,
@@ -146,15 +146,13 @@ function compilerFor(
   theme: Theme | undefined,
   sources: readonly string[],
   fontAvailability: FontAvailability | undefined,
-  classHelpers: readonly ClassHelperOption[] | undefined,
 ): CompilerState {
   // A compiler is given its theme once, so a project whose resolved
   // preflight differs needs a compiler of its own: the key has to say so.
-  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}:${theme?.preflight ?? false}:${JSON.stringify(fontAvailability)}:${JSON.stringify(classHelpers ?? [])}`
+  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}:${theme?.preflight ?? false}:${JSON.stringify(fontAvailability)}`
   let state = compilers.get(key)
   if (!state) {
     const compiler = createCompiler(theme, sources, fontAvailability)
-    compiler.setClassHelpers(resolveClassHelpers(classHelpers))
     const stylexModules = projectRoot
       ? new StylexModuleCache(path.join(projectRoot, CACHE_DIR, 'stylex-modules.json'))
       : undefined
@@ -192,7 +190,13 @@ export function getCacheKey(options: CacheKeyOptions = {}): string {
     // `transform` reports a missing upstream, with what was tried.
   }
   const manifests = options.projectRoot ? dependencyTextForwarding(options.projectRoot).key : ''
-  return [upstreamKey, manifests].join('$')
+  // The class helpers, declared and found when `withHozo` ran (#964): a
+  // file's output depends on them, and nothing else tells Metro it does.
+  const state = options.projectRoot ? readMetroState(options.projectRoot) : undefined
+  const helpers = createHash('sha256')
+    .update(JSON.stringify([state?.classHelpers ?? [], state?.foundClassHelpers ?? {}]))
+    .digest('hex')
+  return [upstreamKey, manifests, helpers].join('$')
 }
 
 export async function transform(params: TransformParams): Promise<unknown> {
@@ -209,7 +213,6 @@ export async function transform(params: TransformParams): Promise<unknown> {
     themeWithPreflight(theme, state?.preflight ?? false),
     state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
     state?.fontAvailability,
-    state?.classHelpers,
   )
   const platform = params.options?.platform ?? 'default'
   if (
@@ -217,6 +220,12 @@ export async function transform(params: TransformParams): Promise<unknown> {
   ) {
     compilerState.compiler.setStylexModules(compilerState.stylexModules.moduleSources())
   }
+  // This file's class helpers, declared and found (#964). Set immediately
+  // before compiling, with no await in between: the compiler is shared.
+  const absoluteFile = projectRoot ? path.resolve(projectRoot, params.filename) : params.filename
+  compilerState.compiler.setClassHelpers(
+    resolveClassHelpers(state?.classHelpers, state?.foundClassHelpers?.[absoluteFile]),
+  )
   const rewritten = transformHozoSource(
     params.src,
     params.filename,
@@ -231,7 +240,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
   // After everything else, so it sees the imports the compiler left standing
   // as well as files it did not touch at all (`modular-imports.ts`).
   const before = withFonts ?? params.src
-  const absolute = projectRoot ? path.resolve(projectRoot, params.filename) : params.filename
+  const absolute = absoluteFile
   const modular = modularizeHozoImports(before, absolute)
   const nextParams = modular === params.src ? params : { ...params, src: modular }
   return loadUpstream(projectRoot).transform(nextParams)
