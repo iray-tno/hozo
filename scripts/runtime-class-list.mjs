@@ -160,6 +160,15 @@ function sourceEntry(root, specifier, native = false) {
   return file
 }
 
+const UNUSED_GLOBBY = `data:text/javascript,${encodeURIComponent(
+  ['globbySync', 'isGitIgnoredSync']
+    .map(
+      (name) =>
+        `export function ${name}() { throw new Error('the benchmark does not walk a project: ${name}') }`,
+    )
+    .join('\n'),
+)}`
+
 async function prepare(root) {
   // Raw historical compiler/Metro source, but fixed driver dependencies.
   // Each checkout runs in its own process: addon and module caches cannot
@@ -169,6 +178,11 @@ async function prepare(root) {
       if (specifier.startsWith('@hozo/')) {
         return { url: pathToFileURL(sourceEntry(root, specifier)).href, shortCircuit: true }
       }
+      // The pinned revisions' compiler imports globby, which the driver's
+      // installation no longer has since bac441a3 moved to tinyglobby. Only
+      // the project walk uses it, and nothing timed here walks a project, so
+      // a stand-in that throws if called keeps that true rather than assumed.
+      if (specifier === 'globby') return { url: UNUSED_GLOBBY, shortCircuit: true }
       if (
         !specifier.startsWith('.') &&
         !path.isAbsolute(specifier) &&
