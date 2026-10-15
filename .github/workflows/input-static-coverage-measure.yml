@@ -1,0 +1,42 @@
+name: input-static-coverage-measure
+
+# Measurement-only branch; no publishing/deploy permissions or dispatch.
+on:
+  push:
+    branches: [chore/input-static-coverage-measure]
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: '2'
+      GOMAXPROCS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native:release
+      - run: pnpm exec turbo run build --filter='@hozo/tailwind-conformance...' --concurrency=2
+      - name: Generate an unvalidated snapshot artifact for comparison
+        run: |
+          mkdir -p artifacts/input-static-measure
+          git rev-parse HEAD > artifacts/input-static-measure/source-commit.txt
+          # Writer only; main's normal --check gate remains unchanged.
+          env -u CI pnpm --filter @hozo/tailwind-conformance report > artifacts/input-static-measure/report.txt 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: input-static-conformance-measure
+          path: |
+            artifacts/input-static-measure
+            packages/tailwind-conformance/snapshot.json
