@@ -8,6 +8,7 @@ import { runInNewContext } from 'node:vm'
 import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { createClassResolver } from '@hozo/engine'
+import { Button as ButtonFallback } from '@hozo/primitives'
 import { transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { createElement, Fragment } from 'react'
@@ -137,6 +138,54 @@ function evaluate(code, globals = {}) {
   runInNewContext(js, { module, h: createElement, Fragment, ...globals })
   return module.exports
 }
+
+test('Button host IDs and metadata work with DOM listeners without React hydration', {
+  skip: !executablePath,
+}, async () => {
+  const [web] = compiler.compile(
+    `import {Button} from '@hozo/core'; export function C(){return <Button nativeID="winget-copy" data-copy-label="コピー" data-copied-label="完了">Copy</Button>}`,
+  )
+  const { C } = evaluate(`export function C(){return ${web.jsx}}`)
+  const markup = [
+    renderToStaticMarkup(createElement(C)),
+    renderToStaticMarkup(
+      createElement(
+        ButtonFallback,
+        {
+          nativeID: 'winget-copy',
+          'data-copy-label': 'コピー',
+          'data-copied-label': '完了',
+        },
+        'Copy',
+      ),
+    ),
+  ]
+  const page = await browser.newPage()
+  try {
+    for (const html of markup) {
+      await page.setContent(html)
+      await page.evaluate(() => {
+        const button = document.getElementById('winget-copy')
+        if (!(button instanceof HTMLButtonElement)) throw new Error('ID must name the real button')
+        if (button.type !== 'button') throw new Error('safe non-submitting default changed')
+        button.addEventListener('click', () => {
+          button.textContent = button.dataset.copiedLabel
+        })
+      })
+      await page.locator('#winget-copy').click()
+      assert.equal(await page.locator('#winget-copy').textContent(), '完了')
+      assert.equal(await page.locator('#winget-copy').getAttribute('data-copy-label'), 'コピー')
+      await page.evaluate(() => {
+        document.getElementById('winget-copy').disabled = true
+        document.getElementById('winget-copy').textContent = 'disabled'
+        document.getElementById('winget-copy').click()
+      })
+      assert.equal(await page.locator('#winget-copy').textContent(), 'disabled')
+    }
+  } finally {
+    await page.close()
+  }
+})
 
 test('the real Web Chip keeps ancestor hover/active on its row but child focus on its buttons', {
   skip: !executablePath,

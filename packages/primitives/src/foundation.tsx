@@ -22,6 +22,7 @@ import {
   useRef,
   useState,
 } from 'react'
+import { type ButtonDataProps, buttonDataProps } from './button-host-attributes.ts'
 import { HozoLink } from './link.ts'
 import { HozoPressable, type HozoPressableProps } from './pressable.ts'
 import { HozoTextInput, type HozoTextInputProps } from './text-input.ts'
@@ -289,7 +290,7 @@ export function Link({ children, ...props }: LinkProps) {
   return <HozoLink {...props}>{children}</HozoLink>
 }
 
-export interface ButtonProps {
+export interface ButtonProps extends ButtonDataProps {
   className?: string
   children?: ReactNode
   onPress?: MouseEventHandler<HTMLElement>
@@ -304,6 +305,8 @@ export interface ButtonProps {
   rel?: string
   download?: boolean | string
   testID?: string
+  /** Stable host ID: DOM id on Web, nativeID on React Native. */
+  nativeID?: string
 }
 
 export function Button({
@@ -321,10 +324,14 @@ export function Button({
   rel,
   download,
   testID,
+  nativeID,
+  ...metadata
 }: ButtonProps) {
+  const data = buttonDataProps(metadata)
   if (href != null) {
     return (
       <HozoLink
+        {...data}
         href={href}
         external={external}
         replace={replace}
@@ -337,6 +344,7 @@ export function Button({
         accessibilityHint={accessibilityHint}
         disabled={disabled}
         testID={testID}
+        nativeID={nativeID}
         onPress={onPress as MouseEventHandler<HTMLAnchorElement>}
       >
         {children}
@@ -347,6 +355,7 @@ export function Button({
     <>
       {hozoViewBase()}
       <button
+        {...data}
         type="button"
         className={className}
         disabled={disabled}
@@ -355,6 +364,7 @@ export function Button({
         aria-label={accessibilityLabel}
         aria-description={accessibilityHint}
         data-testid={testID}
+        id={nativeID}
         onClick={onPress as MouseEventHandler<HTMLButtonElement>}
       >
         {children}

@@ -40,6 +40,14 @@
       "types": "./dist/generated/backdrop-filter.d.ts",
       "default": "./dist/generated/backdrop-filter.js"
     },
+    "./generated/button-props": {
+      "react-native": {
+        "types": "./dist/generated/button-props.native.d.ts",
+        "default": "./dist/generated/button-props.native.js"
+      },
+      "types": "./dist/generated/button-props.d.ts",
+      "default": "./dist/generated/button-props.js"
+    },
     "./generated/container": {
       "types": "./dist/generated/container.d.ts",
       "default": "./dist/generated/container.js"

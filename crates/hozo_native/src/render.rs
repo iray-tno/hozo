@@ -1730,6 +1730,24 @@ pub(super) fn render_node(
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.
     for prop in &node.props.passthrough {
+        if node.primitive == Primitive::Button {
+            if prop.name.as_deref().is_some_and(|name| name.starts_with("data-")) {
+                diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::WebOnlyPropertyOnNative,
+                    severity: Severity::Warning,
+                    message: "Button `data-*` metadata requires a Web DOM dataset; React Native does not consume it. Use nativeID for a shared host identifier; metadata is not mapped to accessibility props.".to_string(),
+                    span: prop.span.0,
+                });
+            }
+            if prop.is_spread {
+                let raw = source_text(source, prop.span);
+                if let Some(expression) = raw.trim().strip_prefix('{').and_then(|text| text.strip_suffix('}')).and_then(|text| text.trim().strip_prefix("...")) {
+                    runtime.need_component("hozoButtonProps");
+                    props_text.push_str(&format!(" {{...hozoButtonProps({expression})}}"));
+                    continue;
+                }
+            }
+        }
         // Already in the style array above.
         if prop.name.as_deref() == Some("style") {
             continue;
