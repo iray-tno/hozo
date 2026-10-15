@@ -261,6 +261,11 @@ On React Native there is no `role="form"` landmark in the platform's vocabulary,
 
 ## `NativeSelect`
 
+On the Web, the enabled select shares Hozo's pointer-cursor default, including
+standalone server renders without hydration. `disabled` (also a disabled
+fieldset) removes that default; explicit `cursor-*` utilities still take
+precedence. The operating system continues to own the opened picker.
+
 #143's last control, and the one this package had already argued against itself. The README above explains why the date grid is the answer rather than `<input type="date">` and `UIDatePicker`: an operating system's picker cannot be styled, which is against the premise that one `className` means the same thing on both platforms. A `<select>` survives that argument where a date input does not.
 
 - **A `<select>` is already the platform's picker on the Web.** It opens the wheel on iOS Safari and the dropdown on Android Chrome. So this is not one platform's widget against ours; it is the same decision on both sides — the operating system owns the choosing.

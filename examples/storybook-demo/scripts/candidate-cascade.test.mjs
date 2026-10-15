@@ -8,7 +8,9 @@ import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
+import { lowerModule } from '@hozo/compiler/lower'
 import { createClassResolver } from '@hozo/engine'
+import { NativeSelect } from '@hozo/form'
 import { Button as ButtonFallback } from '@hozo/primitives'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
@@ -139,6 +141,99 @@ function evaluate(code, globals = {}) {
   runInNewContext(js, { module, h: createElement, Fragment, ...globals })
   return module.exports
 }
+
+test('standalone NativeSelect SSR shares the pointer policy without hydration', {
+  skip: !executablePath,
+}, async () => {
+  const utilities = ['cursor-default', 'cursor-auto', 'cursor-wait', 'cursor-not-allowed']
+  cache.scanFile('picker-cursors.ts', `export const classes = '${utilities.join(' ')}'`, 1)
+  const cssVariants = [
+    ['Hozo candidates', cache.renderCss(undefined, utilities)],
+    ['Tailwind', (await compile('@tailwind utilities;')).build(utilities)],
+  ]
+  for (const [name, css] of cssVariants) {
+    for (const utility of utilities) assert.ok(css.includes(`.${utility}`), `${name}: ${utility}`)
+  }
+  // NativeSelect is a platform-owned picker, not a DOM primitive that may
+  // be substituted. Exercise the same module-lowering boundary as bundlers;
+  // an unchanged module is still rendered through its published form entry.
+  const source = `import {NativeSelect} from '@hozo/form';
+    export function C(props) { return <NativeSelect {...props}/> }`
+  const lowered = lowerModule(source, 'Picker.tsx', 'Picker.tsx', compiler, '')
+  assert.deepEqual(lowered?.diagnostics ?? [], [])
+  const { C } = evaluate(lowered?.code ?? source, {
+    require: (specifier) => {
+      assert.equal(specifier, '@hozo/form')
+      return { NativeSelect }
+    },
+  })
+  const options = [
+    { value: 'en', label: 'English' },
+    { value: 'ja', label: '日本語' },
+  ]
+  const page = await browser.newPage()
+  try {
+    for (const [pipeline, Component] of [
+      ['SSR', NativeSelect],
+      ['compiler', C],
+    ]) {
+      for (const [cssName, css] of cssVariants) {
+        for (const [className, expected] of [
+          [undefined, 'pointer'],
+          ['cursor-default', 'default'],
+          ['cursor-auto', 'auto'],
+          ['cursor-wait', 'wait'],
+          ['cursor-not-allowed', 'not-allowed'],
+        ]) {
+          const label = `${pipeline}/${cssName}/${className ?? 'default'}`
+          const render = (disabled) =>
+            renderToStaticMarkup(
+              createElement(Component, {
+                options,
+                id: 'language',
+                accessibilityLabel: 'Language',
+                defaultValue: 'en',
+                className,
+                disabled,
+              }),
+            )
+          await page.setContent(`<style>${css}</style>${render(false)}`)
+          const select = page.locator('#language')
+          const cursor = () => select.evaluate((e) => getComputedStyle(e).cursor)
+          assert.equal(await cursor(), expected, label)
+          assert.equal(await select.getAttribute('data-hozo-pressable'), '', label)
+          // The consumer uses a DOM listener, not a React root or hydration.
+          await select.evaluate((e) =>
+            e.addEventListener('change', () => {
+              document.body.dataset.language = e.value
+            }),
+          )
+          await select.selectOption('ja')
+          assert.equal(await page.locator('body').getAttribute('data-language'), 'ja', label)
+          // Native DOM disabled and disabled fieldset inheritance must work
+          // even when React never updates data-hozo-disabled.
+          await select.evaluate((e) => {
+            e.disabled = true
+          })
+          assert.equal(await cursor(), className ? expected : 'default', `${label}/DOM disabled`)
+          await select.evaluate((e) => {
+            e.disabled = false
+          })
+          assert.equal(await cursor(), expected, `${label}/re-enabled`)
+          await page.setContent(
+            `<style>${css}</style><fieldset disabled>${render(false)}</fieldset>`,
+          )
+          assert.equal(await cursor(), className ? expected : 'default', `${label}/fieldset`)
+          await page.setContent(`<style>${css}</style>${render(true)}`)
+          assert.equal(await select.getAttribute('data-hozo-disabled'), '', label)
+          assert.equal(await cursor(), className ? expected : 'default', `${label}/SSR disabled`)
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
+})
 
 test('disabled navigation keeps compiled, fallback and spread hosts out of Tab order and activation', {
   skip: !executablePath,

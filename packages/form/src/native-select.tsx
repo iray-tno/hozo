@@ -1,3 +1,4 @@
+import { hozoViewBase } from '@hozo/engine'
 import { createContext, type ReactNode, useContext, useState } from 'react'
 
 export interface HozoNativeSelectOption {
@@ -156,38 +157,45 @@ export function HozoNativeSelect({
   const current = controlled ?? uncontrolled
 
   return (
-    <select
-      id={id}
-      name={name}
-      value={current}
-      disabled={disabled}
-      aria-label={accessibilityLabelledBy ? undefined : accessibilityLabel}
-      aria-labelledby={accessibilityLabelledBy}
-      aria-describedby={describedBy}
-      aria-invalid={invalid ? 'true' : undefined}
-      aria-required={required ? true : undefined}
-      // Twice, because `disabled:` compiles to `[data-hozo-disabled]` in this
-      // project (decision 001) and a real `<select disabled>` would be styled by
-      // nothing. The attribute is for the class list, the property for the
-      // platform.
-      data-hozo-disabled={disabled ? '' : undefined}
-      data-testid={testID}
-      className={className}
-      onChange={(event) => {
-        const next = event.currentTarget.value
-        if (controlled === undefined) setUncontrolled(next)
-        onValueChange?.(next)
-      }}
-      onBlur={onBlur}
-      onFocus={onFocus}
-    >
-      {placeholder === undefined ? null : <option value="">{placeholder}</option>}
-      {options.map((option) => (
-        <option key={option.value} value={option.value} disabled={option.disabled}>
-          {option.label}
-        </option>
-      ))}
-    </select>
+    <>
+      {hozoViewBase()}
+      <select
+        // Request the shared base here: a standalone SSR picker must not depend
+        // on an unrelated primitive rendering first. Its zero-specificity base
+        // rule yields to author cursor utilities and excludes native :disabled.
+        data-hozo-pressable=""
+        id={id}
+        name={name}
+        value={current}
+        disabled={disabled}
+        aria-label={accessibilityLabelledBy ? undefined : accessibilityLabel}
+        aria-labelledby={accessibilityLabelledBy}
+        aria-describedby={describedBy}
+        aria-invalid={invalid ? 'true' : undefined}
+        aria-required={required ? true : undefined}
+        // Twice, because `disabled:` compiles to `[data-hozo-disabled]` in this
+        // project (decision 001) and a real `<select disabled>` would be styled by
+        // nothing. The attribute is for the class list, the property for the
+        // platform.
+        data-hozo-disabled={disabled ? '' : undefined}
+        data-testid={testID}
+        className={className}
+        onChange={(event) => {
+          const next = event.currentTarget.value
+          if (controlled === undefined) setUncontrolled(next)
+          onValueChange?.(next)
+        }}
+        onBlur={onBlur}
+        onFocus={onFocus}
+      >
+        {placeholder === undefined ? null : <option value="">{placeholder}</option>}
+        {options.map((option) => (
+          <option key={option.value} value={option.value} disabled={option.disabled}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </>
   )
 }
 

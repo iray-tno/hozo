@@ -4,7 +4,8 @@
  * There is no runtime here: one `<select>`, no portal, no focus management, no
  * measurement. So unlike every other component in this package, the server render
  * sees the finished article rather than a first paint -- which makes this file the
- * complete Web test rather than the part that fits.
+ * attribute contract rather than the part that fits. Computed cursor policy
+ * is additionally exercised in Storybook's real-browser cascade regressions.
  *
  * The Native half is the asymmetric one -- a presenter if provided, `ActionSheetIOS`
  * on iOS, a `BottomSheet` holding a `Listbox` elsewhere -- and none of those three
@@ -13,7 +14,7 @@
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createElement } from 'react'
+import { createElement, Fragment } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
 import { NativeSelect, type NativeSelectOption } from './index.ts'
@@ -35,7 +36,7 @@ const render = (props: Record<string, unknown> = {}) =>
 
 test('it is a real select with real options', () => {
   const html = render({ defaultValue: 'express' })
-  assert(html.startsWith('<select'))
+  assert.match(html, /<select\b/)
   assert(html.includes('aria-label="Courier"'))
   assert.equal([...html.matchAll(/<option/g)].length, 3)
   assert(html.includes('>Express</option>'))
@@ -95,6 +96,33 @@ test('disabled is written twice, for CSS and for the platform', () => {
   // `<select disabled>` on its own would be styled by nothing.
   assert(html.includes('data-hozo-disabled'))
   assert(html.includes('disabled=""'))
+})
+
+test('a standalone picker requests the shared pointer policy without adding inline cursor styles', () => {
+  const html = render({ className: 'cursor-default' })
+  assert.match(html, /<select[^>]*data-hozo-pressable=""/)
+  assert.match(html, /<style[^>]*data-href="hozo-view-base"/)
+  assert.match(html, /:where\(\[data-hozo-pressable\]:not\(:disabled,/)
+  assert.match(html, /class="cursor-default"/)
+  assert.doesNotMatch(html, /<select[^>]*style=/)
+})
+
+test('multiple pickers share one SSR stylesheet resource', () => {
+  const html = renderToStaticMarkup(
+    createElement(
+      Fragment,
+      null,
+      createElement(NativeSelect, { options: COURIERS, accessibilityLabel: 'First' }),
+      createElement(NativeSelect, {
+        options: COURIERS,
+        accessibilityLabel: 'Second',
+        disabled: true,
+      }),
+    ),
+  )
+  assert.equal([...html.matchAll(/<select\b/g)].length, 2)
+  assert.equal([...html.matchAll(/<style\b/g)].length, 1)
+  assert.equal([...html.matchAll(/data-hozo-pressable=""/g)].length, 2)
 })
 
 test('the form plumbing is passed through, because a select is a form control', () => {
