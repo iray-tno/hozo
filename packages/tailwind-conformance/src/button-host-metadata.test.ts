@@ -36,6 +36,11 @@ test('Native IDs survive compilation and value rendering; DOM metadata is diagno
         (item) => item.code === 'WEB_ONLY_PROPERTY_ON_NATIVE' && item.severity === 'warning',
       ),
     )
+    const [plain] = compileNative(
+      `import {Button} from '@hozo/core'; const e = <Button nativeID="copy">Copy</Button>`,
+    )
+    assert.deepEqual(plain.diagnostics, [])
+    assert.ok(!plain.jsx.includes('hozoButtonProps'), 'ordinary static Buttons need no helper')
     // Destination shape is explicit, not hidden inside an opaque spread.
     const { Action, Navigation } = loadNativeModule(`import {Button} from '@hozo/core';
       export function Action(props) {return <Button { ... props } />}
