@@ -1533,9 +1533,10 @@ test("@hozo/patterns' second batch of Native controls apply their class props", 
     'p-2 text-red-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 aria-expanded:bg-blue-500 active:opacity-80 disabled:opacity-50'
   const chipLook =
     'p-2 text-red-500 aria-pressed:bg-blue-500 aria-checked:outline-4 active:opacity-80 disabled:opacity-50'
+  const currentPageLook = 'p-2 bg-blue-500'
   const { load, pressables, at, flat } = await patternHarness(
     'batch-candidates.json',
-    `${look} ${chipLook}`,
+    `${look} ${chipLook} ${currentPageLook}`,
   )
 
   const [tab] = pressables(
@@ -1564,14 +1565,18 @@ test("@hozo/patterns' second batch of Native controls apply their class props", 
   const pages = pressables(
     load('pagination.native.tsx').HozoPagination({
       itemClassName: look,
-      currentItemClassName: 'p-2',
+      currentItemClassName: currentPageLook,
       pageCount: 3,
       defaultPage: 1,
     }),
   )
   const [previous, first, second] = pages
   assert.equal(at(previous, false).box.opacity, 0.5, 'pagination: disabled previous')
-  assert.equal(at(first, false).box.backgroundColor, '#2b7fff', 'pagination: current page')
+  assert.equal(
+    at(first, false).box.backgroundColor,
+    '#2b7fff',
+    'pagination: current-page class gate',
+  )
   assert.equal(at(second, false).box.backgroundColor, undefined, 'pagination: another page')
 
   const [branch, leaf] = pressables(
