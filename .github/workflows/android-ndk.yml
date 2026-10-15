@@ -1,0 +1,52 @@
+# A fresh SDK target proves acquisition even if the hosted image already
+# contains the pinned NDK. No app build or emulator is needed for this claim.
+name: android-ndk
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/android-ndk.yml'
+      - 'scripts/prepare-android-ndk*'
+      - 'examples/native-demo/android/build.gradle'
+permissions:
+  contents: read
+concurrency:
+  group: android-ndk-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  fresh-install:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: node --test scripts/prepare-android-ndk.test.mjs
+      - name: Acquire into a new SDK root
+        run: node scripts/prepare-android-ndk.mjs --sdk-root "$RUNNER_TEMP/hozo-fresh-sdk"
+      - name: Verify a fresh install and execute its compiler
+        run: |
+          node --input-type=module -e '
+            import assert from "node:assert/strict";
+            import { readFileSync } from "node:fs";
+            const r = JSON.parse(readFileSync("artifacts/android-ndk/result.json"));
+            assert.equal(r.passed, true);
+            assert.equal(r.reused, false);
+            assert.ok(r.attempts.length >= 1 && r.attempts.length <= 2);
+            assert.equal(r.attempts.at(-1).passed, true);
+            assert.equal(r.driverCommit, process.env.GITHUB_SHA);
+          '
+          version=$(node --input-type=module -e 'import {ndkVersion} from "./scripts/prepare-android-ndk.mjs"; console.log(ndkVersion("examples/native-demo/android"))')
+          "$RUNNER_TEMP/hozo-fresh-sdk/ndk/$version/toolchains/llvm/prebuilt/linux-x86_64/bin/clang" --version | tee artifacts/android-ndk/clang-version.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-ndk-fresh-install
+          path: artifacts/android-ndk/
+          if-no-files-found: warn
+          retention-days: 14

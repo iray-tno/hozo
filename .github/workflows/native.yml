@@ -67,6 +67,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/native.yml'
+      - 'scripts/prepare-android-ndk*'
       - 'examples/native-demo/**'
 
 concurrency:
@@ -98,6 +99,18 @@ jobs:
 
       # A second entry keeps optional Skia out of the ordinary acceptance
       # bundle while producing a normal release APK that executes it.
+      - name: Prepare the pinned Android NDK
+        run: node scripts/prepare-android-ndk.mjs
+
+      - name: Keep NDK preparation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ndk-canvas-android
+          path: artifacts/android-ndk/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Build the Canvas release APK
         working-directory: examples/native-demo/android
         run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 -PhozoEntryFile=canvas.js --no-daemon
@@ -173,6 +186,18 @@ jobs:
       # One ABI. The committed `gradle.properties` lists four because a real
       # device needs them; the emulator here is x86_64 and building the other
       # three is three quarters of the time for nothing.
+      - name: Prepare the pinned Android NDK
+        run: node scripts/prepare-android-ndk.mjs
+
+      - name: Keep NDK preparation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ndk-android
+          path: artifacts/android-ndk/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Build the release APK
         working-directory: examples/native-demo/android
         run: ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --no-daemon
@@ -292,6 +317,18 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm turbo run build
+
+      - name: Prepare the pinned Android NDK
+        run: node scripts/prepare-android-ndk.mjs
+
+      - name: Keep NDK preparation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-ndk-talkback-${{ matrix.boot }}
+          path: artifacts/android-ndk/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Build the release APK
         working-directory: examples/native-demo/android
