@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
@@ -401,5 +401,60 @@ test('dependency test fixtures stay out, without restricting app-owned sources',
     }
   } finally {
     rmSync(root, { recursive: true, force: true })
+  }
+})
+
+// #946: the walk moved off globby. These pin what it did, so the move is a
+// refactor rather than a change in which files a project contributes.
+test('gitignore negation, nested ignore files and dot directories behave as before', () => {
+  const root = project()
+  try {
+    writeFileSync(path.join(root, '.gitignore'), 'gen/*\n!gen/keep.ts\nbuildout/\n')
+    const keep = source(root, 'gen/keep.ts')
+    source(root, 'gen/drop.ts')
+    source(root, 'buildout/a.ts')
+    // An unanchored root pattern reaches nested directories.
+    source(root, 'pkg/buildout/b.ts')
+    mkdirSync(path.join(root, 'sub'), { recursive: true })
+    writeFileSync(path.join(root, 'sub', '.gitignore'), 'local.ts\n')
+    source(root, 'sub/local.ts')
+    const subKept = source(root, 'sub/kept.ts')
+    // A dot directory is not walked, configuration included.
+    source(root, '.storybook/main.ts')
+    const app = source(root, 'app/page.tsx')
+
+    assert.deepEqual(discoverSources(root), [app, keep, subKept].sort())
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('an include naming a directory reaches the files in it', () => {
+  const root = project()
+  try {
+    const inside = source(root, 'generated/tokens.ts')
+    source(root, 'src/app.tsx')
+    assert.deepEqual(discoverSources(root, { include: ['generated'] }), [inside])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('a symlinked directory is not followed', (t) => {
+  const root = project()
+  const elsewhere = project()
+  try {
+    const own = source(root, 'src/own.tsx')
+    source(elsewhere, 'linked/other.tsx')
+    try {
+      symlinkSync(path.join(elsewhere, 'linked'), path.join(root, 'src', 'linked'), 'junction')
+    } catch {
+      t.skip('this platform would not create the link')
+      return
+    }
+    assert.deepEqual(discoverSources(root), [own])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+    rmSync(elsewhere, { recursive: true, force: true })
   }
 })
