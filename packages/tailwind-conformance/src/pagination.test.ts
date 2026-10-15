@@ -286,3 +286,51 @@ test('compiled page styles retain explicit slot overrides, controlled state and 
     stub.Linking.openURL = original
   }
 })
+
+test('compiled Pagination semantic styles use the button or link owner through boundary changes', () => {
+  const source = `import {Pagination} from '@hozo/core'
+    export function C(props) { return <Pagination {...props} pageCount={3}
+      itemClassName="enabled:px-2 disabled:opacity-25 aria-disabled:border-4 aria-selected:outline-4 not-aria-selected:py-1"
+      currentItemClassName="border-2 aria-selected:outline-4"
+      disabledItemClassName="disabled:opacity-25 aria-disabled:border-4"/> }`
+  const { C } = loadNativeModule(source)
+  for (const link of [false, true]) {
+    const changes: number[] = []
+    let root: ReturnType<typeof renderer.create>
+    renderer.act(() => {
+      root = renderer.create(
+        react.createElement(C, {
+          ...(link ? { getPageHref: (page: number) => `myapp://semantic/${page}` } : {}),
+          onPageChange: (page: number) => changes.push(page),
+        }),
+      )
+    })
+    const check = (boundary: string, current: string) => {
+      for (const button of controls(root)) {
+        const disabled = button.props.accessibilityLabel === boundary
+        assert.equal(flat(button).opacity, !link && disabled ? 0.25 : undefined)
+        assert.equal(
+          flat(button).borderTopWidth,
+          link && disabled ? 4 : button.props.accessibilityLabel === current ? 2 : undefined,
+        )
+        assert.equal(flat(button).outlineWidth, undefined, 'aria-selected is absent on Web')
+        assert.equal(flat(button).paddingTop, 4, 'known absent aria-selected can be negated')
+        assert.equal(
+          flat(button).paddingStart,
+          !link && !disabled ? 8 : undefined,
+          'links never match enabled',
+        )
+      }
+      assert.equal(control(root, current).props.accessibilityState.selected, true)
+      assert.equal(control(root, boundary).props.disabled, true)
+    }
+    try {
+      check('Previous page', 'Page 1')
+      event(control(root, 'Page 3'), 'onPress')
+      assert.deepEqual(changes, [3])
+      check('Next page', 'Page 3')
+    } finally {
+      renderer.act(() => root.unmount())
+    }
+  }
+})

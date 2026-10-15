@@ -30,7 +30,7 @@ const otpUnsupportedFocusClasses =
   'not-focus:opacity-50 not-focus-visible:font-normal not-focus:not-focus-visible:border-2'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4'`,
+  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -913,8 +913,8 @@ test('Native Pagination delivers interaction facts to item/current/disabled slot
     getPageHref: (page) => `/pages/${page}`,
     onPageChange: (page) => changed.push(page),
     itemClassName: interactionClasses,
-    currentItemClassName: 'aria-selected:border-2',
-    disabledItemClassName: 'disabled:opacity-25',
+    currentItemClassName: 'border-2',
+    disabledItemClassName: 'aria-disabled:opacity-25',
   })
   await checkInteraction(tree)
   assert.deepEqual(navigated, [])
@@ -941,6 +941,48 @@ test('Native Pagination delivers interaction facts to item/current/disabled slot
   })
   await press(fallback.root.findAllByType('NativePressable').at(-1))
   assert.deepEqual(openedURLs.slice(start), ['/fallback/2'])
+})
+
+test('Native Pagination semantic candidates distinguish buttons from links without borrowing selected', async (t) => {
+  for (const link of [false, true]) {
+    const changed = []
+    const tree = await mount(t, HozoPagination, {
+      pageCount: 3,
+      onPageChange: (page) => changed.push(page),
+      ...(link ? { getPageHref: (page) => `/semantic/${page}` } : {}),
+      itemClassName: 'disabled:opacity-25 aria-disabled:border-4 aria-selected:outline-4',
+      currentItemClassName: 'border-2 aria-selected:outline-4',
+      disabledItemClassName: 'disabled:opacity-25 aria-disabled:border-4',
+    })
+    const controls = () => tree.root.findAllByType('NativePressable')
+    const check = (disabledIndex, page) => {
+      for (const [index, button] of controls().entries()) {
+        assert.equal(
+          flat(button.props.style).opacity,
+          !link && index === disabledIndex ? 0.25 : undefined,
+        )
+        assert.equal(
+          flat(button.props.style).borderTopWidth,
+          link && index === disabledIndex ? 4 : index === page ? 2 : undefined,
+        )
+        assert.equal(flat(button.props.style).outlineWidth, undefined)
+      }
+      assert.equal(controls()[page].props.accessibilityState.selected, true)
+      assert.equal(
+        controls()[disabledIndex].props.disabled,
+        true,
+        'Native host still blocks boundary activation',
+      )
+    }
+    check(0, 1)
+    await press(controls()[0])
+    assert.deepEqual(changed, [])
+    await press(controls()[3])
+    check(4, 3)
+    assert.deepEqual(changed, [3])
+    await press(controls()[4])
+    assert.deepEqual(changed, [3])
+  }
 })
 
 test('Native Popover trigger interaction keeps controlled opening and disabled behavior', async (t) => {

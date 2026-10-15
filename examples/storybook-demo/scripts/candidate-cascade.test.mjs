@@ -142,6 +142,101 @@ function evaluate(code, globals = {}) {
   return module.exports
 }
 
+test('Pagination semantic classes distinguish disabled buttons from disabled links at either boundary', {
+  skip: !executablePath,
+}, async () => {
+  const classes =
+    'p-0 border-0 opacity-100 enabled:px-2 disabled:opacity-25 aria-disabled:border-4 aria-selected:opacity-50'
+  const css = (await compile('@theme { --spacing: 0.25rem; } @tailwind utilities;')).build([
+    ...classes.split(' '),
+    'border-2',
+  ])
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Pagination} from '@hozo/patterns';
+        window.paginationSelections = [];
+        createRoot(document.getElementById('root')).render(<>{[false, true].map(link =>
+          <section key={String(link)} id={link ? 'links' : 'buttons'}><Pagination pageCount={3}
+            getPageHref={link ? page => '#page-' + page : undefined}
+            onPageChange={page => window.paginationSelections.push([link, page])}
+            itemClassName=${JSON.stringify(classes)} currentItemClassName="border-2"
+            disabledItemClassName="disabled:opacity-25 aria-disabled:border-4"/></section>
+        )}</>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(
+      `<style>${css}</style><div id="aria-control" aria-selected="true" class="${classes}"></div><div id="root"></div>`,
+    )
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(
+      () => document.querySelectorAll('#root button, #root a').length === 10,
+    )
+    assert.equal(
+      await page.locator('#aria-control').evaluate((e) => getComputedStyle(e).opacity),
+      '0.5',
+    )
+    for (const link of [false, true]) {
+      const controls = page.locator(link ? '#links a' : '#buttons button')
+      const check = async (boundary, current) => {
+        const styles = await controls.evaluateAll((nodes) =>
+          nodes.map((e) => {
+            const css = getComputedStyle(e)
+            return {
+              border: css.borderTopWidth,
+              opacity: css.opacity,
+              padding: css.paddingLeft,
+              selected: e.getAttribute('aria-selected'),
+              current: e.getAttribute('aria-current'),
+              ariaDisabled: e.getAttribute('aria-disabled'),
+              disabled: e.matches(':disabled'),
+              enabled: e.matches(':enabled'),
+            }
+          }),
+        )
+        for (const [index, facts] of styles.entries())
+          assert.deepEqual(facts, {
+            border: link && index === boundary ? '4px' : index === current ? '2px' : '0px',
+            opacity: !link && index === boundary ? '0.25' : '1',
+            padding: !link && index !== boundary ? '8px' : '0px',
+            selected: null,
+            current: index === current ? 'page' : null,
+            ariaDisabled: link && index === boundary ? 'true' : null,
+            disabled: !link && index === boundary,
+            enabled: !link && index !== boundary,
+          })
+      }
+      await check(0, 1)
+      if (link) {
+        await controls.first().focus()
+        await page.keyboard.press('Enter')
+        assert.deepEqual(await page.evaluate(() => window.paginationSelections), [[false, 3]])
+      }
+      await controls.nth(3).click()
+      await check(4, 3)
+    }
+    assert.deepEqual(await page.evaluate(() => window.paginationSelections), [
+      [false, 3],
+      [true, 3],
+    ])
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('Chip semantic classes observe the Web class owner across standalone and composite shapes', {
   skip: !executablePath,
 }, async () => {
@@ -1438,9 +1533,10 @@ test("@hozo/patterns' second batch of Native controls apply their class props", 
     'p-2 text-red-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 aria-expanded:bg-blue-500 active:opacity-80 disabled:opacity-50'
   const chipLook =
     'p-2 text-red-500 aria-pressed:bg-blue-500 aria-checked:outline-4 active:opacity-80 disabled:opacity-50'
+  const currentPageLook = 'p-2 bg-blue-500'
   const { load, pressables, at, flat } = await patternHarness(
     'batch-candidates.json',
-    `${look} ${chipLook}`,
+    `${look} ${chipLook} ${currentPageLook}`,
   )
 
   const [tab] = pressables(
@@ -1469,14 +1565,18 @@ test("@hozo/patterns' second batch of Native controls apply their class props", 
   const pages = pressables(
     load('pagination.native.tsx').HozoPagination({
       itemClassName: look,
-      currentItemClassName: 'p-2',
+      currentItemClassName: currentPageLook,
       pageCount: 3,
       defaultPage: 1,
     }),
   )
   const [previous, first, second] = pages
   assert.equal(at(previous, false).box.opacity, 0.5, 'pagination: disabled previous')
-  assert.equal(at(first, false).box.backgroundColor, '#2b7fff', 'pagination: current page')
+  assert.equal(
+    at(first, false).box.backgroundColor,
+    '#2b7fff',
+    'pagination: current-page class gate',
+  )
   assert.equal(at(second, false).box.backgroundColor, undefined, 'pagination: another page')
 
   const [branch, leaf] = pressables(
