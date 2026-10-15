@@ -1489,3 +1489,34 @@ fn core_cx_keeps_a_components_state_styles_beside_a_callers_class() {
     assert!(output.jsx.contains("hozoClasses(className, "), "{}", output.jsx);
     assert!(!output.jsx.contains("cx("), "{}", output.jsx);
 }
+
+/// A pressable's `disabled:` text colour reaches a Text nested inside it,
+/// driven by the pressable's own `disabled`. The Text has no `disabled` of
+/// its own, and was told so instead of getting the style.
+#[test]
+fn a_disabled_text_colour_reaches_a_nested_text_through_the_pressables_prop() {
+    let source = r#"
+            import { Pressable, View, Text } from '@hozo/core'
+            const el = <Pressable disabled={busy} className="text-red-500 disabled:text-gray-500"><View><Text>Hi</Text></View></Pressable>
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.jsx.contains("(busy) && hozoStyles."), "{}", output.jsx);
+    assert!(output.styles.contains("color: '#6a7282'"), "{}", output.styles);
+    assert!(
+        !output.diagnostics.iter().any(|d| d.message.contains("needs a `disabled` prop")),
+        "{:?}",
+        output.diagnostics
+    );
+}
+
+#[test]
+fn enabled_text_goes_down_as_the_negation() {
+    let source = r#"
+            import { Pressable, Text } from '@hozo/core'
+            const el = <Pressable disabled={busy} className="enabled:text-blue-600"><Text>Hi</Text></Pressable>
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.jsx.contains("(!(busy)) && hozoStyles."), "{}", output.jsx);
+}
