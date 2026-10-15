@@ -39,6 +39,17 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             _ => None,
         };
     }
+    if primitive == Primitive::ColorPicker && matches!(class_prop, "swatchClassName" | "selectedSwatchClassName") {
+        return match condition {
+            Condition::Disabled => Some("__hozoSlotDisabled"),
+            Condition::Enabled => Some("__hozoSlotEnabled"),
+            Condition::Aria(state) if state == "checked" => Some("__hozoSlotAriaChecked"),
+            // The Web radio uses disabled and aria-checked, not these
+            // attributes. Native announcements are a separate contract.
+            Condition::Aria(state) if matches!(state.as_str(), "disabled" | "selected") => Some("false"),
+            _ => None,
+        };
+    }
     None
 }
 
@@ -49,6 +60,8 @@ pub(super) fn semantic_parameters(primitive: Primitive) -> &'static str {
         ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled"
     } else if primitive == Primitive::Stepper {
         ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled"
+    } else if primitive == Primitive::ColorPicker {
+        ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked"
     } else {
         ""
     }

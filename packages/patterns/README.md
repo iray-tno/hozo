@@ -161,6 +161,27 @@ arbitrary dynamic classes, runtime negation/enabled variants, or
 arbitrary aria-current value selectors. Existing hover/press propagation is
 unchanged, not a new cross-platform parity claim.
 
+## Semantic state of ColorPicker swatches
+
+`swatchClassName` and `selectedSwatchClassName` belong to each preset's radio
+button, not the picker group or its hex input. Literal compiled classes can
+read that radio's `disabled:*`/`enabled:*` and `aria-checked:*`, including
+negation and supported stacks, without an authored `disabled` or
+`accessibilityState` prop. Selection changes update the same snapshot used
+by runtime candidate classes and compiler-only callbacks. The selected slot
+is still evaluated only on the checked preset.
+As on Web, only the first valid colour-matching preset is checked; equivalent
+hex spellings do not create multiple checked radios, and invalid presets'
+fallback colours are not treated as matches.
+
+Web writes `aria-checked` and `disabled`, not `aria-disabled` or `aria-selected`;
+Native's disabled announcement must not make those absent attributes match.
+Native radio roles and disabled activation suppression are unchanged.
+Explicit slot styles keep their precedence; the preset's background colour
+remains last because it communicates the colour itself. This does not add
+semantic state to the picker group, track, thumb or hex-input class props,
+or expand arbitrary dynamic-class or runtime negation/enabled support.
+
 ## Focus ownership of decorative slots
 
 `OtpInput` has one focus owner: its real input. Put `focus:*` and
