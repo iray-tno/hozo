@@ -216,7 +216,12 @@ export async function prepareAndroidNdk({
             renameSync(stagedNdk, target)
           } catch (error) {
             if (error.code !== 'EXDEV') throw error
-            cpSync(stagedNdk, target, { recursive: true, force: false, errorOnExist: true })
+            cpSync(stagedNdk, target, {
+              recursive: true,
+              force: false,
+              errorOnExist: true,
+              verbatimSymlinks: true,
+            })
           }
           validateNdk(target, version)
           attempt.passed = true
