@@ -663,20 +663,28 @@ fn validate_focusable_disabled(
     span: SourceSpan,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    let Some(focusable) = props.focusable.as_ref() else { return };
-    if props.disabled.is_none() {
+    if matches!(props.disabled.as_ref(), None | Some(ConditionExpr::Static(false))) {
         return;
     }
     // `focusable={false}` agrees with what `disabled` already does, so
     // there is nothing to say about it. Anything else is someone asking
     // for a state Hozo does not offer.
-    if matches!(focusable, ConditionExpr::Static(false)) {
+    let wants_focus = props.focusable.as_ref()
+        .is_some_and(|value| !matches!(value, ConditionExpr::Static(false)));
+    // A known non-negative tab index is the same request in DOM/RN's
+    // other spelling. Negative/opaque values do not prove a tab stop;
+    // the host's disabled guard still clamps them at runtime (#943).
+    let wants_tab_stop = props.passthrough.iter().any(|prop|
+        prop.name.as_deref() == Some("tabIndex")
+            && prop.literal.as_deref().and_then(|value| value.parse::<i32>().ok()).is_some_and(|value| value >= 0)
+    );
+    if !wants_focus && !wants_tab_stop {
         return;
     }
     diagnostics.push(Diagnostic {
         code: DiagnosticCode::FocusableDisabledUnsupported,
         severity: Severity::Warning,
-        message: "`focusable` has no effect on a disabled element. React Native's disabled \
+        message: "`focusable`/`tabIndex` cannot keep a disabled element in the keyboard focus order. React Native's disabled \
                   state removes keyboard focus on Android, and Hozo cannot yet separate that \
                   from the announcement. To let people reach the control and learn why it is \
                   unavailable, leave it enabled and answer in the handler instead."
@@ -1239,15 +1247,8 @@ fn build_node(
             }
             // Not on a chip, whose `disabled` is a prop of the pattern rather
             // than a host element's state to translate.
-            "disabled" if primitive != Primitive::Chip => match &attr.value {
-                None => props.disabled = Some(ConditionExpr::Static(true)),
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.disabled = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
+            "disabled" if primitive != Primitive::Chip =>
+                capture_flag(attr, &mut props.disabled, &mut props.passthrough, scope, diagnostics, consumed),
             "replace"
                 if matches!(
                     primitive,

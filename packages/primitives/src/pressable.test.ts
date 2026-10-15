@@ -40,6 +40,32 @@ test('a destination-bearing Pressable remains a semantic anchor', () => {
   assert.match(html, /rel="noreferrer noopener"/)
 })
 
+test('a destination Pressable hands identity and accessible names to the link normalizer', () => {
+  const html = renderToStaticMarkup(
+    createElement(
+      HozoPressable,
+      {
+        href: '/docs',
+        nativeID: 'card',
+        testID: 'card-test',
+        accessibilityLabel: 'Read documentation',
+        accessibilityHint: 'Opens the guide',
+        role: 'link',
+      },
+      'Docs',
+    ),
+  )
+  for (const expected of [
+    'id="card"',
+    'data-testid="card-test"',
+    'aria-label="Read documentation"',
+    'aria-description="Opens the guide"',
+    'role="link"',
+  ]) {
+    assert.ok(html.includes(expected), html)
+  }
+})
+
 test('disabled removes activation and exposes both accessibility and styling state', () => {
   const html = renderToStaticMarkup(
     createElement(HozoPressable, { accessibilityRole: 'button', disabled: true, onPress() {} }),
