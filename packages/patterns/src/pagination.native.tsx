@@ -7,6 +7,14 @@ import { paginationItems } from './pagination-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
+type PaginationSlotState = InteractionState & {
+  readonly [fact: string]: unknown
+  disabled: boolean
+  enabled: boolean
+  'aria-disabled': boolean
+  'aria-selected': false
+}
+
 export interface HozoPaginationProps {
   page?: number
   defaultPage?: number
@@ -23,7 +31,8 @@ export interface HozoPaginationProps {
    * compiler, which hands them over as the style props below; a file it did
    * not read leaves them here as strings, resolved through the project's
    * candidate map (#886) before the matching style prop, an item with its
-   * interaction, `aria-selected` and `disabled` state.
+   * interaction and its actual Web button/link semantic facts. Native's
+   * selected announcement does not create a Web `aria-selected` attribute.
    */
   className?: string
   itemClassName?: string
@@ -36,11 +45,11 @@ export interface HozoPaginationProps {
   disabledItemStyle?: StyleProp<ViewStyle | TextStyle>
   ellipsisStyle?: StyleProp<ViewStyle | TextStyle>
   /** @internal Static state styles consumed by each page control. */
-  hozoItemStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
+  hozoItemStyle?: (state: PaginationSlotState) => StyleProp<ViewStyle | TextStyle>
   /** @internal Applied only to the current control, with that host's facts. */
-  hozoCurrentItemStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
+  hozoCurrentItemStyle?: (state: PaginationSlotState) => StyleProp<ViewStyle | TextStyle>
   /** @internal Applied only to disabled boundary controls. */
-  hozoDisabledItemStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
+  hozoDisabledItemStyle?: (state: PaginationSlotState) => StyleProp<ViewStyle | TextStyle>
   testID?: string
 }
 
@@ -109,24 +118,27 @@ export function HozoPagination({
   ) => {
     // Every class slot belongs to this host; current/disabled are not modality.
     const look = (interaction: InteractionState) => {
-      const facts = {
+      // A disabled Web link has aria-disabled, not the button-only :disabled
+      // pseudo-class. The current-page slot is gated independently below.
+      const facts: PaginationSlotState = {
         ...interaction,
-        disabled: state === 'disabled',
-        'aria-selected': state === 'current',
-        'aria-disabled': state === 'disabled',
+        disabled: !getPageHref && state === 'disabled',
+        enabled: !getPageHref && state !== 'disabled',
+        'aria-selected': false,
+        'aria-disabled': Boolean(getPageHref) && state === 'disabled',
       }
       return splitTextStyle([
         hozoClasses(itemClassName, facts),
-        hozoItemStyle?.(interaction),
+        hozoItemStyle?.(facts),
         itemStyle,
         state === 'current' && [
           hozoClasses(currentItemClassName, facts),
-          hozoCurrentItemStyle?.(interaction),
+          hozoCurrentItemStyle?.(facts),
           currentItemStyle,
         ],
         state === 'disabled' && [
           hozoClasses(disabledItemClassName, facts),
-          hozoDisabledItemStyle?.(interaction),
+          hozoDisabledItemStyle?.(facts),
           disabledItemStyle,
         ],
       ])

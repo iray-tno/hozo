@@ -9,22 +9,34 @@ use hozo_ir::{Condition, Primitive};
 // announcement. In particular a composite Chip's className belongs to a
 // span even though a checked toggle button lives inside it.
 pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition: &Condition) -> Option<&'static str> {
-    if primitive != Primitive::Chip || !matches!(class_prop, "className" | "removeClassName") {
-        return None;
+    if primitive == Primitive::Chip && matches!(class_prop, "className" | "removeClassName") {
+        return match condition {
+            Condition::Disabled => Some("__hozoSlotDisabled"),
+            Condition::Enabled => Some("__hozoSlotEnabled"),
+            Condition::Aria(state) if state == "pressed" => Some("__hozoSlotAriaPressed"),
+            // Neither Web owner writes these attributes, including when disabled.
+            Condition::Aria(state) if matches!(state.as_str(), "checked" | "disabled") => Some("false"),
+            _ => None,
+        };
     }
-    match condition {
-        Condition::Disabled => Some("__hozoSlotDisabled"),
-        Condition::Enabled => Some("__hozoSlotEnabled"),
-        Condition::Aria(state) if state == "pressed" => Some("__hozoSlotAriaPressed"),
-        // Neither Web owner writes these attributes, including when disabled.
-        Condition::Aria(state) if matches!(state.as_str(), "checked" | "disabled") => Some("false"),
-        _ => None,
+    if primitive == Primitive::Pagination && matches!(class_prop, "itemClassName" | "currentItemClassName" | "disabledItemClassName") {
+        return match condition {
+            Condition::Disabled => Some("__hozoSlotDisabled"),
+            Condition::Enabled => Some("__hozoSlotEnabled"),
+            Condition::Aria(state) if state == "disabled" => Some("__hozoSlotAriaDisabled"),
+            // Web marks the current page with aria-current, not aria-selected.
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            _ => None,
+        };
     }
+    None
 }
 
 pub(super) fn semantic_parameters(primitive: Primitive) -> &'static str {
     if primitive == Primitive::Chip {
         ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed"
+    } else if primitive == Primitive::Pagination {
+        ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled"
     } else {
         ""
     }
