@@ -102,10 +102,30 @@ behavioural change unreviewable.
 - **Area work** — an area prefix is fine where it helps: `Three: evaluate and prove a Native GPU host`.
 - The body says how to reproduce or what was measured, and what would count as done.
 
+### Taking an issue
+
+Several agents work in this repository at once, all through one GitHub
+account, so an assignee cannot say which of them has an issue. A label does.
+
+- **Your name** is `<agent>-<n>` -- `claude-1`, `claude-2`, `codex-1` -- and
+  it is given by whoever started you. Do not pick a number yourself: two
+  agents choosing at the same moment would choose the same one. If you were
+  given no name, ask before taking an issue.
+- **Before starting**, look for a `taken: …` label on the issue. If another
+  agent has it, leave it, or ask the person who started you.
+- **When starting**, add `taken: <your name>` and comment one line: who took
+  it, the branch, and the session if you have a link. Create the label if it
+  does not exist yet, with colour `#5319e7` and the description
+  `Being worked on by <your name>` -- the one exception to the rule below.
+- **When stopping without a fix**, remove the label and say why in a comment,
+  so the issue is free again. A PR that says `Fixes #n` closes the issue and
+  ends the claim with it; nothing else to undo.
+
 ## Labels
 
 Apply **one kind** label and **any number of nature** labels. Do not create new
-labels; ask in the PR or issue if one seems missing.
+labels, except a `taken: <agent>-<n>` label (see "Taking an issue"); ask in the
+PR or issue if one seems missing.
 
 | Kind (one) | When |
 | --- | --- |
