@@ -16,7 +16,11 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { summarizeTextForwarding, type TextForwardingComponent } from './index.ts'
+import {
+  summarizeTextForwarding,
+  type TextForwardingComponent,
+  type TextForwardingModule,
+} from './index.ts'
 
 /** Bumped when a reader could misread an older or newer manifest. */
 export const MANIFEST_VERSION = 1
@@ -136,6 +140,27 @@ export function buildManifest(options: BuildManifestOptions): HozoManifest {
     sorted[name] = entry
   }
   return { version: MANIFEST_VERSION, textForwarding: sorted }
+}
+
+/**
+ * A manifest's text forwarding in the shape `Compiler.setTextForwarding`
+ * takes, for the components callers import from `module`.
+ *
+ * A manifest of another version is not read: its fields may not mean what
+ * this reader thinks, and reading nothing leaves the caller compiling as it
+ * did without one.
+ */
+export function textForwardingModule(module: string, manifest: HozoManifest): TextForwardingModule {
+  if (manifest.version !== MANIFEST_VERSION) return { module, components: [] }
+  return {
+    module,
+    components: Object.entries(manifest.textForwarding ?? {}).map(([name, entry]) => ({
+      name,
+      props: entry.props,
+      variants: entry.variants,
+      disabledProp: entry.disabledProp,
+    })),
+  }
 }
 
 /** The manifest as it is written: stable, so a check can compare text. */

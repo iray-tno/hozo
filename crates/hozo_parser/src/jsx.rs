@@ -12,7 +12,7 @@
 
 use hozo_ir::{
     AccessibilityRole, Child, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display,
-    Environment, ExprRef, HeadingLevel,
+    EnclosingComponent, EnclosingProp, EnclosingValue, Environment, ExprRef, HeadingLevel,
     NestedNode, Node, PassthroughProp, Primitive, PropSet, Severity, SourceSpan, StyleDeclaration,
     SvgElement,
     StyleProperty,
@@ -37,6 +37,42 @@ fn to_span(span: Span) -> SourceSpan {
 
 fn to_expr_ref(span: Span) -> ExprRef {
     ExprRef(to_span(span))
+}
+
+/// The call-site facts of a component the compiler does not model, for a
+/// package's manifest to be applied to later (#950). `None` for a tag that
+/// is not a plain binding, such as `<ui.Button>`.
+fn enclosing_component(element: &JSXElement) -> Option<EnclosingComponent> {
+    let JSXElementName::IdentifierReference(tag) = &element.opening_element.name else {
+        return None;
+    };
+    let mut props = Vec::new();
+    let mut spread = false;
+    for attribute in &element.opening_element.attributes {
+        match attribute {
+            JSXAttributeItem::SpreadAttribute(_) => spread = true,
+            JSXAttributeItem::Attribute(attribute) => {
+                let JSXAttributeName::Identifier(name) = &attribute.name else { continue };
+                let value = match &attribute.value {
+                    None => EnclosingValue::True,
+                    Some(JSXAttributeValue::StringLiteral(lit)) => {
+                        EnclosingValue::Literal(lit.value.to_string())
+                    }
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        match &container.expression {
+                            JSXExpression::StringLiteral(lit) => {
+                                EnclosingValue::Literal(lit.value.to_string())
+                            }
+                            other => EnclosingValue::Expr(to_expr_ref(other.span())),
+                        }
+                    }
+                    Some(other) => EnclosingValue::Expr(to_expr_ref(other.span())),
+                };
+                props.push(EnclosingProp { name: name.name.to_string(), value });
+            }
+        }
+    }
+    Some(EnclosingComponent { local: tag.name.to_string(), props, spread })
 }
 
 /// Only a statically-known `"button"`/`"link"` string literal is
@@ -164,6 +200,8 @@ struct PrimitiveFinder<'r, 'a, 'd> {
     diagnostics: &'d mut Vec<Diagnostic>,
     consumed: &'d mut Vec<SourceSpan>,
     nested: Vec<NestedNode>,
+    /// The components the walk is inside, outermost first.
+    enclosing: Vec<EnclosingComponent>,
 }
 
 impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
@@ -177,7 +215,12 @@ impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
                 let name = ident.name.as_str();
                 match build_node(it, self.scope, self.diagnostics, self.consumed) {
                     Some(node) => {
-                        self.nested.push(NestedNode { span: to_span(it.span()), node })
+                        self.nested.push(NestedNode {
+                            span: to_span(it.span()),
+                            node,
+                            enclosing: self.enclosing.clone(),
+                            forwarded: Vec::new(),
+                        })
                     }
                     // Unreachable through this finder, which only matches
                     // identifier bindings `build_node` accepts --
@@ -204,7 +247,13 @@ impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
         }
         // Keeps descending otherwise: `<ProfileCard><Text/></ProfileCard>` and
         // `{rows.map(() => <Text/>)}` both hide one further down.
+        let component = enclosing_component(it);
+        let pushed = component.is_some();
+        self.enclosing.extend(component);
         oxc_ast_visit::walk::walk_jsx_element(self, it);
+        if pushed {
+            self.enclosing.pop();
+        }
     }
 }
 
@@ -301,6 +350,7 @@ fn carry_verbatim(
         diagnostics,
         consumed,
         nested: Vec::new(),
+        enclosing: Vec::new(),
     };
     finder.visit_jsx_child(child);
     Child::Verbatim { source: to_expr_ref(span), nested: finder.nested }
@@ -317,6 +367,7 @@ fn passthrough_prop(
         diagnostics,
         consumed,
         nested: Vec::new(),
+        enclosing: Vec::new(),
     };
     finder.visit_jsx_attribute(attr);
     PassthroughProp {
@@ -1648,6 +1699,11 @@ pub struct Root {
     /// a conditional -- the call order then changes between renders, which
     /// React treats as a hard error.
     pub hook_slot: Option<u32>,
+    /// The components written around this root, outermost first. See
+    /// `hozo_ir::EnclosingComponent`.
+    pub enclosing: Vec<EnclosingComponent>,
+    /// Text styles they hand down, once a manifest has been applied (#950).
+    pub forwarded: Vec<StyleDeclaration>,
 }
 
 pub struct JsxCollector<'r, 'a> {
@@ -1661,6 +1717,8 @@ pub struct JsxCollector<'r, 'a> {
     /// The innermost enclosing function body's insertion point, maintained
     /// as the walk descends. See `Root::hook_slot`.
     hook_slot: Option<u32>,
+    /// The components the walk is inside, outermost first.
+    enclosing: Vec<EnclosingComponent>,
     scope: &'r Scope<'r, 'a>,
 }
 
@@ -1671,6 +1729,7 @@ impl<'r, 'a> JsxCollector<'r, 'a> {
             diagnostics: Vec::new(),
             consumed: Vec::new(),
             hook_slot: None,
+            enclosing: Vec::new(),
             scope,
         }
     }
@@ -1693,7 +1752,12 @@ impl<'r, 'a> Visit<'a> for JsxCollector<'r, 'a> {
             // Deliberately does not walk: `build_node` already recursed
             // into the children itself, so falling through to the generic
             // walker would visit (and re-collect) them a second time.
-            self.roots.push(Root { node, hook_slot: self.hook_slot });
+            self.roots.push(Root {
+                node,
+                hook_slot: self.hook_slot,
+                enclosing: self.enclosing.clone(),
+                forwarded: Vec::new(),
+            });
         } else {
             // But when nothing was built, nothing was visited either -- and
             // an element Hozo does not model is a boundary, not a wall.
@@ -1710,7 +1774,13 @@ impl<'r, 'a> Visit<'a> for JsxCollector<'r, 'a> {
             // The sibling form already worked (`<><Card/><View/></>`
             // collects the View), which is the same behaviour this gives
             // the nested one.
+            let component = enclosing_component(it);
+            let pushed = component.is_some();
+            self.enclosing.extend(component);
             walk_jsx_element(self, it);
+            if pushed {
+                self.enclosing.pop();
+            }
         }
     }
 

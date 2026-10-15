@@ -439,13 +439,29 @@ pub struct Compiler {
     /// belongs here.
     sources: Option<Vec<String>>,
     stylex: hozo_parser::StylexModuleRegistry,
+    /// What components from a project's dependencies hand down as text
+    /// styles, from their packages' manifests (#950).
+    text_forwarding: hozo_parser::ForwardingTable,
+}
+
+/// One package's text forwarding, as its manifest lists it.
+#[napi(object)]
+pub struct TextForwardingModule {
+    /// The specifier a caller imports the components from.
+    pub module: String,
+    pub components: Vec<ForwardingComponent>,
 }
 
 #[napi]
 impl Compiler {
     #[napi(constructor)]
     pub fn new(theme: Option<JsTheme>, sources: Option<Vec<String>>) -> Self {
-        Compiler { theme: to_theme(theme), sources, stylex: Default::default() }
+        Compiler {
+            theme: to_theme(theme),
+            sources,
+            stylex: Default::default(),
+            text_forwarding: Default::default(),
+        }
     }
 
     /// `rehome_react_native` is the project's `unloweredReactNativeJsx`
@@ -496,7 +512,13 @@ impl Compiler {
         bindings: Option<Vec<StylexExternalBinding>>,
     ) -> Vec<CompiledNativeComponent> {
         let bindings = external_bindings(bindings);
-        lower_native(&source, &self.theme, self.sources.as_deref(), Some((&self.stylex, &bindings)))
+        lower_native(
+            &source,
+            &self.theme,
+            self.sources.as_deref(),
+            Some((&self.stylex, &bindings)),
+            &self.text_forwarding,
+        )
     }
 
     /// Native output plus module metadata collected by the same source parse.
@@ -516,7 +538,43 @@ impl Compiler {
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
             source_file.as_deref(),
+            &self.text_forwarding,
         )
+    }
+
+    /// Replaces the text forwarding the Native backend applies (#950).
+    #[napi]
+    pub fn set_text_forwarding(&mut self, modules: Vec<TextForwardingModule>) {
+        let mut table = hozo_parser::ForwardingTable::default();
+        for module in modules {
+            for component in module.components {
+                table.insert(
+                    &module.module,
+                    hozo_parser::ForwardingComponent {
+                        name: component.name,
+                        props: component
+                            .props
+                            .into_iter()
+                            .map(|prop| hozo_parser::ForwardingProp {
+                                name: prop.name,
+                                default: prop.default,
+                                values: prop.values,
+                            })
+                            .collect(),
+                        variants: component
+                            .variants
+                            .into_iter()
+                            .map(|variant| hozo_parser::ForwardingVariant {
+                                when: variant.when,
+                                classes: variant.classes,
+                            })
+                            .collect(),
+                        disabled_prop: component.disabled_prop,
+                    },
+                );
+            }
+        }
+        self.text_forwarding = table;
     }
 
     #[napi]
@@ -874,7 +932,7 @@ pub struct CompiledNativeModule {
 /// aren't wired into the rendered `style` prop yet).
 #[napi]
 pub fn compile_native(source: String) -> Vec<CompiledNativeComponent> {
-    lower_native(&source, &hozo_ir::Theme::default(), None, None)
+    lower_native(&source, &hozo_ir::Theme::default(), None, None, &Default::default())
 }
 
 fn lower_native(
@@ -882,13 +940,15 @@ fn lower_native(
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
     stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
+    text_forwarding: &hozo_parser::ForwardingTable,
 ) -> Vec<CompiledNativeComponent> {
-    let parsed = match stylex {
+    let mut parsed = match stylex {
         Some((registry, bindings)) => {
             hozo_parser::parse_tsx_with_stylex(source, sources, Some(registry), bindings)
         }
         None => hozo_parser::parse_tsx_with(source, sources),
     };
+    hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
     lower_native_components(source, theme, &parsed)
 }
 
@@ -898,12 +958,14 @@ fn lower_native_module(
     sources: Option<&[String]>,
     stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
     source_file: Option<&str>,
+    text_forwarding: &hozo_parser::ForwardingTable,
 ) -> CompiledNativeModule {
     let (registry, bindings) = match stylex {
         Some((registry, bindings)) => (Some(registry), bindings),
         None => (None, &[][..]),
     };
-    let parsed = hozo_parser::parse_module_for_file(source, sources, registry, bindings, source_file);
+    let mut parsed = hozo_parser::parse_module_for_file(source, sources, registry, bindings, source_file);
+    hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
     let components = lower_native_components(source, theme, &parsed);
     let imports = parsed
         .imports
@@ -946,7 +1008,7 @@ fn lower_native_components(
         .roots
         .iter()
         .map(|root| {
-            let output = hozo_native::lower(&root.node, source, theme);
+            let output = hozo_native::lower_forwarded(&root.node, &root.forwarded, source, theme);
             let mut diagnostics = parser_diagnostics_for(parsed, &root.node, &offsets);
             diagnostics.extend(
                 output.diagnostics.into_iter().map(|d| to_js_diagnostic(d, &offsets)),
@@ -1233,7 +1295,8 @@ mod utf16_tests {
     fn module_syntax_errors_cross_napi_as_utf16_even_without_components() {
         let source = "// 😀 日本語\r\nexport const value = <";
         let parsed = hozo_parser::parse_tsx(source);
-        let module = lower_native_module(source, &hozo_ir::Theme::default(), None, None, None);
+        let module =
+            lower_native_module(source, &hozo_ir::Theme::default(), None, None, None, &Default::default());
         assert!(module.components.is_empty());
         assert_eq!(module.syntax_diagnostics.len(), parsed.syntax_errors.len());
         assert!(!module.syntax_diagnostics.is_empty());

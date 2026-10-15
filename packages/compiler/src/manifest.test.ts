@@ -77,3 +77,23 @@ test('the package directory form writes the file package.json names, and --check
   assert.equal(readFileSync(written.file, 'utf8'), serializeManifest(JSON.parse(written.text)))
   assert.equal(writeManifest(dir, { check: true }).current, true)
 })
+
+test("a caller's nested Text gets what @hozo/ui's own manifest says Button hands down", async () => {
+  const { createCompiler } = await import('./index.ts')
+  const { DEFAULT_PRIMITIVE_SOURCES } = await import('./sources.ts')
+  const { textForwardingModule } = await import('./manifest.ts')
+  const manifestFile = new URL('../../ui/hozo.manifest.json', import.meta.url)
+  const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
+  const compiler = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES])
+  const source = `import { View, Text } from '@hozo/core'
+import { Button } from '@hozo/ui'
+export const Save = () => <Button tone="accent"><View><Text>Save</Text></View></Button>
+`
+  const before = compiler.compileNative(source)[0].styles
+  compiler.setTextForwarding([textForwardingModule('@hozo/ui', manifest)])
+  const after = compiler.compileNative(source)[0].styles
+  // `font-semibold` and `text-sm` need no theme to resolve.
+  assert.doesNotMatch(before, /fontWeight/)
+  assert.match(after, /fontWeight: '600'/)
+  assert.match(after, /fontSize: 14/)
+})

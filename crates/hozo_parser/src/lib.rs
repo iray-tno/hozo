@@ -25,7 +25,8 @@ pub use rn_usage::{analyze_react_native_usage, ReactNativeBindingUsage, ReactNat
 pub use jsx::is_primitive_name;
 pub use unfold::unfold_jsx_calls;
 pub use text_forwarding::{
-    summarize_text_forwarding, ForwardingComponent, ForwardingProp, ForwardingReexport, ForwardingVariant,
+    apply_text_forwarding, summarize_text_forwarding, ForwardingComponent, ForwardingProp,
+    ForwardingReexport, ForwardingTable, ForwardingVariant,
     TextForwardingSummary,
 };
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
