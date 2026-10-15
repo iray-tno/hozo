@@ -142,6 +142,112 @@ function evaluate(code, globals = {}) {
   return module.exports
 }
 
+test('Chip semantic classes observe the Web class owner across standalone and composite shapes', {
+  skip: !executablePath,
+}, async () => {
+  const classes =
+    'border-0 opacity-100 aria-pressed:border-2 disabled:opacity-25 aria-checked:opacity-50 aria-disabled:border-4'
+  const css = (await compile('@tailwind utilities;')).build(classes.split(' '))
+  assert.ok(css.includes('[aria-pressed="true"]'))
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Chip} from '@hozo/patterns';
+        window.chipSelections = []; window.chipRemovals = [];
+        const shapes = [];
+        for (const selectable of [false, true]) for (const removable of [false, true])
+          for (const disabled of [false, true]) shapes.push({selectable, removable, disabled});
+        createRoot(document.getElementById('root')).render(<>{shapes.map((s, index) =>
+          <div key={index} id={'chip-' + index}><Chip disabled={s.disabled}
+            {...(s.selectable ? {defaultSelected: true, onSelectedChange: on => window.chipSelections.push([index, on])} : {})}
+            {...(s.removable ? {onRemove: () => window.chipRemovals.push(index)} : {})}
+            className=${JSON.stringify(classes)} removeClassName=${JSON.stringify(classes)}>Remote</Chip></div>
+        )}</>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(
+      `<style>${css}</style><div id="aria-control" aria-checked="true" class="${classes}"></div><div id="root"></div>`,
+    )
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(() => document.querySelectorAll('#root > div').length === 8)
+    assert.equal(
+      await page.locator('#aria-control').evaluate((e) => getComputedStyle(e).opacity),
+      '0.5',
+      'the checked selector must have real CSS',
+    )
+    let index = 0
+    const changes = []
+    const removals = []
+    for (const selectable of [false, true])
+      for (const removable of [false, true])
+        for (const disabled of [false, true]) {
+          const owner = page.locator(`#chip-${index} > :first-child`)
+          const buttons = page.locator(`#chip-${index} button`)
+          const read = (locator) =>
+            locator.evaluate((e) => {
+              const css = getComputedStyle(e)
+              return {
+                border: css.borderTopWidth,
+                opacity: css.opacity,
+                checked: e.getAttribute('aria-checked'),
+                ariaDisabled: e.getAttribute('aria-disabled'),
+              }
+            })
+          const check = async (selected) => {
+            assert.deepEqual(await read(owner), {
+              border: selectable && !removable && selected ? '2px' : '0px',
+              opacity: selectable && !removable && disabled ? '0.25' : '1',
+              checked: null,
+              ariaDisabled: null,
+            })
+            if (removable)
+              assert.deepEqual(await read(buttons.last()), {
+                border: '0px',
+                opacity: disabled ? '0.25' : '1',
+                checked: null,
+                ariaDisabled: null,
+              })
+          }
+          await check(selectable)
+          if (selectable) {
+            assert.equal(await buttons.first().getAttribute('aria-pressed'), 'true')
+            assert.equal(await buttons.first().isDisabled(), disabled)
+            if (!disabled) {
+              await buttons.first().click()
+              changes.push([index, false])
+              assert.equal(await buttons.first().getAttribute('aria-pressed'), 'false')
+              await check(false)
+            }
+          }
+          if (removable) {
+            assert.equal(await buttons.last().isDisabled(), disabled)
+            if (!disabled) {
+              await buttons.last().click()
+              removals.push(index)
+            }
+          }
+          index++
+        }
+    assert.deepEqual(await page.evaluate(() => window.chipSelections), changes)
+    assert.deepEqual(await page.evaluate(() => window.chipRemovals), removals)
+    assert.deepEqual(errors, [], 'browser callbacks must not throw')
+  } finally {
+    await page.close()
+  }
+})
+
 test('Stepper focus stays on each button while decorative slots inherit only its typography', {
   skip: !executablePath,
 }, async () => {
@@ -1330,7 +1436,12 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
 test("@hozo/patterns' second batch of Native controls apply their class props", async () => {
   const look =
     'p-2 text-red-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 aria-expanded:bg-blue-500 active:opacity-80 disabled:opacity-50'
-  const { load, pressables, at, flat } = await patternHarness('batch-candidates.json', look)
+  const chipLook =
+    'p-2 text-red-500 aria-pressed:bg-blue-500 aria-checked:outline-4 active:opacity-80 disabled:opacity-50'
+  const { load, pressables, at, flat } = await patternHarness(
+    'batch-candidates.json',
+    `${look} ${chipLook}`,
+  )
 
   const [tab] = pressables(
     load('tabs.native.tsx').HozoTabs({
@@ -1342,11 +1453,16 @@ test("@hozo/patterns' second batch of Native controls apply their class props", 
   assert.equal(at(tab, false).box.color, undefined, 'tabs: and the box does not')
 
   const chip = load('chip.native.tsx').HozoChip({
-    className: look,
+    className: chipLook,
     defaultSelected: true,
     children: 'Filter',
   })
-  assert.equal(at(chip, false).box.backgroundColor, '#2b7fff', 'chip: checked')
+  assert.equal(at(chip, false).box.backgroundColor, '#2b7fff', 'chip: aria-pressed selection')
+  assert.equal(
+    at(chip, false).box.outlineWidth,
+    undefined,
+    'chip: RN checked is not CSS aria-checked',
+  )
   assert.equal(at(chip, true).box.opacity, 0.8, 'chip: pressed')
   assert.equal(at(chip, false).text.color, '#fb2c36', 'chip: label')
 

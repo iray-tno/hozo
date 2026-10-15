@@ -6,6 +6,15 @@ import { useChipRowInteraction } from './chip-row-interaction.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle as split } from './text-style.native.ts'
 
+type ChipSlotState = InteractionState & {
+  readonly [fact: string]: unknown
+  disabled: boolean
+  enabled: boolean
+  'aria-pressed': boolean
+  'aria-checked': false
+  'aria-disabled': false
+}
+
 export interface HozoChipProps {
   children?: ReactNode
   accessibilityLabel?: string
@@ -21,7 +30,8 @@ export interface HozoChipProps {
    * compiler, which hands them over as `style` and `removeStyle` (#787); a
    * file the compiler did not read leaves them here as strings, resolved
    * through the project's candidate map (#886) -- the toggle with its
-   * interaction, `aria-checked` and `disabled` state -- before `style`.
+   * interaction and the actual Web owner's `aria-pressed`/`disabled` state
+   * -- before `style`. A composite row is a span, not its toggle button.
    * Static interaction classes use the private slot callback below instead
    * of a candidate lookup; both paths feed the same owner and text split.
    */
@@ -30,9 +40,9 @@ export interface HozoChipProps {
   style?: StyleProp<ViewStyle | TextStyle>
   removeStyle?: StyleProp<ViewStyle | TextStyle>
   /** @internal Static class styles, evaluated with this slot's real state. */
-  hozoStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
+  hozoStyle?: (state: ChipSlotState) => StyleProp<ViewStyle | TextStyle>
   /** @internal The remove button never borrows its ancestor's focus. */
-  hozoRemoveStyle?: (state: InteractionState) => StyleProp<ViewStyle | TextStyle>
+  hozoRemoveStyle?: (state: ChipSlotState) => StyleProp<ViewStyle | TextStyle>
   testID?: string
 }
 
@@ -84,27 +94,25 @@ export function HozoChip({
     onSelectedChange?.(next)
   }, [on, onSelectedChange, selected])
 
-  const look = (interaction: InteractionState) =>
-    split([
-      hozoClasses(className, {
-        ...interaction,
-        disabled: Boolean(disabled),
-        'aria-checked': on,
-        'aria-disabled': Boolean(disabled),
-      }),
-      hozoStyle?.(interaction),
-      style,
-    ])
-  const removeLook = (interaction: InteractionState) =>
-    split([
-      hozoClasses(removeClassName, {
-        ...interaction,
-        disabled: Boolean(disabled),
-        'aria-disabled': Boolean(disabled),
-      }),
-      hozoRemoveStyle?.(interaction),
-      removeStyle,
-    ])
+  // RN's togglebutton checked announcement is not a CSS aria-checked
+  // attribute. The class owner is either the standalone toggle or a span;
+  // neither a composite row nor removal borrows the toggle's aria-pressed.
+  const slotState = (interaction: InteractionState, button: boolean): ChipSlotState => ({
+    ...interaction,
+    disabled: button && Boolean(disabled),
+    enabled: button && !disabled,
+    'aria-pressed': button && selectable && !onRemove && on,
+    'aria-checked': false,
+    'aria-disabled': false,
+  })
+  const look = (interaction: InteractionState) => {
+    const state = slotState(interaction, selectable && !onRemove)
+    return split([hozoClasses(className, state), hozoStyle?.(state), style])
+  }
+  const removeLook = (interaction: InteractionState) => {
+    const state = slotState(interaction, true)
+    return split([hozoClasses(removeClassName, state), hozoRemoveStyle?.(state), removeStyle])
+  }
   const name = accessibilityLabel ?? (typeof children === 'string' ? children : undefined)
   const remove = (events?: ReturnType<typeof useChipRowInteraction>['events']['remove']) =>
     onRemove ? (

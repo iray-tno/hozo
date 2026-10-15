@@ -3,7 +3,32 @@
 //! Do not mark a whole pattern as a Pressable: a row, its remove button and
 //! its label can have different state, and none publishes a Text context.
 
-use hozo_ir::Primitive;
+use hozo_ir::{Condition, Primitive};
+
+// These facts describe the Web class owner, not the Native accessibility
+// announcement. In particular a composite Chip's className belongs to a
+// span even though a checked toggle button lives inside it.
+pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition: &Condition) -> Option<&'static str> {
+    if primitive != Primitive::Chip || !matches!(class_prop, "className" | "removeClassName") {
+        return None;
+    }
+    match condition {
+        Condition::Disabled => Some("__hozoSlotDisabled"),
+        Condition::Enabled => Some("__hozoSlotEnabled"),
+        Condition::Aria(state) if state == "pressed" => Some("__hozoSlotAriaPressed"),
+        // Neither Web owner writes these attributes, including when disabled.
+        Condition::Aria(state) if matches!(state.as_str(), "checked" | "disabled") => Some("false"),
+        _ => None,
+    }
+}
+
+pub(super) fn semantic_parameters(primitive: Primitive) -> &'static str {
+    if primitive == Primitive::Chip {
+        ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed"
+    } else {
+        ""
+    }
+}
 
 pub(super) struct InteractionSlot {
     pub style_prop: &'static str,

@@ -30,7 +30,7 @@ const otpUnsupportedFocusClasses =
   'not-focus:opacity-50 not-focus-visible:font-normal not-focus:not-focus-visible:border-2'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold'`,
+  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -1270,7 +1270,7 @@ test('Native Chip standalone toggle delivers interaction without changing select
   const changed = []
   const tree = await mount(t, HozoChip, {
     defaultSelected: true,
-    className: `${interactionClasses} aria-checked:border-2`,
+    className: `${interactionClasses} aria-pressed:border-2`,
     onSelectedChange: (value) => changed.push(value),
   })
   await checkInteraction(tree)
@@ -1295,6 +1295,63 @@ test('Native Chip standalone toggle delivers interaction without changing select
   const before = changed.length
   await press(disabled.root.findByType('NativePressable'))
   assert.equal(changed.length, before)
+})
+
+test('Native Chip semantic candidates follow the Web class owner, not RN checked announcements', async (t) => {
+  for (const selectable of [false, true]) {
+    for (const removable of [false, true]) {
+      for (const disabled of [false, true]) {
+        const changed = []
+        const removed = []
+        const tree = await mount(t, HozoChip, {
+          ...(selectable
+            ? { defaultSelected: true, onSelectedChange: (on) => changed.push(on) }
+            : {}),
+          ...(removable ? { onRemove: () => removed.push(true) } : {}),
+          disabled,
+          className:
+            'p-4 aria-pressed:border-2 disabled:opacity-25 aria-checked:outline-4 aria-disabled:border-4',
+          removeClassName:
+            'p-4 aria-pressed:border-2 disabled:opacity-25 aria-checked:outline-4 aria-disabled:border-4',
+        })
+        const buttons = () => tree.root.findAllByType('NativePressable')
+        const owner = () =>
+          selectable && !removable ? buttons()[0] : tree.root.findAllByType('NativeView')[0]
+        const check = (selected) => {
+          assert.equal(
+            flat(owner().props.style).borderTopWidth,
+            selectable && !removable && selected ? 2 : undefined,
+          )
+          assert.equal(
+            flat(owner().props.style).opacity,
+            selectable && !removable && disabled ? 0.25 : undefined,
+          )
+          assert.equal(
+            flat(owner().props.style).outlineWidth,
+            undefined,
+            'aria-checked is absent on Web',
+          )
+          if (selectable) assert.equal(buttons()[0].props.accessibilityState.checked, selected)
+          if (removable) {
+            const remove = buttons().at(-1)
+            assert.equal(flat(remove.props.style).borderTopWidth, undefined)
+            assert.equal(flat(remove.props.style).opacity, disabled ? 0.25 : undefined)
+            assert.equal(flat(remove.props.style).outlineWidth, undefined)
+          }
+        }
+        check(selectable)
+        if (selectable) {
+          await press(buttons()[0])
+          check(disabled)
+          assert.deepEqual(changed, disabled ? [] : [false])
+        }
+        if (removable) {
+          await press(buttons().at(-1))
+          assert.deepEqual(removed, disabled ? [] : [true])
+        }
+      }
+    }
+  }
 })
 
 test('Native Chip removal is independent and never lends child focus to the composite row', async (t) => {

@@ -114,6 +114,21 @@ export function Settings({ open, onClose }) {
 }
 ```
 
+## Semantic state of Chip class slots
+
+Chip's selection uses `aria-pressed:*` classes on its standalone toggle.
+Native still announces that toggle as `togglebutton` with `checked`; that
+platform announcement does not create a Web `aria-checked` attribute.
+With removal, `className` belongs to the outer span/View, so it does not
+match the inner toggle's `aria-pressed:*`, `disabled:*` or `enabled:*`.
+`removeClassName` belongs to the separate button and only gets that button's
+disabled/enabled state, never selection. Neither Web owner writes
+`aria-checked` or `aria-disabled`; those attributes must not be inferred
+from Native announcements. Literal classes use the same owner facts through
+private compiler callbacks, including negation and supported stacks, with
+explicit styles last. This does not expand arbitrary dynamic-class lowering
+or the candidate resolver's existing variant support.
+
 ## Focus ownership of decorative slots
 
 `OtpInput` has one focus owner: its real input. Put `focus:*` and

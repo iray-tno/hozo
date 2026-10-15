@@ -39,6 +39,7 @@ const reads = {
     'packages/engine/src/transform-slots.ts',
     'packages/patterns/src/tabs.native.tsx',
     'packages/patterns/src/chip.tsx',
+    'packages/patterns/src/chip.native.tsx',
     'packages/patterns/src/chip-row-interaction.native.ts',
     'packages/patterns/src/text-style.native.ts',
     'packages/patterns/src/otp-input.native.tsx',

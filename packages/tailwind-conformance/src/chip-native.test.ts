@@ -162,11 +162,11 @@ const stateSource = (props: string, overrides = '') => `
       ${overrides}>Remote</Chip>
   }`
 
-function mountCompiled(source: string) {
+function mountCompiled(source: string, props: Record<string, unknown> = {}) {
   const { C } = loadNativeModule(source)
   let tree: { root: Instance; unmount: () => void } | undefined
   renderer.act(() => {
-    tree = renderer.create(react.createElement(C))
+    tree = renderer.create(react.createElement(C, props))
   })
   assert.ok(tree)
   return tree
@@ -259,6 +259,121 @@ test('explicit Chip styles still win over compiled base and state styles on both
     assert.equal(flat(labelText(tree)).color, 'orange')
     assert.equal(flat(remove).opacity, 0.8)
     assert.equal(flat(remove).padding ?? flat(remove).paddingTop, 8)
+  } finally {
+    renderer.act(() => tree.unmount())
+  }
+})
+
+const SEMANTIC_SOURCE = `import {Chip} from '@hozo/core'
+export function C(props) { return <Chip {...props}
+  className="p-4 aria-pressed:border-2 disabled:opacity-25 aria-checked:outline-4 aria-disabled:border-4"
+  removeClassName="p-4 aria-pressed:border-2 disabled:opacity-25 aria-checked:outline-4 aria-disabled:border-4">Remote</Chip> }`
+
+test('compiled Chip semantic variants use the current class owner across all four shapes', () => {
+  for (const selectable of [false, true]) {
+    for (const removable of [false, true]) {
+      for (const disabled of [false, true]) {
+        const changes: boolean[] = []
+        const removals: boolean[] = []
+        const tree = mountCompiled(SEMANTIC_SOURCE, {
+          ...(selectable
+            ? { defaultSelected: true, onSelectedChange: (on: boolean) => changes.push(on) }
+            : {}),
+          ...(removable ? { onRemove: () => removals.push(true) } : {}),
+          disabled,
+        })
+        const owner = () =>
+          selectable && !removable
+            ? pressables(tree)[0]!
+            : tree.root.findAll((n) => n.type === 'View')[0]!
+        const check = (on: boolean) => {
+          assert.equal(flat(owner()).borderTopWidth, selectable && !removable && on ? 2 : undefined)
+          assert.equal(
+            flat(owner()).opacity,
+            selectable && !removable && disabled ? 0.25 : undefined,
+          )
+          assert.equal(flat(owner()).outlineWidth, undefined)
+          if (selectable)
+            assert.equal(
+              (pressables(tree)[0]!.props.accessibilityState as { checked: boolean }).checked,
+              on,
+            )
+          if (removable) {
+            const remove = pressables(tree).at(-1)!
+            assert.equal(flat(remove).borderTopWidth, undefined, 'removal never owns selection')
+            assert.equal(flat(remove).opacity, disabled ? 0.25 : undefined)
+            assert.equal(flat(remove).outlineWidth, undefined)
+          }
+        }
+        try {
+          check(selectable)
+          if (selectable) {
+            assert.equal(pressables(tree)[0]!.props.disabled, disabled)
+            if (!disabled) dispatch(pressables(tree)[0]!, 'onPress')
+            check(disabled)
+            assert.deepEqual(changes, disabled ? [] : [false])
+          }
+          if (removable) {
+            assert.equal(pressables(tree).at(-1)!.props.disabled, disabled)
+            if (!disabled) dispatch(pressables(tree).at(-1)!, 'onPress')
+            assert.deepEqual(removals, disabled ? [] : [true])
+          }
+        } finally {
+          renderer.act(() => tree.unmount())
+        }
+      }
+    }
+  }
+})
+
+test('compiled Chip selection is not a pointer press; negation, stacks and explicit styles still work', () => {
+  const source = `import {Chip} from '@hozo/core'
+    export function C(props) {return <Chip {...props}
+      className="enabled:border-2 not-aria-pressed:opacity-50 aria-pressed:hover:bg-blue-500 active:outline-4"
+      removeClassName="enabled:border-2 disabled:opacity-25">Remote</Chip>}`
+  for (const removable of [false, true]) {
+    const changes: boolean[] = []
+    const tree = mountCompiled(source, {
+      selected: true,
+      onSelectedChange: (on: boolean) => changes.push(on),
+      ...(removable ? { onRemove: () => {} } : {}),
+    })
+    try {
+      const toggle = pressables(tree)[0]!
+      const owner = removable ? tree.root.findAll((n) => n.type === 'View')[0]! : toggle
+      assert.equal(flat(owner).borderTopWidth, removable ? undefined : 2)
+      assert.equal(
+        flat(owner).opacity,
+        removable ? 0.5 : undefined,
+        'absence of aria-pressed matches negation',
+      )
+      dispatch(toggle, 'onHoverIn')
+      assert.equal(flat(owner).backgroundColor, removable ? undefined : '#2b7fff')
+      assert.equal(flat(owner).outlineWidth, undefined, 'selected is not pressed')
+      dispatch(toggle, 'onPressIn')
+      assert.equal(flat(owner).outlineWidth, 4)
+      dispatch(toggle, 'onPressOut')
+      dispatch(toggle, 'onPress')
+      assert.deepEqual(changes, [false])
+      assert.equal(
+        (pressables(tree)[0]!.props.accessibilityState as { checked: boolean }).checked,
+        true,
+        'controlled selection does not self-update',
+      )
+    } finally {
+      renderer.act(() => tree.unmount())
+    }
+  }
+  const tree = mountCompiled(SEMANTIC_SOURCE, {
+    selected: true,
+    disabled: true,
+    onRemove: () => {},
+    style: { borderTopWidth: 6, opacity: 0.9 },
+    removeStyle: { opacity: 0.8 },
+  })
+  try {
+    assert.equal(flat(tree.root.findAll((n) => n.type === 'View')[0]!).borderTopWidth, 6)
+    assert.equal(flat(pressables(tree).at(-1)!).opacity, 0.8)
   } finally {
     renderer.act(() => tree.unmount())
   }
