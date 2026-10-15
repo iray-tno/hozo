@@ -141,6 +141,11 @@ test('a malformed response permits only a fresh acquisition and preserves the fa
   assert.equal(f.report().attempts[0].archiveFailure, true)
   assert.notEqual(visited[0], visited[1])
   assert.match(readFileSync(path.join(visited[0], '.temp/download.zip'), 'utf8'), /<html>/)
+  assert.ok(
+    JSON.stringify(f.report().attempts[0].directories).includes(
+      Buffer.from('<html>').toString('hex'),
+    ),
+  )
   assert.match(
     readFileSync(path.join(f.output, 'attempt-1.log'), 'utf8'),
     /Archive is not a ZIP archive/,
@@ -238,14 +243,19 @@ test('every native-demo Android build prepares NDK explicitly and retains its ev
   for (const name of ['canvas-android', 'android', 'talkback']) {
     const job = workflow.split(`\n  ${name}:`)[1]?.split(/\n {2}[\w-]+:/)[0]
     assert.ok(job, name)
-    assert.ok(
-      job.indexOf('node scripts/prepare-android-ndk.mjs') <
-        job.indexOf('run: ./gradlew assembleRelease'),
-      name,
-    )
+    const preparation = job.indexOf('node scripts/prepare-android-ndk.mjs')
+    assert.ok(preparation >= 0 && preparation < job.indexOf('run: ./gradlew assembleRelease'), name)
     assert.match(job, /name: Keep NDK preparation evidence\s+if: always\(\)/)
     assert.match(job, new RegExp(`name: android-ndk-${name}`))
     assert.doesNotMatch(job, /continue-on-error|assembleRelease[^\n]*\|\|/)
   }
   assert.match(workflow, /- 'scripts\/prepare-android-ndk\*'/)
+  const fresh = readFileSync(
+    new URL('../.github/workflows/android-ndk.yml', import.meta.url),
+    'utf8',
+  )
+  assert.match(fresh, /--sdk-root "\$RUNNER_TEMP\/hozo-fresh-sdk"/)
+  assert.match(fresh, /assert.equal\(r.reused, false\)/)
+  assert.match(fresh, /clang" --version/)
+  assert.doesNotMatch(fresh, /continue-on-error|\|\| true/)
 })

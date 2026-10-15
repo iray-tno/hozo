@@ -4,14 +4,18 @@
 import { spawn } from 'node:child_process'
 import {
   accessSync,
+  appendFileSync,
+  closeSync,
   constants,
   cpSync,
   existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readdirSync,
   readFileSync,
+  readSync,
   renameSync,
   statfsSync,
   writeFileSync,
@@ -59,6 +63,7 @@ export function runInstaller(command, args, { env, logFile, timeout = 600_000 })
   return new Promise((resolve) => {
     let log = ''
     let error
+    writeFileSync(logFile, '')
     const child = spawn(command, args, {
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -66,6 +71,7 @@ export function runInstaller(command, args, { env, logFile, timeout = 600_000 })
       killSignal: 'SIGKILL',
     })
     const record = (chunk) => {
+      appendFileSync(logFile, chunk)
       log += chunk.toString()
       process.stdout.write(chunk)
     }
@@ -75,7 +81,6 @@ export function runInstaller(command, args, { env, logFile, timeout = 600_000 })
       error = cause.message
     })
     child.on('close', (code, signal) => {
-      writeFileSync(logFile, log)
       resolve({ code, signal, error, log })
     })
   })
@@ -90,15 +95,31 @@ function filesystemFacts(directory) {
   }
 }
 
-function directoryFacts(directory) {
+function directoryFacts(directory, depth = 2, budget = { remaining: 50 }) {
   try {
     return {
       directory,
       entries: readdirSync(directory)
-        .slice(0, 50)
-        .map((name) => {
-          const stat = lstatSync(path.join(directory, name))
-          return { name, bytes: stat.size, directory: stat.isDirectory() }
+        .slice(0, budget.remaining)
+        .flatMap((name) => {
+          if (budget.remaining <= 0) return []
+          budget.remaining--
+          const file = path.join(directory, name)
+          const stat = lstatSync(file)
+          const entry = { name, bytes: stat.size, directory: stat.isDirectory() }
+          if (stat.isDirectory() && depth > 0 && budget.remaining > 0) {
+            entry.children = directoryFacts(file, depth - 1, budget)
+          } else if (stat.isFile() && /\.(zip|tmp)$/.test(name)) {
+            // Keep a small magic/header sample, not a gigabyte-sized archive.
+            const fd = openSync(file, 'r')
+            try {
+              const prefix = Buffer.alloc(64)
+              entry.prefixHex = prefix.subarray(0, readSync(fd, prefix, 0, 64, 0)).toString('hex')
+            } finally {
+              closeSync(fd)
+            }
+          }
+          return [entry]
         }),
     }
   } catch (error) {
@@ -110,9 +131,9 @@ export async function prepareAndroidNdk({
   project,
   sdkRoot,
   output,
-  toolSdkRoot = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT,
-  temporaryRoot = process.env.RUNNER_TEMP ?? tmpdir(),
   env = process.env,
+  toolSdkRoot = env.ANDROID_HOME ?? env.ANDROID_SDK_ROOT,
+  temporaryRoot = env.RUNNER_TEMP ?? tmpdir(),
   install = runInstaller,
   warn = (message) => console.warn(`::warning::${message}`),
 }) {
@@ -233,7 +254,8 @@ if (import.meta.filename === process.argv[1]) {
       output: { type: 'string', default: 'artifacts/android-ndk' },
     },
   })
-  const toolSdkRoot = process.env.ANDROID_HOME ?? process.env.ANDROID_SDK_ROOT
+  const env = process.env
+  const toolSdkRoot = env.ANDROID_HOME ?? env.ANDROID_SDK_ROOT
   if (process.platform !== 'linux' || !toolSdkRoot) {
     throw new Error('NDK preparation requires Linux and ANDROID_HOME or ANDROID_SDK_ROOT')
   }
