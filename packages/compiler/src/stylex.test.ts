@@ -447,8 +447,15 @@ export const Card = () => <View {...stylex.props(styles.root)} />
     .map((value) => value.trim())
     .filter(Boolean)
 
+  const actual = declarationMap(hozoDeclarations)
+  // The backing register composes an explicit StyleX line height with
+  // Tailwind text-size fallbacks (#939). It is not an extra painted
+  // property. Verify its value rather than ignoring arbitrary variables;
+  // every visible declaration below still matches the official oracle.
+  assert.equal(actual.get('--tw-leading'), actual.get('line-height'))
+  actual.delete('--tw-leading')
   assert.deepEqual(
-    Object.fromEntries(declarationMap(hozoDeclarations)),
+    Object.fromEntries(actual),
     Object.fromEntries(declarationMap(officialDeclarations)),
   )
 })
