@@ -182,12 +182,27 @@ Becomes a scoped class in a real stylesheet. Nothing is left at runtime.
 **Structurally dynamic — compiled into a conditional.**
 
 ```tsx
-<View className={cn('p-4', active && 'bg-blue-500', size === 'lg' && 'text-xl')} />
+import { cx, View } from '@hozo/core'
+
+<View className={cx('p-4', active && 'bg-blue-500', size === 'lg' && 'text-xl')} />
 ```
 
 The compiler does not need to know what `active` is. It keeps the shape of
 the expression and compiles each branch, so all three classes are real CSS
 and the choice between them is a boolean at runtime.
+
+The shapes it reads are a string, `&&`, a ternary, a template literal, and a
+call to `cx` from `@hozo/core`, or to a function imported from `clsx`,
+`classnames` or `tailwind-merge`. Inside them, a part it cannot read, such as
+a caller's `className`, falls back alone and the rest still compiles.
+
+A project's own helper is not one of them, even when it only wraps those
+libraries, as shadcn/ui's `cn` in `@/lib/utils` does. The compiler reads one
+file at a time, so it cannot see what `cn` does, and the whole call takes the
+runtime fallback below. On the Web the classes still apply. On React Native,
+`hover:`, `active:`, `disabled:` and `focus-visible:` cannot be carried by
+the fallback, so the component loses its state styles. Use `cx` where a
+component merges a caller's `className` with its own (#964).
 
 **Truly dynamic — a runtime fallback.**
 

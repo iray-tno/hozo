@@ -32,6 +32,18 @@ Every component here is a working React implementation, not a marker the compile
 
 The Native counterparts are chosen the same way: `Image` maps to React Native's `Image`, `ScrollView` and `FlatList` to theirs, so the virtualized list stays virtualized.
 
+## Merging a caller's className
+
+`cx` joins class strings and skips falsy ones, as `clsx` does for strings. Use it where a component adds a caller's `className` to its own:
+
+```tsx
+import { cx, Pressable } from '@hozo/core'
+
+<Pressable className={cx('p-4 hover:bg-blue-500 disabled:opacity-50', className)} />
+```
+
+The compiler reads a `cx` call argument by argument, so the component's own classes still compile and only `className` is resolved at runtime. On React Native this is what keeps `hover:`, `disabled:` and the other state styles. A project's own helper, such as shadcn/ui's `cn`, is not read this way: the whole call is resolved at runtime and those states are dropped there. `cx` is implemented in `@hozo/engine`, so the packages below core can use it too.
+
 ## Accessibility props
 
 The universal props follow React Native's names — `accessibilityLabel`, `accessibilityHint`, `accessibilityState`, `accessibilityValue`, `accessibilityLiveRegion`, `testID`, `nativeID` — and map onto ARIA on Web. `role` is accepted directly as well; React Native has supported it since 0.71, so it means the same thing on both sides.
