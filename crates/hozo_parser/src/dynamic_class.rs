@@ -66,7 +66,23 @@ pub struct UnsupportedVariant {
     pub span: SourceSpan,
 }
 
-pub fn decompose_class_name(expr: &JSXExpression, module_record: &ModuleRecord) -> Decomposed {
+/// A function the project says joins class strings as `clsx` does, by the
+/// specifier its callers import it from and the name they import (#964).
+/// `name` is `default` for a default import.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClassHelper {
+    pub module: String,
+    pub name: String,
+}
+
+/// Which calls in a file are read argument by argument: the imports above,
+/// and whatever the project added.
+pub(crate) struct Joiners<'r, 'a> {
+    pub module_record: &'r ModuleRecord<'a>,
+    pub helpers: &'r [ClassHelper],
+}
+
+pub(crate) fn decompose_class_name(expr: &JSXExpression, module_record: &Joiners) -> Decomposed {
     let mut out = Decomposed::default();
     decompose(classify_jsx_expression(expr), None, None, &mut out, module_record);
     out
@@ -153,25 +169,32 @@ fn to_condition(expr: Option<ConditionExpr>) -> Condition {
     }
 }
 
-fn is_recognized_cx_call(callee: &Expression, module_record: &ModuleRecord) -> Option<()> {
+fn is_recognized_cx_call(callee: &Expression, module_record: &Joiners) -> Option<()> {
     let Expression::Identifier(ident) = callee else { return None };
     is_recognized_cx_identifier(ident, module_record)
 }
 
 fn is_recognized_cx_identifier(
     ident: &IdentifierReference,
-    module_record: &ModuleRecord,
+    joiners: &Joiners,
 ) -> Option<()> {
     let name = ident.name.as_str();
-    module_record.import_entries.iter().find_map(|entry| {
+    joiners.module_record.import_entries.iter().find_map(|entry| {
         let module = entry.module_request.name.as_str();
+        let imported = match &entry.import_name {
+            ImportImportName::Name(n) => n.name.as_str(),
+            ImportImportName::Default(_) => "default",
+            ImportImportName::NamespaceObject => return None,
+        };
+        let is_project_helper =
+            joiners.helpers.iter().any(|helper| helper.module == module && helper.name == imported);
         let is_hozo_cx = HOZO_CX_MODULES.contains(&module)
             && matches!(
                 &entry.import_name,
                 ImportImportName::Name(n) if n.name.as_str() == HOZO_CX_NAME
             );
         (entry.local_name.name.as_str() == name
-            && (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx))
+            && (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx || is_project_helper))
         .then_some(())
     })
 }
@@ -200,7 +223,7 @@ fn decompose(
     // since an inner one re-emitted alone loses everything above it.
     guard: Option<Span>,
     out: &mut Decomposed,
-    module_record: &ModuleRecord,
+    module_record: &Joiners,
 ) {
     match target {
         Target::StringLiteral(lit) => {
@@ -384,12 +407,17 @@ mod tests {
     /// Finds the first JSX element's `className` `ExpressionContainer` in
     /// `source` and runs it through `decompose_class_name`.
     fn decompose_source(source: &str) -> Decomposed {
+        decompose_with_helpers(source, &[])
+    }
+
+    fn decompose_with_helpers(source: &str, helpers: &[ClassHelper]) -> Decomposed {
         let allocator = Allocator::default();
         let source_type = SourceType::from_extension("tsx").unwrap();
         let ret = Parser::new(&allocator, source, source_type).parse();
 
         struct Finder<'a, 'r> {
             module_record: &'r ModuleRecord<'a>,
+            helpers: &'r [ClassHelper],
             result: Option<Decomposed>,
         }
         impl<'a> Visit<'a> for Finder<'a, '_> {
@@ -398,11 +426,12 @@ mod tests {
                     return;
                 }
                 if let Some(JSXAttributeValue::ExpressionContainer(container)) = &it.value {
-                    self.result = Some(decompose_class_name(&container.expression, self.module_record));
+                    let joiners = Joiners { module_record: self.module_record, helpers: self.helpers };
+                    self.result = Some(decompose_class_name(&container.expression, &joiners));
                 }
             }
         }
-        let mut finder = Finder { module_record: &ret.module_record, result: None };
+        let mut finder = Finder { module_record: &ret.module_record, helpers, result: None };
         finder.visit_program(&ret.program);
         finder.result.expect("no className expression container found in source")
     }
@@ -492,6 +521,41 @@ const el = <View className={join('p-4', className)} />";
         let engine = "import { cx } from '@hozo/engine'
 const el = <View className={cx('p-4', className)} />";
         assert_eq!(carried(engine), ["className"]);
+    }
+
+    fn helper(module: &str, name: &str) -> ClassHelper {
+        ClassHelper { module: module.to_string(), name: name.to_string() }
+    }
+
+    #[test]
+    fn a_helper_the_project_declares_is_read_as_clsx_is() {
+        // shadcn/ui's `cn`, which the compiler cannot see into (#964).
+        let source = "import { View } from '@hozo/core'
+import { cn } from '@/lib/utils'
+const el = <View className={cn('p-4 hover:bg-blue-500', className)} />";
+        let carried_with = |helpers: &[ClassHelper]| -> Vec<String> {
+            decompose_with_helpers(source, helpers)
+                .fallback
+                .iter()
+                .map(|r| source[r.0.start as usize..r.0.end as usize].to_string())
+                .collect()
+        };
+        assert_eq!(carried_with(&[helper("@/lib/utils", "cn")]), ["className"]);
+        // Undeclared, or declared for another module or name, it falls back whole.
+        let whole = ["cn('p-4 hover:bg-blue-500', className)"];
+        assert_eq!(carried_with(&[]), whole);
+        assert_eq!(carried_with(&[helper("./utils", "cn")]), whole);
+        assert_eq!(carried_with(&[helper("@/lib/utils", "cx")]), whole);
+    }
+
+    #[test]
+    fn a_declared_default_export_matches_a_default_import() {
+        let source = "import { View } from '@hozo/core'
+import join from './join'
+const el = <View className={join('p-4', className)} />";
+        let out = decompose_with_helpers(source, &[helper("./join", "default")]);
+        assert_eq!(out.fallback.len(), 1);
+        assert!(!out.declarations.is_empty());
     }
 
     #[test]

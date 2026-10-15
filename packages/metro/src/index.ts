@@ -13,7 +13,13 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { type Compiler, createCompiler, type FontAvailability, type Theme } from '@hozo/compiler'
 import { dependencyTextForwarding } from '@hozo/compiler/manifest'
-import { CACHE_DIR, importSpecifier, StylexModuleCache } from '@hozo/compiler/project'
+import {
+  CACHE_DIR,
+  type ClassHelperOption,
+  importSpecifier,
+  resolveClassHelpers,
+  StylexModuleCache,
+} from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { loadProjectTheme } from '@hozo/tailwind'
 import { readMetroState } from './config.ts'
@@ -140,13 +146,15 @@ function compilerFor(
   theme: Theme | undefined,
   sources: readonly string[],
   fontAvailability: FontAvailability | undefined,
+  classHelpers: readonly ClassHelperOption[] | undefined,
 ): CompilerState {
   // A compiler is given its theme once, so a project whose resolved
   // preflight differs needs a compiler of its own: the key has to say so.
-  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}:${theme?.preflight ?? false}:${JSON.stringify(fontAvailability)}`
+  const key = `${projectRoot ?? ''}\u0000${sources.join(',')}:${theme?.preflight ?? false}:${JSON.stringify(fontAvailability)}:${JSON.stringify(classHelpers ?? [])}`
   let state = compilers.get(key)
   if (!state) {
     const compiler = createCompiler(theme, sources, fontAvailability)
+    compiler.setClassHelpers(resolveClassHelpers(classHelpers))
     const stylexModules = projectRoot
       ? new StylexModuleCache(path.join(projectRoot, CACHE_DIR, 'stylex-modules.json'))
       : undefined
@@ -201,6 +209,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
     themeWithPreflight(theme, state?.preflight ?? false),
     state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
     state?.fontAvailability,
+    state?.classHelpers,
   )
   const platform = params.options?.platform ?? 'default'
   if (

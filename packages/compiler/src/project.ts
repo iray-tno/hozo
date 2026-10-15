@@ -8,6 +8,7 @@ import { performance } from 'node:perf_hooks'
 
 import {
   type CandidateCache,
+  type ClassHelper,
   type FontAvailability,
   openCandidateCache,
   type StylexExternalBinding,
@@ -188,6 +189,53 @@ export interface HozoProjectOptions {
   fontAvailability?: FontAvailability
   /** Report project-scan work and timing through the bundler's logger. */
   debug?: boolean
+  /**
+   * The project's own functions that join class strings as `clsx` does,
+   * such as shadcn/ui's `cn` in `@/lib/utils` (#964).
+   *
+   * A call to one is read argument by argument, so a component's own
+   * classes compile and only what cannot be read, such as a caller's
+   * `className`, falls back. Without it the whole call falls back, and on
+   * React Native that drops `hover:`, `active:`, `disabled:` and
+   * `focus-visible:`.
+   *
+   * `module` is the specifier as callers write it, and `name` the name
+   * they import (`default` for a default import). `recognize: false`
+   * keeps a function from being read this way even when it is found
+   * automatically.
+   *
+   * Declaring one is a promise that it only joins its truthy string
+   * arguments. A helper that also resolves conflicts, as `tailwind-merge`
+   * does, is read the same way: both classes are compiled, and the later
+   * one wins in the cascade.
+   */
+  classHelpers?: readonly ClassHelperOption[]
+}
+
+export interface ClassHelperOption {
+  module: string
+  name: string
+  /** `false` to keep this function from being read as a class joiner. */
+  recognize?: boolean
+}
+
+/**
+ * The class-joining functions the compiler is given (#964): the ones found
+ * in the project's source, plus the declared ones, minus the declared
+ * `recognize: false`. Declarations win, so a wrong guess can be undone.
+ */
+export function resolveClassHelpers(
+  declared: readonly ClassHelperOption[] = [],
+  found: readonly ClassHelper[] = [],
+): ClassHelper[] {
+  const key = (helper: { module: string; name: string }) => `${helper.module} ${helper.name}`
+  const refused = new Set(declared.filter((h) => h.recognize === false).map(key))
+  const out = new Map<string, ClassHelper>()
+  for (const helper of [...found, ...declared.filter((h) => h.recognize !== false)]) {
+    if (!refused.has(key(helper)))
+      out.set(key(helper), { module: helper.module, name: helper.name })
+  }
+  return [...out.values()]
 }
 
 export interface ScanStats {

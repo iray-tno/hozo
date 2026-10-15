@@ -67,6 +67,8 @@ export interface HozoMetroState {
   upstreamTransformer?: string
   css?: string
   sources?: readonly string[]
+  /** The project's declared class-joining functions (#964). */
+  classHelpers?: HozoProjectOptions['classHelpers']
   /**
    * Whether the project ships a CSS reset -- `preflight` with `'auto'`
    * already resolved, here rather than in the worker on purpose.
@@ -201,6 +203,7 @@ export async function withHozo<T extends MetroConfigShape>(
     upstreamTransformer,
     css: options.css,
     sources: options.sources,
+    classHelpers: options.classHelpers,
     preflight,
     fontFaceCssPath,
     fontAvailability: options.fontAvailability,

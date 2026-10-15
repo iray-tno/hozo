@@ -37,6 +37,7 @@ import {
   importSpecifier,
   isTransformedSource,
   preflightCssPath,
+  resolveClassHelpers,
   resolveStylexRequests,
   type StylexModuleCache,
   scannableFile,
@@ -366,6 +367,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           warn: (message) => this.warn(message),
         })
         compiler = createCompiler(theme, options.sources, options.fontAvailability)
+        compiler.setClassHelpers(resolveClassHelpers(options.classHelpers))
 
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves

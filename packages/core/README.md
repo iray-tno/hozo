@@ -42,7 +42,7 @@ import { cx, Pressable } from '@hozo/core'
 <Pressable className={cx('p-4 hover:bg-blue-500 disabled:opacity-50', className)} />
 ```
 
-The compiler reads a `cx` call argument by argument, so the component's own classes still compile and only `className` is resolved at runtime. On React Native this is what keeps `hover:`, `disabled:` and the other state styles. A project's own helper, such as shadcn/ui's `cn`, is not read this way: the whole call is resolved at runtime and those states are dropped there. `cx` is implemented in `@hozo/engine`, so the packages below core can use it too.
+The compiler reads a `cx` call argument by argument, so the component's own classes still compile and only `className` is resolved at runtime. On React Native this is what keeps `hover:`, `disabled:` and the other state styles. A project's own helper, such as shadcn/ui's `cn`, is read this way only when the project declares it with the `classHelpers` option; otherwise the whole call is resolved at runtime and those states are dropped there. `cx` is implemented in `@hozo/engine`, so the packages below core can use it too.
 
 ## Accessibility props
 

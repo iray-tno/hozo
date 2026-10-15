@@ -701,3 +701,24 @@ test('MDX that compiles is not warned about', async () => {
     [],
   )
 })
+
+test("a declared class helper's literal compiles to a scoped rule (#964)", async () => {
+  const source = `import { View } from '@hozo/core'
+import { cn } from '@/lib/utils'
+export const Card = ({ className }) => <View className={cn('p-4 hover:p-6', className)} />
+`
+  const declared = project({
+    'Card.tsx': source,
+    'lib/utils.ts': 'export const cn = (...a) => a.join(" ")\n',
+  })
+  const server = await serve(
+    declared,
+    { classHelpers: [{ module: '@/lib/utils', name: 'cn' }] },
+    { '@/lib/utils': path.join(declared, 'lib', 'utils.ts') },
+  )
+  const result = await server.transformRequest('/Card.tsx')
+  assert.ok(result, 'the module was not transformed')
+  assert.doesNotMatch(result.code, /\bcn\(/, 'the call was carried rather than read')
+  const companion = readFileSync(path.join(declared, 'Card.tsx.hozo.css'), 'utf8')
+  assert.match(companion, /:hover/)
+})

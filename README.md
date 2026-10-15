@@ -201,8 +201,16 @@ libraries, as shadcn/ui's `cn` in `@/lib/utils` does. The compiler reads one
 file at a time, so it cannot see what `cn` does, and the whole call takes the
 runtime fallback below. On the Web the classes still apply. On React Native,
 `hover:`, `active:`, `disabled:` and `focus-visible:` cannot be carried by
-the fallback, so the component loses its state styles. Use `cx` where a
-component merges a caller's `className` with its own (#964).
+the fallback, so the component loses its state styles. Declare it, and it is
+read as `clsx` is (#964):
+
+```ts
+hozo({ classHelpers: [{ module: '@/lib/utils', name: 'cn' }] })
+```
+
+`module` is the specifier as callers write it. The same option works for
+`withHozo` on Metro. Or use `cx` from `@hozo/core`, which needs no
+declaration.
 
 **Truly dynamic — a runtime fallback.**
 
