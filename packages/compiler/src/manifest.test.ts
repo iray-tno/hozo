@@ -1,0 +1,79 @@
+import assert from 'node:assert/strict'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import test from 'node:test'
+
+import { buildManifest, serializeManifest, writeManifest } from './manifest.ts'
+
+const button = `import { cx } from '@hozo/core'
+import { Button as Host } from '@hozo/primitives'
+export function HozoButton({ tone = 'neutral', className, ...rest }) {
+  if (tone === 'accent') return <Host {...rest} className={cx('text-white', className)} />
+  return <Host {...rest} className={cx('text-black', className)} />
+}
+`
+
+// Keyed by POSIX path; on Windows, `path.resolve` adds the current drive.
+function memory(files: Record<string, string>) {
+  return (file: string) =>
+    files[
+      file
+        .split(path.sep)
+        .join('/')
+        .replace(/^[A-Za-z]:/, '')
+    ]
+}
+
+test('a manifest follows the entry to each component, under every name it is published as', () => {
+  const manifest = buildManifest({
+    entry: '/pkg/src/index.ts',
+    readSource: memory({
+      '/pkg/src/index.ts': `export { HozoButton as Button, HozoButton } from './button.tsx'
+export { Badge } from './more'
+export { Thing } from 'another-package'
+`,
+      '/pkg/src/button.tsx': button,
+      // Re-exported again from a directory index, and renamed on the way.
+      '/pkg/src/more/index.ts': `export { Inner as Badge } from './inner'`,
+      '/pkg/src/more/inner.tsx': button.replace('HozoButton', 'Inner'),
+    }),
+  })
+  assert.deepEqual(Object.keys(manifest.textForwarding), ['Badge', 'Button', 'HozoButton'])
+  const entry = manifest.textForwarding.Button
+  assert.deepEqual(entry.props, [
+    { name: 'tone', default: 'neutral', values: ['accent', 'neutral'] },
+  ])
+  assert.deepEqual(entry.variants, [
+    { when: ['accent'], classes: 'text-white' },
+    { when: ['neutral'], classes: 'text-black' },
+  ])
+  assert.equal(entry.disabledProp, undefined)
+})
+
+test('a component exported but not published by the entry is left out', () => {
+  const manifest = buildManifest({
+    entry: '/pkg/index.ts',
+    readSource: memory({
+      '/pkg/index.ts': `export { Other } from './button.tsx'`,
+      '/pkg/button.tsx': button,
+    }),
+  })
+  assert.deepEqual(manifest.textForwarding, {})
+})
+
+test('the package directory form writes the file package.json names, and --check compares it', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'hozo-manifest-'))
+  mkdirSync(path.join(dir, 'src'))
+  writeFileSync(path.join(dir, 'src', 'button.tsx'), button)
+  writeFileSync(path.join(dir, 'src', 'index.ts'), `export { HozoButton } from './button.tsx'`)
+  writeFileSync(
+    path.join(dir, 'package.json'),
+    JSON.stringify({ exports: { '.': './src/index.ts' }, hozo: { manifest: './meta.json' } }),
+  )
+  assert.equal(writeManifest(dir, { check: true }).current, false)
+  const written = writeManifest(dir)
+  assert.equal(written.file, path.join(dir, 'meta.json'))
+  assert.equal(readFileSync(written.file, 'utf8'), serializeManifest(JSON.parse(written.text)))
+  assert.equal(writeManifest(dir, { check: true }).current, true)
+})

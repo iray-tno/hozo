@@ -36,6 +36,7 @@
       "!packages/tailwind-conformance/snapshot.json",
       "!packages/tailwind-conformance/stylex-manifest.json",
       "!packages/three/scene-conformance.json",
+      "!**/hozo.manifest.json",
       "!examples/native-demo/ios"
     ]
   },

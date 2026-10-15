@@ -104,6 +104,26 @@ JavaScript, config plugins, scripts or package `main` are loaded. The recorded p
 resolution. Multiple extends, config templates, package exports and outside-checkout links remain
 unsupported. See [TypeScript's package config lookup](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-3-2.html#tsconfigjson-inheritance-via-nodejs-packages).
 
+## A component package's manifest
+
+A caller's build compiles the caller's file alone, so it cannot see what a component imported from a package does with its children. React Native does not inherit text styles, so `<Button tone="accent"><View><Text>Save</Text></View></Button>` needs to know which text classes `Button` gives its label (#950).
+
+A package computes that from its own source and ships it, the way it ships `.d.ts` files:
+
+```sh
+hozo-manifest path/to/package           # writes hozo.manifest.json
+hozo-manifest path/to/package --check   # exits 1 when it is stale
+hozo-manifest path/to/package --entry src/index.ts   # when the published entry is built output
+```
+
+The package names the file in its `package.json` as `"hozo": { "manifest": "./hozo.manifest.json" }`, and lists it in `files` and `exports`.
+
+- **What is read.** The components its entry publishes, following relative re-exports. A component is read only in a narrow shape: a pressable host given the caller's children, with classes chosen by comparing a prop with a literal. Any other shape gets no entry, and the caller compiles as it did before.
+- **Classes, not styles.** The manifest records classes as written, so a caller resolves them against its own theme.
+- **In memory.** `buildManifest` and `summarizeTextForwarding` (from `@hozo/compiler/manifest` and `@hozo/compiler`) compute the same result without touching the file system.
+
+The direction behind this, and why a package's facts are shipped rather than cached, is recorded on #656.
+
 ## The list that must not drift
 
 `src/native-targets.ts` is the one table. Two independent things read it:

@@ -1,0 +1,167 @@
+{
+  "version": 1,
+  "textForwarding": {
+    "Button": {
+      "props": [
+        {
+          "name": "size",
+          "default": "md",
+          "values": [
+            "md",
+            "sm"
+          ]
+        },
+        {
+          "name": "tone",
+          "default": "neutral",
+          "values": [
+            "accent",
+            "danger",
+            "neutral",
+            "quiet"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "when": [
+            "md",
+            "accent"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-accent text-hozo-on-accent hover:bg-hozo-accent-hover active:opacity-80 disabled:bg-hozo-surface-raised px-4 py-3 text-sm"
+        },
+        {
+          "when": [
+            "md",
+            "danger"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-danger text-hozo-on-danger hover:bg-hozo-danger-text active:opacity-80 disabled:bg-hozo-surface-raised px-4 py-3 text-sm"
+        },
+        {
+          "when": [
+            "md",
+            "neutral"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover active:opacity-80 disabled:bg-hozo-surface-raised px-4 py-3 text-sm"
+        },
+        {
+          "when": [
+            "md",
+            "quiet"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80 px-4 py-3 text-sm"
+        },
+        {
+          "when": [
+            "sm",
+            "accent"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-accent text-hozo-on-accent hover:bg-hozo-accent-hover active:opacity-80 disabled:bg-hozo-surface-raised px-3 py-2 text-sm"
+        },
+        {
+          "when": [
+            "sm",
+            "danger"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-danger text-hozo-on-danger hover:bg-hozo-danger-text active:opacity-80 disabled:bg-hozo-surface-raised px-3 py-2 text-sm"
+        },
+        {
+          "when": [
+            "sm",
+            "neutral"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover active:opacity-80 disabled:bg-hozo-surface-raised px-3 py-2 text-sm"
+        },
+        {
+          "when": [
+            "sm",
+            "quiet"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80 px-3 py-2 text-sm"
+        }
+      ],
+      "disabledProp": "disabled"
+    },
+    "HozoButton": {
+      "props": [
+        {
+          "name": "size",
+          "default": "md",
+          "values": [
+            "md",
+            "sm"
+          ]
+        },
+        {
+          "name": "tone",
+          "default": "neutral",
+          "values": [
+            "accent",
+            "danger",
+            "neutral",
+            "quiet"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "when": [
+            "md",
+            "accent"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-accent text-hozo-on-accent hover:bg-hozo-accent-hover active:opacity-80 disabled:bg-hozo-surface-raised px-4 py-3 text-sm"
+        },
+        {
+          "when": [
+            "md",
+            "danger"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-danger text-hozo-on-danger hover:bg-hozo-danger-text active:opacity-80 disabled:bg-hozo-surface-raised px-4 py-3 text-sm"
+        },
+        {
+          "when": [
+            "md",
+            "neutral"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover active:opacity-80 disabled:bg-hozo-surface-raised px-4 py-3 text-sm"
+        },
+        {
+          "when": [
+            "md",
+            "quiet"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80 px-4 py-3 text-sm"
+        },
+        {
+          "when": [
+            "sm",
+            "accent"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-accent text-hozo-on-accent hover:bg-hozo-accent-hover active:opacity-80 disabled:bg-hozo-surface-raised px-3 py-2 text-sm"
+        },
+        {
+          "when": [
+            "sm",
+            "danger"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-danger text-hozo-on-danger hover:bg-hozo-danger-text active:opacity-80 disabled:bg-hozo-surface-raised px-3 py-2 text-sm"
+        },
+        {
+          "when": [
+            "sm",
+            "neutral"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover active:opacity-80 disabled:bg-hozo-surface-raised px-3 py-2 text-sm"
+        },
+        {
+          "when": [
+            "sm",
+            "quiet"
+          ],
+          "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80 px-3 py-2 text-sm"
+        }
+      ],
+      "disabledProp": "disabled"
+    }
+  }
+}

@@ -136,6 +136,9 @@ jobs:
       # reference is what #265 exists to prevent. Needs the native addon,
       # which this job already built.
       - run: pnpm docs:check
+      # The manifests component packages ship (#950), generated from their
+      # source for the same reason and with the same staleness to catch.
+      - run: pnpm manifests:check
 
   platform-compat:
     strategy:
