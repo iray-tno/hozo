@@ -160,11 +160,11 @@ test('CommandPalette shortcuts remain decorative while the real input keeps DOM 
         import React from 'react';
         import {createRoot} from 'react-dom/client';
         import {CommandPalette} from '@hozo/patterns';
-        window.selected = []; window.closed = [];
+        window.paletteSelections = []; window.paletteClosures = [];
         const commands = ['Alpha', 'Beta'].map(label => ({id: label, label,
-          shortcut: label[0], onSelect: () => window.selected.push(label)}));
+          shortcut: label[0], onSelect: () => window.paletteSelections.push(label)}));
         createRoot(document.getElementById('root')).render(<CommandPalette open portal={false}
-          commands={commands} onOpenChange={open => window.closed.push(open)}
+          commands={commands} onOpenChange={open => window.paletteClosures.push(open)}
           shortcutClassName=${JSON.stringify(classes)} inputClassName=${JSON.stringify(inputClasses)}/>);
       `,
       loader: 'tsx',
@@ -178,6 +178,8 @@ test('CommandPalette shortcuts remain decorative while the real input keeps DOM 
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
   try {
     await page.setContent(`<style>${css}</style><div id="root"></div>`)
     await page.addScriptTag({ content: bundle.outputFiles[0].text })
@@ -219,14 +221,16 @@ test('CommandPalette shortcuts remain decorative while the real input keeps DOM 
     )
     await assertShortcuts()
     await shortcuts.nth(1).click()
-    assert.deepEqual(await page.evaluate(() => window.selected), ['Beta'])
+    assert.deepEqual(errors, [], 'browser callbacks must not throw')
+    assert.deepEqual(await page.evaluate(() => window.paletteSelections), ['Beta'])
     assert.equal(await field.evaluate((e) => e === document.activeElement), true)
     await field.fill('Alpha')
     await page.waitForFunction(() => document.querySelectorAll('[role="option"]').length === 1)
     await assertShortcuts()
     await page.keyboard.press('Enter')
-    assert.deepEqual(await page.evaluate(() => window.selected), ['Beta', 'Alpha'])
-    assert.deepEqual(await page.evaluate(() => window.closed), [false, false])
+    assert.deepEqual(errors, [], 'browser callbacks must not throw')
+    assert.deepEqual(await page.evaluate(() => window.paletteSelections), ['Beta', 'Alpha'])
+    assert.deepEqual(await page.evaluate(() => window.paletteClosures), [false, false])
   } finally {
     await page.close()
   }
