@@ -111,6 +111,7 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'patterns', 'accessibility', 'components'],
   },
   form: {
+    dependencyOverrides: { '@hozo/engine': 'workspace:^' },
     exports: { '.': './dist/index.js' },
     native: true,
     keywords: ['react-native', 'react', 'form', 'date-picker', 'calendar', 'accessibility'],
