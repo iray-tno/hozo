@@ -115,6 +115,17 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // barrels stopped pulling every pattern in, and Hozo's share fell from
 // 590,941 to 436,487 bytes with the census screen still using nearly every
 // component. The budget sits just above that, so a regression shows.
+//
+// Raised to 480 KB after the share crossed 460 at 472,809 in CI (469,125
+// locally) without a barrel coming back -- the check below stayed green.
+// The room had gone to runtime class states and the patterns resolving
+// their class props on Native (#886): 459,880 locally at 79777593, the last
+// run that passed. The rest is features since, measured module by module
+// against that commit: OTP caret and focus from the real field selection
+// (`otp-input.native` and `otp-rules`, +4.6 KB), Button host IDs and typed
+// DOM metadata (`button-host-*`, `foundation.native`, +2.1 KB), field-owned
+// TextInput focus styles (`text-input-props.native`, +0.9 KB), the class
+// resolver's state groups (+0.9 KB) and Stepper's state styles (+0.7 KB).
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -128,8 +139,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 460_000,
-  `Hozo's modules stay below 460 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 480_000,
+  `Hozo's modules stay below 480 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than
