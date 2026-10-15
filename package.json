@@ -6,9 +6,9 @@
   "license": "MIT",
   "packageManager": "pnpm@11.21.0",
   "scripts": {
-    "audit": "cargo audit && pnpm audit --audit-level critical",
+    "audit": "cargo audit && pnpm audit --audit-level high",
     "audit:cargo": "cargo audit",
-    "audit:pnpm": "pnpm audit --audit-level critical",
+    "audit:pnpm": "pnpm audit --audit-level high",
     "build": "turbo run build",
     "build:wasm": "node scripts/build-wasm.mjs",
     "changeset": "changeset",
