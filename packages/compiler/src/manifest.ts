@@ -13,6 +13,7 @@
 // assembled in memory (`buildManifest`), and only `writeManifest` and the
 // CLI touch the file system.
 
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 
@@ -223,4 +224,75 @@ export function writeManifest(
   if (options.check) return { file, text, current: readFromDisk(file) === text }
   writeFileSync(file, text)
   return { file, text, current: true }
+}
+
+/**
+ * The text forwarding of every direct dependency that ships a manifest,
+ * read from `node_modules` the way the project resolves it.
+ *
+ * Read fresh, not cached: a manifest is a file inside an installed package,
+ * so it changes only when the install does. `key` names what was read, for
+ * a bundler whose cache has to change when it does -- Metro's, which keys a
+ * transform on the file and the transformer and not on what the transformer
+ * read from elsewhere.
+ *
+ * Only direct dependencies: a caller imports a component from a package it
+ * depends on, so a manifest further down the tree is never consulted.
+ */
+export function dependencyTextForwarding(projectRoot: string): {
+  modules: TextForwardingModule[]
+  key: string
+} {
+  const modules: TextForwardingModule[] = []
+  const hash = createHash('sha256')
+  let json: { dependencies?: object; devDependencies?: object; peerDependencies?: object }
+  try {
+    json = JSON.parse(readFileSync(path.join(projectRoot, 'package.json'), 'utf8'))
+  } catch {
+    return { modules, key: '' }
+  }
+  const names = [
+    ...new Set([
+      ...Object.keys(json.dependencies ?? {}),
+      ...Object.keys(json.devDependencies ?? {}),
+      ...Object.keys(json.peerDependencies ?? {}),
+    ]),
+  ].sort()
+  for (const name of names) {
+    const dir = installedPackage(projectRoot, name)
+    if (!dir) continue
+    let manifestFile: string | undefined
+    try {
+      const pkg = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8')) as PackageJson
+      manifestFile = pkg.hozo?.manifest
+    } catch {
+      continue
+    }
+    if (!manifestFile) continue
+    const text = readFromDisk(path.join(dir, manifestFile))
+    if (text === undefined) continue
+    let manifest: HozoManifest
+    try {
+      manifest = JSON.parse(text)
+    } catch {
+      // A package's broken manifest is the package's bug. Reading nothing
+      // from it leaves its callers compiling as they did without one.
+      continue
+    }
+    hash.update(`${name}\u0000${text}\u0000`)
+    modules.push(textForwardingModule(name, manifest))
+  }
+  return { modules, key: modules.length > 0 ? hash.digest('hex') : '' }
+}
+
+/** Node's lookup: `node_modules/<name>` here or in any directory above. */
+function installedPackage(from: string, name: string): string | undefined {
+  let dir = path.resolve(from)
+  while (true) {
+    const candidate = path.join(dir, 'node_modules', name)
+    if (existsSync(path.join(candidate, 'package.json'))) return candidate
+    const up = path.dirname(dir)
+    if (up === dir) return undefined
+    dir = up
+  }
 }

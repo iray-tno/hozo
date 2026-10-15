@@ -12,6 +12,7 @@
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { type Compiler, createCompiler, type FontAvailability, type Theme } from '@hozo/compiler'
+import { dependencyTextForwarding } from '@hozo/compiler/manifest'
 import { CACHE_DIR, importSpecifier, StylexModuleCache } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { loadProjectTheme } from '@hozo/tailwind'
@@ -33,6 +34,12 @@ interface TransformParams {
 
 interface UpstreamTransformer {
   transform(params: TransformParams): unknown
+  getCacheKey?(options: CacheKeyOptions): string
+}
+
+interface CacheKeyOptions {
+  projectRoot?: string
+  [key: string]: unknown
 }
 
 let upstream: UpstreamTransformer | undefined
@@ -144,6 +151,10 @@ function compilerFor(
       ? new StylexModuleCache(path.join(projectRoot, CACHE_DIR, 'stylex-modules.json'))
       : undefined
     if (stylexModules) compiler.setStylexModules(stylexModules.moduleSources())
+    // What the project's dependencies' components hand a nested Text
+    // (#950). Read by each worker from the installed packages, which is
+    // also what `getCacheKey` hashes.
+    if (projectRoot) compiler.setTextForwarding(dependencyTextForwarding(projectRoot).modules)
     state = { compiler, stylexModules }
     compilers.set(key, state)
   }
@@ -154,6 +165,28 @@ function compilerFor(
 // async. Metro allows it, and the alternative -- compiling against the
 // default palette while the project defines its own -- is the failure this
 // exists to prevent.
+/**
+ * Metro folds this into every transform's cache key.
+ *
+ * A transform's output depends on two things Metro cannot see: the upstream
+ * transformer's own key, which it would have used without Hozo in front,
+ * and the manifests of the project's dependencies, which decide what a
+ * component from one of them hands a nested Text (#950). Metro has no way
+ * to re-transform a file when something it read from elsewhere changes, so
+ * a changed manifest has to change the key. Computed when Metro starts, so
+ * upgrading a package takes a restart, as it does for Metro's own caches.
+ */
+export function getCacheKey(options: CacheKeyOptions = {}): string {
+  let upstreamKey = ''
+  try {
+    upstreamKey = loadUpstream(options.projectRoot).getCacheKey?.(options) ?? ''
+  } catch {
+    // `transform` reports a missing upstream, with what was tried.
+  }
+  const manifests = options.projectRoot ? dependencyTextForwarding(options.projectRoot).key : ''
+  return [upstreamKey, manifests].join('$')
+}
+
 export async function transform(params: TransformParams): Promise<unknown> {
   const projectRoot = params.options?.projectRoot
   const state = projectRoot ? readMetroState(projectRoot) : undefined
