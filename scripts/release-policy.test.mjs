@@ -8,6 +8,22 @@ const bootstrap = readFileSync(
   'utf8',
 )
 
+test('the fresh NDK compiler check cannot hide a failing producer behind tee', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/android-ndk.yml', import.meta.url),
+    'utf8',
+  )
+  const step = (name) => workflow.split(`- name: ${name}`)[1]?.split(/\n {6}-/)[0] ?? ''
+  const check = step('Verify a fresh install and execute its compiler')
+  assert.match(check, /shell: bash/)
+  assert.match(check, /clang" --version \| tee/)
+  const guard = step('Check pipeline failure detection')
+  assert.match(guard, /shell: bash/)
+  assert.match(guard, /if node -e 'process.exit\(17\)' \| tee/)
+  assert.match(guard, /exit 1/)
+  assert.doesNotMatch(check + guard, /continue-on-error|\|\| true/)
+})
+
 test('the normal release contains no long-lived registry secret', () => {
   assert.doesNotMatch(release, /secrets\.(?:NPM_TOKEN|CARGO_REGISTRY_TOKEN)/)
   assert.match(release, /permissions:\s+id-token: write/)
