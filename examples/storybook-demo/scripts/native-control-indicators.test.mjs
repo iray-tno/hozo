@@ -770,8 +770,8 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
   assert.equal(shortcut().props.importantForAccessibility, 'no-hide-descendants')
   await act(() => alpha().props.onKeyDown({}))
   await act(() => alpha().props.onFocus({}))
-  assert.equal(flat(shortcut().props.style).outlineWidth, 2)
-  assert.equal(flat(shortcut().findByType('NativeText').props.style).fontWeight, '700')
+  assert.equal(flat(shortcut().props.style).outlineWidth, undefined)
+  assert.equal(flat(shortcut().findByType('NativeText').props.style).fontWeight, undefined)
   await act(() => alpha().props.onPressIn({}))
   assert.equal(flat(shortcut().props.style).opacity, 0.5)
   await act(() => alpha().props.onPressOut({}))
@@ -795,6 +795,78 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
   assert.equal(flat(hosts()[0].props.style).position, 'absolute')
   await press(hosts()[0])
   assert.deepEqual(changes, [false, false, false])
+})
+
+test('Native CommandPalette shortcuts do not borrow item focus or become another control', async (t) => {
+  const selected = []
+  const changed = []
+  const props = {
+    open: true,
+    commands: [
+      { id: 'alpha', label: 'Alpha', shortcut: 'A', onSelect: () => selected.push('alpha') },
+      { id: 'beta', label: 'Beta', shortcut: 'B', onSelect: () => selected.push('beta') },
+    ],
+    onOpenChange: (open) => changed.push(open),
+    itemClassName: 'focus:outline-4 focus-visible:font-bold',
+    activeItemClassName: 'border-2',
+    shortcutClassName:
+      'border-2 focus:outline-4 focus-visible:font-bold focus:focus-visible:border-4',
+  }
+  const tree = await mount(t, HozoCommandPalette, props)
+  const item = (label) =>
+    tree.root
+      .findAllByType('NativePressable')
+      .find((node) => node.props.accessibilityLabel === label)
+  const shortcut = (label) => item(label).findByType('NativeView')
+  const assertShortcut = (label) => {
+    assert.equal(flat(shortcut(label).props.style).outlineWidth, undefined, label)
+    assert.equal(flat(shortcut(label).props.style).borderTopWidth, 2, label)
+    assert.equal(
+      flat(shortcut(label).findByType('NativeText').props.style).fontWeight,
+      undefined,
+      label,
+    )
+    assert.equal(shortcut(label).props.accessibilityElementsHidden, true)
+    assert.equal(shortcut(label).props.importantForAccessibility, 'no-hide-descendants')
+  }
+  for (const label of ['Alpha', 'Beta']) {
+    await act(() => item(label).props.onKeyDown({}))
+    await act(() => item(label).props.onFocus({}))
+    assert.equal(
+      flat(item(label).props.style).outlineWidth,
+      4,
+      'the actual Native control keeps its state',
+    )
+    assert.equal(flat(item(label).findAllByType('NativeText')[0].props.style).fontWeight, '700')
+    assertShortcut(label)
+    await act(() => item(label).props.onPointerDown({}))
+    assertShortcut(label)
+    await act(() => item(label).props.onBlur({}))
+    assertShortcut(label)
+  }
+  assert.deepEqual(selected, [])
+  assert.deepEqual(changed, [])
+  await act(() => item('Beta').props.onHoverIn({}))
+  assert.equal(
+    flat(item('Beta').props.style).borderTopWidth,
+    2,
+    'hover still chooses the return-key target',
+  )
+  await act(() => tree.root.findByType('NativeTextInput').props.onSubmitEditing())
+  assert.deepEqual(selected, ['beta'])
+  assert.deepEqual(changed, [false])
+  const override = await mount(t, HozoCommandPalette, {
+    ...props,
+    shortcutStyle: { outlineWidth: 7, fontWeight: '500', color: '#123456' },
+  })
+  const host = override.root.findAllByType('NativePressable')[1]
+  await act(() => host.props.onKeyDown({}))
+  await act(() => host.props.onFocus({}))
+  assert.equal(flat(host.findByType('NativeView').props.style).outlineWidth, 7)
+  assert.equal(
+    flat(host.findByType('NativeView').findByType('NativeText').props.style).fontWeight,
+    '500',
+  )
 })
 
 test('Native CommandPalette active slot delivers interaction facts and keeps explicit style order', async (t) => {

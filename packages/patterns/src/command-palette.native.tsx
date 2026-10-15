@@ -214,7 +214,8 @@ export function HozoCommandPalette({
                     'aria-disabled': Boolean(command.disabled),
                   })
                   // The active command is the return-key target, not a press.
-                  // Both its look and its shortcut read the actual host facts.
+                  // Its look reads the actual host facts. The decorative
+                  // shortcut below is not a second focus owner.
                   const look = (interaction: InteractionState) => {
                     const state = stateFor(interaction)
                     return splitTextStyle([
@@ -242,8 +243,14 @@ export function HozoCommandPalette({
                       style={(interaction) => [ROW, look(interaction)[0]]}
                     >
                       {(interaction) => {
+                        // stateFor returns a fresh snapshot. Unlike the actual
+                        // Native button, this Web span / Native View cannot
+                        // borrow focus just because its parent has it.
+                        const shortcutState = stateFor(interaction)
+                        shortcutState.focused = false
+                        shortcutState.focusVisible = false
                         const [shortcutBox, shortcutText] = splitTextStyle([
-                          hozoClasses(shortcutClassName, stateFor(interaction)),
+                          hozoClasses(shortcutClassName, shortcutState),
                           shortcutStyle,
                         ])
                         return (

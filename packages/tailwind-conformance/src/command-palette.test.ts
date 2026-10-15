@@ -300,6 +300,23 @@ export function C({ commands, itemStyle, activeItemStyle, onOpenChange }) {
     itemStyle={itemStyle} activeItemStyle={activeItemStyle} />
 }`
 
+test('full Native lowering keeps static shortcut focus variants diagnosed', () => {
+  for (const classes of [
+    'focus:outline-2',
+    'focus-visible:font-bold',
+    'not-focus:opacity-50',
+    'focus:focus-visible:outline-2',
+  ]) {
+    assert.throws(
+      () =>
+        loadNativeModule(`import {CommandPalette} from '@hozo/core'
+      export function C() {return <CommandPalette open commands={[]} shortcutClassName="${classes}"/>}`),
+      /NOT_WIRED_ON_NATIVE/,
+      classes,
+    )
+  }
+})
+
 test('the Web compiler puts the same static pointer classes on options, not the input or shortcut', async () => {
   const { compile } = await import('@hozo/compiler')
   const { renderWeb } = await import('./render.ts')
