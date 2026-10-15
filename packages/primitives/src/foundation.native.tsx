@@ -206,3 +206,5 @@ export function Button({
     </RNPressable>
   )
 }
+// A label a pressable can hand its text styles to (#876); see `hozoTextStyle`.
+;(Text as { hozoLabelText?: boolean }).hozoLabelText = true

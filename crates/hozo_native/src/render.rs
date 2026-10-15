@@ -839,7 +839,13 @@ pub(super) fn render_node(
     // Reported here rather than dropped, because a text size that reaches
     // no text is precisely a style that renders correctly on Web and does
     // nothing on device -- which is the divergence worth a build message.
-    if !text_declarations.is_empty() {
+    //
+    // Except on a pressable whose label the compiler cannot see: there it
+    // reaches the label at runtime instead, through `hozoTextStyle` (#876).
+    let forwards_label = !text_declarations.is_empty()
+        && component == "Pressable"
+        && !matches!(text_reach(node), TextReach::Certain);
+    if !text_declarations.is_empty() && !forwards_label {
         match text_reach(node) {
             TextReach::Certain => {}
             TextReach::Opaque => diagnostics.push(unwired_variant(
@@ -914,6 +920,33 @@ pub(super) fn render_node(
         theme,
         animates.then_some(&mut frames),
     );
+    // The label's text styles, by state, for `HozoPressable` to hand to a
+    // label that arrives as `children`. Compiled here like any other entry;
+    // only which element they land on waits for runtime.
+    let label_style = if forwards_label {
+        let mut parts = Vec::new();
+        let mut pressed = Vec::new();
+        build_style_entries(
+            &text_declarations,
+            &format!("{base_name}_label"),
+            source,
+            node,
+            position,
+            style_entries,
+            &mut parts,
+            &mut pressed,
+            diagnostics,
+            runtime,
+            true,
+            None,
+            theme,
+            None,
+        );
+        parts.extend(pressed);
+        (!parts.is_empty()).then_some(parts)
+    } else {
+        None
+    };
     let transform_specs = if own_declarations.iter().any(|d| crate::transforms::is_control(&d.property))
         && own_declarations.iter().any(|d| d.condition != Condition::Always)
     {
@@ -1002,7 +1035,7 @@ pub(super) fn render_node(
     // A host-only pressed style can stay in RN's cheap style callback. Text
     // needs a provider even for raw children, otherwise its emitted pressed
     // style is never referenced (or borrows an unrelated outer owner).
-    let needs_interaction_host = needs_hover_or_focus || transition.is_some()
+    let needs_interaction_host = needs_hover_or_focus || transition.is_some() || label_style.is_some()
         || text_declarations.iter().any(|declaration| interaction::uses_interaction(&declaration.condition));
     let link_interaction = component == "HozoLink" && needs_interaction_host;
     if link_interaction {
@@ -1290,6 +1323,12 @@ pub(super) fn render_node(
     }
     if needs_focus_visible && (rendered_component == "HozoPressable" || link_interaction) {
         props_text.push_str(" hozoFocusVisible");
+    }
+    if let Some(parts) = label_style.as_ref().filter(|_| rendered_component == "HozoPressable") {
+        props_text.push_str(&format!(
+            " hozoTextStyle={{({{ pressed, hovered, focused, focusVisible }}) => [{}]}}",
+            parts.join(", ")
+        ));
     }
     // Skipping the ones the author already wrote.
     //

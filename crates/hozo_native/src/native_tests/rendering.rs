@@ -1482,3 +1482,32 @@ fn scale_overrides_reach_corners_but_not_fixed_or_arbitrary_radii() {
         assert_eq!(compile(class_name, &theme).styles, compile(class_name, &Theme::default()).styles);
     }
 }
+
+/// A pressable whose label arrives as `children` hands its text styles to
+/// `HozoPressable` rather than dropping them with a warning (#876); a View
+/// has nothing to hand them to, and still says so.
+#[test]
+fn a_pressable_with_an_unseen_label_forwards_its_text_styles() {
+    let source = "import { Button, View } from '@hozo/core'\nconst el = <Button disabled={off} className=\"bg-blue-500 text-white font-semibold disabled:text-gray-400\">{children}</Button>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.jsx.starts_with("<HozoPressable"), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("hozoTextStyle={({ pressed, hovered, focused, focusVisible }) => [hozoStyles.hozo0_label, (off) && hozoStyles.hozo0_label_disabled]}"),
+        "{}",
+        output.jsx
+    );
+    assert!(output.styles.contains("hozo0_label: {\n    color: '#fff',\n    fontWeight: '600',"), "{}", output.styles);
+    assert!(!output.styles.contains("hozo0: {\n    backgroundColor: '#2b7fff',\n    color"), "{}", output.styles);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+
+    let source = "import { View } from '@hozo/core'\nconst el = <View className=\"text-white\">{children}</View>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(!output.jsx.contains("hozoTextStyle"), "{}", output.jsx);
+    assert!(
+        output.diagnostics.iter().any(|d| d.message.contains("text styles are handed down")),
+        "{:?}",
+        output.diagnostics
+    );
+}

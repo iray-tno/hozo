@@ -1,8 +1,12 @@
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { blendColor } from '@hozo/engine'
 import {
+  Children,
+  cloneElement,
   createContext,
   type ElementType,
+  isValidElement,
+  type ReactElement,
   type ReactNode,
   useCallback,
   useContext,
@@ -49,6 +53,43 @@ export interface HozoPressableProps extends Omit<PressableProps, 'style'> {
   hozoTransition?: HozoTransition
   /** Enables per-element pointer/keyboard modality inference. */
   hozoFocusVisible?: boolean
+  /**
+   * The text styles this element's class list carries for its label, by
+   * state -- what a `<button>` passes to its text on the Web (#876). The
+   * compiler writes it when the label is not in the source it can see, so
+   * it arrives as `children` and is styled here: a string is put in a
+   * `Text`, and a direct `Text` child has these merged ahead of its own.
+   * A `Text` deeper inside is not reached (#950).
+   */
+  hozoTextStyle?: (state: HozoPressableState) => StyleProp<TextStyle>
+}
+
+/** A component a label can be: React Native's `Text`, `HozoText`, or one marked so. */
+function isLabelText(child: ReactElement): boolean {
+  const type = child.type as { hozoLabelText?: boolean } | string
+  return (
+    type === Text || type === HozoText || (typeof type !== 'string' && type?.hozoLabelText === true)
+  )
+}
+
+/** `children` with `label` handed to the text among them, one level deep. */
+function withLabelStyle(children: ReactNode, label: StyleProp<TextStyle>): ReactNode {
+  return Children.map(children, (child) => {
+    if (typeof child === 'string' || typeof child === 'number') {
+      return <Text style={label}>{child}</Text>
+    }
+    if (!isValidElement<{ style?: unknown }>(child) || !isLabelText(child)) return child
+    const own = child.props.style
+    return cloneElement(child, {
+      style:
+        typeof own === 'function'
+          ? (state: HozoPressableState) => [
+              label,
+              (own as (s: HozoPressableState) => unknown)(state),
+            ]
+          : [label, own],
+    } as { style: unknown })
+  })
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable)
@@ -193,6 +234,8 @@ export function HozoPressable({
   onKeyDown,
   hozoTransition,
   hozoFocusVisible = false,
+  hozoTextStyle,
+  children,
   ...props
 }: HozoPressableProps) {
   // Keep the event/context owner mounted when motion is added or removed.
@@ -218,9 +261,21 @@ export function HozoPressable({
   // Assemble native props once, with no trailing conditional spread on the
   // hot no-motion path. Private animation data never goes through RN props.
   const Component: ElementType = hozoTransition ? TransitionPressable : Pressable
+  // The label's styles for the state this element is in; children given
+  // as a function of React Native's own press state get them too.
+  const label = hozoTextStyle?.({ ...interaction })
+  const labelled =
+    hozoTextStyle === undefined
+      ? children
+      : typeof children === 'function'
+        ? (state: PressableStateCallbackType) =>
+            withLabelStyle((children as (s: PressableStateCallbackType) => ReactNode)(state), label)
+        : withLabelStyle(children, label)
   const host = (
     <Component
       {...props}
+      // biome-ignore lint/correctness/noChildrenProp: a function child is React Native's own form
+      children={labelled}
       onHoverIn={(event: MouseEvent) => {
         handlers.hoverIn()
         onHoverIn?.(event)
