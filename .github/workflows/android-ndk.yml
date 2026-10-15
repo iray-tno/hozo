@@ -27,9 +27,18 @@ jobs:
           distribution: temurin
           java-version: '17'
       - run: node --test scripts/prepare-android-ndk.test.mjs
+      - name: Check pipeline failure detection
+        shell: bash
+        run: |
+          if node -e 'process.exit(17)' | tee "$RUNNER_TEMP/hozo-expected-pipeline-failure.log"; then
+            echo '::error::A failed pipeline producer was hidden by tee'
+            exit 1
+          fi
       - name: Acquire into a new SDK root
         run: node scripts/prepare-android-ndk.mjs --sdk-root "$RUNNER_TEMP/hozo-fresh-sdk"
       - name: Verify a fresh install and execute its compiler
+        # Explicit bash includes pipefail; unspecified bash does not (#957).
+        shell: bash
         run: |
           node --input-type=module -e '
             import assert from "node:assert/strict";
