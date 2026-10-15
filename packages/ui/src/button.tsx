@@ -11,7 +11,7 @@
  * given one. A styled button that silently turned into an unstyled anchor
  * would be exactly the kind of gap this package exists to close.
  *
- * ## Why the class lists are written out, inside `clsx`
+ * ## Why the class lists are written out, inside `cx`
  *
  * Every tone is a complete literal in its own element, rather than pieces
  * joined at runtime. Two different tools need to see them and neither runs the
@@ -23,15 +23,15 @@
  * And on React Native the fallback cannot carry a state at all: `hover:`,
  * `active:`, `disabled:` and `focus-visible:` are refused there with a runtime
  * warning, because a style object has no way to hold them. These were written
- * as `` `${own} ${className}` ``, which the compiler cannot read, so on device
+ * as `` `${own} ${className}` ``, which the compiler could not read then, so on device
  * this button had no pressed, hovered, focused or disabled look.
  *
- * `clsx` is what lets the caller's `className` join without taking the rest
- * down with it: the compiler decomposes a `clsx` call argument by argument, so
- * the literal compiles and only `className` falls back. A literal carrying a
- * variant also falls back once it sits under a ternary or `&&`, which is why
- * the tone picks an element rather than a string. The size carries no variant,
- * so it can.
+ * `cx`, from `@hozo/core`, is what lets the caller's `className` join without
+ * taking the rest down with it: the compiler decomposes a `cx` call argument by
+ * argument, as it does `clsx`'s, so the literal compiles and only `className`
+ * falls back. A literal carrying a variant also falls back once it sits under
+ * a ternary or `&&`, which is why the tone picks an element rather than a
+ * string. The size carries no variant, so it can.
  *
  * `disabled` is passed by name rather than inside `rest`. The compiler wires
  * `disabled:` on Native to the prop it can see on the element, and a spread
@@ -41,8 +41,8 @@
  * -- reads better and is invisible to both tools.
  */
 
+import { cx } from '@hozo/core'
 import { Button as ButtonPrimitive, type ButtonProps } from '@hozo/primitives'
-import clsx from 'clsx'
 
 /** How loud the button is. Finite and closed, so a compiler can enumerate it. */
 export type HozoButtonTone = 'accent' | 'neutral' | 'quiet' | 'danger'
@@ -88,7 +88,7 @@ export function HozoButton({
       <ButtonPrimitive
         {...rest}
         disabled={disabled}
-        className={clsx(
+        className={cx(
           'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-accent text-hozo-on-accent hover:bg-hozo-accent-hover active:opacity-80 disabled:bg-hozo-surface-raised',
           size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm',
           className,
@@ -101,7 +101,7 @@ export function HozoButton({
       <ButtonPrimitive
         {...rest}
         disabled={disabled}
-        className={clsx(
+        className={cx(
           'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80',
           size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm',
           className,
@@ -114,7 +114,7 @@ export function HozoButton({
       <ButtonPrimitive
         {...rest}
         disabled={disabled}
-        className={clsx(
+        className={cx(
           'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-danger text-hozo-on-danger hover:bg-hozo-danger-text active:opacity-80 disabled:bg-hozo-surface-raised',
           size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm',
           className,
@@ -126,7 +126,7 @@ export function HozoButton({
     <ButtonPrimitive
       {...rest}
       disabled={disabled}
-      className={clsx(
+      className={cx(
         'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover active:opacity-80 disabled:bg-hozo-surface-raised',
         size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm',
         className,
