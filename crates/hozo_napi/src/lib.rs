@@ -347,6 +347,7 @@ pub fn compile(source: String) -> Vec<CompiledComponent> {
         None,
         hozo_parser::ReactNativeCompat::Lower,
         false,
+        &[],
     )
 }
 
@@ -357,13 +358,15 @@ fn lower_web(
     stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
     compat: hozo_parser::ReactNativeCompat,
     evidence: bool,
+    class_helpers: &[hozo_parser::ClassHelper],
 ) -> Vec<CompiledComponent> {
-    let parsed = hozo_parser::parse_tsx_for_web(
+    let parsed = hozo_parser::parse_tsx_for_web_with_helpers(
         source,
         sources,
         stylex.map(|(registry, _)| registry),
         stylex.map_or(&[][..], |(_, bindings)| bindings),
         compat,
+        class_helpers,
     );
     let offsets = Utf16Offsets::new(source);
     parsed
@@ -442,6 +445,17 @@ pub struct Compiler {
     /// What components from a project's dependencies hand down as text
     /// styles, from their packages' manifests (#950).
     text_forwarding: hozo_parser::ForwardingTable,
+    /// Functions the project's callers import that join classes as `clsx`
+    /// does, declared or found (#964).
+    class_helpers: Vec<hozo_parser::ClassHelper>,
+}
+
+/// A class-joining function, by the specifier callers import it from and
+/// the name they import (`default` for a default import).
+#[napi(object)]
+pub struct ClassHelper {
+    pub module: String,
+    pub name: String,
 }
 
 /// One package's text forwarding, as its manifest lists it.
@@ -461,6 +475,7 @@ impl Compiler {
             sources,
             stylex: Default::default(),
             text_forwarding: Default::default(),
+            class_helpers: Vec::new(),
         }
     }
 
@@ -489,6 +504,7 @@ impl Compiler {
             Some((&self.stylex, &bindings)),
             compat,
             tag_evidence.unwrap_or(false),
+            &self.class_helpers,
         )
     }
 
@@ -518,6 +534,7 @@ impl Compiler {
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
             &self.text_forwarding,
+            &self.class_helpers,
         )
     }
 
@@ -539,7 +556,18 @@ impl Compiler {
             Some((&self.stylex, &bindings)),
             source_file.as_deref(),
             &self.text_forwarding,
+            &self.class_helpers,
         )
+    }
+
+    /// Replaces the class-joining functions both backends read argument by
+    /// argument, beside `clsx` and the rest (#964).
+    #[napi]
+    pub fn set_class_helpers(&mut self, helpers: Vec<ClassHelper>) {
+        self.class_helpers = helpers
+            .into_iter()
+            .map(|helper| hozo_parser::ClassHelper { module: helper.module, name: helper.name })
+            .collect();
     }
 
     /// Replaces the text forwarding the Native backend applies (#950).
@@ -932,7 +960,7 @@ pub struct CompiledNativeModule {
 /// aren't wired into the rendered `style` prop yet).
 #[napi]
 pub fn compile_native(source: String) -> Vec<CompiledNativeComponent> {
-    lower_native(&source, &hozo_ir::Theme::default(), None, None, &Default::default())
+    lower_native(&source, &hozo_ir::Theme::default(), None, None, &Default::default(), &[])
 }
 
 fn lower_native(
@@ -941,13 +969,20 @@ fn lower_native(
     sources: Option<&[String]>,
     stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
     text_forwarding: &hozo_parser::ForwardingTable,
+    class_helpers: &[hozo_parser::ClassHelper],
 ) -> Vec<CompiledNativeComponent> {
-    let mut parsed = match stylex {
-        Some((registry, bindings)) => {
-            hozo_parser::parse_tsx_with_stylex(source, sources, Some(registry), bindings)
-        }
-        None => hozo_parser::parse_tsx_with(source, sources),
+    let (registry, bindings) = match stylex {
+        Some((registry, bindings)) => (Some(registry), bindings),
+        None => (None, &[][..]),
     };
+    let mut parsed = hozo_parser::parse_module_for_file_with_helpers(
+        source,
+        sources,
+        registry,
+        bindings,
+        None,
+        class_helpers,
+    );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
     lower_native_components(source, theme, &parsed)
 }
@@ -959,12 +994,20 @@ fn lower_native_module(
     stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
     source_file: Option<&str>,
     text_forwarding: &hozo_parser::ForwardingTable,
+    class_helpers: &[hozo_parser::ClassHelper],
 ) -> CompiledNativeModule {
     let (registry, bindings) = match stylex {
         Some((registry, bindings)) => (Some(registry), bindings),
         None => (None, &[][..]),
     };
-    let mut parsed = hozo_parser::parse_module_for_file(source, sources, registry, bindings, source_file);
+    let mut parsed = hozo_parser::parse_module_for_file_with_helpers(
+        source,
+        sources,
+        registry,
+        bindings,
+        source_file,
+        class_helpers,
+    );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
     let components = lower_native_components(source, theme, &parsed);
     let imports = parsed
@@ -1296,7 +1339,7 @@ mod utf16_tests {
         let source = "// 😀 日本語\r\nexport const value = <";
         let parsed = hozo_parser::parse_tsx(source);
         let module =
-            lower_native_module(source, &hozo_ir::Theme::default(), None, None, None, &Default::default());
+            lower_native_module(source, &hozo_ir::Theme::default(), None, None, None, &Default::default(), &[]);
         assert!(module.components.is_empty());
         assert_eq!(module.syntax_diagnostics.len(), parsed.syntax_errors.len());
         assert!(!module.syntax_diagnostics.is_empty());

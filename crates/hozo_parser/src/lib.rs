@@ -24,6 +24,7 @@ pub use rn_imports::{
 pub use rn_usage::{analyze_react_native_usage, ReactNativeBindingUsage, ReactNativeReference, ReactNativeUsage};
 pub use jsx::is_primitive_name;
 pub use unfold::unfold_jsx_calls;
+pub use dynamic_class::ClassHelper;
 pub use text_forwarding::{
     apply_text_forwarding, summarize_text_forwarding, ForwardingComponent, ForwardingProp,
     ForwardingReexport, ForwardingTable, ForwardingVariant,
@@ -306,7 +307,20 @@ pub fn parse_module_for_file(
     bindings: &[StylexExternalBinding],
     file: Option<&str>,
 ) -> ParseOutput {
-    parse(source_text, sources, registry, bindings, ReactNativeCompat::Lower, file)
+    parse(source_text, sources, registry, bindings, ReactNativeCompat::Lower, file, &[])
+}
+
+/// `parse_module_for_file`, with functions the project declares join
+/// classes as `clsx` does (#964).
+pub fn parse_module_for_file_with_helpers(
+    source_text: &str,
+    sources: Option<&[String]>,
+    registry: Option<&StylexModuleRegistry>,
+    bindings: &[StylexExternalBinding],
+    file: Option<&str>,
+    class_helpers: &[ClassHelper],
+) -> ParseOutput {
+    parse(source_text, sources, registry, bindings, ReactNativeCompat::Lower, file, class_helpers)
 }
 
 /// The package whose components stand in for React Native's own on the Web.
@@ -342,7 +356,20 @@ pub fn parse_tsx_for_web(
     bindings: &[StylexExternalBinding],
     compat: ReactNativeCompat,
 ) -> ParseOutput {
-    parse(source_text, sources, registry, bindings, compat, None)
+    parse(source_text, sources, registry, bindings, compat, None, &[])
+}
+
+/// `parse_tsx_for_web`, with functions the project declares join classes
+/// as `clsx` does (#964).
+pub fn parse_tsx_for_web_with_helpers(
+    source_text: &str,
+    sources: Option<&[String]>,
+    registry: Option<&StylexModuleRegistry>,
+    bindings: &[StylexExternalBinding],
+    compat: ReactNativeCompat,
+    class_helpers: &[ClassHelper],
+) -> ParseOutput {
+    parse(source_text, sources, registry, bindings, compat, None, class_helpers)
 }
 
 fn parse(
@@ -352,6 +379,7 @@ fn parse(
     bindings: &[StylexExternalBinding],
     compat: ReactNativeCompat,
     file: Option<&str>,
+    class_helpers: &[ClassHelper],
 ) -> ParseOutput {
     let allocator = Allocator::default();
     let source_type = source_type_for_file(file);
@@ -383,6 +411,7 @@ fn parse(
     let stylex_scan_spans = stylex.scan_spans.clone();
     let scope = jsx::Scope {
         module_record: &ret.module_record,
+        class_helpers,
         foreign: &foreign,
         primitive_aliases: &primitive_aliases,
         allow_unbound_primitives: sources.is_none(),

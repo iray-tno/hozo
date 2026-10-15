@@ -157,6 +157,15 @@ export interface TextForwardingSummary {
   reexports: { specifier: string; imported: string; exported: string }[]
 }
 
+/**
+ * A class-joining function, by the specifier its callers import it from as
+ * written and the name they import: `default` for a default import.
+ */
+export interface ClassHelper {
+  module: string
+  name: string
+}
+
 /** One package's text forwarding: the specifier callers import from, and its components. */
 export interface TextForwardingModule {
   module: string
@@ -320,6 +329,8 @@ interface NativeCompiler {
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
   setStylexModules(modules: StylexModuleSource[]): void
   setTextForwarding(modules: TextForwardingModule[]): void
+  /** Replace the project's own class-joining functions (#964); see `./project.ts`. */
+  setClassHelpers(helpers: ClassHelper[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
 }
 
@@ -488,6 +499,8 @@ export interface Compiler {
    * CSS inheritance already carries text styles down.
    */
   setTextForwarding(modules: TextForwardingModule[]): void
+  /** Replace the project's own class-joining functions (#964); see `./project.ts`. */
+  setClassHelpers(helpers: ClassHelper[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
   /**
    * The modules the compiler will lower a primitive-named tag from.
@@ -572,6 +585,7 @@ export function createCompiler(
     unfoldJsxCalls: (source) => inner.unfoldJsxCalls(source) ?? undefined,
     setStylexModules: (modules) => inner.setStylexModules(modules),
     setTextForwarding: (modules) => inner.setTextForwarding(modules),
+    setClassHelpers: (helpers) => inner.setClassHelpers(helpers),
     compileCanvasPaints: (source, native) => inner.compileCanvasPaints(source, native),
     sources: allowed,
   }

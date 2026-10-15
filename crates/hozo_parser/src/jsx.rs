@@ -143,6 +143,8 @@ fn role_from_literal(literal: &str, aria: bool) -> Option<AccessibilityRole> {
 /// which bindings this file actually has and where they came from.
 pub(crate) struct Scope<'r, 'a> {
     pub module_record: &'r ModuleRecord<'a>,
+    /// Functions the project declares join classes as `clsx` does (#964).
+    pub class_helpers: &'r [dynamic_class::ClassHelper],
     /// Primitive-named locals imported from a module the project does not
     /// trust.
     ///
@@ -1133,7 +1135,13 @@ fn build_node(
                     }
                     Some(JSXAttributeValue::ExpressionContainer(container)) => {
                         let decomposed =
-                            dynamic_class::decompose_class_name(&container.expression, scope.module_record);
+                            dynamic_class::decompose_class_name(
+                                &container.expression,
+                                &dynamic_class::Joiners {
+                                    module_record: scope.module_record,
+                                    helpers: scope.class_helpers,
+                                },
+                            );
                         style.extend(decomposed.declarations);
                         class_name_fallback.extend(decomposed.fallback);
                         consumed.extend(decomposed.consumed);
