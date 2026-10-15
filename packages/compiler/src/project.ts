@@ -228,7 +228,7 @@ export function resolveClassHelpers(
   declared: readonly ClassHelperOption[] = [],
   found: readonly ClassHelper[] = [],
 ): ClassHelper[] {
-  const key = (helper: { module: string; name: string }) => `${helper.module} ${helper.name}`
+  const key = (helper: { module: string; name: string }) => `${helper.module}\u0000${helper.name}`
   const refused = new Set(declared.filter((h) => h.recognize === false).map(key))
   const out = new Map<string, ClassHelper>()
   for (const helper of [...found, ...declared.filter((h) => h.recognize !== false)]) {
