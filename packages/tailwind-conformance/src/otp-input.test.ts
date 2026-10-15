@@ -285,3 +285,22 @@ test('Web lowering keeps the same input focus selectors off virtual cells', () =
   assert.equal(virtual.length, 4)
   for (const cell of virtual) assert.doesNotMatch(cell, /hozo-4/)
 })
+
+test('full Native lowering still diagnoses static cell focus variants rather than inventing focus owners', () => {
+  for (const slot of ['cellClassName', 'activeCellClassName', 'filledCellClassName']) {
+    for (const classes of [
+      'focus:outline-2',
+      'focus-visible:font-bold',
+      'not-focus:opacity-50',
+      'focus:focus-visible:outline-2',
+    ]) {
+      assert.throws(
+        () =>
+          loadNativeModule(`import {OtpInput} from '@hozo/core'
+        export function C() { return <OtpInput accessibilityLabel="Code" ${slot}="${classes}"/> }`),
+        /NOT_WIRED_ON_NATIVE/,
+        `${slot}/${classes}`,
+      )
+    }
+  }
+})

@@ -24,9 +24,13 @@ const theme = await loadTheme('@import "tailwindcss"; @import "./src/theme.css";
 const cache = openCandidateCache()
 const interactionClasses =
   'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus:opacity-75 focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50'
+const otpCellFocusClasses =
+  'border-2 opacity-50 font-normal focus:outline-4 focus-visible:font-bold focus:focus-visible:border-4'
+const otpUnsupportedFocusClasses =
+  'not-focus:opacity-50 not-focus-visible:font-normal not-focus:not-focus-visible:border-2'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold'`,
+  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -1337,7 +1341,7 @@ test('Native Chip non-focusable row observes touch contacts and cancels without 
   assert.equal(plain.root.findAllByType('NativePressable').length, 0)
 })
 
-test('Native OTP input focus, not wrapper focus, determines the active cell and focus-visible ring', async (t) => {
+test('Native OTP input focus determines the active decoration without focusing virtual cells', async (t) => {
   let focusRequests = 0
   const tree = await mount(
     t,
@@ -1348,6 +1352,8 @@ test('Native OTP input focus, not wrapper focus, determines the active cell and 
       defaultValue: '1',
       className: interactionClasses,
       cellClassName: interactionClasses,
+      activeCellClassName: 'border-2',
+      inputClassName: 'focus-visible:outline-2 focus:opacity-75',
       filledCellClassName: 'aria-disabled:opacity-25',
     },
     {
@@ -1364,7 +1370,13 @@ test('Native OTP input focus, not wrapper focus, determines the active cell and 
   const wrapper = () => tree.root.findByType('NativePressable')
   const input = () => tree.root.findByType('NativeTextInput')
   const cells = () =>
-    tree.root.findAllByType('NativeView').filter((node) => node.props.accessibilityElementsHidden)
+    tree.root
+      .findAllByType('NativeView')
+      .filter(
+        (node) => node.props.accessibilityElementsHidden && node.props.pointerEvents !== 'none',
+      )
+  const frame = () =>
+    tree.root.findAllByType('NativeView').find((node) => node.props.pointerEvents === 'none')
   assert.equal(wrapper().props.accessible, false)
   assert.equal(wrapper().props.focusable, false)
   await act(() => wrapper().props.onHoverIn({}))
@@ -1381,26 +1393,30 @@ test('Native OTP input focus, not wrapper focus, determines the active cell and 
     'wrapper focus cannot invent input focus',
   )
   assert.equal(flat(wrapper().props.style).outlineWidth, undefined)
+  assert.equal(flat(frame().props.style).outlineWidth, undefined)
   await act(() => input().props.onFocus({}))
   assert.deepEqual(
     cells().map((node) => flat(node.props.style).outlineWidth),
-    [undefined, 2, undefined],
+    [undefined, undefined, undefined],
   )
-  assert.equal(flat(cells()[1].findByType('NativeText').props.style).fontWeight, '700')
+  assert.equal(flat(frame().props.style).outlineWidth, 2)
+  assert.equal(flat(cells()[1].props.style).borderTopWidth, 2, 'active decoration remains explicit')
+  assert.equal(flat(cells()[1].findByType('NativeText').props.style).fontWeight, undefined)
   await act(() => input().props.onPointerDown({}))
-  assert.equal(flat(cells()[1].props.style).outlineWidth, 2)
+  assert.equal(flat(frame().props.style).outlineWidth, 2)
   assert.equal(
-    flat(cells()[1].props.style).opacity,
+    flat(frame().props.style).opacity,
     0.75,
     'pointer input does not blur a typing field or remove its visible focus',
   )
   await act(() => input().props.onKeyDown({}))
-  assert.equal(flat(cells()[1].props.style).outlineWidth, 2)
+  assert.equal(flat(frame().props.style).outlineWidth, 2)
   await act(() => input().props.onChangeText('12'))
   assert.deepEqual(
-    cells().map((node) => flat(node.props.style).outlineWidth),
+    cells().map((node) => flat(node.props.style).borderTopWidth),
     [undefined, undefined, 2],
   )
+  assert.equal(flat(frame().props.style).outlineWidth, 2)
   await act(() => wrapper().props.onPressIn({}))
   assert.equal(flat(cells()[2].props.style).opacity, 0.5)
   await act(() => wrapper().props.onPressOut({}))
@@ -1412,8 +1428,140 @@ test('Native OTP input focus, not wrapper focus, determines the active cell and 
     false,
   )
   assert.equal(input().props.value, '12')
-  assert.equal(input().props.style.opacity, 0.011)
+  assert.equal(flat(input().props.style).opacity, 0.011)
   assert.equal(input().props.autoComplete, 'sms-otp')
+})
+
+test('Native OTP virtual cells never acquire input focus through any runtime class slot', async (t) => {
+  for (const slot of ['cellClassName', 'activeCellClassName', 'filledCellClassName']) {
+    const tree = await mount(t, HozoOtpInput, {
+      accessibilityLabel: 'Code',
+      length: 3,
+      defaultValue: '1',
+      [slot]: otpCellFocusClasses,
+      inputClassName: 'focus:outline-4 focus-visible:font-bold',
+    })
+    const input = () => tree.root.findByType('NativeTextInput')
+    const cells = () =>
+      tree.root
+        .findAllByType('NativeView')
+        .filter(
+          (node) => node.props.accessibilityElementsHidden && node.props.pointerEvents !== 'none',
+        )
+    const frame = () =>
+      tree.root.findAllByType('NativeView').find((node) => node.props.pointerEvents === 'none')
+    const assertCells = () => {
+      for (const cell of cells()) {
+        assert.equal(
+          flat(cell.props.style).outlineWidth,
+          undefined,
+          `${slot}: cells cannot take focus`,
+        )
+        assert.notEqual(
+          flat(cell.findAllByType('NativeText')[0].props.style).fontWeight,
+          '700',
+          slot,
+        )
+        assert.equal(cell.props.importantForAccessibility, 'no-hide-descendants')
+      }
+      assert.equal(tree.root.findAllByType('NativeTextInput').length, 1)
+    }
+    assertCells()
+    await act(() => input().props.onPointerDown({}))
+    await act(() => input().props.onFocus({}))
+    assert.equal(flat(frame().props.style).outlineWidth, 4, 'the input still receives focus')
+    assertCells()
+    const target = slot === 'activeCellClassName' ? 1 : 0
+    assert.equal(flat(cells()[target].props.style).opacity, 0.5, `${slot}: base styles remain`)
+    assert.equal(
+      flat(cells()[target].props.style).borderTopWidth,
+      2,
+      `${slot}: stacked focus stays off`,
+    )
+    assert.equal(
+      flat(cells()[target].findAllByType('NativeText')[0].props.style).fontWeight,
+      '400',
+      slot,
+    )
+    await act(() => input().props.onKeyDown({}))
+    assertCells()
+    await act(() =>
+      input().props.onSelectionChange({ nativeEvent: { selection: { start: 0, end: 0 } } }),
+    )
+    assertCells()
+    const caret = tree.root.findByProps({ testID: 'hozo-otp-caret' })
+    assert.equal(caret.props.pointerEvents, 'none')
+    assert.equal(caret.props.accessible, false)
+    assert.equal(caret.parent, cells()[0], 'the virtual caret follows the actual selection')
+    assert.notEqual(
+      flat(caret.props.style).fontWeight,
+      '700',
+      'caret is not a second focused field',
+    )
+    await act(() =>
+      input().props.onSelectionChange({ nativeEvent: { selection: { start: 0, end: 1 } } }),
+    )
+    assert.equal(tree.root.findAllByProps({ testID: 'hozo-otp-caret' }).length, 0)
+    assertCells()
+    await act(() => input().props.onBlur({}))
+    assert.equal(flat(frame().props.style).outlineWidth, undefined)
+    assertCells()
+  }
+})
+
+test('Native OTP explicit cell styles still win without borrowing input focus', async (t) => {
+  for (const [slot, styleSlot, target] of [
+    ['cellClassName', 'cellStyle', 0],
+    ['activeCellClassName', 'activeCellStyle', 1],
+    ['filledCellClassName', 'filledCellStyle', 0],
+  ]) {
+    const tree = await mount(t, HozoOtpInput, {
+      accessibilityLabel: 'Code',
+      length: 3,
+      defaultValue: '1',
+      [slot]: 'focus:outline-4 focus-visible:font-bold',
+      [styleSlot]: { outlineWidth: 7, fontWeight: '500', opacity: 0.8 },
+    })
+    const input = () => tree.root.findByType('NativeTextInput')
+    await act(() => input().props.onFocus({}))
+    const cell = tree.root.findAllByType('NativeView')[target]
+    assert.equal(flat(cell.props.style).outlineWidth, 7, slot)
+    assert.equal(flat(cell.props.style).opacity, 0.8, slot)
+    assert.equal(flat(cell.findByType('NativeText').props.style).fontWeight, '500', slot)
+    assert.equal(tree.root.findAllByType('NativeTextInput').length, 1)
+  }
+})
+
+test('Native OTP negated runtime focus variants keep their existing diagnostics', async (t) => {
+  const warnings = []
+  const warn = console.warn
+  console.warn = (message) => warnings.push(String(message))
+  try {
+    const tree = await mount(t, HozoOtpInput, {
+      accessibilityLabel: 'Code',
+      length: 3,
+      defaultValue: '1',
+      cellClassName: otpUnsupportedFocusClasses,
+    })
+    const input = () => tree.root.findByType('NativeTextInput')
+    const assertNoStyles = () => {
+      for (const cell of tree.root.findAllByType('NativeView')) {
+        assert.equal(flat(cell.props.style).opacity, undefined)
+        assert.equal(flat(cell.props.style).borderTopWidth, undefined)
+        assert.equal(flat(cell.findByType('NativeText').props.style).fontWeight, undefined)
+      }
+    }
+    assertNoStyles()
+    await act(() => input().props.onFocus({}))
+    assertNoStyles()
+    await act(() => input().props.onBlur({}))
+    assertNoStyles()
+    for (const candidate of otpUnsupportedFocusClasses.split(' ')) {
+      assert.equal(warnings.filter((message) => message.includes(`\`${candidate}\``)).length, 1)
+    }
+  } finally {
+    console.warn = warn
+  }
 })
 
 test('Native OTP runtime input focus paints an independent, noninteractive field decoration', async (t) => {

@@ -41,6 +41,7 @@ const reads = {
     'packages/patterns/src/chip.tsx',
     'packages/patterns/src/chip-row-interaction.native.ts',
     'packages/patterns/src/text-style.native.ts',
+    'packages/patterns/src/otp-input.native.tsx',
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
