@@ -129,6 +129,17 @@ private compiler callbacks, including negation and supported stacks, with
 explicit styles last. This does not expand arbitrary dynamic-class lowering
 or the candidate resolver's existing variant support.
 
+## Semantic state of Pagination class slots
+
+Pagination's button controls match `disabled:*`/`enabled:*`; link controls
+match neither, and disabled links instead carry `aria-disabled="true"`.
+The same distinction drives Native candidate classes and literal compiled
+slot callbacks. Native still announces the current item as selected, but
+that does not make `aria-selected:*` match: Web uses `aria-current="page"`.
+Use `currentItemClassName` for current-page decoration; arbitrary aria-current
+value selectors are not added here. Boundary activation stays disabled on
+Native for both roles, and explicit slot styles retain precedence.
+
 ## Focus ownership of decorative slots
 
 `OtpInput` has one focus owner: its real input. Put `focus:*` and

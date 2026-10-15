@@ -1053,6 +1053,28 @@ fn chip_semantic_predicates_read_the_class_owners_private_state() {
 }
 
 #[test]
+fn pagination_semantic_predicates_have_per_control_button_link_facts() {
+    let source = r#"import { Pagination } from '@hozo/core'
+      const el = <Pagination pageCount={3} getPageHref={maybeHref}
+        itemClassName="disabled:opacity-25 enabled:border-2 aria-disabled:bg-red-500 not-aria-disabled:hover:text-white aria-selected:outline-4"
+        currentItemClassName="disabled:opacity-50"
+        disabledItemClassName="aria-disabled:border-4" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for guard in ["__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "__hozoSlotAriaDisabled &&", "!(__hozoSlotAriaDisabled) && hovered &&"] {
+        assert!(output.jsx.contains(guard), "{guard}: {}", output.jsx);
+    }
+    for callback in ["hozoItemStyle", "hozoCurrentItemStyle", "hozoDisabledItemStyle"] {
+        assert!(output.jsx.contains(&format!("{callback}={{({{ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled }}")), "{}", output.jsx);
+    }
+    let unsupported = source.replace("aria-selected:outline-4", "aria-checked:outline-4");
+    let parsed = hozo_parser::parse_tsx(&unsupported);
+    let output = lower(&parsed.roots[0].node, &unsupported, &Theme::default());
+    assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{:?}", output.diagnostics);
+}
+
+#[test]
 fn pattern_state_callbacks_do_not_invent_other_slots_or_group_context() {
     for element in [
         r#"<Avatar name="Ada" statusClassName="hover:opacity-50" />"#,
@@ -1129,7 +1151,7 @@ fn pagination_compiles_control_state_slots_not_the_row_or_ellipsis() {
     let output = compile(r#"itemClassName="px-2 hover:text-white active:opacity-50" currentItemClassName="bg-red-500 focus-visible:outline-4" disabledItemClassName="opacity-25 not-hover:border-2" itemStyle={extra} currentItemStyle={currentExtra} disabledItemStyle={disabledExtra}"#);
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     for prop in ["hozoItemStyle", "hozoCurrentItemStyle", "hozoDisabledItemStyle"] {
-        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible }}) => [")), "{}", output.jsx);
+        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled }}) => [")), "{}", output.jsx);
     }
     for expected in ["hovered &&", "pressed &&", "focusVisible &&", "!(hovered) &&", "itemStyle={extra}", "currentItemStyle={currentExtra}", "disabledItemStyle={disabledExtra}"] {
         assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
