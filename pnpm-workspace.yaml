@@ -40,9 +40,8 @@ auditConfig:
     # from users of the built app. Tracked to removal by dropping globby from
     # the compiler (#946).
     - GHSA-vfj7-8cjw-p6xm
-    # node-forge. No release after 1.4.0. Development only: the Expo demo's
-    # CLI (`examples/expo-router-demo`). Remove when a patch ships.
+    # node-forge. No release after 1.4.0, and the newest @expo/cli (57.0.30)
+    # still asks for ^1.3.3, so moving Expo does not drop it. Development
+    # only: the Expo demo's CLI (`examples/expo-router-demo`). Remove when a
+    # patch ships or Expo stops depending on it.
     - GHSA-86w9-cpqp-85rv
-    # http-cache-semantics. No release after 4.2.0. Development only: Astro,
-    # building the landing site. Remove when a patch ships.
-    - GHSA-ch52-4w7c-c8xp
