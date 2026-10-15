@@ -14,6 +14,8 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native'
+import { type ButtonDataProps, buttonDataProps } from './button-host-attributes.ts'
+import { hozoButtonProps } from './button-host-props.native.ts'
 import { HozoLink } from './link.native.tsx'
 import { type NativeTextInputProps, nativeTextInputProps } from './text-input-props.native.ts'
 
@@ -135,7 +137,7 @@ export function Link({
   )
 }
 
-export interface ButtonProps {
+export interface ButtonProps extends ButtonDataProps {
   className?: string
   children?: ReactNode
   onPress?: RNPressableProps['onPress']
@@ -151,6 +153,7 @@ export interface ButtonProps {
   download?: boolean | string
   style?: StyleProp<ViewStyle>
   testID?: string
+  nativeID?: string
 }
 
 export type ButtonNativeProps = ButtonProps
@@ -167,14 +170,18 @@ export function Button({
   prefetch,
   style,
   testID,
+  nativeID,
+  ...metadata
 }: ButtonProps) {
   const shared = {
+    ...hozoButtonProps(buttonDataProps(metadata)),
     disabled,
     accessibilityLabel,
     accessibilityHint,
     accessibilityState: disabled === undefined ? undefined : { disabled },
     style,
     testID,
+    nativeID,
   }
   if (href !== undefined) {
     const NativeLink = HozoLink as unknown as ComponentType<

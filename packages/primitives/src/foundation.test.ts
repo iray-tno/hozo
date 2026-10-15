@@ -29,3 +29,33 @@ test('the canonical package directly renders every foundational Web primitive', 
   assert.match(html, /<div class="hozo-view"/)
   assert.match(html, /data-href="hozo-view-base"/)
 })
+
+test('Button keeps typed host IDs and scalar DOM metadata on its actual action or navigation host', () => {
+  for (const href of [undefined, '/docs']) {
+    const html = renderToStaticMarkup(
+      createElement(
+        Button,
+        {
+          href,
+          nativeID: 'winget-copy',
+          testID: 'copy-test',
+          disabled: true,
+          'data-copy-label': 'コピー',
+          'data-copied-label': '完了',
+          'data-attempt': 3,
+          'data-ready': false,
+        },
+        'Copy',
+      ),
+    )
+    assert.match(html, href ? /<a\b/ : /<button\b/)
+    assert.match(html, /id="winget-copy"/)
+    assert.match(html, /data-testid="copy-test"/)
+    assert.match(html, /data-copy-label="コピー"/)
+    assert.match(html, /data-copied-label="完了"/)
+    assert.match(html, /data-attempt="3"/)
+    assert.match(html, /data-ready="false"/)
+    assert.match(html, href ? /aria-disabled="true"/ : /disabled=""/)
+    if (!href) assert.match(html, /type="button"/)
+  }
+})

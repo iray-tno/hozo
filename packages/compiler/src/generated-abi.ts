@@ -10,6 +10,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoAvatar: '@hozo/core/generated/avatar',
   HozoBackdropFilter: '@hozo/core/generated/backdrop-filter',
   HozoBadge: '@hozo/core/generated/badge',
+  hozoButtonProps: '@hozo/core/generated/button-props',
   HozoChip: '@hozo/core/generated/chip',
   HozoColorPicker: '@hozo/core/generated/color-picker',
   HozoCommandPalette: '@hozo/core/generated/command-palette',
