@@ -1006,7 +1006,7 @@ fn a_chip_is_hozo_chip_and_its_class_lists_are_style_props() {
     // The remove button now consumes a compiler callback with its own state.
     let hovered = compile(r#"<Chip onRemove={drop} removeClassName="hover:bg-red-500">x</Chip>"#);
     assert!(hovered.diagnostics.is_empty(), "{:?}", hovered.diagnostics);
-    assert!(hovered.jsx.contains("hozoRemoveStyle={({ pressed, hovered, focused, focusVisible }) => [hovered && hozoStyles.hozo1_hover]}"), "{}", hovered.jsx);
+    assert!(hovered.jsx.contains("hozoRemoveStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed }) => [hovered && hozoStyles.hozo1_hover]}"), "{}", hovered.jsx);
 }
 
 #[test]
@@ -1019,7 +1019,7 @@ fn chip_static_state_callbacks_keep_base_styles_and_explicit_overrides() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.contains("hozoStyle={({ pressed, hovered, focused, focusVisible }) => ["), "{}", output.jsx);
+    assert!(output.jsx.contains("hozoStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed }) => ["), "{}", output.jsx);
     for guard in ["hovered &&", "pressed &&", "__hozoBp_md && focused &&", "!(hovered) &&", "__hozoEnv_motion_safe && hovered &&"] {
         assert!(output.jsx.contains(guard), "{guard} missing from {}", output.jsx);
     }
@@ -1030,6 +1030,26 @@ fn chip_static_state_callbacks_keep_base_styles_and_explicit_overrides() {
     // These are static styles: no candidate-map lookup, per-slot hooks or
     // extra Pressable wrapping, and no state can escape into a Text child.
     assert!(!output.jsx.contains("hozoClasses(") && !output.jsx.contains("HozoText"), "{}", output.jsx);
+}
+
+#[test]
+fn chip_semantic_predicates_read_the_class_owners_private_state() {
+    let source = r#"import { Chip } from '@hozo/core'
+      const el = <Chip defaultSelected={true} onRemove={maybeRemove}
+        className="aria-pressed:bg-blue-500 not-aria-pressed:opacity-50 disabled:opacity-25 enabled:border-2 aria-pressed:hover:text-white aria-checked:outline-4 aria-disabled:border-4"
+        removeClassName="disabled:opacity-25 enabled:border-2 aria-pressed:bg-red-500" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for guard in ["__hozoSlotAriaPressed &&", "!(__hozoSlotAriaPressed) &&", "__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "__hozoSlotAriaPressed && hovered &&"] {
+        assert!(output.jsx.contains(guard), "{guard}: {}", output.jsx);
+    }
+    assert!(output.jsx.contains("hozoRemoveStyle={({"), "{}", output.jsx);
+    assert!(!output.jsx.contains("accessibilityState"), "RN announcements remain the pattern's job: {}", output.jsx);
+    let unsupported = source.replace("aria-checked:outline-4", "aria-expanded:outline-4");
+    let parsed = hozo_parser::parse_tsx(&unsupported);
+    let output = lower(&parsed.roots[0].node, &unsupported, &Theme::default());
+    assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{:?}", output.diagnostics);
 }
 
 #[test]
