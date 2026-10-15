@@ -104,6 +104,10 @@ export function HozoLink({
       // There is no `disabled` on an anchor. The pair below is what a
       // disabled link is: announced as unavailable, and not followed.
       'aria-disabled': disabled ? true : undefined,
+      // And out of the keyboard focus order, which is what `disabled`
+      // means on every primitive (docs/decisions/001). The `href` stays,
+      // so the anchor is still a link; it just is not a tab stop (#943).
+      tabIndex: disabled ? -1 : undefined,
       // `disabled:` compiles to `[data-hozo-disabled]` rather than to
       // `:disabled`, which matches form controls only. Without the
       // attribute the utility silently stops matching on this element
