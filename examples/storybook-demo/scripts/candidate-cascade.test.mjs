@@ -142,6 +142,100 @@ function evaluate(code, globals = {}) {
   return module.exports
 }
 
+test('CommandPalette shortcuts remain decorative while the real input keeps DOM focus', {
+  skip: !executablePath,
+}, async () => {
+  const classes =
+    'border-2 font-normal focus:outline-4 focus-visible:font-bold focus:focus-visible:border-4'
+  const inputClasses = 'focus:outline-4 focus-visible:font-bold'
+  const css = (
+    await compile(
+      '@theme { --font-weight-normal: 400; --font-weight-bold: 700; } @tailwind utilities;',
+    )
+  ).build([...classes.split(' '), ...inputClasses.split(' ')])
+  assert.ok(css.includes('font-weight: var(--font-weight-bold)'))
+  const bundle = await build({
+    stdin: {
+      contents: `
+        import React from 'react';
+        import {createRoot} from 'react-dom/client';
+        import {CommandPalette} from '@hozo/patterns';
+        window.paletteSelections = []; window.paletteClosures = [];
+        const commands = ['Alpha', 'Beta'].map(label => ({id: label, label,
+          shortcut: label[0], onSelect: () => window.paletteSelections.push(label)}));
+        createRoot(document.getElementById('root')).render(<CommandPalette open portal={false}
+          commands={commands} onOpenChange={open => window.paletteClosures.push(open)}
+          shortcutClassName=${JSON.stringify(classes)} inputClassName=${JSON.stringify(inputClasses)}/>);
+      `,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(`<style>${css}</style><div id="root"></div>`)
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    const field = page.getByRole('combobox')
+    await page.waitForFunction(() => document.activeElement?.getAttribute('role') === 'combobox')
+    assert.equal(await field.evaluate((e) => getComputedStyle(e).outlineWidth), '4px')
+    assert.equal(await field.evaluate((e) => getComputedStyle(e).fontWeight), '700')
+    const shortcuts = page.getByRole('option').locator('span[aria-hidden]')
+    assert.equal(await shortcuts.count(), 2)
+    const assertShortcuts = async () => {
+      const results = await shortcuts.evaluateAll((nodes) =>
+        nodes.map((e) => {
+          // A decorative shortcut cannot take focus, even via a programmatic request.
+          e.focus()
+          const style = getComputedStyle(e)
+          return {
+            focused: e.matches(':focus'),
+            visible: e.matches(':focus-visible'),
+            outline: style.outlineWidth,
+            weight: style.fontWeight,
+            border: style.borderTopWidth,
+          }
+        }),
+      )
+      for (const result of results) {
+        assert.equal(result.focused, false)
+        assert.equal(result.visible, false)
+        assert.notEqual(result.outline, '4px')
+        assert.equal(result.weight, '400')
+        assert.equal(result.border, '2px')
+      }
+      assert.equal(await field.evaluate((e) => e === document.activeElement), true)
+    }
+    await assertShortcuts()
+    await page.keyboard.press('ArrowDown')
+    assert.equal(
+      await field.getAttribute('aria-activedescendant'),
+      await page.getByRole('option').nth(1).getAttribute('id'),
+    )
+    await assertShortcuts()
+    await shortcuts.nth(1).click()
+    assert.deepEqual(errors, [], 'browser callbacks must not throw')
+    assert.deepEqual(await page.evaluate(() => window.paletteSelections), ['Beta'])
+    assert.equal(await field.evaluate((e) => e === document.activeElement), true)
+    await field.fill('Alpha')
+    await page.waitForFunction(() => document.querySelectorAll('[role="option"]').length === 1)
+    await assertShortcuts()
+    await page.keyboard.press('Enter')
+    assert.deepEqual(errors, [], 'browser callbacks must not throw')
+    assert.deepEqual(await page.evaluate(() => window.paletteSelections), ['Beta', 'Alpha'])
+    assert.deepEqual(await page.evaluate(() => window.paletteClosures), [false, false])
+  } finally {
+    await page.close()
+  }
+})
+
 test('OTP focus belongs to the one input, not active or filled decorative cells', {
   skip: !executablePath,
 }, async () => {

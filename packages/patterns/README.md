@@ -114,7 +114,7 @@ export function Settings({ open, onClose }) {
 }
 ```
 
-## Verification Matrix: `Chip`, `Avatar`, `Pagination`, `Stepper`, `OtpInput`, `CommandPalette`, `ColorPicker`
+## Focus ownership of decorative slots
 
 `OtpInput` has one focus owner: its real input. Put `focus:*` and
 `focus-visible:*` on `inputClassName`. The wrapper and virtual cells do not
@@ -125,6 +125,15 @@ containing a character. Neither adds a focus stop. The virtual caret follows
 the actual input selection independently of these class lists.
 Negated runtime state variants still report their existing unsupported-class
 diagnostics; this does not expand which variants compile on a virtual cell.
+
+`CommandPalette`'s `shortcutClassName` styles a decorative Web span / Native
+View, not another focusable command. Native shortcuts do not borrow an item's
+`focus:*` or `focus-visible:*`; unconditional shortcut decoration and explicit
+`shortcutStyle` remain available. This does not change the actual Native
+button's focus handling, the Web input's active-descendant model, or which
+static shortcut variants the compiler accepts.
+
+## Verification Matrix: `Chip`, `Avatar`, `Pagination`, `Stepper`, `OtpInput`, `CommandPalette`, `ColorPicker`
 
 These arrived after 0.2.0 (#141, #144, #149, #150, #152, #153). What has checked them, and what has not:
 
