@@ -1272,12 +1272,14 @@ pub(super) fn render_node(
     }
 
     if needs_pressed_fn {
-        let state = if needs_focus_visible {
-            "{ pressed, hovered, focused, focusVisible }"
+        let state = if node.primitive == Primitive::Chip && pattern_style_prop.is_some() {
+            format!("{{ pressed, hovered, focused, focusVisible{} }}", crate::pattern::semantic_parameters(node.primitive))
+        } else if needs_focus_visible {
+            "{ pressed, hovered, focused, focusVisible }".to_string()
         } else if needs_hover_or_focus || rendered_component == "HozoText" {
-            "{ pressed, hovered, focused }"
+            "{ pressed, hovered, focused }".to_string()
         } else {
-            "{ pressed }"
+            "{ pressed }".to_string()
         };
         props_text.push_str(&format!(
             " {}={{({state}) => [{}]}}",
@@ -1730,8 +1732,9 @@ pub(super) fn render_node(
                 };
                 parts.extend(pressed);
                 let style_prop = owner.style_prop;
+                let semantic = crate::pattern::semantic_parameters(node.primitive);
                 props_text.push_str(&format!(
-                    " {style_prop}={{({{ pressed, hovered, focused, focusVisible{availability} }}) => [{}]}}",
+                    " {style_prop}={{({{ pressed, hovered, focused, focusVisible{availability}{semantic} }}) => [{}]}}",
                     parts.join(", "),
                 ));
                 parts.clear();
