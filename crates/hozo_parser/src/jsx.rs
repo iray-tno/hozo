@@ -1247,15 +1247,8 @@ fn build_node(
             }
             // Not on a chip, whose `disabled` is a prop of the pattern rather
             // than a host element's state to translate.
-            "disabled" if primitive != Primitive::Chip => match &attr.value {
-                None => props.disabled = Some(ConditionExpr::Static(true)),
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.disabled = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
+            "disabled" if primitive != Primitive::Chip =>
+                capture_flag(attr, &mut props.disabled, &mut props.passthrough, scope, diagnostics, consumed),
             "replace"
                 if matches!(
                     primitive,
