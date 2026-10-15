@@ -832,8 +832,18 @@ pub(super) fn render_node(
     // Passed to every child, and to the `Text` wrapper a raw string gets.
     // The element's own come after what it inherited, for the same
     // last-wins reason.
-    let descend: Vec<StyleDeclaration> =
-        inherited.iter().cloned().chain(text_declarations.iter().cloned()).collect();
+    //
+    // `disabled:` is this element's state, and a child has no `disabled`
+    // of its own to drive it: handed down as it was, a nested Text was told
+    // its `disabled` prop was missing and the style was never applied. So
+    // it goes down already bound to this element's prop, the way a
+    // package component's does to the caller's (#950).
+    let disabled = node.props.disabled.as_ref();
+    let descend: Vec<StyleDeclaration> = inherited
+        .iter()
+        .cloned()
+        .chain(text_declarations.iter().map(|d| bound_to_disabled(d, disabled)))
+        .collect();
 
     // Handing them down is only half the job: they have to land somewhere.
     // Reported here rather than dropped, because a text size that reaches
@@ -2048,4 +2058,16 @@ fn renders_text(component: &str) -> bool {
             | "HozoTableCaption"
             | "HozoTableCell"
     )
+}
+
+/// `disabled:` and `enabled:` on a declaration handed to a child, rewritten
+/// to the expression that drives them here. Left alone when this element
+/// has no `disabled` prop: its own declaration already says so.
+fn bound_to_disabled(declaration: &StyleDeclaration, disabled: Option<&ConditionExpr>) -> StyleDeclaration {
+    let condition = match (&declaration.condition, disabled) {
+        (Condition::Disabled, Some(expr)) => Condition::Expr(expr.clone()),
+        (Condition::Enabled, Some(expr)) => Condition::Expr(ConditionExpr::Not(Box::new(expr.clone()))),
+        (condition, _) => condition.clone(),
+    };
+    StyleDeclaration { property: declaration.property.clone(), condition }
 }
