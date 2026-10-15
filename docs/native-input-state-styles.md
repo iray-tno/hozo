@@ -58,10 +58,11 @@ auto-growing behavior. The disabled cursor uses `auto`, as Button does, rather
 than silently dropping `not-allowed` on Native. These choices replace Input's
 previous browser-only resize handle and not-allowed cursor.
 
-Static `placeholder:text-*` colours lower to `placeholderTextColor`, including
+Static palette/theme/hex `placeholder:text-*` colours lower to `placeholderTextColor`, including
 the theme's paired dark colour and explicit `dark:placeholder:text-*`. They
 do not recolour the entered value. Other pseudo-element styles (for example
-font weight) and conditional stacks beyond dark mode still diagnose; an
+font weight), context-dependent or arbitrary CSS-function colours, and
+conditional stacks beyond dark mode still diagnose; an
 authored `placeholderTextColor` prop wins. Static UI Input renders distinct
 input/textarea branches on Web, rather than silently compiling a dynamic
 multiline prop to input. Only caller-provided classes need the candidate sheet.

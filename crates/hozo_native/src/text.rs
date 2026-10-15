@@ -405,9 +405,10 @@ pub(super) fn placeholder_colour(declaration: &StyleDeclaration) -> Option<(&hoz
         (
             StyleProperty::TextColor(c),
             Condition::PseudoElement(hozo_ir::PseudoElement::Placeholder),
-        ) => Some((c, false)),
+        ) if absolute_placeholder_colour(c) => Some((c, false)),
         (StyleProperty::TextColor(c), Condition::All(conditions))
-            if conditions.len() == 2
+            if absolute_placeholder_colour(c)
+                && conditions.len() == 2
                 && conditions.contains(&Condition::Dark)
                 && conditions.contains(&Condition::PseudoElement(hozo_ir::PseudoElement::Placeholder)) =>
         {
@@ -416,6 +417,21 @@ pub(super) fn placeholder_colour(declaration: &StyleDeclaration) -> Option<(&hoz
         // Colour is one RN prop, not arbitrary pseudo-element typography or
         // an interaction callback. Unsupported stacks still diagnose.
         _ => None,
+    }
+}
+
+// This new pseudo-element adapter is deliberately narrower than CSS. A
+// current/inherited colour needs context, and arbitrary CSS colour functions
+// are not automatically RN ColorValues. Do not bless those just because a
+// colour-shaped prop was emitted; resolved tokens and hex need no CSS engine.
+fn absolute_placeholder_colour(colour: &hozo_ir::Color) -> bool {
+    match colour {
+        hozo_ir::Color::Token(token) => !matches!(hozo_ir::split_color_alpha(token).0, "current" | "inherit"),
+        hozo_ir::Color::Keyword("transparent") => true,
+        hozo_ir::Color::Css(value) => value.strip_prefix('#').is_some_and(|hex| {
+            matches!(hex.len(), 3 | 4 | 6 | 8) && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
+        }),
+        _ => false,
     }
 }
 

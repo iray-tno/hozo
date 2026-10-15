@@ -202,7 +202,14 @@ fn placeholder_pseudo_colour_and_dark_mode_are_props_not_value_styles() {
 
 #[test]
 fn unsupported_placeholder_styles_and_stacks_still_diagnose() {
-    for classes in ["placeholder:font-bold", "focus:placeholder:text-red-500", "placeholder:text-red-500 md:placeholder:text-blue-500"] {
+    for classes in [
+        "placeholder:font-bold",
+        "focus:placeholder:text-red-500",
+        "placeholder:text-red-500 md:placeholder:text-blue-500",
+        "placeholder:text-current",
+        "placeholder:text-inherit",
+        "placeholder:text-[color(display-p3_1_0_0)]",
+    ] {
         let source = format!("import {{TextInput}} from '@hozo/core'; export function C() {{ return <TextInput accessibilityLabel=\"Field\" className=\"{classes}\"/> }}");
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
