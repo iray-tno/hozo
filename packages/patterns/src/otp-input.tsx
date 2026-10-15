@@ -1,6 +1,6 @@
 import { useHozoMessage } from '@hozo/behaviors'
-import { type ChangeEvent, useId, useState } from 'react'
-import { type OtpType, otpActiveIndex, otpValue } from './otp-rules.ts'
+import { type ChangeEvent, type SyntheticEvent, useId, useState } from 'react'
+import { type OtpSelection, type OtpType, otpActiveIndex, otpCaret, otpValue } from './otp-rules.ts'
 
 export type { OtpType }
 
@@ -18,6 +18,9 @@ export interface HozoOtpInputProps {
   mask?: boolean
   autoFocus?: boolean
   disabled?: boolean
+  readOnly?: boolean
+  /** A steady virtual caret follows the real field selection; false opts out. */
+  showCaret?: boolean
   /** The field's name -- "Verification code". Required: a field with none is a field nobody can find. */
   accessibilityLabel: string
   /** The box that holds the cells. */
@@ -54,8 +57,9 @@ export interface HozoOtpInputProps {
  * focus handed between elements.
  *
  * The input is transparent and laid over the cells, so a press on any cell is
- * a press on the field. Its caret is hidden and drawn by the cell the next
- * character goes into (`activeCellClassName`); its focus outline is the
+ * a press on the field. Its native caret is hidden; a steady virtual bar
+ * follows its reported collapsed selection. `activeCellClassName` marks that
+ * cell, or the next-character cell before a selection is known. Its focus outline is the
  * browser's own, round the whole field, so focus is visible whatever the
  * cells look like.
  *
@@ -74,6 +78,8 @@ export function HozoOtpInput({
   mask = false,
   autoFocus,
   disabled,
+  readOnly,
+  showCaret = true,
   accessibilityLabel,
   className,
   cellClassName,
@@ -86,13 +92,32 @@ export function HozoOtpInput({
   const hintId = useId()
   const [uncontrolled, setUncontrolled] = useState(() => otpValue(defaultValue ?? '', length, type))
   const [focused, setFocused] = useState(false)
+  const [selection, setSelection] = useState<OtpSelection | null>(null)
   const code = value !== undefined ? otpValue(value, length, type) : uncontrolled
   const characters = Array.from(code)
-  const active = otpActiveIndex(code, length)
+  const caret = otpCaret(code, length, selection)
+  const active = caret?.index ?? otpActiveIndex(code, length)
+  const show = showCaret && focused && !disabled && !readOnly
+
+  const select = (event: SyntheticEvent<HTMLInputElement>) => {
+    const field = event.currentTarget
+    setSelection(
+      field.selectionStart === null || field.selectionEnd === null
+        ? null
+        : {
+            value: field.value,
+            start: field.selectionStart,
+            end: field.selectionEnd,
+          },
+    )
+  }
 
   const change = (event: ChangeEvent<HTMLInputElement>) => {
     const next = otpValue(event.target.value, length, type)
     if (value === undefined) setUncontrolled(next)
+    // Sanitization/controlled updates may move the actual DOM selection.
+    // Wait for its next selection observation instead of predicting it.
+    setSelection(null)
     onChange?.(next)
     if (Array.from(next).length === length && next !== code) onComplete?.(next)
   }
@@ -107,11 +132,19 @@ export function HozoOtpInput({
         maxLength={length * 2}
         value={code}
         onChange={change}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
+        onFocus={(event) => {
+          setFocused(true)
+          select(event)
+        }}
+        onBlur={() => {
+          setFocused(false)
+          setSelection(null)
+        }}
+        onSelect={select}
         // biome-ignore lint/a11y/noAutofocus: an author asks for it, on a screen whose only job is this code
         autoFocus={autoFocus}
         disabled={disabled}
+        readOnly={readOnly}
         aria-label={accessibilityLabel}
         aria-describedby={hintId}
         className={inputClassName}
@@ -136,8 +169,26 @@ export function HozoOtpInput({
             aria-hidden
             className={classes}
             data-hozo-filled={character !== undefined ? '' : undefined}
+            style={{ position: 'relative' }}
           >
             {character === undefined ? '' : mask ? '•' : character}
+            {show && caret?.index === index ? (
+              <span
+                aria-hidden
+                data-hozo-otp-caret=""
+                style={{
+                  position: 'absolute',
+                  pointerEvents: 'none',
+                  top: '50%',
+                  left: '50%',
+                  transform: `translate(${character === undefined ? '-50%' : caret.after ? '0.35em' : '-0.65em'}, -50%)`,
+                  userSelect: 'none',
+                  lineHeight: 1,
+                }}
+              >
+                │
+              </span>
+            ) : null}
           </span>
         )
       })}

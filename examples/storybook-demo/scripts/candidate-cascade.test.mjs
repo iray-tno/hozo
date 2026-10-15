@@ -543,6 +543,10 @@ async function patternHarness(cacheName, look) {
             useRef: (current) => ({ current }),
             useMemo: (fn) => fn(),
             useEffect: () => {},
+            // This stateless probe does not mount React. OTP's committed
+            // selection-buffer effect is exercised by the real renderer
+            // in otp-caret.test.ts, not by these resting style lookups.
+            useLayoutEffect: () => {},
           },
           'react-native': {
             View: 'View',
