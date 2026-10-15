@@ -110,3 +110,5 @@ export * from '@hozo/primitives'
 export { Link, type LinkProps, Text, type TextProps } from '@hozo/primitives'
 export * from '@hozo/semantics'
 export * from '@hozo/typography'
+// Joins class strings in the shape the compiler decomposes (#873).
+export { type CxValue, cx } from './cx.ts'
