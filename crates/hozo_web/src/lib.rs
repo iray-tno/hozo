@@ -1523,8 +1523,30 @@ fn render_node(
         // when the value is falsy. Everything else Hozo maps to a <div>
         // (Pressable, View, Text), where the native attribute has no
         // effect at all, so ARIA is the honest choice there instead.
-        let attr_name = if node.primitive == Primitive::Button || tag == "Pressable" { "disabled" } else { "aria-disabled" };
-        attrs.push_str(&format!(" {attr_name}={{{}}}", render_condition_expr(source, disabled)));
+        //
+        // Decided by the tag actually rendered, not the primitive: a
+        // `Button` with a destination renders `<a>`, where `disabled` is
+        // an invalid attribute nothing reads (#943).
+        // An element the compiler keeps as a component (`ButtonPrimitive`
+        // with a spread that may carry `href`) takes the portable
+        // `disabled` prop and decides its own host; `aria-disabled` there
+        // reached a component that does not read it, and the state was lost.
+        let component = tag.starts_with(|c: char| c.is_ascii_uppercase());
+        let native = component || matches!(tag, "button" | "input" | "select" | "textarea");
+        let attr_name = if native { "disabled" } else { "aria-disabled" };
+        let expr = render_condition_expr(source, disabled);
+        attrs.push_str(&format!(" {attr_name}={{{expr}}}"));
+        // A disabled link leaves the keyboard focus order, which is what
+        // `disabled` means on every primitive (docs/decisions/001). A
+        // `<button>` leaves it natively; an anchor keeps its `href` and
+        // needs telling. An author's own `tabIndex` or `focusable` wins.
+        let authored_focus = node.props.focusable.is_some()
+            || node.props.passthrough.iter().any(|prop| {
+                !prop.is_spread && source_text(source, prop.span).trim_start().starts_with("tabIndex")
+            });
+        if tag == "a" && !authored_focus {
+            attrs.push_str(&format!(" tabIndex={{({expr}) ? -1 : undefined}}"));
+        }
     }
 
     // React Native's `focusable`, in the spelling the DOM has.
@@ -2927,6 +2949,42 @@ export function Login() {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(output.jsx.contains("disabled={isLoading}"));
         assert!(!output.jsx.contains("aria-disabled"));
+    }
+
+    /// The rendered tag decides, not the primitive: a Button with a
+    /// destination is an anchor, which has no `disabled` (#943). It is
+    /// announced unavailable and leaves the tab order instead.
+    #[test]
+    fn a_disabled_button_with_a_destination_is_an_aria_disabled_anchor_out_of_the_tab_order() {
+        let source = r#"
+            import { Button } from '@hozo/core'
+            const el = <Button href="/docs" disabled={off}>Docs</Button>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.starts_with("<a "), "{}", output.jsx);
+        assert!(output.jsx.contains("aria-disabled={off}"), "{}", output.jsx);
+        assert!(!output.jsx.contains(" disabled={"), "{}", output.jsx);
+        assert!(output.jsx.contains("tabIndex={(off) ? -1 : undefined}"), "{}", output.jsx);
+        assert!(output.jsx.contains("data-hozo-disabled="), "{}", output.jsx);
+    }
+
+    /// A Button kept as a component -- a spread may carry `href` -- decides
+    /// its own host, so it is handed the portable `disabled` prop. Handing
+    /// it `aria-disabled` lost the state: `@hozo/ui`'s disabled toolbar
+    /// button stopped being announced disabled.
+    #[test]
+    fn a_button_kept_as_a_component_keeps_the_portable_disabled_prop() {
+        let source = r#"
+            import { Button } from '@hozo/primitives'
+            const el = <Button {...rest} disabled={off}>Go</Button>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.starts_with("<Button"), "{}", output.jsx);
+        assert!(output.jsx.contains(" disabled={off}"), "{}", output.jsx);
+        assert!(!output.jsx.contains("aria-disabled"), "{}", output.jsx);
+        assert!(!output.jsx.contains("tabIndex"), "{}", output.jsx);
     }
 
     #[test]
