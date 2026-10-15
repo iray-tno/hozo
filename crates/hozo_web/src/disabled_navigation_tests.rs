@@ -19,7 +19,7 @@ fn unavailable_destinations_use_the_anchor_contract_not_the_source_component_nam
         assert!(output.jsx.starts_with("<a "), "{}", output.jsx);
         for expected in [
             "aria-disabled={blocked}",
-            "tabIndex={(blocked) ? -1 : (undefined)}",
+            "tabIndex={(blocked) ? -1 : undefined}",
             "data-hozo-disabled=",
             "onClick=",
             "onAuxClick=",

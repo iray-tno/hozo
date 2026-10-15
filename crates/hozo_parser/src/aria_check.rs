@@ -856,6 +856,17 @@ mod focus_tests {
                 .is_empty()
         );
     }
+
+    #[test]
+    fn known_tab_stops_on_disabled_destinations_are_reported_without_warning_on_enabled_or_negative_cases() {
+        for tab in ["0", "3"] {
+            assert_eq!(codes(&format!(r#"<Link href="/docs" disabled tabIndex={{{tab}}}>Docs</Link>"#)),
+                vec![DiagnosticCode::FocusableDisabledUnsupported]);
+        }
+        for props in ["disabled tabIndex={-1}", "disabled={false} focusable", "disabled={false} tabIndex={0}", "tabIndex={0}"] {
+            assert!(codes(&format!(r#"<Link href="/docs" {props}>Docs</Link>"#)).is_empty(), "{props}");
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1522,7 +1522,7 @@ fn render_node(
                 let enabled = node.props.focusable.as_ref().map(|value|
                     format!("({}) ? 0 : -1", render_condition_expr(source, value))
                 ).unwrap_or_else(|| "undefined".to_string());
-                attrs.push_str(&format!(" tabIndex={{({disabled}) ? -1 : ({enabled})}}"));
+                attrs.push_str(&format!(" tabIndex={{({disabled}) ? -1 : {enabled}}}"));
             }
             if !node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("onAuxClick")) {
                 attrs.push_str(&format!(" onAuxClick={{({disabled}) ? (event) => event.preventDefault() : undefined}}"));
@@ -1553,6 +1553,9 @@ fn render_node(
         // when the value is falsy. Everything else Hozo maps to a <div>
         // (Pressable, View, Text), where the native attribute has no
         // effect at all, so ARIA is the honest choice there instead.
+        // The actual rendered tag decides, not Primitive::Button, which
+        // may be an anchor. Retained component aliases keep the portable
+        // prop because they choose their host at runtime (#943).
         let attr_name = if is_hozo_component || matches!(tag, "button" | "input" | "textarea" | "select") { "disabled" } else { "aria-disabled" };
         attrs.push_str(&format!(" {attr_name}={{{}}}", render_condition_expr(source, disabled)));
     }
@@ -2974,6 +2977,42 @@ export function Login() {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(output.jsx.contains("disabled={isLoading}"));
         assert!(!output.jsx.contains("aria-disabled"));
+    }
+
+    /// The rendered tag decides, not the primitive: a Button with a
+    /// destination is an anchor, which has no `disabled` (#943). It is
+    /// announced unavailable and leaves the tab order instead.
+    #[test]
+    fn a_disabled_button_with_a_destination_is_an_aria_disabled_anchor_out_of_the_tab_order() {
+        let source = r#"
+            import { Button } from '@hozo/core'
+            const el = <Button href="/docs" disabled={off}>Docs</Button>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.starts_with("<a "), "{}", output.jsx);
+        assert!(output.jsx.contains("aria-disabled={off}"), "{}", output.jsx);
+        assert!(!output.jsx.contains(" disabled={"), "{}", output.jsx);
+        assert!(output.jsx.contains("tabIndex={(off) ? -1 : undefined}"), "{}", output.jsx);
+        assert!(output.jsx.contains("data-hozo-disabled="), "{}", output.jsx);
+    }
+
+    /// A Button kept as a component -- a spread may carry `href` -- decides
+    /// its own host, so it is handed the portable `disabled` prop. Handing
+    /// it `aria-disabled` lost the state: `@hozo/ui`'s disabled toolbar
+    /// button stopped being announced disabled.
+    #[test]
+    fn a_button_kept_as_a_component_keeps_the_portable_disabled_prop() {
+        let source = r#"
+            import { Button } from '@hozo/primitives'
+            const el = <Button {...rest} disabled={off}>Go</Button>
+            "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.starts_with("<Button"), "{}", output.jsx);
+        assert!(output.jsx.contains(" disabled={off}"), "{}", output.jsx);
+        assert!(!output.jsx.contains("aria-disabled"), "{}", output.jsx);
+        assert!(!output.jsx.contains("tabIndex"), "{}", output.jsx);
     }
 
     #[test]
