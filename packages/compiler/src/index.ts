@@ -157,6 +157,12 @@ export interface TextForwardingSummary {
   reexports: { specifier: string; imported: string; exported: string }[]
 }
 
+/** One package's text forwarding: the specifier callers import from, and its components. */
+export interface TextForwardingModule {
+  module: string
+  components: TextForwardingComponent[]
+}
+
 export interface TextForwardingComponent {
   name: string
   props: { name: string; default?: string | null; values: string[] }[]
@@ -313,6 +319,7 @@ interface NativeCompiler {
   ): CompiledNativeModule
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
   setStylexModules(modules: StylexModuleSource[]): void
+  setTextForwarding(modules: TextForwardingModule[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
 }
 
@@ -475,6 +482,12 @@ export interface Compiler {
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
   /** Replace the project's parsed cross-file StyleX registry. */
   setStylexModules(modules: StylexModuleSource[]): void
+  /**
+   * Replace what components from the project's dependencies hand a nested
+   * Text, from their packages' manifests (#950). Native only: on the Web,
+   * CSS inheritance already carries text styles down.
+   */
+  setTextForwarding(modules: TextForwardingModule[]): void
   compileCanvasPaints(source: string, native: boolean): CompiledCanvasPaint[]
   /**
    * The modules the compiler will lower a primitive-named tag from.
@@ -558,6 +571,7 @@ export function createCompiler(
     },
     unfoldJsxCalls: (source) => inner.unfoldJsxCalls(source) ?? undefined,
     setStylexModules: (modules) => inner.setStylexModules(modules),
+    setTextForwarding: (modules) => inner.setTextForwarding(modules),
     compileCanvasPaints: (source, native) => inner.compileCanvasPaints(source, native),
     sources: allowed,
   }

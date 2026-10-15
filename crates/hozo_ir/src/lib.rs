@@ -1040,6 +1040,44 @@ impl Node {
 pub struct NestedNode {
     pub span: SourceSpan,
     pub node: Node,
+    /// The components between the carried expression and this element,
+    /// outermost first. See `EnclosingComponent`.
+    pub enclosing: Vec<EnclosingComponent>,
+    /// Text styles those components hand down, from their package's
+    /// manifest (#950). Empty until something resolves `enclosing`.
+    pub forwarded: Vec<StyleDeclaration>,
+}
+
+/// A component the compiler does not model, written around an element it
+/// does: the `Button` in `<Button tone="accent"><Text>Save</Text></Button>`.
+///
+/// Recorded as facts about the call site only. What the component does with
+/// them is not knowable from this file; a package's manifest says, and is
+/// applied after parsing (#950).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnclosingComponent {
+    /// The tag's local binding.
+    pub local: String,
+    pub props: Vec<EnclosingProp>,
+    /// A spread may set any prop, so what the literal props say is not
+    /// the whole story.
+    pub spread: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EnclosingProp {
+    pub name: String,
+    pub value: EnclosingValue,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EnclosingValue {
+    /// `tone="accent"` or `tone={'accent'}`.
+    Literal(String),
+    /// `disabled`, with no value.
+    True,
+    /// Anything else, kept by its source range.
+    Expr(ExprRef),
 }
 
 impl Child {

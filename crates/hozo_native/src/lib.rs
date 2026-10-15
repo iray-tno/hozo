@@ -203,6 +203,25 @@ impl NameAllocator {
 const STYLE_OBJECT: &str = "hozoStyles";
 
 pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
+    lower_forwarded(root, &[], source, theme)
+}
+
+/// The text declarations a component around the root hands it, out of
+/// the declarations a package's manifest gave for it (#950). The rest, a
+/// background or a padding, are the component's own box.
+fn forwarded_text(forwarded: &[StyleDeclaration]) -> impl Iterator<Item = &StyleDeclaration> {
+    forwarded.iter().filter(|d| text::is_text_property(&d.property))
+}
+
+/// `lower`, for a root inside components whose package's manifest says
+/// what they hand down (`forwarded`, from `Root::forwarded`).
+pub fn lower_forwarded(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+) -> LowerOutput {
+    let inherited: Vec<StyleDeclaration> = forwarded_text(forwarded).cloned().collect();
     let mut allocator = NameAllocator { next: 0 };
     let mut style_entries: Vec<StyleEntry> = Vec::new();
     // See `StyleEntry`: the third field says which palette the entry is
@@ -219,7 +238,7 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
         None,
         None,
         theme,
-        &[],
+        &inherited,
         None,
         // Nothing above the root, so nothing above it is opaque.
         false,
@@ -631,6 +650,11 @@ fn render_verbatim(
     let mut cursor = expr_ref.0.start as usize;
     for entry in nested {
         out.push_str(&source[cursor..entry.span.start as usize]);
+        // After what the elements above hand down, so a component written
+        // in between, and nearer, wins.
+        let inherited: Vec<StyleDeclaration> =
+            inherited.iter().chain(forwarded_text(&entry.forwarded)).cloned().collect();
+        let inherited = inherited.as_slice();
         let ambient_size = inherited.iter().rev().find_map(|d| match &d.property {
             hozo_ir::StyleProperty::FontSize(hozo_ir::Length::Px(px))
                 if d.condition == hozo_ir::Condition::Always =>
