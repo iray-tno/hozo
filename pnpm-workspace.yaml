@@ -21,3 +21,28 @@ overrides:
   # `@hozo/test-reporter` > allure, which pins no newer one yet; remove this
   # once allure's own range moves past 4.7.9.
   handlebars: '>=4.7.10'
+  # GHSA-2883-xcg3-v3hh (high), patched in 4.3.2. Pinned at 4.3.1 by part of
+  # the landing site's Astro tree; a patch release, so the same API. Remove
+  # once nothing in the tree pins below 4.3.2.
+  js-yaml@4: '>=4.3.2 <5'
+  # GHSA-vc2v-76pw-4v95 (high), patched in 1.8.2. Pinned at 1.8.1 through the
+  # Expo demo's dev server. Remove once Expo's range moves past it.
+  compression@1: '>=1.8.2 <2'
+# High and above fail `pnpm audit` here and in CI (#934). These are the
+# findings with no patched release, accepted one by one rather than by a
+# lower threshold. Each says where it reaches the tree and when it goes.
+auditConfig:
+  ignoreGhsas:
+    # braces, deeply nested patterns can exhaust the stack. No release after
+    # 3.0.3. Reaches the tree through `@hozo/compiler` > globby > fast-glob >
+    # micromatch, which consumers install too, so this one is ours: the
+    # patterns are the project's own include and exclude globs, not input
+    # from users of the built app. Tracked to removal by dropping globby from
+    # the compiler (#946).
+    - GHSA-vfj7-8cjw-p6xm
+    # node-forge. No release after 1.4.0. Development only: the Expo demo's
+    # CLI (`examples/expo-router-demo`). Remove when a patch ships.
+    - GHSA-86w9-cpqp-85rv
+    # http-cache-semantics. No release after 4.2.0. Development only: Astro,
+    # building the landing site. Remove when a patch ships.
+    - GHSA-ch52-4w7c-c8xp
