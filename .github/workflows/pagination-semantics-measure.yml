@@ -1,0 +1,34 @@
+name: pagination-semantics-measure
+on:
+  push:
+    branches: [chore/pagination-semantics-measure]
+permissions:
+  contents: read
+jobs:
+  web-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm exec turbo run build --filter=@hozo/compiler... --filter=@hozo/primitives... --filter=@hozo/form... --filter=@hozo/patterns... --concurrency=1
+      - name: Execute browser oracles and retain source identity
+        shell: bash
+        run: |
+          mkdir -p artifacts/pagination-semantics-web
+          git rev-parse HEAD > artifacts/pagination-semantics-web/source.txt
+          node --test --test-concurrency=1 --test-name-pattern='Pagination semantic classes|Chip semantic classes' examples/storybook-demo/scripts/candidate-cascade.test.mjs | tee artifacts/pagination-semantics-web/result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pagination-semantics-web
+          path: artifacts/pagination-semantics-web/
+          if-no-files-found: warn
