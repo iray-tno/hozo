@@ -146,7 +146,7 @@ test('Chip semantic classes observe the Web class owner across standalone and co
   skip: !executablePath,
 }, async () => {
   const classes =
-    'border-0 opacity-100 outline-none aria-pressed:border-2 disabled:opacity-25 aria-checked:outline-4 aria-disabled:border-4'
+    'border-0 opacity-100 aria-pressed:border-2 disabled:opacity-25 aria-checked:opacity-50 aria-disabled:border-4'
   const css = (await compile('@tailwind utilities;')).build(classes.split(' '))
   assert.ok(css.includes('[aria-pressed="true"]'))
   const bundle = await build({
@@ -177,9 +177,16 @@ test('Chip semantic classes observe the Web class owner across standalone and co
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
-    await page.setContent(`<style>${css}</style><div id="root"></div>`)
+    await page.setContent(
+      `<style>${css}</style><div id="aria-control" aria-checked="true" class="${classes}"></div><div id="root"></div>`,
+    )
     await page.addScriptTag({ content: bundle.outputFiles[0].text })
     await page.waitForFunction(() => document.querySelectorAll('#root > div').length === 8)
+    assert.equal(
+      await page.locator('#aria-control').evaluate((e) => getComputedStyle(e).opacity),
+      '0.5',
+      'the checked selector must have real CSS',
+    )
     let index = 0
     const changes = []
     const removals = []
@@ -194,7 +201,6 @@ test('Chip semantic classes observe the Web class owner across standalone and co
               return {
                 border: css.borderTopWidth,
                 opacity: css.opacity,
-                outline: css.outlineWidth,
                 checked: e.getAttribute('aria-checked'),
                 ariaDisabled: e.getAttribute('aria-disabled'),
               }
@@ -203,7 +209,6 @@ test('Chip semantic classes observe the Web class owner across standalone and co
             assert.deepEqual(await read(owner), {
               border: selectable && !removable && selected ? '2px' : '0px',
               opacity: selectable && !removable && disabled ? '0.25' : '1',
-              outline: '0px',
               checked: null,
               ariaDisabled: null,
             })
@@ -211,7 +216,6 @@ test('Chip semantic classes observe the Web class owner across standalone and co
               assert.deepEqual(await read(buttons.last()), {
                 border: '0px',
                 opacity: disabled ? '0.25' : '1',
-                outline: '0px',
                 checked: null,
                 ariaDisabled: null,
               })

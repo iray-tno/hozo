@@ -36,8 +36,14 @@ export function C() { return <Chip defaultSelected={false} onRemove={drop}
   assert.ok(output)
   assert.match(output, /backgroundColor: '#123456'/)
   assert.match(output, /color: '#123456'/)
-  assert.match(output, /hozoStyle=\{\(\{ pressed, hovered, focused \}\) =>/)
-  assert.match(output, /hozoRemoveStyle=\{\(\{ pressed, hovered, focused, focusVisible \}\) =>/)
+  assert.match(
+    output,
+    /hozoStyle=\{\(\{ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed \}\) =>/,
+  )
+  assert.match(
+    output,
+    /hozoRemoveStyle=\{\(\{ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed \}\) =>/,
+  )
   assert.match(output, /style=\{\[\{ opacity: 0\.9 \}\]\}/)
   assert.doesNotMatch(output, /hozoClasses|candidate|HozoPressable|HozoText/)
 })
