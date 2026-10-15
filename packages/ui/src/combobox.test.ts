@@ -40,7 +40,7 @@ const OPTIONS: ComboboxOption<string>[] = [
 
 test('the field is the same list Input uses, to the class', () => {
   // Read the actual element's classes, not a constant the compiler cannot
-  // resolve. Input keeps its own literal inside clsx for static lowering.
+  // resolve. Input keeps its own literal inside cx for static lowering.
   const html = renderToStaticMarkup(createElement(Input, { accessibilityLabel: 'Name' }))
   assert.equal(list('combobox.tsx', 'field'), /class="([^"]*)"/.exec(html)?.[1])
 })

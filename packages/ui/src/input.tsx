@@ -21,8 +21,8 @@
  * would be a control that looks fine and announces itself as wrong.
  */
 
+import { cx } from '@hozo/core'
 import { TextInput, type TextInputProps } from '@hozo/primitives'
-import clsx from 'clsx'
 
 export interface HozoInputProps extends TextInputProps {
   /**
@@ -36,7 +36,7 @@ export interface HozoInputProps extends TextInputProps {
 }
 
 /**
- * A literal inside `clsx` lets the compiler keep the library's state styles
+ * A literal inside `cx` lets the compiler keep the library's state styles
  * static even when the caller adds a dynamic className, just like Button.
  * Each branch has its own literal: Web needs a statically known `multiline`
  * to choose textarea rather than input. Named props below supply the real
@@ -66,7 +66,7 @@ export function HozoInput({
         editable={editable}
         readOnly={readOnly}
         aria-invalid={invalid}
-        className={clsx(
+        className={cx(
           'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-auto resize-none min-h-24',
           className,
         )}
@@ -81,7 +81,7 @@ export function HozoInput({
       editable={editable}
       readOnly={readOnly}
       aria-invalid={invalid}
-      className={clsx(
+      className={cx(
         'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm text-hozo-text border-hozo-border-strong placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-auto resize-none',
         className,
       )}
