@@ -97,3 +97,21 @@ export const Save = () => <Button tone="accent"><View><Text>Save</Text></View></
   assert.match(after, /fontWeight: '600'/)
   assert.match(after, /fontSize: 14/)
 })
+
+test('and what Alert hands down, through a View and its named class lists', async () => {
+  const { createCompiler } = await import('./index.ts')
+  const { DEFAULT_PRIMITIVE_SOURCES } = await import('./sources.ts')
+  const { textForwardingModule } = await import('./manifest.ts')
+  const manifestFile = new URL('../../ui/hozo.manifest.json', import.meta.url)
+  const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
+  const compiler = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES])
+  const source = `import { Text } from '@hozo/core'
+import { Alert } from '@hozo/ui'
+export const Saved = () => <Alert tone="danger"><Text>Not saved</Text></Alert>
+`
+  const before = compiler.compileNative(source)[0].styles
+  compiler.setTextForwarding([textForwardingModule('@hozo/ui', manifest)])
+  const after = compiler.compileNative(source)[0].styles
+  assert.doesNotMatch(before, /fontSize/)
+  assert.match(after, /fontSize: 14/)
+})

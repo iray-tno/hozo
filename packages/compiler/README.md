@@ -118,7 +118,7 @@ hozo-manifest path/to/package --entry src/index.ts   # when the published entry 
 
 The package names the file in its `package.json` as `"hozo": { "manifest": "./hozo.manifest.json" }`, and lists it in `files` and `exports`.
 
-- **What is read.** The components its entry publishes, following relative re-exports. A component is read only in a narrow shape: a pressable host given the caller's children, with classes chosen by comparing a prop with a literal. Any other shape gets no entry, and the caller compiles as it did before.
+- **What is read.** The components its entry publishes, following relative re-exports. A component is read only in a narrow shape: a pressable or `View` host given the caller's children, with classes chosen by comparing a prop with a literal -- written in place, or through `const` class lists and the `` className ? `${own} ${className}` : own `` join. Any other shape gets no entry, and the caller compiles as it did before.
 - **Classes, not styles.** The manifest records classes as written, so a caller resolves them against its own theme.
 - **In memory.** `buildManifest` and `summarizeTextForwarding` (from `@hozo/compiler/manifest` and `@hozo/compiler`) compute the same result without touching the file system.
 
