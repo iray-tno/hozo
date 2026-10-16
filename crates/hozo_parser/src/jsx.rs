@@ -217,6 +217,8 @@ fn class_expression(
             constants: scope.constants,
         },
     );
+    // A helper call must not make an unsupported variant disappear without
+    // the diagnostic its literal spelling would have produced.
     for report in &decomposed.unsupported_variants {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::TailwindVariantNotSupported,
@@ -2088,11 +2090,12 @@ mod class_slot_expression_tests {
     #[test]
     fn secondary_expressions_share_root_decomposition_and_residual_spans() {
         for expression in [
+            "SLOT_CLASSES",
             "'p-2 not-focus:rounded-lg md:mt-2'",
             "cx('p-2 not-focus:rounded-lg md:mt-2', choose())",
             "`p-2 not-focus:rounded-lg md:mt-2 ${choose()}`",
         ] {
-            let source = format!("import {{Chip, cx}} from '@hozo/core'; const el = <Chip className={{{expression}}} removeClassName={{{expression}}} />");
+            let source = format!("import {{Chip, cx}} from '@hozo/core'; const SLOT_CLASSES = 'p-2 not-focus:rounded-lg md:mt-2'; const el = <Chip className={{{expression}}} removeClassName={{{expression}}} />");
             let parsed = crate::parse_tsx(&source);
             assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
             let node = &parsed.roots[0].node;

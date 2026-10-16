@@ -67,7 +67,7 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    slots. Literal expressions, recognized joiners (including project helpers)
    and separated templates keep AOT pieces and carry residual source spans in
    `SlotStyle`. Fully opaque input keeps its zero-capture forwarding path.
-   Expressions containing authored JS conditions still travel **whole**:
+   Expressions with authored JS conditions in their AOT declarations still travel **whole**:
    moving a condition into an owner callback would re-evaluate it on events,
    and capturing pieces out of source order would change side effects. A
    source-ordered predicate capture plan remains a follow-up, not a pass.
