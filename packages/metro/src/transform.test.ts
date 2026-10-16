@@ -101,7 +101,10 @@ export function C() { return <OtpInput accessibilityLabel="Code"
   const output = transformHozoSource(source, 'Otp.tsx', undefined, compiler)
   assert.ok(output)
   assert.match(output, /outlineColor: '#123456'/)
-  assert.match(output, /hozoInputStyle=\{\(\{ pressed, hovered, focused, focusVisible \}\) =>/)
+  assert.match(
+    output,
+    /hozoInputStyle=\{\(\{ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly \}\) =>/,
+  )
   assert.match(output, /__hozoBp_md && focused/)
   assert.match(output, /useHozoBreakpoint\('md'\)\n return/)
   assert.match(output, /!\(focused\) &&/)
