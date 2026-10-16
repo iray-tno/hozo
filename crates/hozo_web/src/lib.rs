@@ -1229,9 +1229,9 @@ fn render_node(
                         format!("({}).className", residual.render_expression(source))
                     }))
                     .chain(node.class_name_fallback.iter().map(|r| {
-                        node.class_evaluation.as_ref().map_or_else(
+                        node.root_class_evaluation().map_or_else(
                             || source_text(source, *r).to_string(),
-                            |evaluation| evaluation.plan.value(source, *r),
+                            |evaluation| evaluation.value(source, *r),
                         )
                     }))
                     .collect();
@@ -1245,7 +1245,12 @@ fn render_node(
         };
     // A component's other class lists, compiled the same way and handed to
     // it under the prop the author wrote (`removeClassName`).
-    for slot in &node.props.class_slots {
+    for slot in node
+        .props
+        .class_slots
+        .iter()
+        .filter(|slot| slot.slot != hozo_ir::ClassSlot::ROOT)
+    {
         let slot_class = allocator.alloc();
         let before = rules.len();
         push_rules_using(
@@ -2335,7 +2340,7 @@ fn render_node(
     } else {
         format!("<{tag}{attrs}>{}</{tag}>", inner.text)
     };
-    if let Some(evaluation) = &node.class_evaluation {
+    if let Some(evaluation) = node.root_class_evaluation() {
         if let Some(copies) = &mut copies {
             let offset = evaluation.wrapper_offset(source);
             for copy in copies {
@@ -2344,7 +2349,7 @@ fn render_node(
             }
         }
         Rendered {
-            text: evaluation.wrap(source, &text),
+            text: evaluation.wrap_subtree(source, &text),
             copies,
         }
     } else {
@@ -3809,10 +3814,8 @@ export function Login() {
         // not render (#883).
         let name = parsed.roots[0]
             .node
-            .class_evaluation
-            .as_ref()
+            .root_class_evaluation()
             .unwrap()
-            .plan
             .name(source);
         assert!(
             output.jsx.contains(&format!("({name}[0]) && 'hozo-cond-")),

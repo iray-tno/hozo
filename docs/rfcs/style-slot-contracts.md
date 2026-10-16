@@ -81,7 +81,10 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    subtree can be safely enclosed. Inherited Text declarations and forwarded
    label callbacks read the same immutable capture; each `map` element gets
    its own binding. No provider, host or fragment is inserted. The parser
-   records whether a JSX child/attribute replacement needs braces, including
+   stores the root plan in the existing slot metadata only when needed, not
+   in an optional field enlarging every ordinary Node. Scope is a property
+   of the shared plan, rather than a second expression-analysis engine.
+   The parser records whether a JSX child/attribute replacement needs braces, including
    roots beneath an unknown component. Backend source-copy evidence shifts
    with the generated prefix instead of being rediscovered by a text search.
    Class inputs remain outside the arrow, preserving their lexical suspension.

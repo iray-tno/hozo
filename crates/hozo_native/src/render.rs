@@ -1074,9 +1074,9 @@ pub(super) fn render_node(
             node.class_name_fallback
                 .iter()
                 .map(|expr| {
-                    node.class_evaluation.as_ref().map_or_else(
+                    node.root_class_evaluation().map_or_else(
                         || source_text(source, *expr).to_string(),
-                        |evaluation| evaluation.plan.value(source, *expr),
+                        |evaluation| evaluation.value(source, *expr),
                     )
                 })
                 .collect(),
@@ -1094,9 +1094,8 @@ pub(super) fn render_node(
             .iter()
             .map(|expr_ref| {
                 let captured = node
-                    .class_evaluation
-                    .as_ref()
-                    .map(|evaluation| evaluation.plan.value(source, *expr_ref));
+                    .root_class_evaluation()
+                    .map(|evaluation| evaluation.value(source, *expr_ref));
                 let value = captured
                     .as_deref()
                     .unwrap_or_else(|| source_text(source, *expr_ref));
@@ -2355,8 +2354,8 @@ pub(super) fn render_node(
     } else {
         rendered
     };
-    if let Some(evaluation) = &node.class_evaluation {
-        evaluation.wrap(source, &rendered)
+    if let Some(evaluation) = node.root_class_evaluation() {
+        evaluation.wrap_subtree(source, &rendered)
     } else {
         rendered
     }

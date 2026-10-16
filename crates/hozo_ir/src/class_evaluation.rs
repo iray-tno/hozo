@@ -18,20 +18,30 @@ pub struct ClassPredicateCapture {
 pub struct ClassEvaluation {
     pub span: SourceSpan,
     pub steps: Vec<ClassEvaluationStep>,
+    pub scope: ClassCaptureScope,
 }
 
-/// A root capture encloses JSX, rather than a single prop's value. The
-/// parser records its replacement grammar even across unknown components.
-#[derive(Debug, Clone, PartialEq)]
-pub struct RootClassEvaluation {
-    pub plan: ClassEvaluation,
-    pub expression_container: bool,
+/// Prop captures enclose one value; root captures enclose JSX and its
+/// consumers. The parser records replacement grammar across unknown tags.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassCaptureScope {
+    Prop,
+    Subtree { expression_container: bool },
 }
 
-impl RootClassEvaluation {
-    pub fn wrap(&self, source: &str, result: &str) -> String {
-        let expression = self.plan.wrap(source, result);
-        if self.expression_container {
+impl ClassEvaluation {
+    pub fn expression_container(&self) -> bool {
+        matches!(
+            self.scope,
+            ClassCaptureScope::Subtree {
+                expression_container: true
+            }
+        )
+    }
+
+    pub fn wrap_subtree(&self, source: &str, result: &str) -> String {
+        let expression = self.wrap(source, result);
+        if self.expression_container() {
             format!("{{{expression}}}")
         } else {
             expression
@@ -39,7 +49,7 @@ impl RootClassEvaluation {
     }
 
     pub fn wrapper_offset(&self, source: &str) -> usize {
-        self.plan.wrapper_prefix(source).len() + usize::from(self.expression_container)
+        self.wrapper_prefix(source).len() + usize::from(self.expression_container())
     }
 }
 
@@ -202,6 +212,7 @@ mod tests {
         let plan = ClassEvaluation {
             span,
             steps: vec![ClassEvaluationStep::Value(reference)],
+            scope: ClassCaptureScope::Prop,
         };
         let mut condition = ConditionExpr::Not(Box::new(ConditionExpr::Ref(reference)));
         plan.capture_condition(&mut condition);

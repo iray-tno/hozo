@@ -987,7 +987,6 @@ fn build_node(
 
     let mut style: Vec<StyleDeclaration> = Vec::new();
     let mut class_name_fallback = Vec::new();
-    let mut class_evaluation = None;
     let mut carried_classes: Vec<String> = Vec::new();
     let mut props = PropSet::default();
     let mut seen_class_name = false;
@@ -1253,7 +1252,7 @@ fn build_node(
                             .any(|d| matches!(d.condition, Condition::Expr(_)))
                             && root_capture::can_wrap(el, attr.span)
                         {
-                            if let Some(evaluation) = dynamic_class::capture_evaluation(
+                            if let Some(mut evaluation) = dynamic_class::capture_evaluation(
                                 &container.expression,
                                 &decomposed,
                             ) {
@@ -1263,10 +1262,17 @@ fn build_node(
                                         evaluation.capture_condition(expression);
                                     }
                                 }
-                                class_evaluation = Some(Box::new(hozo_ir::RootClassEvaluation {
-                                    plan: evaluation,
+                                evaluation.scope = hozo_ir::ClassCaptureScope::Subtree {
                                     expression_container,
-                                }));
+                                };
+                                props.class_slots.push(hozo_ir::SlotStyle {
+                                    slot: hozo_ir::ClassSlot::ROOT,
+                                    style: Vec::new(),
+                                    carried: Vec::new(),
+                                    fallback: Vec::new(),
+                                    evaluation: Some(Box::new(evaluation)),
+                                    span: to_span(attr.span),
+                                });
                             }
                         }
                         style.extend(decomposed.declarations);
@@ -2146,7 +2152,6 @@ fn build_node(
         props,
         children,
         class_name_fallback,
-        class_evaluation,
         carried_classes,
         span: to_span(el.span()),
         opening_tag_span: to_span(el.opening_element.name.span()),

@@ -438,7 +438,6 @@ mod tests {
             props: PropSet::default(),
             children: Vec::new(),
             class_name_fallback: Vec::new(),
-            class_evaluation: None,
             carried_classes: Vec::new(),
             span: empty_span(),
             opening_tag_span: empty_span(),
@@ -493,7 +492,6 @@ mod tests {
             },
             children: Vec::new(),
             class_name_fallback: Vec::new(),
-            class_evaluation: None,
             carried_classes: Vec::new(),
             span: empty_span(),
         };

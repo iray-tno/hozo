@@ -93,7 +93,10 @@ mod tests {
         ] {
             let source = format!("import {{View,Text}} from '@hozo/core'; const el = {jsx}");
             let parsed = crate::parse_tsx(&source);
-            assert!(parsed.roots[0].node.class_evaluation.is_some(), "{jsx}");
+            assert!(
+                parsed.roots[0].node.root_class_evaluation().is_some(),
+                "{jsx}"
+            );
         }
         for jsx in [
             "<View testID={before()} className={guard() && 'p-2'} />",
@@ -104,7 +107,10 @@ mod tests {
         ] {
             let source = format!("import {{View}} from '@hozo/core'; const el = {jsx}");
             let parsed = crate::parse_tsx(&source);
-            assert!(parsed.roots[0].node.class_evaluation.is_none(), "{jsx}");
+            assert!(
+                parsed.roots[0].node.root_class_evaluation().is_none(),
+                "{jsx}"
+            );
         }
     }
 
@@ -129,7 +135,7 @@ mod tests {
             let source = format!("import {{View,Text}} from '@hozo/core'; {prefix} {{return <View className={{{input} ? 'p-2' : 'p-4'}}>{tail}</View>}}");
             let parsed = crate::parse_tsx(&source);
             assert_eq!(
-                parsed.roots[0].node.class_evaluation.is_some(),
+                parsed.roots[0].node.root_class_evaluation().is_some(),
                 captured,
                 "{source}"
             );
@@ -152,16 +158,15 @@ mod tests {
         assert_eq!(nested.len(), 4);
         assert!(nested
             .iter()
-            .all(|entry| entry.node.class_evaluation.is_some()));
+            .all(|entry| entry.node.root_class_evaluation().is_some()));
         assert_eq!(
             nested
                 .iter()
                 .map(|entry| entry
                     .node
-                    .class_evaluation
-                    .as_ref()
+                    .root_class_evaluation()
                     .unwrap()
-                    .expression_container)
+                    .expression_container())
                 .collect::<Vec<_>>(),
             [true, false, true, true]
         );
@@ -170,9 +175,8 @@ mod tests {
         assert_eq!(parsed.roots.len(), 2);
         assert!(parsed.roots.iter().all(|root| root
             .node
-            .class_evaluation
-            .as_ref()
+            .root_class_evaluation()
             .unwrap()
-            .expression_container));
+            .expression_container()));
     }
 }

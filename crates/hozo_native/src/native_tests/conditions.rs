@@ -95,10 +95,8 @@ fn dynamic_class_name_guard_merges_into_the_style_array() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     let name = parsed.roots[0]
         .node
-        .class_evaluation
-        .as_ref()
+        .root_class_evaluation()
         .unwrap()
-        .plan
         .name(source);
     assert!(
         output.jsx.contains(&format!(
@@ -156,7 +154,6 @@ fn hover_and_focus_still_do_not_merge_into_anything() {
         props: hozo_ir::PropSet::default(),
         children: Vec::new(),
         class_name_fallback: Vec::new(),
-        class_evaluation: None,
         carried_classes: Vec::new(),
         span: hozo_ir::SourceSpan { start: 0, end: 0 },
         opening_tag_span: hozo_ir::SourceSpan { start: 0, end: 0 },
