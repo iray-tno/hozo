@@ -1073,7 +1073,12 @@ pub(super) fn render_node(
             "className",
             node.class_name_fallback
                 .iter()
-                .map(|expr| source_text(source, *expr).to_string())
+                .map(|expr| {
+                    node.root_class_evaluation().map_or_else(
+                        || source_text(source, *expr).to_string(),
+                        |evaluation| evaluation.value(source, *expr),
+                    )
+                })
                 .collect(),
             !style_array_parts.is_empty() || !pressed_parts.is_empty(),
             source,
@@ -1087,9 +1092,17 @@ pub(super) fn render_node(
     } else {
         node.class_name_fallback
             .iter()
-            .map(|expr_ref| match &class_state {
-                Some(state) => format!("hozoClasses({}, {state})", source_text(source, *expr_ref)),
-                None => format!("hozoClasses({})", source_text(source, *expr_ref)),
+            .map(|expr_ref| {
+                let captured = node
+                    .root_class_evaluation()
+                    .map(|evaluation| evaluation.value(source, *expr_ref));
+                let value = captured
+                    .as_deref()
+                    .unwrap_or_else(|| source_text(source, *expr_ref));
+                match &class_state {
+                    Some(state) => format!("hozoClasses({value}, {state})"),
+                    None => format!("hozoClasses({value})"),
+                }
             })
             .collect()
     };
@@ -2319,7 +2332,7 @@ pub(super) fn render_node(
     } else {
         rendered
     };
-    if let Some(item) = grid_item {
+    let rendered = if let Some(item) = grid_item {
         runtime.need_component("HozoGridItem");
         let start = item
             .column_start
@@ -2338,6 +2351,11 @@ pub(super) fn render_node(
             "<HozoGridItem columnSpan={{{}}}{start}{row_span}{row_start}>{rendered}</HozoGridItem>",
             item.span
         )
+    } else {
+        rendered
+    };
+    if let Some(evaluation) = node.root_class_evaluation() {
+        evaluation.wrap_subtree(source, &rendered)
     } else {
         rendered
     }

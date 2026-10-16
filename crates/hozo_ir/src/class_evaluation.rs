@@ -18,6 +18,39 @@ pub struct ClassPredicateCapture {
 pub struct ClassEvaluation {
     pub span: SourceSpan,
     pub steps: Vec<ClassEvaluationStep>,
+    pub scope: ClassCaptureScope,
+}
+
+/// Prop captures enclose one value; root captures enclose JSX and its
+/// consumers. The parser records replacement grammar across unknown tags.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassCaptureScope {
+    Prop,
+    Subtree { expression_container: bool },
+}
+
+impl ClassEvaluation {
+    pub fn expression_container(&self) -> bool {
+        matches!(
+            self.scope,
+            ClassCaptureScope::Subtree {
+                expression_container: true
+            }
+        )
+    }
+
+    pub fn wrap_subtree(&self, source: &str, result: &str) -> String {
+        let expression = self.wrap(source, result);
+        if self.expression_container() {
+            format!("{{{expression}}}")
+        } else {
+            expression
+        }
+    }
+
+    pub fn wrapper_offset(&self, source: &str) -> usize {
+        self.wrapper_prefix(source).len() + usize::from(self.expression_container())
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -153,10 +186,16 @@ impl ClassEvaluation {
 
     pub fn wrap(&self, source: &str, result: &str) -> String {
         format!(
-            "(({}) => ({result}))({})",
-            self.name(source),
+            "{}{result}))({})",
+            self.wrapper_prefix(source),
             self.render(source)
         )
+    }
+
+    /// Also lets source-evidence consumers shift copied ranges without
+    /// searching generated code for a substring that may occur twice.
+    pub fn wrapper_prefix(&self, source: &str) -> String {
+        format!("(({}) => (", self.name(source))
     }
 }
 
@@ -173,6 +212,7 @@ mod tests {
         let plan = ClassEvaluation {
             span,
             steps: vec![ClassEvaluationStep::Value(reference)],
+            scope: ClassCaptureScope::Prop,
         };
         let mut condition = ConditionExpr::Not(Box::new(ConditionExpr::Ref(reference)));
         plan.capture_condition(&mut condition);

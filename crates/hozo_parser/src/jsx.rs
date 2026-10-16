@@ -31,6 +31,8 @@ use oxc_syntax::scope::ScopeFlags;
 use crate::dynamic_class;
 use crate::tailwind;
 
+mod root_capture;
+
 fn to_span(span: Span) -> SourceSpan {
     SourceSpan {
         start: span.start,
@@ -251,6 +253,7 @@ struct PrimitiveFinder<'r, 'a, 'd> {
     nested: Vec<NestedNode>,
     /// The components the walk is inside, outermost first.
     enclosing: Vec<EnclosingComponent>,
+    expression_container: bool,
 }
 
 impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
@@ -266,7 +269,13 @@ impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
                 .is_some()
             {
                 let name = ident.name.as_str();
-                match build_node(it, self.scope, self.diagnostics, self.consumed) {
+                match build_node(
+                    it,
+                    self.scope,
+                    self.diagnostics,
+                    self.consumed,
+                    self.expression_container,
+                ) {
                     Some(node) => self.nested.push(NestedNode {
                         span: to_span(it.span()),
                         node,
@@ -301,10 +310,30 @@ impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
         let component = enclosing_component(it);
         let pushed = component.is_some();
         self.enclosing.extend(component);
+        let previous = std::mem::replace(&mut self.expression_container, false);
         oxc_ast_visit::walk::walk_jsx_element(self, it);
+        self.expression_container = previous;
         if pushed {
             self.enclosing.pop();
         }
+    }
+
+    fn visit_jsx_child(&mut self, child: &JSXChild<'a>) {
+        let previous = std::mem::replace(
+            &mut self.expression_container,
+            matches!(child, JSXChild::Element(_)),
+        );
+        oxc_ast_visit::walk::walk_jsx_child(self, child);
+        self.expression_container = previous;
+    }
+
+    fn visit_jsx_attribute_value(&mut self, value: &JSXAttributeValue<'a>) {
+        let previous = std::mem::replace(
+            &mut self.expression_container,
+            matches!(value, JSXAttributeValue::Element(_)),
+        );
+        oxc_ast_visit::walk::walk_jsx_attribute_value(self, value);
+        self.expression_container = previous;
     }
 }
 
@@ -402,6 +431,7 @@ fn carry_verbatim(
         consumed,
         nested: Vec::new(),
         enclosing: Vec::new(),
+        expression_container: false,
     };
     finder.visit_jsx_child(child);
     Child::Verbatim {
@@ -422,6 +452,7 @@ fn passthrough_prop(
         consumed,
         nested: Vec::new(),
         enclosing: Vec::new(),
+        expression_container: false,
     };
     finder.visit_jsx_attribute(attr);
     PassthroughProp {
@@ -905,6 +936,7 @@ fn build_node(
     scope: &Scope,
     diagnostics: &mut Vec<Diagnostic>,
     consumed: &mut Vec<SourceSpan>,
+    expression_container: bool,
 ) -> Option<Node> {
     let (local, primitive) = match &el.opening_element.name {
         JSXElementName::IdentifierReference(ident) => (
@@ -1211,9 +1243,38 @@ fn build_node(
                         }
                     }
                     Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        let decomposed =
+                        let mut decomposed =
                             class_expression(&container.expression, scope, diagnostics, false)
                                 .expect("root className retains opaque fallback leaves");
+                        if decomposed
+                            .declarations
+                            .iter()
+                            .any(|d| matches!(d.condition, Condition::Expr(_)))
+                            && root_capture::can_wrap(el, attr.span)
+                        {
+                            if let Some(mut evaluation) = dynamic_class::capture_evaluation(
+                                &container.expression,
+                                &decomposed,
+                            ) {
+                                for declaration in &mut decomposed.declarations {
+                                    if let Condition::Expr(expression) = &mut declaration.condition
+                                    {
+                                        evaluation.capture_condition(expression);
+                                    }
+                                }
+                                evaluation.scope = hozo_ir::ClassCaptureScope::Subtree {
+                                    expression_container,
+                                };
+                                props.class_slots.push(hozo_ir::SlotStyle {
+                                    slot: hozo_ir::ClassSlot::ROOT,
+                                    style: Vec::new(),
+                                    carried: Vec::new(),
+                                    fallback: Vec::new(),
+                                    evaluation: Some(Box::new(evaluation)),
+                                    span: to_span(attr.span),
+                                });
+                            }
+                        }
                         style.extend(decomposed.declarations);
                         class_name_fallback.extend(decomposed.fallback);
                         consumed.extend(decomposed.consumed);
@@ -2051,7 +2112,7 @@ fn build_node(
     for child in &el.children {
         match child {
             JSXChild::Element(child_el) => {
-                match build_node(child_el, scope, diagnostics, consumed) {
+                match build_node(child_el, scope, diagnostics, consumed, true) {
                     Some(child_node) => children.push(Child::Node(child_node)),
                     // A component Hozo doesn't model still renders, and
                     // still occupies a position among its siblings.
@@ -2295,6 +2356,7 @@ pub struct JsxCollector<'r, 'a> {
     hook_slot: Option<u32>,
     /// The components the walk is inside, outermost first.
     enclosing: Vec<EnclosingComponent>,
+    expression_container: bool,
     scope: &'r Scope<'r, 'a>,
 }
 
@@ -2306,6 +2368,7 @@ impl<'r, 'a> JsxCollector<'r, 'a> {
             consumed: Vec::new(),
             hook_slot: None,
             enclosing: Vec::new(),
+            expression_container: false,
             scope,
         }
     }
@@ -2324,7 +2387,13 @@ impl<'r, 'a> JsxCollector<'r, 'a> {
 
 impl<'r, 'a> Visit<'a> for JsxCollector<'r, 'a> {
     fn visit_jsx_element(&mut self, it: &JSXElement<'a>) {
-        if let Some(node) = build_node(it, self.scope, &mut self.diagnostics, &mut self.consumed) {
+        if let Some(node) = build_node(
+            it,
+            self.scope,
+            &mut self.diagnostics,
+            &mut self.consumed,
+            self.expression_container,
+        ) {
             // Deliberately does not walk: `build_node` already recursed
             // into the children itself, so falling through to the generic
             // walker would visit (and re-collect) them a second time.
@@ -2353,11 +2422,31 @@ impl<'r, 'a> Visit<'a> for JsxCollector<'r, 'a> {
             let component = enclosing_component(it);
             let pushed = component.is_some();
             self.enclosing.extend(component);
+            let previous = std::mem::replace(&mut self.expression_container, false);
             walk_jsx_element(self, it);
+            self.expression_container = previous;
             if pushed {
                 self.enclosing.pop();
             }
         }
+    }
+
+    fn visit_jsx_child(&mut self, child: &JSXChild<'a>) {
+        let previous = std::mem::replace(
+            &mut self.expression_container,
+            matches!(child, JSXChild::Element(_)),
+        );
+        oxc_ast_visit::walk::walk_jsx_child(self, child);
+        self.expression_container = previous;
+    }
+
+    fn visit_jsx_attribute_value(&mut self, value: &JSXAttributeValue<'a>) {
+        let previous = std::mem::replace(
+            &mut self.expression_container,
+            matches!(value, JSXAttributeValue::Element(_)),
+        );
+        oxc_ast_visit::walk::walk_jsx_attribute_value(self, value);
+        self.expression_container = previous;
     }
 
     fn visit_function(&mut self, it: &Function<'a>, flags: ScopeFlags) {

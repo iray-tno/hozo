@@ -9,6 +9,35 @@ function analyze(source: string, compiler = createCompiler()) {
   return analyzeModule(source, { compiler, file: 'app.tsx', root: '', targets: ['web'] })
 }
 
+test('root class capture keeps copied RN expressions traceable across inherited and nested scopes', () => {
+  const source = `// 😀 日本語\nimport {View,Platform as P} from 'react-native';
+const x = <View className={choose() ? 'p-2' : 'p-4'} custom={P.OS}>
+<Other onPress={() => P.select({web:'x'})}><View className={inner() && 'p-2'} custom={P.Version}>{P.OS}</View></Other></View>`
+  const result = analyze(source)
+  const web = result.targets.web!
+  const journal = web.reactNativeValues!
+  assert.equal(web.status, 'completed')
+  assert.equal(journal.status, 'completed')
+  assert.equal(journal.outcomes.length, 4)
+  assert.ok(journal.outcomes.every((item) => item.sourceEvidence === 'backend-copied-run'))
+  for (const outcome of journal.outcomes) {
+    const ref =
+      result.reactNativeUsage!.bindings[outcome.bindingIndex]!.references[outcome.referenceIndex]!
+    assert.equal(
+      source.slice(ref.spanStart, ref.spanEnd),
+      web.code!.slice(outcome.emittedSpan!.spanStart, outcome.emittedSpan!.spanEnd),
+    )
+  }
+  assert.equal(web.code!.match(/choose\(\)/g)?.length, 1)
+  assert.equal(web.code!.match(/inner\(\)/g)?.length, 1)
+  assert.equal(
+    web.code,
+    lowerModule(source, 'app.tsx', 'app.tsx', createCompiler(), '', undefined, {
+      unloweredReactNativeJsx: 'warn',
+    })!.code,
+  )
+})
+
 test('copied expressions retain final Unicode offsets through nested replacements and class namespacing', () => {
   const source = `// 😀 日本語\r\nimport { View as V, Text as T, Platform as P, Animated as A } from 'react-native';
 const x = <V className="p-4" style={{width: P.OS}} {...{extra: P.select}}

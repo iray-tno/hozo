@@ -93,9 +93,19 @@ fn dynamic_class_name_guard_merges_into_the_style_array() {
             "#;
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(output
-        .jsx
-        .contains("style={[hozoStyles.hozo0, (active) && hozoStyles.hozo0_cond_"));
+    let name = parsed.roots[0]
+        .node
+        .root_class_evaluation()
+        .unwrap()
+        .name(source);
+    assert!(
+        output.jsx.contains(&format!(
+            "style={{[hozoStyles.hozo0, ({name}[0]) && hozoStyles.hozo0_cond_"
+        )),
+        "{}",
+        output.jsx
+    );
+    assert_eq!(output.jsx.matches("active").count(), 1);
 }
 
 #[test]

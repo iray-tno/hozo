@@ -2073,6 +2073,124 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
   }
 })
 
+test('root capture scopes keep inherited and loop-owned pixels aligned with independent Tailwind', {
+  skip: !executablePath,
+}, async () => {
+  const source = `import {View,Text,cx} from '@hozo/core'; const C = () =>
+    <View className={cx(first(), guard() ? 'text-[#123456]' : 'text-[#654321]', last())} testID={after()}>
+      <Text>Known</Text><Foreign><Text>Opaque</Text></Foreign><><Text>Fragment</Text></>
+      {rows.map(row => <Text className={readRow(row) ? 'p-2' : 'p-4'} key={row}>{row}</Text>)}
+    </View>`
+  const web = compiler.compile(source)[0]
+  const candidates = openCandidateCache(path.join(directory, 'root-capture.json'))
+  candidates.scanFile('caller.ts', "const classes = 'opacity-75'", 1)
+  const candidateCss = candidates.renderCss()
+  const oracleCss = (await compile('@theme { --spacing:0.25rem; } @tailwind utilities;')).build([
+    'text-[#123456]',
+    'text-[#654321]',
+    'p-2',
+    'p-4',
+    'opacity-75',
+  ])
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        const root = createRoot(document.getElementById('root'));
+        function Foreign({children}) {return <article>{children}</article>}
+        function Probe({value}) {
+          window.calls = [];
+          const first = () => {window.calls.push('first'); return 'opacity-75'};
+          const guard = () => {window.calls.push('guard'); return value};
+          const last = () => {window.calls.push('last')};
+          const after = () => {window.calls.push('after'); return 'captured-root'};
+          const rows = ['one','two'];
+          const readRow = row => {window.calls.push(row); return (row === 'one') === value};
+          return <section data-case={String(value)}>{${web.jsx}}</section>;
+        }
+        window.show = value => root.render(<Probe value={value}/>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><section id="oracle"></section>`,
+      )
+      await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      for (const value of [true, false]) {
+        await page.evaluate((value) => window.show(value), value)
+        await page.waitForFunction(
+          (value) => document.querySelector('[data-case]')?.dataset.case === String(value),
+          value,
+        )
+        assert.deepEqual(await page.evaluate(() => window.calls), [
+          'first',
+          'guard',
+          'last',
+          'after',
+          'one',
+          'two',
+        ])
+        const expectedColor = value ? 'rgb(18, 52, 86)' : 'rgb(101, 67, 33)'
+        const actual = await page.locator('#root span').evaluateAll((elements) =>
+          elements.map((e) => ({
+            text: e.textContent,
+            color: getComputedStyle(e).color,
+            padding: getComputedStyle(e).paddingTop,
+          })),
+        )
+        assert.deepEqual(
+          actual.map((item) => item.text),
+          ['Known', 'Opaque', 'Fragment', 'one', 'two'],
+        )
+        assert.ok(actual.every((item) => item.color === expectedColor))
+        assert.deepEqual(
+          actual.slice(3).map((item) => item.padding),
+          value ? ['8px', '16px'] : ['16px', '8px'],
+        )
+        await page.locator('#oracle').evaluate((e, value) => {
+          e.className = value ? 'text-[#123456]' : 'text-[#654321]'
+          const nodes = ['Known', 'Opaque', 'Fragment', 'one', 'two'].map((text, index) => {
+            const span = document.createElement('span')
+            span.textContent = text
+            if (index > 2) span.className = (index === 3) === value ? 'p-2' : 'p-4'
+            return span
+          })
+          e.replaceChildren(...nodes)
+        }, value)
+        const oracle = await page.locator('#oracle span').evaluateAll((elements) =>
+          elements.map((e) => ({
+            text: e.textContent,
+            color: getComputedStyle(e).color,
+            padding: getComputedStyle(e).paddingTop,
+          })),
+        )
+        assert.deepEqual(
+          actual,
+          oracle,
+          'independent Tailwind inheritance and per-row guard selection',
+        )
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('owned candidates work without Tailwind, and empty roots/slots keep absent values', {
   skip: !executablePath,
 }, async () => {

@@ -17,7 +17,7 @@ const renderer = require('react-test-renderer')
 const stub = require('react-native')
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const theme = await loadTheme('@import "tailwindcss"; @theme { --color-brand: #123456; }', root)
-const source = `import { Chip, ColorPicker, Pagination, Stepper, CommandPalette, OtpInput, cx } from '@hozo/core'
+const source = `import { View, Text, Button, Pressable, Chip, ColorPicker, Pagination, Stepper, CommandPalette, OtpInput, cx } from '@hozo/core'
 export const classes = {
   chip: 'p-2 hover:bg-brand focus-visible:outline-2 disabled:opacity-25 aria-pressed:rounded-lg',
   swatch: 'p-2 aria-checked:rounded-lg disabled:opacity-25 hover:opacity-50 focus-visible:outline-2 active:border-2 hover:bg-brand',
@@ -74,6 +74,40 @@ export function* YieldGuardProbe() {
 }
 export function ReceiverGuardProbe() {
   return <Chip onRemove={() => {}} removeClassName={this.read(arguments[0]) ? 'p-2' : 'p-4'} />
+}
+export function RootInheritedProbe({ first, guard, last, after }) {
+  return <View className={cx(first(), guard() ? 'text-[#123456]' : 'text-[#654321]', last())} testID={after()}>
+    <Text>First</Text><View><Text>Second</Text></View><Other><Text>Third</Text></Other>
+  </View>
+}
+function Other({ children, item }) { return <>{children}{item}</> }
+export function RootLoopProbe({ rows, guard }) {
+  return <View>{rows.map(row => <Pressable className={cx('hover:opacity-50', guard(row) ? 'p-2' : 'p-4')} key={row} accessibilityRole="button"><Text>{row}</Text></Pressable>)}</View>
+}
+export function RootNestedProbe({ outer, inner }) {
+  return <View className={outer() ? 'text-[#123456]' : 'text-[#654321]'}>
+    <Other><View className={inner() ? 'p-2' : 'p-4'}><Text>Foreign</Text></View></Other>
+    <><Text className={inner() ? 'p-2' : 'p-4'}>Fragment</Text></>
+    <Other item=<Text className={inner() ? 'p-2' : 'p-4'}>Attribute</Text> />
+  </View>
+}
+export function RootForwardedProbe({ guard, label = 'Opaque' }) {
+  return <Button className={cx('hover:opacity-50 focus:outline-2', guard() ? 'text-[#123456]' : 'text-[#654321]')} onPress={() => {}}>{label}</Button>
+}
+export async function RootAwaitProbe(wait) {
+  return <View className={(await wait()) ? 'text-[#123456]' : 'text-[#654321]'}><Text>Await</Text></View>
+}
+export function* RootYieldProbe() {
+  return <View className={(yield 'root') ? 'text-[#123456]' : 'text-[#654321]'}><Text>Yield</Text></View>
+}
+export function RootReceiverProbe() {
+  return <View className={this.read(arguments[0]) ? 'text-[#123456]' : 'text-[#654321]'}><Text>{this.label(arguments[0])}</Text></View>
+}
+export function RootOuterGrammarProbe({ guard }) {
+  return <Other item=<Text className={guard() ? 'p-2' : 'p-4'}>AttributeRoot</Text>>
+    <><Text className={guard() ? 'p-2' : 'p-4'}>FragmentRoot</Text></>
+    <View className={guard() ? 'p-2' : 'p-4'}><Text>ChildRoot</Text></View>
+  </Other>
 }
 export function ColorProbe({ disabled, value, onChange, extra }) {
   return <ColorPicker accessibilityLabel="Colour" presets={['#ef4444', '#3b82f6']}
@@ -463,6 +497,174 @@ test('decorative slots capture independent predicates without borrowing interact
     assert.equal(cells.length, 3)
     assert.equal(flat(cells[0]).opacity, 0.5)
     assert.equal(flat(cells[1]).opacity, undefined, 'filled slot applies only to filled cells')
+  } finally {
+    view.unmount()
+  }
+})
+
+test('root capture spans inherited text through known and opaque child boundaries', () => {
+  const calls: string[] = []
+  let value = true
+  const props = {
+    first: () => {
+      calls.push('first')
+    },
+    guard: () => {
+      calls.push('guard')
+      return value
+    },
+    last: () => {
+      calls.push('last')
+    },
+    after: () => {
+      calls.push('after')
+      return 'root'
+    },
+  }
+  const view = mount('RootInheritedProbe', props)
+  const texts = () => view.tree.root.findAll((node: Tree) => node.type === 'Text')
+  try {
+    assert.deepEqual(calls, ['first', 'guard', 'last', 'after'])
+    assert.equal(texts().length, 3)
+    assert.deepEqual(
+      texts().map((node) => flat(node).color),
+      Array(3).fill('#123456'),
+    )
+    calls.length = 0
+    value = false
+    view.update(props)
+    assert.deepEqual(calls, ['first', 'guard', 'last', 'after'])
+    assert.deepEqual(
+      texts().map((node) => flat(node).color),
+      Array(3).fill('#654321'),
+    )
+  } finally {
+    view.unmount()
+  }
+  calls.length = 0
+  assert.throws(
+    () =>
+      components.RootInheritedProbe({
+        ...props,
+        guard: () => {
+          calls.push('throw')
+          throw new Error('root guard failed')
+        },
+      }),
+    /root guard failed/,
+  )
+  assert.deepEqual(
+    calls,
+    ['first', 'throw'],
+    'later class inputs, props and children are not evaluated after an abrupt guard',
+  )
+})
+
+test('root capture stays per-element in map callbacks and is immutable across owner events', () => {
+  const calls = []
+  const props = {
+    rows: ['first', 'second'],
+    guard: (row) => {
+      calls.push(row)
+      return row === 'first'
+    },
+  }
+  const view = mount('RootLoopProbe', props)
+  const buttons = () => hosts(view.tree)
+  try {
+    assert.deepEqual(calls, ['first', 'second'])
+    assert.deepEqual(
+      buttons().map((node) => flat(node).paddingTop),
+      [8, 16],
+    )
+    event(buttons()[0], 'onHoverIn')
+    event(buttons()[1], 'onFocus')
+    assert.equal(flat(buttons()[0]).opacity, 0.5)
+    assert.deepEqual(
+      buttons().map((node) => flat(node).paddingTop),
+      [8, 16],
+    )
+    assert.deepEqual(calls, ['first', 'second'])
+  } finally {
+    view.unmount()
+  }
+})
+
+test('nested root capture scopes keep foreign children, fragments and JSX-valued attributes valid', () => {
+  const calls = []
+  const view = mount('RootNestedProbe', {
+    outer: () => {
+      calls.push('outer')
+      return true
+    },
+    inner: () => {
+      calls.push('inner')
+      return false
+    },
+  })
+  try {
+    assert.deepEqual(calls, ['outer', 'inner', 'inner', 'inner'])
+    const texts = view.tree.root.findAll((node: Tree) => node.type === 'Text')
+    assert.equal(texts.length, 3)
+    assert.deepEqual(
+      texts.map((node) => flat(node).color),
+      Array(3).fill('#123456'),
+    )
+    assert.deepEqual(
+      texts.slice(1).map((node) => flat(node).paddingTop),
+      [16, 16],
+    )
+  } finally {
+    view.unmount()
+  }
+})
+
+test('root capture reaches an opaque Button label without re-evaluating the guard on interaction', () => {
+  let calls = 0
+  const view = mount('RootForwardedProbe', {
+    guard: () => {
+      calls++
+      return true
+    },
+  })
+  try {
+    const text = () => view.tree.root.findAll((node: Tree) => node.type === 'Text')[0]
+    assert.equal(flat(text()).color, '#123456')
+    assert.equal(calls, 1)
+    event(hosts(view.tree)[0], 'onFocus')
+    assert.equal(flat(text()).color, '#123456')
+    assert.equal(calls, 1)
+  } finally {
+    view.unmount()
+  }
+})
+
+test('root class inputs keep lexical suspension and descendants keep this and arguments', async () => {
+  const child = (element) => element.props.children
+  const awaited = await components.RootAwaitProbe(async () => true)
+  assert.equal(flat(child(awaited)).color, '#123456')
+  const iterator = components.RootYieldProbe()
+  assert.deepEqual(iterator.next(), { value: 'root', done: false })
+  assert.equal(flat(child(iterator.next(false).value)).color, '#654321')
+  const receiver = { read: (value) => value === 42, label: (value) => `label-${value}` }
+  const result = components.RootReceiverProbe.call(receiver, 42)
+  assert.equal(flat(child(result)).color, '#123456')
+  assert.equal(child(result).props.children, 'label-42')
+})
+
+test('capture replacements keep JSX grammar when the outermost component is unknown', () => {
+  let calls = 0
+  const view = mount('RootOuterGrammarProbe', {
+    guard: () => {
+      calls++
+      return true
+    },
+  })
+  try {
+    assert.equal(calls, 3)
+    const texts = view.tree.root.findAll((node: Tree) => node.type === 'Text')
+    assert.equal(texts.length, 3)
+    assert.equal(texts.filter((node) => flat(node).paddingTop === 8).length, 2)
   } finally {
     view.unmount()
   }

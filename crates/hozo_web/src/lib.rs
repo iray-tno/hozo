@@ -1228,11 +1228,12 @@ fn render_node(
                     .chain(node.props.stylex_residuals.iter().map(|residual| {
                         format!("({}).className", residual.render_expression(source))
                     }))
-                    .chain(
-                        node.class_name_fallback
-                            .iter()
-                            .map(|r| source_text(source, *r).to_string()),
-                    )
+                    .chain(node.class_name_fallback.iter().map(|r| {
+                        node.root_class_evaluation().map_or_else(
+                            || source_text(source, *r).to_string(),
+                            |evaluation| evaluation.value(source, *r),
+                        )
+                    }))
                     .collect();
             let mut value = format!("[{}].filter(Boolean).join(' ')", parts.join(", "));
             if !node.class_name_fallback.is_empty() {
@@ -1244,7 +1245,12 @@ fn render_node(
         };
     // A component's other class lists, compiled the same way and handed to
     // it under the prop the author wrote (`removeClassName`).
-    for slot in &node.props.class_slots {
+    for slot in node
+        .props
+        .class_slots
+        .iter()
+        .filter(|slot| slot.slot != hozo_ir::ClassSlot::ROOT)
+    {
         let slot_class = allocator.alloc();
         let before = rules.len();
         push_rules_using(
@@ -2334,7 +2340,21 @@ fn render_node(
     } else {
         format!("<{tag}{attrs}>{}</{tag}>", inner.text)
     };
-    Rendered { text, copies }
+    if let Some(evaluation) = node.root_class_evaluation() {
+        if let Some(copies) = &mut copies {
+            let offset = evaluation.wrapper_offset(source);
+            for copy in copies {
+                copy.emitted_start += offset;
+                copy.emitted_end += offset;
+            }
+        }
+        Rendered {
+            text: evaluation.wrap_subtree(source, &text),
+            copies,
+        }
+    } else {
+        Rendered { text, copies }
+    }
 }
 
 /// Re-emits a carried expression from source, with each Hozo primitive
@@ -3789,11 +3809,16 @@ export function Login() {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
-        // The guard is re-emitted verbatim into the class list, so it goes
+        // The captured guard toggles a class, so it goes
         // wherever `className` goes -- not an attribute a component might
         // not render (#883).
+        let name = parsed.roots[0]
+            .node
+            .root_class_evaluation()
+            .unwrap()
+            .name(source);
         assert!(
-            output.jsx.contains("(active) && 'hozo-cond-"),
+            output.jsx.contains(&format!("({name}[0]) && 'hozo-cond-")),
             "{}",
             output.jsx
         );
@@ -3801,6 +3826,24 @@ export function Login() {
 
         // And the weightless selector that class feeds is present too.
         assert!(output.css.contains(":where(.hozo-cond-"), "{}", output.css);
+        assert_eq!(output.jsx.matches("active").count(), 1);
+    }
+
+    #[test]
+    fn subtree_capture_shifts_copy_evidence_without_changing_copied_bytes() {
+        let source = "import {View} from '@hozo/core'; const el = <View className={guard() && 'p-2'} custom={payload}><Foreign thing={child}><View className={inner() && 'p-4'} custom={tail} /></Foreign></View>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower_with_evidence(&parsed.roots[0].node, source, &Theme::default(), true);
+        let copies = output.source_copies.unwrap();
+        assert!(!copies.is_empty());
+        for copy in copies {
+            assert_eq!(
+                &source[copy.span.start as usize..copy.span.end as usize],
+                &output.jsx[copy.emitted_start..copy.emitted_end]
+            );
+        }
+        assert_eq!(output.jsx.matches("guard()").count(), 1);
+        assert_eq!(output.jsx.matches("inner()").count(), 1);
     }
 
     /// A branch on an element that stays a component: `Button` with a spread

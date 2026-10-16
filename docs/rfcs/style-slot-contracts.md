@@ -76,11 +76,25 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    widget root, and false-only branches cannot leave truthy internal markers.
    Overlapping guarded fallbacks, spread iteration and guarded template
    coercions still travel **whole** rather than evaluating a guard twice or
-   changing which side effects run. Root authored-predicate capture remains
-   separate: its inherited/forwarded styles need a correctly scoped binding,
-   not just a wrapper around one style prop. Ordinary primitive/root codegen
-   is unchanged by this increment; that is not a claim that their existing
-   authored-guard evaluation behavior is already unified.
+   changing which side effects run.
+   Root authored predicates now use that same plan where the entire rendered
+   subtree can be safely enclosed. Inherited Text declarations and forwarded
+   label callbacks read the same immutable capture; each `map` element gets
+   its own binding. No provider, host or fragment is inserted. The parser
+   stores the root plan in the existing slot metadata only when needed, not
+   in an optional field enlarging every ordinary Node. Scope is a property
+   of the shared plan, rather than a second expression-analysis engine.
+   The parser records whether a JSX child/attribute replacement needs braces, including
+   roots beneath an unknown component. Backend source-copy evidence shifts
+   with the generated prefix instead of being rediscovered by a text search.
+   Class inputs remain outside the arrow, preserving their lexical suspension.
+   An evaluated prop/spread before className, or await/yield/direct eval in
+   the JSX being moved, keeps the legacy root AOT/residual path. Nested
+   functions retain their own scope. Overlapping guarded fallbacks also stay
+   legacy on root; single evaluation is **not** newly certified on those
+   excluded routes. Literal/opaque/unguarded root fast paths are unchanged.
+   Existing label reach and unsupported Native conditions are not broadened
+   merely by enclosing a capture correctly.
    Secondary Web CSS asks the real DOM child about disabled/enabled, including
    stacking and negation; it does not expect a marker on the widget root.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/

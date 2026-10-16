@@ -40,6 +40,7 @@ pub(crate) fn capture_evaluation(
     let evaluation = ClassEvaluation {
         span: to_expr_ref(expression.span()).0,
         steps,
+        scope: hozo_ir::ClassCaptureScope::Prop,
     };
     // No dependency may silently disappear through an unfamiliar AST shape.
     let mut captured = evaluation.references();
