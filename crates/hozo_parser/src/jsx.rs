@@ -143,6 +143,10 @@ fn role_from_literal(literal: &str, aria: bool) -> Option<AccessibilityRole> {
 /// which bindings this file actually has and where they came from.
 pub(crate) struct Scope<'r, 'a> {
     pub module_record: &'r ModuleRecord<'a>,
+    /// What each `{...rest}` cannot carry, by reference offset (#656).
+    pub rest_exclusions: &'r crate::rest::RestExclusions,
+    /// Module-level string constants, by reference offset.
+    pub constants: &'r crate::rest::ConstantStrings,
     /// Functions the project declares join classes as `clsx` does (#964).
     pub class_helpers: &'r [dynamic_class::ClassHelper],
     /// Primitive-named locals imported from a module the project does not
@@ -375,6 +379,7 @@ fn passthrough_prop(
     PassthroughProp {
         span: to_expr_ref(attr.span()),
         is_spread: false,
+        spread_excludes: Vec::new(),
         // A namespaced name (`xlink:href`) is not something Hozo emits a
         // semantic counterpart for, so leaving it `None` costs nothing and
         // avoids inventing a spelling for it.
@@ -951,6 +956,14 @@ fn build_node(
                         name: None,
                         literal: None,
                         nested: Vec::new(),
+                        spread_excludes: match &spread.argument {
+                            oxc_ast::ast::Expression::Identifier(id) => scope
+                                .rest_exclusions
+                                .get(&id.span.start)
+                                .cloned()
+                                .unwrap_or_default(),
+                            _ => Vec::new(),
+                        },
                     });
                 continue;
             }
@@ -1140,6 +1153,7 @@ fn build_node(
                                 &dynamic_class::Joiners {
                                     module_record: scope.module_record,
                                     helpers: scope.class_helpers,
+                                    constants: scope.constants,
                                 },
                             );
                         style.extend(decomposed.declarations);

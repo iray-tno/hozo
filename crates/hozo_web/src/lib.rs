@@ -3507,6 +3507,63 @@ const el = <Meter value={used} max={total} />
     }
 
     #[test]
+    fn a_module_string_constant_compiles_as_the_literal_it_holds() {
+        let lowered = |body: &str| {
+            let source = format!("import {{ View }} from '@hozo/core'\nimport {{ cx }} from '@hozo/core'\n{body}");
+            let parsed = hozo_parser::parse_tsx(&source);
+            lower(&parsed.roots[0].node, &source, &Theme::default())
+        };
+        let direct = lowered("const PAD = 'p-4'\nconst el = <View className={PAD} />");
+        assert!(!direct.jsx.contains("PAD"), "{}", direct.jsx);
+        assert!(direct.css.contains("padding"), "{}", direct.css);
+        let joined =
+            lowered("const PAD = 'p-4'\nfunction A({ on }) { return <View className={cx(PAD, on ? 'm-2' : 'm-4')} /> }");
+        assert!(!joined.jsx.contains("PAD"), "{}", joined.jsx);
+        // A local of the same name is not the constant, and stays opaque.
+        let shadowed = lowered(
+            "const PAD = 'p-4'\nfunction A() { const PAD = pick(); return <View className={PAD} /> }",
+        );
+        assert!(shadowed.jsx.contains("PAD"), "{}", shadowed.jsx);
+        // Neither is a `let`, which could be reassigned.
+        let reassignable = lowered("let PAD = 'p-4'\nconst el = <View className={PAD} />");
+        assert!(reassignable.jsx.contains("PAD"), "{}", reassignable.jsx);
+    }
+
+    #[test]
+    fn a_rest_that_took_href_out_cannot_carry_it() {
+        // #656. `rest` is every prop except the ones the pattern named, so
+        // once `href` is named the spread cannot supply it, and the Button
+        // can be decided -- by syntax and bindings, not by types.
+        let lowered = |body: &str| {
+            let source = format!("import {{ Button }} from '@hozo/core'\n{body}");
+            let parsed = hozo_parser::parse_tsx(&source);
+            lower(&parsed.roots[0].node, &source, &Theme::default()).jsx
+        };
+        assert_eq!(
+            lowered("function B({ href, ...rest }) { return <Button {...rest}>Go</Button> }"),
+            r#"<button type="button" {...hozoDomProps(rest)}>Go</button>"#
+        );
+        assert_eq!(
+            lowered(
+                "function B({ href, ...rest }) { return <Button {...rest} href={href}>Go</Button> }"
+            ),
+            r#"<a {...hozoDomProps(rest)} href={href}>Go</a>"#
+        );
+        // `href` not taken out: the spread may still hold it.
+        assert_eq!(
+            lowered("function B({ tone, ...rest }) { return <Button {...rest}>Go</Button> }"),
+            r#"<Button {...rest}>Go</Button>"#
+        );
+        // Read for anything but a spread, the binding could have regained it.
+        assert_eq!(
+            lowered(
+                "function B({ href, ...rest }) { rest.href = '/x'; return <Button {...rest}>Go</Button> }"
+            ),
+            r#"<Button {...rest}>Go</Button>"#
+        );
+    }
+
+    #[test]
     fn the_kept_component_is_named_the_way_the_file_names_it() {
         // The half that makes the fallback usable. Every wrapper around a
         // primitive imports it under another name, because the wrapper wants

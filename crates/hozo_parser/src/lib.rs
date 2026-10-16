@@ -10,6 +10,7 @@ mod canvas;
 mod class_helpers;
 mod dynamic_class;
 mod jsx;
+mod rest;
 mod scan;
 mod stylex;
 mod tailwind;
@@ -411,7 +412,10 @@ fn parse(
         registry.attach(&mut stylex, &ret.module_record, bindings);
     }
     let stylex_scan_spans = stylex.scan_spans.clone();
+    let bindings_facts = rest::analyze(&ret.program);
     let scope = jsx::Scope {
+        rest_exclusions: &bindings_facts.rest,
+        constants: &bindings_facts.constants,
         module_record: &ret.module_record,
         class_helpers,
         foreign: &foreign,
