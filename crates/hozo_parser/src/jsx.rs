@@ -208,15 +208,18 @@ fn class_expression(
     expression: &JSXExpression,
     scope: &Scope,
     diagnostics: &mut Vec<Diagnostic>,
-) -> dynamic_class::Decomposed {
-    let decomposed = dynamic_class::decompose_class_name(
-        expression,
-        &dynamic_class::Joiners {
-            module_record: scope.module_record,
-            helpers: scope.class_helpers,
-            constants: scope.constants,
-        },
-    );
+    skip_opaque: bool,
+) -> Option<dynamic_class::Decomposed> {
+    let joiners = dynamic_class::Joiners {
+        module_record: scope.module_record,
+        helpers: scope.class_helpers,
+        constants: scope.constants,
+    };
+    let decomposed = if skip_opaque {
+        dynamic_class::decompose_class_pieces(expression, &joiners)?
+    } else {
+        dynamic_class::decompose_class_name(expression, &joiners)
+    };
     // A helper call must not make an unsupported variant disappear without
     // the diagnostic its literal spelling would have produced.
     for report in &decomposed.unsupported_variants {
@@ -227,7 +230,7 @@ fn class_expression(
             span: report.span,
         });
     }
-    decomposed
+    Some(decomposed)
 }
 
 /// Finds and lowers Hozo primitives nested inside something the compiler
@@ -1209,7 +1212,8 @@ fn build_node(
                     }
                     Some(JSXAttributeValue::ExpressionContainer(container)) => {
                         let decomposed =
-                            class_expression(&container.expression, scope, diagnostics);
+                            class_expression(&container.expression, scope, diagnostics, false)
+                                .expect("root className retains opaque fallback leaves");
                         style.extend(decomposed.declarations);
                         class_name_fallback.extend(decomposed.fallback);
                         consumed.extend(decomposed.consumed);
@@ -1278,7 +1282,14 @@ fn build_node(
                         .push(passthrough_prop(attr, scope, diagnostics, consumed));
                     continue;
                 };
-                let decomposed = class_expression(&container.expression, scope, diagnostics);
+                let Some(decomposed) =
+                    class_expression(&container.expression, scope, diagnostics, true)
+                else {
+                    props
+                        .passthrough
+                        .push(passthrough_prop(attr, scope, diagnostics, consumed));
+                    continue;
+                };
                 // A new AOT path must not move an authored JS guard into an
                 // owner's callback, re-evaluate it on hover, or reorder it
                 // against opaque siblings. Keep such expressions whole until
