@@ -1319,7 +1319,7 @@ fn otp_input_focus_belongs_to_the_field_not_wrapper_or_virtual_cells() {
     };
     let output = compile(r#"disabled={blocked} inputClassName="rounded-lg focus:outline-2 focus-visible:outline-4 not-focus:opacity-50 md:not-focus-visible:outline-1 disabled:opacity-25" inputStyle={extra}"#);
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.contains("hozoInputStyle={({ pressed, hovered, focused, focusVisible }) => ["), "{}", output.jsx);
+    assert!(output.jsx.contains("hozoInputStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly }) => ["), "{}", output.jsx);
     for expected in ["focused &&", "focusVisible &&", "!(focused) &&", "!(focusVisible)", "inputStyle={extra}", "disabled={blocked}"] {
         assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
     }
@@ -1337,6 +1337,35 @@ fn otp_input_focus_belongs_to_the_field_not_wrapper_or_virtual_cells() {
         let output = compile(&format!(r#"inputClassName="{condition}:opacity-50""#));
         assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error && d.message.contains("different owner")), "{condition}: {:?}", output.diagnostics);
         assert!(!output.jsx.contains("hozoInputStyle"), "{}", output.jsx);
+    }
+}
+
+#[test]
+fn otp_input_semantics_use_internal_field_facts_without_authored_drivers() {
+    let source = r#"import { OtpInput } from '@hozo/core'
+        const el = <OtpInput accessibilityLabel="Code"
+          inputClassName="disabled:opacity-25 enabled:rounded-lg read-only:outline-2 not-read-only:outline-4 not-disabled:outline-offset-2 not-enabled:outline-offset-4 read-only:focus:opacity-50 aria-disabled:border-8 not-aria-disabled:border-2" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    for expected in ["disabled: __hozoSlotDisabled", "enabled: __hozoSlotEnabled", "readOnly: __hozoSlotReadOnly", "__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "__hozoSlotReadOnly &&", "!(__hozoSlotReadOnly) &&", "__hozoSlotReadOnly && focused &&"] {
+        assert!(output.jsx.contains(expected), "{expected}: {}", output.jsx);
+    }
+    for slot in ["className", "cellClassName", "activeCellClassName", "filledCellClassName"] {
+        let source = format!(r#"import {{ OtpInput }} from '@hozo/core'
+            const el = <OtpInput accessibilityLabel="Code" disabled
+              {slot}="disabled:opacity-25 enabled:outline-8 read-only:rounded-lg not-read-only:opacity-50 not-disabled:border-2 not-enabled:pt-1 aria-disabled:outline-8" />"#);
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{slot}: {:?}", output.diagnostics);
+        assert!(!output.jsx.contains("__hozoSlotDisabled") && !output.jsx.contains("__hozoSlotReadOnly"), "constants need no callback: {}", output.jsx);
+    }
+    for (slot, variant) in [("cellClassName", "aria-expanded"), ("activeCellClassName", "aria-expanded"), ("filledCellClassName", "not-aria-expanded"), ("inputClassName", "not-aria-expanded")] {
+        let source = format!(r#"import {{ OtpInput }} from '@hozo/core'
+            const el = <OtpInput accessibilityLabel="Code" {slot}="{variant}:opacity-50" />"#);
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}/{variant}: {:?}", output.diagnostics);
     }
 }
 

@@ -49,7 +49,11 @@ pub(super) fn resolve(
     pattern_slot: Option<&str>,
 ) -> Result<Guard, String> {
     if let Some(binding) = pattern_slot.and_then(|slot| crate::pattern::semantic_binding(node.primitive, slot, condition)) {
-        return Ok(if binding == "false" { Guard::Known(false) } else { Guard::Interactive(binding.to_string()) });
+        return Ok(match binding {
+            "false" => Guard::Known(false),
+            "true" => Guard::Known(true),
+            _ => Guard::Interactive(binding.to_string()),
+        });
     }
     match condition {
         Condition::Not(inner) => resolve(inner, node, source, position, runtime, interaction_context, pattern_slot)

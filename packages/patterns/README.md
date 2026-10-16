@@ -204,6 +204,27 @@ Existing runtime item focus and decorative hover/press behavior is unchanged,
 not a new cross-platform focus/pointer claim. Runtime negation/enabled and
 arbitrary dynamic-class support are not expanded here.
 
+## Semantic state of OtpInput
+
+`inputClassName` belongs to the one real text/password input. Its internal
+disabled/enabled and read-only facts drive both candidate classes and literal
+compiler callbacks, including supported negations/stacks, even when no driver
+props were authored. CSS read-only includes disabled fields; readonly alone
+does not disable the field. Native announcements do not create Web
+aria-disabled/selected/checked attributes.
+
+The wrapper div and decorative cell spans match neither disabled nor enabled.
+They do match read-only because they are not editable HTML elements; they do
+not borrow the field's focus or ARIA attributes. Existing active/filled class
+gates, one-field accessibility, transparent glyphs, fixed overlay geometry,
+caret behavior and explicit style precedence remain unchanged. Decorative
+semantic facts are constants at build time, not input subscriptions. Unknown
+ARIA and cell focus/pointer variants remain diagnosed; runtime negation/enabled
+limitations are not broadened.
+
+The selector distinction follows the [HTML selector definition](https://html.spec.whatwg.org/multipage/semantics-other.html#selector-read-only)
+and is checked against actual Web DOM/Tailwind separately from Native hosts.
+
 ## Focus ownership of decorative slots
 
 `OtpInput` has one focus owner: its real input. Put `focus:*` and

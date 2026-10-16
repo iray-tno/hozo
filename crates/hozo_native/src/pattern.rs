@@ -3,7 +3,7 @@
 //! Do not mark a whole pattern as a Pressable: a row, its remove button and
 //! its label can have different state, and none publishes a Text context.
 
-use hozo_ir::{Condition, Primitive};
+use hozo_ir::{Condition, FormState, Primitive};
 
 // These facts describe the Web class owner, not the Native accessibility
 // announcement. In particular a composite Chip's className belongs to a
@@ -60,6 +60,25 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             _ => None,
         };
     }
+    if primitive == Primitive::OtpInput && class_prop == "inputClassName" {
+        return match condition {
+            Condition::Disabled => Some("__hozoSlotDisabled"),
+            Condition::Enabled => Some("__hozoSlotEnabled"),
+            Condition::FormState(FormState::ReadOnly) => Some("__hozoSlotReadOnly"),
+            Condition::Aria(state) if matches!(state.as_str(), "disabled" | "selected" | "checked") => Some("false"),
+            _ => None,
+        };
+    }
+    if primitive == Primitive::OtpInput && matches!(class_prop, "className" | "cellClassName" | "activeCellClassName" | "filledCellClassName") {
+        return match condition {
+            Condition::Disabled | Condition::Enabled => Some("false"),
+            // Non-editable divs and spans match :read-only, independently
+            // of whether the separate input is disabled or readonly.
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if matches!(state.as_str(), "disabled" | "selected" | "checked") => Some("false"),
+            _ => None,
+        };
+    }
     None
 }
 
@@ -74,6 +93,8 @@ pub(super) fn semantic_parameters(primitive: Primitive) -> &'static str {
         ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked"
     } else if primitive == Primitive::CommandPalette {
         ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected"
+    } else if primitive == Primitive::OtpInput {
+        ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly"
     } else {
         ""
     }

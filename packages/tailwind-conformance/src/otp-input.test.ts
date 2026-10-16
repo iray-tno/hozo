@@ -304,3 +304,94 @@ test('full Native lowering still diagnoses static cell focus variants rather tha
     }
   }
 })
+
+const SEMANTIC_SOURCE = `import { OtpInput } from '@hozo/core'
+export function C({disabled,readOnly,mask,inputStyle}) {
+  return <OtpInput accessibilityLabel="Code" value="12" length={4} mask={mask}
+    disabled={disabled} readOnly={readOnly}
+    inputClassName="enabled:rounded-lg disabled:outline-offset-4 not-disabled:outline-offset-2 read-only:outline-2 not-read-only:outline-4 read-only:focus:opacity-50 aria-disabled:outline-8 not-aria-disabled:aspect-square"
+    className="disabled:opacity-25 enabled:outline-8 read-only:rounded-lg not-read-only:opacity-50 aria-disabled:outline-8"
+    cellClassName="size-10 disabled:opacity-25 enabled:outline-8 read-only:rounded-lg not-read-only:opacity-50 aria-disabled:outline-8"
+    activeCellClassName="read-only:rounded-lg disabled:outline-8" filledCellClassName="read-only:rounded-lg disabled:outline-8"
+    inputStyle={inputStyle} />
+}`
+
+test('compiled OTP field semantics include disabled read-only and preserve one transparent input', () => {
+  const { C } = loadNativeModule(SEMANTIC_SOURCE)
+  let root: ReturnType<typeof renderer.create>
+  const render = (props = {}) =>
+    renderer.act(() => {
+      const element = react.createElement(C, props)
+      if (root) root.update(element)
+      else root = renderer.create(element)
+    })
+  try {
+    for (const mask of [false, true])
+      for (const disabled of [false, true])
+        for (const readOnly of [false, true]) {
+          render({ disabled, readOnly, mask })
+          assert.equal(input(root).length, 1)
+          const field = input(root)[0]
+          assert.equal(field.props.editable, !disabled && !readOnly)
+          assert.equal(Boolean(field.props.readOnly), disabled || readOnly)
+          assert.deepEqual(field.props.accessibilityState, { disabled })
+          assert.equal(field.props.secureTextEntry, mask)
+          assert.equal(flat(frame(root)).outlineWidth, disabled || readOnly ? 2 : 4)
+          assert.equal(flat(frame(root)).outlineOffset, disabled ? 4 : 2)
+          assert.equal(flat(frame(root)).borderRadius, disabled ? undefined : 8)
+          assert.equal(
+            flat(frame(root)).aspectRatio,
+            1,
+            'disabled announcement does not create aria-disabled',
+          )
+          assert.equal(flat(frame(root)).opacity, undefined)
+          if (!disabled) {
+            event(field, 'onFocus')
+            assert.equal(flat(frame(root)).opacity, readOnly ? 0.5 : undefined)
+            event(field, 'onBlur')
+          }
+          assert.equal(flat(field).opacity, 0.011)
+          assert.equal(flat(field).color, 'transparent')
+          assert.equal(flat(field).width, '100%')
+          const wrapper = root.root.findByType('Pressable')
+          assert.equal(flat(wrapper).opacity, undefined)
+          assert.equal(flat(wrapper).outlineWidth, undefined)
+          assert.equal(flat(wrapper).borderRadius, 8)
+          for (const cell of cells(root)) {
+            assert.equal(flat(cell).outlineWidth, undefined)
+            assert.equal(flat(cell).opacity, undefined)
+            assert.equal(flat(cell).borderRadius, 8)
+          }
+        }
+    render({
+      disabled: true,
+      readOnly: false,
+      inputStyle: { outlineWidth: 7, borderRadius: 12, opacity: 1, width: 30 },
+    })
+    assert.equal(flat(frame(root)).outlineWidth, 7)
+    assert.equal(flat(frame(root)).borderRadius, 12)
+    assert.equal(flat(frame(root)).opacity, 1)
+    assert.equal(flat(frame(root)).width, '100%')
+    assert.equal(flat(input(root)[0]).opacity, 0.011)
+    assert.equal(flat(input(root)[0]).color, 'transparent')
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})
+
+test('literal OTP input semantics use internal defaults without authored drivers', () => {
+  const { C } = loadNativeModule(`import { OtpInput } from '@hozo/core'
+    export function C() {return <OtpInput accessibilityLabel="Code"
+      inputClassName="disabled:outline-8 enabled:rounded-lg read-only:outline-2 not-read-only:outline-4" />}`)
+  let root: ReturnType<typeof renderer.create>
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C))
+  })
+  try {
+    assert.equal(flat(frame(root)).outlineWidth, 4)
+    assert.equal(flat(frame(root)).borderRadius, 8)
+    assert.equal(input(root)[0].props.editable, true)
+  } finally {
+    renderer.act(() => root.unmount())
+  }
+})

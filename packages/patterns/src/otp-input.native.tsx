@@ -10,6 +10,7 @@ import { splitTextStyle } from './text-style.native.ts'
 export type { OtpType }
 
 type Style = StyleProp<ViewStyle | TextStyle>
+type InputState = InteractionState & { disabled: boolean; enabled: boolean; readOnly: boolean }
 
 export interface HozoOtpInputProps {
   length?: number
@@ -44,8 +45,8 @@ export interface HozoOtpInputProps {
   activeCellStyle?: Style
   filledCellStyle?: Style
   inputStyle?: Style
-  /** Compiler-only input focus callback; cells never consume input focus predicates. */
-  hozoInputStyle?: (state: InteractionState) => Style
+  /** Compiler-only input facts; cells never consume the input's state predicates. */
+  hozoInputStyle?: (state: InputState) => Style
   testID?: string
 }
 
@@ -109,13 +110,22 @@ export function HozoOtpInput({
   const active = caret?.index ?? otpActiveIndex(code, length)
   const show = showCaret && focused && !disabled && !readOnly
   const hasInputStyle = Boolean(inputClassName || inputStyle || hozoInputStyle)
+  // CSS asks whether this text field is mutable, not just whether a readonly
+  // attribute was written. A disabled field is read-only too. Announcing it
+  // as disabled on Native does not create an aria-disabled Web attribute.
+  const inputFacts = {
+    focused: inputInteraction.focused,
+    focusVisible: inputInteraction.focusVisible,
+    disabled: Boolean(disabled),
+    enabled: !disabled,
+    readOnly: Boolean(disabled || readOnly),
+    'aria-disabled': false,
+    'aria-selected': false,
+    'aria-checked': false,
+  }
   const [inputBox, inputText] = splitTextStyle([
-    hozoClasses(inputClassName, {
-      focused: inputInteraction.focused,
-      focusVisible: inputInteraction.focusVisible,
-      disabled: Boolean(disabled),
-    }),
-    hozoInputStyle?.(inputInteraction),
+    hozoClasses(inputClassName, inputFacts),
+    hozoInputStyle?.({ ...inputInteraction, ...inputFacts }),
     inputStyle,
   ])
   // The wrapper is an unfocusable hit target, not a second input. In
@@ -124,7 +134,13 @@ export function HozoOtpInput({
     ...interaction,
     focused: false,
     focusVisible: false,
-    disabled: Boolean(disabled),
+    // The corresponding Web div/spans are not form controls or editable.
+    disabled: false,
+    enabled: false,
+    readOnly: true,
+    'aria-disabled': false,
+    'aria-selected': false,
+    'aria-checked': false,
   })
   const look = (interaction: InteractionState) =>
     splitTextStyle([hozoClasses(className, wrapperFacts(interaction)), style])
