@@ -57,12 +57,32 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "selected" => Some("false"),
             _ => None,
         },
+        // A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::Pagination, "ellipsisClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
         // The owner can be a button or a descriptive row. Event availability stays outside negation; semantic predicates still describe the row.
         (Primitive::Stepper, "stepClassName" | "completedStepClassName" | "currentStepClassName" | "errorStepClassName") => match condition {
             Condition::Disabled => Some("__hozoSlotDisabled"),
             Condition::Enabled => Some("__hozoSlotEnabled"),
             Condition::Aria(state) if state == "selected" => Some("false"),
             Condition::Aria(state) if state == "disabled" => Some("false"),
+            _ => None,
+        },
+        // A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::Stepper, "indicatorClassName" | "completedIndicatorClassName" | "currentIndicatorClassName" | "errorIndicatorClassName" | "descriptionClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
             _ => None,
         },
         _ => None,
@@ -97,6 +117,29 @@ pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option
         (Primitive::Stepper, "completedStepClassName") => Some(InteractionSlot { style_prop: "hozoCompletedStepStyle", focus: true, pointer: true, optional_owner: Some("onStepPress") }),
         (Primitive::Stepper, "currentStepClassName") => Some(InteractionSlot { style_prop: "hozoCurrentStepStyle", focus: true, pointer: true, optional_owner: Some("onStepPress") }),
         (Primitive::Stepper, "errorStepClassName") => Some(InteractionSlot { style_prop: "hozoErrorStepStyle", focus: true, pointer: true, optional_owner: Some("onStepPress") }),
+        _ => None,
+    }
+}
+
+pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool {
+    matches!((primitive, class_prop),
+        (Primitive::Pagination, "ellipsisClassName")
+        |         (Primitive::Stepper, "indicatorClassName")
+        |         (Primitive::Stepper, "completedIndicatorClassName")
+        |         (Primitive::Stepper, "currentIndicatorClassName")
+        |         (Primitive::Stepper, "errorIndicatorClassName")
+        |         (Primitive::Stepper, "descriptionClassName")
+    )
+}
+
+pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+    match (primitive, class_prop) {
+        (Primitive::Pagination, "ellipsisClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Stepper, "indicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Stepper, "completedIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Stepper, "currentIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Stepper, "errorIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Stepper, "descriptionClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         _ => None,
     }
 }

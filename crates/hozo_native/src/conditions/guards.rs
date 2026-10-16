@@ -87,6 +87,12 @@ pub(super) fn resolve(
         // cases; a missing driver remains unknown, never false by default.
         Condition::FormState(FormState::ReadOnly) => read_only(node, source),
         Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => {
+            if pattern_slot.is_some_and(|slot| crate::pattern::events_unavailable(node.primitive, slot)) {
+                return Err(format!(
+                    "`{}:` has no readable events on this decorative class owner on Native. A surrounding control's hover/press/focus does not locate interaction on its child; negation cannot make an unavailable fact true.",
+                    condition_suffix(condition).unwrap_or_default(),
+                ));
+            }
             if node.primitive == Primitive::TextInput {
                 return match condition {
                     Condition::Focus | Condition::FocusVisible => Ok(Guard::Interactive(focus_state(condition).unwrap().to_string())),

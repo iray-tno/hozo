@@ -5,6 +5,17 @@ use hozo_ir::Primitive;
 
 use crate::pattern;
 
+/// A non-interactive slot can still have known form/ARIA facts. Supplying
+/// them here keeps compiled opaque residuals aligned with the component's
+/// candidate path, without adding an event callback or resolving too early
+/// against the enclosing widget's props.
+pub(super) fn residual(primitive: Primitive, class_prop: &str, expression: &str) -> String {
+    pattern::constant_facts(primitive, class_prop).map_or_else(
+        || format!("hozoClasses({expression})"),
+        |facts| format!("hozoClasses({expression}, {facts})"),
+    )
+}
+
 fn parameters(primitive: Primitive, class_prop: &str) -> String {
     let owner = pattern::interaction_slot(primitive, class_prop)
         .expect("a pattern callback needs a registered consuming owner");

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { nonControlSlotFacts } from '../packages/patterns/src/non-control-facts.native.ts'
 import { components, profiles } from './style-slots/catalog.mjs'
 import { checkGenerated, outputs, validateCatalog } from './style-slots/generate.mjs'
 import { checkPublicProps } from './style-slots/public-props.mjs'
@@ -70,6 +71,33 @@ test('catalog validation refuses duplicate, unknown and ambiguous owner declarat
   const unknown = structuredClone(profiles)
   unknown.Chip.facts.checked = false
   assert.throws(() => validateCatalog(components, unknown), /Unknown fact/)
+  const noConsumer = structuredClone(components)
+  noConsumer.Pagination.find((slot) => slot.classProp === 'ellipsisClassName').profile =
+    'Pagination'
+  assert.throws(() => validateCatalog(noConsumer), /Facts need a consuming callback/)
+  const conflicting = structuredClone(components)
+  conflicting.Chip[0].events = 'unavailable'
+  assert.throws(() => validateCatalog(conflicting), /Conflicting event owner/)
+})
+
+test('audited decorative slots supply the same constant facts without inventing an interaction ABI', () => {
+  assert.deepEqual(nonControlSlotFacts, profiles.NonControl.facts)
+  const decorative = Object.values(components)
+    .flat()
+    .filter((slot) => slot.profile === 'NonControl')
+  assert.equal(decorative.length, 6)
+  assert.ok(
+    decorative.every(
+      (slot) => slot.lowering === 'secondary' && !slot.callback && slot.events === 'unavailable',
+    ),
+  )
+  assert.ok(
+    decorative.every(
+      (slot) => ![slot.owner, slot.gate, slot.composition].includes('pending-audit'),
+    ),
+  )
+  for (const key of ['hovered', 'pressed', 'focused', 'focusVisible'])
+    assert.equal(Object.hasOwn(nonControlSlotFacts, key), false, `${key} is unavailable, not false`)
 })
 
 test('the contract checks run outside Turbo cached tests and keep pending owners explicit', () => {

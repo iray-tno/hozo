@@ -2073,6 +2073,175 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
   }
 })
 
+test('decorative Stepper and Pagination owners match independent non-control Tailwind across class routes', {
+  skip: !executablePath,
+}, async () => {
+  const own =
+    'px-2 py-1 mb-2 text-[#123456] opacity-100 disabled:opacity-25 read-only:rounded-lg aria-selected:text-[#ff0000] aria-disabled:mt-4'
+  const negative = 'not-disabled:px-2 not-enabled:py-1 not-aria-selected:text-[#123456]'
+  const extra = 'bg-[#123456]'
+  const slots = {
+    indicatorClassName: '',
+    completedIndicatorClassName: 'border-2',
+    currentIndicatorClassName: 'border-4',
+    errorIndicatorClassName: 'border-8',
+    descriptionClassName: '',
+  }
+  const expression = (mode, slot, status = '') => {
+    const classes = `${own} ${status}`
+    return mode === 'literal'
+      ? JSON.stringify(`${classes} ${negative} ${extra}`)
+      : mode === 'opaque'
+        ? `{getClasses('${mode}/${slot}', ${JSON.stringify(`${classes} ${extra}`)})}`
+        : `{cx(${JSON.stringify(`${classes.replace('read-only:rounded-lg', 'rounded-none')} ${negative}`)}, getClasses('${mode}/${slot}', '${extra} read-only:rounded-lg'))}`
+  }
+  const source = `import {View,Stepper,Pagination,cx} from '@hozo/core'; const C = () => <View>
+    ${['literal', 'opaque', 'mixed']
+      .map(
+        (mode) => `<View testID="${mode}">
+      <Stepper steps={steps} activeStep={activeStep} onStepPress={clickable ? press : undefined}
+        stepClassName="text-[#654321]" ${Object.entries(slots)
+          .map(([slot, status]) => `${slot}=${expression(mode, slot, status)}`)
+          .join(' ')} />
+      <Pagination pageCount={pageCount} page={10} className="text-[#654321]" ellipsisClassName=${expression(mode, 'ellipsisClassName')} />
+    </View>`,
+      )
+      .join('')}
+  </View>`
+  const web = compiler.compile(source)[0]
+  assert.deepEqual(web.diagnostics, [])
+  const candidates = openCandidateCache(path.join(directory, 'decorative-owners.json'))
+  const names = `${own} ${negative} ${extra} border-2 border-4 border-8`.split(' ')
+  const candidateCss = candidates.renderCss(undefined, names)
+  const oracleCss = (
+    await compile('@theme { --spacing:0.25rem; --radius-lg:0.5rem; } @tailwind utilities;')
+  ).build(names)
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Stepper as HozoStepper, Pagination as HozoPagination} from '@hozo/patterns';
+        const root=createRoot(document.getElementById('root'));
+        const steps=[{label:'Done',description:'Done details'}, {label:'Now',description:'Now details',disabled:true},
+          {label:'Error',description:'Error details',status:'error'}, {label:'Later',description:'Later details'}];
+        const press=()=>{};
+        function Example({activeStep,pageCount,clickable,stamp}) {
+          window.calls=[];
+          const getClasses=(slot,value)=>{window.calls.push(slot); return value};
+          return <section data-stamp={stamp}>${web.jsx}</section>;
+        }
+        window.show=value=>root.render(<Example {...value}/>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const read = (locator) =>
+    locator.evaluate((e) => {
+      const s = getComputedStyle(e)
+      return [
+        s.paddingLeft,
+        s.paddingTop,
+        s.opacity,
+        s.borderRadius,
+        s.color,
+        s.marginTop,
+        s.marginBottom,
+        s.backgroundColor,
+        s.borderTopWidth,
+      ]
+    })
+  try {
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><span id="oracle"></span>`,
+      )
+      await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      for (const value of [
+        { activeStep: 1, pageCount: 20, clickable: true, stamp: 'first' },
+        { activeStep: 0, pageCount: 3, clickable: true, stamp: 'changed' },
+        { activeStep: 1, pageCount: 20, clickable: false, stamp: 'descriptive' },
+      ]) {
+        await page.evaluate((value) => window.show(value), value)
+        await page.waitForFunction(
+          (stamp) => document.querySelector('[data-stamp]')?.dataset.stamp === stamp,
+          value.stamp,
+        )
+        assert.equal((await page.evaluate(() => window.calls)).length, 12)
+        const borders = value.activeStep === 1 ? [2, 4, 8, 0] : [4, 0, 8, 0]
+        for (const mode of ['literal', 'opaque', 'mixed']) {
+          const section = page.locator(`[data-testid="${mode}"]`)
+          const rows = section.locator('ol > li')
+          assert.equal(await rows.count(), 4)
+          for (let index = 0; index < 4; index++) {
+            const owner = value.clickable ? rows.nth(index).locator('button') : rows.nth(index)
+            const spans = owner.locator('span[aria-hidden="true"]')
+            for (const [position, border] of [
+              [0, borders[index]],
+              [2, 0],
+            ]) {
+              await page.locator('#oracle').evaluate(
+                (e, classes) => {
+                  e.className = classes
+                },
+                `${own} ${negative} ${extra} ${border ? `border-${border}` : ''}`,
+              )
+              const actual = await read(spans.nth(position))
+              assert.deepEqual(
+                actual,
+                await read(page.locator('#oracle')),
+                `${mode}/${value.stamp}/${index}/${position}`,
+              )
+              assert.deepEqual(actual, [
+                '8px',
+                '4px',
+                '1',
+                '8px',
+                'rgb(18, 52, 86)',
+                '0px',
+                '8px',
+                'rgb(18, 52, 86)',
+                `${border}px`,
+              ])
+            }
+          }
+          const ellipses = section.locator('nav li[aria-hidden="true"]')
+          if (value.pageCount === 3) assert.equal(await ellipses.count(), 0)
+          else {
+            assert.ok((await ellipses.count()) > 0)
+            await page.locator('#oracle').evaluate((e, classes) => {
+              e.className = classes
+            }, `${own} ${negative} ${extra}`)
+            for (const ellipsis of await ellipses.all())
+              assert.deepEqual(await read(ellipsis), await read(page.locator('#oracle')))
+          }
+          if (value.clickable) {
+            await rows.nth(0).locator('button').focus()
+            assert.equal(
+              (await page.evaluate(() => window.calls)).length,
+              12,
+              'focus does not re-evaluate author classes',
+            )
+          }
+        }
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('root capture scopes keep inherited and loop-owned pixels aligned with independent Tailwind', {
   skip: !executablePath,
 }, async () => {

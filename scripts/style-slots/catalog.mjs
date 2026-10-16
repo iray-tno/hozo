@@ -2,6 +2,17 @@
 // presence is an inventory entry, not a claim that its owner has been audited.
 const supplied = (alias) => ({ alias })
 export const profiles = {
+  NonControl: {
+    facts: {
+      disabled: false,
+      enabled: false,
+      readOnly: true,
+      'aria-disabled': false,
+      'aria-selected': false,
+      'aria-checked': false,
+    },
+    note: 'A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.',
+  },
   Chip: {
     facts: {
       disabled: supplied('__hozoSlotDisabled'),
@@ -210,6 +221,13 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        ellipsisClassName: {
+          owner: 'non-control-ellipsis-li',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'each-pagination-gap',
+          composition: 'row-text inheritance; classes/explicit-style; split-box-text',
+        },
         itemClassName: owned('page-button-or-link', 'Pagination', 'hozoItemStyle'),
         currentItemClassName: owned('page-button-or-link', 'Pagination', 'hozoCurrentItemStyle', {
           gate: 'current-page',
@@ -227,20 +245,49 @@ export const components = {
     'className stepClassName completedStepClassName currentStepClassName errorStepClassName indicatorClassName completedIndicatorClassName currentIndicatorClassName errorIndicatorClassName descriptionClassName',
     {
       secondary: true,
-      overrides: Object.fromEntries(
-        ['step', 'completedStep', 'currentStep', 'errorStep'].map((name) => [
-          `${name}ClassName`,
-          owned(
-            'step-button-or-descriptive-row',
-            'Stepper',
-            `hozo${name[0].toUpperCase()}${name.slice(1)}Style`,
+      overrides: {
+        ...Object.fromEntries(
+          ['step', 'completedStep', 'currentStep', 'errorStep'].map((name) => [
+            `${name}ClassName`,
+            owned(
+              'step-button-or-descriptive-row',
+              'Stepper',
+              `hozo${name[0].toUpperCase()}${name.slice(1)}Style`,
+              {
+                optionalOwner: 'onStepPress',
+                gate: name === 'step' ? 'always' : name.replace('Step', ''),
+              },
+            ),
+          ]),
+        ),
+        ...Object.fromEntries(
+          [
+            'indicator',
+            'completedIndicator',
+            'currentIndicator',
+            'errorIndicator',
+            'description',
+          ].map((name) => [
+            `${name}ClassName`,
             {
-              optionalOwner: 'onStepPress',
-              gate: name === 'step' ? 'always' : name.replace('Step', ''),
+              owner:
+                name === 'description'
+                  ? 'non-control-description-span'
+                  : 'non-control-indicator-span',
+              profile: 'NonControl',
+              events: 'unavailable',
+              gate:
+                name === 'description'
+                  ? 'nonempty-description'
+                  : name === 'indicator'
+                    ? 'each-step'
+                    : name.replace('Indicator', ''),
+              composition:
+                'list/step text inheritance; base classes/style; status classes/style; split-box-text',
             },
-          ),
-        ]),
-      ),
+          ]),
+        ),
+      },
     },
   ),
   Switch: slots('className'),

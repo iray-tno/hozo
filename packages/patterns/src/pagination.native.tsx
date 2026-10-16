@@ -3,6 +3,7 @@ import { activateHozoNavigation, useHozoNavigation } from '@hozo/engine/navigati
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { Linking, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { paginationItems } from './pagination-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import type { PaginationSlotFacts } from './slot-facts.native.ts'
@@ -160,7 +161,7 @@ export function HozoPagination({
   }
 
   const [ellipsisBox, ellipsisText] = splitTextStyle([
-    hozoClasses(ellipsisClassName),
+    hozoClasses(ellipsisClassName, nonControlSlotFacts),
     ellipsisStyle,
   ])
   return (
