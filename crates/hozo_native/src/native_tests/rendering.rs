@@ -1421,12 +1421,42 @@ fn command_item_pointer_states_compile_without_inventing_input_focus() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     for prop in ["hozoItemStyle", "hozoActiveItemStyle"] {
-        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible }}) => [")), "{}", output.jsx);
+        assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible, 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected }}) => [")), "{}", output.jsx);
     }
     for expected in ["hovered &&", "pressed &&", "!(hovered) &&", "__hozoBp_md && hovered &&", "itemStyle={extra}", "activeItemStyle={activeExtra}"] {
         assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
     }
     assert!(!output.jsx.contains("hozoClasses(") && !output.jsx.contains("HozoPressable"), "{}", output.jsx);
+}
+
+#[test]
+fn command_option_semantics_are_not_native_button_pseudo_classes() {
+    for slot in ["itemClassName", "activeItemClassName"] {
+        let source = format!(r#"import {{ CommandPalette }} from '@hozo/core'
+            const el = <CommandPalette commands={{commands}}
+              {slot}="disabled:ml-8 enabled:mr-8 not-disabled:mt-1 not-enabled:mb-1 aria-selected:border-2 not-aria-selected:opacity-50 aria-disabled:rounded-lg not-aria-disabled:pt-1 aria-selected:hover:text-white aria-checked:outline-8 not-aria-checked:pb-1" />"#);
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.is_empty(), "{slot}: {:?}", output.diagnostics);
+        for expected in ["__hozoSlotAriaSelected &&", "!(__hozoSlotAriaSelected) &&", "__hozoSlotAriaDisabled &&", "!(__hozoSlotAriaDisabled) &&", "__hozoSlotAriaSelected && hovered &&"] {
+            assert!(output.jsx.contains(expected), "{expected}: {}", output.jsx);
+        }
+        // Neither positive pseudo-class applies to the div, but its negations
+        // do. No outer prop or Native button state is consulted for them.
+        assert!(!output.jsx.contains("__hozoSlotDisabled") && !output.jsx.contains("__hozoSlotEnabled"), "{}", output.jsx);
+        assert!(output.styles.contains("marginTop: 4") && output.styles.contains("marginBottom: 4"), "{}", output.styles);
+        let unsupported = source.replace("not-aria-checked:pb-1", "not-aria-expanded:pb-1");
+        let parsed = hozo_parser::parse_tsx(&unsupported);
+        let output = lower(&parsed.roots[0].node, &unsupported, &Theme::default());
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{:?}", output.diagnostics);
+    }
+    for slot in ["className", "scrimClassName", "panelClassName", "inputClassName", "listClassName", "shortcutClassName", "groupHeadingClassName", "emptyClassName"] {
+        let source = format!(r#"import {{ CommandPalette }} from '@hozo/core'
+            const el = <CommandPalette commands={{commands}} {slot}="aria-selected:opacity-50" />"#);
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+    }
 }
 
 #[test]

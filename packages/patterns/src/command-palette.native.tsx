@@ -20,6 +20,7 @@ import { splitTextStyle } from './text-style.native.ts'
 export type { HozoCommand }
 
 type Style = StyleProp<ViewStyle | TextStyle>
+type ItemState = InteractionState & { 'aria-disabled': boolean; 'aria-selected': boolean }
 
 export interface HozoCommandPaletteProps {
   open?: boolean
@@ -54,10 +55,10 @@ export interface HozoCommandPaletteProps {
   activeItemStyle?: Style
   shortcutStyle?: Style
   emptyStyle?: Style
-  /** @internal Static hover/press classes, evaluated by the actual item host. */
-  hozoItemStyle?: (state: InteractionState) => Style
+  /** @internal Static pointer and semantic classes, evaluated by the item owner. */
+  hozoItemStyle?: (state: ItemState) => Style
   /** @internal The return-key target's look, not an input-focus proxy. */
-  hozoActiveItemStyle?: (state: InteractionState) => Style
+  hozoActiveItemStyle?: (state: ItemState) => Style
   testID?: string
 }
 
@@ -210,8 +211,13 @@ export function HozoCommandPalette({
                   const command = commands[index] as HozoCommand
                   const stateFor = (interaction: InteractionState) => ({
                     ...interaction,
-                    disabled: Boolean(command.disabled),
+                    // CSS facts describe the Web option div, not this Native
+                    // button's announcement or actual activation guard below.
+                    disabled: false,
+                    enabled: false,
                     'aria-disabled': Boolean(command.disabled),
+                    'aria-selected': index === current,
+                    'aria-checked': false,
                   })
                   // The active command is the return-key target, not a press.
                   // Its look reads the actual host facts. The decorative
@@ -220,11 +226,11 @@ export function HozoCommandPalette({
                     const state = stateFor(interaction)
                     return splitTextStyle([
                       hozoClasses(itemClassName, state),
-                      hozoItemStyle?.(interaction),
+                      hozoItemStyle?.(state),
                       itemStyle,
                       index === current && [
                         hozoClasses(activeItemClassName, state),
-                        hozoActiveItemStyle?.(interaction),
+                        hozoActiveItemStyle?.(state),
                         activeItemStyle,
                       ],
                     ])
@@ -243,26 +249,31 @@ export function HozoCommandPalette({
                       style={(interaction) => [ROW, look(interaction)[0]]}
                     >
                       {(interaction) => {
-                        // stateFor returns a fresh snapshot. Unlike the actual
-                        // Native button, this Web span / Native View cannot
-                        // borrow focus just because its parent has it.
+                        // A shortcut span owns none of the option's semantic
+                        // attributes or focus. Inherited typography is separate
+                        // from matching a predicate on the shortcut itself.
                         const shortcutState = stateFor(interaction)
                         shortcutState.focused = false
                         shortcutState.focusVisible = false
+                        shortcutState['aria-disabled'] = false
+                        shortcutState['aria-selected'] = false
+                        const [, itemText] = look(interaction)
                         const [shortcutBox, shortcutText] = splitTextStyle([
                           hozoClasses(shortcutClassName, shortcutState),
                           shortcutStyle,
                         ])
                         return (
                           <>
-                            <Text style={[panelText, look(interaction)[1]]}>{command.label}</Text>
+                            <Text style={[panelText, itemText]}>{command.label}</Text>
                             {command.shortcut ? (
                               <View
                                 style={shortcutBox}
                                 accessibilityElementsHidden
                                 importantForAccessibility="no-hide-descendants"
                               >
-                                <Text style={[panelText, shortcutText]}>{command.shortcut}</Text>
+                                <Text style={[panelText, itemText, shortcutText]}>
+                                  {command.shortcut}
+                                </Text>
                               </View>
                             ) : null}
                           </>

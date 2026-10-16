@@ -31,9 +31,14 @@ const otpUnsupportedFocusClasses =
 const swatchSemanticClasses =
   'aria-checked:border-2 aria-selected:outline-4 aria-disabled:border-4 disabled:opacity-25 aria-checked:hover:opacity-50'
 const selectedSwatchSemanticClasses = 'aria-checked:rounded-lg disabled:opacity-50'
+const commandSemanticClasses =
+  'disabled:mt-8 aria-selected:border-2 aria-selected:font-bold aria-selected:text-hozo-accent-text aria-disabled:opacity-25 aria-checked:outline-4 aria-selected:hover:opacity-50'
+const activeCommandSemanticClasses = 'aria-selected:border-4'
+const shortcutSemanticClasses =
+  'disabled:mt-8 aria-selected:border-2 aria-disabled:opacity-25 aria-checked:outline-4'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
+  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -748,7 +753,7 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
     ],
     onOpenChange: (open) => changes.push(open),
     scrimClassName: interactionClasses,
-    itemClassName: `${interactionClasses} disabled:opacity-25`,
+    itemClassName: `${interactionClasses} aria-disabled:opacity-25`,
     activeItemClassName: 'border-2',
     shortcutClassName: interactionClasses,
   })
@@ -774,7 +779,11 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
   await act(() => alpha().props.onKeyDown({}))
   await act(() => alpha().props.onFocus({}))
   assert.equal(flat(shortcut().props.style).outlineWidth, undefined)
-  assert.equal(flat(shortcut().findByType('NativeText').props.style).fontWeight, undefined)
+  assert.equal(
+    flat(shortcut().findByType('NativeText').props.style).fontWeight,
+    '700',
+    'parent typography is inherited, not a shortcut focus predicate',
+  )
   await act(() => alpha().props.onPressIn({}))
   assert.equal(flat(shortcut().props.style).opacity, 0.5)
   await act(() => alpha().props.onPressOut({}))
@@ -826,8 +835,8 @@ test('Native CommandPalette shortcuts do not borrow item focus or become another
     assert.equal(flat(shortcut(label).props.style).borderTopWidth, 2, label)
     assert.equal(
       flat(shortcut(label).findByType('NativeText').props.style).fontWeight,
-      undefined,
-      label,
+      flat(item(label).findAllByType('NativeText')[0].props.style).fontWeight,
+      `${label}: typography is inherited; shortcut focus predicates remain false`,
     )
     assert.equal(shortcut(label).props.accessibilityElementsHidden, true)
     assert.equal(shortcut(label).props.importantForAccessibility, 'no-hide-descendants')
@@ -891,6 +900,108 @@ test('Native CommandPalette active slot delivers interaction facts and keeps exp
   await act(() => item().props.onHoverIn({}))
   assert.equal(flat(item().props.style).backgroundColor, '#333333')
   assert.equal(flat(item().findByType('NativeText').props.style).color, '#444444')
+})
+
+test('Native CommandPalette runtime semantics distinguish option attributes from buttons and shortcut spans', async (t) => {
+  const selected = []
+  const changes = []
+  const commands = ['Blocked', 'Alpha', 'Beta'].map((label) => ({
+    id: label,
+    label,
+    shortcut: label[0],
+    disabled: label === 'Blocked',
+    onSelect: () => selected.push(label),
+  }))
+  const props = {
+    open: true,
+    commands,
+    onOpenChange: (open) => changes.push(open),
+    itemClassName: commandSemanticClasses,
+    activeItemClassName: activeCommandSemanticClasses,
+    shortcutClassName: shortcutSemanticClasses,
+  }
+  const tree = await mount(t, HozoCommandPalette, props)
+  const items = () =>
+    tree.root
+      .findAllByType('NativePressable')
+      .filter((node) => node.props.accessibilityRole === 'button')
+  const item = (label) => items().find((node) => node.props.accessibilityLabel === label)
+  const input = () => tree.root.findByType('NativeTextInput')
+  const check = (current, disabled = ['Blocked']) => {
+    for (const node of items()) {
+      const active = node.props.accessibilityLabel === current
+      const blocked = disabled.includes(node.props.accessibilityLabel)
+      assert.deepEqual(node.props.accessibilityState, { disabled: blocked })
+      assert.equal(Boolean(node.props.disabled), blocked)
+      assert.equal(flat(node.props.style).marginTop, undefined, 'Web option is not :disabled')
+      assert.equal(flat(node.props.style).borderTopWidth, active ? 4 : undefined)
+      assert.equal(flat(node.props.style).opacity, blocked ? 0.25 : undefined)
+      assert.equal(flat(node.props.style).outlineWidth, undefined, 'option has no aria-checked')
+      const shortcut = node.findByType('NativeView')
+      assert.equal(flat(shortcut.props.style).marginTop, undefined)
+      assert.equal(
+        flat(shortcut.props.style).borderTopWidth,
+        undefined,
+        'span has no aria-selected',
+      )
+      assert.equal(flat(shortcut.props.style).opacity, undefined, 'span has no aria-disabled')
+      assert.equal(flat(shortcut.props.style).outlineWidth, undefined)
+      assert.equal(shortcut.props.accessibilityElementsHidden, true)
+      const texts = node.findAllByType('NativeText')
+      for (const text of texts) {
+        assert.equal(flat(text.props.style).fontWeight, active ? '700' : undefined)
+        assert.equal(
+          flat(text.props.style).color,
+          active ? color('hozo-accent-text') : undefined,
+          'selected typography inherits without selecting the shortcut',
+        )
+      }
+    }
+  }
+  check('Alpha')
+  await press(item('Blocked'))
+  assert.deepEqual(selected, [])
+  await act(() => item('Beta').props.onHoverIn({}))
+  assert.equal(flat(item('Beta').props.style).opacity, 0.5, 'selected stack follows pointer target')
+  assert.equal(flat(item('Alpha').props.style).opacity, undefined)
+  await act(() => item('Beta').props.onHoverOut({}))
+  check('Beta')
+  await act(() => input().props.onSubmitEditing())
+  assert.deepEqual(selected, ['Beta'])
+  assert.deepEqual(changes, [false])
+  await act(() => input().props.onChangeText('Alpha'))
+  check('Alpha')
+  assert.equal(items().length, 1)
+  await act(() => input().props.onChangeText(''))
+  await act(() =>
+    tree.update(
+      React.createElement(HozoCommandPalette, {
+        ...props,
+        commands: commands.map((command) => ({ ...command, disabled: true })),
+      }),
+    ),
+  )
+  check(null, ['Blocked', 'Alpha', 'Beta'])
+  await act(() => input().props.onSubmitEditing())
+  assert.deepEqual(selected, ['Beta'])
+  await act(() => tree.update(React.createElement(HozoCommandPalette, { ...props, open: false })))
+  await act(() => tree.update(React.createElement(HozoCommandPalette, props)))
+  check('Alpha')
+  await act(() =>
+    tree.update(
+      React.createElement(HozoCommandPalette, {
+        ...props,
+        itemStyle: { color: '#123456', opacity: 0.9 },
+        activeItemStyle: { color: '#654321', opacity: 0.8 },
+        shortcutStyle: { color: '#abcdef', fontWeight: '400' },
+      }),
+    ),
+  )
+  assert.equal(flat(item('Alpha').props.style).opacity, 0.8)
+  assert.equal(flat(item('Beta').props.style).opacity, 0.9)
+  assert.equal(flat(item('Alpha').findAllByType('NativeText')[0].props.style).color, '#654321')
+  assert.equal(flat(item('Alpha').findAllByType('NativeText')[1].props.style).color, '#abcdef')
+  assert.equal(flat(item('Alpha').findAllByType('NativeText')[1].props.style).fontWeight, '400')
 })
 
 test('Native Pagination delivers interaction facts to item/current/disabled slots and still navigates', async (t) => {
