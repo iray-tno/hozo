@@ -1671,6 +1671,161 @@ test('owned static plus dynamic styles still match the Native style array, witho
   }
 })
 
+test('mixed Chip root keeps compiled states above caller candidates on Web and Native', {
+  skip: !executablePath,
+}, async () => {
+  const caller = 'p-4 opacity-75 rounded-none focus:outline-2'
+  const other = 'hover:outline-offset-8'
+  const own =
+    'p-2 opacity-100 outline-0 hover:opacity-50 not-focus:rounded-lg disabled:outline-offset-4'
+  const callerCache = openCandidateCache(path.join(directory, 'chip-root-candidates.json'))
+  callerCache.scanFile('caller.ts', `export const classes = '${caller} ${other}'`, 1)
+  const callerCss = callerCache.renderCss()
+  const tailwindOracle = (
+    await compile('@theme { --spacing: 0.25rem; --radius-lg: 0.5rem; } @tailwind utilities;')
+  ).build(`${own} ${caller} ${other}`.split(' '))
+  const source = `import { Chip, cx } from '@hozo/core';
+    const Example = () => <Chip defaultSelected disabled={disabled}
+      className={cx('${own}', first(), second())} style={extra}>Token</Chip>`
+  const web = compiler.compile(source)[0]
+  const native = compiler.compileNative(source)[0]
+  const { hozoClasses } = evaluate(callerCache.renderNativeModule().replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  })
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Chip as HozoChip} from '@hozo/patterns';
+        function App() {
+          const [props, setProps] = React.useState({disabled: false});
+          window.updateChipRoot = setProps;
+          const {disabled, extra} = props;
+          const first = () => ${JSON.stringify(caller)};
+          const second = () => ${JSON.stringify(other)};
+          return ${web.jsx};
+        }
+        createRoot(document.getElementById('root')).render(<App/>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  // The actual Native pattern lifecycle is exercised in
+  // pattern-dynamic-slots.test.ts; here its emitted callback is compared to
+  // the actual Web Chip/CSS cascade, in both stylesheet import orders.
+  const readNative = ({ hovered = false, focused = false, disabled = false, extra } = {}) => {
+    const calls = []
+    const element = evaluate(
+      `const hozoStyles = ${native.styles}; module.exports = (${native.jsx})`,
+      {
+        disabled,
+        extra,
+        hozoClasses,
+        first: () => {
+          calls.push('first')
+          return caller
+        },
+        second: () => {
+          calls.push('second')
+          return other
+        },
+        HozoChip: 'Chip',
+        StyleSheet: { create: (styles) => styles },
+        h: (_type, props) => ({ props }),
+      },
+    )
+    const state = {
+      hovered,
+      focused,
+      focusVisible: focused,
+      pressed: false,
+      disabled,
+      enabled: !disabled,
+      'aria-pressed': true,
+      'aria-checked': false,
+      'aria-disabled': false,
+    }
+    const styles = Object.assign(
+      {},
+      ...[
+        hozoClasses(element.props.className, state),
+        element.props.hozoStyle?.(state),
+        element.props.style,
+      ]
+        .flat(Infinity)
+        .filter(Boolean),
+    )
+    assert.deepEqual(Array.from(calls), ['first', 'second'])
+    return {
+      padding: `${styles.paddingTop}px`,
+      opacity: String(styles.opacity),
+      radius: `${styles.borderRadius ?? 0}px`,
+      outline: `${styles.outlineWidth}px`,
+      offset: `${styles.outlineOffset ?? 0}px`,
+    }
+  }
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    assert.deepEqual(readNative(), {
+      padding: '16px',
+      opacity: '0.75',
+      radius: '8px',
+      outline: '0px',
+      offset: '0px',
+    })
+    for (const { sheets, raw } of [
+      { sheets: [web.css, callerCss], raw: false },
+      { sheets: [callerCss, web.css], raw: false },
+      { sheets: [tailwindOracle], raw: true },
+    ]) {
+      await page.setContent(
+        `<style>html {font-size:16px}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root">${raw ? `<button class="${own} ${caller} ${other}">Token</button>` : ''}</div>`,
+      )
+      if (!raw) await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      const button = page.locator('#root button')
+      await button.waitFor()
+      const read = () =>
+        button.evaluate((e) => {
+          const css = getComputedStyle(e)
+          return {
+            padding: css.paddingTop,
+            opacity: css.opacity,
+            radius: css.borderRadius,
+            outline: css.outlineWidth,
+            offset: css.outlineOffset,
+          }
+        })
+      await page.mouse.move(0, 0)
+      assert.deepEqual(await read(), readNative())
+      await button.hover()
+      assert.deepEqual(await read(), readNative({ hovered: true }))
+      await button.focus()
+      assert.deepEqual(await read(), readNative({ hovered: true, focused: true }))
+      await page.evaluate(() => document.activeElement.blur())
+      await page.mouse.move(0, 0)
+      await page.evaluate((raw) => {
+        if (raw) {
+          const button = document.querySelector('#root button')
+          button.disabled = true
+          button.style.opacity = '0.9'
+        } else window.updateChipRoot({ disabled: true, extra: { opacity: 0.9 } })
+      }, raw)
+      await page.waitForFunction(() => document.querySelector('#root button').disabled)
+      assert.deepEqual(await read(), readNative({ disabled: true, extra: { opacity: 0.9 } }))
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('owned candidates work without Tailwind, and empty roots/slots keep absent values', {
   skip: !executablePath,
 }, async () => {

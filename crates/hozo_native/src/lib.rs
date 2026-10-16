@@ -53,6 +53,7 @@
 //!   or inherited interaction context, are errors: nothing can drive them.
 
 mod candidate;
+mod class_route;
 mod conditions;
 mod grid;
 mod interaction;

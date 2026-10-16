@@ -50,6 +50,7 @@ export function C() { return <Chip defaultSelected={false} onRemove={drop}
 
 test('dynamic secondary pattern classes reach their registered slot owner without an early lookup', () => {
   for (const [component, slot, style] of [
+    ['Chip', 'className', 'style'],
     ['Chip', 'removeClassName', 'removeStyle'],
     ['Pagination', 'itemClassName', 'itemStyle'],
     ['Pagination', 'currentItemClassName', 'currentItemStyle'],
@@ -71,7 +72,7 @@ export function C() { return <${component} ${slot}={chooseClasses()} ${style}={e
     )
     assert.ok(output)
     assert.ok(output.includes(`${slot}={chooseClasses()}`), output)
-    assert.ok(output.includes(`${style}={extra}`), output)
+    assert.ok(output.includes(`${style}={${style === 'style' ? '[extra]' : 'extra'}}`), output)
     assert.equal(output.match(/chooseClasses\(\)/g)?.length, 1)
     assert.doesNotMatch(output, /hozoClasses|candidate|HozoPressable|HozoText/)
   }
@@ -85,6 +86,27 @@ export function C() { return <Avatar name="Ada" statusClassName={classes} /> }`,
   )
   assert.match(unowned, /statusStyle=\{hozoClasses\(classes\)\}/)
   assert.doesNotMatch(unowned, /statusClassName=/)
+})
+
+test('mixed Chip root classes capture residuals once between AOT resting and state styles', () => {
+  const output = transformHozoSource(
+    `import { Chip, cx } from '@hozo/core'
+export function C() { return <Chip defaultSelected className={cx('p-2 hover:opacity-50 not-focus:rounded-lg md:mt-2', chooseClasses(), chooseOther())} style={extra} /> }`,
+    'Mixed.tsx',
+    '/project',
+  )
+  assert.ok(output)
+  assert.equal(output.match(/chooseClasses\(\)/g)?.length, 1)
+  assert.equal(output.match(/chooseOther\(\)/g)?.length, 1)
+  assert.match(output, /hozoStyle=\{\(\(__hozoClassSlot0Value0, __hozoClassSlot0Value1\) =>/)
+  assert.match(
+    output,
+    /hozoStyles\.hozo_r0_0, __hozoBp_md && hozoStyles\.hozo_r0_0_md, hozoClasses\(__hozoClassSlot0Value0, __hozoClassSlot0State\), hozoClasses\(__hozoClassSlot0Value1, __hozoClassSlot0State\), hovered &&/,
+  )
+  assert.match(output, /!\(focused\) && hozoStyles\.hozo_r0_0_notfocus/)
+  assert.match(output, /style=\{\[extra\]\}/)
+  assert.match(output, /import \{ hozoClasses \} from '.*candidates\.native\.js'/)
+  assert.doesNotMatch(output, /className=|HozoPressable|HozoText/)
 })
 
 test('decorative pattern slots still reject static interaction classes in full Metro lowering', () => {
