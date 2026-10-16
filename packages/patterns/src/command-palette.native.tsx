@@ -211,6 +211,11 @@ export function HozoCommandPalette({
                   const command = commands[index] as HozoCommand
                   const stateFor = (interaction: InteractionState) => ({
                     ...interaction,
+                    // The Web input keeps focus through aria-activedescendant.
+                    // A Native button can receive OS focus, but must not lend
+                    // it to the option div's CSS predicates or typography.
+                    focused: false,
+                    focusVisible: false,
                     // CSS facts describe the Web option div, not this Native
                     // button's announcement or actual activation guard below.
                     disabled: false,

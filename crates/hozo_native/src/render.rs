@@ -1700,8 +1700,10 @@ pub(super) fn render_node(
     // lowering as `className`, so a breakpoint or `dark:` works here as it
     // does there and an interaction state is reported the same way. Written
     // as an expression, it is resolved on device from the candidate map,
-    // as `className` is; and an authored `removeStyle` comes last and wins,
-    // as an authored `style` does.
+    // as `className` is. Registered pattern slots must keep the expression
+    // until their actual owner supplies its facts: resolving here would lose
+    // that owner's hover/focus/semantic state. Other slots retain the plain
+    // style fallback. An authored slot style still follows its class styles.
     let prop_expr = |prop: &hozo_ir::PassthroughProp| -> Option<String> {
         let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
         let value = text.split_once('=')?.1.trim();
@@ -1750,18 +1752,33 @@ pub(super) fn render_node(
         }
         for prop in node.props.passthrough.iter().filter(|prop| prop.name.as_deref() == Some(slot.class_prop)) {
             let Some(expr) = prop_expr(prop) else { continue };
+            let owned = crate::pattern::interaction_slot(node.primitive, slot.class_prop).is_some();
             diagnostics.push(Diagnostic {
                 code: DiagnosticCode::DynamicClassNameNotResolved,
                 severity: Severity::Warning,
-                message: format!(
-                    "`{}` can't be resolved at build time, so it's resolved on device from the \
-                     project-wide candidate map. Conditional utilities can't be carried that way \
-                     and will warn at runtime -- write those as a static string so they compile.",
-                    slot.class_prop
-                ),
+                message: if owned {
+                    format!(
+                        "`{}` can't be resolved at build time. Its pattern slot resolves it on device \
+                         from the project-wide candidate map with that owner's available state. \
+                         Unscanned candidates and unsupported conditions still warn at runtime; \
+                         use a static string for build-time validation.",
+                        slot.class_prop
+                    )
+                } else {
+                    format!(
+                        "`{}` can't be resolved at build time, so it's resolved on device from the \
+                         project-wide candidate map. Conditional utilities can't be carried that way \
+                         and will warn at runtime -- write those as a static string so they compile.",
+                        slot.class_prop
+                    )
+                },
                 span: node.span,
             });
-            parts.push(format!("hozoClasses({expr})"));
+            if owned {
+                props_text.push_str(&format!(" {}={{{expr}}}", slot.class_prop));
+            } else {
+                parts.push(format!("hozoClasses({expr})"));
+            }
         }
         parts.extend(
             node.props
