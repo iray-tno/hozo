@@ -68,6 +68,43 @@ series: keep those artifacts, but do not compare milliseconds between the
 two protocols. Optional CPU profiling also adds sampling overhead and is
 explicitly recorded; its timings must not be compared with unprofiled runs.
 
+## A production React series
+
+The workflow's `react` input selects the React build; `development` is the
+protocol above and the default. `production` loads production React and
+react-test-renderer, which have no `act`, so the renderer's scheduler is
+React's own mock scheduler (the one React's tests use) and each operation is
+flushed by hand. Each result then carries `phases` next to its totals:
+render and commit up to the paint the commit requests (`commitMs`), then
+passive effects (`passiveMs`). The summary adds a mount-by-phase table.
+
+This answers a question the development series could not (#922). There,
+#921 measured slower on large initial mounts on CI, from one process per
+revision. A local, interleaved A/B on one machine compared `main` with only
+`pressable.native.tsx` put back to its pre-#921 source, three processes
+each, nine samples per case, median ms:
+
+| | Development, mount | Production, mount (commit / passive) |
+| --- | ---: | ---: |
+| plain, 1,024 rows, before #921 | 16.4–17.6 | 6.8–7.1 / 0.22–0.24 |
+| plain, 1,024 rows, after #921 | 16.6–17.0 | 4.1–4.3 / 0 |
+| state classes, 1,024 rows, before #921 | 15.9–16.6 | 9.7–9.9 / 0.19–0.21 |
+| state classes, 1,024 rows, after #921 | 14.2–15.1 | 3.0 / 0 |
+
+So in production React the change is faster on mount, in render and commit
+as well as in the passive effects it removed, and process-to-process
+spread is small. Development React buries the difference under its own
+per-fiber work, which is what the CI series measured.
+
+A production series is still not Hermes or a device: the stub `Animated`
+is a plain object, so a real `Animated.Value`'s cost is not in either
+build's numbers. And do not compare milliseconds across the two builds.
+
+Within one process, the cases run plain first. Development timings of the
+first cases include JIT warm-up -- `plain` at 256 rows has measured 23 ms
+and `state-classes` at 256 rows 3.8 ms in the same run -- so compare a case
+only with the same case in another revision, never plain with state classes.
+
 ## What the numbers do not mean
 
 Before #888 **does not support state classes**. Its warning and absence of
