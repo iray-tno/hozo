@@ -44,9 +44,12 @@ use oxc_syntax::operator::{BinaryOperator, LogicalOperator};
 
 use crate::tailwind;
 
-/// Hosts that hand their text styles to their label: the ones the Native
-/// backend forwards through `hozoTextStyle` (#876).
-const FORWARDING_HOSTS: [&str; 2] = ["Pressable", "Button"];
+/// Hosts whose text styles a Text inside them does not inherit, since React
+/// Native inherits text styles only from a Text: the pressables, the ones
+/// the Native backend forwards through `hozoTextStyle` (#876), and `View`,
+/// which `@hozo/ui`'s Alert became in #983. A `Text` host is left out:
+/// inheritance already reaches whatever is nested in it.
+const FORWARDING_HOSTS: [&str; 3] = ["Pressable", "Button", "View"];
 const HOST_MODULES: [&str; 2] = ["@hozo/core", "@hozo/primitives"];
 
 /// The `cx`-shaped helpers whose arguments are read one by one, as
@@ -123,6 +126,29 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
             .push(name.name.to_string());
     }
 
+    // Class lists a component names rather than writes (`alertAccent`), read
+    // with no props in scope: a module constant cannot depend on one.
+    let no_props = Params {
+        props: BTreeMap::new(),
+        rest: None,
+    };
+    let mut module_constants = BTreeMap::new();
+    for statement in &ret.program.body {
+        if let Statement::VariableDeclaration(declaration) = statement {
+            let mut found = BTreeMap::new();
+            read_constants(
+                declaration,
+                &Scope {
+                    params: &no_props,
+                    module,
+                    constants: &module_constants,
+                },
+                &mut found,
+            );
+            module_constants.extend(found);
+        }
+    }
+
     let mut components = Vec::new();
     for statement in &ret.program.body {
         let function = match statement {
@@ -139,7 +165,9 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
         let Some(names) = exported_as.get(id.name.as_str()) else {
             continue;
         };
-        let Some(shape) = read_component(&function.params, &body.statements, module) else {
+        let Some(shape) =
+            read_component(&function.params, &body.statements, module, &module_constants)
+        else {
             continue;
         };
         for name in names {
@@ -203,17 +231,19 @@ fn read_params(params: &FormalParameters) -> Option<Params> {
                 if local.name != key.as_str() {
                     return None;
                 }
-                let Expression::StringLiteral(value) = &assign.right else {
-                    return None;
-                };
-                Some(value.value.to_string())
+                // A default that is not a string (`live = false`) is kept as
+                // none. If the classes compare the prop, a caller who leaves
+                // it out then gets nothing handed down, which is the safe
+                // side; if they do not, it never mattered.
+                match &assign.right {
+                    Expression::StringLiteral(value) => Some(value.value.to_string()),
+                    _ => None,
+                }
             }
             // A renamed binding would need its local name tracked through
             // every comparison. Not worth it for the shape this reads.
             _ => return None,
         };
-        // A default that is not a string literal was refused above, so a
-        // `None` here means the prop simply has none.
         props.insert(key, default);
     }
     let rest = match &object.rest {
@@ -226,8 +256,9 @@ fn read_params(params: &FormalParameters) -> Option<Params> {
     Some(Params { props, rest })
 }
 
-/// A choice between two class strings, made by comparing a prop with a
+/// A choice between two class lists, made by comparing a prop with a
 /// literal.
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct Comparison {
     prop: String,
     value: String,
@@ -255,14 +286,161 @@ fn read_comparison(expr: &Expression, params: &Params) -> Option<Comparison> {
     })
 }
 
-/// One argument of the host's class list.
-enum Part {
-    Always(String),
+/// A class list as the source builds it, before any prop has a value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Classes {
+    Literal(String),
     Choice {
         when: Comparison,
-        then: String,
-        otherwise: String,
+        then: Box<Classes>,
+        otherwise: Box<Classes>,
     },
+    Join(Vec<Classes>),
+}
+
+impl Classes {
+    /// One shape per meaning: nested joins flattened, blank literals gone,
+    /// a join of one reduced to it. So `${own} ${className}` with the
+    /// caller's part left out compares equal to `own`.
+    fn normalized(self) -> Classes {
+        match self {
+            Classes::Literal(text) => Classes::Literal(text.split_whitespace().collect::<Vec<_>>().join(" ")),
+            Classes::Choice {
+                when,
+                then,
+                otherwise,
+            } => Classes::Choice {
+                when,
+                then: Box::new(then.normalized()),
+                otherwise: Box::new(otherwise.normalized()),
+            },
+            Classes::Join(parts) => {
+                let mut flat = Vec::new();
+                for part in parts {
+                    match part.normalized() {
+                        Classes::Join(inner) => flat.extend(inner),
+                        Classes::Literal(text) if text.is_empty() => {}
+                        other => flat.push(other),
+                    }
+                }
+                match flat.len() {
+                    0 => Classes::Literal(String::new()),
+                    1 => flat.pop().expect("one part"),
+                    _ => Classes::Join(flat),
+                }
+            }
+        }
+    }
+
+    fn comparisons<'a>(&'a self, out: &mut Vec<&'a Comparison>) {
+        match self {
+            Classes::Literal(_) => {}
+            Classes::Choice {
+                when,
+                then,
+                otherwise,
+            } => {
+                out.push(when);
+                then.comparisons(out);
+                otherwise.comparisons(out);
+            }
+            Classes::Join(parts) => parts.iter().for_each(|part| part.comparisons(out)),
+        }
+    }
+
+    fn resolve<'a>(&'a self, holds: &dyn Fn(&Comparison) -> bool, out: &mut Vec<&'a str>) {
+        match self {
+            Classes::Literal(text) => out.push(text),
+            Classes::Choice {
+                when,
+                then,
+                otherwise,
+            } => {
+                if holds(when) {
+                    then.resolve(holds, out)
+                } else {
+                    otherwise.resolve(holds, out)
+                }
+            }
+            Classes::Join(parts) => parts.iter().for_each(|part| part.resolve(holds, out)),
+        }
+    }
+}
+
+/// What a class expression can refer to: the props, the module's imports,
+/// and the constants already read, module-level and then the component's own.
+struct Scope<'a> {
+    params: &'a Params,
+    module: &'a ModuleRecord<'a>,
+    constants: &'a BTreeMap<String, Classes>,
+}
+
+fn read_classes(expr: &Expression, scope: &Scope) -> Option<Classes> {
+    match expr.without_parentheses() {
+        Expression::StringLiteral(lit) => Some(Classes::Literal(lit.value.to_string())),
+        Expression::TemplateLiteral(template) => {
+            let mut parts = Vec::new();
+            for (index, quasi) in template.quasis.iter().enumerate() {
+                parts.push(Classes::Literal(quasi.value.cooked.as_ref()?.to_string()));
+                if let Some(expr) = template.expressions.get(index) {
+                    parts.push(read_classes(expr, scope)?);
+                }
+            }
+            Some(Classes::Join(parts))
+        }
+        // The caller's own className: compiled in the caller's file, on the
+        // element the caller wrote, so it is not this component's to hand down.
+        Expression::Identifier(id) if id.name == "className" => {
+            Some(Classes::Literal(String::new()))
+        }
+        Expression::Identifier(id) => scope.constants.get(id.name.as_str()).cloned(),
+        Expression::ConditionalExpression(conditional) => {
+            // `className ? `${own} ${className}` : own` -- the two branches
+            // differ by the caller's part only, which is left out anyway.
+            if matches!(conditional.test.without_parentheses(), Expression::Identifier(id) if id.name == "className")
+            {
+                let with = read_classes(&conditional.consequent, scope)?.normalized();
+                let without = read_classes(&conditional.alternate, scope)?.normalized();
+                return (with == without).then_some(without);
+            }
+            Some(Classes::Choice {
+                when: read_comparison(&conditional.test, scope.params)?,
+                then: Box::new(read_classes(&conditional.consequent, scope)?),
+                otherwise: Box::new(read_classes(&conditional.alternate, scope)?),
+            })
+        }
+        Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
+            Some(Classes::Choice {
+                when: read_comparison(&logical.left, scope.params)?,
+                then: Box::new(read_classes(&logical.right, scope)?),
+                otherwise: Box::new(Classes::Literal(String::new())),
+            })
+        }
+        Expression::CallExpression(call) => read_join(call, scope),
+        _ => None,
+    }
+}
+
+/// `const name = <class expression>`, for every declarator that is one.
+/// Anything else is skipped, not refused: a constant nothing reads is not
+/// this reader's concern, and one that is read and missing refuses there.
+fn read_constants(
+    declaration: &oxc_ast::ast::VariableDeclaration,
+    scope: &Scope,
+    into: &mut BTreeMap<String, Classes>,
+) {
+    if declaration.kind != oxc_ast::ast::VariableDeclarationKind::Const {
+        return;
+    }
+    for declarator in &declaration.declarations {
+        let (BindingPattern::BindingIdentifier(id), Some(init)) = (&declarator.id, &declarator.init)
+        else {
+            continue;
+        };
+        if let Some(classes) = read_classes(init, scope) {
+            into.insert(id.name.to_string(), classes);
+        }
+    }
 }
 
 struct Branch {
@@ -271,7 +449,7 @@ struct Branch {
 }
 
 struct Host {
-    parts: Vec<Part>,
+    classes: Classes,
     disabled_prop: Option<String>,
 }
 
@@ -279,11 +457,27 @@ fn read_component(
     params: &FormalParameters,
     statements: &[Statement],
     module: &ModuleRecord,
+    module_constants: &BTreeMap<String, Classes>,
 ) -> Option<ForwardingComponent> {
     let params = read_params(params)?;
+    let mut constants = module_constants.clone();
     let (last, guarded) = statements.split_last()?;
     let mut branches = Vec::new();
     for statement in guarded {
+        if let Statement::VariableDeclaration(declaration) = statement {
+            let mut found = BTreeMap::new();
+            read_constants(
+                declaration,
+                &Scope {
+                    params: &params,
+                    module,
+                    constants: &constants,
+                },
+                &mut found,
+            );
+            constants.extend(found);
+            continue;
+        }
         let Statement::IfStatement(branch) = statement else {
             return None;
         };
@@ -291,34 +485,41 @@ fn read_component(
             return None;
         }
         let guard = read_comparison(&branch.test, &params)?;
-        let host = read_return(&branch.consequent, &params, module)?;
+        let scope = Scope {
+            params: &params,
+            module,
+            constants: &constants,
+        };
+        let host = read_return(&branch.consequent, &scope)?;
         branches.push(Branch {
             guard: Some(guard),
             host,
         });
     }
+    let scope = Scope {
+        params: &params,
+        module,
+        constants: &constants,
+    };
     branches.push(Branch {
         guard: None,
-        host: read_return(last, &params, module)?,
+        host: read_return(last, &scope)?,
     });
 
     // Every value a prop is compared against, plus its default: the values
     // a caller can write that change the classes.
     let mut domain: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    let mut note = |c: &Comparison| {
-        domain
-            .entry(c.prop.clone())
-            .or_default()
-            .insert(c.value.clone());
-    };
     for branch in &branches {
+        let mut seen = Vec::new();
         if let Some(guard) = &branch.guard {
-            note(guard);
+            seen.push(guard);
         }
-        for part in &branch.host.parts {
-            if let Part::Choice { when, .. } = part {
-                note(when);
-            }
+        branch.host.classes.comparisons(&mut seen);
+        for c in seen {
+            domain
+                .entry(c.prop.clone())
+                .or_default()
+                .insert(c.value.clone());
         }
     }
     let mut props = Vec::new();
@@ -346,18 +547,7 @@ fn read_component(
             .iter()
             .find(|b| b.guard.as_ref().is_none_or(holds))?;
         let mut classes = Vec::new();
-        for part in &branch.host.parts {
-            match part {
-                Part::Always(text) => classes.push(text.as_str()),
-                Part::Choice {
-                    when,
-                    then,
-                    otherwise,
-                } => {
-                    classes.push(if holds(when) { then } else { otherwise });
-                }
-            }
-        }
+        branch.host.classes.resolve(&holds, &mut classes);
         let classes = classes
             .join(" ")
             .split_whitespace()
@@ -397,7 +587,7 @@ fn combinations(props: &[ForwardingProp]) -> Vec<Vec<String>> {
     out
 }
 
-fn read_return(statement: &Statement, params: &Params, module: &ModuleRecord) -> Option<Host> {
+fn read_return(statement: &Statement, scope: &Scope) -> Option<Host> {
     let statement = match statement {
         Statement::BlockStatement(block) => match block.body.as_slice() {
             [only] => only,
@@ -411,10 +601,11 @@ fn read_return(statement: &Statement, params: &Params, module: &ModuleRecord) ->
     let Expression::JSXElement(element) = ret.argument.as_ref()?.without_parentheses() else {
         return None;
     };
-    read_host(element, params, module)
+    read_host(element, scope)
 }
 
-fn read_host(element: &JSXElement, params: &Params, module: &ModuleRecord) -> Option<Host> {
+fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
+    let (params, module) = (scope.params, scope.module);
     let JSXElementName::IdentifierReference(tag) = &element.opening_element.name else {
         return None;
     };
@@ -431,7 +622,7 @@ fn read_host(element: &JSXElement, params: &Params, module: &ModuleRecord) -> Op
     // when `children` was not destructured, or as `{children}` when it was.
     let children_destructured = params.props.contains_key("children");
     let mut forwards_children = false;
-    let mut parts = None;
+    let mut classes = None;
     let mut disabled_prop = None;
     for attribute in &element.opening_element.attributes {
         match attribute {
@@ -449,9 +640,7 @@ fn read_host(element: &JSXElement, params: &Params, module: &ModuleRecord) -> Op
                     continue;
                 };
                 match name.name.as_str() {
-                    "className" => {
-                        parts = Some(read_class_name(attribute.value.as_ref()?, params, module)?)
-                    }
+                    "className" => classes = Some(read_class_name(attribute.value.as_ref()?, scope)?),
                     "disabled" => {
                         let Some(JSXAttributeValue::ExpressionContainer(container)) =
                             &attribute.value
@@ -471,7 +660,14 @@ fn read_host(element: &JSXElement, params: &Params, module: &ModuleRecord) -> Op
             }
         }
     }
-    match element.children.as_slice() {
+    // A formatter puts `{children}` on its own line; the whitespace around it
+    // is not a child React renders.
+    let children: Vec<&JSXChild> = element
+        .children
+        .iter()
+        .filter(|child| !matches!(child, JSXChild::Text(text) if text.value.trim().is_empty() && text.value.contains('\n')))
+        .collect();
+    match children.as_slice() {
         [] => {}
         [JSXChild::ExpressionContainer(container)] if children_destructured => {
             let JSXExpression::Identifier(id) = &container.expression else {
@@ -485,32 +681,26 @@ fn read_host(element: &JSXElement, params: &Params, module: &ModuleRecord) -> Op
         return None;
     }
     Some(Host {
-        parts: parts?,
+        classes: classes?,
         disabled_prop,
     })
 }
 
-fn read_class_name(
-    value: &JSXAttributeValue,
-    params: &Params,
-    module: &ModuleRecord,
-) -> Option<Vec<Part>> {
+fn read_class_name(value: &JSXAttributeValue, scope: &Scope) -> Option<Classes> {
     match value {
-        JSXAttributeValue::StringLiteral(lit) => Some(vec![Part::Always(lit.value.to_string())]),
-        JSXAttributeValue::ExpressionContainer(container) => match &container.expression {
-            JSXExpression::StringLiteral(lit) => Some(vec![Part::Always(lit.value.to_string())]),
-            JSXExpression::CallExpression(call) => read_join(call, params, module),
-            _ => None,
-        },
+        JSXAttributeValue::StringLiteral(lit) => Some(Classes::Literal(lit.value.to_string())),
+        JSXAttributeValue::ExpressionContainer(container) => {
+            read_classes(container.expression.as_expression()?, scope)
+        }
         _ => None,
     }
 }
 
-fn read_join(call: &CallExpression, params: &Params, module: &ModuleRecord) -> Option<Vec<Part>> {
+fn read_join(call: &CallExpression, scope: &Scope) -> Option<Classes> {
     let Expression::Identifier(callee) = &call.callee else {
         return None;
     };
-    let recognized = module.import_entries.iter().any(|entry| {
+    let recognized = scope.module.import_entries.iter().any(|entry| {
         let from = entry.module_request.name.as_str();
         entry.local_name.name == callee.name.as_str()
             && (JOIN_MODULES.contains(&from)
@@ -523,42 +713,9 @@ fn read_join(call: &CallExpression, params: &Params, module: &ModuleRecord) -> O
     let mut parts = Vec::new();
     for argument in &call.arguments {
         // A spread argument hides what is joined.
-        let expr = argument.as_expression()?;
-        match expr.without_parentheses() {
-            Expression::StringLiteral(lit) => parts.push(Part::Always(lit.value.to_string())),
-            Expression::ConditionalExpression(conditional) => {
-                let when = read_comparison(&conditional.test, params)?;
-                let (Expression::StringLiteral(then), Expression::StringLiteral(otherwise)) = (
-                    conditional.consequent.without_parentheses(),
-                    conditional.alternate.without_parentheses(),
-                ) else {
-                    return None;
-                };
-                parts.push(Part::Choice {
-                    when,
-                    then: then.value.to_string(),
-                    otherwise: otherwise.value.to_string(),
-                });
-            }
-            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
-                let when = read_comparison(&logical.left, params)?;
-                let Expression::StringLiteral(then) = logical.right.without_parentheses() else {
-                    return None;
-                };
-                parts.push(Part::Choice {
-                    when,
-                    then: then.value.to_string(),
-                    otherwise: String::new(),
-                });
-            }
-            // The caller's own className: compiled in the caller's file, on
-            // the element the caller wrote, so it is not this component's
-            // to hand down.
-            Expression::Identifier(id) if id.name == "className" => {}
-            _ => return None,
-        }
+        parts.push(read_classes(argument.as_expression()?, scope)?);
     }
-    Some(parts)
+    Some(Classes::Join(parts))
 }
 
 /// Manifests' text forwarding, keyed by the module a caller imports from and
@@ -767,10 +924,19 @@ export function HozoButton({{ tone = 'neutral', size = 'md', className, disabled
         let dropped = "import { Button as Host } from '@hozo/primitives'
 export function Icon({ className }) { return <Host className=\"text-white\" /> }";
         assert!(summarize_text_forwarding(dropped).components.is_empty());
-        // A host that is not a pressable.
-        let view = "import { View } from '@hozo/primitives'
-export function Box({ ...rest }) { return <View {...rest} className=\"text-white\" /> }";
-        assert!(summarize_text_forwarding(view).components.is_empty());
+        // A Text host: a Text nested in it inherits without help.
+        let text = "import { Text } from '@hozo/primitives'
+export function Label({ ...rest }) { return <Text {...rest} className=\"text-white\" /> }";
+        assert!(summarize_text_forwarding(text).components.is_empty());
+        // The caller's className changes more than the caller's part.
+        let differs = "import { View } from '@hozo/core'
+export function Box({ children, className }) { return <View className={className ? `text-sm ${className}` : 'text-lg'}>{children}</View> }";
+        assert!(summarize_text_forwarding(differs).components.is_empty());
+        // A constant that is not a class list, read where one is needed.
+        let computed = "import { View } from '@hozo/core'
+const own = ['text-sm'].join(' ')
+export function Box({ children }) { return <View className={own}>{children}</View> }";
+        assert!(summarize_text_forwarding(computed).components.is_empty());
         // A join helper defined locally.
         let local = "import { Button as Host } from '@hozo/primitives'
 const cx = (...a) => a.join(' ')
@@ -785,6 +951,40 @@ export function Chip({ children, onPress }) { return <Pressable onPress={onPress
         let summary = summarize_text_forwarding(source);
         assert_eq!(summary.components[0].variants[0].classes, "text-blue-600");
         assert!(summary.components[0].props.is_empty());
+    }
+
+    #[test]
+    fn a_view_whose_classes_are_named_constants_is_read() {
+        // `@hozo/ui`'s Alert, as #983 left it.
+        let source = "import { View } from '@hozo/core'
+const neutral = 'px-4 text-sm text-gray-700'
+const accent = 'px-4 text-sm text-blue-700'
+const danger = 'px-4 text-sm text-red-700'
+export function HozoAlert({ children, tone = 'neutral', live = false, className }) {
+  const own = tone === 'accent' ? accent : tone === 'danger' ? danger : neutral
+  return (
+    <View role={live === 'assertive' ? 'alert' : undefined} className={className ? `${own} ${className}` : own}>
+      {children}
+    </View>
+  )
+}
+export { HozoAlert as Alert }";
+        let summary = summarize_text_forwarding(source);
+        let names: Vec<_> = summary.components.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["Alert", "HozoAlert"]);
+        let alert = &summary.components[0];
+        assert_eq!(alert.props.len(), 1, "only `tone` decides the classes");
+        assert_eq!(alert.props[0].values, ["accent", "danger", "neutral"]);
+        let classes = |tone: &str| {
+            alert
+                .variants
+                .iter()
+                .find(|v| v.when == [tone])
+                .map(|v| v.classes.as_str())
+        };
+        assert_eq!(classes("danger"), Some("px-4 text-sm text-red-700"));
+        assert_eq!(classes("neutral"), Some("px-4 text-sm text-gray-700"));
+        assert_eq!(alert.disabled_prop, None);
     }
 
     #[test]

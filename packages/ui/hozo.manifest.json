@@ -1,6 +1,39 @@
 {
   "version": 1,
   "textForwarding": {
+    "Alert": {
+      "props": [
+        {
+          "name": "tone",
+          "default": "neutral",
+          "values": [
+            "accent",
+            "danger",
+            "neutral"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "when": [
+            "accent"
+          ],
+          "classes": "rounded-hozo-surface border px-4 py-3 text-sm border-hozo-accent bg-hozo-accent-subtle text-hozo-accent-text"
+        },
+        {
+          "when": [
+            "danger"
+          ],
+          "classes": "rounded-hozo-surface border px-4 py-3 text-sm border-hozo-danger bg-hozo-danger-subtle text-hozo-danger-text"
+        },
+        {
+          "when": [
+            "neutral"
+          ],
+          "classes": "rounded-hozo-surface border px-4 py-3 text-sm border-hozo-border bg-hozo-surface-sunken text-hozo-text-body"
+        }
+      ]
+    },
     "Button": {
       "props": [
         {
@@ -81,6 +114,39 @@
         }
       ],
       "disabledProp": "disabled"
+    },
+    "HozoAlert": {
+      "props": [
+        {
+          "name": "tone",
+          "default": "neutral",
+          "values": [
+            "accent",
+            "danger",
+            "neutral"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "when": [
+            "accent"
+          ],
+          "classes": "rounded-hozo-surface border px-4 py-3 text-sm border-hozo-accent bg-hozo-accent-subtle text-hozo-accent-text"
+        },
+        {
+          "when": [
+            "danger"
+          ],
+          "classes": "rounded-hozo-surface border px-4 py-3 text-sm border-hozo-danger bg-hozo-danger-subtle text-hozo-danger-text"
+        },
+        {
+          "when": [
+            "neutral"
+          ],
+          "classes": "rounded-hozo-surface border px-4 py-3 text-sm border-hozo-border bg-hozo-surface-sunken text-hozo-text-body"
+        }
+      ]
     },
     "HozoButton": {
       "props": [
