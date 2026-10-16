@@ -37,7 +37,9 @@ use crate::aria;
 /// with `accessibilityState={{ checked }}` was reported as missing the one
 /// state it had.
 fn is_state_prop(property: &str) -> bool {
-    ARIA_STATE_KEYS.iter().any(|(aria_name, _)| *aria_name == property)
+    ARIA_STATE_KEYS
+        .iter()
+        .any(|(aria_name, _)| *aria_name == property)
 }
 
 pub fn check(root: &Node, diagnostics: &mut Vec<Diagnostic>) {
@@ -186,7 +188,10 @@ fn walk_inner(
     // The name check also applies where no role was written, because the
     // role is then whatever the element is -- and for `View`, `Text` and
     // an unrolled `Pressable` that is `generic`, which prohibits a name.
-    if let Some(spec) = own_role.or_else(|| implicit_role(node)).and_then(aria::role) {
+    if let Some(spec) = own_role
+        .or_else(|| implicit_role(node))
+        .and_then(aria::role)
+    {
         // A button's native element already supplies its role; making the
         // author spell it out must not decide whether an invalid state is
         // found. Required/context/owned checks above stay explicit-only:
@@ -281,7 +286,11 @@ fn check_props(node: &Node, spec: &aria::AriaRole, diagnostics: &mut Vec<Diagnos
              announces.",
             spec.name,
             list(spec.required_props),
-            if missing.len() == spec.required_props.len() { "" } else { "only some of " },
+            if missing.len() == spec.required_props.len() {
+                ""
+            } else {
+                "only some of "
+            },
         ),
         span: node.span,
     });
@@ -296,7 +305,11 @@ fn check_context(
     if spec.required_context.is_empty() {
         return;
     }
-    if spec.required_context.iter().any(|role| ancestors.contains(role)) {
+    if spec
+        .required_context
+        .iter()
+        .any(|role| ancestors.contains(role))
+    {
         return;
     }
     // An unreadable expression anywhere above could be supplying the
@@ -321,7 +334,11 @@ fn check_owned(node: &Node, spec: &aria::AriaRole, diagnostics: &mut Vec<Diagnos
     }
     // Anything the compiler only carries may render the missing role, so
     // its presence makes the answer unknowable rather than negative.
-    if node.children.iter().any(|child| matches!(child, Child::Verbatim { .. })) {
+    if node
+        .children
+        .iter()
+        .any(|child| matches!(child, Child::Verbatim { .. }))
+    {
         return;
     }
     let owned: Vec<&str> = node
@@ -358,13 +375,19 @@ fn check_owned(node: &Node, spec: &aria::AriaRole, diagnostics: &mut Vec<Diagnos
 fn implicit_role(node: &Node) -> Option<&'static str> {
     if node.props.accessibility_role.is_some()
         || node.props.has_spread()
-        || node.props.passthrough.iter().any(|p| {
-            matches!(p.name.as_deref(), Some("role" | "accessibilityRole"))
-        })
+        || node
+            .props
+            .passthrough
+            .iter()
+            .any(|p| matches!(p.name.as_deref(), Some("role" | "accessibilityRole")))
     {
         return None;
     }
-    let has_href = node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href"));
+    let has_href = node
+        .props
+        .passthrough
+        .iter()
+        .any(|p| p.name.as_deref() == Some("href"));
     match node.primitive {
         Primitive::View | Primitive::Text | Primitive::ScrollView => Some("generic"),
         Primitive::Pressable if has_href => Some("link"),
@@ -373,8 +396,15 @@ fn implicit_role(node: &Node) -> Option<&'static str> {
         Primitive::Button => Some("button"),
         Primitive::Link if has_href => Some("link"),
         Primitive::Image
-            if !node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("alt"))
-                || literal(node, "alt").is_some_and(|alt| !alt.is_empty()) => Some("img"),
+            if !node
+                .props
+                .passthrough
+                .iter()
+                .any(|p| p.name.as_deref() == Some("alt"))
+                || literal(node, "alt").is_some_and(|alt| !alt.is_empty()) =>
+        {
+            Some("img")
+        }
         Primitive::Paragraph => Some("paragraph"),
         Primitive::Heading => Some("heading"),
         Primitive::Section if node.props.has_accessible_name() == Some(true) => Some("region"),
@@ -390,7 +420,10 @@ fn implicit_role(node: &Node) -> Option<&'static str> {
         Primitive::Separator
             if !node.props.passthrough.iter().any(|p| {
                 p.name.as_deref() == Some("decorative") && p.literal.as_deref() != Some("false")
-            }) => Some("separator"),
+            }) =>
+        {
+            Some("separator")
+        }
         Primitive::Progress => Some("progressbar"),
         Primitive::Meter => Some("meter"),
         Primitive::Dialog => Some("dialog"),
@@ -538,8 +571,12 @@ fn focusable_within(node: &Node) -> bool {
 /// `tabIndex={0}` joins the natural order and is what almost every use of
 /// a positive value was reaching for.
 fn check_tab_order(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
-    let Some(value) = literal(node, "tabIndex") else { return };
-    let Ok(index) = value.parse::<i32>() else { return };
+    let Some(value) = literal(node, "tabIndex") else {
+        return;
+    };
+    let Ok(index) = value.parse::<i32>() else {
+        return;
+    };
     if index <= 0 {
         return;
     }
@@ -578,7 +615,12 @@ fn interactive_role(node: &Node) -> Option<&'static str> {
     if node.props.on_press.is_some() {
         return Some("button");
     }
-    if node.props.passthrough.iter().any(|prop| prop.name.as_deref() == Some("onClick")) {
+    if node
+        .props
+        .passthrough
+        .iter()
+        .any(|prop| prop.name.as_deref() == Some("onClick"))
+    {
         return Some("button");
     }
     None
@@ -599,7 +641,9 @@ fn interactive_role(node: &Node) -> Option<&'static str> {
 /// is only carrying between them means nothing is claimed, the same rule
 /// the rest of this file follows.
 fn check_interactive_nesting(node: &Node, outer: Option<&str>, diagnostics: &mut Vec<Diagnostic>) {
-    let (Some(outer), Some(inner)) = (outer, interactive_role(node)) else { return };
+    let (Some(outer), Some(inner)) = (outer, interactive_role(node)) else {
+        return;
+    };
     diagnostics.push(Diagnostic {
         code: DiagnosticCode::A11yInteractiveNesting,
         severity: Severity::Warning,
@@ -705,7 +749,11 @@ mod tests {
             "import {{ Button, Link, Image, Heading, List, ListItem, Progress, Meter, Separator, Table, TableRow, TableCell, Pressable, View, Text, Paragraph, Section }} from '@hozo/core'\n\
              const el = {element}\n"
         );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -714,7 +762,9 @@ mod tests {
         // `aria-disabled`. Not `aria-selected` -- and the state was going
         // into the output regardless, where nothing would read it.
         assert_eq!(
-            codes(r#"<Pressable accessibilityRole="button" accessibilityState={{ selected: s }} onPress={go}>x</Pressable>"#),
+            codes(
+                r#"<Pressable accessibilityRole="button" accessibilityState={{ selected: s }} onPress={go}>x</Pressable>"#
+            ),
             vec![DiagnosticCode::AriaPropNotAllowed],
         );
         assert!(
@@ -740,7 +790,11 @@ mod tests {
             r#"<TableRow accessibilityState={{ checked: s }} />"#,
             r#"<TableCell accessibilityState={{ checked: s }}>x</TableCell>"#,
         ] {
-            assert_eq!(codes(element), vec![DiagnosticCode::AriaPropNotAllowed], "{element}");
+            assert_eq!(
+                codes(element),
+                vec![DiagnosticCode::AriaPropNotAllowed],
+                "{element}"
+            );
         }
     }
 
@@ -759,8 +813,11 @@ mod tests {
             assert!(codes(element).is_empty(), "{element}: {:?}", codes(element));
         }
         let source = "import { Button } from '@hozo/core'; const el = <Button href=\"/docs\" accessibilityState={{ selected: s }}>x</Button>";
-        let diagnostic = crate::parse_tsx(source).diagnostics.into_iter()
-            .find(|d| d.code == DiagnosticCode::AriaPropNotAllowed).unwrap();
+        let diagnostic = crate::parse_tsx(source)
+            .diagnostics
+            .into_iter()
+            .find(|d| d.code == DiagnosticCode::AriaPropNotAllowed)
+            .unwrap();
         assert!(diagnostic.message.contains("role=\"link\""));
     }
 
@@ -785,7 +842,11 @@ mod tests {
             r#"<Paragraph accessibilityLabel="Intro">x</Paragraph>"#,
             r#"<Pressable accessibilityLabel="Open">x</Pressable>"#,
         ] {
-            assert_eq!(codes(element), vec![DiagnosticCode::AriaNameProhibited], "{element}");
+            assert_eq!(
+                codes(element),
+                vec![DiagnosticCode::AriaNameProhibited],
+                "{element}"
+            );
         }
     }
 
@@ -821,10 +882,12 @@ mod focus_tests {
     use hozo_ir::DiagnosticCode;
 
     fn codes(element: &str) -> Vec<DiagnosticCode> {
-        let source = format!(
-            "import {{ Pressable }} from '@hozo/core'\nconst el = {element}\n"
-        );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        let source = format!("import {{ Pressable }} from '@hozo/core'\nconst el = {element}\n");
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -833,7 +896,9 @@ mod focus_tests {
         // which Hozo does not offer because Android cannot produce it.
         // See docs/decisions/001.
         assert_eq!(
-            codes(r#"<Pressable accessibilityRole="button" disabled={d} focusable onPress={go}>x</Pressable>"#),
+            codes(
+                r#"<Pressable accessibilityRole="button" disabled={d} focusable onPress={go}>x</Pressable>"#
+            ),
             vec![DiagnosticCode::FocusableDisabledUnsupported],
         );
     }
@@ -851,24 +916,41 @@ mod focus_tests {
 
     #[test]
     fn focusable_on_its_own_is_not_reported() {
-        assert!(
-            codes(r#"<Pressable accessibilityRole="button" focusable onPress={go}>x</Pressable>"#)
-                .is_empty()
-        );
+        assert!(codes(
+            r#"<Pressable accessibilityRole="button" focusable onPress={go}>x</Pressable>"#
+        )
+        .is_empty());
     }
 
     #[test]
-    fn known_tab_stops_on_disabled_destinations_are_reported_without_warning_on_enabled_or_negative_cases() {
+    fn known_tab_stops_on_disabled_destinations_are_reported_without_warning_on_enabled_or_negative_cases(
+    ) {
         for tab in ["0", "3"] {
             let expected = if tab == "0" {
                 vec![DiagnosticCode::FocusableDisabledUnsupported]
             } else {
-                vec![DiagnosticCode::FocusableDisabledUnsupported, DiagnosticCode::A11yPositiveTabIndex]
+                vec![
+                    DiagnosticCode::FocusableDisabledUnsupported,
+                    DiagnosticCode::A11yPositiveTabIndex,
+                ]
             };
-            assert_eq!(codes(&format!(r#"<Link href="/docs" disabled tabIndex={{{tab}}}>Docs</Link>"#)), expected);
+            assert_eq!(
+                codes(&format!(
+                    r#"<Link href="/docs" disabled tabIndex={{{tab}}}>Docs</Link>"#
+                )),
+                expected
+            );
         }
-        for props in ["disabled tabIndex={-1}", "disabled={false} focusable", "disabled={false} tabIndex={0}", "tabIndex={0}"] {
-            assert!(codes(&format!(r#"<Link href="/docs" {props}>Docs</Link>"#)).is_empty(), "{props}");
+        for props in [
+            "disabled tabIndex={-1}",
+            "disabled={false} focusable",
+            "disabled={false} tabIndex={0}",
+            "tabIndex={0}",
+        ] {
+            assert!(
+                codes(&format!(r#"<Link href="/docs" {props}>Docs</Link>"#)).is_empty(),
+                "{props}"
+            );
         }
     }
 }
@@ -881,7 +963,11 @@ mod variant_tests {
         let source = format!(
             "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\">x</View>\n"
         );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -929,7 +1015,14 @@ mod variant_tests {
     fn a_class_that_was_never_tailwinds_is_not_mentioned() {
         // The whole value of asking Tailwind for its own variant list:
         // a project's own class is not a gap in Hozo.
-        for class_name in ["my-card", "group", "peer", "p-4", "hover:bg-blue-500", "md:hover:p-4"] {
+        for class_name in [
+            "my-card",
+            "group",
+            "peer",
+            "p-4",
+            "hover:bg-blue-500",
+            "md:hover:p-4",
+        ] {
             assert!(codes(class_name).is_empty(), "{class_name}");
         }
     }
@@ -969,7 +1062,9 @@ mod aria_variant_tests {
         for state in crate::tailwind_variants::ARIA_VARIANT_STATES {
             let conditions = conditions(&format!("aria-{state}:p-4"));
             assert!(
-                conditions.iter().any(|c| matches!(c, Condition::Aria(name) if name == state)),
+                conditions
+                    .iter()
+                    .any(|c| matches!(c, Condition::Aria(name) if name == state)),
                 "aria-{state}: was not recognised",
             );
         }
@@ -1024,7 +1119,11 @@ mod enabled_tests {
                 .into_iter()
                 .map(|d| d.code)
                 .collect();
-            assert_eq!(codes, vec![DiagnosticCode::TailwindVariantNotSupported], "{class_name}");
+            assert_eq!(
+                codes,
+                vec![DiagnosticCode::TailwindVariantNotSupported],
+                "{class_name}"
+            );
         }
     }
 }
@@ -1047,7 +1146,11 @@ mod relational_tests {
     }
 
     fn codes(class_name: &str) -> Vec<DiagnosticCode> {
-        crate::parse_tsx(&source(class_name)).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source(class_name))
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -1055,12 +1158,15 @@ mod relational_tests {
         // Parsed by recursion rather than by a list of combinations, so a
         // variant added later is groupable the day it lands. These four
         // needed no entry of their own anywhere.
-        assert!(conditions("group-hover:p-4")
-            .contains(&Condition::Group(Box::new(Condition::Hover))));
-        assert!(conditions("group-aria-checked:p-4")
-            .contains(&Condition::Group(Box::new(Condition::Aria("checked".to_string())))));
-        assert!(conditions("peer-hover:p-4")
-            .contains(&Condition::Peer(Box::new(Condition::Hover))));
+        assert!(
+            conditions("group-hover:p-4").contains(&Condition::Group(Box::new(Condition::Hover)))
+        );
+        assert!(
+            conditions("group-aria-checked:p-4").contains(&Condition::Group(Box::new(
+                Condition::Aria("checked".to_string())
+            )))
+        );
+        assert!(conditions("peer-hover:p-4").contains(&Condition::Peer(Box::new(Condition::Hover))));
         assert!(conditions("group-first:p-4")
             .contains(&Condition::Group(Box::new(Condition::FirstChild))));
     }
@@ -1075,7 +1181,10 @@ mod relational_tests {
         // falls through whole to the unsupported-variant diagnostic
         // instead of compiling to nothing in silence.
         assert!(conditions("group-dark:p-4").is_empty());
-        assert_eq!(codes("group-dark:p-4"), vec![DiagnosticCode::TailwindVariantNotSupported]);
+        assert_eq!(
+            codes("group-dark:p-4"),
+            vec![DiagnosticCode::TailwindVariantNotSupported]
+        );
         assert!(conditions("group-md:p-4").is_empty());
     }
 
@@ -1083,7 +1192,10 @@ mod relational_tests {
     fn an_inner_variant_hozo_lacks_is_reported_rather_than_swallowed() {
         // `checked:` is deliberately unimplemented, so `peer-checked:` is
         // too -- and says so.
-        assert_eq!(codes("peer-checked:p-4"), vec![DiagnosticCode::TailwindVariantNotSupported]);
+        assert_eq!(
+            codes("peer-checked:p-4"),
+            vec![DiagnosticCode::TailwindVariantNotSupported]
+        );
     }
 }
 
@@ -1135,10 +1247,12 @@ mod environment_tests {
         assert!(conditions("peer-print:p-4").is_empty());
         // Except direction, which is inherited and therefore has a subject
         // an ancestor can differ on. Tailwind allows this one too.
-        assert!(conditions("group-rtl:p-4")
-            .contains(&Condition::Group(Box::new(Condition::Environment(Environment::Rtl)))));
+        assert!(
+            conditions("group-rtl:p-4").contains(&Condition::Group(Box::new(
+                Condition::Environment(Environment::Rtl)
+            )))
+        );
     }
-
 }
 
 #[cfg(test)]
@@ -1164,8 +1278,14 @@ mod negation_tests {
             ("not-first:p-4", Condition::FirstChild),
             ("not-disabled:p-4", Condition::Disabled),
             ("not-dark:p-4", Condition::Dark),
-            ("not-motion-reduce:p-4", Condition::Environment(Environment::MotionReduce)),
-            ("not-aria-checked:p-4", Condition::Aria("checked".to_string())),
+            (
+                "not-motion-reduce:p-4",
+                Condition::Environment(Environment::MotionReduce),
+            ),
+            (
+                "not-aria-checked:p-4",
+                Condition::Aria("checked".to_string()),
+            ),
         ] {
             assert!(
                 conditions(class_name).contains(&Condition::Not(Box::new(inner))),
@@ -1194,7 +1314,11 @@ mod negation_tests {
     }
 
     fn codes(class_name: &str) -> Vec<DiagnosticCode> {
-        crate::parse_tsx(&source(class_name)).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source(class_name))
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -1239,25 +1363,46 @@ const el = <View className=\"{class_name}\">x</View>
         // `@sm` is 24rem where `sm` is 40rem, which is the whole reason
         // this is a separate table rather than a reuse of the other one.
         assert_eq!(conditions("@sm:flex"), vec![container(None, true, "384px")]);
-        assert_eq!(conditions("sm:flex"), vec![Condition::Responsive(hozo_ir::Breakpoint::Sm)]);
+        assert_eq!(
+            conditions("sm:flex"),
+            vec![Condition::Responsive(hozo_ir::Breakpoint::Sm)]
+        );
         assert_eq!(conditions("@md:flex"), vec![container(None, true, "448px")]);
         // The two-character names have to be tried before the
         // one-character ones they end with.
-        assert_eq!(conditions("@2xl:flex"), vec![container(None, true, "672px")]);
-        assert_eq!(conditions("@3xs:flex"), vec![container(None, true, "256px")]);
+        assert_eq!(
+            conditions("@2xl:flex"),
+            vec![container(None, true, "672px")]
+        );
+        assert_eq!(
+            conditions("@3xs:flex"),
+            vec![container(None, true, "256px")]
+        );
     }
 
     #[test]
     fn min_and_max_read_the_same_way_they_do_on_the_viewport() {
         assert_eq!(conditions("@min-md:flex"), conditions("@md:flex"));
-        assert_eq!(conditions("@max-md:flex"), vec![container(None, false, "448px")]);
-        assert_eq!(conditions("@min-[400px]:flex"), vec![container(None, true, "400px")]);
-        assert_eq!(conditions("@[400px]:flex"), vec![container(None, true, "400px")]);
+        assert_eq!(
+            conditions("@max-md:flex"),
+            vec![container(None, false, "448px")]
+        );
+        assert_eq!(
+            conditions("@min-[400px]:flex"),
+            vec![container(None, true, "400px")]
+        );
+        assert_eq!(
+            conditions("@[400px]:flex"),
+            vec![container(None, true, "400px")]
+        );
     }
 
     #[test]
     fn a_name_says_which_ancestor_answers() {
-        assert_eq!(conditions("@sm/main:flex"), vec![container(Some("main"), true, "384px")]);
+        assert_eq!(
+            conditions("@sm/main:flex"),
+            vec![container(Some("main"), true, "384px")]
+        );
         assert_eq!(
             conditions("@max-md/sidebar:flex"),
             vec![container(Some("sidebar"), false, "448px")],
@@ -1333,19 +1478,28 @@ const el = <View className=\"{class_name}\">x</View>
         // are one condition rather than two that agree -- which is what
         // lets React Native answer both from its cheap bucketed hook.
         assert_eq!(conditions("min-sm:flex"), conditions("sm:flex"));
-        assert_eq!(conditions("min-md:flex"), vec![Condition::Responsive(Breakpoint::Md)]);
+        assert_eq!(
+            conditions("min-md:flex"),
+            vec![Condition::Responsive(Breakpoint::Md)]
+        );
     }
 
     #[test]
     fn max_at_a_named_breakpoint_is_that_width_from_the_other_side() {
         assert_eq!(
             conditions("max-md:flex"),
-            vec![Condition::Width { at_least: false, value: "768px".to_string() }],
+            vec![Condition::Width {
+                at_least: false,
+                value: "768px".to_string()
+            }],
         );
         // `2xl` before `xl`, or the longer name would never be reached.
         assert_eq!(
             conditions("max-2xl:flex"),
-            vec![Condition::Width { at_least: false, value: "1536px".to_string() }],
+            vec![Condition::Width {
+                at_least: false,
+                value: "1536px".to_string()
+            }],
         );
     }
 
@@ -1357,11 +1511,17 @@ const el = <View className=\"{class_name}\">x</View>
         // where failing to be one gets reported.
         assert_eq!(
             conditions("min-[500px]:flex"),
-            vec![Condition::Width { at_least: true, value: "500px".to_string() }],
+            vec![Condition::Width {
+                at_least: true,
+                value: "500px".to_string()
+            }],
         );
         assert_eq!(
             conditions("max-[40rem]:flex"),
-            vec![Condition::Width { at_least: false, value: "40rem".to_string() }],
+            vec![Condition::Width {
+                at_least: false,
+                value: "40rem".to_string()
+            }],
         );
     }
 
@@ -1383,7 +1543,11 @@ const el = <View className=\"{class_name}\">x</View>
             let source = "import { View } from '@hozo/core'
                           const el = <View className=\"group-max-md:flex\">x</View>
 ";
-            crate::parse_tsx(source).diagnostics.into_iter().map(|d| d.code).collect()
+            crate::parse_tsx(source)
+                .diagnostics
+                .into_iter()
+                .map(|d| d.code)
+                .collect()
         };
         assert_eq!(codes, vec![DiagnosticCode::TailwindVariantNotSupported]);
     }
@@ -1397,13 +1561,21 @@ mod form_state_tests {
         // Only the field gets a name. A `<div>` is `generic`, which
         // *prohibits* one -- so labelling it would add a second, unrelated
         // report and hide what these tests are about.
-        let name = if element == "TextInput" { " accessibilityLabel=\"N\"" } else { "" };
+        let name = if element == "TextInput" {
+            " accessibilityLabel=\"N\""
+        } else {
+            ""
+        };
         let source = format!(
             "import {{ View, Text, TextInput }} from '@hozo/core'
              const el = <{element}{name} className=\"{class_name}\" />
 "
         );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -1446,7 +1618,11 @@ mod form_state_tests {
             );
         }
         // The colours it does keep say nothing.
-        for class_name in ["visited:text-red-500", "visited:bg-blue-500", "visited:border-red-500"] {
+        for class_name in [
+            "visited:text-red-500",
+            "visited:bg-blue-500",
+            "visited:border-red-500",
+        ] {
             assert!(codes("View", class_name).is_empty(), "{class_name}");
         }
         // The restriction is on the *rule*, so it follows `:visited`
@@ -1522,8 +1698,7 @@ mod compositional_tests {
             ("data-[state=open]:p-4", "[data-state=\"open\"]"),
         ] {
             assert!(
-                conditions(class_name)
-                    .contains(&Condition::DataAttribute(selector.to_string())),
+                conditions(class_name).contains(&Condition::DataAttribute(selector.to_string())),
                 "{class_name}",
             );
         }
@@ -1535,8 +1710,9 @@ mod compositional_tests {
         // (`peer-`). Wrapping a variant rather than only a selector is
         // what makes `has-hover:` carry the media query hover has.
         assert!(conditions("has-hover:p-4").contains(&Condition::Has(Box::new(Condition::Hover))));
-        assert!(conditions("has-[:focus]:p-4")
-            .contains(&Condition::HasSelector(":focus".to_string())));
+        assert!(
+            conditions("has-[:focus]:p-4").contains(&Condition::HasSelector(":focus".to_string()))
+        );
         assert!(Condition::Has(Box::new(Condition::Hover)).is_ambient());
     }
 
@@ -1559,7 +1735,11 @@ mod reachability_tests {
         let source = format!(
             "import {{ View, Text, Pressable, TextInput }} from '@hozo/core'\nconst el = {element}\n"
         );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -1586,8 +1766,10 @@ mod reachability_tests {
     fn hidden_with_nothing_focusable_under_it_is_not() {
         // The usual and correct use: a decorative subtree with no
         // controls in it.
-        assert!(!codes(r#"<View aria-hidden="true"><Text>decorative</Text></View>"#)
-            .contains(&DiagnosticCode::A11yHiddenButFocusable));
+        assert!(
+            !codes(r#"<View aria-hidden="true"><Text>decorative</Text></View>"#)
+                .contains(&DiagnosticCode::A11yHiddenButFocusable)
+        );
         // `aria-hidden="false"` is not hiding anything, and reading the
         // name without the value could not tell the two apart.
         assert!(!codes(
@@ -1603,8 +1785,10 @@ mod reachability_tests {
 
     #[test]
     fn a_positive_tab_index_is_reported_and_zero_is_not() {
-        assert!(codes(r#"<Pressable accessibilityRole="button" tabIndex={3} onPress={go}>x</Pressable>"#)
-            .contains(&DiagnosticCode::A11yPositiveTabIndex));
+        assert!(codes(
+            r#"<Pressable accessibilityRole="button" tabIndex={3} onPress={go}>x</Pressable>"#
+        )
+        .contains(&DiagnosticCode::A11yPositiveTabIndex));
         // The two values that are ordinary: join the natural order, and
         // leave it while staying focusable from script.
         for element in [
@@ -1617,10 +1801,11 @@ mod reachability_tests {
             );
         }
         // A value only the runtime knows says nothing.
-        assert!(!codes(r#"<Pressable accessibilityRole="button" tabIndex={n} onPress={go}>x</Pressable>"#)
-            .contains(&DiagnosticCode::A11yPositiveTabIndex));
+        assert!(!codes(
+            r#"<Pressable accessibilityRole="button" tabIndex={n} onPress={go}>x</Pressable>"#
+        )
+        .contains(&DiagnosticCode::A11yPositiveTabIndex));
     }
-
 }
 
 #[cfg(test)]
@@ -1631,7 +1816,11 @@ mod outline_tests {
         let source = format!(
             "import {{ View, Heading, Section, Text }} from '@hozo/core'\nconst el = {element}\n"
         );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -1692,7 +1881,11 @@ mod structure_tests {
         let source = format!(
             "import {{ View, Text, Pressable, Button, Heading }} from '@hozo/core'\nconst el = {element}\n"
         );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]
@@ -1721,8 +1914,10 @@ mod structure_tests {
         .contains(&DiagnosticCode::A11yInteractiveNesting));
         // A container inside a control is ordinary -- that is how a button
         // gets an icon and a label.
-        assert!(!codes(r#"<Button onPress={a}><View><Text>x</Text></View></Button>"#)
-            .contains(&DiagnosticCode::A11yInteractiveNesting));
+        assert!(
+            !codes(r#"<Button onPress={a}><View><Text>x</Text></View></Button>"#)
+                .contains(&DiagnosticCode::A11yInteractiveNesting)
+        );
     }
 
     #[test]
@@ -1744,8 +1939,10 @@ mod structure_tests {
         // `Pressable` is Hozo's interactive primitive: the Web backend
         // gives it a `tabIndex`, and the role it is missing is reported
         // separately as `A11yInteractiveWithoutRole`.
-        assert!(!codes(r#"<Pressable accessibilityRole="button" onPress={go}>Tap</Pressable>"#)
-            .contains(&DiagnosticCode::A11yPressWithoutKeyboard));
+        assert!(
+            !codes(r#"<Pressable accessibilityRole="button" onPress={go}>Tap</Pressable>"#)
+                .contains(&DiagnosticCode::A11yPressWithoutKeyboard)
+        );
         assert!(!codes(r#"<Button onPress={go}>Tap</Button>"#)
             .contains(&DiagnosticCode::A11yPressWithoutKeyboard));
     }
@@ -1755,14 +1952,20 @@ mod structure_tests {
         // Every reference naming it resolves to the first, so one of the
         // two points at the wrong element -- and it points somewhere,
         // which is why nothing looks broken.
-        assert!(codes(r#"<View><Text nativeID="x">A</Text><Text nativeID="x">B</Text></View>"#)
-            .contains(&DiagnosticCode::A11yDuplicateId));
+        assert!(
+            codes(r#"<View><Text nativeID="x">A</Text><Text nativeID="x">B</Text></View>"#)
+                .contains(&DiagnosticCode::A11yDuplicateId)
+        );
         // Different ids, and a repeated id in an expression the compiler
         // is only carrying, say nothing.
-        assert!(!codes(r#"<View><Text nativeID="x">A</Text><Text nativeID="y">B</Text></View>"#)
-            .contains(&DiagnosticCode::A11yDuplicateId));
-        assert!(!codes(r#"<View><Text nativeID={id}>A</Text><Text nativeID={id}>B</Text></View>"#)
-            .contains(&DiagnosticCode::A11yDuplicateId));
+        assert!(
+            !codes(r#"<View><Text nativeID="x">A</Text><Text nativeID="y">B</Text></View>"#)
+                .contains(&DiagnosticCode::A11yDuplicateId)
+        );
+        assert!(
+            !codes(r#"<View><Text nativeID={id}>A</Text><Text nativeID={id}>B</Text></View>"#)
+                .contains(&DiagnosticCode::A11yDuplicateId)
+        );
     }
 }
 
@@ -1774,7 +1977,11 @@ mod private_attribute_tests {
         let source = format!(
             "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\">x</View>\n"
         );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     #[test]

@@ -13,11 +13,17 @@ pub(super) enum Guard {
     // An optional button supplies events only while it exists. Its absence
     // is not not-hover, but semantic predicates still describe the row.
     // Keep availability outside negation, not around the whole callback.
-    InteractiveScoped { available: String, predicate: String },
+    InteractiveScoped {
+        available: String,
+        predicate: String,
+    },
     // The availability check is not defensive: CSS matches nothing without
     // an applicable measured ancestor, in either direction. Negation flips
     // the width predicate, never that ancestor's existence.
-    Scoped { available: String, predicate: String },
+    Scoped {
+        available: String,
+        predicate: String,
+    },
 }
 
 impl Guard {
@@ -26,11 +32,17 @@ impl Guard {
             Self::Known(value) => Self::Known(!value),
             Self::Dynamic(expression) => Self::Dynamic(format!("!({expression})")),
             Self::Interactive(expression) => Self::Interactive(format!("!({expression})")),
-            Self::InteractiveScoped { available, predicate } => Self::InteractiveScoped {
+            Self::InteractiveScoped {
+                available,
+                predicate,
+            } => Self::InteractiveScoped {
                 available,
                 predicate: format!("!({predicate})"),
             },
-            Self::Scoped { available, predicate } => Self::Scoped {
+            Self::Scoped {
+                available,
+                predicate,
+            } => Self::Scoped {
                 available,
                 predicate: format!("!({predicate})"),
             },
@@ -48,7 +60,9 @@ pub(super) fn resolve(
     interaction_context: bool,
     pattern_slot: Option<&str>,
 ) -> Result<Guard, String> {
-    if let Some(binding) = pattern_slot.and_then(|slot| crate::pattern::semantic_binding(node.primitive, slot, condition)) {
+    if let Some(binding) = pattern_slot
+        .and_then(|slot| crate::pattern::semantic_binding(node.primitive, slot, condition))
+    {
         return Ok(match binding {
             "false" => Guard::Known(false),
             "true" => Guard::Known(true),

@@ -59,7 +59,10 @@ pub struct Snapshot {
 
 impl Snapshot {
     pub fn current() -> Self {
-        Snapshot { version: SNAPSHOT_VERSION, files: BTreeMap::new() }
+        Snapshot {
+            version: SNAPSHOT_VERSION,
+            files: BTreeMap::new(),
+        }
     }
 }
 
@@ -139,7 +142,9 @@ pub struct MemoryStore {
 
 impl MemoryStore {
     pub fn new() -> Self {
-        MemoryStore { snapshot: std::sync::Mutex::new(Snapshot::current()) }
+        MemoryStore {
+            snapshot: std::sync::Mutex::new(Snapshot::current()),
+        }
     }
 }
 

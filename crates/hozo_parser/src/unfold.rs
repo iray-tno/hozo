@@ -111,8 +111,12 @@ pub fn unfold_jsx_calls(source_text: &str, sources: Option<&[String]>) -> Option
         return None;
     }
 
-    let mut collector =
-        Unfolder { source_text, primitives: &primitives, edits: Vec::new(), callees: Vec::new() };
+    let mut collector = Unfolder {
+        source_text,
+        primitives: &primitives,
+        edits: Vec::new(),
+        callees: Vec::new(),
+    };
     collector.visit_program(&ret.program);
     if collector.edits.is_empty() {
         return None;
@@ -124,7 +128,10 @@ pub fn unfold_jsx_calls(source_text: &str, sources: Option<&[String]>) -> Option
     let import_source = imports
         .iter()
         .find(|entry| {
-            collector.callees.iter().any(|callee| callee == &entry.local)
+            collector
+                .callees
+                .iter()
+                .any(|callee| callee == &entry.local)
                 && jsx_call_kind(&entry.imported).is_some()
         })
         .map(|entry| runtime_package(&entry.source));
@@ -137,7 +144,10 @@ pub fn unfold_jsx_calls(source_text: &str, sources: Option<&[String]>) -> Option
     for (span, jsx) in edits {
         out.replace_range(span.start as usize..span.end as usize, &jsx);
     }
-    Some(Unfolded { code: out, import_source })
+    Some(Unfolded {
+        code: out,
+        import_source,
+    })
 }
 
 /// The package an `importSource` names, from the runtime module it exports.
@@ -207,7 +217,10 @@ impl Unfolder<'_, '_> {
         };
         // Only the annotation. Any other comment is a person's, and moving
         // one is a change to the file nobody asked for.
-        if matches!(&trimmed[open..], "/* @__PURE__ */" | "/*#__PURE__*/" | "/* #__PURE__ */") {
+        if matches!(
+            &trimmed[open..],
+            "/* @__PURE__ */" | "/*#__PURE__*/" | "/* #__PURE__ */"
+        ) {
             open as u32
         } else {
             start
@@ -217,10 +230,14 @@ impl Unfolder<'_, '_> {
     /// One primitive call as JSX, or `None` if it is not one, or not one
     /// this file can put back without changing it.
     fn render(&self, call: &CallExpression<'_>) -> Option<String> {
-        let Expression::Identifier(callee) = &call.callee else { return None };
+        let Expression::Identifier(callee) = &call.callee else {
+            return None;
+        };
         let kind = jsx_call_kind(callee.name.as_str())?;
 
-        let Argument::Identifier(tag) = call.arguments.first()? else { return None };
+        let Argument::Identifier(tag) = call.arguments.first()? else {
+            return None;
+        };
         let local = tag.name.as_str();
         if !self.primitives.contains_key(local) {
             return None;
@@ -231,7 +248,11 @@ impl Unfolder<'_, '_> {
         // came from: the fold lifts a static `key` out of the props and
         // into the third position, so putting it back first restores the
         // same call.
-        if let Some(key) = call.arguments.get(2).and_then(|argument| argument.as_expression()) {
+        if let Some(key) = call
+            .arguments
+            .get(2)
+            .and_then(|argument| argument.as_expression())
+        {
             // Except when it is the placeholder. `jsxDEV` takes six
             // arguments and fills the ones it does not need, so an element
             // with no key still has a third one -- `void 0` -- and reading
@@ -249,8 +270,10 @@ impl Unfolder<'_, '_> {
                 for property in &props.properties {
                     match property {
                         ObjectPropertyKind::SpreadProperty(spread) => {
-                            attributes
-                                .push_str(&format!(" {{...{}}}", self.text(spread.argument.span())));
+                            attributes.push_str(&format!(
+                                " {{...{}}}",
+                                self.text(spread.argument.span())
+                            ));
                         }
                         ObjectPropertyKind::ObjectProperty(entry) => {
                             if entry.computed {
@@ -265,8 +288,7 @@ impl Unfolder<'_, '_> {
                                 _ => return None,
                             };
                             if name == "children" {
-                                children =
-                                    Some(self.render_children(kind, call, &entry.value)?);
+                                children = Some(self.render_children(kind, call, &entry.value)?);
                                 continue;
                             }
                             if !is_jsx_attribute_name(&name) {
@@ -282,8 +304,11 @@ impl Unfolder<'_, '_> {
                             // same value under both, always -- and the
                             // parser reads a static `className={"p-4"}`
                             // exactly as it reads `className="p-4"`.
-                            attributes
-                                .push_str(&format!(" {}={{{}}}", name, self.text(entry.value.span())));
+                            attributes.push_str(&format!(
+                                " {}={{{}}}",
+                                name,
+                                self.text(entry.value.span())
+                            ));
                         }
                     }
                 }
@@ -381,7 +406,9 @@ fn is_absent(expression: &Expression<'_>) -> bool {
 /// call carrying one is left folded.
 fn is_jsx_attribute_name(name: &str) -> bool {
     let mut characters = name.chars();
-    let Some(first) = characters.next() else { return false };
+    let Some(first) = characters.next() else {
+        return false;
+    };
     if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
         return false;
     }
@@ -414,7 +441,10 @@ mod tests {
             "{IMPORT}const page = _jsx(View, {{ className: \"p-4\" }});\n"
         ))
         .expect("the call is foldable");
-        assert!(out.contains("const page = <View className={\"p-4\"} />;"), "{out}");
+        assert!(
+            out.contains("const page = <View className={\"p-4\"} />;"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -422,13 +452,16 @@ mod tests {
         // The call's own spelling is what says how many children there
         // are. Read backwards, `_jsx(View, { children: [a, b] })` -- one
         // child that happens to be an array -- would become two.
-        let out = unfold(&format!("{IMPORT}const page = _jsx(View, {{ children: [a, b] }});\n"))
-            .expect("foldable");
+        let out = unfold(&format!(
+            "{IMPORT}const page = _jsx(View, {{ children: [a, b] }});\n"
+        ))
+        .expect("foldable");
         assert!(out.contains("<View>{[a, b]}</View>"), "{out}");
 
-        let several =
-            unfold(&format!("{IMPORT}const page = _jsxs(View, {{ children: [a, b] }});\n"))
-                .expect("foldable");
+        let several = unfold(&format!(
+            "{IMPORT}const page = _jsxs(View, {{ children: [a, b] }});\n"
+        ))
+        .expect("foldable");
         assert!(several.contains("<View>{a}{b}</View>"), "{several}");
     }
 
@@ -463,8 +496,10 @@ mod tests {
 
     #[test]
     fn the_key_argument_goes_back_where_the_fold_took_it_from() {
-        let out = unfold(&format!("{IMPORT}const page = _jsx(View, {{}}, \"row-1\");\n"))
-            .expect("foldable");
+        let out = unfold(&format!(
+            "{IMPORT}const page = _jsx(View, {{}}, \"row-1\");\n"
+        ))
+        .expect("foldable");
         assert!(out.contains("<View key={\"row-1\"} />"), "{out}");
     }
 
@@ -474,7 +509,10 @@ mod tests {
             "{IMPORT}const page = _jsx(View, {{ ...rest, className: \"p-4\" }});\n"
         ))
         .expect("foldable");
-        assert!(out.contains("<View {...rest} className={\"p-4\"} />"), "{out}");
+        assert!(
+            out.contains("<View {...rest} className={\"p-4\"} />"),
+            "{out}"
+        );
     }
 
     #[test]
@@ -510,14 +548,18 @@ mod tests {
         // The same per-tag rule lowering applies. `@expo/ui` exports a
         // `Button` sharing nothing with Hozo's but its spelling, and a
         // folded one is not something Hozo was going to lower.
-        let source = "import { Button } from '@expo/ui';\nconst p = _jsx(Button, { label: \"Save\" });\n";
+        let source =
+            "import { Button } from '@expo/ui';\nconst p = _jsx(Button, { label: \"Save\" });\n";
         assert_eq!(unfold(source), None);
     }
 
     #[test]
     fn says_nothing_about_a_module_with_no_folded_primitive() {
         assert_eq!(unfold("export const x = 1;\n"), None);
-        assert_eq!(unfold(&format!("{IMPORT}const p = <View className=\"p-4\" />;\n")), None);
+        assert_eq!(
+            unfold(&format!("{IMPORT}const p = <View className=\"p-4\" />;\n")),
+            None
+        );
     }
 
     #[test]
@@ -529,7 +571,10 @@ mod tests {
             "{IMPORT}function _createMdxContent(props) {{\n  const _components = {{ h1: \"h1\", ...props.components }};\n  return _jsxs(_Fragment, {{ children: [_jsx(_components.h1, {{ children: \"Title\" }}), \"\\n\", _jsx(View, {{ className: \"p-4\" }})] }});\n}}\n"
         );
         let out = unfold(&source).expect("foldable");
-        assert!(out.contains("_jsx(_components.h1, { children: \"Title\" })"), "{out}");
+        assert!(
+            out.contains("_jsx(_components.h1, { children: \"Title\" })"),
+            "{out}"
+        );
         assert!(out.contains("\"\\n\""), "{out}");
         assert!(out.contains("<View className={\"p-4\"} />"), "{out}");
         assert!(!out.contains("_jsx(View"), "{out}");

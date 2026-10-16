@@ -20,25 +20,21 @@
 
 mod effects;
 
-pub(super) use effects::{
-    background_image_entry, box_shadow_entry, filter_entry, transform_entry,
-};
+pub(super) use effects::{background_image_entry, box_shadow_entry, filter_entry, transform_entry};
 
 use hozo_ir::{
-    Align, AlignSelf, Axis, BorderStyle, Color, DecorationStyle, Dimension, Display, FilterFunction,
-    GradientKind, GradientStop,
-    Edge,
-    FlexDirection,
-    LetterSpacing,
-    FlexShorthand, Justify,
-    Length, LineHeight, Overflow, Position, Radius, StyleProperty, TextAlign, TextTransform, Theme,
-    TransformFunction,
+    Align, AlignSelf, Axis, BorderStyle, Color, DecorationStyle, Dimension, Display, Edge,
+    FilterFunction, FlexDirection, FlexShorthand, GradientKind, GradientStop, Justify, Length,
+    LetterSpacing, LineHeight, Overflow, Position, Radius, StyleProperty, TextAlign, TextTransform,
+    Theme, TransformFunction,
 };
 
 fn radius_number(radius: &Radius, theme: &Theme) -> Option<String> {
     Some(match radius {
         Radius::Length(l) => number(l, theme),
-        Radius::Scale { name, fallback_px } => number(&Length::Px(theme.radius_or(name, *fallback_px)), theme),
+        Radius::Scale { name, fallback_px } => {
+            number(&Length::Px(theme.radius_or(name, *fallback_px)), theme)
+        }
         // RN has no infinity. Any radius past half the box's shorter side
         // already renders as a pill, so a large finite value is the
         // standard way to express this -- the approximation is forced here,
@@ -51,7 +47,9 @@ fn radius_number(radius: &Radius, theme: &Theme) -> Option<String> {
 /// A radius style, or none when it names a token the theme does not
 /// define -- the same answer the Web gives, which emits nothing for it.
 fn radius_pair(key: &'static str, radius: &Radius, theme: &Theme) -> Vec<(&'static str, String)> {
-    radius_number(radius, theme).map(|value| vec![(key, value)]).unwrap_or_default()
+    radius_number(radius, theme)
+        .map(|value| vec![(key, value)])
+        .unwrap_or_default()
 }
 
 /// React Native's `aspectRatio` is a number, where CSS writes a ratio.
@@ -857,26 +855,44 @@ mod tests {
             );
             let parsed = hozo_parser::parse_tsx(&source);
             let out = crate::lower(&parsed.roots[0].node, &source, &Theme::default());
-            assert!(out.styles.contains(expected), "{class_name}: {}", out.styles);
-            assert!(out.diagnostics.is_empty(), "{class_name}: {:?}", out.diagnostics);
+            assert!(
+                out.styles.contains(expected),
+                "{class_name}: {}",
+                out.styles
+            );
+            assert!(
+                out.diagnostics.is_empty(),
+                "{class_name}: {:?}",
+                out.diagnostics
+            );
         }
         // A non-solid side style is still one React Native cannot draw.
-        assert!(
-            StyleProperty::BorderLogicalStyle(hozo_ir::Edge::InlineStart, hozo_ir::BorderStyle::Dashed)
-                .unsupported_on_native()
-                .is_some()
-        );
+        assert!(StyleProperty::BorderLogicalStyle(
+            hozo_ir::Edge::InlineStart,
+            hozo_ir::BorderStyle::Dashed
+        )
+        .unsupported_on_native()
+        .is_some());
     }
 
     #[test]
     fn numbers_have_no_unit_suffix() {
-        assert_eq!(property_and_value(&StyleProperty::PaddingTop(Length::Px(24.0)), &Theme::default()), vec![("paddingTop", "24".to_string())]);
+        assert_eq!(
+            property_and_value(
+                &StyleProperty::PaddingTop(Length::Px(24.0)),
+                &Theme::default()
+            ),
+            vec![("paddingTop", "24".to_string())]
+        );
     }
 
     #[test]
     fn flex_grow_is_a_bare_number() {
         assert_eq!(
-            property_and_value(&StyleProperty::Flex(FlexShorthand::Grow(1.0)), &Theme::default()),
+            property_and_value(
+                &StyleProperty::Flex(FlexShorthand::Grow(1.0)),
+                &Theme::default()
+            ),
             vec![("flex", "1".to_string())]
         );
     }
@@ -885,14 +901,20 @@ mod tests {
     fn flex_auto_expands_to_two_keys() {
         assert_eq!(
             property_and_value(&StyleProperty::Flex(FlexShorthand::Auto), &Theme::default()),
-            vec![("flexGrow", "1".to_string()), ("flexShrink", "1".to_string())]
+            vec![
+                ("flexGrow", "1".to_string()),
+                ("flexShrink", "1".to_string())
+            ]
         );
     }
 
     #[test]
     fn font_weight_is_a_string() {
         assert_eq!(
-            property_and_value(&StyleProperty::FontWeight(hozo_ir::FontWeight(700)), &Theme::default()),
+            property_and_value(
+                &StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
+                &Theme::default()
+            ),
             vec![("fontWeight", "'700'".to_string())]
         );
     }
@@ -900,7 +922,10 @@ mod tests {
     #[test]
     fn known_color_token_resolves_to_real_hex() {
         assert_eq!(
-            property_and_value(&StyleProperty::BackgroundColor(Color::Token("blue-500".to_string())), &Theme::default()),
+            property_and_value(
+                &StyleProperty::BackgroundColor(Color::Token("blue-500".to_string())),
+                &Theme::default()
+            ),
             vec![("backgroundColor", "'#2b7fff'".to_string())]
         );
     }
@@ -908,7 +933,10 @@ mod tests {
     #[test]
     fn unknown_color_token_falls_back_to_a_marker_string() {
         assert_eq!(
-            property_and_value(&StyleProperty::TextColor(Color::Token("brand-primary".to_string())), &Theme::default()),
+            property_and_value(
+                &StyleProperty::TextColor(Color::Token("brand-primary".to_string())),
+                &Theme::default()
+            ),
             vec![("color", "'hozo-unresolved:brand-primary'".to_string())]
         );
     }

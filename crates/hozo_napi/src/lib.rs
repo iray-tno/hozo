@@ -355,7 +355,10 @@ fn lower_web(
     source: &str,
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
-    stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
+    stylex: Option<(
+        &hozo_parser::StylexModuleRegistry,
+        &[hozo_parser::StylexExternalBinding],
+    )>,
     compat: hozo_parser::ReactNativeCompat,
     evidence: bool,
     class_helpers: &[hozo_parser::ClassHelper],
@@ -377,7 +380,10 @@ fn lower_web(
             let emitted_offsets = evidence.then(|| Utf16Offsets::new(&output.jsx));
             let mut diagnostics = parser_diagnostics_for(&parsed, &root.node, &offsets);
             diagnostics.extend(
-                output.diagnostics.into_iter().map(|d| to_js_diagnostic(d, &offsets)),
+                output
+                    .diagnostics
+                    .into_iter()
+                    .map(|d| to_js_diagnostic(d, &offsets)),
             );
             CompiledComponent {
                 jsx: output.jsx,
@@ -389,18 +395,32 @@ fn lower_web(
                     .collect(),
                 diagnostics,
                 tag_decisions: output.tag_decisions.map(|decisions| {
-                    decisions.into_iter().map(|decision| CompiledTagDecision {
-                        span_start: offsets.at(decision.span.start),
-                        span_end: offsets.at(decision.span.end),
-                        replacement: decision.replacement,
-                    }).collect()
+                    decisions
+                        .into_iter()
+                        .map(|decision| CompiledTagDecision {
+                            span_start: offsets.at(decision.span.start),
+                            span_end: offsets.at(decision.span.end),
+                            replacement: decision.replacement,
+                        })
+                        .collect()
                 }),
-                source_copies: output.source_copies.map(|copies| copies.into_iter().map(|copy| CompiledSourceCopy {
-                    span_start: offsets.at(copy.span.start),
-                    span_end: offsets.at(copy.span.end),
-                    emitted_start: emitted_offsets.as_ref().unwrap().at(copy.emitted_start as u32),
-                    emitted_end: emitted_offsets.as_ref().unwrap().at(copy.emitted_end as u32),
-                }).collect()),
+                source_copies: output.source_copies.map(|copies| {
+                    copies
+                        .into_iter()
+                        .map(|copy| CompiledSourceCopy {
+                            span_start: offsets.at(copy.span.start),
+                            span_end: offsets.at(copy.span.end),
+                            emitted_start: emitted_offsets
+                                .as_ref()
+                                .unwrap()
+                                .at(copy.emitted_start as u32),
+                            emitted_end: emitted_offsets
+                                .as_ref()
+                                .unwrap()
+                                .at(copy.emitted_end as u32),
+                        })
+                        .collect()
+                }),
                 span_start: offsets.at(root.node.span.start),
                 span_end: offsets.at(root.node.span.end),
             }
@@ -470,7 +490,10 @@ pub struct ClassHelperCandidate {
 pub fn class_helper_candidates(source: String) -> Vec<ClassHelperCandidate> {
     hozo_parser::class_helper_candidates(&source)
         .into_iter()
-        .map(|c| ClassHelperCandidate { specifier: c.specifier, imported: c.imported })
+        .map(|c| ClassHelperCandidate {
+            specifier: c.specifier,
+            imported: c.imported,
+        })
         .collect()
 }
 
@@ -540,7 +563,10 @@ impl Compiler {
     #[napi]
     pub fn unfold_jsx_calls(&self, source: String) -> Option<UnfoldedModule> {
         hozo_parser::unfold_jsx_calls(&source, self.sources.as_deref()).map(|unfolded| {
-            UnfoldedModule { code: unfolded.code, import_source: unfolded.import_source }
+            UnfoldedModule {
+                code: unfolded.code,
+                import_source: unfolded.import_source,
+            }
         })
     }
 
@@ -589,7 +615,10 @@ impl Compiler {
     pub fn set_class_helpers(&mut self, helpers: Vec<ClassHelper>) {
         self.class_helpers = helpers
             .into_iter()
-            .map(|helper| hozo_parser::ClassHelper { module: helper.module, name: helper.name })
+            .map(|helper| hozo_parser::ClassHelper {
+                module: helper.module,
+                name: helper.name,
+            })
             .collect();
     }
 
@@ -688,7 +717,10 @@ impl CandidateCache {
             Some(path) => Box::new(hozo_cache::JsonFileStore::new(path)),
             None => Box::new(hozo_cache::MemoryStore::new()),
         };
-        CandidateCache { inner: hozo_cache::CandidateCache::open(store), sources }
+        CandidateCache {
+            inner: hozo_cache::CandidateCache::open(store),
+            sources,
+        }
     }
 
     /// Whether `path` was already scanned at this exact `modifiedMs`, i.e.
@@ -708,7 +740,8 @@ impl CandidateCache {
     pub fn scan_file(&mut self, path: String, source: String, modified_ms: f64) -> bool {
         let class_names = hozo_parser::scan_class_candidates_with(&source, self.sources.as_deref());
         let uses_tailwind = hozo_parser::source_uses_tailwind(&source);
-        self.inner.record(&path, modified_ms as u64, class_names, uses_tailwind)
+        self.inner
+            .record(&path, modified_ms as u64, class_names, uses_tailwind)
     }
 
     /// Drops a deleted file's contribution. Returns whether it was tracked.
@@ -749,8 +782,11 @@ impl CandidateCache {
     pub fn render_css(&self, theme: Option<JsTheme>, order: Option<Vec<String>>) -> String {
         let mut names = self.inner.union();
         if let Some(order) = order {
-            let rank: std::collections::HashMap<&str, usize> =
-                order.iter().enumerate().map(|(index, name)| (name.as_str(), index)).collect();
+            let rank: std::collections::HashMap<&str, usize> = order
+                .iter()
+                .enumerate()
+                .map(|(index, name)| (name.as_str(), index))
+                .collect();
             // Unranked names keep their alphabetical order among themselves
             // and go last, which is where Tailwind puts what it does not
             // recognise.
@@ -797,7 +833,9 @@ impl CandidateCache {
     /// Writes the cache back, if anything changed since it was opened.
     #[napi]
     pub fn persist(&mut self) -> napi::Result<()> {
-        self.inner.persist().map_err(|err| napi::Error::from_reason(err.to_string()))
+        self.inner
+            .persist()
+            .map_err(|err| napi::Error::from_reason(err.to_string()))
     }
 }
 
@@ -948,19 +986,41 @@ pub fn analyze_react_native_usage(source: String, source_file: Option<String>) -
     let usage = hozo_parser::analyze_react_native_usage(&source, source_file.as_deref());
     let offsets = Utf16Offsets::new(&source);
     ReactNativeUsage {
-        diagnostics: usage.diagnostics.into_iter().map(|error| CompileDiagnostic {
-            code: "RN_USAGE_ANALYSIS_FAILED".into(), severity: "error".into(), message: error.message,
-            span_start: offsets.at(error.span.start), span_end: offsets.at(error.span.end),
-        }).collect(),
-        bindings: usage.bindings.into_iter().map(|binding| ReactNativeBindingUsage {
-            imported: binding.imported, local: binding.local, exported: binding.exported,
-            kind: binding.kind, type_only: binding.type_only,
-            span_start: offsets.at(binding.span.start), span_end: offsets.at(binding.span.end),
-            references: binding.references.into_iter().map(|reference| ReactNativeReference {
-                kind: reference.kind, access: reference.access, member: reference.member,
-                span_start: offsets.at(reference.span.start), span_end: offsets.at(reference.span.end),
-            }).collect(),
-        }).collect(),
+        diagnostics: usage
+            .diagnostics
+            .into_iter()
+            .map(|error| CompileDiagnostic {
+                code: "RN_USAGE_ANALYSIS_FAILED".into(),
+                severity: "error".into(),
+                message: error.message,
+                span_start: offsets.at(error.span.start),
+                span_end: offsets.at(error.span.end),
+            })
+            .collect(),
+        bindings: usage
+            .bindings
+            .into_iter()
+            .map(|binding| ReactNativeBindingUsage {
+                imported: binding.imported,
+                local: binding.local,
+                exported: binding.exported,
+                kind: binding.kind,
+                type_only: binding.type_only,
+                span_start: offsets.at(binding.span.start),
+                span_end: offsets.at(binding.span.end),
+                references: binding
+                    .references
+                    .into_iter()
+                    .map(|reference| ReactNativeReference {
+                        kind: reference.kind,
+                        access: reference.access,
+                        member: reference.member,
+                        span_start: offsets.at(reference.span.start),
+                        span_end: offsets.at(reference.span.end),
+                    })
+                    .collect(),
+            })
+            .collect(),
     }
 }
 
@@ -983,14 +1043,24 @@ pub struct CompiledNativeModule {
 /// aren't wired into the rendered `style` prop yet).
 #[napi]
 pub fn compile_native(source: String) -> Vec<CompiledNativeComponent> {
-    lower_native(&source, &hozo_ir::Theme::default(), None, None, &Default::default(), &[])
+    lower_native(
+        &source,
+        &hozo_ir::Theme::default(),
+        None,
+        None,
+        &Default::default(),
+        &[],
+    )
 }
 
 fn lower_native(
     source: &str,
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
-    stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
+    stylex: Option<(
+        &hozo_parser::StylexModuleRegistry,
+        &[hozo_parser::StylexExternalBinding],
+    )>,
     text_forwarding: &hozo_parser::ForwardingTable,
     class_helpers: &[hozo_parser::ClassHelper],
 ) -> Vec<CompiledNativeComponent> {
@@ -1014,7 +1084,10 @@ fn lower_native_module(
     source: &str,
     theme: &hozo_ir::Theme,
     sources: Option<&[String]>,
-    stylex: Option<(&hozo_parser::StylexModuleRegistry, &[hozo_parser::StylexExternalBinding])>,
+    stylex: Option<(
+        &hozo_parser::StylexModuleRegistry,
+        &[hozo_parser::StylexExternalBinding],
+    )>,
     source_file: Option<&str>,
     text_forwarding: &hozo_parser::ForwardingTable,
     class_helpers: &[hozo_parser::ClassHelper],
@@ -1053,15 +1126,25 @@ fn lower_native_module(
         Vec::new()
     } else {
         let offsets = Utf16Offsets::new(source);
-        parsed.syntax_errors.iter().map(|error| CompileDiagnostic {
-            code: "SOURCE_SYNTAX_ERROR".to_string(),
-            severity: "error".to_string(),
-            message: error.message.clone(),
-            span_start: offsets.at(error.span.start),
-            span_end: offsets.at(error.span.end),
-        }).collect()
+        parsed
+            .syntax_errors
+            .iter()
+            .map(|error| CompileDiagnostic {
+                code: "SOURCE_SYNTAX_ERROR".to_string(),
+                severity: "error".to_string(),
+                message: error.message.clone(),
+                span_start: offsets.at(error.span.start),
+                span_end: offsets.at(error.span.end),
+            })
+            .collect()
     };
-    CompiledNativeModule { components, imports, jsx_bindings, foreign_primitives, syntax_diagnostics }
+    CompiledNativeModule {
+        components,
+        imports,
+        jsx_bindings,
+        foreign_primitives,
+        syntax_diagnostics,
+    }
 }
 
 fn lower_native_components(
@@ -1077,7 +1160,10 @@ fn lower_native_components(
             let output = hozo_native::lower_forwarded(&root.node, &root.forwarded, source, theme);
             let mut diagnostics = parser_diagnostics_for(parsed, &root.node, &offsets);
             diagnostics.extend(
-                output.diagnostics.into_iter().map(|d| to_js_diagnostic(d, &offsets)),
+                output
+                    .diagnostics
+                    .into_iter()
+                    .map(|d| to_js_diagnostic(d, &offsets)),
             );
             CompiledNativeComponent {
                 jsx: output.jsx,
@@ -1197,10 +1283,19 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
         if let Some(dark) = color.dark {
             dark_colors.insert(
                 color.token.clone(),
-                hozo_ir::ThemeColor { oklch: dark.oklch, hex: dark.hex },
+                hozo_ir::ThemeColor {
+                    oklch: dark.oklch,
+                    hex: dark.hex,
+                },
             );
         }
-        colors.insert(color.token, hozo_ir::ThemeColor { oklch: color.oklch, hex: color.hex });
+        colors.insert(
+            color.token,
+            hozo_ir::ThemeColor {
+                oklch: color.oklch,
+                hex: color.hex,
+            },
+        );
     }
     let mut animations = std::collections::HashMap::new();
     for animation in theme.animations.unwrap_or_default() {
@@ -1245,7 +1340,12 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
             },
         );
     }
-    let radii = theme.radii.unwrap_or_default().into_iter().map(|radius| (radius.name, radius.px)).collect();
+    let radii = theme
+        .radii
+        .unwrap_or_default()
+        .into_iter()
+        .map(|radius| (radius.name, radius.px))
+        .collect();
     hozo_ir::Theme::with_dark(colors, dark_colors, spacing_px, preflight)
         .with_animations(animations)
         .with_radii(radii)
@@ -1327,12 +1427,19 @@ pub fn summarize_text_forwarding(source: String) -> TextForwardingSummary {
                 props: component
                     .props
                     .into_iter()
-                    .map(|prop| ForwardingProp { name: prop.name, default: prop.default, values: prop.values })
+                    .map(|prop| ForwardingProp {
+                        name: prop.name,
+                        default: prop.default,
+                        values: prop.values,
+                    })
                     .collect(),
                 variants: component
                     .variants
                     .into_iter()
-                    .map(|variant| ForwardingVariant { when: variant.when, classes: variant.classes })
+                    .map(|variant| ForwardingVariant {
+                        when: variant.when,
+                        classes: variant.classes,
+                    })
                     .collect(),
                 disabled_prop: component.disabled_prop,
             })
@@ -1340,18 +1447,23 @@ pub fn summarize_text_forwarding(source: String) -> TextForwardingSummary {
         reexports: summary
             .reexports
             .into_iter()
-            .map(|r| ForwardingReexport { specifier: r.specifier, imported: r.imported, exported: r.exported })
+            .map(|r| ForwardingReexport {
+                specifier: r.specifier,
+                imported: r.imported,
+                exported: r.exported,
+            })
             .collect(),
     }
 }
 
 #[napi]
 pub fn foreign_primitives(source: String, sources: Vec<String>) -> Vec<String> {
-    let mut names: Vec<String> = hozo_parser::foreign_primitives(&source, &sources).into_iter().collect();
+    let mut names: Vec<String> = hozo_parser::foreign_primitives(&source, &sources)
+        .into_iter()
+        .collect();
     names.sort();
     names
 }
-
 
 #[cfg(test)]
 mod utf16_tests {
@@ -1361,8 +1473,15 @@ mod utf16_tests {
     fn module_syntax_errors_cross_napi_as_utf16_even_without_components() {
         let source = "// 😀 日本語\r\nexport const value = <";
         let parsed = hozo_parser::parse_tsx(source);
-        let module =
-            lower_native_module(source, &hozo_ir::Theme::default(), None, None, None, &Default::default(), &[]);
+        let module = lower_native_module(
+            source,
+            &hozo_ir::Theme::default(),
+            None,
+            None,
+            None,
+            &Default::default(),
+            &[],
+        );
         assert!(module.components.is_empty());
         assert_eq!(module.syntax_diagnostics.len(), parsed.syntax_errors.len());
         assert!(!module.syntax_diagnostics.is_empty());
@@ -1395,9 +1514,16 @@ mod utf16_tests {
         // unit, three and one, four and two.
         let source = "a é b 日 c 🚀 d";
         let offsets = Utf16Offsets::new(source);
-        for (byte, _) in source.char_indices().chain(std::iter::once((source.len(), ' '))) {
+        for (byte, _) in source
+            .char_indices()
+            .chain(std::iter::once((source.len(), ' ')))
+        {
             let byte = byte as u32;
-            assert_eq!(offsets.at(byte), js_index_of(source, byte), "at byte {byte}");
+            assert_eq!(
+                offsets.at(byte),
+                js_index_of(source, byte),
+                "at byte {byte}"
+            );
         }
     }
 
@@ -1454,14 +1580,22 @@ function App() {
 }
 ";
         let components = compile(source.to_string());
-        let diagnostics: Vec<_> =
-            components.iter().flat_map(|c| c.diagnostics.iter()).collect();
-        assert!(!diagnostics.is_empty(), "expected a dynamic-class diagnostic");
+        let diagnostics: Vec<_> = components
+            .iter()
+            .flat_map(|c| c.diagnostics.iter())
+            .collect();
+        assert!(
+            !diagnostics.is_empty(),
+            "expected a dynamic-class diagnostic"
+        );
         let utf16: Vec<u16> = source.encode_utf16().collect();
         for diagnostic in diagnostics {
             let start = diagnostic.span_start as usize;
             let end = diagnostic.span_end as usize;
-            assert!(end <= utf16.len(), "diagnostic span past the end of the source");
+            assert!(
+                end <= utf16.len(),
+                "diagnostic span past the end of the source"
+            );
             let text = String::from_utf16(&utf16[start..end]).unwrap();
             assert!(
                 source.contains(&text),

@@ -119,9 +119,7 @@ fn handler_copies_cover_arguments_not_generated_syntax_or_dropped_handlers() {
     let traced = output(source, true);
     assert!(!traced.jsx.contains("P.OS"));
     let copies = traced.source_copies.unwrap();
-    assert!(
-        !copies
-            .iter()
-            .any(|copy| source[copy.span.start as usize..copy.span.end as usize].contains("P.OS"))
-    );
+    assert!(!copies
+        .iter()
+        .any(|copy| source[copy.span.start as usize..copy.span.end as usize].contains("P.OS")));
 }

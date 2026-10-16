@@ -1,4 +1,4 @@
-use crate::{LowerOutput, lower};
+use crate::{lower, LowerOutput};
 use hozo_ir::{DiagnosticCode, Theme};
 
 fn compile(element: &str) -> LowerOutput {
@@ -78,12 +78,10 @@ fn authored_dom_handlers_and_tabindex_cannot_overwrite_the_unavailable_branch() 
         "{}",
         focusable.jsx
     );
-    assert!(
-        focusable
-            .diagnostics
-            .iter()
-            .any(|d| d.code == DiagnosticCode::FocusableDisabledUnsupported)
-    );
+    assert!(focusable
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::FocusableDisabledUnsupported));
 }
 
 #[test]

@@ -86,7 +86,13 @@ pub(crate) struct Joiners<'r, 'a> {
 
 pub(crate) fn decompose_class_name(expr: &JSXExpression, module_record: &Joiners) -> Decomposed {
     let mut out = Decomposed::default();
-    decompose(classify_jsx_expression(expr), None, None, &mut out, module_record);
+    decompose(
+        classify_jsx_expression(expr),
+        None,
+        None,
+        &mut out,
+        module_record,
+    );
     out
 }
 
@@ -149,14 +155,20 @@ fn classify_jsx_expression<'a, 'b>(expr: &'b JSXExpression<'a>) -> Target<'a, 'b
 }
 
 fn to_expr_ref(span: Span) -> ExprRef {
-    ExprRef(SourceSpan { start: span.start, end: span.end })
+    ExprRef(SourceSpan {
+        start: span.start,
+        end: span.end,
+    })
 }
 
 fn and_ref(current: &Option<ConditionExpr>, guard: Span) -> Option<ConditionExpr> {
     let guard = ConditionExpr::Ref(to_expr_ref(guard));
     match current {
         None => Some(guard),
-        Some(existing) => Some(ConditionExpr::And(Box::new(existing.clone()), Box::new(guard))),
+        Some(existing) => Some(ConditionExpr::And(
+            Box::new(existing.clone()),
+            Box::new(guard),
+        )),
     }
 }
 
@@ -164,7 +176,10 @@ fn and_not_ref(current: &Option<ConditionExpr>, guard: Span) -> Option<Condition
     let negated = ConditionExpr::Not(Box::new(ConditionExpr::Ref(to_expr_ref(guard))));
     match current {
         None => Some(negated),
-        Some(existing) => Some(ConditionExpr::And(Box::new(existing.clone()), Box::new(negated))),
+        Some(existing) => Some(ConditionExpr::And(
+            Box::new(existing.clone()),
+            Box::new(negated),
+        )),
     }
 }
 
@@ -176,33 +191,38 @@ fn to_condition(expr: Option<ConditionExpr>) -> Condition {
 }
 
 fn is_recognized_cx_call(callee: &Expression, module_record: &Joiners) -> Option<()> {
-    let Expression::Identifier(ident) = callee else { return None };
+    let Expression::Identifier(ident) = callee else {
+        return None;
+    };
     is_recognized_cx_identifier(ident, module_record)
 }
 
-fn is_recognized_cx_identifier(
-    ident: &IdentifierReference,
-    joiners: &Joiners,
-) -> Option<()> {
+fn is_recognized_cx_identifier(ident: &IdentifierReference, joiners: &Joiners) -> Option<()> {
     let name = ident.name.as_str();
-    joiners.module_record.import_entries.iter().find_map(|entry| {
-        let module = entry.module_request.name.as_str();
-        let imported = match &entry.import_name {
-            ImportImportName::Name(n) => n.name.as_str(),
-            ImportImportName::Default(_) => "default",
-            ImportImportName::NamespaceObject => return None,
-        };
-        let is_project_helper =
-            joiners.helpers.iter().any(|helper| helper.module == module && helper.name == imported);
-        let is_hozo_cx = HOZO_CX_MODULES.contains(&module)
-            && matches!(
-                &entry.import_name,
-                ImportImportName::Name(n) if n.name.as_str() == HOZO_CX_NAME
-            );
-        (entry.local_name.name.as_str() == name
-            && (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx || is_project_helper))
-        .then_some(())
-    })
+    joiners
+        .module_record
+        .import_entries
+        .iter()
+        .find_map(|entry| {
+            let module = entry.module_request.name.as_str();
+            let imported = match &entry.import_name {
+                ImportImportName::Name(n) => n.name.as_str(),
+                ImportImportName::Default(_) => "default",
+                ImportImportName::NamespaceObject => return None,
+            };
+            let is_project_helper = joiners
+                .helpers
+                .iter()
+                .any(|helper| helper.module == module && helper.name == imported);
+            let is_hozo_cx = HOZO_CX_MODULES.contains(&module)
+                && matches!(
+                    &entry.import_name,
+                    ImportImportName::Name(n) if n.name.as_str() == HOZO_CX_NAME
+                );
+            (entry.local_name.name.as_str() == name
+                && (RECOGNIZED_CX_MODULES.contains(&module) || is_hozo_cx || is_project_helper))
+                .then_some(())
+        })
 }
 
 /// Re-emits `span` verbatim, once.
@@ -260,7 +280,10 @@ fn decompose_literal(
                 out.unsupported_variants.push(UnsupportedVariant {
                     variant: variant.to_string(),
                     token: token.to_string(),
-                    span: SourceSpan { start: span.start, end: span.end },
+                    span: SourceSpan {
+                        start: span.start,
+                        end: span.end,
+                    },
                 });
             }
             continue;
@@ -268,14 +291,20 @@ fn decompose_literal(
         if token_condition == Condition::Always {
             let final_condition = to_condition(condition.clone());
             for property in properties {
-                out.declarations.push(StyleDeclaration { property, condition: final_condition.clone() });
+                out.declarations.push(StyleDeclaration {
+                    property,
+                    condition: final_condition.clone(),
+                });
             }
         } else if condition.is_none() {
             // No surrounding dynamic guard, so the token's own
             // variant-derived condition (hover:/md:/etc.) applies
             // directly -- e.g. `cn('hover:bg-blue-500')`.
             for property in properties {
-                out.declarations.push(StyleDeclaration { property, condition: token_condition.clone() });
+                out.declarations.push(StyleDeclaration {
+                    property,
+                    condition: token_condition.clone(),
+                });
             }
         } else {
             // A variant-prefixed literal nested inside a dynamic
@@ -293,7 +322,10 @@ fn decompose_literal(
         }
     }
     if !fell_back && consume {
-        out.consumed.push(SourceSpan { start: span.start, end: span.end });
+        out.consumed.push(SourceSpan {
+            start: span.start,
+            end: span.end,
+        });
     }
 }
 
@@ -322,7 +354,14 @@ fn decompose(
         // still need their CSS there. What falls back is the reference.
         Target::Identifier(span) => match module_record.constants.get(&span.start) {
             Some((value, decl)) => {
-                decompose_literal(value, *decl, condition, Some(guard.unwrap_or(span)), out, false);
+                decompose_literal(
+                    value,
+                    *decl,
+                    condition,
+                    Some(guard.unwrap_or(span)),
+                    out,
+                    false,
+                );
             }
             None => fall_back_to(out, guard.unwrap_or(span)),
         },
@@ -342,7 +381,11 @@ fn decompose(
             let whole = guard.unwrap_or(template.span);
             let text = |index: usize| {
                 let quasi = &template.quasis[index];
-                quasi.value.cooked.as_ref().map_or(quasi.value.raw.as_str(), |cooked| cooked.as_str())
+                quasi
+                    .value
+                    .cooked
+                    .as_ref()
+                    .map_or(quasi.value.raw.as_str(), |cooked| cooked.as_str())
             };
             // Every interpolation stands between whitespace or the ends.
             let separated = (0..template.expressions.len()).all(|index| {
@@ -358,7 +401,8 @@ fn decompose(
                         return false;
                     }
                     let (token_condition, properties) = tailwind::expand_utility(token);
-                    !properties.is_empty() && (token_condition == Condition::Always || condition.is_none())
+                    !properties.is_empty()
+                        && (token_condition == Condition::Always || condition.is_none())
                 })
             });
             if !separated || !compilable {
@@ -374,32 +418,68 @@ fn decompose(
                         token_condition
                     };
                     for property in properties {
-                        out.declarations.push(StyleDeclaration { property, condition: token_condition.clone() });
+                        out.declarations.push(StyleDeclaration {
+                            property,
+                            condition: token_condition.clone(),
+                        });
                     }
                 }
                 if !text(index).trim().is_empty() {
-                    out.consumed.push(SourceSpan { start: quasi.span.start, end: quasi.span.end });
+                    out.consumed.push(SourceSpan {
+                        start: quasi.span.start,
+                        end: quasi.span.end,
+                    });
                 }
             }
             for expression in &template.expressions {
-                decompose(classify_expression(expression), condition.clone(), guard, out, module_record);
+                decompose(
+                    classify_expression(expression),
+                    condition.clone(),
+                    guard,
+                    out,
+                    module_record,
+                );
             }
         }
         Target::Logical(logical) => {
             let guarded = and_ref(&condition, logical.left.span());
             let guard = guard.or(Some(logical.span));
-            decompose(classify_expression(&logical.right), guarded, guard, out, module_record);
+            decompose(
+                classify_expression(&logical.right),
+                guarded,
+                guard,
+                out,
+                module_record,
+            );
         }
         Target::Conditional(cond) => {
             let guard = guard.or(Some(cond.span));
             let when_true = and_ref(&condition, cond.test.span());
-            decompose(classify_expression(&cond.consequent), when_true, guard, out, module_record);
+            decompose(
+                classify_expression(&cond.consequent),
+                when_true,
+                guard,
+                out,
+                module_record,
+            );
             let when_false = and_not_ref(&condition, cond.test.span());
-            decompose(classify_expression(&cond.alternate), when_false, guard, out, module_record);
+            decompose(
+                classify_expression(&cond.alternate),
+                when_false,
+                guard,
+                out,
+                module_record,
+            );
         }
         Target::Call(call) if is_recognized_cx_call(&call.callee, module_record).is_some() => {
             for arg in &call.arguments {
-                decompose(classify_argument(arg), condition.clone(), guard, out, module_record);
+                decompose(
+                    classify_argument(arg),
+                    condition.clone(),
+                    guard,
+                    out,
+                    module_record,
+                );
             }
         }
         Target::Call(call) => {
@@ -455,14 +535,24 @@ mod tests {
                 }
                 if let Some(JSXAttributeValue::ExpressionContainer(container)) = &it.value {
                     let constants = crate::rest::ConstantStrings::new();
-                    let joiners = Joiners { module_record: self.module_record, helpers: self.helpers, constants: &constants };
+                    let joiners = Joiners {
+                        module_record: self.module_record,
+                        helpers: self.helpers,
+                        constants: &constants,
+                    };
                     self.result = Some(decompose_class_name(&container.expression, &joiners));
                 }
             }
         }
-        let mut finder = Finder { module_record: &ret.module_record, helpers, result: None };
+        let mut finder = Finder {
+            module_record: &ret.module_record,
+            helpers,
+            result: None,
+        };
         finder.visit_program(&ret.program);
-        finder.result.expect("no className expression container found in source")
+        finder
+            .result
+            .expect("no className expression container found in source")
     }
 
     #[test]
@@ -477,9 +567,14 @@ mod tests {
         assert_eq!(out.fallback.len(), 0);
         // 'p-4' -> 4 padding longhands under Always, 'flex-1' -> 1 declaration under Expr(active)
         assert_eq!(out.declarations.len(), 5);
-        let flex_decl =
-            out.declarations.iter().find(|d| d.property == StyleProperty::Flex(FlexShorthand::Grow(1.0)));
-        assert!(matches!(flex_decl.unwrap().condition, Condition::Expr(ConditionExpr::Ref(_))));
+        let flex_decl = out
+            .declarations
+            .iter()
+            .find(|d| d.property == StyleProperty::Flex(FlexShorthand::Grow(1.0)));
+        assert!(matches!(
+            flex_decl.unwrap().condition,
+            Condition::Expr(ConditionExpr::Ref(_))
+        ));
     }
 
     #[test]
@@ -541,7 +636,10 @@ const el = <View className={cx('p-4 hover:bg-blue-500', className)} />
 ";
         let out = decompose_source(source);
         assert_eq!(carried(source), ["className"]);
-        assert!(out.declarations.iter().any(|d| d.condition != Condition::Always));
+        assert!(out
+            .declarations
+            .iter()
+            .any(|d| d.condition != Condition::Always));
         // Renamed on import, it is still core's helper.
         let renamed = "import { cx as join } from '@hozo/core'
 const el = <View className={join('p-4', className)} />";
@@ -553,7 +651,10 @@ const el = <View className={cx('p-4', className)} />";
     }
 
     fn helper(module: &str, name: &str) -> ClassHelper {
-        ClassHelper { module: module.to_string(), name: name.to_string() }
+        ClassHelper {
+            module: module.to_string(),
+            name: name.to_string(),
+        }
     }
 
     #[test]
@@ -631,9 +732,7 @@ const el = <View className={Text('p-4', className)} />";
         decompose_source(source)
             .fallback
             .iter()
-            .map(|expr_ref| {
-                source[expr_ref.0.start as usize..expr_ref.0.end as usize].to_string()
-            })
+            .map(|expr_ref| source[expr_ref.0.start as usize..expr_ref.0.end as usize].to_string())
             .collect()
     }
 
@@ -653,7 +752,10 @@ const el = <View className={{{expression}}} />
         // to be vanishing from it. This path kept the `continue`, so a
         // project's own class written under a condition was deleted and
         // nothing said so.
-        assert_eq!(carried(&wrap("cond ? 'my-card' : 'p-8'")), ["cond ? 'my-card' : 'p-8'"]);
+        assert_eq!(
+            carried(&wrap("cond ? 'my-card' : 'p-8'")),
+            ["cond ? 'my-card' : 'p-8'"]
+        );
         assert_eq!(carried(&wrap("cn('p-4', 'open:p-4')")), ["'open:p-4'"]);
     }
 
@@ -689,7 +791,9 @@ const el = <View className={{{expression}}} />
         assert_eq!(out.unsupported_variants[0].variant, "open");
         // A project's own class is not a gap in Hozo, so it gets carried
         // without being reported.
-        assert!(decompose_source(&wrap("cn('my-card')")).unsupported_variants.is_empty());
+        assert!(decompose_source(&wrap("cn('my-card')"))
+            .unsupported_variants
+            .is_empty());
     }
 
     #[test]
@@ -710,7 +814,10 @@ const el = <View className={{{expression}}} />
         assert_eq!(carried(&source), ["className"]);
         // padding's four sides, and the hover background with its own condition.
         assert_eq!(out.declarations.len(), 5, "{:?}", out.declarations);
-        assert!(out.declarations.iter().any(|d| d.condition != Condition::Always));
+        assert!(out
+            .declarations
+            .iter()
+            .any(|d| d.condition != Condition::Always));
     }
 
     #[test]

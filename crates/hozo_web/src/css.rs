@@ -15,13 +15,12 @@
 //! correct-but-unresolved, not silently wrong.
 
 use hozo_ir::{
-    Align, AlignSelf, Angle, Axis, BorderStyle, Breakpoint, Clamp, Color, Condition, ConditionExpr,
-    FilterFunction, Scale, TransformFunction,
-    DecorationStyle,
-    ColumnCount, Dimension, Display, Edge, Environment, GradientKind, GradientStop, GridLine, GridSpan, GridTracks, MaskSlot,
-    MaskStop,
-    Em, FlexDirection, LetterSpacing, FlexShorthand, Justify, Length, LineHeight, Overflow, Position, Radius,
-    StyleProperty, TextAlign, TextOverflow, TextTransform, Theme, WhiteSpace,
+    Align, AlignSelf, Angle, Axis, BorderStyle, Breakpoint, Clamp, Color, ColumnCount, Condition,
+    ConditionExpr, DecorationStyle, Dimension, Display, Edge, Em, Environment, FilterFunction,
+    FlexDirection, FlexShorthand, GradientKind, GradientStop, GridLine, GridSpan, GridTracks,
+    Justify, Length, LetterSpacing, LineHeight, MaskSlot, MaskStop, Overflow, Position, Radius,
+    Scale, StyleProperty, TextAlign, TextOverflow, TextTransform, Theme, TransformFunction,
+    WhiteSpace,
 };
 
 /// A length as CSS text, against the project's spacing scale.
@@ -173,11 +172,16 @@ fn border_style_keyword(style: &BorderStyle) -> &'static str {
 fn radius_value(radius: &Radius, theme: &Theme) -> Option<String> {
     match radius {
         Radius::Length(l) => Some(length_px(l, theme)),
-        Radius::Scale { name, fallback_px } => Some(length_px(&Length::Px(theme.radius_or(name, *fallback_px)), theme)),
+        Radius::Scale { name, fallback_px } => Some(length_px(
+            &Length::Px(theme.radius_or(name, *fallback_px)),
+            theme,
+        )),
         // Exactly what Tailwind emits -- CSS can state this, so there's no
         // reason to approximate it here.
         Radius::Full => Some("calc(infinity * 1px)".to_string()),
-        Radius::Theme(name) => theme.radius(name).map(|px| length_px(&Length::Px(px), theme)),
+        Radius::Theme(name) => theme
+            .radius(name)
+            .map(|px| length_px(&Length::Px(px), theme)),
     }
 }
 
@@ -252,7 +256,9 @@ struct MaskGradient {
 /// A mask gradient's angle, defaulting to the `0deg` Tailwind's
 /// `--tw-mask-*-position` register starts at.
 fn mask_angle(angle: &Option<Angle>) -> String {
-    angle.as_ref().map_or_else(|| "0deg".to_string(), Angle::css)
+    angle
+        .as_ref()
+        .map_or_else(|| "0deg".to_string(), Angle::css)
 }
 
 impl MaskGradient {
@@ -323,7 +329,9 @@ fn mask_declarations(props: &[&StyleProperty], theme: &Theme) -> Vec<(&'static s
                     MaskStop::From => g.from_position = Some(dimension_value(d, theme)),
                     MaskStop::To => g.to_position = Some(dimension_value(d, theme)),
                 },
-                StyleProperty::MaskSlotArgument(s, degrees) if *s == slot => g.angle = Some(degrees.clone()),
+                StyleProperty::MaskSlotArgument(s, degrees) if *s == slot => {
+                    g.angle = Some(degrees.clone())
+                }
                 _ => {}
             }
         }
@@ -333,7 +341,12 @@ fn mask_declarations(props: &[&StyleProperty], theme: &Theme) -> Vec<(&'static s
         props.iter().find_map(|p| find(p)).unwrap_or(default)
     };
 
-    let sides = [MaskSlot::Left, MaskSlot::Right, MaskSlot::Bottom, MaskSlot::Top];
+    let sides = [
+        MaskSlot::Left,
+        MaskSlot::Right,
+        MaskSlot::Bottom,
+        MaskSlot::Top,
+    ];
     let side_gradients: Vec<(MaskSlot, MaskGradient)> =
         sides.iter().map(|s| (*s, slot_gradient(*s))).collect();
     let any_side = side_gradients.iter().any(|(_, g)| g.is_set());
@@ -368,7 +381,11 @@ fn mask_declarations(props: &[&StyleProperty], theme: &Theme) -> Vec<(&'static s
             (false, _) => MASK_OPAQUE.to_string(),
             (true, false) => format!("linear-gradient({})", mask_angle(&linear.angle)),
             (true, true) => {
-                format!("linear-gradient({}, {})", mask_angle(&linear.angle), linear.stops())
+                format!(
+                    "linear-gradient({}, {})",
+                    mask_angle(&linear.angle),
+                    linear.stops()
+                )
             }
         });
     }
@@ -415,18 +432,28 @@ fn mask_declarations(props: &[&StyleProperty], theme: &Theme) -> Vec<(&'static s
         (false, _) => MASK_OPAQUE.to_string(),
         (true, false) => format!("conic-gradient({})", mask_angle(&conic.angle)),
         (true, true) => {
-            format!("conic-gradient(from {}, {})", mask_angle(&conic.angle), conic.stops())
+            format!(
+                "conic-gradient(from {}, {})",
+                mask_angle(&conic.angle),
+                conic.stops()
+            )
         }
     });
 
     vec![
         ("mask-image", layers.join(", ")),
-        ("mask-composite", composite.unwrap_or("intersect").to_string()),
+        (
+            "mask-composite",
+            composite.unwrap_or("intersect").to_string(),
+        ),
     ]
 }
 
 fn is_border_spacing(prop: &StyleProperty) -> bool {
-    matches!(prop, StyleProperty::BorderSpacingX(_) | StyleProperty::BorderSpacingY(_))
+    matches!(
+        prop,
+        StyleProperty::BorderSpacingX(_) | StyleProperty::BorderSpacingY(_)
+    )
 }
 
 fn is_translate(prop: &StyleProperty) -> bool {
@@ -449,8 +476,12 @@ fn is_translate(prop: &StyleProperty) -> bool {
 /// here.
 fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Option<String> {
     if !backdrop {
-        let last_raw = props.iter().rposition(|p| matches!(p, StyleProperty::FilterRaw(_)));
-        let last_slots = props.iter().rposition(|p| matches!(p, StyleProperty::Filter(..)));
+        let last_raw = props
+            .iter()
+            .rposition(|p| matches!(p, StyleProperty::FilterRaw(_)));
+        let last_slots = props
+            .iter()
+            .rposition(|p| matches!(p, StyleProperty::Filter(..)));
         if last_raw > last_slots {
             return props.iter().rev().find_map(|p| match p {
                 StyleProperty::FilterRaw(value) => Some(value.clone()),
@@ -494,8 +525,11 @@ fn filter_value(props: &[&StyleProperty], backdrop: bool, theme: &Theme) -> Opti
         return None;
     }
     functions.sort_by_key(|(function, _)| *function);
-    let chain: Vec<&str> =
-        functions.iter().map(|(_, v)| v.as_str()).filter(|v| !v.is_empty()).collect();
+    let chain: Vec<&str> = functions
+        .iter()
+        .map(|(_, v)| v.as_str())
+        .filter(|v| !v.is_empty())
+        .collect();
     // Every slot cleared still leaves a declaration -- Tailwind emits
     // `filter: ` with an empty value, which is what an all-`-none` chain
     // resolves to.
@@ -576,7 +610,11 @@ fn gradient_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
             .unwrap_or_else(|| stop.default_position().to_string())
     };
     let stop = |s: GradientStop| {
-        format!("{} {}", color(s).unwrap_or_else(|| "#0000".to_string()), position(s))
+        format!(
+            "{} {}",
+            color(s).unwrap_or_else(|| "#0000".to_string()),
+            position(s)
+        )
     };
 
     // No stop *colour* anywhere means no stop list at all -- the prelude
@@ -642,7 +680,10 @@ fn scroll_snap_value(props: &[&StyleProperty]) -> Option<String> {
 
 /// `text-shadow` and the colour utility that repaints it.
 fn is_text_shadow(prop: &StyleProperty) -> bool {
-    matches!(prop, StyleProperty::TextShadow(_) | StyleProperty::TextShadowColor(_))
+    matches!(
+        prop,
+        StyleProperty::TextShadow(_) | StyleProperty::TextShadowColor(_)
+    )
 }
 
 /// The `text-shadow` a size and a colour make between them.
@@ -717,8 +758,12 @@ fn scale_value(props: &[&StyleProperty]) -> Option<String> {
     if props.is_empty() {
         return None;
     }
-    let last_authored = props.iter().rposition(|property| matches!(property, StyleProperty::Scale(_)));
-    let last_axes = props.iter().rposition(|property| !matches!(property, StyleProperty::Scale(_)));
+    let last_authored = props
+        .iter()
+        .rposition(|property| matches!(property, StyleProperty::Scale(_)));
+    let last_axes = props
+        .iter()
+        .rposition(|property| !matches!(property, StyleProperty::Scale(_)));
     if last_authored > last_axes {
         return props.iter().rev().find_map(|property| match property {
             StyleProperty::Scale(values) => {
@@ -728,7 +773,10 @@ fn scale_value(props: &[&StyleProperty]) -> Option<String> {
         });
     }
     let axis = |f: fn(&StyleProperty) -> Option<&Scale>| {
-        props.iter().find_map(|p| f(p)).map_or_else(|| "1".to_string(), Scale::css)
+        props
+            .iter()
+            .find_map(|p| f(p))
+            .map_or_else(|| "1".to_string(), Scale::css)
     };
     let x = axis(|p| match p {
         StyleProperty::ScaleX(v) => Some(v),
@@ -755,8 +803,12 @@ fn scale_value(props: &[&StyleProperty]) -> Option<String> {
 /// functions don't commute, so a different order is a different rendering
 /// rather than a different spelling.
 fn transform_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
-    let last_authored = props.iter().rposition(|property| matches!(property, StyleProperty::Transform(_)));
-    let last_slots = props.iter().rposition(|property| !matches!(property, StyleProperty::Transform(_)));
+    let last_authored = props
+        .iter()
+        .rposition(|property| matches!(property, StyleProperty::Transform(_)));
+    let last_slots = props
+        .iter()
+        .rposition(|property| !matches!(property, StyleProperty::Transform(_)));
     if last_authored > last_slots {
         return props.iter().rev().find_map(|property| match property {
             StyleProperty::Transform(functions) => Some(authored_transform_value(functions, theme)),
@@ -770,26 +822,41 @@ fn transform_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
         }
     };
     let find = |f: fn(&StyleProperty) -> Option<&Angle>| props.iter().find_map(|p| f(p));
-    push("rotateX", find(|p| match p {
-        StyleProperty::RotateX(a) => Some(a),
-        _ => None,
-    }));
-    push("rotateY", find(|p| match p {
-        StyleProperty::RotateY(a) => Some(a),
-        _ => None,
-    }));
-    push("rotateZ", find(|p| match p {
-        StyleProperty::RotateZ(a) => Some(a),
-        _ => None,
-    }));
-    push("skewX", find(|p| match p {
-        StyleProperty::SkewX(a) => Some(a),
-        _ => None,
-    }));
-    push("skewY", find(|p| match p {
-        StyleProperty::SkewY(a) => Some(a),
-        _ => None,
-    }));
+    push(
+        "rotateX",
+        find(|p| match p {
+            StyleProperty::RotateX(a) => Some(a),
+            _ => None,
+        }),
+    );
+    push(
+        "rotateY",
+        find(|p| match p {
+            StyleProperty::RotateY(a) => Some(a),
+            _ => None,
+        }),
+    );
+    push(
+        "rotateZ",
+        find(|p| match p {
+            StyleProperty::RotateZ(a) => Some(a),
+            _ => None,
+        }),
+    );
+    push(
+        "skewX",
+        find(|p| match p {
+            StyleProperty::SkewX(a) => Some(a),
+            _ => None,
+        }),
+    );
+    push(
+        "skewY",
+        find(|p| match p {
+            StyleProperty::SkewY(a) => Some(a),
+            _ => None,
+        }),
+    );
     (!parts.is_empty()).then(|| parts.join(" "))
 }
 
@@ -797,25 +864,36 @@ fn authored_transform_value(functions: &[TransformFunction], theme: &Theme) -> S
     if functions.is_empty() {
         return "none".to_string();
     }
-    functions.iter().map(|function| match function {
-        TransformFunction::Perspective(value) => format!("perspective({})", length_px(value, theme)),
-        TransformFunction::Rotate(value) => format!("rotate({})", value.css()),
-        TransformFunction::RotateX(value) => format!("rotateX({})", value.css()),
-        TransformFunction::RotateY(value) => format!("rotateY({})", value.css()),
-        TransformFunction::RotateZ(value) => format!("rotateZ({})", value.css()),
-        TransformFunction::Scale(value) => format!("scale({})", compact_number(*value)),
-        TransformFunction::ScaleX(value) => format!("scaleX({})", compact_number(*value)),
-        TransformFunction::ScaleY(value) => format!("scaleY({})", compact_number(*value)),
-        TransformFunction::TranslateX(value) => format!("translateX({})", dimension_value(value, theme)),
-        TransformFunction::TranslateY(value) => format!("translateY({})", dimension_value(value, theme)),
-        TransformFunction::SkewX(value) => format!("skewX({})", value.css()),
-        TransformFunction::SkewY(value) => format!("skewY({})", value.css()),
-    }).collect::<Vec<_>>().join(" ")
+    functions
+        .iter()
+        .map(|function| match function {
+            TransformFunction::Perspective(value) => {
+                format!("perspective({})", length_px(value, theme))
+            }
+            TransformFunction::Rotate(value) => format!("rotate({})", value.css()),
+            TransformFunction::RotateX(value) => format!("rotateX({})", value.css()),
+            TransformFunction::RotateY(value) => format!("rotateY({})", value.css()),
+            TransformFunction::RotateZ(value) => format!("rotateZ({})", value.css()),
+            TransformFunction::Scale(value) => format!("scale({})", compact_number(*value)),
+            TransformFunction::ScaleX(value) => format!("scaleX({})", compact_number(*value)),
+            TransformFunction::ScaleY(value) => format!("scaleY({})", compact_number(*value)),
+            TransformFunction::TranslateX(value) => {
+                format!("translateX({})", dimension_value(value, theme))
+            }
+            TransformFunction::TranslateY(value) => {
+                format!("translateY({})", dimension_value(value, theme))
+            }
+            TransformFunction::SkewX(value) => format!("skewX({})", value.css()),
+            TransformFunction::SkewY(value) => format!("skewY({})", value.css()),
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn compact_number(value: f64) -> String {
     let value = value.to_string();
-    value.strip_prefix("0.")
+    value
+        .strip_prefix("0.")
         .map(|rest| format!(".{rest}"))
         .or_else(|| value.strip_prefix("-0.").map(|rest| format!("-.{rest}")))
         .unwrap_or(value)
@@ -853,7 +931,10 @@ fn translate_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     // A trait object rather than a fn pointer: the closures below capture
     // `theme` now, so they aren't plain functions any more.
     let axis = |f: &dyn Fn(&StyleProperty) -> Option<String>| {
-        props.iter().find_map(|p| f(p)).unwrap_or_else(|| "0".to_string())
+        props
+            .iter()
+            .find_map(|p| f(p))
+            .unwrap_or_else(|| "0".to_string())
     };
     let x = axis(&|p: &StyleProperty| match p {
         StyleProperty::TranslateX(d) => Some(dimension_value(d, theme)),
@@ -985,7 +1066,10 @@ fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
         // in it is the one that says the same thing -- and it is the one
         // the conformance normaliser compares against, because a later
         // declaration of the same property wins.
-        Some(alpha) => format!("color-mix(in oklab, {resolved} {}%, transparent)", alpha * 100.0),
+        Some(alpha) => format!(
+            "color-mix(in oklab, {resolved} {}%, transparent)",
+            alpha * 100.0
+        ),
     }
 }
 
@@ -1070,7 +1154,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
             }
             .to_string(),
         ),
-        StyleProperty::AlignContent(justify) => ("align-content", justify_keyword(justify).to_string()),
+        StyleProperty::AlignContent(justify) => {
+            ("align-content", justify_keyword(justify).to_string())
+        }
         // Two declarations, so `render_shape` writes it directly and this
         // arm is only here to keep the match exhaustive. Reached only if a
         // `Content` escapes that path, and the value it gives is the
@@ -1136,8 +1222,12 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::BackgroundColor(c) => ("background-color", color_var(c)),
         StyleProperty::Opacity(o) => ("opacity", format!("{o}")),
         StyleProperty::BorderColor(c) => ("border-color", color_var(c)),
-        StyleProperty::ScrollMargin(edge, l) => (scroll_margin_property(*edge), length_px(l, theme)),
-        StyleProperty::ScrollPadding(edge, l) => (scroll_padding_property(*edge), length_px(l, theme)),
+        StyleProperty::ScrollMargin(edge, l) => {
+            (scroll_margin_property(*edge), length_px(l, theme))
+        }
+        StyleProperty::ScrollPadding(edge, l) => {
+            (scroll_padding_property(*edge), length_px(l, theme))
+        }
         StyleProperty::ScrollBehavior(value) => ("scroll-behavior", value.to_string()),
         StyleProperty::MaskClip(v) => ("mask-clip", v.to_string()),
         StyleProperty::MaskOrigin(v) => ("mask-origin", v.to_string()),
@@ -1186,7 +1276,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
             }
             .to_string(),
         ),
-        StyleProperty::TextDecorationThickness(l) => ("text-decoration-thickness", length_px(l, theme)),
+        StyleProperty::TextDecorationThickness(l) => {
+            ("text-decoration-thickness", length_px(l, theme))
+        }
         // Emitted into its own `::placeholder` rule by `render_rule`.
         StyleProperty::PlaceholderColor(c) => ("color", color_var(c)),
         StyleProperty::OutlineWidth(l) => ("outline-width", length_px(l, theme)),
@@ -1215,20 +1307,30 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::BorderRightWidth(l) => ("border-right-width", length_px(l, theme)),
         StyleProperty::BorderBottomWidth(l) => ("border-bottom-width", length_px(l, theme)),
         StyleProperty::BorderLeftWidth(l) => ("border-left-width", length_px(l, theme)),
-        StyleProperty::BorderTopStyle(s) => ("border-top-style", border_style_keyword(s).to_string()),
+        StyleProperty::BorderTopStyle(s) => {
+            ("border-top-style", border_style_keyword(s).to_string())
+        }
         StyleProperty::BorderRightStyle(s) => {
             ("border-right-style", border_style_keyword(s).to_string())
         }
         StyleProperty::BorderBottomStyle(s) => {
             ("border-bottom-style", border_style_keyword(s).to_string())
         }
-        StyleProperty::BorderLeftStyle(s) => ("border-left-style", border_style_keyword(s).to_string()),
+        StyleProperty::BorderLeftStyle(s) => {
+            ("border-left-style", border_style_keyword(s).to_string())
+        }
         StyleProperty::BorderRadius(r) => radius_pair("border-radius", r, theme),
         StyleProperty::BorderTopLeftRadius(r) => radius_pair("border-top-left-radius", r, theme),
         StyleProperty::BorderTopRightRadius(r) => radius_pair("border-top-right-radius", r, theme),
-        StyleProperty::BorderBottomRightRadius(r) => radius_pair("border-bottom-right-radius", r, theme),
-        StyleProperty::BorderBottomLeftRadius(r) => radius_pair("border-bottom-left-radius", r, theme),
-        StyleProperty::BorderStartStartRadius(r) => radius_pair("border-start-start-radius", r, theme),
+        StyleProperty::BorderBottomRightRadius(r) => {
+            radius_pair("border-bottom-right-radius", r, theme)
+        }
+        StyleProperty::BorderBottomLeftRadius(r) => {
+            radius_pair("border-bottom-left-radius", r, theme)
+        }
+        StyleProperty::BorderStartStartRadius(r) => {
+            radius_pair("border-start-start-radius", r, theme)
+        }
         StyleProperty::BorderStartEndRadius(r) => radius_pair("border-start-end-radius", r, theme),
         StyleProperty::BorderEndStartRadius(r) => radius_pair("border-end-start-radius", r, theme),
         StyleProperty::BorderEndEndRadius(r) => radius_pair("border-end-end-radius", r, theme),
@@ -1242,13 +1344,18 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
                 LineHeight::Ratio(r) => format!("{r}"),
             },
         ),
-        StyleProperty::TextUnderlineOffset(d) => ("text-underline-offset", dimension_value(d, theme)),
+        StyleProperty::TextUnderlineOffset(d) => {
+            ("text-underline-offset", dimension_value(d, theme))
+        }
         StyleProperty::OverflowX(o) => ("overflow-x", overflow_keyword(o).to_string()),
         StyleProperty::OverflowY(o) => ("overflow-y", overflow_keyword(o).to_string()),
-        StyleProperty::BorderLogicalWidth(edge, l) => (border_width_property(*edge), length_px(l, theme)),
-        StyleProperty::BorderLogicalStyle(edge, s) => {
-            (border_style_property(*edge), border_style_keyword(s).to_string())
+        StyleProperty::BorderLogicalWidth(edge, l) => {
+            (border_width_property(*edge), length_px(l, theme))
         }
+        StyleProperty::BorderLogicalStyle(edge, s) => (
+            border_style_property(*edge),
+            border_style_keyword(s).to_string(),
+        ),
         // Composed; see `line_clamp_declarations`.
         StyleProperty::RotateNone => ("rotate", "none".to_string()),
         StyleProperty::ScaleNone => ("scale", "none".to_string()),
@@ -1256,7 +1363,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::TransformNone => ("transform", "none".to_string()),
         StyleProperty::TransformEmpty => ("transform", String::new()),
         StyleProperty::TransformGpu => ("transform", "translateZ(0)".to_string()),
-        StyleProperty::Transform(functions) => ("transform", authored_transform_value(functions, theme)),
+        StyleProperty::Transform(functions) => {
+            ("transform", authored_transform_value(functions, theme))
+        }
         StyleProperty::TransformOrigin(value) => ("transform-origin", value.clone()),
         StyleProperty::LineClamp(_) => ("-webkit-line-clamp", String::new()),
         StyleProperty::FlexGrow(n) => ("flex-grow", format!("{n}")),
@@ -1281,10 +1390,13 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
                 ColumnCount::Auto => "auto".to_string(),
             },
         ),
-        StyleProperty::LetterSpacing(ls) => ("letter-spacing", match ls {
-            LetterSpacing::Em(Em(v)) => format!("{v}em"),
-            LetterSpacing::Px(l) => length_px(l, theme),
-        }),
+        StyleProperty::LetterSpacing(ls) => (
+            "letter-spacing",
+            match ls {
+                LetterSpacing::Em(Em(v)) => format!("{v}em"),
+                LetterSpacing::Px(l) => length_px(l, theme),
+            },
+        ),
         StyleProperty::Overflow(o) => ("overflow", overflow_keyword(o).to_string()),
         StyleProperty::TextOverflow(t) => (
             "text-overflow",
@@ -1354,9 +1466,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::Translate(_)
         | StyleProperty::TranslateX(_)
         | StyleProperty::TranslateY(_)
-        | StyleProperty::TranslateZ(_) => {
-            ("translate", String::new())
-        }
+        | StyleProperty::TranslateZ(_) => ("translate", String::new()),
         StyleProperty::FlexBasis(d) => ("flex-basis", dimension_value(d, theme)),
         StyleProperty::BlockSize(d) => ("block-size", dimension_value(d, theme)),
         StyleProperty::InlineSize(d) => ("inline-size", dimension_value(d, theme)),
@@ -1449,9 +1559,17 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
         // other arms stay weightless too.
         ConditionExpr::Ref(expr_ref) => format!(":where(.{})", expr_ref_class(*expr_ref)),
         ConditionExpr::Not(inner) => format!(":not({})", condition_expr_selector(inner)),
-        ConditionExpr::And(a, b) => format!("{}{}", condition_expr_selector(a), condition_expr_selector(b)),
+        ConditionExpr::And(a, b) => format!(
+            "{}{}",
+            condition_expr_selector(a),
+            condition_expr_selector(b)
+        ),
         ConditionExpr::Or(a, b) => {
-            format!(":is({}, {})", condition_expr_selector(a), condition_expr_selector(b))
+            format!(
+                ":is({}, {})",
+                condition_expr_selector(a),
+                condition_expr_selector(b)
+            )
         }
     }
 }
@@ -1561,7 +1679,10 @@ fn one(at_rules: Vec<String>, selector: impl Into<String>) -> Vec<Shape> {
 /// emitter uses `condition_shapes`.
 #[allow(dead_code)]
 pub fn condition_shape(condition: &Condition) -> Shape {
-    condition_shapes(condition).into_iter().next().unwrap_or_default()
+    condition_shapes(condition)
+        .into_iter()
+        .next()
+        .unwrap_or_default()
 }
 
 pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
@@ -1634,12 +1755,14 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         // `:where()` so it weighs nothing -- an `rtl:` utility orders
         // against its unprefixed twin by source position, not by winning.
         Condition::Environment(query) => match query {
-            Environment::Ltr => {
-                one(Vec::new(), "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)")
-            }
-            Environment::Rtl => {
-                one(Vec::new(), "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)")
-            }
+            Environment::Ltr => one(
+                Vec::new(),
+                "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)",
+            ),
+            Environment::Rtl => one(
+                Vec::new(),
+                "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)",
+            ),
             _ => one(vec![environment_at_rule(*query).to_string()], "&"),
         },
         // `:is(:where(.group):hover *)`, which is Tailwind's own shape --
@@ -1710,8 +1833,16 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
             })
             .collect(),
         Condition::Group(inner) | Condition::Peer(inner) => {
-            let marker = if matches!(condition, Condition::Group(_)) { "group" } else { "peer" };
-            let combinator = if matches!(condition, Condition::Group(_)) { " " } else { " ~ " };
+            let marker = if matches!(condition, Condition::Group(_)) {
+                "group"
+            } else {
+                "peer"
+            };
+            let combinator = if matches!(condition, Condition::Group(_)) {
+                " "
+            } else {
+                " ~ "
+            };
             // The at-rules are the inner variant's and survive the
             // relation -- `group-hover:` is inside `@media (hover: hover)`
             // exactly as `hover:` is. Only the selector moves.
@@ -1722,7 +1853,10 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
                     // -- kept so a future condition with no selector form
                     // degrades to no rule rather than to a malformed one.
                     let rest = suffix.strip_prefix('&').filter(|rest| !rest.is_empty())?;
-                    Some((at_rules, format!("&:is(:where(.{marker}){rest}{combinator}*)")))
+                    Some((
+                        at_rules,
+                        format!("&:is(:where(.{marker}){rest}{combinator}*)"),
+                    ))
                 })
                 .collect()
         }
@@ -1738,16 +1872,26 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         // pixel unstyled. Within Tailwind v4's own browser baseline, which
         // is the baseline Hozo is compatible with.
         Condition::Responsive(bp) => one(
-            vec![format!("@media (width >= {}px)", breakpoint_min_width_px(*bp))],
+            vec![format!(
+                "@media (width >= {}px)",
+                breakpoint_min_width_px(*bp)
+            )],
             "&",
         ),
         Condition::Width { at_least, value } => one(
-            vec![format!("@media (width {} {value})", if *at_least { ">=" } else { "<" })],
+            vec![format!(
+                "@media (width {} {value})",
+                if *at_least { ">=" } else { "<" }
+            )],
             "&",
         ),
         // The same query asked of an ancestor. A name narrows which
         // ancestor answers; without one it is the nearest container.
-        Condition::Container { name, at_least, value } => one(
+        Condition::Container {
+            name,
+            at_least,
+            value,
+        } => one(
             vec![format!(
                 "@container {}(width {} {value})",
                 name.as_ref().map(|n| format!("{n} ")).unwrap_or_default(),
@@ -1767,9 +1911,11 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         // rules and `selection:` two, because a selection and a list
         // marker both cross into descendants and Safari spells a
         // `<details>` marker its own way.
-        Condition::PseudoElement(pseudo) => {
-            pseudo.suffixes().into_iter().map(|s| (Vec::new(), s.to_string())).collect()
-        }
+        Condition::PseudoElement(pseudo) => pseudo
+            .suffixes()
+            .into_iter()
+            .map(|s| (Vec::new(), s.to_string()))
+            .collect(),
         // `:is()` around it is Tailwind's, and it is what keeps the
         // specificity at the parent's rather than the parent-plus-child
         // it would otherwise be.
@@ -1847,7 +1993,9 @@ fn is_shadow_layer(prop: &StyleProperty) -> bool {
 /// colour last. An arbitrary `shadow-[…]` has no default colour to
 /// replace and is left as written.
 fn repaint_shadow(shadow: &str, color: Option<&Color>, theme: &Theme) -> String {
-    let Some(color) = color else { return shadow.to_string() };
+    let Some(color) = color else {
+        return shadow.to_string();
+    };
     let paint = resolve_theme_color(color, theme);
     split_layers(shadow)
         .into_iter()
@@ -1913,7 +2061,10 @@ fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     // never parsed, because it has to beat a `shadow-red-500` written
     // before it.
     let find_color = |f: fn(&StyleProperty) -> Option<&Color>| {
-        props.iter().find_map(|p| f(p)).filter(|color| !color.is_initial())
+        props
+            .iter()
+            .find_map(|p| f(p))
+            .filter(|color| !color.is_initial())
     };
 
     let ring = find_length(|p| match p {
@@ -1939,7 +2090,10 @@ fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
 
     // Tailwind's default ring colour is `currentcolor`.
     let paint = |c: Option<&Color>| {
-        c.map_or_else(|| "currentcolor".to_string(), |color| resolve_theme_color(color, theme))
+        c.map_or_else(
+            || "currentcolor".to_string(),
+            |color| resolve_theme_color(color, theme),
+        )
     };
 
     let inset_shadow = props.iter().find_map(|p| match p {
@@ -1971,7 +2125,11 @@ fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
         layers.push(repaint_shadow(&shadow, inset_shadow_color, theme));
     }
     if let Some(width) = inset_ring {
-        layers.push(format!("inset 0 0 0 {} {}", length_px(width, theme), paint(inset_ring_color)));
+        layers.push(format!(
+            "inset 0 0 0 {} {}",
+            length_px(width, theme),
+            paint(inset_ring_color)
+        ));
     }
     // The offset is drawn *under* the ring, in the page's own colour, and
     // pushes the ring outwards by its own width. Tailwind's register
@@ -1986,8 +2144,10 @@ fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
         layers.push(format!(
             "{inset}0 0 0 {} {}",
             length_px(width, theme),
-            ring_offset_color
-                .map_or_else(|| "#fff".to_string(), |color| resolve_theme_color(color, theme)),
+            ring_offset_color.map_or_else(
+                || "#fff".to_string(),
+                |color| resolve_theme_color(color, theme)
+            ),
         ));
     }
     if let Some(width) = ring {
@@ -2003,7 +2163,11 @@ fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
             Some(offset)
                 if width.css_expression().is_some() || offset.css_expression().is_some() =>
             {
-                format!("calc({} + {})", length_px(width, theme), length_px(offset, theme))
+                format!(
+                    "calc({} + {})",
+                    length_px(width, theme),
+                    length_px(offset, theme)
+                )
             }
             Some(offset) => length_px(&Length::Px(width.px(theme) + offset.px(theme)), theme),
             None => length_px(width, theme),
@@ -2059,14 +2223,34 @@ pub fn render_rule(
     // One content-only rule per pseudo-element that something follows.
     // `before:after:flex` is two of them nested, and each box needs its
     // own `content` -- the outer one is not inherited by the inner.
-    for index in generates.iter().copied().filter(|index| index + 1 < chain.len()) {
-        rules.push(render_rule_shapes(class_name, &prefix_of(chain, index), &[], theme, true));
+    for index in generates
+        .iter()
+        .copied()
+        .filter(|index| index + 1 < chain.len())
+    {
+        rules.push(render_rule_shapes(
+            class_name,
+            &prefix_of(chain, index),
+            &[],
+            theme,
+            true,
+        ));
     }
-    let ends_in_content = generates.last().is_some_and(|index| index + 1 == chain.len());
-    rules.push(render_rule_shapes(class_name, condition, props, theme, ends_in_content));
-    rules.join("
+    let ends_in_content = generates
+        .last()
+        .is_some_and(|index| index + 1 == chain.len());
+    rules.push(render_rule_shapes(
+        class_name,
+        condition,
+        props,
+        theme,
+        ends_in_content,
+    ));
+    rules.join(
+        "
 
-")
+",
+    )
 }
 
 /// The chain up to and including `index`, as a condition.
@@ -2088,9 +2272,11 @@ fn render_rule_shapes(
         .into_iter()
         .map(|shape| render_shape(class_name, shape, props, theme, needs_content))
         .collect::<Vec<_>>()
-        .join("
+        .join(
+            "
 
-")
+",
+        )
 }
 
 fn render_shape(
@@ -2136,12 +2322,15 @@ fn render_shape(
         rest.into_iter().partition(|p| is_scrollbar_color(p));
     let (translate_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_translate(p));
-    let (keyword_pair_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
-        rest.into_iter().partition(|p| matches!(p, StyleProperty::KeywordPair(..)));
-    let (line_clamp_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
-        rest.into_iter().partition(|p| matches!(p, StyleProperty::LineClamp(_)));
-    let (user_select_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
-        rest.into_iter().partition(|p| matches!(p, StyleProperty::UserSelect(_)));
+    let (keyword_pair_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
+        .into_iter()
+        .partition(|p| matches!(p, StyleProperty::KeywordPair(..)));
+    let (line_clamp_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
+        .into_iter()
+        .partition(|p| matches!(p, StyleProperty::LineClamp(_)));
+    let (user_select_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) = rest
+        .into_iter()
+        .partition(|p| matches!(p, StyleProperty::UserSelect(_)));
     let (filter_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
         rest.into_iter().partition(|p| is_filter(p));
     let (scale_props, rest): (Vec<&StyleProperty>, Vec<&StyleProperty>) =
@@ -2195,12 +2384,19 @@ fn render_shape(
             }
             if let StyleProperty::Content(value) = prop {
                 body.push_str(&format!("  --hozo-content: {value};\n"));
-                let resolved = if value == "none" { "none" } else { "var(--hozo-content)" };
+                let resolved = if value == "none" {
+                    "none"
+                } else {
+                    "var(--hozo-content)"
+                };
                 body.push_str(&format!("  content: {resolved};\n"));
                 continue;
             }
             let (name, value) = property_and_value(prop, theme);
-            if matches!(prop, StyleProperty::LineHeight(LineHeight::Length(_) | LineHeight::Ratio(_))) {
+            if matches!(
+                prop,
+                StyleProperty::LineHeight(LineHeight::Length(_) | LineHeight::Ratio(_))
+            ) {
                 // Same register as Tailwind so an authored leading also
                 // survives font-size rules in other breakpoint groups and
                 // classes supplied by the caller's candidate sheet.
@@ -2217,8 +2413,10 @@ fn render_shape(
             body.push_str(&format!("  box-shadow: {value};\n"));
         }
         if let Some(value) = gradient_value(&gradient_props, theme) {
-            body.push_str(&format!("  background-image: {value};
-"));
+            body.push_str(&format!(
+                "  background-image: {value};
+"
+            ));
         }
         for (name, value) in mask_declarations(&mask_props, theme) {
             body.push_str(&format!("  {name}: {value};\n"));
@@ -2233,35 +2431,49 @@ fn render_shape(
             body.push_str(&format!("  text-shadow: {value};\n"));
         }
         if let Some(value) = scroll_snap_value(&snap_props) {
-            body.push_str(&format!("  scroll-snap-type: {value};
-"));
+            body.push_str(&format!(
+                "  scroll-snap-type: {value};
+"
+            ));
         }
         if let Some(value) = filter_value(&filter_props, false, theme) {
-            body.push_str(&format!("  filter: {value};
-"));
+            body.push_str(&format!(
+                "  filter: {value};
+"
+            ));
         }
         if let Some(value) = filter_value(&filter_props, true, theme) {
             // The unprefixed property is not enough: Safari still ships
             // backdrop-filter only behind the -webkit- prefix, and Tailwind
             // emits both.
-            body.push_str(&format!("  -webkit-backdrop-filter: {value};
-"));
-            body.push_str(&format!("  backdrop-filter: {value};
-"));
+            body.push_str(&format!(
+                "  -webkit-backdrop-filter: {value};
+"
+            ));
+            body.push_str(&format!(
+                "  backdrop-filter: {value};
+"
+            ));
         }
         for prop in &keyword_pair_props {
             if let StyleProperty::KeywordPair(p1, v1, p2, v2) = prop {
-                body.push_str(&format!("  {p1}: {v1};
-"));
-                body.push_str(&format!("  {p2}: {v2};
-"));
+                body.push_str(&format!(
+                    "  {p1}: {v1};
+"
+                ));
+                body.push_str(&format!(
+                    "  {p2}: {v2};
+"
+                ));
             }
         }
         for prop in &line_clamp_props {
             if let StyleProperty::LineClamp(lines) = prop {
                 for (name, value) in line_clamp_declarations(lines.as_ref()) {
-                    body.push_str(&format!("  {name}: {value};
-"));
+                    body.push_str(&format!(
+                        "  {name}: {value};
+"
+                    ));
                 }
             }
         }
@@ -2270,10 +2482,14 @@ fn render_shape(
         // a value formatting choice.
         for prop in &user_select_props {
             if let StyleProperty::UserSelect(value) = prop {
-                body.push_str(&format!("  -webkit-user-select: {value};
-"));
-                body.push_str(&format!("  user-select: {value};
-"));
+                body.push_str(&format!(
+                    "  -webkit-user-select: {value};
+"
+                ));
+                body.push_str(&format!(
+                    "  user-select: {value};
+"
+                ));
             }
         }
         if let Some(value) = scale_value(&scale_props) {
@@ -2327,16 +2543,25 @@ fn render_shape(
     // browser, but this text is what a person reads -- in the REPL, in a
     // generated `.hozo.css` -- and a query around an unindented rule reads
     // as two rules one after the other.
-    at_rule.into_iter().rev().fold(rules.join("\n\n"), |rule, prelude| {
-        format!("{prelude} {{\n{}\n}}", indent_block(&rule))
-    })
+    at_rule
+        .into_iter()
+        .rev()
+        .fold(rules.join("\n\n"), |rule, prelude| {
+            format!("{prelude} {{\n{}\n}}", indent_block(&rule))
+        })
 }
 
 /// Two spaces in front of every non-empty line. A CSS string cannot hold a
 /// raw newline, so no line break here is inside a value.
 fn indent_block(text: &str) -> String {
     text.lines()
-        .map(|line| if line.is_empty() { String::new() } else { format!("  {line}") })
+        .map(|line| {
+            if line.is_empty() {
+                String::new()
+            } else {
+                format!("  {line}")
+            }
+        })
         .collect::<Vec<_>>()
         .join("\n")
 }
@@ -2466,7 +2691,10 @@ mod tests {
         let expr = ConditionExpr::And(Box::new(a), Box::new(ConditionExpr::Not(Box::new(b))));
         let (at_rule, selector) = condition_shape(&Condition::Expr(expr));
         assert!(at_rule.is_empty());
-        assert_eq!(selector, "&:where(.hozo-cond-0-1):not(:where(.hozo-cond-2-3))");
+        assert_eq!(
+            selector,
+            "&:where(.hozo-cond-0-1):not(:where(.hozo-cond-2-3))"
+        );
     }
 
     #[test]
@@ -2482,8 +2710,9 @@ mod tests {
 
     #[test]
     fn an_arbitrary_at_rule_wraps_the_whole_rule() {
-        let (at_rule, selector) =
-            condition_shape(&Condition::ArbitraryAtRule("@supports (display:grid)".to_string()));
+        let (at_rule, selector) = condition_shape(&Condition::ArbitraryAtRule(
+            "@supports (display:grid)".to_string(),
+        ));
         assert_eq!(at_rule, vec!["@supports (display:grid)"]);
         assert_eq!(fill_selector(&selector, "hozo-0"), ".hozo-0");
     }
@@ -2515,14 +2744,20 @@ mod tests {
             StyleProperty::Filter(FilterFunction::Invert, "invert(100%)".to_string()),
         ];
         let refs: Vec<&StyleProperty> = cleared.iter().collect();
-        assert_eq!(filter_value(&refs, false, &Theme::default()), Some("invert(100%)".to_string()));
+        assert_eq!(
+            filter_value(&refs, false, &Theme::default()),
+            Some("invert(100%)".to_string())
+        );
 
         let off = [
             StyleProperty::Filter(FilterFunction::Invert, "invert(100%)".to_string()),
             StyleProperty::Filter(FilterFunction::None, String::new()),
         ];
         let refs: Vec<&StyleProperty> = off.iter().collect();
-        assert_eq!(filter_value(&refs, false, &Theme::default()), Some("none".to_string()));
+        assert_eq!(
+            filter_value(&refs, false, &Theme::default()),
+            Some("none".to_string())
+        );
     }
 
     #[test]
@@ -2556,7 +2791,10 @@ mod tests {
         let prop = StyleProperty::BackgroundColor(Color::Token("blue-500/50".to_string()));
         let (name, value) = property_and_value(&prop, &Theme::default());
         assert_eq!(name, "background-color");
-        assert_eq!(value, "color-mix(in oklab, oklch(62.3% 0.214 259.815) 50%, transparent)");
+        assert_eq!(
+            value,
+            "color-mix(in oklab, oklch(62.3% 0.214 259.815) 50%, transparent)"
+        );
     }
 
     #[test]
@@ -2571,8 +2809,10 @@ mod tests {
 
     #[test]
     fn unknown_color_token_falls_back_to_a_css_custom_property() {
-        let (_, value) =
-            property_and_value(&StyleProperty::TextColor(Color::Token("brand-primary".to_string())), &Theme::default());
+        let (_, value) = property_and_value(
+            &StyleProperty::TextColor(Color::Token("brand-primary".to_string())),
+            &Theme::default(),
+        );
         assert_eq!(value, "var(--hozo-color-brand-primary)");
     }
 }
@@ -2589,11 +2829,17 @@ mod variant_tests {
             Condition::Hover,
         ]));
         // Written order, outermost first, and `hover:` brings its own.
-        assert_eq!(at_rules, vec!["@media (width >= 768px)", "@media (hover: hover)"]);
+        assert_eq!(
+            at_rules,
+            vec!["@media (width >= 768px)", "@media (hover: hover)"]
+        );
         // Suffixes append in written order: `:first-child:hover`, not the
         // reverse. Which is why the fold substitutes the accumulated
         // selector *into* each new template.
-        assert_eq!(fill_selector(&selector, "hozo-0"), ".hozo-0:first-child:hover");
+        assert_eq!(
+            fill_selector(&selector, "hozo-0"),
+            ".hozo-0:first-child:hover"
+        );
     }
 
     #[test]
@@ -2603,9 +2849,11 @@ mod variant_tests {
         // `md:starting:` and inside for `starting:md:`, and the two mean
         // different things to a browser resolving the first frame.
         let md = Condition::Responsive(hozo_ir::Breakpoint::Md);
-        let (outer, _) = condition_shape(&Condition::All(vec![md.clone(), Condition::StartingStyle]));
+        let (outer, _) =
+            condition_shape(&Condition::All(vec![md.clone(), Condition::StartingStyle]));
         assert_eq!(outer, vec!["@media (width >= 768px)", "@starting-style"]);
-        let (inner, selector) = condition_shape(&Condition::All(vec![Condition::StartingStyle, md]));
+        let (inner, selector) =
+            condition_shape(&Condition::All(vec![Condition::StartingStyle, md]));
         assert_eq!(inner, vec!["@starting-style", "@media (width >= 768px)"]);
         // It qualifies the rule rather than the element, so the selector
         // is untouched.
@@ -2631,9 +2879,10 @@ pub fn inexpressible_on_web(condition: &Condition) -> Option<Environment> {
     match condition {
         Condition::Environment(query) if !query.web_query() => Some(*query),
         Condition::All(conditions) => conditions.iter().find_map(inexpressible_on_web),
-        Condition::Not(inner) | Condition::Group(inner) | Condition::Peer(inner) | Condition::Has(inner) => {
-            inexpressible_on_web(inner)
-        }
+        Condition::Not(inner)
+        | Condition::Group(inner)
+        | Condition::Peer(inner)
+        | Condition::Has(inner) => inexpressible_on_web(inner),
         _ => None,
     }
 }
@@ -2648,7 +2897,10 @@ mod platform_setting_tests {
         // platform too -- the query is real and nothing was reaching it.
         let (at_rules, selector) =
             condition_shape(&Condition::Environment(Environment::ReduceTransparency));
-        assert_eq!(at_rules, vec!["@media (prefers-reduced-transparency: reduce)"]);
+        assert_eq!(
+            at_rules,
+            vec!["@media (prefers-reduced-transparency: reduce)"]
+        );
         assert_eq!(selector, "&");
     }
 
@@ -2656,7 +2908,11 @@ mod platform_setting_tests {
     fn the_three_it_cannot_ask_are_refused_rather_than_guessed() {
         // An empty prelude would be a rule with no condition, which
         // applies to *everyone* -- worse than one that never applies.
-        for query in [Environment::BoldText, Environment::Grayscale, Environment::ScreenReader] {
+        for query in [
+            Environment::BoldText,
+            Environment::Grayscale,
+            Environment::ScreenReader,
+        ] {
             assert_eq!(
                 inexpressible_on_web(&Condition::Environment(query)),
                 Some(query),
@@ -2692,11 +2948,12 @@ mod platform_setting_tests {
     #[test]
     fn the_refusal_says_refuses_rather_than_lacks_where_that_is_the_fact() {
         // Two different facts, and only one of them might change.
-        assert!(Environment::ScreenReader.web_gap_message().contains("declines"));
+        assert!(Environment::ScreenReader
+            .web_gap_message()
+            .contains("declines"));
         assert!(Environment::BoldText.web_gap_message().contains("no query"));
     }
 }
-
 
 #[cfg(test)]
 mod escape_tests {
@@ -2704,7 +2961,10 @@ mod escape_tests {
 
     #[test]
     fn selector_syntax_is_escaped_with_a_backslash() {
-        assert_eq!(escape_class_selector("hover:bg-blue-500"), "hover\\:bg-blue-500");
+        assert_eq!(
+            escape_class_selector("hover:bg-blue-500"),
+            "hover\\:bg-blue-500"
+        );
         assert_eq!(escape_class_selector("w-1/2"), "w-1\\/2");
         assert_eq!(escape_class_selector("p-1.5"), "p-1\\.5");
         assert_eq!(escape_class_selector("flex"), "flex");
@@ -2726,7 +2986,10 @@ mod escape_tests {
             "data-\\[hozo-state\\=checked\\]\\:bg-red-500"
         );
         assert_eq!(escape_class_selector("text-[#fff]"), "text-\\[\\#fff\\]");
-        assert_eq!(escape_class_selector("bg-[url(/a.png)]"), "bg-\\[url\\(\\/a\\.png\\)\\]");
+        assert_eq!(
+            escape_class_selector("bg-[url(/a.png)]"),
+            "bg-\\[url\\(\\/a\\.png\\)\\]"
+        );
         assert_eq!(escape_class_selector("[&_p]:mt-4"), "\\[\\&_p\\]\\:mt-4");
     }
 
@@ -2739,11 +3002,17 @@ mod escape_tests {
         // this was found, as a build failure in the Storybook example the
         // first time a `2xl:` class reached the candidate stylesheet.
         assert_eq!(escape_class_selector("2xl:block"), "\\32 xl\\:block");
-        assert_eq!(escape_class_selector("2xl:grid-cols-4"), "\\32 xl\\:grid-cols-4");
+        assert_eq!(
+            escape_class_selector("2xl:grid-cols-4"),
+            "\\32 xl\\:grid-cols-4"
+        );
         // Only when it leads. Every other digit is an ordinary character,
         // which is most of Tailwind's scale.
         assert_eq!(escape_class_selector("gap-2"), "gap-2");
-        assert_eq!(escape_class_selector("hover:2xl:block"), "hover\\:2xl\\:block");
+        assert_eq!(
+            escape_class_selector("hover:2xl:block"),
+            "hover\\:2xl\\:block"
+        );
     }
 
     #[test]

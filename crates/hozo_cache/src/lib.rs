@@ -47,13 +47,21 @@ impl CandidateCache {
                 *references.entry(class_name.clone()).or_insert(0) += 1;
             }
         }
-        CandidateCache { store, snapshot, references, dirty: false }
+        CandidateCache {
+            store,
+            snapshot,
+            references,
+            dirty: false,
+        }
     }
 
     /// Whether `path`'s entry is present and matches `modified_ms`, i.e.
     /// the file hasn't changed since it was scanned.
     pub fn is_current(&self, path: &str, modified_ms: u64) -> bool {
-        self.snapshot.files.get(path).is_some_and(|e| e.modified_ms == modified_ms)
+        self.snapshot
+            .files
+            .get(path)
+            .is_some_and(|e| e.modified_ms == modified_ms)
     }
 
     /// Records what a scan of `path` found, replacing any earlier entry.
@@ -69,7 +77,11 @@ impl CandidateCache {
         class_names: Vec<String>,
         uses_tailwind: bool,
     ) -> bool {
-        let entry = FileEntry { modified_ms, class_names, uses_tailwind };
+        let entry = FileEntry {
+            modified_ms,
+            class_names,
+            uses_tailwind,
+        };
         if self.snapshot.files.get(path) == Some(&entry) {
             return false;
         }
@@ -93,7 +105,10 @@ impl CandidateCache {
     /// rather than keeping a count: it is asked once per regeneration of
     /// the candidate stylesheet, not per file.
     pub fn uses_tailwind(&self) -> bool {
-        self.snapshot.files.values().any(|entry| entry.uses_tailwind)
+        self.snapshot
+            .files
+            .values()
+            .any(|entry| entry.uses_tailwind)
     }
 
     /// Drops a file's entry -- for when a source file is deleted, so its
@@ -222,7 +237,10 @@ mod tests {
     #[test]
     fn is_current_tracks_modification_time() {
         let mut cache = in_memory();
-        assert!(!cache.is_current("a.tsx", 1), "unknown file is never current");
+        assert!(
+            !cache.is_current("a.tsx", 1),
+            "unknown file is never current"
+        );
         cache.record("a.tsx", 1, vec!["p-4".into()], true);
         assert!(cache.is_current("a.tsx", 1));
         assert!(!cache.is_current("a.tsx", 2), "a newer mtime means rescan");
@@ -250,12 +268,18 @@ mod tests {
     #[test]
     fn record_reports_candidate_changes_not_mere_rewrites() {
         let mut cache = in_memory();
-        assert!(cache.record("a.tsx", 1, vec!["p-4".into()], true), "a new file is a change");
+        assert!(
+            cache.record("a.tsx", 1, vec!["p-4".into()], true),
+            "a new file is a change"
+        );
         assert!(
             !cache.record("a.tsx", 2, vec!["p-4".into()], true),
             "a touched file with the same classes leaves the stylesheet identical"
         );
-        assert!(cache.is_current("a.tsx", 2), "...but the new mtime is still stored");
+        assert!(
+            cache.is_current("a.tsx", 2),
+            "...but the new mtime is still stored"
+        );
         assert!(cache.record("a.tsx", 3, vec!["p-8".into()], true));
     }
 
@@ -304,7 +328,10 @@ mod tests {
         .unwrap();
 
         let cache = CandidateCache::open(Box::new(JsonFileStore::new(&path)));
-        assert!(cache.is_empty(), "a format we don't understand must not be trusted");
+        assert!(
+            cache.is_empty(),
+            "a format we don't understand must not be trusted"
+        );
     }
 
     #[test]
@@ -349,7 +376,10 @@ mod tests {
         assert!(cache.uses_tailwind());
 
         cache.forget("a.tsx");
-        assert!(!cache.uses_tailwind(), "the last Tailwind file left and the answer did not");
+        assert!(
+            !cache.uses_tailwind(),
+            "the last Tailwind file left and the answer did not"
+        );
     }
 
     #[test]
@@ -361,5 +391,4 @@ mod tests {
         cache.record("a.tsx", 1, vec![], true);
         assert!(cache.record("a.tsx", 2, vec![], false));
     }
-
 }

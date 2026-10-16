@@ -1,7 +1,9 @@
 use super::*;
 
 fn compile(body: &str) -> LowerOutput {
-    let source = format!("import {{ View, Text, Pressable, Button, Link }} from '@hozo/core'; const el = {body}");
+    let source = format!(
+        "import {{ View, Text, Pressable, Button, Link }} from '@hozo/core'; const el = {body}"
+    );
     let parsed = hozo_parser::parse_tsx(&source);
     lower(&parsed.roots[0].node, &source, &Theme::default())
 }
@@ -9,13 +11,25 @@ fn compile(body: &str) -> LowerOutput {
 #[test]
 fn negated_pressed_keeps_the_host_fast_path_but_text_requires_an_owner() {
     for primitive in ["Pressable", "Button", "Link"] {
-        let destination = if primitive == "Link" { "href=\"/docs\"" } else { "" };
-        let out = compile(&format!(r#"<{primitive} {destination} className="active:opacity-100 not-active:opacity-50" />"#));
+        let destination = if primitive == "Link" {
+            "href=\"/docs\""
+        } else {
+            ""
+        };
+        let out = compile(&format!(
+            r#"<{primitive} {destination} className="active:opacity-100 not-active:opacity-50" />"#
+        ));
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
-        assert!(!out.runtime_imports.contains(&"HozoPressable"), "{}", out.jsx);
+        assert!(
+            !out.runtime_imports.contains(&"HozoPressable"),
+            "{}",
+            out.jsx
+        );
         assert!(out.jsx.contains("!(pressed) &&"), "{}", out.jsx);
         for content in ["x", "<Text>x</Text>"] {
-            let out = compile(&format!(r#"<{primitive} {destination} className="active:text-red-500 not-active:text-blue-500">{content}</{primitive}>"#));
+            let out = compile(&format!(
+                r#"<{primitive} {destination} className="active:text-red-500 not-active:text-blue-500">{content}</{primitive}>"#
+            ));
             assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
             assert!(out.jsx.contains("HozoPressable"), "{}", out.jsx);
             assert!(out.jsx.contains("<HozoText"), "{}", out.jsx);
@@ -28,9 +42,21 @@ fn negated_pressed_keeps_the_host_fast_path_but_text_requires_an_owner() {
 fn pressed_guards_without_a_readable_owner_are_refused_in_both_directions() {
     for variant in ["active", "not-active", "md:not-active"] {
         for primitive in ["View", "Text"] {
-            let out = compile(&format!(r#"<{primitive} className="{variant}:opacity-50" />"#));
-            assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{:?}", out.diagnostics);
-            assert!(!out.jsx.contains("pressed &&") && !out.jsx.contains("!(pressed)"), "{}", out.jsx);
+            let out = compile(&format!(
+                r#"<{primitive} className="{variant}:opacity-50" />"#
+            ));
+            assert!(
+                out.diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+                "{:?}",
+                out.diagnostics
+            );
+            assert!(
+                !out.jsx.contains("pressed &&") && !out.jsx.contains("!(pressed)"),
+                "{}",
+                out.jsx
+            );
         }
     }
 }
@@ -100,7 +126,12 @@ fn negated_focus_owns_a_callback_and_enables_modality_without_positive_variants(
         ));
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
         assert!(out.jsx.starts_with("<HozoPressable"), "{}", out.jsx);
-        assert!(out.jsx.contains("style={({ pressed, hovered, focused, focusVisible }) =>"), "{}", out.jsx);
+        assert!(
+            out.jsx
+                .contains("style={({ pressed, hovered, focused, focusVisible }) =>"),
+            "{}",
+            out.jsx
+        );
         assert!(out.jsx.contains("!(focused) &&"), "{}", out.jsx);
         assert!(out.jsx.contains("!(focusVisible) &&"), "{}", out.jsx);
         assert!(out.jsx.contains(" hozoFocusVisible"), "{}", out.jsx);
@@ -114,7 +145,12 @@ fn negated_focus_reuses_transition_and_stacked_state_routing() {
         r#"<Pressable disabled={off} className="opacity-100 transition-opacity md:not-disabled:not-focus-visible:opacity-50" />"#,
     );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
-    assert!(out.jsx.contains("__hozoBp_md && !((off)) && !(focusVisible) &&"), "{}", out.jsx);
+    assert!(
+        out.jsx
+            .contains("__hozoBp_md && !((off)) && !(focusVisible) &&"),
+        "{}",
+        out.jsx
+    );
     assert!(out.jsx.contains("hozoTransition="), "{}", out.jsx);
     assert!(out.jsx.contains("opacity: true"), "{}", out.jsx);
     assert!(out.jsx.contains(" hozoFocusVisible"), "{}", out.jsx);
@@ -128,7 +164,12 @@ fn negated_hover_uses_the_existing_owner_without_positive_variants() {
         ));
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
         assert!(out.jsx.starts_with("<HozoPressable"), "{}", out.jsx);
-        assert!(out.jsx.contains("style={({ pressed, hovered, focused }) =>"), "{}", out.jsx);
+        assert!(
+            out.jsx
+                .contains("style={({ pressed, hovered, focused }) =>"),
+            "{}",
+            out.jsx
+        );
         assert!(out.jsx.contains("!(hovered) &&"), "{}", out.jsx);
         assert!(!out.jsx.contains("hozoFocusVisible"), "{}", out.jsx);
         assert!(out.prelude.is_empty(), "{:?}", out.prelude);
@@ -141,8 +182,18 @@ fn negated_hover_composes_and_reuses_all_interaction_transition_channels() {
         r#"<Pressable disabled={off} className="opacity-100 bg-white text-gray-500 transition md:not-disabled:not-hover:opacity-50 not-hover:scale-95 not-hover:bg-blue-500 not-hover:text-blue-500">Save</Pressable>"#,
     );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
-    assert!(out.jsx.contains("__hozoBp_md && !((off)) && !(hovered) &&"), "{}", out.jsx);
-    for marker in ["hozoTransition=", "opacity: true", "transform: true", "colors: true", "<HozoText style={({ pressed, hovered, focused }) =>"] {
+    assert!(
+        out.jsx.contains("__hozoBp_md && !((off)) && !(hovered) &&"),
+        "{}",
+        out.jsx
+    );
+    for marker in [
+        "hozoTransition=",
+        "opacity: true",
+        "transform: true",
+        "colors: true",
+        "<HozoText style={({ pressed, hovered, focused }) =>",
+    ] {
         assert!(out.jsx.contains(marker), "{}", out.jsx);
     }
 }
@@ -156,10 +207,17 @@ fn descendant_negated_hover_enables_only_its_nearest_owner() {
         let out = compile(body);
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
         assert!(out.jsx.starts_with("<HozoPressable"), "{}", out.jsx);
-        assert!(out.jsx.contains("<HozoText style={({ pressed, hovered, focused }) =>"), "{}", out.jsx);
+        assert!(
+            out.jsx
+                .contains("<HozoText style={({ pressed, hovered, focused }) =>"),
+            "{}",
+            out.jsx
+        );
         assert!(out.jsx.contains("!(hovered) &&"), "{}", out.jsx);
     }
-    let out = compile(r#"<Pressable><Button><Text className="not-hover:text-red-500">Inner</Text></Button></Pressable>"#);
+    let out = compile(
+        r#"<Pressable><Button><Text className="not-hover:text-red-500">Inner</Text></Button></Pressable>"#,
+    );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     assert!(out.jsx.starts_with("<Pressable>"), "{}", out.jsx);
     assert_eq!(out.jsx.matches("<HozoPressable").count(), 1, "{}", out.jsx);
@@ -168,14 +226,31 @@ fn descendant_negated_hover_enables_only_its_nearest_owner() {
 #[test]
 fn destination_controls_supply_their_own_text_interaction_owner() {
     for primitive in ["Pressable", "Button", "Link"] {
-        for variant in ["hover", "not-hover", "focus", "not-focus", "focus-visible", "not-focus-visible", "active"] {
+        for variant in [
+            "hover",
+            "not-hover",
+            "focus",
+            "not-focus",
+            "focus-visible",
+            "not-focus-visible",
+            "active",
+        ] {
             for body in [
-                format!(r#"<{primitive} href="/docs" className="{variant}:text-red-500">Docs</{primitive}>"#),
-                format!(r#"<Pressable className="hover:opacity-50"><{primitive} href="/docs"><Text className="{variant}:text-red-500">Docs</Text></{primitive}></Pressable>"#),
+                format!(
+                    r#"<{primitive} href="/docs" className="{variant}:text-red-500">Docs</{primitive}>"#
+                ),
+                format!(
+                    r#"<Pressable className="hover:opacity-50"><{primitive} href="/docs"><Text className="{variant}:text-red-500">Docs</Text></{primitive}></Pressable>"#
+                ),
             ] {
                 let out = compile(&body);
                 assert!(out.diagnostics.is_empty(), "{body}: {:?}", out.diagnostics);
-                assert!(out.jsx.contains("<HozoLink hozoLinkComponent={HozoPressable}"), "{body}: {}", out.jsx);
+                assert!(
+                    out.jsx
+                        .contains("<HozoLink hozoLinkComponent={HozoPressable}"),
+                    "{body}: {}",
+                    out.jsx
+                );
                 assert!(out.jsx.contains("<HozoText"), "{body}: {}", out.jsx);
             }
         }
@@ -190,12 +265,22 @@ fn plain_links_keep_the_fast_host_and_nested_links_do_not_upgrade_outer_controls
     ] {
         let out = compile(body);
         assert!(out.diagnostics.is_empty(), "{body}: {:?}", out.diagnostics);
-        assert!(!out.runtime_imports.contains(&"HozoPressable"), "{body}: {:?}", out.runtime_imports);
+        assert!(
+            !out.runtime_imports.contains(&"HozoPressable"),
+            "{body}: {:?}",
+            out.runtime_imports
+        );
     }
-    let out = compile(r#"<Pressable><Link href="/docs"><Text className="hover:text-red-500">Docs</Text></Link></Pressable>"#);
+    let out = compile(
+        r#"<Pressable><Link href="/docs"><Text className="hover:text-red-500">Docs</Text></Link></Pressable>"#,
+    );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     assert!(out.jsx.starts_with("<Pressable"), "{}", out.jsx);
-    assert!(out.jsx.contains("hozoLinkComponent={HozoPressable}"), "{}", out.jsx);
+    assert!(
+        out.jsx.contains("hozoLinkComponent={HozoPressable}"),
+        "{}",
+        out.jsx
+    );
 }
 
 #[test]
@@ -203,16 +288,24 @@ fn container_measurement_preserves_the_interaction_host_and_text_guards() {
     for primitive in ["Pressable", "Button"] {
         for utility in ["opacity-50", "text-red-500"] {
             for variant in ["hover", "not-hover", "focus", "not-focus"] {
-                let body = format!(r#"<{primitive} className="@container {variant}:{utility}">Label</{primitive}>"#);
+                let body = format!(
+                    r#"<{primitive} className="@container {variant}:{utility}">Label</{primitive}>"#
+                );
                 let out = compile(&body);
                 assert!(out.diagnostics.is_empty(), "{body}: {:?}", out.diagnostics);
-                assert!(out.jsx.contains("hozoContainerComponent={HozoPressable}"), "{body}: {}", out.jsx);
+                assert!(
+                    out.jsx.contains("hozoContainerComponent={HozoPressable}"),
+                    "{body}: {}",
+                    out.jsx
+                );
                 assert!(out.jsx.contains("style={({"), "{body}: {}", out.jsx);
             }
         }
     }
     // Measuring a separate ancestor keeps both real runtime owners intact.
-    let out = compile(r#"<View className="@container"><Button className="not-hover:opacity-50">Label</Button></View>"#);
+    let out = compile(
+        r#"<View className="@container"><Button className="not-hover:opacity-50">Label</Button></View>"#,
+    );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     assert!(out.jsx.contains("<HozoPressable"), "{}", out.jsx);
 }
@@ -256,16 +349,41 @@ fn descendant_focus_visible_enables_only_the_nearest_owner() {
             ));
             assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
             assert!(out.jsx.starts_with("<HozoPressable"), "{}", out.jsx);
-            assert_eq!(out.jsx.matches(" hozoFocusVisible").count(), 1, "{}", out.jsx);
-            assert!(out.jsx.contains("<HozoText style={({ pressed, hovered, focused, focusVisible }) =>"), "{}", out.jsx);
-            assert!(out.jsx.split("<HozoText").next().unwrap().contains("hozoFocusVisible"), "{}", out.jsx);
+            assert_eq!(
+                out.jsx.matches(" hozoFocusVisible").count(),
+                1,
+                "{}",
+                out.jsx
+            );
+            assert!(
+                out.jsx
+                    .contains("<HozoText style={({ pressed, hovered, focused, focusVisible }) =>"),
+                "{}",
+                out.jsx
+            );
+            assert!(
+                out.jsx
+                    .split("<HozoText")
+                    .next()
+                    .unwrap()
+                    .contains("hozoFocusVisible"),
+                "{}",
+                out.jsx
+            );
         }
     }
 
-    let out = compile(r#"<Pressable><Button><Text className="not-focus-visible:text-red-500">Inner</Text></Button></Pressable>"#);
+    let out = compile(
+        r#"<Pressable><Button><Text className="not-focus-visible:text-red-500">Inner</Text></Button></Pressable>"#,
+    );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     assert!(out.jsx.starts_with("<Pressable>"), "{}", out.jsx);
-    assert_eq!(out.jsx.matches(" hozoFocusVisible").count(), 1, "{}", out.jsx);
+    assert_eq!(
+        out.jsx.matches(" hozoFocusVisible").count(),
+        1,
+        "{}",
+        out.jsx
+    );
 
     let out = compile(r#"<Pressable><Unknown /></Pressable>"#);
     assert!(out.jsx.starts_with("<Pressable>"), "{}", out.jsx);
@@ -274,14 +392,24 @@ fn descendant_focus_visible_enables_only_the_nearest_owner() {
 
 #[test]
 fn negated_ambient_conditions_reuse_the_positive_hooks() {
-    let out = compile(r#"<View className="md:p-4 not-md:p-2 dark:opacity-50 not-dark:opacity-100 min-[500px]:m-4 not-min-[500px]:m-2 not-max-[500px]:w-10" />"#);
+    let out = compile(
+        r#"<View className="md:p-4 not-md:p-2 dark:opacity-50 not-dark:opacity-100 min-[500px]:m-4 not-min-[500px]:m-2 not-max-[500px]:w-10" />"#,
+    );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     for (hook, guard) in [
         ("useHozoBreakpoint", "!(__hozoBp_md) &&"),
         ("useHozoDark", "!(__hozoDark) &&"),
         ("useHozoWidthAtLeast", "!(__hozoWidth_500) &&"),
     ] {
-        assert_eq!(out.prelude.iter().filter(|line| line.contains(hook)).count(), 1, "{:?}", out.prelude);
+        assert_eq!(
+            out.prelude
+                .iter()
+                .filter(|line| line.contains(hook))
+                .count(),
+            1,
+            "{:?}",
+            out.prelude
+        );
         assert!(out.jsx.contains(guard), "{}", out.jsx);
     }
     assert!(out.jsx.contains("!(!__hozoWidth_500) &&"), "{}", out.jsx);
@@ -291,21 +419,42 @@ fn negated_ambient_conditions_reuse_the_positive_hooks() {
 #[test]
 fn negated_ambient_targets_transition_and_compose_with_interactions() {
     for variant in ["not-md", "not-dark", "not-min-[500px]", "not-max-[500px]"] {
-        let out = compile(&format!(r#"<View className="opacity-100 transition-opacity {variant}:opacity-50" />"#));
+        let out = compile(&format!(
+            r#"<View className="opacity-100 transition-opacity {variant}:opacity-50" />"#
+        ));
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
         assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
     }
-    let out = compile(r#"<Pressable disabled={off} className="not-md:not-dark:hover:not-disabled:opacity-50" />"#);
+    let out = compile(
+        r#"<Pressable disabled={off} className="not-md:not-dark:hover:not-disabled:opacity-50" />"#,
+    );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
-    assert!(out.jsx.contains("!(__hozoBp_md) && !(__hozoDark) && hovered && !((off)) &&"), "{}", out.jsx);
+    assert!(
+        out.jsx
+            .contains("!(__hozoBp_md) && !(__hozoDark) && hovered && !((off)) &&"),
+        "{}",
+        out.jsx
+    );
 }
 
 #[test]
 fn negated_unresolvable_width_does_not_register_a_guessed_threshold() {
     for variant in ["not-min-[40rem]", "not-max-[50vw]", "md:not-min-[40rem]"] {
         let out = compile(&format!(r#"<View className="{variant}:p-4" />"#));
-        assert!(out.diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error), "{:?}", out.diagnostics);
-        assert!(!out.prelude.iter().any(|line| line.contains("useHozoWidthAtLeast")), "{:?}", out.prelude);
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == Severity::Error),
+            "{:?}",
+            out.diagnostics
+        );
+        assert!(
+            !out.prelude
+                .iter()
+                .any(|line| line.contains("useHozoWidthAtLeast")),
+            "{:?}",
+            out.prelude
+        );
         assert!(!out.jsx.contains("_not"), "{}", out.jsx);
     }
 }
@@ -319,18 +468,32 @@ fn negated_container_comparison_keeps_the_applicable_ancestor_guard() {
         ("not-not-@md", r#"!(!(__hozoCq[""] >= 448))"#),
     ] {
         let out = compile(&format!(r#"<View className="{variant}:opacity-50" />"#));
-        assert!(out.diagnostics.is_empty(), "{variant}: {:?}", out.diagnostics);
-        assert!(out.jsx.starts_with("<HozoContainerQuery>{(__hozoCq) =>"), "{}", out.jsx);
+        assert!(
+            out.diagnostics.is_empty(),
+            "{variant}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.jsx.starts_with("<HozoContainerQuery>{(__hozoCq) =>"),
+            "{}",
+            out.jsx
+        );
         assert!(out.jsx.contains(comparison), "{}", out.jsx);
         assert!(out.jsx.contains("!== undefined && !"), "{}", out.jsx);
-        assert!(!out.jsx.contains("!(__hozoCq[\"\"] !== undefined"), "{}", out.jsx);
+        assert!(
+            !out.jsx.contains("!(__hozoCq[\"\"] !== undefined"),
+            "{}",
+            out.jsx
+        );
         assert!(out.prelude.is_empty(), "{:?}", out.prelude);
     }
 }
 
 #[test]
 fn negated_container_queries_compose_with_interactions_and_ambient_transitions() {
-    let out = compile(r#"<Pressable disabled={off} className="md:hover:not-@md/main:not-disabled:opacity-50" />"#);
+    let out = compile(
+        r#"<Pressable disabled={off} className="md:hover:not-@md/main:not-disabled:opacity-50" />"#,
+    );
     assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     assert!(out.jsx.contains(r#"__hozoBp_md && hovered && (__hozoCq["main"] !== undefined && !(__hozoCq["main"] >= 448)) && !((off)) &&"#), "{}", out.jsx);
     assert!(out.jsx.contains("<HozoPressable"), "{}", out.jsx);
@@ -344,20 +507,42 @@ fn negated_container_queries_compose_with_interactions_and_ambient_transitions()
 #[test]
 fn container_text_styles_bind_the_query_even_when_only_raw_text_uses_it() {
     for variant in ["@md", "not-@md"] {
-        let out = compile(&format!(r#"<View className="{variant}:text-red-500">raw</View>"#));
+        let out = compile(&format!(
+            r#"<View className="{variant}:text-red-500">raw</View>"#
+        ));
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
         assert!(out.jsx.starts_with("<HozoContainerQuery"), "{}", out.jsx);
         assert!(out.jsx.contains("<Text style="), "{}", out.jsx);
-        assert!(out.jsx.contains(r#"__hozoCq[""] !== undefined"#), "{}", out.jsx);
+        assert!(
+            out.jsx.contains(r#"__hozoCq[""] !== undefined"#),
+            "{}",
+            out.jsx
+        );
     }
 }
 
 #[test]
 fn negated_container_unresolvable_units_remain_refused() {
-    for variant in ["not-@min-[40rem]", "md:not-@max-[50vw]", "not-not-@min-[40rem]"] {
+    for variant in [
+        "not-@min-[40rem]",
+        "md:not-@max-[50vw]",
+        "not-not-@min-[40rem]",
+    ] {
         let out = compile(&format!(r#"<View className="{variant}:p-4" />"#));
-        assert!(out.diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error), "{:?}", out.diagnostics);
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == Severity::Error),
+            "{:?}",
+            out.diagnostics
+        );
         assert!(!out.jsx.contains("_not"), "{}", out.jsx);
-        assert!(!out.prelude.iter().any(|line| line.contains("useHozoWidthAtLeast")), "{:?}", out.prelude);
+        assert!(
+            !out.prelude
+                .iter()
+                .any(|line| line.contains("useHozoWidthAtLeast")),
+            "{:?}",
+            out.prelude
+        );
     }
 }

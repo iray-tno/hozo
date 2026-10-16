@@ -57,9 +57,10 @@ pub(crate) fn summarize(
             }
         }
     }
-    let has_stylex_import = module.import_entries.iter().any(|entry| {
-        !entry.is_type && entry.module_request.name.as_str() == STYLEX_MODULE
-    });
+    let has_stylex_import = module
+        .import_entries
+        .iter()
+        .any(|entry| !entry.is_type && entry.module_request.name.as_str() == STYLEX_MODULE);
     let mut value_imports = module
         .import_entries
         .iter()
@@ -72,7 +73,11 @@ pub(crate) fn summarize(
         .collect::<Vec<_>>();
     value_imports.sort();
     value_imports.dedup();
-    ModuleContextSummary { parse_complete, has_stylex_import, value_imports }
+    ModuleContextSummary {
+        parse_complete,
+        has_stylex_import,
+        value_imports,
+    }
 }
 
 #[cfg(test)]
@@ -120,8 +125,13 @@ mod tests {
             function local(shadowed) { return shadowed }
             export const App = () => <div {...sx.props(select(), chosen)} />
             "#,
-        ).context.unwrap();
-        assert_eq!(context.value_imports, ["./logger", "./mutable", "./shadowed", "./sheet"]);
+        )
+        .context
+        .unwrap();
+        assert_eq!(
+            context.value_imports,
+            ["./logger", "./mutable", "./shadowed", "./sheet"]
+        );
     }
 
     #[test]
@@ -133,7 +143,9 @@ mod tests {
             export { styles as card }
             export type { Token }
             "#,
-        ).context.unwrap();
+        )
+        .context
+        .unwrap();
         assert!(!context.has_stylex_import);
         assert_eq!(context.value_imports, ["./sheet"]);
     }
@@ -149,15 +161,19 @@ mod tests {
             const obj = { unused: 1 }
             export const styles = sx.create({ root: { opacity: obj.unused } })
             "#,
-        ).context.unwrap();
+        )
+        .context
+        .unwrap();
         assert!(context.parse_complete);
         assert!(context.value_imports.is_empty());
     }
 
     #[test]
     fn parse_recovery_cannot_certify_an_empty_context() {
-        let context = summarize_stylex_module("import sx from '@stylexjs/stylex'; const broken = (")
-            .context.unwrap();
+        let context =
+            summarize_stylex_module("import sx from '@stylexjs/stylex'; const broken = (")
+                .context
+                .unwrap();
         assert!(!context.parse_complete);
     }
 
@@ -170,7 +186,9 @@ mod tests {
             import * as UI from './ui'
             export const App = () => <View render={View}><UI.Box value={UI.token} /></View>
             "#,
-        ).context.unwrap();
+        )
+        .context
+        .unwrap();
         assert_eq!(context.value_imports, ["./ui", "@hozo/core"]);
     }
 }

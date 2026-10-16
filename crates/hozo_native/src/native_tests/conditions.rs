@@ -117,7 +117,11 @@ fn the_two_branches_of_a_ternary_get_two_style_keys() {
     assert_eq!(keys.len(), 2, "{}", output.styles);
     assert_ne!(keys[0], keys[1], "{}", output.styles);
     for key in &keys {
-        assert!(output.jsx.contains(&format!("hozoStyles.{key}")), "{key}: {}", output.jsx);
+        assert!(
+            output.jsx.contains(&format!("hozoStyles.{key}")),
+            "{key}: {}",
+            output.jsx
+        );
     }
 }
 
@@ -614,14 +618,34 @@ fn the_elements_own_style_wins_over_what_it_was_handed() {
 fn declaring_a_container_preserves_the_selected_native_host() {
     for (primitive, props, classes, host) in [
         ("Button", "onPress={save}", "@container", "Pressable"),
-        ("Pressable", "onPress={save}", "@container hover:opacity-50", "HozoPressable"),
+        (
+            "Pressable",
+            "onPress={save}",
+            "@container hover:opacity-50",
+            "HozoPressable",
+        ),
         ("Button", "href=\"/docs\"", "@container", "HozoLink"),
         ("Text", "", "@container", "Text"),
         ("TextInput", "value={value}", "@container", "TextInput"),
         ("Image", "source={image}", "@container", "Image"),
-        ("ScrollView", "onScroll={scroll}", "@container", "ScrollView"),
-        ("FlatList", "data={items} renderItem={renderItem}", "@container", "HozoFlatList"),
-        ("View", "", "@container opacity-100 transition-opacity dark:opacity-50", "HozoAnimated"),
+        (
+            "ScrollView",
+            "onScroll={scroll}",
+            "@container",
+            "ScrollView",
+        ),
+        (
+            "FlatList",
+            "data={items} renderItem={renderItem}",
+            "@container",
+            "HozoFlatList",
+        ),
+        (
+            "View",
+            "",
+            "@container opacity-100 transition-opacity dark:opacity-50",
+            "HozoAnimated",
+        ),
         ("View", "", "@container animate-pulse", "Animated.View"),
     ] {
         let source = format!(
@@ -629,8 +653,19 @@ fn declaring_a_container_preserves_the_selected_native_host() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let out = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(!out.diagnostics.iter().any(|diagnostic| diagnostic.severity == Severity::Error), "{primitive}: {:?}", out.diagnostics);
-        assert!(out.jsx.contains(&format!("hozoContainerComponent={{{host}}}")), "{primitive}: {}", out.jsx);
+        assert!(
+            !out.diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == Severity::Error),
+            "{primitive}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.jsx
+                .contains(&format!("hozoContainerComponent={{{host}}}")),
+            "{primitive}: {}",
+            out.jsx
+        );
         assert!(out.runtime_imports.contains(&"HozoContainer"));
         assert!(!out.styles.contains("containerType"));
         if !props.is_empty() {
@@ -652,7 +687,13 @@ fn a_container_cannot_invent_a_box_or_hide_compound_part_identity() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let out = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(out.diagnostics.iter().any(|diagnostic| diagnostic.code == DiagnosticCode::NotWiredOnNative && diagnostic.message.contains("single layout-reporting host")), "{primitive}: {:?}", out.diagnostics);
+        assert!(
+            out.diagnostics.iter().any(|diagnostic| diagnostic.code
+                == DiagnosticCode::NotWiredOnNative
+                && diagnostic.message.contains("single layout-reporting host")),
+            "{primitive}: {:?}",
+            out.diagnostics
+        );
         assert!(out.jsx.starts_with(&format!("<{host}")), "{}", out.jsx);
         assert!(!out.runtime_imports.contains(&"HozoContainer"));
     }
@@ -877,13 +918,32 @@ fn read_only_and_its_complement_share_static_answers_in_stacks() {
         ("readOnly={false} editable={false}", false),
         ("readOnly editable", true),
     ] {
-        let out = compile_read_only_input(props, "opacity-100 read-only:p-4 not-read-only:m-2 md:read-only:p-8 md:not-read-only:m-4");
+        let out = compile_read_only_input(
+            props,
+            "opacity-100 read-only:p-4 not-read-only:m-2 md:read-only:p-8 md:not-read-only:m-4",
+        );
         assert!(out.diagnostics.is_empty(), "{props}: {:?}", out.diagnostics);
         for prefix in ["", "md_"] {
-            assert_eq!(out.jsx.contains(&format!("hozoStyles.hozo0_{prefix}readonly")), read_only, "{props}: {}", out.jsx);
-            assert_eq!(out.jsx.contains(&format!("hozoStyles.hozo0_{prefix}notreadonly")), !read_only, "{props}: {}", out.jsx);
+            assert_eq!(
+                out.jsx
+                    .contains(&format!("hozoStyles.hozo0_{prefix}readonly")),
+                read_only,
+                "{props}: {}",
+                out.jsx
+            );
+            assert_eq!(
+                out.jsx
+                    .contains(&format!("hozoStyles.hozo0_{prefix}notreadonly")),
+                !read_only,
+                "{props}: {}",
+                out.jsx
+            );
         }
-        assert!(!out.jsx.contains("true &&") && !out.jsx.contains("false &&"), "{}", out.jsx);
+        assert!(
+            !out.jsx.contains("true &&") && !out.jsx.contains("false &&"),
+            "{}",
+            out.jsx
+        );
     }
 }
 
@@ -892,38 +952,101 @@ fn read_only_guards_group_expressions_and_keep_the_existing_driver_precedence() 
     for (props, driver) in [
         ("readOnly={locked}", "(locked)"),
         ("editable={canEdit}", "((canEdit) === false)"),
-        ("readOnly={locked} editable={canEdit}", "((locked) !== undefined ? (locked) : (canEdit) === false)"),
+        (
+            "readOnly={locked} editable={canEdit}",
+            "((locked) !== undefined ? (locked) : (canEdit) === false)",
+        ),
         ("readOnly={locked || ready}", "(locked || ready)"),
-        ("readOnly={ready ? locked : canEdit}", "(ready ? locked : canEdit)"),
+        (
+            "readOnly={ready ? locked : canEdit}",
+            "(ready ? locked : canEdit)",
+        ),
     ] {
         let out = compile_read_only_input(props, "opacity-100 read-only:p-4 not-read-only:m-2");
         assert!(out.diagnostics.is_empty(), "{props}: {:?}", out.diagnostics);
-        assert!(out.jsx.contains(&format!("{driver} && hozoStyles.hozo0_readonly")), "{}", out.jsx);
-        assert!(out.jsx.contains(&format!("!({driver}) && hozoStyles.hozo0_notreadonly")), "{}", out.jsx);
-        assert!(out.prelude.is_empty() && out.runtime_imports.is_empty(), "{:?}", out.runtime_imports);
+        assert!(
+            out.jsx
+                .contains(&format!("{driver} && hozoStyles.hozo0_readonly")),
+            "{}",
+            out.jsx
+        );
+        assert!(
+            out.jsx
+                .contains(&format!("!({driver}) && hozoStyles.hozo0_notreadonly")),
+            "{}",
+            out.jsx
+        );
+        assert!(
+            out.prelude.is_empty() && out.runtime_imports.is_empty(),
+            "{:?}",
+            out.runtime_imports
+        );
         let stacked = compile_read_only_input(props, "md:read-only:p-4 md:not-read-only:m-2");
         assert!(stacked.diagnostics.is_empty(), "{:?}", stacked.diagnostics);
-        assert!(stacked.jsx.contains(&format!("__hozoBp_md && {driver} &&")), "{}", stacked.jsx);
-        assert!(stacked.jsx.contains(&format!("__hozoBp_md && !({driver}) &&")), "{}", stacked.jsx);
-        assert_eq!(stacked.prelude.iter().filter(|line| line.contains("useHozoBreakpoint")).count(), 1);
+        assert!(
+            stacked.jsx.contains(&format!("__hozoBp_md && {driver} &&")),
+            "{}",
+            stacked.jsx
+        );
+        assert!(
+            stacked
+                .jsx
+                .contains(&format!("__hozoBp_md && !({driver}) &&")),
+            "{}",
+            stacked.jsx
+        );
+        assert_eq!(
+            stacked
+                .prelude
+                .iter()
+                .filter(|line| line.contains("useHozoBreakpoint"))
+                .count(),
+            1
+        );
     }
 }
 
 #[test]
 fn missing_read_only_drivers_and_other_form_states_remain_refused_when_negated() {
-    for variant in ["read-only", "not-read-only", "md:read-only", "md:not-read-only", "not-not-read-only"] {
+    for variant in [
+        "read-only",
+        "not-read-only",
+        "md:read-only",
+        "md:not-read-only",
+        "not-not-read-only",
+    ] {
         let out = compile_read_only_input("", &format!("opacity-100 {variant}:p-4"));
-        assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{variant}: {:?}", out.diagnostics);
-        assert!(!out.jsx.contains("_readonly") && !out.jsx.contains("_notreadonly"), "{}", out.jsx);
+        assert!(
+            out.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{variant}: {:?}",
+            out.diagnostics
+        );
+        assert!(
+            !out.jsx.contains("_readonly") && !out.jsx.contains("_notreadonly"),
+            "{}",
+            out.jsx
+        );
     }
     for variant in ["not-required", "not-invalid", "md:not-placeholder-shown"] {
         let out = compile_read_only_input("readOnly={locked}", &format!("{variant}:p-4"));
-        assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{variant}: {:?}", out.diagnostics);
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+            "{variant}: {:?}",
+            out.diagnostics
+        );
         assert!(!out.jsx.contains("hozoStyles"), "{}", out.jsx);
     }
     let focused = compile_read_only_input("readOnly={locked}", "read-only:focus:p-4");
     assert!(focused.diagnostics.is_empty(), "{:?}", focused.diagnostics);
-    assert!(focused.jsx.contains("HozoTextInput") && focused.jsx.contains("(locked) && focused &&"), "{}", focused.jsx);
+    assert!(
+        focused.jsx.contains("HozoTextInput") && focused.jsx.contains("(locked) && focused &&"),
+        "{}",
+        focused.jsx
+    );
 }
 
 #[test]
@@ -1152,7 +1275,10 @@ fn a_safe_area_inset_is_read_from_a_hook_like_a_viewport_size_is() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert_eq!(output.prelude, vec!["const __hozoSafeArea = useHozoSafeArea()"]);
+    assert_eq!(
+        output.prelude,
+        vec!["const __hozoSafeArea = useHozoSafeArea()"]
+    );
     assert_eq!(output.runtime_imports, vec!["useHozoSafeArea"]);
     assert!(
         output.jsx.contains(
@@ -1163,7 +1289,11 @@ fn a_safe_area_inset_is_read_from_a_hook_like_a_viewport_size_is() {
     );
     // The padding the build *can* resolve stays in the StyleSheet, where
     // it costs nothing per render.
-    assert!(output.styles.contains("paddingStart: 16,"), "{}", output.styles);
+    assert!(
+        output.styles.contains("paddingStart: 16,"),
+        "{}",
+        output.styles
+    );
     assert!(!output.styles.contains("paddingTop"), "{}", output.styles);
 }
 
@@ -1188,7 +1318,10 @@ fn the_env_functions_react_native_cannot_answer_are_still_refused() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(!output.diagnostics.is_empty(), "{class} was accepted silently");
+        assert!(
+            !output.diagnostics.is_empty(),
+            "{class} was accepted silently"
+        );
         assert!(output.prelude.is_empty(), "{class}: {:?}", output.prelude);
     }
 }
@@ -1293,7 +1426,10 @@ fn contrast_more_compiles_because_react_native_reports_it() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
     assert!(
-        output.prelude.iter().any(|line| line.contains("useHozoEnvironment('contrast-more')")),
+        output
+            .prelude
+            .iter()
+            .any(|line| line.contains("useHozoEnvironment('contrast-more')")),
         "contrast-more: did not reach the runtime: {:?}",
         output.prelude
     );
@@ -1338,11 +1474,17 @@ fn paired_theme() -> Theme {
     Theme::with_dark(
         std::collections::HashMap::from([(
             "surface".to_string(),
-            hozo_ir::ThemeColor { oklch: "oklch(100% 0 0)".into(), hex: "#ffffff".into() },
+            hozo_ir::ThemeColor {
+                oklch: "oklch(100% 0 0)".into(),
+                hex: "#ffffff".into(),
+            },
         )]),
         std::collections::HashMap::from([(
             "surface".to_string(),
-            hozo_ir::ThemeColor { oklch: "oklch(20% 0.04 266)".into(), hex: "#0f172b".into() },
+            hozo_ir::ThemeColor {
+                oklch: "oklch(20% 0.04 266)".into(),
+                hex: "#0f172b".into(),
+            },
         )]),
         None,
         false,
@@ -1350,8 +1492,9 @@ fn paired_theme() -> Theme {
 }
 
 fn lower_with_paired(class_name: &str) -> LowerOutput {
-    let source =
-        format!("import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\">x</View>");
+    let source = format!(
+        "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\">x</View>"
+    );
     let parsed = hozo_parser::parse_tsx(&source);
     lower(&parsed.roots[0].node, &source, &paired_theme())
 }
@@ -1364,17 +1507,34 @@ fn a_paired_token_gets_a_second_sheet_behind_the_dark_guard() {
     let output = lower_with_paired("bg-surface p-4");
 
     assert!(output.styles.contains("hozo0: {"), "{}", output.styles);
-    assert!(output.styles.contains("backgroundColor: '#ffffff',"), "{}", output.styles);
-    assert!(output.styles.contains("hozo0_dark: {"), "{}", output.styles);
-    assert!(output.styles.contains("backgroundColor: '#0f172b',"), "{}", output.styles);
     assert!(
-        output.jsx.contains("[hozoStyles.hozo0, __hozoDark && hozoStyles.hozo0_dark]"),
+        output.styles.contains("backgroundColor: '#ffffff',"),
+        "{}",
+        output.styles
+    );
+    assert!(output.styles.contains("hozo0_dark: {"), "{}", output.styles);
+    assert!(
+        output.styles.contains("backgroundColor: '#0f172b',"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        output
+            .jsx
+            .contains("[hozoStyles.hozo0, __hozoDark && hozoStyles.hozo0_dark]"),
         "{}",
         output.jsx
     );
     // The trap: a guard on a binding nothing declares renders nothing and
     // reports nothing. The hook has to be asked for, not assumed.
-    assert!(output.prelude.iter().any(|line| line.contains("useHozoDark")), "{:?}", output.prelude);
+    assert!(
+        output
+            .prelude
+            .iter()
+            .any(|line| line.contains("useHozoDark")),
+        "{:?}",
+        output.prelude
+    );
     assert!(output.runtime_imports.contains(&"useHozoDark"));
 }
 
@@ -1388,7 +1548,10 @@ fn the_dark_copy_sorts_before_a_variant_that_would_outrank_it_on_web() {
     // as the phone goes dark.
     let output = lower_with_paired("bg-surface disabled:p-8");
     let dark_at = output.styles.find("hozo0_dark: {").expect("a dark entry");
-    let disabled_at = output.styles.find("hozo0_disabled: {").expect("a disabled entry");
+    let disabled_at = output
+        .styles
+        .find("hozo0_disabled: {")
+        .expect("a disabled entry");
     assert!(dark_at < disabled_at, "{}", output.styles);
 }
 
@@ -1399,10 +1562,19 @@ fn a_rule_that_only_applies_in_the_dark_resolves_against_the_dark_palette() {
     // is the point, because one class meaning two colours depending on how it
     // was produced is worse than either answer.
     let output = lower_with_paired("dark:bg-surface");
-    assert!(output.styles.contains("backgroundColor: '#0f172b',"), "{}", output.styles);
+    assert!(
+        output.styles.contains("backgroundColor: '#0f172b',"),
+        "{}",
+        output.styles
+    );
     assert!(!output.styles.contains("#ffffff"), "{}", output.styles);
     // And it is not doubled: the rule is already dark-only.
-    assert_eq!(output.styles.matches("backgroundColor").count(), 1, "{}", output.styles);
+    assert_eq!(
+        output.styles.matches("backgroundColor").count(),
+        1,
+        "{}",
+        output.styles
+    );
 }
 
 #[test]
@@ -1410,9 +1582,18 @@ fn not_dark_tokens_keep_the_light_palette_without_unreachable_dark_copies() {
     for class_name in ["not-dark:bg-surface", "md:not-dark:bg-surface"] {
         let output = lower_with_paired(class_name);
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert!(output.styles.contains("backgroundColor: '#ffffff',"), "{}", output.styles);
+        assert!(
+            output.styles.contains("backgroundColor: '#ffffff',"),
+            "{}",
+            output.styles
+        );
         assert!(!output.styles.contains("#0f172b"), "{}", output.styles);
-        assert_eq!(output.styles.matches("backgroundColor").count(), 1, "{}", output.styles);
+        assert_eq!(
+            output.styles.matches("backgroundColor").count(),
+            1,
+            "{}",
+            output.styles
+        );
         assert!(output.jsx.contains("!(__hozoDark) &&"), "{}", output.jsx);
     }
 }
@@ -1431,12 +1612,22 @@ fn the_dark_copy_of_a_conditional_rule_is_still_conditional() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &paired_theme());
 
-    assert!(output.styles.contains("hozo0_disabled_dark: {"), "{}", output.styles);
-    assert!(output.styles.contains("backgroundColor: '#0f172b',"), "{}", output.styles);
+    assert!(
+        output.styles.contains("hozo0_disabled_dark: {"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        output.styles.contains("backgroundColor: '#0f172b',"),
+        "{}",
+        output.styles
+    );
     // Disabled *and* dark, not either one on its own: the entry is reached
     // only when the control is disabled, and then only in the dark.
     assert!(
-        output.jsx.contains("(busy) && __hozoDark && hozoStyles.hozo0_disabled_dark"),
+        output
+            .jsx
+            .contains("(busy) && __hozoDark && hozoStyles.hozo0_disabled_dark"),
         "{}",
         output.jsx
     );
@@ -1464,7 +1655,10 @@ fn a_callers_class_goes_after_the_resting_look_and_before_the_state() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     let at = |needle: &str| {
-        output.jsx.find(needle).unwrap_or_else(|| panic!("{needle} missing from {}", output.jsx))
+        output
+            .jsx
+            .find(needle)
+            .unwrap_or_else(|| panic!("{needle} missing from {}", output.jsx))
     };
     let caller = at("hozoClasses(className, { pressed, hovered, focused, focusVisible, disabled: Boolean(off) })");
     // The resting look, a breakpoint and a className branch, comes first.
@@ -1472,7 +1666,11 @@ fn a_callers_class_goes_after_the_resting_look_and_before_the_state() {
     assert!(at("hozoStyles.hozo0_md") < caller, "{}", output.jsx);
     assert!(at("(big) && ") < caller, "{}", output.jsx);
     // The element's own state comes after.
-    assert!(caller < at("(off) && hozoStyles.hozo0_disabled"), "{}", output.jsx);
+    assert!(
+        caller < at("(off) && hozoStyles.hozo0_disabled"),
+        "{}",
+        output.jsx
+    );
 }
 
 /// `cx` from `@hozo/core` merges a caller's className with no dependency,
@@ -1485,8 +1683,16 @@ fn core_cx_keeps_a_components_state_styles_beside_a_callers_class() {
             "#;
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(output.jsx.contains("(off) && hozoStyles.hozo0_disabled"), "{}", output.jsx);
-    assert!(output.jsx.contains("hozoClasses(className, "), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("(off) && hozoStyles.hozo0_disabled"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.jsx.contains("hozoClasses(className, "),
+        "{}",
+        output.jsx
+    );
     assert!(!output.jsx.contains("cx("), "{}", output.jsx);
 }
 
@@ -1501,10 +1707,21 @@ fn a_disabled_text_colour_reaches_a_nested_text_through_the_pressables_prop() {
             "#;
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(output.jsx.contains("(busy) && hozoStyles."), "{}", output.jsx);
-    assert!(output.styles.contains("color: '#6a7282'"), "{}", output.styles);
     assert!(
-        !output.diagnostics.iter().any(|d| d.message.contains("needs a `disabled` prop")),
+        output.jsx.contains("(busy) && hozoStyles."),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.styles.contains("color: '#6a7282'"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        !output
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("needs a `disabled` prop")),
         "{:?}",
         output.diagnostics
     );
@@ -1518,5 +1735,9 @@ fn enabled_text_goes_down_as_the_negation() {
             "#;
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(output.jsx.contains("(!(busy)) && hozoStyles."), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("(!(busy)) && hozoStyles."),
+        "{}",
+        output.jsx
+    );
 }

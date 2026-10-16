@@ -54,15 +54,33 @@ fn a_text_nested_inside_a_package_component_gets_its_text_styles() {
         import { Button } from '@hozo/ui'
         const el = <Button tone="accent" disabled={off}><View><Text>Save</Text></View></Button>
         "#;
-    let [output] = compile(source).try_into().unwrap_or_else(|o: Vec<_>| panic!("{} roots", o.len()));
+    let [output] = compile(source)
+        .try_into()
+        .unwrap_or_else(|o: Vec<_>| panic!("{} roots", o.len()));
     // The colour and weight, and the disabled colour under the caller's own
     // expression for the prop the Button hands to its host.
     assert!(output.styles.contains("color: '#fff'"), "{}", output.styles);
-    assert!(output.styles.contains("fontWeight: '600'"), "{}", output.styles);
-    assert!(output.jsx.contains("(off) && hozoStyles."), "{}", output.jsx);
-    assert!(output.styles.contains("color: '#6a7282'"), "{}", output.styles);
+    assert!(
+        output.styles.contains("fontWeight: '600'"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        output.jsx.contains("(off) && hozoStyles."),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.styles.contains("color: '#6a7282'"),
+        "{}",
+        output.styles
+    );
     // Not the Button's box, and not a state only its own pressable knows.
-    assert!(!output.styles.contains("backgroundColor"), "{}", output.styles);
+    assert!(
+        !output.styles.contains("backgroundColor"),
+        "{}",
+        output.styles
+    );
     assert!(!output.styles.contains("paddingLeft"), "{}", output.styles);
     assert!(!output.styles.contains("#fb2c36"), "{}", output.styles);
 }
@@ -77,9 +95,17 @@ fn the_texts_own_classes_still_win() {
     let output = &compile(source)[0];
     // Its own colour replaces the one handed down; the weight it did not
     // set is kept.
-    assert!(output.styles.contains("color: '#fb2c36'"), "{}", output.styles);
+    assert!(
+        output.styles.contains("color: '#fb2c36'"),
+        "{}",
+        output.styles
+    );
     assert!(!output.styles.contains("'#fff'"), "{}", output.styles);
-    assert!(output.styles.contains("fontWeight: '600'"), "{}", output.styles);
+    assert!(
+        output.styles.contains("fontWeight: '600'"),
+        "{}",
+        output.styles
+    );
 }
 
 #[test]
@@ -108,7 +134,11 @@ import {{ Button }} from '@hozo/ui'
 const el = {button}<Text>Go</Text></Button>"
         );
         let output = &compile(&source)[0];
-        assert!(!output.styles.contains("color"), "{button}: {}", output.styles);
+        assert!(
+            !output.styles.contains("color"),
+            "{button}: {}",
+            output.styles
+        );
     }
 }
 
@@ -122,4 +152,3 @@ fn a_component_of_the_same_name_from_elsewhere_hands_down_nothing() {
     let output = &compile(source)[0];
     assert!(!output.styles.contains("color"), "{}", output.styles);
 }
-

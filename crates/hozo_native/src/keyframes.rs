@@ -67,22 +67,35 @@ pub(super) fn shorthand_timing(shorthand: &str) -> Vec<StyleProperty> {
         parts.push(current);
     }
 
-    let longhand = |name: &str, value: &str| StyleProperty::WebOnly(name.to_string(), value.to_string());
+    let longhand =
+        |name: &str, value: &str| StyleProperty::WebOnly(name.to_string(), value.to_string());
     let mut out = Vec::new();
     let mut times = 0;
     for part in parts {
         let part = part.as_str();
         if milliseconds(part).is_some() {
-            out.push(longhand(if times == 0 { "animation-duration" } else { "animation-delay" }, part));
+            out.push(longhand(
+                if times == 0 {
+                    "animation-duration"
+                } else {
+                    "animation-delay"
+                },
+                part,
+            ));
             times += 1;
         } else if part == "infinite" || part.parse::<f64>().is_ok() {
             out.push(longhand("animation-iteration-count", part));
-        } else if matches!(part, "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" | "step-start" | "step-end")
-            || part.starts_with("cubic-bezier(")
+        } else if matches!(
+            part,
+            "linear" | "ease" | "ease-in" | "ease-out" | "ease-in-out" | "step-start" | "step-end"
+        ) || part.starts_with("cubic-bezier(")
             || part.starts_with("steps(")
         {
             out.push(longhand("animation-timing-function", part));
-        } else if matches!(part, "normal" | "reverse" | "alternate" | "alternate-reverse") {
+        } else if matches!(
+            part,
+            "normal" | "reverse" | "alternate" | "alternate-reverse"
+        ) {
             out.push(longhand("animation-direction", part));
         } else if matches!(part, "none" | "forwards" | "backwards" | "both") {
             out.push(longhand("animation-fill-mode", part));
@@ -98,7 +111,12 @@ fn milliseconds(value: &str) -> Option<f64> {
         Some(number) => (number, 1.0),
         None => (value.strip_suffix('s')?, 1000.0),
     };
-    number.trim().parse::<f64>().ok().filter(|n| n.is_finite()).map(|n| n * scale)
+    number
+        .trim()
+        .parse::<f64>()
+        .ok()
+        .filter(|n| n.is_finite())
+        .map(|n| n * scale)
 }
 
 /// Where a selector's frames sit: `from` 0, `to` 1, `40%` 0.4, and a
@@ -138,14 +156,22 @@ fn easing(value: &str) -> Result<String, ()> {
             }
             Ok(format!(
                 "[{}]",
-                numbers.iter().map(f64::to_string).collect::<Vec<_>>().join(", ")
+                numbers
+                    .iter()
+                    .map(f64::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ))
         }
     }
 }
 
 fn number(value: f64) -> String {
-    if value.fract() == 0.0 { format!("{}", value as i64) } else { value.to_string() }
+    if value.fract() == 0.0 {
+        format!("{}", value as i64)
+    } else {
+        value.to_string()
+    }
 }
 
 /// The `useHozoKeyframes` argument for `keyframes`, timed by `timing` (the
@@ -161,7 +187,9 @@ pub(super) fn spec(
     let mut unread: Vec<String> = Vec::new();
     let mut duration = 0.0;
     for property in timing {
-        let StyleProperty::WebOnly(name, value) = property else { continue };
+        let StyleProperty::WebOnly(name, value) = property else {
+            continue;
+        };
         match name.as_str() {
             "animation-duration" => match milliseconds(value) {
                 Some(ms) => duration = ms,
@@ -203,9 +231,11 @@ pub(super) fn spec(
 
     let mut frames: Vec<String> = Vec::new();
     let mut fixed: Vec<String> = Vec::new();
-    if keyframes.frames.iter().any(|frame| {
-        frame.properties.iter().any(crate::transforms::is_control)
-    }) {
+    if keyframes
+        .frames
+        .iter()
+        .any(|frame| frame.properties.iter().any(crate::transforms::is_control))
+    {
         diagnostics.push(crate::conditions::unwired_variant(
             node,
             &format!(
@@ -220,11 +250,8 @@ pub(super) fn spec(
             unread.push(format!("the frame selector `{}`", frame.selector));
             continue;
         };
-        let (kept, dropped): (Vec<StyleProperty>, Vec<StyleProperty>) = frame
-            .properties
-            .iter()
-            .cloned()
-            .partition(animatable);
+        let (kept, dropped): (Vec<StyleProperty>, Vec<StyleProperty>) =
+            frame.properties.iter().cloned().partition(animatable);
         for property in &dropped {
             // A Web-only or arbitrary declaration has no React Native key to
             // name it by, so it is named by its CSS property -- otherwise it
@@ -232,7 +259,9 @@ pub(super) fn spec(
             // `animation-timing-function` (Tailwind's own `bounce` has one)
             // disappeared.
             let keys: Vec<String> = match property {
-                StyleProperty::WebOnly(name, _) | StyleProperty::Arbitrary(name, _) => vec![name.clone()],
+                StyleProperty::WebOnly(name, _) | StyleProperty::Arbitrary(name, _) => {
+                    vec![name.clone()]
+                }
                 property => crate::style::property_and_value(property, theme)
                     .into_iter()
                     .map(|(key, _)| key.to_string())
@@ -323,9 +352,22 @@ mod tests {
             "animationDuration: '1s', animationIterationCount: 'infinite'",
             "{ from: { opacity: 0 }, to: { opacity: 1 } }",
         );
-        assert!(out.jsx.starts_with("<Animated.View style={__hozoKeyframes_0}"), "{}", out.jsx);
-        assert!(out.runtime_imports.contains(&"useHozoKeyframes"), "{:?}", out.runtime_imports);
-        assert!(out.native_imports.contains(&"Animated"), "{:?}", out.native_imports);
+        assert!(
+            out.jsx
+                .starts_with("<Animated.View style={__hozoKeyframes_0}"),
+            "{}",
+            out.jsx
+        );
+        assert!(
+            out.runtime_imports.contains(&"useHozoKeyframes"),
+            "{:?}",
+            out.runtime_imports
+        );
+        assert!(
+            out.native_imports.contains(&"Animated"),
+            "{:?}",
+            out.native_imports
+        );
         let spec = spec(&out);
         assert!(spec.contains("{ at: 0, style: { opacity: 0 } }"), "{spec}");
         assert!(spec.contains("{ at: 1, style: { opacity: 1 } }"), "{spec}");
@@ -368,8 +410,9 @@ mod tests {
         );
         assert!(!spec(&out).contains("width"), "{}", spec(&out));
         assert!(
-            out.diagnostics.iter().any(|d| d.message.contains("`width`")
-                && d.severity == hozo_ir::Severity::Warning),
+            out.diagnostics
+                .iter()
+                .any(|d| d.message.contains("`width`") && d.severity == hozo_ir::Severity::Warning),
             "{:?}",
             out.diagnostics
         );
@@ -397,13 +440,18 @@ mod tests {
             };
             let mut diagnostics = Vec::new();
             let output = super::spec(
-                &keyframes, &[], &Theme::default(), &parsed.roots[0].node, &mut diagnostics,
+                &keyframes,
+                &[],
+                &Theme::default(),
+                &parsed.roots[0].node,
+                &mut diagnostics,
             );
             assert!(output.contains("opacity: 1"), "{output}");
             assert!(!output.contains("transform:"), "{output}");
             assert!(
                 diagnostics.iter().any(|d| d.severity == Severity::Error
-                    && d.message.contains("Transform controls in `@keyframes reset`")),
+                    && d.message
+                        .contains("Transform controls in `@keyframes reset`")),
                 "{diagnostics:?}",
             );
         }
@@ -417,7 +465,9 @@ mod tests {
         );
         assert!(!spec(&out).contains("easing"), "{}", spec(&out));
         assert!(
-            out.diagnostics.iter().any(|d| d.message.contains("steps(4)")),
+            out.diagnostics
+                .iter()
+                .any(|d| d.message.contains("steps(4)")),
             "{:?}",
             out.diagnostics
         );
@@ -427,7 +477,8 @@ mod tests {
     fn tailwinds_loops_render_on_an_animated_view_too() {
         // An `Animated` value in a plain `View`'s style is an object the
         // view cannot read; the loops needed this as much as keyframes do.
-        let source = "import { View } from '@hozo/core'\nconst el = <View className=\"animate-spin\" />\n";
+        let source =
+            "import { View } from '@hozo/core'\nconst el = <View className=\"animate-spin\" />\n";
         let parsed = hozo_parser::parse_tsx(source);
         let out = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(out.jsx.starts_with("<Animated.View"), "{}", out.jsx);
@@ -440,7 +491,11 @@ mod tests {
         let parsed = hozo_parser::parse_tsx(source);
         let out = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(out.jsx.starts_with("<Animated.Text"), "{}", out.jsx);
-        assert!(out.native_imports.contains(&"Animated"), "{:?}", out.native_imports);
+        assert!(
+            out.native_imports.contains(&"Animated"),
+            "{:?}",
+            out.native_imports
+        );
     }
 }
 
@@ -466,7 +521,10 @@ mod theme_animation_tests {
             hozo_ir::ThemeAnimation {
                 shorthand: "wiggle 1s ease-in-out infinite".to_string(),
                 keyframes_css: None,
-                keyframes: Some(hozo_ir::Keyframes { name: "wiggle".to_string(), frames }),
+                keyframes: Some(hozo_ir::Keyframes {
+                    name: "wiggle".to_string(),
+                    frames,
+                }),
                 unread: Vec::new(),
             },
         );
@@ -491,7 +549,11 @@ mod theme_animation_tests {
     fn a_theme_animation_runs_through_the_keyframes_hook() {
         let out = compile("animate-wiggle", &theme());
         assert!(out.jsx.starts_with("<Animated.View"), "{}", out.jsx);
-        let spec = out.prelude.iter().find(|line| line.contains("useHozoKeyframes(")).expect("hook");
+        let spec = out
+            .prelude
+            .iter()
+            .find(|line| line.contains("useHozoKeyframes("))
+            .expect("hook");
         for expected in [
             "{ at: 0, style: { transform: [{ rotate: '-3deg' }] } }",
             "{ at: 0.5, style: { opacity: 0.5 } }",
@@ -507,7 +569,12 @@ mod theme_animation_tests {
     #[test]
     fn under_motion_safe_it_is_guarded_by_the_preference() {
         let out = compile("motion-safe:animate-wiggle", &theme());
-        assert!(out.jsx.contains("__hozoEnv_motion_safe && __hozoKeyframes_0"), "{}", out.jsx);
+        assert!(
+            out.jsx
+                .contains("__hozoEnv_motion_safe && __hozoKeyframes_0"),
+            "{}",
+            out.jsx
+        );
     }
 
     #[test]
@@ -531,7 +598,8 @@ mod theme_animation_tests {
         // frame. Native runs the frames without it, and says so.
         let mut wiggle = theme().animation("wiggle").cloned().unwrap();
         wiggle.unread = vec!["animation-timing-function: cubic-bezier(0.8, 0, 1, 1)".to_string()];
-        let theme = Theme::default().with_animations(HashMap::from([("wiggle".to_string(), wiggle)]));
+        let theme =
+            Theme::default().with_animations(HashMap::from([("wiggle".to_string(), wiggle)]));
         let out = compile("animate-wiggle", &theme);
         assert!(
             out.diagnostics.iter().any(|d| d
@@ -542,12 +610,17 @@ mod theme_animation_tests {
             out.diagnostics
         );
         // Still runs: the rest of the frames are the animation.
-        assert!(out.prelude.iter().any(|line| line.contains("useHozoKeyframes(")));
+        assert!(out
+            .prelude
+            .iter()
+            .any(|line| line.contains("useHozoKeyframes(")));
     }
 
     #[test]
     fn the_shorthand_is_read_by_shape() {
-        let timing = super::shorthand_timing("wiggle .3s cubic-bezier(0.4, 0, 0.2, 1) 0.1s 2 alternate both");
+        let timing = super::shorthand_timing(
+            "wiggle .3s cubic-bezier(0.4, 0, 0.2, 1) 0.1s 2 alternate both",
+        );
         let pairs: Vec<(String, String)> = timing
             .into_iter()
             .filter_map(|property| match property {

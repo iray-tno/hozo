@@ -7,7 +7,10 @@ use hozo_ir::Child;
 /// All canonical controls can carry the same event owner. HozoLink keeps
 /// navigation and receives HozoPressable as its host only when needed.
 pub(super) fn owns_events(node: &Node) -> bool {
-    matches!(node.primitive, Primitive::Pressable | Primitive::Button | Primitive::Link)
+    matches!(
+        node.primitive,
+        Primitive::Pressable | Primitive::Button | Primitive::Link
+    )
 }
 
 pub(super) fn uses_focus_visible(condition: &Condition) -> bool {
@@ -47,6 +50,8 @@ pub(super) fn descendant_uses(node: &Node, predicate: fn(&Condition) -> bool) ->
         Child::Verbatim { nested, .. } => nested.iter().any(|child| visit(&child.node, predicate)),
         Child::Text(_) => false,
     }) || node.props.passthrough.iter().any(|prop| {
-        prop.nested.iter().any(|child| visit(&child.node, predicate))
+        prop.nested
+            .iter()
+            .any(|child| visit(&child.node, predicate))
     })
 }

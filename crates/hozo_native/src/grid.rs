@@ -37,16 +37,18 @@ pub(super) fn native_grid(
     runtime: &mut RuntimeNeeds,
 ) -> Option<NativeGrid> {
     if declarations.iter().any(|declaration| {
-        !matches!(declaration.condition, Condition::Always | Condition::Responsive(_))
-            && matches!(
-                declaration.property,
-                StyleProperty::Display(_)
-                    | StyleProperty::GridTemplateColumns(_)
-                    | StyleProperty::GridTemplateRows(_)
-                    | StyleProperty::Gap(_)
-                    | StyleProperty::ColumnGap(_)
-                    | StyleProperty::RowGap(_)
-            )
+        !matches!(
+            declaration.condition,
+            Condition::Always | Condition::Responsive(_)
+        ) && matches!(
+            declaration.property,
+            StyleProperty::Display(_)
+                | StyleProperty::GridTemplateColumns(_)
+                | StyleProperty::GridTemplateRows(_)
+                | StyleProperty::Gap(_)
+                | StyleProperty::ColumnGap(_)
+                | StyleProperty::RowGap(_)
+        )
     }) {
         return None;
     }
@@ -72,8 +74,9 @@ pub(super) fn native_grid(
         Some(vec![NativeTrack::Fr(1.0)]),
         runtime,
     )?;
-    let has_rows = declarations.iter().any(|declaration|
-        matches!(declaration.property, StyleProperty::GridTemplateRows(_)));
+    let has_rows = declarations
+        .iter()
+        .any(|declaration| matches!(declaration.property, StyleProperty::GridTemplateRows(_)));
     let (row_tracks_js, row_track_count) = if has_rows {
         let (value, count) = responsive_grid_value(
             declarations,
@@ -171,7 +174,9 @@ where
     let mut base = default;
     let mut responsive: Vec<(Breakpoint, NativeTracks)> = Vec::new();
     for declaration in declarations {
-        let Some(parsed) = pick(&declaration.property) else { continue };
+        let Some(parsed) = pick(&declaration.property) else {
+            continue;
+        };
         let parsed = parsed?;
         match declaration.condition {
             Condition::Always => base = Some(parsed),
@@ -195,9 +200,16 @@ where
     for (bp, tracks) in &responsive {
         runtime.hooks.push(RuntimeHook::Breakpoint(*bp));
         counts.push(tracks.len());
-        value = format!("{} ? {} : ({value})", RuntimeHook::Breakpoint(*bp).binding(), tracks_js(tracks));
+        value = format!(
+            "{} ? {} : ({value})",
+            RuntimeHook::Breakpoint(*bp).binding(),
+            tracks_js(tracks)
+        );
     }
-    let count = counts.iter().all(|count| *count == counts[0]).then_some(counts[0]);
+    let count = counts
+        .iter()
+        .all(|count| *count == counts[0])
+        .then_some(counts[0]);
     Some((value, count))
 }
 
@@ -233,7 +245,10 @@ fn responsive_gap(
     let mut value = base.to_string();
     for (bp, gap) in responsive {
         runtime.hooks.push(RuntimeHook::Breakpoint(bp));
-        value = format!("{} ? {gap} : ({value})", RuntimeHook::Breakpoint(bp).binding());
+        value = format!(
+            "{} ? {gap} : ({value})",
+            RuntimeHook::Breakpoint(bp).binding()
+        );
     }
     value
 }
@@ -384,7 +399,10 @@ fn parse_native_grid_tracks(css: &str) -> Option<NativeTracks> {
     let tracks: Option<Vec<_>> = css
         .split_whitespace()
         .map(|token| {
-            if let Some(inner) = token.strip_prefix("minmax(").and_then(|value| value.strip_suffix(')')) {
+            if let Some(inner) = token
+                .strip_prefix("minmax(")
+                .and_then(|value| value.strip_suffix(')'))
+            {
                 let (min, max) = inner.split_once(',')?;
                 let min = min.strip_suffix("px")?.parse::<f64>().ok()?;
                 let fr = max.strip_suffix("fr")?.parse::<f64>().ok()?;
@@ -435,9 +453,21 @@ mod tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert!(output.jsx.contains("{ kind: 'points', value: 120 }"), "{}", output.jsx);
-        assert!(output.jsx.contains("{ kind: 'fr', value: 2 }"), "{}", output.jsx);
-        assert!(output.jsx.contains("{ kind: 'fr', value: 1 }"), "{}", output.jsx);
+        assert!(
+            output.jsx.contains("{ kind: 'points', value: 120 }"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.jsx.contains("{ kind: 'fr', value: 2 }"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.jsx.contains("{ kind: 'fr', value: 1 }"),
+            "{}",
+            output.jsx
+        );
     }
 
     #[test]
@@ -450,8 +480,18 @@ mod tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert!(output.jsx.contains("{ kind: 'minmax', min: 120, value: 2 }"), "{}", output.jsx);
-        assert!(output.jsx.contains("{ kind: 'fr', value: 1 }"), "{}", output.jsx);
+        assert!(
+            output
+                .jsx
+                .contains("{ kind: 'minmax', min: 120, value: 2 }"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.jsx.contains("{ kind: 'fr', value: 1 }"),
+            "{}",
+            output.jsx
+        );
     }
 
     #[test]
@@ -464,7 +504,11 @@ mod tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert!(output.jsx.contains("<HozoGridItem columnSpan={2}><View"), "{}", output.jsx);
+        assert!(
+            output.jsx.contains("<HozoGridItem columnSpan={2}><View"),
+            "{}",
+            output.jsx
+        );
         assert!(output.runtime_imports.contains(&"HozoGridItem"));
     }
 
@@ -479,7 +523,9 @@ mod tests {
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert!(
-            output.jsx.contains("<HozoGridItem columnSpan={2} columnStart={1}>"),
+            output
+                .jsx
+                .contains("<HozoGridItem columnSpan={2} columnStart={1}>"),
             "{}",
             output.jsx
         );
@@ -510,7 +556,11 @@ mod tests {
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert!(output.jsx.contains("rowTracks={[{ kind: 'fr', value: 1 }, { kind: 'fr', value: 1 }, { kind: 'fr', value: 1 }]}"), "{}", output.jsx);
-        assert!(output.jsx.contains("rowSpan={3} rowStart={0}"), "{}", output.jsx);
+        assert!(
+            output.jsx.contains("rowSpan={3} rowStart={0}"),
+            "{}",
+            output.jsx
+        );
         assert_eq!(resolve_row_line(GridLine::Line(-1), Some(3)), Some(3));
         assert_eq!(resolve_row_line(GridLine::Line(-2), Some(3)), Some(2));
         assert_eq!(resolve_row_line(GridLine::Line(-1), None), None);
@@ -541,11 +591,27 @@ mod tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert!(output.jsx.contains("tracks={__hozoBp_lg ?"), "{}", output.jsx);
+        assert!(
+            output.jsx.contains("tracks={__hozoBp_lg ?"),
+            "{}",
+            output.jsx
+        );
         assert!(output.jsx.contains("__hozoBp_md ?"), "{}", output.jsx);
-        assert!(output.jsx.contains("columnGap={__hozoBp_md ? 16 : (8)}"), "{}", output.jsx);
-        assert!(output.jsx.contains("rowGap={__hozoBp_md ? 16 : (8)}"), "{}", output.jsx);
-        assert!(output.prelude.contains(&"const __hozoBp_md = useHozoBreakpoint('md')".to_string()));
-        assert!(output.prelude.contains(&"const __hozoBp_lg = useHozoBreakpoint('lg')".to_string()));
+        assert!(
+            output.jsx.contains("columnGap={__hozoBp_md ? 16 : (8)}"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.jsx.contains("rowGap={__hozoBp_md ? 16 : (8)}"),
+            "{}",
+            output.jsx
+        );
+        assert!(output
+            .prelude
+            .contains(&"const __hozoBp_md = useHozoBreakpoint('md')".to_string()));
+        assert!(output
+            .prelude
+            .contains(&"const __hozoBp_lg = useHozoBreakpoint('lg')".to_string()));
     }
 }

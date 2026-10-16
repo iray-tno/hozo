@@ -2,8 +2,6 @@
 //! hozo_parser -> hozo_web and prints a standalone HTML page to stdout.
 //! `cargo run --example render_login -p hozo_web > out.html`
 
-
-
 const LOGIN_EXAMPLE: &str = r#"
 import { View, Text, Button } from '@hozo/core'
 
@@ -24,7 +22,11 @@ export function Login() {
 
 fn main() {
     let parsed = hozo_parser::parse_tsx(LOGIN_EXAMPLE);
-    let output = hozo_web::lower(&parsed.roots[0].node, LOGIN_EXAMPLE, &hozo_ir::Theme::default());
+    let output = hozo_web::lower(
+        &parsed.roots[0].node,
+        LOGIN_EXAMPLE,
+        &hozo_ir::Theme::default(),
+    );
     // hozo_web emits `className` (its real consumer is JSX/React); this
     // demo renders a plain standalone HTML page instead, so swap it back
     // to the attribute a browser actually matches CSS selectors against.

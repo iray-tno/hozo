@@ -13,63 +13,87 @@ pub(super) fn native_driver_transition(
         declarations.iter().any(|declaration| {
             property(&declaration.property)
                 && condition_contains(&declaration.condition, |condition| {
-                super::uses_pressed(condition)
-                    || super::uses_hover(condition)
-                    || super::focus_state(condition).is_some()
-            })
+                    super::uses_pressed(condition)
+                        || super::uses_hover(condition)
+                        || super::focus_state(condition).is_some()
+                })
         })
     };
     let interactive_opacity = interactive(|property| matches!(property, StyleProperty::Opacity(_)));
-    let interactive_transform = interactive(|property| matches!(
-        property,
-        StyleProperty::Translate(_)
-            | StyleProperty::TranslateX(_)
-            | StyleProperty::TranslateY(_)
-            | StyleProperty::Rotate(_)
-            | StyleProperty::RotateX(_)
-            | StyleProperty::RotateY(_)
-            | StyleProperty::RotateZ(_)
-            | StyleProperty::ScaleX(_)
-            | StyleProperty::ScaleY(_)
-    ) || matches!(property, StyleProperty::Scale(values) if values.len() <= 2)
-        || crate::transforms::is_control(property));
+    let interactive_transform = interactive(|property| {
+        matches!(
+            property,
+            StyleProperty::Translate(_)
+                | StyleProperty::TranslateX(_)
+                | StyleProperty::TranslateY(_)
+                | StyleProperty::Rotate(_)
+                | StyleProperty::RotateX(_)
+                | StyleProperty::RotateY(_)
+                | StyleProperty::RotateZ(_)
+                | StyleProperty::ScaleX(_)
+                | StyleProperty::ScaleY(_)
+        ) || matches!(property, StyleProperty::Scale(values) if values.len() <= 2)
+            || crate::transforms::is_control(property)
+    });
     let has_base_text_color = declarations.iter().any(|declaration| {
         matches!(declaration.property, StyleProperty::TextColor(_))
             && matches!(declaration.condition, Condition::Always)
     });
-    let interactive_colors = interactive(|property| matches!(property, StyleProperty::BackgroundColor(_)))
-        || (has_base_text_color
-            && interactive(|property| matches!(property, StyleProperty::TextColor(_))));
+    let interactive_colors =
+        interactive(|property| matches!(property, StyleProperty::BackgroundColor(_)))
+            || (has_base_text_color
+                && interactive(|property| matches!(property, StyleProperty::TextColor(_))));
     if !interactive_opacity && !interactive_transform && !interactive_colors {
         return None;
     }
-    let properties = declarations.iter().rev().find_map(|declaration| match &declaration.property {
-        StyleProperty::TransitionProperty(properties) => Some(properties.as_str()),
-        _ => None,
-    })?;
+    let properties =
+        declarations
+            .iter()
+            .rev()
+            .find_map(|declaration| match &declaration.property {
+                StyleProperty::TransitionProperty(properties) => Some(properties.as_str()),
+                _ => None,
+            })?;
     if properties == "none" {
         return None;
     }
     let includes = |wanted: &[&str]| {
         properties == "all"
-            || properties.split(',').any(|property| wanted.contains(&property.trim()))
+            || properties
+                .split(',')
+                .any(|property| wanted.contains(&property.trim()))
     };
     let opacity = interactive_opacity && includes(&["opacity"]);
-    let transform = interactive_transform && includes(&["transform", "translate", "scale", "rotate"]);
+    let transform =
+        interactive_transform && includes(&["transform", "translate", "scale", "rotate"]);
     let colors = interactive_colors && includes(&["color", "background-color"]);
-    if !opacity && !transform && !colors { return None; }
-    let duration = declarations.iter().rev().find_map(|declaration| match declaration.property {
-        StyleProperty::TransitionDuration(duration, _) => Some(duration),
-        _ => None,
-    }).unwrap_or(150);
-    let delay = declarations.iter().rev().find_map(|declaration| match declaration.property {
-        StyleProperty::TransitionDelay(delay, _) => Some(delay),
-        _ => None,
-    }).unwrap_or(0);
-    let timing = declarations.iter().rev().find_map(|declaration| match &declaration.property {
-        StyleProperty::TransitionTimingFunction(timing, _) => Some(timing.as_str()),
-        _ => None,
-    }).unwrap_or("cubic-bezier(0.4, 0, 0.2, 1)");
+    if !opacity && !transform && !colors {
+        return None;
+    }
+    let duration = declarations
+        .iter()
+        .rev()
+        .find_map(|declaration| match declaration.property {
+            StyleProperty::TransitionDuration(duration, _) => Some(duration),
+            _ => None,
+        })
+        .unwrap_or(150);
+    let delay = declarations
+        .iter()
+        .rev()
+        .find_map(|declaration| match declaration.property {
+            StyleProperty::TransitionDelay(delay, _) => Some(delay),
+            _ => None,
+        })
+        .unwrap_or(0);
+    let timing = declarations
+        .iter()
+        .rev()
+        .find_map(|declaration| match &declaration.property {
+            StyleProperty::TransitionTimingFunction(timing, _) => Some(timing.as_str()),
+            _ => None,
+        })
+        .unwrap_or("cubic-bezier(0.4, 0, 0.2, 1)");
     let easing = match timing {
         "linear" => "linear",
         "ease-in" | "cubic-bezier(0.4, 0, 1, 1)" => "ease-in",
@@ -94,14 +118,21 @@ pub(super) fn native_driver_transition(
 /// evaluates the style for each interaction state and can compare them,
 /// and here the guard is a runtime value, so what the style *becomes* is
 /// only known once it has. `HozoAnimated` diffs it at render instead.
-pub(super) fn ambient_transition(node: &Node, declarations: &[StyleDeclaration]) -> Option<(u32, u32, &'static str)> {
+pub(super) fn ambient_transition(
+    node: &Node,
+    declarations: &[StyleDeclaration],
+) -> Option<(u32, u32, &'static str)> {
     if super::interaction::owns_events(node) {
         return None;
     }
-    let properties = declarations.iter().rev().find_map(|declaration| match &declaration.property {
-        StyleProperty::TransitionProperty(properties) => Some(properties.as_str()),
-        _ => None,
-    })?;
+    let properties =
+        declarations
+            .iter()
+            .rev()
+            .find_map(|declaration| match &declaration.property {
+                StyleProperty::TransitionProperty(properties) => Some(properties.as_str()),
+                _ => None,
+            })?;
     if properties == "none" {
         return None;
     }
@@ -177,8 +208,16 @@ mod ambient_transition_tests {
         // and the element crossfades instead of jumping.
         let out = compile("transition bg-white dark:bg-black");
         assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
-        assert!(out.jsx.contains("hozoTransition={{ duration: 150"), "{}", out.jsx);
-        assert!(out.runtime_imports.contains(&"HozoAnimated"), "{:?}", out.runtime_imports);
+        assert!(
+            out.jsx.contains("hozoTransition={{ duration: 150"),
+            "{}",
+            out.jsx
+        );
+        assert!(
+            out.runtime_imports.contains(&"HozoAnimated"),
+            "{:?}",
+            out.runtime_imports
+        );
         // The transition properties are consumed rather than refused --
         // they are Web-only on an element with nothing to animate and
         // lowered on one with something.
@@ -189,7 +228,8 @@ mod ambient_transition_tests {
     fn the_duration_and_easing_come_from_the_classes() {
         let out = compile("transition duration-500 ease-linear opacity-100 md:opacity-50");
         assert!(
-            out.jsx.contains("hozoTransition={{ duration: 500, delay: 0, easing: 'linear' }}"),
+            out.jsx
+                .contains("hozoTransition={{ duration: 500, delay: 0, easing: 'linear' }}"),
             "{}",
             out.jsx,
         );
@@ -202,12 +242,19 @@ mod ambient_transition_tests {
         // would add a component and an animation that never shows.
         let out = compile("transition dark:rounded-lg");
         assert!(out.jsx.starts_with("<View"), "{}", out.jsx);
-        assert!(!out.runtime_imports.contains(&"HozoAnimated"), "{:?}", out.runtime_imports);
+        assert!(
+            !out.runtime_imports.contains(&"HozoAnimated"),
+            "{:?}",
+            out.runtime_imports
+        );
     }
 
     #[test]
     fn a_change_with_no_transition_asked_for_is_not_animated() {
-        for class_name in ["bg-white dark:bg-black", "transition-none bg-white dark:bg-black"] {
+        for class_name in [
+            "bg-white dark:bg-black",
+            "transition-none bg-white dark:bg-black",
+        ] {
             let out = compile(class_name);
             assert!(out.jsx.starts_with("<View"), "{class_name}: {}", out.jsx);
         }
@@ -258,8 +305,10 @@ mod ambient_transition_tests {
         assert!(out.jsx.starts_with("<View"), "{}", out.jsx);
         assert!(!out.jsx.contains("hozoStarting"), "{}", out.jsx);
         assert!(
-            out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("`starting:`")
-                && diagnostic.severity == hozo_ir::Severity::Warning),
+            out.diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("`starting:`")
+                    && diagnostic.severity == hozo_ir::Severity::Warning),
             "{:?}",
             out.diagnostics,
         );
@@ -270,7 +319,9 @@ mod ambient_transition_tests {
         let out = compile("transition opacity-100 starting:opacity-0 starting:w-0");
         assert!(out.jsx.contains("hozoStarting="), "{}", out.jsx);
         assert!(
-            out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("opacity, transforms and colours")),
+            out.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("opacity, transforms and colours")),
             "{:?}",
             out.diagnostics,
         );
@@ -281,10 +332,15 @@ mod ambient_transition_tests {
     // on Web: the first frame, guarded by the preference.
     #[test]
     fn a_starting_value_can_be_stacked_with_reduced_motion() {
-        let out = compile("transition opacity-100 starting:opacity-0 motion-safe:starting:translate-y-4");
+        let out =
+            compile("transition opacity-100 starting:opacity-0 motion-safe:starting:translate-y-4");
         assert!(out.jsx.starts_with("<HozoAnimated"), "{}", out.jsx);
         let starting = out.jsx.split("hozoStarting={").nth(1).unwrap_or("");
-        assert!(starting.contains("__hozoEnv_motion_safe && hozoStyles."), "{}", out.jsx);
+        assert!(
+            starting.contains("__hozoEnv_motion_safe && hozoStyles."),
+            "{}",
+            out.jsx
+        );
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
         let style = out.jsx.split("style={").nth(1).unwrap_or("");
         let style = &style[..style.find('}').unwrap_or(style.len())];
@@ -294,7 +350,11 @@ mod ambient_transition_tests {
     #[test]
     fn and_with_a_breakpoint() {
         let out = compile("transition md:starting:opacity-0");
-        assert!(out.jsx.contains("hozoStarting={__hozoBp_md && hozoStyles."), "{}", out.jsx);
+        assert!(
+            out.jsx.contains("hozoStarting={__hozoBp_md && hozoStyles."),
+            "{}",
+            out.jsx
+        );
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     }
 
@@ -303,7 +363,9 @@ mod ambient_transition_tests {
         let out = compile("motion-safe:starting:translate-y-4");
         assert!(!out.jsx.contains("hozoStarting"), "{}", out.jsx);
         assert!(
-            out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("first frame of an enter animation")),
+            out.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("first frame of an enter animation")),
             "{:?}",
             out.diagnostics,
         );
@@ -335,7 +397,11 @@ mod ambient_transition_tests {
     fn a_closed_state_can_be_stacked_with_reduced_motion() {
         let out = compile("transition data-[state=closed]:opacity-0 motion-safe:data-[state=closed]:translate-y-4");
         let exit = out.jsx.split("hozoExit={").nth(1).unwrap_or("");
-        assert!(exit.contains("__hozoEnv_motion_safe && hozoStyles."), "{}", out.jsx);
+        assert!(
+            exit.contains("__hozoEnv_motion_safe && hozoStyles."),
+            "{}",
+            out.jsx
+        );
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
     }
 
@@ -344,8 +410,10 @@ mod ambient_transition_tests {
         let out = compile("data-[state=closed]:opacity-0");
         assert!(!out.jsx.contains("hozoExit"), "{}", out.jsx);
         assert!(
-            out.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("removed at once")
-                && diagnostic.severity == hozo_ir::Severity::Warning),
+            out.diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("removed at once")
+                    && diagnostic.severity == hozo_ir::Severity::Warning),
             "{:?}",
             out.diagnostics,
         );
@@ -356,7 +424,9 @@ mod ambient_transition_tests {
         let out = compile("transition data-[state=open]:opacity-100");
         assert!(!out.jsx.contains("hozoExit"), "{}", out.jsx);
         assert!(
-            out.diagnostics.iter().any(|diagnostic| diagnostic.severity == hozo_ir::Severity::Error),
+            out.diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.severity == hozo_ir::Severity::Error),
             "{:?}",
             out.diagnostics,
         );
@@ -401,7 +471,10 @@ fn runtime_variable(condition: &Condition) -> bool {
     // store. Polarity changes its target, not whether it can transition.
     if let Condition::Not(inner) = condition {
         return match inner.as_ref() {
-            Condition::Dark | Condition::Responsive(_) | Condition::Width { .. } | Condition::Container { .. } => true,
+            Condition::Dark
+            | Condition::Responsive(_)
+            | Condition::Width { .. }
+            | Condition::Container { .. } => true,
             Condition::Environment(query) => super::native_environment(*query).is_some(),
             Condition::Not(_) => runtime_variable(inner),
             _ => false,
@@ -441,7 +514,11 @@ mod interaction_transition_tests {
             "{}",
             output.jsx
         );
-        assert!(output.jsx.contains("hovered && hozoStyles.hozo0_hover"), "{}", output.jsx);
+        assert!(
+            output.jsx.contains("hovered && hozoStyles.hozo0_hover"),
+            "{}",
+            output.jsx
+        );
     }
 
     #[test]
@@ -455,7 +532,9 @@ mod interaction_transition_tests {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(
-            output.jsx.contains("duration: 200, delay: 75, easing: 'linear'"),
+            output
+                .jsx
+                .contains("duration: 200, delay: 75, easing: 'linear'"),
             "{}",
             output.jsx
         );
@@ -476,7 +555,13 @@ mod interaction_transition_tests {
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert!(output.jsx.contains("colors: true"), "{}", output.jsx);
-        assert!(output.jsx.contains("<HozoText style={({ pressed, hovered, focused }) =>"), "{}", output.jsx);
+        assert!(
+            output
+                .jsx
+                .contains("<HozoText style={({ pressed, hovered, focused }) =>"),
+            "{}",
+            output.jsx
+        );
         assert!(output.runtime_imports.contains(&"HozoText"));
     }
 
@@ -493,7 +578,13 @@ mod interaction_transition_tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert!(output.jsx.contains("<HozoText style={({ pressed, hovered, focused }) =>"), "{}", output.jsx);
+        assert!(
+            output
+                .jsx
+                .contains("<HozoText style={({ pressed, hovered, focused }) =>"),
+            "{}",
+            output.jsx
+        );
     }
 
     #[test]
