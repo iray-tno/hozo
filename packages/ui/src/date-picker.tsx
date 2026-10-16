@@ -18,6 +18,7 @@
  * beside the reason.
  */
 
+import { Text } from '@hozo/core'
 import { DatePicker as DatePickerPattern, type DatePickerProps } from '@hozo/form'
 
 import { CALENDAR, TODAY } from './calendar-look.ts'
@@ -34,7 +35,7 @@ export type HozoDatePickerProps = Omit<
 >
 
 const day = ({ date, today }: { date: { day: number }; today: boolean }) =>
-  today ? <span className={TODAY}>{date.day}</span> : date.day
+  today ? <Text className={TODAY}>{date.day}</Text> : date.day
 
 export function HozoDatePicker({ className, renderDay, ...rest }: HozoDatePickerProps) {
   return (

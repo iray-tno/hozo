@@ -22,6 +22,7 @@
  * Everything else is `calendar-look.ts`, shared with the three other grids.
  */
 
+import { Text } from '@hozo/core'
 import { DateTimePicker as DateTimePickerPattern, type DateTimePickerProps } from '@hozo/form'
 
 import { CALENDAR, TODAY } from './calendar-look.ts'
@@ -40,7 +41,7 @@ export type HozoDateTimePickerProps = Omit<
 >
 
 const day = ({ date, today }: { date: { day: number }; today: boolean }) =>
-  today ? <span className={TODAY}>{date.day}</span> : date.day
+  today ? <Text className={TODAY}>{date.day}</Text> : date.day
 
 /**
  * Done, which closes and confirms nothing.

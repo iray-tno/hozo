@@ -27,6 +27,7 @@
  * Those three attributes carried no CSS at all until #679.
  */
 
+import { Text } from '@hozo/core'
 import { Calendar as CalendarPattern, type CalendarProps } from '@hozo/form'
 
 import { CALENDAR, TODAY } from './calendar-look.ts'
@@ -54,7 +55,7 @@ export type { CalendarDay as HozoCalendarDay } from '@hozo/form'
  * which is the bargain `Tree` makes for the same reason.
  */
 const day = ({ date, today }: { date: { day: number }; today: boolean }) =>
-  today ? <span className={TODAY}>{date.day}</span> : date.day
+  today ? <Text className={TODAY}>{date.day}</Text> : date.day
 
 export function HozoCalendar({ className, renderDay, ...rest }: HozoCalendarProps) {
   return (
