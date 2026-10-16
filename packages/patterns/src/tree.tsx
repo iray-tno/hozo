@@ -5,6 +5,12 @@ import { horizontalMove, type TreeNode, visibleRows } from './tree-rules.ts'
 
 export type { TreeNode }
 
+/** What `rowLook` returns: class lists, read by the pattern on either platform. */
+export interface HozoTreeRowLook {
+  indentClassName?: string
+  markerClassName?: string
+}
+
 export interface HozoTreeProps {
   nodes: readonly TreeNode[]
   defaultExpanded?: readonly string[]
@@ -28,6 +34,20 @@ export interface HozoTreeProps {
     expanded: boolean
     branch: boolean
   }) => ReactNode
+  /**
+   * The row's inside as a look, for a caller who wants a marker and an
+   * indent without taking the row over.
+   *
+   * The pattern draws them: an inner element with `indentClassName`, a
+   * decorative marker with `markerClassName` hidden from assistive
+   * technology (a glyph in the label would be in the accessible name), and
+   * the label, which keeps the row's own text styles on React Native -- what
+   * a `renderRow` cannot do there, since the row's resolved text style never
+   * reaches it. Real elements rather than `::before`, so the marker exists
+   * on a platform without pseudo-elements (#983). `renderRow` wins if both
+   * are given.
+   */
+  rowLook?: (row: { level: number; expanded: boolean; branch: boolean }) => HozoTreeRowLook
 }
 
 export function HozoTree({
@@ -39,6 +59,7 @@ export function HozoTree({
   className,
   rowClassName,
   renderRow,
+  rowLook,
 }: HozoTreeProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(defaultExpanded))
   const [active, setActive] = useState(0)
@@ -138,10 +159,26 @@ export function HozoTree({
                 expanded: row.expanded,
                 branch: row.branch,
               })
-            : row.label}
+            : rowLook
+              ? rowInside(
+                  rowLook({ level: row.level, expanded: row.expanded, branch: row.branch }),
+                  row.label,
+                )
+              : row.label}
         </div>
       ))}
     </div>
+  )
+}
+
+function rowInside(look: HozoTreeRowLook, label: string) {
+  return (
+    <span className={look.indentClassName}>
+      {look.markerClassName === undefined ? null : (
+        <span aria-hidden="true" className={look.markerClassName} />
+      )}
+      <span>{label}</span>
+    </span>
   )
 }
 

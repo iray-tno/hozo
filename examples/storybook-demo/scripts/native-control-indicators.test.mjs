@@ -43,7 +43,7 @@ cache.scanFile(
   `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${otpSemanticClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
 )
-for (const file of ['toggle.tsx', 'radio.tsx']) {
+for (const file of ['toggle.tsx', 'radio.tsx', 'tree.tsx']) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
 const moduleSource = cache
@@ -110,6 +110,7 @@ const exportsFrom = (names, relative) =>
 const probeSources = [
   exportsFrom('HozoCheckbox, HozoSwitch', 'packages/ui/src/toggle.tsx'),
   exportsFrom('HozoRadioGroup', 'packages/ui/src/radio.tsx'),
+  exportsFrom('HozoTree as UiTree', 'packages/ui/src/tree.tsx'),
   exportsFrom('HozoTabs', 'packages/patterns/src/tabs.native.tsx'),
   exportsFrom(
     'HozoCheckbox as CheckboxPattern, HozoSwitch as SwitchPattern',
@@ -184,7 +185,7 @@ const bundled = await build({
           namespace: 'probe',
         }))
         builder.onLoad({ filter: /.*/, namespace: 'probe' }, () => ({
-          contents: `export { HozoCheckbox as Checkbox, HozoSwitch as Switch } from ${JSON.stringify(filename('packages/patterns/src/toggle.native.tsx'))}; export { HozoRadioGroup as RadioGroup } from ${JSON.stringify(filename('packages/patterns/src/radio.native.tsx'))};`,
+          contents: `export { HozoCheckbox as Checkbox, HozoSwitch as Switch } from ${JSON.stringify(filename('packages/patterns/src/toggle.native.tsx'))}; export { HozoRadioGroup as RadioGroup } from ${JSON.stringify(filename('packages/patterns/src/radio.native.tsx'))}; export { HozoTree as Tree } from ${JSON.stringify(filename('packages/patterns/src/tree.native.tsx'))};`,
           loader: 'ts',
           resolveDir: root,
         }))
@@ -224,7 +225,7 @@ const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.ex
 const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
 const { HozoColorPicker, HozoStepper } = module.exports
 const { HozoChip, HozoOtpInput } = module.exports
-const { usePressableInteraction } = module.exports
+const { usePressableInteraction, UiTree } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
 const indicators = (tree) =>
@@ -741,6 +742,37 @@ test('Native Tree interaction does not expand branches or select leaves', async 
   assert.deepEqual(selected, ['leaf'])
   await press(hosts()[0])
   assert.equal(hosts().length, 2)
+})
+
+test('Native UI Tree draws a real, hidden marker and keeps the row text style on its label', async (t) => {
+  // #983: the marker was a `::before`, which React Native cannot draw, and a
+  // `renderRow` never received the row's resolved text style.
+  const tree = await mount(t, UiTree, {
+    nodes: [
+      { id: 'folder', label: 'Folder', children: [{ id: 'leaf', label: 'Leaf' }] },
+      { id: 'file', label: 'File' },
+    ],
+    selectedId: 'file',
+  })
+  const rows = () => tree.root.findAllByType('NativePressable')
+  const marker = (row) =>
+    row.findAll((node) => node.type === 'NativeView' && node.props.importantForAccessibility)[0]
+  const label = (row) => row.findAll((node) => node.type === 'NativeText')[0]
+  const closed = flat(marker(rows()[0]).props.style)
+  assert.equal(marker(rows()[0]).props.accessible, false)
+  assert.equal(closed.borderBottomWidth, 2)
+  assert.equal(closed.borderRightWidth, 2)
+  assert.deepEqual(closed.transform, [{ rotate: '-45deg' }])
+  // A leaf reserves the same width and draws no border.
+  const leaf = flat(marker(rows()[1]).props.style)
+  assert.equal(leaf.width, closed.width)
+  assert.equal(leaf.borderBottomWidth, undefined)
+  // The selected row's own text style reaches its label.
+  assert.equal(label(rows()[1]).props.children, 'File')
+  assert.equal(flat(label(rows()[1]).props.style).fontWeight, '600')
+  assert.equal(flat(label(rows()[0]).props.style).fontWeight, undefined)
+  await press(rows()[0])
+  assert.deepEqual(flat(marker(rows()[0]).props.style).transform, [{ rotate: '45deg' }])
 })
 
 test('Native CommandPalette current item and shortcut receive host facts independently of activation', async (t) => {
