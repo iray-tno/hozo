@@ -66,6 +66,7 @@ export const hozoMessages = {
   'hozo.dateRangePicker.dialog': 'Choose a range of dates',
   'hozo.dateTimePicker.dialog': 'Choose a date and time',
   'hozo.dateTimePicker.done': 'Done',
+  'hozo.field.required': 'Required',
   'hozo.fileDropzone.selectedMany': '{count} files selected',
   'hozo.fileDropzone.selectedOne': '{name} selected, {size}',
   'hozo.fileDropzone.tooLarge': '{name} is too large: {size}, and the limit is {limit}',
