@@ -20,6 +20,9 @@ use oxc_syntax::module_record::{ImportImportName, ModuleRecord};
 
 use crate::tailwind;
 
+mod evaluation;
+pub(crate) use evaluation::capture_evaluation;
+
 /// Import sources whose default export/named exports are trusted to behave
 /// like `clsx` (join truthy string arguments with a space) when recognized
 /// as a call. Not scope-aware: a *local* binding that happens to share the

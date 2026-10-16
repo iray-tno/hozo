@@ -36,6 +36,7 @@ pub(super) struct PatternClasses {
     class_prop: &'static str,
     expressions: Vec<String>,
     capture: Option<String>,
+    evaluation: Option<String>,
 }
 
 impl PatternClasses {
@@ -45,28 +46,36 @@ impl PatternClasses {
         expressions: Vec<String>,
         has_compiled_styles: bool,
         source: &str,
+        evaluation: Option<&hozo_ir::ClassEvaluation>,
     ) -> Option<Self> {
-        if expressions.is_empty() || pattern::interaction_slot(primitive, class_prop).is_none() {
+        if (expressions.is_empty() && evaluation.is_none())
+            || pattern::interaction_slot(primitive, class_prop).is_none()
+        {
             return None;
         }
-        let capture = (has_compiled_styles || expressions.len() != 1).then(|| {
-            // Authored guards inside the callback must not accidentally read
-            // one of our locals. A source-wide prefix check also protects
-            // property/shorthand references without another JS parse pass.
-            let mut index = 0;
-            loop {
-                let name = format!("__hozoClassSlot{index}");
-                if !source.contains(&name) {
-                    break name;
-                }
-                index += 1;
-            }
-        });
+        let capture = evaluation
+            .map(|evaluation| evaluation.name(source))
+            .or_else(|| {
+                (has_compiled_styles || expressions.len() != 1).then(|| {
+                    // Authored guards inside the callback must not accidentally read
+                    // one of our locals. A source-wide prefix check also protects
+                    // property/shorthand references without another JS parse pass.
+                    let mut index = 0;
+                    loop {
+                        let name = format!("__hozoClassSlot{index}");
+                        if !source.contains(&name) {
+                            break name;
+                        }
+                        index += 1;
+                    }
+                })
+            });
         Some(Self {
             primitive,
             class_prop,
             expressions,
             capture,
+            evaluation: evaluation.map(|evaluation| evaluation.render(source)),
         })
     }
 
@@ -75,7 +84,14 @@ impl PatternClasses {
             self.expressions
                 .iter()
                 .enumerate()
-                .map(|(index, _)| format!("hozoClasses({name}Value{index}, {name}State)"))
+                .map(|(index, expr)| {
+                    let value = if self.evaluation.is_some() {
+                        expr.clone()
+                    } else {
+                        format!("{name}Value{index}")
+                    };
+                    format!("hozoClasses({value}, {name}State)")
+                })
                 .collect()
         })
     }
@@ -85,6 +101,14 @@ impl PatternClasses {
             return format!(" {}={{{}}}", self.class_prop, self.expressions[0]);
         };
         let owner = pattern::interaction_slot(self.primitive, self.class_prop).unwrap();
+        if let Some(evaluation) = &self.evaluation {
+            return format!(
+                " {}={{(({name}) => ({name}State) => {{ const {} = {name}State; return [{}]; }})({evaluation})}}",
+                owner.style_prop,
+                parameters(self.primitive, self.class_prop),
+                parts.join(", "),
+            );
+        }
         let values = (0..self.expressions.len())
             .map(|index| format!("{name}Value{index}"))
             .collect::<Vec<_>>()

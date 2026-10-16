@@ -109,7 +109,7 @@ export function C() { return <Chip defaultSelected className={cx('p-2 hover:opac
   assert.doesNotMatch(output, /className=|HozoPressable|HozoText/)
 })
 
-test('mixed secondary expressions retain AOT on every registered owner and keep JS guards opaque', () => {
+test('mixed secondary expressions retain AOT and source-ordered guards on registered owners', () => {
   for (const [component, slot, state] of [
     ['Chip', 'removeClassName', 'hover'],
     ['Pagination', 'itemClassName', 'hover'],
@@ -135,8 +135,25 @@ test('mixed secondary expressions retain AOT on every registered owner and keep 
     'Guarded.tsx',
     '/project',
   )
-  assert.match(guarded, /removeClassName=\{cx\(first\(\), guard\(\) && 'p-2', last\(\)\)\}/)
-  assert.doesNotMatch(guarded, /hozoClasses|__hozoClassSlot/)
+  assert.match(guarded, /hozoRemoveStyle=\{\(\(__hozoClassPlan\d+/)
+  assert.match(
+    guarded,
+    /\[\(first\(\)\), \.\.\.\(\(guard\(\)\) \? \[true\] : \[false\]\), \(last\(\)\)\]/,
+  )
+  for (const call of ['first', 'guard', 'last'])
+    assert.equal(guarded.match(new RegExp(`${call}\\(\\)`, 'g'))?.length, 1)
+  assert.match(guarded, /paddingTop: 8/)
+  const pureGuard = transformHozoSource(
+    `import {Chip} from '@hozo/core'; export function C() {return <Chip removeClassName={guard() ? 'p-2' : 'p-4'} />}`,
+    'PureGuard.tsx',
+    '/project',
+  )
+  assert.match(pureGuard, /__hozoClassPlan/)
+  assert.doesNotMatch(
+    pureGuard,
+    /hozoClasses|candidate/,
+    'an enumerable guard needs no candidate lookup, even when the owner changes state',
+  )
   const compiler = createCompiler()
   compiler.setClassHelpers([{ module: '@/utils', name: 'cn' }])
   const configured = transformHozoSource(

@@ -57,6 +57,24 @@ export function GuardedRemoveProbe({ getClasses, getGuard, getOtherClasses }) {
   return <Chip onRemove={() => {}}
     removeClassName={cx(getClasses(), getGuard() && 'p-2', getOtherClasses())}>Token</Chip>
 }
+export function OrderedRemoveProbe({ first, outer, inner, off, last, extra, remove = () => {} }) {
+  return <Chip onRemove={remove}
+    removeClassName={cx('not-focus:rounded-lg hover:opacity-50', first(), outer() ? inner() ? 'p-2' : 'p-4' : off() && 'p-6', last())}
+    removeStyle={extra}>Token</Chip>
+}
+export function GuardedDecorationProbe({ cell, filled }) {
+  return <OtpInput length={3} value="1" onChange={() => {}}
+    cellClassName={cell() ? 'p-2' : 'p-4'} filledCellClassName={filled() && 'opacity-50'} />
+}
+export async function AwaitGuardProbe(wait) {
+  return <Chip onRemove={() => {}} removeClassName={(await wait()) ? 'p-2' : 'p-4'} />
+}
+export function* YieldGuardProbe() {
+  return <Chip onRemove={() => {}} removeClassName={(yield 'guard') ? 'p-2' : 'p-4'} />
+}
+export function ReceiverGuardProbe() {
+  return <Chip onRemove={() => {}} removeClassName={this.read(arguments[0]) ? 'p-2' : 'p-4'} />
+}
 export function ColorProbe({ disabled, value, onChange, extra }) {
   return <ColorPicker accessibilityLabel="Colour" presets={['#ef4444', '#3b82f6']}
     defaultValue="#3b82f6" value={value} onChange={onChange} disabled={disabled}
@@ -326,6 +344,125 @@ test('guarded secondary expressions preserve original short-circuit order and si
     assert.deepEqual(calls, ['first', 'guard', 'last'])
     assert.equal(flat(remove()).backgroundColor, '#123456')
     assert.equal(flat(remove()).outlineWidth, 2)
+  } finally {
+    view.unmount()
+  }
+})
+
+test('nested secondary guards skip inactive branches and retain captured values across owner events', () => {
+  const calls: string[] = []
+  let outer = true
+  let inner = true
+  let off = false
+  const read = (name, value) => () => {
+    calls.push(name)
+    return value()
+  }
+  const props = {
+    first: read('first', () => undefined),
+    outer: read('outer', () => outer),
+    inner: read('inner', () => inner),
+    off: read('off', () => off),
+    last: read('last', () => undefined),
+  }
+  const view = mount('OrderedRemoveProbe', props)
+  const remove = () => hosts(view.tree, 'button')[0]
+  try {
+    assert.deepEqual(calls, ['first', 'outer', 'inner', 'last'])
+    assert.equal(flat(remove()).paddingTop, 8)
+    assert.equal(flat(remove()).borderRadius, 8)
+    event(remove(), 'onHoverIn')
+    event(remove(), 'onFocus')
+    assert.equal(flat(remove()).opacity, 0.5)
+    assert.equal(flat(remove()).borderRadius, undefined)
+    assert.deepEqual(calls, ['first', 'outer', 'inner', 'last'])
+    calls.length = 0
+    inner = false
+    view.update(props)
+    assert.equal(flat(remove()).paddingTop, 16)
+    assert.deepEqual(calls, ['first', 'outer', 'inner', 'last'])
+    calls.length = 0
+    outer = false
+    view.update(props)
+    assert.deepEqual(calls, ['first', 'outer', 'off', 'last'])
+    assert.equal(flat(remove()).paddingTop, undefined, 'false AOT branches contribute no padding')
+    calls.length = 0
+    off = true
+    view.update({ ...props, extra: { paddingTop: 31 } })
+    assert.equal(flat(remove()).paddingTop, 31, 'explicit style remains last')
+    assert.equal(flat(remove()).paddingBottom, 24)
+    assert.deepEqual(calls, ['first', 'outer', 'off', 'last'])
+    calls.length = 0
+    view.update({ ...props, remove: null })
+    assert.equal(hosts(view.tree, 'button').length, 0, 'no removal owner is invented')
+    assert.deepEqual(
+      calls,
+      ['first', 'outer', 'off', 'last'],
+      'author inputs still run when the slot is absent',
+    )
+  } finally {
+    view.unmount()
+  }
+})
+
+test('captured class inputs preserve await, yield, this and arguments in the authored scope', async () => {
+  const style = (element) => stub.StyleSheet.flatten(element.props.hozoRemoveStyle({}))
+  assert.equal(style(await components.AwaitGuardProbe(async () => true)).paddingTop, 8)
+  const iterator = components.YieldGuardProbe()
+  assert.deepEqual(iterator.next(), { value: 'guard', done: false })
+  const result = iterator.next(false)
+  assert.equal(result.done, true)
+  assert.equal(style(result.value).paddingTop, 16)
+  const receiver = {
+    expected: {},
+    read(value) {
+      return value === this.expected
+    },
+  }
+  assert.equal(style(components.ReceiverGuardProbe.call(receiver, receiver.expected)).paddingTop, 8)
+  assert.equal(style(components.ReceiverGuardProbe.call(receiver, {})).paddingTop, 16)
+  const calls = []
+  assert.throws(
+    () =>
+      components.OrderedRemoveProbe({
+        first() {
+          calls.push('first')
+        },
+        outer() {
+          calls.push('outer')
+          throw new Error('guard failed')
+        },
+        last() {
+          calls.push('last')
+        },
+      }),
+    /guard failed/,
+  )
+  assert.deepEqual(calls, ['first', 'outer'], 'an abrupt guard skips every later input')
+})
+
+test('decorative slots capture independent predicates without borrowing interaction ownership', () => {
+  const calls: string[] = []
+  const props = {
+    cell: () => {
+      calls.push('cell')
+      return true
+    },
+    filled: () => {
+      calls.push('filled')
+      return true
+    },
+  }
+  const view = mount('GuardedDecorationProbe', props)
+  try {
+    assert.deepEqual(calls, ['cell', 'filled'])
+    const cells = view.tree.root.findAll(
+      (node: Tree) =>
+        node.type === 'View' && stub.StyleSheet.flatten(node.props.style)?.paddingTop === 8,
+    )
+    assert.equal(cells.length, 3)
+    assert.equal(flat(cells[0]).opacity, 0.5)
+    assert.equal(flat(cells[1]).opacity, undefined, 'filled slot applies only to filled cells')
   } finally {
     view.unmount()
   }

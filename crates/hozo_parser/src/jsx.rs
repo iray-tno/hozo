@@ -1268,6 +1268,7 @@ fn build_node(
                     style,
                     carried,
                     fallback: Vec::new(),
+                    evaluation: None,
                     span: to_span(attr.span()),
                 });
             }
@@ -1282,7 +1283,7 @@ fn build_node(
                         .push(passthrough_prop(attr, scope, diagnostics, consumed));
                     continue;
                 };
-                let Some(decomposed) =
+                let Some(mut decomposed) =
                     class_expression(&container.expression, scope, diagnostics, true)
                 else {
                     props
@@ -1290,22 +1291,27 @@ fn build_node(
                         .push(passthrough_prop(attr, scope, diagnostics, consumed));
                     continue;
                 };
-                // A new AOT path must not move an authored JS guard into an
-                // owner's callback, re-evaluate it on hover, or reorder it
-                // against opaque siblings. Keep such expressions whole until
-                // the shared plan can capture their evaluation order too.
-                // Entirely opaque input also keeps its existing zero-capture
-                // forwarding and absent-value behavior.
-                if decomposed.declarations.is_empty()
-                    || decomposed
-                        .declarations
-                        .iter()
-                        .any(|d| matches!(d.condition, Condition::Expr(_)))
-                {
+                // Keep opaque forwarding cheap. Guarded AOT needs a capture
+                // plan, not authored code run again by an owner's callback.
+                let guarded = decomposed
+                    .declarations
+                    .iter()
+                    .any(|d| matches!(d.condition, Condition::Expr(_)));
+                let evaluation = guarded
+                    .then(|| dynamic_class::capture_evaluation(&container.expression, &decomposed))
+                    .flatten();
+                if decomposed.declarations.is_empty() || (guarded && evaluation.is_none()) {
                     props
                         .passthrough
                         .push(passthrough_prop(attr, scope, diagnostics, consumed));
                     continue;
+                }
+                if let Some(evaluation) = &evaluation {
+                    for declaration in &mut decomposed.declarations {
+                        if let Condition::Expr(expression) = &mut declaration.condition {
+                            evaluation.capture_condition(expression);
+                        }
+                    }
                 }
                 consumed.extend(decomposed.consumed);
                 let slot = *primitive
@@ -1318,6 +1324,7 @@ fn build_node(
                     style: decomposed.declarations,
                     carried: Vec::new(),
                     fallback: decomposed.fallback,
+                    evaluation: evaluation.map(Box::new),
                     span: to_span(attr.span()),
                 });
             }
@@ -2127,10 +2134,12 @@ mod class_slot_expression_tests {
     }
 
     #[test]
-    fn guards_unknown_helpers_and_entirely_opaque_lists_keep_the_original_expression() {
+    fn unsafe_guard_splits_unknown_helpers_and_opaque_lists_keep_the_original_expression() {
         for expression in [
-            "cx(first(), guard() && 'p-2', last())",
-            "guard() ? 'p-2' : 'p-4'",
+            "cx(first(), guard() && 'p-2 hover:opacity-50', last())",
+            "guard() ? 'p-2' : unknown()",
+            "cx(guard() && 'p-2', ...rest)",
+            "`p-2 ${guard() && 'p-4'}`",
             "unknown('p-2', first())",
             "cx(first(), last())",
         ] {
@@ -2156,6 +2165,30 @@ mod class_slot_expression_tests {
             .diagnostics
             .iter()
             .any(|d| d.code == DiagnosticCode::TailwindVariantNotSupported));
+    }
+
+    #[test]
+    fn secondary_guards_capture_the_shared_decomposition_in_source_branch_order() {
+        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx(first(), outer() ? inner() ? 'p-2' : 'p-4' : off() && 'p-6', last())} />";
+        let parsed = crate::parse_tsx(source);
+        assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+        let slot = &parsed.roots[0].node.props.class_slots[0];
+        let evaluation = slot.evaluation.as_ref().unwrap();
+        assert_eq!(
+            evaluation
+                .references()
+                .iter()
+                .map(|r| &source[r.0.start as usize..r.0.end as usize])
+                .collect::<Vec<_>>(),
+            ["first()", "outer()", "inner()", "off()", "last()"]
+        );
+        assert_eq!(evaluation.render(source), "[(first()), ...((outer()) ? [true, ...((inner()) ? [true] : [false]), void 0] : [false, void 0, ...((off()) ? [true] : [false])]), (last())]");
+        assert_eq!(slot.fallback.len(), 2);
+        assert!(slot
+            .style
+            .iter()
+            .all(|declaration| matches!(declaration.condition, Condition::Expr(_))));
+        assert_eq!(parsed.consumed_class_spans.len(), 3);
     }
 }
 
