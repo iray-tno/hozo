@@ -60,13 +60,22 @@ interface Resolved {
  * state (#886). Those need no tracking here: the pressable that renders
  * the element already tracks it and hands it in, so this stays a function
  * of the class string and that state.
+ *
+ * `ambient` holds facts that cannot change while the app runs, so no
+ * element has to supply them: `rtl` and `ltr`, because React Native needs
+ * a reload for a direction change to take effect. A class conditioned on
+ * them alone is decided once, when its string is first resolved, and then
+ * cached like an unconditional one -- after the unconditional ones, which is
+ * where Tailwind puts a variant too.
  */
 export function createClassResolver(
   styles: Record<string, StyleObject>,
   unsupported: Record<string, string> = {},
   compose?: (styles: StyleObject[]) => StyleObject[],
   states: Record<string, readonly StateGroup[]> = {},
+  ambient: ClassState = {},
 ): ClassResolver {
+  const isAmbient = (key: string) => Object.hasOwn(ambient, key)
   // Class strings repeat constantly across renders and list items, and the
   // result is immutable, so each distinct string is resolved once.
   const cache = new Map<string, Resolved>()
@@ -85,6 +94,7 @@ export function createClassResolver(
     const groups: StateGroup[] = []
     const groupClasses: string[] = []
     const stateClasses: string[] = []
+    const decided: StyleObject[] = []
     for (const name of value.split(/\s+/)) {
       if (name === '') {
         continue
@@ -96,9 +106,17 @@ export function createClassResolver(
       }
       const conditional = states[name]
       if (conditional) {
-        groups.push(...conditional)
-        groupClasses.push(...conditional.map(() => name))
-        stateClasses.push(name)
+        let needsState = false
+        for (const group of conditional) {
+          if (group[0].every(isAmbient)) {
+            if (group[0].every((key) => Boolean(ambient[key]))) decided.push(group[1])
+            continue
+          }
+          groups.push(group)
+          groupClasses.push(name)
+          needsState = true
+        }
+        if (needsState) stateClasses.push(name)
         continue
       }
       // An unknown class isn't necessarily a Hozo problem -- it may be an
@@ -107,6 +125,7 @@ export function createClassResolver(
       const reason = unsupported[name]
       if (reason) warn(name, reason)
     }
+    base.push(...decided)
     return { base: compose ? compose(base) : base, raw: base, groups, groupClasses, stateClasses }
   }
 
@@ -134,13 +153,16 @@ export function createClassResolver(
       }
       return resolved.base
     }
+    // A group can name an ambient fact beside the element's own, as
+    // `rtl:hover:` does; the element supplies only its part.
+    const facts = { ...ambient, ...state }
     const active = resolved.groups.filter(([keys], index) => {
       // Absent is not false. A focused field must not silently claim that it
       // measured hover/press, or that a spread supplied a disabled driver.
-      if (!keys.every((key) => Object.hasOwn(state, key))) {
+      if (!keys.every((key) => Object.hasOwn(facts, key))) {
         const name = resolved.groupClasses[index]!
         if (!warned.has(name)) {
-          const missing = keys.filter((key) => !Object.hasOwn(state, key))
+          const missing = keys.filter((key) => !Object.hasOwn(facts, key))
           warn(
             name,
             `\`${name}\` needs state (${missing.join(', ')}) this element does not supply.`,
@@ -148,7 +170,7 @@ export function createClassResolver(
         }
         return false
       }
-      return keys.every((key) => Boolean(state[key]))
+      return keys.every((key) => Boolean(facts[key]))
     })
     if (active.length === 0) return resolved.base
     const all = [...resolved.raw, ...active.map(([, style]) => style)]
