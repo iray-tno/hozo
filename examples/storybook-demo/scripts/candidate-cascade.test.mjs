@@ -977,6 +977,127 @@ test('CommandPalette shortcuts remain decorative while the real input keeps DOM 
   }
 })
 
+test('OTP semantic classes separate real input mutability from decorative spans', {
+  skip: !executablePath,
+}, async () => {
+  const inputClasses =
+    'outline-0 rounded-none enabled:rounded-lg disabled:outline-offset-4 not-disabled:outline-offset-2 read-only:outline-2 not-read-only:outline-4 read-only:focus:outline-6 aria-disabled:opacity-25'
+  const decorationClasses =
+    'size-8 outline-0 read-only:outline-2 disabled:outline-offset-8 enabled:opacity-25 aria-disabled:rounded-lg'
+  const css = (
+    await compile('@theme {--spacing:0.25rem; --radius-lg:8px;} @tailwind utilities;')
+  ).build([...inputClasses.split(' '), ...decorationClasses.split(' ')])
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+      import {OtpInput} from '@hozo/patterns';
+      const cases = []; for(const mask of [false,true]) for(const disabled of [false,true])
+        for(const readOnly of [false,true]) cases.push({mask,disabled,readOnly});
+      createRoot(document.getElementById('root')).render(<>{cases.map((props,index)=><section key={index} id={'otp-sem-'+index}>
+        <OtpInput {...props} accessibilityLabel={'Code '+index} value="1" length={2} showCaret={false}
+          inputClassName=${JSON.stringify(inputClasses)} className=${JSON.stringify(decorationClasses)}
+          cellClassName=${JSON.stringify(decorationClasses)} filledCellClassName=${JSON.stringify(decorationClasses)}
+          activeCellClassName=${JSON.stringify(decorationClasses)} /></section>)}</>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(
+      `<style>${css}</style><div id="otp-aria-control" aria-disabled="true" class="${inputClasses}"></div><div id="root"></div>`,
+    )
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(() => document.querySelectorAll('#root input').length === 8)
+    assert.equal(
+      await page.locator('#otp-aria-control').evaluate((e) => getComputedStyle(e).opacity),
+      '0.25',
+    )
+    let index = 0
+    for (const mask of [false, true])
+      for (const disabled of [false, true])
+        for (const readOnly of [false, true]) {
+          const wrapper = page.locator(`#otp-sem-${index} > div`)
+          const input = wrapper.locator('input')
+          assert.deepEqual(
+            await input.evaluate((e) => {
+              const css = getComputedStyle(e)
+              return {
+                disabled: e.matches(':disabled'),
+                enabled: e.matches(':enabled'),
+                readOnly: e.matches(':read-only'),
+                ariaDisabled: e.getAttribute('aria-disabled'),
+                outline: css.outlineWidth,
+                offset: css.outlineOffset,
+                radius: css.borderTopLeftRadius,
+                opacity: css.opacity,
+                type: e.getAttribute('type'),
+              }
+            }),
+            {
+              disabled,
+              enabled: !disabled,
+              readOnly: disabled || readOnly,
+              ariaDisabled: null,
+              outline: disabled || readOnly ? '2px' : '4px',
+              offset: disabled ? '4px' : '2px',
+              radius: disabled ? '0px' : '8px',
+              opacity: '1',
+              type: mask ? 'password' : 'text',
+            },
+          )
+          if (!disabled) {
+            await input.focus()
+            assert.equal(await input.evaluate((e) => e === document.activeElement), true)
+            assert.equal(
+              await input.evaluate((e) => getComputedStyle(e).outlineWidth),
+              readOnly ? '6px' : '4px',
+            )
+          }
+          for (const decoration of [
+            wrapper,
+            ...(await wrapper.locator('span[aria-hidden="true"]').all()),
+          ]) {
+            assert.deepEqual(
+              await decoration.evaluate((e) => {
+                const css = getComputedStyle(e)
+                return {
+                  disabled: e.matches(':disabled'),
+                  enabled: e.matches(':enabled'),
+                  readOnly: e.matches(':read-only'),
+                  focused: e.matches(':focus'),
+                  ariaDisabled: e.getAttribute('aria-disabled'),
+                  outline: css.outlineWidth,
+                  opacity: css.opacity,
+                }
+              }),
+              {
+                disabled: false,
+                enabled: false,
+                readOnly: true,
+                focused: false,
+                ariaDisabled: null,
+                outline: '2px',
+                opacity: '1',
+              },
+            )
+          }
+          index++
+        }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('OTP focus belongs to the one input, not active or filled decorative cells', {
   skip: !executablePath,
 }, async () => {

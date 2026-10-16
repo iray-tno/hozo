@@ -36,9 +36,11 @@ const commandSemanticClasses =
 const activeCommandSemanticClasses = 'aria-selected:border-4'
 const shortcutSemanticClasses =
   'disabled:mt-8 aria-selected:border-2 aria-disabled:opacity-25 aria-checked:outline-4'
+const otpSemanticClasses =
+  'disabled:opacity-25 read-only:outline-2 read-only:focus:outline-4 aria-disabled:border-4 aria-selected:mt-8'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
+  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${otpSemanticClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx']) {
@@ -2191,6 +2193,75 @@ test('Native OTP active and filled slots receive their real state; controlled, m
   const disabled = await mount(t, HozoOtpInput, { accessibilityLabel: 'Code', disabled: true })
   assert.equal(disabled.root.findByType('NativeTextInput').props.editable, false)
   assert.equal(disabled.root.findByType('NativePressable').props.disabled, true)
+})
+
+test('Native OTP runtime semantics keep mutability on the real input, never its wrapper or cells', async (t) => {
+  for (const disabled of [false, true])
+    for (const readOnly of [false, true]) {
+      const props = {
+        accessibilityLabel: 'Code',
+        length: 3,
+        value: '1',
+        disabled,
+        readOnly,
+        className: otpSemanticClasses,
+        inputClassName: otpSemanticClasses,
+        cellClassName: otpSemanticClasses,
+        filledCellClassName: otpSemanticClasses,
+        activeCellClassName: otpSemanticClasses,
+      }
+      const tree = await mount(t, HozoOtpInput, props)
+      const field = () => tree.root.findByType('NativeTextInput')
+      const wrapper = () => tree.root.findByType('NativePressable')
+      const decorations = () => tree.root.findAllByType('NativeView')
+      const frame = () => decorations().find((node) => node.props.pointerEvents === 'none')
+      const cells = () => decorations().filter((node) => node.props.pointerEvents !== 'none')
+      const check = () => {
+        assert.equal(flat(wrapper().props.style).opacity, undefined)
+        assert.equal(
+          flat(wrapper().props.style).outlineWidth,
+          2,
+          'non-editable div matches read-only',
+        )
+        assert.equal(flat(wrapper().props.style).borderTopWidth, undefined)
+        for (const cell of cells()) {
+          assert.equal(
+            flat(cell.props.style).outlineWidth,
+            2,
+            'spans are read-only, not disabled/enabled inputs',
+          )
+          assert.equal(flat(cell.props.style).opacity, undefined)
+          assert.equal(flat(cell.props.style).borderTopWidth, undefined)
+          assert.equal(flat(cell.props.style).marginTop, undefined)
+        }
+      }
+      check()
+      assert.equal(flat(frame().props.style).outlineWidth, disabled || readOnly ? 2 : undefined)
+      assert.equal(flat(frame().props.style).opacity, disabled ? 0.25 : undefined)
+      assert.equal(field().props.editable, !disabled && !readOnly)
+      assert.deepEqual(field().props.accessibilityState, { disabled })
+      if (!disabled) {
+        await act(() => field().props.onFocus({}))
+        assert.equal(flat(frame().props.style).outlineWidth, readOnly ? 4 : undefined)
+        check()
+        await act(() => field().props.onBlur({}))
+      }
+      assert.equal(flat(field().props.style).opacity, 0.011)
+      assert.equal(flat(field().props.style).color, 'transparent')
+      await act(() =>
+        tree.update(
+          React.createElement(HozoOtpInput, {
+            ...props,
+            inputStyle: { outlineWidth: 7 },
+            cellStyle: { outlineWidth: 6 },
+            filledCellStyle: { outlineWidth: 8 },
+          }),
+        ),
+      )
+      assert.equal(flat(frame().props.style).outlineWidth, 7)
+      assert.equal(flat(cells()[0].props.style).outlineWidth, 8)
+      assert.equal(flat(cells()[2].props.style).outlineWidth, 6)
+    }
 })
 
 test('the shared tracker notifies the animation driver synchronously and can omit focus-visible inference', async (t) => {
