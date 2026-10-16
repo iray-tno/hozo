@@ -22,10 +22,18 @@ directly.
 ## Before you open a pull request
 
 ```sh
+cargo fmt --all --check                     # `cargo fmt --all` to fix
 cargo test --workspace
 pnpm --filter @hozo/compiler build:native   # after any change under crates/
 pnpm test                                   # from the repository root
 ```
+
+Rust is formatted by rustfmt with its defaults, and CI's `lint` job fails on
+any difference, as it does for Biome. The three generated modules
+(`hozo_ir::class_slots`, `hozo_parser::aria`, `hozo_parser::tailwind_variants`)
+are `#[rustfmt::skip]`: regenerating them must not produce a diff (the
+style-slots test compares `class_slots.rs` byte for byte), so the generator
+decides the layout. Change the generator, not the file.
 
 `pnpm test` is the same command CI runs. Its package build/test tasks,
 publishing checks and application integration tests must all succeed. The

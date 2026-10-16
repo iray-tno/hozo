@@ -20,6 +20,7 @@ If tools (`node`, `pnpm`, `cargo`) are missing from your `PATH` in a subshell, e
 Run, from the repository root, in this order:
 
 ```sh
+cargo fmt --all --check                      # if anything under crates/ changed; `cargo fmt --all` fixes it
 cargo test --workspace                       # if anything under crates/ changed
 pnpm --filter @hozo/compiler build:native    # after any change under crates/
 pnpm lint
