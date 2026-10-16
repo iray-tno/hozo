@@ -15,12 +15,13 @@ import {
 import type { HozoCommand } from './command-palette.tsx'
 import { currentCommand, rankCommands } from './command-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import type { CommandPaletteSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { HozoCommand }
 
 type Style = StyleProp<ViewStyle | TextStyle>
-type ItemState = InteractionState & { 'aria-disabled': boolean; 'aria-selected': boolean }
+type ItemState = InteractionState & CommandPaletteSlotFacts
 
 export interface HozoCommandPaletteProps {
   open?: boolean
@@ -209,21 +210,22 @@ export function HozoCommandPalette({
                 ) : null}
                 {group.members.map((index) => {
                   const command = commands[index] as HozoCommand
-                  const stateFor = (interaction: InteractionState) => ({
-                    ...interaction,
-                    // The Web input keeps focus through aria-activedescendant.
-                    // A Native button can receive OS focus, but must not lend
-                    // it to the option div's CSS predicates or typography.
-                    focused: false,
-                    focusVisible: false,
-                    // CSS facts describe the Web option div, not this Native
-                    // button's announcement or actual activation guard below.
-                    disabled: false,
-                    enabled: false,
-                    'aria-disabled': Boolean(command.disabled),
-                    'aria-selected': index === current,
-                    'aria-checked': false,
-                  })
+                  const stateFor = (interaction: InteractionState) =>
+                    ({
+                      ...interaction,
+                      // The Web input keeps focus through aria-activedescendant.
+                      // A Native button can receive OS focus, but must not lend
+                      // it to the option div's CSS predicates or typography.
+                      focused: false,
+                      focusVisible: false,
+                      // CSS facts describe the Web option div, not this Native
+                      // button's announcement or actual activation guard below.
+                      disabled: false,
+                      enabled: false,
+                      'aria-disabled': Boolean(command.disabled),
+                      'aria-selected': index === current,
+                      'aria-checked': false,
+                    }) satisfies CommandPaletteSlotFacts
                   // The active command is the return-key target, not a press.
                   // Its look reads the actual host facts. The decorative
                   // shortcut below is not a second focus owner.

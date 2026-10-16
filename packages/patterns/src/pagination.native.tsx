@@ -5,15 +5,10 @@ import { type ReactNode, useCallback, useState } from 'react'
 import { Linking, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { paginationItems } from './pagination-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import type { PaginationSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
-type PaginationSlotState = InteractionState & {
-  readonly [fact: string]: unknown
-  disabled: boolean
-  enabled: boolean
-  'aria-disabled': boolean
-  'aria-selected': false
-}
+type PaginationSlotState = InteractionState & PaginationSlotFacts
 
 export interface HozoPaginationProps {
   page?: number

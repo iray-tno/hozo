@@ -5,12 +5,13 @@ import { type ComponentRef, useLayoutEffect, useRef, useState } from 'react'
 import { type StyleProp, Text, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type OtpSelection, type OtpType, otpActiveIndex, otpCaret, otpValue } from './otp-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import type { OtpDecorationSlotFacts, OtpInputSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { OtpType }
 
 type Style = StyleProp<ViewStyle | TextStyle>
-type InputState = InteractionState & { disabled: boolean; enabled: boolean; readOnly: boolean }
+type InputState = InteractionState & OtpInputSlotFacts
 
 export interface HozoOtpInputProps {
   length?: number
@@ -122,7 +123,7 @@ export function HozoOtpInput({
     'aria-disabled': false,
     'aria-selected': false,
     'aria-checked': false,
-  }
+  } satisfies OtpInputSlotFacts
   const [inputBox, inputText] = splitTextStyle([
     hozoClasses(inputClassName, inputFacts),
     hozoInputStyle?.({ ...inputInteraction, ...inputFacts }),
@@ -130,18 +131,19 @@ export function HozoOtpInput({
   ])
   // The wrapper is an unfocusable hit target, not a second input. In
   // particular a bubbled input focus must not give it a focus-visible ring.
-  const wrapperFacts = (interaction: InteractionState) => ({
-    ...interaction,
-    focused: false,
-    focusVisible: false,
-    // The corresponding Web div/spans are not form controls or editable.
-    disabled: false,
-    enabled: false,
-    readOnly: true,
-    'aria-disabled': false,
-    'aria-selected': false,
-    'aria-checked': false,
-  })
+  const wrapperFacts = (interaction: InteractionState) =>
+    ({
+      ...interaction,
+      focused: false,
+      focusVisible: false,
+      // The corresponding Web div/spans are not form controls or editable.
+      disabled: false,
+      enabled: false,
+      readOnly: true,
+      'aria-disabled': false,
+      'aria-selected': false,
+      'aria-checked': false,
+    }) satisfies OtpDecorationSlotFacts
   const look = (interaction: InteractionState) =>
     splitTextStyle([hozoClasses(className, wrapperFacts(interaction)), style])
 
