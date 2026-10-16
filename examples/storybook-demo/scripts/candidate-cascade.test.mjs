@@ -1676,8 +1676,11 @@ test('mixed Chip root keeps compiled states above caller candidates on Web and N
 }, async () => {
   const caller = 'p-4 opacity-75 rounded-none focus:outline-2'
   const other = 'hover:outline-offset-8'
+  // Tailwind orders rules, not authored class tokens. Pick resting values
+  // for which its raw utility order also agrees with Hozo's caller-over-AOT
+  // resting contract (opacity-100 would beat opacity-75 in raw Tailwind).
   const own =
-    'p-2 opacity-100 outline-0 hover:opacity-50 not-focus:rounded-lg disabled:outline-offset-4'
+    'p-2 opacity-25 outline-0 hover:opacity-50 not-focus:rounded-lg disabled:outline-offset-4'
   const callerCache = openCandidateCache(path.join(directory, 'chip-root-candidates.json'))
   callerCache.scanFile('caller.ts', `export const classes = '${caller} ${other}'`, 1)
   const callerCss = callerCache.renderCss()
@@ -1800,7 +1803,11 @@ test('mixed Chip root keeps compiled states above caller candidates on Web and N
           }
         })
       await page.mouse.move(0, 0)
-      assert.deepEqual(await read(), readNative())
+      assert.deepEqual(
+        await read(),
+        readNative(),
+        raw ? 'raw Tailwind resting' : 'compiled Web resting',
+      )
       await button.hover()
       assert.deepEqual(await read(), readNative({ hovered: true }))
       await button.focus()
