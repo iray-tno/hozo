@@ -10,6 +10,7 @@
  * the thing this exists to prevent has happened.
  */
 
+import { View } from '@hozo/core'
 import type { ReactNode } from 'react'
 
 export type HozoStackGap = 'none' | 'tight' | 'normal' | 'loose'
@@ -46,7 +47,7 @@ export function HozoStack({
   className,
 }: HozoStackProps) {
   const own = classes(direction, gap, align)
-  return <div className={className ? `${own} ${className}` : own}>{children}</div>
+  return <View className={className ? `${own} ${className}` : own}>{children}</View>
 }
 
 export { HozoStack as Stack, type HozoStackGap as StackGap, type HozoStackProps as StackProps }

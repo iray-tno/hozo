@@ -22,7 +22,7 @@
  * without `live`, and can say so.
  */
 
-import { Badge } from '@hozo/core'
+import { Badge, View } from '@hozo/core'
 import type { ReactNode } from 'react'
 
 export type HozoStatusTone = 'neutral' | 'accent' | 'danger'
@@ -95,7 +95,7 @@ function StyledBadge({
 export function HozoAlert({ children, tone = 'neutral', live = false, className }: HozoAlertProps) {
   const own = tone === 'accent' ? alertAccent : tone === 'danger' ? alertDanger : alertNeutral
   return (
-    <div
+    <View
       // `alert` is assertive by definition and `status` is polite, so the two
       // roles carry the urgency and `aria-live` would repeat it. A reader
       // given both has been told the same thing twice and may believe the
@@ -104,7 +104,7 @@ export function HozoAlert({ children, tone = 'neutral', live = false, className 
       className={className ? `${own} ${className}` : own}
     >
       {children}
-    </div>
+    </View>
   )
 }
 

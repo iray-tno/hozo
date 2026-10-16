@@ -48,7 +48,7 @@ const render = (props: Record<string, unknown> = {}) =>
  * marker -- so a row ends at `</span></span></div>`.
  */
 const rows = (html: string): string[] =>
-  [...html.matchAll(/<div[^>]*role="treeitem"[\s\S]*?<\/span><\/span><\/div>/g)].map(
+  [...html.matchAll(/<div[^>]*role="treeitem"[\s\S]*?<\/span><\/div><\/div>/g)].map(
     (found) => found[0],
   )
 
@@ -83,8 +83,8 @@ test('indentation is a literal class per depth', () => {
   const top = rows(html).find((row) => row.includes('crates')) ?? ''
   const second = rows(html).find((row) => row.includes('hozo_ir')) ?? ''
   const third = rows(html).find((row) => row.includes('css.rs')) ?? ''
-  assert.match(top, /class="ps-0"/)
-  assert.match(second, /class="ps-5"/)
+  assert.match(top, /class="hozo-view ps-0"/)
+  assert.match(second, /class="hozo-view ps-5"/)
   // The third level is only visible once its parent is open, which is what
   // `visibleRows` decides -- so this also checks the expansion reached here.
   assert.equal(third, '', 'hozo_web is closed, so css.rs is not rendered')

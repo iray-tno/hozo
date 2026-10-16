@@ -44,6 +44,7 @@
  * the prop stays in the type.
  */
 
+import { Text, View } from '@hozo/core'
 import { Tree as TreePattern, type TreeProps } from '@hozo/patterns'
 
 export type HozoTreeProps = Omit<TreeProps, 'rowClassName'>
@@ -79,9 +80,9 @@ export function HozoTree({ className, renderRow, ...rest }: HozoTreeProps) {
       renderRow={
         renderRow ??
         (({ label, level, expanded, branch }) => (
-          <span className={INDENT[Math.min(level - 1, INDENT.length - 1)]}>
-            <span className={branch ? (expanded ? OPEN : CLOSED) : LEAF}>{label}</span>
-          </span>
+          <View className={INDENT[Math.min(level - 1, INDENT.length - 1)]}>
+            <Text className={branch ? (expanded ? OPEN : CLOSED) : LEAF}>{label}</Text>
+          </View>
         ))
       }
     />

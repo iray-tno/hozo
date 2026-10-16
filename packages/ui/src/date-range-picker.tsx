@@ -17,6 +17,7 @@
  * grids.
  */
 
+import { Text } from '@hozo/core'
 import { DateRangePicker as DateRangePickerPattern, type DateRangePickerProps } from '@hozo/form'
 
 import { CALENDAR, TODAY } from './calendar-look.ts'
@@ -33,7 +34,7 @@ export type HozoDateRangePickerProps = Omit<
 >
 
 const day = ({ date, today }: { date: { day: number }; today: boolean }) =>
-  today ? <span className={TODAY}>{date.day}</span> : date.day
+  today ? <Text className={TODAY}>{date.day}</Text> : date.day
 
 export function HozoDateRangePicker({ className, renderDay, ...rest }: HozoDateRangePickerProps) {
   return (
