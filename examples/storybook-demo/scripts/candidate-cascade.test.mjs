@@ -1931,6 +1931,148 @@ test('mixed secondary AOT classes use the actual button or link rather than a wi
   }
 })
 
+test('ordered secondary guards preserve empty classes and abrupt evaluation without new lexical scopes', () => {
+  const source = `import {Chip,cx} from '@hozo/core'; const C = () =>
+    <Chip removeClassName={cx(first(), guard() && 'p-2', last())} />`
+  const web = compiler.compile(source)[0]
+  for (const enabled of [false, true]) {
+    const calls = []
+    const element = evaluate(`module.exports = (${web.jsx})`, {
+      HozoChip: 'Chip',
+      first() {
+        calls.push('first')
+      },
+      guard() {
+        calls.push('guard')
+        return enabled
+      },
+      last() {
+        calls.push('last')
+      },
+    })
+    assert.deepEqual(calls, ['first', 'guard', 'last'])
+    assert.equal(
+      Boolean(element.props.removeClassName),
+      enabled,
+      'inactive guards cannot leave truthy internal markers',
+    )
+  }
+  const calls = []
+  assert.throws(
+    () =>
+      evaluate(`module.exports = (${web.jsx})`, {
+        HozoChip: 'Chip',
+        first() {
+          calls.push('first')
+        },
+        guard() {
+          calls.push('guard')
+          throw new Error('guard failed')
+        },
+        last() {
+          calls.push('last')
+        },
+      }),
+    /guard failed/,
+  )
+  assert.deepEqual(calls, ['first', 'guard'])
+})
+
+test('ordered secondary guards match actual owner pixels and independent Tailwind in both stylesheet orders', {
+  skip: !executablePath,
+}, async () => {
+  const own = 'p-0 rounded-none not-focus:rounded-lg hover:opacity-50'
+  const source = `import {Pagination,cx} from '@hozo/core'; const C = () =>
+    <Pagination pageCount={3} itemClassName={cx('${own}', first(), outer() ? inner() ? 'p-2' : 'p-4' : off() && 'p-6', last())} />`
+  const web = compiler.compile(source)[0]
+  const candidates = openCandidateCache(path.join(directory, 'ordered-secondary.json'))
+  candidates.scanFile('caller.ts', "const classes = 'opacity-75'", 1)
+  const candidateCss = candidates.renderCss()
+  const oracleCss = (
+    await compile('@theme { --spacing:0.25rem; --radius-lg:0.5rem; } @tailwind utilities;')
+  ).build(`${own} p-2 p-4 p-6 opacity-75`.split(' '))
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Pagination as HozoPagination} from '@hozo/patterns';
+        const root = createRoot(document.getElementById('root'));
+        function Example({values}) {
+          window.calls = [];
+          const read = (name, value) => () => {window.calls.push(name); return value;};
+          const first = read('first', undefined), last = read('last', 'opacity-75');
+          const outer = read('outer', values.outer), inner = read('inner', values.inner), off = read('off', values.off);
+          return <section data-case={values.id}>${web.jsx}</section>;
+        }
+        window.show = values => root.render(<Example values={values}/>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><button id="oracle"></button>`,
+      )
+      await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      const read = (locator) =>
+        locator.evaluate((e) => {
+          const css = getComputedStyle(e)
+          return { padding: css.paddingTop, radius: css.borderRadius, opacity: css.opacity }
+        })
+      for (const values of [
+        { id: 1, outer: true, inner: true, off: false, padding: 8 },
+        { id: 2, outer: true, inner: false, off: false, padding: 16 },
+        { id: 3, outer: false, inner: true, off: false, padding: 0 },
+        { id: 4, outer: false, inner: true, off: true, padding: 24 },
+      ]) {
+        await page.mouse.move(0, 0)
+        await page.evaluate(() => document.activeElement?.blur())
+        await page.evaluate((values) => window.show(values), values)
+        await page.waitForFunction(
+          (id) => document.querySelector('[data-case]')?.dataset.case === String(id),
+          values.id,
+        )
+        const owner = page.locator('#root button').nth(1)
+        const expected = { padding: `${values.padding}px`, radius: '8px', opacity: '0.75' }
+        assert.deepEqual(await read(owner), expected)
+        await page.locator('#oracle').evaluate(
+          (e, classes) => {
+            e.className = classes
+          },
+          `${own} ${values.padding ? `p-${values.padding / 4}` : ''} opacity-75`,
+        )
+        assert.deepEqual(await read(page.locator('#oracle')), expected, 'independent Tailwind')
+        const calls = ['first', 'outer', values.outer ? 'inner' : 'off', 'last']
+        assert.deepEqual(await page.evaluate(() => window.calls), calls)
+        await owner.hover()
+        assert.equal((await read(owner)).opacity, '0.5')
+        await owner.focus()
+        assert.equal((await read(owner)).radius, '0px')
+        assert.deepEqual(
+          await page.evaluate(() => window.calls),
+          calls,
+          'owner events cannot rerun author inputs',
+        )
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('owned candidates work without Tailwind, and empty roots/slots keep absent values', {
   skip: !executablePath,
 }, async () => {

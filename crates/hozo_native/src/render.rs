@@ -1077,6 +1077,7 @@ pub(super) fn render_node(
                 .collect(),
             !style_array_parts.is_empty() || !pressed_parts.is_empty(),
             source,
+            None,
         )
     } else {
         None
@@ -1946,7 +1947,12 @@ pub(super) fn render_node(
             let expressions = written
                 .fallback
                 .iter()
-                .map(|expr| source_text(source, *expr).to_string())
+                .map(|expr| {
+                    written.evaluation.as_ref().map_or_else(
+                        || source_text(source, *expr).to_string(),
+                        |evaluation| evaluation.value(source, *expr),
+                    )
+                })
                 .collect::<Vec<_>>();
             let route = crate::class_route::PatternClasses::new(
                 node.primitive,
@@ -1954,6 +1960,7 @@ pub(super) fn render_node(
                 expressions.clone(),
                 !parts.is_empty() || !pressed.is_empty(),
                 source,
+                written.evaluation.as_deref(),
             );
             for _ in &expressions {
                 diagnostics.push(Diagnostic {
@@ -1986,6 +1993,15 @@ pub(super) fn render_node(
                     crate::class_route::static_callback(node.primitive, slot.class_prop, &parts);
                 props_text.push_str(&format!(" {style_prop}={{{callback}}}",));
                 parts.clear();
+            }
+            if let Some(evaluation) = written.evaluation.as_ref().filter(|_| {
+                crate::pattern::interaction_slot(node.primitive, slot.class_prop).is_none()
+            }) {
+                // No interactive owner: compute the slot's style now,
+                // keeping authored predicates outside later callbacks.
+                let result = evaluation.wrap(source, &format!("[{}]", parts.join(", ")));
+                parts.clear();
+                parts.push(result);
             }
         }
         for prop in node
@@ -2026,6 +2042,7 @@ pub(super) fn render_node(
                     vec![expr],
                     false,
                     source,
+                    None,
                 )
                 .expect("registered above");
                 props_text.push_str(&route.prop(&[]));

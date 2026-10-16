@@ -859,6 +859,11 @@ fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String 
     match expr {
         ConditionExpr::Static(value) => value.to_string(),
         ConditionExpr::Ref(r) => source_text(source, *r).to_string(),
+        ConditionExpr::Captured(capture) => format!(
+            "{}[{}]",
+            hozo_ir::ClassEvaluation::binding(source, capture.plan),
+            capture.index
+        ),
         ConditionExpr::Not(inner) => format!("!({})", render_condition_expr(source, inner)),
         ConditionExpr::And(a, b) => {
             format!(
@@ -1191,16 +1196,7 @@ fn render_node(
     // the resolution, with no runtime code involved.
     // A className branch's guard, as the class its rules select on: present
     // when the source's condition holds. See `css::expr_ref_class`.
-    let guards: Vec<String> = collect_expr_refs(node)
-        .into_iter()
-        .map(|expr_ref| {
-            format!(
-                "({}) && '{}'",
-                source_text(source, expr_ref),
-                css::expr_ref_class(expr_ref)
-            )
-        })
-        .collect();
+    let guards = class_guards(&node.style, source);
     let mut attrs =
         if node.class_name_fallback.is_empty()
             && node.props.stylex_residuals.is_empty()
@@ -1266,7 +1262,7 @@ fn render_node(
             .map(String::as_str)
             .chain(slot.carried.iter().map(String::as_str))
             .collect();
-        if !slot.fallback.is_empty() {
+        if !slot.fallback.is_empty() || slot.evaluation.is_some() {
             for _ in &slot.fallback {
                 diagnostics.push(hozo_ir::Diagnostic {
                     code: hozo_ir::DiagnosticCode::DynamicClassNameNotResolved,
@@ -1277,15 +1273,54 @@ fn render_node(
             }
             // The fallback remains an authored value, not a condition
             // emitted onto the widget root instead of the slot owner.
-            let parts = std::iter::once(format!("{:?}", classes.join(" ")))
-                .chain(
-                    slot.fallback
-                        .iter()
-                        .map(|expr| source_text(source, *expr).to_string()),
-                )
+            let compiled = std::iter::once(format!("{:?}", classes.join(" ")))
+                .chain(class_guards(&slot.style, source))
                 .collect::<Vec<_>>()
                 .join(", ");
-            attrs.push_str(&format!(" {}={{[{parts}].filter(Boolean).join(' ').replace(/\\S/, 'hozo-candidate-owner $&')}}", slot.slot.class_prop));
+            // With no unconditional text, an inactive branch is an empty
+            // class list. A guard/base marker must not turn it truthy and
+            // suppress the component's empty-class defaults.
+            let compiled = if slot.evaluation.is_some()
+                && slot
+                    .style
+                    .iter()
+                    .all(|d| matches!(d.condition, hozo_ir::Condition::Expr(_)))
+            {
+                let active = slot
+                    .style
+                    .iter()
+                    .filter_map(|d| match &d.condition {
+                        hozo_ir::Condition::Expr(expression) => {
+                            Some(render_condition_expr(source, expression))
+                        }
+                        _ => None,
+                    })
+                    .collect::<std::collections::BTreeSet<_>>()
+                    .into_iter()
+                    .map(|expr| format!("({expr})"))
+                    .collect::<Vec<_>>()
+                    .join(" || ");
+                format!("...(({active}) ? [{compiled}] : [])")
+            } else {
+                compiled
+            };
+            let parts = std::iter::once(compiled)
+                .chain(slot.fallback.iter().map(|expr| {
+                    slot.evaluation.as_ref().map_or_else(
+                        || source_text(source, *expr).to_string(),
+                        |evaluation| evaluation.value(source, *expr),
+                    )
+                }))
+                .collect::<Vec<_>>()
+                .join(", ");
+            let mut value = format!("[{parts}].filter(Boolean).join(' ')");
+            if !slot.fallback.is_empty() {
+                value.push_str(".replace(/\\S/, 'hozo-candidate-owner $&')");
+            }
+            if let Some(evaluation) = &slot.evaluation {
+                value = evaluation.wrap(source, &value);
+            }
+            attrs.push_str(&format!(" {}={{{value}}}", slot.slot.class_prop));
         } else if !classes.is_empty() {
             attrs.push_str(&format!(
                 r#" {}="{}""#,
@@ -2346,23 +2381,35 @@ fn render_verbatim(
     out
 }
 
-fn collect_expr_refs(node: &Node) -> Vec<hozo_ir::ExprRef> {
+fn class_guards(style: &[hozo_ir::StyleDeclaration], source: &str) -> Vec<String> {
     let mut refs = Vec::new();
-    for decl in &node.style {
+    for decl in style {
         if let hozo_ir::Condition::Expr(expr) = &decl.condition {
             collect_from_expr(expr, &mut refs);
         }
     }
-    refs.sort_by_key(|r: &hozo_ir::ExprRef| (r.0.start, r.0.end));
-    refs.dedup();
-    refs
+    refs.sort_by_key(|(reference, _)| (reference.0.start, reference.0.end));
+    refs.dedup_by_key(|(reference, _)| *reference);
+    refs.into_iter()
+        .map(|(reference, expression)| {
+            format!(
+                "({}) && '{}'",
+                render_condition_expr(source, expression),
+                css::expr_ref_class(reference)
+            )
+        })
+        .collect()
 }
 
-fn collect_from_expr(expr: &hozo_ir::ConditionExpr, out: &mut Vec<hozo_ir::ExprRef>) {
+fn collect_from_expr<'a>(
+    expr: &'a hozo_ir::ConditionExpr,
+    out: &mut Vec<(hozo_ir::ExprRef, &'a hozo_ir::ConditionExpr)>,
+) {
     use hozo_ir::ConditionExpr;
     match expr {
         ConditionExpr::Static(_) => {}
-        ConditionExpr::Ref(r) => out.push(*r),
+        ConditionExpr::Ref(r) => out.push((*r, expr)),
+        ConditionExpr::Captured(capture) => out.push((capture.reference, expr)),
         ConditionExpr::Not(inner) => collect_from_expr(inner, out),
         ConditionExpr::And(a, b) | ConditionExpr::Or(a, b) => {
             collect_from_expr(a, out);
@@ -4121,6 +4168,33 @@ const el = <Chip onRemove={drop} disabled={busy} className=\"bg-red-500 my-chip\
         );
         assert!(
             output.css.contains("padding-top: 8px") && output.css.contains("768px"),
+            "{}",
+            output.css
+        );
+    }
+
+    #[test]
+    fn secondary_guard_classes_and_capture_values_stay_on_the_slot() {
+        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx(first(), guard() ? 'p-2' : 'p-4', last())} />";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        let (root, slot) = output.jsx.split_once(" removeClassName=").unwrap();
+        assert!(!root.contains("hozo-cond-"), "{}", output.jsx);
+        assert!(
+            slot.contains("hozo-cond-") && slot.contains("__hozoClassPlan"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            slot.contains("[(first()), ...((guard()) ? [true] : [false]), (last())]"),
+            "{}",
+            output.jsx
+        );
+        for call in ["first()", "guard()", "last()"] {
+            assert_eq!(output.jsx.matches(call).count(), 1, "{}", output.jsx);
+        }
+        assert!(
+            output.css.contains("padding-top: 8px") && output.css.contains("padding-top: 16px"),
             "{}",
             output.css
         );

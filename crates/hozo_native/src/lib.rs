@@ -329,6 +329,11 @@ fn render_condition_expr(source: &str, expr: &ConditionExpr) -> String {
     match expr {
         ConditionExpr::Static(value) => value.to_string(),
         ConditionExpr::Ref(r) => source_text(source, *r).to_string(),
+        ConditionExpr::Captured(capture) => format!(
+            "{}[{}]",
+            hozo_ir::ClassEvaluation::binding(source, capture.plan),
+            capture.index
+        ),
         ConditionExpr::Not(inner) => format!("!({})", render_condition_expr(source, inner)),
         ConditionExpr::And(a, b) => {
             format!(
@@ -1190,6 +1195,9 @@ fn expr_key(expr: &ConditionExpr) -> String {
     match expr {
         ConditionExpr::Static(value) => value.to_string(),
         ConditionExpr::Ref(r) => format!("{}_{}", r.0.start, r.0.end),
+        ConditionExpr::Captured(capture) => {
+            format!("{}_{}", capture.reference.0.start, capture.reference.0.end)
+        }
         ConditionExpr::Not(inner) => format!("not_{}", expr_key(inner)),
         ConditionExpr::And(a, b) => format!("{}_and_{}", expr_key(a), expr_key(b)),
         ConditionExpr::Or(a, b) => format!("{}_or_{}", expr_key(a), expr_key(b)),

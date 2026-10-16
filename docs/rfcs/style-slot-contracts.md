@@ -67,10 +67,20 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    slots. Literal expressions, recognized joiners (including project helpers)
    and separated templates keep AOT pieces and carry residual source spans in
    `SlotStyle`. Fully opaque input keeps its zero-capture forwarding path.
-   Expressions with authored JS conditions in their AOT declarations still travel **whole**:
-   moving a condition into an owner callback would re-evaluate it on events,
-   and capturing pieces out of source order would change side effects. A
-   source-ordered predicate capture plan remains a follow-up, not a pass.
+   Secondary expressions with authored JS conditions now use a source-ordered
+   capture plan where the shared decomposition's guards/residuals do not
+   overlap. Its emitted value array retains branch selection and ordering;
+   callbacks read captured predicates, never re-run author code on events.
+   Inputs remain outside the generated closure, preserving `await`, `yield`,
+   `this` and `arguments`. Web guard classes go to the slot owner, not the
+   widget root, and false-only branches cannot leave truthy internal markers.
+   Overlapping guarded fallbacks, spread iteration and guarded template
+   coercions still travel **whole** rather than evaluating a guard twice or
+   changing which side effects run. Root authored-predicate capture remains
+   separate: its inherited/forwarded styles need a correctly scoped binding,
+   not just a wrapper around one style prop. Ordinary primitive/root codegen
+   is unchanged by this increment; that is not a claim that their existing
+   authored-guard evaluation behavior is already unified.
    Secondary Web CSS asks the real DOM child about disabled/enabled, including
    stacking and negation; it does not expect a marker on the widget root.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/

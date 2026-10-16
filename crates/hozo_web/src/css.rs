@@ -1558,6 +1558,9 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
         // (#881). `:not()` and `:is()` take their arguments' weight, so the
         // other arms stay weightless too.
         ConditionExpr::Ref(expr_ref) => format!(":where(.{})", expr_ref_class(*expr_ref)),
+        ConditionExpr::Captured(capture) => {
+            format!(":where(.{})", expr_ref_class(capture.reference))
+        }
         ConditionExpr::Not(inner) => format!(":not({})", condition_expr_selector(inner)),
         ConditionExpr::And(a, b) => format!(
             "{}{}",
