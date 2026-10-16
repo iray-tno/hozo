@@ -1078,6 +1078,10 @@ pub struct PassthroughProp {
     /// spread after Hozo's compiled className can silently override it at
     /// runtime (see `DiagnosticCode::UnsafePropSpreadAfterStyle`).
     pub is_spread: bool,
+    /// For a spread, the props it provably does not carry: the keys taken
+    /// out by name from the object pattern that bound it, as in
+    /// `function Button({ href, ...rest })`. Empty when nothing is known.
+    pub spread_excludes: Vec<String>,
     /// Hozo primitives inside an opaque prop expression such as
     /// `renderItem={() => <View />}`.
     pub nested: Vec<NestedNode>,
@@ -1455,6 +1459,16 @@ impl PropSet {
     /// whenever the answer was "not here, but yes" (#653).
     pub fn has_spread(&self) -> bool {
         self.passthrough.iter().any(|prop| prop.is_spread)
+    }
+
+    /// Whether a spread here may carry any of `props`. A spread of an
+    /// object-rest binding cannot carry what its pattern took out by name
+    /// (#656), so a decision that waits only on those props can be made.
+    pub fn spread_may_carry(&self, props: &[&str]) -> bool {
+        self.passthrough.iter().any(|prop| {
+            prop.is_spread
+                && !props.iter().all(|name| prop.spread_excludes.iter().any(|known| known == name))
+        })
     }
 
     pub fn has_responder_handlers(&self) -> bool {

@@ -80,6 +80,8 @@ pub struct ClassHelper {
 pub(crate) struct Joiners<'r, 'a> {
     pub module_record: &'r ModuleRecord<'a>,
     pub helpers: &'r [ClassHelper],
+    /// Module-level string constants, by reference offset.
+    pub constants: &'r crate::rest::ConstantStrings,
 }
 
 pub(crate) fn decompose_class_name(expr: &JSXExpression, module_record: &Joiners) -> Decomposed {
@@ -98,6 +100,7 @@ enum Target<'a, 'b> {
     Conditional(&'b ConditionalExpression<'a>),
     Call(&'b CallExpression<'a>),
     Template(&'b TemplateLiteral<'a>),
+    Identifier(Span),
     Spread(Span),
     Other(Span),
 }
@@ -111,6 +114,7 @@ fn classify_expression<'a, 'b>(expr: &'b Expression<'a>) -> Target<'a, 'b> {
         Expression::ConditionalExpression(cond) => Target::Conditional(cond),
         Expression::CallExpression(call) => Target::Call(call),
         Expression::TemplateLiteral(template) => Target::Template(template),
+        Expression::Identifier(id) => Target::Identifier(id.span),
         other => Target::Other(other.span()),
     }
 }
@@ -124,6 +128,7 @@ fn classify_argument<'a, 'b>(arg: &'b Argument<'a>) -> Target<'a, 'b> {
         Argument::ConditionalExpression(cond) => Target::Conditional(cond),
         Argument::CallExpression(call) => Target::Call(call),
         Argument::TemplateLiteral(template) => Target::Template(template),
+        Argument::Identifier(id) => Target::Identifier(id.span),
         Argument::SpreadElement(spread) => Target::Spread(spread.span()),
         other => Target::Other(other.span()),
     }
@@ -138,6 +143,7 @@ fn classify_jsx_expression<'a, 'b>(expr: &'b JSXExpression<'a>) -> Target<'a, 'b
         JSXExpression::ConditionalExpression(cond) => Target::Conditional(cond),
         JSXExpression::CallExpression(call) => Target::Call(call),
         JSXExpression::TemplateLiteral(template) => Target::Template(template),
+        JSXExpression::Identifier(id) => Target::Identifier(id.span),
         other => Target::Other(other.span()),
     }
 }
@@ -210,6 +216,87 @@ fn fall_back_to(out: &mut Decomposed, span: Span) {
     }
 }
 
+/// The tokens of one string literal, wherever its text came from.
+fn decompose_literal(
+    value: &str,
+    span: Span,
+    condition: Option<ConditionExpr>,
+    guard: Option<Span>,
+    out: &mut Decomposed,
+    consume: bool,
+) {
+    let fallback_span = guard.unwrap_or(span);
+    let mut fell_back = false;
+    for token in value.split_whitespace() {
+        // The same question the `className` path asks, and for the
+        // same reason: an unrecognised variant leaves its own text
+        // in front of the utility, and the utility parser will read
+        // that text as a value.
+        let (token_condition, properties) = if tailwind::has_unstripped_variant(token) {
+            (Condition::Always, Vec::new())
+        } else {
+            tailwind::expand_utility(token)
+        };
+        if properties.is_empty() {
+            // Nothing compiled, so the literal has to reach the DOM
+            // as written -- a project's own `my-card` carries no
+            // styles Hozo could have produced, and a variant Hozo
+            // does not compile is the author's to see.
+            //
+            // This was a `continue`, which deleted the token. The
+            // static path was taught to carry back when `group` and
+            // `peer` turned out to be vanishing from it; this path
+            // was not, so `cn('open:p-4')` still compiled to
+            // nothing and said nothing about it.
+            //
+            // A token has no expression of its own, so what gets
+            // carried is the literal -- or whatever guards it, so
+            // the guard survives with it.
+            if !fell_back {
+                fall_back_to(out, fallback_span);
+                fell_back = true;
+            }
+            if let Some(variant) = tailwind::unsupported_variant_name(token) {
+                out.unsupported_variants.push(UnsupportedVariant {
+                    variant: variant.to_string(),
+                    token: token.to_string(),
+                    span: SourceSpan { start: span.start, end: span.end },
+                });
+            }
+            continue;
+        }
+        if token_condition == Condition::Always {
+            let final_condition = to_condition(condition.clone());
+            for property in properties {
+                out.declarations.push(StyleDeclaration { property, condition: final_condition.clone() });
+            }
+        } else if condition.is_none() {
+            // No surrounding dynamic guard, so the token's own
+            // variant-derived condition (hover:/md:/etc.) applies
+            // directly -- e.g. `cn('hover:bg-blue-500')`.
+            for property in properties {
+                out.declarations.push(StyleDeclaration { property, condition: token_condition.clone() });
+            }
+        } else {
+            // A variant-prefixed literal nested inside a dynamic
+            // guard (`active && 'hover:bg-blue-500'`) would need to
+            // combine a CSS-native condition with a JS-tracked one
+            // -- Condition doesn't support that composition yet.
+            // Falls back rather than silently dropping either half.
+            //
+            // Guarded, because a literal with two such tokens would
+            // otherwise be re-emitted twice.
+            if !fell_back {
+                fall_back_to(out, fallback_span);
+                fell_back = true;
+            }
+        }
+    }
+    if !fell_back && consume {
+        out.consumed.push(SourceSpan { start: span.start, end: span.end });
+    }
+}
+
 fn decompose(
     target: Target,
     condition: Option<ConditionExpr>,
@@ -227,77 +314,18 @@ fn decompose(
 ) {
     match target {
         Target::StringLiteral(lit) => {
-            let fallback_span = guard.unwrap_or(lit.span);
-            let mut fell_back = false;
-            for token in lit.value.split_whitespace() {
-                // The same question the `className` path asks, and for the
-                // same reason: an unrecognised variant leaves its own text
-                // in front of the utility, and the utility parser will read
-                // that text as a value.
-                let (token_condition, properties) = if tailwind::has_unstripped_variant(token) {
-                    (Condition::Always, Vec::new())
-                } else {
-                    tailwind::expand_utility(token)
-                };
-                if properties.is_empty() {
-                    // Nothing compiled, so the literal has to reach the DOM
-                    // as written -- a project's own `my-card` carries no
-                    // styles Hozo could have produced, and a variant Hozo
-                    // does not compile is the author's to see.
-                    //
-                    // This was a `continue`, which deleted the token. The
-                    // static path was taught to carry back when `group` and
-                    // `peer` turned out to be vanishing from it; this path
-                    // was not, so `cn('open:p-4')` still compiled to
-                    // nothing and said nothing about it.
-                    //
-                    // A token has no expression of its own, so what gets
-                    // carried is the literal -- or whatever guards it, so
-                    // the guard survives with it.
-                    if !fell_back {
-                        fall_back_to(out, fallback_span);
-                        fell_back = true;
-                    }
-                    if let Some(variant) = tailwind::unsupported_variant_name(token) {
-                        out.unsupported_variants.push(UnsupportedVariant {
-                            variant: variant.to_string(),
-                            token: token.to_string(),
-                            span: SourceSpan { start: lit.span.start, end: lit.span.end },
-                        });
-                    }
-                    continue;
-                }
-                if token_condition == Condition::Always {
-                    let final_condition = to_condition(condition.clone());
-                    for property in properties {
-                        out.declarations.push(StyleDeclaration { property, condition: final_condition.clone() });
-                    }
-                } else if condition.is_none() {
-                    // No surrounding dynamic guard, so the token's own
-                    // variant-derived condition (hover:/md:/etc.) applies
-                    // directly -- e.g. `cn('hover:bg-blue-500')`.
-                    for property in properties {
-                        out.declarations.push(StyleDeclaration { property, condition: token_condition.clone() });
-                    }
-                } else {
-                    // A variant-prefixed literal nested inside a dynamic
-                    // guard (`active && 'hover:bg-blue-500'`) would need to
-                    // combine a CSS-native condition with a JS-tracked one
-                    // -- Condition doesn't support that composition yet.
-                    // Falls back rather than silently dropping either half.
-                    //
-                    // Guarded, because a literal with two such tokens would
-                    // otherwise be re-emitted twice.
-                    if !fell_back {
-                        fall_back_to(out, fallback_span);
-                        fell_back = true;
-                    }
-                }
-            }
-            if !fell_back {
-                out.consumed.push(SourceSpan { start: lit.span.start, end: lit.span.end });
-            }
+            decompose_literal(&lit.value, lit.span, condition, guard, out, true);
         }
+        // A module-level `const` holding a string literal, read as that
+        // literal. The declaration's text is not marked consumed: the same
+        // constant may be read somewhere this cannot see, and its classes
+        // still need their CSS there. What falls back is the reference.
+        Target::Identifier(span) => match module_record.constants.get(&span.start) {
+            Some((value, decl)) => {
+                decompose_literal(value, *decl, condition, Some(guard.unwrap_or(span)), out, false);
+            }
+            None => fall_back_to(out, guard.unwrap_or(span)),
+        },
         // `` `p-4 hover:bg-blue-500 ${className}` ``, the way a merge is
         // written without a helper (#874). The text between interpolations
         // is classes, as a string literal's is; each interpolation is a
@@ -426,7 +454,8 @@ mod tests {
                     return;
                 }
                 if let Some(JSXAttributeValue::ExpressionContainer(container)) = &it.value {
-                    let joiners = Joiners { module_record: self.module_record, helpers: self.helpers };
+                    let constants = crate::rest::ConstantStrings::new();
+                    let joiners = Joiners { module_record: self.module_record, helpers: self.helpers, constants: &constants };
                     self.result = Some(decompose_class_name(&container.expression, &joiners));
                 }
             }
