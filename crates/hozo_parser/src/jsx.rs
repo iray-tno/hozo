@@ -202,6 +202,32 @@ impl Scope<'_, '_> {
     }
 }
 
+/// Both root and secondary expressions use the same classifier and reports;
+/// neither backend reparses a joiner to recover its static pieces.
+fn class_expression(
+    expression: &JSXExpression,
+    scope: &Scope,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> dynamic_class::Decomposed {
+    let decomposed = dynamic_class::decompose_class_name(
+        expression,
+        &dynamic_class::Joiners {
+            module_record: scope.module_record,
+            helpers: scope.class_helpers,
+            constants: scope.constants,
+        },
+    );
+    for report in &decomposed.unsupported_variants {
+        diagnostics.push(Diagnostic {
+            code: DiagnosticCode::TailwindVariantNotSupported,
+            severity: Severity::Warning,
+            message: unsupported_variant_message(&report.variant, &report.token),
+            span: report.span,
+        });
+    }
+    decomposed
+}
+
 /// Finds and lowers Hozo primitives nested inside something the compiler
 /// is only carrying, not reading -- an expression container, or an
 /// unmodeled component's children.
@@ -1180,31 +1206,11 @@ fn build_node(
                         }
                     }
                     Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        let decomposed = dynamic_class::decompose_class_name(
-                            &container.expression,
-                            &dynamic_class::Joiners {
-                                module_record: scope.module_record,
-                                helpers: scope.class_helpers,
-                                constants: scope.constants,
-                            },
-                        );
+                        let decomposed =
+                            class_expression(&container.expression, scope, diagnostics);
                         style.extend(decomposed.declarations);
                         class_name_fallback.extend(decomposed.fallback);
                         consumed.extend(decomposed.consumed);
-                        // The same report the static path gives, which this
-                        // path did not give at all: `cn('open:p-4')` used to
-                        // compile to nothing and say nothing.
-                        for report in decomposed.unsupported_variants {
-                            diagnostics.push(Diagnostic {
-                                code: DiagnosticCode::TailwindVariantNotSupported,
-                                severity: Severity::Warning,
-                                message: unsupported_variant_message(
-                                    &report.variant,
-                                    &report.token,
-                                ),
-                                span: report.span,
-                            });
-                        }
                     }
                     _ => {}
                 }
@@ -1214,9 +1220,9 @@ fn build_node(
             // re-emit verbatim. `disabled` below additionally has a static
             // shorthand form, which needs no source expression span.
             // A runtime component's second class list (`ClassSlot`), read
-            // the way a static `className` is. An expression is left where
-            // it was: the Web half still receives it, and the Native backend
-            // says it cannot.
+            // the way a static `className` is. Expressions below share the
+            // root decomposer, retaining opaque leaves rather than losing
+            // either AOT declarations or the actual slot owner's state.
             name if primitive
                 .class_slots()
                 .iter()
@@ -1255,6 +1261,50 @@ fn build_node(
                     slot,
                     style,
                     carried,
+                    fallback: Vec::new(),
+                    span: to_span(attr.span()),
+                });
+            }
+            name if primitive
+                .class_slots()
+                .iter()
+                .any(|slot| slot.class_prop == name) =>
+            {
+                let Some(JSXAttributeValue::ExpressionContainer(container)) = &attr.value else {
+                    props
+                        .passthrough
+                        .push(passthrough_prop(attr, scope, diagnostics, consumed));
+                    continue;
+                };
+                let decomposed = class_expression(&container.expression, scope, diagnostics);
+                // A new AOT path must not move an authored JS guard into an
+                // owner's callback, re-evaluate it on hover, or reorder it
+                // against opaque siblings. Keep such expressions whole until
+                // the shared plan can capture their evaluation order too.
+                // Entirely opaque input also keeps its existing zero-capture
+                // forwarding and absent-value behavior.
+                if decomposed.declarations.is_empty()
+                    || decomposed
+                        .declarations
+                        .iter()
+                        .any(|d| matches!(d.condition, Condition::Expr(_)))
+                {
+                    props
+                        .passthrough
+                        .push(passthrough_prop(attr, scope, diagnostics, consumed));
+                    continue;
+                }
+                consumed.extend(decomposed.consumed);
+                let slot = *primitive
+                    .class_slots()
+                    .iter()
+                    .find(|slot| slot.class_prop == name)
+                    .expect("matched above");
+                props.class_slots.push(hozo_ir::SlotStyle {
+                    slot,
+                    style: decomposed.declarations,
+                    carried: Vec::new(),
+                    fallback: decomposed.fallback,
                     span: to_span(attr.span()),
                 });
             }
@@ -2029,6 +2079,70 @@ fn build_node(
             .as_ref()
             .map(|closing| to_span(closing.name.span())),
     })
+}
+
+#[cfg(test)]
+mod class_slot_expression_tests {
+    use hozo_ir::{Condition, DiagnosticCode};
+
+    #[test]
+    fn secondary_expressions_share_root_decomposition_and_residual_spans() {
+        for expression in [
+            "'p-2 not-focus:rounded-lg md:mt-2'",
+            "cx('p-2 not-focus:rounded-lg md:mt-2', choose())",
+            "`p-2 not-focus:rounded-lg md:mt-2 ${choose()}`",
+        ] {
+            let source = format!("import {{Chip, cx}} from '@hozo/core'; const el = <Chip className={{{expression}}} removeClassName={{{expression}}} />");
+            let parsed = crate::parse_tsx(&source);
+            assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+            let node = &parsed.roots[0].node;
+            let slot = &node.props.class_slots[0];
+            assert_eq!(slot.style, node.style);
+            assert_eq!(slot.fallback.len(), node.class_name_fallback.len());
+            for (root, secondary) in node.class_name_fallback.iter().zip(&slot.fallback) {
+                assert_eq!(
+                    &source[root.0.start as usize..root.0.end as usize],
+                    &source[secondary.0.start as usize..secondary.0.end as usize]
+                );
+            }
+            assert!(!slot
+                .style
+                .iter()
+                .any(|d| matches!(d.condition, Condition::Expr(_))));
+        }
+    }
+
+    #[test]
+    fn guards_unknown_helpers_and_entirely_opaque_lists_keep_the_original_expression() {
+        for expression in [
+            "cx(first(), guard() && 'p-2', last())",
+            "guard() ? 'p-2' : 'p-4'",
+            "unknown('p-2', first())",
+            "cx(first(), last())",
+        ] {
+            let source = format!("import {{Chip, cx}} from '@hozo/core'; const el = <Chip removeClassName={{{expression}}} />");
+            let parsed = crate::parse_tsx(&source);
+            let node = &parsed.roots[0].node;
+            assert!(node.props.class_slots.is_empty(), "{expression}");
+            assert_eq!(
+                node.props
+                    .passthrough
+                    .iter()
+                    .filter(|p| p.name.as_deref() == Some("removeClassName"))
+                    .count(),
+                1
+            );
+            assert!(
+                parsed.consumed_class_spans.is_empty(),
+                "fallback must remain scannable: {expression}"
+            );
+        }
+        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx('p-2 open:p-4', other())} />";
+        assert!(crate::parse_tsx(source)
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::TailwindVariantNotSupported));
+    }
 }
 
 fn validate_semantic_children(

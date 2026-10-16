@@ -1927,7 +1927,7 @@ pub(super) fn render_node(
             .find(|written| written.slot == *slot)
         {
             let mut pressed = Vec::new();
-            build_style_entries(
+            let state_start = build_style_entries(
                 &written.style,
                 &allocator.alloc(),
                 source,
@@ -1943,7 +1943,41 @@ pub(super) fn render_node(
                 theme,
                 None,
             );
-            if !pressed.is_empty() {
+            let expressions = written
+                .fallback
+                .iter()
+                .map(|expr| source_text(source, *expr).to_string())
+                .collect::<Vec<_>>();
+            let route = crate::class_route::PatternClasses::new(
+                node.primitive,
+                slot.class_prop,
+                expressions.clone(),
+                !parts.is_empty() || !pressed.is_empty(),
+                source,
+            );
+            for _ in &expressions {
+                diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::DynamicClassNameNotResolved,
+                    severity: Severity::Warning,
+                    message: format!("`{}` retains an opaque class expression resolved from the project-wide candidate map{}; use a static string for build-time validation.", slot.class_prop, if route.is_some() { " with its owner's available state" } else { "" }),
+                    span: written.span,
+                });
+            }
+            let residuals = route.as_ref().map_or_else(
+                || {
+                    expressions
+                        .iter()
+                        .map(|expr| format!("hozoClasses({expr})"))
+                        .collect()
+                },
+                |route| route.residuals(),
+            );
+            parts.splice(state_start..state_start, residuals);
+            if let Some(route) = route {
+                parts.extend(pressed);
+                props_text.push_str(&route.prop(&parts));
+                parts.clear();
+            } else if !pressed.is_empty() {
                 parts.extend(pressed);
                 let style_prop =
                     crate::pattern::interaction_style_prop(node.primitive, slot.class_prop)

@@ -1308,8 +1308,8 @@ pub struct PropSet {
     /// them without duplicating the declarations Hozo already lowered.
     pub stylex_residuals: Vec<StylexResidual>,
     /// A runtime component's class lists other than `className`, compiled
-    /// like it. Only the props `Primitive::class_slots` names, and only when
-    /// written as a string the compiler can read.
+    /// like it. Only the props `Primitive::class_slots` names. Expressions
+    /// can retain AOT declarations alongside opaque residual spans.
     pub class_slots: Vec<SlotStyle>,
 }
 
@@ -1337,6 +1337,9 @@ pub struct SlotStyle {
     pub style: Vec<StyleDeclaration>,
     /// Classes that produced no style, carried like `Node::carried_classes`.
     pub carried: Vec<String>,
+    /// Opaque leaves from the same decomposer used by root className. They
+    /// are evaluated by the author, then resolved with the actual owner.
+    pub fallback: Vec<ExprRef>,
     pub span: SourceSpan,
 }
 

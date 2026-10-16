@@ -1686,6 +1686,10 @@ pub fn condition_shape(condition: &Condition) -> Shape {
 }
 
 pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
+    condition_shapes_for(condition, true)
+}
+
+fn condition_shapes_for(condition: &Condition, portable_disabled: bool) -> Vec<Shape> {
     match condition {
         // Stacked variants. The at-rules nest in written order, outermost
         // first, and the selector suffixes append in the same order --
@@ -1703,7 +1707,7 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
             for condition in conditions {
                 let mut next = Vec::new();
                 for (preludes, selector) in &shapes {
-                    for (inner, template) in condition_shapes(condition) {
+                    for (inner, template) in condition_shapes_for(condition, portable_disabled) {
                         let mut preludes = preludes.clone();
                         preludes.extend(inner);
                         next.push((preludes, template.replace('&', selector)));
@@ -1737,7 +1741,14 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         // dimmed region all carry it, so one selector covers all three and
         // the ARIA question and the CSS question stop being the same
         // question. Specificity is (0,1,0), exactly what `:disabled` was.
-        Condition::Disabled => one(Vec::new(), "&[data-hozo-disabled]"),
+        Condition::Disabled => one(
+            Vec::new(),
+            if portable_disabled {
+                "&[data-hozo-disabled]"
+            } else {
+                "&:disabled"
+            },
+        ),
         // Exactly what Tailwind generates, checked against it rather than
         // recalled: `.aria-checked\:p-4[aria-checked="true"]`. Which means
         // it needs nothing from the element's props -- the selector matches
@@ -1749,7 +1760,14 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         // `enabled:` cannot disagree. Specificity matches what Tailwind's
         // `:enabled` gives -- `:not()` takes its argument's, which is one
         // attribute, exactly as a pseudo-class is one.
-        Condition::Enabled => one(Vec::new(), "&:not([data-hozo-disabled])"),
+        Condition::Enabled => one(
+            Vec::new(),
+            if portable_disabled {
+                "&:not([data-hozo-disabled])"
+            } else {
+                "&:enabled"
+            },
+        ),
         // Read from Tailwind's output rather than recalled. Direction is
         // the odd one: a selector rather than a query, and wrapped in
         // `:where()` so it weighs nothing -- an `rtl:` utility orders
@@ -1802,7 +1820,7 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         Condition::HasSelector(selector) => {
             one(Vec::new(), format!("&:has({})", has_argument(selector)))
         }
-        Condition::Has(inner) => condition_shapes(inner)
+        Condition::Has(inner) => condition_shapes_for(inner, portable_disabled)
             .into_iter()
             .filter_map(|(at_rules, suffix)| {
                 // Not wrapped: a variant's suffix is one compound already,
@@ -1816,7 +1834,7 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
         // selector negated -- with the capability query *dropped*, since
         // an element on a hover-less device is never hovered and the
         // negation holds there too -- plus a rule for that device.
-        Condition::Not(inner) => condition_shapes(inner)
+        Condition::Not(inner) => condition_shapes_for(inner, portable_disabled)
             .into_iter()
             .flat_map(|(at_rules, suffix)| {
                 let mut shapes = Vec::new();
@@ -1846,7 +1864,7 @@ pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
             // The at-rules are the inner variant's and survive the
             // relation -- `group-hover:` is inside `@media (hover: hover)`
             // exactly as `hover:` is. Only the selector moves.
-            condition_shapes(inner)
+            condition_shapes_for(inner, portable_disabled)
                 .into_iter()
                 .filter_map(|(at_rules, suffix)| {
                     // Refused at parse time, so the `None` is unreachable
@@ -2193,6 +2211,30 @@ pub fn render_rule(
     props: &[StyleProperty],
     theme: &Theme,
 ) -> String {
+    render_rule_for(class_name, condition, props, theme, true)
+}
+
+/// A pattern's secondary class list lands on a real child DOM element, not
+/// a synthesized root control. Let CSS ask that owner's actual capability:
+/// a disabled descendant does not make a decorative span :disabled or
+/// :enabled. This policy propagates through stacking and negation; replacing
+/// marker text afterwards cannot distinguish :enabled from not-disabled.
+pub(super) fn render_slot_rule(
+    class_name: &str,
+    condition: &Condition,
+    props: &[StyleProperty],
+    theme: &Theme,
+) -> String {
+    render_rule_for(class_name, condition, props, theme, false)
+}
+
+fn render_rule_for(
+    class_name: &str,
+    condition: &Condition,
+    props: &[StyleProperty],
+    theme: &Theme,
+    portable_disabled: bool,
+) -> String {
     // One condition can be several rules -- `marker:` is four and
     // `not-hover:` is two -- so this is a loop rather than a call. In
     // written order, which is the order Tailwind emits them and therefore
@@ -2234,6 +2276,7 @@ pub fn render_rule(
             &[],
             theme,
             true,
+            portable_disabled,
         ));
     }
     let ends_in_content = generates
@@ -2245,12 +2288,9 @@ pub fn render_rule(
         props,
         theme,
         ends_in_content,
+        portable_disabled,
     ));
-    rules.join(
-        "
-
-",
-    )
+    rules.join("\n\n")
 }
 
 /// The chain up to and including `index`, as a condition.
@@ -2267,8 +2307,9 @@ fn render_rule_shapes(
     props: &[StyleProperty],
     theme: &Theme,
     needs_content: bool,
+    portable_disabled: bool,
 ) -> String {
-    condition_shapes(condition)
+    condition_shapes_for(condition, portable_disabled)
         .into_iter()
         .map(|shape| render_shape(class_name, shape, props, theme, needs_content))
         .collect::<Vec<_>>()

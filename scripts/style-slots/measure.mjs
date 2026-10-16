@@ -16,21 +16,27 @@ const started = performance.now()
 const compiler = createCompiler()
 const coldMs = performance.now() - started
 const sources = []
+const stableSources = []
 for (const [component, slots] of Object.entries(components)) {
   for (const slot of slots) {
     const expressions = [
       '"p-2 hover:opacity-50 disabled:rounded-lg read-only:outline-2 aria-selected:text-red-500"',
       '{classes}',
     ]
-    if (slot.classProp === 'className') expressions.push('{cx("p-2", classes)}')
+    expressions.push('{cx("p-2", classes)}')
     for (const expression of expressions) {
       // Retain legacy inferred names even where no matching style prop exists:
       // this is a codegen/diagnostic comparison, not a typed render fixture.
       const style =
         slot.classProp === 'className' ? 'style' : slot.classProp.replace(/ClassName$/, 'Style')
-      sources.push(
-        `import { ${component}, cx } from '@hozo/core'; export function C({classes,extra,press}) {return <${component} onStepPress={press} ${slot.classProp}=${expression} ${style}={extra} />}`,
-      )
+      const source = `import { ${component}, cx } from '@hozo/core'; export function C({classes,extra,press}) {return <${component} onStepPress={press} ${slot.classProp}=${expression} ${style}={extra} />}`
+      sources.push(source)
+      // Exclude only the newly AOT-lowered secondary mixed cases. Comparing
+      // this pool separately distinguishes old-path cost from doing more
+      // compile-time work (and less on-device work) for new capabilities.
+      if (slot.lowering !== 'secondary' || expression !== '{cx("p-2", classes)}') {
+        stableSources.push(source)
+      }
     }
   }
 }
@@ -68,16 +74,26 @@ if (baseline) {
   assert.deepEqual(output, JSON.parse(readFileSync(path.resolve(baseline), 'utf8')).output)
   summary.baselineIdentical = true
 }
-if (process.argv.includes('--benchmark')) {
-  for (let i = 0; i < 500; i++) compiler.compileNativeModule(sources[i % sources.length])
+function benchmark(pool) {
+  for (let i = 0; i < 500; i++) compiler.compileNativeModule(pool[i % pool.length])
   const samples = []
   for (let sample = 0; sample < 9; sample++) {
     const start = performance.now()
-    for (let i = 0; i < 2000; i++) compiler.compileNativeModule(sources[i % sources.length])
+    for (let i = 0; i < 2000; i++) compiler.compileNativeModule(pool[i % pool.length])
     samples.push(performance.now() - start)
   }
   const sorted = [...samples].sort((left, right) => left - right)
-  summary.warm = { modulesPerSample: 2000, medianMs: sorted[4], p90Ms: sorted[8], samples }
+  return {
+    fixtureCount: pool.length,
+    modulesPerSample: 2000,
+    medianMs: sorted[4],
+    p90Ms: sorted[8],
+    samples,
+  }
+}
+if (process.argv.includes('--benchmark')) {
+  summary.warm = benchmark(sources)
+  if (process.argv.includes('--stable')) summary.stableWarm = benchmark(stableSources)
 }
 console.error(JSON.stringify(summary))
 console.log(JSON.stringify({ output, summary }))

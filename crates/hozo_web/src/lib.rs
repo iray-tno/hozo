@@ -926,6 +926,26 @@ fn push_rules(
     rules: &mut String,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    push_rules_using(
+        class_name,
+        style,
+        span,
+        theme,
+        rules,
+        diagnostics,
+        css::render_rule,
+    );
+}
+
+fn push_rules_using(
+    class_name: &str,
+    style: &[hozo_ir::StyleDeclaration],
+    span: hozo_ir::SourceSpan,
+    theme: &Theme,
+    rules: &mut String,
+    diagnostics: &mut Vec<Diagnostic>,
+    render: fn(&str, &hozo_ir::Condition, &[hozo_ir::StyleProperty], &Theme) -> String,
+) {
     for (condition, props) in hozo_ir::group_by_condition(style) {
         let props = hozo_ir::dedupe_last_wins(props);
         if props.is_empty() {
@@ -954,7 +974,7 @@ fn push_rules(
             (true, Some(shaded)) => shaded,
             _ => theme,
         };
-        let light = css::render_rule(class_name, &condition, &props, palette);
+        let light = render(class_name, &condition, &props, palette);
         rules.push_str(&light);
         rules.push_str("\n\n");
 
@@ -979,14 +999,9 @@ fn push_rules(
         // always.
         if !condition.mentions_dark() {
             if let Some(dark) = &shaded_theme {
-                let shaded = css::render_rule(class_name, &condition, &props, dark);
+                let shaded = render(class_name, &condition, &props, dark);
                 if shaded != light {
-                    rules.push_str(&css::render_rule(
-                        class_name,
-                        &condition.and_dark(),
-                        &props,
-                        dark,
-                    ));
+                    rules.push_str(&render(class_name, &condition.and_dark(), &props, dark));
                     rules.push_str("\n\n");
                 }
             }
@@ -1236,13 +1251,14 @@ fn render_node(
     for slot in &node.props.class_slots {
         let slot_class = allocator.alloc();
         let before = rules.len();
-        push_rules(
+        push_rules_using(
             &slot_class,
             &slot.style,
             slot.span,
             theme,
             rules,
             diagnostics,
+            css::render_slot_rule,
         );
         let produced = (rules.len() != before).then_some(slot_class);
         let classes: Vec<&str> = produced
@@ -1250,7 +1266,27 @@ fn render_node(
             .map(String::as_str)
             .chain(slot.carried.iter().map(String::as_str))
             .collect();
-        if !classes.is_empty() {
+        if !slot.fallback.is_empty() {
+            for _ in &slot.fallback {
+                diagnostics.push(hozo_ir::Diagnostic {
+                    code: hozo_ir::DiagnosticCode::DynamicClassNameNotResolved,
+                    severity: hozo_ir::Severity::Warning,
+                    message: format!("`{}` retains an opaque class expression; its CSS comes from the project-wide candidate stylesheet. Use a static string for build-time validation.", slot.slot.class_prop),
+                    span: slot.span,
+                });
+            }
+            // The fallback remains an authored value, not a condition
+            // emitted onto the widget root instead of the slot owner.
+            let parts = std::iter::once(format!("{:?}", classes.join(" ")))
+                .chain(
+                    slot.fallback
+                        .iter()
+                        .map(|expr| source_text(source, *expr).to_string()),
+                )
+                .collect::<Vec<_>>()
+                .join(", ");
+            attrs.push_str(&format!(" {}={{[{parts}].filter(Boolean).join(' ').replace(/\\S/, 'hozo-candidate-owner $&')}}", slot.slot.class_prop));
+        } else if !classes.is_empty() {
             attrs.push_str(&format!(
                 r#" {}="{}""#,
                 slot.slot.class_prop,
@@ -4060,6 +4096,34 @@ const el = <Chip onRemove={drop} disabled={busy} className=\"bg-red-500 my-chip\
             output.runtime_imports
         );
         assert!(output.css.contains(".hozo-1:hover"), "{}", output.css);
+    }
+
+    #[test]
+    fn mixed_secondary_classes_keep_aot_and_residual_values_on_the_actual_slot() {
+        let source = "import { Chip, cx } from '@hozo/core'; const el = <Chip onRemove={remove} removeClassName={cx('p-2 md:mt-2 not-focus:rounded-lg disabled:opacity-25 enabled:border-2 not-disabled:outline-2', first(), last())} />";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert_eq!(output.jsx.matches("first()").count(), 1, "{}", output.jsx);
+        assert_eq!(output.jsx.matches("last()").count(), 1, "{}", output.jsx);
+        assert!(output.jsx.contains("removeClassName={[\"hozo-1\", first(), last()].filter(Boolean).join(' ').replace(/\\S/, 'hozo-candidate-owner $&')}"), "{}", output.jsx);
+        for selector in [
+            ".hozo-1:disabled",
+            ".hozo-1:enabled",
+            ".hozo-1:not(:disabled)",
+            ".hozo-1:not(:focus)",
+        ] {
+            assert!(output.css.contains(selector), "{selector}: {}", output.css);
+        }
+        assert!(
+            !output.css.contains("data-hozo-disabled"),
+            "slot state is not a root marker: {}",
+            output.css
+        );
+        assert!(
+            output.css.contains("padding-top: 8px") && output.css.contains("768px"),
+            "{}",
+            output.css
+        );
     }
 
     #[test]

@@ -63,9 +63,16 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    resolves them with owner facts between AOT resting and state styles.
    Entirely opaque lists keep direct prop forwarding; static lists keep the
    existing callbacks. No Native component JS or primitive fast path changes.
-   Secondary expression **decomposition** is still a follow-up: secondary
-   expressions currently travel whole, while root expressions can retain AOT
-   pieces. This increment is not the completion of the shared parser plan.
+   The next increment shares the root expression decomposer with secondary
+   slots. Literal expressions, recognized joiners (including project helpers)
+   and separated templates keep AOT pieces and carry residual source spans in
+   `SlotStyle`. Fully opaque input keeps its zero-capture forwarding path.
+   Expressions containing authored JS conditions still travel **whole**:
+   moving a condition into an owner callback would re-evaluate it on events,
+   and capturing pieces out of source order would change side effects. A
+   source-ordered predicate capture plan remains a follow-up, not a pass.
+   Secondary Web CSS asks the real DOM child about disabled/enabled, including
+   stacking and negation; it does not expect a marker on the widget root.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/
    mixed, shape changes, absent owners, explicit style overrides and status
    gates in matrix fixtures. A decorative label can inherit text styling

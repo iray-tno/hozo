@@ -48,6 +48,15 @@ export function MixedChipProbe({ getClasses, getOtherClasses, extra, disabled })
     className={cx('p-2 opacity-100 hover:opacity-50 not-focus:rounded-lg disabled:outline-offset-4', getClasses(), getOtherClasses())}
     style={extra}>Token</Chip>
 }
+export function MixedRemoveProbe({ getClasses, getOtherClasses, extra, disabled }) {
+  return <Chip defaultSelected onRemove={() => {}} disabled={disabled}
+    removeClassName={cx('p-2 opacity-100 hover:opacity-50 not-focus:rounded-lg disabled:outline-offset-4', getClasses(), getOtherClasses())}
+    removeStyle={extra}>Token</Chip>
+}
+export function GuardedRemoveProbe({ getClasses, getGuard, getOtherClasses }) {
+  return <Chip onRemove={() => {}}
+    removeClassName={cx(getClasses(), getGuard() && 'p-2', getOtherClasses())}>Token</Chip>
+}
 export function ColorProbe({ disabled, value, onChange, extra }) {
   return <ColorPicker accessibilityLabel="Colour" presets={['#ef4444', '#3b82f6']}
     defaultValue="#3b82f6" value={value} onChange={onChange} disabled={disabled}
@@ -58,6 +67,11 @@ export function PageProbe({ page, getPageHref, onPageChange, extra }) {
   return <Pagination pageCount={3} page={page} getPageHref={getPageHref} onPageChange={onPageChange}
     itemClassName={classes.page} currentItemClassName={classes.currentPage}
     disabledItemClassName={classes.disabledPage} currentItemStyle={extra} />
+}
+export function MixedPageProbe({ getPageHref, getClasses, extra }) {
+  return <Pagination pageCount={3} getPageHref={getPageHref}
+    itemClassName={cx('outline-0 rounded-none enabled:outline-2 disabled:outline-offset-4 not-disabled:rounded-lg aria-disabled:mt-2', getClasses())}
+    itemStyle={extra} />
 }
 export function StepProbe({ steps, onStepPress, activeStep = 1, extra }) {
   return <Stepper steps={steps} onStepPress={onStepPress} activeStep={activeStep}
@@ -249,6 +263,74 @@ test('dynamic removal classes follow only removal state and evaluate the author 
   }
 })
 
+test('mixed removal slots keep AOT negation, captured residual order and explicit overrides', () => {
+  const calls: string[] = []
+  let value: unknown = classes.mixed
+  const props = {
+    getClasses: () => {
+      calls.push('first')
+      return value
+    },
+    getOtherClasses: () => {
+      calls.push('last')
+      return classes.changed
+    },
+  }
+  const view = mount('MixedRemoveProbe', props)
+  const remove = () => hosts(view.tree, 'button')[0]
+  try {
+    assert.deepEqual(calls, ['first', 'last'])
+    assert.equal(flat(remove()).paddingTop, 16)
+    assert.equal(flat(remove()).opacity, 0.75)
+    assert.equal(flat(remove()).borderRadius, 8)
+    event(remove(), 'onHoverIn')
+    assert.equal(flat(remove()).opacity, 0.5)
+    assert.equal(flat(remove()).backgroundColor, '#123456')
+    event(remove(), 'onFocus')
+    assert.equal(flat(remove()).borderRadius, 0)
+    assert.equal(flat(remove()).outlineWidth, 2)
+    assert.deepEqual(calls, ['first', 'last'])
+    view.update({ ...props, disabled: true, extra: { opacity: 0.9 } })
+    assert.equal(flat(remove()).opacity, 0.9)
+    assert.equal(flat(remove()).outlineOffset, 4)
+    value = undefined
+    view.update(props)
+    assert.equal(flat(remove()).backgroundColor, undefined)
+    assert.equal(flat(remove()).paddingTop, 8)
+  } finally {
+    view.unmount()
+  }
+})
+
+test('guarded secondary expressions preserve original short-circuit order and single author evaluation', () => {
+  const calls: string[] = []
+  const view = mount('GuardedRemoveProbe', {
+    getClasses: () => {
+      calls.push('first')
+      return classes.mixed
+    },
+    getGuard: () => {
+      calls.push('guard')
+      return true
+    },
+    getOtherClasses: () => {
+      calls.push('last')
+      return classes.changed
+    },
+  })
+  try {
+    assert.deepEqual(calls, ['first', 'guard', 'last'])
+    const remove = () => hosts(view.tree, 'button')[0]
+    event(remove(), 'onHoverIn')
+    event(remove(), 'onFocus')
+    assert.deepEqual(calls, ['first', 'guard', 'last'])
+    assert.equal(flat(remove()).backgroundColor, '#123456')
+    assert.equal(flat(remove()).outlineWidth, 2)
+  } finally {
+    view.unmount()
+  }
+})
+
 test('dynamic swatches retain per-radio selection, pointer modality, explicit styles and preset colour', () => {
   const changes: string[] = []
   const props = { onChange: (value: string) => changes.push(value) }
@@ -311,6 +393,35 @@ test('dynamic pagination slots keep current gates and button versus link boundar
     assert.equal(flat(next).marginTop, 8)
     assert.equal(flat(next).outlineOffset, 8)
     assert.equal(flat(buttons()[3]).opacity, 0.9)
+  } finally {
+    view.unmount()
+  }
+})
+
+test('mixed pagination classes keep enabled distinct from not-disabled when buttons become links', () => {
+  let calls = 0
+  const props = {
+    getClasses: () => {
+      calls++
+      return 'opacity-75'
+    },
+  }
+  const view = mount('MixedPageProbe', props)
+  const controls = () => hosts(view.tree)
+  try {
+    assert.equal(calls, 1)
+    assert.equal(flat(controls()[0]).outlineOffset, 4)
+    assert.equal(flat(controls()[0]).outlineWidth, 0)
+    assert.equal(flat(controls()[0]).borderRadius, 0)
+    assert.equal(flat(controls()[1]).outlineWidth, 2)
+    assert.equal(flat(controls()[1]).borderRadius, 8)
+    view.update({ ...props, getPageHref: (page) => `/page/${page}` })
+    assert.equal(calls, 2)
+    assert.equal(flat(controls()[0]).outlineOffset, undefined, 'disabled link is not :disabled')
+    assert.equal(flat(controls()[0]).outlineWidth, 0, 'link is not :enabled either')
+    assert.equal(flat(controls()[0]).borderRadius, 8, 'but not-disabled does match it')
+    assert.equal(flat(controls()[0]).marginTop, 8)
+    assert.equal(flat(controls()[1]).outlineWidth, 0)
   } finally {
     view.unmount()
   }
