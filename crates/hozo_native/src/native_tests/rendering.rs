@@ -1084,6 +1084,13 @@ fn chip_root_residuals_use_the_same_owner_route_as_secondary_classes() {
     assert!(mixed.jsx.contains("})((chooseClasses()), (chooseOther()))}"), "{}", mixed.jsx);
     assert!(!mixed.jsx.contains("className="), "{}", mixed.jsx);
 
+    // Even without AOT declarations, several residual leaves must be
+    // captured together rather than silently dropping all but the first.
+    let multiple = compile("cx(chooseClasses(), chooseOther())");
+    assert!(multiple.jsx.contains("hozoClasses(__hozoClassSlot0Value0, __hozoClassSlot0State), hozoClasses(__hozoClassSlot0Value1, __hozoClassSlot0State)"), "{}", multiple.jsx);
+    assert_eq!(multiple.jsx.matches("chooseClasses()").count(), 1, "{}", multiple.jsx);
+    assert_eq!(multiple.jsx.matches("chooseOther()").count(), 1, "{}", multiple.jsx);
+
     // An authored reference must not be shadowed by a capture/local name.
     let hygienic = compile("cx(__hozoClassSlot0State && 'hover:opacity-50', chooseClasses())");
     assert!(hygienic.jsx.contains("__hozoClassSlot1Value0"), "{}", hygienic.jsx);

@@ -75,6 +75,14 @@ Use actual Web DOM/Tailwind as an independent semantic oracle, and execute
 generated Native output against actual component source. Stand-in hosts do
 not certify device pixels, event delivery or assistive technology.
 
+The first routing probe exposed a separate existing Web gap, tracked in
+[#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
+expects a marker the retained component does not supply. Raw-Tailwind owner
+tests did not detect that pipeline gap. The new mixed-root browser probe
+checks supported Web hover/focus/cascade paths and independent Tailwind;
+it does not certify the broken AOT Web disabled path. Native explicit style
+is tested separately because Web Chip does not publish a style prop.
+
 ## Performance and coverage constraints
 
 - Keep static work AOT, including existing negated and ambient conditions.
