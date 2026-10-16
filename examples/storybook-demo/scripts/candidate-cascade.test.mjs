@@ -2109,7 +2109,11 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
       .join('')}
   </View>`
   const web = compiler.compile(source)[0]
-  assert.equal(web.diagnostics.length, 6, 'each opaque decorative slot retains its candidate warning')
+  assert.equal(
+    web.diagnostics.length,
+    6,
+    'each opaque decorative slot retains its candidate warning',
+  )
   for (const diagnostic of web.diagnostics) {
     assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
     assert.equal(diagnostic.severity, 'warning')
