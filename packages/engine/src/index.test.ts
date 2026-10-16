@@ -102,6 +102,36 @@ test('without a state, a state class is named once and left out', () => {
   }
 })
 
+// A direction is fixed for the run, so the module supplies it and no element
+// has to.
+const DIRECTION = {
+  'rtl:opacity-50': [[['rtl'], { opacity: 0.5 }]],
+  'ltr:opacity-80': [[['ltr'], { opacity: 0.8 }]],
+  'rtl:active:p-8': [[['rtl', 'pressed'], { paddingTop: 32 }]],
+} as const
+
+test('a direction class is decided once, after the unconditional ones, with no state', () => {
+  const rtl = createClassResolver(STYLES, {}, undefined, DIRECTION, { rtl: true, ltr: false })
+  const ltr = createClassResolver(STYLES, {}, undefined, DIRECTION, { rtl: false, ltr: true })
+  const warn = mock.method(console, 'warn', () => {})
+  try {
+    // Written first and still applied last, as a variant is in CSS.
+    const value = 'rtl:opacity-50 ltr:opacity-80 p-4'
+    assert.deepEqual(rtl(value), [STYLES['p-4'], { opacity: 0.5 }])
+    assert.deepEqual(ltr(value), [STYLES['p-4'], { opacity: 0.8 }])
+    assert.equal(rtl(value), rtl(value), 'decided once, so cached like an unconditional class')
+    assert.equal(warn.mock.callCount(), 0)
+  } finally {
+    warn.mock.restore()
+  }
+})
+
+test('a direction beside a state still needs the element to supply the state', () => {
+  const cx = createClassResolver(STYLES, {}, undefined, DIRECTION, { rtl: true, ltr: false })
+  assert.deepEqual(cx('rtl:active:p-8', { pressed: false }), [])
+  assert.deepEqual(cx('rtl:active:p-8', { pressed: true }), [{ paddingTop: 32 }])
+})
+
 test('a string with no state classes keeps its one cached array, state or not', () => {
   const cx = createClassResolver(STYLES, {}, undefined, STATES)
   assert.equal(cx('p-4', { pressed: true }), cx('p-4'))

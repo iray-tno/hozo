@@ -26,6 +26,15 @@
  * south (a chevron pointing down, an open branch) and `-rotate-45` turns it east
  * (pointing along the text, a closed one).
  *
+ * Along the text is west in an RTL locale. So the tree's right border is the
+ * logical end one (`border-e-2`), which mirrors the box to an apex pointing
+ * south-west there, and each rotation has an `rtl:` twin of the opposite
+ * sign: `rtl:rotate-45` turns that apex west and `rtl:-rotate-45` south.
+ * Mirroring the box this way rather than with a physical border and a
+ * different angle is for React Native: where `doLeftAndRightSwapInRTL`
+ * holds it moves a right border to the left in RTL on its own, so only a
+ * logical border means the same box on both platforms whatever that says.
+ *
  * ## Indentation is a class per depth, written out
  *
  * `ps-${level * 4}` is a class name nothing emitted CSS for: both Tailwind's
@@ -70,8 +79,8 @@ const INSIDE = 'flex flex-row items-center gap-2'
  * A leaf gets the space and no ink: without it the labels at one depth would
  * not line up with each other, which is the one thing indentation is for.
  */
-const OPEN = 'size-2 rotate-45 border-b-2 border-r-2 border-hozo-text-muted'
-const CLOSED = 'size-2 -rotate-45 border-b-2 border-r-2 border-hozo-text-muted'
+const OPEN = 'size-2 rotate-45 rtl:-rotate-45 border-b-2 border-e-2 border-hozo-text-muted'
+const CLOSED = 'size-2 -rotate-45 rtl:rotate-45 border-b-2 border-e-2 border-hozo-text-muted'
 const LEAF = 'size-2'
 
 export function HozoTree({ className, ...rest }: HozoTreeProps) {
