@@ -22,14 +22,14 @@ for (const [component, slots] of Object.entries(components)) {
       '"p-2 hover:opacity-50 disabled:rounded-lg read-only:outline-2 aria-selected:text-red-500"',
       '{classes}',
     ]
-    if (slot.classProp === 'className') expressions.push('{cn("p-2", classes)}')
+    if (slot.classProp === 'className') expressions.push('{cx("p-2", classes)}')
     for (const expression of expressions) {
       // Retain legacy inferred names even where no matching style prop exists:
       // this is a codegen/diagnostic comparison, not a typed render fixture.
       const style =
         slot.classProp === 'className' ? 'style' : slot.classProp.replace(/ClassName$/, 'Style')
       sources.push(
-        `import { ${component} } from '@hozo/core'; export function C({classes,extra,press}) {return <${component} onStepPress={press} ${slot.classProp}=${expression} ${style}={extra} />}`,
+        `import { ${component}, cx } from '@hozo/core'; export function C({classes,extra,press}) {return <${component} onStepPress={press} ${slot.classProp}=${expression} ${style}={extra} />}`,
       )
     }
   }
