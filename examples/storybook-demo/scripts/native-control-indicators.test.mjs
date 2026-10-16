@@ -398,7 +398,7 @@ test('Native tabs deliver hover, keyboard focus-visible and press state to both 
 
 // Exercise RN events, not a fabricated resolver state. Each owner must deliver
 // those facts to both callbacks, while retaining its separate semantic state.
-async function checkInteraction(tree, index = 0) {
+async function checkInteraction(tree, index = 0, focusOwner = true) {
   const host = () => tree.root.findAllByType('NativePressable')[index]
   const box = () => flat(host().props.style)
   const text = () => flat(host().findAllByType('NativeText')[0].props.style)
@@ -412,21 +412,21 @@ async function checkInteraction(tree, index = 0) {
   assert.equal(box().backgroundColor, undefined)
   assert.equal(text().color, undefined)
   await event('onFocus')
-  assert.equal(box().opacity, 0.75, 'focus: is independent of keyboard modality')
-  assert.equal(box().outlineWidth, 2)
-  assert.equal(box().outlineColor, color('hozo-focus'))
-  assert.equal(text().fontWeight, '700')
+  assert.equal(box().opacity, focusOwner ? 0.75 : undefined, 'only the CSS focus owner sees focus')
+  assert.equal(box().outlineWidth, focusOwner ? 2 : undefined)
+  assert.equal(box().outlineColor, focusOwner ? color('hozo-focus') : undefined)
+  assert.equal(text().fontWeight, focusOwner ? '700' : undefined)
   await event('onPointerDown')
   assert.equal(box().outlineWidth, undefined)
-  assert.equal(box().opacity, 0.75, 'pointer input does not clear focused')
+  assert.equal(box().opacity, focusOwner ? 0.75 : undefined, 'pointer input does not clear focused')
   assert.equal(text().fontWeight, undefined)
   await event('onKeyDown')
-  assert.equal(box().outlineWidth, 2)
-  assert.equal(text().fontWeight, '700')
+  assert.equal(box().outlineWidth, focusOwner ? 2 : undefined)
+  assert.equal(text().fontWeight, focusOwner ? '700' : undefined)
   await event('onPressIn')
   assert.equal(box().opacity, 0.5)
   await event('onPressOut')
-  assert.equal(box().opacity, 0.75)
+  assert.equal(box().opacity, focusOwner ? 0.75 : undefined)
   await event('onBlur')
   assert.equal(box().outlineWidth, undefined)
   assert.equal(box().opacity, undefined)
@@ -767,7 +767,7 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
     'first enabled command is the return-key target',
   )
   const index = hosts().findIndex((node) => node.props.accessibilityLabel === 'Alpha')
-  await checkInteraction(tree, index)
+  await checkInteraction(tree, index, false)
   assert.deepEqual(selected, [])
   assert.deepEqual(changes, [])
   await act(() => alpha().props.onHoverIn({}))
@@ -783,8 +783,8 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
   assert.equal(flat(shortcut().props.style).outlineWidth, undefined)
   assert.equal(
     flat(shortcut().findByType('NativeText').props.style).fontWeight,
-    '700',
-    'parent typography is inherited, not a shortcut focus predicate',
+    undefined,
+    'option div has no focus typography to inherit to the shortcut',
   )
   await act(() => alpha().props.onPressIn({}))
   assert.equal(flat(shortcut().props.style).opacity, 0.5)
@@ -848,10 +848,10 @@ test('Native CommandPalette shortcuts do not borrow item focus or become another
     await act(() => item(label).props.onFocus({}))
     assert.equal(
       flat(item(label).props.style).outlineWidth,
-      4,
-      'the actual Native control keeps its state',
+      undefined,
+      'Native button focus is not Web option focus',
     )
-    assert.equal(flat(item(label).findAllByType('NativeText')[0].props.style).fontWeight, '700')
+    assert.equal(flat(item(label).findAllByType('NativeText')[0].props.style).fontWeight, undefined)
     assertShortcut(label)
     await act(() => item(label).props.onPointerDown({}))
     assertShortcut(label)
@@ -890,7 +890,7 @@ test('Native CommandPalette active slot delivers interaction facts and keeps exp
     commands,
     activeItemClassName: interactionClasses,
   })
-  await checkInteraction(tree, 1)
+  await checkInteraction(tree, 1, false)
   const override = await mount(t, HozoCommandPalette, {
     open: true,
     commands,

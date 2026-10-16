@@ -906,6 +906,7 @@ test('CommandPalette shortcuts remain decorative while the real input keeps DOM 
           shortcut: label[0], onSelect: () => window.paletteSelections.push(label)}));
         createRoot(document.getElementById('root')).render(<CommandPalette open portal={false}
           commands={commands} onOpenChange={open => window.paletteClosures.push(open)}
+          itemClassName=${JSON.stringify(classes)} activeItemClassName="focus:outline-4"
           shortcutClassName=${JSON.stringify(classes)} inputClassName=${JSON.stringify(inputClasses)}/>);
       `,
       loader: 'tsx',
@@ -931,6 +932,23 @@ test('CommandPalette shortcuts remain decorative while the real input keeps DOM 
     const shortcuts = page.getByRole('option').locator('span[aria-hidden]')
     assert.equal(await shortcuts.count(), 2)
     const assertShortcuts = async () => {
+      const options = await page.getByRole('option').evaluateAll((nodes) =>
+        nodes.map((e) => {
+          e.focus()
+          return {
+            focused: e.matches(':focus'),
+            visible: e.matches(':focus-visible'),
+            outline: getComputedStyle(e).outlineWidth,
+            weight: getComputedStyle(e).fontWeight,
+          }
+        }),
+      )
+      for (const option of options) {
+        assert.equal(option.focused, false)
+        assert.equal(option.visible, false)
+        assert.notEqual(option.outline, '4px')
+        assert.equal(option.weight, '400')
+      }
       const results = await shortcuts.evaluateAll((nodes) =>
         nodes.map((e) => {
           // A decorative shortcut cannot take focus, even via a programmatic request.

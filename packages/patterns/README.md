@@ -225,6 +225,37 @@ limitations are not broadened.
 The selector distinction follows the [HTML selector definition](https://html.spec.whatwg.org/multipage/semantics-other.html#selector-read-only)
 and is checked against actual Web DOM/Tailwind separately from Native hosts.
 
+## Dynamic secondary class slots on Native
+
+The compiler leaves dynamic class expressions on registered state-owning
+secondary slots until the actual pattern owner can supply its facts:
+`Chip.removeClassName`, `Pagination` item/current/disabled-item classes,
+`ColorPicker` swatch/selected-swatch classes, `Stepper` step/status-step
+classes, `CommandPalette` item/active-item classes and `OtpInput.inputClassName`.
+For example, `removeClassName={classes}` uses the remove button's own hover,
+focus and disabled state, not the ancestor's state or an early lookup without
+state. Literal classes still compile ahead of time through private callbacks.
+
+Both paths use the existing slot composition order. Explicit styles follow
+their matching class list; a later status-specific slot still follows the
+base slot. A changed/absent dynamic string does not retain its old styles.
+The expression is evaluated by the author render, not inside a state callback.
+No extra event listeners, wrapper hosts or variant evaluator are added.
+
+Dynamic expressions retain the build-time warning: only scanned candidates
+and the runtime resolver's supported conditions work. Breakpoints, negation
+and missing owner facts still warn; a descriptive step does not gain focus or
+pointer state. This slice does not change dynamic root `className` lowering,
+other secondary slots, or unsupported static variant refusals.
+
+CommandPalette options are not the Web focus owner: its input retains DOM
+focus and announces the active option with `aria-activedescendant`. Dynamic
+item/active-item focus predicates therefore stay false even when the Native
+button receives an OS focus callback. Pointer/active-target decoration,
+activation and Native accessibility focus remain independent. Literal item
+focus variants keep their existing compiler refusal; use `activeItemClassName`
+to decorate the current return-key target.
+
 ## Focus ownership of decorative slots
 
 `OtpInput` has one focus owner: its real input. Put `focus:*` and

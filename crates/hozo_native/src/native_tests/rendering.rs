@@ -992,21 +992,53 @@ fn a_chip_is_hozo_chip_and_its_class_lists_are_style_props() {
     assert!(both.styles.contains("color: '#fff'"), "{}", both.styles);
     assert!(both.styles.contains("padding: 8") || both.styles.contains("paddingTop: 8"), "{}", both.styles);
 
-    // An expression is resolved on device, and an authored `removeStyle`
-    // still wins, last.
+    // An expression reaches the remove button before resolution, so it can
+    // supply its state. An authored `removeStyle` still wins, last.
     let dynamic = compile(r#"<Chip onRemove={drop} removeClassName={tone} removeStyle={extra}>x</Chip>"#);
-    assert!(dynamic.jsx.contains("removeStyle={[hozoClasses(tone), extra]}"), "{}", dynamic.jsx);
+    assert!(dynamic.jsx.contains("removeClassName={tone}"), "{}", dynamic.jsx);
+    assert!(dynamic.jsx.contains("removeStyle={extra}"), "{}", dynamic.jsx);
+    assert!(!dynamic.jsx.contains("hozoClasses(tone)"), "{}", dynamic.jsx);
     assert!(
         dynamic.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::DynamicClassNameNotResolved),
         "{:?}",
         dynamic.diagnostics
     );
-    assert!(!dynamic.jsx.contains("removeClassName"), "{}", dynamic.jsx);
 
     // The remove button now consumes a compiler callback with its own state.
     let hovered = compile(r#"<Chip onRemove={drop} removeClassName="hover:bg-red-500">x</Chip>"#);
     assert!(hovered.diagnostics.is_empty(), "{:?}", hovered.diagnostics);
     assert!(hovered.jsx.contains("hozoRemoveStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed }) => [hovered && hozoStyles.hozo1_hover]}"), "{}", hovered.jsx);
+}
+
+#[test]
+fn dynamic_secondary_pattern_classes_reach_only_registered_owners() {
+    for (name, primitive) in [("Chip", Primitive::Chip), ("Pagination", Primitive::Pagination),
+        ("ColorPicker", Primitive::ColorPicker), ("Stepper", Primitive::Stepper),
+        ("CommandPalette", Primitive::CommandPalette), ("OtpInput", Primitive::OtpInput)] {
+        for slot in primitive.class_slots() {
+            let owned = crate::pattern::interaction_slot(primitive, slot.class_prop).is_some();
+            let source = format!(
+                "import {{ {} }} from '@hozo/core'; const el = <{} {}={{selectClasses()}} {}={{extra}} />",
+                name, name, slot.class_prop, slot.style_prop,
+            );
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert_eq!(output.jsx.matches("selectClasses()").count(), 1, "{}", output.jsx);
+            let warning = output.diagnostics.iter().find(|d| d.code == DiagnosticCode::DynamicClassNameNotResolved)
+                .expect("dynamic candidates are not build-time validated");
+            assert_eq!(warning.severity, hozo_ir::Severity::Warning);
+            if owned {
+                assert!(output.jsx.contains(&format!("{}={{selectClasses()}}", slot.class_prop)), "{}", output.jsx);
+                assert!(output.jsx.contains(&format!("{}={{extra}}", slot.style_prop)), "{}", output.jsx);
+                assert!(!output.jsx.contains("hozoClasses("), "{}", output.jsx);
+                assert!(warning.message.contains("owner's available state"), "{}", warning.message);
+            } else {
+                assert!(output.jsx.contains("hozoClasses(selectClasses())"), "{}", output.jsx);
+                assert!(!output.jsx.contains(&format!("{}=", slot.class_prop)), "{}", output.jsx);
+                assert!(warning.message.contains("Conditional utilities can't"), "{}", warning.message);
+            }
+        }
+    }
 }
 
 #[test]

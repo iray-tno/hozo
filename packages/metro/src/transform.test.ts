@@ -48,6 +48,45 @@ export function C() { return <Chip defaultSelected={false} onRemove={drop}
   assert.doesNotMatch(output, /hozoClasses|candidate|HozoPressable|HozoText/)
 })
 
+test('dynamic secondary pattern classes reach their registered slot owner without an early lookup', () => {
+  for (const [component, slot, style] of [
+    ['Chip', 'removeClassName', 'removeStyle'],
+    ['Pagination', 'itemClassName', 'itemStyle'],
+    ['Pagination', 'currentItemClassName', 'currentItemStyle'],
+    ['Pagination', 'disabledItemClassName', 'disabledItemStyle'],
+    ['ColorPicker', 'swatchClassName', 'swatchStyle'],
+    ['ColorPicker', 'selectedSwatchClassName', 'selectedSwatchStyle'],
+    ['Stepper', 'stepClassName', 'stepStyle'],
+    ['Stepper', 'completedStepClassName', 'completedStepStyle'],
+    ['Stepper', 'currentStepClassName', 'currentStepStyle'],
+    ['Stepper', 'errorStepClassName', 'errorStepStyle'],
+    ['CommandPalette', 'itemClassName', 'itemStyle'],
+    ['CommandPalette', 'activeItemClassName', 'activeItemStyle'],
+    ['OtpInput', 'inputClassName', 'inputStyle'],
+  ]) {
+    const output = transformHozoSource(
+      `import { ${component} } from '@hozo/core'
+export function C() { return <${component} ${slot}={chooseClasses()} ${style}={extra} /> }`,
+      'Dynamic.tsx',
+    )
+    assert.ok(output)
+    assert.ok(output.includes(`${slot}={chooseClasses()}`), output)
+    assert.ok(output.includes(`${style}={extra}`), output)
+    assert.equal(output.match(/chooseClasses\(\)/g)?.length, 1)
+    assert.doesNotMatch(output, /hozoClasses|candidate|HozoPressable|HozoText/)
+  }
+  // No blanket forwarding: an unregistered decorative slot retains its
+  // existing fallback, and static interaction refusals below still apply.
+  const unowned = transformHozoSource(
+    `import { Avatar } from '@hozo/core'
+export function C() { return <Avatar name="Ada" statusClassName={classes} /> }`,
+    'Avatar.tsx',
+    '/project',
+  )
+  assert.match(unowned, /statusStyle=\{hozoClasses\(classes\)\}/)
+  assert.doesNotMatch(unowned, /statusClassName=/)
+})
+
 test('decorative pattern slots still reject static interaction classes in full Metro lowering', () => {
   assert.throws(
     () =>
