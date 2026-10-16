@@ -20,6 +20,29 @@ pub struct ClassEvaluation {
     pub steps: Vec<ClassEvaluationStep>,
 }
 
+/// A root capture encloses JSX, rather than a single prop's value. The
+/// parser records its replacement grammar even across unknown components.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RootClassEvaluation {
+    pub plan: ClassEvaluation,
+    pub expression_container: bool,
+}
+
+impl RootClassEvaluation {
+    pub fn wrap(&self, source: &str, result: &str) -> String {
+        let expression = self.plan.wrap(source, result);
+        if self.expression_container {
+            format!("{{{expression}}}")
+        } else {
+            expression
+        }
+    }
+
+    pub fn wrapper_offset(&self, source: &str) -> usize {
+        self.plan.wrapper_prefix(source).len() + usize::from(self.expression_container)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClassEvaluationStep {
     Value(ExprRef),
@@ -153,10 +176,16 @@ impl ClassEvaluation {
 
     pub fn wrap(&self, source: &str, result: &str) -> String {
         format!(
-            "(({}) => ({result}))({})",
-            self.name(source),
+            "{}{result}))({})",
+            self.wrapper_prefix(source),
             self.render(source)
         )
+    }
+
+    /// Also lets source-evidence consumers shift copied ranges without
+    /// searching generated code for a substring that may occur twice.
+    pub fn wrapper_prefix(&self, source: &str) -> String {
+        format!("(({}) => (", self.name(source))
     }
 }
 
