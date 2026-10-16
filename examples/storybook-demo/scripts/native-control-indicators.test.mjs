@@ -50,11 +50,16 @@ const moduleSource = cache
   .renderNativeModule(theme)
   .replace(/^import .*$/gm, '')
   .replace(/\bexport /g, '')
-const hozoClasses = new Function(
-  'createClassResolver',
-  'hozoTransformStyles',
-  `${moduleSource}\nreturn hozoClasses`,
-)(createClassResolver, hozoTransformStyles)
+// The module reads the direction from React Native once, so a resolver is
+// per direction, as it is per app run on a device.
+const resolverFor = (isRTL) =>
+  new Function(
+    'createClassResolver',
+    'hozoTransformStyles',
+    'I18nManager',
+    `${moduleSource}\nreturn hozoClasses`,
+  )(createClassResolver, hozoTransformStyles, { isRTL })
+const hozoClasses = resolverFor(false)
 const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
 const NativeView = (props) => React.createElement('NativeView', props, props.children)
 const NativeText = (props) => React.createElement('NativeText', props, props.children)
@@ -761,7 +766,9 @@ test('Native UI Tree draws a real, hidden marker and keeps the row text style on
   const closed = flat(marker(rows()[0]).props.style)
   assert.equal(marker(rows()[0]).props.accessible, false)
   assert.equal(closed.borderBottomWidth, 2)
-  assert.equal(closed.borderRightWidth, 2)
+  // Logical, so the box mirrors in RTL with no help from the swap setting.
+  assert.equal(closed.borderEndWidth, 2)
+  assert.equal(closed.borderRightWidth, undefined)
   assert.deepEqual(closed.transform, [{ rotate: '-45deg' }])
   // A leaf reserves the same width and draws no border.
   const leaf = flat(marker(rows()[1]).props.style)
@@ -773,6 +780,28 @@ test('Native UI Tree draws a real, hidden marker and keeps the row text style on
   assert.equal(flat(label(rows()[0]).props.style).fontWeight, undefined)
   await press(rows()[0])
   assert.deepEqual(flat(marker(rows()[0]).props.style).transform, [{ rotate: '45deg' }])
+})
+
+test('Native UI Tree turns its marker the other way in an RTL run, decided once', () => {
+  // The mirrored box's apex is south-west, so closed turns west with +45°
+  // and open turns south with -45°: the same two angles, swapped.
+  const source = readFileSync(path.join(uiRoot, 'src', 'tree.tsx'), 'utf8')
+  const look = (name) => new RegExp(`const ${name} = '([^']*)'`).exec(source)?.[1] ?? ''
+  const rtl = resolverFor(true)
+  const warn = console.warn
+  const warnings = []
+  console.warn = (message) => warnings.push(message)
+  try {
+    assert.deepEqual(flat(rtl(look('CLOSED'))).transform, [{ rotate: '45deg' }])
+    assert.deepEqual(flat(rtl(look('OPEN'))).transform, [{ rotate: '-45deg' }])
+    assert.deepEqual(flat(hozoClasses(look('CLOSED'))).transform, [{ rotate: '-45deg' }])
+    assert.deepEqual(flat(hozoClasses(look('OPEN'))).transform, [{ rotate: '45deg' }])
+    // No element state is asked for: the direction is the module's.
+    assert.equal(rtl(look('CLOSED')), rtl(look('CLOSED')))
+  } finally {
+    console.warn = warn
+  }
+  assert.deepEqual(warnings, [])
 })
 
 test('Native CommandPalette current item and shortcut receive host facts independently of activation', async (t) => {
