@@ -6,13 +6,10 @@ import { type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { HozoSlider } from './slider.native.tsx'
+import type { ColorPickerSlotFacts } from './slot-facts.native.ts'
 
 type Style = StyleProp<ViewStyle | TextStyle>
-type SwatchState = InteractionState & {
-  disabled: boolean
-  enabled: boolean
-  'aria-checked': boolean
-}
+type SwatchState = InteractionState & ColorPickerSlotFacts
 
 export interface HozoColorPickerProps {
   value?: string
@@ -153,7 +150,7 @@ export function HozoColorPicker({
                     'aria-checked': checked,
                     'aria-disabled': false,
                     'aria-selected': false,
-                  }
+                  } satisfies ColorPickerSlotFacts
                   return [
                     hozoClasses(swatchClassName, state),
                     hozoSwatchStyle?.(state) as StyleProp<ViewStyle>,

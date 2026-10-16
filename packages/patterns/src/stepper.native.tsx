@@ -2,6 +2,7 @@ import { useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import type { StepperSlotFacts } from './slot-facts.native.ts'
 import {
   type HozoStep,
   type HozoStepStatus,
@@ -15,7 +16,7 @@ export type { HozoStep, HozoStepStatus }
 
 type Style = StyleProp<ViewStyle | TextStyle>
 type StepStyle = (
-  state: InteractionState & { interactionAvailable: boolean; disabled: boolean; enabled: boolean },
+  state: InteractionState & StepperSlotFacts & { interactionAvailable: boolean },
 ) => Style
 
 export interface HozoStepperProps {
@@ -128,7 +129,7 @@ export function HozoStepper({
             enabled: interaction !== undefined && !step.disabled,
             'aria-disabled': false,
             'aria-selected': false,
-          }
+          } satisfies StepperSlotFacts
           const compiledState = {
             pressed: false,
             hovered: false,

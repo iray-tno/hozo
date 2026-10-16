@@ -4,16 +4,10 @@ import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { useChipRowInteraction } from './chip-row-interaction.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import type { ChipSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle as split } from './text-style.native.ts'
 
-type ChipSlotState = InteractionState & {
-  readonly [fact: string]: unknown
-  disabled: boolean
-  enabled: boolean
-  'aria-pressed': boolean
-  'aria-checked': false
-  'aria-disabled': false
-}
+type ChipSlotState = InteractionState & ChipSlotFacts
 
 export interface HozoChipProps {
   children?: ReactNode
