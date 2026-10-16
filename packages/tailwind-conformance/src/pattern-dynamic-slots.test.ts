@@ -17,7 +17,7 @@ const renderer = require('react-test-renderer')
 const stub = require('react-native')
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const theme = await loadTheme('@import "tailwindcss"; @theme { --color-brand: #123456; }', root)
-const source = `import { Chip, ColorPicker, Pagination, Stepper, CommandPalette, OtpInput } from '@hozo/core'
+const source = `import { Chip, ColorPicker, Pagination, Stepper, CommandPalette, OtpInput, cx } from '@hozo/core'
 export const classes = {
   chip: 'p-2 hover:bg-brand focus-visible:outline-2 disabled:opacity-25 aria-pressed:rounded-lg',
   swatch: 'p-2 aria-checked:rounded-lg disabled:opacity-25 hover:opacity-50 focus-visible:outline-2 active:border-2 hover:bg-brand',
@@ -33,10 +33,20 @@ export const classes = {
   changed: 'hover:opacity-75',
   unsupported: 'md:hover:opacity-25 not-focus:mt-1 aria-expanded:border-4',
   pointerInput: 'hover:opacity-25 active:opacity-50',
+  mixed: 'p-4 opacity-75 rounded-none hover:bg-brand focus-visible:outline-2',
 }
 export function ChipProbe({ getClasses, extra, disabled }) {
   return <Chip defaultSelected onRemove={() => {}} disabled={disabled}
     removeClassName={getClasses()} removeStyle={extra}>Token</Chip>
+}
+export function RootChipProbe({ getClasses, extra, disabled, remove, selectable = true }) {
+  return <Chip defaultSelected={selectable ? true : undefined} onRemove={remove} disabled={disabled}
+    className={getClasses()} style={extra}>Token</Chip>
+}
+export function MixedChipProbe({ getClasses, getOtherClasses, extra, disabled }) {
+  return <Chip defaultSelected disabled={disabled}
+    className={cx('p-2 opacity-100 hover:opacity-50 not-focus:rounded-lg disabled:outline-offset-4', getClasses(), getOtherClasses())}
+    style={extra}>Token</Chip>
 }
 export function ColorProbe({ disabled, value, onChange, extra }) {
   return <ColorPicker accessibilityLabel="Colour" presets={['#ef4444', '#3b82f6']}
@@ -110,6 +120,91 @@ function mount(name: string, props = {}) {
     unmount: () => renderer.act(() => tree.unmount()),
   }
 }
+
+test('compiled dynamic Chip root follows toggle versus composite ownership without rerunning the author', () => {
+  let calls = 0
+  let value: unknown = classes.chip
+  const props = {
+    getClasses: () => {
+      calls++
+      return value
+    },
+  }
+  const view = mount('RootChipProbe', props)
+  const toggle = () => hosts(view.tree, 'togglebutton')[0]
+  try {
+    assert.equal(calls, 1)
+    assert.equal(flat(toggle()).borderRadius, 8, 'root sees its selected toggle')
+    event(toggle(), 'onHoverIn')
+    assert.equal(flat(toggle()).backgroundColor, '#123456')
+    event(toggle(), 'onFocus')
+    assert.equal(flat(toggle()).outlineWidth, 2)
+    assert.equal(calls, 1)
+    view.update({ ...props, disabled: true })
+    assert.equal(flat(toggle()).opacity, 0.25)
+    view.update({ ...props, disabled: true, extra: { opacity: 0.9 } })
+    assert.equal(flat(toggle()).opacity, 0.9)
+
+    view.update({ ...props, disabled: true, remove: () => {} })
+    const row = () => view.tree.root.findAll((node: Tree) => node.type === 'View')[0]
+    assert.equal(flat(row()).borderRadius, undefined, 'composite span is not aria-pressed')
+    assert.equal(flat(row()).opacity, undefined, 'composite span is not :disabled')
+    assert.equal(flat(row()).outlineWidth, undefined, 'a focused child never focuses the row')
+    event(row(), 'onPointerEnter')
+    assert.equal(flat(row()).backgroundColor, '#123456')
+    value = classes.changed
+    view.update({ ...props, remove: () => {} })
+    assert.equal(flat(row()).opacity, 0.75)
+    assert.equal(flat(row()).backgroundColor, undefined)
+    for (value of [undefined, false, '']) {
+      view.update({ ...props, remove: () => {} })
+      assert.equal(flat(row()).opacity, undefined)
+    }
+    view.update({ ...props, selectable: false })
+    assert.equal(hosts(view.tree).length, 0, 'plain chip does not gain an interactive wrapper')
+  } finally {
+    view.unmount()
+  }
+})
+
+test('mixed Chip root retains AOT negation and resting/residual/state/explicit precedence', () => {
+  const calls: string[] = []
+  let value: unknown = classes.mixed
+  const props = {
+    getClasses: () => {
+      calls.push('first')
+      return value
+    },
+    getOtherClasses: () => {
+      calls.push('second')
+      return classes.changed
+    },
+  }
+  const view = mount('MixedChipProbe', props)
+  const toggle = () => hosts(view.tree, 'togglebutton')[0]
+  try {
+    assert.deepEqual(calls, ['first', 'second'])
+    assert.equal(flat(toggle()).paddingTop, 16, 'dynamic resting beats compiled resting')
+    assert.equal(flat(toggle()).opacity, 0.75)
+    assert.equal(flat(toggle()).borderRadius, 8, 'AOT not-focus remains outside runtime subset')
+    event(toggle(), 'onHoverIn')
+    assert.equal(flat(toggle()).opacity, 0.5, 'compiled state follows both dynamic residuals')
+    assert.equal(flat(toggle()).backgroundColor, '#123456')
+    event(toggle(), 'onFocus')
+    assert.equal(flat(toggle()).borderRadius, 0, 'negation switches off; dynamic resting remains')
+    assert.equal(flat(toggle()).outlineWidth, 2, 'runtime still receives real focus facts')
+    assert.deepEqual(calls, ['first', 'second'], 'events do not evaluate captured author calls')
+    view.update({ ...props, disabled: true, extra: { opacity: 0.9 } })
+    assert.equal(flat(toggle()).opacity, 0.9)
+    assert.equal(flat(toggle()).outlineOffset, 4, 'static semantic alias sees actual owner facts')
+    value = undefined
+    view.update(props)
+    assert.equal(flat(toggle()).backgroundColor, undefined, 'rerender discards old captures')
+    assert.equal(flat(toggle()).paddingTop, 8)
+  } finally {
+    view.unmount()
+  }
+})
 
 test('dynamic removal classes follow only removal state and evaluate the author expression once per render', () => {
   let calls = 0

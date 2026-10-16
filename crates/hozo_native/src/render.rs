@@ -123,19 +123,27 @@ pub(super) fn render_node(
     // CSS engine, so the string is handed to the generated resolver
     // instead (see `render_candidate_module`), which looks each class up in
     // the project-wide candidate map. Warning rather than error: the styles
-    // do arrive, but only for classes whose text appears literally
-    // somewhere in the project and that aren't conditional.
+    // do arrive for supported candidates scanned somewhere in the project.
+    // Registered patterns resolve with their actual owner's state; ordinary
+    // primitives keep their existing callback/prop state path below.
     for expr_ref in &node.class_name_fallback {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::DynamicClassNameNotResolved,
             severity: Severity::Warning,
-            message: format!(
-                "`{}` can't be resolved at build time, so it's resolved on device from the \
-                 project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) \
-                 can't be carried that way and will warn at runtime -- write those as a static \
-                 className so they compile to a real style variant.",
-                source_text(source, *expr_ref)
-            ),
+            message: if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
+                "`className` can't be resolved at build time. Its pattern slot resolves it on device \
+                 from the project-wide candidate map with that owner's available state. \
+                 Use a static string for build-time validation; runtime condition support remains limited."
+                    .to_string()
+            } else {
+                format!(
+                    "`{}` can't be resolved at build time, so it's resolved on device from the \
+                     project-wide candidate map. Conditional utilities (`hover:`, `md:`, `pressed:`) \
+                     can't be carried that way and will warn at runtime -- write those as a static \
+                     className so they compile to a real style variant.",
+                    source_text(source, *expr_ref)
+                )
+            },
             span: node.span,
         });
     }
@@ -1017,14 +1025,25 @@ pub(super) fn render_node(
     // `active:` or `hover:` class applies as a compiled one does (#886).
     let runtime_states = !node.class_name_fallback.is_empty() && matches!(component, "Pressable" | "HozoLink" | "TextInput");
     let class_state = runtime_class_state(node, source, runtime_states);
-    let fallback: Vec<String> = node
-        .class_name_fallback
-        .iter()
-        .map(|expr_ref| match &class_state {
+    let pattern_classes = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
+        crate::class_route::PatternClasses::new(
+            node.primitive,
+            "className",
+            node.class_name_fallback.iter().map(|expr| source_text(source, *expr).to_string()).collect(),
+            !style_array_parts.is_empty() || !pressed_parts.is_empty(),
+            source,
+        )
+    } else {
+        None
+    };
+    let fallback: Vec<String> = if let Some(route) = &pattern_classes {
+        route.residuals()
+    } else {
+        node.class_name_fallback.iter().map(|expr_ref| match &class_state {
             Some(state) => format!("hozoClasses({}, {state})", source_text(source, *expr_ref)),
             None => format!("hozoClasses({})", source_text(source, *expr_ref)),
-        })
-        .collect();
+        }).collect()
+    };
     style_array_parts.splice(state_start..state_start, fallback);
 
     // The owner collects events for both inherited styles and child-authored
@@ -1266,7 +1285,7 @@ pub(super) fn render_node(
     // Pattern callbacks are a private generated-code ABI, not an authored
     // style function. Keep the caller's style separate and last, so a state
     // class cannot override it or put a function inside an RN style array.
-    if needs_pressed_fn && pattern_style_prop.is_some() {
+    if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
         if !authored_style.is_empty() {
             props_text.push_str(&format!(" style={{[{}]}}", authored_style.join(", ")));
         }
@@ -1281,20 +1300,24 @@ pub(super) fn render_node(
         )];
     }
 
-    if needs_pressed_fn {
-        let state = if node.primitive == Primitive::Chip && pattern_style_prop.is_some() {
-            format!("{{ pressed, hovered, focused, focusVisible{} }}", crate::pattern::semantic_parameters(node.primitive))
-        } else if needs_focus_visible {
-            "{ pressed, hovered, focused, focusVisible }".to_string()
-        } else if needs_hover_or_focus || rendered_component == "HozoText" {
-            "{ pressed, hovered, focused }".to_string()
+    if let Some(route) = &pattern_classes {
+        props_text.push_str(&route.prop(&style_array_parts));
+    } else if needs_pressed_fn {
+        let callback = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
+            crate::class_route::static_callback(node.primitive, "className", &style_array_parts)
         } else {
-            "{ pressed }".to_string()
+            let state = if needs_focus_visible {
+                "{ pressed, hovered, focused, focusVisible }".to_string()
+            } else if needs_hover_or_focus || rendered_component == "HozoText" {
+                "{ pressed, hovered, focused }".to_string()
+            } else {
+                "{ pressed }".to_string()
+            };
+            format!("({state}) => [{}]", style_array_parts.join(", "))
         };
         props_text.push_str(&format!(
-            " {}={{({state}) => [{}]}}",
+            " {}={{{callback}}}",
             pattern_style_prop.unwrap_or("style"),
-            style_array_parts.join(", ")
         ));
     } else if style_array_parts.len() == 1 && !style_array_parts[0].contains("&&") {
         props_text.push_str(&format!(" style={{{}}}", style_array_parts[0]));
@@ -1730,22 +1753,12 @@ pub(super) fn render_node(
                 None,
             );
             if !pressed.is_empty() {
-                let owner = crate::pattern::interaction_slot(node.primitive, slot.class_prop)
-                    .expect("a pattern interaction guard requires a consuming slot");
-                let availability = if owner.optional_owner.is_some() {
-                    // Only event predicates require a button. The guard
-                    // resolver keeps that availability outside negation;
-                    // semantic predicates also apply to descriptive rows.
-                    ", interactionAvailable"
-                } else {
-                    ""
-                };
                 parts.extend(pressed);
-                let style_prop = owner.style_prop;
-                let semantic = crate::pattern::semantic_parameters(node.primitive);
+                let style_prop = crate::pattern::interaction_style_prop(node.primitive, slot.class_prop)
+                    .expect("a pattern interaction guard requires a consuming slot");
+                let callback = crate::class_route::static_callback(node.primitive, slot.class_prop, &parts);
                 props_text.push_str(&format!(
-                    " {style_prop}={{({{ pressed, hovered, focused, focusVisible{availability}{semantic} }}) => [{}]}}",
-                    parts.join(", "),
+                    " {style_prop}={{{callback}}}",
                 ));
                 parts.clear();
             }
@@ -1775,7 +1788,10 @@ pub(super) fn render_node(
                 span: node.span,
             });
             if owned {
-                props_text.push_str(&format!(" {}={{{expr}}}", slot.class_prop));
+                let route = crate::class_route::PatternClasses::new(
+                    node.primitive, slot.class_prop, vec![expr], false, source,
+                ).expect("registered above");
+                props_text.push_str(&route.prop(&[]));
             } else {
                 parts.push(format!("hozoClasses({expr})"));
             }

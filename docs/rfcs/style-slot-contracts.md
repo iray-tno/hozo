@@ -56,9 +56,16 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
 
 ## Next slices
 
-1. Unify root/secondary expression routing while retaining the ordinary
-   primitive fast paths. Repair Chip's dynamic root className via that shared
-   route, preserving partially static expressions and style precedence.
+1. The first routing increment shares pattern callback emission and opaque
+   class forwarding between root and secondary slots. Chip's dynamic root
+   now reaches its actual owner, like its secondary removal class. A mixed
+   root captures opaque residual values once during the author's render and
+   resolves them with owner facts between AOT resting and state styles.
+   Entirely opaque lists keep direct prop forwarding; static lists keep the
+   existing callbacks. No Native component JS or primitive fast path changes.
+   Secondary expression **decomposition** is still a follow-up: secondary
+   expressions currently travel whole, while root expressions can retain AOT
+   pieces. This increment is not the completion of the shared parser plan.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/
    mixed, shape changes, absent owners, explicit style overrides and status
    gates in matrix fixtures. A decorative label can inherit text styling
@@ -67,6 +74,14 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
 Use actual Web DOM/Tailwind as an independent semantic oracle, and execute
 generated Native output against actual component source. Stand-in hosts do
 not certify device pixels, event delivery or assistive technology.
+
+The first routing probe exposed a separate existing Web gap, tracked in
+[#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
+expects a marker the retained component does not supply. Raw-Tailwind owner
+tests did not detect that pipeline gap. The new mixed-root browser probe
+checks supported Web hover/focus/cascade paths and independent Tailwind;
+it does not certify the broken AOT Web disabled path. Native explicit style
+is tested separately because Web Chip does not publish a style prop.
 
 ## Performance and coverage constraints
 

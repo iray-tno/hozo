@@ -1065,6 +1065,39 @@ fn chip_static_state_callbacks_keep_base_styles_and_explicit_overrides() {
 }
 
 #[test]
+fn chip_root_residuals_use_the_same_owner_route_as_secondary_classes() {
+    let compile = |classes: &str| {
+        let source = format!("import {{ Chip, cx }} from '@hozo/core'; const el = <Chip className={{{classes}}} style={{extra}} />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    let opaque = compile("chooseClasses()");
+    assert!(opaque.jsx.contains("className={chooseClasses()}"), "{}", opaque.jsx);
+    assert!(!opaque.jsx.contains("hozoClasses("), "{}", opaque.jsx);
+    assert!(opaque.jsx.contains("style={[extra]}"), "{}", opaque.jsx);
+
+    let mixed = compile("cx('p-2 hover:opacity-50 not-focus:rounded-lg md:mt-2', chooseClasses(), chooseOther())");
+    assert_eq!(mixed.jsx.matches("chooseClasses()").count(), 1, "{}", mixed.jsx);
+    assert_eq!(mixed.jsx.matches("chooseOther()").count(), 1, "{}", mixed.jsx);
+    assert!(mixed.jsx.contains("hozoStyles.hozo0, __hozoBp_md && hozoStyles.hozo0_md, hozoClasses(__hozoClassSlot0Value0, __hozoClassSlot0State), hozoClasses(__hozoClassSlot0Value1, __hozoClassSlot0State), hovered &&"), "{}", mixed.jsx);
+    assert!(mixed.jsx.contains("!(focused) &&"), "{}", mixed.jsx);
+    assert!(mixed.jsx.contains("})((chooseClasses()), (chooseOther()))}"), "{}", mixed.jsx);
+    assert!(!mixed.jsx.contains("className="), "{}", mixed.jsx);
+
+    // Even without AOT declarations, several residual leaves must be
+    // captured together rather than silently dropping all but the first.
+    let multiple = compile("cx(chooseClasses(), chooseOther())");
+    assert!(multiple.jsx.contains("hozoClasses(__hozoClassSlot0Value0, __hozoClassSlot0State), hozoClasses(__hozoClassSlot0Value1, __hozoClassSlot0State)"), "{}", multiple.jsx);
+    assert_eq!(multiple.jsx.matches("chooseClasses()").count(), 1, "{}", multiple.jsx);
+    assert_eq!(multiple.jsx.matches("chooseOther()").count(), 1, "{}", multiple.jsx);
+
+    // An authored reference must not be shadowed by a capture/local name.
+    let hygienic = compile("cx(__hozoClassSlot0State && 'hover:opacity-50', chooseClasses())");
+    assert!(hygienic.jsx.contains("__hozoClassSlot1Value0"), "{}", hygienic.jsx);
+    assert!(hygienic.jsx.contains("__hozoClassSlot0State"), "{}", hygienic.jsx);
+}
+
+#[test]
 fn chip_semantic_predicates_read_the_class_owners_private_state() {
     let source = r#"import { Chip } from '@hozo/core'
       const el = <Chip defaultSelected={true} onRemove={maybeRemove}
