@@ -185,5 +185,7 @@ export {
   HozoTree,
   type HozoTreeProps as TreeProps,
   type HozoTreeProps,
+  type HozoTreeRowLook as TreeRowLook,
+  type HozoTreeRowLook,
   type TreeNode,
 } from './tree.native.tsx'

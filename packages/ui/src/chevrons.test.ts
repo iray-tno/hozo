@@ -15,7 +15,7 @@
  * "down" in a comment while drawing a chevron pointing *right*, which opened to
  * the *left*. Nothing caught it, because no check in this repository looks at a
  * shape — axe reads the accessibility tree and the utterance goldens read text,
- * and a pseudo-element is deliberately in neither.
+ * and a hidden marker is deliberately in neither.
  *
  * So this is the check: not what the shape looks like, which a test cannot see,
  * but that each file agrees with the table above. A chevron that flips still
@@ -68,17 +68,18 @@ test('the tree points along the text when closed and down when open', () => {
   // two angles mean different things in the two controls, so "the chevron
   // rotation" is not one decision made once.
   const source = code('tree.tsx')
-  const closed = /const CLOSED =\s*\n?\s*"([^"]*)"/.exec(source)?.[1] ?? ''
-  const open = /const OPEN =\s*\n?\s*"([^"]*)"/.exec(source)?.[1] ?? ''
-  assert.match(closed, /(^|\s)before:-rotate-45(\s|$)/, 'closed is east')
-  assert.match(open, /(^|\s)before:rotate-45(\s|$)/, 'open is south')
+  const closed = /const CLOSED = '([^']*)'/.exec(source)?.[1] ?? ''
+  const open = /const OPEN = '([^']*)'/.exec(source)?.[1] ?? ''
+  assert.match(closed, /(^|\s)-rotate-45(\s|$)/, 'closed is east')
+  assert.match(open, /(^|\s)rotate-45(\s|$)/, 'open is south')
 })
 
 test('a leaf reserves the marker’s width and draws nothing in it', () => {
   // Without it the labels at one depth do not line up with each other, which
   // is the one thing indentation is for.
   const leaf = /const LEAF = '([^']*)'/.exec(code('tree.tsx'))?.[1] ?? ''
-  assert.match(leaf, /\bps-4\b/)
+  // The drawn marker's `size-2`, so the labels start where theirs do.
+  assert.match(leaf, /\bsize-2\b/)
   assert.doesNotMatch(leaf, /rotate/)
   assert.doesNotMatch(leaf, /border-/)
 })

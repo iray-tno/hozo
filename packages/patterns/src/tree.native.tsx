@@ -1,12 +1,18 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 import { type TreeNode, visibleRows } from './tree-rules.ts'
 
 export type { TreeNode }
+
+/** What `rowLook` returns: class lists, read by the pattern on either platform. */
+export interface HozoTreeRowLook {
+  indentClassName?: string
+  markerClassName?: string
+}
 
 export interface HozoTreeProps {
   /**
@@ -43,6 +49,20 @@ export interface HozoTreeProps {
     expanded: boolean
     branch: boolean
   }) => ReactNode
+  /**
+   * The row's inside as a look, for a caller who wants a marker and an
+   * indent without taking the row over.
+   *
+   * The pattern draws them: an inner element with `indentClassName`, a
+   * decorative marker with `markerClassName` hidden from assistive
+   * technology (a glyph in the label would be in the accessible name), and
+   * the label, which keeps the row's own text styles on React Native -- what
+   * a `renderRow` cannot do there, since the row's resolved text style never
+   * reaches it. Real elements rather than `::before`, so the marker exists
+   * on a platform without pseudo-elements (#983). `renderRow` wins if both
+   * are given.
+   */
+  rowLook?: (row: { level: number; expanded: boolean; branch: boolean }) => HozoTreeRowLook
 }
 
 export function HozoTree({
@@ -56,6 +76,7 @@ export function HozoTree({
   style,
   rowStyle,
   renderRow,
+  rowLook,
 }: HozoTreeProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(defaultExpanded))
   const rows = visibleRows(nodes, expanded)
@@ -113,6 +134,12 @@ export function HozoTree({
                   expanded: row.expanded,
                   branch: row.branch,
                 })
+              ) : rowLook ? (
+                rowInside(
+                  rowLook({ level: row.level, expanded: row.expanded, branch: row.branch }),
+                  row.label,
+                  look(interaction)[1],
+                )
               ) : (
                 <Text style={look(interaction)[1]}>{row.label}</Text>
               )
@@ -120,6 +147,21 @@ export function HozoTree({
           </Pressable>
         )
       })}
+    </View>
+  )
+}
+
+function rowInside(look: HozoTreeRowLook, label: string, text: TextStyle) {
+  return (
+    <View style={hozoClasses(look.indentClassName)}>
+      {look.markerClassName === undefined ? null : (
+        <View
+          accessible={false}
+          importantForAccessibility="no-hide-descendants"
+          style={hozoClasses(look.markerClassName)}
+        />
+      )}
+      <Text style={text}>{label}</Text>
     </View>
   )
 }

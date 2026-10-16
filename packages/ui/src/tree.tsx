@@ -8,15 +8,17 @@
  *
  * ## The chevron is drawn, not written
  *
- * `::before` on the row's inner span, because a `▾` in the text is *in the
- * accessible name*. The demo this package took its look from has exactly that,
+ * A marker element the pattern draws and hides from assistive technology,
+ * because a `▾` in the text is *in the accessible name*. The demo this package took its look from has exactly that,
  * and its approved golden records what it costs:
  *
  *     treeitem, ▾ crates, expanded, level 1, position 1, not selected
  *
  * A reader announces the glyph and then announces `expanded`, which is the same
- * fact said twice -- once in a way nobody asked for. A pseudo-element is not in
- * the accessibility tree at all, so the marker is seen and never heard.
+ * fact said twice -- once in a way nobody asked for. A hidden element is not in
+ * the accessibility tree, so the marker is seen and never heard. It was a
+ * `::before` until #983: React Native has no pseudo-elements, so on a phone
+ * there was no marker at all.
  *
  * The geometry, since it is easy to get backwards and a rotation is hard to
  * review: a box with only a bottom and a right border is an angle whose apex
@@ -35,19 +37,19 @@
  * Logical (`ps-`), so the tree indents from the other side in an RTL locale
  * without a second rule.
  *
- * ## Which means this component owns `renderRow`
+ * ## A look, not the row's inside
  *
- * The pattern leaves the row's inside to the caller deliberately -- it has no
- * opinion about type scale. This package is the layer that does, so it passes
- * its own: label, indentation, marker. A caller who passes `renderRow` replaces
- * all three and owns the row's inside, which is the honest bargain and is why
- * the prop stays in the type.
+ * The pattern has no opinion about type scale; this package is the layer that
+ * does, so it passes `rowLook`: the indentation and the marker as class lists.
+ * The pattern draws them and keeps the label in the row's own text styles,
+ * which a `renderRow` cannot on React Native. A caller who passes `renderRow`
+ * still replaces all of it and owns the row's inside, which is the honest
+ * bargain and is why that prop stays in the type.
  */
 
-import { Text, View } from '@hozo/core'
 import { Tree as TreePattern, type TreeProps } from '@hozo/patterns'
 
-export type HozoTreeProps = Omit<TreeProps, 'rowClassName'>
+export type HozoTreeProps = Omit<TreeProps, 'rowClassName' | 'rowLook'>
 export type { TreeNode as HozoTreeNode } from '@hozo/patterns'
 
 const container =
@@ -59,32 +61,29 @@ const row =
 /** One literal per depth, because a computed class name emits no CSS. */
 const INDENT = ['ps-0', 'ps-5', 'ps-10', 'ps-15', 'ps-20'] as const
 
+/** The row's inside: the marker beside the label. */
+const INSIDE = 'flex flex-row items-center gap-2'
+
 /**
  * The marker, in three states, all of which reserve the same width.
  *
  * A leaf gets the space and no ink: without it the labels at one depth would
  * not line up with each other, which is the one thing indentation is for.
  */
-const OPEN =
-  "relative ps-4 before:content-[''] before:absolute before:start-0 before:top-1/2 before:-mt-1 before:size-2 before:rotate-45 before:border-b-2 before:border-r-2 before:border-hozo-text-muted"
-const CLOSED =
-  "relative ps-4 before:content-[''] before:absolute before:start-0 before:top-1/2 before:-mt-1 before:size-2 before:-rotate-45 before:border-b-2 before:border-r-2 before:border-hozo-text-muted"
-const LEAF = 'relative ps-4'
+const OPEN = 'size-2 rotate-45 border-b-2 border-r-2 border-hozo-text-muted'
+const CLOSED = 'size-2 -rotate-45 border-b-2 border-r-2 border-hozo-text-muted'
+const LEAF = 'size-2'
 
-export function HozoTree({ className, renderRow, ...rest }: HozoTreeProps) {
+export function HozoTree({ className, ...rest }: HozoTreeProps) {
   return (
     <TreePattern
       {...rest}
       className={className ? `${container} ${className}` : container}
       rowClassName={row}
-      renderRow={
-        renderRow ??
-        (({ label, level, expanded, branch }) => (
-          <View className={INDENT[Math.min(level - 1, INDENT.length - 1)]}>
-            <Text className={branch ? (expanded ? OPEN : CLOSED) : LEAF}>{label}</Text>
-          </View>
-        ))
-      }
+      rowLook={({ level, expanded, branch }) => ({
+        indentClassName: `${INSIDE} ${INDENT[Math.min(level - 1, INDENT.length - 1)]}`,
+        markerClassName: branch ? (expanded ? OPEN : CLOSED) : LEAF,
+      })}
     />
   )
 }

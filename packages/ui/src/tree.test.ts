@@ -44,11 +44,11 @@ const render = (props: Record<string, unknown> = {}) =>
 /**
  * Every `role="treeitem"` element, opening tag through to its close.
  *
- * The default row is a span inside a span -- the indentation and then the
- * marker -- so a row ends at `</span></span></div>`.
+ * The pattern draws the look as a span holding the marker and the label, so
+ * a row ends at the label's `</span></span></div>`.
  */
 const rows = (html: string): string[] =>
-  [...html.matchAll(/<div[^>]*role="treeitem"[\s\S]*?<\/span><\/div><\/div>/g)].map(
+  [...html.matchAll(/<div[^>]*role="treeitem"[\s\S]*?<\/span><\/span><\/div>/g)].map(
     (found) => found[0],
   )
 
@@ -61,13 +61,17 @@ test('nothing a reader would announce is added to the row', () => {
 })
 
 test('a closed branch is drawn differently from a leaf', () => {
-  // The whole reason `branch` reaches `renderRow`. `hozo_web` is a branch that
+  // The whole reason `branch` reaches `rowLook`. `hozo_web` is a branch that
   // is not expanded; `hozo_ir` is a leaf at the same depth.
   const html = render()
   const branch = rows(html).find((row) => row.includes('hozo_web')) ?? ''
   const leaf = rows(html).find((row) => row.includes('hozo_ir')) ?? ''
   assert.ok(branch.length > 0 && leaf.length > 0, 'both rows were found')
-  assert.match(branch, /before:-rotate-45/, 'the closed branch has a marker')
+  assert.match(
+    branch,
+    /aria-hidden="true" class="[^"]*-rotate-45/,
+    'the closed branch has a marker',
+  )
   assert.doesNotMatch(leaf, /rotate/, 'the leaf has none')
   // And the branch says so in the tree as well, which is what the marker is a
   // picture of.
@@ -83,8 +87,8 @@ test('indentation is a literal class per depth', () => {
   const top = rows(html).find((row) => row.includes('crates')) ?? ''
   const second = rows(html).find((row) => row.includes('hozo_ir')) ?? ''
   const third = rows(html).find((row) => row.includes('css.rs')) ?? ''
-  assert.match(top, /class="hozo-view ps-0"/)
-  assert.match(second, /class="hozo-view ps-5"/)
+  assert.match(top, /class="flex flex-row items-center gap-2 ps-0"/)
+  assert.match(second, /class="flex flex-row items-center gap-2 ps-5"/)
   // The third level is only visible once its parent is open, which is what
   // `visibleRows` decides -- so this also checks the expansion reached here.
   assert.equal(third, '', 'hozo_web is closed, so css.rs is not rendered')
