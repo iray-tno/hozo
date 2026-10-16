@@ -58,4 +58,13 @@ impl Primitive {
             _ => &[],
         }
     }
+
+    /// Whether `className` lands on an element the catalog has audited -- a
+    /// real DOM element the component draws, which keeps its own `disabled`
+    /// -- rather than on a host carrying Hozo's disabled marker. Web CSS then
+    /// asks that element (`:disabled`, `:enabled`), as it does a secondary
+    /// slot's owner: a span or a div is neither (#993).
+    pub fn root_owner_is_audited(self) -> bool {
+        matches!(self, Self::Chip | Self::OtpInput)
+    }
 }

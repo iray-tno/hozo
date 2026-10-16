@@ -74,6 +74,13 @@ export function outputs(catalog = components, facts = profiles) {
         ]
       : []
   })
+  // A root whose owner the catalog has audited is a real element the
+  // component draws, so the Web asks that element whether it is disabled.
+  const audited = Object.entries(catalog).flatMap(([component, slots]) =>
+    slots.some((slot) => slot.lowering === 'root' && slot.owner !== 'pending-audit')
+      ? [`Self::${component}`]
+      : [],
+  )
   const ir = `${header}use crate::{ClassSlot, Primitive};
 
 impl Primitive {
@@ -84,6 +91,15 @@ impl Primitive {
 ${mappings.join('\n')}
             _ => &[],
         }
+    }
+
+    /// Whether \`className\` lands on an element the catalog has audited -- a
+    /// real DOM element the component draws, which keeps its own \`disabled\`
+    /// -- rather than on a host carrying Hozo's disabled marker. Web CSS then
+    /// asks that element (\`:disabled\`, \`:enabled\`), as it does a secondary
+    /// slot's owner: a span or a div is neither (#993).
+    pub fn root_owner_is_audited(self) -> bool {
+        ${audited.length ? `matches!(self, ${audited.join(' | ')})` : 'false'}
     }
 }
 `
