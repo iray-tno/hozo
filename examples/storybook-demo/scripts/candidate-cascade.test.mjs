@@ -1834,6 +1834,103 @@ test('mixed Chip root keeps compiled states above caller candidates on Web and N
   }
 })
 
+test('mixed secondary AOT classes use the actual button or link rather than a widget-root marker', {
+  skip: !executablePath,
+}, async () => {
+  const own =
+    'outline-0 rounded-none m-0 enabled:outline-2 disabled:outline-offset-4 not-disabled:rounded-lg aria-disabled:mt-2'
+  const caller = 'opacity-75'
+  const source = `import {Pagination,cx} from '@hozo/core'; const C = () =>
+    <Pagination pageCount={3} getPageHref={getPageHref} itemClassName={cx('${own}', getClasses())} />`
+  const web = compiler.compile(source)[0]
+  const candidates = openCandidateCache(path.join(directory, 'mixed-secondary.json'))
+  candidates.scanFile('caller.ts', `const classes = '${caller}'`, 1)
+  const candidateCss = candidates.renderCss()
+  const oracleCss = (
+    await compile('@theme { --spacing:0.25rem; --radius-lg:0.5rem; } @tailwind utilities;')
+  ).build(`${own} ${caller}`.split(' '))
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Pagination as HozoPagination} from '@hozo/patterns';
+        createRoot(document.getElementById('root')).render(<>{[false,true].map(link => {
+          const getPageHref = link ? page => '#page-' + page : undefined;
+          const getClasses = () => '${caller}';
+          return <section key={String(link)} id={link ? 'links' : 'buttons'}>${web.jsx}</section>;
+        })}</>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><div id="oracle"></div>`,
+      )
+      await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      await page.waitForFunction(
+        () => document.querySelectorAll('#root button,#root a').length === 10,
+      )
+      const read = (locator) =>
+        locator.evaluate((e) => {
+          const css = getComputedStyle(e)
+          return {
+            opacity: css.opacity,
+            radius: css.borderRadius,
+            outline: css.outlineWidth,
+            offset: css.outlineOffset,
+            margin: css.marginTop,
+          }
+        })
+      for (const link of [false, true])
+        for (const boundary of [true, false]) {
+          const controls = page.locator(link ? '#links a' : '#buttons button')
+          const actual = await read(controls.nth(boundary ? 0 : 1))
+          const expected = {
+            opacity: '0.75',
+            radius: !link && boundary ? '0px' : '8px',
+            outline: !link && !boundary ? '2px' : '0px',
+            offset: !link && boundary ? '4px' : '0px',
+            margin: link && boundary ? '8px' : '0px',
+          }
+          assert.deepEqual(actual, expected, `compiled link=${link}, boundary=${boundary}`)
+          await page.locator('#oracle').evaluate(
+            (root, { link, boundary, classes }) => {
+              const owner = document.createElement(link ? 'a' : 'button')
+              owner.className = classes
+              if (link) {
+                owner.href = '#'
+                if (boundary) owner.setAttribute('aria-disabled', 'true')
+              } else owner.disabled = boundary
+              root.replaceChildren(owner)
+            },
+            { link, boundary, classes: `${own} ${caller}` },
+          )
+          assert.deepEqual(
+            actual,
+            await read(page.locator('#oracle > *')),
+            'independent Tailwind owner',
+          )
+        }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('owned candidates work without Tailwind, and empty roots/slots keep absent values', {
   skip: !executablePath,
 }, async () => {

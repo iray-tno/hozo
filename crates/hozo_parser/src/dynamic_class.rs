@@ -96,6 +96,27 @@ pub(crate) fn decompose_class_name(expr: &JSXExpression, module_record: &Joiners
     out
 }
 
+/// Secondary props already have an opaque passthrough path. Avoid building
+/// and discarding a fallback vector for a bare prop/member/untrusted call;
+/// recognized inputs still use exactly the root's classifier/decomposer.
+pub(crate) fn decompose_class_pieces(
+    expr: &JSXExpression,
+    joiners: &Joiners,
+) -> Option<Decomposed> {
+    let target = classify_jsx_expression(expr);
+    match &target {
+        Target::Other(_) | Target::Spread(_) => return None,
+        Target::Identifier(span) if !joiners.constants.contains_key(&span.start) => return None,
+        Target::Call(call) if is_recognized_cx_call(&call.callee, joiners).is_none() => {
+            return None
+        }
+        _ => {}
+    }
+    let mut out = Decomposed::default();
+    decompose(target, None, None, &mut out, joiners);
+    Some(out)
+}
+
 /// The handful of expression shapes `decompose` understands, regardless of
 /// which wrapper enum (`Expression`, `Argument`, `JSXExpression`) they were
 /// extracted from -- those wrappers differ only at the outermost level;

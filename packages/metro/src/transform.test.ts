@@ -109,6 +109,46 @@ export function C() { return <Chip defaultSelected className={cx('p-2 hover:opac
   assert.doesNotMatch(output, /className=|HozoPressable|HozoText/)
 })
 
+test('mixed secondary expressions retain AOT on every registered owner and keep JS guards opaque', () => {
+  for (const [component, slot, state] of [
+    ['Chip', 'removeClassName', 'hover'],
+    ['Pagination', 'itemClassName', 'hover'],
+    ['ColorPicker', 'swatchClassName', 'hover'],
+    ['Stepper', 'stepClassName', 'hover'],
+    ['CommandPalette', 'itemClassName', 'hover'],
+    ['OtpInput', 'inputClassName', 'focus'],
+  ]) {
+    const output = transformHozoSource(
+      `import {${component},cx} from '@hozo/core'; export function C() {return <${component} onStepPress={press} ${slot}={cx('p-2 not-${state}:rounded-lg ${state}:opacity-50 md:mt-2', choose())} />}`,
+      'Mixed.tsx',
+      '/project',
+    )
+    assert.ok(output)
+    assert.match(output, /__hozoClassSlot0Value0/)
+    assert.match(output, /paddingTop: 8/)
+    assert.match(output, /__hozoBp_md/)
+    assert.equal(output.match(/choose\(\)/g)?.length, 1)
+    assert.ok(!output.includes(`${slot}=`), output)
+  }
+  const guarded = transformHozoSource(
+    `import {Chip,cx} from '@hozo/core'; export function C() {return <Chip removeClassName={cx(first(), guard() && 'p-2', last())} />}`,
+    'Guarded.tsx',
+    '/project',
+  )
+  assert.match(guarded, /removeClassName=\{cx\(first\(\), guard\(\) && 'p-2', last\(\)\)\}/)
+  assert.doesNotMatch(guarded, /hozoClasses|__hozoClassSlot/)
+  const compiler = createCompiler()
+  compiler.setClassHelpers([{ module: '@/utils', name: 'cn' }])
+  const configured = transformHozoSource(
+    `import {Chip} from '@hozo/core'; import {cn} from '@/utils'; export function C() {return <Chip removeClassName={cn('p-2 not-focus:rounded-lg', choose())} />}`,
+    'Configured.tsx',
+    '/project',
+    compiler,
+  )
+  assert.match(configured, /__hozoClassSlot0Value0/)
+  assert.match(configured, /!\(focused\)/)
+})
+
 test('decorative pattern slots still reject static interaction classes in full Metro lowering', () => {
   assert.throws(
     () =>

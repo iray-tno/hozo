@@ -1405,6 +1405,67 @@ fn chip_static_state_callbacks_keep_base_styles_and_explicit_overrides() {
 }
 
 #[test]
+fn mixed_secondary_slots_use_the_shared_owner_route_without_a_runtime_downgrade() {
+    for (name, primitive) in [
+        ("Chip", Primitive::Chip),
+        ("Pagination", Primitive::Pagination),
+        ("ColorPicker", Primitive::ColorPicker),
+        ("Stepper", Primitive::Stepper),
+        ("CommandPalette", Primitive::CommandPalette),
+        ("OtpInput", Primitive::OtpInput),
+    ] {
+        for slot in primitive.class_slots() {
+            let Some(owner) = crate::pattern::interaction_slot(primitive, slot.class_prop) else {
+                continue;
+            };
+            let state = if owner.pointer { "hover" } else { "focus" };
+            let source = format!("import {{{name},cx}} from '@hozo/core'; const el = <{name} onStepPress={{press}} {}={{cx('p-2 {state}:opacity-50 not-{state}:rounded-lg md:mt-2', choose())}} {}={{extra}} />", slot.class_prop, slot.style_prop);
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(
+                output
+                    .diagnostics
+                    .iter()
+                    .all(|d| d.code == DiagnosticCode::DynamicClassNameNotResolved),
+                "{name}.{}: {:?}",
+                slot.class_prop,
+                output.diagnostics
+            );
+            assert_eq!(output.jsx.matches("choose()").count(), 1, "{}", output.jsx);
+            assert!(
+                output.jsx.contains(&format!("{}={{((", owner.style_prop)),
+                "{}",
+                output.jsx
+            );
+            assert!(
+                output
+                    .jsx
+                    .contains("hozoClasses(__hozoClassSlot0Value0, __hozoClassSlot0State)"),
+                "{}",
+                output.jsx
+            );
+            assert!(
+                output
+                    .jsx
+                    .contains(&format!("{}={{extra}}", slot.style_prop)),
+                "{}",
+                output.jsx
+            );
+            assert!(
+                output.jsx.contains("__hozoBp_md &&") && output.jsx.contains("!("),
+                "{}",
+                output.jsx
+            );
+            assert!(
+                !output.jsx.contains(&format!(" {}=", slot.class_prop)),
+                "{}",
+                output.jsx
+            );
+        }
+    }
+}
+
+#[test]
 fn chip_root_residuals_use_the_same_owner_route_as_secondary_classes() {
     let compile = |classes: &str| {
         let source = format!("import {{ Chip, cx }} from '@hozo/core'; const el = <Chip className={{{classes}}} style={{extra}} />");
