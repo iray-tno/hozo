@@ -193,7 +193,13 @@ fn placeholder_pseudo_colour_and_dark_mode_are_props_not_value_styles() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.contains("placeholderTextColor={__hozoDark ? '#2b7fff' : '#fb2c36'}"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .contains("placeholderTextColor={__hozoDark ? '#2b7fff' : '#fb2c36'}"),
+        "{}",
+        output.jsx
+    );
     assert!(output.styles.contains("color: '#00c950'"));
     assert!(!output.styles.contains("#fb2c36"));
     assert!(!output.styles.contains("#2b7fff"));
@@ -213,7 +219,14 @@ fn unsupported_placeholder_styles_and_stacks_still_diagnose() {
         let source = format!("import {{TextInput}} from '@hozo/core'; export function C() {{ return <TextInput accessibilityLabel=\"Field\" className=\"{classes}\"/> }}");
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{classes}: {:?}", output.diagnostics);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+            "{classes}: {:?}",
+            output.diagnostics
+        );
     }
 }
 

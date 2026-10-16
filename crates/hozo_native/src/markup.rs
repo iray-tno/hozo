@@ -4,7 +4,9 @@
 //! actual props differ (RN has no `role`/`tabIndex`, it has
 //! `accessibilityRole`/`accessible`).
 
-use hozo_ir::{AccessibilityRole, Diagnostic, DiagnosticCode, Node, Primitive, Severity, SvgElement};
+use hozo_ir::{
+    AccessibilityRole, Diagnostic, DiagnosticCode, Node, Primitive, Severity, SvgElement,
+};
 
 /// `(RN component name, extra props beyond `style`)`.
 ///
@@ -53,12 +55,18 @@ fn static_ruby_base(node: &Node) -> Option<String> {
     }
     (!base.trim().is_empty()).then_some(base)
 }
-pub fn native_component(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'static str, Vec<(&'static str, String)>) {
+pub fn native_component(
+    node: &Node,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> (&'static str, Vec<(&'static str, String)>) {
     let (component, attrs) = native_component_inner(node, diagnostics);
     (component, apply_authored_role(node, attrs))
 }
 
-fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'static str, Vec<(&'static str, String)>) {
+fn native_component_inner(
+    node: &Node,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> (&'static str, Vec<(&'static str, String)>) {
     match node.primitive {
         // `react-native-svg` exports these under exactly the names SVG
         // gives them, which is why the JSX spelling is a namespace rather
@@ -156,7 +164,10 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // element by default -- was read every time.
         Primitive::Progress => (
             "View",
-            vec![("role", "progressbar".to_string()), ("accessible", String::new())],
+            vec![
+                ("role", "progressbar".to_string()),
+                ("accessible", String::new()),
+            ],
         ),
         // A component, because a meter is a bar as well as an amount: the
         // track, a fill as wide as the amount, and its colour from `low`,
@@ -225,7 +236,10 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
             // still navigation, so let `HozoLink` keep its link-role default.
             ("HozoLink", Vec::new())
         }
-        Primitive::Button => ("Pressable", vec![("accessibilityRole", "button".to_string())]),
+        Primitive::Button => (
+            "Pressable",
+            vec![("accessibilityRole", "button".to_string())],
+        ),
         Primitive::Link => ("HozoLink", Vec::new()),
         Primitive::Image => ("Image", image_attrs(node, diagnostics)),
         Primitive::ScrollView => ("ScrollView", Vec::new()),
@@ -235,9 +249,10 @@ fn native_component_inner(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> (&'
         // `accessibilityCollection` is what tells TalkBack the real one.
         // See `@hozo/engine`'s `list.native.ts` -- including why iOS gets
         // nothing.
-        Primitive::FlatList => {
-            ("HozoFlatList", vec![("accessibilityRole", "list".to_string())])
-        }
+        Primitive::FlatList => (
+            "HozoFlatList",
+            vec![("accessibilityRole", "list".to_string())],
+        ),
         Primitive::RefreshControl => ("RefreshControl", Vec::new()),
         Primitive::Modal => ("Modal", Vec::new()),
         Primitive::AnimatedView => ("Animated.View", Vec::new()),
@@ -309,7 +324,11 @@ fn image_attrs(node: &Node, diagnostics: &mut Vec<Diagnostic>) -> Vec<(&'static 
     // `alt` names an image and nothing else, so it is added here rather
     // than to the shared list. An empty one is a name: it says the image
     // is decorative, which is a claim and not an omission.
-    let alt = node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("alt"));
+    let alt = node
+        .props
+        .passthrough
+        .iter()
+        .any(|p| p.name.as_deref() == Some("alt"));
     if !alt && node.props.has_accessible_name() == Some(false) {
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::A11yMissingAccessibleName,
@@ -388,16 +407,16 @@ fn apply_authored_role(
     node: &Node,
     mut attrs: Vec<(&'static str, String)>,
 ) -> Vec<(&'static str, String)> {
-    let Some(role) = &node.props.accessibility_role else { return attrs };
+    let Some(role) = &node.props.accessibility_role else {
+        return attrs;
+    };
     attrs.retain(|(key, _)| *key != "role" && *key != "accessibilityRole");
     match role {
         AccessibilityRole::Button => attrs.push(("role", "button".to_string())),
         AccessibilityRole::Link => attrs.push(("role", "link".to_string())),
         AccessibilityRole::Aria(name) => attrs.push(("role", name.clone())),
         // Its own vocabulary, which only this platform has.
-        AccessibilityRole::NativeOnly(name) => {
-            attrs.push(("accessibilityRole", name.clone()))
-        }
+        AccessibilityRole::NativeOnly(name) => attrs.push(("accessibilityRole", name.clone())),
     }
     attrs
 }
@@ -427,7 +446,9 @@ mod tests {
         let mut diagnostics = Vec::new();
         let (component, props) = native_component(&node, &mut diagnostics);
         assert_eq!(component, "Pressable");
-        assert!(props.iter().any(|(k, v)| *k == "accessibilityRole" && v == "button"));
+        assert!(props
+            .iter()
+            .any(|(k, v)| *k == "accessibilityRole" && v == "button"));
         assert!(diagnostics.is_empty());
     }
 
@@ -478,6 +499,9 @@ mod tests {
         let (component, _) = native_component(&node, &mut diagnostics);
         assert_eq!(component, "Pressable");
         assert_eq!(diagnostics.len(), 1);
-        assert_eq!(diagnostics[0].code, DiagnosticCode::A11yInteractiveWithoutRole);
+        assert_eq!(
+            diagnostics[0].code,
+            DiagnosticCode::A11yInteractiveWithoutRole
+        );
     }
 }

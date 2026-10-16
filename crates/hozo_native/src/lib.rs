@@ -57,14 +57,14 @@ mod class_route;
 mod conditions;
 mod grid;
 mod interaction;
-mod pattern;
 mod keyframes;
 mod markup;
+mod pattern;
 mod render;
 mod style;
 mod text;
-mod transition;
 mod transforms;
+mod transition;
 
 use candidate::style_pairs;
 use conditions::{build_style_entries, unwired_variant, RuntimeHook};
@@ -82,15 +82,15 @@ use conditions::{build_style_entries, unwired_variant, RuntimeHook};
 /// produced a `hozo0_dark` holding the light colour: structurally correct,
 /// guarded correctly, and the same colour twice.
 type StyleEntry = (String, Vec<StyleProperty>, bool);
+pub use candidate::render_candidate_module;
 use grid::{grid_absorbs, native_grid, native_grid_item};
+use hozo_ir::{
+    AlignSelf, Axis, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display,
+    Environment, ExprRef, FilterFunction, FormState, Length, Node, Primitive, Severity, Structural,
+    StyleDeclaration, StyleProperty, SvgElement, TextOverflow, Theme, WhiteSpace,
+};
 use render::render_node;
 use transition::{ambient_transition, native_driver_transition};
-pub use candidate::render_candidate_module;
-use hozo_ir::{
-    AlignSelf, Axis, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display, Environment, ExprRef, FilterFunction,
-    FormState, Length, Node, Primitive,
-    Severity, Structural, StyleDeclaration, StyleProperty, SvgElement, TextOverflow, Theme, WhiteSpace,
-};
 
 pub struct LowerOutput {
     pub jsx: String,
@@ -211,7 +211,9 @@ pub fn lower(root: &Node, source: &str, theme: &Theme) -> LowerOutput {
 /// the declarations a package's manifest gave for it (#950). The rest, a
 /// background or a padding, are the component's own box.
 fn forwarded_text(forwarded: &[StyleDeclaration]) -> impl Iterator<Item = &StyleDeclaration> {
-    forwarded.iter().filter(|d| text::is_text_property(&d.property))
+    forwarded
+        .iter()
+        .filter(|d| text::is_text_property(&d.property))
 }
 
 /// `lower`, for a root inside components whose package's manifest says
@@ -301,7 +303,14 @@ pub fn lower_forwarded(
     }
     styles.push('}');
 
-    LowerOutput { jsx, styles, prelude, runtime_imports, native_imports, diagnostics }
+    LowerOutput {
+        jsx,
+        styles,
+        prelude,
+        runtime_imports,
+        native_imports,
+        diagnostics,
+    }
 }
 
 /// Byte-slices `source` at an `ExprRef`'s span. Spans come from oxc's own
@@ -322,10 +331,18 @@ fn render_condition_expr(source: &str, expr: &ConditionExpr) -> String {
         ConditionExpr::Ref(r) => source_text(source, *r).to_string(),
         ConditionExpr::Not(inner) => format!("!({})", render_condition_expr(source, inner)),
         ConditionExpr::And(a, b) => {
-            format!("({}) && ({})", render_condition_expr(source, a), render_condition_expr(source, b))
+            format!(
+                "({}) && ({})",
+                render_condition_expr(source, a),
+                render_condition_expr(source, b)
+            )
         }
         ConditionExpr::Or(a, b) => {
-            format!("({}) || ({})", render_condition_expr(source, a), render_condition_expr(source, b))
+            format!(
+                "({}) || ({})",
+                render_condition_expr(source, a),
+                render_condition_expr(source, b)
+            )
         }
     }
 }
@@ -365,8 +382,12 @@ struct SiblingPosition {
 impl SiblingPosition {
     /// Neither end is decidable: a component root, whose position its
     /// caller chooses.
-    const UNKNOWN: SiblingPosition =
-        SiblingPosition { first: None, last: None, ordinal: None, count: None };
+    const UNKNOWN: SiblingPosition = SiblingPosition {
+        first: None,
+        last: None,
+        ordinal: None,
+        count: None,
+    };
 }
 
 /// Whether a structural variant holds for this element, or `None` when
@@ -390,7 +411,11 @@ fn structural_holds(
         // Its own children, not its siblings. `:empty` is strict -- a
         // single space disqualifies -- so any child at all decides it, and
         // a `Verbatim` decides nothing.
-        if node.children.iter().any(|c| matches!(c, hozo_ir::Child::Verbatim { .. })) {
+        if node
+            .children
+            .iter()
+            .any(|c| matches!(c, hozo_ir::Child::Verbatim { .. }))
+        {
             return None;
         }
         return Some(node.children.is_empty());
@@ -469,7 +494,10 @@ fn subtree_for_children(
             continue;
         }
         let condition = Condition::all(before.into_iter().chain(after).collect());
-        let rewritten = StyleDeclaration { property: declaration.property.clone(), condition };
+        let rewritten = StyleDeclaration {
+            property: declaration.property.clone(),
+            condition,
+        };
         if is_direct {
             direct.push(rewritten);
         } else {
@@ -496,11 +524,13 @@ fn lower_inline_flex(mut declarations: Vec<StyleDeclaration>) -> Vec<StyleDeclar
         .iter()
         .enumerate()
         .filter(|(index, declaration)| {
-            matches!(declaration.property, StyleProperty::Display(Display::InlineFlex))
-                && !declarations[index + 1..].iter().any(|later| {
-                    later.condition == declaration.condition
-                        && matches!(later.property, StyleProperty::Display(_))
-                })
+            matches!(
+                declaration.property,
+                StyleProperty::Display(Display::InlineFlex)
+            ) && !declarations[index + 1..].iter().any(|later| {
+                later.condition == declaration.condition
+                    && matches!(later.property, StyleProperty::Display(_))
+            })
         })
         .map(|(_, declaration)| StyleDeclaration {
             property: StyleProperty::AlignSelf(AlignSelf::Start),
@@ -511,7 +541,10 @@ fn lower_inline_flex(mut declarations: Vec<StyleDeclaration>) -> Vec<StyleDeclar
     declarations
 }
 
-fn condition_contains(condition: &Condition, predicate: impl Fn(&Condition) -> bool + Copy) -> bool {
+fn condition_contains(
+    condition: &Condition,
+    predicate: impl Fn(&Condition) -> bool + Copy,
+) -> bool {
     predicate(condition)
         || matches!(condition, Condition::All(conditions) if conditions.iter().any(|condition| condition_contains(condition, predicate)))
 }
@@ -653,8 +686,11 @@ fn render_verbatim(
         out.push_str(&source[cursor..entry.span.start as usize]);
         // After what the elements above hand down, so a component written
         // in between, and nearer, wins.
-        let inherited: Vec<StyleDeclaration> =
-            inherited.iter().chain(forwarded_text(&entry.forwarded)).cloned().collect();
+        let inherited: Vec<StyleDeclaration> = inherited
+            .iter()
+            .chain(forwarded_text(&entry.forwarded))
+            .cloned()
+            .collect();
         let inherited = inherited.as_slice();
         let ambient_size = inherited.iter().rev().find_map(|d| match &d.property {
             hozo_ir::StyleProperty::FontSize(hozo_ir::Length::Px(px))
@@ -718,8 +754,12 @@ fn is_safe_area_inset(prop: &StyleProperty) -> bool {
 fn safe_area_object(props: &[StyleProperty]) -> Option<String> {
     let mut pairs: Vec<String> = Vec::new();
     for prop in props {
-        let StyleProperty::Arbitrary(property, value) = prop else { continue };
-        let Some((key, side)) = hozo_ir::safe_area_inset(property, value) else { continue };
+        let StyleProperty::Arbitrary(property, value) = prop else {
+            continue;
+        };
+        let Some((key, side)) = hozo_ir::safe_area_inset(property, value) else {
+            continue;
+        };
         pairs.push(format!("{key}: {}.{side}", RuntimeHook::SafeArea.binding()));
     }
     (!pairs.is_empty()).then(|| format!("{{ {} }}", pairs.join(", ")))
@@ -773,7 +813,9 @@ fn viewport_dimension(prop: &StyleProperty) -> Option<(&'static str, &'static st
 fn viewport_object(props: &[StyleProperty]) -> Option<String> {
     let mut pairs: Vec<String> = Vec::new();
     for prop in props {
-        let Some((key, axis, pct)) = viewport_dimension(prop) else { continue };
+        let Some((key, axis, pct)) = viewport_dimension(prop) else {
+            continue;
+        };
         let binding = RuntimeHook::Viewport.binding();
         // The common case is a whole viewport (`h-screen`), where the
         // multiplication is noise in the output.
@@ -910,7 +952,10 @@ fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
     if state == "invalid" {
         // CSS matches the literal "true", not arbitrary truthy values or
         // the grammar/spelling tokens. Evaluate the prop expression once.
-        return node.props.aria_invalid.map(|value| format!("String(({})) === 'true'", source_text(source, value)));
+        return node
+            .props
+            .aria_invalid
+            .map(|value| format!("String(({})) === 'true'", source_text(source, value)));
     }
     let value = node.props.accessibility_state?;
     // An object literal says which keys it has, so one that does not name
@@ -926,7 +971,10 @@ fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
     // not a JS exception in either the positive or the negative guard.
     // Tailwind's boolean aria variants match the literal true state;
     // checked="mixed" is a real RN state, but not aria-checked="true".
-    Some(format!("({})?.{state} === true", source_text(source, value)))
+    Some(format!(
+        "({})?.{state} === true",
+        source_text(source, value)
+    ))
 }
 
 /// One read-only predicate for static guards and runtime candidate states.
@@ -936,8 +984,17 @@ fn read_only_guard(node: &Node, source: &str) -> Option<String> {
     let base = read_only_prop_guard(props, source);
     // A canonical disabled field cannot be edited, just as :read-only
     // matches a disabled HTML input. The disabled semantic fact is separate.
-    if let Some(disabled) = node.props.disabled.as_ref().filter(|_| node.primitive == Primitive::TextInput) {
-        return Some(format!("Boolean({}) || ({})", render_condition_expr(source, disabled), base.unwrap_or_else(|| "false".to_string())));
+    if let Some(disabled) = node
+        .props
+        .disabled
+        .as_ref()
+        .filter(|_| node.primitive == Primitive::TextInput)
+    {
+        return Some(format!(
+            "Boolean({}) || ({})",
+            render_condition_expr(source, disabled),
+            base.unwrap_or_else(|| "false".to_string())
+        ));
     }
     base
 }
@@ -953,7 +1010,10 @@ fn read_only_prop_guard(props: &hozo_ir::TextInputProps, source: &str) -> Option
             ),
         });
     }
-    props.editable.as_ref().map(|editable| format!("({}) === false", render_condition_expr(source, editable)))
+    props
+        .editable
+        .as_ref()
+        .map(|editable| format!("({}) === false", render_condition_expr(source, editable)))
 }
 
 /// The state a runtime `className` is resolved against, as a JS object
@@ -967,14 +1027,20 @@ fn read_only_prop_guard(props: &hozo_ir::TextInputProps, source: &str) -> Option
 fn runtime_class_state(node: &Node, source: &str, interaction: bool) -> Option<String> {
     let mut fields: Vec<String> = Vec::new();
     if interaction {
-        fields.push(if node.primitive == Primitive::TextInput {
-            "focused, focusVisible"
-        } else {
-            "pressed, hovered, focused, focusVisible"
-        }.to_string());
+        fields.push(
+            if node.primitive == Primitive::TextInput {
+                "focused, focusVisible"
+            } else {
+                "pressed, hovered, focused, focusVisible"
+            }
+            .to_string(),
+        );
     }
     if let Some(disabled) = node.props.disabled.as_ref() {
-        fields.push(format!("disabled: Boolean({})", render_condition_expr(source, disabled)));
+        fields.push(format!(
+            "disabled: Boolean({})",
+            render_condition_expr(source, disabled)
+        ));
     }
     if let Some(guard) = aria_state_guard(node, source, "invalid") {
         fields.push(format!("'aria-invalid': {guard}"));
@@ -989,7 +1055,9 @@ fn runtime_class_state(node: &Node, source: &str, interaction: bool) -> Option<S
         // carry any of React Native's.
         let states: Vec<String> = match node.props.accessibility_state_keys.as_ref() {
             Some(keys) => keys.clone(),
-            None => ["checked", "selected", "expanded", "busy", "disabled"].map(String::from).to_vec(),
+            None => ["checked", "selected", "expanded", "busy", "disabled"]
+                .map(String::from)
+                .to_vec(),
         };
         for state in states {
             if let Some(guard) = aria_state_guard(node, source, &state) {
@@ -1013,7 +1081,11 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         // than the first of it, so `md:hover:` and `md:focus:` don't share
         // a style entry.
         Condition::All(conditions) => Some(
-            conditions.iter().filter_map(condition_suffix).collect::<Vec<_>>().join("_"),
+            conditions
+                .iter()
+                .filter_map(condition_suffix)
+                .collect::<Vec<_>>()
+                .join("_"),
         ),
         Condition::Hover => Some("hover".to_string()),
         Condition::Focus => Some("focus".to_string()),
@@ -1029,19 +1101,23 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::DataAttribute(_) => Some("data".to_string()),
         Condition::Supports(_) => Some("supports".to_string()),
         Condition::HasSelector(_) => Some("has".to_string()),
-        Condition::Has(inner) => {
-            Some(format!("has{}", condition_suffix(inner).unwrap_or_default()))
-        }
-        Condition::Not(inner) => {
-            Some(format!("not{}", condition_suffix(inner).unwrap_or_default()))
-        }
+        Condition::Has(inner) => Some(format!(
+            "has{}",
+            condition_suffix(inner).unwrap_or_default()
+        )),
+        Condition::Not(inner) => Some(format!(
+            "not{}",
+            condition_suffix(inner).unwrap_or_default()
+        )),
         Condition::Environment(query) => Some(environment_name(*query).replace('-', "")),
-        Condition::Group(inner) => {
-            Some(format!("group{}", condition_suffix(inner).unwrap_or_default()))
-        }
-        Condition::Peer(inner) => {
-            Some(format!("peer{}", condition_suffix(inner).unwrap_or_default()))
-        }
+        Condition::Group(inner) => Some(format!(
+            "group{}",
+            condition_suffix(inner).unwrap_or_default()
+        )),
+        Condition::Peer(inner) => Some(format!(
+            "peer{}",
+            condition_suffix(inner).unwrap_or_default()
+        )),
         Condition::Aria(state) => Some(format!("aria{state}")),
         Condition::Pressed => Some("pressed".to_string()),
         Condition::Dark => Some("dark".to_string()),
@@ -1053,21 +1129,33 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         // Named by the threshold, since a length can hold characters a
         // style identifier cannot -- and by direction, so `min-[500px]:`
         // and `max-[500px]:` don't share an entry.
-        Condition::Container { name, at_least, value } => Some(format!(
+        Condition::Container {
+            name,
+            at_least,
+            value,
+        } => Some(format!(
             "cq{}{}{}",
             name.as_deref().unwrap_or(""),
             if *at_least { "min" } else { "max" },
-            value.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>(),
+            value
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect::<String>(),
         )),
         Condition::Width { at_least, value } => Some(format!(
             "{}{}",
             if *at_least { "min" } else { "max" },
-            value.chars().filter(|c| c.is_ascii_alphanumeric()).collect::<String>(),
+            value
+                .chars()
+                .filter(|c| c.is_ascii_alphanumeric())
+                .collect::<String>(),
         )),
         Condition::PseudoElement(pseudo) => Some(pseudo.variant_name().replace('-', "")),
-        Condition::Subtree { direct } => {
-            Some(if *direct { "child".to_string() } else { "descendant".to_string() })
-        }
+        Condition::Subtree { direct } => Some(if *direct {
+            "child".to_string()
+        } else {
+            "descendant".to_string()
+        }),
         Condition::FocusWithin => Some("focuswithin".to_string()),
         Condition::Target => Some("target".to_string()),
         Condition::Visited => Some("visited".to_string()),
@@ -1183,9 +1271,21 @@ mod svg_tests {
             "import { Svg } from '@hozo/svg'\n\
              export const C = () => <Svg><Svg.Text>hi</Svg.Text></Svg>\n",
         );
-        assert!(out.runtime_imports.contains(&"Svg"), "{:?}", out.runtime_imports);
-        assert!(out.runtime_imports.contains(&"SvgText"), "{:?}", out.runtime_imports);
-        assert!(!out.runtime_imports.contains(&"Text"), "{:?}", out.runtime_imports);
+        assert!(
+            out.runtime_imports.contains(&"Svg"),
+            "{:?}",
+            out.runtime_imports
+        );
+        assert!(
+            out.runtime_imports.contains(&"SvgText"),
+            "{:?}",
+            out.runtime_imports
+        );
+        assert!(
+            !out.runtime_imports.contains(&"Text"),
+            "{:?}",
+            out.runtime_imports
+        );
     }
 
     #[test]
@@ -1194,8 +1294,17 @@ mod svg_tests {
             "import { Svg } from '@hozo/svg'\n\
              export const C = () => <Svg><Svg.Link href=\"/detail\" replace><Svg.Rect width={10} height={10} /></Svg.Link></Svg>\n",
         );
-        assert!(out.runtime_imports.contains(&"SvgLink"), "{:?}", out.runtime_imports);
-        assert!(out.jsx.contains(r#"<SvgLink replace={true} href="/detail">"#), "{}", out.jsx);
+        assert!(
+            out.runtime_imports.contains(&"SvgLink"),
+            "{:?}",
+            out.runtime_imports
+        );
+        assert!(
+            out.jsx
+                .contains(r#"<SvgLink replace={true} href="/detail">"#),
+            "{}",
+            out.jsx
+        );
         assert!(out.jsx.contains("</SvgLink>"), "{}", out.jsx);
     }
 }
@@ -1237,13 +1346,23 @@ mod animation_tests {
             let out = compile(&format!(
                 "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />\n"
             ));
-            assert!(out.diagnostics.is_empty(), "{class_name}: {:?}", out.diagnostics);
             assert!(
-                out.prelude.iter().any(|line| line.contains(&format!("useHozoAnimation('{name}')"))),
+                out.diagnostics.is_empty(),
+                "{class_name}: {:?}",
+                out.diagnostics
+            );
+            assert!(
+                out.prelude
+                    .iter()
+                    .any(|line| line.contains(&format!("useHozoAnimation('{name}')"))),
                 "{class_name}: {:?}",
                 out.prelude,
             );
-            assert!(out.jsx.contains(&format!("__hozoAnim_{name}")), "{class_name}: {}", out.jsx);
+            assert!(
+                out.jsx.contains(&format!("__hozoAnim_{name}")),
+                "{class_name}: {}",
+                out.jsx
+            );
         }
     }
 
@@ -1303,10 +1422,7 @@ mod backdrop_tests {
 
     #[test]
     fn conditional_and_composed_backdrop_filters_are_not_silently_absorbed() {
-        for class_name in [
-            "md:backdrop-blur-md",
-            "backdrop-blur-md backdrop-grayscale",
-        ] {
+        for class_name in ["md:backdrop-blur-md", "backdrop-blur-md backdrop-grayscale"] {
             let source = format!(
                 "import {{ View }} from '@hozo/core';\nconst el = <View className=\"{class_name}\" />;\n"
             );
@@ -1315,8 +1431,7 @@ mod backdrop_tests {
                 out.diagnostics.iter().any(|diagnostic| {
                     matches!(
                         diagnostic.code,
-                        DiagnosticCode::NotWiredOnNative
-                            | DiagnosticCode::WebOnlyPropertyOnNative
+                        DiagnosticCode::NotWiredOnNative | DiagnosticCode::WebOnlyPropertyOnNative
                     )
                 }),
                 "{class_name}: {:?}",

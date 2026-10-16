@@ -196,9 +196,10 @@ pub(super) fn wrap_in_text(
         // A raw string uses the same interaction callback as an explicit
         // Text. Leaving this binding out breaks inherited focus-visible
         // colours, even if the parent correctly enabled modality tracking.
-        let state = if text_declarations.iter().any(|declaration| {
-            interaction::uses_focus_visible(&declaration.condition)
-        }) {
+        let state = if text_declarations
+            .iter()
+            .any(|declaration| interaction::uses_focus_visible(&declaration.condition))
+        {
             "{ pressed, hovered, focused, focusVisible }"
         } else {
             "{ pressed, hovered, focused }"
@@ -285,8 +286,7 @@ pub(super) fn text_reach(node: &Node) -> TextReach {
             }
             hozo_ir::Child::Verbatim { nested, .. } => {
                 if nested.iter().any(|n| {
-                    is_text_primitive(n.node.primitive)
-                        || text_reach(&n.node) == TextReach::Certain
+                    is_text_primitive(n.node.primitive) || text_reach(&n.node) == TextReach::Certain
                 }) {
                     return TextReach::Certain;
                 }
@@ -334,10 +334,12 @@ pub(super) fn fold_font_relative(
 ) -> Vec<StyleDeclaration> {
     let font_size = |condition: &Condition| -> Option<f64> {
         let find = |list: &[StyleDeclaration], want: &Condition| {
-            list.iter().rev().find_map(|d| match (&d.property, &d.condition) {
-                (StyleProperty::FontSize(Length::Px(px)), c) if c == want => Some(*px),
-                _ => None,
-            })
+            list.iter()
+                .rev()
+                .find_map(|d| match (&d.property, &d.condition) {
+                    (StyleProperty::FontSize(Length::Px(px)), c) if c == want => Some(*px),
+                    _ => None,
+                })
         };
         find(declarations, condition)
             .or_else(|| find(declarations, &Condition::Always))
@@ -347,22 +349,29 @@ pub(super) fn fold_font_relative(
 
     let explicit_leading = |condition: &Condition| {
         declarations.iter().any(|d| {
-            matches!(d.property, StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)))
-                && (&d.condition == condition || d.condition == Condition::Always)
+            matches!(
+                d.property,
+                StyleProperty::LineHeight(
+                    hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)
+                )
+            ) && (&d.condition == condition || d.condition == Condition::Always)
         })
     };
     let mut folded: Vec<_> = declarations
         .iter()
-        .filter(|d| !matches!(d.property, StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(_))) || !explicit_leading(&d.condition))
+        .filter(|d| {
+            !matches!(
+                d.property,
+                StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(_))
+            ) || !explicit_leading(&d.condition)
+        })
         .map(|declaration| {
             let Some(size) = font_size(&declaration.condition) else {
                 return declaration.clone();
             };
             let property = match &declaration.property {
                 StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) => {
-                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(
-                        size * ratio,
-                    )))
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(size * ratio)))
                 }
                 StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(em)) => {
                     StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(Length::Px(
@@ -371,7 +380,10 @@ pub(super) fn fold_font_relative(
                 }
                 _ => return declaration.clone(),
             };
-            StyleDeclaration { property, condition: declaration.condition.clone() }
+            StyleDeclaration {
+                property,
+                condition: declaration.condition.clone(),
+            }
         })
         .collect();
 
@@ -380,22 +392,41 @@ pub(super) fn fold_font_relative(
     // corresponding absolute number under the intersection of both guards.
     // No runtime measurement or extra subscription: reuse existing guards.
     for leading in declarations {
-        let StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) = &leading.property else { continue };
-        if font_size(&leading.condition).is_none() { continue; }
+        let StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(ratio)) = &leading.property else {
+            continue;
+        };
+        if font_size(&leading.condition).is_none() {
+            continue;
+        }
         for font in declarations {
-            let StyleProperty::FontSize(Length::Px(size)) = &font.property else { continue };
-            if font.condition == Condition::Always || leading.condition == font.condition { continue; }
-            if leading.condition == Condition::Always && declarations.iter().any(|d| {
-                d.condition == font.condition && matches!(d.property,
-                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)))
-            }) { continue; }
+            let StyleProperty::FontSize(Length::Px(size)) = &font.property else {
+                continue;
+            };
+            if font.condition == Condition::Always || leading.condition == font.condition {
+                continue;
+            }
+            if leading.condition == Condition::Always
+                && declarations.iter().any(|d| {
+                    d.condition == font.condition
+                        && matches!(
+                            d.property,
+                            StyleProperty::LineHeight(
+                                hozo_ir::LineHeight::Length(_) | hozo_ir::LineHeight::Ratio(_)
+                            )
+                        )
+                })
+            {
+                continue;
+            }
             let condition = if leading.condition == Condition::Always {
                 font.condition.clone()
             } else {
                 Condition::all(vec![leading.condition.clone(), font.condition.clone()])
             };
             folded.push(StyleDeclaration {
-                property: StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(size * ratio))),
+                property: StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(
+                    size * ratio,
+                ))),
                 condition,
             });
         }
@@ -432,7 +463,9 @@ pub(super) fn font_relative_reason(property: &StyleProperty) -> Option<String> {
 /// Lives here rather than in `unsupported_on_native` because the answer
 /// depends on the node -- on a `TextInput` it lowers, anywhere else there
 /// is no placeholder for it to colour.
-pub(super) fn placeholder_colour(declaration: &StyleDeclaration) -> Option<(&hozo_ir::Color, bool)> {
+pub(super) fn placeholder_colour(
+    declaration: &StyleDeclaration,
+) -> Option<(&hozo_ir::Color, bool)> {
     match (&declaration.property, &declaration.condition) {
         (StyleProperty::PlaceholderColor(c), Condition::Always) => Some((c, false)),
         (StyleProperty::PlaceholderColor(c), Condition::Dark) => Some((c, true)),
@@ -444,7 +477,9 @@ pub(super) fn placeholder_colour(declaration: &StyleDeclaration) -> Option<(&hoz
             if absolute_placeholder_colour(c)
                 && conditions.len() == 2
                 && conditions.contains(&Condition::Dark)
-                && conditions.contains(&Condition::PseudoElement(hozo_ir::PseudoElement::Placeholder)) =>
+                && conditions.contains(&Condition::PseudoElement(
+                    hozo_ir::PseudoElement::Placeholder,
+                )) =>
         {
             Some((c, true))
         }
@@ -460,7 +495,9 @@ pub(super) fn placeholder_colour(declaration: &StyleDeclaration) -> Option<(&hoz
 // colour-shaped prop was emitted; resolved tokens and hex need no CSS engine.
 fn absolute_placeholder_colour(colour: &hozo_ir::Color) -> bool {
     match colour {
-        hozo_ir::Color::Token(token) => !matches!(hozo_ir::split_color_alpha(token).0, "current" | "inherit"),
+        hozo_ir::Color::Token(token) => {
+            !matches!(hozo_ir::split_color_alpha(token).0, "current" | "inherit")
+        }
         hozo_ir::Color::Keyword("transparent") => true,
         hozo_ir::Color::Css(value) => value.strip_prefix('#').is_some_and(|hex| {
             matches!(hex.len(), 3 | 4 | 6 | 8) && hex.bytes().all(|byte| byte.is_ascii_hexdigit())
@@ -483,9 +520,14 @@ pub(super) fn placeholder_props(
     let mut light = None;
     let mut dark = None;
     for declaration in &node.style {
-        let Some((colour, dark_only)) = placeholder_colour(declaration) else { continue };
+        let Some((colour, dark_only)) = placeholder_colour(declaration) else {
+            continue;
+        };
         if dark_only {
-            dark = Some(style::placeholder_color(colour, dark_theme.as_ref().unwrap_or(theme)));
+            dark = Some(style::placeholder_color(
+                colour,
+                dark_theme.as_ref().unwrap_or(theme),
+            ));
         } else {
             let value = style::placeholder_color(colour, theme);
             if let Some(palette) = &dark_theme {
@@ -582,7 +624,9 @@ pub(super) fn line_break_strategy_ios(node: &Node) -> Option<&'static str> {
             return None;
         }
         match line_breaking(&declaration.property) {
-            Some((name, value)) if name == "word-break" && value == "keep-all" => Some("hangul-word"),
+            Some((name, value)) if name == "word-break" && value == "keep-all" => {
+                Some("hangul-word")
+            }
             _ => None,
         }
     })
@@ -594,9 +638,16 @@ pub(super) fn line_break_strategy_ios(node: &Node) -> Option<&'static str> {
 /// pair (`break-normal`, which sets two of them to `normal`), or a
 /// declaration written out (`[line-break:strict]`).
 pub(super) fn line_breaking(property: &StyleProperty) -> Option<(String, String)> {
-    let breaking = |name: &str| matches!(name, "text-wrap" | "word-break" | "overflow-wrap" | "line-break");
+    let breaking = |name: &str| {
+        matches!(
+            name,
+            "text-wrap" | "word-break" | "overflow-wrap" | "line-break"
+        )
+    };
     match property {
-        StyleProperty::Keyword(name, value) if breaking(name) => Some((name.to_string(), value.to_string())),
+        StyleProperty::Keyword(name, value) if breaking(name) => {
+            Some((name.to_string(), value.to_string()))
+        }
         StyleProperty::KeywordPair(first, first_value, second, second_value)
             if breaking(first) && breaking(second) =>
         {
@@ -609,7 +660,9 @@ pub(super) fn line_breaking(property: &StyleProperty) -> Option<(String, String)
             };
             Some((second.to_string(), value.to_string()))
         }
-        StyleProperty::WebOnly(name, value) | StyleProperty::Arbitrary(name, value) if breaking(name) => {
+        StyleProperty::WebOnly(name, value) | StyleProperty::Arbitrary(name, value)
+            if breaking(name) =>
+        {
             Some((name.clone(), value.clone()))
         }
         _ => None,
@@ -636,9 +689,10 @@ pub(super) fn truncation_props(node: &Node) -> Option<Vec<(&'static str, String)
             // A clamp Hozo couldn't read as a count is refused by name in
             // `StyleProperty::native_gap`, so there is nothing to emit for
             // it here.
-            Some(n) => Some(n.lines().map_or_else(Vec::new, |lines| {
-                vec![("numberOfLines", lines.to_string())]
-            })),
+            Some(n) => Some(
+                n.lines()
+                    .map_or_else(Vec::new, |lines| vec![("numberOfLines", lines.to_string())]),
+            ),
         };
     }
     if !has(&StyleProperty::WhiteSpace(WhiteSpace::NoWrap)) {
@@ -658,7 +712,9 @@ pub(super) fn truncation_props(node: &Node) -> Option<Vec<(&'static str, String)
 pub(super) fn is_truncation_declaration(property: &StyleProperty) -> bool {
     matches!(
         property,
-        StyleProperty::WhiteSpace(WhiteSpace::NoWrap) | StyleProperty::TextOverflow(_) | StyleProperty::LineClamp(_)
+        StyleProperty::WhiteSpace(WhiteSpace::NoWrap)
+            | StyleProperty::TextOverflow(_)
+            | StyleProperty::LineClamp(_)
     )
 }
 
@@ -707,7 +763,9 @@ mod tests {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
-        assert!(output.jsx.contains("<Text style={hozoStyles.hozo0_text}>Hello</Text>"));
+        assert!(output
+            .jsx
+            .contains("<Text style={hozoStyles.hozo0_text}>Hello</Text>"));
         // Layout stays on the View, text styling moves to the Text.
         assert!(output.styles.contains("paddingTop: 16,"));
         assert!(output.styles.contains("hozo0_text: {"));
@@ -805,7 +863,11 @@ mod tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         assert!(output.styles.contains("fontSize: 20,"), "{}", output.styles);
-        assert!(output.styles.contains("color: '#fb2c36',"), "{}", output.styles);
+        assert!(
+            output.styles.contains("color: '#fb2c36',"),
+            "{}",
+            output.styles
+        );
         // And they leave the View, which has no `fontSize` to put them in.
         assert!(!output.jsx.contains("<View style="), "{}", output.jsx);
     }
@@ -827,9 +889,21 @@ mod tests {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
         assert!(output.styles.contains("fontSize: 14,"), "{}", output.styles);
-        assert!(!output.styles.contains("fontSize: 20,"), "{}", output.styles);
-        assert!(output.styles.contains("color: '#fb2c36',"), "{}", output.styles);
-        assert!(output.styles.contains("fontWeight: '700',"), "{}", output.styles);
+        assert!(
+            !output.styles.contains("fontSize: 20,"),
+            "{}",
+            output.styles
+        );
+        assert!(
+            output.styles.contains("color: '#fb2c36',"),
+            "{}",
+            output.styles
+        );
+        assert!(
+            output.styles.contains("fontWeight: '700',"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
@@ -855,7 +929,12 @@ mod tests {
             "#;
         let parsed = hozo_parser::parse_tsx(nested);
         let output = lower(&parsed.roots[0].node, nested, &Theme::default());
-        assert_eq!(output.styles.matches("fontSize: 20,").count(), 1, "{}", output.styles);
+        assert_eq!(
+            output.styles.matches("fontSize: 20,").count(),
+            1,
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
@@ -906,8 +985,16 @@ mod tests {
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         // text-lg is 18px; leading-tight is 1.25; tracking-wide is 0.025em.
-        assert!(output.styles.contains("lineHeight: 22.5,"), "{}", output.styles);
-        assert!(output.styles.contains("letterSpacing: 0.45,"), "{}", output.styles);
+        assert!(
+            output.styles.contains("lineHeight: 22.5,"),
+            "{}",
+            output.styles
+        );
+        assert!(
+            output.styles.contains("letterSpacing: 0.45,"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
@@ -955,7 +1042,13 @@ mod tests {
         assert!(output.styles.contains("fontSize: 13,"), "{}", output.styles);
         // 24 * 0.8 = 19.2 -> 19 above the breakpoint, not the 24 it inherited.
         assert!(output.styles.contains("fontSize: 19,"), "{}", output.styles);
-        assert!(!output.styles.contains("fontSize: 24,\n    lineHeight: 32,\n  },\n}"), "{}", output.styles);
+        assert!(
+            !output
+                .styles
+                .contains("fontSize: 24,\n    lineHeight: 32,\n  },\n}"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
@@ -970,8 +1063,18 @@ mod tests {
             "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.jsx.contains("<HozoTextSize style={{ fontSize: 20 }}>"), "{}", output.jsx);
-        assert!(output.jsx.contains("<HozoRelativeText hozoRelative={0.5}>"), "{}", output.jsx);
+        assert!(
+            output
+                .jsx
+                .contains("<HozoTextSize style={{ fontSize: 20 }}>"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.jsx.contains("<HozoRelativeText hozoRelative={0.5}>"),
+            "{}",
+            output.jsx
+        );
         // And no guess in a stylesheet beside it.
         assert!(!output.styles.contains("fontSize"), "{}", output.styles);
     }
@@ -998,7 +1101,11 @@ mod tests {
         assert!(!output.jsx.contains("hozoRelative"), "{}", output.jsx);
         assert!(!output.jsx.contains("HozoTextSize"), "{}", output.jsx);
         // The level still reaches a screen reader.
-        assert!(output.jsx.contains(r#"accessibilityRole="header""#), "{}", output.jsx);
+        assert!(
+            output.jsx.contains(r#"accessibilityRole="header""#),
+            "{}",
+            output.jsx
+        );
 
         // Without the reset it is relative, and by the user agent's 2.
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
@@ -1123,7 +1230,11 @@ mod tests {
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
         // text-base is 16px, and h2 is 1.5em of it.
         assert!(output.styles.contains("fontSize: 24,"), "{}", output.styles);
-        assert!(output.styles.contains("fontWeight: '700'"), "{}", output.styles);
+        assert!(
+            output.styles.contains("fontWeight: '700'"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
@@ -1140,7 +1251,11 @@ mod tests {
             "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.styles.contains("fontWeight: '700'"), "{}", output.styles);
+        assert!(
+            output.styles.contains("fontWeight: '700'"),
+            "{}",
+            output.styles
+        );
         // The inherited 16 reaches it -- React Native's Text does not
         // inherit from a View, so the compiler carries it -- and no ratio
         // is applied on top.
@@ -1157,8 +1272,16 @@ mod tests {
             "#;
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
-        assert!(output.styles.contains("backgroundColor: '#ffff00'"), "{}", output.styles);
-        assert!(output.styles.contains("color: '#000000'"), "{}", output.styles);
+        assert!(
+            output.styles.contains("backgroundColor: '#ffff00'"),
+            "{}",
+            output.styles
+        );
+        assert!(
+            output.styles.contains("color: '#000000'"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
@@ -1175,8 +1298,16 @@ mod tests {
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
         assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-        assert!(output.styles.contains("lineHeight: 22.5,"), "{}", output.styles);
-        assert!(output.styles.contains("letterSpacing: 0.45,"), "{}", output.styles);
+        assert!(
+            output.styles.contains("lineHeight: 22.5,"),
+            "{}",
+            output.styles
+        );
+        assert!(
+            output.styles.contains("letterSpacing: 0.45,"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
@@ -1192,10 +1323,16 @@ mod tests {
         let parsed = hozo_parser::parse_tsx(source);
         let output = lower(&parsed.roots[0].node, source, &Theme::default());
 
-        assert!(output.styles.contains("lineHeight: 22.5,"), "{}", output.styles);
         assert!(
-            output.diagnostics.iter().any(|diagnostic| diagnostic.code
-                == DiagnosticCode::NotWiredOnNative),
+            output.styles.contains("lineHeight: 22.5,"),
+            "{}",
+            output.styles
+        );
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.code == DiagnosticCode::NotWiredOnNative),
             "{:?}",
             output.diagnostics
         );
@@ -1215,7 +1352,11 @@ mod tests {
 
         assert_eq!(output.diagnostics.len(), 1, "{:?}", output.diagnostics);
         assert_eq!(output.diagnostics[0].code, DiagnosticCode::NotWiredOnNative);
-        assert!(output.diagnostics[0].message.contains("text-*"), "{}", output.diagnostics[0].message);
+        assert!(
+            output.diagnostics[0].message.contains("text-*"),
+            "{}",
+            output.diagnostics[0].message
+        );
         assert!(!output.styles.contains("lineHeight"), "{}", output.styles);
     }
 
@@ -1238,7 +1379,11 @@ mod tests {
         );
         // `md:text-lg` still brings its own line height into the md entry;
         // what must not appear is the ratio folded against it.
-        assert!(!output.styles.contains("lineHeight: 22.5"), "{}", output.styles);
+        assert!(
+            !output.styles.contains("lineHeight: 22.5"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]
@@ -1285,7 +1430,11 @@ mod tests {
         // 16 / 1.2 = 13.33 -> 13, for the subscript and the small print
         // alike. Measured in headless Chrome at 16, 20 and 32.
         assert!(output.styles.contains("fontSize: 13,"), "{}", output.styles);
-        assert!(!output.styles.contains("fontSize: 12,"), "{}", output.styles);
+        assert!(
+            !output.styles.contains("fontSize: 12,"),
+            "{}",
+            output.styles
+        );
     }
 
     #[test]

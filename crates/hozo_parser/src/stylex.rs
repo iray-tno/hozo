@@ -12,9 +12,9 @@ use std::collections::{HashMap, HashSet};
 use hozo_ir::{
     Angle, BorderStyle, Color, Condition, ConditionExpr, Dimension, Edge, Environment, ExprRef,
     FilterFunction, FlexDirection, FontWeight, GridLine, GridSpan, GridTracks, Justify, Keyframe,
-    Keyframes, Length, Origin, Overflow, Radius, Scale, SourceSpan, StyleDeclaration, StyleProperty, StylexResidual,
-    StylexResidualArgument,
-    TextOverflow, TextShadowValue, TransformFunction, WhiteSpace,
+    Keyframes, Length, Origin, Overflow, Radius, Scale, SourceSpan, StyleDeclaration,
+    StyleProperty, StylexResidual, StylexResidualArgument, TextOverflow, TextShadowValue,
+    TransformFunction, WhiteSpace,
 };
 use oxc_ast::ast::{
     Argument, ArrayExpressionElement, ArrowFunctionExpression, BindingPattern, CallExpression,
@@ -38,8 +38,8 @@ use oxc_syntax::scope::ScopeFlags;
 use crate::tailwind;
 
 mod context;
-pub use context::ModuleContextSummary;
 pub(crate) use context::summarize as context_summary;
+pub use context::ModuleContextSummary;
 
 const STYLEX_MODULE: &str = "@stylexjs/stylex";
 
@@ -161,7 +161,10 @@ pub struct ModuleRegistry {
 
 impl ModuleRegistry {
     pub fn replace(&mut self, modules: &[ModuleSource]) {
-        let retained = modules.iter().map(|module| module.id.clone()).collect::<HashSet<_>>();
+        let retained = modules
+            .iter()
+            .map(|module| module.id.clone())
+            .collect::<HashSet<_>>();
         self.modules.retain(|id, _| retained.contains(id));
         for module in modules {
             if self.modules.get(&module.id).is_some_and(|registered| {
@@ -246,10 +249,8 @@ impl ModuleRegistry {
                                 ambiguous.insert(name.clone());
                             }
                         } else {
-                            star_sheets.insert(
-                                name.clone(),
-                                (reexport.module_id.clone(), rules.clone()),
-                            );
+                            star_sheets
+                                .insert(name.clone(), (reexport.module_id.clone(), rules.clone()));
                         }
                     }
                 }
@@ -279,9 +280,7 @@ impl ModuleRegistry {
                         continue;
                     }
                     let prefix = format!("{}.", reexport.imported);
-                    for (name, rules) in target
-                        .iter()
-                        .filter(|(name, _)| name.starts_with(&prefix))
+                    for (name, rules) in target.iter().filter(|(name, _)| name.starts_with(&prefix))
                     {
                         sheets.insert(
                             format!("{}.{}", reexport.exported, &name[prefix.len()..]),
@@ -335,7 +334,9 @@ impl ModuleRegistry {
                     }
                     continue;
                 };
-                frontend.sheets.insert(entry.local_name.name.to_string(), rules.clone());
+                frontend
+                    .sheets
+                    .insert(entry.local_name.name.to_string(), rules.clone());
             }
         }
     }
@@ -396,7 +397,10 @@ pub(crate) enum Resolution {
         residual: StylexResidual,
         gaps: Vec<Gap>,
     },
-    Gap { message: String, span: SourceSpan },
+    Gap {
+        message: String,
+        span: SourceSpan,
+    },
 }
 
 fn source_span(span: Span) -> SourceSpan {
@@ -491,9 +495,8 @@ fn first_that_works_call<'a>(
     let Expression::Identifier(object) = &member.object else {
         return None;
     };
-    (member.property.name.as_str() == "firstThatWorks"
-        && namespaces.contains(object.name.as_str()))
-    .then_some(call)
+    (member.property.name.as_str() == "firstThatWorks" && namespaces.contains(object.name.as_str()))
+        .then_some(call)
 }
 
 fn raw_value(value: &StaticValue) -> String {
@@ -789,8 +792,7 @@ fn stylex_grid_tracks(value: &StaticValue) -> Option<GridTracks> {
         .and_then(|value| value.strip_suffix(",minmax(0,1fr))"))
     {
         let count = inner.parse::<u32>().ok()?;
-        return (count > 0)
-            .then(|| GridTracks::Css(format!("repeat({count},minmax(0,1fr))")));
+        return (count > 0).then(|| GridTracks::Css(format!("repeat({count},minmax(0,1fr))")));
     }
 
     let normalized = normalize_stylex_grid_value(value);
@@ -873,7 +875,9 @@ fn stylex_grid_span(value: &StaticValue) -> Option<GridSpan> {
 }
 
 fn stylex_grid_area(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts = value.split('/').map(str::trim).collect::<Vec<_>>();
     let [row_start, column_start, row_end, column_end] = parts.as_slice() else {
         return None;
@@ -888,7 +892,9 @@ fn stylex_grid_area(value: &StaticValue) -> Option<Vec<StyleProperty>> {
 }
 
 fn stylex_grid_template(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let (rows, columns) = value.split_once('/')?;
     if columns.contains('/') {
         return None;
@@ -916,7 +922,8 @@ fn transform_angle(value: &str) -> Option<Angle> {
     if value == "0" {
         return Some(Angle::Deg(0.0));
     }
-    value.strip_suffix("deg")
+    value
+        .strip_suffix("deg")
         .and_then(|value| value.parse::<f64>().ok())
         .filter(|value| value.is_finite())
         .map(Angle::Deg)
@@ -930,8 +937,13 @@ fn transform_dimension(value: &str) -> Option<Dimension> {
 }
 
 fn stylex_rotate(value: &StaticValue) -> Option<Angle> {
-    let StaticValue::String(value) = value else { return None };
-    value.ends_with("deg").then(|| transform_angle(value)).flatten()
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    value
+        .ends_with("deg")
+        .then(|| transform_angle(value))
+        .flatten()
 }
 
 fn stylex_scale_component(value: &str) -> Option<Scale> {
@@ -945,11 +957,12 @@ fn stylex_scale_component(value: &str) -> Option<Scale> {
 
 fn stylex_scale(value: &StaticValue) -> Option<Vec<Scale>> {
     match value {
-        StaticValue::Number(value) if value.is_finite() => {
-            Some(vec![Scale::Ratio(*value)])
-        }
+        StaticValue::Number(value) if value.is_finite() => Some(vec![Scale::Ratio(*value)]),
         StaticValue::String(value) => {
-            let values: Vec<_> = value.split_whitespace().map(stylex_scale_component).collect();
+            let values: Vec<_> = value
+                .split_whitespace()
+                .map(stylex_scale_component)
+                .collect();
             ((1..=3).contains(&values.len()) && values.iter().all(Option::is_some))
                 .then(|| values.into_iter().flatten().collect())
         }
@@ -970,7 +983,11 @@ fn stylex_translate(value: &StaticValue) -> Option<Vec<Dimension>> {
 
 fn transform_arguments(value: &str) -> Vec<&str> {
     if value.contains(',') {
-        value.split(',').map(str::trim).filter(|value| !value.is_empty()).collect()
+        value
+            .split(',')
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .collect()
     } else {
         value.split_whitespace().collect()
     }
@@ -978,7 +995,9 @@ fn transform_arguments(value: &str) -> Vec<&str> {
 
 /// Parse only functions React Native's public transform array can represent.
 fn transform_functions(value: &StaticValue) -> Option<Vec<TransformFunction>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let mut rest = value.trim();
     if rest == "none" {
         return Some(Vec::new());
@@ -987,7 +1006,11 @@ fn transform_functions(value: &StaticValue) -> Option<Vec<TransformFunction>> {
     while !rest.is_empty() {
         let open = rest.find('(')?;
         let name = rest[..open].trim();
-        if name.is_empty() || !name.chars().all(|character| character.is_ascii_alphanumeric()) {
+        if name.is_empty()
+            || !name
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric())
+        {
             return None;
         }
         let tail = &rest[open + 1..];
@@ -1006,7 +1029,9 @@ fn transform_functions(value: &StaticValue) -> Option<Vec<TransformFunction>> {
             "rotateX" => functions.push(TransformFunction::RotateX(transform_angle(one()?)?)),
             "rotateY" => functions.push(TransformFunction::RotateY(transform_angle(one()?)?)),
             "rotateZ" => functions.push(TransformFunction::RotateZ(transform_angle(one()?)?)),
-            "scale" if arguments.len() == 1 => functions.push(TransformFunction::Scale(number(arguments[0])?)),
+            "scale" if arguments.len() == 1 => {
+                functions.push(TransformFunction::Scale(number(arguments[0])?))
+            }
             "scale" if arguments.len() == 2 => {
                 functions.push(TransformFunction::ScaleX(number(arguments[0])?));
                 functions.push(TransformFunction::ScaleY(number(arguments[1])?));
@@ -1014,13 +1039,21 @@ fn transform_functions(value: &StaticValue) -> Option<Vec<TransformFunction>> {
             "scaleX" => functions.push(TransformFunction::ScaleX(number(one()?)?)),
             "scaleY" => functions.push(TransformFunction::ScaleY(number(one()?)?)),
             "translate" if arguments.len() == 1 || arguments.len() == 2 => {
-                functions.push(TransformFunction::TranslateX(transform_dimension(arguments[0])?));
+                functions.push(TransformFunction::TranslateX(transform_dimension(
+                    arguments[0],
+                )?));
                 if arguments.len() == 2 {
-                    functions.push(TransformFunction::TranslateY(transform_dimension(arguments[1])?));
+                    functions.push(TransformFunction::TranslateY(transform_dimension(
+                        arguments[1],
+                    )?));
                 }
             }
-            "translateX" => functions.push(TransformFunction::TranslateX(transform_dimension(one()?)?)),
-            "translateY" => functions.push(TransformFunction::TranslateY(transform_dimension(one()?)?)),
+            "translateX" => {
+                functions.push(TransformFunction::TranslateX(transform_dimension(one()?)?))
+            }
+            "translateY" => {
+                functions.push(TransformFunction::TranslateY(transform_dimension(one()?)?))
+            }
             "skewX" => functions.push(TransformFunction::SkewX(transform_angle(one()?)?)),
             "skewY" => functions.push(TransformFunction::SkewY(transform_angle(one()?)?)),
             _ => return None,
@@ -1031,7 +1064,9 @@ fn transform_functions(value: &StaticValue) -> Option<Vec<TransformFunction>> {
 }
 
 fn transform_origin(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts: Vec<_> = value.split_whitespace().collect();
     if !(1..=3).contains(&parts.len()) {
         return None;
@@ -1040,7 +1075,10 @@ fn transform_origin(value: &StaticValue) -> Option<String> {
         matches!(part, "left" | "center" | "right" | "top" | "bottom")
             || transform_dimension(part).is_some()
     };
-    parts.iter().all(|part| valid(part)).then(|| parts.join(" "))
+    parts
+        .iter()
+        .all(|part| valid(part))
+        .then(|| parts.join(" "))
 }
 
 /// Variables, fallbacks, and values needing escaping belong with the later
@@ -1078,7 +1116,10 @@ enum WebValueGrammar {
     },
     LengthPercentage(&'static [&'static str]),
     NonNegativeLengthPercentage(&'static [&'static str]),
-    LengthList { minimum: usize, maximum: usize },
+    LengthList {
+        minimum: usize,
+        maximum: usize,
+    },
     SvgLength(&'static [&'static str]),
     Color,
     Integer {
@@ -1086,17 +1127,25 @@ enum WebValueGrammar {
         minimum: i64,
         maximum: i64,
     },
-    Number { minimum: f64, maximum: f64 },
+    Number {
+        minimum: f64,
+        maximum: f64,
+    },
     NumberWithKeywords {
         keywords: &'static [&'static str],
         minimum: f64,
         maximum: f64,
     },
-    NumberPercentage { minimum: f64, maximum: f64 },
+    NumberPercentage {
+        minimum: f64,
+        maximum: f64,
+    },
     ClipRect,
     ClipPath,
     Contain,
-    ContainIntrinsicSize { axes: usize },
+    ContainIntrinsicSize {
+        axes: usize,
+    },
     OverflowClipMargin,
     SvgDasharray,
     UrlOrNone,
@@ -1136,15 +1185,21 @@ enum WebValueGrammar {
     HyphenateLimitChars,
     ImageResolution,
     InitialLetter,
-    TimelineNames { allow_all: bool },
-    DashedIdent { keyword: &'static str },
+    TimelineNames {
+        allow_all: bool,
+    },
+    DashedIdent {
+        keyword: &'static str,
+    },
     AnimationTimeline,
     AnimationRangeBoundary,
     ViewTimelineInset,
     MasonryAutoFlow,
     Angle(&'static [&'static str]),
     TextDecorationSkip,
-    CounterList { allow_reversed: bool },
+    CounterList {
+        allow_reversed: bool,
+    },
     ScrollbarColor,
     Quotes,
     Content,
@@ -1166,10 +1221,7 @@ enum WebValueGrammar {
 
 fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'static str])> {
     let (css_property, choices): (&str, &[&str]) = match property {
-        "animationComposition" => (
-            "animation-composition",
-            &["replace", "add", "accumulate"],
-        ),
+        "animationComposition" => ("animation-composition", &["replace", "add", "accumulate"]),
         "positionVisibility" => (
             "position-visibility",
             &["always", "anchors-visible", "no-overflow"],
@@ -1177,9 +1229,19 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "positionArea" => (
             "position-area",
             &[
-                "top", "left", "bottom", "right", "center", "block-start", "block-end",
-                "inline-start", "inline-end", "span-inline-start", "span-inline-end",
-                "span-block-start", "span-block-end",
+                "top",
+                "left",
+                "bottom",
+                "right",
+                "center",
+                "block-start",
+                "block-end",
+                "inline-start",
+                "inline-end",
+                "span-inline-start",
+                "span-inline-end",
+                "span-block-start",
+                "span-block-end",
             ],
         ),
         "cornerShape" => (
@@ -1229,30 +1291,63 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "animationPlayState" => ("animation-play-state", &["running", "paused"]),
         "transformBox" => (
             "transform-box",
-            &["content-box", "border-box", "fill-box", "stroke-box", "view-box"],
+            &[
+                "content-box",
+                "border-box",
+                "fill-box",
+                "stroke-box",
+                "view-box",
+            ],
         ),
         "transformStyle" => ("transform-style", &["flat", "preserve-3d"]),
         "appearance" => ("appearance", &["auto", "none", "textfield"]),
         "azimuth" => (
             "azimuth",
             &[
-                "left-side", "far-left", "left", "center-left", "center", "center-right",
-                "right", "far-right", "right-side", "behind",
+                "left-side",
+                "far-left",
+                "left",
+                "center-left",
+                "center",
+                "center-right",
+                "right",
+                "far-right",
+                "right-side",
+                "behind",
             ],
         ),
         "alignmentBaseline" => (
             "alignment-baseline",
             &[
-                "auto", "baseline", "before-edge", "text-before-edge", "middle", "central",
-                "after-edge", "text-after-edge", "ideographic", "alphabetic", "hanging",
+                "auto",
+                "baseline",
+                "before-edge",
+                "text-before-edge",
+                "middle",
+                "central",
+                "after-edge",
+                "text-after-edge",
+                "ideographic",
+                "alphabetic",
+                "hanging",
                 "mathematical",
             ],
         ),
         "alignTracks" => (
             "align-tracks",
             &[
-                "normal", "stretch", "center", "start", "end", "flex-start", "flex-end",
-                "baseline", "first baseline", "last baseline", "space-between", "space-around",
+                "normal",
+                "stretch",
+                "center",
+                "start",
+                "end",
+                "flex-start",
+                "flex-end",
+                "baseline",
+                "first baseline",
+                "last baseline",
+                "space-between",
+                "space-around",
                 "space-evenly",
             ],
         ),
@@ -1260,9 +1355,22 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "backgroundBlendMode" => (
             "background-blend-mode",
             &[
-                "normal", "multiply", "screen", "overlay", "darken", "lighten",
-                "color-dodge", "color-burn", "hard-light", "soft-light", "difference",
-                "exclusion", "hue", "saturation", "color", "luminosity",
+                "normal",
+                "multiply",
+                "screen",
+                "overlay",
+                "darken",
+                "lighten",
+                "color-dodge",
+                "color-burn",
+                "hard-light",
+                "soft-light",
+                "difference",
+                "exclusion",
+                "hue",
+                "saturation",
+                "color",
+                "luminosity",
             ],
         ),
         "backgroundClip" => (
@@ -1279,12 +1387,21 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "backgroundPositionX" => ("background-position-x", &["left", "center", "right"]),
         "backgroundPositionY" => ("background-position-y", &["top", "center", "bottom"]),
-        "boxAlign" => ("box-align", &["start", "center", "end", "baseline", "stretch"]),
+        "boxAlign" => (
+            "box-align",
+            &["start", "center", "end", "baseline", "stretch"],
+        ),
         "boxDirection" => ("box-direction", &["normal", "reverse", "inherit"]),
         "boxLines" => ("box-lines", &["single", "multiple"]),
         "boxOrient" => (
             "box-orient",
-            &["horizontal", "vertical", "inline-axis", "block-axis", "inherit"],
+            &[
+                "horizontal",
+                "vertical",
+                "inline-axis",
+                "block-axis",
+                "inherit",
+            ],
         ),
         "boxSuppress" => ("box-suppress", &["show", "discard", "hide"]),
         "boxDecorationBreak" => ("box-decoration-break", &["slice", "clone"]),
@@ -1292,24 +1409,61 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "breakAfter" => (
             "break-after",
             &[
-                "auto", "avoid", "always", "all", "avoid-page", "page", "left", "right",
-                "recto", "verso", "avoid-column", "column", "avoid-region", "region",
+                "auto",
+                "avoid",
+                "always",
+                "all",
+                "avoid-page",
+                "page",
+                "left",
+                "right",
+                "recto",
+                "verso",
+                "avoid-column",
+                "column",
+                "avoid-region",
+                "region",
             ],
         ),
         "breakBefore" => (
             "break-before",
             &[
-                "auto", "avoid", "always", "all", "avoid-page", "page", "left", "right",
-                "recto", "verso", "avoid-column", "column", "avoid-region", "region",
+                "auto",
+                "avoid",
+                "always",
+                "all",
+                "avoid-page",
+                "page",
+                "left",
+                "right",
+                "recto",
+                "verso",
+                "avoid-column",
+                "column",
+                "avoid-region",
+                "region",
             ],
         ),
         "breakInside" => (
             "break-inside",
-            &["auto", "avoid", "avoid-page", "avoid-column", "avoid-region"],
+            &[
+                "auto",
+                "avoid",
+                "avoid-page",
+                "avoid-column",
+                "avoid-region",
+            ],
         ),
         "captionSide" => (
             "caption-side",
-            &["top", "bottom", "block-start", "block-end", "inline-start", "inline-end"],
+            &[
+                "top",
+                "bottom",
+                "block-start",
+                "block-end",
+                "inline-start",
+                "inline-end",
+            ],
         ),
         "caretShape" => ("caret-shape", &["auto", "bar", "block", "underscore"]),
         "clipRule" => ("clip-rule", &["nonzero", "evenodd"]),
@@ -1329,7 +1483,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "colorScheme" => (
             "color-scheme",
-            &["normal", "light", "dark", "light dark", "only light", "only dark"],
+            &[
+                "normal",
+                "light",
+                "dark",
+                "light dark",
+                "only light",
+                "only dark",
+            ],
         ),
         "forcedColorAdjust" => ("forced-color-adjust", &["auto", "none"]),
         "float" => ("float", &["none", "left", "right"]),
@@ -1337,21 +1498,46 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "dominantBaseline" => (
             "dominant-baseline",
             &[
-                "auto", "use-script", "no-change", "reset-size", "ideographic",
-                "alphabetic", "hanging", "mathematical", "central", "middle",
-                "text-after-edge", "text-before-edge",
+                "auto",
+                "use-script",
+                "no-change",
+                "reset-size",
+                "ideographic",
+                "alphabetic",
+                "hanging",
+                "mathematical",
+                "central",
+                "middle",
+                "text-after-edge",
+                "text-before-edge",
             ],
         ),
         "contentVisibility" => ("content-visibility", &["visible", "hidden", "auto"]),
-        "displayInside" => ("display-inside", &["auto", "block", "table", "flex", "grid", "ruby"]),
+        "displayInside" => (
+            "display-inside",
+            &["auto", "block", "table", "flex", "grid", "ruby"],
+        ),
         "displayList" => ("display-list", &["none", "list-item"]),
         "displayOutside" => (
             "display-outside",
             &[
-                "block-level", "inline-level", "run-in", "contents", "none",
-                "table-row-group", "table-header-group", "table-footer-group", "table-row",
-                "table-cell", "table-column-group", "table-column", "table-caption",
-                "ruby-base", "ruby-text", "ruby-base-container", "ruby-text-container",
+                "block-level",
+                "inline-level",
+                "run-in",
+                "contents",
+                "none",
+                "table-row-group",
+                "table-header-group",
+                "table-footer-group",
+                "table-row",
+                "table-cell",
+                "table-column-group",
+                "table-column",
+                "table-caption",
+                "ruby-base",
+                "ruby-text",
+                "ruby-base-container",
+                "ruby-text-container",
             ],
         ),
         "emptyCells" => ("empty-cells", &["show", "hide"]),
@@ -1361,8 +1547,14 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "fontStretch" => (
             "font-stretch",
             &[
-                "normal", "ultra-condensed", "extra-condensed", "condensed",
-                "semi-condensed", "semi-expanded", "expanded", "extra-expanded",
+                "normal",
+                "ultra-condensed",
+                "extra-condensed",
+                "condensed",
+                "semi-condensed",
+                "semi-expanded",
+                "expanded",
+                "extra-expanded",
                 "ultra-expanded",
             ],
         ),
@@ -1373,16 +1565,27 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "fontVariantCaps" => (
             "font-variant-caps",
             &[
-                "normal", "small-caps", "all-small-caps", "petite-caps",
-                "all-petite-caps", "unicase", "titling-caps",
+                "normal",
+                "small-caps",
+                "all-small-caps",
+                "petite-caps",
+                "all-petite-caps",
+                "unicase",
+                "titling-caps",
             ],
         ),
         "fontVariantLigatures" => ("font-variant-ligatures", &["normal", "none"]),
         "fontVariantNumeric" => (
             "font-variant-numeric",
             &[
-                "normal", "lining-nums", "oldstyle-nums", "proportional-nums",
-                "tabular-nums", "diagonal-fractions", "stacked-fractions", "ordinal",
+                "normal",
+                "lining-nums",
+                "oldstyle-nums",
+                "proportional-nums",
+                "tabular-nums",
+                "diagonal-fractions",
+                "stacked-fractions",
+                "ordinal",
                 "slashed-zero",
             ],
         ),
@@ -1392,7 +1595,15 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "mathStyle" => ("math-style", &["normal", "compact"]),
         "marginTrim" => (
             "margin-trim",
-            &["none", "block", "block-start", "block-end", "inline", "inline-start", "inline-end"],
+            &[
+                "none",
+                "block",
+                "block-start",
+                "block-end",
+                "inline",
+                "inline-start",
+                "inline-end",
+            ],
         ),
         "imageOrientation" => ("image-orientation", &["from-image", "none"]),
         "initialLetterAlign" => (
@@ -1401,25 +1612,64 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "imageRendering" => (
             "image-rendering",
-            &["auto", "crisp-edges", "pixelated", "optimizeSpeed", "optimizeQuality"],
+            &[
+                "auto",
+                "crisp-edges",
+                "pixelated",
+                "optimizeSpeed",
+                "optimizeQuality",
+            ],
         ),
-        "imeMode" => ("ime-mode", &["auto", "normal", "active", "inactive", "disabled"]),
+        "imeMode" => (
+            "ime-mode",
+            &["auto", "normal", "active", "inactive", "disabled"],
+        ),
         "interpolateSize" => ("interpolate-size", &["allow-keywords", "numeric-only"]),
         "justifyItems" => (
             "justify-items",
             &[
-                "normal", "stretch", "center", "start", "end", "flex-start", "flex-end",
-                "self-start", "self-end", "left", "right", "baseline", "first baseline",
-                "last baseline", "safe center", "unsafe center", "legacy right", "legacy left",
-                "legacy center", "initial", "inherit", "unset",
+                "normal",
+                "stretch",
+                "center",
+                "start",
+                "end",
+                "flex-start",
+                "flex-end",
+                "self-start",
+                "self-end",
+                "left",
+                "right",
+                "baseline",
+                "first baseline",
+                "last baseline",
+                "safe center",
+                "unsafe center",
+                "legacy right",
+                "legacy left",
+                "legacy center",
+                "initial",
+                "inherit",
+                "unset",
             ],
         ),
         "justifyTracks" => (
             "justify-tracks",
             &[
-                "normal", "stretch", "center", "start", "end", "flex-start", "flex-end",
-                "left", "right", "baseline", "first baseline", "last baseline", "space-between",
-                "space-around", "space-evenly",
+                "normal",
+                "stretch",
+                "center",
+                "start",
+                "end",
+                "flex-start",
+                "flex-end",
+                "left",
+                "right",
+                "baseline",
+                "first baseline",
+                "last baseline",
+                "space-between",
+                "space-around",
+                "space-evenly",
             ],
         ),
         "MozOsxFontSmoothing" => ("-moz-osx-font-smoothing", &["grayscale"]),
@@ -1437,20 +1687,22 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         ),
         "overflowAnchor" => ("overflow-anchor", &["auto", "none"]),
         "overscrollBehavior" => ("overscroll-behavior", &["auto", "contain", "none"]),
-        "overscrollBehaviorBlock" => {
-            ("overscroll-behavior-block", &["auto", "contain", "none"])
-        }
-        "overscrollBehaviorInline" => {
-            ("overscroll-behavior-inline", &["auto", "contain", "none"])
-        }
+        "overscrollBehaviorBlock" => ("overscroll-behavior-block", &["auto", "contain", "none"]),
+        "overscrollBehaviorInline" => ("overscroll-behavior-inline", &["auto", "contain", "none"]),
         "overscrollBehaviorX" => ("overscroll-behavior-x", &["auto", "contain", "none"]),
         "overscrollBehaviorY" => ("overscroll-behavior-y", &["auto", "contain", "none"]),
         "printColorAdjust" => ("print-color-adjust", &["economy", "exact"]),
         "paintOrder" => (
             "paint-order",
             &[
-                "normal", "stroke", "fill", "markers", "stroke fill", "stroke markers",
-                "fill markers", "stroke fill markers",
+                "normal",
+                "stroke",
+                "fill",
+                "markers",
+                "stroke fill",
+                "stroke markers",
+                "fill markers",
+                "stroke fill markers",
             ],
         ),
         "pageBreakAfter" => (
@@ -1477,10 +1729,22 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "scrollSnapType" => (
             "scroll-snap-type",
             &[
-                "none", "block", "block mandatory", "block proximity", "both",
-                "both mandatory", "both proximity", "inline", "inline mandatory",
-                "inline proximity", "x", "x mandatory", "x proximity", "y",
-                "y mandatory", "y proximity",
+                "none",
+                "block",
+                "block mandatory",
+                "block proximity",
+                "both",
+                "both mandatory",
+                "both proximity",
+                "inline",
+                "inline mandatory",
+                "inline proximity",
+                "x",
+                "x mandatory",
+                "x proximity",
+                "y",
+                "y mandatory",
+                "y proximity",
             ],
         ),
         "scrollTimelineAxis" => ("scroll-timeline-axis", &["block", "inline", "x", "y"]),
@@ -1493,21 +1757,42 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "speak" => ("speak", &["auto", "normal", "none", "never", "always"]),
         "speakAs" => (
             "speak-as",
-            &["normal", "spell-out", "digits", "literal-punctuation", "no-punctuation"],
+            &[
+                "normal",
+                "spell-out",
+                "digits",
+                "literal-punctuation",
+                "no-punctuation",
+            ],
         ),
         "strokeLinecap" => ("stroke-linecap", &["butt", "round", "square"]),
         "strokeLinejoin" => ("stroke-linejoin", &["miter", "round", "bevel"]),
         "textAnchor" => ("text-anchor", &["start", "middle", "end"]),
         "textRendering" => (
             "text-rendering",
-            &["auto", "optimizeSpeed", "optimizeLegibility", "geometricPrecision"],
+            &[
+                "auto",
+                "optimizeSpeed",
+                "optimizeLegibility",
+                "geometricPrecision",
+            ],
         ),
         "touchAction" => ("touch-action", &["auto", "none", "manipulation"]),
         "unicodeBidi" => (
             "unicode-bidi",
-            &["normal", "embed", "isolate", "bidi-override", "isolate-override", "plaintext"],
+            &[
+                "normal",
+                "embed",
+                "isolate",
+                "bidi-override",
+                "isolate-override",
+                "plaintext",
+            ],
         ),
-        "wordBreak" => ("word-break", &["normal", "break-all", "keep-all", "break-word"]),
+        "wordBreak" => (
+            "word-break",
+            &["normal", "break-all", "keep-all", "break-word"],
+        ),
         "wordWrap" => ("word-wrap", &["normal", "break-word"]),
         "overflowWrap" => ("overflow-wrap", &["normal", "break-word", "anywhere"]),
         "visibility" => ("visibility", &["visible", "hidden", "collapse"]),
@@ -1519,7 +1804,10 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "voiceFamily" => ("voice-family", &["male", "female", "child"]),
         "voicePitch" => ("voice-pitch", &["x-low", "low", "medium", "high", "x-high"]),
         "voiceRange" => ("voice-range", &["x-low", "low", "medium", "high", "x-high"]),
-        "voiceRate" => ("voice-rate", &["x-slow", "slow", "medium", "fast", "x-fast"]),
+        "voiceRate" => (
+            "voice-rate",
+            &["x-slow", "slow", "medium", "fast", "x-fast"],
+        ),
         "voiceStress" => (
             "voice-stress",
             &["normal", "strong", "moderate", "none", "reduced"],
@@ -1531,35 +1819,104 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "backgroundPosition" => (
             "background-position",
             &[
-                "top", "right", "bottom", "left", "center", "left top", "left center",
-                "left bottom", "right top", "right center", "right bottom", "center top",
-                "center center", "center bottom",
+                "top",
+                "right",
+                "bottom",
+                "left",
+                "center",
+                "left top",
+                "left center",
+                "left bottom",
+                "right top",
+                "right center",
+                "right bottom",
+                "center top",
+                "center center",
+                "center bottom",
             ],
         ),
-        "backgroundRepeat" => ("background-repeat", &["repeat", "repeat-x", "repeat-y", "no-repeat", "space", "round"]),
+        "backgroundRepeat" => (
+            "background-repeat",
+            &[
+                "repeat",
+                "repeat-x",
+                "repeat-y",
+                "no-repeat",
+                "space",
+                "round",
+            ],
+        ),
         "backgroundSize" => ("background-size", &["auto", "cover", "contain"]),
         "objectPosition" => (
             "object-position",
             &[
-                "top", "right", "bottom", "left", "center", "left top", "left center",
-                "left bottom", "right top", "right center", "right bottom", "center top",
-                "center center", "center bottom",
+                "top",
+                "right",
+                "bottom",
+                "left",
+                "center",
+                "left top",
+                "left center",
+                "left bottom",
+                "right top",
+                "right center",
+                "right bottom",
+                "center top",
+                "center center",
+                "center bottom",
             ],
         ),
         "justifySelf" => (
             "justify-self",
-            &["auto", "normal", "stretch", "center", "start", "end", "self-start", "self-end", "flex-start", "flex-end"],
+            &[
+                "auto",
+                "normal",
+                "stretch",
+                "center",
+                "start",
+                "end",
+                "self-start",
+                "self-end",
+                "flex-start",
+                "flex-end",
+            ],
         ),
         "placeItems" => (
             "place-items",
-            &["normal", "stretch", "center", "start", "end", "baseline", "normal normal", "stretch stretch", "center center", "start start", "end end"],
+            &[
+                "normal",
+                "stretch",
+                "center",
+                "start",
+                "end",
+                "baseline",
+                "normal normal",
+                "stretch stretch",
+                "center center",
+                "start start",
+                "end end",
+            ],
         ),
         "placeSelf" => (
             "place-self",
             &[
-                "auto", "normal", "stretch", "center", "start", "end", "self-start",
-                "self-end", "flex-start", "flex-end", "baseline", "auto auto",
-                "normal normal", "stretch stretch", "center center", "start start", "end end",
+                "auto",
+                "normal",
+                "stretch",
+                "center",
+                "start",
+                "end",
+                "self-start",
+                "self-end",
+                "flex-start",
+                "flex-end",
+                "baseline",
+                "auto auto",
+                "normal normal",
+                "stretch stretch",
+                "center center",
+                "start start",
+                "end end",
             ],
         ),
         "lineBreak" => ("line-break", &["auto", "loose", "normal", "strict"]),
@@ -1567,29 +1924,61 @@ fn web_only_keyword_spec(property: &str) -> Option<(&'static str, &'static [&'st
         "listStyleType" => (
             "list-style-type",
             &[
-                "none", "disc", "circle", "square", "decimal", "decimal-leading-zero",
-                "lower-roman", "upper-roman", "lower-greek", "lower-latin", "upper-latin",
-                "armenian", "georgian", "lower-alpha", "upper-alpha",
+                "none",
+                "disc",
+                "circle",
+                "square",
+                "decimal",
+                "decimal-leading-zero",
+                "lower-roman",
+                "upper-roman",
+                "lower-greek",
+                "lower-latin",
+                "upper-latin",
+                "armenian",
+                "georgian",
+                "lower-alpha",
+                "upper-alpha",
             ],
         ),
         "tableLayout" => ("table-layout", &["auto", "fixed"]),
         "textAlignLast" => (
             "text-align-last",
-            &["auto", "start", "end", "left", "right", "center", "justify", "inherit"],
+            &[
+                "auto", "start", "end", "left", "right", "center", "justify", "inherit",
+            ],
         ),
         "textDecorationSkipInk" => ("text-decoration-skip-ink", &["auto", "none", "all"]),
         "textJustify" => (
             "text-justify",
-            &["none", "auto", "inter-word", "inter-character", "distribute"],
+            &[
+                "none",
+                "auto",
+                "inter-word",
+                "inter-character",
+                "distribute",
+            ],
         ),
         "textOrientation" => ("text-orientation", &["mixed", "upright", "sideways"]),
-        "textWrap" => ("text-wrap", &["wrap", "nowrap", "balance", "pretty", "stable"]),
+        "textWrap" => (
+            "text-wrap",
+            &["wrap", "nowrap", "balance", "pretty", "stable"],
+        ),
         "WebkitFontSmoothing" => ("-webkit-font-smoothing", &["antialiased"]),
         "writingMode" => (
             "writing-mode",
             &[
-                "horizontal-tb", "vertical-rl", "vertical-lr", "sideways-rl", "sideways-lr",
-                "lr-tb", "rl-tb", "tb-rl", "lr", "rl", "tb",
+                "horizontal-tb",
+                "vertical-rl",
+                "vertical-lr",
+                "sideways-rl",
+                "sideways-lr",
+                "lr-tb",
+                "rl-tb",
+                "tb-rl",
+                "lr",
+                "rl",
+                "tb",
             ],
         ),
         _ => return None,
@@ -1651,10 +2040,7 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             "view-timeline-name",
             WebValueGrammar::TimelineNames { allow_all: false },
         )),
-        "viewTransitionName" => Some((
-            "view-transition-name",
-            WebValueGrammar::ViewTransitionName,
-        )),
+        "viewTransitionName" => Some(("view-transition-name", WebValueGrammar::ViewTransitionName)),
         "viewTimelineInset" => Some(("view-timeline-inset", WebValueGrammar::ViewTimelineInset)),
         "orphans" => Some((
             "orphans",
@@ -1697,20 +2083,16 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "gridAutoRows" => Some(("grid-auto-rows", WebValueGrammar::GridTrackList)),
         "gridAutoFlow" => Some(("grid-auto-flow", WebValueGrammar::GridAutoFlow)),
         "gridTemplateAreas" => Some(("grid-template-areas", WebValueGrammar::GridTemplateAreas)),
-        "glyphOrientationHorizontal" => Some((
-            "glyph-orientation-horizontal",
-            WebValueGrammar::Angle(&[]),
-        )),
+        "glyphOrientationHorizontal" => {
+            Some(("glyph-orientation-horizontal", WebValueGrammar::Angle(&[])))
+        }
         "glyphOrientationVertical" => Some((
             "glyph-orientation-vertical",
             WebValueGrammar::Angle(&["auto"]),
         )),
         "kerning" => Some(("kerning", WebValueGrammar::SvgLength(&["auto"]))),
         "markerOffset" => Some(("marker-offset", WebValueGrammar::SvgLength(&["auto"]))),
-        "textDecorationSkip" => Some((
-            "text-decoration-skip",
-            WebValueGrammar::TextDecorationSkip,
-        )),
+        "textDecorationSkip" => Some(("text-decoration-skip", WebValueGrammar::TextDecorationSkip)),
         "counterIncrement" => Some((
             "counter-increment",
             WebValueGrammar::CounterList {
@@ -1748,12 +2130,14 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
                 maximum: 1.0,
             },
         )),
-        "fontFeatureSettings" => {
-            Some(("font-feature-settings", WebValueGrammar::FontFeatureSettings))
-        }
-        "fontLanguageOverride" => {
-            Some(("font-language-override", WebValueGrammar::FontLanguageOverride))
-        }
+        "fontFeatureSettings" => Some((
+            "font-feature-settings",
+            WebValueGrammar::FontFeatureSettings,
+        )),
+        "fontLanguageOverride" => Some((
+            "font-language-override",
+            WebValueGrammar::FontLanguageOverride,
+        )),
         "fontPalette" => Some(("font-palette", WebValueGrammar::FontPalette)),
         // StyleX 0.19 turns numeric length-like values into px even though the
         // CSS property itself is unitless. Preserve that observable output.
@@ -1777,14 +2161,8 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             "font-variation-settings",
             WebValueGrammar::FontVariationSettings,
         )),
-        "hangingPunctuation" => Some((
-            "hanging-punctuation",
-            WebValueGrammar::HangingPunctuation,
-        )),
-        "hyphenateCharacter" => Some((
-            "hyphenate-character",
-            WebValueGrammar::HyphenateCharacter,
-        )),
+        "hangingPunctuation" => Some(("hanging-punctuation", WebValueGrammar::HangingPunctuation)),
+        "hyphenateCharacter" => Some(("hyphenate-character", WebValueGrammar::HyphenateCharacter)),
         "marker" => Some(("marker", WebValueGrammar::UrlOrNone)),
         "markerEnd" => Some(("marker-end", WebValueGrammar::UrlOrNone)),
         "markerMid" => Some(("marker-mid", WebValueGrammar::UrlOrNone)),
@@ -1802,7 +2180,14 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "maskRepeat" => Some((
             "mask-repeat",
             WebValueGrammar::CommaKeywordGroups {
-                keywords: &["repeat-x", "repeat-y", "repeat", "space", "round", "no-repeat"],
+                keywords: &[
+                    "repeat-x",
+                    "repeat-y",
+                    "repeat",
+                    "space",
+                    "round",
+                    "no-repeat",
+                ],
                 minimum: 1,
                 maximum: 2,
             },
@@ -1812,7 +2197,14 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "maskOrigin" => Some((
             "mask-origin",
             WebValueGrammar::CommaKeywordGroups {
-                keywords: &["content-box", "padding-box", "border-box", "fill-box", "stroke-box", "view-box"],
+                keywords: &[
+                    "content-box",
+                    "padding-box",
+                    "border-box",
+                    "fill-box",
+                    "stroke-box",
+                    "view-box",
+                ],
                 minimum: 1,
                 maximum: 1,
             },
@@ -1820,7 +2212,15 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "maskClip" => Some((
             "mask-clip",
             WebValueGrammar::CommaKeywordGroups {
-                keywords: &["content-box", "padding-box", "border-box", "fill-box", "stroke-box", "view-box", "no-clip"],
+                keywords: &[
+                    "content-box",
+                    "padding-box",
+                    "border-box",
+                    "fill-box",
+                    "stroke-box",
+                    "view-box",
+                    "no-clip",
+                ],
                 minimum: 1,
                 maximum: 1,
             },
@@ -1837,14 +2237,8 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             "mask-type",
             WebValueGrammar::Keywords(&["luminance", "alpha"]),
         )),
-        "offsetAnchor" => Some((
-            "offset-anchor",
-            WebValueGrammar::OffsetPosition(&["auto"]),
-        )),
-        "offsetDistance" => Some((
-            "offset-distance",
-            WebValueGrammar::LengthPercentage(&[]),
-        )),
+        "offsetAnchor" => Some(("offset-anchor", WebValueGrammar::OffsetPosition(&["auto"]))),
+        "offsetDistance" => Some(("offset-distance", WebValueGrammar::LengthPercentage(&[]))),
         "offsetPath" => Some(("offset-path", WebValueGrammar::OffsetPath)),
         "offsetPosition" => Some((
             "offset-position",
@@ -1907,47 +2301,67 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             },
         )),
         "strokeWidth" => Some(("stroke-width", WebValueGrammar::SvgLength(&[]))),
-        "WebkitTapHighlightColor" => {
-            Some(("-webkit-tap-highlight-color", WebValueGrammar::Color))
-        }
+        "WebkitTapHighlightColor" => Some(("-webkit-tap-highlight-color", WebValueGrammar::Color)),
         "WebkitTextFillColor" => Some(("-webkit-text-fill-color", WebValueGrammar::Color)),
-        "WebkitTextStrokeColor" => {
-            Some(("-webkit-text-stroke-color", WebValueGrammar::Color))
-        }
+        "WebkitTextStrokeColor" => Some(("-webkit-text-stroke-color", WebValueGrammar::Color)),
         "blockSize" => Some((
             "height",
             WebValueGrammar::LengthPercentage(&[
-                "auto", "available", "min-content", "max-content", "fit-content",
+                "auto",
+                "available",
+                "min-content",
+                "max-content",
+                "fit-content",
             ]),
         )),
         "inlineSize" => Some((
             "width",
             WebValueGrammar::LengthPercentage(&[
-                "auto", "available", "min-content", "max-content", "fit-content",
+                "auto",
+                "available",
+                "min-content",
+                "max-content",
+                "fit-content",
             ]),
         )),
         "minBlockSize" => Some((
             "min-height",
             WebValueGrammar::LengthPercentage(&[
-                "auto", "min-content", "max-content", "fit-content", "fill-available",
+                "auto",
+                "min-content",
+                "max-content",
+                "fit-content",
+                "fill-available",
             ]),
         )),
         "minInlineSize" => Some((
             "min-width",
             WebValueGrammar::LengthPercentage(&[
-                "auto", "min-content", "max-content", "fit-content", "fill-available",
+                "auto",
+                "min-content",
+                "max-content",
+                "fit-content",
+                "fill-available",
             ]),
         )),
         "maxBlockSize" => Some((
             "max-height",
             WebValueGrammar::LengthPercentage(&[
-                "none", "min-content", "max-content", "fit-content", "fill-available",
+                "none",
+                "min-content",
+                "max-content",
+                "fit-content",
+                "fill-available",
             ]),
         )),
         "maxInlineSize" => Some((
             "max-width",
             WebValueGrammar::LengthPercentage(&[
-                "none", "min-content", "max-content", "fit-content", "fill-available",
+                "none",
+                "min-content",
+                "max-content",
+                "fit-content",
+                "fill-available",
             ]),
         )),
         "animationDelay" => Some(("animation-delay", WebValueGrammar::SignedTime)),
@@ -1993,14 +2407,8 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
                 minimum: 0.0,
             },
         )),
-        "perspectiveOrigin" => Some((
-            "perspective-origin",
-            WebValueGrammar::PerspectiveOrigin,
-        )),
-        "overflowClipMargin" => Some((
-            "overflow-clip-margin",
-            WebValueGrammar::OverflowClipMargin,
-        )),
+        "perspectiveOrigin" => Some(("perspective-origin", WebValueGrammar::PerspectiveOrigin)),
+        "overflowClipMargin" => Some(("overflow-clip-margin", WebValueGrammar::OverflowClipMargin)),
         "willChange" => Some(("will-change", WebValueGrammar::WillChange)),
         "animationIterationCount" => Some((
             "animation-iteration-count",
@@ -2011,19 +2419,20 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
             },
         )),
         "tabSize" => Some(("tab-size", WebValueGrammar::TabSize)),
-        "textCombineUpright" => {
-            Some(("text-combine-upright", WebValueGrammar::TextCombineUpright))
-        }
+        "textCombineUpright" => Some(("text-combine-upright", WebValueGrammar::TextCombineUpright)),
         "textEmphasisColor" => Some(("text-emphasis-color", WebValueGrammar::Color)),
         "textEmphasisPosition" => Some((
             "text-emphasis-position",
             WebValueGrammar::Keywords(&[
-                "over", "under", "over right", "over left", "under right", "under left",
+                "over",
+                "under",
+                "over right",
+                "over left",
+                "under right",
+                "under left",
             ]),
         )),
-        "textEmphasisStyle" => {
-            Some(("text-emphasis-style", WebValueGrammar::TextEmphasisStyle))
-        }
+        "textEmphasisStyle" => Some(("text-emphasis-style", WebValueGrammar::TextEmphasisStyle)),
         "textFillColor" => Some(("text-fill-color", WebValueGrammar::Color)),
         "textSizeAdjust" => Some((
             "text-size-adjust",
@@ -2047,8 +2456,15 @@ fn web_only_spec(property: &str) -> Option<(&'static str, WebValueGrammar)> {
         "textUnderlinePosition" => Some((
             "text-underline-position",
             WebValueGrammar::Keywords(&[
-                "auto", "from-font", "under", "left", "right", "under left", "under right",
-                "left under", "right under",
+                "auto",
+                "from-font",
+                "under",
+                "left",
+                "right",
+                "under left",
+                "under right",
+                "left under",
+                "right under",
             ]),
         )),
         "wordSpacing" => Some((
@@ -2072,9 +2488,9 @@ fn web_length_percentage_string(value: &str) -> bool {
         return true;
     }
     [
-        "%", "px", "rem", "em", "ch", "ex", "cap", "ic", "lh", "rlh", "vw", "vh",
-        "vi", "vb", "vmin", "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh",
-        "cm", "mm", "q", "in", "pc", "pt",
+        "%", "px", "rem", "em", "ch", "ex", "cap", "ic", "lh", "rlh", "vw", "vh", "vi", "vb",
+        "vmin", "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh", "cm", "mm", "q", "in", "pc",
+        "pt",
     ]
     .iter()
     .any(|unit| {
@@ -2090,9 +2506,8 @@ fn web_length_string(value: &str) -> bool {
         return true;
     }
     [
-        "px", "rem", "em", "ch", "ex", "cap", "ic", "lh", "rlh", "vw", "vh", "vi",
-        "vb", "vmin", "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh", "cm", "mm",
-        "q", "in", "pc", "pt",
+        "px", "rem", "em", "ch", "ex", "cap", "ic", "lh", "rlh", "vw", "vh", "vi", "vb", "vmin",
+        "vmax", "svw", "svh", "lvw", "lvh", "dvw", "dvh", "cm", "mm", "q", "in", "pc", "pt",
     ]
     .iter()
     .any(|unit| {
@@ -2172,9 +2587,7 @@ fn web_overflow_clip_margin(value: &StaticValue) -> Option<String> {
             let box_count = tokens.iter().filter(|token| boxes.contains(token)).count();
             let length_count = tokens
                 .iter()
-                .filter(|token| {
-                    web_length_number(token).is_some_and(|number| number >= 0.0)
-                })
+                .filter(|token| web_length_number(token).is_some_and(|number| number >= 0.0))
                 .count();
             (box_count <= 1 && length_count <= 1 && box_count + length_count == tokens.len())
                 .then(|| value.clone())
@@ -2191,9 +2604,9 @@ fn web_hyphenate_limit_chars(value: &StaticValue) -> Option<String> {
             let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
             (tokens.len() <= 3
                 && !tokens.is_empty()
-                && tokens.iter().all(|token| {
-                    token.parse::<u64>().is_ok_and(|number| number > 0)
-                }))
+                && tokens
+                    .iter()
+                    .all(|token| token.parse::<u64>().is_ok_and(|number| number > 0)))
             .then(|| value.clone())
         }
     }
@@ -2211,7 +2624,9 @@ fn web_math_depth(value: &StaticValue) -> Option<String> {
 }
 
 fn web_image_resolution(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
     if tokens.is_empty() || tokens.len() > 3 {
         return None;
@@ -2241,7 +2656,9 @@ fn web_image_resolution(value: &StaticValue) -> Option<String> {
 }
 
 fn web_initial_letter(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "normal" {
         return Some(value.clone());
     }
@@ -2260,7 +2677,9 @@ fn web_initial_letter(value: &StaticValue) -> Option<String> {
 }
 
 fn web_timeline_names(value: &StaticValue, allow_all: bool) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "none" || allow_all && value == "all" {
         return Some(value.clone());
     }
@@ -2271,27 +2690,35 @@ fn web_timeline_names(value: &StaticValue, allow_all: bool) -> Option<String> {
 }
 
 fn web_dashed_ident(value: &StaticValue, keyword: &str) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     (value == keyword || value.starts_with("--") && web_css_identifier(value))
         .then(|| value.clone())
 }
 
 fn web_view_transition_name(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     (matches!(value.as_str(), "none" | "match-element")
         || web_css_identifier(value)
-            && !matches!(value.as_str(), "auto" | "normal" | "inherit" | "initial" | "unset"))
+            && !matches!(
+                value.as_str(),
+                "auto" | "normal" | "inherit" | "initial" | "unset"
+            ))
     .then(|| value.clone())
 }
 
 fn web_animation_timeline(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     web_comma_groups(value)?
         .iter()
         .all(|item| {
             let item = item.trim();
-            matches!(item, "auto" | "none")
-                || item.starts_with("--") && web_css_identifier(item)
+            matches!(item, "auto" | "none") || item.starts_with("--") && web_css_identifier(item)
         })
         .then(|| value.clone())
 }
@@ -2336,7 +2763,9 @@ fn web_view_timeline_inset(value: &StaticValue) -> Option<String> {
 }
 
 fn stylex_animation_range(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value.contains(',') {
         return None;
     }
@@ -2366,7 +2795,9 @@ fn stylex_animation_range(value: &StaticValue) -> Option<Vec<StyleProperty>> {
 }
 
 fn stylex_scroll_timeline(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let mut name = None;
     let mut axis = None;
     for part in web_components(value)? {
@@ -2381,13 +2812,21 @@ fn stylex_scroll_timeline(value: &StaticValue) -> Option<Vec<StyleProperty>> {
         }
     }
     Some(vec![
-        web_longhand("scroll-timeline-name", name.unwrap_or_else(|| "none".to_string())),
-        web_longhand("scroll-timeline-axis", axis.unwrap_or_else(|| "block".to_string())),
+        web_longhand(
+            "scroll-timeline-name",
+            name.unwrap_or_else(|| "none".to_string()),
+        ),
+        web_longhand(
+            "scroll-timeline-axis",
+            axis.unwrap_or_else(|| "block".to_string()),
+        ),
     ])
 }
 
 fn stylex_view_timeline(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let mut name = None;
     let mut axis = None;
     let mut inset = Vec::new();
@@ -2410,14 +2849,22 @@ fn stylex_view_timeline(value: &StaticValue) -> Option<Vec<StyleProperty>> {
         inset
     };
     Some(vec![
-        web_longhand("view-timeline-name", name.unwrap_or_else(|| "none".to_string())),
-        web_longhand("view-timeline-axis", axis.unwrap_or_else(|| "block".to_string())),
+        web_longhand(
+            "view-timeline-name",
+            name.unwrap_or_else(|| "none".to_string()),
+        ),
+        web_longhand(
+            "view-timeline-axis",
+            axis.unwrap_or_else(|| "block".to_string()),
+        ),
         web_longhand("view-timeline-inset", inset),
     ])
 }
 
 fn web_masonry_auto_flow(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let tokens = value.split_ascii_whitespace().collect::<Vec<_>>();
     if tokens.is_empty() || tokens.len() > 2 {
         return None;
@@ -2430,8 +2877,7 @@ fn web_masonry_auto_flow(value: &StaticValue) -> Option<String> {
         .iter()
         .filter(|token| matches!(**token, "definite-first" | "ordered"))
         .count();
-    (packing <= 1 && ordering <= 1 && packing + ordering == tokens.len())
-        .then(|| value.clone())
+    (packing <= 1 && ordering <= 1 && packing + ordering == tokens.len()).then(|| value.clone())
 }
 
 fn web_angle(value: &StaticValue, keywords: &[&str]) -> Option<String> {
@@ -2451,7 +2897,9 @@ fn web_angle(value: &StaticValue, keywords: &[&str]) -> Option<String> {
 }
 
 fn web_text_decoration_skip(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "none" {
         return Some(value.clone());
     }
@@ -2530,7 +2978,12 @@ fn web_generated_content(value: &StaticValue) -> Option<String> {
         return Some(value.clone());
     }
     let components = web_components(value)?;
-    let quote_keywords = ["open-quote", "close-quote", "no-open-quote", "no-close-quote"];
+    let quote_keywords = [
+        "open-quote",
+        "close-quote",
+        "no-open-quote",
+        "no-close-quote",
+    ];
     components
         .iter()
         .all(|component| web_css_string(component) || quote_keywords.contains(&component.as_str()))
@@ -2651,8 +3104,7 @@ fn web_outline(value: &StaticValue) -> Option<String> {
         let part_value = StaticValue::String(part.clone());
         if !has_style && STYLES.contains(&part.as_str()) {
             has_style = true;
-        } else if !has_width
-            && web_length(&part_value, &["thin", "medium", "thick"], 0.0).is_some()
+        } else if !has_width && web_length(&part_value, &["thin", "medium", "thick"], 0.0).is_some()
         {
             has_width = true;
         } else if !has_color && (part == "invert" || web_shorthand_color(&part)) {
@@ -2669,8 +3121,7 @@ fn web_outline(value: &StaticValue) -> Option<String> {
 
 fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Option<String> {
     if let StaticValue::Number(number) = value {
-        return (minimum <= 1 && number.is_finite() && *number >= 0.0)
-            .then(|| length_value(value));
+        return (minimum <= 1 && number.is_finite() && *number >= 0.0).then(|| length_value(value));
     }
     let StaticValue::String(value) = value else {
         return None;
@@ -2679,8 +3130,7 @@ fn web_length_list(value: &StaticValue, minimum: usize, maximum: usize) -> Optio
     (parts.len() >= minimum
         && parts.len() <= maximum
         && parts.iter().all(|part| {
-            web_length_string(part)
-                && web_length_number(part).is_some_and(|number| number >= 0.0)
+            web_length_string(part) && web_length_number(part).is_some_and(|number| number >= 0.0)
         }))
     .then(|| value.clone())
 }
@@ -2727,7 +3177,10 @@ fn web_contain(value: &StaticValue) -> Option<String> {
     let allowed = ["size", "inline-size", "layout", "style", "paint"];
     (!parts.is_empty()
         && parts.iter().all(|part| allowed.contains(part))
-        && parts.iter().enumerate().all(|(index, part)| !parts[..index].contains(part))
+        && parts
+            .iter()
+            .enumerate()
+            .all(|(index, part)| !parts[..index].contains(part))
         && !(parts.contains(&"size") && parts.contains(&"inline-size")))
     .then(|| value.clone())
 }
@@ -2736,8 +3189,7 @@ fn web_svg_length(value: &StaticValue) -> bool {
     match value {
         StaticValue::Number(value) => value.is_finite(),
         StaticValue::String(value) => {
-            value.parse::<f64>().is_ok_and(f64::is_finite)
-                || web_length_percentage_string(value)
+            value.parse::<f64>().is_ok_and(f64::is_finite) || web_length_percentage_string(value)
         }
     }
 }
@@ -2747,8 +3199,7 @@ fn web_number(value: &StaticValue, minimum: f64, maximum: f64) -> Option<String>
         StaticValue::Number(value) => *value,
         StaticValue::String(value) => value.parse::<f64>().ok()?,
     };
-    (number.is_finite() && number >= minimum && number <= maximum)
-        .then(|| numeric_text(number))
+    (number.is_finite() && number >= minimum && number <= maximum).then(|| numeric_text(number))
 }
 
 fn web_number_percentage(value: &StaticValue, minimum: f64, maximum: f64) -> Option<String> {
@@ -2774,15 +3225,23 @@ fn web_border_image_slice(value: &StaticValue) -> Option<String> {
     if let StaticValue::Number(number) = value {
         return (number.is_finite() && *number >= 0.0).then(|| numeric_text(*number));
     }
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
     let fill_count = parts.iter().filter(|part| **part == "fill").count();
-    let slices = parts.iter().filter(|part| **part != "fill").copied().collect::<Vec<_>>();
+    let slices = parts
+        .iter()
+        .filter(|part| **part != "fill")
+        .copied()
+        .collect::<Vec<_>>();
     (fill_count <= 1
         && (1..=4).contains(&slices.len())
         && slices.iter().all(|part| {
             web_non_negative_number_token(part)
-                || part.strip_suffix('%').is_some_and(web_non_negative_number_token)
+                || part
+                    .strip_suffix('%')
+                    .is_some_and(web_non_negative_number_token)
         }))
     .then(|| parts.join(" "))
 }
@@ -2791,7 +3250,9 @@ fn web_border_image_width(value: &StaticValue) -> Option<String> {
     if let StaticValue::Number(number) = value {
         return (number.is_finite() && *number >= 0.0).then(|| numeric_text(*number));
     }
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
     ((1..=4).contains(&parts.len())
         && parts.iter().all(|part| {
@@ -2807,7 +3268,9 @@ fn web_border_image_outset(value: &StaticValue) -> Option<String> {
     if let StaticValue::Number(number) = value {
         return (number.is_finite() && *number >= 0.0).then(|| numeric_text(*number));
     }
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
     ((1..=4).contains(&parts.len())
         && parts.iter().all(|part| {
@@ -2819,10 +3282,14 @@ fn web_border_image_outset(value: &StaticValue) -> Option<String> {
 }
 
 fn web_border_image_repeat(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
     ((1..=2).contains(&parts.len())
-        && parts.iter().all(|part| matches!(*part, "stretch" | "repeat" | "round" | "space")))
+        && parts
+            .iter()
+            .all(|part| matches!(*part, "stretch" | "repeat" | "round" | "space")))
     .then(|| parts.join(" "))
 }
 
@@ -2833,7 +3300,9 @@ fn stylex_image_border(
     css_property: &'static str,
     mask: bool,
 ) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     if value == "none" {
         return Some(vec![web_longhand(css_property, value)]);
@@ -2931,12 +3400,13 @@ fn web_grid_track_breadth(value: &str, flex: bool, fit_content: bool) -> bool {
     let Some((minimum, maximum)) = inner.split_once(',') else {
         return false;
     };
-    web_grid_track_breadth(minimum, false, false)
-        && web_grid_track_breadth(maximum, true, false)
+    web_grid_track_breadth(minimum, false, false) && web_grid_track_breadth(maximum, true, false)
 }
 
 fn web_grid_track_list(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let normalized = normalize_stylex_grid_value(value);
     let tracks = web_components(&normalized)?;
     tracks
@@ -2946,14 +3416,21 @@ fn web_grid_track_list(value: &StaticValue) -> Option<String> {
 }
 
 fn web_grid_auto_flow(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.split_ascii_whitespace().collect::<Vec<_>>().join(" ");
-    matches!(value.as_str(), "row" | "column" | "dense" | "row dense" | "column dense")
-        .then_some(value)
+    matches!(
+        value.as_str(),
+        "row" | "column" | "dense" | "row dense" | "column dense"
+    )
+    .then_some(value)
 }
 
 fn web_grid_template_areas(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     if value == "none" {
         return Some(value.to_string());
@@ -2965,7 +3442,9 @@ fn web_grid_template_areas(value: &StaticValue) -> Option<String> {
         if !matches!(quote, '\'' | '"') || !row.ends_with(quote) || row.len() < 2 {
             return None;
         }
-        let row = row[1..row.len() - 1].split_ascii_whitespace().collect::<Vec<_>>();
+        let row = row[1..row.len() - 1]
+            .split_ascii_whitespace()
+            .collect::<Vec<_>>();
         if row.is_empty()
             || row.iter().any(|cell| {
                 !cell.chars().all(|character| character == '.') && !web_css_identifier(cell)
@@ -2996,9 +3475,9 @@ fn web_grid_template_areas(value: &StaticValue) -> Option<String> {
         }
     }
     for (area, (row_start, row_end, column_start, column_end)) in bounds {
-        if (row_start..=row_end).any(|row| {
-            (column_start..=column_end).any(|column| cells[row][column] != area)
-        }) {
+        if (row_start..=row_end)
+            .any(|row| (column_start..=column_end).any(|column| cells[row][column] != area))
+        {
             return None;
         }
     }
@@ -3013,11 +3492,15 @@ fn web_svg_dasharray(value: &StaticValue) -> Option<String> {
         return Some(value.clone());
     }
     let mut saw_length = false;
-    for part in value.split([',', ' ', '\t', '\n', '\r']).filter(|part| !part.is_empty()) {
-        if !(part.parse::<f64>().is_ok_and(f64::is_finite)
-            || web_length_percentage_string(part))
+    for part in value
+        .split([',', ' ', '\t', '\n', '\r'])
+        .filter(|part| !part.is_empty())
+    {
+        if !(part.parse::<f64>().is_ok_and(f64::is_finite) || web_length_percentage_string(part))
             || part
-                .trim_end_matches(|character: char| character.is_ascii_alphabetic() || character == '%')
+                .trim_end_matches(|character: char| {
+                    character.is_ascii_alphabetic() || character == '%'
+                })
                 .parse::<f64>()
                 .is_ok_and(|number| number < 0.0)
         {
@@ -3056,7 +3539,11 @@ fn web_signed_time(value: &StaticValue) -> Option<String> {
     if number < 0.0 {
         return Some(value.clone());
     }
-    let milliseconds_value = if milliseconds { number } else { number * 1000.0 };
+    let milliseconds_value = if milliseconds {
+        number
+    } else {
+        number * 1000.0
+    };
     let in_ms = format!("{}ms", minified_css_number(milliseconds_value));
     let in_seconds = format!("{}s", minified_css_number(milliseconds_value / 1000.0));
     if in_ms.len() < in_seconds.len() {
@@ -3075,7 +3562,11 @@ fn minified_css_number(value: f64) -> String {
     value
         .strip_prefix("0.")
         .map(|fraction| format!(".{fraction}"))
-        .or_else(|| value.strip_prefix("-0.").map(|fraction| format!("-.{fraction}")))
+        .or_else(|| {
+            value
+                .strip_prefix("-0.")
+                .map(|fraction| format!("-.{fraction}"))
+        })
         .unwrap_or(value)
 }
 
@@ -3095,9 +3586,17 @@ fn web_animation_timing_function(value: &StaticValue) -> Option<String> {
     {
         let numbers = arguments
             .split(',')
-            .map(|part| part.trim().parse::<f64>().ok().filter(|value| value.is_finite()))
+            .map(|part| {
+                part.trim()
+                    .parse::<f64>()
+                    .ok()
+                    .filter(|value| value.is_finite())
+            })
             .collect::<Option<Vec<_>>>()?;
-        if numbers.len() != 4 || !(0.0..=1.0).contains(&numbers[0]) || !(0.0..=1.0).contains(&numbers[2]) {
+        if numbers.len() != 4
+            || !(0.0..=1.0).contains(&numbers[0])
+            || !(0.0..=1.0).contains(&numbers[2])
+        {
             return None;
         }
         return Some(format!(
@@ -3177,7 +3676,9 @@ fn web_single_function(value: &str, names: &[&str]) -> bool {
     if value.contains([';', '{', '}', '\n', '\r']) || !value.ends_with(')') {
         return false;
     }
-    let Some(open) = value.find('(') else { return false };
+    let Some(open) = value.find('(') else {
+        return false;
+    };
     if !names.contains(&value[..open].trim()) {
         return false;
     }
@@ -3186,7 +3687,9 @@ fn web_single_function(value: &str, names: &[&str]) -> bool {
         match character {
             '(' => depth += 1,
             ')' => {
-                let Some(next) = depth.checked_sub(1) else { return false };
+                let Some(next) = depth.checked_sub(1) else {
+                    return false;
+                };
                 depth = next;
                 if depth == 0 && index + character.len_utf8() != value.len() {
                     return false;
@@ -3199,7 +3702,9 @@ fn web_single_function(value: &str, names: &[&str]) -> bool {
 }
 
 fn web_clip_path(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     if value == "none" || web_url_or_none(&StaticValue::String(value.to_string())).is_some() {
         return Some(value.to_string());
@@ -3209,7 +3714,9 @@ fn web_clip_path(value: &StaticValue) -> Option<String> {
 }
 
 fn web_perspective_origin(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
     ((1..=2).contains(&parts.len())
         && parts.iter().all(|part| {
@@ -3220,7 +3727,9 @@ fn web_perspective_origin(value: &StaticValue) -> Option<String> {
 }
 
 fn web_will_change(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "auto" {
         return Some(value.clone());
     }
@@ -3240,7 +3749,9 @@ fn web_comma_keyword_groups(
     minimum: usize,
     maximum: usize,
 ) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let groups = web_comma_groups(value)?;
     groups
         .iter()
@@ -3253,7 +3764,9 @@ fn web_comma_keyword_groups(
 }
 
 fn web_mask_image(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let groups = web_comma_groups(value)?;
     groups
         .iter()
@@ -3276,7 +3789,9 @@ fn web_mask_image(value: &StaticValue) -> Option<String> {
 }
 
 fn web_mask_position(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let groups = web_comma_groups(value)?;
     groups
         .iter()
@@ -3292,7 +3807,9 @@ fn web_mask_position(value: &StaticValue) -> Option<String> {
 }
 
 fn web_mask_size(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let groups = web_comma_groups(value)?;
     groups
         .iter()
@@ -3313,12 +3830,24 @@ fn web_mask_size(value: &StaticValue) -> Option<String> {
 
 fn web_position_try_fallbacks(value: &StaticValue) -> Option<String> {
     const AREAS: &[&str] = &[
-        "top", "left", "bottom", "right", "center", "block-start", "block-end",
-        "inline-start", "inline-end", "span-inline-start", "span-inline-end",
-        "span-block-start", "span-block-end",
+        "top",
+        "left",
+        "bottom",
+        "right",
+        "center",
+        "block-start",
+        "block-end",
+        "inline-start",
+        "inline-end",
+        "span-inline-start",
+        "span-inline-end",
+        "span-block-start",
+        "span-block-end",
     ];
     const TACTICS: &[&str] = &["flip-block", "flip-inline", "flip-start"];
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "none" {
         return Some(value.clone());
     }
@@ -3347,14 +3876,23 @@ fn web_position_try_fallbacks(value: &StaticValue) -> Option<String> {
 
 fn web_position_try(value: &StaticValue) -> Option<String> {
     const ORDERS: &[&str] = &[
-        "normal", "most-width", "most-height", "most-block-size", "most-inline-size",
+        "normal",
+        "most-width",
+        "most-height",
+        "most-block-size",
+        "most-inline-size",
     ];
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "none" {
         return Some(value.clone());
     }
     let groups = web_comma_groups(value)?;
-    let mut normalized = groups.iter().map(|group| (*group).to_string()).collect::<Vec<_>>();
+    let mut normalized = groups
+        .iter()
+        .map(|group| (*group).to_string())
+        .collect::<Vec<_>>();
     let first = normalized.first_mut()?;
     let words = first.split_ascii_whitespace().collect::<Vec<_>>();
     if words.first().is_some_and(|word| ORDERS.contains(word)) {
@@ -3433,7 +3971,9 @@ fn web_top_level_tokens(value: &str, slash_token: bool) -> Option<Vec<String>> {
 /// Keep the CSS shorthand so its specified reset of `mask-border-*` remains
 /// intact, but accept only a practical single-layer grammar we can validate.
 fn stylex_mask(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     if value == "none" {
         return Some(vec![web_longhand("mask", value)]);
@@ -3442,8 +3982,23 @@ fn stylex_mask(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     let image = tokens.first()?;
     web_mask_image(&StaticValue::String(image.clone()))?;
 
-    let repeat = ["repeat-x", "repeat-y", "repeat", "space", "round", "no-repeat"];
-    let boxes = ["border-box", "padding-box", "content-box", "fill-box", "stroke-box", "view-box", "no-clip"];
+    let repeat = [
+        "repeat-x",
+        "repeat-y",
+        "repeat",
+        "space",
+        "round",
+        "no-repeat",
+    ];
+    let boxes = [
+        "border-box",
+        "padding-box",
+        "content-box",
+        "fill-box",
+        "stroke-box",
+        "view-box",
+        "no-clip",
+    ];
     let mode = ["alpha", "luminance", "match-source"];
     let composite = ["add", "subtract", "intersect", "exclude"];
     let mut position = Vec::new();
@@ -3505,13 +4060,22 @@ fn stylex_mask(value: &StaticValue) -> Option<Vec<StyleProperty>> {
 /// shorthand's full reset behavior. Variant, stretch, family lists, system
 /// fonts, and open-ended relative syntax stay with the official transform.
 fn stylex_font(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     let tokens = web_top_level_tokens(value, true)?;
     let size_at = tokens.iter().position(|token| {
         matches!(
             token.as_str(),
-            "xx-small" | "x-small" | "small" | "medium" | "large" | "x-large" | "xx-large" | "xxx-large"
+            "xx-small"
+                | "x-small"
+                | "small"
+                | "medium"
+                | "large"
+                | "x-large"
+                | "xx-large"
+                | "xxx-large"
         ) || web_length_percentage_string(token)
             && web_length_number(token).is_some_and(|number| number > 0.0)
     })?;
@@ -3525,9 +4089,9 @@ fn stylex_font(value: &StaticValue) -> Option<Vec<StyleProperty>> {
             style = true;
         } else if !weight
             && (matches!(token.as_str(), "normal" | "bold" | "bolder" | "lighter")
-                || token.parse::<u16>().is_ok_and(|number| {
-                    (100..=900).contains(&number) && number % 100 == 0
-                }))
+                || token
+                    .parse::<u16>()
+                    .is_ok_and(|number| (100..=900).contains(&number) && number % 100 == 0))
         {
             weight = true;
         } else {
@@ -3558,7 +4122,9 @@ fn stylex_font(value: &StaticValue) -> Option<Vec<StyleProperty>> {
 }
 
 fn web_offset_path(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     if value == "none" || web_url_or_none(&StaticValue::String(value.to_string())).is_some() {
         return Some(value.to_string());
@@ -3571,7 +4137,9 @@ fn web_offset_path(value: &StaticValue) -> Option<String> {
 }
 
 fn web_offset_position(value: &StaticValue, keywords: &[&str]) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if keywords.contains(&value.as_str()) {
         return Some(value.clone());
     }
@@ -3585,7 +4153,9 @@ fn web_offset_position(value: &StaticValue, keywords: &[&str]) -> Option<String>
 }
 
 fn web_offset_rotate(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
     if !(1..=2).contains(&parts.len()) {
         return None;
@@ -3598,10 +4168,8 @@ fn web_offset_rotate(value: &StaticValue) -> Option<String> {
         .iter()
         .filter(|part| transform_angle(part).is_some())
         .count();
-    (keyword_count <= 1
-        && angle_count <= 1
-        && keyword_count + angle_count == parts.len())
-    .then(|| parts.join(" "))
+    (keyword_count <= 1 && angle_count <= 1 && keyword_count + angle_count == parts.len())
+        .then(|| parts.join(" "))
 }
 
 fn stylex_legacy_motion(property: &'static str, value: &StaticValue) -> Option<StyleProperty> {
@@ -3646,10 +4214,20 @@ fn web_number_with_unit(value: &str, unit: &str, minimum: f64, maximum: f64) -> 
 
 fn stylex_azimuth(value: &StaticValue) -> Option<StyleProperty> {
     const KEYWORDS: &[&str] = &[
-        "left-side", "far-left", "left", "center-left", "center", "center-right", "right",
-        "far-right", "right-side", "behind",
+        "left-side",
+        "far-left",
+        "left",
+        "center-left",
+        "center",
+        "center-right",
+        "right",
+        "far-right",
+        "right-side",
+        "behind",
     ];
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = if KEYWORDS.contains(&value.as_str()) {
         value.clone()
     } else if let Some(value) = web_angle(&StaticValue::String(value.clone()), &[]) {
@@ -3659,47 +4237,60 @@ fn stylex_azimuth(value: &StaticValue) -> Option<StyleProperty> {
         let ["behind", direction] = parts.as_slice() else {
             return None;
         };
-        matches!(*direction, "far-left" | "left" | "center-left" | "center-right" | "right" | "far-right")
-            .then(|| value.clone())?
+        matches!(
+            *direction,
+            "far-left" | "left" | "center-left" | "center-right" | "right" | "far-right"
+        )
+        .then(|| value.clone())?
     };
     Some(web_longhand("azimuth", value))
 }
 
 fn stylex_voice_value(property: &'static str, value: &StaticValue) -> Option<StyleProperty> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let exact = match property {
-        "voice-balance" => {
-            matches!(value.as_str(), "left" | "center" | "right" | "leftwards" | "rightwards")
-                .then(|| value.clone())
-                .or_else(|| web_number_with_unit(value, "%", -100.0, 100.0))
-        }
+        "voice-balance" => matches!(
+            value.as_str(),
+            "left" | "center" | "right" | "leftwards" | "rightwards"
+        )
+        .then(|| value.clone())
+        .or_else(|| web_number_with_unit(value, "%", -100.0, 100.0)),
         "voice-family" => (matches!(value.as_str(), "male" | "female" | "child")
             || web_css_identifier(value)
             || web_css_string(value))
         .then(|| value.clone()),
-        "voice-pitch" | "voice-range" => {
-            matches!(value.as_str(), "x-low" | "low" | "medium" | "high" | "x-high")
-                .then(|| value.clone())
-                .or_else(|| web_number_with_unit(value, "Hz", 0.0, f64::INFINITY))
-                .or_else(|| web_number_with_unit(value, "kHz", 0.0, f64::INFINITY))
-                .or_else(|| web_number_with_unit(value, "st", f64::NEG_INFINITY, f64::INFINITY))
-        }
-        "voice-rate" => matches!(value.as_str(), "x-slow" | "slow" | "medium" | "fast" | "x-fast")
-            .then(|| value.clone())
-            .or_else(|| web_number_with_unit(value, "%", 0.0, f64::INFINITY)),
-        "voice-volume" => {
-            matches!(value.as_str(), "silent" | "x-soft" | "soft" | "medium" | "loud" | "x-loud")
-                .then(|| value.clone())
-                .or_else(|| web_number_with_unit(value, "%", 0.0, f64::INFINITY))
-                .or_else(|| web_number_with_unit(value, "dB", f64::NEG_INFINITY, f64::INFINITY))
-        }
+        "voice-pitch" | "voice-range" => matches!(
+            value.as_str(),
+            "x-low" | "low" | "medium" | "high" | "x-high"
+        )
+        .then(|| value.clone())
+        .or_else(|| web_number_with_unit(value, "Hz", 0.0, f64::INFINITY))
+        .or_else(|| web_number_with_unit(value, "kHz", 0.0, f64::INFINITY))
+        .or_else(|| web_number_with_unit(value, "st", f64::NEG_INFINITY, f64::INFINITY)),
+        "voice-rate" => matches!(
+            value.as_str(),
+            "x-slow" | "slow" | "medium" | "fast" | "x-fast"
+        )
+        .then(|| value.clone())
+        .or_else(|| web_number_with_unit(value, "%", 0.0, f64::INFINITY)),
+        "voice-volume" => matches!(
+            value.as_str(),
+            "silent" | "x-soft" | "soft" | "medium" | "loud" | "x-loud"
+        )
+        .then(|| value.clone())
+        .or_else(|| web_number_with_unit(value, "%", 0.0, f64::INFINITY))
+        .or_else(|| web_number_with_unit(value, "dB", f64::NEG_INFINITY, f64::INFINITY)),
         _ => None,
     }?;
     Some(web_longhand(property, exact))
 }
 
 fn stylex_page(value: &StaticValue) -> Option<StyleProperty> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     web_css_identifier(value).then(|| web_longhand("page", value.clone()))
 }
 
@@ -3707,7 +4298,9 @@ fn stylex_page(value: &StaticValue) -> Option<StyleProperty> {
 /// independently ranked longhand slots. Position/anchor slash syntax stays
 /// residual until its wider grammar can be represented exactly.
 fn stylex_offset(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     if value == "none" {
         return Some(vec![
@@ -3729,7 +4322,10 @@ fn stylex_offset(value: &StaticValue) -> Option<Vec<StyleProperty>> {
         [] => ("0px".to_string(), "auto".to_string()),
         [distance] => {
             let value = StaticValue::String(distance.clone());
-            (web_length_percentage(&value).then(|| length_value(&value))?, "auto".to_string())
+            (
+                web_length_percentage(&value).then(|| length_value(&value))?,
+                "auto".to_string(),
+            )
         }
         [distance, rotate @ ..] => {
             let distance_value = StaticValue::String(distance.clone());
@@ -3750,7 +4346,9 @@ fn stylex_offset(value: &StaticValue) -> Option<Vec<StyleProperty>> {
 }
 
 fn web_shape_outside(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     if matches!(
         value,
@@ -3789,7 +4387,9 @@ fn web_css_string(value: &str) -> bool {
 
 fn web_css_identifier(value: &str) -> bool {
     let mut characters = value.chars();
-    let Some(first) = characters.next() else { return false };
+    let Some(first) = characters.next() else {
+        return false;
+    };
     let valid_start = first.is_ascii_alphabetic()
         || first == '_'
         || (first == '-'
@@ -3798,9 +4398,8 @@ fn web_css_identifier(value: &str) -> bool {
                 .next()
                 .is_some_and(|next| next.is_ascii_alphabetic() || matches!(next, '_' | '-')));
     valid_start
-        && characters.all(|character| {
-            character.is_ascii_alphanumeric() || matches!(character, '-' | '_')
-        })
+        && characters
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'))
 }
 
 fn web_comma_groups(value: &str) -> Option<Vec<&str>> {
@@ -3854,7 +4453,9 @@ fn web_comma_groups(value: &str) -> Option<Vec<&str>> {
 }
 
 fn web_font_setting(value: &StaticValue, variation: bool) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "normal" {
         return Some(value.clone());
     }
@@ -3877,9 +4478,7 @@ fn web_font_setting(value: &StaticValue, variation: bool) -> Option<String> {
             if !setting.parse::<f64>().is_ok_and(f64::is_finite) {
                 return None;
             }
-        } else if !matches!(setting.as_str(), "on" | "off")
-            && setting.parse::<u64>().is_err()
-        {
+        } else if !matches!(setting.as_str(), "on" | "off") && setting.parse::<u64>().is_err() {
             return None;
         }
     }
@@ -3887,7 +4486,9 @@ fn web_font_setting(value: &StaticValue, variation: bool) -> Option<String> {
 }
 
 fn web_font_synthesis(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "none" {
         return Some(value.clone());
     }
@@ -3895,12 +4496,17 @@ fn web_font_synthesis(value: &StaticValue) -> Option<String> {
     let allowed = ["weight", "style", "small-caps", "position"];
     (!parts.is_empty()
         && parts.iter().all(|part| allowed.contains(part))
-        && parts.iter().enumerate().all(|(index, part)| !parts[..index].contains(part)))
+        && parts
+            .iter()
+            .enumerate()
+            .all(|(index, part)| !parts[..index].contains(part)))
     .then(|| value.clone())
 }
 
 fn web_font_variant_alternates(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if matches!(value.as_str(), "normal" | "historical-forms") {
         return Some(value.clone());
     }
@@ -3912,8 +4518,7 @@ fn web_font_variant_alternates(value: &StaticValue) -> Option<String> {
         let inner = part[open + 1..].strip_suffix(')')?;
         if !matches!(
             kind,
-            "stylistic" | "styleset" | "character-variant" | "swash" | "ornaments"
-                | "annotation"
+            "stylistic" | "styleset" | "character-variant" | "swash" | "ornaments" | "annotation"
         ) || kinds.contains(&kind)
         {
             return None;
@@ -3931,12 +4536,21 @@ fn web_font_variant_alternates(value: &StaticValue) -> Option<String> {
 }
 
 fn web_font_variant_east_asian(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "normal" {
         return Some(value.clone());
     }
     let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
-    let variants = ["jis78", "jis83", "jis90", "jis04", "simplified", "traditional"];
+    let variants = [
+        "jis78",
+        "jis83",
+        "jis90",
+        "jis04",
+        "simplified",
+        "traditional",
+    ];
     let widths = ["full-width", "proportional-width"];
     let variant_count = parts.iter().filter(|part| variants.contains(part)).count();
     let width_count = parts.iter().filter(|part| widths.contains(part)).count();
@@ -3947,11 +4561,13 @@ fn web_font_variant_east_asian(value: &StaticValue) -> Option<String> {
         && variant_count <= 1
         && width_count <= 1
         && parts.iter().filter(|part| **part == "ruby").count() <= 1)
-    .then(|| value.clone())
+        .then(|| value.clone())
 }
 
 fn web_hanging_punctuation(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "none" {
         return Some(value.clone());
     }
@@ -3959,7 +4575,10 @@ fn web_hanging_punctuation(value: &StaticValue) -> Option<String> {
     let allowed = ["first", "force-end", "allow-end", "last"];
     (!parts.is_empty()
         && parts.iter().all(|part| allowed.contains(part))
-        && parts.iter().enumerate().all(|(index, part)| !parts[..index].contains(part))
+        && parts
+            .iter()
+            .enumerate()
+            .all(|(index, part)| !parts[..index].contains(part))
         && !(parts.contains(&"force-end") && parts.contains(&"allow-end")))
     .then(|| value.clone())
 }
@@ -3987,7 +4606,9 @@ fn web_tab_size(value: &StaticValue) -> Option<String> {
 }
 
 fn web_text_combine_upright(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if matches!(value.as_str(), "none" | "all") {
         return Some(value.clone());
     }
@@ -3998,7 +4619,9 @@ fn web_text_combine_upright(value: &StaticValue) -> Option<String> {
 }
 
 fn web_text_emphasis_style(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     if value == "none" || web_css_string(value) {
         return Some(value.clone());
     }
@@ -4006,10 +4629,12 @@ fn web_text_emphasis_style(value: &StaticValue) -> Option<String> {
     let fills = ["filled", "open"];
     let shapes = ["dot", "circle", "double-circle", "triangle", "sesame"];
     (!parts.is_empty()
-        && parts.iter().all(|part| fills.contains(part) || shapes.contains(part))
+        && parts
+            .iter()
+            .all(|part| fills.contains(part) || shapes.contains(part))
         && parts.iter().filter(|part| fills.contains(part)).count() <= 1
         && parts.iter().filter(|part| shapes.contains(part)).count() <= 1)
-    .then(|| value.clone())
+        .then(|| value.clone())
 }
 
 /// Split one CSS component list without cutting whitespace inside functions
@@ -4080,15 +4705,30 @@ fn web_shorthand_color(value: &str) -> bool {
     let lower = value.to_ascii_lowercase();
     matches!(
         lower.as_str(),
-        "transparent" | "currentcolor" | "black" | "silver" | "gray" | "white"
-            | "maroon" | "red" | "purple" | "fuchsia" | "green" | "lime" | "olive"
-            | "yellow" | "navy" | "blue" | "teal" | "aqua" | "orange"
+        "transparent"
+            | "currentcolor"
+            | "black"
+            | "silver"
+            | "gray"
+            | "white"
+            | "maroon"
+            | "red"
+            | "purple"
+            | "fuchsia"
+            | "green"
+            | "lime"
+            | "olive"
+            | "yellow"
+            | "navy"
+            | "blue"
+            | "teal"
+            | "aqua"
+            | "orange"
     ) || (lower.starts_with('#')
         && matches!(lower.len(), 4 | 5 | 7 | 9)
         && lower[1..].bytes().all(|byte| byte.is_ascii_hexdigit()))
         || [
-            "rgb(", "rgba(", "hsl(", "hsla(", "hwb(", "lab(", "lch(", "oklab(",
-            "oklch(", "color(",
+            "rgb(", "rgba(", "hsl(", "hsla(", "hwb(", "lab(", "lch(", "oklab(", "oklch(", "color(",
         ]
         .iter()
         .any(|prefix| lower.starts_with(prefix) && lower.ends_with(')'))
@@ -4098,9 +4738,24 @@ fn portable_text_shadow_color(value: &str) -> bool {
     let lower = value.to_ascii_lowercase();
     if matches!(
         lower.as_str(),
-        "transparent" | "black" | "silver" | "gray" | "white" | "maroon" | "red"
-            | "purple" | "fuchsia" | "green" | "lime" | "olive" | "yellow" | "navy"
-            | "blue" | "teal" | "aqua" | "orange"
+        "transparent"
+            | "black"
+            | "silver"
+            | "gray"
+            | "white"
+            | "maroon"
+            | "red"
+            | "purple"
+            | "fuchsia"
+            | "green"
+            | "lime"
+            | "olive"
+            | "yellow"
+            | "navy"
+            | "blue"
+            | "teal"
+            | "aqua"
+            | "orange"
     ) || (lower.starts_with('#')
         && matches!(lower.len(), 4 | 5 | 7 | 9)
         && lower[1..].bytes().all(|byte| byte.is_ascii_hexdigit()))
@@ -4157,7 +4812,9 @@ fn has_top_level_comma(value: &str) -> bool {
 /// text-shadow fields. Multiple layers and relative/dynamic lengths stay in
 /// the official StyleX transform; a single px layer can be losslessly split.
 fn stylex_text_shadow(value: &StaticValue) -> Option<TextShadowValue> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let value = value.trim();
     if value == "none" {
         return Some(TextShadowValue::Portable {
@@ -4204,7 +4861,9 @@ fn stylex_text_shadow(value: &StaticValue) -> Option<TextShadowValue> {
 }
 
 fn stylex_place_content(value: &StaticValue) -> Option<Vec<StyleProperty>> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let parts = value.split_ascii_whitespace().collect::<Vec<_>>();
     if !(1..=2).contains(&parts.len()) {
         return None;
@@ -4265,8 +4924,8 @@ fn stylex_columns(value: &StaticValue) -> Option<Vec<StyleProperty>> {
 
 fn stylex_column_rule(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     const STYLES: &[&str] = &[
-        "none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge",
-        "inset", "outset",
+        "none", "hidden", "dotted", "dashed", "solid", "double", "groove", "ridge", "inset",
+        "outset",
     ];
     let mut width = "medium".to_string();
     let mut style = "none".to_string();
@@ -4289,14 +4948,11 @@ fn stylex_column_rule(value: &StaticValue) -> Option<Vec<StyleProperty>> {
         if !saw_style && STYLES.contains(&part.as_str()) {
             style = part;
             saw_style = true;
-        } else if !saw_width
-            && web_length(&part_value, &["thin", "medium", "thick"], 0.0).is_some()
+        } else if !saw_width && web_length(&part_value, &["thin", "medium", "thick"], 0.0).is_some()
         {
             width = part;
             saw_width = true;
-        } else if !saw_color
-            && web_shorthand_color(&part)
-        {
+        } else if !saw_color && web_shorthand_color(&part) {
             color = part;
             saw_color = true;
         } else {
@@ -4312,9 +4968,21 @@ fn stylex_column_rule(value: &StaticValue) -> Option<Vec<StyleProperty>> {
 
 fn stylex_list_style(value: &StaticValue) -> Option<Vec<StyleProperty>> {
     const TYPES: &[&str] = &[
-        "none", "disc", "circle", "square", "decimal", "decimal-leading-zero",
-        "lower-roman", "upper-roman", "lower-greek", "lower-latin", "upper-latin",
-        "armenian", "georgian", "lower-alpha", "upper-alpha",
+        "none",
+        "disc",
+        "circle",
+        "square",
+        "decimal",
+        "decimal-leading-zero",
+        "lower-roman",
+        "upper-roman",
+        "lower-greek",
+        "lower-latin",
+        "upper-latin",
+        "armenian",
+        "georgian",
+        "lower-alpha",
+        "upper-alpha",
     ];
     let StaticValue::String(value) = value else {
         return None;
@@ -4339,9 +5007,7 @@ fn stylex_list_style(value: &StaticValue) -> Option<Vec<StyleProperty>> {
         } else if !saw_kind && TYPES.contains(&part.as_str()) {
             kind = part;
             saw_kind = true;
-        } else if !saw_image
-            && web_url_or_none(&StaticValue::String(part.clone())).is_some()
-        {
+        } else if !saw_image && web_url_or_none(&StaticValue::String(part.clone())).is_some() {
             image = part;
             saw_image = true;
         } else {
@@ -4366,11 +5032,11 @@ fn stylex_box_lengths(value: &StaticValue) -> Option<[Length; 4]> {
     if !(1..=4).contains(&parts.len()) {
         return None;
     }
-    let lengths = parts
+    let lengths = parts.iter().map(px_length).collect::<Option<Vec<_>>>()?;
+    if !lengths
         .iter()
-        .map(px_length)
-        .collect::<Option<Vec<_>>>()?;
-    if !lengths.iter().all(|length| matches!(length, Length::Px(value) if value.is_finite())) {
+        .all(|length| matches!(length, Length::Px(value) if value.is_finite()))
+    {
         return None;
     }
     let top = lengths[0].clone();
@@ -4421,10 +5087,7 @@ fn stylex_scroll_axis(
     if !(1..=2).contains(&parts.len()) {
         return None;
     }
-    let lengths = parts
-        .iter()
-        .map(px_length)
-        .collect::<Option<Vec<_>>>()?;
+    let lengths = parts.iter().map(px_length).collect::<Option<Vec<_>>>()?;
     if !lengths
         .iter()
         .all(|length| matches!(length, Length::Px(value) if value.is_finite() && (!padding || *value >= 0.0)))
@@ -4440,22 +5103,19 @@ fn stylex_scroll_axis(
             StyleProperty::ScrollMargin(edge, value)
         }
     };
-    Some(vec![
-        property(start, start_value),
-        property(end, end_value),
-    ])
+    Some(vec![property(start, start_value), property(end, end_value)])
 }
 
 fn web_only_property(property: &str, value: &StaticValue) -> Option<StyleProperty> {
     let (css_property, grammar) = web_only_spec(property)?;
     let value = match grammar {
         WebValueGrammar::Keywords(choices) => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             choices.contains(&value.as_str()).then(|| value.clone())?
         }
-        WebValueGrammar::Length { keywords, minimum } => {
-            web_length(value, keywords, minimum)?
-        }
+        WebValueGrammar::Length { keywords, minimum } => web_length(value, keywords, minimum)?,
         WebValueGrammar::LengthPercentage(keywords) => match value {
             StaticValue::String(value) if keywords.contains(&value.as_str()) => value.clone(),
             value if web_length_percentage(value) => length_value(value),
@@ -4509,9 +5169,7 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::ClipRect => web_clip_rect(value)?,
         WebValueGrammar::ClipPath => web_clip_path(value)?,
         WebValueGrammar::Contain => web_contain(value)?,
-        WebValueGrammar::ContainIntrinsicSize { axes } => {
-            web_contain_intrinsic_size(value, axes)?
-        }
+        WebValueGrammar::ContainIntrinsicSize { axes } => web_contain_intrinsic_size(value, axes)?,
         WebValueGrammar::OverflowClipMargin => web_overflow_clip_margin(value)?,
         WebValueGrammar::SvgDasharray => web_svg_dasharray(value)?,
         WebValueGrammar::UrlOrNone => web_url_or_none(value)?,
@@ -4544,14 +5202,17 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::WillChange => web_will_change(value)?,
         WebValueGrammar::FontFeatureSettings => web_font_setting(value, false)?,
         WebValueGrammar::FontLanguageOverride => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             (value == "normal" || web_css_string(value)).then(|| value.clone())?
         }
         WebValueGrammar::FontPalette => {
-            let StaticValue::String(value) = value else { return None };
-            (matches!(value.as_str(), "normal" | "light" | "dark")
-                || web_css_identifier(value))
-            .then(|| value.clone())?
+            let StaticValue::String(value) = value else {
+                return None;
+            };
+            (matches!(value.as_str(), "normal" | "light" | "dark") || web_css_identifier(value))
+                .then(|| value.clone())?
         }
         WebValueGrammar::FontSynthesis => web_font_synthesis(value)?,
         WebValueGrammar::FontVariantAlternates => web_font_variant_alternates(value)?,
@@ -4559,7 +5220,9 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::FontVariationSettings => web_font_setting(value, true)?,
         WebValueGrammar::HangingPunctuation => web_hanging_punctuation(value)?,
         WebValueGrammar::HyphenateCharacter => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             if value == "auto" {
                 // Because the published type is open `string`, StyleX 0.19
                 // serializes this CSS keyword as a quoted custom character.
@@ -4581,9 +5244,7 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
         WebValueGrammar::MasonryAutoFlow => web_masonry_auto_flow(value)?,
         WebValueGrammar::Angle(keywords) => web_angle(value, keywords)?,
         WebValueGrammar::TextDecorationSkip => web_text_decoration_skip(value)?,
-        WebValueGrammar::CounterList { allow_reversed } => {
-            web_counter_list(value, allow_reversed)?
-        }
+        WebValueGrammar::CounterList { allow_reversed } => web_counter_list(value, allow_reversed)?,
         WebValueGrammar::ScrollbarColor => web_scrollbar_color(value)?,
         WebValueGrammar::Quotes => web_quotes(value)?,
         WebValueGrammar::Content => web_generated_content(value)?,
@@ -4615,14 +5276,19 @@ fn web_only_property(property: &str, value: &StaticValue) -> Option<StylePropert
 fn stylex_order(value: &StaticValue) -> Option<i32> {
     let value = match value {
         StaticValue::Number(value) if value.is_finite() && value.fract() == 0.0 => *value,
-        StaticValue::String(value) => value.parse::<f64>().ok().filter(|value| value.fract() == 0.0)?,
+        StaticValue::String(value) => value
+            .parse::<f64>()
+            .ok()
+            .filter(|value| value.fract() == 0.0)?,
         _ => return None,
     };
     (value >= i32::MIN as f64 && value <= i32::MAX as f64).then_some(value as i32)
 }
 
 fn stylex_overflow(value: &StaticValue) -> Option<Overflow> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     Some(match value.as_str() {
         "visible" => Overflow::Visible,
         "hidden" => Overflow::Hidden,
@@ -4650,7 +5316,9 @@ fn stylex_scroll_edge(property: &str) -> Option<Edge> {
 }
 
 fn stylex_transition_property(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let properties: Vec<_> = value.split(',').map(str::trim).collect();
     if properties.is_empty()
         || properties.iter().any(|property| {
@@ -4667,7 +5335,10 @@ fn stylex_transition_property(value: &StaticValue) -> Option<String> {
                     | "background-color"
             )
         })
-        || (properties.len() > 1 && properties.iter().any(|property| matches!(*property, "all" | "none")))
+        || (properties.len() > 1
+            && properties
+                .iter()
+                .any(|property| matches!(*property, "all" | "none")))
     {
         return None;
     }
@@ -4675,7 +5346,9 @@ fn stylex_transition_property(value: &StaticValue) -> Option<String> {
 }
 
 fn stylex_transition_duration(value: &StaticValue) -> Option<u32> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     let milliseconds = if let Some(value) = value.strip_suffix("ms") {
         value.parse::<f64>().ok()?
     } else {
@@ -4695,7 +5368,10 @@ fn stylex_font_weight(value: &StaticValue) -> Option<FontWeight> {
         StaticValue::String(value) => match value.as_str() {
             "normal" => 400.0,
             "bold" => 700.0,
-            value => value.parse::<f64>().ok().filter(|value| value.fract() == 0.0)?,
+            value => value
+                .parse::<f64>()
+                .ok()
+                .filter(|value| value.fract() == 0.0)?,
         },
         _ => return None,
     };
@@ -4704,7 +5380,9 @@ fn stylex_font_weight(value: &StaticValue) -> Option<FontWeight> {
 }
 
 fn stylex_white_space(value: &StaticValue) -> Option<WhiteSpace> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     Some(match value.as_str() {
         "normal" => WhiteSpace::Normal,
         "nowrap" => WhiteSpace::NoWrap,
@@ -4717,7 +5395,9 @@ fn stylex_white_space(value: &StaticValue) -> Option<WhiteSpace> {
 }
 
 fn stylex_text_overflow(value: &StaticValue) -> Option<TextOverflow> {
-    let StaticValue::String(value) = value else { return None };
+    let StaticValue::String(value) = value else {
+        return None;
+    };
     Some(match value.as_str() {
         "clip" => TextOverflow::Clip,
         "ellipsis" => TextOverflow::Ellipsis,
@@ -4726,9 +5406,14 @@ fn stylex_text_overflow(value: &StaticValue) -> Option<TextOverflow> {
 }
 
 fn stylex_transition_timing(value: &StaticValue) -> Option<String> {
-    let StaticValue::String(value) = value else { return None };
-    matches!(value.as_str(), "linear" | "ease-in" | "ease-out" | "ease-in-out")
-        .then(|| value.clone())
+    let StaticValue::String(value) = value else {
+        return None;
+    };
+    matches!(
+        value.as_str(),
+        "linear" | "ease-in" | "ease-out" | "ease-in-out"
+    )
+    .then(|| value.clone())
 }
 
 /// Lower the practical single-transition shorthand into the same four slots
@@ -5130,84 +5815,277 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
     let dimension = || dimension(value);
     let color = || css_color(value);
     Some(match property {
-        "accentColor" | "alignTracks" | "alignmentBaseline" | "anchorName"
-        | "animationComposition" | "animationDelay"
-        | "animationRangeEnd" | "animationRangeStart" | "animationTimeline"
-        | "animationDirection" | "animationFillMode" | "animationIterationCount"
-        | "animationPlayState" | "animationTimingFunction" | "appearance" | "WebkitAppearance"
-        | "WebkitLineClamp" | "WebkitTextStrokeWidth"
+        "accentColor"
+        | "alignTracks"
+        | "alignmentBaseline"
+        | "anchorName"
+        | "animationComposition"
+        | "animationDelay"
+        | "animationRangeEnd"
+        | "animationRangeStart"
+        | "animationTimeline"
+        | "animationDirection"
+        | "animationFillMode"
+        | "animationIterationCount"
+        | "animationPlayState"
+        | "animationTimingFunction"
+        | "appearance"
+        | "WebkitAppearance"
+        | "WebkitLineClamp"
+        | "WebkitTextStrokeWidth"
         | "backgroundAttachment"
-        | "backgroundBlendMode" | "backgroundClip" | "WebkitBackgroundClip"
-        | "backgroundOrigin" | "backgroundPositionX" | "backgroundPositionY"
-        | "baselineShift" | "blockSize" | "borderCollapse" | "borderImageOutset"
-        | "borderImageRepeat" | "borderImageSlice" | "borderImageSource" | "borderImageWidth"
-        | "borderSpacing" | "gridAutoColumns" | "gridAutoFlow" | "gridAutoRows"
+        | "backgroundBlendMode"
+        | "backgroundClip"
+        | "WebkitBackgroundClip"
+        | "backgroundOrigin"
+        | "backgroundPositionX"
+        | "backgroundPositionY"
+        | "baselineShift"
+        | "blockSize"
+        | "borderCollapse"
+        | "borderImageOutset"
+        | "borderImageRepeat"
+        | "borderImageSlice"
+        | "borderImageSource"
+        | "borderImageWidth"
+        | "borderSpacing"
+        | "gridAutoColumns"
+        | "gridAutoFlow"
+        | "gridAutoRows"
         | "gridTemplateAreas"
-        | "boxAlign" | "boxDirection" | "boxLines" | "boxOrient" | "boxSuppress"
-        | "boxDecorationBreak" | "breakAfter" | "breakBefore" | "breakInside"
-        | "captionSide" | "caretShape" | "clear" | "clip" | "clipPath" | "clipRule" | "colorScheme"
-        | "columnCount" | "columnFill" | "columnRuleColor" | "columnRuleStyle"
-        | "columnRuleWidth" | "columnSpan" | "columnWidth" | "contain"
-        | "containIntrinsicBlockSize" | "containIntrinsicHeight"
-        | "containIntrinsicInlineSize" | "containIntrinsicSize" | "containIntrinsicWidth"
-        | "contentVisibility" | "cornerShape" | "cornerStartStartShape" | "cornerStartEndShape"
-        | "cornerEndStartShape" | "cornerEndEndShape" | "cornerTopLeftShape"
-        | "cornerTopRightShape" | "cornerBottomLeftShape" | "cornerBottomRightShape"
-        | "displayInside" | "displayList" | "displayOutside"
-        | "dominantBaseline" | "emptyCells" | "fill" | "fillOpacity" | "fillRule"
-        | "float" | "forcedColorAdjust"
-        | "fontFeatureSettings" | "fontKerning" | "fontLanguageOverride" | "fontOpticalSizing"
-        | "fontPalette" | "fontSizeAdjust" | "fontStretch" | "fontSynthesis"
+        | "boxAlign"
+        | "boxDirection"
+        | "boxLines"
+        | "boxOrient"
+        | "boxSuppress"
+        | "boxDecorationBreak"
+        | "breakAfter"
+        | "breakBefore"
+        | "breakInside"
+        | "captionSide"
+        | "caretShape"
+        | "clear"
+        | "clip"
+        | "clipPath"
+        | "clipRule"
+        | "colorScheme"
+        | "columnCount"
+        | "columnFill"
+        | "columnRuleColor"
+        | "columnRuleStyle"
+        | "columnRuleWidth"
+        | "columnSpan"
+        | "columnWidth"
+        | "contain"
+        | "containIntrinsicBlockSize"
+        | "containIntrinsicHeight"
+        | "containIntrinsicInlineSize"
+        | "containIntrinsicSize"
+        | "containIntrinsicWidth"
+        | "contentVisibility"
+        | "cornerShape"
+        | "cornerStartStartShape"
+        | "cornerStartEndShape"
+        | "cornerEndStartShape"
+        | "cornerEndEndShape"
+        | "cornerTopLeftShape"
+        | "cornerTopRightShape"
+        | "cornerBottomLeftShape"
+        | "cornerBottomRightShape"
+        | "displayInside"
+        | "displayList"
+        | "displayOutside"
+        | "dominantBaseline"
+        | "emptyCells"
+        | "fill"
+        | "fillOpacity"
+        | "fillRule"
+        | "float"
+        | "forcedColorAdjust"
+        | "fontFeatureSettings"
+        | "fontKerning"
+        | "fontLanguageOverride"
+        | "fontOpticalSizing"
+        | "fontPalette"
+        | "fontSizeAdjust"
+        | "fontStretch"
+        | "fontSynthesis"
         | "fontSynthesisPosition"
-        | "fontSynthesisSmallCaps" | "fontSynthesisStyle" | "fontSynthesisWeight"
-        | "fontVariantAlternates" | "fontVariantCaps" | "fontVariantEastAsian"
-        | "fontVariantLigatures" | "fontVariantNumeric" | "fontVariantPosition"
-        | "counterIncrement" | "counterReset" | "counterSet" | "quotes" | "content"
-        | "fontVariationSettings" | "glyphOrientationHorizontal" | "glyphOrientationVertical"
-        | "hangingPunctuation" | "hyphenateCharacter"
-        | "hyphenateLimitChars" | "hyphens"
-        | "imageOrientation" | "imageRendering" | "imageResolution" | "imeMode"
-        | "initialLetter" | "initialLetterAlign" | "inlineSize" | "interpolateSize"
-        | "justifyItems" | "lineBreak" | "lineHeightStep" | "listStyleImage" | "listStylePosition"
-        | "listStyleType" | "maxBlockSize" | "maxInlineSize"
-        | "marker" | "markerEnd" | "markerMid" | "markerStart" | "minBlockSize"
-        | "maskClip" | "maskComposite" | "maskImage" | "maskMode" | "maskOrigin"
-        | "maskBorderMode" | "maskBorderOutset" | "maskBorderRepeat" | "maskBorderSlice"
-        | "maskBorderSource" | "maskBorderWidth" | "maskPosition" | "maskRepeat"
-        | "maskSize" | "maskType" | "WebkitMaskImage"
-        | "justifyTracks" | "kerning" | "marginTrim" | "markerOffset" | "masonryAutoFlow"
-        | "mathDepth" | "mathShift"
-        | "mathStyle" | "minInlineSize"
-        | "MozOsxFontSmoothing" | "MsOverflowStyle"
-        | "overflowAnchor" | "overscrollBehavior" | "perspective" | "perspectiveOrigin"
-        | "offsetAnchor" | "offsetDistance" | "offsetPath" | "offsetPosition" | "offsetRotate"
-        | "overscrollBehaviorBlock" | "overscrollBehaviorInline" | "overscrollBehaviorX"
-        | "orphans" | "outline" | "overflowBlock" | "overflowBlockX" | "overflowClipMargin"
-        | "overscrollBehaviorY" | "pageBreakAfter"
-        | "pageBreakBefore" | "pageBreakInside"
-        | "paintOrder" | "positionAnchor" | "positionArea" | "positionVisibility" | "printColorAdjust" | "resize"
-        | "rubyAlign" | "rubyMerge" | "rubyPosition" | "scrollSnapAlign"
-        | "scrollSnapStop" | "scrollSnapType" | "scrollTimelineAxis" | "scrollTimelineName"
-        | "scrollbarColor" | "scrollbarGutter" | "scrollbarWidth"
-        | "shapeImageThreshold" | "shapeMargin" | "shapeOutside" | "shapeRendering"
-        | "stroke" | "strokeDasharray" | "strokeDashoffset"
-        | "strokeLinecap" | "strokeLinejoin" | "strokeMiterlimit" | "strokeOpacity"
-        | "strokeWidth" | "tabSize" | "tableLayout" | "textAnchor" | "textCombineUpright"
-        | "textEmphasisColor" | "textEmphasisPosition" | "textEmphasisStyle" | "textFillColor"
-        | "textRendering" | "textSizeAdjust" | "textUnderlineOffset" | "textUnderlinePosition"
-        | "timelineScope" | "touchAction" | "transformBox" | "transformStyle" | "unicodeBidi"
-        | "viewTimelineAxis" | "viewTimelineInset" | "viewTimelineName" | "viewTransitionName"
-        | "speak" | "speakAs" | "voiceDuration" | "voiceStress"
-        | "widows" | "willChange"
-        | "wordBreak" | "wordSpacing" | "wordWrap"
-        | "overflowWrap" | "visibility"
-        | "backgroundPosition" | "backgroundRepeat" | "backgroundSize" | "objectPosition"
-        | "justifySelf" | "placeItems" | "placeSelf" | "textAlignLast"
-        | "textDecoration" | "textDecorationSkip" | "textDecorationSkipInk"
-        | "textDecorationThickness" | "textEmphasis"
-        | "textJustify" | "textOrientation" | "textWrap"
-        | "animationDuration" | "WebkitBoxOrient" | "WebkitFontSmoothing" | "WebkitTapHighlightColor"
-        | "WebkitTextFillColor" | "WebkitTextStrokeColor" | "writingMode" | "zoom" => {
+        | "fontSynthesisSmallCaps"
+        | "fontSynthesisStyle"
+        | "fontSynthesisWeight"
+        | "fontVariantAlternates"
+        | "fontVariantCaps"
+        | "fontVariantEastAsian"
+        | "fontVariantLigatures"
+        | "fontVariantNumeric"
+        | "fontVariantPosition"
+        | "counterIncrement"
+        | "counterReset"
+        | "counterSet"
+        | "quotes"
+        | "content"
+        | "fontVariationSettings"
+        | "glyphOrientationHorizontal"
+        | "glyphOrientationVertical"
+        | "hangingPunctuation"
+        | "hyphenateCharacter"
+        | "hyphenateLimitChars"
+        | "hyphens"
+        | "imageOrientation"
+        | "imageRendering"
+        | "imageResolution"
+        | "imeMode"
+        | "initialLetter"
+        | "initialLetterAlign"
+        | "inlineSize"
+        | "interpolateSize"
+        | "justifyItems"
+        | "lineBreak"
+        | "lineHeightStep"
+        | "listStyleImage"
+        | "listStylePosition"
+        | "listStyleType"
+        | "maxBlockSize"
+        | "maxInlineSize"
+        | "marker"
+        | "markerEnd"
+        | "markerMid"
+        | "markerStart"
+        | "minBlockSize"
+        | "maskClip"
+        | "maskComposite"
+        | "maskImage"
+        | "maskMode"
+        | "maskOrigin"
+        | "maskBorderMode"
+        | "maskBorderOutset"
+        | "maskBorderRepeat"
+        | "maskBorderSlice"
+        | "maskBorderSource"
+        | "maskBorderWidth"
+        | "maskPosition"
+        | "maskRepeat"
+        | "maskSize"
+        | "maskType"
+        | "WebkitMaskImage"
+        | "justifyTracks"
+        | "kerning"
+        | "marginTrim"
+        | "markerOffset"
+        | "masonryAutoFlow"
+        | "mathDepth"
+        | "mathShift"
+        | "mathStyle"
+        | "minInlineSize"
+        | "MozOsxFontSmoothing"
+        | "MsOverflowStyle"
+        | "overflowAnchor"
+        | "overscrollBehavior"
+        | "perspective"
+        | "perspectiveOrigin"
+        | "offsetAnchor"
+        | "offsetDistance"
+        | "offsetPath"
+        | "offsetPosition"
+        | "offsetRotate"
+        | "overscrollBehaviorBlock"
+        | "overscrollBehaviorInline"
+        | "overscrollBehaviorX"
+        | "orphans"
+        | "outline"
+        | "overflowBlock"
+        | "overflowBlockX"
+        | "overflowClipMargin"
+        | "overscrollBehaviorY"
+        | "pageBreakAfter"
+        | "pageBreakBefore"
+        | "pageBreakInside"
+        | "paintOrder"
+        | "positionAnchor"
+        | "positionArea"
+        | "positionVisibility"
+        | "printColorAdjust"
+        | "resize"
+        | "rubyAlign"
+        | "rubyMerge"
+        | "rubyPosition"
+        | "scrollSnapAlign"
+        | "scrollSnapStop"
+        | "scrollSnapType"
+        | "scrollTimelineAxis"
+        | "scrollTimelineName"
+        | "scrollbarColor"
+        | "scrollbarGutter"
+        | "scrollbarWidth"
+        | "shapeImageThreshold"
+        | "shapeMargin"
+        | "shapeOutside"
+        | "shapeRendering"
+        | "stroke"
+        | "strokeDasharray"
+        | "strokeDashoffset"
+        | "strokeLinecap"
+        | "strokeLinejoin"
+        | "strokeMiterlimit"
+        | "strokeOpacity"
+        | "strokeWidth"
+        | "tabSize"
+        | "tableLayout"
+        | "textAnchor"
+        | "textCombineUpright"
+        | "textEmphasisColor"
+        | "textEmphasisPosition"
+        | "textEmphasisStyle"
+        | "textFillColor"
+        | "textRendering"
+        | "textSizeAdjust"
+        | "textUnderlineOffset"
+        | "textUnderlinePosition"
+        | "timelineScope"
+        | "touchAction"
+        | "transformBox"
+        | "transformStyle"
+        | "unicodeBidi"
+        | "viewTimelineAxis"
+        | "viewTimelineInset"
+        | "viewTimelineName"
+        | "viewTransitionName"
+        | "speak"
+        | "speakAs"
+        | "voiceDuration"
+        | "voiceStress"
+        | "widows"
+        | "willChange"
+        | "wordBreak"
+        | "wordSpacing"
+        | "wordWrap"
+        | "overflowWrap"
+        | "visibility"
+        | "backgroundPosition"
+        | "backgroundRepeat"
+        | "backgroundSize"
+        | "objectPosition"
+        | "justifySelf"
+        | "placeItems"
+        | "placeSelf"
+        | "textAlignLast"
+        | "textDecoration"
+        | "textDecorationSkip"
+        | "textDecorationSkipInk"
+        | "textDecorationThickness"
+        | "textEmphasis"
+        | "textJustify"
+        | "textOrientation"
+        | "textWrap"
+        | "animationDuration"
+        | "WebkitBoxOrient"
+        | "WebkitFontSmoothing"
+        | "WebkitTapHighlightColor"
+        | "WebkitTextFillColor"
+        | "WebkitTextStrokeColor"
+        | "writingMode"
+        | "zoom" => {
             vec![web_only_property(property, value)?]
         }
         "caret" => stylex_caret(value)?,
@@ -5248,8 +6126,18 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "positionTry" => vec![web_longhand("position-try", web_position_try(value)?)],
         "fontWeight" => vec![StyleProperty::FontWeight(stylex_font_weight(value)?)],
         "boxFlex" => vec![stylex_legacy_box_number("box-flex", value, 0.0, false)?],
-        "boxFlexGroup" => vec![stylex_legacy_box_number("box-flex-group", value, 1.0, true)?],
-        "boxOrdinalGroup" => vec![stylex_legacy_box_number("box-ordinal-group", value, 1.0, true)?],
+        "boxFlexGroup" => vec![stylex_legacy_box_number(
+            "box-flex-group",
+            value,
+            1.0,
+            true,
+        )?],
+        "boxOrdinalGroup" => vec![stylex_legacy_box_number(
+            "box-ordinal-group",
+            value,
+            1.0,
+            true,
+        )?],
         "whiteSpace" => vec![StyleProperty::WhiteSpace(stylex_white_space(value)?)],
         "textOverflow" => vec![StyleProperty::TextOverflow(stylex_text_overflow(value)?)],
         "caretColor" => vec![StyleProperty::CaretColor(color()?)],
@@ -5257,7 +6145,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "overflowX" => vec![StyleProperty::OverflowX(stylex_overflow(value)?)],
         "overflowY" => vec![StyleProperty::OverflowY(stylex_overflow(value)?)],
         "scrollBehavior" => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             let value = match value.as_str() {
                 "auto" => "auto",
                 "smooth" => "smooth",
@@ -5265,22 +6155,70 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             };
             vec![StyleProperty::ScrollBehavior(value)]
         }
-        "scrollMarginTop" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
-        "scrollMarginRight" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
-        "scrollMarginBottom" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
-        "scrollMarginLeft" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
-        "scrollMarginBlockStart" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
-        "scrollMarginBlockEnd" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
-        "scrollMarginInlineStart" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
-        "scrollMarginInlineEnd" => vec![StyleProperty::ScrollMargin(stylex_scroll_edge(property)?, width()?)],
-        "scrollPaddingTop" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
-        "scrollPaddingRight" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
-        "scrollPaddingBottom" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
-        "scrollPaddingLeft" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
-        "scrollPaddingBlockStart" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
-        "scrollPaddingBlockEnd" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
-        "scrollPaddingInlineStart" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
-        "scrollPaddingInlineEnd" => vec![StyleProperty::ScrollPadding(stylex_scroll_edge(property)?, width()?)],
+        "scrollMarginTop" => vec![StyleProperty::ScrollMargin(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollMarginRight" => vec![StyleProperty::ScrollMargin(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollMarginBottom" => vec![StyleProperty::ScrollMargin(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollMarginLeft" => vec![StyleProperty::ScrollMargin(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollMarginBlockStart" => vec![StyleProperty::ScrollMargin(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollMarginBlockEnd" => vec![StyleProperty::ScrollMargin(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollMarginInlineStart" => vec![StyleProperty::ScrollMargin(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollMarginInlineEnd" => vec![StyleProperty::ScrollMargin(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollPaddingTop" => vec![StyleProperty::ScrollPadding(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollPaddingRight" => vec![StyleProperty::ScrollPadding(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollPaddingBottom" => vec![StyleProperty::ScrollPadding(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollPaddingLeft" => vec![StyleProperty::ScrollPadding(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollPaddingBlockStart" => vec![StyleProperty::ScrollPadding(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollPaddingBlockEnd" => vec![StyleProperty::ScrollPadding(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollPaddingInlineStart" => vec![StyleProperty::ScrollPadding(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
+        "scrollPaddingInlineEnd" => vec![StyleProperty::ScrollPadding(
+            stylex_scroll_edge(property)?,
+            width()?,
+        )],
         "textIndent" => vec![StyleProperty::TextIndent(dimension()?)],
         "transitionProperty" => vec![StyleProperty::TransitionProperty(
             stylex_transition_property(value)?,
@@ -5336,7 +6274,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             ]
         }
         "borderBlockStartWidth" => vec![StyleProperty::BorderTopWidth(stylex_border_width(value)?)],
-        "borderBlockEndWidth" => vec![StyleProperty::BorderBottomWidth(stylex_border_width(value)?)],
+        "borderBlockEndWidth" => vec![StyleProperty::BorderBottomWidth(stylex_border_width(
+            value,
+        )?)],
         "borderInlineWidth" => {
             let value = stylex_border_width(value)?;
             vec![
@@ -5386,14 +6326,8 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         // StyleX normalizes the block-start/end aliases to physical top/bottom.
         // Keep the StyleX lane Web-only: React Native has only one global
         // borderStyle and cannot preserve a side-specific authored style.
-        "borderBlockStartStyle" => vec![stylex_web_border_style(
-            "border-top-style",
-            value,
-        )?],
-        "borderBlockEndStyle" => vec![stylex_web_border_style(
-            "border-bottom-style",
-            value,
-        )?],
+        "borderBlockStartStyle" => vec![stylex_web_border_style("border-top-style", value)?],
+        "borderBlockEndStyle" => vec![stylex_web_border_style("border-bottom-style", value)?],
         "borderTopStyle" => vec![stylex_web_border_style("border-top-style", value)?],
         "borderBottomStyle" => vec![stylex_web_border_style("border-bottom-style", value)?],
         "borderRightStyle" => vec![stylex_web_border_style("border-right-style", value)?],
@@ -5401,15 +6335,11 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "listStyle" => stylex_list_style(value)?,
         "scrollMargin" => stylex_scroll_box(value, false)?,
         "scrollPadding" => stylex_scroll_box(value, true)?,
-        "scrollMarginBlock" => {
-            stylex_scroll_axis(value, false, Edge::BlockStart, Edge::BlockEnd)?
-        }
+        "scrollMarginBlock" => stylex_scroll_axis(value, false, Edge::BlockStart, Edge::BlockEnd)?,
         "scrollMarginInline" => {
             stylex_scroll_axis(value, false, Edge::InlineStart, Edge::InlineEnd)?
         }
-        "scrollPaddingBlock" => {
-            stylex_scroll_axis(value, true, Edge::BlockStart, Edge::BlockEnd)?
-        }
+        "scrollPaddingBlock" => stylex_scroll_axis(value, true, Edge::BlockStart, Edge::BlockEnd)?,
         "scrollPaddingInline" => {
             stylex_scroll_axis(value, true, Edge::InlineStart, Edge::InlineEnd)?
         }
@@ -5446,9 +6376,7 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         "gridTemplateColumns" => vec![StyleProperty::GridTemplateColumns(stylex_grid_tracks(
             value,
         )?)],
-        "gridTemplateRows" => vec![StyleProperty::GridTemplateRows(stylex_grid_tracks(
-            value,
-        )?)],
+        "gridTemplateRows" => vec![StyleProperty::GridTemplateRows(stylex_grid_tracks(value)?)],
         "gridColumnStart" => vec![StyleProperty::GridColumnStart(stylex_grid_line(value)?)],
         "gridColumnEnd" => vec![StyleProperty::GridColumnEnd(stylex_grid_line(value)?)],
         "gridRowStart" => vec![StyleProperty::GridRowStart(stylex_grid_line(value)?)],
@@ -5480,7 +6408,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             vec![StyleProperty::BoxShadow(value)]
         }
         "backgroundImage" => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             let value = value.trim();
             if value == "none" {
                 vec![StyleProperty::BackgroundImageNone]
@@ -5490,14 +6420,20 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
                 && !value.contains("var(")
                 && !value.contains("env(")
             {
-                let value = value.split(',').map(str::trim).collect::<Vec<_>>().join(",");
+                let value = value
+                    .split(',')
+                    .map(str::trim)
+                    .collect::<Vec<_>>()
+                    .join(",");
                 vec![StyleProperty::BackgroundImage(value)]
             } else {
                 return None;
             }
         }
         "filter" => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             let value = value.trim();
             if value != "none" && !supported_filter_list(value) {
                 return None;
@@ -5506,14 +6442,18 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
         }
         "backdropFilter" => stylex_backdrop_filter(value)?,
         "direction" => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             let value = ["inherit", "ltr", "rtl"]
                 .into_iter()
                 .find(|candidate| *candidate == value)?;
             vec![StyleProperty::Keyword("direction", value)]
         }
         "fontFamily" => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             let value = value.trim();
             if value.is_empty() || value.contains(',') || value.contains("var(") {
                 return None;
@@ -5521,7 +6461,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             vec![StyleProperty::FontFamily(value.to_string())]
         }
         "fontVariant" => {
-            let StaticValue::String(value) = value else { return None };
+            let StaticValue::String(value) = value else {
+                return None;
+            };
             let variants = value
                 .split_whitespace()
                 .map(portable_font_variant)
@@ -5649,15 +6591,38 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
 
 fn portable_font_variant(value: &str) -> Option<&'static str> {
     const VALUES: &[&str] = &[
-        "small-caps", "oldstyle-nums", "lining-nums", "tabular-nums",
-        "common-ligatures", "no-common-ligatures", "discretionary-ligatures",
-        "no-discretionary-ligatures", "historical-ligatures", "no-historical-ligatures",
-        "contextual", "no-contextual", "proportional-nums", "stylistic-one",
-        "stylistic-two", "stylistic-three", "stylistic-four", "stylistic-five",
-        "stylistic-six", "stylistic-seven", "stylistic-eight", "stylistic-nine",
-        "stylistic-ten", "stylistic-eleven", "stylistic-twelve", "stylistic-thirteen",
-        "stylistic-fourteen", "stylistic-fifteen", "stylistic-sixteen",
-        "stylistic-seventeen", "stylistic-eighteen", "stylistic-nineteen",
+        "small-caps",
+        "oldstyle-nums",
+        "lining-nums",
+        "tabular-nums",
+        "common-ligatures",
+        "no-common-ligatures",
+        "discretionary-ligatures",
+        "no-discretionary-ligatures",
+        "historical-ligatures",
+        "no-historical-ligatures",
+        "contextual",
+        "no-contextual",
+        "proportional-nums",
+        "stylistic-one",
+        "stylistic-two",
+        "stylistic-three",
+        "stylistic-four",
+        "stylistic-five",
+        "stylistic-six",
+        "stylistic-seven",
+        "stylistic-eight",
+        "stylistic-nine",
+        "stylistic-ten",
+        "stylistic-eleven",
+        "stylistic-twelve",
+        "stylistic-thirteen",
+        "stylistic-fourteen",
+        "stylistic-fifteen",
+        "stylistic-sixteen",
+        "stylistic-seventeen",
+        "stylistic-eighteen",
+        "stylistic-nineteen",
         "stylistic-twenty",
     ];
     VALUES.iter().copied().find(|candidate| *candidate == value)
@@ -5666,12 +6631,22 @@ fn portable_font_variant(value: &str) -> Option<&'static str> {
 fn supported_filter_list(value: &str) -> bool {
     let mut rest = value.trim();
     while !rest.is_empty() {
-        let Some(open) = rest.find('(') else { return false };
+        let Some(open) = rest.find('(') else {
+            return false;
+        };
         let name = rest[..open].trim();
         if !matches!(
             name,
-            "blur" | "brightness" | "contrast" | "drop-shadow" | "grayscale"
-                | "hue-rotate" | "invert" | "opacity" | "saturate" | "sepia"
+            "blur"
+                | "brightness"
+                | "contrast"
+                | "drop-shadow"
+                | "grayscale"
+                | "hue-rotate"
+                | "invert"
+                | "opacity"
+                | "saturate"
+                | "sepia"
         ) {
             return false;
         }
@@ -5886,64 +6861,104 @@ fn property_priority(property: &str) -> u16 {
 fn directional_overlap_one_way(left: &StyleProperty, right: &StyleProperty) -> bool {
     let typed_overlap = matches!(
         (left, right),
-        (StyleProperty::PaddingInlineStart(_), StyleProperty::PaddingLeft(_))
-            | (StyleProperty::PaddingInlineStart(_), StyleProperty::PaddingRight(_))
-            | (StyleProperty::PaddingInlineEnd(_), StyleProperty::PaddingLeft(_))
-            | (StyleProperty::PaddingInlineEnd(_), StyleProperty::PaddingRight(_))
-            | (StyleProperty::MarginInlineStart(_), StyleProperty::MarginLeft(_))
-            | (StyleProperty::MarginInlineStart(_), StyleProperty::MarginRight(_))
-            | (StyleProperty::MarginInlineEnd(_), StyleProperty::MarginLeft(_))
-            | (StyleProperty::MarginInlineEnd(_), StyleProperty::MarginRight(_))
-            | (StyleProperty::InsetInlineStart(_), StyleProperty::InsetLeft(_))
-            | (StyleProperty::InsetInlineStart(_), StyleProperty::InsetRight(_))
-            | (StyleProperty::InsetInlineEnd(_), StyleProperty::InsetLeft(_))
-            | (StyleProperty::InsetInlineEnd(_), StyleProperty::InsetRight(_))
-            | (
-                StyleProperty::ScrollMargin(Edge::InlineStart | Edge::InlineEnd, _),
-                StyleProperty::ScrollMargin(Edge::Left | Edge::Right, _),
-            )
-            | (
-                StyleProperty::ScrollPadding(Edge::InlineStart | Edge::InlineEnd, _),
-                StyleProperty::ScrollPadding(Edge::Left | Edge::Right, _),
-            )
-            | (
-                StyleProperty::ScrollMargin(Edge::BlockStart | Edge::BlockEnd, _),
-                StyleProperty::ScrollMargin(Edge::Top | Edge::Bottom, _),
-            )
-            | (
-                StyleProperty::ScrollPadding(Edge::BlockStart | Edge::BlockEnd, _),
-                StyleProperty::ScrollPadding(Edge::Top | Edge::Bottom, _),
-            )
-            | (
-                StyleProperty::BorderLogicalWidth(Edge::InlineStart | Edge::InlineEnd, _),
-                StyleProperty::BorderLeftWidth(_) | StyleProperty::BorderRightWidth(_),
-            )
-            | (
-                StyleProperty::BorderLogicalWidth(Edge::BlockStart | Edge::BlockEnd, _),
-                StyleProperty::BorderTopWidth(_) | StyleProperty::BorderBottomWidth(_),
-            )
-            | (
-                StyleProperty::BorderInlineStartColor(_) | StyleProperty::BorderInlineEndColor(_),
-                StyleProperty::BorderLeftColor(_) | StyleProperty::BorderRightColor(_),
-            )
-            | (StyleProperty::BorderStartStartRadius(_), StyleProperty::BorderTopLeftRadius(_))
-            | (StyleProperty::BorderStartStartRadius(_), StyleProperty::BorderTopRightRadius(_))
-            | (StyleProperty::BorderStartEndRadius(_), StyleProperty::BorderTopLeftRadius(_))
-            | (StyleProperty::BorderStartEndRadius(_), StyleProperty::BorderTopRightRadius(_))
-            | (StyleProperty::BorderEndStartRadius(_), StyleProperty::BorderBottomLeftRadius(_))
-            | (StyleProperty::BorderEndStartRadius(_), StyleProperty::BorderBottomRightRadius(_))
-            | (StyleProperty::BorderEndEndRadius(_), StyleProperty::BorderBottomLeftRadius(_))
-            | (StyleProperty::BorderEndEndRadius(_), StyleProperty::BorderBottomRightRadius(_))
+        (
+            StyleProperty::PaddingInlineStart(_),
+            StyleProperty::PaddingLeft(_)
+        ) | (
+            StyleProperty::PaddingInlineStart(_),
+            StyleProperty::PaddingRight(_)
+        ) | (
+            StyleProperty::PaddingInlineEnd(_),
+            StyleProperty::PaddingLeft(_)
+        ) | (
+            StyleProperty::PaddingInlineEnd(_),
+            StyleProperty::PaddingRight(_)
+        ) | (
+            StyleProperty::MarginInlineStart(_),
+            StyleProperty::MarginLeft(_)
+        ) | (
+            StyleProperty::MarginInlineStart(_),
+            StyleProperty::MarginRight(_)
+        ) | (
+            StyleProperty::MarginInlineEnd(_),
+            StyleProperty::MarginLeft(_)
+        ) | (
+            StyleProperty::MarginInlineEnd(_),
+            StyleProperty::MarginRight(_)
+        ) | (
+            StyleProperty::InsetInlineStart(_),
+            StyleProperty::InsetLeft(_)
+        ) | (
+            StyleProperty::InsetInlineStart(_),
+            StyleProperty::InsetRight(_)
+        ) | (
+            StyleProperty::InsetInlineEnd(_),
+            StyleProperty::InsetLeft(_)
+        ) | (
+            StyleProperty::InsetInlineEnd(_),
+            StyleProperty::InsetRight(_)
+        ) | (
+            StyleProperty::ScrollMargin(Edge::InlineStart | Edge::InlineEnd, _),
+            StyleProperty::ScrollMargin(Edge::Left | Edge::Right, _),
+        ) | (
+            StyleProperty::ScrollPadding(Edge::InlineStart | Edge::InlineEnd, _),
+            StyleProperty::ScrollPadding(Edge::Left | Edge::Right, _),
+        ) | (
+            StyleProperty::ScrollMargin(Edge::BlockStart | Edge::BlockEnd, _),
+            StyleProperty::ScrollMargin(Edge::Top | Edge::Bottom, _),
+        ) | (
+            StyleProperty::ScrollPadding(Edge::BlockStart | Edge::BlockEnd, _),
+            StyleProperty::ScrollPadding(Edge::Top | Edge::Bottom, _),
+        ) | (
+            StyleProperty::BorderLogicalWidth(Edge::InlineStart | Edge::InlineEnd, _),
+            StyleProperty::BorderLeftWidth(_) | StyleProperty::BorderRightWidth(_),
+        ) | (
+            StyleProperty::BorderLogicalWidth(Edge::BlockStart | Edge::BlockEnd, _),
+            StyleProperty::BorderTopWidth(_) | StyleProperty::BorderBottomWidth(_),
+        ) | (
+            StyleProperty::BorderInlineStartColor(_) | StyleProperty::BorderInlineEndColor(_),
+            StyleProperty::BorderLeftColor(_) | StyleProperty::BorderRightColor(_),
+        ) | (
+            StyleProperty::BorderStartStartRadius(_),
+            StyleProperty::BorderTopLeftRadius(_)
+        ) | (
+            StyleProperty::BorderStartStartRadius(_),
+            StyleProperty::BorderTopRightRadius(_)
+        ) | (
+            StyleProperty::BorderStartEndRadius(_),
+            StyleProperty::BorderTopLeftRadius(_)
+        ) | (
+            StyleProperty::BorderStartEndRadius(_),
+            StyleProperty::BorderTopRightRadius(_)
+        ) | (
+            StyleProperty::BorderEndStartRadius(_),
+            StyleProperty::BorderBottomLeftRadius(_)
+        ) | (
+            StyleProperty::BorderEndStartRadius(_),
+            StyleProperty::BorderBottomRightRadius(_)
+        ) | (
+            StyleProperty::BorderEndEndRadius(_),
+            StyleProperty::BorderBottomLeftRadius(_)
+        ) | (
+            StyleProperty::BorderEndEndRadius(_),
+            StyleProperty::BorderBottomRightRadius(_)
+        )
     );
     let style_overlap = match (left, right) {
         (
             StyleProperty::BorderLogicalStyle(Edge::InlineStart | Edge::InlineEnd, _),
             StyleProperty::WebOnly(property, _),
-        ) => matches!(property.as_str(), "border-left-style" | "border-right-style"),
+        ) => matches!(
+            property.as_str(),
+            "border-left-style" | "border-right-style"
+        ),
         (
             StyleProperty::BorderLogicalStyle(Edge::BlockStart | Edge::BlockEnd, _),
             StyleProperty::WebOnly(property, _),
-        ) => matches!(property.as_str(), "border-top-style" | "border-bottom-style"),
+        ) => matches!(
+            property.as_str(),
+            "border-top-style" | "border-bottom-style"
+        ),
         _ => false,
     };
     typed_overlap || style_overlap
@@ -5988,8 +7003,7 @@ fn stylex_animation_name(
             .iter()
             .map(|argument| animation_name_candidate(argument.as_expression()?, keyframes))
             .collect::<Option<Vec<_>>>()?;
-        return (!candidates.is_empty())
-            .then(|| vec![StyleProperty::FirstThatWorks(candidates)]);
+        return (!candidates.is_empty()).then(|| vec![StyleProperty::FirstThatWorks(candidates)]);
     }
     let Expression::ArrayExpression(array) = expression else {
         return None;
@@ -6052,7 +7066,10 @@ fn property_name_family(property: &str) -> Option<&'static str> {
     } else if property.starts_with("gridRow") {
         Some("grid-row")
     } else if property == "overflow"
-        || matches!(property, "overflowX" | "overflowY" | "overflowBlock" | "overflowBlockX")
+        || matches!(
+            property,
+            "overflowX" | "overflowY" | "overflowBlock" | "overflowBlockX"
+        )
     {
         Some("overflow")
     } else if property.starts_with("scrollMargin") {
@@ -6118,12 +7135,18 @@ fn stylex_media_condition(name: &str) -> Option<Condition> {
     }
     let width_value = |value: &str| {
         let value = value.trim();
-        let number = value.strip_suffix("px").or_else(|| value.strip_suffix("rem"))?;
-        number.parse::<f64>().ok()
+        let number = value
+            .strip_suffix("px")
+            .or_else(|| value.strip_suffix("rem"))?;
+        number
+            .parse::<f64>()
+            .ok()
             .filter(|number| number.is_finite() && *number >= 0.0)
             .map(|_| value.to_string())
     };
-    let inner = query.strip_prefix('(').and_then(|query| query.strip_suffix(')'))?;
+    let inner = query
+        .strip_prefix('(')
+        .and_then(|query| query.strip_suffix(')'))?;
     let width = |operator: &str, at_least| {
         let (subject, value) = inner.split_once(operator)?;
         (subject.trim() == "width")
@@ -6131,22 +7154,34 @@ fn stylex_media_condition(name: &str) -> Option<Condition> {
             .flatten()
             .map(|value| Condition::Width { at_least, value })
     };
-    inner.strip_prefix("min-width:")
+    inner
+        .strip_prefix("min-width:")
         .and_then(width_value)
-        .map(|value| Condition::Width { at_least: true, value })
+        .map(|value| Condition::Width {
+            at_least: true,
+            value,
+        })
         .or_else(|| width(">=", true))
         .or_else(|| (!inner.contains("<=")).then(|| width("<", false)).flatten())
         .or(match query {
             "(prefers-color-scheme: dark)" => Some(Condition::Dark),
-            "(prefers-reduced-motion: reduce)" => Some(Condition::Environment(Environment::MotionReduce)),
-            "(prefers-reduced-motion: no-preference)" => Some(Condition::Environment(Environment::MotionSafe)),
+            "(prefers-reduced-motion: reduce)" => {
+                Some(Condition::Environment(Environment::MotionReduce))
+            }
+            "(prefers-reduced-motion: no-preference)" => {
+                Some(Condition::Environment(Environment::MotionSafe))
+            }
             "(orientation: portrait)" => Some(Condition::Environment(Environment::Portrait)),
             "(orientation: landscape)" => Some(Condition::Environment(Environment::Landscape)),
-            "(inverted-colors: inverted)" => Some(Condition::Environment(Environment::InvertedColors)),
+            "(inverted-colors: inverted)" => {
+                Some(Condition::Environment(Environment::InvertedColors))
+            }
             "(prefers-contrast: more)" => Some(Condition::Environment(Environment::ContrastMore)),
             "(prefers-contrast: less)" => Some(Condition::Environment(Environment::ContrastLess)),
             "(forced-colors: active)" => Some(Condition::Environment(Environment::ForcedColors)),
-            "(prefers-reduced-transparency: reduce)" => Some(Condition::Environment(Environment::ReduceTransparency)),
+            "(prefers-reduced-transparency: reduce)" => {
+                Some(Condition::Environment(Environment::ReduceTransparency))
+            }
             "(scripting: none)" => Some(Condition::Environment(Environment::Noscript)),
             _ => None,
         })
@@ -6186,7 +7221,9 @@ fn stylex_attribute_condition(name: &str) -> Option<Condition> {
     let attribute_ok = |attribute: &str| {
         attribute.len() > "data-".len()
             && attribute.starts_with("data-")
-            && attribute.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            && attribute
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
     };
     let Some((attribute, value)) = inner.split_once('=') else {
         return attribute_ok(inner).then(|| Condition::DataAttribute(format!("[{inner}]")));
@@ -6194,10 +7231,16 @@ fn stylex_attribute_condition(name: &str) -> Option<Condition> {
     let value = value
         .strip_prefix('"')
         .and_then(|value| value.strip_suffix('"'))
-        .or_else(|| value.strip_prefix('\'').and_then(|value| value.strip_suffix('\'')))
+        .or_else(|| {
+            value
+                .strip_prefix('\'')
+                .and_then(|value| value.strip_suffix('\''))
+        })
         .unwrap_or(value);
     let value_ok = !value.is_empty()
-        && value.chars().all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'));
+        && value
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || matches!(character, '-' | '_'));
     (attribute_ok(attribute) && value_ok)
         .then(|| Condition::DataAttribute(format!("[{attribute}=\"{value}\"]")))
 }
@@ -6229,8 +7272,7 @@ fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclar
         .collect::<Vec<_>>();
     entries.retain(|entry| {
         !unconditional.iter().any(|(priority, property)| {
-            *priority > entry.priority
-                && property.same_property_as(&entry.declaration.property)
+            *priority > entry.priority && property.same_property_as(&entry.declaration.property)
         })
     });
 
@@ -6239,10 +7281,7 @@ fn resolve_property_priority(mut entries: Vec<ResolvedEntry>) -> Vec<StyleDeclar
     // declaration order and Native style-array order then inherit the same
     // already-resolved cascade without runtime work.
     entries.sort_by_key(|entry| entry.priority);
-    entries
-        .into_iter()
-        .map(|entry| entry.declaration)
-        .collect()
+    entries.into_iter().map(|entry| entry.declaration).collect()
 }
 
 /// One CSS declaration as typed properties, the way a StyleX static value
@@ -6394,7 +7433,8 @@ fn parse_rule_object(
                     span: ExprRef(source_span(property.span)),
                 });
                 gaps.push(Gap {
-                    message: "StyleX nested-condition values must be static object literals.".to_string(),
+                    message: "StyleX nested-condition values must be static object literals."
+                        .to_string(),
                     span: source_span(property.value.span()),
                 });
                 continue;
@@ -6461,14 +7501,16 @@ fn parse_rule_object(
                         css_name: canonical_property(&name).to_string(),
                         span: ExprRef(source_span(property.span)),
                     });
-                    gaps.push(Gap { message, span: source_span(property.value.span()) });
+                    gaps.push(Gap {
+                        message,
+                        span: source_span(property.value.span()),
+                    });
                 }
             }
             continue;
         }
         let properties = if name == "animationName" {
-            let Some(properties) =
-                stylex_animation_name(&property.value, namespaces, keyframes)
+            let Some(properties) = stylex_animation_name(&property.value, namespaces, keyframes)
             else {
                 residual.push(ResidualProperty {
                     css_name: canonical_property(&name).to_string(),
@@ -6492,9 +7534,7 @@ fn parse_rule_object(
                         .and_then(|expression| resolved_static_value(expression, variables))
                 })
                 .collect::<Option<Vec<_>>>()
-                .and_then(|values| {
-                    (!values.is_empty()).then_some(values)
-                })
+                .and_then(|values| (!values.is_empty()).then_some(values))
                 .and_then(|values| {
                     values
                         .iter()
@@ -6610,13 +7650,19 @@ fn conditional_value(
 ) -> Result<(), String> {
     for item in &values.properties {
         let ObjectPropertyKind::ObjectProperty(branch) = item else {
-            return Err(format!("`{name}`: a spread inside a conditional value is not read statically."));
+            return Err(format!(
+                "`{name}`: a spread inside a conditional value is not read statically."
+            ));
         };
         if branch.computed {
-            return Err(format!("`{name}`: a computed condition key is not read statically."));
+            return Err(format!(
+                "`{name}`: a computed condition key is not read statically."
+            ));
         }
         let Some(key) = static_key(&branch.key) else {
-            return Err(format!("`{name}`: condition keys must be identifiers or string literals."));
+            return Err(format!(
+                "`{name}`: condition keys must be identifiers or string literals."
+            ));
         };
         let (branch_condition, branch_priority) = if key == "default" {
             (condition.clone(), nesting_priority)
@@ -6801,7 +7847,10 @@ struct StaticVariableUses {
 
 impl<'a> Visit<'a> for StaticVariableUses {
     fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'a>) {
-        *self.references.entry(identifier.name.to_string()).or_default() += 1;
+        *self
+            .references
+            .entry(identifier.name.to_string())
+            .or_default() += 1;
     }
 
     fn visit_static_member_expression(&mut self, member: &StaticMemberExpression<'a>) {
@@ -6825,9 +7874,7 @@ fn define_vars_object<'a>(
     let Expression::Identifier(object) = &member.object else {
         return None;
     };
-    if member.property.name.as_str() != "defineVars"
-        || !namespaces.contains(object.name.as_str())
-    {
+    if member.property.name.as_str() != "defineVars" || !namespaces.contains(object.name.as_str()) {
         return None;
     }
     match call.arguments.first()? {
@@ -6862,7 +7909,10 @@ fn module_static_variables(
             let BindingPattern::BindingIdentifier(identifier) = &declarator.id else {
                 continue;
             };
-            if module.exported_bindings.contains_key(identifier.name.as_str()) {
+            if module
+                .exported_bindings
+                .contains_key(identifier.name.as_str())
+            {
                 continue;
             }
             let Some(Expression::CallExpression(call)) = &declarator.init else {
@@ -6913,7 +7963,10 @@ struct StaticObjectUses {
 
 impl<'a> Visit<'a> for StaticObjectUses {
     fn visit_identifier_reference(&mut self, identifier: &IdentifierReference<'a>) {
-        *self.references.entry(identifier.name.to_string()).or_default() += 1;
+        *self
+            .references
+            .entry(identifier.name.to_string())
+            .or_default() += 1;
     }
 
     fn visit_object_expression(&mut self, object: &ObjectExpression<'a>) {
@@ -7085,7 +8138,10 @@ fn module_keyframes(
                         .into_iter()
                         .flatten()
                         .collect::<Vec<_>>();
-                    (!properties.is_empty()).then_some(Keyframe { selector, properties })
+                    (!properties.is_empty()).then_some(Keyframe {
+                        selector,
+                        properties,
+                    })
                 })
                 .collect::<Option<Vec<_>>>();
             let Some(frames) = frames.filter(|frames| !frames.is_empty()) else {
@@ -7094,7 +8150,10 @@ fn module_keyframes(
             spans.push(source_span(object.span));
             keyframes.insert(
                 identifier.name.to_string(),
-                Keyframes { name: keyframes_name(&frames), frames },
+                Keyframes {
+                    name: keyframes_name(&frames),
+                    frames,
+                },
             );
         }
     }
@@ -7397,7 +8456,11 @@ impl Frontend {
                     ExportExportName::Null if imported == "*" => "*".to_string(),
                     ExportExportName::Null => return None,
                 };
-                Some(ModuleReexportSummary { specifier, imported, exported })
+                Some(ModuleReexportSummary {
+                    specifier,
+                    imported,
+                    exported,
+                })
             })
             .collect::<Vec<_>>();
         reexports.sort_by(|left, right| {
@@ -7414,7 +8477,12 @@ impl Frontend {
             .collect::<Vec<_>>();
         imports.sort();
         imports.dedup();
-        ModuleSummary { exports, reexports, imports, context: None }
+        ModuleSummary {
+            exports,
+            reexports,
+            imports,
+            context: None,
+        }
     }
 
     fn exported_static_sheets(
@@ -7534,24 +8602,21 @@ impl Frontend {
             current_argument.retain(|existing| {
                 existing.declaration.condition != condition
                     || existing.css_name != entry.css_name
-                    || !entry.properties.iter().any(|property| {
-                        property.same_property_as(&existing.declaration.property)
-                    })
+                    || !entry
+                        .properties
+                        .iter()
+                        .any(|property| property.same_property_as(&existing.declaration.property))
             });
-            current_argument.extend(
-                entry
-                    .properties
-                    .iter()
-                    .cloned()
-                    .map(|property| ResolvedEntry {
-                        css_name: entry.css_name.clone(),
-                        priority: entry.priority,
-                        declaration: StyleDeclaration {
-                            property,
-                            condition: condition.clone(),
-                        },
-                    }),
-            );
+            current_argument.extend(entry.properties.iter().cloned().map(|property| {
+                ResolvedEntry {
+                    css_name: entry.css_name.clone(),
+                    priority: entry.priority,
+                    declaration: StyleDeclaration {
+                        property,
+                        condition: condition.clone(),
+                    },
+                }
+            }));
         }
         out.extend(previous_arguments);
         out.extend(current_argument);
@@ -7650,9 +8715,7 @@ impl Frontend {
         }
         let member = match expression {
             Expression::StaticMemberExpression(member) => member,
-            Expression::LogicalExpression(logical)
-                if logical.operator == LogicalOperator::And =>
-            {
+            Expression::LogicalExpression(logical) if logical.operator == LogicalOperator::And => {
                 let guard = ConditionExpr::Ref(ExprRef(source_span(logical.left.span())));
                 let condition = Some(match condition {
                     Some(existing) => ConditionExpr::And(Box::new(existing), Box::new(guard)),
@@ -7685,9 +8748,7 @@ impl Frontend {
                 )?;
                 let negated = ConditionExpr::Not(Box::new(guard));
                 let when_false = Some(match condition {
-                    Some(existing) => {
-                        ConditionExpr::And(Box::new(existing), Box::new(negated))
-                    }
+                    Some(existing) => ConditionExpr::And(Box::new(existing), Box::new(negated)),
                     None => negated,
                 });
                 return self.resolve_props_expression(
@@ -7711,7 +8772,9 @@ impl Frontend {
                             });
                         }
                         element => self.resolve_props_expression(
-                            element.as_expression().expect("non-spread array element is an expression"),
+                            element
+                                .as_expression()
+                                .expect("non-spread array element is an expression"),
                             condition.clone(),
                             declarations,
                             residual_arguments,
@@ -7754,9 +8817,7 @@ impl Frontend {
                 });
             }
         };
-        let declaration_condition = condition
-            .clone()
-            .map_or(Condition::Always, Condition::Expr);
+        let declaration_condition = condition.clone().map_or(Condition::Always, Condition::Expr);
         self.append_entries(entries, declaration_condition, declarations)?;
         if !residual.is_empty() {
             let mut properties = Vec::new();
@@ -7815,7 +8876,10 @@ impl Frontend {
             return Resolution::Ready(resolve_property_priority(declarations));
         }
         if declarations.is_empty() {
-            let gap = gaps.into_iter().next().expect("a residual property has a gap");
+            let gap = gaps
+                .into_iter()
+                .next()
+                .expect("a residual property has a gap");
             return Resolution::Gap {
                 message: gap.message,
                 span: source_span(call.span),
@@ -7824,7 +8888,9 @@ impl Frontend {
         if let Some((residual, declaration)) = residual_properties.iter().find_map(|residual| {
             declarations
                 .iter()
-                .find(|declaration| property_names_overlap(&residual.css_name, &declaration.css_name))
+                .find(|declaration| {
+                    property_names_overlap(&residual.css_name, &declaration.css_name)
+                })
                 .map(|declaration| (residual, declaration))
         }) {
             return Resolution::Gap {
@@ -7982,8 +9048,7 @@ mod tests {
             .iter()
             .any(|declaration| declaration.property == StyleProperty::Opacity(0.5)));
         assert!(style.iter().any(|declaration| {
-            declaration.property
-                == StyleProperty::BackgroundColor(Color::Css("#123456".into()))
+            declaration.property == StyleProperty::BackgroundColor(Color::Css("#123456".into()))
         }));
         assert!(parsed.roots[0].node.props.stylex_residuals.is_empty());
     }
@@ -8047,7 +9112,12 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["root"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["root"]
+        else {
             panic!("rule was not lowerable")
         };
         assert!(residual.is_empty());
@@ -8071,7 +9141,12 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["root"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["root"]
+        else {
             panic!("dynamic fallback should remain as a residual")
         };
         assert!(entries.is_empty());
@@ -8145,7 +9220,12 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["root"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["root"]
+        else {
             panic!("rule was not lowerable")
         };
         assert!(residual.is_empty());
@@ -8157,7 +9237,10 @@ mod tests {
                 Dimension::Percent(25.0),
             ])]
         );
-        assert_eq!(entries[1].properties, vec![StyleProperty::Rotate(Angle::Deg(10.0))]);
+        assert_eq!(
+            entries[1].properties,
+            vec![StyleProperty::Rotate(Angle::Deg(10.0))]
+        );
         assert_eq!(
             entries[2].properties,
             vec![StyleProperty::Scale(vec![
@@ -8181,7 +9264,12 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["root"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["root"]
+        else {
             panic!("rule should retain unsupported values as residuals")
         };
         assert!(entries.is_empty());
@@ -8269,7 +9357,10 @@ mod tests {
                 StyleProperty::GridColumnEnd(GridLine::Line(-1)),
             ]
         );
-        let Rule::Ready { entries: template, .. } = &frontend.sheets["styles"]["template"] else {
+        let Rule::Ready {
+            entries: template, ..
+        } = &frontend.sheets["styles"]["template"]
+        else {
             panic!("grid template was not lowerable")
         };
         assert_eq!(
@@ -8279,7 +9370,9 @@ mod tests {
                 StyleProperty::GridTemplateColumns(GridTracks::Css("120px 2fr".to_string())),
             ]
         );
-        let Rule::Ready { entries: shorthand, .. } = &frontend.sheets["styles"]["shorthand"]
+        let Rule::Ready {
+            entries: shorthand, ..
+        } = &frontend.sheets["styles"]["shorthand"]
         else {
             panic!("grid shorthand was not lowerable")
         };
@@ -8328,10 +9421,7 @@ mod tests {
             vec![
                 StyleProperty::TransitionProperty("opacity,transform".to_string()),
                 StyleProperty::TransitionDuration(200, Origin::Written),
-                StyleProperty::TransitionTimingFunction(
-                    "ease-in-out".to_string(),
-                    Origin::Written
-                ),
+                StyleProperty::TransitionTimingFunction("ease-in-out".to_string(), Origin::Written),
             ]
         );
     }
@@ -8351,7 +9441,9 @@ mod tests {
             panic!("text values were not lowerable")
         };
         assert_eq!(
-            text.iter().flat_map(|entry| entry.properties.clone()).collect::<Vec<_>>(),
+            text.iter()
+                .flat_map(|entry| entry.properties.clone())
+                .collect::<Vec<_>>(),
             vec![
                 StyleProperty::FontWeight(FontWeight(700)),
                 StyleProperty::WhiteSpace(WhiteSpace::NoWrap),
@@ -8387,20 +9479,36 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact Web values were not lowerable")
         };
         assert_eq!(entries.len(), 13);
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            property == &StyleProperty::CaretColor(Color::Css("#123456".to_string()))
-        }));
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            property == &StyleProperty::WebOnly("caret-shape".to_string(), "bar".to_string())
-        }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| {
+                property == &StyleProperty::CaretColor(Color::Css("#123456".to_string()))
+            }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| {
+                property == &StyleProperty::WebOnly("caret-shape".to_string(), "bar".to_string())
+            }));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider values should remain residual")
         };
         assert!(entries.is_empty());
@@ -8427,14 +9535,24 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact animation controls were not lowerable")
         };
         assert_eq!(entries.len(), 7);
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider animation controls should remain residual")
         };
         assert!(entries.is_empty());
@@ -8463,14 +9581,24 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("common compositing values were not lowerable")
         };
         assert_eq!(entries.len(), 6);
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider compositing values should remain residual")
         };
         assert!(entries.is_empty());
@@ -8490,7 +9618,12 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("static pixel blur was not lowerable")
         };
         assert!(matches!(
@@ -8500,7 +9633,12 @@ mod tests {
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["none"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["none"]
+        else {
             panic!("backdrop-filter none was not lowerable")
         };
         assert!(matches!(
@@ -8510,7 +9648,12 @@ mod tests {
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider backdrop filter should remain residual")
         };
         assert!(entries.is_empty());
@@ -8552,17 +9695,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("common mask longhands were not lowerable")
         };
         assert_eq!(entries.len(), 12);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider mask syntax should remain residual")
         };
         assert!(entries.is_empty());
@@ -8597,17 +9751,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("common motion-path and float-shape values were not lowerable")
         };
         assert_eq!(entries.len(), 11);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider motion-path and float-shape syntax should remain residual")
         };
         assert!(entries.is_empty());
@@ -8636,17 +9801,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("common anchor positioning values were not lowerable")
         };
         assert_eq!(entries.len(), 4);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider anchor positioning syntax should remain residual")
         };
         assert!(entries.is_empty());
@@ -8677,17 +9853,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("common border-image longhands were not lowerable")
         };
         assert_eq!(entries.len(), 6);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider border-image syntax should remain residual")
         };
         assert!(entries.is_empty());
@@ -8722,17 +9909,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("published corner-shape keywords were not lowerable")
         };
         assert_eq!(entries.len(), 9);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("future corner-shape grammar should remain residual")
         };
         assert!(entries.is_empty());
@@ -8759,17 +9957,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("legacy box properties were not lowerable")
         };
         assert_eq!(entries.len(), 8);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("invalid legacy box values should remain residual")
         };
         assert!(entries.is_empty());
@@ -8794,17 +10003,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("legacy motion aliases were not lowerable")
         };
         assert_eq!(entries.len(), 4);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider legacy motion values should remain residual")
         };
         assert!(entries.is_empty());
@@ -8831,17 +10051,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("speech timing properties were not lowerable")
         };
         assert_eq!(entries.len(), 9);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider speech timing values should remain residual")
         };
         assert!(entries.is_empty());
@@ -8870,23 +10101,35 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("speech voice properties were not lowerable")
         };
         assert_eq!(entries.len(), 11);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider speech voice values should remain residual")
         };
         assert_eq!(entries.len(), 7);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert_eq!(residual.len(), 4);
         assert_eq!(gaps.len(), 4);
     }
@@ -8902,7 +10145,12 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("named page selection was not lowerable")
         };
         assert_eq!(entries.len(), 1);
@@ -8913,7 +10161,12 @@ mod tests {
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("invalid page syntax should remain residual")
         };
         assert!(entries.is_empty());
@@ -8941,17 +10194,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("common implicit-grid declarations were not lowerable")
         };
         assert_eq!(entries.len(), 4);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider implicit-grid syntax should remain residual")
         };
         assert!(entries.is_empty());
@@ -8994,17 +10258,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact browser typography values were not lowerable")
         };
         assert_eq!(entries.len(), 27);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("composed browser typography values should remain residual")
         };
         assert!(entries.is_empty());
@@ -9031,15 +10306,28 @@ mod tests {
         "#,
         );
         for name in ["exact", "exactLineHeight"] {
-            let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"][name] else {
+            let Rule::Ready {
+                entries,
+                residual,
+                gaps,
+            } = &frontend.sheets["styles"][name]
+            else {
                 panic!("common font shorthand was not lowerable")
             };
             assert_eq!(entries.len(), 1);
-            assert!(matches!(entries[0].properties[0], StyleProperty::WebOnly(_, _)));
+            assert!(matches!(
+                entries[0].properties[0],
+                StyleProperty::WebOnly(_, _)
+            ));
             assert!(residual.is_empty());
             assert!(gaps.is_empty());
         }
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider font shorthand should remain residual")
         };
         assert!(entries.is_empty());
@@ -9076,17 +10364,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact browser text controls were not lowerable")
         };
         assert_eq!(entries.len(), 15);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("invalid browser text controls should remain residual")
         };
         assert!(entries.is_empty());
@@ -9119,13 +10418,19 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact logical and background values were not lowerable")
         };
         assert_eq!(entries.len(), 23);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         let css_names = entries
             .iter()
             .flat_map(|entry| entry.properties.iter())
@@ -9134,13 +10439,28 @@ mod tests {
                 _ => None,
             })
             .collect::<HashSet<_>>();
-        for name in ["height", "width", "min-height", "min-width", "max-height", "max-width"] {
-            assert!(css_names.contains(name), "StyleX logical size should emit {name}");
+        for name in [
+            "height",
+            "width",
+            "min-height",
+            "min-width",
+            "max-height",
+            "max-width",
+        ] {
+            assert!(
+                css_names.contains(name),
+                "StyleX logical size should emit {name}"
+            );
         }
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("dynamic and composed Web values should remain residual")
         };
         assert!(entries.is_empty());
@@ -9179,17 +10499,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact list and table values were not lowerable")
         };
         assert_eq!(entries.len(), 26);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider list and table values should remain residual")
         };
         assert!(entries.is_empty());
@@ -9216,18 +10547,35 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact shorthand values were not lowerable")
         };
         assert_eq!(entries.len(), 3);
-        assert_eq!(entries.iter().map(|entry| entry.properties.len()).sum::<usize>(), 8);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.properties.len())
+                .sum::<usize>(),
+            8
+        );
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("ambiguous shorthand values should remain residual")
         };
         assert!(entries.is_empty());
@@ -9253,18 +10601,15 @@ mod tests {
         assert_eq!(style.len(), 2);
         assert!(style.iter().any(|declaration| {
             declaration.condition == Condition::Always
-                && declaration.property
-                    == web_longhand("column-count", "5")
+                && declaration.property == web_longhand("column-count", "5")
         }));
         assert!(style.iter().any(|declaration| {
             matches!(declaration.condition, Condition::Expr(_))
-                && declaration.property
-                    == web_longhand("column-width", "16rem")
+                && declaration.property == web_longhand("column-width", "16rem")
         }));
         assert!(!style.iter().any(|declaration| {
             matches!(declaration.condition, Condition::Expr(_))
-                && declaration.property
-                    == web_longhand("column-count", "3")
+                && declaration.property == web_longhand("column-count", "3")
         }));
     }
 
@@ -9286,23 +10631,42 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact scroll shorthands were not lowerable")
         };
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries.iter().map(|entry| entry.properties.len()).sum::<usize>(), 8);
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.properties.len())
+                .sum::<usize>(),
+            8
+        );
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider scroll shorthands should remain residual")
         };
         assert!(entries.is_empty());
         assert_eq!(residual.len(), 2);
         assert_eq!(gaps.len(), 2);
 
-        let Rule::Ready { entries, residual, gaps } =
-            &frontend.sheets["styles"]["invalidPadding"]
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["invalidPadding"]
         else {
             panic!("partly invalid scroll padding should remain residual")
         };
@@ -9328,22 +10692,44 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact logical scroll shorthands were not lowerable")
         };
         assert_eq!(entries.len(), 4);
-        assert_eq!(entries.iter().map(|entry| entry.properties.len()).sum::<usize>(), 8);
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property == StyleProperty::ScrollMargin(Edge::BlockStart, Length::Px(8.0))
-        }));
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property == StyleProperty::ScrollPadding(Edge::InlineEnd, Length::Px(14.0))
-        }));
+        assert_eq!(
+            entries
+                .iter()
+                .map(|entry| entry.properties.len())
+                .sum::<usize>(),
+            8
+        );
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| {
+                *property == StyleProperty::ScrollMargin(Edge::BlockStart, Length::Px(8.0))
+            }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| {
+                *property == StyleProperty::ScrollPadding(Edge::InlineEnd, Length::Px(14.0))
+            }));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
         for name in ["wider", "invalidPadding"] {
-            let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"][name] else {
+            let Rule::Ready {
+                entries,
+                residual,
+                gaps,
+            } = &frontend.sheets["styles"][name]
+            else {
                 panic!("invalid logical scroll shorthand should remain residual")
             };
             assert!(entries.is_empty());
@@ -9474,17 +10860,28 @@ mod tests {
             })
         "#,
         );
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["exact"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["exact"]
+        else {
             panic!("exact SVG paint values were not lowerable")
         };
         assert_eq!(entries.len(), 22);
-        assert!(entries.iter().all(|entry| entry.properties.iter().all(|property| {
-            matches!(property, StyleProperty::WebOnly(_, _))
-        })));
+        assert!(entries.iter().all(|entry| entry
+            .properties
+            .iter()
+            .all(|property| { matches!(property, StyleProperty::WebOnly(_, _)) })));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
-        let Rule::Ready { entries, residual, gaps } = &frontend.sheets["styles"]["wider"] else {
+        let Rule::Ready {
+            entries,
+            residual,
+            gaps,
+        } = &frontend.sheets["styles"]["wider"]
+        else {
             panic!("wider SVG paint values should remain residual")
         };
         assert!(entries.is_empty());
@@ -9580,10 +10977,14 @@ mod tests {
             ("view-timeline-axis", "inline"),
             ("view-timeline-inset", "auto"),
         ] {
-            assert!(node.style.iter().any(|declaration| matches!(
-                &declaration.property,
-                StyleProperty::WebOnly(name, actual) if name == property && actual == value
-            )), "missing {property}: {value} in {:?}", node.style);
+            assert!(
+                node.style.iter().any(|declaration| matches!(
+                    &declaration.property,
+                    StyleProperty::WebOnly(name, actual) if name == property && actual == value
+                )),
+                "missing {property}: {value} in {:?}",
+                node.style
+            );
         }
         assert!(node.props.passthrough.is_empty());
         assert!(node.props.stylex_residuals.is_empty());
@@ -9618,30 +11019,33 @@ mod tests {
         };
         assert_eq!(entries.len(), 5);
         assert_eq!(
-            entries
-                .iter()
-                .flat_map(|entry| &entry.properties)
-                .count(),
+            entries.iter().flat_map(|entry| &entry.properties).count(),
             8
         );
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property == StyleProperty::FlexDirection(FlexDirection::ColumnReverse)
-        }));
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property == StyleProperty::ColumnGap(Length::Px(12.0))
-        }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| {
+                *property == StyleProperty::FlexDirection(FlexDirection::ColumnReverse)
+            }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| { *property == StyleProperty::ColumnGap(Length::Px(12.0)) }));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
         let Rule::Ready { entries, .. } = &frontend.sheets["styles"]["defaults"] else {
             panic!("one-token shorthands were not lowerable")
         };
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property == StyleProperty::FlexDirection(FlexDirection::Row)
-        }));
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property == StyleProperty::Keyword("container-type", "normal")
-        }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| { *property == StyleProperty::FlexDirection(FlexDirection::Row) }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| { *property == StyleProperty::Keyword("container-type", "normal") }));
 
         let Rule::Ready {
             entries,
@@ -9688,21 +11092,30 @@ mod tests {
             panic!("exact border longhands were not lowerable")
         };
         assert_eq!(entries.len(), 6);
-        assert_eq!(entries.iter().flat_map(|entry| &entry.properties).count(), 10);
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property
-                == StyleProperty::BorderLogicalWidth(Edge::InlineEnd, Length::Px(12.0))
-        }));
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property == StyleProperty::BorderInlineStartColor(Color::Css("#123456".to_string()))
-        }));
-        assert!(entries.iter().flat_map(|entry| &entry.properties).any(|property| {
-            *property
-                == StyleProperty::WebOnly(
-                    "border-top-style".to_string(),
-                    "solid".to_string(),
-                )
-        }));
+        assert_eq!(
+            entries.iter().flat_map(|entry| &entry.properties).count(),
+            10
+        );
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| {
+                *property == StyleProperty::BorderLogicalWidth(Edge::InlineEnd, Length::Px(12.0))
+            }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| {
+                *property
+                    == StyleProperty::BorderInlineStartColor(Color::Css("#123456".to_string()))
+            }));
+        assert!(entries
+            .iter()
+            .flat_map(|entry| &entry.properties)
+            .any(|property| {
+                *property
+                    == StyleProperty::WebOnly("border-top-style".to_string(), "solid".to_string())
+            }));
         assert!(residual.is_empty());
         assert!(gaps.is_empty());
 
@@ -9939,12 +11352,34 @@ mod tests {
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
         let style = &parsed.roots[0].node.style;
         assert_eq!(style.len(), 9);
-        assert_eq!(style.iter().filter(|declaration| {
-            declaration.condition == Condition::Width { at_least: true, value: "600px".to_string() }
-        }).count(), 4);
-        assert_eq!(style.iter().filter(|declaration| declaration.condition == Condition::Dark).count(), 1);
-        assert!(matches!(style.first().map(|declaration| &declaration.condition), Some(Condition::Always)));
-        assert!(matches!(style.last().map(|declaration| &declaration.condition), Some(Condition::Dark)));
+        assert_eq!(
+            style
+                .iter()
+                .filter(|declaration| {
+                    declaration.condition
+                        == Condition::Width {
+                            at_least: true,
+                            value: "600px".to_string(),
+                        }
+                })
+                .count(),
+            4
+        );
+        assert_eq!(
+            style
+                .iter()
+                .filter(|declaration| declaration.condition == Condition::Dark)
+                .count(),
+            1
+        );
+        assert!(matches!(
+            style.first().map(|declaration| &declaration.condition),
+            Some(Condition::Always)
+        ));
+        assert!(matches!(
+            style.last().map(|declaration| &declaration.condition),
+            Some(Condition::Dark)
+        ));
     }
 
     #[test]
@@ -9995,16 +11430,33 @@ mod tests {
         "#,
         );
         assert!(
-            parsed.diagnostics.iter().all(|d| d.code != hozo_ir::DiagnosticCode::StylexNotLowered),
+            parsed
+                .diagnostics
+                .iter()
+                .all(|d| d.code != hozo_ir::DiagnosticCode::StylexNotLowered),
             "{:?}",
             parsed.diagnostics
         );
-        let conditions: Vec<_> = parsed.roots[0].node.style.iter().map(|d| d.condition.clone()).collect();
-        assert!(conditions.contains(&Condition::StartingStyle), "{conditions:?}");
+        let conditions: Vec<_> = parsed.roots[0]
+            .node
+            .style
+            .iter()
+            .map(|d| d.condition.clone())
+            .collect();
+        assert!(
+            conditions.contains(&Condition::StartingStyle),
+            "{conditions:?}"
+        );
         let closed = Condition::DataAttribute(r#"[data-state="closed"]"#.to_string());
         // Quoted or not, the same text Tailwind's variant gives.
-        assert_eq!(conditions.iter().filter(|c| **c == closed).count(), 2, "{conditions:?}");
-        assert!(conditions.contains(&Condition::DataAttribute(r#"[data-state="open"]"#.to_string())));
+        assert_eq!(
+            conditions.iter().filter(|c| **c == closed).count(),
+            2,
+            "{conditions:?}"
+        );
+        assert!(conditions.contains(&Condition::DataAttribute(
+            r#"[data-state="open"]"#.to_string()
+        )));
         assert!(conditions.contains(&Condition::DataAttribute("[data-active]".to_string())));
         let tailwind = crate::parse_tsx(
             "import { View } from '@hozo/core'
@@ -10016,7 +11468,12 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
 
     #[test]
     fn other_attribute_keys_stay_with_official_stylex() {
-        for key in ["[data-x~=a]", "[aria-expanded=true]", "[data-x=\"a b\"]", "[data-]"] {
+        for key in [
+            "[data-x~=a]",
+            "[aria-expanded=true]",
+            "[data-x=\"a b\"]",
+            "[data-]",
+        ] {
             let source = format!(
                 "import * as stylex from '@stylexjs/stylex'
                  import {{ View }} from '@hozo/core'
@@ -10026,7 +11483,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
             );
             let parsed = crate::parse_tsx(&source);
             assert!(
-                parsed.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::StylexNotLowered),
+                parsed
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.code == hozo_ir::DiagnosticCode::StylexNotLowered),
                 "{key}: {:?}",
                 parsed.diagnostics
             );
@@ -10046,7 +11506,11 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
                  const card = <Pressable accessibilityRole=\"button\" {{...stylex.props(styles.root)}} />\n"
             );
             let parsed = crate::parse_tsx(&source);
-            assert!(parsed.diagnostics.is_empty(), "{rule}: {:?}", parsed.diagnostics);
+            assert!(
+                parsed.diagnostics.is_empty(),
+                "{rule}: {:?}",
+                parsed.diagnostics
+            );
             parsed.roots[0].node.style.clone()
         };
         assert_eq!(
@@ -10085,7 +11549,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         "#,
         );
         assert!(
-            parsed.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::StylexNotLowered),
+            parsed
+                .diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::StylexNotLowered),
             "{:?}",
             parsed.diagnostics
         );
@@ -10168,8 +11635,17 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
             panic!("nested conditions were not composed")
         };
         assert_eq!(conditions.len(), 3);
-        assert_eq!(conditions[0], Condition::Environment(Environment::Landscape));
-        assert_eq!(conditions[1], Condition::Width { at_least: true, value: "600px".to_string() });
+        assert_eq!(
+            conditions[0],
+            Condition::Environment(Environment::Landscape)
+        );
+        assert_eq!(
+            conditions[1],
+            Condition::Width {
+                at_least: true,
+                value: "600px".to_string()
+            }
+        );
         assert!(matches!(conditions[2], Condition::Expr(_)));
     }
 
@@ -10194,9 +11670,16 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         assert_eq!(node.style.len(), 1);
         assert_eq!(node.props.stylex_residuals.len(), 1);
         let residual = node.props.stylex_residuals[0].render_expression(source);
-        assert_eq!(residual.matches("@media (min-width: 600px)").count(), 1, "{residual}");
+        assert_eq!(
+            residual.matches("@media (min-width: 600px)").count(),
+            1,
+            "{residual}"
+        );
         assert!(residual.contains("padding: 24"), "{residual}");
-        assert!(residual.contains("behavior: 'url(example.htc)'"), "{residual}");
+        assert!(
+            residual.contains("behavior: 'url(example.htc)'"),
+            "{residual}"
+        );
         assert!(!residual.contains("opacity: 1"), "{residual}");
     }
 
@@ -10228,10 +11711,16 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         let ternary_style = &parsed.roots[1].node.style;
         assert_eq!(ternary_style.len(), 2);
         assert!(ternary_style.iter().any(|declaration| {
-            matches!(declaration.condition, Condition::Expr(ConditionExpr::Ref(_)))
+            matches!(
+                declaration.condition,
+                Condition::Expr(ConditionExpr::Ref(_))
+            )
         }));
         assert!(ternary_style.iter().any(|declaration| {
-            matches!(declaration.condition, Condition::Expr(ConditionExpr::Not(_)))
+            matches!(
+                declaration.condition,
+                Condition::Expr(ConditionExpr::Not(_))
+            )
         }));
     }
 
@@ -10254,7 +11743,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         let residual = node.props.stylex_residuals[0].render_expression(source);
         assert!(residual.contains("(active)"), "{residual}");
         assert!(residual.contains("!(active)"), "{residual}");
-        assert!(residual.contains("behavior: 'url(example.htc)'"), "{residual}");
+        assert!(
+            residual.contains("behavior: 'url(example.htc)'"),
+            "{residual}"
+        );
         assert!(residual.contains("border: 'solid'"), "{residual}");
         assert!(!residual.contains("opacity: 0.5"), "{residual}");
         assert!(!residual.contains("padding: 8"), "{residual}");
@@ -10275,15 +11767,20 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         let parsed = crate::parse_tsx(source);
         let node = &parsed.roots[0].node;
         assert_eq!(node.style.len(), 6);
-        assert!(node.style.iter().any(|declaration| {
-            matches!(declaration.property, StyleProperty::Opacity(0.75))
-        }));
-        assert!(!node.style.iter().any(|declaration| {
-            matches!(declaration.property, StyleProperty::Opacity(0.5))
-        }));
+        assert!(node
+            .style
+            .iter()
+            .any(|declaration| { matches!(declaration.property, StyleProperty::Opacity(0.75)) }));
+        assert!(!node
+            .style
+            .iter()
+            .any(|declaration| { matches!(declaration.property, StyleProperty::Opacity(0.5)) }));
         assert_eq!(node.props.stylex_residuals.len(), 1);
         let residual = node.props.stylex_residuals[0].render_expression(source);
-        assert!(residual.contains("behavior: 'url(example.htc)'"), "{residual}");
+        assert!(
+            residual.contains("behavior: 'url(example.htc)'"),
+            "{residual}"
+        );
         assert!(!residual.contains("opacity"), "{residual}");
         assert!(!residual.contains("padding"), "{residual}");
     }
@@ -10314,9 +11811,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
             assert_eq!(root.node.props.passthrough.len(), 1);
         }
         assert_eq!(parsed.diagnostics.len(), 4);
-        assert!(parsed.diagnostics.iter().all(|diagnostic| {
-            diagnostic.code == hozo_ir::DiagnosticCode::StylexNotLowered
-        }));
+        assert!(parsed
+            .diagnostics
+            .iter()
+            .all(|diagnostic| { diagnostic.code == hozo_ir::DiagnosticCode::StylexNotLowered }));
     }
 
     #[test]
@@ -10399,7 +11897,9 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         assert!(node.style.is_empty());
         assert_eq!(node.props.passthrough.len(), 1);
         assert!(node.props.stylex_residuals.is_empty());
-        assert!(parsed.diagnostics[0].message.contains("cascade is not approximated"));
+        assert!(parsed.diagnostics[0]
+            .message
+            .contains("cascade is not approximated"));
     }
 
     #[test]
@@ -10502,7 +12002,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         assert_eq!(property_priority("gridTemplateAreas"), 2000);
         assert_eq!(property_priority("textDecoration"), 2000);
         assert_eq!(property_priority("textDecorationLine"), 3000);
-        assert!(property_names_overlap("textDecoration", "textDecorationLine"));
+        assert!(property_names_overlap(
+            "textDecoration",
+            "textDecorationLine"
+        ));
         assert!(property_names_overlap("textEmphasis", "textEmphasisColor"));
         assert_eq!(property_priority("caret"), 2000);
         assert_eq!(property_priority("caretColor"), 3000);
@@ -10525,7 +12028,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         assert_eq!(property_priority("fontFamily"), 3000);
         assert!(property_names_overlap("font", "fontFamily"));
         assert_eq!(property_priority("positionTry"), 3000);
-        assert!(property_names_overlap("positionTry", "positionTryFallbacks"));
+        assert!(property_names_overlap(
+            "positionTry",
+            "positionTryFallbacks"
+        ));
         assert_eq!(property_priority("offset"), 2000);
         assert_eq!(property_priority("offsetPath"), 3000);
         assert!(property_names_overlap("offset", "offsetPath"));
@@ -10560,7 +12066,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
         for (logical, physical) in [
             ("borderInlineStartWidth: 16", "borderLeftWidth: 8"),
             ("borderInlineStartColor: 'red'", "borderRightColor: 'blue'"),
-            ("borderInlineStartStyle: 'dashed'", "borderLeftStyle: 'solid'"),
+            (
+                "borderInlineStartStyle: 'dashed'",
+                "borderLeftStyle: 'solid'",
+            ),
             ("borderBlockWidth: 16", "borderTopWidth: 8"),
         ] {
             let source = format!(
@@ -10575,7 +12084,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
             "#,
             );
             let parsed = crate::parse_tsx(&source);
-            assert!(parsed.roots[0].node.style.is_empty(), "{logical} / {physical}");
+            assert!(
+                parsed.roots[0].node.style.is_empty(),
+                "{logical} / {physical}"
+            );
             assert_eq!(
                 parsed.diagnostics[0].code,
                 hozo_ir::DiagnosticCode::StylexNotLowered
@@ -10656,7 +12168,10 @@ const card = <View className=\"data-[state=closed]:opacity-0\" />
             );
             let parsed = crate::parse_tsx(&source);
             assert!(parsed.roots[0].node.style.is_empty());
-            assert_eq!(parsed.diagnostics[0].code, hozo_ir::DiagnosticCode::StylexNotLowered);
+            assert_eq!(
+                parsed.diagnostics[0].code,
+                hozo_ir::DiagnosticCode::StylexNotLowered
+            );
         }
     }
 }

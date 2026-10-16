@@ -193,7 +193,11 @@ fn semantic_primitives_lower_to_native_text_and_view() {
         output.jsx,
         "<View><Text style={hozoStyles.hozo1} accessibilityRole=\"header\">Title</Text><Text>Body</Text></View>"
     );
-    assert!(output.styles.contains("fontWeight: '700'"), "{}", output.styles);
+    assert!(
+        output.styles.contains("fontWeight: '700'"),
+        "{}",
+        output.styles
+    );
 }
 
 #[test]
@@ -214,7 +218,10 @@ fn typography_primitives_lower_to_native_text_with_styles() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.contains("100\u{00A0}km/h"), "NoBreak must replace spaces with NBSP on Native");
+    assert!(
+        output.jsx.contains("100\u{00A0}km/h"),
+        "NoBreak must replace spaces with NBSP on Native"
+    );
 }
 
 #[test]
@@ -227,7 +234,11 @@ fn preformatted_lowers_to_monospace_text_on_native() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.starts_with("<Text"), "{}", output.jsx);
-    assert!(output.styles.contains("fontFamily: 'monospace'"), "{}", output.styles);
+    assert!(
+        output.styles.contains("fontFamily: 'monospace'"),
+        "{}",
+        output.styles
+    );
 }
 
 #[test]
@@ -266,8 +277,12 @@ fn landmark_primitives_lower_to_native_views_with_roles() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.contains("<View role=\"main\">"));
-    assert!(output.jsx.contains("<View role=\"banner\"><Text>Banner</Text></View>"));
-    assert!(output.jsx.contains("<View role=\"complementary\"><Text>Sidebar</Text></View>"));
+    assert!(output
+        .jsx
+        .contains("<View role=\"banner\"><Text>Banner</Text></View>"));
+    assert!(output
+        .jsx
+        .contains("<View role=\"complementary\"><Text>Sidebar</Text></View>"));
     // No role for search. React Native's `Role` carries every other
     // landmark here and offers `searchbox` for this one, which is the
     // field rather than the region around it -- as is
@@ -275,10 +290,14 @@ fn landmark_primitives_lower_to_native_views_with_roles() {
     // platform does not accept, while the component in `@hozo/semantics`
     // already emitted none.
     assert!(output.jsx.contains("<View><Text>Search</Text></View>"));
-    assert!(output.jsx.contains("<View role=\"figure\"><Text>Caption</Text></View>"));
+    assert!(output
+        .jsx
+        .contains("<View role=\"figure\"><Text>Caption</Text></View>"));
     assert!(output.jsx.contains("<Text>2026-09-02</Text>"));
     assert!(output.jsx.contains("<View><Text>Location</Text></View>"));
-    assert!(output.jsx.contains("<View role=\"contentinfo\"><Text>Footer</Text></View>"));
+    assert!(output
+        .jsx
+        .contains("<View role=\"contentinfo\"><Text>Footer</Text></View>"));
 }
 
 #[test]

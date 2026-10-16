@@ -48,7 +48,11 @@ pub struct ScannedUtility {
 /// Safe for UTF-8: every class byte is ASCII, so a multi-byte character's
 /// continuation bytes always end a token rather than splitting one.
 fn is_class_byte(b: u8) -> bool {
-    b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b':' | b'/' | b'.' | b'[' | b']' | b'%' | b'!')
+    b.is_ascii_alphanumeric()
+        || matches!(
+            b,
+            b'-' | b'_' | b':' | b'/' | b'.' | b'[' | b']' | b'%' | b'!'
+        )
 }
 
 /// Whether a byte can appear inside `[…]`.
@@ -105,7 +109,10 @@ pub fn resolve_class_name(class_name: &str) -> Option<ScannedUtility> {
     if groups.is_empty() {
         return None;
     }
-    Some(ScannedUtility { class_name: class_name.to_string(), groups })
+    Some(ScannedUtility {
+        class_name: class_name.to_string(),
+        groups,
+    })
 }
 
 /// Class names in `source` that resolve to real styles and that the
@@ -159,7 +166,9 @@ pub fn scan_class_candidates_with(source: &str, sources: Option<&[String]>) -> V
 }
 
 fn is_consumed(consumed: &[SourceSpan], start: usize, end: usize) -> bool {
-    consumed.iter().any(|span| start < span.end as usize && end > span.start as usize)
+    consumed
+        .iter()
+        .any(|span| start < span.end as usize && end > span.start as usize)
 }
 
 // A bracket at a token boundary followed by a string (possibly through
@@ -168,10 +177,16 @@ fn is_consumed(consumed: &[SourceSpan], start: usize, end: usize) -> bool {
 // deliberately not classified here.
 fn quoted_array_content_start(bytes: &[u8], opening: usize) -> Option<usize> {
     let mut next = opening + 1;
-    while bytes.get(next).is_some_and(|byte| *byte == b'[' || byte.is_ascii_whitespace()) {
+    while bytes
+        .get(next)
+        .is_some_and(|byte| *byte == b'[' || byte.is_ascii_whitespace())
+    {
         next += 1;
     }
-    bytes.get(next).filter(|byte| matches!(**byte, b'\'' | b'"' | b'`')).map(|_| next)
+    bytes
+        .get(next)
+        .filter(|byte| matches!(**byte, b'\'' | b'"' | b'`'))
+        .map(|_| next)
 }
 
 fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
@@ -190,7 +205,11 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
         if i < array_opening_end {
             continue;
         }
-        let byte = if i < bytes.len() { Some(bytes[i]) } else { None };
+        let byte = if i < bytes.len() {
+            Some(bytes[i])
+        } else {
+            None
+        };
         let inside = depth > 0;
         if !inside && start.is_none() && byte == Some(b'[') {
             if let Some(end) = quoted_array_content_start(bytes, i) {
@@ -219,7 +238,9 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
         // it: the next run starts outside, rather than inheriting a depth
         // from a line that never balanced.
         depth = 0;
-        let Some(token_start) = start.take() else { continue };
+        let Some(token_start) = start.take() else {
+            continue;
+        };
         if is_consumed(consumed, token_start, i) {
             continue;
         }
@@ -296,7 +317,11 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
             "const c = [\n'p-4',\n'hover:opacity-50'\n]",
         ] {
             let found = scan_class_candidates(source);
-            assert_eq!(found, vec!["p-4", "hover:opacity-50"], "{source}: {found:?}");
+            assert_eq!(
+                found,
+                vec!["p-4", "hover:opacity-50"],
+                "{source}: {found:?}"
+            );
         }
     }
 
@@ -310,10 +335,21 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
         assert!(!found.contains(&"p-4".to_string()), "{found:?}");
         assert!(found.contains(&"hover:opacity-50".to_string()), "{found:?}");
         assert!(found.contains(&"content-['x']".to_string()), "{found:?}");
-        assert!(found.contains(&"[&[data-x=\"y\"]]:p-8".to_string()), "{found:?}");
-        for candidate in ["content-['x']", "[&[data-x=\"y\"]]:p-8", "[font-family:'Arial']", "data-[state='busy']:opacity-50"] {
+        assert!(
+            found.contains(&"[&[data-x=\"y\"]]:p-8".to_string()),
+            "{found:?}"
+        );
+        for candidate in [
+            "content-['x']",
+            "[&[data-x=\"y\"]]:p-8",
+            "[font-family:'Arial']",
+            "data-[state='busy']:opacity-50",
+        ] {
             let found = scan_class_candidates(&format!("const c = `{candidate}`"));
-            assert!(found.contains(&candidate.to_string()), "{candidate}: {found:?}");
+            assert!(
+                found.contains(&candidate.to_string()),
+                "{candidate}: {found:?}"
+            );
         }
     }
 
@@ -341,7 +377,10 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
         ] {
             let source = format!("const c = '{candidate}'");
             let found = scan_class_candidates(&source);
-            assert!(found.contains(&candidate.to_string()), "{candidate}: {found:?}");
+            assert!(
+                found.contains(&candidate.to_string()),
+                "{candidate}: {found:?}"
+            );
         }
     }
 
@@ -482,7 +521,10 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
     fn keeps_variant_prefixes_intact() {
         let found = scan_class_candidates("const c = 'hover:bg-blue-500'");
         assert_eq!(found, vec!["hover:bg-blue-500"]);
-        assert_eq!(resolve_class_name("hover:bg-blue-500").unwrap().groups[0].0, Condition::Hover);
+        assert_eq!(
+            resolve_class_name("hover:bg-blue-500").unwrap().groups[0].0,
+            Condition::Hover
+        );
     }
 
     #[test]
@@ -516,7 +558,11 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
             import { View } from '@hozo/core'
             const el = <View className="p-4 text-xl" />
         "#;
-        assert!(scan_class_candidates(source).is_empty(), "{:?}", scan_class_candidates(source));
+        assert!(
+            scan_class_candidates(source).is_empty(),
+            "{:?}",
+            scan_class_candidates(source)
+        );
     }
 
     #[test]
@@ -525,7 +571,11 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
             import * as stylex from '@stylexjs/stylex'
             const styles = stylex.create({ root: { display: 'flex', color: 'red' } })
         "#;
-        assert!(scan_class_candidates(source).is_empty(), "{:?}", scan_class_candidates(source));
+        assert!(
+            scan_class_candidates(source).is_empty(),
+            "{:?}",
+            scan_class_candidates(source)
+        );
     }
 
     #[test]
@@ -570,5 +620,4 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
         let source = r#"export const App = () => <View style={{ padding: 16 }} />;"#;
         assert!(!source_uses_tailwind(source));
     }
-
 }

@@ -23,6 +23,9 @@ pub(super) struct InteractionSlot {
 // no metadata is loaded or traversed by the application's render path.
 include!("pattern_contracts.rs");
 
-pub(super) fn interaction_style_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+pub(super) fn interaction_style_prop(
+    primitive: Primitive,
+    class_prop: &str,
+) -> Option<&'static str> {
     interaction_slot(primitive, class_prop).map(|slot| slot.style_prop)
 }

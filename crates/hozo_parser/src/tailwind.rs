@@ -8,22 +8,19 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use hozo_ir::{
-    Align, AlignSelf, Angle, Animation, Axis, BorderStyle, Origin, Breakpoint, Clamp, Color, Condition, Dimension,
-    ColumnCount, DecorationStyle, Display, Edge, Em, Environment, GradientKind, GradientStop, GridLine, GridSpan,
-    GridTracks, LetterSpacing,
-    MaskSlot, MaskStop,
-    FilterFunction, FlexDirection, FlexShorthand, FontWeight, Justify, Length, LineHeight, Overflow,
-    FormState, Position, PseudoElement, Radius, Scale, Structural, StyleProperty, TextAlign,
-    TextShadowValue,
-    TextOverflow,
-    TextTransform,
-    WhiteSpace,
+    Align, AlignSelf, Angle, Animation, Axis, BorderStyle, Breakpoint, Clamp, Color, ColumnCount,
+    Condition, DecorationStyle, Dimension, Display, Edge, Em, Environment, FilterFunction,
+    FlexDirection, FlexShorthand, FontWeight, FormState, GradientKind, GradientStop, GridLine,
+    GridSpan, GridTracks, Justify, Length, LetterSpacing, LineHeight, MaskSlot, MaskStop, Origin,
+    Overflow, Position, PseudoElement, Radius, Scale, Structural, StyleProperty, TextAlign,
+    TextOverflow, TextShadowValue, TextTransform, WhiteSpace,
 };
 
 /// The property lists Tailwind's `transition`/`transition-colors` expand
 /// to, copied verbatim so the emitted CSS matches. Long, but that's what
 /// the utility means -- shortening it would change behaviour.
-const DEFAULT_TRANSITION_PROPERTIES: &str = "color, background-color, border-color, outline-color, \
+const DEFAULT_TRANSITION_PROPERTIES: &str =
+    "color, background-color, border-color, outline-color, \
     text-decoration-color, fill, stroke, --tw-gradient-from, --tw-gradient-via, --tw-gradient-to, \
     opacity, box-shadow, transform, translate, scale, rotate, filter, -webkit-backdrop-filter, \
     backdrop-filter, display, content-visibility, overlay, pointer-events";
@@ -159,7 +156,10 @@ pub fn parse_utility(token: &str) -> Option<StyleProperty> {
         // `transition-*` also carries the default timing/duration, so it's
         // a multi-property expansion handled in `expand_base_utility`.
         "ease-linear" => {
-            return Some(StyleProperty::TransitionTimingFunction("linear".to_string(), Origin::Written))
+            return Some(StyleProperty::TransitionTimingFunction(
+                "linear".to_string(),
+                Origin::Written,
+            ))
         }
         "ease-in" => {
             return Some(StyleProperty::TransitionTimingFunction(
@@ -195,7 +195,9 @@ pub fn parse_utility(token: &str) -> Option<StyleProperty> {
     // elsewhere.
     if let Some(name) = token.strip_prefix("animate-") {
         if !name.is_empty()
-            && name.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+            && name
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
         {
             return Some(StyleProperty::ThemeAnimation(name.to_string()));
         }
@@ -396,13 +398,18 @@ pub fn parse_utility(token: &str) -> Option<StyleProperty> {
         // Tailwind's opacity scale is 0-100 (in practice steps of 5),
         // meaning percent -- StyleProperty::Opacity wants the 0.0-1.0
         // fraction CSS/RN both expect.
-        return rest.parse::<f64>().ok().map(|pct| StyleProperty::Opacity(pct / 100.0));
+        return rest
+            .parse::<f64>()
+            .ok()
+            .map(|pct| StyleProperty::Opacity(pct / 100.0));
     }
     if let Some(color) = token.strip_prefix("bg-") {
         if is_non_color_suffix(ColorFamily::Background, color) {
             return None;
         }
-        return Some(StyleProperty::BackgroundColor(Color::Token(color.to_string())));
+        return Some(StyleProperty::BackgroundColor(Color::Token(
+            color.to_string(),
+        )));
     }
     if let Some(color) = token.strip_prefix("text-") {
         // Only reached if `parse_font_size`/`text-{left,center,right}` above
@@ -450,8 +457,10 @@ fn expand_dimension_family(token: &str) -> Option<Vec<StyleProperty>> {
         ("mbe-", StyleProperty::MarginBlockEnd, BLOCK),
     ];
     // Longest prefix first: `max-block-` must beat `block-`.
-    if let Some(&(prefix, make, inline_axis)) =
-        FAMILIES.iter().filter(|(p, _, _)| token.starts_with(*p)).max_by_key(|(p, _, _)| p.len())
+    if let Some(&(prefix, make, inline_axis)) = FAMILIES
+        .iter()
+        .filter(|(p, _, _)| token.starts_with(*p))
+        .max_by_key(|(p, _, _)| p.len())
     {
         let suffix = &token[prefix.len()..];
         if prefix.starts_with("max-") || prefix.starts_with("min-") {
@@ -497,25 +506,48 @@ fn expand_dimension_family(token: &str) -> Option<Vec<StyleProperty>> {
             .map(|l| vec![StyleProperty::BorderSpacingY(Dimension::Length(l))]);
     }
     if let Some(rest) = token.strip_prefix("border-spacing-") {
-        return parse_spacing_suffix(rest)
-            .map(|l| {
-                vec![
-                    StyleProperty::BorderSpacingX(Dimension::Length(l.clone())),
-                    StyleProperty::BorderSpacingY(Dimension::Length(l)),
-                ]
-            });
+        return parse_spacing_suffix(rest).map(|l| {
+            vec![
+                StyleProperty::BorderSpacingX(Dimension::Length(l.clone())),
+                StyleProperty::BorderSpacingY(Dimension::Length(l)),
+            ]
+        });
     }
     // `*-screen` is a viewport size, which the block/inline families spell
     // on their own axis: `block-screen` is a height, `inline-screen` a
     // width. Handled before the table so it stays a `ViewportHeight`/
     // `ViewportWidth` the Native backend can answer, rather than text.
     for (prefix, make, vertical) in [
-        ("max-block-", StyleProperty::MaxBlockSize as fn(Dimension) -> StyleProperty, true),
-        ("min-block-", StyleProperty::MinBlockSize as fn(Dimension) -> StyleProperty, true),
-        ("block-", StyleProperty::BlockSize as fn(Dimension) -> StyleProperty, true),
-        ("max-inline-", StyleProperty::MaxInlineSize as fn(Dimension) -> StyleProperty, false),
-        ("min-inline-", StyleProperty::MinInlineSize as fn(Dimension) -> StyleProperty, false),
-        ("inline-", StyleProperty::InlineSize as fn(Dimension) -> StyleProperty, false),
+        (
+            "max-block-",
+            StyleProperty::MaxBlockSize as fn(Dimension) -> StyleProperty,
+            true,
+        ),
+        (
+            "min-block-",
+            StyleProperty::MinBlockSize as fn(Dimension) -> StyleProperty,
+            true,
+        ),
+        (
+            "block-",
+            StyleProperty::BlockSize as fn(Dimension) -> StyleProperty,
+            true,
+        ),
+        (
+            "max-inline-",
+            StyleProperty::MaxInlineSize as fn(Dimension) -> StyleProperty,
+            false,
+        ),
+        (
+            "min-inline-",
+            StyleProperty::MinInlineSize as fn(Dimension) -> StyleProperty,
+            false,
+        ),
+        (
+            "inline-",
+            StyleProperty::InlineSize as fn(Dimension) -> StyleProperty,
+            false,
+        ),
     ] {
         if token == format!("{}screen", prefix) {
             return Some(vec![make(if vertical {
@@ -527,11 +559,16 @@ fn expand_dimension_family(token: &str) -> Option<Vec<StyleProperty>> {
     }
     // Bare `translate-*` sets both axes; `translate-z-*` the third.
     if let Some(rest) = token.strip_prefix("translate-z-") {
-        return parse_spacing_suffix(rest).map(|l| vec![StyleProperty::TranslateZ(Dimension::Length(l))]);
+        return parse_spacing_suffix(rest)
+            .map(|l| vec![StyleProperty::TranslateZ(Dimension::Length(l))]);
     }
     if let Some(rest) = token.strip_prefix("translate-") {
-        return parse_dimension_suffix(rest)
-            .map(|d| vec![StyleProperty::TranslateX(d.clone()), StyleProperty::TranslateY(d)]);
+        return parse_dimension_suffix(rest).map(|d| {
+            vec![
+                StyleProperty::TranslateX(d.clone()),
+                StyleProperty::TranslateY(d),
+            ]
+        });
     }
     parse_axis_transform(token)
 }
@@ -566,7 +603,11 @@ fn parse_axis_transform(token: &str) -> Option<Vec<StyleProperty>> {
     }
     if let Some(rest) = token.strip_prefix("scale-") {
         return percent(rest).map(|p| {
-            vec![StyleProperty::ScaleX(p.clone()), StyleProperty::ScaleY(p.clone()), StyleProperty::ScaleZ(p)]
+            vec![
+                StyleProperty::ScaleX(p.clone()),
+                StyleProperty::ScaleY(p.clone()),
+                StyleProperty::ScaleZ(p),
+            ]
         });
     }
     if let Some(rest) = token.strip_prefix("rotate-x-") {
@@ -586,7 +627,8 @@ fn parse_axis_transform(token: &str) -> Option<Vec<StyleProperty>> {
     }
     // Bare `skew-*` is both axes, the same way bare `scale-*` is all three.
     if let Some(rest) = token.strip_prefix("skew-") {
-        return degrees(rest).map(|a| vec![StyleProperty::SkewX(a.clone()), StyleProperty::SkewY(a)]);
+        return degrees(rest)
+            .map(|a| vec![StyleProperty::SkewX(a.clone()), StyleProperty::SkewY(a)]);
     }
     None
 }
@@ -594,10 +636,14 @@ fn parse_axis_transform(token: &str) -> Option<Vec<StyleProperty>> {
 fn expand_scrollbar(token: &str) -> Option<StyleProperty> {
     let rest = token.strip_prefix("scrollbar-")?;
     if let Some(colour) = rest.strip_prefix("thumb-") {
-        return Some(StyleProperty::ScrollbarThumbColor(Color::Token(colour.to_string())));
+        return Some(StyleProperty::ScrollbarThumbColor(Color::Token(
+            colour.to_string(),
+        )));
     }
     if let Some(colour) = rest.strip_prefix("track-") {
-        return Some(StyleProperty::ScrollbarTrackColor(Color::Token(colour.to_string())));
+        return Some(StyleProperty::ScrollbarTrackColor(Color::Token(
+            colour.to_string(),
+        )));
     }
     Some(match rest {
         "auto" => StyleProperty::ScrollbarWidth("auto"),
@@ -641,7 +687,9 @@ fn expand_mask_gradient(token: &str) -> Option<Vec<StyleProperty>> {
             size,
             "closest-side" | "closest-corner" | "farthest-side" | "farthest-corner"
         ) {
-            return Some(vec![StyleProperty::MaskRadialSize(leak_size(size).to_string())]);
+            return Some(vec![StyleProperty::MaskRadialSize(
+                leak_size(size).to_string(),
+            )]);
         }
     }
 
@@ -651,7 +699,10 @@ fn expand_mask_gradient(token: &str) -> Option<Vec<StyleProperty>> {
     // `mask-linear-45` / `mask-conic-45`: the whole tail is an angle.
     if let Ok(degrees) = tail.parse::<f64>() {
         if matches!(axis, "linear" | "conic") {
-            return Some(vec![StyleProperty::MaskSlotArgument(slots[0], Angle::Deg(signed(degrees, negative)))]);
+            return Some(vec![StyleProperty::MaskSlotArgument(
+                slots[0],
+                Angle::Deg(signed(degrees, negative)),
+            )]);
         }
         return None;
     }
@@ -668,18 +719,14 @@ fn expand_mask_gradient(token: &str) -> Option<Vec<StyleProperty>> {
     let property: Box<dyn Fn(MaskSlot) -> StyleProperty> = if let Some(pct) =
         value.strip_suffix('%').and_then(|n| n.parse::<f64>().ok())
     {
-        Box::new(move |slot| {
-            StyleProperty::MaskStopPosition(slot, stop, Dimension::Percent(pct))
-        })
+        Box::new(move |slot| StyleProperty::MaskStopPosition(slot, stop, Dimension::Percent(pct)))
     } else if let Some(length) = parse_spacing_suffix(value) {
         Box::new(move |slot| {
             StyleProperty::MaskStopPosition(slot, stop, Dimension::Length(length.clone()))
         })
     } else {
         let token = value.to_string();
-        Box::new(move |slot| {
-            StyleProperty::MaskStopColor(slot, stop, Color::Token(token.clone()))
-        })
+        Box::new(move |slot| StyleProperty::MaskStopColor(slot, stop, Color::Token(token.clone())))
     };
     Some(slots.iter().map(|slot| property(*slot)).collect())
 }
@@ -768,7 +815,10 @@ fn linear_position(rest: &str, negative: bool) -> Option<String> {
             .to_string(),
         );
     }
-    Some(format!("{}deg", signed(rest.parse::<f64>().ok()?, negative)))
+    Some(format!(
+        "{}deg",
+        signed(rest.parse::<f64>().ok()?, negative)
+    ))
 }
 
 /// The `/…` modifier, as the CSS interpolation clause it names.
@@ -813,7 +863,10 @@ fn gradient_stop(token: &str) -> Option<Vec<StyleProperty>> {
     // a stop painted `var(--hozo-color-none)`, which the theme has never
     // heard of.
     if stop == GradientStop::Via && rest == "none" {
-        return Some(vec![StyleProperty::GradientStopColor(stop, Color::Keyword("initial"))]);
+        return Some(vec![StyleProperty::GradientStopColor(
+            stop,
+            Color::Keyword("initial"),
+        )]);
     }
     Some(vec![StyleProperty::GradientStopColor(
         stop,
@@ -996,7 +1049,9 @@ fn expand_paint(token: &str) -> Option<Vec<StyleProperty>> {
         if matches!(rest, "auto" | "from-font") {
             return None;
         }
-        return Some(vec![StyleProperty::TextDecorationColor(Color::Token(rest.to_string()))]);
+        return Some(vec![StyleProperty::TextDecorationColor(Color::Token(
+            rest.to_string(),
+        ))]);
     }
     let (prefix, make): (&str, fn(Color) -> StyleProperty) = if token.starts_with("fill-") {
         ("fill-", StyleProperty::Fill)
@@ -1067,7 +1122,9 @@ fn expand_outline(token: &str) -> Option<Vec<StyleProperty>> {
             StyleProperty::OutlineWidth(Length::Px(px)),
         ]);
     }
-    Some(vec![StyleProperty::OutlineColor(Color::Token(suffix.to_string()))])
+    Some(vec![StyleProperty::OutlineColor(Color::Token(
+        suffix.to_string(),
+    ))])
 }
 
 /// `divide-*`: the border between an element's children. Shares the
@@ -1096,7 +1153,9 @@ fn expand_divide(token: &str) -> Option<Vec<StyleProperty>> {
     if let Some(style) = border_style_keyword(suffix) {
         return Some(vec![StyleProperty::DivideStyle(style)]);
     }
-    Some(vec![StyleProperty::DivideColor(Color::Token(suffix.to_string()))])
+    Some(vec![StyleProperty::DivideColor(Color::Token(
+        suffix.to_string(),
+    ))])
 }
 
 /// The width half of `divide-x*`/`divide-y*`: empty means 1px.
@@ -1310,7 +1369,10 @@ fn is_non_color_suffix(family: ColorFamily, suffix: &str) -> bool {
         ),
         // text-wrap / text-align's logical keywords / text-shadow.
         ColorFamily::Text => {
-            matches!(head, "balance" | "end" | "justify" | "nowrap" | "pretty" | "shadow" | "start" | "wrap")
+            matches!(
+                head,
+                "balance" | "end" | "justify" | "nowrap" | "pretty" | "shadow" | "start" | "wrap"
+            )
         }
         ColorFamily::Border => {
             // Table borders, plus the two border-styles the width/style arms
@@ -1326,7 +1388,10 @@ fn is_non_color_suffix(family: ColorFamily, suffix: &str) -> bool {
             // isn't a colour name (`border-b-red-500` was compiling to
             // `border-color: var(--hozo-color-b-red-500)`) -- plus the
             // logical/axis widths Hozo doesn't lower yet.
-            matches!(head, "t" | "r" | "b" | "l" | "x" | "y" | "s" | "e" | "bs" | "be")
+            matches!(
+                head,
+                "t" | "r" | "b" | "l" | "x" | "y" | "s" | "e" | "bs" | "be"
+            )
         }
     }
 }
@@ -1336,7 +1401,12 @@ fn is_non_color_suffix(family: ColorFamily, suffix: &str) -> bool {
 /// which is *not* the same as `rounded-sm` in v4 -- they happen to share a
 /// value here but are separate scale entries.
 fn parse_border_radius(token: &str) -> Option<Radius> {
-    radius_from_suffix(token.strip_prefix("rounded")?.strip_prefix('-').unwrap_or(""))
+    radius_from_suffix(
+        token
+            .strip_prefix("rounded")?
+            .strip_prefix('-')
+            .unwrap_or(""),
+    )
 }
 
 /// The size half of a `rounded-*` utility, with the corner (if any) already
@@ -1371,13 +1441,18 @@ fn radius_from_suffix(suffix: &str) -> Option<Radius> {
 /// class into a radius named `t`.
 fn theme_radius_name(suffix: &str) -> Option<&str> {
     let named = !suffix.is_empty()
-        && suffix.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+        && suffix
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
         && suffix.as_bytes()[0].is_ascii_lowercase();
     (named && !is_radius_corner(suffix)).then_some(suffix)
 }
 
 fn is_radius_corner(name: &str) -> bool {
-    matches!(name, "t" | "r" | "b" | "l" | "s" | "e" | "tl" | "tr" | "br" | "bl" | "ss" | "se" | "es" | "ee")
+    matches!(
+        name,
+        "t" | "r" | "b" | "l" | "s" | "e" | "tl" | "tr" | "br" | "bl" | "ss" | "se" | "es" | "ee"
+    )
 }
 
 /// `rounded-<corner>-<size>`, where a corner may be a single corner, one
@@ -1584,7 +1659,10 @@ fn parse_filter_function(token: &str) -> Option<(FilterFunction, String)> {
     }
     if let Some(rest) = token.strip_prefix("hue-rotate-") {
         let degrees: f64 = rest.parse().ok()?;
-        return Some((FilterFunction::HueRotate, format!("hue-rotate({degrees}deg)")));
+        return Some((
+            FilterFunction::HueRotate,
+            format!("hue-rotate({degrees}deg)"),
+        ));
     }
     None
 }
@@ -1759,11 +1837,42 @@ fn parse_columns_suffix(suffix: &str) -> Option<ColumnCount> {
 /// prefix would compile `cursor-nonsense` into CSS the browser drops.
 fn parse_cursor(token: &str) -> Option<&str> {
     const KEYWORDS: &[&str] = &[
-        "alias", "all-scroll", "auto", "cell", "col-resize", "context-menu", "copy", "crosshair",
-        "default", "e-resize", "ew-resize", "grab", "grabbing", "help", "move", "n-resize",
-        "ne-resize", "nesw-resize", "no-drop", "none", "not-allowed", "ns-resize", "nw-resize",
-        "nwse-resize", "pointer", "progress", "row-resize", "s-resize", "se-resize", "sw-resize",
-        "text", "vertical-text", "w-resize", "wait", "zoom-in", "zoom-out",
+        "alias",
+        "all-scroll",
+        "auto",
+        "cell",
+        "col-resize",
+        "context-menu",
+        "copy",
+        "crosshair",
+        "default",
+        "e-resize",
+        "ew-resize",
+        "grab",
+        "grabbing",
+        "help",
+        "move",
+        "n-resize",
+        "ne-resize",
+        "nesw-resize",
+        "no-drop",
+        "none",
+        "not-allowed",
+        "ns-resize",
+        "nw-resize",
+        "nwse-resize",
+        "pointer",
+        "progress",
+        "row-resize",
+        "s-resize",
+        "se-resize",
+        "sw-resize",
+        "text",
+        "vertical-text",
+        "w-resize",
+        "wait",
+        "zoom-in",
+        "zoom-out",
     ];
     let keyword = token.strip_prefix("cursor-")?;
     KEYWORDS.contains(&keyword).then_some(keyword)
@@ -1862,8 +1971,12 @@ fn parse_extended_value(token: &str) -> Option<StyleProperty> {
         "text-justify" => return Some(StyleProperty::TextAlign(TextAlign::Css("justify"))),
         // CSS's `last baseline` aligns the *last* line's baseline, which is
         // a different rule rather than a spelling of `baseline`.
-        "items-baseline-last" => return Some(StyleProperty::AlignItems(Align::Css("last baseline"))),
-        "self-baseline-last" => return Some(StyleProperty::AlignSelf(AlignSelf::Css("last baseline"))),
+        "items-baseline-last" => {
+            return Some(StyleProperty::AlignItems(Align::Css("last baseline")))
+        }
+        "self-baseline-last" => {
+            return Some(StyleProperty::AlignSelf(AlignSelf::Css("last baseline")))
+        }
         "rotate-none" => return Some(StyleProperty::RotateNone),
         "scale-none" => return Some(StyleProperty::ScaleNone),
         // `transform` and `transform-cpu` write the composed `transform`
@@ -1877,11 +1990,18 @@ fn parse_extended_value(token: &str) -> Option<StyleProperty> {
         // Writes the three-value form with every axis at its default, which
         // is how Tailwind switches the z component on.
         "translate-3d" => {
-            return Some(StyleProperty::TranslateZ(Dimension::Length(Length::Px(0.0))));
+            return Some(StyleProperty::TranslateZ(Dimension::Length(Length::Px(
+                0.0,
+            ))));
         }
-        "decoration-auto" => return Some(StyleProperty::Keyword("text-decoration-thickness", "auto")),
+        "decoration-auto" => {
+            return Some(StyleProperty::Keyword("text-decoration-thickness", "auto"))
+        }
         "decoration-from-font" => {
-            return Some(StyleProperty::Keyword("text-decoration-thickness", "from-font"))
+            return Some(StyleProperty::Keyword(
+                "text-decoration-thickness",
+                "from-font",
+            ))
         }
         "fill-none" => return Some(StyleProperty::Fill(Color::Keyword("none"))),
         "stroke-none" => return Some(StyleProperty::Stroke(Color::Keyword("none"))),
@@ -1918,8 +2038,9 @@ fn parse_extended_value(token: &str) -> Option<StyleProperty> {
         }
     }
     if let Some(rest) = token.strip_prefix("select-") {
-        if let Some(value) =
-            ["all", "auto", "none", "text"].into_iter().find(|v| *v == rest)
+        if let Some(value) = ["all", "auto", "none", "text"]
+            .into_iter()
+            .find(|v| *v == rest)
         {
             return Some(StyleProperty::UserSelect(value));
         }
@@ -1962,295 +2083,347 @@ fn parse_extended_value(token: &str) -> Option<StyleProperty> {
 /// `keyword_table_avoids_the_modelled_properties` is the test that holds
 /// the line.
 const KEYWORD_UTILITIES: &[(&str, &str, &str)] = &[
-        // Not variants, despite the `@`: these declare an element *as* a
-        // container, where `@lg:` and `@container/main:` query one.
-        ("@container", "container-type", "inline-size"),
-        ("@container-normal", "container-type", "normal"),
-        ("backface-hidden", "backface-visibility", "hidden"),
-        ("backface-visible", "backface-visibility", "visible"),
-        ("box-border", "box-sizing", "border-box"),
-        ("box-content", "box-sizing", "content-box"),
-        ("flex-nowrap", "flex-wrap", "nowrap"),
-        ("flex-wrap-reverse", "flex-wrap", "wrap-reverse"),
-        ("flex-wrap", "flex-wrap", "wrap"),
-        ("italic", "font-style", "italic"),
-        ("not-italic", "font-style", "normal"),
-        ("isolate", "isolation", "isolate"),
-        ("isolation-auto", "isolation", "auto"),
-        ("pointer-events-auto", "pointer-events", "auto"),
-        ("pointer-events-none", "pointer-events", "none"),
-        ("collapse", "visibility", "collapse"),
-        ("invisible", "visibility", "hidden"),
-        ("visible", "visibility", "visible"),
-        ("align-baseline", "vertical-align", "baseline"),
-        ("align-bottom", "vertical-align", "bottom"),
-        ("align-middle", "vertical-align", "middle"),
-        ("align-sub", "vertical-align", "sub"),
-        ("align-super", "vertical-align", "super"),
-        ("align-text-bottom", "vertical-align", "text-bottom"),
-        ("align-text-top", "vertical-align", "text-top"),
-        ("align-top", "vertical-align", "top"),
-        ("appearance-auto", "appearance", "auto"),
-        ("appearance-none", "appearance", "none"),
-        ("auto-cols-auto", "grid-auto-columns", "auto"),
-        ("auto-cols-fr", "grid-auto-columns", "minmax(0, 1fr)"),
-        ("auto-cols-max", "grid-auto-columns", "max-content"),
-        ("auto-cols-min", "grid-auto-columns", "min-content"),
-        ("auto-rows-auto", "grid-auto-rows", "auto"),
-        ("auto-rows-fr", "grid-auto-rows", "minmax(0, 1fr)"),
-        ("auto-rows-max", "grid-auto-rows", "max-content"),
-        ("auto-rows-min", "grid-auto-rows", "min-content"),
-        ("bg-auto", "background-size", "auto"),
-        ("bg-bottom", "background-position", "bottom"),
-        ("bg-bottom-left", "background-position", "left bottom"),
-        ("bg-bottom-right", "background-position", "right bottom"),
-        ("bg-center", "background-position", "center"),
-        ("bg-clip-border", "background-clip", "border-box"),
-        ("bg-clip-content", "background-clip", "content-box"),
-        ("bg-clip-padding", "background-clip", "padding-box"),
-        ("bg-clip-text", "background-clip", "text"),
-        ("bg-contain", "background-size", "contain"),
-        ("bg-cover", "background-size", "cover"),
-        ("bg-fixed", "background-attachment", "fixed"),
-        ("bg-left", "background-position", "left"),
-        ("bg-local", "background-attachment", "local"),
-        ("bg-no-repeat", "background-repeat", "no-repeat"),
-        ("bg-origin-border", "background-origin", "border-box"),
-        ("bg-origin-content", "background-origin", "content-box"),
-        ("bg-origin-padding", "background-origin", "padding-box"),
-        ("bg-repeat", "background-repeat", "repeat"),
-        ("bg-repeat-round", "background-repeat", "round"),
-        ("bg-repeat-space", "background-repeat", "space"),
-        ("bg-repeat-x", "background-repeat", "repeat-x"),
-        ("bg-repeat-y", "background-repeat", "repeat-y"),
-        ("bg-right", "background-position", "right"),
-        ("bg-scroll", "background-attachment", "scroll"),
-        ("bg-top", "background-position", "top"),
-        ("bg-top-left", "background-position", "left top"),
-        ("bg-top-right", "background-position", "right top"),
-        ("border-collapse", "border-collapse", "collapse"),
-        ("border-separate", "border-collapse", "separate"),
-        ("break-after-all", "break-after", "all"),
-        ("break-after-auto", "break-after", "auto"),
-        ("break-after-avoid", "break-after", "avoid"),
-        ("break-after-avoid-page", "break-after", "avoid-page"),
-        ("break-after-column", "break-after", "column"),
-        ("break-after-left", "break-after", "left"),
-        ("break-after-page", "break-after", "page"),
-        ("break-after-right", "break-after", "right"),
-        ("break-all", "word-break", "break-all"),
-        ("break-before-all", "break-before", "all"),
-        ("break-before-auto", "break-before", "auto"),
-        ("break-before-avoid", "break-before", "avoid"),
-        ("break-before-avoid-page", "break-before", "avoid-page"),
-        ("break-before-column", "break-before", "column"),
-        ("break-before-left", "break-before", "left"),
-        ("break-before-page", "break-before", "page"),
-        ("break-before-right", "break-before", "right"),
-        ("break-inside-auto", "break-inside", "auto"),
-        ("break-inside-avoid", "break-inside", "avoid"),
-        ("break-inside-avoid-column", "break-inside", "avoid-column"),
-        ("break-inside-avoid-page", "break-inside", "avoid-page"),
-        ("break-keep", "word-break", "keep-all"),
-        ("caption-bottom", "caption-side", "bottom"),
-        ("caption-top", "caption-side", "top"),
-        ("clear-both", "clear", "both"),
-        ("clear-end", "clear", "inline-end"),
-        ("clear-left", "clear", "left"),
-        ("clear-none", "clear", "none"),
-        ("clear-right", "clear", "right"),
-        ("clear-start", "clear", "inline-start"),
-        ("contain-content", "contain", "content"),
-        ("contain-inline-size", "contain", "inline-size"),
-        ("contain-layout", "contain", "layout"),
-        ("contain-none", "contain", "none"),
-        ("contain-paint", "contain", "paint"),
-        ("contain-size", "contain", "size"),
-        ("contain-strict", "contain", "strict"),
-        ("contain-style", "contain", "style"),
-        ("diagonal-fractions", "font-variant-numeric", "diagonal-fractions"),
-        ("field-sizing-content", "field-sizing", "content"),
-        ("field-sizing-fixed", "field-sizing", "fixed"),
-        ("float-end", "float", "inline-end"),
-        ("float-left", "float", "left"),
-        ("float-none", "float", "none"),
-        ("float-right", "float", "right"),
-        ("float-start", "float", "inline-start"),
-        // The percentage forms, spelled out rather than parsed: Tailwind
-        // defines exactly these ten, and accepting any number would
-        // compile `font-stretch-63%`, which it does not.
-        ("font-stretch-50%", "font-stretch", "50%"),
-        ("font-stretch-75%", "font-stretch", "75%"),
-        ("font-stretch-90%", "font-stretch", "90%"),
-        ("font-stretch-95%", "font-stretch", "95%"),
-        ("font-stretch-100%", "font-stretch", "100%"),
-        ("font-stretch-105%", "font-stretch", "105%"),
-        ("font-stretch-110%", "font-stretch", "110%"),
-        ("font-stretch-125%", "font-stretch", "125%"),
-        ("font-stretch-150%", "font-stretch", "150%"),
-        ("font-stretch-200%", "font-stretch", "200%"),
-        ("font-stretch-condensed", "font-stretch", "condensed"),
-        ("font-stretch-expanded", "font-stretch", "expanded"),
-        ("font-stretch-extra-condensed", "font-stretch", "extra-condensed"),
-        ("font-stretch-extra-expanded", "font-stretch", "extra-expanded"),
-        ("font-stretch-normal", "font-stretch", "normal"),
-        ("font-stretch-semi-condensed", "font-stretch", "semi-condensed"),
-        ("font-stretch-semi-expanded", "font-stretch", "semi-expanded"),
-        ("font-stretch-ultra-condensed", "font-stretch", "ultra-condensed"),
-        ("font-stretch-ultra-expanded", "font-stretch", "ultra-expanded"),
-        ("forced-color-adjust-auto", "forced-color-adjust", "auto"),
-        ("forced-color-adjust-none", "forced-color-adjust", "none"),
-        ("grid-flow-col", "grid-auto-flow", "column"),
-        ("grid-flow-col-dense", "grid-auto-flow", "column dense"),
-        ("grid-flow-dense", "grid-auto-flow", "dense"),
-        ("grid-flow-row", "grid-auto-flow", "row"),
-        ("grid-flow-row-dense", "grid-auto-flow", "row dense"),
-        ("justify-items-center", "justify-items", "center"),
-        ("justify-items-center-safe", "justify-items", "safe center"),
-        ("justify-items-end", "justify-items", "end"),
-        ("justify-items-end-safe", "justify-items", "safe end"),
-        ("justify-items-normal", "justify-items", "normal"),
-        ("justify-items-start", "justify-items", "start"),
-        ("justify-items-stretch", "justify-items", "stretch"),
-        ("justify-self-auto", "justify-self", "auto"),
-        ("justify-self-center", "justify-self", "center"),
-        ("justify-self-center-safe", "justify-self", "safe center"),
-        ("justify-self-end", "justify-self", "flex-end"),
-        ("justify-self-end-safe", "justify-self", "safe flex-end"),
-        ("justify-self-start", "justify-self", "flex-start"),
-        ("justify-self-stretch", "justify-self", "stretch"),
-        ("lining-nums", "font-variant-numeric", "lining-nums"),
-        ("list-decimal", "list-style-type", "decimal"),
-        ("list-disc", "list-style-type", "disc"),
-        ("list-image-none", "list-style-image", "none"),
-        ("list-inside", "list-style-position", "inside"),
-        ("list-none", "list-style-type", "none"),
-        ("list-outside", "list-style-position", "outside"),
-        ("normal-nums", "font-variant-numeric", "normal"),
-        ("object-bottom", "object-position", "bottom"),
-        ("object-bottom-left", "object-position", "left bottom"),
-        ("object-bottom-right", "object-position", "right bottom"),
-        ("object-center", "object-position", "center"),
-        ("object-left", "object-position", "left"),
-        ("object-right", "object-position", "right"),
-        ("object-top", "object-position", "top"),
-        ("object-top-left", "object-position", "left top"),
-        ("object-top-right", "object-position", "right top"),
-        ("oldstyle-nums", "font-variant-numeric", "oldstyle-nums"),
-        ("ordinal", "font-variant-numeric", "ordinal"),
-        ("overscroll-auto", "overscroll-behavior", "auto"),
-        ("overscroll-contain", "overscroll-behavior", "contain"),
-        ("overscroll-none", "overscroll-behavior", "none"),
-        ("overscroll-x-auto", "overscroll-behavior-x", "auto"),
-        ("overscroll-x-contain", "overscroll-behavior-x", "contain"),
-        ("overscroll-x-none", "overscroll-behavior-x", "none"),
-        ("overscroll-y-auto", "overscroll-behavior-y", "auto"),
-        ("overscroll-y-contain", "overscroll-behavior-y", "contain"),
-        ("overscroll-y-none", "overscroll-behavior-y", "none"),
-        ("perspective-distant", "perspective", "1200px"),
-        ("perspective-dramatic", "perspective", "100px"),
-        ("perspective-midrange", "perspective", "800px"),
-        ("perspective-near", "perspective", "300px"),
-        ("perspective-none", "perspective", "none"),
-        ("perspective-normal", "perspective", "500px"),
-        ("perspective-origin-bottom", "perspective-origin", "bottom"),
-        ("perspective-origin-bottom-left", "perspective-origin", "0 100%"),
-        ("perspective-origin-bottom-right", "perspective-origin", "100% 100%"),
-        ("perspective-origin-center", "perspective-origin", "center"),
-        ("perspective-origin-left", "perspective-origin", "0"),
-        ("perspective-origin-right", "perspective-origin", "100%"),
-        ("perspective-origin-top", "perspective-origin", "top"),
-        ("perspective-origin-top-left", "perspective-origin", "0 0"),
-        ("perspective-origin-top-right", "perspective-origin", "100% 0"),
-        ("place-content-around", "place-content", "space-around"),
-        ("place-content-baseline", "place-content", "baseline"),
-        ("place-content-between", "place-content", "space-between"),
-        ("place-content-center", "place-content", "center"),
-        ("place-content-center-safe", "place-content", "safe center"),
-        ("place-content-end", "place-content", "end"),
-        ("place-content-end-safe", "place-content", "safe end"),
-        ("place-content-evenly", "place-content", "space-evenly"),
-        ("place-content-start", "place-content", "start"),
-        ("place-content-stretch", "place-content", "stretch"),
-        ("place-items-baseline", "place-items", "baseline"),
-        ("place-items-center", "place-items", "center"),
-        ("place-items-center-safe", "place-items", "safe center"),
-        ("place-items-end", "place-items", "end"),
-        ("place-items-end-safe", "place-items", "safe end"),
-        ("place-items-start", "place-items", "start"),
-        ("place-items-stretch", "place-items", "stretch"),
-        ("place-self-auto", "place-self", "auto"),
-        ("place-self-center", "place-self", "center"),
-        ("place-self-center-safe", "place-self", "safe center"),
-        ("place-self-end", "place-self", "end"),
-        ("place-self-end-safe", "place-self", "safe end"),
-        ("place-self-start", "place-self", "start"),
-        ("place-self-stretch", "place-self", "stretch"),
-        ("proportional-nums", "font-variant-numeric", "proportional-nums"),
-        ("resize", "resize", "both"),
-        ("resize-none", "resize", "none"),
-        ("resize-x", "resize", "horizontal"),
-        ("resize-y", "resize", "vertical"),
-        ("scheme-dark", "color-scheme", "dark"),
-        ("scheme-light", "color-scheme", "light"),
-        ("scheme-light-dark", "color-scheme", "light dark"),
-        ("scheme-normal", "color-scheme", "normal"),
-        ("scheme-only-dark", "color-scheme", "only dark"),
-        ("scheme-only-light", "color-scheme", "only light"),
-        ("slashed-zero", "font-variant-numeric", "slashed-zero"),
-        ("snap-align-none", "scroll-snap-align", "none"),
-        ("snap-always", "scroll-snap-stop", "always"),
-        ("snap-center", "scroll-snap-align", "center"),
-        ("snap-end", "scroll-snap-align", "end"),
-        ("snap-normal", "scroll-snap-stop", "normal"),
-        ("snap-start", "scroll-snap-align", "start"),
-        ("stacked-fractions", "font-variant-numeric", "stacked-fractions"),
-        ("tab-2", "tab-size", "2"),
-        ("tab-4", "tab-size", "4"),
-        ("tab-8", "tab-size", "8"),
-        ("table-auto", "table-layout", "auto"),
-        ("table-fixed", "table-layout", "fixed"),
-        ("tabular-nums", "font-variant-numeric", "tabular-nums"),
-        ("text-balance", "text-wrap", "balance"),
-        ("text-nowrap", "text-wrap", "nowrap"),
-        ("text-pretty", "text-wrap", "pretty"),
-        ("text-wrap", "text-wrap", "wrap"),
-        ("touch-auto", "touch-action", "auto"),
-        ("touch-manipulation", "touch-action", "manipulation"),
-        ("touch-none", "touch-action", "none"),
-        ("touch-pan-down", "touch-action", "pan-down"),
-        ("touch-pan-left", "touch-action", "pan-left"),
-        ("touch-pan-right", "touch-action", "pan-right"),
-        ("touch-pan-up", "touch-action", "pan-up"),
-        ("touch-pan-x", "touch-action", "pan-x"),
-        ("touch-pan-y", "touch-action", "pan-y"),
-        ("touch-pinch-zoom", "touch-action", "pinch-zoom"),
-        ("transform-3d", "transform-style", "preserve-3d"),
-        ("transform-border", "transform-box", "border-box"),
-        ("transform-content", "transform-box", "content-box"),
-        ("transform-fill", "transform-box", "fill-box"),
-        ("transform-flat", "transform-style", "flat"),
-        ("transform-stroke", "transform-box", "stroke-box"),
-        ("transform-view", "transform-box", "view-box"),
-        ("transition-discrete", "transition-behavior", "allow-discrete"),
-        ("transition-normal", "transition-behavior", "normal"),
-        ("will-change-auto", "will-change", "auto"),
-        ("will-change-contents", "will-change", "contents"),
-        ("will-change-scroll", "will-change", "scroll-position"),
-        ("will-change-transform", "will-change", "transform"),
-        ("wrap-anywhere", "overflow-wrap", "anywhere"),
-        ("wrap-break-word", "overflow-wrap", "break-word"),
-        ("wrap-normal", "overflow-wrap", "normal"),
-        ("zoom-50", "zoom", "50%"),
-        ("zoom-75", "zoom", "75%"),
-        ("zoom-90", "zoom", "90%"),
-        ("zoom-95", "zoom", "95%"),
-        ("zoom-100", "zoom", "100%"),
-        ("zoom-105", "zoom", "105%"),
-        ("zoom-110", "zoom", "110%"),
-        ("zoom-125", "zoom", "125%"),
-        ("zoom-150", "zoom", "150%"),
-        ("zoom-200", "zoom", "200%"),
+    // Not variants, despite the `@`: these declare an element *as* a
+    // container, where `@lg:` and `@container/main:` query one.
+    ("@container", "container-type", "inline-size"),
+    ("@container-normal", "container-type", "normal"),
+    ("backface-hidden", "backface-visibility", "hidden"),
+    ("backface-visible", "backface-visibility", "visible"),
+    ("box-border", "box-sizing", "border-box"),
+    ("box-content", "box-sizing", "content-box"),
+    ("flex-nowrap", "flex-wrap", "nowrap"),
+    ("flex-wrap-reverse", "flex-wrap", "wrap-reverse"),
+    ("flex-wrap", "flex-wrap", "wrap"),
+    ("italic", "font-style", "italic"),
+    ("not-italic", "font-style", "normal"),
+    ("isolate", "isolation", "isolate"),
+    ("isolation-auto", "isolation", "auto"),
+    ("pointer-events-auto", "pointer-events", "auto"),
+    ("pointer-events-none", "pointer-events", "none"),
+    ("collapse", "visibility", "collapse"),
+    ("invisible", "visibility", "hidden"),
+    ("visible", "visibility", "visible"),
+    ("align-baseline", "vertical-align", "baseline"),
+    ("align-bottom", "vertical-align", "bottom"),
+    ("align-middle", "vertical-align", "middle"),
+    ("align-sub", "vertical-align", "sub"),
+    ("align-super", "vertical-align", "super"),
+    ("align-text-bottom", "vertical-align", "text-bottom"),
+    ("align-text-top", "vertical-align", "text-top"),
+    ("align-top", "vertical-align", "top"),
+    ("appearance-auto", "appearance", "auto"),
+    ("appearance-none", "appearance", "none"),
+    ("auto-cols-auto", "grid-auto-columns", "auto"),
+    ("auto-cols-fr", "grid-auto-columns", "minmax(0, 1fr)"),
+    ("auto-cols-max", "grid-auto-columns", "max-content"),
+    ("auto-cols-min", "grid-auto-columns", "min-content"),
+    ("auto-rows-auto", "grid-auto-rows", "auto"),
+    ("auto-rows-fr", "grid-auto-rows", "minmax(0, 1fr)"),
+    ("auto-rows-max", "grid-auto-rows", "max-content"),
+    ("auto-rows-min", "grid-auto-rows", "min-content"),
+    ("bg-auto", "background-size", "auto"),
+    ("bg-bottom", "background-position", "bottom"),
+    ("bg-bottom-left", "background-position", "left bottom"),
+    ("bg-bottom-right", "background-position", "right bottom"),
+    ("bg-center", "background-position", "center"),
+    ("bg-clip-border", "background-clip", "border-box"),
+    ("bg-clip-content", "background-clip", "content-box"),
+    ("bg-clip-padding", "background-clip", "padding-box"),
+    ("bg-clip-text", "background-clip", "text"),
+    ("bg-contain", "background-size", "contain"),
+    ("bg-cover", "background-size", "cover"),
+    ("bg-fixed", "background-attachment", "fixed"),
+    ("bg-left", "background-position", "left"),
+    ("bg-local", "background-attachment", "local"),
+    ("bg-no-repeat", "background-repeat", "no-repeat"),
+    ("bg-origin-border", "background-origin", "border-box"),
+    ("bg-origin-content", "background-origin", "content-box"),
+    ("bg-origin-padding", "background-origin", "padding-box"),
+    ("bg-repeat", "background-repeat", "repeat"),
+    ("bg-repeat-round", "background-repeat", "round"),
+    ("bg-repeat-space", "background-repeat", "space"),
+    ("bg-repeat-x", "background-repeat", "repeat-x"),
+    ("bg-repeat-y", "background-repeat", "repeat-y"),
+    ("bg-right", "background-position", "right"),
+    ("bg-scroll", "background-attachment", "scroll"),
+    ("bg-top", "background-position", "top"),
+    ("bg-top-left", "background-position", "left top"),
+    ("bg-top-right", "background-position", "right top"),
+    ("border-collapse", "border-collapse", "collapse"),
+    ("border-separate", "border-collapse", "separate"),
+    ("break-after-all", "break-after", "all"),
+    ("break-after-auto", "break-after", "auto"),
+    ("break-after-avoid", "break-after", "avoid"),
+    ("break-after-avoid-page", "break-after", "avoid-page"),
+    ("break-after-column", "break-after", "column"),
+    ("break-after-left", "break-after", "left"),
+    ("break-after-page", "break-after", "page"),
+    ("break-after-right", "break-after", "right"),
+    ("break-all", "word-break", "break-all"),
+    ("break-before-all", "break-before", "all"),
+    ("break-before-auto", "break-before", "auto"),
+    ("break-before-avoid", "break-before", "avoid"),
+    ("break-before-avoid-page", "break-before", "avoid-page"),
+    ("break-before-column", "break-before", "column"),
+    ("break-before-left", "break-before", "left"),
+    ("break-before-page", "break-before", "page"),
+    ("break-before-right", "break-before", "right"),
+    ("break-inside-auto", "break-inside", "auto"),
+    ("break-inside-avoid", "break-inside", "avoid"),
+    ("break-inside-avoid-column", "break-inside", "avoid-column"),
+    ("break-inside-avoid-page", "break-inside", "avoid-page"),
+    ("break-keep", "word-break", "keep-all"),
+    ("caption-bottom", "caption-side", "bottom"),
+    ("caption-top", "caption-side", "top"),
+    ("clear-both", "clear", "both"),
+    ("clear-end", "clear", "inline-end"),
+    ("clear-left", "clear", "left"),
+    ("clear-none", "clear", "none"),
+    ("clear-right", "clear", "right"),
+    ("clear-start", "clear", "inline-start"),
+    ("contain-content", "contain", "content"),
+    ("contain-inline-size", "contain", "inline-size"),
+    ("contain-layout", "contain", "layout"),
+    ("contain-none", "contain", "none"),
+    ("contain-paint", "contain", "paint"),
+    ("contain-size", "contain", "size"),
+    ("contain-strict", "contain", "strict"),
+    ("contain-style", "contain", "style"),
+    (
+        "diagonal-fractions",
+        "font-variant-numeric",
+        "diagonal-fractions",
+    ),
+    ("field-sizing-content", "field-sizing", "content"),
+    ("field-sizing-fixed", "field-sizing", "fixed"),
+    ("float-end", "float", "inline-end"),
+    ("float-left", "float", "left"),
+    ("float-none", "float", "none"),
+    ("float-right", "float", "right"),
+    ("float-start", "float", "inline-start"),
+    // The percentage forms, spelled out rather than parsed: Tailwind
+    // defines exactly these ten, and accepting any number would
+    // compile `font-stretch-63%`, which it does not.
+    ("font-stretch-50%", "font-stretch", "50%"),
+    ("font-stretch-75%", "font-stretch", "75%"),
+    ("font-stretch-90%", "font-stretch", "90%"),
+    ("font-stretch-95%", "font-stretch", "95%"),
+    ("font-stretch-100%", "font-stretch", "100%"),
+    ("font-stretch-105%", "font-stretch", "105%"),
+    ("font-stretch-110%", "font-stretch", "110%"),
+    ("font-stretch-125%", "font-stretch", "125%"),
+    ("font-stretch-150%", "font-stretch", "150%"),
+    ("font-stretch-200%", "font-stretch", "200%"),
+    ("font-stretch-condensed", "font-stretch", "condensed"),
+    ("font-stretch-expanded", "font-stretch", "expanded"),
+    (
+        "font-stretch-extra-condensed",
+        "font-stretch",
+        "extra-condensed",
+    ),
+    (
+        "font-stretch-extra-expanded",
+        "font-stretch",
+        "extra-expanded",
+    ),
+    ("font-stretch-normal", "font-stretch", "normal"),
+    (
+        "font-stretch-semi-condensed",
+        "font-stretch",
+        "semi-condensed",
+    ),
+    (
+        "font-stretch-semi-expanded",
+        "font-stretch",
+        "semi-expanded",
+    ),
+    (
+        "font-stretch-ultra-condensed",
+        "font-stretch",
+        "ultra-condensed",
+    ),
+    (
+        "font-stretch-ultra-expanded",
+        "font-stretch",
+        "ultra-expanded",
+    ),
+    ("forced-color-adjust-auto", "forced-color-adjust", "auto"),
+    ("forced-color-adjust-none", "forced-color-adjust", "none"),
+    ("grid-flow-col", "grid-auto-flow", "column"),
+    ("grid-flow-col-dense", "grid-auto-flow", "column dense"),
+    ("grid-flow-dense", "grid-auto-flow", "dense"),
+    ("grid-flow-row", "grid-auto-flow", "row"),
+    ("grid-flow-row-dense", "grid-auto-flow", "row dense"),
+    ("justify-items-center", "justify-items", "center"),
+    ("justify-items-center-safe", "justify-items", "safe center"),
+    ("justify-items-end", "justify-items", "end"),
+    ("justify-items-end-safe", "justify-items", "safe end"),
+    ("justify-items-normal", "justify-items", "normal"),
+    ("justify-items-start", "justify-items", "start"),
+    ("justify-items-stretch", "justify-items", "stretch"),
+    ("justify-self-auto", "justify-self", "auto"),
+    ("justify-self-center", "justify-self", "center"),
+    ("justify-self-center-safe", "justify-self", "safe center"),
+    ("justify-self-end", "justify-self", "flex-end"),
+    ("justify-self-end-safe", "justify-self", "safe flex-end"),
+    ("justify-self-start", "justify-self", "flex-start"),
+    ("justify-self-stretch", "justify-self", "stretch"),
+    ("lining-nums", "font-variant-numeric", "lining-nums"),
+    ("list-decimal", "list-style-type", "decimal"),
+    ("list-disc", "list-style-type", "disc"),
+    ("list-image-none", "list-style-image", "none"),
+    ("list-inside", "list-style-position", "inside"),
+    ("list-none", "list-style-type", "none"),
+    ("list-outside", "list-style-position", "outside"),
+    ("normal-nums", "font-variant-numeric", "normal"),
+    ("object-bottom", "object-position", "bottom"),
+    ("object-bottom-left", "object-position", "left bottom"),
+    ("object-bottom-right", "object-position", "right bottom"),
+    ("object-center", "object-position", "center"),
+    ("object-left", "object-position", "left"),
+    ("object-right", "object-position", "right"),
+    ("object-top", "object-position", "top"),
+    ("object-top-left", "object-position", "left top"),
+    ("object-top-right", "object-position", "right top"),
+    ("oldstyle-nums", "font-variant-numeric", "oldstyle-nums"),
+    ("ordinal", "font-variant-numeric", "ordinal"),
+    ("overscroll-auto", "overscroll-behavior", "auto"),
+    ("overscroll-contain", "overscroll-behavior", "contain"),
+    ("overscroll-none", "overscroll-behavior", "none"),
+    ("overscroll-x-auto", "overscroll-behavior-x", "auto"),
+    ("overscroll-x-contain", "overscroll-behavior-x", "contain"),
+    ("overscroll-x-none", "overscroll-behavior-x", "none"),
+    ("overscroll-y-auto", "overscroll-behavior-y", "auto"),
+    ("overscroll-y-contain", "overscroll-behavior-y", "contain"),
+    ("overscroll-y-none", "overscroll-behavior-y", "none"),
+    ("perspective-distant", "perspective", "1200px"),
+    ("perspective-dramatic", "perspective", "100px"),
+    ("perspective-midrange", "perspective", "800px"),
+    ("perspective-near", "perspective", "300px"),
+    ("perspective-none", "perspective", "none"),
+    ("perspective-normal", "perspective", "500px"),
+    ("perspective-origin-bottom", "perspective-origin", "bottom"),
+    (
+        "perspective-origin-bottom-left",
+        "perspective-origin",
+        "0 100%",
+    ),
+    (
+        "perspective-origin-bottom-right",
+        "perspective-origin",
+        "100% 100%",
+    ),
+    ("perspective-origin-center", "perspective-origin", "center"),
+    ("perspective-origin-left", "perspective-origin", "0"),
+    ("perspective-origin-right", "perspective-origin", "100%"),
+    ("perspective-origin-top", "perspective-origin", "top"),
+    ("perspective-origin-top-left", "perspective-origin", "0 0"),
+    (
+        "perspective-origin-top-right",
+        "perspective-origin",
+        "100% 0",
+    ),
+    ("place-content-around", "place-content", "space-around"),
+    ("place-content-baseline", "place-content", "baseline"),
+    ("place-content-between", "place-content", "space-between"),
+    ("place-content-center", "place-content", "center"),
+    ("place-content-center-safe", "place-content", "safe center"),
+    ("place-content-end", "place-content", "end"),
+    ("place-content-end-safe", "place-content", "safe end"),
+    ("place-content-evenly", "place-content", "space-evenly"),
+    ("place-content-start", "place-content", "start"),
+    ("place-content-stretch", "place-content", "stretch"),
+    ("place-items-baseline", "place-items", "baseline"),
+    ("place-items-center", "place-items", "center"),
+    ("place-items-center-safe", "place-items", "safe center"),
+    ("place-items-end", "place-items", "end"),
+    ("place-items-end-safe", "place-items", "safe end"),
+    ("place-items-start", "place-items", "start"),
+    ("place-items-stretch", "place-items", "stretch"),
+    ("place-self-auto", "place-self", "auto"),
+    ("place-self-center", "place-self", "center"),
+    ("place-self-center-safe", "place-self", "safe center"),
+    ("place-self-end", "place-self", "end"),
+    ("place-self-end-safe", "place-self", "safe end"),
+    ("place-self-start", "place-self", "start"),
+    ("place-self-stretch", "place-self", "stretch"),
+    (
+        "proportional-nums",
+        "font-variant-numeric",
+        "proportional-nums",
+    ),
+    ("resize", "resize", "both"),
+    ("resize-none", "resize", "none"),
+    ("resize-x", "resize", "horizontal"),
+    ("resize-y", "resize", "vertical"),
+    ("scheme-dark", "color-scheme", "dark"),
+    ("scheme-light", "color-scheme", "light"),
+    ("scheme-light-dark", "color-scheme", "light dark"),
+    ("scheme-normal", "color-scheme", "normal"),
+    ("scheme-only-dark", "color-scheme", "only dark"),
+    ("scheme-only-light", "color-scheme", "only light"),
+    ("slashed-zero", "font-variant-numeric", "slashed-zero"),
+    ("snap-align-none", "scroll-snap-align", "none"),
+    ("snap-always", "scroll-snap-stop", "always"),
+    ("snap-center", "scroll-snap-align", "center"),
+    ("snap-end", "scroll-snap-align", "end"),
+    ("snap-normal", "scroll-snap-stop", "normal"),
+    ("snap-start", "scroll-snap-align", "start"),
+    (
+        "stacked-fractions",
+        "font-variant-numeric",
+        "stacked-fractions",
+    ),
+    ("tab-2", "tab-size", "2"),
+    ("tab-4", "tab-size", "4"),
+    ("tab-8", "tab-size", "8"),
+    ("table-auto", "table-layout", "auto"),
+    ("table-fixed", "table-layout", "fixed"),
+    ("tabular-nums", "font-variant-numeric", "tabular-nums"),
+    ("text-balance", "text-wrap", "balance"),
+    ("text-nowrap", "text-wrap", "nowrap"),
+    ("text-pretty", "text-wrap", "pretty"),
+    ("text-wrap", "text-wrap", "wrap"),
+    ("touch-auto", "touch-action", "auto"),
+    ("touch-manipulation", "touch-action", "manipulation"),
+    ("touch-none", "touch-action", "none"),
+    ("touch-pan-down", "touch-action", "pan-down"),
+    ("touch-pan-left", "touch-action", "pan-left"),
+    ("touch-pan-right", "touch-action", "pan-right"),
+    ("touch-pan-up", "touch-action", "pan-up"),
+    ("touch-pan-x", "touch-action", "pan-x"),
+    ("touch-pan-y", "touch-action", "pan-y"),
+    ("touch-pinch-zoom", "touch-action", "pinch-zoom"),
+    ("transform-3d", "transform-style", "preserve-3d"),
+    ("transform-border", "transform-box", "border-box"),
+    ("transform-content", "transform-box", "content-box"),
+    ("transform-fill", "transform-box", "fill-box"),
+    ("transform-flat", "transform-style", "flat"),
+    ("transform-stroke", "transform-box", "stroke-box"),
+    ("transform-view", "transform-box", "view-box"),
+    (
+        "transition-discrete",
+        "transition-behavior",
+        "allow-discrete",
+    ),
+    ("transition-normal", "transition-behavior", "normal"),
+    ("will-change-auto", "will-change", "auto"),
+    ("will-change-contents", "will-change", "contents"),
+    ("will-change-scroll", "will-change", "scroll-position"),
+    ("will-change-transform", "will-change", "transform"),
+    ("wrap-anywhere", "overflow-wrap", "anywhere"),
+    ("wrap-break-word", "overflow-wrap", "break-word"),
+    ("wrap-normal", "overflow-wrap", "normal"),
+    ("zoom-50", "zoom", "50%"),
+    ("zoom-75", "zoom", "75%"),
+    ("zoom-90", "zoom", "90%"),
+    ("zoom-95", "zoom", "95%"),
+    ("zoom-100", "zoom", "100%"),
+    ("zoom-105", "zoom", "105%"),
+    ("zoom-110", "zoom", "110%"),
+    ("zoom-125", "zoom", "125%"),
+    ("zoom-150", "zoom", "150%"),
+    ("zoom-200", "zoom", "200%"),
 ];
 
 /// `sr-only` / `not-sr-only`: visible to a screen reader, not to the eye.
@@ -2278,7 +2451,11 @@ fn parse_screen_reader_only(token: &str) -> Option<Vec<StyleProperty>> {
     };
     let margin = Dimension::Length(Length::Px(if visually_hidden { -1.0 } else { 0.0 }));
     let mut props = vec![
-        StyleProperty::Position(if visually_hidden { Position::Absolute } else { Position::Static }),
+        StyleProperty::Position(if visually_hidden {
+            Position::Absolute
+        } else {
+            Position::Static
+        }),
         StyleProperty::Width(size(1.0)),
         StyleProperty::Height(size(1.0)),
         StyleProperty::PaddingTop(Length::Px(0.0)),
@@ -2289,8 +2466,19 @@ fn parse_screen_reader_only(token: &str) -> Option<Vec<StyleProperty>> {
         StyleProperty::MarginRight(margin.clone()),
         StyleProperty::MarginBottom(margin.clone()),
         StyleProperty::MarginLeft(margin),
-        StyleProperty::Overflow(if visually_hidden { Overflow::Hidden } else { Overflow::Visible }),
-        StyleProperty::Keyword("clip-path", if visually_hidden { "inset(50%)" } else { "none" }),
+        StyleProperty::Overflow(if visually_hidden {
+            Overflow::Hidden
+        } else {
+            Overflow::Visible
+        }),
+        StyleProperty::Keyword(
+            "clip-path",
+            if visually_hidden {
+                "inset(50%)"
+            } else {
+                "none"
+            },
+        ),
         StyleProperty::WhiteSpace(if visually_hidden {
             WhiteSpace::NoWrap
         } else {
@@ -2324,7 +2512,13 @@ fn parse_screen_reader_only(token: &str) -> Option<Vec<StyleProperty>> {
 fn keyword_pair_utility(token: &str) -> Option<StyleProperty> {
     const PAIRS: &[(&str, &str, &str, &str, &str)] = &[
         ("hyphens-auto", "-webkit-hyphens", "auto", "hyphens", "auto"),
-        ("hyphens-manual", "-webkit-hyphens", "manual", "hyphens", "manual"),
+        (
+            "hyphens-manual",
+            "-webkit-hyphens",
+            "manual",
+            "hyphens",
+            "manual",
+        ),
         ("hyphens-none", "-webkit-hyphens", "none", "hyphens", "none"),
         (
             "antialiased",
@@ -2354,11 +2548,18 @@ fn keyword_pair_utility(token: &str) -> Option<StyleProperty> {
             "box-decoration-break",
             "slice",
         ),
-        ("break-normal", "overflow-wrap", "normal", "word-break", "normal"),
+        (
+            "break-normal",
+            "overflow-wrap",
+            "normal",
+            "word-break",
+            "normal",
+        ),
     ];
-    PAIRS.iter().find(|(name, ..)| *name == token).map(|(_, p1, v1, p2, v2)| {
-        StyleProperty::KeywordPair(p1, v1, p2, v2)
-    })
+    PAIRS
+        .iter()
+        .find(|(name, ..)| *name == token)
+        .map(|(_, p1, v1, p2, v2)| StyleProperty::KeywordPair(p1, v1, p2, v2))
 }
 
 /// `@container/main`: an element declared as a container, under a name.
@@ -2433,9 +2634,24 @@ fn parse_keyword_utility(token: &str) -> Option<StyleProperty> {
     /// CSS's blend modes. Shared by `mix-blend-*` and `bg-blend-*`, which
     /// take the same list applied to different things.
     const BLEND_MODES: &[&str] = &[
-        "normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge",
-        "color-burn", "hard-light", "soft-light", "difference", "exclusion", "hue", "saturation",
-        "color", "luminosity", "plus-darker", "plus-lighter",
+        "normal",
+        "multiply",
+        "screen",
+        "overlay",
+        "darken",
+        "lighten",
+        "color-dodge",
+        "color-burn",
+        "hard-light",
+        "soft-light",
+        "difference",
+        "exclusion",
+        "hue",
+        "saturation",
+        "color",
+        "luminosity",
+        "plus-darker",
+        "plus-lighter",
     ];
     if let Some(rest) = token.strip_prefix("mix-blend-") {
         return blend_mode(rest, BLEND_MODES).map(StyleProperty::MixBlendMode);
@@ -2448,9 +2664,22 @@ fn parse_keyword_utility(token: &str) -> Option<StyleProperty> {
     // `block` are typed because Native lowers them to constrained forms of
     // Yoga flex; `grid` is typed so Native can refuse it by name.
     const DISPLAYS: &[&str] = &[
-        "inline", "inline-block", "inline-grid", "inline-table", "flow-root", "list-item",
-        "table", "table-caption", "table-cell", "table-column", "table-column-group",
-        "table-footer-group", "table-header-group", "table-row", "table-row-group", "hidden",
+        "inline",
+        "inline-block",
+        "inline-grid",
+        "inline-table",
+        "flow-root",
+        "list-item",
+        "table",
+        "table-caption",
+        "table-cell",
+        "table-column",
+        "table-column-group",
+        "table-footer-group",
+        "table-header-group",
+        "table-row",
+        "table-row-group",
+        "hidden",
     ];
     if let Some(keyword) = DISPLAYS.iter().find(|k| **k == token) {
         // `hidden` is Tailwind's name for `display: none`, which Yoga does
@@ -2773,10 +3002,7 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     // are parsed by recursion rather than by a list of the combinations.
     // An inner variant Hozo does not know leaves `Always`, and the token
     // falls through to the unsupported-variant diagnostic whole.
-    for (prefix, wrap) in [
-        ("group-", true),
-        ("peer-", false),
-    ] {
+    for (prefix, wrap) in [("group-", true), ("peer-", false)] {
         if let Some(inner) = token.strip_prefix(prefix) {
             let (condition, tail) = parse_one_variant(inner);
             if condition.is_elemental() {
@@ -2828,7 +3054,10 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     // reads correctly on a device. `active:` is Tailwind's for the same
     // state, and refusing it would mean a Tailwind class that compiles
     // everywhere except here.
-    if let Some(rest) = token.strip_prefix("pressed:").or_else(|| token.strip_prefix("active:")) {
+    if let Some(rest) = token
+        .strip_prefix("pressed:")
+        .or_else(|| token.strip_prefix("active:"))
+    {
         return (Condition::Pressed, rest);
     }
     // One table rather than a branch each: these differ only in which
@@ -3014,7 +3243,12 @@ fn expand_shorthand(token: &str) -> Option<Vec<String>> {
         return None;
     }
     let prefix = &token[..token.len() - base.len()];
-    Some(CONTAINER.iter().map(|part| format!("{prefix}{part}")).collect())
+    Some(
+        CONTAINER
+            .iter()
+            .map(|part| format!("{prefix}{part}"))
+            .collect(),
+    )
 }
 
 /// Handles Tailwind's leading `-` once, for every family, by expanding the
@@ -3028,9 +3262,10 @@ fn expand_negatable(token: &str) -> Vec<StyleProperty> {
     match token.strip_prefix('-') {
         // A leading `-` on something that doesn't take one (`-p-4`) yields
         // nothing rather than an invented negative padding.
-        Some(positive) => {
-            expand_base_utility(positive).into_iter().map(negated).collect::<Option<Vec<_>>>()
-        }
+        Some(positive) => expand_base_utility(positive)
+            .into_iter()
+            .map(negated)
+            .collect::<Option<Vec<_>>>(),
         None => Some(expand_base_utility(token)),
     }
     .unwrap_or_default()
@@ -3145,7 +3380,9 @@ fn negated(prop: StyleProperty) -> Option<StyleProperty> {
         }
         StyleProperty::SpaceX(d) => StyleProperty::SpaceX(flip(d)?),
         StyleProperty::SpaceY(d) => StyleProperty::SpaceY(flip(d)?),
-        StyleProperty::ScrollMargin(edge, l) => StyleProperty::ScrollMargin(edge, negated_length(l)?),
+        StyleProperty::ScrollMargin(edge, l) => {
+            StyleProperty::ScrollMargin(edge, negated_length(l)?)
+        }
         StyleProperty::Rotate(a) => StyleProperty::Rotate(negated_angle(a)?),
         StyleProperty::ScaleX(s) => StyleProperty::ScaleX(negated_scale(s)?),
         StyleProperty::ScaleY(s) => StyleProperty::ScaleY(negated_scale(s)?),
@@ -3155,7 +3392,9 @@ fn negated(prop: StyleProperty) -> Option<StyleProperty> {
         StyleProperty::RotateZ(a) => StyleProperty::RotateZ(negated_angle(a)?),
         StyleProperty::SkewX(a) => StyleProperty::SkewX(negated_angle(a)?),
         StyleProperty::SkewY(a) => StyleProperty::SkewY(negated_angle(a)?),
-        StyleProperty::MaskSlotArgument(slot, a) => StyleProperty::MaskSlotArgument(slot, negated_angle(a)?),
+        StyleProperty::MaskSlotArgument(slot, a) => {
+            StyleProperty::MaskSlotArgument(slot, negated_angle(a)?)
+        }
         StyleProperty::Gradient(kind, prelude) => {
             StyleProperty::Gradient(kind, negated_prelude(&prelude)?)
         }
@@ -3208,7 +3447,10 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
     }
     if let Some(rest) = token.strip_prefix("py-") {
         if let Some(v) = parse_spacing_suffix(rest) {
-            return vec![StyleProperty::PaddingTop(v.clone()), StyleProperty::PaddingBottom(v)];
+            return vec![
+                StyleProperty::PaddingTop(v.clone()),
+                StyleProperty::PaddingBottom(v),
+            ];
         }
     }
     if let Some(rest) = token.strip_prefix("p-") {
@@ -3223,12 +3465,18 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
     }
     if let Some(rest) = token.strip_prefix("mx-") {
         if let Some(v) = parse_margin_suffix(rest) {
-            return vec![StyleProperty::MarginInlineStart(v.clone()), StyleProperty::MarginInlineEnd(v)];
+            return vec![
+                StyleProperty::MarginInlineStart(v.clone()),
+                StyleProperty::MarginInlineEnd(v),
+            ];
         }
     }
     if let Some(rest) = token.strip_prefix("my-") {
         if let Some(v) = parse_margin_suffix(rest) {
-            return vec![StyleProperty::MarginTop(v.clone()), StyleProperty::MarginBottom(v)];
+            return vec![
+                StyleProperty::MarginTop(v.clone()),
+                StyleProperty::MarginBottom(v),
+            ];
         }
     }
     if let Some(rest) = token.strip_prefix("m-") {
@@ -3394,7 +3642,10 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
         }
         return vec![
             StyleProperty::TransitionProperty(properties.to_string()),
-            StyleProperty::TransitionTimingFunction(DEFAULT_TRANSITION_TIMING.to_string(), Origin::Default),
+            StyleProperty::TransitionTimingFunction(
+                DEFAULT_TRANSITION_TIMING.to_string(),
+                Origin::Default,
+            ),
             StyleProperty::TransitionDuration(DEFAULT_TRANSITION_DURATION_MS, Origin::Default),
         ];
     }
@@ -3423,7 +3674,10 @@ fn expand_base_utility(token: &str) -> Vec<StyleProperty> {
         // This is a fallback, not an explicit leading. Preserve that fact
         // through condition grouping so responsive font sizes cannot erase
         // an authored leading on either backend (#939).
-        return vec![StyleProperty::FontSize(size), StyleProperty::LineHeight(LineHeight::FontDefault(line_height))];
+        return vec![
+            StyleProperty::FontSize(size),
+            StyleProperty::LineHeight(LineHeight::FontDefault(line_height)),
+        ];
     }
 
     parse_utility(token).into_iter().collect()
@@ -3548,10 +3802,7 @@ mod tests {
 
     #[test]
     fn visited_is_a_plain_pseudo_class_and_composes_every_way() {
-        assert_eq!(
-            expand_utility("visited:text-red-500").0,
-            Condition::Visited
-        );
+        assert_eq!(expand_utility("visited:text-red-500").0, Condition::Visited);
         // Unlike `starting:`, this one is a question about an element, so
         // all four wrappers take it -- Tailwind emits a rule for each.
         for token in [
@@ -3566,7 +3817,10 @@ mod tests {
 
     #[test]
     fn parses_opacity_scale() {
-        assert_eq!(expand_utility("opacity-50"), (Condition::Always, vec![StyleProperty::Opacity(0.5)]));
+        assert_eq!(
+            expand_utility("opacity-50"),
+            (Condition::Always, vec![StyleProperty::Opacity(0.5)])
+        );
         assert_eq!(
             expand_utility("disabled:opacity-50"),
             (Condition::Disabled, vec![StyleProperty::Opacity(0.5)])
@@ -3577,7 +3831,10 @@ mod tests {
     fn expands_login_example_utilities() {
         assert_eq!(
             expand_utility("flex-1"),
-            (Condition::Always, vec![StyleProperty::Flex(FlexShorthand::Grow(1.0))])
+            (
+                Condition::Always,
+                vec![StyleProperty::Flex(FlexShorthand::Grow(1.0))]
+            )
         );
         assert_eq!(
             expand_utility("p-6"),
@@ -3605,35 +3862,60 @@ mod tests {
             expand_utility("text-xl"),
             (
                 Condition::Always,
-                vec![StyleProperty::FontSize(Length::Px(20.0)), StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(28.0)))]
+                vec![
+                    StyleProperty::FontSize(Length::Px(20.0)),
+                    StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(28.0)))
+                ]
             )
         );
         assert_eq!(
             expand_utility("font-bold"),
-            (Condition::Always, vec![StyleProperty::FontWeight(FontWeight(700))])
+            (
+                Condition::Always,
+                vec![StyleProperty::FontWeight(FontWeight(700))]
+            )
         );
         assert_eq!(
             expand_utility("bg-blue-500"),
-            (Condition::Always, vec![StyleProperty::BackgroundColor(Color::Token("blue-500".to_string()))])
+            (
+                Condition::Always,
+                vec![StyleProperty::BackgroundColor(Color::Token(
+                    "blue-500".to_string()
+                ))]
+            )
         );
-        assert_eq!(expand_utility("unknown-utility"), (Condition::Always, Vec::<StyleProperty>::new()));
+        assert_eq!(
+            expand_utility("unknown-utility"),
+            (Condition::Always, Vec::<StyleProperty>::new())
+        );
     }
 
     #[test]
     fn recognizes_variant_prefixes() {
         assert_eq!(
             expand_utility("hover:bg-blue-500"),
-            (Condition::Hover, vec![StyleProperty::BackgroundColor(Color::Token("blue-500".to_string()))])
+            (
+                Condition::Hover,
+                vec![StyleProperty::BackgroundColor(Color::Token(
+                    "blue-500".to_string()
+                ))]
+            )
         );
         assert_eq!(
             expand_utility("focus:font-bold"),
-            (Condition::Focus, vec![StyleProperty::FontWeight(FontWeight(700))])
+            (
+                Condition::Focus,
+                vec![StyleProperty::FontWeight(FontWeight(700))]
+            )
         );
         assert_eq!(
             expand_utility("disabled:text-xl"),
             (
                 Condition::Disabled,
-                vec![StyleProperty::FontSize(Length::Px(20.0)), StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(28.0)))]
+                vec![
+                    StyleProperty::FontSize(Length::Px(20.0)),
+                    StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(28.0)))
+                ]
             )
         );
         assert_eq!(
@@ -3649,11 +3931,19 @@ mod tests {
     fn parses_position_and_inset() {
         assert_eq!(
             expand_utility("absolute"),
-            (Condition::Always, vec![StyleProperty::Position(Position::Absolute)])
+            (
+                Condition::Always,
+                vec![StyleProperty::Position(Position::Absolute)]
+            )
         );
         assert_eq!(
             expand_utility("top-4"),
-            (Condition::Always, vec![StyleProperty::InsetTop(Dimension::Length(Length::Spacing(4.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::InsetTop(Dimension::Length(Length::Spacing(
+                    4.0
+                )))]
+            )
         );
         assert_eq!(
             expand_utility("inset-0"),
@@ -3686,13 +3976,19 @@ mod tests {
     fn parses_display_including_the_web_only_values() {
         assert_eq!(
             expand_utility("hidden"),
-            (Condition::Always, vec![StyleProperty::Display(Display::None)])
+            (
+                Condition::Always,
+                vec![StyleProperty::Display(Display::None)]
+            )
         );
         // Accepted at parse time even though Native can't lower it -- the
         // Web backend can, and hozo_native raises a build error naming it.
         assert_eq!(
             expand_utility("grid"),
-            (Condition::Always, vec![StyleProperty::Display(Display::Grid)])
+            (
+                Condition::Always,
+                vec![StyleProperty::Display(Display::Grid)]
+            )
         );
         assert!(!Display::Grid.is_supported_on_native());
         assert!(Display::InlineFlex.is_supported_on_native());
@@ -3707,24 +4003,43 @@ mod tests {
         );
         assert_eq!(
             expand_utility("min-w-0"),
-            (Condition::Always, vec![StyleProperty::MinWidth(Dimension::Length(Length::Spacing(0.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::MinWidth(Dimension::Length(Length::Spacing(
+                    0.0
+                )))]
+            )
         );
         // max-w-* uses Tailwind's named container scale, not the spacing one.
         assert_eq!(
             expand_utility("max-w-md"),
-            (Condition::Always, vec![StyleProperty::MaxWidth(Dimension::Length(Length::Px(448.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::MaxWidth(Dimension::Length(Length::Px(
+                    448.0
+                )))]
+            )
         );
         assert_eq!(
             expand_utility("self-center"),
-            (Condition::Always, vec![StyleProperty::AlignSelf(AlignSelf::Center)])
+            (
+                Condition::Always,
+                vec![StyleProperty::AlignSelf(AlignSelf::Center)]
+            )
         );
         assert_eq!(
             expand_utility("content-center"),
-            (Condition::Always, vec![StyleProperty::AlignContent(Justify::Center)])
+            (
+                Condition::Always,
+                vec![StyleProperty::AlignContent(Justify::Center)]
+            )
         );
         assert_eq!(
             expand_utility("uppercase"),
-            (Condition::Always, vec![StyleProperty::TextTransform(TextTransform::Uppercase)])
+            (
+                Condition::Always,
+                vec![StyleProperty::TextTransform(TextTransform::Uppercase)]
+            )
         );
     }
 
@@ -3742,7 +4057,10 @@ mod tests {
         );
         assert_eq!(
             expand_utility("mt-auto"),
-            (Condition::Always, vec![StyleProperty::MarginTop(Dimension::Auto)])
+            (
+                Condition::Always,
+                vec![StyleProperty::MarginTop(Dimension::Auto)]
+            )
         );
         // Padding has no `auto` in CSS, so this stays unrecognized rather
         // than being invented.
@@ -3757,7 +4075,10 @@ mod tests {
         // (`hozo_native::viewport_object`). A pixel value baked in at
         // compile time would be wrong the moment the device rotated.
         let (_, props) = expand_utility("h-screen");
-        assert_eq!(props, vec![StyleProperty::Height(Dimension::ViewportHeight(100.0))]);
+        assert_eq!(
+            props,
+            vec![StyleProperty::Height(Dimension::ViewportHeight(100.0))]
+        );
         assert!(props[0].unsupported_on_native().is_none());
     }
 
@@ -3767,7 +4088,10 @@ mod tests {
             expand_utility("blur-sm"),
             (
                 Condition::Always,
-                vec![StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".to_string())]
+                vec![StyleProperty::Filter(
+                    FilterFunction::Blur,
+                    "blur(8px)".to_string()
+                )]
             )
         );
         assert_eq!(
@@ -3778,7 +4102,10 @@ mod tests {
         );
         assert_eq!(
             expand_utility("rotate-45"),
-            (Condition::Always, vec![StyleProperty::Rotate(Angle::Deg(45.0))])
+            (
+                Condition::Always,
+                vec![StyleProperty::Rotate(Angle::Deg(45.0))]
+            )
         );
         // Tailwind writes a percentage and the IR keeps it as authored.
         // Bare `scale-*` sets all three axes, so `scale-95 scale-x-50` can
@@ -3796,7 +4123,12 @@ mod tests {
         );
         assert_eq!(
             expand_utility("translate-x-2"),
-            (Condition::Always, vec![StyleProperty::TranslateX(Dimension::Length(Length::Spacing(2.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::TranslateX(Dimension::Length(
+                    Length::Spacing(2.0)
+                ))]
+            )
         );
     }
 
@@ -3811,7 +4143,10 @@ mod tests {
             expand_utility("accent-auto").1,
             vec![StyleProperty::AccentColor(Color::Keyword("auto"))]
         );
-        assert_eq!(expand_utility("fill-none").1, vec![StyleProperty::Fill(Color::Keyword("none"))]);
+        assert_eq!(
+            expand_utility("fill-none").1,
+            vec![StyleProperty::Fill(Color::Keyword("none"))]
+        );
     }
 
     #[test]
@@ -3831,7 +4166,9 @@ mod tests {
         // Widths only: a zero width needs no style to render nothing, and
         // Tailwind writes none.
         assert!(props.contains(&StyleProperty::BorderTopWidth(Length::Px(0.0))));
-        assert!(!props.iter().any(|p| matches!(p, StyleProperty::BorderTopStyle(_))));
+        assert!(!props
+            .iter()
+            .any(|p| matches!(p, StyleProperty::BorderTopStyle(_))));
 
         let (_, props) = expand_utility("not-sr-only");
         assert!(props.contains(&StyleProperty::Position(Position::Static)));
@@ -3840,8 +4177,14 @@ mod tests {
 
     #[test]
     fn line_clamp_is_one_property_because_react_native_has_one_prop() {
-        assert_eq!(expand_utility("line-clamp-3").1, vec![StyleProperty::LineClamp(Some(Clamp::Lines(3)))]);
-        assert_eq!(expand_utility("line-clamp-none").1, vec![StyleProperty::LineClamp(None)]);
+        assert_eq!(
+            expand_utility("line-clamp-3").1,
+            vec![StyleProperty::LineClamp(Some(Clamp::Lines(3)))]
+        );
+        assert_eq!(
+            expand_utility("line-clamp-none").1,
+            vec![StyleProperty::LineClamp(None)]
+        );
     }
 
     #[test]
@@ -3849,8 +4192,12 @@ mod tests {
         // React Native has `static` and means what CSS means by it. It was
         // refused as part of the fixed/sticky group until the audit
         // objected.
-        assert!(StyleProperty::Position(Position::Static).unsupported_on_native().is_none());
-        assert!(StyleProperty::Position(Position::Css("sticky")).unsupported_on_native().is_some());
+        assert!(StyleProperty::Position(Position::Static)
+            .unsupported_on_native()
+            .is_none());
+        assert!(StyleProperty::Position(Position::Css("sticky"))
+            .unsupported_on_native()
+            .is_some());
     }
 
     #[test]
@@ -3868,7 +4215,9 @@ mod tests {
             expand_utility("self-stretch").1,
             vec![StyleProperty::AlignSelf(AlignSelf::Stretch)]
         );
-        assert!(StyleProperty::AlignItems(Align::Baseline).unsupported_on_native().is_none());
+        assert!(StyleProperty::AlignItems(Align::Baseline)
+            .unsupported_on_native()
+            .is_none());
 
         // `safe` is an overflow-alignment prefix, and the flexbox spelling
         // of the edge comes with it: `safe flex-end`, not `safe end`.
@@ -3896,11 +4245,15 @@ mod tests {
         // multiplied everything by four, which the oracle caught.
         assert_eq!(
             expand_utility("underline-offset-4").1,
-            vec![StyleProperty::TextUnderlineOffset(Dimension::Length(Length::Px(4.0)))]
+            vec![StyleProperty::TextUnderlineOffset(Dimension::Length(
+                Length::Px(4.0)
+            ))]
         );
         assert_eq!(
             expand_utility("-underline-offset-2").1,
-            vec![StyleProperty::TextUnderlineOffset(Dimension::Length(Length::Px(-2.0)))]
+            vec![StyleProperty::TextUnderlineOffset(Dimension::Length(
+                Length::Px(-2.0)
+            ))]
         );
         assert_eq!(
             expand_utility("underline-offset-auto").1,
@@ -3979,7 +4332,11 @@ mod tests {
         // `scroll-behavior` wasn't on the list I wrote by hand.
         for (token, property, _) in KEYWORD_UTILITIES {
             let (_, props) = expand_utility(token);
-            assert_eq!(props.len(), 1, "{token} should be one declaration: {props:?}");
+            assert_eq!(
+                props.len(),
+                1,
+                "{token} should be one declaration: {props:?}"
+            );
             assert!(
                 matches!(props[0], StyleProperty::Keyword(p, _) if p == *property),
                 "{token} is shadowed by a modelled utility: {:?}",
@@ -3992,7 +4349,10 @@ mod tests {
     fn named_font_families_use_the_shared_owned_property() {
         for token in ["font-sans", "font-serif", "font-mono"] {
             let (_, props) = expand_utility(token);
-            assert!(matches!(props.as_slice(), [StyleProperty::FontFamily(_)]), "{token}: {props:?}");
+            assert!(
+                matches!(props.as_slice(), [StyleProperty::FontFamily(_)]),
+                "{token}: {props:?}"
+            );
         }
     }
 
@@ -4004,11 +4364,15 @@ mod tests {
         // CSS text is carried through and React Native refuses it.
         assert_eq!(
             expand_utility("h-fit").1,
-            vec![StyleProperty::Height(Dimension::Css("fit-content".to_string()))]
+            vec![StyleProperty::Height(Dimension::Css(
+                "fit-content".to_string()
+            ))]
         );
         assert_eq!(
             expand_utility("max-w-dvh").1,
-            vec![StyleProperty::MaxWidth(Dimension::Css("100dvh".to_string()))]
+            vec![StyleProperty::MaxWidth(Dimension::Css(
+                "100dvh".to_string()
+            ))]
         );
         assert!(!Dimension::Css("fit-content".to_string()).is_supported_on_native());
         // `h-screen` is the one viewport size that *is* answerable on
@@ -4045,7 +4409,10 @@ mod tests {
         // `hidden` is Tailwind's name for `display: none`, which Yoga does
         // have -- so it must not land in the grouped keywords that get
         // refused on Native.
-        assert_eq!(expand_utility("hidden").1, vec![StyleProperty::Display(Display::None)]);
+        assert_eq!(
+            expand_utility("hidden").1,
+            vec![StyleProperty::Display(Display::None)]
+        );
         assert!(Display::None.is_supported_on_native());
         assert!(!Display::Css("inline-block").is_supported_on_native());
     }
@@ -4058,11 +4425,17 @@ mod tests {
         // are separate.
         assert_eq!(
             expand_utility("grayscale").1,
-            vec![StyleProperty::Filter(FilterFunction::Grayscale, "grayscale(100%)".to_string())]
+            vec![StyleProperty::Filter(
+                FilterFunction::Grayscale,
+                "grayscale(100%)".to_string()
+            )]
         );
         assert_eq!(
             expand_utility("hue-rotate-15").1,
-            vec![StyleProperty::Filter(FilterFunction::HueRotate, "hue-rotate(15deg)".to_string())]
+            vec![StyleProperty::Filter(
+                FilterFunction::HueRotate,
+                "hue-rotate(15deg)".to_string()
+            )]
         );
         // The `-none` form clears one slot; Tailwind writes an empty
         // register for it, so it contributes nothing to the chain.
@@ -4080,15 +4453,24 @@ mod tests {
         // element, and an element can carry both.
         assert_eq!(
             expand_utility("backdrop-blur-md").1,
-            vec![StyleProperty::BackdropFilter(FilterFunction::Blur, "blur(12px)".to_string())]
+            vec![StyleProperty::BackdropFilter(
+                FilterFunction::Blur,
+                "blur(12px)".to_string()
+            )]
         );
         // `opacity()` is a filter function only in its backdrop form --
         // bare `opacity-50` is the CSS property.
         assert_eq!(
             expand_utility("backdrop-opacity-50").1,
-            vec![StyleProperty::BackdropFilter(FilterFunction::Opacity, "opacity(50%)".to_string())]
+            vec![StyleProperty::BackdropFilter(
+                FilterFunction::Opacity,
+                "opacity(50%)".to_string()
+            )]
         );
-        assert_eq!(expand_utility("opacity-50").1, vec![StyleProperty::Opacity(0.5)]);
+        assert_eq!(
+            expand_utility("opacity-50").1,
+            vec![StyleProperty::Opacity(0.5)]
+        );
     }
 
     #[test]
@@ -4106,7 +4488,10 @@ mod tests {
         // a value.
         assert_eq!(
             expand_utility("scale-z-50").1,
-            vec![StyleProperty::ScaleZ(Scale::Percent(50.0)), StyleProperty::Scale3d]
+            vec![
+                StyleProperty::ScaleZ(Scale::Percent(50.0)),
+                StyleProperty::Scale3d
+            ]
         );
         assert_eq!(expand_utility("scale-3d").1, vec![StyleProperty::Scale3d]);
 
@@ -4133,20 +4518,39 @@ mod tests {
     fn negated_transforms_are_recognized() {
         assert_eq!(
             expand_utility("-rotate-45"),
-            (Condition::Always, vec![StyleProperty::Rotate(Angle::Deg(-45.0))])
+            (
+                Condition::Always,
+                vec![StyleProperty::Rotate(Angle::Deg(-45.0))]
+            )
         );
         assert_eq!(
             expand_utility("-translate-y-2"),
-            (Condition::Always, vec![StyleProperty::TranslateY(Dimension::Length(Length::Spacing(-2.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::TranslateY(Dimension::Length(
+                    Length::Spacing(-2.0)
+                ))]
+            )
         );
         assert_eq!(
             expand_utility("-translate-z-2"),
-            (Condition::Always, vec![StyleProperty::TranslateZ(Dimension::Length(Length::Spacing(-2.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::TranslateZ(Dimension::Length(
+                    Length::Spacing(-2.0)
+                ))]
+            )
         );
-        assert_eq!(expand_utility("-z-10"), (Condition::Always, vec![StyleProperty::ZIndex(Some(-10))]));
+        assert_eq!(
+            expand_utility("-z-10"),
+            (Condition::Always, vec![StyleProperty::ZIndex(Some(-10))])
+        );
         assert_eq!(
             expand_utility("-outline-offset-2"),
-            (Condition::Always, vec![StyleProperty::OutlineOffset(Length::Px(-2.0))])
+            (
+                Condition::Always,
+                vec![StyleProperty::OutlineOffset(Length::Px(-2.0))]
+            )
         );
     }
 
@@ -4158,7 +4562,14 @@ mod tests {
         // structurally could not catch: a candidate Tailwind emits no rule
         // for isn't in the catalogue to compare against.
         let scale = Dimension::Length(Length::Px(448.0)); // --container-md
-        for token in ["w-md", "min-w-md", "max-w-md", "basis-md", "inline-md", "max-inline-md"] {
+        for token in [
+            "w-md",
+            "min-w-md",
+            "max-w-md",
+            "basis-md",
+            "inline-md",
+            "max-inline-md",
+        ] {
             let (_, props) = expand_utility(token);
             assert_eq!(props.len(), 1, "{token}: {props:?}");
             assert!(
@@ -4175,42 +4586,61 @@ mod tests {
             );
         }
         for token in ["h-md", "max-h-md", "min-h-2xl", "block-md", "max-block-md"] {
-            assert_eq!(expand_utility(token), (Condition::Always, vec![]), "{token}");
+            assert_eq!(
+                expand_utility(token),
+                (Condition::Always, vec![]),
+                "{token}"
+            );
         }
     }
 
     #[test]
     fn order_cursor_and_columns_are_plain_tables() {
-        assert_eq!(expand_utility("order-3"), (Condition::Always, vec![StyleProperty::Order(3)]));
+        assert_eq!(
+            expand_utility("order-3"),
+            (Condition::Always, vec![StyleProperty::Order(3)])
+        );
         // Tailwind's own sentinels, not CSS keywords: `order` has none, so
         // "first" is a number far enough out that nothing outranks it.
         assert_eq!(
             expand_utility("order-first"),
             (Condition::Always, vec![StyleProperty::Order(-9999)])
         );
-        assert_eq!(expand_utility("-order-3"), (Condition::Always, vec![StyleProperty::Order(-3)]));
+        assert_eq!(
+            expand_utility("-order-3"),
+            (Condition::Always, vec![StyleProperty::Order(-3)])
+        );
 
         assert_eq!(
             expand_utility("cursor-pointer"),
-            (Condition::Always, vec![StyleProperty::Cursor("pointer".to_string())])
+            (
+                Condition::Always,
+                vec![StyleProperty::Cursor("pointer".to_string())]
+            )
         );
         // The keyword list decides which names are utilities at all --
         // passing anything through would compile to CSS the browser drops.
-        assert_eq!(expand_utility("cursor-nonsense"), (Condition::Always, vec![]));
+        assert_eq!(
+            expand_utility("cursor-nonsense"),
+            (Condition::Always, vec![])
+        );
 
         // A count and a width mean opposite things, so the two forms stay
         // distinguishable in the IR.
         assert_eq!(
             expand_utility("columns-3"),
-            (Condition::Always, vec![StyleProperty::Columns(ColumnCount::Count(3))])
+            (
+                Condition::Always,
+                vec![StyleProperty::Columns(ColumnCount::Count(3))]
+            )
         );
         assert_eq!(
             expand_utility("columns-md"),
             (
                 Condition::Always,
-                vec![StyleProperty::Columns(ColumnCount::Width(Dimension::Length(Length::Px(
-                    448.0
-                ))))]
+                vec![StyleProperty::Columns(ColumnCount::Width(
+                    Dimension::Length(Length::Px(448.0))
+                ))]
             )
         );
     }
@@ -4222,24 +4652,45 @@ mod tests {
         // which side "start" is isn't known until runtime.
         assert_eq!(
             expand_utility("ps-4"),
-            (Condition::Always, vec![StyleProperty::PaddingInlineStart(Length::Spacing(4.0))])
+            (
+                Condition::Always,
+                vec![StyleProperty::PaddingInlineStart(Length::Spacing(4.0))]
+            )
         );
         assert_eq!(
             expand_utility("me-2"),
-            (Condition::Always, vec![StyleProperty::MarginInlineEnd(Dimension::Length(Length::Spacing(2.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::MarginInlineEnd(Dimension::Length(
+                    Length::Spacing(2.0)
+                ))]
+            )
         );
         assert_eq!(
             expand_utility("start-2"),
-            (Condition::Always, vec![StyleProperty::InsetInlineStart(Dimension::Length(Length::Spacing(2.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::InsetInlineStart(Dimension::Length(
+                    Length::Spacing(2.0)
+                ))]
+            )
         );
         // The physical ones stay physical -- Tailwind has both families.
         assert_eq!(
             expand_utility("pl-4"),
-            (Condition::Always, vec![StyleProperty::PaddingLeft(Length::Spacing(4.0))])
+            (
+                Condition::Always,
+                vec![StyleProperty::PaddingLeft(Length::Spacing(4.0))]
+            )
         );
         assert_eq!(
             expand_utility("left-2"),
-            (Condition::Always, vec![StyleProperty::InsetLeft(Dimension::Length(Length::Spacing(2.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::InsetLeft(Dimension::Length(
+                    Length::Spacing(2.0)
+                ))]
+            )
         );
     }
 
@@ -4247,14 +4698,26 @@ mod tests {
     fn mask_keyword_utilities_map_to_their_own_property() {
         // The family gives no hint from the name which property a keyword
         // belongs to, which is why the parser is a flat table.
-        assert_eq!(expand_utility("mask-center").1, vec![StyleProperty::MaskPosition("center")]);
-        assert_eq!(expand_utility("mask-cover").1, vec![StyleProperty::MaskSize("cover")]);
-        assert_eq!(expand_utility("mask-alpha").1, vec![StyleProperty::MaskMode("alpha")]);
+        assert_eq!(
+            expand_utility("mask-center").1,
+            vec![StyleProperty::MaskPosition("center")]
+        );
+        assert_eq!(
+            expand_utility("mask-cover").1,
+            vec![StyleProperty::MaskSize("cover")]
+        );
+        assert_eq!(
+            expand_utility("mask-alpha").1,
+            vec![StyleProperty::MaskMode("alpha")]
+        );
         assert_eq!(
             expand_utility("mask-clip-content").1,
             vec![StyleProperty::MaskClip("content-box")]
         );
-        assert_eq!(expand_utility("mask-none").1, vec![StyleProperty::MaskImageNone]);
+        assert_eq!(
+            expand_utility("mask-none").1,
+            vec![StyleProperty::MaskImageNone]
+        );
     }
 
     #[test]
@@ -4264,13 +4727,19 @@ mod tests {
         // parser, which has never heard of it.
         assert_eq!(
             expand_utility("md:hover:flex").0,
-            Condition::All(vec![Condition::Responsive(Breakpoint::Md), Condition::Hover])
+            Condition::All(vec![
+                Condition::Responsive(Breakpoint::Md),
+                Condition::Hover
+            ])
         );
         // Written order is kept, because it is the order the at-rules nest
         // in and Tailwind nests them the same way.
         assert_eq!(
             expand_utility("hover:md:flex").0,
-            Condition::All(vec![Condition::Hover, Condition::Responsive(Breakpoint::Md)])
+            Condition::All(vec![
+                Condition::Hover,
+                Condition::Responsive(Breakpoint::Md)
+            ])
         );
         assert_eq!(
             expand_utility("md:first:last:flex").0,
@@ -4290,7 +4759,10 @@ mod tests {
         // Rather than being skipped: skipping it would apply the style
         // unconditionally, which is a wrong answer where nothing is an
         // honest gap. The colon may also belong to the value.
-        assert_eq!(expand_utility("supports-grid:flex").1, Vec::<StyleProperty>::new());
+        assert_eq!(
+            expand_utility("supports-grid:flex").1,
+            Vec::<StyleProperty>::new()
+        );
     }
 
     #[test]
@@ -4298,7 +4770,10 @@ mod tests {
         let groups = expand_class("container");
         assert_eq!(groups.len(), 6);
         assert_eq!(groups[0].0, Condition::Always);
-        assert_eq!(groups[0].1, vec![StyleProperty::Width(Dimension::Percent(100.0))]);
+        assert_eq!(
+            groups[0].1,
+            vec![StyleProperty::Width(Dimension::Percent(100.0))]
+        );
         assert_eq!(groups[1].0, Condition::Responsive(Breakpoint::Sm));
         assert_eq!(
             groups[1].1,
@@ -4321,7 +4796,10 @@ mod tests {
     #[test]
     fn the_variants_tailwind_spells_differently() {
         assert_eq!(expand_utility("last:flex").0, Condition::LastChild);
-        assert_eq!(expand_utility("focus-visible:flex").0, Condition::FocusVisible);
+        assert_eq!(
+            expand_utility("focus-visible:flex").0,
+            Condition::FocusVisible
+        );
         // Hozo's own name and Tailwind's for the same state.
         assert_eq!(expand_utility("active:flex").0, Condition::Pressed);
         assert_eq!(expand_utility("pressed:flex").0, Condition::Pressed);
@@ -4334,25 +4812,40 @@ mod tests {
         // don't go through grey.
         assert_eq!(
             expand_utility("bg-linear-to-r").1,
-            vec![StyleProperty::Gradient(GradientKind::Linear, "to right in oklab".to_string())]
+            vec![StyleProperty::Gradient(
+                GradientKind::Linear,
+                "to right in oklab".to_string()
+            )]
         );
         assert_eq!(
             expand_utility("bg-linear-45").1,
-            vec![StyleProperty::Gradient(GradientKind::Linear, "45deg in oklab".to_string())]
+            vec![StyleProperty::Gradient(
+                GradientKind::Linear,
+                "45deg in oklab".to_string()
+            )]
         );
         assert_eq!(
             expand_utility("bg-conic-90").1,
-            vec![StyleProperty::Gradient(GradientKind::Conic, "from 90deg in oklab".to_string())]
+            vec![StyleProperty::Gradient(
+                GradientKind::Conic,
+                "from 90deg in oklab".to_string()
+            )]
         );
         // No direction at all, so the prelude is only the interpolation.
         assert_eq!(
             expand_utility("bg-radial").1,
-            vec![StyleProperty::Gradient(GradientKind::Radial, "in oklab".to_string())]
+            vec![StyleProperty::Gradient(
+                GradientKind::Radial,
+                "in oklab".to_string()
+            )]
         );
         // The modifier replaces the space; a hue method brings one with it.
         assert_eq!(
             expand_utility("bg-linear-to-r/srgb").1,
-            vec![StyleProperty::Gradient(GradientKind::Linear, "to right in srgb".to_string())]
+            vec![StyleProperty::Gradient(
+                GradientKind::Linear,
+                "to right in srgb".to_string()
+            )]
         );
         assert_eq!(
             expand_utility("bg-linear-to-r/longer").1,
@@ -4391,7 +4884,9 @@ mod tests {
         );
         assert_eq!(
             expand_utility("ring-offset-white").1,
-            vec![StyleProperty::RingOffsetColor(Color::Token("white".to_string()))]
+            vec![StyleProperty::RingOffsetColor(Color::Token(
+                "white".to_string()
+            ))]
         );
     }
 
@@ -4399,7 +4894,9 @@ mod tests {
     fn a_shadow_suffix_the_size_table_declines_is_a_colour() {
         assert_eq!(
             expand_utility("shadow-blue-500").1,
-            vec![StyleProperty::ShadowColor(Color::Token("blue-500".to_string()))]
+            vec![StyleProperty::ShadowColor(Color::Token(
+                "blue-500".to_string()
+            ))]
         );
         // And the sizes still win, since they are tried first.
         assert_eq!(
@@ -4446,7 +4943,10 @@ mod tests {
         );
         assert_eq!(
             expand_utility("-mask-linear-45").1,
-            vec![StyleProperty::MaskSlotArgument(MaskSlot::Linear, Angle::Deg(-45.0))]
+            vec![StyleProperty::MaskSlotArgument(
+                MaskSlot::Linear,
+                Angle::Deg(-45.0)
+            )]
         );
         assert_eq!(
             expand_utility("mask-subtract").1,
@@ -4460,13 +4960,20 @@ mod tests {
         // parser growing its own sign handling.
         assert_eq!(
             expand_utility("-mt-4").1,
-            vec![StyleProperty::MarginTop(Dimension::Length(Length::Spacing(-4.0)))]
+            vec![StyleProperty::MarginTop(Dimension::Length(
+                Length::Spacing(-4.0)
+            ))]
         );
         assert_eq!(
             expand_utility("-top-4").1,
-            vec![StyleProperty::InsetTop(Dimension::Length(Length::Spacing(-4.0)))]
+            vec![StyleProperty::InsetTop(Dimension::Length(Length::Spacing(
+                -4.0
+            )))]
         );
-        assert_eq!(expand_utility("-rotate-45").1, vec![StyleProperty::Rotate(Angle::Deg(-45.0))]);
+        assert_eq!(
+            expand_utility("-rotate-45").1,
+            vec![StyleProperty::Rotate(Angle::Deg(-45.0))]
+        );
         // ...and refuses where CSS has no negative, rather than inventing
         // a negative padding.
         assert!(expand_utility("-p-4").1.is_empty());
@@ -4481,13 +4988,20 @@ mod tests {
         );
         assert_eq!(
             expand_utility("basis-1/3").1,
-            vec![StyleProperty::FlexBasis(Dimension::Percent(1.0 / 3.0 * 100.0))]
+            vec![StyleProperty::FlexBasis(Dimension::Percent(
+                1.0 / 3.0 * 100.0
+            ))]
         );
-        assert_eq!(expand_utility("basis-auto").1, vec![StyleProperty::FlexBasis(Dimension::Auto)]);
+        assert_eq!(
+            expand_utility("basis-auto").1,
+            vec![StyleProperty::FlexBasis(Dimension::Auto)]
+        );
         // Longest prefix wins: `max-block-` must not be read as `block-`.
         assert_eq!(
             expand_utility("max-block-4").1,
-            vec![StyleProperty::MaxBlockSize(Dimension::Length(Length::Spacing(4.0)))]
+            vec![StyleProperty::MaxBlockSize(Dimension::Length(
+                Length::Spacing(4.0)
+            ))]
         );
         // Bare `translate-*` sets both axes.
         assert_eq!(
@@ -4507,11 +5021,17 @@ mod tests {
         );
         assert_eq!(
             expand_utility("scroll-pe-2").1,
-            vec![StyleProperty::ScrollPadding(Edge::InlineEnd, Length::Spacing(2.0))]
+            vec![StyleProperty::ScrollPadding(
+                Edge::InlineEnd,
+                Length::Spacing(2.0)
+            )]
         );
         assert_eq!(
             expand_utility("-scroll-mx-4").1,
-            vec![StyleProperty::ScrollMargin(Edge::Inline, Length::Spacing(-4.0))]
+            vec![StyleProperty::ScrollMargin(
+                Edge::Inline,
+                Length::Spacing(-4.0)
+            )]
         );
         // Padding takes no negative value, in CSS or in Tailwind.
         assert!(expand_utility("-scroll-p-4").1.is_empty());
@@ -4524,7 +5044,10 @@ mod tests {
             expand_utility("scroll-smooth").1,
             vec![StyleProperty::ScrollBehavior("smooth")]
         );
-        assert_eq!(expand_utility("scroll-auto").1, vec![StyleProperty::ScrollBehavior("auto")]);
+        assert_eq!(
+            expand_utility("scroll-auto").1,
+            vec![StyleProperty::ScrollBehavior("auto")]
+        );
     }
 
     #[test]
@@ -4534,16 +5057,22 @@ mod tests {
         // (`var(--hozo-color-b-red-500)`). Wrong property, wrong value.
         assert_eq!(
             expand_utility("border-b-red-500").1,
-            vec![StyleProperty::BorderBottomColor(Color::Token("red-500".to_string()))]
+            vec![StyleProperty::BorderBottomColor(Color::Token(
+                "red-500".to_string()
+            ))]
         );
         assert_eq!(
             expand_utility("border-s-red-500").1,
-            vec![StyleProperty::BorderInlineStartColor(Color::Token("red-500".to_string()))]
+            vec![StyleProperty::BorderInlineStartColor(Color::Token(
+                "red-500".to_string()
+            ))]
         );
         // The axis forms stay shorthands, which is what Tailwind emits.
         assert_eq!(
             expand_utility("border-x-red-500").1,
-            vec![StyleProperty::BorderInlineColor(Color::Token("red-500".to_string()))]
+            vec![StyleProperty::BorderInlineColor(Color::Token(
+                "red-500".to_string()
+            ))]
         );
         // A number on a side is still a width, not a colour called "4".
         assert_eq!(
@@ -4559,15 +5088,21 @@ mod tests {
     fn inset_covers_its_axis_and_logical_forms_and_negatives() {
         assert_eq!(
             expand_utility("inset-x-4").1,
-            vec![StyleProperty::InsetInline(Dimension::Length(Length::Spacing(4.0)))]
+            vec![StyleProperty::InsetInline(Dimension::Length(
+                Length::Spacing(4.0)
+            ))]
         );
         assert_eq!(
             expand_utility("inset-bs-2").1,
-            vec![StyleProperty::InsetBlockStart(Dimension::Length(Length::Spacing(2.0)))]
+            vec![StyleProperty::InsetBlockStart(Dimension::Length(
+                Length::Spacing(2.0)
+            ))]
         );
         assert_eq!(
             expand_utility("-inset-y-4").1,
-            vec![StyleProperty::InsetBlock(Dimension::Length(Length::Spacing(-4.0)))]
+            vec![StyleProperty::InsetBlock(Dimension::Length(
+                Length::Spacing(-4.0)
+            ))]
         );
         // Bare `inset-*` is still all four physical sides.
         assert_eq!(expand_utility("inset-0").1.len(), 4);
@@ -4576,7 +5111,10 @@ mod tests {
     #[test]
     fn a_radius_outside_the_scale_is_held_by_name_for_the_theme() {
         let control = Radius::Theme("hozo-control".to_string());
-        assert_eq!(expand_utility("rounded-hozo-control").1, vec![StyleProperty::BorderRadius(control.clone())]);
+        assert_eq!(
+            expand_utility("rounded-hozo-control").1,
+            vec![StyleProperty::BorderRadius(control.clone())]
+        );
         // A corner splits off only when it is one: `hozo` is not.
         assert_eq!(
             expand_utility("rounded-t-hozo-control").1,
@@ -4589,15 +5127,24 @@ mod tests {
         // radius named after it.
         assert_eq!(
             expand_utility("rounded-lg").1,
-            vec![StyleProperty::BorderRadius(Radius::Scale { name: "lg", fallback_px: 8.0 })]
+            vec![StyleProperty::BorderRadius(Radius::Scale {
+                name: "lg",
+                fallback_px: 8.0
+            })]
         );
         assert!(expand_utility("rounded-t").1.is_empty());
-        assert!(expand_utility("rounded-[13px]").1.iter().all(|property| property.theme_radius().is_none()));
+        assert!(expand_utility("rounded-[13px]")
+            .1
+            .iter()
+            .all(|property| property.theme_radius().is_none()));
     }
 
     #[test]
     fn rounded_corners_expand_to_the_longhands_tailwind_emits() {
-        let lg = Radius::Scale { name: "lg", fallback_px: 8.0 };
+        let lg = Radius::Scale {
+            name: "lg",
+            fallback_px: 8.0,
+        };
         assert_eq!(
             expand_utility("rounded-t-lg").1,
             vec![
@@ -4618,7 +5165,10 @@ mod tests {
             ]
         );
         // The all-corners form is unaffected.
-        assert_eq!(expand_utility("rounded-lg").1, vec![StyleProperty::BorderRadius(lg.clone())]);
+        assert_eq!(
+            expand_utility("rounded-lg").1,
+            vec![StyleProperty::BorderRadius(lg.clone())]
+        );
     }
 
     #[test]
@@ -4660,7 +5210,12 @@ mod tests {
     fn border_color_is_not_mistaken_for_a_width() {
         assert_eq!(
             expand_utility("border-red-500"),
-            (Condition::Always, vec![StyleProperty::BorderColor(Color::Token("red-500".to_string()))])
+            (
+                Condition::Always,
+                vec![StyleProperty::BorderColor(Color::Token(
+                    "red-500".to_string()
+                ))]
+            )
         );
     }
 
@@ -4668,28 +5223,55 @@ mod tests {
     fn parses_radius_scale() {
         assert_eq!(
             expand_utility("rounded-lg"),
-            (Condition::Always, vec![StyleProperty::BorderRadius(Radius::Scale { name: "lg", fallback_px: 8.0 })])
+            (
+                Condition::Always,
+                vec![StyleProperty::BorderRadius(Radius::Scale {
+                    name: "lg",
+                    fallback_px: 8.0
+                })]
+            )
         );
         assert_eq!(
             expand_utility("rounded"),
-            (Condition::Always, vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(4.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(4.0)))]
+            )
         );
     }
 
     #[test]
     fn radius_scales_keep_names_but_literals_and_fixed_intents_do_not() {
-        for (name, fallback_px) in [("xs", 2.0), ("sm", 4.0), ("md", 6.0), ("lg", 8.0),
-                                   ("xl", 12.0), ("2xl", 16.0), ("3xl", 24.0), ("4xl", 32.0)] {
+        for (name, fallback_px) in [
+            ("xs", 2.0),
+            ("sm", 4.0),
+            ("md", 6.0),
+            ("lg", 8.0),
+            ("xl", 12.0),
+            ("2xl", 16.0),
+            ("3xl", 24.0),
+            ("4xl", 32.0),
+        ] {
             let properties = expand_utility(&format!("rounded-{name}")).1;
-            assert_eq!(properties, vec![StyleProperty::BorderRadius(Radius::Scale { name, fallback_px })]);
+            assert_eq!(
+                properties,
+                vec![StyleProperty::BorderRadius(Radius::Scale {
+                    name,
+                    fallback_px
+                })]
+            );
             // Built-in names always have a fallback, so their original CSS
             // class need not be carried as if they were unknown custom names.
             assert!(properties[0].theme_radius().is_none());
         }
-        assert_eq!(expand_utility("rounded-none").1,
-                   vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(0.0)))]);
-        assert_eq!(expand_utility("rounded-[8px]").1,
-                   vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(8.0)))]);
+        assert_eq!(
+            expand_utility("rounded-none").1,
+            vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(0.0)))]
+        );
+        assert_eq!(
+            expand_utility("rounded-[8px]").1,
+            vec![StyleProperty::BorderRadius(Radius::Length(Length::Px(8.0)))]
+        );
     }
 
     #[test]
@@ -4698,7 +5280,10 @@ mod tests {
         // RN can't -- so the choice can't be baked in at parse time.
         assert_eq!(
             expand_utility("rounded-full"),
-            (Condition::Always, vec![StyleProperty::BorderRadius(Radius::Full)])
+            (
+                Condition::Always,
+                vec![StyleProperty::BorderRadius(Radius::Full)]
+            )
         );
     }
 
@@ -4706,11 +5291,19 @@ mod tests {
     fn parses_sizing_including_fractions_and_size_shorthand() {
         assert_eq!(
             expand_utility("w-4"),
-            (Condition::Always, vec![StyleProperty::Width(Dimension::Length(Length::Spacing(4.0)))])
+            (
+                Condition::Always,
+                vec![StyleProperty::Width(Dimension::Length(Length::Spacing(
+                    4.0
+                )))]
+            )
         );
         assert_eq!(
             expand_utility("w-1/2"),
-            (Condition::Always, vec![StyleProperty::Width(Dimension::Percent(50.0))])
+            (
+                Condition::Always,
+                vec![StyleProperty::Width(Dimension::Percent(50.0))]
+            )
         );
         assert_eq!(
             expand_utility("size-4"),
@@ -4728,9 +5321,11 @@ mod tests {
     fn text_size_sets_line_height_too() {
         // Regression: this used to emit font-size only, silently dropping
         // the line-height half of what Tailwind's text-* utilities mean.
-        for (token, size, line_height) in
-            [("text-xs", 12.0, 16.0), ("text-base", 16.0, 24.0), ("text-4xl", 36.0, 40.0)]
-        {
+        for (token, size, line_height) in [
+            ("text-xs", 12.0, 16.0),
+            ("text-base", 16.0, 24.0),
+            ("text-4xl", 36.0, 40.0),
+        ] {
             assert_eq!(
                 expand_utility(token),
                 (
@@ -4759,11 +5354,19 @@ mod tests {
         // this guards the boundary between them in both directions.
         assert_eq!(
             expand_utility("text-red-500"),
-            (Condition::Always, vec![StyleProperty::TextColor(Color::Token("red-500".to_string()))])
+            (
+                Condition::Always,
+                vec![StyleProperty::TextColor(Color::Token(
+                    "red-500".to_string()
+                ))]
+            )
         );
         assert_eq!(
             expand_utility("text-center"),
-            (Condition::Always, vec![StyleProperty::TextAlign(TextAlign::Center)])
+            (
+                Condition::Always,
+                vec![StyleProperty::TextAlign(TextAlign::Center)]
+            )
         );
     }
 
@@ -4776,8 +5379,16 @@ mod tests {
             leading_props.iter().chain(&text_props).cloned().collect(),
         ] {
             let deduped = hozo_ir::dedupe_last_wins(combined);
-            assert!(deduped.contains(&StyleProperty::LineHeight(LineHeight::Length(Length::Spacing(6.0)))));
-            assert!(!deduped.contains(&StyleProperty::LineHeight(LineHeight::FontDefault(Length::Px(28.0)))));
+            assert!(
+                deduped.contains(&StyleProperty::LineHeight(LineHeight::Length(
+                    Length::Spacing(6.0)
+                )))
+            );
+            assert!(
+                !deduped.contains(&StyleProperty::LineHeight(LineHeight::FontDefault(
+                    Length::Px(28.0)
+                )))
+            );
         }
     }
 
@@ -4790,12 +5401,20 @@ mod tests {
         // on the same element (`hozo_native::fold_font_relative`), which is
         // information this function doesn't have.
         let (_, props) = expand_utility("leading-tight");
-        assert_eq!(props, vec![StyleProperty::LineHeight(LineHeight::Ratio(1.25))]);
+        assert_eq!(
+            props,
+            vec![StyleProperty::LineHeight(LineHeight::Ratio(1.25))]
+        );
 
         // The numeric scale is spacing-based and resolves to a length on
         // both platforms.
         let (_, props) = expand_utility("leading-6");
-        assert_eq!(props, vec![StyleProperty::LineHeight(LineHeight::Length(Length::Spacing(6.0)))]);
+        assert_eq!(
+            props,
+            vec![StyleProperty::LineHeight(LineHeight::Length(
+                Length::Spacing(6.0)
+            ))]
+        );
         assert!(props[0].unsupported_on_native().is_none());
     }
 
@@ -4815,11 +5434,21 @@ mod tests {
     fn parses_dark_and_first_variants() {
         assert_eq!(
             expand_utility("dark:bg-black"),
-            (Condition::Dark, vec![StyleProperty::BackgroundColor(Color::Token("black".to_string()))])
+            (
+                Condition::Dark,
+                vec![StyleProperty::BackgroundColor(Color::Token(
+                    "black".to_string()
+                ))]
+            )
         );
         assert_eq!(
             expand_utility("first:mt-0"),
-            (Condition::FirstChild, vec![StyleProperty::MarginTop(Dimension::Length(Length::Spacing(0.0)))])
+            (
+                Condition::FirstChild,
+                vec![StyleProperty::MarginTop(Dimension::Length(
+                    Length::Spacing(0.0)
+                ))]
+            )
         );
     }
 
@@ -4860,7 +5489,10 @@ mod tests {
             expand_utility("row-span-full").1,
             vec![StyleProperty::GridRow(GridSpan::Full)]
         );
-        assert_eq!(expand_utility("col-auto").1, vec![StyleProperty::GridColumn(GridSpan::Auto)]);
+        assert_eq!(
+            expand_utility("col-auto").1,
+            vec![StyleProperty::GridColumn(GridSpan::Auto)]
+        );
         assert_eq!(
             expand_utility("col-end-auto").1,
             vec![StyleProperty::GridColumnEnd(GridLine::Auto)]
@@ -4994,9 +5626,18 @@ fn structural(token: &str) -> Option<(Structural, &str)> {
         ("nth-last-", false, true),
         ("nth-", false, false),
     ] {
-        let Some(argument) = token.strip_prefix(prefix) else { continue };
+        let Some(argument) = token.strip_prefix(prefix) else {
+            continue;
+        };
         let (formula, rest) = nth_argument(argument)?;
-        return Some((Structural::Nth { of_type, from_end, formula }, rest));
+        return Some((
+            Structural::Nth {
+                of_type,
+                from_end,
+                formula,
+            },
+            rest,
+        ));
     }
     None
 }
@@ -5019,7 +5660,6 @@ fn nth_argument(argument: &str) -> Option<(String, &str)> {
     Some((formula.to_string(), rest))
 }
 
-
 /// The form-state variants, with their names spelled out.
 ///
 /// Derived from `FormState::variant_name` at the point of use would read
@@ -5040,7 +5680,6 @@ const FORM_STATES: &[(&str, FormState)] = &[
     ("valid:", FormState::Valid),
 ];
 
-
 /// The pseudo-element variants.
 ///
 /// Before the form states in `parse_one_variant`, because
@@ -5059,7 +5698,6 @@ const PSEUDO_ELEMENTS: &[(&str, PseudoElement)] = &[
     ("after:", PseudoElement::After),
     ("file:", PseudoElement::File),
 ];
-
 
 /// The named breakpoints, and the widths they stand for.
 const BREAKPOINTS: &[(&str, Breakpoint, u32)] = &[
@@ -5084,7 +5722,9 @@ const BREAKPOINTS: &[(&str, Breakpoint, u32)] = &[
 /// one after the prefix.
 fn width_variant(token: &str) -> Option<(Condition, &str)> {
     for (prefix, at_least) in [("min-", true), ("max-", false)] {
-        let Some(after) = token.strip_prefix(prefix) else { continue };
+        let Some(after) = token.strip_prefix(prefix) else {
+            continue;
+        };
         if let Some((value, rest)) = crate::arbitrary::split_variant(after) {
             return Some((Condition::Width { at_least, value }, rest));
         }
@@ -5095,13 +5735,18 @@ fn width_variant(token: &str) -> Option<(Condition, &str)> {
             return Some(if at_least {
                 (Condition::Responsive(*breakpoint), rest)
             } else {
-                (Condition::Width { at_least, value: format!("{px}px") }, rest)
+                (
+                    Condition::Width {
+                        at_least,
+                        value: format!("{px}px"),
+                    },
+                    rest,
+                )
             });
         }
     }
     None
 }
-
 
 /// Tailwind's container scale, which is not the viewport scale.
 ///
@@ -5140,10 +5785,19 @@ fn container_variant(token: &str) -> Option<(Condition, &str)> {
     let after = token.strip_prefix('@')?;
     // `@container` is a utility, not a variant, and it has no colon.
     for (prefix, at_least) in [("min-", true), ("max-", false), ("", true)] {
-        let Some(rest) = after.strip_prefix(prefix) else { continue };
+        let Some(rest) = after.strip_prefix(prefix) else {
+            continue;
+        };
         if let Some((value, tail)) = container_argument(rest) {
             let (name, tail) = container_name(tail)?;
-            return Some((Condition::Container { name, at_least, value }, tail));
+            return Some((
+                Condition::Container {
+                    name,
+                    at_least,
+                    value,
+                },
+                tail,
+            ));
         }
     }
     None
@@ -5216,7 +5870,10 @@ mod unsupported_variant_tests {
         // so the class was neither compiled nor reported -- the one outcome
         // decision 003 rules out. The name is the part in front of the
         // bracket.
-        assert_eq!(unsupported_variant_name("aria-[sort=ascending]:underline"), Some("aria"));
+        assert_eq!(
+            unsupported_variant_name("aria-[sort=ascending]:underline"),
+            Some("aria")
+        );
     }
 
     #[test]
@@ -5240,7 +5897,10 @@ mod unsupported_variant_tests {
         // `data-[hozo-state=checked]:` is implemented, so the prefix is gone
         // by the time this function sees the token and there is nothing left
         // to report.
-        assert_eq!(unsupported_variant_name("data-[hozo-state=checked]:p-4"), None);
+        assert_eq!(
+            unsupported_variant_name("data-[hozo-state=checked]:p-4"),
+            None
+        );
         assert_eq!(unsupported_variant_name("aria-checked:p-4"), None);
     }
 }
@@ -5257,7 +5917,11 @@ mod platform_setting_tests {
             ("grayscale:p-4", Environment::Grayscale),
             ("screen-reader:p-4", Environment::ScreenReader),
         ] {
-            assert_eq!(expand_utility(token).0, Condition::Environment(query), "{token}");
+            assert_eq!(
+                expand_utility(token).0,
+                Condition::Environment(query),
+                "{token}"
+            );
         }
     }
 
@@ -5308,7 +5972,13 @@ mod platform_setting_tests {
         // Cheap, but it is the whole contract: the memo is only sound
         // because this is a pure function of the token, and nothing else in
         // the crate has state to make it otherwise.
-        for token in ["flex", "dark:bg-slate-900", "-mt-4", "container", "p-[1.5em]"] {
+        for token in [
+            "flex",
+            "dark:bg-slate-900",
+            "-mt-4",
+            "container",
+            "p-[1.5em]",
+        ] {
             assert_eq!(expand_utility(token), expand_utility(token));
         }
     }

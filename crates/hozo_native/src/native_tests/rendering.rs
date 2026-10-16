@@ -14,9 +14,14 @@ fn only_disabling_user_resize_is_already_true_on_native() {
                 assert!(!out.styles.contains("resize"), "{}", out.styles);
                 assert!(out.runtime_imports.is_empty());
             } else {
-                assert!(out.diagnostics.iter().any(|d| {
-                    d.code == DiagnosticCode::WebOnlyPropertyOnNative && d.message.contains("resize")
-                }), "{utility}: {:?}", out.diagnostics);
+                assert!(
+                    out.diagnostics.iter().any(|d| {
+                        d.code == DiagnosticCode::WebOnlyPropertyOnNative
+                            && d.message.contains("resize")
+                    }),
+                    "{utility}: {:?}",
+                    out.diagnostics
+                );
             }
         }
     }
@@ -24,7 +29,10 @@ fn only_disabling_user_resize_is_already_true_on_native() {
     let source = "import {TextInput} from '@hozo/core'; const e = <TextInput accessibilityLabel=\"Field\" className=\"resize-y resize-none\"/>";
     let parsed = hozo_parser::parse_tsx(source);
     let out = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(out.diagnostics.iter().any(|d| d.code == DiagnosticCode::WebOnlyPropertyOnNative));
+    assert!(out
+        .diagnostics
+        .iter()
+        .any(|d| d.code == DiagnosticCode::WebOnlyPropertyOnNative));
 }
 
 const LOGIN_EXAMPLE: &str = r#"
@@ -120,24 +128,61 @@ fn transforms_compose_into_rn_single_transform_array() {
 #[test]
 fn transform_resets_preserve_other_css_transform_properties() {
     for (classes, expected) in [
-        ("translate-x-2 rotate-45 scale-95 rotate-none", "[{ translateX: 8 }, { scale: 0.95 }]"),
-        ("translate-x-2 rotate-45 scale-95 scale-none", "[{ translateX: 8 }, { rotate: '45deg' }]"),
-        ("translate-x-2 rotate-45 scale-95 translate-none", "[{ rotate: '45deg' }, { scale: 0.95 }]"),
-        ("translate-x-2 rotate-45 scale-95 rotate-x-30 transform-none", "[{ translateX: 8 }, { rotate: '45deg' }, { scale: 0.95 }]"),
+        (
+            "translate-x-2 rotate-45 scale-95 rotate-none",
+            "[{ translateX: 8 }, { scale: 0.95 }]",
+        ),
+        (
+            "translate-x-2 rotate-45 scale-95 scale-none",
+            "[{ translateX: 8 }, { rotate: '45deg' }]",
+        ),
+        (
+            "translate-x-2 rotate-45 scale-95 translate-none",
+            "[{ rotate: '45deg' }, { scale: 0.95 }]",
+        ),
+        (
+            "translate-x-2 rotate-45 scale-95 rotate-x-30 transform-none",
+            "[{ translateX: 8 }, { rotate: '45deg' }, { scale: 0.95 }]",
+        ),
         ("rotate-none rotate-45", "[{ rotate: '45deg' }]"),
-        ("translate-y-3 translate-none translate-x-2", "[{ translateX: 8 }, { translateY: 12 }]"),
-        ("scale-y-75 scale-none scale-x-50", "[{ scaleX: 0.5 }, { scaleY: 0.75 }]"),
-        ("rotate-x-30 transform-none transform-cpu", "[{ rotateX: '30deg' }]"),
-        ("rotate-x-30 transform-none skew-x-3", "[{ rotateX: '30deg' }, { skewX: '3deg' }]"),
+        (
+            "translate-y-3 translate-none translate-x-2",
+            "[{ translateX: 8 }, { translateY: 12 }]",
+        ),
+        (
+            "scale-y-75 scale-none scale-x-50",
+            "[{ scaleX: 0.5 }, { scaleY: 0.75 }]",
+        ),
+        (
+            "rotate-x-30 transform-none transform-cpu",
+            "[{ rotateX: '30deg' }]",
+        ),
+        (
+            "rotate-x-30 transform-none skew-x-3",
+            "[{ rotateX: '30deg' }, { skewX: '3deg' }]",
+        ),
         ("rotate-none scale-none translate-none transform-none", "[]"),
         ("transform", "[]"),
     ] {
-        let source = format!("import {{ View }} from '@hozo/core'; const e = <View className=\"{classes}\" />");
+        let source = format!(
+            "import {{ View }} from '@hozo/core'; const e = <View className=\"{classes}\" />"
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.is_empty(), "{classes}: {:?}", output.diagnostics);
-        assert!(output.styles.contains(&format!("transform: {expected},")), "{classes}: {}", output.styles);
-        assert!(!output.runtime_imports.contains(&"hozoTransformStyles"), "static resets need no runtime");
+        assert!(
+            output.diagnostics.is_empty(),
+            "{classes}: {:?}",
+            output.diagnostics
+        );
+        assert!(
+            output.styles.contains(&format!("transform: {expected},")),
+            "{classes}: {}",
+            output.styles
+        );
+        assert!(
+            !output.runtime_imports.contains(&"hozoTransformStyles"),
+            "static resets need no runtime"
+        );
     }
 }
 
@@ -148,11 +193,26 @@ fn conditional_transform_resets_carry_slots_and_use_existing_guards() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.runtime_imports.contains(&"hozoTransformStyles"));
-    assert!(output.jsx.contains("hozoTransformStyles(["), "{}", output.jsx);
-    for expected in ["__hozoBp_md &&", "hovered &&", "pressed &&", "rotate: []", "scale: 'none'", "translate: 'none'"] {
+    assert!(
+        output.jsx.contains("hozoTransformStyles(["),
+        "{}",
+        output.jsx
+    );
+    for expected in [
+        "__hozoBp_md &&",
+        "hovered &&",
+        "pressed &&",
+        "rotate: []",
+        "scale: 'none'",
+        "translate: 'none'",
+    ] {
         assert!(output.jsx.contains(expected), "{expected}: {}", output.jsx);
     }
-    assert_eq!(output.prelude.len(), 1, "only the existing breakpoint hook is needed");
+    assert_eq!(
+        output.prelude.len(),
+        1,
+        "only the existing breakpoint hook is needed"
+    );
 }
 
 #[test]
@@ -161,7 +221,14 @@ fn transform_gpu_and_reset_animation_frames_remain_explicitly_diagnostic() {
         let source = format!("import {{ View }} from '@hozo/core'; function C() {{ return <View className=\"{classes}\" /> }}");
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.severity == Severity::Error), "{classes}: {:?}", output.diagnostics);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Error),
+            "{classes}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
@@ -588,15 +655,27 @@ fn structural_form_and_disclosure_primitives_lower_to_native_components() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.contains(r#"<View role="group">"#), "{}", output.jsx);
+    assert!(
+        output.jsx.contains(r#"<View role="group">"#),
+        "{}",
+        output.jsx
+    );
     // The disclosure is two runtime components now. It used to be a View
     // holding a Pressable and then the body, always -- no toggle on the
     // button and the body visible whether it was open or not.
     assert!(output.jsx.contains("<HozoDetails>"), "{}", output.jsx);
     assert!(output.jsx.contains("<HozoSummary>"), "{}", output.jsx);
-    assert!(output.jsx.contains(r#"<View role="list">"#), "{}", output.jsx);
+    assert!(
+        output.jsx.contains(r#"<View role="list">"#),
+        "{}",
+        output.jsx
+    );
     // Legend and Term receive bold font weight semantic defaults
-    assert!(output.styles.contains("fontWeight: '700',"), "{}", output.styles);
+    assert!(
+        output.styles.contains("fontWeight: '700',"),
+        "{}",
+        output.styles
+    );
 }
 
 #[test]
@@ -626,10 +705,30 @@ fn progress_and_button_with_href_lower_to_native_components() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.contains(r#"role="progressbar""#), "{}", output.jsx);
-    assert!(output.jsx.contains("role=\"progressbar\" accessible"), "{}", output.jsx);
-    assert!(output.jsx.contains(r#"<HozoLink href="https://example.com">"#), "{}", output.jsx);
-    assert!(!output.jsx.contains(r#"accessibilityRole="button" href="https://example.com""#), "{}", output.jsx);
+    assert!(
+        output.jsx.contains(r#"role="progressbar""#),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.jsx.contains("role=\"progressbar\" accessible"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains(r#"<HozoLink href="https://example.com">"#),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        !output
+            .jsx
+            .contains(r#"accessibilityRole="button" href="https://example.com""#),
+        "{}",
+        output.jsx
+    );
 }
 
 #[test]
@@ -648,7 +747,9 @@ fn destination_replace_intent_reaches_hozo_link() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(
-        output.jsx.contains(r#"<HozoLink replace={true} href="/one">"#),
+        output
+            .jsx
+            .contains(r#"<HozoLink replace={true} href="/one">"#),
         "{}",
         output.jsx
     );
@@ -676,7 +777,12 @@ fn destination_prefetch_intent_reaches_hozo_link() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert_eq!(output.jsx.matches(" prefetch={true}").count(), 2, "{}", output.jsx);
+    assert_eq!(
+        output.jsx.matches(" prefetch={true}").count(),
+        2,
+        "{}",
+        output.jsx
+    );
     assert!(output.jsx.contains(" prefetch={likely}"), "{}", output.jsx);
 }
 
@@ -718,11 +824,14 @@ fn a_separator_is_one_pixel_and_says_what_it_is() {
     // the project rather than about the primitive (#315).
     let reset = Theme::new(std::collections::HashMap::new(), None, true);
     for (element, size, jsx) in cases {
-        let source =
-            format!("import {{ Separator }} from '@hozo/core'\nconst el = {element}");
+        let source = format!("import {{ Separator }} from '@hozo/core'\nconst el = {element}");
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &reset);
-        assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.is_empty(),
+            "{element}: {:?}",
+            output.diagnostics
+        );
         assert!(output.styles.contains(size), "{element}: {}", output.styles);
         assert!(
             output.styles.contains("alignSelf: 'stretch',"),
@@ -736,13 +845,23 @@ fn a_separator_is_one_pixel_and_says_what_it_is() {
 /// Neither of a rule's own props is a prop the platform reads.
 #[test]
 fn a_separator_does_not_pass_its_own_props_through() {
-    for element in [r#"<Separator decorative />"#, r#"<Separator orientation="vertical" />"#] {
-        let source =
-            format!("import {{ Separator }} from '@hozo/core'\nconst el = {element}");
+    for element in [
+        r#"<Separator decorative />"#,
+        r#"<Separator orientation="vertical" />"#,
+    ] {
+        let source = format!("import {{ Separator }} from '@hozo/core'\nconst el = {element}");
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(!output.jsx.contains("decorative"), "{element}: {}", output.jsx);
-        assert!(!output.jsx.contains("orientation"), "{element}: {}", output.jsx);
+        assert!(
+            !output.jsx.contains("decorative"),
+            "{element}: {}",
+            output.jsx
+        );
+        assert!(
+            !output.jsx.contains("orientation"),
+            "{element}: {}",
+            output.jsx
+        );
     }
 }
 
@@ -762,9 +881,17 @@ fn destination_pressable_is_a_native_link() {
         "{}",
         output.jsx
     );
-    assert!(output.jsx.contains("<Text>Card</Text></HozoLink>"), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("<Text>Card</Text></HozoLink>"),
+        "{}",
+        output.jsx
+    );
     assert!(output.jsx.contains(" external"), "{}", output.jsx);
-    assert!(!output.jsx.contains("accessibilityRole=\"button\""), "{}", output.jsx);
+    assert!(
+        !output.jsx.contains("accessibilityRole=\"button\""),
+        "{}",
+        output.jsx
+    );
 }
 
 /// The same rule and the same heading, in a project that ships no reset.
@@ -784,7 +911,11 @@ fn without_a_reset_the_defaults_are_the_user_agent_s() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.styles.contains("fontSize: 28,"), "{}", output.styles);
-    assert!(output.styles.contains("fontWeight: '700',"), "{}", output.styles);
+    assert!(
+        output.styles.contains("fontWeight: '700',"),
+        "{}",
+        output.styles
+    );
 }
 
 /// A heading under a reset is body text, which is what the browser shows.
@@ -805,8 +936,16 @@ fn a_heading_under_a_reset_carries_its_role_and_no_size() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &reset);
-        assert!(!output.styles.contains("fontSize"), "level {level}: {}", output.styles);
-        assert!(!output.styles.contains("fontWeight"), "level {level}: {}", output.styles);
+        assert!(
+            !output.styles.contains("fontSize"),
+            "level {level}: {}",
+            output.styles
+        );
+        assert!(
+            !output.styles.contains("fontWeight"),
+            "level {level}: {}",
+            output.styles
+        );
         assert!(
             output.jsx.contains(r#"accessibilityRole="header""#),
             "level {level}: {}",
@@ -830,12 +969,36 @@ fn a_meter_is_hozo_meter_and_hands_it_everything_it_draws_with() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.starts_with("<HozoMeter"), "{}", output.jsx);
-    assert!(output.runtime_imports.contains(&"HozoMeter"), "{:?}", output.runtime_imports);
-    for prop in ["value={used}", "min={0}", "max={100}", "low={30}", "high={80}", "optimum={20}", r#"accessibilityLabel={"Disk usage"}"#] {
-        assert!(output.jsx.contains(prop), "{prop} did not reach HozoMeter: {}", output.jsx);
+    assert!(
+        output.runtime_imports.contains(&"HozoMeter"),
+        "{:?}",
+        output.runtime_imports
+    );
+    for prop in [
+        "value={used}",
+        "min={0}",
+        "max={100}",
+        "low={30}",
+        "high={80}",
+        "optimum={20}",
+        r#"accessibilityLabel={"Disk usage"}"#,
+    ] {
+        assert!(
+            output.jsx.contains(prop),
+            "{prop} did not reach HozoMeter: {}",
+            output.jsx
+        );
     }
-    assert!(output.jsx.contains("style={hozoStyles.hozo0}"), "{}", output.jsx);
-    assert!(output.styles.contains("width: 160") && output.styles.contains("borderRadius: 9999"), "{}", output.styles);
+    assert!(
+        output.jsx.contains("style={hozoStyles.hozo0}"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.styles.contains("width: 160") && output.styles.contains("borderRadius: 9999"),
+        "{}",
+        output.styles
+    );
     // The component's to decide now, so not decided twice.
     assert!(!output.jsx.contains("accessibilityValue"), "{}", output.jsx);
     assert!(!output.jsx.contains("role="), "{}", output.jsx);
@@ -853,9 +1016,19 @@ fn a_badge_is_hozo_badge_and_keeps_its_text_styles() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoBadge style={hozoStyles.hozo0}"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .starts_with("<HozoBadge style={hozoStyles.hozo0}"),
+        "{}",
+        output.jsx
+    );
     assert!(output.jsx.contains("count={n}"), "{}", output.jsx);
-    assert!(output.runtime_imports.contains(&"HozoBadge"), "{:?}", output.runtime_imports);
+    assert!(
+        output.runtime_imports.contains(&"HozoBadge"),
+        "{:?}",
+        output.runtime_imports
+    );
     assert!(!output.styles.contains("_text"), "{}", output.styles);
     assert!(output.styles.contains("color: '#fff'"), "{}", output.styles);
 }
@@ -867,18 +1040,35 @@ fn a_skeleton_is_hidden_and_animates_only_when_motion_is_allowed() {
     // `motion-safe:animate-pulse` -- and an author who wrote `motion-safe:`
     // is not guarded twice.
     for (class_name, guard) in [
-        ("h-4 animate-pulse", "__hozoEnv_motion_safe && __hozoAnim_pulse"),
-        ("h-4 md:animate-pulse", "__hozoEnv_motion_safe && __hozoBp_md && __hozoAnim_pulse"),
-        ("h-4 motion-safe:animate-pulse", "[hozoStyles.hozo0, __hozoEnv_motion_safe && __hozoAnim_pulse]"),
+        (
+            "h-4 animate-pulse",
+            "__hozoEnv_motion_safe && __hozoAnim_pulse",
+        ),
+        (
+            "h-4 md:animate-pulse",
+            "__hozoEnv_motion_safe && __hozoBp_md && __hozoAnim_pulse",
+        ),
+        (
+            "h-4 motion-safe:animate-pulse",
+            "[hozoStyles.hozo0, __hozoEnv_motion_safe && __hozoAnim_pulse]",
+        ),
     ] {
         let source = format!(
             "import {{ Skeleton }} from '@hozo/core'\nconst el = <Skeleton className=\"{class_name}\" />\n"
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.is_empty(), "{class_name}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.is_empty(),
+            "{class_name}: {:?}",
+            output.diagnostics
+        );
         assert!(output.jsx.contains(guard), "{class_name}: {}", output.jsx);
-        assert!(output.jsx.contains(" aria-hidden"), "{class_name}: {}", output.jsx);
+        assert!(
+            output.jsx.contains(" aria-hidden"),
+            "{class_name}: {}",
+            output.jsx
+        );
     }
 }
 
@@ -899,20 +1089,35 @@ fn a_skeletons_descendants_animate_only_when_motion_is_allowed() {
         r#"<Skeleton><View><View><View className="animate-spin" /></View></View></Skeleton>"#,
     ] {
         let output = compile(element);
-        assert!(output.diagnostics.is_empty(), "{element}: {:?}", output.diagnostics);
         assert!(
-            output.jsx.contains("__hozoEnv_motion_safe && __hozoAnim_spin"),
+            output.diagnostics.is_empty(),
+            "{element}: {:?}",
+            output.diagnostics
+        );
+        assert!(
+            output
+                .jsx
+                .contains("__hozoEnv_motion_safe && __hozoAnim_spin"),
             "{element}: {}",
             output.jsx
         );
     }
     // Not guarded twice.
     let written = compile(r#"<Skeleton><View className="motion-safe:animate-spin" /></Skeleton>"#);
-    assert_eq!(written.jsx.matches("__hozoEnv_motion_safe &&").count(), 1, "{}", written.jsx);
+    assert_eq!(
+        written.jsx.matches("__hozoEnv_motion_safe &&").count(),
+        1,
+        "{}",
+        written.jsx
+    );
     // A sibling outside the skeleton keeps its ordinary animation.
     let outside =
         compile(r#"<View><Skeleton className="h-4" /><View className="animate-spin" /></View>"#);
-    assert!(!outside.jsx.contains("__hozoEnv_motion_safe"), "{}", outside.jsx);
+    assert!(
+        !outside.jsx.contains("__hozoEnv_motion_safe"),
+        "{}",
+        outside.jsx
+    );
     assert!(outside.jsx.contains("__hozoAnim_spin"), "{}", outside.jsx);
 }
 
@@ -926,21 +1131,43 @@ fn line_breaking_is_a_text_prop_where_android_has_one_and_a_warning_where_not() 
         lower(&parsed.roots[0].node, &source, &Theme::default())
     };
     let balanced = compile(r#"<Text className="text-balance">x</Text>"#);
-    assert!(balanced.jsx.contains(r#"textBreakStrategy="balanced""#), "{}", balanced.jsx);
-    assert!(balanced.diagnostics.is_empty(), "{:?}", balanced.diagnostics);
+    assert!(
+        balanced.jsx.contains(r#"textBreakStrategy="balanced""#),
+        "{}",
+        balanced.jsx
+    );
+    assert!(
+        balanced.diagnostics.is_empty(),
+        "{:?}",
+        balanced.diagnostics
+    );
     let pretty = compile(r#"<Text className="text-pretty">x</Text>"#);
-    assert!(pretty.jsx.contains(r#"textBreakStrategy="highQuality""#), "{}", pretty.jsx);
+    assert!(
+        pretty.jsx.contains(r#"textBreakStrategy="highQuality""#),
+        "{}",
+        pretty.jsx
+    );
     // `break-keep` is iOS's `hangul-word` for the Korean it covers, and still
     // reported for the Chinese and Japanese it does not, and for Android.
     let keep = compile(r#"<Text className="break-keep">x</Text>"#);
-    assert!(keep.jsx.contains(r#"lineBreakStrategyIOS="hangul-word""#), "{}", keep.jsx);
     assert!(
-        keep.diagnostics.iter().any(|d| d.severity == hozo_ir::Severity::Warning && d.message.contains("Korean")),
+        keep.jsx.contains(r#"lineBreakStrategyIOS="hangul-word""#),
+        "{}",
+        keep.jsx
+    );
+    assert!(
+        keep.diagnostics
+            .iter()
+            .any(|d| d.severity == hozo_ir::Severity::Warning && d.message.contains("Korean")),
         "{:?}",
         keep.diagnostics
     );
-    assert!(!compile(r#"<View className="break-keep">x</View>"#).jsx.contains("lineBreakStrategyIOS"));
-    assert!(!compile(r#"<Text className="md:break-keep">x</Text>"#).jsx.contains("lineBreakStrategyIOS"));
+    assert!(!compile(r#"<View className="break-keep">x</View>"#)
+        .jsx
+        .contains("lineBreakStrategyIOS"));
+    assert!(!compile(r#"<Text className="md:break-keep">x</Text>"#)
+        .jsx
+        .contains("lineBreakStrategyIOS"));
 
     for element in [
         r#"<Text className="break-keep">x</Text>"#,
@@ -950,16 +1177,26 @@ fn line_breaking_is_a_text_prop_where_android_has_one_and_a_warning_where_not() 
         r#"<View className="text-balance">x</View>"#,
     ] {
         let output = compile(element);
-        assert!(!output.jsx.contains("textBreakStrategy"), "{element}: {}", output.jsx);
+        assert!(
+            !output.jsx.contains("textBreakStrategy"),
+            "{element}: {}",
+            output.jsx
+        );
         assert!(
             !output.diagnostics.is_empty()
-                && output.diagnostics.iter().all(|d| d.severity == hozo_ir::Severity::Warning),
+                && output
+                    .diagnostics
+                    .iter()
+                    .all(|d| d.severity == hozo_ir::Severity::Warning),
             "{element}: {:?}",
             output.diagnostics
         );
     }
     // The platform's own behaviour already, so nothing to say.
-    for element in [r#"<Text className="break-normal">x</Text>"#, r#"<Text className="text-wrap">x</Text>"#] {
+    for element in [
+        r#"<Text className="break-normal">x</Text>"#,
+        r#"<Text className="text-wrap">x</Text>"#,
+    ] {
         assert!(compile(element).diagnostics.is_empty(), "{element}");
     }
 }
@@ -979,27 +1216,64 @@ fn a_chip_is_hozo_chip_and_its_class_lists_are_style_props() {
     );
     assert!(both.diagnostics.is_empty(), "{:?}", both.diagnostics);
     assert!(both.jsx.starts_with("<HozoChip "), "{}", both.jsx);
-    assert!(both.runtime_imports.contains(&"HozoChip"), "{:?}", both.runtime_imports);
-    assert!(both.jsx.contains("style={[hozoStyles.hozo0, __hozoBp_md && hozoStyles.hozo0_md]}"), "{}", both.jsx);
-    assert!(both.jsx.contains("removeStyle={hozoStyles.hozo1}"), "{}", both.jsx);
+    assert!(
+        both.runtime_imports.contains(&"HozoChip"),
+        "{:?}",
+        both.runtime_imports
+    );
+    assert!(
+        both.jsx
+            .contains("style={[hozoStyles.hozo0, __hozoBp_md && hozoStyles.hozo0_md]}"),
+        "{}",
+        both.jsx
+    );
+    assert!(
+        both.jsx.contains("removeStyle={hozoStyles.hozo1}"),
+        "{}",
+        both.jsx
+    );
     assert!(!both.jsx.contains("className"), "{}", both.jsx);
     // The pattern's own props, as written: `disabled` is not a host's state
     // to translate, and the label stays a string the pattern can name its
     // remove button from.
-    assert!(both.jsx.contains("disabled={busy}") && both.jsx.contains("onRemove={drop}"), "{}", both.jsx);
+    assert!(
+        both.jsx.contains("disabled={busy}") && both.jsx.contains("onRemove={drop}"),
+        "{}",
+        both.jsx
+    );
     assert!(both.jsx.contains(">Remote</HozoChip>"), "{}", both.jsx);
     // The text colour stays with the chip, which hands it to its label.
     assert!(both.styles.contains("color: '#fff'"), "{}", both.styles);
-    assert!(both.styles.contains("padding: 8") || both.styles.contains("paddingTop: 8"), "{}", both.styles);
+    assert!(
+        both.styles.contains("padding: 8") || both.styles.contains("paddingTop: 8"),
+        "{}",
+        both.styles
+    );
 
     // An expression reaches the remove button before resolution, so it can
     // supply its state. An authored `removeStyle` still wins, last.
-    let dynamic = compile(r#"<Chip onRemove={drop} removeClassName={tone} removeStyle={extra}>x</Chip>"#);
-    assert!(dynamic.jsx.contains("removeClassName={tone}"), "{}", dynamic.jsx);
-    assert!(dynamic.jsx.contains("removeStyle={extra}"), "{}", dynamic.jsx);
-    assert!(!dynamic.jsx.contains("hozoClasses(tone)"), "{}", dynamic.jsx);
+    let dynamic =
+        compile(r#"<Chip onRemove={drop} removeClassName={tone} removeStyle={extra}>x</Chip>"#);
     assert!(
-        dynamic.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::DynamicClassNameNotResolved),
+        dynamic.jsx.contains("removeClassName={tone}"),
+        "{}",
+        dynamic.jsx
+    );
+    assert!(
+        dynamic.jsx.contains("removeStyle={extra}"),
+        "{}",
+        dynamic.jsx
+    );
+    assert!(
+        !dynamic.jsx.contains("hozoClasses(tone)"),
+        "{}",
+        dynamic.jsx
+    );
+    assert!(
+        dynamic
+            .diagnostics
+            .iter()
+            .any(|d| d.code == hozo_ir::DiagnosticCode::DynamicClassNameNotResolved),
         "{:?}",
         dynamic.diagnostics
     );
@@ -1012,9 +1286,14 @@ fn a_chip_is_hozo_chip_and_its_class_lists_are_style_props() {
 
 #[test]
 fn dynamic_secondary_pattern_classes_reach_only_registered_owners() {
-    for (name, primitive) in [("Chip", Primitive::Chip), ("Pagination", Primitive::Pagination),
-        ("ColorPicker", Primitive::ColorPicker), ("Stepper", Primitive::Stepper),
-        ("CommandPalette", Primitive::CommandPalette), ("OtpInput", Primitive::OtpInput)] {
+    for (name, primitive) in [
+        ("Chip", Primitive::Chip),
+        ("Pagination", Primitive::Pagination),
+        ("ColorPicker", Primitive::ColorPicker),
+        ("Stepper", Primitive::Stepper),
+        ("CommandPalette", Primitive::CommandPalette),
+        ("OtpInput", Primitive::OtpInput),
+    ] {
         for slot in primitive.class_slots() {
             let owned = crate::pattern::interaction_slot(primitive, slot.class_prop).is_some();
             let source = format!(
@@ -1023,19 +1302,55 @@ fn dynamic_secondary_pattern_classes_reach_only_registered_owners() {
             );
             let parsed = hozo_parser::parse_tsx(&source);
             let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-            assert_eq!(output.jsx.matches("selectClasses()").count(), 1, "{}", output.jsx);
-            let warning = output.diagnostics.iter().find(|d| d.code == DiagnosticCode::DynamicClassNameNotResolved)
+            assert_eq!(
+                output.jsx.matches("selectClasses()").count(),
+                1,
+                "{}",
+                output.jsx
+            );
+            let warning = output
+                .diagnostics
+                .iter()
+                .find(|d| d.code == DiagnosticCode::DynamicClassNameNotResolved)
                 .expect("dynamic candidates are not build-time validated");
             assert_eq!(warning.severity, hozo_ir::Severity::Warning);
             if owned {
-                assert!(output.jsx.contains(&format!("{}={{selectClasses()}}", slot.class_prop)), "{}", output.jsx);
-                assert!(output.jsx.contains(&format!("{}={{extra}}", slot.style_prop)), "{}", output.jsx);
+                assert!(
+                    output
+                        .jsx
+                        .contains(&format!("{}={{selectClasses()}}", slot.class_prop)),
+                    "{}",
+                    output.jsx
+                );
+                assert!(
+                    output
+                        .jsx
+                        .contains(&format!("{}={{extra}}", slot.style_prop)),
+                    "{}",
+                    output.jsx
+                );
                 assert!(!output.jsx.contains("hozoClasses("), "{}", output.jsx);
-                assert!(warning.message.contains("owner's available state"), "{}", warning.message);
+                assert!(
+                    warning.message.contains("owner's available state"),
+                    "{}",
+                    warning.message
+                );
             } else {
-                assert!(output.jsx.contains("hozoClasses(selectClasses())"), "{}", output.jsx);
-                assert!(!output.jsx.contains(&format!("{}=", slot.class_prop)), "{}", output.jsx);
-                assert!(warning.message.contains("Conditional utilities can't"), "{}", warning.message);
+                assert!(
+                    output.jsx.contains("hozoClasses(selectClasses())"),
+                    "{}",
+                    output.jsx
+                );
+                assert!(
+                    !output.jsx.contains(&format!("{}=", slot.class_prop)),
+                    "{}",
+                    output.jsx
+                );
+                assert!(
+                    warning.message.contains("Conditional utilities can't"),
+                    "{}",
+                    warning.message
+                );
             }
         }
     }
@@ -1052,16 +1367,41 @@ fn chip_static_state_callbacks_keep_base_styles_and_explicit_overrides() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.contains("hozoStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed }) => ["), "{}", output.jsx);
-    for guard in ["hovered &&", "pressed &&", "__hozoBp_md && focused &&", "!(hovered) &&", "__hozoEnv_motion_safe && hovered &&"] {
-        assert!(output.jsx.contains(guard), "{guard} missing from {}", output.jsx);
+    for guard in [
+        "hovered &&",
+        "pressed &&",
+        "__hozoBp_md && focused &&",
+        "!(hovered) &&",
+        "__hozoEnv_motion_safe && hovered &&",
+    ] {
+        assert!(
+            output.jsx.contains(guard),
+            "{guard} missing from {}",
+            output.jsx
+        );
     }
     assert!(output.jsx.contains("style={[extra]}"), "{}", output.jsx);
-    assert!(output.jsx.contains("removeStyle={removeExtra}"), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("removeStyle={removeExtra}"),
+        "{}",
+        output.jsx
+    );
     assert!(output.styles.contains("color: '#fff'"), "{}", output.styles);
-    assert!(output.prelude.iter().any(|line| line.contains("__hozoBp_md")), "{:?}", output.prelude);
+    assert!(
+        output
+            .prelude
+            .iter()
+            .any(|line| line.contains("__hozoBp_md")),
+        "{:?}",
+        output.prelude
+    );
     // These are static styles: no candidate-map lookup, per-slot hooks or
     // extra Pressable wrapping, and no state can escape into a Text child.
-    assert!(!output.jsx.contains("hozoClasses(") && !output.jsx.contains("HozoText"), "{}", output.jsx);
+    assert!(
+        !output.jsx.contains("hozoClasses(") && !output.jsx.contains("HozoText"),
+        "{}",
+        output.jsx
+    );
 }
 
 #[test]
@@ -1072,29 +1412,69 @@ fn chip_root_residuals_use_the_same_owner_route_as_secondary_classes() {
         lower(&parsed.roots[0].node, &source, &Theme::default())
     };
     let opaque = compile("chooseClasses()");
-    assert!(opaque.jsx.contains("className={chooseClasses()}"), "{}", opaque.jsx);
+    assert!(
+        opaque.jsx.contains("className={chooseClasses()}"),
+        "{}",
+        opaque.jsx
+    );
     assert!(!opaque.jsx.contains("hozoClasses("), "{}", opaque.jsx);
     assert!(opaque.jsx.contains("style={[extra]}"), "{}", opaque.jsx);
 
-    let mixed = compile("cx('p-2 hover:opacity-50 not-focus:rounded-lg md:mt-2', chooseClasses(), chooseOther())");
-    assert_eq!(mixed.jsx.matches("chooseClasses()").count(), 1, "{}", mixed.jsx);
-    assert_eq!(mixed.jsx.matches("chooseOther()").count(), 1, "{}", mixed.jsx);
+    let mixed = compile(
+        "cx('p-2 hover:opacity-50 not-focus:rounded-lg md:mt-2', chooseClasses(), chooseOther())",
+    );
+    assert_eq!(
+        mixed.jsx.matches("chooseClasses()").count(),
+        1,
+        "{}",
+        mixed.jsx
+    );
+    assert_eq!(
+        mixed.jsx.matches("chooseOther()").count(),
+        1,
+        "{}",
+        mixed.jsx
+    );
     assert!(mixed.jsx.contains("hozoStyles.hozo0, __hozoBp_md && hozoStyles.hozo0_md, hozoClasses(__hozoClassSlot0Value0, __hozoClassSlot0State), hozoClasses(__hozoClassSlot0Value1, __hozoClassSlot0State), hovered &&"), "{}", mixed.jsx);
     assert!(mixed.jsx.contains("!(focused) &&"), "{}", mixed.jsx);
-    assert!(mixed.jsx.contains("})((chooseClasses()), (chooseOther()))}"), "{}", mixed.jsx);
+    assert!(
+        mixed
+            .jsx
+            .contains("})((chooseClasses()), (chooseOther()))}"),
+        "{}",
+        mixed.jsx
+    );
     assert!(!mixed.jsx.contains("className="), "{}", mixed.jsx);
 
     // Even without AOT declarations, several residual leaves must be
     // captured together rather than silently dropping all but the first.
     let multiple = compile("cx(chooseClasses(), chooseOther())");
     assert!(multiple.jsx.contains("hozoClasses(__hozoClassSlot0Value0, __hozoClassSlot0State), hozoClasses(__hozoClassSlot0Value1, __hozoClassSlot0State)"), "{}", multiple.jsx);
-    assert_eq!(multiple.jsx.matches("chooseClasses()").count(), 1, "{}", multiple.jsx);
-    assert_eq!(multiple.jsx.matches("chooseOther()").count(), 1, "{}", multiple.jsx);
+    assert_eq!(
+        multiple.jsx.matches("chooseClasses()").count(),
+        1,
+        "{}",
+        multiple.jsx
+    );
+    assert_eq!(
+        multiple.jsx.matches("chooseOther()").count(),
+        1,
+        "{}",
+        multiple.jsx
+    );
 
     // An authored reference must not be shadowed by a capture/local name.
     let hygienic = compile("cx(__hozoClassSlot0State && 'hover:opacity-50', chooseClasses())");
-    assert!(hygienic.jsx.contains("__hozoClassSlot1Value0"), "{}", hygienic.jsx);
-    assert!(hygienic.jsx.contains("__hozoClassSlot0State"), "{}", hygienic.jsx);
+    assert!(
+        hygienic.jsx.contains("__hozoClassSlot1Value0"),
+        "{}",
+        hygienic.jsx
+    );
+    assert!(
+        hygienic.jsx.contains("__hozoClassSlot0State"),
+        "{}",
+        hygienic.jsx
+    );
 }
 
 #[test]
@@ -1106,15 +1486,32 @@ fn chip_semantic_predicates_read_the_class_owners_private_state() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    for guard in ["__hozoSlotAriaPressed &&", "!(__hozoSlotAriaPressed) &&", "__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "__hozoSlotAriaPressed && hovered &&"] {
+    for guard in [
+        "__hozoSlotAriaPressed &&",
+        "!(__hozoSlotAriaPressed) &&",
+        "__hozoSlotDisabled &&",
+        "__hozoSlotEnabled &&",
+        "__hozoSlotAriaPressed && hovered &&",
+    ] {
         assert!(output.jsx.contains(guard), "{guard}: {}", output.jsx);
     }
     assert!(output.jsx.contains("hozoRemoveStyle={({"), "{}", output.jsx);
-    assert!(!output.jsx.contains("accessibilityState"), "RN announcements remain the pattern's job: {}", output.jsx);
+    assert!(
+        !output.jsx.contains("accessibilityState"),
+        "RN announcements remain the pattern's job: {}",
+        output.jsx
+    );
     let unsupported = source.replace("aria-checked:outline-4", "aria-expanded:outline-4");
     let parsed = hozo_parser::parse_tsx(&unsupported);
     let output = lower(&parsed.roots[0].node, &unsupported, &Theme::default());
-    assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+        "{:?}",
+        output.diagnostics
+    );
 }
 
 #[test]
@@ -1127,16 +1524,32 @@ fn pagination_semantic_predicates_have_per_control_button_link_facts() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    for guard in ["__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "__hozoSlotAriaDisabled &&", "!(__hozoSlotAriaDisabled) && hovered &&"] {
+    for guard in [
+        "__hozoSlotDisabled &&",
+        "__hozoSlotEnabled &&",
+        "__hozoSlotAriaDisabled &&",
+        "!(__hozoSlotAriaDisabled) && hovered &&",
+    ] {
         assert!(output.jsx.contains(guard), "{guard}: {}", output.jsx);
     }
-    for callback in ["hozoItemStyle", "hozoCurrentItemStyle", "hozoDisabledItemStyle"] {
+    for callback in [
+        "hozoItemStyle",
+        "hozoCurrentItemStyle",
+        "hozoDisabledItemStyle",
+    ] {
         assert!(output.jsx.contains(&format!("{callback}={{({{ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled }}")), "{}", output.jsx);
     }
     let unsupported = source.replace("aria-selected:outline-4", "aria-checked:outline-4");
     let parsed = hozo_parser::parse_tsx(&unsupported);
     let output = lower(&parsed.roots[0].node, &unsupported, &Theme::default());
-    assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+        "{:?}",
+        output.diagnostics
+    );
 }
 
 #[test]
@@ -1147,10 +1560,18 @@ fn pattern_state_callbacks_do_not_invent_other_slots_or_group_context() {
         r#"<Pressable accessibilityRole="button"><Chip defaultSelected={false} className="group-hover:opacity-50">x</Chip></Pressable>"#,
         r#"<View className="hover:opacity-50" />"#,
     ] {
-        let source = format!("import {{ Chip, Avatar, View, Pressable }} from '@hozo/core'\nconst el = {element}");
+        let source = format!(
+            "import {{ Chip, Avatar, View, Pressable }} from '@hozo/core'\nconst el = {element}"
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{element}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{element}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
@@ -1165,8 +1586,18 @@ fn an_avatar_is_hozo_avatar_and_each_part_gets_its_style() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoAvatar style={hozoStyles.hozo0}"), "{}", output.jsx);
-    assert!(output.runtime_imports.contains(&"HozoAvatar"), "{:?}", output.runtime_imports);
+    assert!(
+        output
+            .jsx
+            .starts_with("<HozoAvatar style={hozoStyles.hozo0}"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.runtime_imports.contains(&"HozoAvatar"),
+        "{:?}",
+        output.runtime_imports
+    );
     for prop in [
         "imageStyle={hozoStyles.hozo1}",
         "fallbackStyle={hozoStyles.hozo2}",
@@ -1193,7 +1624,13 @@ fn a_pagination_is_hozo_pagination_with_a_style_per_state() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoPagination style={hozoStyles.hozo0}"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .starts_with("<HozoPagination style={hozoStyles.hozo0}"),
+        "{}",
+        output.jsx
+    );
     for prop in [
         "itemStyle={hozoStyles.hozo1}",
         "currentItemStyle={hozoStyles.hozo2}",
@@ -1203,7 +1640,11 @@ fn a_pagination_is_hozo_pagination_with_a_style_per_state() {
     ] {
         assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
     }
-    assert!(output.runtime_imports.contains(&"HozoPagination"), "{:?}", output.runtime_imports);
+    assert!(
+        output.runtime_imports.contains(&"HozoPagination"),
+        "{:?}",
+        output.runtime_imports
+    );
 }
 
 #[test]
@@ -1213,17 +1654,41 @@ fn pagination_compiles_control_state_slots_not_the_row_or_ellipsis() {
         let parsed = hozo_parser::parse_tsx(&source);
         lower(&parsed.roots[0].node, &source, &Theme::default())
     };
-    let output = compile(r#"itemClassName="px-2 hover:text-white active:opacity-50" currentItemClassName="bg-red-500 focus-visible:outline-4" disabledItemClassName="opacity-25 not-hover:border-2" itemStyle={extra} currentItemStyle={currentExtra} disabledItemStyle={disabledExtra}"#);
+    let output = compile(
+        r#"itemClassName="px-2 hover:text-white active:opacity-50" currentItemClassName="bg-red-500 focus-visible:outline-4" disabledItemClassName="opacity-25 not-hover:border-2" itemStyle={extra} currentItemStyle={currentExtra} disabledItemStyle={disabledExtra}"#,
+    );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    for prop in ["hozoItemStyle", "hozoCurrentItemStyle", "hozoDisabledItemStyle"] {
+    for prop in [
+        "hozoItemStyle",
+        "hozoCurrentItemStyle",
+        "hozoDisabledItemStyle",
+    ] {
         assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled }}) => [")), "{}", output.jsx);
     }
-    for expected in ["hovered &&", "pressed &&", "focusVisible &&", "!(hovered) &&", "itemStyle={extra}", "currentItemStyle={currentExtra}", "disabledItemStyle={disabledExtra}"] {
-        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    for expected in [
+        "hovered &&",
+        "pressed &&",
+        "focusVisible &&",
+        "!(hovered) &&",
+        "itemStyle={extra}",
+        "currentItemStyle={currentExtra}",
+        "disabledItemStyle={disabledExtra}",
+    ] {
+        assert!(
+            output.jsx.contains(expected),
+            "{expected} missing from {}",
+            output.jsx
+        );
     }
     for slot in ["className", "ellipsisClassName"] {
         let output = compile(&format!(r#"{slot}="focus-visible:outline-2""#));
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
@@ -1234,49 +1699,139 @@ fn stepper_compiles_only_authored_button_slots_and_scopes_negation_to_that_owner
         let parsed = hozo_parser::parse_tsx(&source);
         lower(&parsed.roots[0].node, &source, &Theme::default())
     };
-    let output = compile(r#"onStepPress={handler} stepClassName="px-2 hover:text-white active:opacity-50 not-hover:border-2" completedStepClassName="focus:bg-blue-500" currentStepClassName="bg-red-500 focus-visible:outline-4" errorStepClassName="md:not-hover:opacity-25" stepStyle={extra} currentStepStyle={currentExtra}"#);
+    let output = compile(
+        r#"onStepPress={handler} stepClassName="px-2 hover:text-white active:opacity-50 not-hover:border-2" completedStepClassName="focus:bg-blue-500" currentStepClassName="bg-red-500 focus-visible:outline-4" errorStepClassName="md:not-hover:opacity-25" stepStyle={extra} currentStepStyle={currentExtra}"#,
+    );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    for prop in ["hozoStepStyle", "hozoCompletedStepStyle", "hozoCurrentStepStyle", "hozoErrorStepStyle"] {
+    for prop in [
+        "hozoStepStyle",
+        "hozoCompletedStepStyle",
+        "hozoCurrentStepStyle",
+        "hozoErrorStepStyle",
+    ] {
         assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible, interactionAvailable, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled }}) => [")), "{}", output.jsx);
     }
-    for expected in ["(interactionAvailable && hovered) &&", "(interactionAvailable && pressed) &&", "(interactionAvailable && !(hovered)) &&", "(interactionAvailable && focused) &&", "(interactionAvailable && focusVisible) &&", "stepStyle={extra}", "currentStepStyle={currentExtra}"] {
-        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    for expected in [
+        "(interactionAvailable && hovered) &&",
+        "(interactionAvailable && pressed) &&",
+        "(interactionAvailable && !(hovered)) &&",
+        "(interactionAvailable && focused) &&",
+        "(interactionAvailable && focusVisible) &&",
+        "stepStyle={extra}",
+        "currentStepStyle={currentExtra}",
+    ] {
+        assert!(
+            output.jsx.contains(expected),
+            "{expected} missing from {}",
+            output.jsx
+        );
     }
-    for slot in ["stepClassName", "completedStepClassName", "currentStepClassName", "errorStepClassName"] {
+    for slot in [
+        "stepClassName",
+        "completedStepClassName",
+        "currentStepClassName",
+        "errorStepClassName",
+    ] {
         for condition in ["hover", "not-hover", "md:not-focus-visible"] {
             let output = compile(&format!(r#"{slot}="{condition}:opacity-50""#));
-            assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error && d.message.contains("onStepPress")), "{slot}/{condition}: {:?}", output.diagnostics);
-            assert!(!output.jsx.contains("interactionAvailable"), "{}", output.jsx);
+            assert!(
+                output
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::NotWiredOnNative
+                        && d.severity == Severity::Error
+                        && d.message.contains("onStepPress")),
+                "{slot}/{condition}: {:?}",
+                output.diagnostics
+            );
+            assert!(
+                !output.jsx.contains("interactionAvailable"),
+                "{}",
+                output.jsx
+            );
         }
     }
     // Even with a handler, the ol and decorative spans are not step buttons.
-    for slot in ["className", "indicatorClassName", "completedIndicatorClassName", "currentIndicatorClassName", "errorIndicatorClassName", "descriptionClassName"] {
-        let output = compile(&format!(r#"onStepPress={{handler}} {slot}="not-focus-visible:outline-2""#));
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+    for slot in [
+        "className",
+        "indicatorClassName",
+        "completedIndicatorClassName",
+        "currentIndicatorClassName",
+        "errorIndicatorClassName",
+        "descriptionClassName",
+    ] {
+        let output = compile(&format!(
+            r#"onStepPress={{handler}} {slot}="not-focus-visible:outline-2""#
+        ));
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
     }
     for condition in ["aria-checked", "not-aria-expanded", "hover:aria-pressed"] {
-        let output = compile(&format!(r#"onStepPress={{handler}} stepClassName="{condition}:opacity-50""#));
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{condition}: {:?}", output.diagnostics);
+        let output = compile(&format!(
+            r#"onStepPress={{handler}} stepClassName="{condition}:opacity-50""#
+        ));
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{condition}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
 #[test]
 fn stepper_semantics_describe_the_class_owner_even_without_a_button() {
-    for slot in ["stepClassName", "completedStepClassName", "currentStepClassName", "errorStepClassName"] {
-        let source = format!(r#"import {{ Stepper }} from '@hozo/core'
+    for slot in [
+        "stepClassName",
+        "completedStepClassName",
+        "currentStepClassName",
+        "errorStepClassName",
+    ] {
+        let source = format!(
+            r#"import {{ Stepper }} from '@hozo/core'
           const el = <Stepper steps={{steps}} activeStep={{0}}
             {slot}="px-2 disabled:opacity-50 enabled:border-2 not-disabled:bg-blue-500 not-enabled:outline-4 not-aria-selected:font-bold not-aria-disabled:text-red-500 disabled:not-enabled:underline"
-            />"#);
+            />"#
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.is_empty(), "{slot}: {:?}", output.diagnostics);
-        for predicate in ["__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "!(__hozoSlotDisabled) &&", "!(__hozoSlotEnabled) &&", "__hozoSlotDisabled && !(__hozoSlotEnabled) &&"] {
-            assert!(output.jsx.contains(predicate), "{predicate}: {}", output.jsx);
+        assert!(
+            output.diagnostics.is_empty(),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
+        for predicate in [
+            "__hozoSlotDisabled &&",
+            "__hozoSlotEnabled &&",
+            "!(__hozoSlotDisabled) &&",
+            "!(__hozoSlotEnabled) &&",
+            "__hozoSlotDisabled && !(__hozoSlotEnabled) &&",
+        ] {
+            assert!(
+                output.jsx.contains(predicate),
+                "{predicate}: {}",
+                output.jsx
+            );
         }
         // The callback needs local facts, not an event-owner gate around all
         // entries: descriptive rows must match both negative pseudo-classes.
-        assert!(!output.jsx.contains("interactionAvailable &&"), "{}", output.jsx);
-        assert!(output.styles.contains("fontWeight: '700'") && output.styles.contains("color: '#fb2c36'"), "{}", output.styles);
+        assert!(
+            !output.jsx.contains("interactionAvailable &&"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.styles.contains("fontWeight: '700'")
+                && output.styles.contains("color: '#fb2c36'"),
+            "{}",
+            output.styles
+        );
     }
     let source = r#"import { Stepper } from '@hozo/core'
       const el = <Stepper steps={steps} activeStep={0} onStepPress={handler}
@@ -1284,8 +1839,16 @@ fn stepper_semantics_describe_the_class_owner_even_without_a_button() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.contains("(interactionAvailable && !(hovered))"), "{}", output.jsx);
-    assert!(output.jsx.contains("!(__hozoSlotDisabled)"), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("(interactionAvailable && !(hovered))"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.jsx.contains("!(__hozoSlotDisabled)"),
+        "{}",
+        output.jsx
+    );
 }
 
 #[test]
@@ -1298,21 +1861,73 @@ fn text_input_focus_styles_use_the_field_and_keep_value_typography() {
     let plain = compile(r#"className="text-red-500 text-sm border""#);
     assert!(plain.diagnostics.is_empty(), "{:?}", plain.diagnostics);
     assert!(plain.jsx.starts_with("<TextInput style="), "{}", plain.jsx);
-    assert!(plain.runtime_imports.is_empty(), "{:?}", plain.runtime_imports);
-    assert!(plain.styles.contains("color: '#fb2c36'"), "{}", plain.styles);
+    assert!(
+        plain.runtime_imports.is_empty(),
+        "{:?}",
+        plain.runtime_imports
+    );
+    assert!(
+        plain.styles.contains("color: '#fb2c36'"),
+        "{}",
+        plain.styles
+    );
     assert!(plain.styles.contains("fontSize: 14"), "{}", plain.styles);
-    let output = compile(r#"className="px-2 text-red-500 focus:text-blue-500 focus-visible:outline-4 not-focus:opacity-50 md:not-focus-visible:outline-1" style={extra} ref={input} onFocus={focused} onBlur={blurred}"#);
+    let output = compile(
+        r#"className="px-2 text-red-500 focus:text-blue-500 focus-visible:outline-4 not-focus:opacity-50 md:not-focus-visible:outline-1" style={extra} ref={input} onFocus={focused} onBlur={blurred}"#,
+    );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoTextInput ") && output.jsx.contains("hozoStyle="), "{}", output.jsx);
-    assert!(output.runtime_imports.contains(&"HozoTextInput"), "{:?}", output.runtime_imports);
-    for expected in ["focused &&", "focusVisible &&", "!(focused) &&", "!(focusVisible)", "style={[extra]}", "ref={input}", "onFocus={focused}", "onBlur={blurred}"] {
-        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    assert!(
+        output.jsx.starts_with("<HozoTextInput ") && output.jsx.contains("hozoStyle="),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.runtime_imports.contains(&"HozoTextInput"),
+        "{:?}",
+        output.runtime_imports
+    );
+    for expected in [
+        "focused &&",
+        "focusVisible &&",
+        "!(focused) &&",
+        "!(focusVisible)",
+        "style={[extra]}",
+        "ref={input}",
+        "onFocus={focused}",
+        "onBlur={blurred}",
+    ] {
+        assert!(
+            output.jsx.contains(expected),
+            "{expected} missing from {}",
+            output.jsx
+        );
     }
-    assert!(output.styles.contains("color: '#2b7fff'"), "{}", output.styles);
-    assert!(!output.jsx.contains("HozoPressable") && !output.jsx.contains("HozoText "), "{}", output.jsx);
-    for condition in ["hover", "active", "not-hover", "md:not-active", "hover:focus-visible", "not-focus-within"] {
+    assert!(
+        output.styles.contains("color: '#2b7fff'"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        !output.jsx.contains("HozoPressable") && !output.jsx.contains("HozoText "),
+        "{}",
+        output.jsx
+    );
+    for condition in [
+        "hover",
+        "active",
+        "not-hover",
+        "md:not-active",
+        "hover:focus-visible",
+        "not-focus-within",
+    ] {
         let output = compile(&format!(r#"className="{condition}:opacity-50""#));
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{condition}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{condition}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
@@ -1321,13 +1936,30 @@ fn runtime_text_input_classes_receive_only_field_focus_facts() {
     let source = "import { TextInput } from '@hozo/core'; function C({extra}) {return <TextInput accessibilityLabel=\"Field\" className={extra} style={custom} ref={input} />}";
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(output.diagnostics.iter().all(|d| d.code == DiagnosticCode::DynamicClassNameNotResolved), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .diagnostics
+            .iter()
+            .all(|d| d.code == DiagnosticCode::DynamicClassNameNotResolved),
+        "{:?}",
+        output.diagnostics
+    );
     assert!(output.jsx.starts_with("<HozoTextInput "), "{}", output.jsx);
-    assert!(output.jsx.contains("hozoClasses(extra, { focused, focusVisible })"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .contains("hozoClasses(extra, { focused, focusVisible })"),
+        "{}",
+        output.jsx
+    );
     for expected in ["hozoStyle=", "style={[custom]}", "ref={input}"] {
         assert!(output.jsx.contains(expected), "{}", output.jsx);
     }
-    assert!(!output.jsx.contains("hozoClasses(extra, { pressed"), "{}", output.jsx);
+    assert!(
+        !output.jsx.contains("hozoClasses(extra, { pressed"),
+        "{}",
+        output.jsx
+    );
 }
 
 #[test]
@@ -1339,7 +1971,13 @@ fn a_stepper_is_hozo_stepper_with_a_style_per_status() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoStepper style={hozoStyles.hozo0}"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .starts_with("<HozoStepper style={hozoStyles.hozo0}"),
+        "{}",
+        output.jsx
+    );
     for prop in [
         "currentStepStyle={hozoStyles.hozo1}",
         "completedIndicatorStyle={hozoStyles.hozo2}",
@@ -1349,7 +1987,11 @@ fn a_stepper_is_hozo_stepper_with_a_style_per_status() {
     ] {
         assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
     }
-    assert!(output.runtime_imports.contains(&"HozoStepper"), "{:?}", output.runtime_imports);
+    assert!(
+        output.runtime_imports.contains(&"HozoStepper"),
+        "{:?}",
+        output.runtime_imports
+    );
 }
 
 #[test]
@@ -1364,14 +2006,47 @@ fn a_table_is_runtime_parts_whose_cells_keep_their_text_styles() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoTable style={hozoStyles.hozo0}>"), "{}", output.jsx);
-    assert!(output.jsx.contains(r#"<HozoTableSection section="body">"#), "{}", output.jsx);
-    assert!(output.jsx.contains(r#"<HozoTableCell head scope="row">{name}</HozoTableCell>"#), "{}", output.jsx);
-    assert!(output.jsx.contains("{price}</HozoTableCell>"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .starts_with("<HozoTable style={hozoStyles.hozo0}>"),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.jsx.contains(r#"<HozoTableSection section="body">"#),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output
+            .jsx
+            .contains(r#"<HozoTableCell head scope="row">{name}</HozoTableCell>"#),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.jsx.contains("{price}</HozoTableCell>"),
+        "{}",
+        output.jsx
+    );
     assert!(!output.jsx.contains("<Text"), "{}", output.jsx);
-    assert!(output.styles.contains("textAlign: 'right'"), "{}", output.styles);
-    for name in ["HozoTable", "HozoTableSection", "HozoTableRow", "HozoTableCell"] {
-        assert!(output.runtime_imports.contains(&name), "{name}: {:?}", output.runtime_imports);
+    assert!(
+        output.styles.contains("textAlign: 'right'"),
+        "{}",
+        output.styles
+    );
+    for name in [
+        "HozoTable",
+        "HozoTableSection",
+        "HozoTableRow",
+        "HozoTableCell",
+    ] {
+        assert!(
+            output.runtime_imports.contains(&name),
+            "{name}: {:?}",
+            output.runtime_imports
+        );
     }
 }
 
@@ -1382,25 +2057,64 @@ fn otp_input_focus_belongs_to_the_field_not_wrapper_or_virtual_cells() {
         let parsed = hozo_parser::parse_tsx(&source);
         lower(&parsed.roots[0].node, &source, &Theme::default())
     };
-    let output = compile(r#"disabled={blocked} inputClassName="rounded-lg focus:outline-2 focus-visible:outline-4 not-focus:opacity-50 md:not-focus-visible:outline-1 disabled:opacity-25" inputStyle={extra}"#);
+    let output = compile(
+        r#"disabled={blocked} inputClassName="rounded-lg focus:outline-2 focus-visible:outline-4 not-focus:opacity-50 md:not-focus-visible:outline-1 disabled:opacity-25" inputStyle={extra}"#,
+    );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     assert!(output.jsx.contains("hozoInputStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly }) => ["), "{}", output.jsx);
-    for expected in ["focused &&", "focusVisible &&", "!(focused) &&", "!(focusVisible)", "inputStyle={extra}", "disabled={blocked}"] {
-        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    for expected in [
+        "focused &&",
+        "focusVisible &&",
+        "!(focused) &&",
+        "!(focusVisible)",
+        "inputStyle={extra}",
+        "disabled={blocked}",
+    ] {
+        assert!(
+            output.jsx.contains(expected),
+            "{expected} missing from {}",
+            output.jsx
+        );
     }
     let base = compile(r#"inputClassName="rounded-lg""#);
     assert!(base.diagnostics.is_empty(), "{:?}", base.diagnostics);
-    assert!(base.jsx.contains("inputStyle={hozoStyles.hozo1}"), "{}", base.jsx);
+    assert!(
+        base.jsx.contains("inputStyle={hozoStyles.hozo1}"),
+        "{}",
+        base.jsx
+    );
     assert!(!base.jsx.contains("hozoInputStyle"), "{}", base.jsx);
-    for slot in ["className", "cellClassName", "activeCellClassName", "filledCellClassName"] {
+    for slot in [
+        "className",
+        "cellClassName",
+        "activeCellClassName",
+        "filledCellClassName",
+    ] {
         for condition in ["focus", "not-focus-visible", "md:not-focus"] {
             let output = compile(&format!(r#"{slot}="{condition}:outline-2""#));
-            assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}/{condition}: {:?}", output.diagnostics);
+            assert!(
+                output
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::NotWiredOnNative
+                        && d.severity == Severity::Error),
+                "{slot}/{condition}: {:?}",
+                output.diagnostics
+            );
         }
     }
     for condition in ["hover", "active", "not-hover", "md:not-active"] {
         let output = compile(&format!(r#"inputClassName="{condition}:opacity-50""#));
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error && d.message.contains("different owner")), "{condition}: {:?}", output.diagnostics);
+        assert!(
+            output
+                .diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative
+                    && d.severity == Severity::Error
+                    && d.message.contains("different owner")),
+            "{condition}: {:?}",
+            output.diagnostics
+        );
         assert!(!output.jsx.contains("hozoInputStyle"), "{}", output.jsx);
     }
 }
@@ -1413,24 +2127,62 @@ fn otp_input_semantics_use_internal_field_facts_without_authored_drivers() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    for expected in ["disabled: __hozoSlotDisabled", "enabled: __hozoSlotEnabled", "readOnly: __hozoSlotReadOnly", "__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "__hozoSlotReadOnly &&", "!(__hozoSlotReadOnly) &&", "__hozoSlotReadOnly && focused &&"] {
+    for expected in [
+        "disabled: __hozoSlotDisabled",
+        "enabled: __hozoSlotEnabled",
+        "readOnly: __hozoSlotReadOnly",
+        "__hozoSlotDisabled &&",
+        "__hozoSlotEnabled &&",
+        "__hozoSlotReadOnly &&",
+        "!(__hozoSlotReadOnly) &&",
+        "__hozoSlotReadOnly && focused &&",
+    ] {
         assert!(output.jsx.contains(expected), "{expected}: {}", output.jsx);
     }
-    for slot in ["className", "cellClassName", "activeCellClassName", "filledCellClassName"] {
-        let source = format!(r#"import {{ OtpInput }} from '@hozo/core'
+    for slot in [
+        "className",
+        "cellClassName",
+        "activeCellClassName",
+        "filledCellClassName",
+    ] {
+        let source = format!(
+            r#"import {{ OtpInput }} from '@hozo/core'
             const el = <OtpInput accessibilityLabel="Code" disabled
-              {slot}="disabled:opacity-25 enabled:outline-8 read-only:rounded-lg not-read-only:opacity-50 not-disabled:border-2 not-enabled:pt-1 aria-disabled:outline-8" />"#);
+              {slot}="disabled:opacity-25 enabled:outline-8 read-only:rounded-lg not-read-only:opacity-50 not-disabled:border-2 not-enabled:pt-1 aria-disabled:outline-8" />"#
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.is_empty(), "{slot}: {:?}", output.diagnostics);
-        assert!(!output.jsx.contains("__hozoSlotDisabled") && !output.jsx.contains("__hozoSlotReadOnly"), "constants need no callback: {}", output.jsx);
+        assert!(
+            output.diagnostics.is_empty(),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
+        assert!(
+            !output.jsx.contains("__hozoSlotDisabled")
+                && !output.jsx.contains("__hozoSlotReadOnly"),
+            "constants need no callback: {}",
+            output.jsx
+        );
     }
-    for (slot, variant) in [("cellClassName", "aria-expanded"), ("activeCellClassName", "aria-expanded"), ("filledCellClassName", "not-aria-expanded"), ("inputClassName", "not-aria-expanded")] {
-        let source = format!(r#"import {{ OtpInput }} from '@hozo/core'
-            const el = <OtpInput accessibilityLabel="Code" {slot}="{variant}:opacity-50" />"#);
+    for (slot, variant) in [
+        ("cellClassName", "aria-expanded"),
+        ("activeCellClassName", "aria-expanded"),
+        ("filledCellClassName", "not-aria-expanded"),
+        ("inputClassName", "not-aria-expanded"),
+    ] {
+        let source = format!(
+            r#"import {{ OtpInput }} from '@hozo/core'
+            const el = <OtpInput accessibilityLabel="Code" {slot}="{variant}:opacity-50" />"#
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}/{variant}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{slot}/{variant}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
@@ -1443,7 +2195,13 @@ fn an_otp_input_is_hozo_otp_input_with_a_style_per_cell_state() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoOtpInput style={hozoStyles.hozo0}"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .starts_with("<HozoOtpInput style={hozoStyles.hozo0}"),
+        "{}",
+        output.jsx
+    );
     for prop in [
         "cellStyle={hozoStyles.hozo1}",
         "activeCellStyle={hozoStyles.hozo2}",
@@ -1452,7 +2210,11 @@ fn an_otp_input_is_hozo_otp_input_with_a_style_per_cell_state() {
     ] {
         assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
     }
-    assert!(output.runtime_imports.contains(&"HozoOtpInput"), "{:?}", output.runtime_imports);
+    assert!(
+        output.runtime_imports.contains(&"HozoOtpInput"),
+        "{:?}",
+        output.runtime_imports
+    );
 }
 
 #[test]
@@ -1468,16 +2230,29 @@ fn an_image_srcset_of_widths_is_said_to_be_density_only_on_native() {
     };
     let widths = compile("a-400.jpg 400w, a-800.jpg 800w");
     assert!(
-        widths.diagnostics.iter().any(|d| d.code == hozo_ir::DiagnosticCode::NotWiredOnNative
-            && d.severity == hozo_ir::Severity::Warning
-            && d.message.contains("density")),
+        widths
+            .diagnostics
+            .iter()
+            .any(|d| d.code == hozo_ir::DiagnosticCode::NotWiredOnNative
+                && d.severity == hozo_ir::Severity::Warning
+                && d.message.contains("density")),
         "{:?}",
         widths.diagnostics
     );
     // Passed through either way: React Native reads it.
-    assert!(widths.jsx.contains(r#"srcSet="a-400.jpg 400w, a-800.jpg 800w""#), "{}", widths.jsx);
+    assert!(
+        widths
+            .jsx
+            .contains(r#"srcSet="a-400.jpg 400w, a-800.jpg 800w""#),
+        "{}",
+        widths.jsx
+    );
     let densities = compile("a.jpg 1x, a@2x.jpg 2x");
-    assert!(densities.diagnostics.is_empty(), "{:?}", densities.diagnostics);
+    assert!(
+        densities.diagnostics.is_empty(),
+        "{:?}",
+        densities.diagnostics
+    );
 }
 
 #[test]
@@ -1489,7 +2264,11 @@ fn a_command_palette_is_hozo_command_palette_with_a_style_per_part() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoCommandPalette "), "{}", output.jsx);
+    assert!(
+        output.jsx.starts_with("<HozoCommandPalette "),
+        "{}",
+        output.jsx
+    );
     for prop in [
         // Numbered in the slot table's order, not the order they were written.
         "panelStyle={hozoStyles.hozo1}",
@@ -1501,7 +2280,11 @@ fn a_command_palette_is_hozo_command_palette_with_a_style_per_part() {
     ] {
         assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
     }
-    assert!(output.runtime_imports.contains(&"HozoCommandPalette"), "{:?}", output.runtime_imports);
+    assert!(
+        output.runtime_imports.contains(&"HozoCommandPalette"),
+        "{:?}",
+        output.runtime_imports
+    );
 }
 
 #[test]
@@ -1517,58 +2300,154 @@ fn command_item_pointer_states_compile_without_inventing_input_focus() {
     for prop in ["hozoItemStyle", "hozoActiveItemStyle"] {
         assert!(output.jsx.contains(&format!("{prop}={{({{ pressed, hovered, focused, focusVisible, 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected }}) => [")), "{}", output.jsx);
     }
-    for expected in ["hovered &&", "pressed &&", "!(hovered) &&", "__hozoBp_md && hovered &&", "itemStyle={extra}", "activeItemStyle={activeExtra}"] {
-        assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
+    for expected in [
+        "hovered &&",
+        "pressed &&",
+        "!(hovered) &&",
+        "__hozoBp_md && hovered &&",
+        "itemStyle={extra}",
+        "activeItemStyle={activeExtra}",
+    ] {
+        assert!(
+            output.jsx.contains(expected),
+            "{expected} missing from {}",
+            output.jsx
+        );
     }
-    assert!(!output.jsx.contains("hozoClasses(") && !output.jsx.contains("HozoPressable"), "{}", output.jsx);
+    assert!(
+        !output.jsx.contains("hozoClasses(") && !output.jsx.contains("HozoPressable"),
+        "{}",
+        output.jsx
+    );
 }
 
 #[test]
 fn command_option_semantics_are_not_native_button_pseudo_classes() {
     for slot in ["itemClassName", "activeItemClassName"] {
-        let source = format!(r#"import {{ CommandPalette }} from '@hozo/core'
+        let source = format!(
+            r#"import {{ CommandPalette }} from '@hozo/core'
             const el = <CommandPalette commands={{commands}}
-              {slot}="disabled:ml-8 enabled:mr-8 not-disabled:mt-1 not-enabled:mb-1 aria-selected:border-2 not-aria-selected:opacity-50 aria-disabled:rounded-lg not-aria-disabled:pt-1 aria-selected:hover:text-white aria-checked:outline-8 not-aria-checked:pb-1" />"#);
+              {slot}="disabled:ml-8 enabled:mr-8 not-disabled:mt-1 not-enabled:mb-1 aria-selected:border-2 not-aria-selected:opacity-50 aria-disabled:rounded-lg not-aria-disabled:pt-1 aria-selected:hover:text-white aria-checked:outline-8 not-aria-checked:pb-1" />"#
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.is_empty(), "{slot}: {:?}", output.diagnostics);
-        for expected in ["__hozoSlotAriaSelected &&", "!(__hozoSlotAriaSelected) &&", "__hozoSlotAriaDisabled &&", "!(__hozoSlotAriaDisabled) &&", "__hozoSlotAriaSelected && hovered &&"] {
+        assert!(
+            output.diagnostics.is_empty(),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
+        for expected in [
+            "__hozoSlotAriaSelected &&",
+            "!(__hozoSlotAriaSelected) &&",
+            "__hozoSlotAriaDisabled &&",
+            "!(__hozoSlotAriaDisabled) &&",
+            "__hozoSlotAriaSelected && hovered &&",
+        ] {
             assert!(output.jsx.contains(expected), "{expected}: {}", output.jsx);
         }
         // Neither positive pseudo-class applies to the div, but its negations
         // do. No outer prop or Native button state is consulted for them.
-        assert!(!output.jsx.contains("__hozoSlotDisabled") && !output.jsx.contains("__hozoSlotEnabled"), "{}", output.jsx);
-        assert!(output.styles.contains("marginTop: 4") && output.styles.contains("marginBottom: 4"), "{}", output.styles);
+        assert!(
+            !output.jsx.contains("__hozoSlotDisabled") && !output.jsx.contains("__hozoSlotEnabled"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.styles.contains("marginTop: 4") && output.styles.contains("marginBottom: 4"),
+            "{}",
+            output.styles
+        );
         let unsupported = source.replace("not-aria-checked:pb-1", "not-aria-expanded:pb-1");
         let parsed = hozo_parser::parse_tsx(&unsupported);
         let output = lower(&parsed.roots[0].node, &unsupported, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{:?}",
+            output.diagnostics
+        );
     }
-    for slot in ["className", "scrimClassName", "panelClassName", "inputClassName", "listClassName", "shortcutClassName", "groupHeadingClassName", "emptyClassName"] {
-        let source = format!(r#"import {{ CommandPalette }} from '@hozo/core'
-            const el = <CommandPalette commands={{commands}} {slot}="aria-selected:opacity-50" />"#);
+    for slot in [
+        "className",
+        "scrimClassName",
+        "panelClassName",
+        "inputClassName",
+        "listClassName",
+        "shortcutClassName",
+        "groupHeadingClassName",
+        "emptyClassName",
+    ] {
+        let source = format!(
+            r#"import {{ CommandPalette }} from '@hozo/core'
+            const el = <CommandPalette commands={{commands}} {slot}="aria-selected:opacity-50" />"#
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
 #[test]
 fn command_item_focus_is_refused_alone_stacked_and_negated() {
     for slot in ["itemClassName", "activeItemClassName"] {
-        for variant in ["focus", "focus-visible", "not-focus", "not-focus-visible", "hover:focus", "md:not-focus-visible"] {
-            let source = format!(r#"import {{ CommandPalette }} from '@hozo/core'; const el = <CommandPalette commands={{commands}} {slot}="{variant}:opacity-50" />"#);
+        for variant in [
+            "focus",
+            "focus-visible",
+            "not-focus",
+            "not-focus-visible",
+            "hover:focus",
+            "md:not-focus-visible",
+        ] {
+            let source = format!(
+                r#"import {{ CommandPalette }} from '@hozo/core'; const el = <CommandPalette commands={{commands}} {slot}="{variant}:opacity-50" />"#
+            );
             let parsed = hozo_parser::parse_tsx(&source);
             let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-            assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error && d.message.contains("Web input keeps focus")), "{slot} {variant}: {:?}", output.diagnostics);
-            assert!(!output.jsx.contains("_focus"), "a refused predicate must not apply: {}", output.jsx);
+            assert!(
+                output
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::NotWiredOnNative
+                        && d.severity == Severity::Error
+                        && d.message.contains("Web input keeps focus")),
+                "{slot} {variant}: {:?}",
+                output.diagnostics
+            );
+            assert!(
+                !output.jsx.contains("_focus"),
+                "a refused predicate must not apply: {}",
+                output.jsx
+            );
         }
     }
-    for slot in ["className", "scrimClassName", "panelClassName", "inputClassName", "shortcutClassName", "groupHeadingClassName", "emptyClassName"] {
-        let source = format!(r#"import {{ CommandPalette }} from '@hozo/core'; const el = <CommandPalette commands={{commands}} {slot}="hover:opacity-50" />"#);
+    for slot in [
+        "className",
+        "scrimClassName",
+        "panelClassName",
+        "inputClassName",
+        "shortcutClassName",
+        "groupHeadingClassName",
+        "emptyClassName",
+    ] {
+        let source = format!(
+            r#"import {{ CommandPalette }} from '@hozo/core'; const el = <CommandPalette commands={{commands}} {slot}="hover:opacity-50" />"#
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
@@ -1581,7 +2460,11 @@ fn a_color_picker_is_hozo_color_picker_with_a_style_per_part() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
-    assert!(output.jsx.starts_with("<HozoColorPicker "), "{}", output.jsx);
+    assert!(
+        output.jsx.starts_with("<HozoColorPicker "),
+        "{}",
+        output.jsx
+    );
     for prop in [
         "swatchStyle={hozoStyles.hozo1}",
         "selectedSwatchStyle={hozoStyles.hozo2}",
@@ -1592,7 +2475,11 @@ fn a_color_picker_is_hozo_color_picker_with_a_style_per_part() {
     ] {
         assert!(output.jsx.contains(prop), "{prop}: {}", output.jsx);
     }
-    assert!(output.runtime_imports.contains(&"HozoColorPicker"), "{:?}", output.runtime_imports);
+    assert!(
+        output.runtime_imports.contains(&"HozoColorPicker"),
+        "{:?}",
+        output.runtime_imports
+    );
 }
 
 #[test]
@@ -1602,7 +2489,9 @@ fn color_picker_compiles_only_the_slots_with_real_swatch_interaction() {
         let parsed = hozo_parser::parse_tsx(&source);
         lower(&parsed.roots[0].node, &source, &Theme::default())
     };
-    let output = compile(r#"swatchClassName="size-8 hover:opacity-50 not-focus:border-2" selectedSwatchClassName="border-2 md:focus-visible:outline-2" swatchStyle={extra} selectedSwatchStyle={selectedExtra}"#);
+    let output = compile(
+        r#"swatchClassName="size-8 hover:opacity-50 not-focus:border-2" selectedSwatchClassName="border-2 md:focus-visible:outline-2" swatchStyle={extra} selectedSwatchStyle={selectedExtra}"#,
+    );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
     for expected in [
         "hozoSwatchStyle={({ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked }) => [",
@@ -1612,38 +2501,88 @@ fn color_picker_compiles_only_the_slots_with_real_swatch_interaction() {
     ] {
         assert!(output.jsx.contains(expected), "{expected} missing from {}", output.jsx);
     }
-    for slot in ["className", "sliderClassName", "thumbClassName", "inputClassName"] {
+    for slot in [
+        "className",
+        "sliderClassName",
+        "thumbClassName",
+        "inputClassName",
+    ] {
         let output = compile(&format!(r#"{slot}="hover:opacity-50""#));
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
 #[test]
 fn color_picker_semantics_belong_to_each_radio_not_the_group() {
     for slot in ["swatchClassName", "selectedSwatchClassName"] {
-        let source = format!(r#"import {{ ColorPicker }} from '@hozo/core'
+        let source = format!(
+            r#"import {{ ColorPicker }} from '@hozo/core'
           const el = <ColorPicker accessibilityLabel="Theme"
-            {slot}="disabled:opacity-25 enabled:border-2 not-disabled:mt-1 not-enabled:mb-1 aria-checked:outline-4 not-aria-checked:rounded-lg not-aria-disabled:pt-1 not-aria-selected:pb-1 aria-checked:hover:opacity-50 disabled:not-enabled:border-4" />"#);
+            {slot}="disabled:opacity-25 enabled:border-2 not-disabled:mt-1 not-enabled:mb-1 aria-checked:outline-4 not-aria-checked:rounded-lg not-aria-disabled:pt-1 not-aria-selected:pb-1 aria-checked:hover:opacity-50 disabled:not-enabled:border-4" />"#
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.is_empty(), "{slot}: {:?}", output.diagnostics);
-        for expected in ["disabled: __hozoSlotDisabled", "enabled: __hozoSlotEnabled", "'aria-checked': __hozoSlotAriaChecked", "__hozoSlotDisabled &&", "__hozoSlotEnabled &&", "!(__hozoSlotDisabled) &&", "!(__hozoSlotEnabled) &&", "!(__hozoSlotAriaChecked) &&", "__hozoSlotAriaChecked && hovered &&"] {
+        assert!(
+            output.diagnostics.is_empty(),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
+        for expected in [
+            "disabled: __hozoSlotDisabled",
+            "enabled: __hozoSlotEnabled",
+            "'aria-checked': __hozoSlotAriaChecked",
+            "__hozoSlotDisabled &&",
+            "__hozoSlotEnabled &&",
+            "!(__hozoSlotDisabled) &&",
+            "!(__hozoSlotEnabled) &&",
+            "!(__hozoSlotAriaChecked) &&",
+            "__hozoSlotAriaChecked && hovered &&",
+        ] {
             assert!(output.jsx.contains(expected), "{expected}: {}", output.jsx);
         }
-        assert!(!output.jsx.contains("interactionAvailable"), "{}", output.jsx);
+        assert!(
+            !output.jsx.contains("interactionAvailable"),
+            "{}",
+            output.jsx
+        );
         // A truly unknown state is still an error, including under negation.
         let unsupported = source.replace("not-aria-selected:pb-1", "not-aria-expanded:pb-1");
         let parsed = hozo_parser::parse_tsx(&unsupported);
         let output = lower(&parsed.roots[0].node, &unsupported, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{:?}",
+            output.diagnostics
+        );
     }
     // No ARIA facts are invented for the group, track, thumb or hex field.
-    for slot in ["className", "sliderClassName", "thumbClassName", "inputClassName"] {
-        let source = format!(r#"import {{ ColorPicker }} from '@hozo/core'
-          const el = <ColorPicker accessibilityLabel="Theme" {slot}="aria-checked:opacity-50" />"#);
+    for slot in [
+        "className",
+        "sliderClassName",
+        "thumbClassName",
+        "inputClassName",
+    ] {
+        let source = format!(
+            r#"import {{ ColorPicker }} from '@hozo/core'
+          const el = <ColorPicker accessibilityLabel="Theme" {slot}="aria-checked:opacity-50" />"#
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        assert!(output.diagnostics.iter().any(|d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error), "{slot}: {:?}", output.diagnostics);
+        assert!(
+            output.diagnostics.iter().any(
+                |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
+            ),
+            "{slot}: {:?}",
+            output.diagnostics
+        );
     }
 }
 
@@ -1651,16 +2590,29 @@ fn color_picker_semantics_belong_to_each_radio_not_the_group() {
 /// which `@hozo/ui` writes on nearly every component.
 #[test]
 fn a_theme_radius_is_its_value_and_an_unknown_one_is_nothing() {
-    let theme = Theme::default().with_radii(std::collections::HashMap::from([("hozo-control".to_string(), 8.0)]));
+    let theme = Theme::default().with_radii(std::collections::HashMap::from([(
+        "hozo-control".to_string(),
+        8.0,
+    )]));
     let compile = |class_name: &str| {
-        let source = format!("import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />");
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\" />"
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         lower(&parsed.roots[0].node, &source, &theme)
     };
 
     let output = compile("rounded-hozo-control rounded-ss-hozo-control");
-    assert!(output.styles.contains("borderRadius: 8,"), "{}", output.styles);
-    assert!(output.styles.contains("borderStartStartRadius: 8,"), "{}", output.styles);
+    assert!(
+        output.styles.contains("borderRadius: 8,"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        output.styles.contains("borderStartStartRadius: 8,"),
+        "{}",
+        output.styles
+    );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
 
     let output = compile("rounded-unknown");
@@ -1669,16 +2621,36 @@ fn a_theme_radius_is_its_value_and_an_unknown_one_is_nothing() {
 
 #[test]
 fn standard_radius_scales_prefer_the_theme_with_unchanged_defaults() {
-    for (name, fallback_px) in [("xs", 2.0), ("sm", 4.0), ("md", 6.0), ("lg", 8.0),
-                               ("xl", 12.0), ("2xl", 16.0), ("3xl", 24.0), ("4xl", 32.0)] {
-        let source = format!("import {{ View }} from '@hozo/core'; const el = <View className=\"rounded-{name}\" />");
+    for (name, fallback_px) in [
+        ("xs", 2.0),
+        ("sm", 4.0),
+        ("md", 6.0),
+        ("lg", 8.0),
+        ("xl", 12.0),
+        ("2xl", 16.0),
+        ("3xl", 24.0),
+        ("4xl", 32.0),
+    ] {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'; const el = <View className=\"rounded-{name}\" />"
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         let compile = |theme: &Theme| lower(&parsed.roots[0].node, &source, theme);
         let default = compile(&Theme::default());
-        assert!(default.styles.contains(&format!("borderRadius: {fallback_px},")), "{}", default.styles);
-        let same = Theme::default().with_radii(std::collections::HashMap::from([(name.to_string(), fallback_px)]));
+        assert!(
+            default
+                .styles
+                .contains(&format!("borderRadius: {fallback_px},")),
+            "{}",
+            default.styles
+        );
+        let same = Theme::default().with_radii(std::collections::HashMap::from([(
+            name.to_string(),
+            fallback_px,
+        )]));
         assert_eq!(compile(&same).styles, default.styles);
-        let themed = Theme::default().with_radii(std::collections::HashMap::from([(name.to_string(), 10.0)]));
+        let themed = Theme::default()
+            .with_radii(std::collections::HashMap::from([(name.to_string(), 10.0)]));
         let out = compile(&themed);
         assert!(out.styles.contains("borderRadius: 10,"), "{}", out.styles);
         assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
@@ -1688,21 +2660,38 @@ fn standard_radius_scales_prefer_the_theme_with_unchanged_defaults() {
 #[test]
 fn scale_overrides_reach_corners_but_not_fixed_or_arbitrary_radii() {
     let theme = Theme::default().with_radii(std::collections::HashMap::from([
-        ("lg".to_string(), 10.0), ("sm".to_string(), 0.0),
-        ("none".to_string(), 20.0), ("full".to_string(), 20.0),
+        ("lg".to_string(), 10.0),
+        ("sm".to_string(), 0.0),
+        ("none".to_string(), 20.0),
+        ("full".to_string(), 20.0),
     ]));
     let compile = |class_name: &str, theme: &Theme| {
-        let source = format!("import {{ View }} from '@hozo/core'; const el = <View className=\"{class_name}\" />");
+        let source = format!(
+            "import {{ View }} from '@hozo/core'; const el = <View className=\"{class_name}\" />"
+        );
         let parsed = hozo_parser::parse_tsx(&source);
         lower(&parsed.roots[0].node, &source, theme)
     };
     let out = compile("rounded-t-lg rounded-ee-lg", &theme);
-    for property in ["borderTopLeftRadius", "borderTopRightRadius", "borderEndEndRadius"] {
-        assert!(out.styles.contains(&format!("{property}: 10,")), "{}", out.styles);
+    for property in [
+        "borderTopLeftRadius",
+        "borderTopRightRadius",
+        "borderEndEndRadius",
+    ] {
+        assert!(
+            out.styles.contains(&format!("{property}: 10,")),
+            "{}",
+            out.styles
+        );
     }
-    assert!(compile("rounded-sm", &theme).styles.contains("borderRadius: 0,"));
+    assert!(compile("rounded-sm", &theme)
+        .styles
+        .contains("borderRadius: 0,"));
     for class_name in ["rounded", "rounded-none", "rounded-full", "rounded-[8px]"] {
-        assert_eq!(compile(class_name, &theme).styles, compile(class_name, &Theme::default()).styles);
+        assert_eq!(
+            compile(class_name, &theme).styles,
+            compile(class_name, &Theme::default()).styles
+        );
     }
 }
 
@@ -1720,8 +2709,20 @@ fn a_pressable_with_an_unseen_label_forwards_its_text_styles() {
         "{}",
         output.jsx
     );
-    assert!(output.styles.contains("hozo0_label: {\n    color: '#fff',\n    fontWeight: '600',"), "{}", output.styles);
-    assert!(!output.styles.contains("hozo0: {\n    backgroundColor: '#2b7fff',\n    color"), "{}", output.styles);
+    assert!(
+        output
+            .styles
+            .contains("hozo0_label: {\n    color: '#fff',\n    fontWeight: '600',"),
+        "{}",
+        output.styles
+    );
+    assert!(
+        !output
+            .styles
+            .contains("hozo0: {\n    backgroundColor: '#2b7fff',\n    color"),
+        "{}",
+        output.styles
+    );
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
 
     // A Button with an `href` is a link, rendered through the same
@@ -1729,7 +2730,13 @@ fn a_pressable_with_an_unseen_label_forwards_its_text_styles() {
     let source = "import { Button } from '@hozo/core'\nconst el = <Button href={to} className=\"bg-blue-500 text-white font-semibold\">{children}</Button>";
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(output.jsx.starts_with("<HozoLink hozoLinkComponent={HozoPressable}"), "{}", output.jsx);
+    assert!(
+        output
+            .jsx
+            .starts_with("<HozoLink hozoLinkComponent={HozoPressable}"),
+        "{}",
+        output.jsx
+    );
     assert!(output.jsx.contains("hozoTextStyle={({ pressed, hovered, focused, focusVisible }) => [hozoStyles.hozo0_label]}"), "{}", output.jsx);
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
 
@@ -1738,7 +2745,10 @@ fn a_pressable_with_an_unseen_label_forwards_its_text_styles() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(!output.jsx.contains("hozoTextStyle"), "{}", output.jsx);
     assert!(
-        output.diagnostics.iter().any(|d| d.message.contains("text styles are handed down")),
+        output
+            .diagnostics
+            .iter()
+            .any(|d| d.message.contains("text styles are handed down")),
         "{:?}",
         output.diagnostics
     );

@@ -9,49 +9,115 @@ use super::*;
 /// standalone transform properties a rule carries, or `None` if it carries
 /// none. Ordered translate -> rotate -> scale, matching how CSS applies its
 /// standalone properties, so the two platforms compose identically.
-pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static str, String)> {
+pub(crate) fn transform_entry(
+    props: &[StyleProperty],
+    theme: &Theme,
+) -> Option<(&'static str, String)> {
     // A reset changes a CSS property, not Tailwind's underlying axis
     // registers. A later axis utility can therefore restore earlier axes.
     let reset = |predicate: fn(&StyleProperty) -> bool| props.iter().rposition(predicate);
     let translate_off = reset(|p| matches!(p, StyleProperty::TranslateNone))
-        > reset(|p| matches!(p, StyleProperty::Translate(_) | StyleProperty::TranslateX(_)
-            | StyleProperty::TranslateY(_) | StyleProperty::TranslateZ(_)));
+        > reset(|p| {
+            matches!(
+                p,
+                StyleProperty::Translate(_)
+                    | StyleProperty::TranslateX(_)
+                    | StyleProperty::TranslateY(_)
+                    | StyleProperty::TranslateZ(_)
+            )
+        });
     let scale_off = reset(|p| matches!(p, StyleProperty::ScaleNone))
-        > reset(|p| matches!(p, StyleProperty::Scale(_) | StyleProperty::ScaleX(_)
-            | StyleProperty::ScaleY(_) | StyleProperty::ScaleZ(_)));
+        > reset(|p| {
+            matches!(
+                p,
+                StyleProperty::Scale(_)
+                    | StyleProperty::ScaleX(_)
+                    | StyleProperty::ScaleY(_)
+                    | StyleProperty::ScaleZ(_)
+            )
+        });
     let rotate_off = reset(|p| matches!(p, StyleProperty::RotateNone))
         > reset(|p| matches!(p, StyleProperty::Rotate(_)));
     let functions_off = reset(|p| matches!(p, StyleProperty::TransformNone))
-        > reset(|p| matches!(p, StyleProperty::Transform(_) | StyleProperty::TransformEmpty
-            | StyleProperty::RotateX(_) | StyleProperty::RotateY(_) | StyleProperty::RotateZ(_)
-            | StyleProperty::SkewX(_) | StyleProperty::SkewY(_)));
-    let effective: Option<Vec<_>> = (translate_off || scale_off || rotate_off || functions_off).then(|| props.iter().filter(|p| !(
-        translate_off && matches!(p, StyleProperty::Translate(_) | StyleProperty::TranslateX(_)
-            | StyleProperty::TranslateY(_) | StyleProperty::TranslateZ(_))
-        || scale_off && matches!(p, StyleProperty::Scale(_) | StyleProperty::ScaleX(_)
-            | StyleProperty::ScaleY(_) | StyleProperty::ScaleZ(_) | StyleProperty::Scale3d)
-        || rotate_off && matches!(p, StyleProperty::Rotate(_))
-        || functions_off && matches!(p, StyleProperty::Transform(_) | StyleProperty::RotateX(_)
-            | StyleProperty::RotateY(_) | StyleProperty::RotateZ(_) | StyleProperty::SkewX(_) | StyleProperty::SkewY(_))
-    )).cloned().collect());
-    let has_control = props.iter().any(|p| crate::transforms::is_reset(p)
-        || matches!(p, StyleProperty::TransformEmpty));
+        > reset(|p| {
+            matches!(
+                p,
+                StyleProperty::Transform(_)
+                    | StyleProperty::TransformEmpty
+                    | StyleProperty::RotateX(_)
+                    | StyleProperty::RotateY(_)
+                    | StyleProperty::RotateZ(_)
+                    | StyleProperty::SkewX(_)
+                    | StyleProperty::SkewY(_)
+            )
+        });
+    let effective: Option<Vec<_>> = (translate_off || scale_off || rotate_off || functions_off)
+        .then(|| {
+            props
+                .iter()
+                .filter(|p| {
+                    !(translate_off
+                        && matches!(
+                            p,
+                            StyleProperty::Translate(_)
+                                | StyleProperty::TranslateX(_)
+                                | StyleProperty::TranslateY(_)
+                                | StyleProperty::TranslateZ(_)
+                        )
+                        || scale_off
+                            && matches!(
+                                p,
+                                StyleProperty::Scale(_)
+                                    | StyleProperty::ScaleX(_)
+                                    | StyleProperty::ScaleY(_)
+                                    | StyleProperty::ScaleZ(_)
+                                    | StyleProperty::Scale3d
+                            )
+                        || rotate_off && matches!(p, StyleProperty::Rotate(_))
+                        || functions_off
+                            && matches!(
+                                p,
+                                StyleProperty::Transform(_)
+                                    | StyleProperty::RotateX(_)
+                                    | StyleProperty::RotateY(_)
+                                    | StyleProperty::RotateZ(_)
+                                    | StyleProperty::SkewX(_)
+                                    | StyleProperty::SkewY(_)
+                            ))
+                })
+                .cloned()
+                .collect()
+        });
+    let has_control = props
+        .iter()
+        .any(|p| crate::transforms::is_reset(p) || matches!(p, StyleProperty::TransformEmpty));
     let props = effective.as_deref().unwrap_or(props);
     let mut parts: Vec<String> = Vec::new();
-    let last_authored = props.iter().rposition(|property| matches!(property, StyleProperty::Transform(_)));
-    let last_empty = props.iter().rposition(|property| matches!(property, StyleProperty::TransformEmpty));
-    let last_function_slots = props.iter().rposition(|property| matches!(
-        property,
-        StyleProperty::RotateX(_) | StyleProperty::RotateY(_) | StyleProperty::RotateZ(_)
-            | StyleProperty::SkewX(_) | StyleProperty::SkewY(_)
-    ));
+    let last_authored = props
+        .iter()
+        .rposition(|property| matches!(property, StyleProperty::Transform(_)));
+    let last_empty = props
+        .iter()
+        .rposition(|property| matches!(property, StyleProperty::TransformEmpty));
+    let last_function_slots = props.iter().rposition(|property| {
+        matches!(
+            property,
+            StyleProperty::RotateX(_)
+                | StyleProperty::RotateY(_)
+                | StyleProperty::RotateZ(_)
+                | StyleProperty::SkewX(_)
+                | StyleProperty::SkewY(_)
+        )
+    });
     let last_authored_translate = props
         .iter()
         .rposition(|property| matches!(property, StyleProperty::Translate(_)));
     let last_translate_axes = props.iter().rposition(|property| {
         matches!(
             property,
-            StyleProperty::TranslateX(_) | StyleProperty::TranslateY(_) | StyleProperty::TranslateZ(_)
+            StyleProperty::TranslateX(_)
+                | StyleProperty::TranslateY(_)
+                | StyleProperty::TranslateZ(_)
         )
     });
     if last_authored_translate > last_translate_axes {
@@ -60,10 +126,16 @@ pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<
             _ => None,
         }) {
             if let Some(value) = values.first() {
-                parts.push(format!("{{ translateX: {} }}", dimension_value(value, theme)));
+                parts.push(format!(
+                    "{{ translateX: {} }}",
+                    dimension_value(value, theme)
+                ));
             }
             if let Some(value) = values.get(1) {
-                parts.push(format!("{{ translateY: {} }}", dimension_value(value, theme)));
+                parts.push(format!(
+                    "{{ translateY: {} }}",
+                    dimension_value(value, theme)
+                ));
             }
         }
     } else {
@@ -171,13 +243,19 @@ pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<
     // CSS applies the authored transform list after its standalone
     // translate/rotate/scale properties. Preserve the list's own order.
     if last_authored > last_function_slots && last_authored > last_empty {
-        let functions = props.iter().rev().find_map(|property| match property {
-            StyleProperty::Transform(functions) => Some(functions),
-            _ => None,
-        }).expect("last authored transform index came from a transform");
+        let functions = props
+            .iter()
+            .rev()
+            .find_map(|property| match property {
+                StyleProperty::Transform(functions) => Some(functions),
+                _ => None,
+            })
+            .expect("last authored transform index came from a transform");
         for function in functions {
             let entry = match function {
-                TransformFunction::Perspective(value) => format!("{{ perspective: {} }}", number(value, theme)),
+                TransformFunction::Perspective(value) => {
+                    format!("{{ perspective: {} }}", number(value, theme))
+                }
                 TransformFunction::Rotate(value) => format!("{{ rotate: '{}' }}", value.css()),
                 TransformFunction::RotateX(value) => format!("{{ rotateX: '{}' }}", value.css()),
                 TransformFunction::RotateY(value) => format!("{{ rotateY: '{}' }}", value.css()),
@@ -185,8 +263,12 @@ pub(crate) fn transform_entry(props: &[StyleProperty], theme: &Theme) -> Option<
                 TransformFunction::Scale(value) => format!("{{ scale: {value} }}"),
                 TransformFunction::ScaleX(value) => format!("{{ scaleX: {value} }}"),
                 TransformFunction::ScaleY(value) => format!("{{ scaleY: {value} }}"),
-                TransformFunction::TranslateX(value) => format!("{{ translateX: {} }}", dimension_value(value, theme)),
-                TransformFunction::TranslateY(value) => format!("{{ translateY: {} }}", dimension_value(value, theme)),
+                TransformFunction::TranslateX(value) => {
+                    format!("{{ translateX: {} }}", dimension_value(value, theme))
+                }
+                TransformFunction::TranslateY(value) => {
+                    format!("{{ translateY: {} }}", dimension_value(value, theme))
+                }
                 TransformFunction::SkewX(value) => format!("{{ skewX: '{}' }}", value.css()),
                 TransformFunction::SkewY(value) => format!("{{ skewY: '{}' }}", value.css()),
             };
@@ -297,7 +379,9 @@ pub(crate) fn background_image_entry(
 
     let color = |stop: GradientStop| {
         props.iter().find_map(|p| match p {
-            StyleProperty::GradientStopColor(s, c) if *s == stop && !c.is_initial() => Some(resolve_theme_color(c, theme)),
+            StyleProperty::GradientStopColor(s, c) if *s == stop && !c.is_initial() => {
+                Some(resolve_theme_color(c, theme))
+            }
             _ => None,
         })
     };
@@ -330,16 +414,26 @@ pub(crate) fn background_image_entry(
     } else {
         format!("{direction}, {}", stops.join(", "))
     };
-    Some(("backgroundImage", js_string(&format!("{}({args})", kind.css()))))
+    Some((
+        "backgroundImage",
+        js_string(&format!("{}({args})", kind.css())),
+    ))
 }
 
 /// Joins whichever filter utilities a rule carries into one `filter`
 /// string, in `FilterFunction` order -- the same order the Web backend
 /// uses, so the two platforms compose identically. React Native 0.76+
 /// accepts the CSS syntax here, so the value text is shared.
-pub(crate) fn filter_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static str, String)> {
-    let last_raw = props.iter().rposition(|p| matches!(p, StyleProperty::FilterRaw(_)));
-    let last_slots = props.iter().rposition(|p| matches!(p, StyleProperty::Filter(..)));
+pub(crate) fn filter_entry(
+    props: &[StyleProperty],
+    theme: &Theme,
+) -> Option<(&'static str, String)> {
+    let last_raw = props
+        .iter()
+        .rposition(|p| matches!(p, StyleProperty::FilterRaw(_)));
+    let last_slots = props
+        .iter()
+        .rposition(|p| matches!(p, StyleProperty::Filter(..)));
     if last_raw > last_slots {
         return props.iter().rev().find_map(|p| match p {
             StyleProperty::FilterRaw(value) => Some(("filter", js_string(value))),
@@ -350,14 +444,14 @@ pub(crate) fn filter_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'
     // `drop-shadow-<colour>` repaints the shadow the other utility drew,
     // the same composition the Web backend does -- React Native takes the
     // whole chain as a string, so the two sides can share the shape.
-    let drop_shadow_color = props
-        .iter()
-        .find_map(|p| match p {
-            StyleProperty::DropShadowColor(c) if !c.is_initial() => Some(resolve_theme_color(c, theme)),
-            _ => None,
-        });
+    let drop_shadow_color = props.iter().find_map(|p| match p {
+        StyleProperty::DropShadowColor(c) if !c.is_initial() => Some(resolve_theme_color(c, theme)),
+        _ => None,
+    });
     for prop in props {
-        let StyleProperty::Filter(function, value) = prop else { continue };
+        let StyleProperty::Filter(function, value) = prop else {
+            continue;
+        };
         if *function == FilterFunction::None {
             return Some(("filter", "'none'".to_string()));
         }
@@ -372,8 +466,11 @@ pub(crate) fn filter_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'
         return None;
     }
     functions.sort_by_key(|(function, _)| *function);
-    let chain: Vec<&str> =
-        functions.iter().map(|(_, v)| v.as_str()).filter(|v| !v.is_empty()).collect();
+    let chain: Vec<&str> = functions
+        .iter()
+        .map(|(_, v)| v.as_str())
+        .filter(|v| !v.is_empty())
+        .collect();
     Some(("filter", format!("'{}'", chain.join(" "))))
 }
 
@@ -384,7 +481,10 @@ pub(crate) fn filter_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'
 /// React Native 0.81 accepts a CSS-like string for `boxShadow`, so the
 /// composed value is the same shape as the Web one -- only the quoting and
 /// the unitless-number convention differ.
-pub(crate) fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option<(&'static str, String)> {
+pub(crate) fn box_shadow_entry(
+    props: &[StyleProperty],
+    theme: &Theme,
+) -> Option<(&'static str, String)> {
     let resolve_color = |color: &Color| resolve_theme_color(color, theme);
     let ring = props.iter().find_map(|p| match p {
         // Any length, not only pixels: `ring-[2rem]` resolves to 32 the
@@ -413,7 +513,9 @@ pub(crate) fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option
     // Tailwind's default ring colour. Unquoted here because the whole
     // `boxShadow` value is one string.
     let paint = |c: Option<&Color>| {
-        c.map_or("currentcolor".to_string(), |c| resolve_color(c).trim_matches('\'').to_string())
+        c.map_or("currentcolor".to_string(), |c| {
+            resolve_color(c).trim_matches('\'').to_string()
+        })
     };
 
     let ring_offset = props.iter().find_map(|p| match p {
@@ -454,7 +556,11 @@ pub(crate) fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option
     //
     // `ring-inset` moves the ring inside the box and the offset with it:
     // the two layers are concentric and would come apart otherwise.
-    let inset = if props.iter().any(|p| matches!(p, StyleProperty::RingInset)) { "inset " } else { "" };
+    let inset = if props.iter().any(|p| matches!(p, StyleProperty::RingInset)) {
+        "inset "
+    } else {
+        ""
+    };
     if let Some(width) = ring_offset {
         layers.push(format!(
             "{inset}0 0 0 {width}px {}",
@@ -484,12 +590,13 @@ pub(crate) fn box_shadow_entry(props: &[StyleProperty], theme: &Theme) -> Option
     (!layers.is_empty()).then(|| ("boxShadow", format!("'{}'", layers.join(", "))))
 }
 
-
 /// Repaints a shadow's layers in `color`. The Web backend's `repaint_shadow`
 /// with the same reasoning and the same cut: the colour is the tail of each
 /// layer, and the shadow table it reads from is in this repository.
 fn repaint_shadow(shadow: &str, color: Option<&str>) -> String {
-    let Some(paint) = color else { return shadow.to_string() };
+    let Some(paint) = color else {
+        return shadow.to_string();
+    };
     shadow
         .split(',')
         .map(|layer| match layer.rfind("rgb(") {

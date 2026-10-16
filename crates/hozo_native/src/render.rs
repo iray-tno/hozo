@@ -3,8 +3,8 @@
 //! Kept as a child module of the backend so rendering can use the lowering
 //! helpers without widening their visibility outside this crate.
 
-use super::*;
 use super::text::*;
+use super::*;
 
 enum NativeBackdropFilter {
     None,
@@ -16,9 +16,7 @@ fn native_backdrop_filter(declaration: &StyleDeclaration) -> Option<NativeBackdr
         return None;
     }
     match &declaration.property {
-        StyleProperty::BackdropFilter(FilterFunction::None, _) => {
-            Some(NativeBackdropFilter::None)
-        }
+        StyleProperty::BackdropFilter(FilterFunction::None, _) => Some(NativeBackdropFilter::None),
         StyleProperty::BackdropFilter(FilterFunction::Blur, value) => value
             .strip_prefix("blur(")?
             .strip_suffix("px)")
@@ -174,9 +172,11 @@ pub(super) fn render_node(
     // the prop adapter actually handles, leaving every other pseudo/style
     // stack visible to the usual diagnostics.
     let field_style: Option<Vec<_>> = placeholder.is_some().then(|| {
-        node.style.iter()
+        node.style
+            .iter()
             .filter(|declaration| placeholder_colour(declaration).is_none())
-            .cloned().collect()
+            .cloned()
+            .collect()
     });
     let style = lower_inline_flex(fold_font_relative(
         field_style.as_deref().unwrap_or(&node.style),
@@ -194,7 +194,10 @@ pub(super) fn render_node(
             .map(|declaration| match declaration.property {
                 // Already said, so not said twice.
                 _ if condition_contains(&declaration.condition, |condition| {
-                    matches!(condition, Condition::Environment(hozo_ir::Environment::MotionSafe))
+                    matches!(
+                        condition,
+                        Condition::Environment(hozo_ir::Environment::MotionSafe)
+                    )
                 }) =>
                 {
                     declaration
@@ -231,9 +234,9 @@ pub(super) fn render_node(
         StyleProperty::AnimationName(_) => true,
         // Only one the theme can run: an unresolved name renders nothing
         // animated, so the element stays what it was.
-        StyleProperty::ThemeAnimation(name) => {
-            theme.animation(name).is_some_and(|animation| animation.keyframes.is_some())
-        }
+        StyleProperty::ThemeAnimation(name) => theme
+            .animation(name)
+            .is_some_and(|animation| animation.keyframes.is_some()),
         _ => false,
     });
     // A style holding `Animated` values only moves on an `Animated`
@@ -261,11 +264,15 @@ pub(super) fn render_node(
                 // StyleSheet entry needs. A JSX attribute brings its own.
                 StyleProperty::Fill(color) => Some((
                     "fill",
-                    crate::style::resolve_theme_color(color, theme).trim_matches('\'').to_string(),
+                    crate::style::resolve_theme_color(color, theme)
+                        .trim_matches('\'')
+                        .to_string(),
                 )),
                 StyleProperty::Stroke(color) => Some((
                     "stroke",
-                    crate::style::resolve_theme_color(color, theme).trim_matches('\'').to_string(),
+                    crate::style::resolve_theme_color(color, theme)
+                        .trim_matches('\'')
+                        .to_string(),
                 )),
                 StyleProperty::StrokeWidth(width) => Some(("strokeWidth", format!("{{{width}}}"))),
                 _ => None,
@@ -353,8 +360,7 @@ pub(super) fn render_node(
                          set here), but still breaks Chinese and Japanese between characters, \
                          and Android has no control for it -- see \
                          https://github.com/iray-tno/hozo/issues/813"
-                    } else if name == "text-wrap"
-                        && matches!(value.as_str(), "balance" | "pretty")
+                    } else if name == "text-wrap" && matches!(value.as_str(), "balance" | "pretty")
                     {
                         if declaration.condition == Condition::Always {
                             "React Native sets it on the `Text` that holds the words (Android's \
@@ -376,7 +382,9 @@ pub(super) fn render_node(
                         // property is refused everywhere else (it names
                         // StyleX's Web surface); only the weight changes.
                         message: match declaration.property.unsupported_on_native() {
-                            Some(refusal) if matches!(declaration.property, StyleProperty::WebOnly(..)) => {
+                            Some(refusal)
+                                if matches!(declaration.property, StyleProperty::WebOnly(..)) =>
+                            {
                                 format!(
                                     "{refusal}. Lines fall where React Native puts them here; on \
                                      Web it applies as written."
@@ -411,11 +419,7 @@ pub(super) fn render_node(
             if caret.is_some() {
                 continue;
             }
-            diagnostics.push(unwired_variant(
-                node,
-                &caret_only_reason(),
-                Severity::Error,
-            ));
+            diagnostics.push(unwired_variant(node, &caret_only_reason(), Severity::Error));
             continue;
         }
         if let Some(reason) = truncation_only_reason(&declaration.property) {
@@ -445,9 +449,7 @@ pub(super) fn render_node(
         // Refused rather than dropped: silently ignoring a `block`/`grid`
         // would leave a layout that looks right on Web and is wrong on
         // device with nothing pointing at the cause.
-        if let Some(reason) =
-            declaration.property.unsupported_on_native()
-        {
+        if let Some(reason) = declaration.property.unsupported_on_native() {
             diagnostics.push(Diagnostic {
                 code: DiagnosticCode::WebOnlyPropertyOnNative,
                 severity: Severity::Error,
@@ -509,7 +511,11 @@ pub(super) fn render_node(
     // Semantic typography default styles on Native:
     // Whether this element answers its own ratio at runtime, and whether
     // it has to publish a size for one below it that does.
-    let relative_at_runtime = if parent_size_opaque { size_ratio(node, theme) } else { None };
+    let relative_at_runtime = if parent_size_opaque {
+        size_ratio(node, theme)
+    } else {
+        None
+    };
     let opaque_here = size_is_opaque(node);
     let publishes_size =
         opaque_here && renders_text(component) && has_relative_descendant(node, theme);
@@ -775,12 +781,22 @@ pub(super) fn render_node(
         // Provenance resolves competing utilities on the *same* element.
         // A child's own font fallback still outranks an inherited leading;
         // do not let the parent's Written marker reverse CSS inheritance.
-        let inherited: Vec<_> = inherited.iter().filter(|parent| {
-            !matches!(parent.property, StyleProperty::LineHeight(_)) || !style.iter().any(|own| {
-                own.condition == parent.condition && matches!(own.property, StyleProperty::LineHeight(_))
+        let inherited: Vec<_> = inherited
+            .iter()
+            .filter(|parent| {
+                !matches!(parent.property, StyleProperty::LineHeight(_))
+                    || !style.iter().any(|own| {
+                        own.condition == parent.condition
+                            && matches!(own.property, StyleProperty::LineHeight(_))
+                    })
             })
-        }).cloned().collect();
-        inherited.into_iter().chain(semantic_defaults).chain(style).collect()
+            .cloned()
+            .collect();
+        inherited
+            .into_iter()
+            .chain(semantic_defaults)
+            .chain(style)
+            .collect()
     } else {
         semantic_defaults.into_iter().chain(style).collect()
     };
@@ -797,16 +813,24 @@ pub(super) fn render_node(
         .collect();
     // And what this element writes for its own subtree, taken out before
     // anything tries to apply it here.
-    let (subtree, style): (Vec<_>, Vec<_>) =
-        style.into_iter().partition(|d| d.condition.split_subtree().is_some());
+    let (subtree, style): (Vec<_>, Vec<_>) = style
+        .into_iter()
+        .partition(|d| d.condition.split_subtree().is_some());
     let (to_children, to_descendants) = subtree_for_children(&subtree, node, diagnostics);
     // An ancestor's `**:` keeps going; a parent's `*:` stops here.
-    let descendants: Vec<StyleDeclaration> =
-        from_ancestor.all.iter().cloned().chain(to_descendants).collect();
+    let descendants: Vec<StyleDeclaration> = from_ancestor
+        .all
+        .iter()
+        .cloned()
+        .chain(to_descendants)
+        .collect();
     // A child the compiler cannot read may render anything, so a style
     // meant for "every child" would reach some of them and not others.
     if !(to_children.is_empty() && descendants.is_empty())
-        && node.children.iter().any(|c| matches!(c, hozo_ir::Child::Verbatim { .. }))
+        && node
+            .children
+            .iter()
+            .any(|c| matches!(c, hozo_ir::Child::Verbatim { .. }))
     {
         diagnostics.push(unwired_variant(
             node,
@@ -821,11 +845,15 @@ pub(super) fn render_node(
     // correctly on Web.
     // TextInput paints its value, not JSX children. Its own font/colour
     // belongs on the field too; do not hand it to nonexistent child Text.
-    let (text_declarations, own_declarations): (Vec<_>, Vec<_>) = if renders_text(component) || component == "TextInput" {
-        (Vec::new(), style.clone())
-    } else {
-        style.iter().cloned().partition(|d| is_text_property(&d.property))
-    };
+    let (text_declarations, own_declarations): (Vec<_>, Vec<_>) =
+        if renders_text(component) || component == "TextInput" {
+            (Vec::new(), style.clone())
+        } else {
+            style
+                .iter()
+                .cloned()
+                .partition(|d| is_text_property(&d.property))
+        };
     // Ambient font size for child relative typography:
     let current_font_size = style
         .iter()
@@ -850,7 +878,11 @@ pub(super) fn render_node(
     let descend: Vec<StyleDeclaration> = inherited
         .iter()
         .cloned()
-        .chain(text_declarations.iter().map(|d| bound_to_disabled(d, disabled)))
+        .chain(
+            text_declarations
+                .iter()
+                .map(|d| bound_to_disabled(d, disabled)),
+        )
         .collect();
 
     // Handing them down is only half the job: they have to land somewhere.
@@ -967,8 +999,12 @@ pub(super) fn render_node(
     } else {
         None
     };
-    let transform_specs = if own_declarations.iter().any(|d| crate::transforms::is_control(&d.property))
-        && own_declarations.iter().any(|d| d.condition != Condition::Always)
+    let transform_specs = if own_declarations
+        .iter()
+        .any(|d| crate::transforms::is_control(&d.property))
+        && own_declarations
+            .iter()
+            .any(|d| d.condition != Condition::Always)
     {
         crate::transforms::specs(&style_entries[transform_entry_start..], theme)
     } else {
@@ -976,7 +1012,9 @@ pub(super) fn render_node(
     };
     let starting_parts = frames.starting;
     let exit_parts = frames.exit;
-    if own_declarations.iter().any(|d| crate::transforms::is_control(&d.property))
+    if own_declarations
+        .iter()
+        .any(|d| crate::transforms::is_control(&d.property))
         && (!starting_parts.is_empty() || !exit_parts.is_empty())
     {
         diagnostics.push(unwired_variant(node,
@@ -1025,13 +1063,18 @@ pub(super) fn render_node(
     //
     // A pressable hands the resolver the state it tracks, so a runtime
     // `active:` or `hover:` class applies as a compiled one does (#886).
-    let runtime_states = !node.class_name_fallback.is_empty() && matches!(component, "Pressable" | "HozoLink" | "TextInput");
+    let runtime_states = !node.class_name_fallback.is_empty()
+        && matches!(component, "Pressable" | "HozoLink" | "TextInput");
     let class_state = runtime_class_state(node, source, runtime_states);
-    let pattern_classes = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
+    let pattern_classes = if crate::pattern::interaction_slot(node.primitive, "className").is_some()
+    {
         crate::class_route::PatternClasses::new(
             node.primitive,
             "className",
-            node.class_name_fallback.iter().map(|expr| source_text(source, *expr).to_string()).collect(),
+            node.class_name_fallback
+                .iter()
+                .map(|expr| source_text(source, *expr).to_string())
+                .collect(),
             !style_array_parts.is_empty() || !pressed_parts.is_empty(),
             source,
         )
@@ -1041,33 +1084,49 @@ pub(super) fn render_node(
     let fallback: Vec<String> = if let Some(route) = &pattern_classes {
         route.residuals()
     } else {
-        node.class_name_fallback.iter().map(|expr_ref| match &class_state {
-            Some(state) => format!("hozoClasses({}, {state})", source_text(source, *expr_ref)),
-            None => format!("hozoClasses({})", source_text(source, *expr_ref)),
-        }).collect()
+        node.class_name_fallback
+            .iter()
+            .map(|expr_ref| match &class_state {
+                Some(state) => format!("hozoClasses({}, {state})", source_text(source, *expr_ref)),
+                None => format!("hozoClasses({})", source_text(source, *expr_ref)),
+            })
+            .collect()
     };
     style_array_parts.splice(state_start..state_start, fallback);
 
     // The owner collects events for both inherited styles and child-authored
     // styles. A Text reads context; putting modality handlers on it does not
     // update the state its callback consumes.
-    let needs_focus_visible = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
-        interaction::uses_focus_visible(&declaration.condition)
-    }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_focus_visible))
+    let needs_focus_visible = own_declarations
+        .iter()
+        .chain(text_declarations.iter())
+        .any(|declaration| interaction::uses_focus_visible(&declaration.condition))
+        || (interaction::owns_events(node)
+            && interaction::descendant_uses(node, interaction::uses_focus_visible))
         || runtime_states;
-    let needs_hover_or_focus = own_declarations.iter().chain(text_declarations.iter()).any(|declaration| {
-        condition_contains(&declaration.condition, |condition| {
-            uses_hover(condition) || focus_state(condition).is_some()
-        })
-    }) || (interaction::owns_events(node) && interaction::descendant_uses(node, interaction::uses_interaction))
-        || runtime_states;
+    let needs_hover_or_focus =
+        own_declarations
+            .iter()
+            .chain(text_declarations.iter())
+            .any(|declaration| {
+                condition_contains(&declaration.condition, |condition| {
+                    uses_hover(condition) || focus_state(condition).is_some()
+                })
+            })
+            || (interaction::owns_events(node)
+                && interaction::descendant_uses(node, interaction::uses_interaction))
+            || runtime_states;
     // Navigation stays in HozoLink; the compiler selects the existing state
     // provider underneath it. A plain link imports no animation machinery.
     // A host-only pressed style can stay in RN's cheap style callback. Text
     // needs a provider even for raw children, otherwise its emitted pressed
     // style is never referenced (or borrows an unrelated outer owner).
-    let needs_interaction_host = needs_hover_or_focus || transition.is_some() || label_style.is_some()
-        || text_declarations.iter().any(|declaration| interaction::uses_interaction(&declaration.condition));
+    let needs_interaction_host = needs_hover_or_focus
+        || transition.is_some()
+        || label_style.is_some()
+        || text_declarations
+            .iter()
+            .any(|declaration| interaction::uses_interaction(&declaration.condition));
     let link_interaction = component == "HozoLink" && needs_interaction_host;
     if link_interaction {
         runtime.need_component("HozoPressable");
@@ -1075,29 +1134,34 @@ pub(super) fn render_node(
     // `@container`, which on Web is a property and here is a component:
     // an element has to measure itself before anything below it can query
     // its width.
-    let container_name = own_declarations.iter().find_map(|declaration| {
-        match &declaration.property {
-            StyleProperty::ContainerName(name) => Some(name.clone()),
-            _ => None,
-        }
-    });
+    let container_name =
+        own_declarations
+            .iter()
+            .find_map(|declaration| match &declaration.property {
+                StyleProperty::ContainerName(name) => Some(name.clone()),
+                _ => None,
+            });
     let declares_container = own_declarations.iter().any(|declaration| {
         matches!(&declaration.property, StyleProperty::Keyword("container-type", kind) if *kind != "normal")
     });
     // And the other half: an element whose styles ask about a container's
     // width has to read that width from a component boundary away, which
     // is what `HozoContainerQuery` is for.
-    let raw_text_reads_container = node.children.iter().any(|child| matches!(child, hozo_ir::Child::Text(_)))
-        && descend.iter().any(|declaration| condition_contains(&declaration.condition, uses_container_width));
-    let uses_container_query = raw_text_reads_container || own_declarations.iter().any(|declaration| {
-        condition_contains(&declaration.condition, uses_container_width)
-    });
+    let raw_text_reads_container = node
+        .children
+        .iter()
+        .any(|child| matches!(child, hozo_ir::Child::Text(_)))
+        && descend
+            .iter()
+            .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
+    let uses_container_query = raw_text_reads_container
+        || own_declarations
+            .iter()
+            .any(|declaration| condition_contains(&declaration.condition, uses_container_width));
     let renders_backdrop_filter = matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
         && component == "View"
         && !declares_container;
-    if matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_)))
-        && !renders_backdrop_filter
-    {
+    if matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_))) && !renders_backdrop_filter {
         diagnostics.push(unwired_variant(
             node,
             "`backdropFilter` needs an ordinary View on Native; it cannot replace an interactive, text, animated, or container-query component.",
@@ -1110,7 +1174,12 @@ pub(super) fn render_node(
     let rendered_component = if renders_backdrop_filter {
         runtime.need_component("HozoBackdropFilter");
         "HozoBackdropFilter"
-    } else if component == "TextInput" && (!pressed_parts.is_empty() || runtime_states || node.props.disabled.is_some() || node.props.aria_invalid.is_some()) {
+    } else if component == "TextInput"
+        && (!pressed_parts.is_empty()
+            || runtime_states
+            || node.props.disabled.is_some()
+            || node.props.aria_invalid.is_some())
+    {
         runtime.need_component("HozoTextInput");
         "HozoTextInput"
     } else if component == "Pressable" && needs_interaction_host {
@@ -1139,12 +1208,30 @@ pub(super) fn render_node(
     // Portals, non-layout SVG nodes, and identity-sensitive compound parts
     // need their own adapter; a provider must not invent a measurable box
     // for them or hide their identity from their owning component.
-    let measures_host = declares_container && matches!(rendered_component,
-        "View" | "Animated.View" | "Text" | "Animated.Text" | "TextInput" | "HozoTextInput" | "Image"
-        | "ScrollView" | "Pressable" | "HozoPressable" | "HozoLink" | "HozoFlatList"
-        | "HozoText" | "HozoTextSize" | "HozoRelativeText" | "HozoAnimated"
-        | "HozoRuby" | "HozoDetails" | "HozoBadge" | "Svg"
-    );
+    let measures_host = declares_container
+        && matches!(
+            rendered_component,
+            "View"
+                | "Animated.View"
+                | "Text"
+                | "Animated.Text"
+                | "TextInput"
+                | "HozoTextInput"
+                | "Image"
+                | "ScrollView"
+                | "Pressable"
+                | "HozoPressable"
+                | "HozoLink"
+                | "HozoFlatList"
+                | "HozoText"
+                | "HozoTextSize"
+                | "HozoRelativeText"
+                | "HozoAnimated"
+                | "HozoRuby"
+                | "HozoDetails"
+                | "HozoBadge"
+                | "Svg"
+        );
     if declares_container && !measures_host {
         diagnostics.push(unwired_variant(
             node,
@@ -1154,10 +1241,17 @@ pub(super) fn render_node(
     }
     // An intervening control owns its own interaction. Neither an enhanced
     // nor a plain link may borrow an outer button's hover/focus context.
-    let child_interaction_context = rendered_component == "HozoPressable" || link_interaction
-        || (interaction_context && !matches!(node.primitive, Primitive::Pressable | Primitive::Button | Primitive::Link));
-    let needs_pressed_fn = (matches!(rendered_component, "Pressable" | "HozoPressable" | "HozoText" | "HozoLink")
-        || pattern_style_prop.is_some())
+    let child_interaction_context = rendered_component == "HozoPressable"
+        || link_interaction
+        || (interaction_context
+            && !matches!(
+                node.primitive,
+                Primitive::Pressable | Primitive::Button | Primitive::Link
+            ));
+    let needs_pressed_fn = (matches!(
+        rendered_component,
+        "Pressable" | "HozoPressable" | "HozoText" | "HozoLink"
+    ) || pattern_style_prop.is_some())
         && (!pressed_parts.is_empty() || runtime_states);
     if needs_pressed_fn {
         style_array_parts.extend(pressed_parts);
@@ -1216,9 +1310,10 @@ pub(super) fn render_node(
                         .map(|inner| inner.trim().to_string())
                         .or_else(|| {
                             // `max="100"`, which JSX gives as a string.
-                            value.strip_prefix('"')?.strip_suffix('"').map(|inner| {
-                                format!("'{inner}'")
-                            })
+                            value
+                                .strip_prefix('"')?
+                                .strip_suffix('"')
+                                .map(|inner| format!("'{inner}'"))
                         })
                 })
         };
@@ -1233,12 +1328,15 @@ pub(super) fn render_node(
         // ordinary case reads as a number in the output; otherwise the same
         // sum is emitted for the runtime.
         let literal = |text: &str| text.trim_matches('\'').parse::<f64>().ok();
-        let percent = |now: &str, min: &str, max: &str| match (literal(now), literal(min), literal(max)) {
-            (Some(now), Some(min), Some(max)) if max != min => {
-                Ok(((now - min) / (max - min) * 100.0).round() as i64)
-            }
-            _ => Err(format!("Math.round((({now}) - ({min})) / (({max}) - ({min})) * 100)")),
-        };
+        let percent =
+            |now: &str, min: &str, max: &str| match (literal(now), literal(min), literal(max)) {
+                (Some(now), Some(min), Some(max)) if max != min => {
+                    Ok(((now - min) / (max - min) * 100.0).round() as i64)
+                }
+                _ => Err(format!(
+                    "Math.round((({now}) - ({min})) / (({max}) - ({min})) * 100)"
+                )),
+            };
         if now.is_some() || max.is_some() {
             let fields = match (&now, &max) {
                 (Some(now), Some(max)) => {
@@ -1246,13 +1344,20 @@ pub(super) fn render_node(
                         Ok(amount) => amount.to_string(),
                         Err(sum) => sum,
                     };
-                    vec!["min: 0".to_string(), "max: 100".to_string(), format!("now: {now}")]
+                    vec![
+                        "min: 0".to_string(),
+                        "max: 100".to_string(),
+                        format!("now: {now}"),
+                    ]
                 }
                 (Some(now), None) => vec!["min: 0".to_string(), format!("now: {now}")],
                 (None, Some(max)) => vec!["min: 0".to_string(), format!("max: {max}")],
                 (None, None) => unreachable!("one of the two was authored"),
             };
-            props_text.push_str(&format!(" accessibilityValue={{{{ {} }}}}", fields.join(", ")));
+            props_text.push_str(&format!(
+                " accessibilityValue={{{{ {} }}}}",
+                fields.join(", ")
+            ));
         }
     }
 
@@ -1298,7 +1403,9 @@ pub(super) fn render_node(
     if !transform_specs.is_empty() {
         runtime.need_component("hozoTransformStyles");
         style_array_parts = vec![format!(
-            "hozoTransformStyles([{}], [{}])", style_array_parts.join(", "), transform_specs
+            "hozoTransformStyles([{}], [{}])",
+            style_array_parts.join(", "),
+            transform_specs
         )];
     }
 
@@ -1361,8 +1468,9 @@ pub(super) fn render_node(
     if needs_focus_visible && (rendered_component == "HozoPressable" || link_interaction) {
         props_text.push_str(" hozoFocusVisible");
     }
-    if let Some(parts) =
-        label_style.as_ref().filter(|_| rendered_component == "HozoPressable" || link_interaction)
+    if let Some(parts) = label_style
+        .as_ref()
+        .filter(|_| rendered_component == "HozoPressable" || link_interaction)
     {
         props_text.push_str(&format!(
             " hozoTextStyle={{({{ pressed, hovered, focused, focusVisible }}) => [{}]}}",
@@ -1420,7 +1528,10 @@ pub(super) fn render_node(
         ("pointerEvents", node.props.pointer_events),
         ("accessibilityState", node.props.accessibility_state),
         ("accessibilityValue", node.props.accessibility_value),
-        ("accessibilityLiveRegion", node.props.accessibility_live_region),
+        (
+            "accessibilityLiveRegion",
+            node.props.accessibility_live_region,
+        ),
         ("onLayout", node.props.on_layout),
         ("onScroll", node.props.on_scroll),
         ("scrollEventThrottle", node.props.scroll_event_throttle),
@@ -1457,10 +1568,16 @@ pub(super) fn render_node(
         }
     }
     if let Some(label) = node.props.accessibility_label {
-        props_text.push_str(&format!(" accessibilityLabel={{{}}}", source_text(source, label)));
+        props_text.push_str(&format!(
+            " accessibilityLabel={{{}}}",
+            source_text(source, label)
+        ));
     }
     if let Some(hint) = node.props.accessibility_hint {
-        props_text.push_str(&format!(" accessibilityHint={{{}}}", source_text(source, hint)));
+        props_text.push_str(&format!(
+            " accessibilityHint={{{}}}",
+            source_text(source, hint)
+        ));
     }
     if let Some(src) = node.props.image_src {
         let value = source_text(source, src);
@@ -1480,18 +1597,27 @@ pub(super) fn render_node(
     // left to a warning on the device.
     if node.primitive == Primitive::Image {
         let literal = |name: &str| {
-            node.props.passthrough.iter().find(|p| p.name.as_deref() == Some(name)).and_then(|p| {
-                let text = &source[p.span.0.start as usize..p.span.0.end as usize];
-                let value = text.split_once('=')?.1.trim();
-                value.strip_prefix('"')?.strip_suffix('"').map(str::to_string)
-            })
+            node.props
+                .passthrough
+                .iter()
+                .find(|p| p.name.as_deref() == Some(name))
+                .and_then(|p| {
+                    let text = &source[p.span.0.start as usize..p.span.0.end as usize];
+                    let value = text.split_once('=')?.1.trim();
+                    value
+                        .strip_prefix('"')?
+                        .strip_suffix('"')
+                        .map(str::to_string)
+                })
         };
         if let Some(set) = literal("srcSet") {
             let widths = set
                 .split(',')
                 .filter_map(|candidate| candidate.split_whitespace().nth(1))
                 .any(|descriptor| {
-                    descriptor.strip_suffix('w').is_some_and(|n| n.parse::<u32>().is_ok())
+                    descriptor
+                        .strip_suffix('w')
+                        .is_some_and(|n| n.parse::<u32>().is_ok())
                 });
             if widths {
                 diagnostics.push(unwired_variant(
@@ -1518,7 +1644,10 @@ pub(super) fn render_node(
     if !node.props.text_input.is_empty() {
         let text_input = &node.props.text_input;
         if let Some(handler) = text_input.on_change_text {
-            props_text.push_str(&format!(" onChangeText={{{}}}", source_text(source, handler)));
+            props_text.push_str(&format!(
+                " onChangeText={{{}}}",
+                source_text(source, handler)
+            ));
         }
         for (name, value) in [
             ("editable", &text_input.editable),
@@ -1558,24 +1687,41 @@ pub(super) fn render_node(
     }
 
     if let Some(horizontal) = &node.props.scroll_horizontal {
-        props_text.push_str(&format!(" horizontal={{{}}}", render_condition_expr(source, horizontal)));
+        props_text.push_str(&format!(
+            " horizontal={{{}}}",
+            render_condition_expr(source, horizontal)
+        ));
     }
     if let Some(value) = node.props.keyboard_should_persist_taps {
-        props_text.push_str(&format!(" keyboardShouldPersistTaps={{{}}}", source_text(source, value)));
+        props_text.push_str(&format!(
+            " keyboardShouldPersistTaps={{{}}}",
+            source_text(source, value)
+        ));
     }
     if let Some(value) = &node.props.shows_vertical_scroll_indicator {
-        props_text.push_str(&format!(" showsVerticalScrollIndicator={{{}}}", render_condition_expr(source, value)));
+        props_text.push_str(&format!(
+            " showsVerticalScrollIndicator={{{}}}",
+            render_condition_expr(source, value)
+        ));
     }
     if let Some(value) = &node.props.shows_horizontal_scroll_indicator {
-        props_text.push_str(&format!(" showsHorizontalScrollIndicator={{{}}}", render_condition_expr(source, value)));
+        props_text.push_str(&format!(
+            " showsHorizontalScrollIndicator={{{}}}",
+            render_condition_expr(source, value)
+        ));
     }
     if node.primitive == Primitive::ScrollView
         && (node.props.refreshing.is_some() || node.props.on_refresh.is_some())
     {
-        let refreshing = node.props.refreshing.as_ref()
+        let refreshing = node
+            .props
+            .refreshing
+            .as_ref()
             .map(|value| render_condition_expr(source, value))
             .unwrap_or_else(|| "false".to_string());
-        let on_refresh = node.props.on_refresh
+        let on_refresh = node
+            .props
+            .on_refresh
             .map(|value| format!(" onRefresh={{{}}}", source_text(source, value)))
             .unwrap_or_default();
         // The one React Native component that reaches the output through a
@@ -1589,14 +1735,23 @@ pub(super) fn render_node(
         ));
     } else {
         if let Some(refreshing) = &node.props.refreshing {
-            props_text.push_str(&format!(" refreshing={{{}}}", render_condition_expr(source, refreshing)));
+            props_text.push_str(&format!(
+                " refreshing={{{}}}",
+                render_condition_expr(source, refreshing)
+            ));
         }
         if let Some(on_refresh) = node.props.on_refresh {
-            props_text.push_str(&format!(" onRefresh={{{}}}", source_text(source, on_refresh)));
+            props_text.push_str(&format!(
+                " onRefresh={{{}}}",
+                source_text(source, on_refresh)
+            ));
         }
     }
     if let Some(open) = &node.props.open {
-        props_text.push_str(&format!(" open={{{}}}", render_condition_expr(source, open)));
+        props_text.push_str(&format!(
+            " open={{{}}}",
+            render_condition_expr(source, open)
+        ));
     }
     if node.primitive == Primitive::Badge {
         runtime.need_component("HozoBadge");
@@ -1661,7 +1816,11 @@ pub(super) fn render_node(
     }
     if node.primitive == Primitive::Link
         || (matches!(node.primitive, Primitive::Button | Primitive::Pressable)
-            && node.props.passthrough.iter().any(|p| p.name.as_deref() == Some("href")))
+            && node
+                .props
+                .passthrough
+                .iter()
+                .any(|p| p.name.as_deref() == Some("href")))
     {
         runtime.need_component("HozoLink");
     }
@@ -1669,10 +1828,22 @@ pub(super) fn render_node(
         props_text.push_str(&format!(" onPress={{{}}}", source_text(source, on_press)));
     }
     for (name, value) in [
-        ("onStartShouldSetResponder", node.props.on_start_should_set_responder),
-        ("onStartShouldSetResponderCapture", node.props.on_start_should_set_responder_capture),
-        ("onMoveShouldSetResponder", node.props.on_move_should_set_responder),
-        ("onMoveShouldSetResponderCapture", node.props.on_move_should_set_responder_capture),
+        (
+            "onStartShouldSetResponder",
+            node.props.on_start_should_set_responder,
+        ),
+        (
+            "onStartShouldSetResponderCapture",
+            node.props.on_start_should_set_responder_capture,
+        ),
+        (
+            "onMoveShouldSetResponder",
+            node.props.on_move_should_set_responder,
+        ),
+        (
+            "onMoveShouldSetResponderCapture",
+            node.props.on_move_should_set_responder_capture,
+        ),
         ("onResponderGrant", node.props.on_responder_grant),
         ("onResponderStart", node.props.on_responder_start),
         ("onResponderMove", node.props.on_responder_move),
@@ -1680,7 +1851,10 @@ pub(super) fn render_node(
         ("onResponderRelease", node.props.on_responder_release),
         ("onResponderReject", node.props.on_responder_reject),
         ("onResponderTerminate", node.props.on_responder_terminate),
-        ("onResponderTerminationRequest", node.props.on_responder_termination_request),
+        (
+            "onResponderTerminationRequest",
+            node.props.on_responder_termination_request,
+        ),
     ] {
         if let Some(value) = value {
             props_text.push_str(&format!(" {name}={{{}}}", source_text(source, value)));
@@ -1691,13 +1865,18 @@ pub(super) fn render_node(
     // is nothing to translate, and losing it here would be a regression
     // from when it was merely carried.
     if let Some(focusable) = &node.props.focusable {
-        props_text.push_str(&format!(" focusable={{{}}}", render_condition_expr(source, focusable)));
+        props_text.push_str(&format!(
+            " focusable={{{}}}",
+            render_condition_expr(source, focusable)
+        ));
     }
     if let Some(disabled) = &node.props.disabled {
         let disabled = render_condition_expr(source, disabled);
         props_text.push_str(&format!(" disabled={{{disabled}}}"));
         if matches!(node.primitive, Primitive::Button | Primitive::Pressable) {
-            props_text.push_str(&format!(" accessibilityState={{{{ disabled: Boolean({disabled}) }}}}"));
+            props_text.push_str(&format!(
+                " accessibilityState={{{{ disabled: Boolean({disabled}) }}}}"
+            ));
         }
     }
     let destination_primitive = node.primitive == Primitive::Link
@@ -1734,11 +1913,19 @@ pub(super) fn render_node(
     let prop_expr = |prop: &hozo_ir::PassthroughProp| -> Option<String> {
         let text = &source[prop.span.0.start as usize..prop.span.0.end as usize];
         let value = text.split_once('=')?.1.trim();
-        value.strip_prefix('{').and_then(|inner| inner.strip_suffix('}')).map(|inner| inner.trim().to_string())
+        value
+            .strip_prefix('{')
+            .and_then(|inner| inner.strip_suffix('}'))
+            .map(|inner| inner.trim().to_string())
     };
     for slot in node.primitive.class_slots() {
         let mut parts: Vec<String> = Vec::new();
-        if let Some(written) = node.props.class_slots.iter().find(|written| written.slot == *slot) {
+        if let Some(written) = node
+            .props
+            .class_slots
+            .iter()
+            .find(|written| written.slot == *slot)
+        {
             let mut pressed = Vec::new();
             build_style_entries(
                 &written.style,
@@ -1758,17 +1945,24 @@ pub(super) fn render_node(
             );
             if !pressed.is_empty() {
                 parts.extend(pressed);
-                let style_prop = crate::pattern::interaction_style_prop(node.primitive, slot.class_prop)
-                    .expect("a pattern interaction guard requires a consuming slot");
-                let callback = crate::class_route::static_callback(node.primitive, slot.class_prop, &parts);
-                props_text.push_str(&format!(
-                    " {style_prop}={{{callback}}}",
-                ));
+                let style_prop =
+                    crate::pattern::interaction_style_prop(node.primitive, slot.class_prop)
+                        .expect("a pattern interaction guard requires a consuming slot");
+                let callback =
+                    crate::class_route::static_callback(node.primitive, slot.class_prop, &parts);
+                props_text.push_str(&format!(" {style_prop}={{{callback}}}",));
                 parts.clear();
             }
         }
-        for prop in node.props.passthrough.iter().filter(|prop| prop.name.as_deref() == Some(slot.class_prop)) {
-            let Some(expr) = prop_expr(prop) else { continue };
+        for prop in node
+            .props
+            .passthrough
+            .iter()
+            .filter(|prop| prop.name.as_deref() == Some(slot.class_prop))
+        {
+            let Some(expr) = prop_expr(prop) else {
+                continue;
+            };
             let owned = crate::pattern::interaction_slot(node.primitive, slot.class_prop).is_some();
             diagnostics.push(Diagnostic {
                 code: DiagnosticCode::DynamicClassNameNotResolved,
@@ -1793,8 +1987,13 @@ pub(super) fn render_node(
             });
             if owned {
                 let route = crate::class_route::PatternClasses::new(
-                    node.primitive, slot.class_prop, vec![expr], false, source,
-                ).expect("registered above");
+                    node.primitive,
+                    slot.class_prop,
+                    vec![expr],
+                    false,
+                    source,
+                )
+                .expect("registered above");
                 props_text.push_str(&route.prop(&[]));
             } else {
                 parts.push(format!("hozoClasses({expr})"));
@@ -1818,7 +2017,11 @@ pub(super) fn render_node(
     // ordering semantics.
     for prop in &node.props.passthrough {
         if node.primitive == Primitive::Button {
-            if prop.name.as_deref().is_some_and(|name| name.starts_with("data-")) {
+            if prop
+                .name
+                .as_deref()
+                .is_some_and(|name| name.starts_with("data-"))
+            {
                 diagnostics.push(Diagnostic {
                     code: DiagnosticCode::WebOnlyPropertyOnNative,
                     severity: Severity::Warning,
@@ -1828,7 +2031,12 @@ pub(super) fn render_node(
             }
             if prop.is_spread {
                 let raw = source_text(source, prop.span);
-                if let Some(expression) = raw.trim().strip_prefix('{').and_then(|text| text.strip_suffix('}')).and_then(|text| text.trim().strip_prefix("...")) {
+                if let Some(expression) = raw
+                    .trim()
+                    .strip_prefix('{')
+                    .and_then(|text| text.strip_suffix('}'))
+                    .and_then(|text| text.trim().strip_prefix("..."))
+                {
                     runtime.need_component("hozoButtonProps");
                     props_text.push_str(&format!(" {{...hozoButtonProps({expression})}}"));
                     continue;
@@ -1841,7 +2049,8 @@ pub(super) fn render_node(
         }
         // Already lowered into a style prop just above.
         if node.primitive.class_slots().iter().any(|slot| {
-            prop.name.as_deref() == Some(slot.class_prop) || prop.name.as_deref() == Some(slot.style_prop)
+            prop.name.as_deref() == Some(slot.class_prop)
+                || prop.name.as_deref() == Some(slot.style_prop)
         }) {
             continue;
         }
@@ -1872,7 +2081,10 @@ pub(super) fn render_node(
         // nothing with either, and passing them on was two props claiming
         // something the platform does not read.
         if node.primitive == Primitive::Separator
-            && matches!(prop.name.as_deref(), Some("decorative") | Some("orientation"))
+            && matches!(
+                prop.name.as_deref(),
+                Some("decorative") | Some("orientation")
+            )
         {
             continue;
         }
@@ -1980,7 +2192,10 @@ pub(super) fn render_node(
                     escaped
                 });
             }
-            hozo_ir::Child::Verbatim { source: expr_ref, nested } => {
+            hozo_ir::Child::Verbatim {
+                source: expr_ref,
+                nested,
+            } => {
                 inner.push_str(&render_verbatim(
                     *expr_ref,
                     nested,
@@ -2031,8 +2246,15 @@ pub(super) fn render_node(
     };
 
     // React Native's TextInput takes no children either.
-    let tag = if measures_host { "HozoContainer" } else { rendered_component };
-    let rendered = if component == "TextInput" || rendered_component == "HozoTextInput" || component == "Image" {
+    let tag = if measures_host {
+        "HozoContainer"
+    } else {
+        rendered_component
+    };
+    let rendered = if component == "TextInput"
+        || rendered_component == "HozoTextInput"
+        || component == "Image"
+    {
         format!("<{tag}{props_text} />")
     } else {
         format!("<{tag}{props_text}>{inner}</{tag}>")
@@ -2101,11 +2323,19 @@ fn renders_text(component: &str) -> bool {
 /// `disabled:` and `enabled:` on a declaration handed to a child, rewritten
 /// to the expression that drives them here. Left alone when this element
 /// has no `disabled` prop: its own declaration already says so.
-fn bound_to_disabled(declaration: &StyleDeclaration, disabled: Option<&ConditionExpr>) -> StyleDeclaration {
+fn bound_to_disabled(
+    declaration: &StyleDeclaration,
+    disabled: Option<&ConditionExpr>,
+) -> StyleDeclaration {
     let condition = match (&declaration.condition, disabled) {
         (Condition::Disabled, Some(expr)) => Condition::Expr(expr.clone()),
-        (Condition::Enabled, Some(expr)) => Condition::Expr(ConditionExpr::Not(Box::new(expr.clone()))),
+        (Condition::Enabled, Some(expr)) => {
+            Condition::Expr(ConditionExpr::Not(Box::new(expr.clone())))
+        }
         (condition, _) => condition.clone(),
     };
-    StyleDeclaration { property: declaration.property.clone(), condition }
+    StyleDeclaration {
+        property: declaration.property.clone(),
+        condition,
+    }
 }

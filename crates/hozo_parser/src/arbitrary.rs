@@ -21,10 +21,9 @@
 //! contained none of this.
 
 use hozo_ir::{
-    Angle, BorderStyle, Clamp, Color, Dimension, FilterFunction, GridSpan, GridTracks, Length,
-    LengthUnit, LetterSpacing, LineHeight,
-    Edge, GradientKind, GradientStop, MaskSlot, MaskStop, Radius, Scale,
-    StyleProperty,
+    Angle, BorderStyle, Clamp, Color, Dimension, Edge, FilterFunction, GradientKind, GradientStop,
+    GridSpan, GridTracks, Length, LengthUnit, LetterSpacing, LineHeight, MaskSlot, MaskStop,
+    Radius, Scale, StyleProperty,
 };
 
 /// The functions inside which Tailwind spaces out math operators, copied
@@ -175,7 +174,11 @@ fn space_math_operators(input: &str) -> String {
         if matches!(byte, b'+' | b'*' | b'/' | b'-') && in_math {
             let trimmed = trim_end(&out);
             let last = trimmed.last().copied();
-            let second_last = if trimmed.len() >= 2 { Some(trimmed[trimmed.len() - 2]) } else { None };
+            let second_last = if trimmed.len() >= 2 {
+                Some(trimmed[trimmed.len() - 2])
+            } else {
+                None
+            };
             let next = bytes.get(index + 1).copied();
 
             let after_exponent = matches!(last, Some(b'e') | Some(b'E'))
@@ -194,7 +197,10 @@ fn space_math_operators(input: &str) -> String {
             } else if last.is_some_and(|c| c.is_ascii_digit())
                 || next.is_some_and(|c| c.is_ascii_digit())
                 || last == Some(b')')
-                || matches!(next, Some(b'(') | Some(b'+') | Some(b'*') | Some(b'/') | Some(b'-'))
+                || matches!(
+                    next,
+                    Some(b'(') | Some(b'+') | Some(b'*') | Some(b'/') | Some(b'-')
+                )
                 || previous_run_end.is_some_and(|end| end + 1 == index)
             {
                 out.push(b' ');
@@ -301,7 +307,6 @@ pub fn parse_dimension(css: &str) -> Dimension {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // Splitting a token
 // ---------------------------------------------------------------------------
@@ -313,9 +318,23 @@ pub fn parse_dimension(css: &str) -> Dimension {
 /// the value -- `bg-[url(https://x)]` has a colon in it too, and reading
 /// `url(https` as a hint would leave `//x)` as the value.
 const HINTS: &[&str] = &[
-    "length", "color", "image", "url", "percentage", "number", "integer", "angle", "ratio",
-    "position", "bg-size", "line-width", "family-name", "generic-name", "absolute-size",
-    "relative-size", "vector",
+    "length",
+    "color",
+    "image",
+    "url",
+    "percentage",
+    "number",
+    "integer",
+    "angle",
+    "ratio",
+    "position",
+    "bg-size",
+    "line-width",
+    "family-name",
+    "generic-name",
+    "absolute-size",
+    "relative-size",
+    "vector",
 ];
 
 /// A token split into what it targets and what it says.
@@ -355,8 +374,16 @@ pub fn split(token: &str) -> Option<Arbitrary<'_>> {
     if is_var && !rest.starts_with("--") {
         return None;
     }
-    let value = if is_var { format!("var({})", normalize(rest)) } else { normalize(rest) };
-    Some(Arbitrary { prefix, value, hint })
+    let value = if is_var {
+        format!("var({})", normalize(rest))
+    } else {
+        normalize(rest)
+    };
+    Some(Arbitrary {
+        prefix,
+        value,
+        hint,
+    })
 }
 
 /// A whole class that is one declaration: `[color:red]`, `[--gap:4px]`.
@@ -371,7 +398,9 @@ pub fn split_property(token: &str) -> Option<(String, String)> {
     let (property, value) = inner.split_once(':')?;
     let valid = property.starts_with("--")
         || (property.starts_with(|c: char| c.is_ascii_alphabetic())
-            && property.chars().all(|c| c.is_ascii_alphanumeric() || c == '-'));
+            && property
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-'));
     if !valid || value.is_empty() {
         return None;
     }
@@ -476,8 +505,19 @@ fn looks_like_color(value: &str, hint: Option<&str>) -> bool {
 }
 
 const COLOR_FUNCTIONS: &[&str] = &[
-    "rgb", "rgba", "hsl", "hsla", "hwb", "lab", "lch", "oklab", "oklch", "color", "color-mix",
-    "light-dark", "device-cmyk",
+    "rgb",
+    "rgba",
+    "hsl",
+    "hsla",
+    "hwb",
+    "lab",
+    "lch",
+    "oklab",
+    "oklch",
+    "color",
+    "color-mix",
+    "light-dark",
+    "device-cmyk",
 ];
 
 /// CSS Color 4's named colours, plus the two keywords that behave like
@@ -485,40 +525,185 @@ const COLOR_FUNCTIONS: &[&str] = &[
 /// the ones anyone uses: the list decides a *type*, and a missing entry
 /// puts a colour in a length's slot.
 const NAMED_COLORS: &[&str] = &[
-    "aliceblue", "antiquewhite", "aqua", "aquamarine", "azure", "beige", "bisque", "black",
-    "blanchedalmond", "blue", "blueviolet", "brown", "burlywood", "cadetblue", "chartreuse",
-    "chocolate", "coral", "cornflowerblue", "cornsilk", "crimson", "cyan", "darkblue", "darkcyan",
-    "darkgoldenrod", "darkgray", "darkgreen", "darkgrey", "darkkhaki", "darkmagenta",
-    "darkolivegreen", "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen",
-    "darkslateblue", "darkslategray", "darkslategrey", "darkturquoise", "darkviolet", "deeppink",
-    "deepskyblue", "dimgray", "dimgrey", "dodgerblue", "firebrick", "floralwhite", "forestgreen",
-    "fuchsia", "gainsboro", "ghostwhite", "gold", "goldenrod", "gray", "green", "greenyellow",
-    "grey", "honeydew", "hotpink", "indianred", "indigo", "ivory", "khaki", "lavender",
-    "lavenderblush", "lawngreen", "lemonchiffon", "lightblue", "lightcoral", "lightcyan",
-    "lightgoldenrodyellow", "lightgray", "lightgreen", "lightgrey", "lightpink", "lightsalmon",
-    "lightseagreen", "lightskyblue", "lightslategray", "lightslategrey", "lightsteelblue",
-    "lightyellow", "lime", "limegreen", "linen", "magenta", "maroon", "mediumaquamarine",
-    "mediumblue", "mediumorchid", "mediumpurple", "mediumseagreen", "mediumslateblue",
-    "mediumspringgreen", "mediumturquoise", "mediumvioletred", "midnightblue", "mintcream",
-    "mistyrose", "moccasin", "navajowhite", "navy", "oldlace", "olive", "olivedrab", "orange",
-    "orangered", "orchid", "palegoldenrod", "palegreen", "paleturquoise", "palevioletred",
-    "papayawhip", "peachpuff", "peru", "pink", "plum", "powderblue", "purple", "rebeccapurple",
-    "red", "rosybrown", "royalblue", "saddlebrown", "salmon", "sandybrown", "seagreen", "seashell",
-    "sienna", "silver", "skyblue", "slateblue", "slategray", "slategrey", "snow", "springgreen",
-    "steelblue", "tan", "teal", "thistle", "tomato", "turquoise", "violet", "wheat", "white",
-    "whitesmoke", "yellow", "yellowgreen",
-    "transparent", "currentcolor",
+    "aliceblue",
+    "antiquewhite",
+    "aqua",
+    "aquamarine",
+    "azure",
+    "beige",
+    "bisque",
+    "black",
+    "blanchedalmond",
+    "blue",
+    "blueviolet",
+    "brown",
+    "burlywood",
+    "cadetblue",
+    "chartreuse",
+    "chocolate",
+    "coral",
+    "cornflowerblue",
+    "cornsilk",
+    "crimson",
+    "cyan",
+    "darkblue",
+    "darkcyan",
+    "darkgoldenrod",
+    "darkgray",
+    "darkgreen",
+    "darkgrey",
+    "darkkhaki",
+    "darkmagenta",
+    "darkolivegreen",
+    "darkorange",
+    "darkorchid",
+    "darkred",
+    "darksalmon",
+    "darkseagreen",
+    "darkslateblue",
+    "darkslategray",
+    "darkslategrey",
+    "darkturquoise",
+    "darkviolet",
+    "deeppink",
+    "deepskyblue",
+    "dimgray",
+    "dimgrey",
+    "dodgerblue",
+    "firebrick",
+    "floralwhite",
+    "forestgreen",
+    "fuchsia",
+    "gainsboro",
+    "ghostwhite",
+    "gold",
+    "goldenrod",
+    "gray",
+    "green",
+    "greenyellow",
+    "grey",
+    "honeydew",
+    "hotpink",
+    "indianred",
+    "indigo",
+    "ivory",
+    "khaki",
+    "lavender",
+    "lavenderblush",
+    "lawngreen",
+    "lemonchiffon",
+    "lightblue",
+    "lightcoral",
+    "lightcyan",
+    "lightgoldenrodyellow",
+    "lightgray",
+    "lightgreen",
+    "lightgrey",
+    "lightpink",
+    "lightsalmon",
+    "lightseagreen",
+    "lightskyblue",
+    "lightslategray",
+    "lightslategrey",
+    "lightsteelblue",
+    "lightyellow",
+    "lime",
+    "limegreen",
+    "linen",
+    "magenta",
+    "maroon",
+    "mediumaquamarine",
+    "mediumblue",
+    "mediumorchid",
+    "mediumpurple",
+    "mediumseagreen",
+    "mediumslateblue",
+    "mediumspringgreen",
+    "mediumturquoise",
+    "mediumvioletred",
+    "midnightblue",
+    "mintcream",
+    "mistyrose",
+    "moccasin",
+    "navajowhite",
+    "navy",
+    "oldlace",
+    "olive",
+    "olivedrab",
+    "orange",
+    "orangered",
+    "orchid",
+    "palegoldenrod",
+    "palegreen",
+    "paleturquoise",
+    "palevioletred",
+    "papayawhip",
+    "peachpuff",
+    "peru",
+    "pink",
+    "plum",
+    "powderblue",
+    "purple",
+    "rebeccapurple",
+    "red",
+    "rosybrown",
+    "royalblue",
+    "saddlebrown",
+    "salmon",
+    "sandybrown",
+    "seagreen",
+    "seashell",
+    "sienna",
+    "silver",
+    "skyblue",
+    "slateblue",
+    "slategray",
+    "slategrey",
+    "snow",
+    "springgreen",
+    "steelblue",
+    "tan",
+    "teal",
+    "thistle",
+    "tomato",
+    "turquoise",
+    "violet",
+    "wheat",
+    "white",
+    "whitesmoke",
+    "yellow",
+    "yellowgreen",
+    "transparent",
+    "currentcolor",
 ];
 
 /// The UI colours, which look like ordinary identifiers and are not.
 const SYSTEM_COLORS: &[&str] = &[
-    "accentcolor", "accentcolortext", "activetext", "buttonborder", "buttonface", "buttontext",
-    "canvas", "canvastext", "field", "fieldtext", "graytext", "highlight", "highlighttext",
-    "linktext", "mark", "marktext", "selecteditem", "selecteditemtext", "visitedtext",
+    "accentcolor",
+    "accentcolortext",
+    "activetext",
+    "buttonborder",
+    "buttonface",
+    "buttontext",
+    "canvas",
+    "canvastext",
+    "field",
+    "fieldtext",
+    "graytext",
+    "highlight",
+    "highlighttext",
+    "linktext",
+    "mark",
+    "marktext",
+    "selecteditem",
+    "selecteditemtext",
+    "visitedtext",
 ];
 
 fn is_percentage(value: &str) -> bool {
-    value.strip_suffix('%').is_some_and(|n| n.parse::<f64>().is_ok())
+    value
+        .strip_suffix('%')
+        .is_some_and(|n| n.parse::<f64>().is_ok())
 }
 
 /// Whether a value is CSS's `line-width`: what a border or outline width
@@ -566,7 +751,10 @@ fn border_width(property: &str, value: &str) -> StyleProperty {
 fn or_raw(property: &str, value: &str, typed: Option<StyleProperty>) -> Vec<StyleProperty> {
     match typed {
         Some(property) => vec![property],
-        None => vec![StyleProperty::Arbitrary(property.to_string(), value.to_string())],
+        None => vec![StyleProperty::Arbitrary(
+            property.to_string(),
+            value.to_string(),
+        )],
     }
 }
 
@@ -625,11 +813,20 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // `bg-red-500`) is wrong for every numeric value.
         "bg" => {
             if matches!(hint, Some("image") | Some("url")) || value.starts_with("url(") {
-                one(StyleProperty::Arbitrary("background-image".to_string(), value.to_string()))
+                one(StyleProperty::Arbitrary(
+                    "background-image".to_string(),
+                    value.to_string(),
+                ))
             } else if matches!(hint, Some("bg-size") | Some("length")) || value == "auto" {
-                one(StyleProperty::Arbitrary("background-size".to_string(), value.to_string()))
+                one(StyleProperty::Arbitrary(
+                    "background-size".to_string(),
+                    value.to_string(),
+                ))
             } else if hint == Some("position") || length().is_some() || value.ends_with('%') {
-                one(StyleProperty::Arbitrary("background-position".to_string(), value.to_string()))
+                one(StyleProperty::Arbitrary(
+                    "background-position".to_string(),
+                    value.to_string(),
+                ))
             } else {
                 one(StyleProperty::BackgroundColor(color()))
             }
@@ -658,14 +855,22 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
             if hint != Some("color") && is_line_width(value) =>
         {
             let (style, width) = match prefix {
-                "border-t" => (StyleProperty::BorderTopStyle(BorderStyle::Solid), "border-top-width"),
-                "border-r" => {
-                    (StyleProperty::BorderRightStyle(BorderStyle::Solid), "border-right-width")
-                }
-                "border-b" => {
-                    (StyleProperty::BorderBottomStyle(BorderStyle::Solid), "border-bottom-width")
-                }
-                _ => (StyleProperty::BorderLeftStyle(BorderStyle::Solid), "border-left-width"),
+                "border-t" => (
+                    StyleProperty::BorderTopStyle(BorderStyle::Solid),
+                    "border-top-width",
+                ),
+                "border-r" => (
+                    StyleProperty::BorderRightStyle(BorderStyle::Solid),
+                    "border-right-width",
+                ),
+                "border-b" => (
+                    StyleProperty::BorderBottomStyle(BorderStyle::Solid),
+                    "border-bottom-width",
+                ),
+                _ => (
+                    StyleProperty::BorderLeftStyle(BorderStyle::Solid),
+                    "border-left-width",
+                ),
             };
             Some(vec![style, border_width(width, value)])
         }
@@ -677,13 +882,24 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // ones -- `border-inline-width`, which follows writing direction,
         // rather than a left and a right that don't.
         "border-x" | "border-y" if hint != Some("color") && is_line_width(value) => {
-            let edge = if prefix == "border-x" { Edge::Inline } else { Edge::Block };
+            let edge = if prefix == "border-x" {
+                Edge::Inline
+            } else {
+                Edge::Block
+            };
             Some(vec![
                 StyleProperty::BorderLogicalStyle(edge, BorderStyle::Solid),
                 match length() {
                     Some(l) => StyleProperty::BorderLogicalWidth(edge, l),
                     None => StyleProperty::Arbitrary(
-                        format!("border-{}-width", if edge == Edge::Inline { "inline" } else { "block" }),
+                        format!(
+                            "border-{}-width",
+                            if edge == Edge::Inline {
+                                "inline"
+                            } else {
+                                "block"
+                            }
+                        ),
                         value.to_string(),
                     ),
                 },
@@ -700,9 +916,7 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // nothing, and Tailwind sets `solid` for exactly that reason.
         // And an outline width takes a percentage where a border width
         // does not. Not a rule, just what the engine does.
-        "outline"
-            if hint != Some("color") && (is_line_width(value) || is_percentage(value)) =>
-        {
+        "outline" if hint != Some("color") && (is_line_width(value) || is_percentage(value)) => {
             Some(vec![
                 StyleProperty::OutlineStyle(BorderStyle::Solid),
                 match length() {
@@ -742,7 +956,11 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // A stroke width is the widest of the three: length, number *and*
         // percentage all count.
         "stroke" if hint != Some("color") && (is_line_width(value) || is_percentage(value)) => {
-            Some(or_raw("stroke-width", value, number().map(StyleProperty::StrokeWidth)))
+            Some(or_raw(
+                "stroke-width",
+                value,
+                number().map(StyleProperty::StrokeWidth),
+            ))
         }
         "stroke" => one(StyleProperty::Stroke(color())),
         "divide" => one(StyleProperty::DivideColor(color())),
@@ -783,15 +1001,34 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // Plain numbers, each with the same escape: Tailwind emits
         // `z-index: abc` for `z-[abc]` rather than nothing, so refusing
         // would generate less than the engine being matched against.
-        "opacity" => Some(or_raw("opacity", value, number().map(StyleProperty::Opacity))),
+        "opacity" => Some(or_raw(
+            "opacity",
+            value,
+            number().map(StyleProperty::Opacity),
+        )),
         // Integers only. `ZIndex` and `Order` hold an `i32`, so `z-[1.5]`
         // went in as `1` -- a plausible number that isn't the one written,
         // which is the failure mode this whole module exists to stop.
-        "z" => Some(or_raw("z-index", value, integer().map(|n| StyleProperty::ZIndex(Some(n))))),
+        "z" => Some(or_raw(
+            "z-index",
+            value,
+            integer().map(|n| StyleProperty::ZIndex(Some(n))),
+        )),
         "order" => Some(or_raw("order", value, integer().map(StyleProperty::Order))),
-        "grow" => Some(or_raw("flex-grow", value, number().map(StyleProperty::FlexGrow))),
-        "shrink" => Some(or_raw("flex-shrink", value, number().map(StyleProperty::FlexShrink))),
-        "aspect" => one(StyleProperty::Arbitrary("aspect-ratio".to_string(), value.to_string())),
+        "grow" => Some(or_raw(
+            "flex-grow",
+            value,
+            number().map(StyleProperty::FlexGrow),
+        )),
+        "shrink" => Some(or_raw(
+            "flex-shrink",
+            value,
+            number().map(StyleProperty::FlexShrink),
+        )),
+        "aspect" => one(StyleProperty::Arbitrary(
+            "aspect-ratio".to_string(),
+            value.to_string(),
+        )),
         "outline-offset" => Some(or_raw(
             "outline-offset",
             value,
@@ -800,8 +1037,12 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
 
         // Track lists, which the named scale can't express at all: it
         // counts equal columns, and the interesting layouts are unequal.
-        "grid-cols" => one(StyleProperty::GridTemplateColumns(GridTracks::Css(value.to_string()))),
-        "grid-rows" => one(StyleProperty::GridTemplateRows(GridTracks::Css(value.to_string()))),
+        "grid-cols" => one(StyleProperty::GridTemplateColumns(GridTracks::Css(
+            value.to_string(),
+        ))),
+        "grid-rows" => one(StyleProperty::GridTemplateRows(GridTracks::Css(
+            value.to_string(),
+        ))),
 
         // Two-axis families: one written value, two written out. CSS
         // defaults the second axis to the first for `translate` but *not*
@@ -833,7 +1074,10 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
             if hint != Some("family-name")
                 && (is_line_width(value) || is_percentage(value) || value.starts_with("var(")) =>
         {
-            one(StyleProperty::Arbitrary("font-weight".to_string(), value.to_string()))
+            one(StyleProperty::Arbitrary(
+                "font-weight".to_string(),
+                value.to_string(),
+            ))
         }
         // Not just the line count: a clamp needs `display: -webkit-box`
         // and `-webkit-box-orient: vertical` to do anything at all, which
@@ -890,21 +1134,40 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // `radial-gradient(at top, …)`, with no interpolation clause
         // appended. Writing one would be adding a colour space the author
         // didn't ask for.
-        "bg-linear" => one(StyleProperty::Gradient(GradientKind::Linear, value.to_string())),
-        "bg-radial" => one(StyleProperty::Gradient(GradientKind::Radial, value.to_string())),
-        "bg-conic" => one(StyleProperty::Gradient(GradientKind::Conic, value.to_string())),
-        "from" if looks_like_color(value, hint) => {
-            one(StyleProperty::GradientStopColor(GradientStop::From, color()))
-        }
-        "from" => one(StyleProperty::GradientStopPosition(GradientStop::From, dimension())),
+        "bg-linear" => one(StyleProperty::Gradient(
+            GradientKind::Linear,
+            value.to_string(),
+        )),
+        "bg-radial" => one(StyleProperty::Gradient(
+            GradientKind::Radial,
+            value.to_string(),
+        )),
+        "bg-conic" => one(StyleProperty::Gradient(
+            GradientKind::Conic,
+            value.to_string(),
+        )),
+        "from" if looks_like_color(value, hint) => one(StyleProperty::GradientStopColor(
+            GradientStop::From,
+            color(),
+        )),
+        "from" => one(StyleProperty::GradientStopPosition(
+            GradientStop::From,
+            dimension(),
+        )),
         "via" if looks_like_color(value, hint) => {
             one(StyleProperty::GradientStopColor(GradientStop::Via, color()))
         }
-        "via" => one(StyleProperty::GradientStopPosition(GradientStop::Via, dimension())),
+        "via" => one(StyleProperty::GradientStopPosition(
+            GradientStop::Via,
+            dimension(),
+        )),
         "to" if looks_like_color(value, hint) => {
             one(StyleProperty::GradientStopColor(GradientStop::To, color()))
         }
-        "to" => one(StyleProperty::GradientStopPosition(GradientStop::To, dimension())),
+        "to" => one(StyleProperty::GradientStopPosition(
+            GradientStop::To,
+            dimension(),
+        )),
 
         "mask-linear" => one(StyleProperty::MaskSlotArgument(MaskSlot::Linear, angle())),
         "mask-conic" => one(StyleProperty::MaskSlotArgument(MaskSlot::Conic, angle())),
@@ -951,9 +1214,15 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // Tailwind writes, which is where `span nonsense / span nonsense`
         // comes from.
         "col-span" | "row-span" => {
-            let property = if prefix == "col-span" { "grid-column" } else { "grid-row" };
+            let property = if prefix == "col-span" {
+                "grid-column"
+            } else {
+                "grid-row"
+            };
             Some(match value.parse::<u32>().ok() {
-                Some(n) if prefix == "col-span" => vec![StyleProperty::GridColumn(GridSpan::Span(n))],
+                Some(n) if prefix == "col-span" => {
+                    vec![StyleProperty::GridColumn(GridSpan::Span(n))]
+                }
                 Some(n) => vec![StyleProperty::GridRow(GridSpan::Span(n))],
                 None => vec![StyleProperty::Arbitrary(
                     property.to_string(),
@@ -988,13 +1257,17 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // A bare `mask-[…]` is a size, a position or an image, decided the
         // same way `bg-[…]` is -- and with the same surprise: a length is
         // a *position*, while the keyword `auto` is a size.
-        "mask" if hint == Some("bg-size") || value == "auto" => {
-            one(StyleProperty::Arbitrary("mask-size".to_string(), value.to_string()))
-        }
-        "mask" if hint == Some("position") || length().is_some() || is_percentage(value) => {
-            one(StyleProperty::Arbitrary("mask-position".to_string(), value.to_string()))
-        }
-        "mask" => one(StyleProperty::Arbitrary("mask-image".to_string(), value.to_string())),
+        "mask" if hint == Some("bg-size") || value == "auto" => one(StyleProperty::Arbitrary(
+            "mask-size".to_string(),
+            value.to_string(),
+        )),
+        "mask" if hint == Some("position") || length().is_some() || is_percentage(value) => one(
+            StyleProperty::Arbitrary("mask-position".to_string(), value.to_string()),
+        ),
+        "mask" => one(StyleProperty::Arbitrary(
+            "mask-image".to_string(),
+            value.to_string(),
+        )),
 
         "origin" => one(StyleProperty::TransformOrigin(value.to_string())),
 
@@ -1011,7 +1284,10 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
             .iter()
             .find(|(name, _)| *name == prefix)
             .map(|(_, property)| {
-                vec![StyleProperty::Arbitrary(property.to_string(), value.to_string())]
+                vec![StyleProperty::Arbitrary(
+                    property.to_string(),
+                    value.to_string(),
+                )]
             }),
     }
 }
@@ -1152,12 +1428,30 @@ fn scroll_offset(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
 fn corner_radius(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
     type Corner = (fn(Radius) -> StyleProperty, &'static str);
     const TL: Corner = (StyleProperty::BorderTopLeftRadius, "border-top-left-radius");
-    const TR: Corner = (StyleProperty::BorderTopRightRadius, "border-top-right-radius");
-    const BL: Corner = (StyleProperty::BorderBottomLeftRadius, "border-bottom-left-radius");
-    const BR: Corner = (StyleProperty::BorderBottomRightRadius, "border-bottom-right-radius");
-    const SS: Corner = (StyleProperty::BorderStartStartRadius, "border-start-start-radius");
-    const SE: Corner = (StyleProperty::BorderStartEndRadius, "border-start-end-radius");
-    const ES: Corner = (StyleProperty::BorderEndStartRadius, "border-end-start-radius");
+    const TR: Corner = (
+        StyleProperty::BorderTopRightRadius,
+        "border-top-right-radius",
+    );
+    const BL: Corner = (
+        StyleProperty::BorderBottomLeftRadius,
+        "border-bottom-left-radius",
+    );
+    const BR: Corner = (
+        StyleProperty::BorderBottomRightRadius,
+        "border-bottom-right-radius",
+    );
+    const SS: Corner = (
+        StyleProperty::BorderStartStartRadius,
+        "border-start-start-radius",
+    );
+    const SE: Corner = (
+        StyleProperty::BorderStartEndRadius,
+        "border-start-end-radius",
+    );
+    const ES: Corner = (
+        StyleProperty::BorderEndStartRadius,
+        "border-end-start-radius",
+    );
     const EE: Corner = (StyleProperty::BorderEndEndRadius, "border-end-end-radius");
 
     let corners: &[Corner] = match prefix {
@@ -1273,7 +1567,10 @@ fn sizing(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
         "translate-x" => StyleProperty::TranslateX(d),
         "translate-y" => StyleProperty::TranslateY(d),
         "size" => {
-            return Some(vec![StyleProperty::Width(d.clone()), StyleProperty::Height(d)]);
+            return Some(vec![
+                StyleProperty::Width(d.clone()),
+                StyleProperty::Height(d),
+            ]);
         }
         // The axis forms are single logical properties, not pairs of
         // physical ones. Emitting `left`+`right` for `inset-x-*` rendered
@@ -1341,7 +1638,10 @@ fn spacing(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
                 StyleProperty::MarginInlineStart(d.clone()),
                 StyleProperty::MarginInlineEnd(d),
             ],
-            "my" => vec![StyleProperty::MarginTop(d.clone()), StyleProperty::MarginBottom(d)],
+            "my" => vec![
+                StyleProperty::MarginTop(d.clone()),
+                StyleProperty::MarginBottom(d),
+            ],
             "mt" => vec![StyleProperty::MarginTop(d)],
             "mr" => vec![StyleProperty::MarginRight(d)],
             "mb" => vec![StyleProperty::MarginBottom(d)],
@@ -1398,9 +1698,15 @@ fn spacing(prefix: &str, value: &str) -> Option<Vec<StyleProperty>> {
             StyleProperty::PaddingLeft(l),
         ],
         "px" => {
-            vec![StyleProperty::PaddingInlineStart(l.clone()), StyleProperty::PaddingInlineEnd(l)]
+            vec![
+                StyleProperty::PaddingInlineStart(l.clone()),
+                StyleProperty::PaddingInlineEnd(l),
+            ]
         }
-        "py" => vec![StyleProperty::PaddingTop(l.clone()), StyleProperty::PaddingBottom(l)],
+        "py" => vec![
+            StyleProperty::PaddingTop(l.clone()),
+            StyleProperty::PaddingBottom(l),
+        ],
         "pt" => vec![StyleProperty::PaddingTop(l)],
         "pr" => vec![StyleProperty::PaddingRight(l)],
         "pb" => vec![StyleProperty::PaddingBottom(l)],
@@ -1466,7 +1772,10 @@ mod split_tests {
         // The failure this prevents: cutting at the first colon yields the
         // selector `[&` and the utility `hover]:p-4`, both nonsense, and
         // neither obviously so.
-        assert_eq!(split_variant("[&:hover]:p-4"), Some(("&:hover".to_string(), "p-4")));
+        assert_eq!(
+            split_variant("[&:hover]:p-4"),
+            Some(("&:hover".to_string(), "p-4"))
+        );
     }
 
     #[test]
@@ -1479,7 +1788,9 @@ mod split_tests {
         );
         assert_eq!(
             properties("text-[#fff]"),
-            Some(vec![StyleProperty::TextColor(Color::Css("#fff".to_string()))])
+            Some(vec![StyleProperty::TextColor(Color::Css(
+                "#fff".to_string()
+            ))])
         );
     }
 
@@ -1490,10 +1801,9 @@ mod split_tests {
         // gets a different element from `32px`.
         assert_eq!(
             properties("mt-[2rem]"),
-            Some(vec![StyleProperty::MarginTop(Dimension::Length(Length::Unit(
-                2.0,
-                LengthUnit::Rem
-            )))])
+            Some(vec![StyleProperty::MarginTop(Dimension::Length(
+                Length::Unit(2.0, LengthUnit::Rem)
+            ))])
         );
     }
 
@@ -1519,7 +1829,10 @@ mod split_tests {
 
     #[test]
     fn an_underscore_in_a_variant_is_a_descendant_combinator() {
-        assert_eq!(split_variant("[.dark_&]:text-white"), Some((".dark &".to_string(), "text-white")));
+        assert_eq!(
+            split_variant("[.dark_&]:text-white"),
+            Some((".dark &".to_string(), "text-white"))
+        );
     }
 }
 
@@ -1551,7 +1864,10 @@ mod tests {
         assert_eq!(normalize("calc(100%*2)"), "calc(100% * 2)");
         assert_eq!(normalize("calc(100%/3)"), "calc(100% / 3)");
         assert_eq!(normalize("calc(1px+2px)"), "calc(1px + 2px)");
-        assert_eq!(normalize("calc(var(--a)-var(--b))"), "calc(var(--a) - var(--b))");
+        assert_eq!(
+            normalize("calc(var(--a)-var(--b))"),
+            "calc(var(--a) - var(--b))"
+        );
     }
 
     #[test]
@@ -1565,7 +1881,10 @@ mod tests {
         // `repeat` isn't a math function, so its commas stay tight -- and
         // Tailwind's output does too, which is the only reason this is a
         // rule rather than a preference.
-        assert_eq!(normalize("repeat(3,minmax(0,1fr))"), "repeat(3,minmax(0,1fr))");
+        assert_eq!(
+            normalize("repeat(3,minmax(0,1fr))"),
+            "repeat(3,minmax(0,1fr))"
+        );
     }
 
     #[test]
@@ -1582,8 +1901,14 @@ mod tests {
     #[test]
     fn lengths_keep_the_unit_they_were_written_in() {
         assert_eq!(parse_length("32px"), Some(Length::Px(32.0)));
-        assert_eq!(parse_length("2rem"), Some(Length::Unit(2.0, LengthUnit::Rem)));
-        assert_eq!(parse_length("1.5em"), Some(Length::Unit(1.5, LengthUnit::Em)));
+        assert_eq!(
+            parse_length("2rem"),
+            Some(Length::Unit(2.0, LengthUnit::Rem))
+        );
+        assert_eq!(
+            parse_length("1.5em"),
+            Some(Length::Unit(1.5, LengthUnit::Em))
+        );
         assert_eq!(parse_length("0"), Some(Length::Px(0.0)));
     }
 
@@ -1626,7 +1951,9 @@ mod tests {
         // reaches Native unrefused is a layout that looks deliberate.
         let ring = StyleProperty::RingWidth(Length::Css("calc(100% - 2rem)".to_string()));
         assert_eq!(ring.css_expression_length(), Some("calc(100% - 2rem)"));
-        assert!(ring.unsupported_on_native().is_some_and(|m| m.contains("calc(100% - 2rem)")));
+        assert!(ring
+            .unsupported_on_native()
+            .is_some_and(|m| m.contains("calc(100% - 2rem)")));
         // And the unit question is left unanswered rather than answered
         // wrongly -- there may be no unit here, or several.
         assert_eq!(ring.unresolved_length_unit(), None);
@@ -1654,7 +1981,10 @@ mod tests {
 
         // `Full` and `Ratio` carry no length, and asking must stay quiet
         // rather than guess one.
-        assert_eq!(StyleProperty::BorderRadius(Radius::Full).unresolved_length_unit(), None);
+        assert_eq!(
+            StyleProperty::BorderRadius(Radius::Full).unresolved_length_unit(),
+            None
+        );
         let ratio = StyleProperty::LineHeight(LineHeight::Ratio(1.5));
         assert_eq!(ratio.unresolved_length_unit(), None);
     }
@@ -1714,7 +2044,10 @@ mod tests {
         // prefix names.
         assert_eq!(
             properties("blur-[10px]"),
-            Some(vec![StyleProperty::Filter(FilterFunction::Blur, "blur(10px)".to_string())])
+            Some(vec![StyleProperty::Filter(
+                FilterFunction::Blur,
+                "blur(10px)".to_string()
+            )])
         );
         assert_eq!(
             properties("backdrop-grayscale-[nonsense]"),
@@ -1729,7 +2062,10 @@ mod tests {
     fn a_scroll_offset_types_a_length_and_carries_anything_else() {
         assert_eq!(
             properties("scroll-mt-[10px]"),
-            Some(vec![StyleProperty::ScrollMargin(Edge::Top, Length::Px(10.0))])
+            Some(vec![StyleProperty::ScrollMargin(
+                Edge::Top,
+                Length::Px(10.0)
+            )])
         );
         assert_eq!(
             properties("scroll-px-[50%]"),
@@ -1748,7 +2084,10 @@ mod tests {
         assert_eq!(
             properties("rounded-b-[50%]"),
             Some(vec![
-                StyleProperty::Arbitrary("border-bottom-left-radius".to_string(), "50%".to_string()),
+                StyleProperty::Arbitrary(
+                    "border-bottom-left-radius".to_string(),
+                    "50%".to_string()
+                ),
                 StyleProperty::Arbitrary(
                     "border-bottom-right-radius".to_string(),
                     "50%".to_string()
@@ -1786,7 +2125,9 @@ mod tests {
         // Not a clamp of one, which is what `as u32` used to make of it.
         assert_eq!(
             properties("line-clamp-[1.5]"),
-            Some(vec![StyleProperty::LineClamp(Some(Clamp::Css("1.5".to_string())))])
+            Some(vec![StyleProperty::LineClamp(Some(Clamp::Css(
+                "1.5".to_string()
+            )))])
         );
     }
 
@@ -1825,7 +2166,9 @@ mod tests {
         // holds, so Tailwind puts it on the colour side and so does this.
         assert_eq!(
             properties("ring-[var(--x)]"),
-            Some(vec![StyleProperty::RingColor(Color::Css("var(--x)".to_string()))])
+            Some(vec![StyleProperty::RingColor(Color::Css(
+                "var(--x)".to_string()
+            ))])
         );
     }
 

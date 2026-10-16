@@ -14,25 +14,28 @@ use hozo_ir::{
     AccessibilityRole, Child, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display,
     EnclosingComponent, EnclosingProp, EnclosingValue, Environment, ExprRef, HeadingLevel,
     NestedNode, Node, PassthroughProp, Primitive, PropSet, Severity, SourceSpan, StyleDeclaration,
-    SvgElement,
-    StyleProperty,
-};
-use oxc_ast::ast::{
-    ArrowFunctionExpression, Function, JSXAttribute, JSXAttributeItem, JSXAttributeName, JSXAttributeValue,
-    JSXChild, JSXElement, JSXElementName, JSXExpression, ObjectPropertyKind, PropertyKey,
+    StyleProperty, SvgElement,
 };
 use oxc_allocator::{Allocator, ArenaStringBuilder};
+use oxc_ast::ast::{
+    ArrowFunctionExpression, Function, JSXAttribute, JSXAttributeItem, JSXAttributeName,
+    JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression, ObjectPropertyKind,
+    PropertyKey,
+};
 use oxc_ast_visit::walk::{walk_arrow_function_expression, walk_function, walk_jsx_element};
 use oxc_ast_visit::Visit;
-use oxc_syntax::scope::ScopeFlags;
 use oxc_span::{GetSpan, Span};
 use oxc_syntax::module_record::ModuleRecord;
+use oxc_syntax::scope::ScopeFlags;
 
 use crate::dynamic_class;
 use crate::tailwind;
 
 fn to_span(span: Span) -> SourceSpan {
-    SourceSpan { start: span.start, end: span.end }
+    SourceSpan {
+        start: span.start,
+        end: span.end,
+    }
 }
 
 fn to_expr_ref(span: Span) -> ExprRef {
@@ -52,7 +55,9 @@ fn enclosing_component(element: &JSXElement) -> Option<EnclosingComponent> {
         match attribute {
             JSXAttributeItem::SpreadAttribute(_) => spread = true,
             JSXAttributeItem::Attribute(attribute) => {
-                let JSXAttributeName::Identifier(name) = &attribute.name else { continue };
+                let JSXAttributeName::Identifier(name) = &attribute.name else {
+                    continue;
+                };
                 let value = match &attribute.value {
                     None => EnclosingValue::True,
                     Some(JSXAttributeValue::StringLiteral(lit)) => {
@@ -68,11 +73,18 @@ fn enclosing_component(element: &JSXElement) -> Option<EnclosingComponent> {
                     }
                     Some(other) => EnclosingValue::Expr(to_expr_ref(other.span())),
                 };
-                props.push(EnclosingProp { name: name.name.to_string(), value });
+                props.push(EnclosingProp {
+                    name: name.name.to_string(),
+                    value,
+                });
             }
         }
     }
-    Some(EnclosingComponent { local: tag.name.to_string(), props, spread })
+    Some(EnclosingComponent {
+        local: tag.name.to_string(),
+        props,
+        spread,
+    })
 }
 
 /// Only a statically-known `"button"`/`"link"` string literal is
@@ -217,17 +229,19 @@ impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
                 // Carried, not lowered -- and its own children are visited
                 // by the walk that continues below, so a Hozo primitive
                 // inside a foreign component still compiles.
-            } else if self.scope.primitive_for_local(ident.name.as_str()).is_some() {
+            } else if self
+                .scope
+                .primitive_for_local(ident.name.as_str())
+                .is_some()
+            {
                 let name = ident.name.as_str();
                 match build_node(it, self.scope, self.diagnostics, self.consumed) {
-                    Some(node) => {
-                        self.nested.push(NestedNode {
-                            span: to_span(it.span()),
-                            node,
-                            enclosing: self.enclosing.clone(),
-                            forwarded: Vec::new(),
-                        })
-                    }
+                    Some(node) => self.nested.push(NestedNode {
+                        span: to_span(it.span()),
+                        node,
+                        enclosing: self.enclosing.clone(),
+                        forwarded: Vec::new(),
+                    }),
                     // Unreachable through this finder, which only matches
                     // identifier bindings `build_node` accepts --
                     // kept so a future widening of one and not the other
@@ -359,7 +373,10 @@ fn carry_verbatim(
         enclosing: Vec::new(),
     };
     finder.visit_jsx_child(child);
-    Child::Verbatim { source: to_expr_ref(span), nested: finder.nested }
+    Child::Verbatim {
+        source: to_expr_ref(span),
+        nested: finder.nested,
+    }
 }
 
 fn passthrough_prop(
@@ -647,7 +664,11 @@ fn validate_flex_direction(
 /// because WCAG 2.3.3 is about motion and a fade is not motion. Entering
 /// is `starting:`; leaving is `data-[state=closed]:`, the frame an element
 /// animates to inside `Presence` (amendment 1).
-fn validate_enter_motion(style: &[StyleDeclaration], span: SourceSpan, diagnostics: &mut Vec<Diagnostic>) {
+fn validate_enter_motion(
+    style: &[StyleDeclaration],
+    span: SourceSpan,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let enters_moving = style.iter().any(|declaration| {
         moves(&declaration.property)
             && condition_mentions(&declaration.condition, &|condition| {
@@ -721,21 +742,30 @@ fn validate_focusable_disabled(
     span: SourceSpan,
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    if matches!(props.disabled.as_ref(), None | Some(ConditionExpr::Static(false))) {
+    if matches!(
+        props.disabled.as_ref(),
+        None | Some(ConditionExpr::Static(false))
+    ) {
         return;
     }
     // `focusable={false}` agrees with what `disabled` already does, so
     // there is nothing to say about it. Anything else is someone asking
     // for a state Hozo does not offer.
-    let wants_focus = props.focusable.as_ref()
+    let wants_focus = props
+        .focusable
+        .as_ref()
         .is_some_and(|value| !matches!(value, ConditionExpr::Static(false)));
     // A known non-negative tab index is the same request in DOM/RN's
     // other spelling. Negative/opaque values do not prove a tab stop;
     // the host's disabled guard still clamps them at runtime (#943).
-    let wants_tab_stop = props.passthrough.iter().any(|prop|
+    let wants_tab_stop = props.passthrough.iter().any(|prop| {
         prop.name.as_deref() == Some("tabIndex")
-            && prop.literal.as_deref().and_then(|value| value.parse::<i32>().ok()).is_some_and(|value| value >= 0)
-    );
+            && prop
+                .literal
+                .as_deref()
+                .and_then(|value| value.parse::<i32>().ok())
+                .is_some_and(|value| value >= 0)
+    });
     if !wants_focus && !wants_tab_stop {
         return;
     }
@@ -846,9 +876,10 @@ fn build_node(
     consumed: &mut Vec<SourceSpan>,
 ) -> Option<Node> {
     let (local, primitive) = match &el.opening_element.name {
-        JSXElementName::IdentifierReference(ident) => {
-            (ident.name.as_str(), scope.primitive_for_local(ident.name.as_str())?)
-        }
+        JSXElementName::IdentifierReference(ident) => (
+            ident.name.as_str(),
+            scope.primitive_for_local(ident.name.as_str())?,
+        ),
         // `<Svg.Rect>` and `<TermList.Term>`. Member expressions Hozo reads.
         JSXElementName::MemberExpression(member) => {
             let object = member.object.get_identifier()?;
@@ -948,23 +979,21 @@ fn build_node(
                         span: to_span(spread.span()),
                     });
                 }
-                props
-                    .passthrough
-                    .push(PassthroughProp {
-                        span: to_expr_ref(spread.span()),
-                        is_spread: true,
-                        name: None,
-                        literal: None,
-                        nested: Vec::new(),
-                        spread_excludes: match &spread.argument {
-                            oxc_ast::ast::Expression::Identifier(id) => scope
-                                .rest_exclusions
-                                .get(&id.span.start)
-                                .cloned()
-                                .unwrap_or_default(),
-                            _ => Vec::new(),
-                        },
-                    });
+                props.passthrough.push(PassthroughProp {
+                    span: to_expr_ref(spread.span()),
+                    is_spread: true,
+                    name: None,
+                    literal: None,
+                    nested: Vec::new(),
+                    spread_excludes: match &spread.argument {
+                        oxc_ast::ast::Expression::Identifier(id) => scope
+                            .rest_exclusions
+                            .get(&id.span.start)
+                            .cloned()
+                            .unwrap_or_default(),
+                        _ => Vec::new(),
+                    },
+                });
                 continue;
             }
         };
@@ -1033,7 +1062,8 @@ fn build_node(
                             // A theme radius likewise: `rounded-<name>` is a
                             // radius only if the project's theme says so.
                             let theme_animation = properties.iter().any(|property| {
-                                matches!(property, StyleProperty::ThemeAnimation(_)) || property.theme_radius().is_some()
+                                matches!(property, StyleProperty::ThemeAnimation(_))
+                                    || property.theme_radius().is_some()
                             });
                             if properties.is_empty() || theme_animation {
                                 carried_classes.push(token.to_string());
@@ -1123,7 +1153,10 @@ fn build_node(
                             // one problem, one report. `data-[state=open]:`
                             // has brackets *and* a variant Hozo lacks, and
                             // the variant is the accurate half.
-                            if unsupported.is_none() && properties.is_empty() && tailwind::is_arbitrary(token) {
+                            if unsupported.is_none()
+                                && properties.is_empty()
+                                && tailwind::is_arbitrary(token)
+                            {
                                 diagnostics.push(Diagnostic {
                                     code: DiagnosticCode::UnreadableArbitraryValue,
                                     severity: Severity::Warning,
@@ -1147,15 +1180,14 @@ fn build_node(
                         }
                     }
                     Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                        let decomposed =
-                            dynamic_class::decompose_class_name(
-                                &container.expression,
-                                &dynamic_class::Joiners {
-                                    module_record: scope.module_record,
-                                    helpers: scope.class_helpers,
-                                    constants: scope.constants,
-                                },
-                            );
+                        let decomposed = dynamic_class::decompose_class_name(
+                            &container.expression,
+                            &dynamic_class::Joiners {
+                                module_record: scope.module_record,
+                                helpers: scope.class_helpers,
+                                constants: scope.constants,
+                            },
+                        );
                         style.extend(decomposed.declarations);
                         class_name_fallback.extend(decomposed.fallback);
                         consumed.extend(decomposed.consumed);
@@ -1185,7 +1217,10 @@ fn build_node(
             // the way a static `className` is. An expression is left where
             // it was: the Web half still receives it, and the Native backend
             // says it cannot.
-            name if primitive.class_slots().iter().any(|slot| slot.class_prop == name)
+            name if primitive
+                .class_slots()
+                .iter()
+                .any(|slot| slot.class_prop == name)
                 && matches!(&attr.value, Some(JSXAttributeValue::StringLiteral(_))) =>
             {
                 let Some(JSXAttributeValue::StringLiteral(literal)) = &attr.value else {
@@ -1231,44 +1266,296 @@ fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
-            "onStartShouldSetResponder" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_start_should_set_responder, &mut props.passthrough, scope, diagnostics, consumed),
-            "onStartShouldSetResponderCapture" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_start_should_set_responder_capture, &mut props.passthrough, scope, diagnostics, consumed),
-            "onMoveShouldSetResponder" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_move_should_set_responder, &mut props.passthrough, scope, diagnostics, consumed),
-            "onMoveShouldSetResponderCapture" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_move_should_set_responder_capture, &mut props.passthrough, scope, diagnostics, consumed),
-            "onResponderGrant" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_responder_grant, &mut props.passthrough, scope, diagnostics, consumed),
-            "onResponderStart" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_responder_start, &mut props.passthrough, scope, diagnostics, consumed),
-            "onResponderMove" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_responder_move, &mut props.passthrough, scope, diagnostics, consumed),
-            "onResponderEnd" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_responder_end, &mut props.passthrough, scope, diagnostics, consumed),
-            "onResponderRelease" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_responder_release, &mut props.passthrough, scope, diagnostics, consumed),
-            "onResponderReject" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_responder_reject, &mut props.passthrough, scope, diagnostics, consumed),
-            "onResponderTerminate" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_responder_terminate, &mut props.passthrough, scope, diagnostics, consumed),
-            "onResponderTerminationRequest" if matches!(primitive, Primitive::View | Primitive::Pressable | Primitive::TouchableOpacity | Primitive::TouchableWithoutFeedback) => capture_prop_expr(attr, &mut props.on_responder_termination_request, &mut props.passthrough, scope, diagnostics, consumed),
-            "testID" => capture_prop_expr(attr, &mut props.test_id, &mut props.passthrough, scope, diagnostics, consumed),
+            "onStartShouldSetResponder"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_start_should_set_responder,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onStartShouldSetResponderCapture"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_start_should_set_responder_capture,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onMoveShouldSetResponder"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_move_should_set_responder,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onMoveShouldSetResponderCapture"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_move_should_set_responder_capture,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onResponderGrant"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_responder_grant,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onResponderStart"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_responder_start,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onResponderMove"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_responder_move,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onResponderEnd"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_responder_end,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onResponderRelease"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_responder_release,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onResponderReject"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_responder_reject,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onResponderTerminate"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_responder_terminate,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "onResponderTerminationRequest"
+                if matches!(
+                    primitive,
+                    Primitive::View
+                        | Primitive::Pressable
+                        | Primitive::TouchableOpacity
+                        | Primitive::TouchableWithoutFeedback
+                ) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_responder_termination_request,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
+            }
+            "testID" => capture_prop_expr(
+                attr,
+                &mut props.test_id,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
             "nativeID" => {
                 // Kept as text as well as as a span: two elements sharing
                 // an id break every reference to either, and the check for
                 // that needs the value rather than where it was written.
                 props.native_id_literal = attribute_literal(&attr.value);
-                capture_prop_expr(attr, &mut props.native_id, &mut props.passthrough, scope, diagnostics, consumed)
+                capture_prop_expr(
+                    attr,
+                    &mut props.native_id,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
             }
-            "pointerEvents" => capture_prop_expr(attr, &mut props.pointer_events, &mut props.passthrough, scope, diagnostics, consumed),
+            "pointerEvents" => capture_prop_expr(
+                attr,
+                &mut props.pointer_events,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
             "accessibilityState" => {
                 props.accessibility_state_keys = object_literal_keys(attr);
-                capture_prop_expr(attr, &mut props.accessibility_state, &mut props.passthrough, scope, diagnostics, consumed)
+                capture_prop_expr(
+                    attr,
+                    &mut props.accessibility_state,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
             }
             "aria-invalid" => {
                 props.aria_invalid = match &attr.value {
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => Some(to_expr_ref(container.expression.span())),
-                    Some(JSXAttributeValue::StringLiteral(literal)) => Some(to_expr_ref(literal.span)),
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        Some(to_expr_ref(container.expression.span()))
+                    }
+                    Some(JSXAttributeValue::StringLiteral(literal)) => {
+                        Some(to_expr_ref(literal.span))
+                    }
                     _ => None,
                 };
-                props.passthrough.push(passthrough_prop(attr, scope, diagnostics, consumed));
+                props
+                    .passthrough
+                    .push(passthrough_prop(attr, scope, diagnostics, consumed));
             }
             "accessibilityValue" => {
                 props.accessibility_value_keys = object_literal_keys(attr);
-                capture_prop_expr(attr, &mut props.accessibility_value, &mut props.passthrough, scope, diagnostics, consumed)
+                capture_prop_expr(
+                    attr,
+                    &mut props.accessibility_value,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
             }
-            "accessibilityLiveRegion" => capture_prop_expr(attr, &mut props.accessibility_live_region, &mut props.passthrough, scope, diagnostics, consumed),
+            "accessibilityLiveRegion" => capture_prop_expr(
+                attr,
+                &mut props.accessibility_live_region,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
             "focusable" => match &attr.value {
                 None => props.focusable = Some(ConditionExpr::Static(true)),
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
@@ -1277,7 +1564,9 @@ fn build_node(
                         // becomes `tabIndex={-1}` rather than a ternary over
                         // a literal -- and so the disabled check can tell it
                         // from an expression it cannot see into.
-                        JSXExpression::BooleanLiteral(literal) => ConditionExpr::Static(literal.value),
+                        JSXExpression::BooleanLiteral(literal) => {
+                            ConditionExpr::Static(literal.value)
+                        }
                         expression => ConditionExpr::Ref(to_expr_ref(expression.span())),
                     });
                 }
@@ -1285,43 +1574,90 @@ fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
-            "onLayout" => capture_prop_expr(attr, &mut props.on_layout, &mut props.passthrough, scope, diagnostics, consumed),
+            "onLayout" => capture_prop_expr(
+                attr,
+                &mut props.on_layout,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
             "level" if primitive == Primitive::Heading => match &attr.value {
                 Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.heading_level = literal.value.parse::<u8>().ok()
+                    props.heading_level = literal
+                        .value
+                        .parse::<u8>()
+                        .ok()
                         .filter(|level| (1..=6).contains(level))
                         .map(HeadingLevel::Static);
                     if props.heading_level.is_none() {
-                        props.passthrough.push(passthrough_prop(attr, scope, diagnostics, consumed));
+                        props.passthrough.push(passthrough_prop(
+                            attr,
+                            scope,
+                            diagnostics,
+                            consumed,
+                        ));
                     }
                 }
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
                     props.heading_level = match &container.expression {
                         JSXExpression::NumericLiteral(literal)
-                            if literal.value.fract() == 0.0 && (1.0..=6.0).contains(&literal.value) =>
-                            Some(HeadingLevel::Static(literal.value as u8)),
-                        _ => Some(HeadingLevel::Dynamic(to_expr_ref(container.expression.span()))),
+                            if literal.value.fract() == 0.0
+                                && (1.0..=6.0).contains(&literal.value) =>
+                        {
+                            Some(HeadingLevel::Static(literal.value as u8))
+                        }
+                        _ => Some(HeadingLevel::Dynamic(to_expr_ref(
+                            container.expression.span(),
+                        ))),
                     };
                 }
-                _ => props.passthrough.push(passthrough_prop(attr, scope, diagnostics, consumed)),
+                _ => props
+                    .passthrough
+                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
             "ordered" if primitive == Primitive::List => match &attr.value {
                 None => props.list_ordered = Some(ConditionExpr::Static(true)),
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.list_ordered = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
+                    props.list_ordered =
+                        Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
                 }
-                _ => props.passthrough.push(passthrough_prop(attr, scope, diagnostics, consumed)),
+                _ => props
+                    .passthrough
+                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
             "onScroll" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => {
-                capture_prop_expr(attr, &mut props.on_scroll, &mut props.passthrough, scope, diagnostics, consumed)
+                capture_prop_expr(
+                    attr,
+                    &mut props.on_scroll,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
             }
-            "scrollEventThrottle" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => {
-                capture_prop_expr(attr, &mut props.scroll_event_throttle, &mut props.passthrough, scope, diagnostics, consumed)
+            "scrollEventThrottle"
+                if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) =>
+            {
+                capture_prop_expr(
+                    attr,
+                    &mut props.scroll_event_throttle,
+                    &mut props.passthrough,
+                    scope,
+                    diagnostics,
+                    consumed,
+                )
             }
             // Not on a chip, whose `disabled` is a prop of the pattern rather
             // than a host element's state to translate.
-            "disabled" if primitive != Primitive::Chip =>
-                capture_flag(attr, &mut props.disabled, &mut props.passthrough, scope, diagnostics, consumed),
+            "disabled" if primitive != Primitive::Chip => capture_flag(
+                attr,
+                &mut props.disabled,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
             "replace"
                 if matches!(
                     primitive,
@@ -1358,61 +1694,110 @@ fn build_node(
                     consumed,
                 )
             }
-            "horizontal" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => match &attr.value {
-                None => props.scroll_horizontal = Some(ConditionExpr::Static(true)),
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.scroll_horizontal = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
+            "horizontal" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => {
+                match &attr.value {
+                    None => props.scroll_horizontal = Some(ConditionExpr::Static(true)),
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        props.scroll_horizontal =
+                            Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
+                    }
+                    _ => {
+                        props
+                            .passthrough
+                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
+                    }
                 }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "refreshing" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList | Primitive::RefreshControl) => match &attr.value {
-                None => props.refreshing = Some(ConditionExpr::Static(true)),
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.refreshing = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
+            }
+            "refreshing"
+                if matches!(
+                    primitive,
+                    Primitive::ScrollView | Primitive::FlatList | Primitive::RefreshControl
+                ) =>
+            {
+                match &attr.value {
+                    None => props.refreshing = Some(ConditionExpr::Static(true)),
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        props.refreshing =
+                            Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
+                    }
+                    _ => {
+                        props
+                            .passthrough
+                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
+                    }
                 }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "onRefresh" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList | Primitive::RefreshControl) => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.on_refresh = Some(to_expr_ref(container.expression.span()));
+            }
+            "onRefresh"
+                if matches!(
+                    primitive,
+                    Primitive::ScrollView | Primitive::FlatList | Primitive::RefreshControl
+                ) =>
+            {
+                match &attr.value {
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        props.on_refresh = Some(to_expr_ref(container.expression.span()));
+                    }
+                    _ => {
+                        props
+                            .passthrough
+                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
+                    }
                 }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "keyboardShouldPersistTaps" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => match &attr.value {
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.keyboard_should_persist_taps = Some(to_expr_ref(container.expression.span()));
+            }
+            "keyboardShouldPersistTaps"
+                if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) =>
+            {
+                match &attr.value {
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        props.keyboard_should_persist_taps =
+                            Some(to_expr_ref(container.expression.span()));
+                    }
+                    Some(JSXAttributeValue::StringLiteral(literal)) => {
+                        props.keyboard_should_persist_taps = Some(to_expr_ref(literal.span));
+                    }
+                    _ => {
+                        props
+                            .passthrough
+                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
+                    }
                 }
-                Some(JSXAttributeValue::StringLiteral(literal)) => {
-                    props.keyboard_should_persist_taps = Some(to_expr_ref(literal.span));
+            }
+            "showsVerticalScrollIndicator"
+                if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) =>
+            {
+                match &attr.value {
+                    None => {
+                        props.shows_vertical_scroll_indicator = Some(ConditionExpr::Static(true))
+                    }
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        props.shows_vertical_scroll_indicator =
+                            Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
+                    }
+                    _ => {
+                        props
+                            .passthrough
+                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
+                    }
                 }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "showsVerticalScrollIndicator" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => match &attr.value {
-                None => props.shows_vertical_scroll_indicator = Some(ConditionExpr::Static(true)),
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.shows_vertical_scroll_indicator = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
+            }
+            "showsHorizontalScrollIndicator"
+                if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) =>
+            {
+                match &attr.value {
+                    None => {
+                        props.shows_horizontal_scroll_indicator = Some(ConditionExpr::Static(true))
+                    }
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        props.shows_horizontal_scroll_indicator =
+                            Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
+                    }
+                    _ => {
+                        props
+                            .passthrough
+                            .push(passthrough_prop(attr, scope, diagnostics, consumed))
+                    }
                 }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
-            "showsHorizontalScrollIndicator" if matches!(primitive, Primitive::ScrollView | Primitive::FlatList) => match &attr.value {
-                None => props.shows_horizontal_scroll_indicator = Some(ConditionExpr::Static(true)),
-                Some(JSXAttributeValue::ExpressionContainer(container)) => {
-                    props.shows_horizontal_scroll_indicator = Some(ConditionExpr::Ref(to_expr_ref(container.expression.span())));
-                }
-                _ => props
-                    .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
-            },
+            }
             // Both spellings are accepted and neither is passed through:
             // the two platforms name this prop differently, so the value is
             // captured here and each backend writes it under its own name.
@@ -1459,9 +1844,14 @@ fn build_node(
                     .passthrough
                     .push(passthrough_prop(attr, scope, diagnostics, consumed)),
             },
-            "defaultSource" if primitive == Primitive::Image => {
-                capture_prop_expr(attr, &mut props.image_default_source, &mut props.passthrough, scope, diagnostics, consumed)
-            }
+            "defaultSource" if primitive == Primitive::Image => capture_prop_expr(
+                attr,
+                &mut props.image_default_source,
+                &mut props.passthrough,
+                scope,
+                diagnostics,
+                consumed,
+            ),
             "alt" if primitive == Primitive::Image => match &attr.value {
                 Some(JSXAttributeValue::ExpressionContainer(container)) => {
                     props.accessibility_label = Some(to_expr_ref(container.expression.span()));
@@ -1579,7 +1969,7 @@ fn build_node(
             }
             _ => props
                 .passthrough
-                    .push(passthrough_prop(attr, scope, diagnostics, consumed)),
+                .push(passthrough_prop(attr, scope, diagnostics, consumed)),
         }
     }
 
@@ -1634,7 +2024,10 @@ fn build_node(
         carried_classes,
         span: to_span(el.span()),
         opening_tag_span: to_span(el.opening_element.name.span()),
-        closing_tag_span: el.closing_element.as_ref().map(|closing| to_span(closing.name.span())),
+        closing_tag_span: el
+            .closing_element
+            .as_ref()
+            .map(|closing| to_span(closing.name.span())),
     })
 }
 
@@ -1874,10 +2267,7 @@ mod tests {
             "#;
         let output = crate::parse_tsx(source);
         let root = &output.roots[0].node;
-        assert_eq!(
-            passthrough_texts(source, root),
-            vec!["{...rest}"]
-        );
+        assert_eq!(passthrough_texts(source, root), vec!["{...rest}"]);
         assert!(root.props.passthrough[0].is_spread);
         assert!(root.props.on_layout.is_some());
         assert!(root.props.test_id.is_some());
@@ -1929,7 +2319,10 @@ mod tests {
             })
             .expect("renderItem should carry its nested primitive");
         assert_eq!(render_item.nested.len(), 1);
-        assert_eq!(render_item.nested[0].node.primitive, hozo_ir::Primitive::Text);
+        assert_eq!(
+            render_item.nested[0].node.primitive,
+            hozo_ir::Primitive::Text
+        );
     }
 
     #[test]
@@ -1941,7 +2334,10 @@ mod tests {
             "#,
         );
         assert_eq!(output.diagnostics.len(), 1);
-        assert_eq!(output.diagnostics[0].code, DiagnosticCode::UnsafePropSpreadAfterStyle);
+        assert_eq!(
+            output.diagnostics[0].code,
+            DiagnosticCode::UnsafePropSpreadAfterStyle
+        );
         // Still emitted despite the warning -- dropping it would be worse.
         assert_eq!(output.roots[0].node.props.passthrough.len(), 1);
     }
@@ -1983,7 +2379,10 @@ mod tests {
         let output = crate::parse_tsx(source);
         let root = &output.roots[0].node;
         assert_eq!(root.props.accessibility_role, None);
-        assert_eq!(passthrough_texts(source, root), vec!["accessibilityRole={computedRole}"]);
+        assert_eq!(
+            passthrough_texts(source, root),
+            vec!["accessibilityRole={computedRole}"]
+        );
     }
 
     #[test]
@@ -1993,7 +2392,9 @@ mod tests {
             const el = <Paragraph>Intro<Section>Details</Section>{extra}</Paragraph>
             "#;
         let output = crate::parse_tsx(source);
-        let semantic: Vec<_> = output.diagnostics.iter()
+        let semantic: Vec<_> = output
+            .diagnostics
+            .iter()
             .filter(|diagnostic| diagnostic.code == DiagnosticCode::InvalidSemanticNesting)
             .collect();
         assert_eq!(semantic.len(), 1);
@@ -2007,7 +2408,9 @@ mod tests {
             const el = <List><ListItem>Good</ListItem><Paragraph>Bad</Paragraph>{items.map(render)}</List>
             "#;
         let output = crate::parse_tsx(source);
-        let semantic: Vec<_> = output.diagnostics.iter()
+        let semantic: Vec<_> = output
+            .diagnostics
+            .iter()
             .filter(|diagnostic| diagnostic.code == DiagnosticCode::InvalidSemanticNesting)
             .collect();
         assert_eq!(semantic.len(), 1);
@@ -2028,7 +2431,10 @@ mod tests {
         );
         let root = &output.roots[0].node;
         assert!(root.props.on_press.is_some());
-        assert_eq!(root.props.accessibility_role, Some(AccessibilityRole::Button));
+        assert_eq!(
+            root.props.accessibility_role,
+            Some(AccessibilityRole::Button)
+        );
     }
 
     #[test]
@@ -2051,7 +2457,10 @@ mod tests {
             const el = <Pressable accessibilityRole="link">Home</Pressable>
             "#,
         );
-        assert_eq!(output.roots[0].node.props.accessibility_role, Some(AccessibilityRole::Link));
+        assert_eq!(
+            output.roots[0].node.props.accessibility_role,
+            Some(AccessibilityRole::Link)
+        );
     }
 
     #[test]
@@ -2079,7 +2488,11 @@ mod flex_direction_tests {
             "import {{ View, Section, Nav, Text, Separator, ScrollView }} from '@hozo/core'\n\
              const el = {element}\n"
         );
-        crate::parse_tsx(&source).diagnostics.into_iter().map(|d| d.code).collect()
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect()
     }
 
     fn warns(element: &str) -> bool {
@@ -2091,7 +2504,9 @@ mod flex_direction_tests {
         // The trap this exists for. `flex items-center justify-between` is
         // the Web idiom for a row, and on a Hozo box it is a column --
         // which is what React Native does and what the Web base follows.
-        assert!(warns(r#"<View className="flex items-center justify-between">x</View>"#));
+        assert!(warns(
+            r#"<View className="flex items-center justify-between">x</View>"#
+        ));
         assert!(warns(r#"<View className="inline-flex">x</View>"#));
     }
 
@@ -2110,10 +2525,14 @@ mod flex_direction_tests {
         // Either direction silences it: one fixes the layout and the other
         // says the column was meant. A direction under a variant counts as
         // well -- `flex md:flex-row` is somebody who knows the difference.
-        assert!(!warns(r#"<View className="flex flex-row items-center">x</View>"#));
+        assert!(!warns(
+            r#"<View className="flex flex-row items-center">x</View>"#
+        ));
         assert!(!warns(r#"<View className="flex flex-col">x</View>"#));
         assert!(!warns(r#"<View className="flex md:flex-row">x</View>"#));
-        assert!(!warns(r#"<View className="flex flex-row-reverse">x</View>"#));
+        assert!(!warns(
+            r#"<View className="flex flex-row-reverse">x</View>"#
+        ));
     }
 
     #[test]
@@ -2192,9 +2611,13 @@ mod enter_motion_tests {
     #[test]
     fn an_element_that_leaves_moving_is_hinted_too() {
         assert!(hints("transition data-[state=closed]:translate-y-4"));
-        assert!(hints("transition data-[state=closed]:opacity-0 data-[state=closed]:scale-95"));
+        assert!(hints(
+            "transition data-[state=closed]:opacity-0 data-[state=closed]:scale-95"
+        ));
         assert!(!hints("transition data-[state=closed]:opacity-0"));
-        assert!(!hints("transition motion-safe:data-[state=closed]:translate-y-4"));
+        assert!(!hints(
+            "transition motion-safe:data-[state=closed]:translate-y-4"
+        ));
         // Some other attribute is not `Presence` leaving.
         assert!(!hints("transition data-[state=open]:translate-y-4"));
     }
@@ -2209,7 +2632,9 @@ mod enter_motion_tests {
     #[test]
     fn a_word_about_reduced_motion_anywhere_on_the_element_answers_it() {
         assert!(!hints("transition motion-safe:starting:translate-y-4"));
-        assert!(!hints("transition starting:translate-y-4 motion-reduce:transition-none"));
+        assert!(!hints(
+            "transition starting:translate-y-4 motion-reduce:transition-none"
+        ));
         assert!(!hints("motion-safe:transition starting:translate-y-4"));
     }
 

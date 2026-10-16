@@ -100,7 +100,9 @@ impl RuntimeHook {
             RuntimeHook::Viewport => format!("const {} = useHozoViewport()", self.binding()),
             RuntimeHook::SafeArea => format!("const {} = useHozoSafeArea()", self.binding()),
             // Written by the caller, which holds the spec.
-            RuntimeHook::Keyframes(_) => unreachable!("keyframes declarations are written from RuntimeNeeds"),
+            RuntimeHook::Keyframes(_) => {
+                unreachable!("keyframes declarations are written from RuntimeNeeds")
+            }
             RuntimeHook::Animation(name) => format!(
                 "const {} = useHozoAnimation('{}')",
                 self.binding(),
@@ -298,7 +300,11 @@ pub(super) fn build_style_entries(
     for (condition, props) in hozo_ir::group_by_condition(declarations) {
         // Read before the match below moves parts of `condition` out.
         let is_dark_only = condition.mentions_dark();
-        let conditional = if is_element_state(&condition) { &mut state_parts } else { &mut conditional_parts };
+        let conditional = if is_element_state(&condition) {
+            &mut state_parts
+        } else {
+            &mut conditional_parts
+        };
         let props = hozo_ir::dedupe_last_wins(props);
         if props.is_empty() {
             continue;
@@ -322,8 +328,9 @@ pub(super) fn build_style_entries(
         if safe_area.is_some() {
             runtime.hooks.push(RuntimeHook::SafeArea);
         }
-        let (animation_props, props): (Vec<_>, Vec<_>) =
-            props.into_iter().partition(|property| matches!(property, StyleProperty::Animation(_)));
+        let (animation_props, props): (Vec<_>, Vec<_>) = props
+            .into_iter()
+            .partition(|property| matches!(property, StyleProperty::Animation(_)));
         // `animate-none` asks for no hook: it turns an animation off
         // rather than being one.
         let animation_hook = animation_props.iter().find_map(|property| match property {
@@ -343,7 +350,10 @@ pub(super) fn build_style_entries(
             .into_iter()
             .filter(|property| !crate::keyframes::is_timing(property))
             .partition(|property| {
-                matches!(property, StyleProperty::AnimationName(_) | StyleProperty::ThemeAnimation(_))
+                matches!(
+                    property,
+                    StyleProperty::AnimationName(_) | StyleProperty::ThemeAnimation(_)
+                )
             });
         let keyframes = keyframe_props.last().and_then(|property| {
             // One of the project's own Tailwind animations: the theme holds

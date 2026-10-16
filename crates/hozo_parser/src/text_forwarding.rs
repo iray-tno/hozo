@@ -169,9 +169,12 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
         let Some(names) = exported_as.get(id.name.as_str()) else {
             continue;
         };
-        let Some(shape) =
-            read_component(&function.params, &body.statements, module, &module_constants)
-        else {
+        let Some(shape) = read_component(
+            &function.params,
+            &body.statements,
+            module,
+            &module_constants,
+        ) else {
             continue;
         };
         for name in names {
@@ -293,9 +296,7 @@ fn read_comparison(expr: &Expression, params: &Params) -> Option<Comparison> {
 /// `prop !== undefined`, `prop != null` or a bare `prop`, on a destructured
 /// prop: a question about whether it was passed, not about its value.
 fn is_presence_test(expr: &Expression, params: &Params) -> bool {
-    let is_prop = |expr: &Expression| {
-        matches!(expr.without_parentheses(), Expression::Identifier(id) if params.props.contains_key(id.name.as_str()))
-    };
+    let is_prop = |expr: &Expression| matches!(expr.without_parentheses(), Expression::Identifier(id) if params.props.contains_key(id.name.as_str()));
     match expr.without_parentheses() {
         Expression::BinaryExpression(binary) => {
             let nothing = |expr: &Expression| match expr.without_parentheses() {
@@ -303,9 +304,11 @@ fn is_presence_test(expr: &Expression, params: &Params) -> bool {
                 Expression::NullLiteral(_) => true,
                 _ => false,
             };
-            matches!(binary.operator, BinaryOperator::StrictInequality | BinaryOperator::Inequality)
-                && (is_prop(&binary.left) && nothing(&binary.right)
-                    || nothing(&binary.left) && is_prop(&binary.right))
+            matches!(
+                binary.operator,
+                BinaryOperator::StrictInequality | BinaryOperator::Inequality
+            ) && (is_prop(&binary.left) && nothing(&binary.right)
+                || nothing(&binary.left) && is_prop(&binary.right))
         }
         other => is_prop(other),
     }
@@ -329,7 +332,9 @@ impl Classes {
     /// caller's part left out compares equal to `own`.
     fn normalized(self) -> Classes {
         match self {
-            Classes::Literal(text) => Classes::Literal(text.split_whitespace().collect::<Vec<_>>().join(" ")),
+            Classes::Literal(text) => {
+                Classes::Literal(text.split_whitespace().collect::<Vec<_>>().join(" "))
+            }
             Classes::Choice {
                 when,
                 then,
@@ -458,7 +463,8 @@ fn read_constants(
         return;
     }
     for declarator in &declaration.declarations {
-        let (BindingPattern::BindingIdentifier(id), Some(init)) = (&declarator.id, &declarator.init)
+        let (BindingPattern::BindingIdentifier(id), Some(init)) =
+            (&declarator.id, &declarator.init)
         else {
             continue;
         };
@@ -628,11 +634,7 @@ fn is_presence_branch(branch: &oxc_ast::ast::IfStatement, params: &Params) -> bo
 
 /// `if (href !== undefined) return <A …/>` and the return after it: two
 /// elements for one look, read as one when their classes agree.
-fn read_pair(
-    branch: &oxc_ast::ast::IfStatement,
-    last: &Statement,
-    scope: &Scope,
-) -> Option<Host> {
+fn read_pair(branch: &oxc_ast::ast::IfStatement, last: &Statement, scope: &Scope) -> Option<Host> {
     let with = read_return(&branch.consequent, scope)?;
     let without = read_return(last, scope)?;
     let same = with.disabled_prop == without.disabled_prop
@@ -702,7 +704,9 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
                     continue;
                 };
                 match name.name.as_str() {
-                    "className" => classes = Some(read_class_name(attribute.value.as_ref()?, scope)?),
+                    "className" => {
+                        classes = Some(read_class_name(attribute.value.as_ref()?, scope)?)
+                    }
                     "disabled" => {
                         let Some(JSXAttributeValue::ExpressionContainer(container)) =
                             &attribute.value
@@ -789,7 +793,8 @@ pub struct ForwardingTable {
 
 impl ForwardingTable {
     pub fn insert(&mut self, module: &str, component: ForwardingComponent) {
-        self.entries.insert((module.to_string(), component.name.clone()), component);
+        self.entries
+            .insert((module.to_string(), component.name.clone()), component);
     }
 
     pub fn is_empty(&self) -> bool {
@@ -813,7 +818,11 @@ pub fn apply_text_forwarding(output: &mut crate::ParseOutput, table: &Forwarding
     }
 }
 
-fn apply_to_nested(nested: &mut [NestedNode], imports: &[crate::ImportBinding], table: &ForwardingTable) {
+fn apply_to_nested(
+    nested: &mut [NestedNode],
+    imports: &[crate::ImportBinding],
+    table: &ForwardingTable,
+) {
     for entry in nested {
         entry.forwarded = forwarded_by(&entry.enclosing, imports, table);
         apply_to_node(&mut entry.node, imports, table);
@@ -839,7 +848,10 @@ fn forwarded_by(
     imports: &[crate::ImportBinding],
     table: &ForwardingTable,
 ) -> Vec<StyleDeclaration> {
-    enclosing.iter().flat_map(|component| resolve(component, imports, table)).collect()
+    enclosing
+        .iter()
+        .flat_map(|component| resolve(component, imports, table))
+        .collect()
 }
 
 fn resolve(
@@ -851,12 +863,23 @@ fn resolve(
     if component.spread {
         return Vec::new();
     }
-    let Some(import) = imports.iter().find(|import| import.local == component.local) else {
+    let Some(import) = imports
+        .iter()
+        .find(|import| import.local == component.local)
+    else {
         return Vec::new();
     };
     let key = (import.source.clone(), import.imported.clone());
-    let Some(entry) = table.entries.get(&key) else { return Vec::new() };
-    let value_of = |name: &str| component.props.iter().find(|p| p.name == name).map(|p| &p.value);
+    let Some(entry) = table.entries.get(&key) else {
+        return Vec::new();
+    };
+    let value_of = |name: &str| {
+        component
+            .props
+            .iter()
+            .find(|p| p.name == name)
+            .map(|p| &p.value)
+    };
 
     // Every prop the classes depend on has to be known here: a literal, or
     // absent with a default. Anything else is decided at runtime, where the
@@ -873,7 +896,9 @@ fn resolve(
         };
         when.push(value);
     }
-    let Some(variant) = entry.variants.iter().find(|v| v.when == when) else { return Vec::new() };
+    let Some(variant) = entry.variants.iter().find(|v| v.when == when) else {
+        return Vec::new();
+    };
 
     // `disabled:` is driven by the prop the component hands to its host's
     // `disabled`, so the caller's own expression for that prop decides it.
@@ -905,7 +930,10 @@ fn resolve(
             _ => continue,
         };
         for property in properties {
-            out.push(StyleDeclaration { property, condition: condition.clone() });
+            out.push(StyleDeclaration {
+                property,
+                condition: condition.clone(),
+            });
         }
     }
     out
@@ -1050,10 +1078,20 @@ export { HozoAlert as Alert }";
 
         // And the same through `@hozo/patterns`' Alert, which it wears now.
         let worn = source
-            .replace("import { View } from '@hozo/core'", "import { Alert as AlertPattern } from '@hozo/patterns'")
-            .replace("<View role={live === 'assertive' ? 'alert' : undefined}", "<AlertPattern live={live}")
+            .replace(
+                "import { View } from '@hozo/core'",
+                "import { Alert as AlertPattern } from '@hozo/patterns'",
+            )
+            .replace(
+                "<View role={live === 'assertive' ? 'alert' : undefined}",
+                "<AlertPattern live={live}",
+            )
             .replace("</View>", "</AlertPattern>");
-        assert_eq!(summarize_text_forwarding(&worn).components.len(), 2, "{worn}");
+        assert_eq!(
+            summarize_text_forwarding(&worn).components.len(),
+            2,
+            "{worn}"
+        );
     }
 
     #[test]
@@ -1084,7 +1122,11 @@ export function B({{ tone = 'calm', className, href, ...rest }}) {{
         let [component] = summary.components.as_slice() else {
             panic!("{summary:?}\n{source}")
         };
-        let classes: Vec<_> = component.variants.iter().map(|v| v.classes.as_str()).collect();
+        let classes: Vec<_> = component
+            .variants
+            .iter()
+            .map(|v| v.classes.as_str())
+            .collect();
         assert_eq!(classes, ["text-black", "text-white"]);
         // Different classes per branch is not one look.
         let differs = source.replacen("cx(CALM, className)", "cx(LOUD, className)", 1);

@@ -49,10 +49,7 @@ struct NativeComponent {
     diagnostics: Vec<Diagnostic>,
 }
 
-fn diagnostics(
-    source: &[hozo_ir::Diagnostic],
-    offsets: &Utf16Offsets,
-) -> Vec<Diagnostic> {
+fn diagnostics(source: &[hozo_ir::Diagnostic], offsets: &Utf16Offsets) -> Vec<Diagnostic> {
     source
         .iter()
         .map(|diagnostic| Diagnostic {

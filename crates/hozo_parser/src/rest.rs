@@ -18,11 +18,11 @@
 
 use std::collections::HashMap;
 
-use oxc_ast::AstKind;
 use oxc_ast::ast::{
     BindingPattern, Declaration, Expression, Program, Statement, VariableDeclaration,
     VariableDeclarationKind,
 };
+use oxc_ast::AstKind;
 use oxc_ast_visit::Visit;
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{GetSpan, Span};
@@ -42,7 +42,9 @@ pub struct Bindings {
 
 /// A module-level `const` declarator whose value is a string with no
 /// interpolation, by its binding.
-fn string_constants<'p, 'a>(program: &'p Program<'a>) -> Vec<(&'p oxc_ast::ast::BindingIdentifier<'a>, String, Span)> {
+fn string_constants<'p, 'a>(
+    program: &'p Program<'a>,
+) -> Vec<(&'p oxc_ast::ast::BindingIdentifier<'a>, String, Span)> {
     let declarations = program.body.iter().filter_map(|statement| match statement {
         Statement::VariableDeclaration(declaration) => Some(&**declaration),
         Statement::ExportDeclaration(export) => match &export.declaration {
@@ -53,19 +55,26 @@ fn string_constants<'p, 'a>(program: &'p Program<'a>) -> Vec<(&'p oxc_ast::ast::
     });
     let mut out = Vec::new();
     for declaration in declarations {
-        let VariableDeclaration { kind: VariableDeclarationKind::Const, declarations, .. } = declaration
+        let VariableDeclaration {
+            kind: VariableDeclarationKind::Const,
+            declarations,
+            ..
+        } = declaration
         else {
             continue;
         };
         for declarator in declarations {
-            let (BindingPattern::BindingIdentifier(id), Some(init)) = (&declarator.id, &declarator.init)
+            let (BindingPattern::BindingIdentifier(id), Some(init)) =
+                (&declarator.id, &declarator.init)
             else {
                 continue;
             };
             let value = match init.without_parentheses() {
                 Expression::StringLiteral(literal) => (literal.value.to_string(), literal.span),
                 Expression::TemplateLiteral(template) if template.expressions.is_empty() => {
-                    let Some(cooked) = &template.quasis[0].value.cooked else { continue };
+                    let Some(cooked) = &template.quasis[0].value.cooked else {
+                        continue;
+                    };
                     (cooked.to_string(), template.span)
                 }
                 _ => continue,
@@ -94,7 +103,9 @@ pub fn analyze(program: &Program<'_>) -> Bindings {
     let mut out = Bindings::default();
 
     for (id, value, span) in constants {
-        let Some(symbol) = id.symbol_id.get() else { continue };
+        let Some(symbol) = id.symbol_id.get() else {
+            continue;
+        };
         if !scoping.symbol_redeclarations(symbol).is_empty() {
             continue;
         }
@@ -121,13 +132,19 @@ pub fn analyze(program: &Program<'_>) -> Bindings {
         let Some(keys) = pattern
             .properties
             .iter()
-            .map(|property| (!property.computed).then(|| property.key.static_name()).flatten())
+            .map(|property| {
+                (!property.computed)
+                    .then(|| property.key.static_name())
+                    .flatten()
+            })
             .map(|name| name.map(|name| name.to_string()))
             .collect::<Option<Vec<_>>>()
         else {
             continue;
         };
-        let Some(symbol) = id.symbol_id.get() else { continue };
+        let Some(symbol) = id.symbol_id.get() else {
+            continue;
+        };
         if !scoping.symbol_redeclarations(symbol).is_empty() {
             continue;
         }
