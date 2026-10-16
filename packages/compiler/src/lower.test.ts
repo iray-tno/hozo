@@ -3,6 +3,7 @@ import { test } from 'node:test'
 
 import { createCompiler } from './index.ts'
 import {
+  bindsUsedName,
   foldedPrimitiveCalls,
   generatedRuntimeImports,
   lowerModule,
@@ -92,6 +93,22 @@ test('lowers a component and namespaces its classes', () => {
   assert.match(lowered.code, /hozo-[a-z0-9]+-r0-0\b/)
   assert.match(lowered.css, /\.hozo-[a-z0-9]+-r0-0\b/)
   assert.equal(lowered.cssFileName, 'Page.tsx.hozo.css')
+})
+
+test('an authoring import that binds a name still used survives lowering (#983)', () => {
+  // `@hozo/ui`'s Alert: the Badge lowers, the pattern does not, and the
+  // pattern's import is not a primitive name the old check knew to keep.
+  const source =
+    `import { Badge } from '@hozo/core'\n` +
+    `import { Alert as AlertPattern } from '@hozo/patterns'\n` +
+    `export const A = () => <AlertPattern live="polite">x</AlertPattern>\n` +
+    `export const B = () => <Badge className="p-1">y</Badge>\n`
+  const lowered = lowerModule(source, file, file, compiler, ROOT)
+  assert.ok(lowered)
+  assert.match(lowered.code, /import \{ Alert as AlertPattern \} from '@hozo\/patterns'/)
+  assert.doesNotMatch(lowered.code, /import \{ Badge \} from '@hozo\/core'/)
+  assert.equal(bindsUsedName("import { type A, B as C } from 'x'", 'C()'), true)
+  assert.equal(bindsUsedName("import { type A, B as C } from 'x'", 'A B'), false)
 })
 
 test('leaves alone what it has nothing to do with', () => {

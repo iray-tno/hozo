@@ -51,6 +51,10 @@ use crate::tailwind;
 /// inheritance already reaches whatever is nested in it.
 const FORWARDING_HOSTS: [&str; 3] = ["Pressable", "Button", "View"];
 const HOST_MODULES: [&str; 2] = ["@hozo/core", "@hozo/primitives"];
+/// Pattern components that render their children inside a `View`: their own
+/// string child gets the text styles at runtime, a Text the caller nests
+/// does not. `@hozo/ui`'s Alert wears this one since #983.
+const PATTERN_HOSTS: [(&str, &str); 1] = [("@hozo/patterns", "Alert")];
 
 /// The `cx`-shaped helpers whose arguments are read one by one, as
 /// `dynamic_class` reads them.
@@ -610,9 +614,13 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
         return None;
     };
     let is_host = module.import_entries.iter().any(|entry| {
+        let ImportImportName::Name(imported) = &entry.import_name else {
+            return false;
+        };
+        let (from, name) = (entry.module_request.name.as_str(), imported.name.as_str());
         entry.local_name.name == tag.name.as_str()
-            && HOST_MODULES.contains(&entry.module_request.name.as_str())
-            && matches!(&entry.import_name, ImportImportName::Name(n) if FORWARDING_HOSTS.contains(&n.name.as_str()))
+            && (HOST_MODULES.contains(&from) && FORWARDING_HOSTS.contains(&name)
+                || PATTERN_HOSTS.contains(&(from, name)))
     });
     if !is_host {
         return None;
@@ -985,6 +993,13 @@ export { HozoAlert as Alert }";
         assert_eq!(classes("danger"), Some("px-4 text-sm text-red-700"));
         assert_eq!(classes("neutral"), Some("px-4 text-sm text-gray-700"));
         assert_eq!(alert.disabled_prop, None);
+
+        // And the same through `@hozo/patterns`' Alert, which it wears now.
+        let worn = source
+            .replace("import { View } from '@hozo/core'", "import { Alert as AlertPattern } from '@hozo/patterns'")
+            .replace("<View role={live === 'assertive' ? 'alert' : undefined}", "<AlertPattern live={live}")
+            .replace("</View>", "</AlertPattern>");
+        assert_eq!(summarize_text_forwarding(&worn).components.len(), 2, "{worn}");
     }
 
     #[test]

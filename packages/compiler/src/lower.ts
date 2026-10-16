@@ -311,6 +311,27 @@ const HOZO_PRIMITIVES = [
  * remains as the check that would keep a *used* one, and it is the reason
  * A value reference such as `const Label = Text` beside a lowered tree still resolves.
  */
+/**
+ * Whether a named-import statement binds a value the rest of the module
+ * still refers to. A type-only specifier binds nothing at runtime. Over-
+ * keeping is the safe direction, as for `referencesHozoPrimitive`: a name
+ * that only appears in a comment keeps an import the bundler drops anyway.
+ */
+export function bindsUsedName(statement: string, rest: string): boolean {
+  const list = /\{([^}]*)\}/.exec(statement)?.[1] ?? ''
+  return list.split(',').some((specifier) => {
+    const written = specifier.trim()
+    if (written === '' || /^type\s/.test(written)) return false
+    const local =
+      written
+        .split(/\s+as\s+/)
+        .at(-1)
+        ?.trim() ?? ''
+    if (!/^[A-Za-z_$][\w$]*$/.test(local)) return false
+    return new RegExp(`(?<![\\w$])${local.replaceAll('$', '\\$')}(?![\\w$])`).test(rest)
+  })
+}
+
 export function referencesHozoPrimitive(code: string): boolean {
   return HOZO_PRIMITIVES.some((name) => new RegExp(`\\b${name}\\b`).test(code))
 }
@@ -909,13 +930,20 @@ function lowerModuleUnchecked(
   // is not one. The import then reaches the graph, `@hozo/core` is pulled
   // in, and Next's App Router rejects the page for calling `useState` in a
   // server component -- naming neither MDX nor the import.
+  //
+  // And never a statement that binds a name the module still uses. The
+  // question above is asked about primitives, but the same statement can
+  // import a pattern (`Alert as AlertPattern` from `@hozo/patterns`) that no
+  // primitive name covers; removing it left the JSX naming a binding that
+  // no longer existed, and the page failed with a ReferenceError (#983).
   const authoringEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
-  const withoutImport = authoringEdits
-    ? next.replace(HOZO_AUTHORING_IMPORT_RE, (match, offset) => {
-        authoringEdits.push({ spanStart: offset, spanEnd: offset + match.length, replacement: '' })
-        return ''
-      })
-    : next.replace(HOZO_AUTHORING_IMPORT_RE, '')
+  const withoutImport = next.replace(HOZO_AUTHORING_IMPORT_RE, (match, offset) => {
+    if (bindsUsedName(match, next.slice(0, offset) + next.slice(offset + match.length))) {
+      return match
+    }
+    authoringEdits?.push({ spanStart: offset, spanEnd: offset + match.length, replacement: '' })
+    return ''
+  })
   if (!referencesHozoPrimitive(isTransformed ? withoutImport : next)) {
     if (authoringEdits)
       options.observe?.({ stage: 'edits', source: next, diagnostics: [], edits: authoringEdits })

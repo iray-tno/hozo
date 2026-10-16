@@ -110,6 +110,7 @@ export const components = {
       },
     },
   }),
+  Alert: slots('className'),
   Avatar: slots('className imageClassName fallbackClassName statusClassName', { secondary: true }),
   BottomSheet: slots('className scrimClassName sheetClassName handleClassName'),
   Checkbox: slots('className'),

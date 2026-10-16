@@ -10,11 +10,12 @@
  * `count` badge is the other case, and the semantic one handles it: the digit
  * is drawn and its `accessibilityLabel` ("3 unread messages") is what is read.
  *
- * `Alert` is the one line of semantics in this package, and it is a role
- * rather than behaviour: `role="status"` for something that appeared,
- * `role="alert"` for something that went wrong. Both are live regions, and
- * the difference is whether a reader interrupts itself to say it. That is a
- * decision about urgency, which is the caller's, so it is a prop.
+ * `Alert` is a look over `@hozo/patterns`' `Alert`, which owns the
+ * announcing: `role="status"` for something that appeared, `role="alert"`
+ * for something that went wrong, and on React Native a live region on
+ * Android and an announcement on iOS (#983). The difference is whether a
+ * reader interrupts itself to say it. That is a decision about urgency, which
+ * is the caller's, so it is a prop.
  *
  * An alert rendered with the page rather than in response to something is
  * announced on load, which is right for "your session expired" and wrong for
@@ -22,7 +23,8 @@
  * without `live`, and can say so.
  */
 
-import { Badge, View } from '@hozo/core'
+import { Badge } from '@hozo/core'
+import { Alert as AlertPattern } from '@hozo/patterns'
 import type { ReactNode } from 'react'
 
 export type HozoStatusTone = 'neutral' | 'accent' | 'danger'
@@ -95,16 +97,9 @@ function StyledBadge({
 export function HozoAlert({ children, tone = 'neutral', live = false, className }: HozoAlertProps) {
   const own = tone === 'accent' ? alertAccent : tone === 'danger' ? alertDanger : alertNeutral
   return (
-    <View
-      // `alert` is assertive by definition and `status` is polite, so the two
-      // roles carry the urgency and `aria-live` would repeat it. A reader
-      // given both has been told the same thing twice and may believe the
-      // quieter one.
-      role={live === 'assertive' ? 'alert' : live === 'polite' ? 'status' : undefined}
-      className={className ? `${own} ${className}` : own}
-    >
+    <AlertPattern live={live} className={className ? `${own} ${className}` : own}>
       {children}
-    </View>
+    </AlertPattern>
   )
 }
 
