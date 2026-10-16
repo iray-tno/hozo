@@ -2112,12 +2112,12 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
   assert.equal(
     web.diagnostics.length,
     6,
-    'each opaque decorative slot retains its candidate warning',
+    'each mixed decorative slot retains its residual candidate warning',
   )
   for (const diagnostic of web.diagnostics) {
     assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
     assert.equal(diagnostic.severity, 'warning')
-    assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('opaque\//)
+    assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)
   }
   const candidates = openCandidateCache(path.join(directory, 'decorative-owners.json'))
   const names = `${own} ${negative} ${extra} border-2 border-4 border-8`.split(' ')
