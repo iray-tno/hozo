@@ -11,10 +11,17 @@
  * given one. A styled button that silently turned into an unstyled anchor
  * would be exactly the kind of gap this package exists to close.
  *
- * ## Why the class lists are written out, inside `cx`
+ * It is taken out by name and the element is chosen by whether it was passed.
+ * `rest` then provably holds no `href`, so the compiler can decide `<a>` or
+ * `<button>` at build time on the Web instead of keeping the primitive to
+ * decide at runtime (#656). `href={href}` on one element regardless would
+ * make every button an anchor, including one whose `href` is undefined.
  *
- * Every tone is a complete literal in its own element, rather than pieces
- * joined at runtime. Two different tools need to see them and neither runs the
+ * ## Why the class lists are literals, inside `cx`
+ *
+ * Every tone is a complete literal -- a module-level `const`, which the
+ * compiler reads as the string it holds (#656) -- in its own element, rather
+ * than pieces joined at runtime. Two different tools need to see them and neither runs the
  * code: Tailwind's scanner has to find the class names to emit their CSS, and
  * Hozo's compiler compiles a `className` it can read statically and falls back
  * to the project-wide candidate sheet for one it cannot. A library whose own
@@ -38,7 +45,8 @@
  * hides it.
  *
  * It is repetitive on purpose. The alternative -- `[base, tones[tone]].join()`
- * -- reads better and is invisible to both tools.
+ * -- reads better and is invisible to both tools. The constants keep each
+ * list in one place; the elements around them repeat.
  */
 
 import { cx } from '@hozo/core'
@@ -53,6 +61,17 @@ export interface HozoButtonProps extends ButtonProps {
   tone?: HozoButtonTone
   size?: HozoButtonSize
 }
+
+const ACCENT =
+  'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-accent text-hozo-on-accent hover:bg-hozo-accent-hover active:opacity-80 disabled:bg-hozo-surface-raised'
+const QUIET =
+  'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80'
+const DANGER =
+  'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-danger text-hozo-on-danger hover:bg-hozo-danger-text active:opacity-80 disabled:bg-hozo-surface-raised'
+const NEUTRAL =
+  'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover active:opacity-80 disabled:bg-hozo-surface-raised'
+const SM = 'px-3 py-2 text-sm'
+const MD = 'px-4 py-3 text-sm'
 
 /**
  * The focus ring lives in every one of these, and that is the point.
@@ -81,44 +100,73 @@ export function HozoButton({
   size = 'md',
   className,
   disabled,
+  href,
   ...rest
 }: HozoButtonProps) {
   if (tone === 'accent') {
+    if (href !== undefined) {
+      return (
+        <ButtonPrimitive
+          {...rest}
+          href={href}
+          disabled={disabled}
+          className={cx(ACCENT, size === 'sm' ? SM : MD, className)}
+        />
+      )
+    }
     return (
       <ButtonPrimitive
         {...rest}
         disabled={disabled}
-        className={cx(
-          'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-accent text-hozo-on-accent hover:bg-hozo-accent-hover active:opacity-80 disabled:bg-hozo-surface-raised',
-          size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm',
-          className,
-        )}
+        className={cx(ACCENT, size === 'sm' ? SM : MD, className)}
       />
     )
   }
   if (tone === 'quiet') {
+    if (href !== undefined) {
+      return (
+        <ButtonPrimitive
+          {...rest}
+          href={href}
+          disabled={disabled}
+          className={cx(QUIET, size === 'sm' ? SM : MD, className)}
+        />
+      )
+    }
     return (
       <ButtonPrimitive
         {...rest}
         disabled={disabled}
-        className={cx(
-          'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80',
-          size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm',
-          className,
-        )}
+        className={cx(QUIET, size === 'sm' ? SM : MD, className)}
       />
     )
   }
   if (tone === 'danger') {
+    if (href !== undefined) {
+      return (
+        <ButtonPrimitive
+          {...rest}
+          href={href}
+          disabled={disabled}
+          className={cx(DANGER, size === 'sm' ? SM : MD, className)}
+        />
+      )
+    }
     return (
       <ButtonPrimitive
         {...rest}
         disabled={disabled}
-        className={cx(
-          'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-danger text-hozo-on-danger hover:bg-hozo-danger-text active:opacity-80 disabled:bg-hozo-surface-raised',
-          size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm',
-          className,
-        )}
+        className={cx(DANGER, size === 'sm' ? SM : MD, className)}
+      />
+    )
+  }
+  if (href !== undefined) {
+    return (
+      <ButtonPrimitive
+        {...rest}
+        href={href}
+        disabled={disabled}
+        className={cx(NEUTRAL, size === 'sm' ? SM : MD, className)}
       />
     )
   }
@@ -126,11 +174,7 @@ export function HozoButton({
     <ButtonPrimitive
       {...rest}
       disabled={disabled}
-      className={cx(
-        'inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle bg-hozo-surface text-hozo-text-body border border-hozo-border-strong hover:bg-hozo-surface-hover active:opacity-80 disabled:bg-hozo-surface-raised',
-        size === 'sm' ? 'px-3 py-2 text-sm' : 'px-4 py-3 text-sm',
-        className,
-      )}
+      className={cx(NEUTRAL, size === 'sm' ? SM : MD, className)}
     />
   )
 }

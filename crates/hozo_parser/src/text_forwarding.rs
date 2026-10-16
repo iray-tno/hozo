@@ -290,6 +290,27 @@ fn read_comparison(expr: &Expression, params: &Params) -> Option<Comparison> {
     })
 }
 
+/// `prop !== undefined`, `prop != null` or a bare `prop`, on a destructured
+/// prop: a question about whether it was passed, not about its value.
+fn is_presence_test(expr: &Expression, params: &Params) -> bool {
+    let is_prop = |expr: &Expression| {
+        matches!(expr.without_parentheses(), Expression::Identifier(id) if params.props.contains_key(id.name.as_str()))
+    };
+    match expr.without_parentheses() {
+        Expression::BinaryExpression(binary) => {
+            let nothing = |expr: &Expression| match expr.without_parentheses() {
+                Expression::Identifier(id) => id.name == "undefined",
+                Expression::NullLiteral(_) => true,
+                _ => false,
+            };
+            matches!(binary.operator, BinaryOperator::StrictInequality | BinaryOperator::Inequality)
+                && (is_prop(&binary.left) && nothing(&binary.right)
+                    || nothing(&binary.left) && is_prop(&binary.right))
+        }
+        other => is_prop(other),
+    }
+}
+
 /// A class list as the source builds it, before any prop has a value.
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum Classes {
@@ -466,6 +487,13 @@ fn read_component(
     let params = read_params(params)?;
     let mut constants = module_constants.clone();
     let (last, guarded) = statements.split_last()?;
+    // The fallthrough may itself be a presence pair, as the last tone is.
+    let (trailing, guarded) = match guarded.split_last() {
+        Some((Statement::IfStatement(branch), before)) if is_presence_branch(branch, &params) => {
+            (Some(&**branch), before)
+        }
+        _ => (None, guarded),
+    };
     let mut branches = Vec::new();
     for statement in guarded {
         if let Statement::VariableDeclaration(declaration) = statement {
@@ -488,12 +516,12 @@ fn read_component(
         if branch.alternate.is_some() {
             return None;
         }
-        let guard = read_comparison(&branch.test, &params)?;
         let scope = Scope {
             params: &params,
             module,
             constants: &constants,
         };
+        let guard = read_comparison(&branch.test, &params)?;
         let host = read_return(&branch.consequent, &scope)?;
         branches.push(Branch {
             guard: Some(guard),
@@ -507,7 +535,10 @@ fn read_component(
     };
     branches.push(Branch {
         guard: None,
-        host: read_return(last, &scope)?,
+        host: match trailing {
+            Some(branch) => read_pair(branch, last, &scope)?,
+            None => read_return(last, &scope)?,
+        },
     });
 
     // Every value a prop is compared against, plus its default: the values
@@ -591,10 +622,33 @@ fn combinations(props: &[ForwardingProp]) -> Vec<Vec<String>> {
     out
 }
 
+fn is_presence_branch(branch: &oxc_ast::ast::IfStatement, params: &Params) -> bool {
+    branch.alternate.is_none() && is_presence_test(&branch.test, params)
+}
+
+/// `if (href !== undefined) return <A …/>` and the return after it: two
+/// elements for one look, read as one when their classes agree.
+fn read_pair(
+    branch: &oxc_ast::ast::IfStatement,
+    last: &Statement,
+    scope: &Scope,
+) -> Option<Host> {
+    let with = read_return(&branch.consequent, scope)?;
+    let without = read_return(last, scope)?;
+    let same = with.disabled_prop == without.disabled_prop
+        && with.classes.normalized() == without.classes.clone().normalized();
+    same.then_some(without)
+}
+
 fn read_return(statement: &Statement, scope: &Scope) -> Option<Host> {
     let statement = match statement {
         Statement::BlockStatement(block) => match block.body.as_slice() {
             [only] => only,
+            // `{ if (href !== undefined) return <A …/>; return <B …/> }`: two
+            // elements for one look, read as one when their classes agree.
+            [Statement::IfStatement(branch), last] if is_presence_branch(branch, scope.params) => {
+                return read_pair(branch, last, scope);
+            }
             _ => return None,
         },
         other => other,
@@ -1000,6 +1054,41 @@ export { HozoAlert as Alert }";
             .replace("<View role={live === 'assertive' ? 'alert' : undefined}", "<AlertPattern live={live}")
             .replace("</View>", "</AlertPattern>");
         assert_eq!(summarize_text_forwarding(&worn).components.len(), 2, "{worn}");
+    }
+
+    #[test]
+    fn an_href_branch_with_the_same_classes_is_one_look() {
+        // `@hozo/ui`'s Button since #656: the element changes with `href`,
+        // the classes do not.
+        let pair = |name: &str| {
+            format!(
+                "if (href !== undefined) return <Host {{...rest}} href={{href}} className={{cx({name}, className)}} />
+    return <Host {{...rest}} className={{cx({name}, className)}} />"
+            )
+        };
+        let source = format!(
+            "import {{ cx }} from '@hozo/core'
+import {{ Button as Host }} from '@hozo/primitives'
+const LOUD = 'text-white'
+const CALM = 'text-black'
+export function B({{ tone = 'calm', className, href, ...rest }}) {{
+  if (tone === 'loud') {{
+    {}
+  }}
+  {}
+}}",
+            pair("LOUD"),
+            pair("CALM")
+        );
+        let summary = summarize_text_forwarding(&source);
+        let [component] = summary.components.as_slice() else {
+            panic!("{summary:?}\n{source}")
+        };
+        let classes: Vec<_> = component.variants.iter().map(|v| v.classes.as_str()).collect();
+        assert_eq!(classes, ["text-black", "text-white"]);
+        // Different classes per branch is not one look.
+        let differs = source.replacen("cx(CALM, className)", "cx(LOUD, className)", 1);
+        assert!(summarize_text_forwarding(&differs).components.is_empty());
     }
 
     #[test]
