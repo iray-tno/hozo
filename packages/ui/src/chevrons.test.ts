@@ -11,6 +11,10 @@
  * | `rotate-45` | south — down, a closed accordion row |
  * | `-rotate-135` | north — up, an open accordion row |
  *
+ * The tree's right border is the logical end one, so in an RTL locale its box
+ * is mirrored and the apex starts **south-west**. There the same two angles
+ * swap: `rtl:rotate-45` is west, along RTL text, and `rtl:-rotate-45` south.
+ *
  * It was wrong in `accordion.tsx` first, and shipped: `-rotate-45` was called
  * "down" in a comment while drawing a chevron pointing *right*, which opened to
  * the *left*. Nothing caught it, because no check in this repository looks at a
@@ -51,7 +55,7 @@ test('a chevron is always two borders and a size, never a glyph', () => {
   for (const name of ['accordion.tsx', 'tree.tsx']) {
     const source = code(name)
     assert.match(source, /border-b-2/, `${name} draws no border-bottom`)
-    assert.match(source, /border-r-2/, `${name} draws no border-right`)
+    assert.match(source, /border-[re]-2/, `${name} draws no border-right`)
     assert.doesNotMatch(source, /[▾▸▴◂►▼]/, `${name} writes a glyph a reader would announce`)
   }
 })
@@ -72,6 +76,19 @@ test('the tree points along the text when closed and down when open', () => {
   const open = /const OPEN = '([^']*)'/.exec(source)?.[1] ?? ''
   assert.match(closed, /(^|\s)-rotate-45(\s|$)/, 'closed is east')
   assert.match(open, /(^|\s)rotate-45(\s|$)/, 'open is south')
+  // A logical end border mirrors the box in an RTL locale, which React
+  // Native can do to a physical right border on its own; with a physical one
+  // the two platforms could draw different boxes from one class list.
+  for (const [state, classes] of [
+    ['closed', closed],
+    ['open', open],
+  ] as const) {
+    assert.match(classes, /(^|\s)border-e-2(\s|$)/, `${state} has a logical end border`)
+    assert.doesNotMatch(classes, /border-r-/, `${state} has a physical right border`)
+  }
+  // From the mirrored apex, south-west: west along RTL text, and south.
+  assert.match(closed, /(^|\s)rtl:rotate-45(\s|$)/, 'closed is west in RTL')
+  assert.match(open, /(^|\s)rtl:-rotate-45(\s|$)/, 'open is south in RTL')
 })
 
 test('a leaf reserves the marker’s width and draws nothing in it', () => {
