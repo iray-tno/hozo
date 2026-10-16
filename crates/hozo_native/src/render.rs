@@ -852,8 +852,10 @@ pub(super) fn render_node(
     //
     // Except on a pressable whose label the compiler cannot see: there it
     // reaches the label at runtime instead, through `hozoTextStyle` (#876).
+    // A link is one too: `HozoLink` hands its props to the `HozoPressable`
+    // it renders through, which is what a Button with an `href` becomes.
     let forwards_label = !text_declarations.is_empty()
-        && component == "Pressable"
+        && matches!(component, "Pressable" | "HozoLink")
         && !matches!(text_reach(node), TextReach::Certain);
     if !text_declarations.is_empty() && !forwards_label {
         match text_reach(node) {
@@ -1336,7 +1338,9 @@ pub(super) fn render_node(
     if needs_focus_visible && (rendered_component == "HozoPressable" || link_interaction) {
         props_text.push_str(" hozoFocusVisible");
     }
-    if let Some(parts) = label_style.as_ref().filter(|_| rendered_component == "HozoPressable") {
+    if let Some(parts) =
+        label_style.as_ref().filter(|_| rendered_component == "HozoPressable" || link_interaction)
+    {
         props_text.push_str(&format!(
             " hozoTextStyle={{({{ pressed, hovered, focused, focusVisible }}) => [{}]}}",
             parts.join(", ")

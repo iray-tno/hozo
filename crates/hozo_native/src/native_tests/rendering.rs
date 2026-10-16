@@ -1691,6 +1691,15 @@ fn a_pressable_with_an_unseen_label_forwards_its_text_styles() {
     assert!(!output.styles.contains("hozo0: {\n    backgroundColor: '#2b7fff',\n    color"), "{}", output.styles);
     assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
 
+    // A Button with an `href` is a link, rendered through the same
+    // `HozoPressable`, and its label is just as unseen.
+    let source = "import { Button } from '@hozo/core'\nconst el = <Button href={to} className=\"bg-blue-500 text-white font-semibold\">{children}</Button>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.jsx.starts_with("<HozoLink hozoLinkComponent={HozoPressable}"), "{}", output.jsx);
+    assert!(output.jsx.contains("hozoTextStyle={({ pressed, hovered, focused, focusVisible }) => [hozoStyles.hozo0_label]}"), "{}", output.jsx);
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+
     let source = "import { View } from '@hozo/core'\nconst el = <View className=\"text-white\">{children}</View>";
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
