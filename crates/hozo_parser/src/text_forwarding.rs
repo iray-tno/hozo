@@ -19,8 +19,9 @@
 //! ```
 //!
 //! Exported `const` arrows, with either the same block or a concise JSX
-//! body, use the same reader. Mutable bindings and call-wrapped components
-//! are not unwrapped: their implementation is not this declaration alone.
+//! body, use the same reader. React's imported `memo` and `forwardRef` may
+//! wrap an inline render function without changing that contract. Mutable
+//! bindings, unknown wrappers and indirect renderers are not unwrapped.
 //!
 //! The classes are recorded as written, not as styles. The caller resolves
 //! them against its own theme, so `text-hozo-on-accent` means what the
@@ -194,12 +195,12 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
                 if !exported_as.contains_key(id.name.as_str()) {
                     continue;
                 }
-                if let Some(shape) = read_component(
-                    &function.params,
-                    &body.statements,
-                    module,
-                    &module_constants,
-                ) {
+                let Some(params) = read_params(&function.params) else {
+                    continue;
+                };
+                if let Some(shape) =
+                    read_component(&params, &body.statements, module, &module_constants)
+                {
                     record(id.name.as_str(), shape);
                 }
             }
@@ -213,12 +214,11 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
                     if !exported_as.contains_key(id.name.as_str()) {
                         continue;
                     }
-                    let Some(Expression::ArrowFunctionExpression(arrow)) =
-                        binding.init.as_ref().map(Expression::without_parentheses)
-                    else {
+                    let Some(init) = &binding.init else {
                         continue;
                     };
-                    if let Some(shape) = read_arrow(arrow, module, &module_constants) {
+                    if let Some(shape) = read_initializer(init, module, &module_constants, None, 0)
+                    {
                         record(id.name.as_str(), shape);
                     }
                 }
@@ -265,7 +265,11 @@ fn read_params(params: &FormalParameters) -> Option<Params> {
     let [first] = params.items.as_slice() else {
         return None;
     };
-    let BindingPattern::ObjectPattern(object) = &first.pattern else {
+    read_props(&first.pattern)
+}
+
+fn read_props(pattern: &BindingPattern) -> Option<Params> {
+    let BindingPattern::ObjectPattern(object) = pattern else {
         return None;
     };
     let mut props = BTreeMap::new();
@@ -601,8 +605,170 @@ struct Host {
     states: bool,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ReactWrapper {
+    Memo,
+    ForwardRef,
+}
+
+/// Only module-level calls are unwrapped. Their callee must name a React
+/// value import, not a same-spelled local helper or an arbitrary HOC.
+fn react_wrapper(callee: &Expression, module: &ModuleRecord) -> Option<ReactWrapper> {
+    let name = match callee.without_parentheses() {
+        Expression::Identifier(id) => {
+            let entry = module.import_entries.iter().find(|entry| {
+                !entry.is_type
+                    && entry.module_request.name == "react"
+                    && entry.local_name.name == id.name
+            })?;
+            let ImportImportName::Name(name) = &entry.import_name else {
+                return None;
+            };
+            name.name.as_str()
+        }
+        Expression::StaticMemberExpression(member) => {
+            let Expression::Identifier(id) = member.object.without_parentheses() else {
+                return None;
+            };
+            let imported = module.import_entries.iter().any(|entry| {
+                !entry.is_type
+                    && entry.module_request.name == "react"
+                    && entry.local_name.name == id.name
+                    && matches!(
+                        entry.import_name,
+                        ImportImportName::Default(_) | ImportImportName::NamespaceObject
+                    )
+            });
+            if !imported {
+                return None;
+            }
+            member.property.name.as_str()
+        }
+        _ => return None,
+    };
+    match name {
+        "memo" => Some(ReactWrapper::Memo),
+        "forwardRef" => Some(ReactWrapper::ForwardRef),
+        _ => None,
+    }
+}
+
+fn read_initializer(
+    expression: &Expression,
+    module: &ModuleRecord,
+    constants: &BTreeMap<String, Named>,
+    wrapper: Option<ReactWrapper>,
+    depth: usize,
+) -> Option<ForwardingComponent> {
+    match expression.without_parentheses() {
+        Expression::ArrowFunctionExpression(arrow) => {
+            let params = read_render_params(&arrow.params, module, constants, wrapper, None)?;
+            read_arrow(arrow, &params, module, constants)
+        }
+        Expression::FunctionExpression(function) if wrapper.is_some() => {
+            if function.r#async || function.generator {
+                return None;
+            }
+            let params = read_render_params(
+                &function.params,
+                module,
+                constants,
+                wrapper,
+                function.id.as_ref().map(|id| id.name.as_str()),
+            )?;
+            read_component(
+                &params,
+                &function.body.as_ref()?.statements,
+                module,
+                constants,
+            )
+        }
+        Expression::CallExpression(call)
+            if wrapper != Some(ReactWrapper::ForwardRef) && depth < 8 =>
+        {
+            let wrapper = react_wrapper(&call.callee, module)?;
+            // React.memo takes an optional comparator. It is not executed or
+            // interpreted here; it cannot be a hidden spread of arguments.
+            let valid_count = match wrapper {
+                ReactWrapper::Memo => matches!(call.arguments.len(), 1 | 2),
+                ReactWrapper::ForwardRef => call.arguments.len() == 1,
+            };
+            if !valid_count
+                || call
+                    .arguments
+                    .iter()
+                    .any(|arg| arg.as_expression().is_none())
+            {
+                return None;
+            }
+            read_initializer(
+                call.arguments[0].as_expression()?,
+                module,
+                constants,
+                Some(wrapper),
+                depth + 1,
+            )
+        }
+        _ => None,
+    }
+}
+
+fn read_render_params(
+    parameters: &FormalParameters,
+    module: &ModuleRecord,
+    constants: &BTreeMap<String, Named>,
+    wrapper: Option<ReactWrapper>,
+    function_name: Option<&str>,
+) -> Option<Params> {
+    if wrapper.is_none() {
+        return read_params(parameters);
+    }
+    if parameters.rest.is_some() {
+        return None;
+    }
+    let (first, ref_name) = match parameters.items.as_slice() {
+        [first] => (first, None),
+        [first, second] if wrapper == Some(ReactWrapper::ForwardRef) => {
+            let BindingPattern::BindingIdentifier(id) = &second.pattern else {
+                return None;
+            };
+            if second.initializer.is_some() {
+                return None;
+            }
+            (first, Some(id.name.as_str()))
+        }
+        _ => return None,
+    };
+    let params = read_props(&first.pattern)?;
+    // The extra ref and a named render function introduce bindings that a
+    // plain arrow did not. Refuse collisions rather than mistaking a local
+    // binding for an imported host, named class list or caller className.
+    if ref_name == Some("className") || function_name == Some("className") {
+        return None;
+    }
+    let shadows = params
+        .props
+        .keys()
+        .map(String::as_str)
+        .chain(params.rest.as_deref())
+        .chain(ref_name)
+        .chain(function_name)
+        .any(|name| {
+            constants.contains_key(name)
+                || module
+                    .import_entries
+                    .iter()
+                    .any(|entry| entry.local_name.name == name)
+        });
+    if shadows {
+        return None;
+    }
+    Some(params)
+}
+
 fn read_arrow(
     arrow: &ArrowFunctionExpression,
+    params: &Params,
     module: &ModuleRecord,
     module_constants: &BTreeMap<String, Named>,
 ) -> Option<ForwardingComponent> {
@@ -611,39 +777,37 @@ fn read_arrow(
     }
     match &arrow.body {
         ArrowFunctionBody::FunctionBody(body) => {
-            read_component(&arrow.params, &body.statements, module, module_constants)
+            read_component(params, &body.statements, module, module_constants)
         }
         concise => {
             let Expression::JSXElement(element) = concise.as_expression()?.without_parentheses()
             else {
                 return None;
             };
-            let params = read_params(&arrow.params)?;
             let host = read_host(
                 element,
                 &Scope {
-                    params: &params,
+                    params,
                     module,
                     constants: module_constants,
                 },
             )?;
-            summarize_branches(&params, &[Branch { guard: None, host }])
+            summarize_branches(params, &[Branch { guard: None, host }])
         }
     }
 }
 
 fn read_component(
-    params: &FormalParameters,
+    params: &Params,
     statements: &[Statement],
     module: &ModuleRecord,
     module_constants: &BTreeMap<String, Named>,
 ) -> Option<ForwardingComponent> {
-    let params = read_params(params)?;
     let mut constants = module_constants.clone();
     let (last, guarded) = statements.split_last()?;
     // The fallthrough may itself be a presence pair, as the last tone is.
     let (trailing, guarded) = match guarded.split_last() {
-        Some((Statement::IfStatement(branch), before)) if is_presence_branch(branch, &params) => {
+        Some((Statement::IfStatement(branch), before)) if is_presence_branch(branch, params) => {
             (Some(&**branch), before)
         }
         _ => (None, guarded),
@@ -655,7 +819,7 @@ fn read_component(
             read_constants(
                 declaration,
                 &Scope {
-                    params: &params,
+                    params,
                     module,
                     constants: &constants,
                 },
@@ -671,11 +835,11 @@ fn read_component(
             return None;
         }
         let scope = Scope {
-            params: &params,
+            params,
             module,
             constants: &constants,
         };
-        let guard = read_comparison(&branch.test, &params)?;
+        let guard = read_comparison(&branch.test, params)?;
         let host = read_return(&branch.consequent, &scope)?;
         branches.push(Branch {
             guard: Some(guard),
@@ -683,7 +847,7 @@ fn read_component(
         });
     }
     let scope = Scope {
-        params: &params,
+        params,
         module,
         constants: &constants,
     };
@@ -694,7 +858,7 @@ fn read_component(
             None => read_return(last, &scope)?,
         },
     });
-    summarize_branches(&params, &branches)
+    summarize_branches(params, &branches)
 }
 
 fn summarize_branches(params: &Params, branches: &[Branch]) -> Option<ForwardingComponent> {
@@ -1236,6 +1400,154 @@ export const Direct = ({children}) => <View className=\"text-lg\">{children}</Vi
         assert_eq!(summary.components[0].variants[0].classes, "text-sm");
         assert_eq!(summary.components[2].variants[0].classes, "text-sm");
         assert!(!summary.components[0].host_states);
+    }
+
+    #[test]
+    fn react_memo_keeps_an_inline_renders_forwarding_contract() {
+        let imports = "import { memo as cached } from 'react'
+import { Checkbox as Host } from '@hozo/patterns'
+const own = 'text-sm hover:text-red-500 disabled:text-gray-400'
+";
+        let params = "{ tone = 'quiet', children, className, ...rest }";
+        let host = "<Host {...rest} className={tone === 'loud' ? `font-bold ${own} ${className}` : own}>{children}</Host>";
+        let plain = format!("{imports}export const Check = ({params}) => ({host})");
+        let expected = summarize_text_forwarding(&plain);
+        assert_eq!(expected.components.len(), 1);
+        for render in [
+            format!("({params}) => ({host})"),
+            format!("({params}) => {{ return ({host}) }}"),
+            format!("function Render({params}) {{ return ({host}) }}"),
+        ] {
+            for wrapped in [
+                format!("cached({render})"),
+                format!("cached({render}, (previous, next) => previous === next)"),
+            ] {
+                let source =
+                    format!("{imports}const Local = {wrapped}; export {{ Local as Check }}");
+                assert_eq!(summarize_text_forwarding(&source), expected, "{source}");
+            }
+        }
+    }
+
+    #[test]
+    fn react_forward_ref_reads_the_props_but_not_the_ref_as_props() {
+        let imports = "import React, { forwardRef as withRef } from 'react'
+import { Button as Host } from '@hozo/primitives'
+";
+        let props = "{ tone = 'quiet', children, disabled, ...rest }";
+        let host = "<Host {...rest} disabled={disabled} className={tone === 'loud' ? 'text-lg hover:text-red-500' : 'text-sm'}>{children}</Host>";
+        let plain = format!("{imports}export const Check = ({props}) => ({host})");
+        let expected = summarize_text_forwarding(&plain);
+        assert_eq!(expected.components.len(), 1);
+        for wrapped in [
+            format!(
+                "withRef<HostRef, Props>(({props}, ref) => ({}))",
+                host.replace("<Host ", "<Host ref={ref} ")
+            ),
+            format!(
+                "React.forwardRef(function Render({props}, ref) {{ return {} }})",
+                host.replace("<Host ", "<Host ref={ref} ")
+            ),
+            format!(
+                "React.memo(withRef(({props}, ref) => {{ return {} }}))",
+                host.replace("<Host ", "<Host ref={ref} ")
+            ),
+        ] {
+            let source = format!("{imports}export const Check = {wrapped}");
+            assert_eq!(summarize_text_forwarding(&source), expected, "{source}");
+        }
+        let namespace = plain
+            .replace(
+                "import React, { forwardRef as withRef } from 'react'",
+                "import * as R from 'react'",
+            )
+            .replace(
+                &format!("({props}) => ({host})"),
+                &format!(
+                    "R.memo(R.forwardRef(({props}, ref) => ({})))",
+                    host.replace("<Host ", "<Host ref={ref} ")
+                ),
+            );
+        assert_eq!(summarize_text_forwarding(&namespace), expected);
+    }
+
+    #[test]
+    fn react_wrapper_recognition_does_not_trust_names_or_hidden_renderers() {
+        let render = "({children}) => <Host className=\"text-sm\">{children}</Host>";
+        for (imports, wrapped) in [
+            ("const memo = x => x", format!("memo({render})")),
+            ("import {memo} from 'other-library'", format!("memo({render})")),
+            ("import type {memo} from 'react'", format!("memo({render})")),
+            ("import R from 'other-library'", format!("R.memo({render})")),
+            ("import type * as R from 'react'", format!("R.memo({render})")),
+            ("import {memo} from 'react'", "memo(Unknown)".to_string()),
+            ("import {memo} from 'react'", format!("memo(...[{render}])")),
+            ("import {memo} from 'react'", format!("memo({render}, ...comparators)")),
+            ("import {memo} from 'react'", format!("memo({render}, equal, extra)")),
+            ("import {forwardRef, memo} from 'react'", format!("forwardRef(memo({render}))")),
+            ("import {forwardRef} from 'react'", format!("forwardRef({render}, extra)")),
+            ("import {memo} from 'react'", format!("memo(async {render})")),
+            ("import React from 'react'", format!("React['memo']({render})")),
+            ("import React from 'react'", format!("React.memo?.({render})")),
+            ("import {memo} from 'react'", "memo(function* Render({children}) { return <Host className=\"text-sm\">{children}</Host> })".to_string()),
+            ("import {forwardRef} from 'react'", "forwardRef(({children}, {current}) => <Host className=\"text-sm\">{children}</Host>)".to_string()),
+            ("import {forwardRef} from 'react'", "forwardRef(({children}, ref = fallback) => <Host className=\"text-sm\">{children}</Host>)".to_string()),
+            ("import {forwardRef} from 'react'", "forwardRef(({children}, Host) => <Host className=\"text-sm\">{children}</Host>)".to_string()),
+            ("import {memo} from 'react'", "memo(function Host({children}) { return <Host className=\"text-sm\">{children}</Host> })".to_string()),
+            ("import {memo} from 'react'", "memo(({children, Host}) => <Host className=\"text-sm\">{children}</Host>)".to_string()),
+            ("import {forwardRef} from 'react'; const own = 'text-sm'", "forwardRef(({children}, own) => <Host className={own}>{children}</Host>)".to_string()),
+            ("import {forwardRef} from 'react'", "forwardRef(({children}, className) => <Host className={className}>{children}</Host>)".to_string()),
+        ] {
+            let source = format!("import {{ Button as Host }} from '@hozo/primitives'\n{imports}\nexport const Check = {wrapped}");
+            assert!(summarize_text_forwarding(&source).components.is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    fn memo_unwrapping_is_bounded_and_forward_ref_requires_a_render_function() {
+        let render = "({children}) => <Host className=\"text-sm\">{children}</Host>";
+        let source = |value: &str| {
+            format!(
+            "import {{memo, forwardRef}} from 'react'\nimport {{View as Host}} from '@hozo/primitives'\nexport const Check = {value}"
+        )
+        };
+        let mut value = render.to_string();
+        for _ in 0..8 {
+            value = format!("memo({value})");
+        }
+        assert_eq!(
+            summarize_text_forwarding(&source(&value)).components.len(),
+            1
+        );
+        assert!(
+            summarize_text_forwarding(&source(&format!("memo({value})")))
+                .components
+                .is_empty()
+        );
+        assert!(
+            summarize_text_forwarding(&source(&format!("forwardRef(forwardRef({render}))")))
+                .components
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn react_wrappers_share_the_object_map_reader() {
+        let imports = "import {memo, forwardRef} from 'react'
+import {Button as Host} from '@hozo/primitives'
+const looks = {quiet: 'text-sm', loud: 'font-bold hover:text-red-500'} as const
+";
+        let props = "{tone = 'quiet', children, ...rest}";
+        let host = "<Host {...rest} className={looks[tone]}>{children}</Host>";
+        let plain = format!("{imports}export const Check = ({props}) => ({host})");
+        let wrapped = format!(
+            "{imports}export const Check = memo(forwardRef(({props}, ref) => ({})))",
+            host.replace("<Host ", "<Host ref={ref} ")
+        );
+        let expected = summarize_text_forwarding(&plain);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(expected.components[0].variants.len(), 2);
+        assert_eq!(summarize_text_forwarding(&wrapped), expected);
     }
 
     #[test]
