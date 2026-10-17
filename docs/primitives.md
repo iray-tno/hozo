@@ -13,18 +13,18 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 
 | Primitive | Web | React Native | Pinned by |
 | --- | --- | --- | --- |
-| `ActivityIndicator` | `<HozoActivityIndicator accessibilityLabel={"Loading"}>` | `<ActivityIndicator accessibilityLabel={"Loading"}>` | — |
+| `ActivityIndicator` | `<HozoActivityIndicator accessibilityLabel={"Loading"}>` | `<ActivityIndicator accessibilityLabel={"Loading"}>` | a named busy indicator |
 | `Address` | `<address className="hozo-view">` | `<View>` | contact address |
-| `AnimatedView` | `<HozoAnimatedView className="hozo-view">` | `<Animated.View>` | — |
+| `AnimatedView` | `<HozoAnimatedView className="hozo-view">` | `<Animated.View>` | an animated view |
 | `Article` | `<article className="hozo-view">` | `<View role="article">` | document landmarks |
 | `Aside` | `<aside className="hozo-view">` | `<View role="complementary">` | landmark regions |
-| `Avatar` | `<HozoAvatar className="hozo-0" statusClassName="hozo-1" src={photo} name="Ada Lovelace" status="online">` | `<HozoAvatar statusStyle={hozoStyles.hozo1} src={photo} name="Ada Lovelace" status="online">` | — |
-| `Badge` | `<HozoBadge accessibilityLabel={"3 unread messages"} count={3}>` | `<HozoBadge accessibilityLabel={"3 unread messages"} count={3}>` | — |
+| `Avatar` | `<HozoAvatar className="hozo-0" statusClassName="hozo-1" src={photo} name="Ada Lovelace" status="online">` | `<HozoAvatar statusStyle={hozoStyles.hozo1} src={photo} name="Ada Lovelace" status="online">` | an avatar and its parts |
+| `Badge` | `<HozoBadge accessibilityLabel={"3 unread messages"} count={3}>` | `<HozoBadge accessibilityLabel={"3 unread messages"} count={3}>` | a counted badge |
 | `Button` | `<button type="button">` | `<Pressable accessibilityRole="button">` | semantic Button |
-| `Chip` | `<HozoChip className="hozo-0" removeClassName="hozo-1" onRemove={remove}>` | `<HozoChip removeStyle={hozoStyles.hozo1} onRemove={remove}>` | — |
+| `Chip` | `<HozoChip className="hozo-0" removeClassName="hozo-1" onRemove={remove}>` | `<HozoChip removeStyle={hozoStyles.hozo1} onRemove={remove}>` | a selectable, removable chip |
 | `Code` | `<code>` | `<Text>` | inline emphasis and its meaning |
-| `ColorPicker` | `<HozoColorPicker swatchClassName="hozo-1" accessibilityLabel={"Theme colour"} value={color} onChange={setColor} presets={presets}>` | `<HozoColorPicker accessibilityLabel={"Theme colour"} swatchStyle={hozoStyles.hozo1} value={color} onChange={setColor} presets={presets}>` | — |
-| `CommandPalette` | `<HozoCommandPalette panelClassName="hozo-1" activeItemClassName="hozo-2" open={open} onOpenChange={setOpen} commands={commands}>` | `<HozoCommandPalette open={open} panelStyle={hozoStyles.hozo1} activeItemStyle={hozoStyles.hozo2} onOpenChange={setOpen} commands={commands}>` | — |
+| `ColorPicker` | `<HozoColorPicker swatchClassName="hozo-1" accessibilityLabel={"Theme colour"} value={color} onChange={setColor} presets={presets}>` | `<HozoColorPicker accessibilityLabel={"Theme colour"} swatchStyle={hozoStyles.hozo1} value={color} onChange={setColor} presets={presets}>` | a named colour picker |
+| `CommandPalette` | `<HozoCommandPalette panelClassName="hozo-1" activeItemClassName="hozo-2" open={open} onOpenChange={setOpen} commands={commands}>` | `<HozoCommandPalette open={open} panelStyle={hozoStyles.hozo1} activeItemStyle={hozoStyles.hozo2} onOpenChange={setOpen} commands={commands}>` | a named command palette |
 | `Description` | `<dd className="hozo-view">` | `<View>` | a description list |
 | `Details` | `<details>` | `<HozoDetails>` | a disclosure and its trigger |
 | `Dialog` | `<HozoDialog accessibilityLabel={"Settings"} open onClose={dismiss}>` | `<HozoDialog accessibilityLabel={"Settings"} open onClose={dismiss}>` | modal Dialog; incomplete Dialog diagnostic |
@@ -43,49 +43,49 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `ListItem` | `<li className="hozo-view">` | `<View role="listitem">` | ordered static list |
 | `Main` | `<main className="hozo-view">` | `<View role="main">` | landmark regions |
 | `Mark` | `<mark>` | `<Text>` | inline emphasis and its meaning |
-| `Meter` | `<meter aria-valuetext={'60%'} aria-label={"Disk usage"} value={0.6}>` | `<HozoMeter accessibilityLabel={"Disk usage"} value={0.6}>` | — |
-| `Modal` | `<HozoModal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | `<Modal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | — |
+| `Meter` | `<meter aria-valuetext={'60%'} aria-label={"Disk usage"} value={0.6}>` | `<HozoMeter accessibilityLabel={"Disk usage"} value={0.6}>` | a meter reports where it stands |
+| `Modal` | `<HozoModal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | `<Modal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | a modal and its system dismissal |
 | `Nav` | `<nav className="hozo-view">` | `<View role="navigation">` | document landmarks |
 | `NoBreak` | `<span}>` | `<Text>` | scripts, small print and an unbreakable run |
-| `OtpInput` | `<HozoOtpInput cellClassName="hozo-1" activeCellClassName="hozo-2" accessibilityLabel={"Verification code"} length={6} onComplete={verify}>` | `<HozoOtpInput accessibilityLabel={"Verification code"} cellStyle={hozoStyles.hozo1} activeCellStyle={hozoStyles.hozo2} length={6} onComplete={verify}>` | — |
-| `Pagination` | `<HozoPagination className="hozo-0" currentItemClassName="hozo-1" page={page} pageCount={20} onPageChange={setPage}>` | `<HozoPagination currentItemStyle={hozoStyles.hozo1} page={page} pageCount={20} onPageChange={setPage}>` | — |
+| `OtpInput` | `<HozoOtpInput cellClassName="hozo-1" activeCellClassName="hozo-2" accessibilityLabel={"Verification code"} length={6} onComplete={verify}>` | `<HozoOtpInput accessibilityLabel={"Verification code"} cellStyle={hozoStyles.hozo1} activeCellStyle={hozoStyles.hozo2} length={6} onComplete={verify}>` | a one-time code field |
+| `Pagination` | `<HozoPagination className="hozo-0" currentItemClassName="hozo-1" page={page} pageCount={20} onPageChange={setPage}>` | `<HozoPagination currentItemStyle={hozoStyles.hozo1} page={page} pageCount={20} onPageChange={setPage}>` | named pagination |
 | `Paragraph` | `<p>` | `<Text>` | semantic document structure; invalid document nesting diagnostic; a disclosure and its trigger; inline emphasis and its meaning; scripts, small print and an unbreakable run |
-| `Preformatted` | `<pre>` | `<Text>` | — |
+| `Preformatted` | `<pre>` | `<Text>` | preformatted text keeps its spaces |
 | `Pressable` | `<div role="button" {...hozoInteractive(go)}>` | `<Pressable role="button" onPress={go}>` | role-bearing Pressable; missing interaction role diagnostic |
 | `Progress` | `<progress aria-label={"Upload"} value={40} max={100}>` | `<View accessibilityValue={{ min: 0, max: 100, now: 40 }} role="progressbar" accessible accessibilityLabel={"Upload"}>` | a progress bar reports its position |
-| `RefreshControl` | `<HozoRefreshControl refreshing={busy} onRefresh={reload}>` | `<RefreshControl refreshing={busy} onRefresh={reload}>` | — |
+| `RefreshControl` | `<HozoRefreshControl refreshing={busy} onRefresh={reload}>` | `<RefreshControl refreshing={busy} onRefresh={reload}>` | pull to refresh, spelled as React Native spells it |
 | `Ruby` | `<ruby>` | `<Text accessibilityLabel="x">` | ruby and its reading |
 | `RubyText` | `<rt>` | `<Text>` | ruby and its reading |
-| `ScrollView` | `<div className="hozo-scroll-view" {...hozoScrollable()}>` | `<ScrollView>` | named scrollable region; unnamed scrollable region diagnostic |
+| `ScrollView` | `<div className="hozo-scroll-view" {...hozoScrollable()}>` | `<ScrollView>` | named scrollable region; unnamed scrollable region diagnostic; pull to refresh, spelled as React Native spells it |
 | `Search` | `<search className="hozo-view">` | `<View>` | the landmark React Native has no word for |
 | `Section` | `<section className="hozo-view">` | `<View>` | semantic document structure; invalid document nesting diagnostic |
 | `Separator` | `<hr />` | `<View role="separator">` | a separator is a separator; a decorative separator is silent |
-| `Skeleton` | `<div className="hozo-view hozo-0" aria-hidden={true} data-hozo-skeleton="">` | `<Animated.View aria-hidden>` | — |
+| `Skeleton` | `<div className="hozo-view hozo-0" aria-hidden={true} data-hozo-skeleton="">` | `<Animated.View aria-hidden>` | a skeleton is silent and stills under reduced motion |
 | `Small` | `<small>` | `<Text>` | scripts, small print and an unbreakable run |
-| `Stepper` | `<HozoStepper className="hozo-0" currentStepClassName="hozo-1" steps={steps} activeStep={1}>` | `<HozoStepper currentStepStyle={hozoStyles.hozo1} steps={steps} activeStep={1}>` | — |
+| `Stepper` | `<HozoStepper className="hozo-0" currentStepClassName="hozo-1" steps={steps} activeStep={1}>` | `<HozoStepper currentStepStyle={hozoStyles.hozo1} steps={steps} activeStep={1}>` | a named stepper |
 | `Strikethrough` | `<s>` | `<Text>` | inline emphasis and its meaning |
 | `Strong` | `<strong>` | `<Text>` | inline emphasis and its meaning |
 | `Sub` | `<sub>` | `<Text>` | scripts, small print and an unbreakable run |
 | `Summary` | `<summary>` | `<HozoSummary>` | a disclosure and its trigger |
 | `Sup` | `<sup>` | `<Text>` | scripts, small print and an unbreakable run |
 | `Svg` | `<svg role="img" aria-label={"Chart"} viewBox="0 0 8 8">` | `<Svg accessible accessibilityRole="image" accessibilityLabel={"Chart"} viewBox="0 0 8 8">` | named drawing; decorative drawing |
-| `Table` | `<table className="hozo-0">` | `<HozoTable>` | — |
-| `TableBody` | `<tbody>` | `<HozoTableSection section="body">` | — |
-| `TableCaption` | `<caption>` | `<HozoTableCaption>` | — |
-| `TableCell` | `<td className="hozo-0">` | `<HozoTableCell>` | — |
-| `TableFooter` | `<tfoot>` | `<HozoTableSection section="footer">` | — |
-| `TableHead` | `<th scope="col">` | `<HozoTableCell head>` | — |
-| `TableHeader` | `<thead>` | `<HozoTableSection section="header">` | — |
-| `TableRow` | `<tr>` | `<HozoTableRow>` | — |
+| `Table` | `<table className="hozo-0">` | `<HozoTable>` | a data table |
+| `TableBody` | `<tbody>` | `<HozoTableSection section="body">` | a data table |
+| `TableCaption` | `<caption>` | `<HozoTableCaption>` | a data table |
+| `TableCell` | `<td className="hozo-0">` | `<HozoTableCell>` | a data table |
+| `TableFooter` | `<tfoot>` | `<HozoTableSection section="footer">` | a data table |
+| `TableHead` | `<th scope="col">` | `<HozoTableCell head>` | a data table |
+| `TableHeader` | `<thead>` | `<HozoTableSection section="header">` | a data table |
+| `TableRow` | `<tr>` | `<HozoTableRow>` | a data table |
 | `Term` | `<dt>` | `<Text>` | a description list |
 | `TermList` | `<dl className="hozo-view">` | `<View role="list">` | a description list |
-| `Text` | `<span>` | `<Text>` | generic container; named scrollable region; unnamed scrollable region diagnostic; virtualized list semantics |
+| `Text` | `<span>` | `<Text>` | generic container; named scrollable region; unnamed scrollable region diagnostic; virtualized list semantics; an opacity press target; a press target without feedback; a modal and its system dismissal; pull to refresh, spelled as React Native spells it |
 | `TextInput` | `<input aria-label={"Name"} />` | `<TextInput accessibilityLabel={"Name"} />` | named TextInput; missing field name diagnostic |
 | `Time` | `<time dateTime="2026-09-11">` | `<Text dateTime="2026-09-11">` | a machine-readable time |
-| `TouchableOpacity` | `<HozoTouchableOpacity role="button" {...hozoInteractive(go)}>` | `<TouchableOpacity role="button" onPress={go}>` | — |
-| `TouchableWithoutFeedback` | `<HozoTouchableWithoutFeedback role="button" {...hozoInteractive(go)}>` | `<TouchableWithoutFeedback role="button" onPress={go}>` | — |
+| `TouchableOpacity` | `<HozoTouchableOpacity role="button" {...hozoInteractive(go)}>` | `<TouchableOpacity role="button" onPress={go}>` | an opacity press target |
+| `TouchableWithoutFeedback` | `<HozoTouchableWithoutFeedback role="button" {...hozoInteractive(go)}>` | `<TouchableWithoutFeedback role="button" onPress={go}>` | a press target without feedback |
 | `Underline` | `<u>` | `<Text>` | inline emphasis and its meaning |
-| `View` | `<div className="hozo-view">` | `<View>` | generic container |
+| `View` | `<div className="hozo-view">` | `<View>` | generic container; a press target without feedback |
 
 "Pinned by" names the cases in `packages/tailwind-conformance/src/a11y-contextual.ts` that
 assert this primitive on both platforms. A dash there is a primitive whose lowering nothing
