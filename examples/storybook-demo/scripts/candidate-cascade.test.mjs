@@ -2325,6 +2325,89 @@ test('CommandPalette real input matches independent Tailwind across focus and cl
   }
 })
 
+test('ColorPicker real input matches independent Tailwind across focus, disabled and draft changes', {
+  skip: !executablePath,
+}, async () => {
+  const own =
+    'p-2 rounded-none opacity-100 border-0 focus:opacity-50 focus-visible:outline-2 disabled:opacity-25 read-only:rounded-lg aria-disabled:mt-4 aria-selected:mb-8 aria-checked:ml-8'
+  const fixture = await patternInputFixture(
+    'ColorPicker',
+    own,
+    () =>
+      `accessibilityLabel="Theme" disabled={disabled} defaultValue="#123456" presets={['#123456','#654321']}`,
+  )
+  const page = await browser.newPage()
+  const oracle = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await oracle.setContent(
+      `<style>html{font-size:16px}</style><style>${fixture.oracleCss}</style><input id="oracle" type="text" class="${fixture.rawClasses}"/>`,
+    )
+    const raw = oracle.locator('#oracle')
+    for (const sheets of [
+      [fixture.web.css, fixture.candidateCss],
+      [fixture.candidateCss, fixture.web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div>`,
+      )
+      await page.addScriptTag({ content: fixture.bundle.outputFiles[0].text })
+      for (const mode of ['literal', 'opaque', 'mixed']) {
+        const show = async (disabled, stamp) => {
+          await page.evaluate((props) => window.show(props), { mode, disabled, stamp })
+          await page.waitForFunction(
+            (stamp) => document.querySelector('[data-stamp]')?.dataset.stamp === stamp,
+            stamp,
+          )
+          await raw.evaluate((e, disabled) => {
+            e.disabled = disabled
+          }, disabled)
+          assert.equal((await page.evaluate(() => window.calls)).length, 2)
+        }
+        await show(false, `${mode}-enabled`)
+        const field = page.getByTestId(mode).locator('input[type="text"]')
+        const focused = await comparePatternInput(page, oracle, field, raw, true)
+        assert.deepEqual(focused.slice(0, 4), ['12px', '8px', '0.5', '0px'])
+        assert.equal(focused[5], '2px')
+        await field.fill('#abc')
+        assert.equal(await field.inputValue(), '#abc')
+        await comparePatternInput(page, oracle, field, raw, false)
+        assert.equal(
+          await field.inputValue(),
+          '#aabbcc',
+          'blur normalizes without losing the editing draft',
+        )
+        await field.focus()
+        await field.fill('#f')
+        assert.equal(
+          (await page.evaluate(() => window.calls)).length,
+          2,
+          'draft/focus do not rerun authored inputs',
+        )
+        await show(true, `${mode}-disabled`)
+        const disabled = await comparePatternInput(page, oracle, field, raw, false)
+        assert.deepEqual(disabled.slice(0, 4), ['8px', '8px', '0.25', '8px'])
+        await page.waitForFunction(
+          (mode) =>
+            document.querySelector(`[data-testid="${mode}"] input[type="text"]`)?.value ===
+            '#aabbcc',
+          mode,
+        )
+        assert.equal(await field.evaluate((e) => e.matches(':focus')), false)
+        await show(false, `${mode}-again`)
+        const resting = await comparePatternInput(page, oracle, field, raw, false)
+        assert.equal(resting[2], '1', 'enable does not revive stale focus')
+        assert.equal(resting[3], '0px')
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+    await oracle.close()
+  }
+})
+
 test('Avatar decorative owners match independent Tailwind through image failure, retry and status changes', {
   skip: !executablePath,
 }, async () => {

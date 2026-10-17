@@ -57,6 +57,7 @@ test('dynamic secondary pattern classes reach their registered slot owner withou
     ['Pagination', 'disabledItemClassName', 'disabledItemStyle'],
     ['ColorPicker', 'swatchClassName', 'swatchStyle'],
     ['ColorPicker', 'selectedSwatchClassName', 'selectedSwatchStyle'],
+    ['ColorPicker', 'inputClassName', 'inputStyle'],
     ['Stepper', 'stepClassName', 'stepStyle'],
     ['Stepper', 'completedStepClassName', 'completedStepStyle'],
     ['Stepper', 'currentStepClassName', 'currentStepStyle'],
@@ -136,6 +137,7 @@ test('mixed secondary expressions retain AOT and source-ordered guards on regist
     ['Chip', 'removeClassName', 'hover'],
     ['Pagination', 'itemClassName', 'hover'],
     ['ColorPicker', 'swatchClassName', 'hover'],
+    ['ColorPicker', 'inputClassName', 'focus'],
     ['Stepper', 'stepClassName', 'hover'],
     ['CommandPalette', 'itemClassName', 'hover'],
     ['CommandPalette', 'inputClassName', 'focus'],
@@ -298,6 +300,28 @@ export function C() {return <CommandPalette open commands={commands}
   assert.match(output, /inputStyle=\{extra\}/)
   assert.doesNotMatch(output, /hozoClasses|candidate|inputClassName=/)
   assert.doesNotMatch(output, /&& hozoStyles\.\w+_(disabled|readonly|ariaselected)/)
+})
+
+test('ColorPicker hex input owns focus and mutability without adding input facts to swatches', () => {
+  const output = transformHozoSource(
+    `import { ColorPicker } from '@hozo/core'
+export function C() {return <ColorPicker disabled={disabled} accessibilityLabel="Theme"
+ inputClassName="focus:opacity-50 focus-visible:outline-2 disabled:opacity-25 enabled:px-3 read-only:rounded-lg not-read-only:mt-2 aria-checked:border-4"
+ swatchClassName="aria-checked:border-2" inputStyle={extra} />}`,
+    'Color.tsx',
+  )
+  assert.ok(output)
+  assert.match(
+    output,
+    /hozoInputStyle=\{\(\{ pressed, hovered, focused, focusVisible, disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly \}\) =>/,
+  )
+  const swatch = output.match(/hozoSwatchStyle=\{\(\{[^}]+\}/)?.[0]
+  assert.ok(swatch)
+  assert.doesNotMatch(swatch, /readOnly/)
+  assert.match(output, /__hozoSlotReadOnly &&/)
+  assert.match(output, /!\(__hozoSlotReadOnly\) &&/)
+  assert.match(output, /inputStyle=\{extra\}/)
+  assert.doesNotMatch(output, /hozoClasses|candidate|inputClassName=/)
 })
 
 test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {

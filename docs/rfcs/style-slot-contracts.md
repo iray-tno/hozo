@@ -151,6 +151,13 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    owners' profiles. Source input callbacks omit unmeasured pointer keys so
    opaque/mixed candidates can still diagnose missing hover/press facts.
 
+   ColorPicker's hex input consumes that same TextInput profile and focus
+   policy, separate from its checked swatches. Disabled is read-only, not an
+   aria-disabled attribute. Disabling clears stale input focus/draft even if
+   editable=false delivers no Native blur; re-enabling requires a fresh focus
+   event. Class/callback styles remain before explicit inputStyle. Unmodeled
+   field predicates (for example aria-invalid) are not newly claimed here.
+
    Every exported top-level pattern class prop needs an ownership disposition,
    but not every component needs a behavioral patch. Auditing a new owner can
    reuse a reviewed profile, record a component-managed route, or leave an
