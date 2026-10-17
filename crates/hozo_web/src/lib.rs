@@ -211,6 +211,17 @@ impl ClassAllocator {
     }
 }
 
+pub(crate) struct WebRenderContext<'a> {
+    pub source: &'a str,
+    pub theme: &'a Theme,
+    pub allocator: &'a mut ClassAllocator,
+    pub rules: &'a mut String,
+    pub diagnostics: &'a mut Vec<Diagnostic>,
+    pub uses_view_base: &'a mut bool,
+    pub uses_key_activation: &'a mut bool,
+    pub tag_decisions: &'a mut Option<Vec<TagDecision>>,
+}
+
 /// `source` is the original TSX text `root` was parsed from -- needed to
 /// re-emit `ExprRef`/`ConditionExpr` guards verbatim (they're spans into
 /// it, not evaluated by the compiler; see `hozo_ir`'s doc comments).
@@ -246,17 +257,17 @@ pub fn lower_with_evidence(
     let mut uses_key_activation = false;
     let mut tag_decisions = evidence.then(Vec::new);
 
-    let rendered = render_node(
-        root,
+    let mut cx = WebRenderContext {
         source,
         theme,
-        &mut allocator,
-        &mut rules,
-        &mut diagnostics,
-        &mut uses_view_base,
-        &mut uses_key_activation,
-        &mut tag_decisions,
-    );
+        allocator: &mut allocator,
+        rules: &mut rules,
+        diagnostics: &mut diagnostics,
+        uses_view_base: &mut uses_view_base,
+        uses_key_activation: &mut uses_key_activation,
+        tag_decisions: &mut tag_decisions,
+    };
+    let rendered = render_node(root, &mut cx);
     let jsx = rendered.text;
     let source_copies = rendered.copies;
 
@@ -1025,25 +1036,16 @@ fn push_rules_using(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-fn render_node(
-    node: &Node,
-    source: &str,
-    theme: &Theme,
-    allocator: &mut ClassAllocator,
-    rules: &mut String,
-    diagnostics: &mut Vec<Diagnostic>,
-    uses_view_base: &mut bool,
-    uses_key_activation: &mut bool,
-    tag_decisions: &mut Option<Vec<TagDecision>>,
-) -> Rendered {
-    let class_name = allocator.alloc();
-    let mut attr_copies = tag_decisions.is_some().then(Vec::new);
+fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
+    let source = cx.source;
+    let theme = cx.theme;
+    let class_name = cx.allocator.alloc();
+    let mut attr_copies = cx.tag_decisions.is_some().then(Vec::new);
 
     // `rules` accumulates the whole tree's CSS, so "did this node write
     // one" has to be asked about the span this node adds, not about
     // whether the string is empty.
-    let rules_before = rules.len();
+    let rules_before = cx.rules.len();
 
     // A root the catalog has audited lands on an element the component
     // draws and keeps its own `disabled` on, which no Hozo marker reaches --
@@ -1053,8 +1055,8 @@ fn render_node(
         &node.style,
         node.span,
         theme,
-        rules,
-        diagnostics,
+        cx.rules,
+        cx.diagnostics,
         if node.primitive.root_owner_is_audited() {
             css::render_slot_rule
         } else {
@@ -1062,7 +1064,7 @@ fn render_node(
         },
     );
 
-    let (shape, extra_attrs) = markup::element_shape(node, diagnostics);
+    let (shape, extra_attrs) = markup::element_shape(node, cx.diagnostics);
     // A shape the backend declined to decide keeps the component, named the
     // way this file names it rather than the way the primitive is called.
     // See `written_tag` and #653.
@@ -1168,13 +1170,13 @@ fn render_node(
     // element and bytes in every render -- found by rendering the output
     // and comparing the classes in the DOM against the ones the stylesheet
     // defines, which is a comparison nothing had made before.
-    let mut classes = if rules.len() == rules_before {
+    let mut classes = if cx.rules.len() == rules_before {
         String::new()
     } else {
         class_name
     };
     if node.primitive.is_view_box() {
-        *uses_view_base = true;
+        *cx.uses_view_base = true;
         classes = if classes.is_empty() {
             "hozo-view".to_string()
         } else {
@@ -1228,7 +1230,7 @@ fn render_node(
             }
         } else {
             for expr_ref in &node.class_name_fallback {
-                diagnostics.push(hozo_ir::Diagnostic {
+                cx.diagnostics.push(hozo_ir::Diagnostic {
                     code: hozo_ir::DiagnosticCode::DynamicClassNameNotResolved,
                     severity: hozo_ir::Severity::Warning,
                     message: format!(
@@ -1270,18 +1272,18 @@ fn render_node(
         .iter()
         .filter(|slot| slot.slot != hozo_ir::ClassSlot::ROOT)
     {
-        let slot_class = allocator.alloc();
-        let before = rules.len();
+        let slot_class = cx.allocator.alloc();
+        let before = cx.rules.len();
         push_rules_using(
             &slot_class,
             &slot.style,
             slot.span,
             theme,
-            rules,
-            diagnostics,
+            cx.rules,
+            cx.diagnostics,
             css::render_slot_rule,
         );
-        let produced = (rules.len() != before).then_some(slot_class);
+        let produced = (cx.rules.len() != before).then_some(slot_class);
         let classes: Vec<&str> = produced
             .iter()
             .map(String::as_str)
@@ -1289,7 +1291,7 @@ fn render_node(
             .collect();
         if !slot.fallback.is_empty() || slot.evaluation.is_some() {
             for _ in &slot.fallback {
-                diagnostics.push(hozo_ir::Diagnostic {
+                cx.diagnostics.push(hozo_ir::Diagnostic {
                     code: hozo_ir::DiagnosticCode::DynamicClassNameNotResolved,
                     severity: hozo_ir::Severity::Warning,
                     message: format!("`{}` retains an opaque class expression; its CSS comes from the project-wide candidate stylesheet. Use a static string for build-time validation.", slot.slot.class_prop),
@@ -1776,12 +1778,12 @@ fn render_node(
                 " {...hozoInteractive(",
                 &suffix,
             );
-            *uses_key_activation = true;
+            *cx.uses_key_activation = true;
             // `hozoInteractive` marks the element `data-hozo-pressable`,
             // and the rule that gives it a pointer lives with the view base.
-            *uses_view_base = true;
+            *cx.uses_view_base = true;
         } else if authored_target {
-            diagnostics.push(hozo_ir::Diagnostic {
+            cx.diagnostics.push(hozo_ir::Diagnostic {
                 code: hozo_ir::DiagnosticCode::PropCollidesWithPlatformName,
                 severity: hozo_ir::Severity::Warning,
                 message: format!(
@@ -1803,7 +1805,7 @@ fn render_node(
             // synthesized control; the rule itself skips `:disabled`.
             if node.primitive == Primitive::Button && tag == "button" {
                 attrs.push_str(" data-hozo-pressable=\"\"");
-                *uses_view_base = true;
+                *cx.uses_view_base = true;
             }
         }
     }
@@ -2270,18 +2272,7 @@ fn render_node(
         source_evidence::append(
             &mut attrs,
             &mut attr_copies,
-            render_verbatim(
-                prop.span,
-                &prop.nested,
-                source,
-                theme,
-                allocator,
-                rules,
-                diagnostics,
-                uses_view_base,
-                uses_key_activation,
-                tag_decisions,
-            ),
+            render_verbatim(prop.span, &prop.nested, cx),
         );
     }
 
@@ -2289,39 +2280,18 @@ fn render_node(
     // ones the compiler doesn't model, re-emitted from source rather than
     // deleted. Order is load-bearing: `<Text>Hello {name}</Text>` and
     // `<Text>{name} Hello</Text>` differ only in it.
-    let child_decisions_start = tag_decisions.as_ref().map_or(0, Vec::len);
-    let mut inner = Rendered::new(tag_decisions.is_some());
+    let child_decisions_start = cx.tag_decisions.as_ref().map_or(0, Vec::len);
+    let mut inner = Rendered::new(cx.tag_decisions.is_some());
     for child in &node.children {
         match child {
             hozo_ir::Child::Node(child_node) => {
-                inner.append(render_node(
-                    child_node,
-                    source,
-                    theme,
-                    allocator,
-                    rules,
-                    diagnostics,
-                    uses_view_base,
-                    uses_key_activation,
-                    tag_decisions,
-                ));
+                inner.append(render_node(child_node, cx));
             }
             hozo_ir::Child::Text(text) => inner.text.push_str(&markup::html_escape(text)),
             hozo_ir::Child::Verbatim {
                 source: expr_ref,
                 nested,
-            } => inner.append(render_verbatim(
-                *expr_ref,
-                nested,
-                source,
-                theme,
-                allocator,
-                rules,
-                diagnostics,
-                uses_view_base,
-                uses_key_activation,
-                tag_decisions,
-            )),
+            } => inner.append(render_verbatim(*expr_ref, nested, cx)),
         }
     }
 
@@ -2329,7 +2299,7 @@ fn render_node(
     // tag and React throws on children. Nothing can be inside one, so there
     // is no inner to lose by self-closing.
     let void = tag == "input" || tag == "img" || tag == "hr";
-    if let Some(decisions) = tag_decisions {
+    if let Some(decisions) = cx.tag_decisions {
         // The renderer computes children before choosing its final output.
         // A void element emits none of them; do not journal discarded work.
         if void {
@@ -2386,39 +2356,21 @@ fn render_node(
 /// enough. `{show && <Text className="p-4">hi</Text>}` comes out as
 /// `{show && <span className="hozo-1">hi</span>}` -- the guard untouched,
 /// the element fully compiled.
-#[allow(clippy::too_many_arguments)]
 fn render_verbatim(
     expr_ref: hozo_ir::ExprRef,
     nested: &[hozo_ir::NestedNode],
-    source: &str,
-    theme: &Theme,
-    allocator: &mut ClassAllocator,
-    rules: &mut String,
-    diagnostics: &mut Vec<Diagnostic>,
-    uses_view_base: &mut bool,
-    uses_key_activation: &mut bool,
-    tag_decisions: &mut Option<Vec<TagDecision>>,
+    cx: &mut WebRenderContext<'_>,
 ) -> Rendered {
     let start = expr_ref.0.start as usize;
-    let mut out = Rendered::new(tag_decisions.is_some());
+    let mut out = Rendered::new(cx.tag_decisions.is_some());
     let mut cursor = start;
     for entry in nested {
         let from = entry.span.start as usize;
-        out.copy(source, cursor, from);
-        out.append(render_node(
-            &entry.node,
-            source,
-            theme,
-            allocator,
-            rules,
-            diagnostics,
-            uses_view_base,
-            uses_key_activation,
-            tag_decisions,
-        ));
+        out.copy(cx.source, cursor, from);
+        out.append(render_node(&entry.node, cx));
         cursor = entry.span.end as usize;
     }
-    out.copy(source, cursor, expr_ref.0.end as usize);
+    out.copy(cx.source, cursor, expr_ref.0.end as usize);
     out
 }
 

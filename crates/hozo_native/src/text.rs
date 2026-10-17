@@ -140,23 +140,18 @@ pub(super) fn has_relative_descendant(node: &Node, theme: &Theme) -> bool {
 }
 /// Builds the inserted `<Text>` that carries a non-Text node's string
 /// content, with the text-styling declarations moved onto it.
-#[allow(clippy::too_many_arguments)]
 pub(super) fn wrap_in_text(
     content: &str,
     text_declarations: &[StyleDeclaration],
     base_name: &str,
-    source: &str,
     node: &Node,
     // The *enclosing* node's position, not the wrapper's: these
     // declarations were written on that element, so a `first:` among them
     // asks about it. (The wrapper is trivially its parent's only child,
     // which is not the question.)
     position: SiblingPosition,
-    style_entries: &mut Vec<StyleEntry>,
-    diagnostics: &mut Vec<Diagnostic>,
-    runtime: &mut RuntimeNeeds,
     interaction_context: bool,
-    theme: &Theme,
+    cx: &mut crate::NativeRenderContext<'_>,
 ) -> String {
     // A `Text` that no `Primitive::Text` asked for: the author wrote a bare
     // string inside a View, and React Native crashes on one. Synthesized
@@ -164,35 +159,34 @@ pub(super) fn wrap_in_text(
     // Found by the render tests, with `ReferenceError: Text is not defined`
     // -- which is the failure this whole reporting exists to make
     // impossible, arriving from the one path that bypasses it.
-    runtime.need_native("Text");
+    cx.runtime.need_native("Text");
     let mut style_array_parts = Vec::new();
     // The wrapper is a Text, so a `pressed:` style has nowhere to go on it.
     // The enclosing Pressable reports it -- `build_style_entries` runs over
     // that node's own declarations first, and a text-styling property under
     // `pressed:` lands here only after that.
     let mut pressed_parts = Vec::new();
+    let target = crate::conditions::StyleTarget {
+        node,
+        position,
+        interaction_context,
+        pattern_slot: None,
+    };
     build_style_entries(
         text_declarations,
         &format!("{base_name}_text"),
-        source,
-        node,
-        position,
-        style_entries,
+        &target,
         &mut style_array_parts,
         &mut pressed_parts,
-        diagnostics,
-        runtime,
-        interaction_context,
-        None,
-        theme,
         // A text style moved onto the inserted `Text` is not on the element
         // that animates, so a `starting:` one is reported rather than kept.
         None,
+        cx,
     );
 
     if interaction_context && !pressed_parts.is_empty() {
         style_array_parts.extend(pressed_parts);
-        runtime.need_component("HozoText");
+        cx.runtime.need_component("HozoText");
         // A raw string uses the same interaction callback as an explicit
         // Text. Leaving this binding out breaks inherited focus-visible
         // colours, even if the parent correctly enabled modality tracking.

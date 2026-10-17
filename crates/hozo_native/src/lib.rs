@@ -81,7 +81,7 @@ use conditions::{build_style_entries, unwired_variant, RuntimeHook};
 /// Rendering every entry against one theme is what this replaces, and it
 /// produced a `hozo0_dark` holding the light colour: structurally correct,
 /// guarded correctly, and the same colour twice.
-type StyleEntry = (String, Vec<StyleProperty>, bool);
+pub(crate) type StyleEntry = (String, Vec<StyleProperty>, bool);
 pub use candidate::render_candidate_module;
 use grid::{grid_absorbs, native_grid, native_grid_item};
 use hozo_ir::{
@@ -132,9 +132,9 @@ pub struct LowerOutput {
 /// second kind of runtime dependency didn't mean threading a second `&mut`
 /// through every rendering function.
 #[derive(Default)]
-struct RuntimeNeeds {
-    hooks: Vec<RuntimeHook>,
-    components: Vec<&'static str>,
+pub(crate) struct RuntimeNeeds {
+    pub hooks: Vec<RuntimeHook>,
+    pub components: Vec<&'static str>,
     /// Tags this lowering emitted that `react-native` exports.
     ///
     /// Derived rather than listed. A tag reaching the output is one of
@@ -143,14 +143,14 @@ struct RuntimeNeeds {
     /// `Hozo…` -- so what is left is React Native's own. A list beside the
     /// mapping would be a second copy of it, and this repository has
     /// already paid three times for that shape.
-    native: Vec<&'static str>,
+    pub native: Vec<&'static str>,
     /// `useHozoKeyframes` arguments, one per distinct animation;
     /// `RuntimeHook::Keyframes` holds the index.
-    keyframes: Vec<String>,
+    pub keyframes: Vec<String>,
 }
 
 impl RuntimeNeeds {
-    fn need_component(&mut self, name: &'static str) {
+    pub(crate) fn need_component(&mut self, name: &'static str) {
         if !self.components.contains(&name) {
             self.components.push(name);
         }
@@ -158,7 +158,7 @@ impl RuntimeNeeds {
 
     /// The hook for a keyframes spec, sharing one call between elements
     /// that run the same animation.
-    fn keyframes_hook(&mut self, spec: String) -> RuntimeHook {
+    pub(crate) fn keyframes_hook(&mut self, spec: String) -> RuntimeHook {
         let index = match self.keyframes.iter().position(|known| *known == spec) {
             Some(index) => index,
             None => {
@@ -169,7 +169,7 @@ impl RuntimeNeeds {
         RuntimeHook::Keyframes(index)
     }
 
-    fn need_native(&mut self, name: &'static str) {
+    pub(crate) fn need_native(&mut self, name: &'static str) {
         let name = name.split_once('.').map_or(name, |(root, _)| root);
         if !name.starts_with("Hozo") && !self.native.contains(&name) {
             self.native.push(name);
@@ -177,16 +177,38 @@ impl RuntimeNeeds {
     }
 }
 
-struct NameAllocator {
-    next: u32,
+pub(crate) struct NameAllocator {
+    pub next: u32,
 }
 
 impl NameAllocator {
-    fn alloc(&mut self) -> String {
+    pub(crate) fn alloc(&mut self) -> String {
         let name = format!("hozo{}", self.next);
         self.next += 1;
         name
     }
+}
+
+/// Bundles compiler output and mutable state across native lowering.
+pub(crate) struct NativeRenderContext<'a> {
+    pub source: &'a str,
+    pub theme: &'a Theme,
+    pub allocator: &'a mut NameAllocator,
+    pub style_entries: &'a mut Vec<StyleEntry>,
+    pub diagnostics: &'a mut Vec<Diagnostic>,
+    pub runtime: &'a mut RuntimeNeeds,
+}
+
+/// Context passed down from an ancestor to lower layout, text, and tree properties.
+#[derive(Clone, Copy)]
+pub(crate) struct AncestorContext<'a> {
+    pub inherited: &'a [StyleDeclaration],
+    pub parent_font_size: Option<f64>,
+    pub parent_size_opaque: bool,
+    pub in_dynamic_ruby: bool,
+    pub from_ancestor: FromAncestor<'a>,
+    pub grid_columns: Option<usize>,
+    pub grid_rows: Option<usize>,
 }
 
 /// `source` is the original TSX text `root` was parsed from -- needed to
@@ -234,25 +256,24 @@ pub fn lower_forwarded(
 
     // The root's position is genuinely unknowable here: it's whatever the
     // component's caller renders it into.
-    let jsx = render_node(
-        root,
-        SiblingPosition::UNKNOWN,
-        false,
-        None,
-        None,
-        theme,
-        &inherited,
-        None,
-        // Nothing above the root, so nothing above it is opaque.
-        false,
-        false,
-        FromAncestor::default(),
+    let mut cx = NativeRenderContext {
         source,
-        &mut allocator,
-        &mut style_entries,
-        &mut diagnostics,
-        &mut runtime,
-    );
+        theme,
+        allocator: &mut allocator,
+        style_entries: &mut style_entries,
+        diagnostics: &mut diagnostics,
+        runtime: &mut runtime,
+    };
+    let ancestor = AncestorContext {
+        inherited: &inherited,
+        parent_font_size: None,
+        parent_size_opaque: false,
+        in_dynamic_ruby: false,
+        from_ancestor: FromAncestor::default(),
+        grid_columns: None,
+        grid_rows: None,
+    };
+    let jsx = render_node(root, SiblingPosition::UNKNOWN, false, ancestor, &mut cx);
 
     // One declaration per distinct hook, however many elements guard on
     // it: the binding is function-scoped, and calling the same hook twice
@@ -452,18 +473,18 @@ fn native_flag(name: &str, value: &ConditionExpr, source: &str) -> String {
 /// carries text properties to every descendant and is re-derived at each
 /// level, which is `**:` behaviour and not `*:` behaviour.
 #[derive(Clone, Copy, Default)]
-struct FromAncestor<'a> {
+pub(crate) struct FromAncestor<'a> {
     /// The parent's `*:`. Applied here, not passed on.
-    direct: &'a [StyleDeclaration],
+    pub direct: &'a [StyleDeclaration],
     /// An ancestor's `**:`. Applied here and passed on.
-    all: &'a [StyleDeclaration],
+    pub all: &'a [StyleDeclaration],
     /// Whether this element is inside a `Skeleton`. Web's reduced-motion
     /// rule matches `[data-hozo-skeleton] *`, so a spinner drawn inside a
     /// placeholder stops with it; this carries the same guard down to
     /// every descendant the compiler renders. What it cannot reach is a
     /// child it does not read -- a component or an expression renders
     /// whatever it renders, and its animations are its own.
-    in_skeleton: bool,
+    pub in_skeleton: bool,
 }
 
 /// A parent's subtree declarations, rewritten as the child's own.
@@ -601,18 +622,13 @@ fn uses_pressed(condition: &Condition) -> bool {
 ///
 /// `HozoSpaced` returns its children rather than an element, so no host
 /// view is added and Yoga sees the tree it would have seen anyway.
-#[allow(clippy::too_many_arguments)]
 fn spaced_children(
     inner: String,
     child_declarations: &[StyleDeclaration],
     base_name: &str,
-    source: &str,
     node: &Node,
     position: SiblingPosition,
-    style_entries: &mut Vec<StyleEntry>,
-    diagnostics: &mut Vec<Diagnostic>,
-    runtime: &mut RuntimeNeeds,
-    theme: &Theme,
+    cx: &mut NativeRenderContext<'_>,
 ) -> String {
     if child_declarations.is_empty() {
         return inner;
@@ -623,24 +639,23 @@ fn spaced_children(
     // relies on belongs to Pressable, and this style is destined for the
     // children rather than for the element that would track the press.
     let mut pressed_parts: Vec<String> = Vec::new();
+    let target = conditions::StyleTarget {
+        node,
+        position,
+        interaction_context: false,
+        pattern_slot: None,
+    };
     build_style_entries(
         child_declarations,
         &format!("{base_name}Children"),
-        source,
-        node,
-        position,
-        style_entries,
+        &target,
         &mut parts,
         &mut pressed_parts,
-        diagnostics,
-        runtime,
-        false,
         None,
-        theme,
-        None,
+        cx,
     );
     if !pressed_parts.is_empty() {
-        diagnostics.push(unwired_variant(
+        cx.diagnostics.push(unwired_variant(
             node,
             "`pressed:` on a `space-*`/`divide-*` utility would have to track press state on the \
              parent and restyle its children, which Hozo doesn't do.",
@@ -651,7 +666,7 @@ fn spaced_children(
         return inner;
     }
 
-    runtime.need_component("HozoSpaced");
+    cx.runtime.need_component("HozoSpaced");
     let style = if parts.len() == 1 && !parts[0].contains("&&") {
         parts[0].clone()
     } else {
@@ -672,23 +687,17 @@ fn spaced_children(
 /// Position is `Unknown` for every one of them: the surrounding expression
 /// decides how many siblings it renders, so `first:` can't be resolved
 /// there (see `SiblingPosition`).
-#[allow(clippy::too_many_arguments)]
 fn render_verbatim(
     expr_ref: ExprRef,
     nested: &[hozo_ir::NestedNode],
-    theme: &Theme,
     inherited: &[StyleDeclaration],
-    source: &str,
-    allocator: &mut NameAllocator,
-    style_entries: &mut Vec<StyleEntry>,
-    diagnostics: &mut Vec<Diagnostic>,
-    runtime: &mut RuntimeNeeds,
     interaction_context: bool,
+    cx: &mut NativeRenderContext<'_>,
 ) -> String {
     let mut out = String::new();
     let mut cursor = expr_ref.0.start as usize;
     for entry in nested {
-        out.push_str(&source[cursor..entry.span.start as usize]);
+        out.push_str(&cx.source[cursor..entry.span.start as usize]);
         // After what the elements above hand down, so a component written
         // in between, and nearer, wins.
         let inherited: Vec<StyleDeclaration> = inherited
@@ -705,34 +714,25 @@ fn render_verbatim(
             }
             _ => None,
         });
+        let ancestor = AncestorContext {
+            inherited,
+            parent_font_size: ambient_size,
+            parent_size_opaque: true,
+            in_dynamic_ruby: false,
+            from_ancestor: FromAncestor::default(),
+            grid_columns: None,
+            grid_rows: None,
+        };
         out.push_str(&render_node(
             &entry.node,
             SiblingPosition::UNKNOWN,
             interaction_context,
-            None,
-            None,
-            theme,
-            inherited,
-            ambient_size,
-            // Inside an expression the compiler only carries: it cannot see
-            // what that expression does to the text size either.
-            true,
-            // And a ruby annotation cannot reach here from one.
-            false,
-            // Nothing: this element is inside an expression the compiler
-            // only carries, so the `*:` above it could not have been
-            // resolved to reach it either -- which is what the warning at
-            // that element says.
-            FromAncestor::default(),
-            source,
-            allocator,
-            style_entries,
-            diagnostics,
-            runtime,
+            ancestor,
+            cx,
         ));
         cursor = entry.span.end as usize;
     }
-    out.push_str(&source[cursor..expr_ref.0.end as usize]);
+    out.push_str(&cx.source[cursor..expr_ref.0.end as usize]);
     out
 }
 
