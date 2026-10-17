@@ -116,6 +116,10 @@
       "types": "./dist/generated/link.d.ts",
       "default": "./dist/generated/link.js"
     },
+    "./generated/listbox": {
+      "types": "./dist/generated/listbox.d.ts",
+      "default": "./dist/generated/listbox.js"
+    },
     "./generated/meter": {
       "types": "./dist/generated/meter.d.ts",
       "default": "./dist/generated/meter.js"

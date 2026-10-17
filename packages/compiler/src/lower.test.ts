@@ -26,6 +26,14 @@ test('the actual UI Combobox wrapper keeps its public alias free for generated r
   assert.match(output.code, /StyledCombobox as HozoCombobox/)
 })
 
+test('the actual UI Listbox wrapper keeps its public aliases free for generated runtime imports', () => {
+  const source = readFileSync(new URL('../../ui/src/listbox.tsx', import.meta.url), 'utf8')
+  const output = lowerModule(source, 'Listbox.tsx', 'Listbox.tsx', compiler, ROOT)
+  assert.ok(output)
+  assert.match(output.code, /import \{ HozoListbox \} from '@hozo\/core\/generated\/listbox'/)
+  assert.match(output.code, /StyledListbox as HozoListbox/)
+})
+
 test('generated names import from one leaf each, through core unless the owner is opt-in', () => {
   assert.equal(
     generatedRuntimeImports([

@@ -483,6 +483,8 @@ pub enum Primitive {
     /// An editable field and filtered popup whose input, list and options
     /// keep independent class owners. Runtime behavior stays in the pattern.
     Combobox,
+    /// A list whose options own focus and their committed selection state.
+    Listbox,
     /// A colour, from swatches, three sliders or its hex (#153): a radio
     /// group of swatches, hue/saturation/lightness as ordinary sliders
     /// rather than a two-dimensional square, each read in words.

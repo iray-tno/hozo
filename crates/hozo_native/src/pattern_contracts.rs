@@ -61,7 +61,7 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "expanded" => Some("__hozoSlotAriaExpanded"),
             _ => None,
         },
-        // Option divs are non-form owners. Selection means the active filtered option, not the committed value; focus stays on the input.
+        // Option divs are non-form owners. Each widget supplies its own selection meaning; focus ownership is declared per slot.
         (Primitive::Combobox, "optionClassName") => match condition {
             Condition::Disabled => Some("false"),
             Condition::Enabled => Some("false"),
@@ -96,6 +96,26 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
         (Primitive::CommandPalette, "itemClassName" | "activeItemClassName") => match condition {
             Condition::Disabled => Some("false"),
             Condition::Enabled => Some("false"),
+            Condition::Aria(state) if state == "disabled" => Some("__hozoSlotAriaDisabled"),
+            Condition::Aria(state) if state == "selected" => Some("__hozoSlotAriaSelected"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::Listbox, "className") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
+        // Option divs are non-form owners. Each widget supplies its own selection meaning; focus ownership is declared per slot.
+        (Primitive::Listbox, "optionClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
             Condition::Aria(state) if state == "disabled" => Some("__hozoSlotAriaDisabled"),
             Condition::Aria(state) if state == "selected" => Some("__hozoSlotAriaSelected"),
             Condition::Aria(state) if state == "checked" => Some("false"),
@@ -169,6 +189,7 @@ pub(super) fn semantic_parameters(primitive: Primitive, class_prop: &str) -> &'s
         (Primitive::Combobox, "inputClassName") => ", 'aria-expanded': __hozoSlotAriaExpanded",
         (Primitive::Combobox, "optionClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
         (Primitive::CommandPalette, "itemClassName" | "activeItemClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
+        (Primitive::Listbox, "optionClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
         (Primitive::OtpInput, "inputClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly",
         (Primitive::Pagination, "itemClassName" | "currentItemClassName" | "disabledItemClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled",
         (Primitive::Stepper, "stepClassName" | "completedStepClassName" | "currentStepClassName" | "errorStepClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled",
@@ -188,6 +209,7 @@ pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option
         (Primitive::CommandPalette, "inputClassName") => Some(InteractionSlot { style_prop: "hozoInputStyle", focus: true, pointer: false, optional_owner: None }),
         (Primitive::CommandPalette, "itemClassName") => Some(InteractionSlot { style_prop: "hozoItemStyle", focus: false, pointer: true, optional_owner: None }),
         (Primitive::CommandPalette, "activeItemClassName") => Some(InteractionSlot { style_prop: "hozoActiveItemStyle", focus: false, pointer: true, optional_owner: None }),
+        (Primitive::Listbox, "optionClassName") => Some(InteractionSlot { style_prop: "hozoOptionStyle", focus: true, pointer: true, optional_owner: None }),
         (Primitive::OtpInput, "inputClassName") => Some(InteractionSlot { style_prop: "hozoInputStyle", focus: true, pointer: false, optional_owner: None }),
         (Primitive::Pagination, "itemClassName") => Some(InteractionSlot { style_prop: "hozoItemStyle", focus: true, pointer: true, optional_owner: None }),
         (Primitive::Pagination, "currentItemClassName") => Some(InteractionSlot { style_prop: "hozoCurrentItemStyle", focus: true, pointer: true, optional_owner: None }),
@@ -210,6 +232,7 @@ pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool
         |         (Primitive::CommandPalette, "groupHeadingClassName")
         |         (Primitive::CommandPalette, "shortcutClassName")
         |         (Primitive::CommandPalette, "emptyClassName")
+        |         (Primitive::Listbox, "className")
         |         (Primitive::Pagination, "ellipsisClassName")
         |         (Primitive::Stepper, "indicatorClassName")
         |         (Primitive::Stepper, "completedIndicatorClassName")
@@ -229,6 +252,7 @@ pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&
         (Primitive::CommandPalette, "groupHeadingClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "shortcutClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "emptyClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Listbox, "className") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Pagination, "ellipsisClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "indicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "completedIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),

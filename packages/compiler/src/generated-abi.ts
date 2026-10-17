@@ -27,6 +27,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   hozoImageSource: '@hozo/core/generated/image-source',
   hozoInteractive: '@hozo/core/generated/interactive',
   HozoLink: '@hozo/core/generated/link',
+  HozoListbox: '@hozo/core/generated/listbox',
   HozoMeter: '@hozo/core/generated/meter',
   HozoModal: '@hozo/rn-compat/generated/modal',
   HozoOtpInput: '@hozo/core/generated/otp-input',

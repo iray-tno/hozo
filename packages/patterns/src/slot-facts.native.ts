@@ -96,8 +96,8 @@ export interface ComboboxInputSlotFacts {
   'aria-expanded': boolean
 }
 
-/** Option divs are non-form owners. Selection means the active filtered option, not the committed value; focus stays on the input. */
-export interface ComboboxOptionSlotFacts {
+/** Option divs are non-form owners. Each widget supplies its own selection meaning; focus ownership is declared per slot. */
+export interface ListOptionSlotFacts {
   readonly [fact: string]: unknown
   disabled: false
   enabled: false

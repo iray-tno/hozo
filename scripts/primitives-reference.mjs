@@ -100,6 +100,8 @@ const SNIPPETS = {
     '<CommandPalette open={open} onOpenChange={setOpen} commands={commands} panelClassName="w-96" activeItemClassName="bg-slate-100" />',
   Combobox:
     '<Combobox options={options} accessibilityLabel="Country" inputClassName="p-2" optionClassName="aria-selected:bg-slate-100" />',
+  Listbox:
+    '<Listbox options={options} accessibilityLabel="Country" optionClassName="focus:opacity-50 aria-selected:bg-slate-100" />',
   ColorPicker:
     '<ColorPicker value={color} onChange={setColor} presets={presets} accessibilityLabel="Theme colour" swatchClassName="size-8 rounded-full" />',
   Table: '<Table className="w-full"><TableRow><TableCell>A</TableCell></TableRow></Table>',

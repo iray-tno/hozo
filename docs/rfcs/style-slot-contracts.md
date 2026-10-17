@@ -170,6 +170,17 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    labels and explicit input/option styles stay last. No runtime registry,
    provider, global listener or additional host is introduced.
 
+   Listbox is registered too. Its wrapper reuses NonControl and its options
+   share Combobox's ListOption form/ARIA profile, not its focus policy or
+   selection meaning. A Listbox option owns focus and committed single/multi
+   selection; a Combobox option owns active filtered highlight while focus
+   stays on the input. Native disabled still blocks activation and is exposed
+   to accessibility, but it does not make the Web option div match :disabled
+   or :enabled. Root typography and explicit option text styles reach labels.
+   The existing value/id keys preserve each option's interaction state across
+   reordering. This audit adds no Native hardware keyboard navigation claim
+   and does not infer unmodeled facts such as root aria-multiselectable.
+
    Opaque/mixed secondary Web class lists identify the same real DOM owner
    as their AOT counterpart. Candidate form predicates exclude that slot
    from portable-marker rules (including the lower-priority layered copy),

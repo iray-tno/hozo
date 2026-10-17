@@ -109,12 +109,23 @@ test('semantic callback parameters belong to each slot, not the union of its wid
   assert.doesNotMatch(swatches, /readOnly/)
 })
 
+test('Listbox and Combobox share option facts, not focus ownership or selection meaning', () => {
+  const listbox = components.Listbox.find((slot) => slot.classProp === 'optionClassName')
+  const combobox = components.Combobox.find((slot) => slot.classProp === 'optionClassName')
+  assert.equal(listbox.profile, 'ListOption')
+  assert.equal(listbox.profile, combobox.profile)
+  assert.equal(listbox.focus, true)
+  assert.equal(combobox.focus, false)
+  assert.equal(listbox.gate, 'each-option')
+  assert.equal(combobox.gate, 'each-filtered-option')
+})
+
 test('audited decorative slots supply the same constant facts without inventing an interaction ABI', () => {
   assert.deepEqual(nonControlSlotFacts, profiles.NonControl.facts)
   const decorative = Object.values(components)
     .flat()
     .filter((slot) => slot.profile === 'NonControl')
-  assert.equal(decorative.length, 14)
+  assert.equal(decorative.length, 15)
   assert.deepEqual(
     components.Avatar.filter((slot) => slot.profile === 'NonControl').map((slot) => slot.classProp),
     ['imageClassName', 'fallbackClassName', 'statusClassName'],
