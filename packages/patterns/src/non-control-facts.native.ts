@@ -1,6 +1,6 @@
 import type { NonControlSlotFacts } from './slot-facts.native.ts'
 
-// Facts of the actual Web span/li, not of its surrounding button. Do not
+// Facts of the actual non-editable Web child, not of its surrounding button. Do not
 // fill missing event keys with false: neither direction of an unobserved
 // pointer/focus predicate is supported by this Native decoration.
 export const nonControlSlotFacts = {

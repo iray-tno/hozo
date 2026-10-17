@@ -40,6 +40,7 @@ const reads = {
     'packages/patterns/src/tabs.native.tsx',
     'packages/patterns/src/chip.tsx',
     'packages/patterns/src/chip.native.tsx',
+    'packages/patterns/src/avatar.native.tsx',
     'packages/patterns/src/pagination.native.tsx',
     'packages/patterns/src/chip-row-interaction.native.ts',
     'packages/patterns/src/text-style.native.ts',

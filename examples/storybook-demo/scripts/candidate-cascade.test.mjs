@@ -2173,6 +2173,166 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
   }
 })
 
+test('Avatar decorative owners match independent Tailwind through image failure, retry and status changes', {
+  skip: !executablePath,
+}, async () => {
+  const own =
+    'px-2 py-1 mb-2 bg-[#123456] opacity-100 disabled:opacity-25 read-only:rounded-lg aria-selected:mb-8 aria-disabled:mt-4'
+  const negative = 'not-disabled:px-2 not-enabled:py-1 not-aria-selected:mb-2'
+  const slots = ['imageClassName', 'fallbackClassName', 'statusClassName']
+  const expression = (mode, slot) =>
+    mode === 'literal'
+      ? JSON.stringify(`${own} ${negative}`)
+      : mode === 'opaque'
+        ? `{getClasses('${mode}/${slot}', ${JSON.stringify(own)})}`
+        : `{cx(${JSON.stringify(`${own.replace('read-only:rounded-lg', 'rounded-none')} ${negative}`)},getClasses('${mode}/${slot}','read-only:rounded-lg'))}`
+  const source = `import {View,Avatar,cx} from '@hozo/core'; const C=()=> <View>
+    ${['literal', 'opaque', 'mixed']
+      .map(
+        (
+          mode,
+        ) => `<View testID="${mode}"><Avatar src={src} name={name} status={status} fallback={fallback}
+      className="text-[#654321] font-bold"
+      ${slots.map((slot) => `${slot}=${expression(mode, slot)}`).join(' ')} /></View>`,
+      )
+      .join('')}
+  </View>`
+  const web = compiler.compile(source)[0]
+  assert.equal(web.diagnostics.length, 3)
+  for (const diagnostic of web.diagnostics) {
+    assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
+    assert.equal(diagnostic.severity, 'warning')
+    assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)
+  }
+  const candidates = openCandidateCache(path.join(directory, 'avatar-decorations.json'))
+  const names = `${own} ${negative} rounded-none text-[#654321] font-bold`.split(' ')
+  const candidateCss = candidates.renderCss(undefined, names)
+  const oracleCss = (
+    await compile(
+      '@theme { --spacing:0.25rem; --radius-lg:0.5rem; --font-weight-bold:700; } @tailwind utilities;',
+    )
+  ).build(names)
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Avatar as HozoAvatar} from '@hozo/patterns';
+        const root=createRoot(document.getElementById('root'));
+        function Example({src,name='Ada Lovelace',status,stamp}) {
+          window.calls=[];
+          const getClasses=(name,value)=>{window.calls.push(name);return value};
+          const fallback=<b>?</b>;
+          return <section data-stamp={stamp}>${web.jsx}</section>;
+        }
+        window.show=value=>root.render(<Example {...value}/>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const read = (locator) =>
+    locator.evaluate((e) => {
+      const s = getComputedStyle(e)
+      return [
+        s.paddingLeft,
+        s.paddingTop,
+        s.marginBottom,
+        s.marginTop,
+        s.opacity,
+        s.borderRadius,
+        s.backgroundColor,
+      ]
+    })
+  const picture = (color) =>
+    `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4" fill="${color}"/></svg>`)}`
+  try {
+    await page.route('https://avatar.test/**', (route) => route.abort())
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><img id="image-oracle" class="${own} ${negative}"/><span id="span-oracle" class="${own} ${negative}"></span>`,
+      )
+      await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      const show = async (props, stamp) => {
+        await page.evaluate((props) => window.show(props), { ...props, stamp })
+        await page.waitForFunction(
+          (stamp) => document.querySelector('[data-stamp]')?.dataset.stamp === stamp,
+          stamp,
+        )
+        assert.equal((await page.evaluate(() => window.calls)).length, 6)
+      }
+      const check = async (part, image = false) => {
+        const actual = await read(part)
+        assert.deepEqual(actual, await read(page.locator(image ? '#image-oracle' : '#span-oracle')))
+        assert.deepEqual(actual, ['8px', '4px', '8px', '0px', '1', '8px', 'rgb(18, 52, 86)'])
+        assert.equal(await part.getAttribute('aria-hidden'), 'true')
+      }
+      const owners = () =>
+        ['literal', 'opaque', 'mixed'].map((mode) => page.locator(`[data-testid="${mode}"] > span`))
+      await show({ src: picture('red'), status: 'online' }, 'initial')
+      for (const owner of owners()) {
+        assert.equal(await owner.getAttribute('role'), 'img')
+        assert.equal(await owner.getAttribute('aria-label'), 'Ada Lovelace, online')
+        await check(owner.locator('img'), true)
+        await check(owner.locator('[data-hozo-status]'))
+        assert.equal(await owner.locator('span:not([data-hozo-status])').count(), 0)
+      }
+      // Exercise the actual image error handler with a failed request, not
+      // a reimplemented fallback condition in the test.
+      await show({ src: 'https://avatar.test/broken.png', status: 'busy' }, 'failure')
+      for (const owner of owners()) {
+        await owner.locator('span:not([data-hozo-status])').waitFor()
+        assert.equal(await owner.locator('img').count(), 0)
+        const fallback = owner.locator('span:not([data-hozo-status])')
+        await check(fallback)
+        assert.equal(await fallback.textContent(), 'AL')
+        assert.deepEqual(
+          await fallback.evaluate((e) => [
+            getComputedStyle(e).color,
+            getComputedStyle(e).fontWeight,
+          ]),
+          ['rgb(101, 67, 33)', '700'],
+        )
+        await check(owner.locator('[data-hozo-status]'))
+      }
+      assert.equal(
+        (await page.evaluate(() => window.calls)).length,
+        6,
+        'image errors do not rerun authored inputs',
+      )
+      await show({ src: picture('blue') }, 'retry')
+      for (const owner of owners()) {
+        await check(owner.locator('img'), true)
+        assert.equal(
+          await owner.locator('span').count(),
+          0,
+          'retry removes fallback; missing status removes dot',
+        )
+      }
+      await show({ name: '' }, 'custom-fallback')
+      for (const owner of owners()) {
+        assert.equal(await owner.getAttribute('role'), null)
+        assert.equal(await owner.getAttribute('aria-hidden'), 'true')
+        assert.equal(await owner.locator('img,[data-hozo-status]').count(), 0)
+        await check(owner.locator('span'))
+        assert.equal(await owner.locator('span > b').textContent(), '?')
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('CommandPalette decorative owners match independent Tailwind through query and active-command changes', {
   skip: !executablePath,
 }, async () => {

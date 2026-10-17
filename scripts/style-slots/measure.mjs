@@ -45,6 +45,7 @@ const cache = openCandidateCache()
 cache.scanFile('Fixture.tsx', sources.join('\n'), 1)
 const native = {}
 for (const name of [
+  'avatar',
   'chip',
   'color-picker',
   'pagination',

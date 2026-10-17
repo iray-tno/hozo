@@ -2,7 +2,7 @@
 // Type-only facts. Absence from a profile is unavailable, not false. Actual
 // components still calculate facts from their own host/shape and existing events.
 
-/** A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false. */
+/** A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false. */
 export interface NonControlSlotFacts {
   readonly [fact: string]: unknown
   disabled: false
