@@ -120,12 +120,34 @@ test('Listbox and Combobox share option facts, not focus ownership or selection 
   assert.equal(combobox.gate, 'each-filtered-option')
 })
 
+test('Menu separates a real enabled button from non-form action divs', () => {
+  const trigger = components.Menu.find((slot) => slot.classProp === 'triggerClassName')
+  const item = components.Menu.find((slot) => slot.classProp === 'itemClassName')
+  assert.equal(trigger.profile, 'MenuTrigger')
+  assert.equal(item.profile, 'MenuItem')
+  assert.equal(profiles.MenuTrigger.facts.enabled, true)
+  assert.equal(profiles.MenuItem.facts.enabled, false)
+  assert.equal(profiles.MenuItem.facts['aria-selected'], false)
+  assert.deepEqual(
+    Object.keys(profiles.MenuTrigger.facts).filter(
+      (key) => typeof profiles.MenuTrigger.facts[key] === 'object',
+    ),
+    ['aria-expanded'],
+  )
+  assert.deepEqual(
+    Object.keys(profiles.MenuItem.facts).filter(
+      (key) => typeof profiles.MenuItem.facts[key] === 'object',
+    ),
+    ['aria-disabled'],
+  )
+})
+
 test('audited decorative slots supply the same constant facts without inventing an interaction ABI', () => {
   assert.deepEqual(nonControlSlotFacts, profiles.NonControl.facts)
   const decorative = Object.values(components)
     .flat()
     .filter((slot) => slot.profile === 'NonControl')
-  assert.equal(decorative.length, 15)
+  assert.equal(decorative.length, 17)
   assert.deepEqual(
     components.Avatar.filter((slot) => slot.profile === 'NonControl').map((slot) => slot.classProp),
     ['imageClassName', 'fallbackClassName', 'statusClassName'],

@@ -1,8 +1,14 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
-import { Modal, type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { Modal, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import type { MenuItemSlotFacts, MenuTriggerSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
+
+type Style = StyleProp<ViewStyle | TextStyle>
+type TriggerState = InteractionState & MenuTriggerSlotFacts
+type ItemState = InteractionState & MenuItemSlotFacts
 
 export interface HozoMenuItem {
   label: string
@@ -17,7 +23,8 @@ export interface HozoMenuProps {
    * On a tag the compiler lowers it is gone by runtime, replaced by a
    * `StyleSheet` entry. Here it arrives as a string and is resolved through
    * the project's candidate map (#886): the trigger with its interaction and
-   * `aria-expanded` state, an item with interaction and `disabled`. A string
+   * `aria-expanded` state, an item with interaction and `aria-disabled`. The
+   * Web item is a div, not a disabled/enabled form control. A string
    * label takes the text half. Each `*Style` prop comes after its class list.
    */
   className?: string
@@ -28,10 +35,14 @@ export interface HozoMenuProps {
   trigger: ReactNode
   items: readonly HozoMenuItem[]
   accessibilityLabel?: string
-  style?: StyleProp<ViewStyle>
-  triggerStyle?: StyleProp<ViewStyle>
-  menuStyle?: StyleProp<ViewStyle>
-  itemStyle?: StyleProp<ViewStyle>
+  style?: Style
+  triggerStyle?: Style
+  menuStyle?: Style
+  itemStyle?: Style
+  /** @internal The real button owns focus, pointer and expanded state. */
+  hozoTriggerStyle?: (state: TriggerState) => Style
+  /** @internal Action divs own their focus, pointer and aria-disabled state. */
+  hozoItemStyle?: (state: ItemState) => Style
 }
 
 export function HozoMenu({
@@ -46,19 +57,44 @@ export function HozoMenu({
   triggerStyle,
   menuStyle,
   itemStyle,
+  hozoTriggerStyle,
+  hozoItemStyle,
 }: HozoMenuProps) {
   const [open, setOpen] = useState(false)
 
-  const triggerLook = (interaction: InteractionState) =>
-    splitTextStyle(hozoClasses(triggerClassName, { ...interaction, 'aria-expanded': open }))
-  const itemLook = (interaction: InteractionState, disabled?: boolean) =>
-    splitTextStyle(
-      hozoClasses(itemClassName, {
-        ...interaction,
-        disabled: Boolean(disabled),
-        'aria-disabled': Boolean(disabled),
-      }),
-    )
+  const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
+  const [menuBox, menuText] = splitTextStyle([
+    rootText,
+    hozoClasses(menuClassName, nonControlSlotFacts),
+    menuStyle,
+  ])
+  const triggerLook = (interaction: InteractionState) => {
+    const facts = {
+      ...interaction,
+      ...nonControlSlotFacts,
+      enabled: true,
+      'aria-expanded': open,
+    } satisfies TriggerState
+    return splitTextStyle([
+      rootText,
+      hozoClasses(triggerClassName, facts),
+      hozoTriggerStyle?.(facts),
+      triggerStyle,
+    ])
+  }
+  const itemLook = (interaction: InteractionState, disabled?: boolean) => {
+    const facts = {
+      ...interaction,
+      ...nonControlSlotFacts,
+      'aria-disabled': Boolean(disabled),
+    } satisfies ItemState
+    return splitTextStyle([
+      menuText,
+      hozoClasses(itemClassName, facts),
+      hozoItemStyle?.(facts),
+      itemStyle,
+    ])
+  }
 
   const select = (at: number) => {
     if (items[at]?.disabled) return
@@ -67,11 +103,11 @@ export function HozoMenu({
   }
 
   return (
-    <View style={[hozoClasses(className), style]}>
+    <View style={rootBox}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
-        style={(interaction) => [triggerLook(interaction)[0], triggerStyle]}
+        style={(interaction) => triggerLook(interaction)[0]}
         onPress={() => setOpen(true)}
       >
         {(interaction) =>
@@ -93,7 +129,7 @@ export function HozoMenu({
           accessibilityViewIsModal
           accessibilityRole="menu"
           accessibilityLabel={accessibilityLabel}
-          style={[hozoClasses(menuClassName), menuStyle]}
+          style={menuBox}
         >
           {items.map((item, at) => (
             <Pressable
@@ -107,7 +143,7 @@ export function HozoMenu({
               accessibilityRole="menuitem"
               accessibilityState={{ disabled: item.disabled }}
               disabled={item.disabled}
-              style={(interaction) => [itemLook(interaction, item.disabled)[0], itemStyle]}
+              style={(interaction) => itemLook(interaction, item.disabled)[0]}
               onPress={() => select(at)}
             >
               {(interaction) =>

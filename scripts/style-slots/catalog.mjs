@@ -15,16 +15,17 @@ const editableInputFacts = {
   enabled: true,
   readOnly: false,
 }
+const nonControlFacts = {
+  disabled: false,
+  enabled: false,
+  readOnly: true,
+  'aria-disabled': false,
+  'aria-selected': false,
+  'aria-checked': false,
+}
 export const profiles = {
   NonControl: {
-    facts: {
-      disabled: false,
-      enabled: false,
-      readOnly: true,
-      'aria-disabled': false,
-      'aria-selected': false,
-      'aria-checked': false,
-    },
+    facts: nonControlFacts,
     note: 'A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.',
   },
   Chip: {
@@ -95,14 +96,26 @@ export const profiles = {
   },
   ListOption: {
     facts: {
-      disabled: false,
-      enabled: false,
-      readOnly: true,
+      ...nonControlFacts,
       'aria-disabled': supplied('__hozoSlotAriaDisabled'),
       'aria-selected': supplied('__hozoSlotAriaSelected'),
-      'aria-checked': false,
     },
     note: 'Option divs are non-form owners. Each widget supplies its own selection meaning; focus ownership is declared per slot.',
+  },
+  MenuTrigger: {
+    facts: {
+      ...nonControlFacts,
+      enabled: true,
+      'aria-expanded': supplied('__hozoSlotAriaExpanded'),
+    },
+    note: 'The real button is enabled and non-editable. It owns expanded state, not item disabled announcements or selection.',
+  },
+  MenuItem: {
+    facts: {
+      ...nonControlFacts,
+      'aria-disabled': supplied('__hozoSlotAriaDisabled'),
+    },
+    note: 'An action div owns focus and aria-disabled, not form disabled/enabled or selected/checked state.',
   },
   OtpDecoration: {
     facts: {
@@ -299,7 +312,32 @@ export const components = {
       }),
     },
   }),
-  Menu: slots('className triggerClassName menuClassName itemClassName'),
+  Menu: slots('className triggerClassName menuClassName itemClassName', {
+    secondary: true,
+    overrides: {
+      className: {
+        owner: 'non-control-wrapper-div',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'always',
+        composition: 'classes/explicit-style; split-box-text inheritance',
+      },
+      triggerClassName: owned('enabled-trigger-button', 'MenuTrigger', 'hozoTriggerStyle', {
+        composition: 'root-text inheritance; classes/callback/explicit-style; split-box-text',
+      }),
+      menuClassName: {
+        owner: 'non-control-menu-div',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'popup-visible',
+        composition: 'root-text inheritance; classes/explicit-style; split-box-text',
+      },
+      itemClassName: owned('action-div', 'MenuItem', 'hozoItemStyle', {
+        gate: 'each-visible-item',
+        composition: 'root/menu-text inheritance; classes/callback/explicit-style; split-box-text',
+      }),
+    },
+  }),
   OtpInput: slots(
     'className cellClassName activeCellClassName filledCellClassName inputClassName',
     {

@@ -34,6 +34,14 @@ test('the actual UI Listbox wrapper keeps its public aliases free for generated 
   assert.match(output.code, /StyledListbox as HozoListbox/)
 })
 
+test('the actual UI Menu wrapper preserves its public aliases beside the generated runtime import', () => {
+  const source = readFileSync(new URL('../../ui/src/menu.tsx', import.meta.url), 'utf8')
+  const output = lowerModule(source, 'Menu.tsx', 'Menu.tsx', compiler, ROOT)
+  assert.ok(output)
+  assert.match(output.code, /import \{ HozoMenu \} from '@hozo\/core\/generated\/menu'/)
+  assert.match(output.code, /StyledMenu as HozoMenu/)
+})
+
 test('generated names import from one leaf each, through core unless the owner is opt-in', () => {
   assert.equal(
     generatedRuntimeImports([

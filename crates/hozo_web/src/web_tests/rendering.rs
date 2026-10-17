@@ -1,6 +1,32 @@
 use super::*;
 
 #[test]
+fn menu_retains_actual_button_and_div_classes_and_a_leaf_abi() {
+    let source = r#"import { Menu } from '@hozo/core'; const el = <Menu trigger="Actions" items={items}
+        className="enabled:opacity-50 disabled:opacity-25"
+        triggerClassName="enabled:px-3 aria-expanded:border-2"
+        itemClassName="disabled:opacity-25 enabled:opacity-50 aria-disabled:opacity-25" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<HozoMenu"), "{}", out.jsx);
+    assert!(out.runtime_imports.contains(&"HozoMenu"));
+    assert!(out.jsx.contains("triggerClassName="));
+    assert!(out.jsx.contains("itemClassName="));
+    assert!(!out.css.contains("data-hozo-disabled"), "{}", out.css);
+    assert!(out.css.contains(":enabled"), "{}", out.css);
+    let source = "import { Menu } from '@hozo/core'; const el = <Menu trigger=\"Actions\" items={[]} className={choose()} />";
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(
+        out.jsx
+            .contains("hozo-candidate-owner hozo-candidate-slot-owner"),
+        "{}",
+        out.jsx
+    );
+}
+
+#[test]
 fn listbox_keeps_actual_div_selectors_and_its_runtime_abi() {
     let source = r#"import { Listbox } from '@hozo/core'; const el = <Listbox options={options}
         className="disabled:opacity-25 enabled:opacity-50"
