@@ -2217,6 +2217,20 @@ pub fn render_rule(
     render_rule_for(class_name, condition, props, theme, true)
 }
 
+/// Only form predicates differ between portable root markers and real
+/// secondary DOM owners. Other candidates keep their existing two rules.
+pub(super) fn needs_form_owner(condition: &Condition) -> bool {
+    match condition {
+        Condition::Disabled | Condition::Enabled => true,
+        Condition::All(conditions) => conditions.iter().any(needs_form_owner),
+        Condition::Not(inner)
+        | Condition::Group(inner)
+        | Condition::Peer(inner)
+        | Condition::Has(inner) => needs_form_owner(inner),
+        _ => false,
+    }
+}
+
 /// A pattern's secondary class list lands on a real child DOM element, not
 /// a synthesized root control. Let CSS ask that owner's actual capability:
 /// a disabled descendant does not make a decorative span :disabled or

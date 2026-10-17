@@ -3078,7 +3078,10 @@ test('owned candidates work without Tailwind, and empty roots/slots keep absent 
       HozoChip: 'Chip',
       h: (_type, props) => props,
     })
-    assert.equal(props.removeClassName, dynamic ? `hozo-candidate-owner ${dynamic}` : dynamic)
+    assert.equal(
+      props.removeClassName,
+      dynamic ? `hozo-candidate-owner hozo-candidate-slot-owner ${dynamic}` : dynamic,
+    )
   }
   console.log(
     `[candidate-cascade] ${cache.candidates().length} candidates, ${Buffer.byteLength(candidateCss)} CSS bytes, ${gzipSync(candidateCss).length} gzip bytes`,

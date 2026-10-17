@@ -212,6 +212,53 @@ fn candidate_css_uses_the_real_tailwind_names() {
 }
 
 #[test]
+fn candidate_secondary_form_predicates_keep_real_owners_separate_from_portable_roots() {
+    let names = [
+        "p-2",
+        "disabled:opacity-25",
+        "enabled:px-3",
+        "not-disabled:py-1",
+        "not-enabled:mt-2",
+        "md:disabled:opacity-50",
+    ];
+    let css = render_candidate_stylesheet(&names.map(str::to_string), &Theme::default());
+    assert!(
+        css.contains(":not(:where(.hozo-candidate-slot-owner))[data-hozo-disabled]"),
+        "{css}"
+    );
+    assert!(
+        css.contains(":where(.hozo-candidate-slot-owner):not(hozo-none):disabled"),
+        "{css}"
+    );
+    assert!(
+        css.contains(":where(.hozo-candidate-slot-owner):not(hozo-none):enabled"),
+        "{css}"
+    );
+    assert!(
+        css.contains(":where(.hozo-candidate-slot-owner):not(hozo-none):not(:disabled)"),
+        "{css}"
+    );
+    assert!(
+        css.contains(":where(.hozo-candidate-slot-owner):not(hozo-none):not(:enabled)"),
+        "{css}"
+    );
+    assert!(
+        !css.contains(".p-2:where(.hozo-candidate-slot-owner)"),
+        "no extra unconditional rule: {css}"
+    );
+    for (source, marked) in [
+        ("import {ColorPicker,cx} from '@hozo/core'; const el=<ColorPicker inputClassName={cx('p-2',classes)}/>", true),
+        ("import {ColorPicker} from '@hozo/core'; const el=<ColorPicker inputClassName={classes}/>", true),
+        ("import {ColorPicker} from '@hozo/core'; const el=<ColorPicker inputClassName=\"p-2\"/>", false),
+        ("import {Pressable,cx} from '@hozo/core'; const el=<Pressable className={cx('p-2',classes)}/>", false),
+    ] {
+        let parsed=hozo_parser::parse_tsx(source);
+        let output=lower(&parsed.roots[0].node,source,&Theme::default());
+        assert_eq!(output.jsx.contains("hozo-candidate-slot-owner"),marked,"{}",output.jsx);
+    }
+}
+
+#[test]
 fn only_dynamic_class_targets_and_slots_get_candidate_ownership() {
     let source =
         "import { View, Chip } from '@hozo/core'; const el = <View className={`p-3 ${tone}`} />";
@@ -1779,7 +1826,7 @@ fn mixed_secondary_classes_keep_aot_and_residual_values_on_the_actual_slot() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert_eq!(output.jsx.matches("first()").count(), 1, "{}", output.jsx);
     assert_eq!(output.jsx.matches("last()").count(), 1, "{}", output.jsx);
-    assert!(output.jsx.contains("removeClassName={[\"hozo-1\", first(), last()].filter(Boolean).join(' ').replace(/\\S/, 'hozo-candidate-owner $&')}"), "{}", output.jsx);
+    assert!(output.jsx.contains("removeClassName={[\"hozo-1\", first(), last()].filter(Boolean).join(' ').replace(/\\S/, 'hozo-candidate-owner hozo-candidate-slot-owner $&')}"), "{}", output.jsx);
     for selector in [
         ".hozo-1:disabled",
         ".hozo-1:enabled",
