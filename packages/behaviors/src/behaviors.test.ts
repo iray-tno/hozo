@@ -43,4 +43,26 @@ test('FloatingPositioner renders children and accepts anchorRef', () => {
   )
   assert(html.includes('Floating content'), `Expected floating content, got: ${html}`)
   assert(html.includes('popover-content'), `Expected className, got: ${html}`)
+  assert(!html.includes('popover='), 'other positioning consumers stay inline by default')
+})
+
+test('FloatingPositioner top layer reuses the host and neutralizes only the UA panel box', () => {
+  const html = renderToStaticMarkup(
+    createElement(
+      FloatingPositioner,
+      {
+        anchorRef: { current: null },
+        topLayer: true,
+        style: { color: 'red', padding: 3 },
+      },
+      'Panel',
+    ),
+  )
+  assert.equal((html.match(/<div/g) ?? []).length, 1)
+  assert.match(html, /popover="manual"/)
+  assert.match(html, /color:red/)
+  assert.match(html, /padding:3px/)
+  assert.match(html, /visibility:hidden/)
+  assert.match(html, /margin:0/)
+  assert.match(html, /background:transparent/)
 })

@@ -2506,14 +2506,14 @@ test('Menu button expansion and action-div states match isolated Tailwind in bot
         ? `{getClasses(${JSON.stringify(classes)})}`
         : `{cx(${JSON.stringify(base)},getClasses(${JSON.stringify(classes.slice(base.length))}))}`
   }
-  // Opacity-bearing wrappers are stacking contexts. Leave room for each
-  // real popup so a later fixture's button cannot intercept its pointers.
+  // Keep the original adjacent stacking contexts: the popup must escape
+  // them, not rely on test-only spacing to receive real pointer events.
   const source = `import {View,Menu,cx} from '@hozo/core';const C=()=> <View>
     ${['literal', 'opaque', 'mixed']
       .map(
         (
           mode,
-        ) => `<View testID="${mode}" className="mb-64"><Menu trigger="Actions" items={items} accessibilityLabel="Letters"
+        ) => `<View testID="${mode}"><Menu trigger="Actions" items={items} accessibilityLabel="Letters"
       className=${expression(mode, 'root')} triggerClassName=${expression(mode, 'trigger')}
       menuClassName=${expression(mode, 'menu')} itemClassName=${expression(mode, 'item')}/></View>`,
       )
@@ -2703,6 +2703,266 @@ test('Menu button expansion and action-div states match isolated Tailwind in bot
   } finally {
     await page.close()
     await oracle.close()
+  }
+})
+
+test('Menu top layer escapes clipping while retaining live CSS ancestry and modal boundaries', {
+  skip: !executablePath,
+}, async () => {
+  const source = `import React from 'react';import {createRoot} from 'react-dom/client';
+    import {HozoMenu as Menu} from '../../packages/patterns/src/menu.tsx';
+    window.actions=[];
+    const items=[{label:'Alpha',onSelect:()=>window.actions.push('a')},{label:'Beta',disabled:true,onSelect:()=>window.actions.push('b')},{label:'Gamma',onSelect:()=>window.actions.push('c')}];
+    const menu=<Menu trigger="Actions" items={items} accessibilityLabel="Letters" menuClassName="panel" itemClassName="item"/>;
+    createRoot(document.getElementById('root')).render(<React.StrictMode>
+      <div id="theme" className="theme" dir="rtl" lang="ja"><div id="clip">{menu}</div></div>
+      <button id="outside">Outside</button><dialog id="modal">{menu}</dialog>
+    </React.StrictMode>);`
+  const bundleFor = async (mutation = false) => {
+    let mutations = 0
+    const result = await build({
+      stdin: {
+        contents: source,
+        loader: 'tsx',
+        resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+      },
+      bundle: true,
+      write: false,
+      platform: 'browser',
+      format: 'iife',
+      jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"development"' },
+      plugins: mutation
+        ? [
+            {
+              name: 'inline-menu-negative-control',
+              setup(builder) {
+                builder.onLoad({ filter: /patterns[\\/]src[\\/]menu\.tsx$/ }, ({ path: file }) => {
+                  const contents = readFileSync(file, 'utf8')
+                  assert.equal((contents.match(/\s+topLayer\b/g) ?? []).length, 1)
+                  mutations++
+                  return {
+                    contents: contents.replace(/\s+topLayer\b/, ''),
+                    loader: 'tsx',
+                    resolveDir: path.dirname(file),
+                  }
+                })
+              },
+            },
+          ]
+        : [],
+    })
+    assert.equal(mutations, mutation ? 1 : 0, 'negative control must mutate the real Menu source')
+    return result.outputFiles[0].text
+  }
+  const script = await bundleFor()
+  const mutationScript = await bundleFor(true)
+  const css = `body{margin:0}#theme{position:absolute;left:35px;top:35px;width:180px;opacity:.7;transform:translate(20px,15px) scale(1.1)}
+    #clip{height:44px;overflow:hidden}.theme{--ink:rgb(23,45,67);--surface:rgb(235,241,247);color:var(--ink);font:19px/1.4 monospace}
+    .theme.hot{--ink:rgb(123,45,67);--surface:rgb(245,231,217);font-size:23px}
+    .theme [role=menuitem]{border-inline-start:3px solid currentColor}.panel{background:var(--surface);min-width:170px}.item{padding:8px}
+    #outside{position:absolute;left:500px;top:20px}#blocker{position:fixed;z-index:2147483647;background:pink}`
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const init = async (script, unsupported = false) => {
+    await page.goto('about:blank')
+    await page.setContent(
+      `<style>${css}</style><div id="root"></div><div id="blocker" hidden></div>`,
+    )
+    await page.evaluate((unsupported) => {
+      window.showCount = 0
+      window.fallbackWarnings = []
+      const original = HTMLElement.prototype.showPopover
+      if (unsupported)
+        Object.defineProperty(HTMLElement.prototype, 'showPopover', {
+          configurable: true,
+          value: undefined,
+        })
+      else
+        HTMLElement.prototype.showPopover = function (...args) {
+          window.showCount++
+          return original.apply(this, args)
+        }
+      const warn = console.warn
+      console.warn = (...args) => {
+        window.fallbackWarnings.push(args.join(' '))
+        warn(...args)
+      }
+    }, unsupported)
+    await page.addScriptTag({ content: script })
+    await page.locator('#theme button').waitFor()
+  }
+  const trigger = () => page.locator('#theme button')
+  const menu = () => page.locator('#theme [role=menu]')
+  const rows = () => menu().getByRole('menuitem')
+  const hit = (node) =>
+    node.evaluate((e) => {
+      const r = e.getBoundingClientRect()
+      const target = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)
+      return target === e || e.contains(target)
+    })
+  const blocker = async () =>
+    menu().evaluate((e) => {
+      const r = e.getBoundingClientRect()
+      Object.assign(document.getElementById('blocker').style, {
+        left: `${r.left}px`,
+        top: `${r.top}px`,
+        width: `${r.width}px`,
+        height: `${r.height}px`,
+      })
+      document.getElementById('blocker').hidden = false
+    })
+  try {
+    // Mutate only the opt-in, retaining the real Menu and positioner. This
+    // reproduces the original missing layer rather than comparing two copies
+    // of the new algorithm. No forced click/hover bypasses hit testing.
+    await init(mutationScript)
+    await trigger().click()
+    await menu().waitFor()
+    await blocker()
+    assert.equal(
+      await hit(rows().last()),
+      false,
+      'the old inline path must fail the hit-test control',
+    )
+
+    await init(script)
+    await trigger().click()
+    await menu().waitFor()
+    assert.equal(
+      await page.locator('#theme [popover]').evaluate((e) => e.matches(':popover-open')),
+      true,
+    )
+    assert.equal(
+      await rows()
+        .first()
+        .evaluate((e) => e === document.activeElement),
+      true,
+    )
+    assert.equal(
+      await page.evaluate(() => window.showCount),
+      1,
+      'StrictMode setup does not repeatedly show an open host',
+    )
+    await blocker()
+    assert.equal(await hit(rows().last()), true)
+    await rows().last().hover()
+    const inherited = () =>
+      rows()
+        .last()
+        .evaluate((e) => {
+          const s = getComputedStyle(e)
+          return [
+            s.color,
+            s.fontSize,
+            s.fontFamily,
+            s.direction,
+            s.borderInlineStartWidth,
+            e.closest('[lang]')?.getAttribute('lang'),
+            getComputedStyle(e.parentElement).backgroundColor,
+          ]
+        })
+    assert.deepEqual(await inherited(), [
+      'rgb(23, 45, 67)',
+      '19px',
+      'monospace',
+      'rtl',
+      '3px',
+      'ja',
+      'rgb(235, 241, 247)',
+    ])
+    await rows().last().focus()
+    await page.locator('#theme').evaluate((e) => {
+      e.classList.add('hot')
+      e.dir = 'ltr'
+      e.lang = 'en'
+    })
+    await page.waitForFunction(
+      () => getComputedStyle(document.querySelector('#theme [role=menuitem]')).fontSize === '23px',
+    )
+    assert.deepEqual(await inherited(), [
+      'rgb(123, 45, 67)',
+      '23px',
+      'monospace',
+      'ltr',
+      '3px',
+      'en',
+      'rgb(245, 231, 217)',
+    ])
+    assert.equal(
+      await rows()
+        .last()
+        .evaluate((e) => e === document.activeElement),
+      true,
+    )
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')))
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    )
+    const alignment = await page.locator('#theme').evaluate((e) => {
+      const anchor = e.querySelector('button').getBoundingClientRect(),
+        popup = e.querySelector('[data-placement]').getBoundingClientRect()
+      return [Math.abs(anchor.left - popup.left), Math.abs(anchor.bottom + 4 - popup.top)]
+    })
+    assert.ok(
+      alignment.every((delta) => delta < 1),
+      `viewport coordinates survive transformed ancestors: ${alignment}`,
+    )
+    assert.equal(await rows().nth(1).getAttribute('aria-disabled'), 'true')
+    await rows().last().click()
+    assert.deepEqual(await page.evaluate(() => window.actions), ['c'])
+    assert.equal(await page.locator(':popover-open').count(), 0)
+    assert.equal(await trigger().evaluate((e) => e === document.activeElement), true)
+    await page.locator('#blocker').evaluate((e) => {
+      e.hidden = true
+    })
+    await trigger().press('ArrowUp')
+    await page.waitForFunction(() => document.activeElement?.textContent === 'Gamma')
+    await page.keyboard.press('Escape')
+    assert.equal(await trigger().evaluate((e) => e === document.activeElement), true)
+    await trigger().click()
+    await menu().waitFor()
+    await page.locator('#outside').click()
+    assert.equal(await menu().count(), 0)
+    assert.equal(await page.locator('#outside').evaluate((e) => e === document.activeElement), true)
+    assert.equal(await page.locator(':popover-open').count(), 0)
+    assert.equal(await page.evaluate(() => window.showCount), 3)
+    await page.locator('#modal').evaluate((e) => e.showModal())
+    const dialog = page.locator('#modal')
+    await dialog.getByRole('button', { name: 'Actions' }).click()
+    await dialog.getByRole('menu').waitFor()
+    assert.equal(await hit(dialog.getByRole('menuitem').last()), true)
+    await dialog.getByRole('menuitem').last().click()
+    assert.deepEqual(await page.evaluate(() => window.actions), ['c', 'c'])
+    assert.equal(await dialog.evaluate((e) => e.open), true)
+    await dialog.evaluate((e) => e.close())
+    assert.deepEqual(errors, [])
+
+    // Fresh document/script: unsupported capability is explicit and remains
+    // usable inline in a layout that does not need the missing layer.
+    await init(script, true)
+    await page.locator('#theme').evaluate((e) => {
+      e.style.transform = 'none'
+      e.style.opacity = '1'
+      e.querySelector('#clip').style.overflow = 'visible'
+    })
+    for (let n = 0; n < 2; n++) {
+      await trigger().click()
+      await menu().waitFor()
+      assert.equal(await page.locator('#theme [popover]').count(), 0)
+      await page.keyboard.press('Escape')
+    }
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.fallbackWarnings.filter((x) => x.includes('showPopover is unavailable')).length,
+      ),
+      1,
+    )
+    assert.equal(await trigger().evaluate((e) => e === document.activeElement), true)
+  } finally {
+    await page.close()
   }
 })
 

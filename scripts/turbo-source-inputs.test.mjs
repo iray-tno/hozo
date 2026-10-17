@@ -34,6 +34,8 @@ const reads = {
     'packages/behaviors/src/presence.native.ts',
     'packages/behaviors/src/portal.native.tsx',
     'packages/behaviors/src/floating-positioner.native.tsx',
+    'packages/behaviors/src/floating-positioner.tsx',
+    'packages/behaviors/src/dismissable-layer.tsx',
     'packages/behaviors/src/floating-geometry.ts',
     'packages/engine/src/navigation-entry.native.ts',
     'packages/engine/src/navigation-entry.ts',
