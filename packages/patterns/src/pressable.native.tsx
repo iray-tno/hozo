@@ -1,8 +1,9 @@
 import {
+  HozoInteractionContext,
   type HozoPressableInteractionState,
   usePressableInteraction,
 } from '@hozo/behaviors/pressable-interaction'
-import type { ComponentProps, ReactNode } from 'react'
+import { type ComponentProps, type ReactNode, useMemo } from 'react'
 import { Pressable as NativePressable, type StyleProp, type ViewStyle } from 'react-native'
 
 export type InteractionState = HozoPressableInteractionState
@@ -26,7 +27,18 @@ export function Pressable({
   ...props
 }: Props) {
   const { state, handlers } = usePressableInteraction({ focusVisible: true })
-  return (
+  // A Text a caller nests reads this, as it would inside the primitive, so
+  // a component's `hover:` text classes reach it (#974).
+  const shared = useMemo(
+    () => ({
+      pressed: state.pressed,
+      hovered: state.hovered,
+      focused: state.focused,
+      focusVisible: state.focusVisible,
+    }),
+    [state.pressed, state.hovered, state.focused, state.focusVisible],
+  )
+  const host = (
     <NativePressable
       {...props}
       onHoverIn={(event) => {
@@ -72,4 +84,5 @@ export function Pressable({
         : children}
     </NativePressable>
   )
+  return <HozoInteractionContext.Provider value={shared}>{host}</HozoInteractionContext.Provider>
 }

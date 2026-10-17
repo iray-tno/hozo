@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { createContext, useCallback, useMemo, useRef, useState } from 'react'
 
 export interface HozoPressableInteractionState {
   pressed: boolean
@@ -6,6 +6,17 @@ export interface HozoPressableInteractionState {
   focused: boolean
   focusVisible: boolean
 }
+
+/**
+ * The state a Native pressable shares with the Text inside it: a `HozoText`
+ * anywhere below reads it to apply its `hover:` and `active:` looks (#876).
+ * Here rather than in `@hozo/primitives` so `@hozo/patterns`' pressable
+ * provides the same one, and a Text a caller nests in a pattern reads it too
+ * (#974). `transition` is the primitive's own, for its colour motion.
+ */
+export const HozoInteractionContext = createContext<
+  (HozoPressableInteractionState & { transition?: unknown }) | null
+>(null)
 
 const HOVERED = 1
 const FOCUSED = 2

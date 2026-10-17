@@ -55,10 +55,14 @@ const HOST_MODULES: [&str; 2] = ["@hozo/core", "@hozo/primitives"];
 /// string child gets the text styles at runtime, a Text the caller nests
 /// does not. `@hozo/ui`'s Alert wears the first since #983; its Checkbox
 /// and Switch take their label as children the same way (#974).
-const PATTERN_HOSTS: [(&str, &str); 3] = [
-    ("@hozo/patterns", "Alert"),
-    ("@hozo/patterns", "Checkbox"),
-    ("@hozo/patterns", "Switch"),
+///
+/// The third field says whether the pattern's pressable shares its state
+/// with that Text: Checkbox's and Switch's provide `HozoInteractionContext`
+/// from `@hozo/behaviors`, which a `HozoText` reads; Alert has no state.
+const PATTERN_HOSTS: [(&str, &str, bool); 3] = [
+    ("@hozo/patterns", "Alert", false),
+    ("@hozo/patterns", "Checkbox", true),
+    ("@hozo/patterns", "Switch", true),
 ];
 
 /// The `cx`-shaped helpers whose arguments are read one by one, as
@@ -691,15 +695,19 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
             return None;
         };
         let (from, name) = (entry.module_request.name.as_str(), imported.name.as_str());
-        (entry.local_name.name == tag.name.as_str()
-            && (HOST_MODULES.contains(&from) && FORWARDING_HOSTS.contains(&name)
-                || PATTERN_HOSTS.contains(&(from, name))))
-        .then_some((from, name))
+        if entry.local_name.name != tag.name.as_str() {
+            return None;
+        }
+        if HOST_MODULES.contains(&from) && FORWARDING_HOSTS.contains(&name) {
+            // The pressable primitives share their state; a View has none.
+            return Some(matches!(name, "Pressable" | "Button"));
+        }
+        PATTERN_HOSTS
+            .iter()
+            .find(|(module, pattern, _)| *module == from && *pattern == name)
+            .map(|(_, _, states)| *states)
     });
-    let (from, name) = host?;
-    // The pressable primitives. A View has no state, and a pattern's own
-    // pressable does not share its state with a Text the caller nests.
-    let states = HOST_MODULES.contains(&from) && matches!(name, "Pressable" | "Button");
+    let states = host?;
 
     // The caller's children have to reach the host: through the rest spread
     // when `children` was not destructured, or as `{children}` when it was.
@@ -1152,8 +1160,8 @@ export { HozoCheckbox as Checkbox }";
             "ps-9 text-sm text-gray-900 disabled:text-gray-400"
         );
         assert_eq!(checkbox.disabled_prop.as_deref(), Some("disabled"));
-        // A pattern's own pressable does not share its state with the caller's Text.
-        assert!(!checkbox.host_states);
+        // The pattern's pressable shares its state with the caller's Text.
+        assert!(checkbox.host_states);
 
         // A `disabled` the component takes for itself is not the caller's.
         let kept = source.replace("{ className, ...rest }", "{ className, disabled, ...rest }");
