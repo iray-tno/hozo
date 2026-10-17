@@ -89,6 +89,14 @@ pub enum DiagnosticCode {
     /// exactly the shape of defect nobody notices: written, rendered, and
     /// silently absent where it was supposed to be heard.
     AriaNameProhibited,
+    /// An accessible name on an element whose host never passes it on.
+    ///
+    /// React Native's `Modal` types accept View props, and the native
+    /// modal host forwards none of them; the Web runtime matches it so the
+    /// two platforms agree. The name type-checks, renders nothing and is
+    /// announced nowhere -- the same silent absence as
+    /// `AriaNameProhibited`, for a reason that has nothing to do with ARIA.
+    A11yNameNotForwarded,
     /// `focusable` written on an element that is also `disabled`.
     ///
     /// The ARIA APG's "focusable disabled" pattern -- reachable, announced
@@ -5843,6 +5851,7 @@ impl DiagnosticCode {
             DiagnosticCode::AriaIncompletePattern => "ARIA_INCOMPLETE_PATTERN",
             DiagnosticCode::AriaPropNotAllowed => "ARIA_PROP_NOT_ALLOWED",
             DiagnosticCode::AriaNameProhibited => "ARIA_NAME_PROHIBITED",
+            DiagnosticCode::A11yNameNotForwarded => "A11Y_NAME_NOT_FORWARDED",
             DiagnosticCode::FocusableDisabledUnsupported => "FOCUSABLE_DISABLED_UNSUPPORTED",
             DiagnosticCode::TailwindVariantNotSupported => "TAILWIND_VARIANT_NOT_SUPPORTED",
             DiagnosticCode::A11yMissingAccessibleName => "A11Y_MISSING_ACCESSIBLE_NAME",

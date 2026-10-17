@@ -589,8 +589,9 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     // No name here, deliberately. React Native's Modal types accept View
     // props but forward none of them to the host, and the Web runtime
     // matches it, so an `accessibilityLabel` on a Modal is dropped on
-    // both. A modal that needs a name is a `Dialog`, which has a contract
-    // above that says so.
+    // both, and the compiler says so (`A11Y_NAME_NOT_FORWARDED`, #1015). A
+    // modal that needs a name is a `Dialog`, which has a contract above that
+    // says so.
     source: '<Modal visible={open} onRequestClose={close}><Text>x</Text></Modal>',
     web: ['<HozoModal visible={open} onRequestClose={close}>'],
     native: ['<Modal visible={open} onRequestClose={close}>'],

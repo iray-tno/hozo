@@ -45,7 +45,7 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `Main` | `<main className="hozo-view">` | `<View role="main">` | landmark regions |
 | `Mark` | `<mark>` | `<Text>` | inline emphasis and its meaning |
 | `Meter` | `<meter aria-valuetext={'60%'} aria-label={"Disk usage"} value={0.6}>` | `<HozoMeter accessibilityLabel={"Disk usage"} value={0.6}>` | a meter reports where it stands |
-| `Modal` | `<HozoModal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | `<Modal accessibilityLabel={"Sheet"} visible onRequestClose={close}>` | a modal and its system dismissal |
+| `Modal` | `<HozoModal visible onRequestClose={close}>` | `<Modal visible onRequestClose={close}>` | a modal and its system dismissal |
 | `Nav` | `<nav className="hozo-view">` | `<View role="navigation">` | document landmarks |
 | `NoBreak` | `<span}>` | `<Text>` | scripts, small print and an unbreakable run |
 | `OtpInput` | `<HozoOtpInput cellClassName="hozo-1" activeCellClassName="hozo-2" accessibilityLabel={"Verification code"} length={6} onComplete={verify}>` | `<HozoOtpInput accessibilityLabel={"Verification code"} cellStyle={hozoStyles.hozo1} activeCellStyle={hozoStyles.hozo2} length={6} onComplete={verify}>` | a one-time code field |
