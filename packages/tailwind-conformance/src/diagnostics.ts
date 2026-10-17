@@ -100,6 +100,9 @@ const PROVOCATIONS: Record<string, Provocation> = {
   A11Y_DUPLICATE_ID: {
     source: '<View><View nativeID="x">a</View><View nativeID="x">b</View></View>',
   },
+  A11Y_NAME_NOT_FORWARDED: {
+    source: '<Modal visible={open} onRequestClose={close} aria-label="Settings">x</Modal>',
+  },
   A11Y_INTERACTIVE_NESTING: {
     source:
       '<Pressable role="button" aria-label="Outer" onPress={go}>' +
@@ -198,7 +201,7 @@ export interface DiagnosticResult {
 }
 
 const IMPORTS =
-  `import { View, Text, Pressable, Button, Link, Dialog, Paragraph, Section, Heading, Image, TextInput } ` +
+  `import { View, Text, Pressable, Button, Link, Dialog, Paragraph, Section, Heading, Image, TextInput, Modal } ` +
   `from '@hozo/core'\n`
 
 export function compareDiagnostic(code: string): DiagnosticResult {

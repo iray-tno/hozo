@@ -78,7 +78,7 @@ const SNIPPETS = {
   ListItem: '<ListItem>x</ListItem>',
   Main: '<Main>x</Main>',
   Mark: '<Mark>x</Mark>',
-  Modal: '<Modal visible accessibilityLabel="Sheet" onRequestClose={close}>x</Modal>',
+  Modal: '<Modal visible onRequestClose={close}>x</Modal>',
   Nav: '<Nav>x</Nav>',
   NoBreak: '<NoBreak>x</NoBreak>',
   Paragraph: '<Paragraph>x</Paragraph>',

@@ -199,6 +199,7 @@ fn walk_inner(
         check_allowed(node, spec, diagnostics);
         check_name_allowed(node, spec, diagnostics);
     }
+    check_name_forwarded(node, diagnostics);
     check_hidden_focusable(node, diagnostics);
     check_tab_order(node, diagnostics);
     check_interactive_nesting(node, interactive, diagnostics);
@@ -731,6 +732,25 @@ fn check_name_allowed(node: &Node, spec: &aria::AriaRole, diagnostics: &mut Vec<
     });
 }
 
+/// A name on an element that drops it before it reaches the platform.
+///
+/// Only `Modal` today (#1015). A spread may hold anything, so only a name
+/// that is written out is reported.
+fn check_name_forwarded(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
+    if node.primitive != Primitive::Modal || node.props.has_accessible_name() != Some(true) {
+        return;
+    }
+    diagnostics.push(Diagnostic {
+        code: DiagnosticCode::A11yNameNotForwarded,
+        severity: Severity::Warning,
+        message: "`Modal` passes no accessibility props to the platform, on React Native or \
+                  on Web, so this name is never announced. Use a `Dialog`, which is named \
+                  and announced as a dialog, or put the name on a `View` inside the modal."
+            .to_string(),
+        span: node.span,
+    });
+}
+
 fn list(items: &[&str]) -> String {
     let quoted: Vec<String> = items.iter().map(|item| format!("`{item}`")).collect();
     match quoted.split_last() {
@@ -746,7 +766,7 @@ mod tests {
 
     fn codes(element: &str) -> Vec<DiagnosticCode> {
         let source = format!(
-            "import {{ Button, Link, Image, Heading, List, ListItem, Progress, Meter, Separator, Table, TableRow, TableCell, Pressable, View, Text, Paragraph, Section }} from '@hozo/core'\n\
+            "import {{ Button, Link, Image, Heading, List, ListItem, Progress, Meter, Separator, Table, TableRow, TableCell, Pressable, View, Text, Paragraph, Section, Modal, Dialog }} from '@hozo/core'\n\
              const el = {element}\n"
         );
         crate::parse_tsx(&source)
@@ -859,6 +879,35 @@ mod tests {
             codes(r#"<Pressable accessibilityRole="button" accessibilityLabel="Save" onPress={go}>x</Pressable>"#)
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn a_name_on_a_modal_is_reported_because_neither_platform_forwards_it() {
+        for element in [
+            r#"<Modal visible={open} accessibilityLabel="Settings">x</Modal>"#,
+            r#"<Modal visible={open} aria-label="Settings">x</Modal>"#,
+            r#"<Modal visible={open} aria-labelledby="title">x</Modal>"#,
+        ] {
+            assert_eq!(
+                codes(element),
+                vec![DiagnosticCode::A11yNameNotForwarded],
+                "{element}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_modal_named_from_inside_or_through_a_spread_is_not() {
+        assert!(codes(
+            r#"<Modal visible={open}><View accessibilityLabel="Settings" role="dialog">x</View></Modal>"#
+        )
+        .is_empty());
+        assert!(codes(r#"<Modal visible={open} {...rest}>x</Modal>"#).is_empty());
+        assert!(codes(
+            r#"<Dialog open={open} onClose={close} accessibilityLabel="Settings">x</Dialog>"#
+        )
+        .iter()
+        .all(|code| *code != DiagnosticCode::A11yNameNotForwarded));
     }
 
     #[test]
