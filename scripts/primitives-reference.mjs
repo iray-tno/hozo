@@ -33,7 +33,10 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { compile, compileNative } from '../packages/compiler/src/index.ts'
-import { A11Y_CONTEXTUAL_CASES } from '../packages/tailwind-conformance/src/a11y-contextual.ts'
+import {
+  A11Y_CONTEXTUAL_CASES,
+  componentsIn,
+} from '../packages/tailwind-conformance/src/a11y-contextual.ts'
 import { declaredPrimitivesWithDocs } from '../packages/tailwind-conformance/src/primitives.ts'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -176,10 +179,12 @@ function lowerings(name) {
 }
 
 /** The contract cases that pin a primitive, by name. */
+// The same reading the coverage count uses, so `Animated.View` pins
+// AnimatedView here as it does there.
 function contracts(name) {
-  return A11Y_CONTEXTUAL_CASES.filter((entry) =>
-    new RegExp(`<${name}[\\s/>]`).test(entry.source),
-  ).map((entry) => entry.name)
+  return A11Y_CONTEXTUAL_CASES.filter((entry) => componentsIn(entry.source).has(name)).map(
+    (entry) => entry.name,
+  )
 }
 
 /** The role a lowering announces, in either platform's spelling. */

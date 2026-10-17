@@ -650,7 +650,7 @@ export function primitivesUnderContract(): Set<string> {
  * The primitives a source names, as the enum spells them. `Animated.View`
  * is one primitive, `AnimatedView`; `Svg.Rect` is a shape of `Svg`.
  */
-function componentsIn(source: string): Set<string> {
+export function componentsIn(source: string): Set<string> {
   const named = new Set<string>()
   for (const match of source.matchAll(/<([A-Z][A-Za-z]*)(?:\.([A-Z][A-Za-z]*))?/g))
     named.add(match[1] === 'Animated' ? `Animated${match[2]}` : (match[1] as string))
