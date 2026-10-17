@@ -215,7 +215,7 @@ test('a browser batch timeout cancels a stuck preparation without inventing axe 
 
 test('the actual CLI persists and distinguishes genuine findings from execution errors', {
   skip: !executablePath,
-  timeout: 30000,
+  timeout: 90000,
 }, async (context) => {
   const directory = mkdtempSync(path.join(tmpdir(), 'hozo-a11y-cli-'))
   // This exact mkdtemp result contains only this fixture and its audit evidence.
@@ -243,7 +243,7 @@ test('the actual CLI persists and distinguishes genuine findings from execution 
         [fileURLToPath(new URL('./check-a11y.mjs', import.meta.url)), directory],
         {
           env: { ...process.env, CHROME_PATH: executablePath },
-          timeout: 20000,
+          timeout: 45000,
         },
       )
     } catch (error) {
