@@ -28,6 +28,7 @@ import { importSpecifier } from '@hozo/compiler/project'
 /** The barrels whose named imports are rewritten. */
 export const MODULAR_SOURCES = [
   '@hozo/core',
+  '@hozo/engine',
   '@hozo/patterns',
   '@hozo/primitives',
   '@hozo/semantics',

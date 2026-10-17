@@ -126,6 +126,17 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // DOM metadata (`button-host-*`, `foundation.native`, +2.1 KB), field-owned
 // TextInput focus styles (`text-input-props.native`, +0.9 KB), the class
 // resolver's state groups (+0.9 KB) and Stepper's state styles (+0.7 KB).
+//
+// Lowered to 460 KB when `@hozo/engine` joined `MODULAR_SOURCES`. The
+// share had crossed 480 at 480,995 (CI and local agree) by +8.2 KB of
+// features against 9fdc6fa7 -- slot facts and decorative-class owners in
+// the patterns, `cx` moving into engine, ambient direction in the class
+// resolver -- but the cause underneath was a barrel: `@hozo/primitives` and
+// `@hozo/typography` import `blendColor` and `HozoTextSizeContext` from
+// `@hozo/engine`, whose entry loaded every engine module, the DOM half
+// included: 15 modules and 40.8 KB, `responder`, `dom-style`, `interactive`
+// and `scrollable` the largest.
+// With the import rewritten the share is 440,218.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -139,8 +150,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 480_000,
-  `Hozo's modules stay below 480 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 460_000,
+  `Hozo's modules stay below 460 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than
@@ -151,11 +162,12 @@ expect(
 // paid for again. The budget would show that eventually, after enough
 // components; this shows it the first time. `@hozo/semantics` and
 // `@hozo/typography` are not listed: their entries define the components
-// themselves, so loading them is the cost of using them.
+// themselves, so loading them is the cost of using them. `@hozo/engine` is
+// listed: its Native entry re-exports the Web one, DOM helpers and all.
 const barrels = [...bundle.matchAll(/,"([^"]+)"\);/g)]
   .map((match) => match[1])
   .filter((name) =>
-    /(^|[\\/])packages[\\/](core|patterns|primitives|behaviors|form)[\\/]dist[\\/]index(\.native)?\.js$/.test(
+    /(^|[\\/])packages[\\/](core|engine|patterns|primitives|behaviors|form)[\\/]dist[\\/]index(\.native)?\.js$/.test(
       name,
     ),
   )
