@@ -158,6 +158,18 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    event. Class/callback styles remain before explicit inputStyle. Unmodeled
    field predicates (for example aria-invalid) are not newly claimed here.
 
+   Combobox is registered as a compiler-retained pattern too. Its wrapper and
+   listbox reuse NonControl; its editable input uses the same keyboard-input
+   policy with its own expanded fact; each option div owns pointer and active
+   selection facts, not form-button disabled/enabled or the field's focus.
+   The active filtered index is separate from the committed value. Native
+   focus alone no longer opens the popup; editing/arrows open it, blur/Escape
+   close it, and a disabled active option cannot commit, matching the existing
+   Web contract. Arrow delivery remains platform-owned; Native inline
+   autocomplete is not added by this audit. Root/list typography reaches
+   labels and explicit input/option styles stay last. No runtime registry,
+   provider, global listener or additional host is introduced.
+
    Opaque/mixed secondary Web class lists identify the same real DOM owner
    as their AOT counterpart. Candidate form predicates exclude that slot
    from portable-marker rules (including the lower-priority layered copy),

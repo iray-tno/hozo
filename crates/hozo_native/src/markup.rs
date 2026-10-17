@@ -187,6 +187,7 @@ fn native_component_inner(
         Primitive::Stepper => ("HozoStepper", Vec::new()),
         Primitive::OtpInput => ("HozoOtpInput", Vec::new()),
         Primitive::CommandPalette => ("HozoCommandPalette", Vec::new()),
+        Primitive::Combobox => ("HozoCombobox", Vec::new()),
         Primitive::ColorPicker => ("HozoColorPicker", Vec::new()),
         // React Native has no table, so these are runtime components that
         // count rows and columns through context and size the columns from

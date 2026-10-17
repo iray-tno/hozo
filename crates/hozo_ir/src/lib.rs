@@ -472,6 +472,9 @@ pub enum Primitive {
     /// scrim, panel, field, list, headings, items, the active item and the
     /// shortcut badge -- which are style props on Native.
     CommandPalette,
+    /// An editable field and filtered popup whose input, list and options
+    /// keep independent class owners. Runtime behavior stays in the pattern.
+    Combobox,
     /// A colour, from swatches, three sliders or its hex (#153): a radio
     /// group of swatches, hue/saturation/lightness as ordinary sliders
     /// rather than a two-dimensional square, each read in words.

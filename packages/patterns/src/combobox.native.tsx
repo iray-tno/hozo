@@ -1,9 +1,16 @@
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { type StyleProp, Text, TextInput, View, type ViewStyle } from 'react-native'
-import { filterOptions } from './combobox-rules.ts'
+import { type StyleProp, Text, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
+import { activeAfter, filterOptions } from './combobox-rules.ts'
+import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import type { ComboboxInputSlotFacts, ComboboxOptionSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
+
+type Style = StyleProp<ViewStyle | TextStyle>
+type InputState = Pick<InteractionState, 'focused' | 'focusVisible'> & ComboboxInputSlotFacts
+type OptionState = Pick<InteractionState, 'hovered' | 'pressed'> & ComboboxOptionSlotFacts
 
 export interface HozoComboboxOption<T> {
   value: T
@@ -32,9 +39,14 @@ export interface HozoComboboxProps<T> {
   match?: 'starts' | 'contains'
   accessibilityLabel?: string
   placeholder?: string
-  style?: StyleProp<ViewStyle>
-  listStyle?: StyleProp<ViewStyle>
-  optionStyle?: StyleProp<ViewStyle>
+  style?: Style
+  inputStyle?: Style
+  listStyle?: Style
+  optionStyle?: Style
+  /** @internal The editable field owns focus and expanded state. */
+  hozoInputStyle?: (state: InputState) => Style
+  /** @internal Options own pointer/active facts, never the input's focus. */
+  hozoOptionStyle?: (state: OptionState) => Style
   emptyMessage?: ReactNode
 }
 
@@ -50,15 +62,27 @@ export function HozoCombobox<T>({
   accessibilityLabel,
   placeholder,
   style,
+  inputStyle,
   listStyle,
   optionStyle,
+  hozoInputStyle,
+  hozoOptionStyle,
   emptyMessage,
 }: HozoComboboxProps<T>) {
   const chosen = options.find((option) => option.value === value)
   const [query, setQuery] = useState(chosen?.label ?? '')
   const [open, setOpen] = useState(false)
+  const [active, setActive] = useState<number | null>(null)
+  const { state: inputInteraction, handlers: inputHandlers } = usePressableInteraction({
+    focusVisible: 'keyboard-input',
+  })
 
   const visible = filterOptions({ query, labels: options.map((option) => option.label), match })
+
+  const close = useCallback(() => {
+    setOpen(false)
+    setActive(null)
+  }, [])
 
   const commit = useCallback(
     (index: number) => {
@@ -66,15 +90,36 @@ export function HozoCombobox<T>({
       if (!option || option.disabled) return
       setQuery(option.label)
       onValueChange?.(option.value)
-      setOpen(false)
+      close()
     },
-    [onValueChange, options],
+    [close, onValueChange, options],
   )
 
+  const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
+  const [listBox, listText] = open
+    ? splitTextStyle([hozoClasses(listClassName, nonControlSlotFacts), listStyle])
+    : []
+  const inputFacts = {
+    focused: inputInteraction.focused,
+    focusVisible: inputInteraction.focusVisible,
+    disabled: false,
+    enabled: true,
+    readOnly: false,
+    'aria-disabled': false,
+    'aria-selected': false,
+    'aria-checked': false,
+    'aria-expanded': open,
+  } satisfies ComboboxInputSlotFacts
+
   return (
-    <View style={[hozoClasses(className), style]}>
+    <View style={rootBox}>
       <TextInput
-        style={hozoClasses(inputClassName, { 'aria-expanded': open })}
+        style={[
+          rootText,
+          hozoClasses(inputClassName, inputFacts),
+          hozoInputStyle?.(inputFacts),
+          inputStyle as StyleProp<TextStyle>,
+        ]}
         accessibilityRole="combobox"
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ expanded: open }}
@@ -83,40 +128,67 @@ export function HozoCombobox<T>({
         onChangeText={(text: string) => {
           setQuery(text)
           setOpen(true)
+          setActive(null)
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={inputHandlers.focus}
+        onBlur={() => {
+          inputHandlers.blur()
+          close()
+        }}
+        onPointerDown={inputHandlers.pointerDown}
+        onPressIn={inputHandlers.pointerDown}
+        onKeyDown={inputHandlers.keyDown}
+        onKeyPress={({ nativeEvent: { key } }) => {
+          inputHandlers.keyDown()
+          // Reuse the Web active-index rule. Delivery of a hardware arrow key
+          // is platform-owned; a committed value is not a highlighted option.
+          if (key === 'ArrowDown' || key === 'ArrowUp') {
+            setOpen(true)
+            setActive(activeAfter(key, open ? active : null, visible.length))
+          } else if (key === 'Enter' && open && active !== null) {
+            commit(visible[active] ?? -1)
+          } else if (key === 'Escape') {
+            if (open) close()
+            else setQuery('')
+          }
+        }}
       />
       {open ? (
-        <View
-          accessibilityRole="list"
-          accessibilityLabel={accessibilityLabel}
-          style={[hozoClasses(listClassName), listStyle]}
-        >
+        <View accessibilityRole="list" accessibilityLabel={accessibilityLabel} style={listBox}>
           {visible.length === 0
             ? emptyMessage
-            : visible.map((index) => {
+            : visible.map((index, at) => {
                 const option = options[index]
                 if (!option) return null
-                const look = (interaction: InteractionState) =>
-                  splitTextStyle(
-                    hozoClasses(optionClassName, {
-                      ...interaction,
-                      disabled: Boolean(option.disabled),
-                      'aria-selected': option.value === value,
-                      'aria-disabled': Boolean(option.disabled),
-                    }),
-                  )
+                // A Native menuitem announces disabled, but its Web div does
+                // not become :disabled/:enabled or own DOM focus as a result.
+                const look = (interaction: InteractionState) => {
+                  const facts = {
+                    hovered: interaction.hovered,
+                    pressed: interaction.pressed,
+                    ...nonControlSlotFacts,
+                    'aria-selected': at === active,
+                    'aria-disabled': Boolean(option.disabled),
+                  } satisfies OptionState
+                  return splitTextStyle([
+                    rootText,
+                    listText,
+                    hozoClasses(optionClassName, facts),
+                    hozoOptionStyle?.(facts),
+                    optionStyle,
+                  ])
+                }
                 const content = option.render ?? option.label
                 return (
                   <Pressable
                     key={`option-${index}`}
                     accessibilityRole="menuitem"
                     accessibilityState={{
-                      selected: option.value === value,
+                      selected: at === active,
                       disabled: option.disabled,
                     }}
                     disabled={option.disabled}
-                    style={(interaction) => [look(interaction)[0], optionStyle]}
+                    style={(interaction) => look(interaction)[0]}
                     onPress={() => commit(index)}
                   >
                     {(interaction) =>

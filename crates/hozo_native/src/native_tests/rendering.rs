@@ -1,6 +1,48 @@
 use super::*;
 
 #[test]
+fn combobox_slots_lower_to_independent_pattern_owners() {
+    let source = r#"import { Combobox } from '@hozo/core'; const el = <Combobox options={options}
+        className="read-only:rounded-lg disabled:opacity-25"
+        inputClassName="focus:opacity-50 focus-visible:outline-2 enabled:px-3 aria-expanded:border-2"
+        listClassName="read-only:rounded-lg not-disabled:mt-2"
+        optionClassName="hover:opacity-50 aria-selected:border-2 aria-disabled:opacity-25 read-only:rounded-lg" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<HozoCombobox"), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoInputStyle="), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoOptionStyle="), "{}", out.jsx);
+    assert!(out.jsx.contains("listStyle="), "{}", out.jsx);
+    assert!(out.jsx.contains("'aria-expanded': __hozoSlotAriaExpanded"));
+    assert!(out.jsx.contains("'aria-selected': __hozoSlotAriaSelected"));
+    assert!(out.runtime_imports.contains(&"HozoCombobox"));
+}
+
+#[test]
+fn combobox_does_not_lend_events_between_input_list_and_option() {
+    for (slot, variant) in [
+        ("inputClassName", "hover"),
+        ("inputClassName", "not-active"),
+        ("optionClassName", "focus"),
+        ("optionClassName", "not-focus-visible"),
+        ("listClassName", "not-hover"),
+        ("className", "focus"),
+    ] {
+        let source = format!("import {{ Combobox }} from '@hozo/core'; const el = <Combobox options={{options}} {slot}=\"{variant}:opacity-50\" />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+            "{slot}/{variant}: {:?}",
+            out.diagnostics
+        );
+    }
+}
+
+#[test]
 fn decorative_pattern_semantics_belong_to_the_child_not_the_parent_control() {
     let slots = [
         ("Stepper", "indicatorClassName"),

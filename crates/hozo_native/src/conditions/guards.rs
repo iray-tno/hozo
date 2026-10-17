@@ -115,6 +115,9 @@ pub(super) fn resolve(
             if pattern_owner.as_ref().is_some_and(|slot| !slot.focus)
                 && matches!(condition, Condition::Focus | Condition::FocusVisible)
             {
+                if node.primitive == Primitive::Combobox {
+                    return Err("Combobox option focus is not wired on Native: DOM focus stays on the input; option highlight is aria-selected, not focus.".into());
+                }
                 return Err(format!(
                     "`{}:` on CommandPalette's item slots is not wired on Native: the Web input keeps focus, not its option. Native button focus is a different owner; use activeItemClassName for the return-key target instead of borrowing input focus.",
                     condition_suffix(condition).unwrap_or_default(),
@@ -123,6 +126,9 @@ pub(super) fn resolve(
             if pattern_owner.as_ref().is_some_and(|slot| !slot.pointer)
                 && matches!(condition, Condition::Pressed | Condition::Hover)
             {
+                if node.primitive == Primitive::Combobox {
+                    return Err("Combobox input pointer state is not wired on Native: only the actual field's focus/modality is observed; option hover/press is not borrowed.".into());
+                }
                 return Err(format!(
                     "`{}:` on OtpInput's input slot is not wired on Native: only input focus/modality is observed. Wrapper hover/press is a different owner and is not borrowed by the input or cells.",
                     condition_suffix(condition).unwrap_or_default(),
