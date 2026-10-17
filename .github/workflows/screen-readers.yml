@@ -100,15 +100,34 @@ jobs:
             sw_vers
             csrutil status
             # Only osascript's requests: the rest of TCC's traffic (AddressBook
-            # and the like) buries them. The first run that used this found
-            # /opt/hca/hosted-compute-agent responsible, a path Guidepup does
-            # not pre-grant.
+            # and the like) buries them. The first runs that used this found
+            # /opt/hca/hosted-compute-agent responsible every time.
             sudo log show --last 10m --style compact --predicate 'subsystem == "com.apple.TCC"' 2>&1 \
               | grep AUTHREQ_ATTRIBUTION | grep 'requesting={TCCDProcess: identifier=com.apple.osascript' > "$RUNNER_TEMP/tcc.log"
             echo 'responsible for osascript (count, path):'
             grep -o 'responsible_path=[^,]*' "$RUNNER_TEMP/tcc.log" | sort | uniq -c
             tail -5 "$RUNNER_TEMP/tcc.log"
             echo '::endgroup::'
+          }
+          # Guidepup does write this grant for /opt/hca/hosted-compute-agent,
+          # the process TCC holds responsible here (#631) -- but with
+          # `INSERT OR IGNORE`, so a row the image already has for that pair,
+          # denied, survives it. Say what the row is, then make it a grant.
+          # SIP is off on GitHub's images, which is how Guidepup writes too.
+          grant_agent() {
+            [ "$RUNNER_OS" = macOS ] || return 0
+            local agent=/opt/hca/hosted-compute-agent now
+            now=$(date +%s)
+            for db in "$HOME/Library/Application Support/com.apple.TCC/TCC.db" \
+              '/Library/Application Support/com.apple.TCC/TCC.db'; do
+              echo "System Events grants in $db (client | auth_value | auth_reason):"
+              sudo sqlite3 -separator ' | ' "$db" \
+                "SELECT client, auth_value, auth_reason FROM access WHERE service = 'kTCCServiceAppleEvents' AND indirect_object_identifier = 'com.apple.systemevents';"
+              sudo sqlite3 "$db" \
+                "UPDATE access SET auth_value = 2, auth_reason = 3, last_modified = $now WHERE service = 'kTCCServiceAppleEvents' AND client = '$agent' AND indirect_object_identifier = 'com.apple.systemevents';
+                 INSERT OR IGNORE INTO access VALUES('kTCCServiceAppleEvents','$agent',1,2,3,1,NULL,NULL,0,'com.apple.systemevents',NULL,NULL,$now,NULL,NULL,'UNUSED',$now);"
+            done
+            sleep 1
           }
           verify() {
             [ "$RUNNER_OS" = macOS ] || return 0
@@ -134,6 +153,7 @@ jobs:
           }
           for attempt in 1 2 3; do
             if npx -y @guidepup/setup@0.25.3 setup --macos-record; then
+              grant_agent
               verify && exit 0
             else
               echo "setup attempt $attempt exited non-zero"
