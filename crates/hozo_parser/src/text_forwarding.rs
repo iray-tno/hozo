@@ -439,12 +439,22 @@ impl Classes {
     }
 }
 
+/// What a constant's name stands for: a class list, or an object of class
+/// lists picked by a prop (`tones[tone]`, the shape `cva`-style libraries
+/// write by hand). Kept apart so a map named where a class list belongs is
+/// refused rather than read as one.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum Named {
+    Classes(Classes),
+    Map(BTreeMap<String, Classes>),
+}
+
 /// What a class expression can refer to: the props, the module's imports,
 /// and the constants already read, module-level and then the component's own.
 struct Scope<'a> {
     params: &'a Params,
     module: &'a ModuleRecord<'a>,
-    constants: &'a BTreeMap<String, Classes>,
+    constants: &'a BTreeMap<String, Named>,
 }
 
 fn read_classes(expr: &Expression, scope: &Scope) -> Option<Classes> {
@@ -465,7 +475,11 @@ fn read_classes(expr: &Expression, scope: &Scope) -> Option<Classes> {
         Expression::Identifier(id) if id.name == "className" => {
             Some(Classes::Literal(String::new()))
         }
-        Expression::Identifier(id) => scope.constants.get(id.name.as_str()).cloned(),
+        Expression::Identifier(id) => match scope.constants.get(id.name.as_str())? {
+            Named::Classes(classes) => Some(classes.clone()),
+            Named::Map(_) => None,
+        },
+        Expression::ComputedMemberExpression(member) => read_lookup(member, scope),
         Expression::ConditionalExpression(conditional) => {
             // `className ? `${own} ${className}` : own` -- the two branches
             // differ by the caller's part only, which is left out anyway.
@@ -493,13 +507,71 @@ fn read_classes(expr: &Expression, scope: &Scope) -> Option<Classes> {
     }
 }
 
+/// `tones[tone]`: one comparison per key, the way the `if` chain it replaces
+/// would be written. A value with no key reads `undefined`, which every
+/// join drops, so it falls through to nothing.
+fn read_lookup(member: &oxc_ast::ast::ComputedMemberExpression, scope: &Scope) -> Option<Classes> {
+    let (Expression::Identifier(map), Expression::Identifier(prop)) = (
+        member.object.without_parentheses(),
+        member.expression.get_inner_expression(),
+    ) else {
+        return None;
+    };
+    let Named::Map(entries) = scope.constants.get(map.name.as_str())? else {
+        return None;
+    };
+    if !scope.params.props.contains_key(prop.name.as_str()) {
+        return None;
+    }
+    let mut classes = Classes::Literal(String::new());
+    for (key, value) in entries.iter().rev() {
+        classes = Classes::Choice {
+            when: Comparison {
+                prop: prop.name.to_string(),
+                value: key.clone(),
+            },
+            then: Box::new(value.clone()),
+            otherwise: Box::new(classes),
+        };
+    }
+    Some(classes)
+}
+
+/// `{ accent: '…', neutral: '…' }`, with `as const` or `satisfies` allowed
+/// around it. Every key has to be written out and every value has to be a
+/// class list: a map with one unreadable entry would hand down the wrong
+/// look for the value that picks it.
+fn read_map(expr: &Expression, scope: &Scope) -> Option<BTreeMap<String, Classes>> {
+    let Expression::ObjectExpression(object) = expr.get_inner_expression() else {
+        return None;
+    };
+    let mut entries = BTreeMap::new();
+    for property in &object.properties {
+        let oxc_ast::ast::ObjectPropertyKind::ObjectProperty(property) = property else {
+            return None;
+        };
+        if property.method || property.kind != oxc_ast::ast::PropertyKind::Init {
+            return None;
+        }
+        let key = match &property.key {
+            oxc_ast::ast::PropertyKey::StaticIdentifier(id) if !property.computed => {
+                id.name.to_string()
+            }
+            oxc_ast::ast::PropertyKey::StringLiteral(lit) => lit.value.to_string(),
+            _ => return None,
+        };
+        entries.insert(key, read_classes(&property.value, scope)?);
+    }
+    (!entries.is_empty()).then_some(entries)
+}
+
 /// `const name = <class expression>`, for every declarator that is one.
 /// Anything else is skipped, not refused: a constant nothing reads is not
 /// this reader's concern, and one that is read and missing refuses there.
 fn read_constants(
     declaration: &oxc_ast::ast::VariableDeclaration,
     scope: &Scope,
-    into: &mut BTreeMap<String, Classes>,
+    into: &mut BTreeMap<String, Named>,
 ) {
     if declaration.kind != oxc_ast::ast::VariableDeclarationKind::Const {
         return;
@@ -511,7 +583,9 @@ fn read_constants(
             continue;
         };
         if let Some(classes) = read_classes(init, scope) {
-            into.insert(id.name.to_string(), classes);
+            into.insert(id.name.to_string(), Named::Classes(classes));
+        } else if let Some(entries) = read_map(init, scope) {
+            into.insert(id.name.to_string(), Named::Map(entries));
         }
     }
 }
@@ -530,7 +604,7 @@ struct Host {
 fn read_arrow(
     arrow: &ArrowFunctionExpression,
     module: &ModuleRecord,
-    module_constants: &BTreeMap<String, Classes>,
+    module_constants: &BTreeMap<String, Named>,
 ) -> Option<ForwardingComponent> {
     if arrow.r#async {
         return None;
@@ -562,7 +636,7 @@ fn read_component(
     params: &FormalParameters,
     statements: &[Statement],
     module: &ModuleRecord,
-    module_constants: &BTreeMap<String, Classes>,
+    module_constants: &BTreeMap<String, Named>,
 ) -> Option<ForwardingComponent> {
     let params = read_params(params)?;
     let mut constants = module_constants.clone();
@@ -1186,6 +1260,90 @@ export const Direct = ({children}) => <View className=\"text-lg\">{children}</Vi
             assert!(
                 summarize_text_forwarding(&source).components.is_empty(),
                 "{definition}"
+            );
+        }
+    }
+
+    #[test]
+    fn an_object_map_reads_as_the_chain_it_replaces() {
+        let chain = button(
+            "  return <Host {...rest} disabled={disabled} className={cx('font-semibold', tone === 'accent' ? 'text-white hover:text-red-500' : tone === 'neutral' ? 'text-black' : '', size === 'sm' ? 'text-sm' : size === 'md' ? 'text-base' : '', className)} />",
+        );
+        let map = button(
+            "  const sizes = { sm: 'text-sm', 'md': 'text-base' }
+  return <Host {...rest} disabled={disabled} className={cx('font-semibold', tones[tone], sizes[size as Size], className)} />",
+        )
+        .replace(
+            "export function",
+            "const tones = { accent: 'text-white hover:text-red-500', neutral: 'text-black' } as const satisfies Record<Tone, string>\nexport function",
+        );
+        let expected = summarize_text_forwarding(&chain);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(expected.components[0].variants.len(), 4);
+        assert_eq!(summarize_text_forwarding(&map), expected);
+    }
+
+    #[test]
+    fn a_value_the_map_has_no_key_for_hands_down_nothing_from_it() {
+        // The default is not a key: `tones['plain']` is undefined, which
+        // the join drops.
+        let source =
+            button("  return <Host {...rest} className={`text-sm ${tones[tone]} ${className}`} />")
+                .replace("tone = 'neutral'", "tone = 'plain'")
+                .replace(
+                    "export function",
+                    "const tones = { accent: 'text-white' }\nexport function",
+                );
+        let summary = summarize_text_forwarding(&source);
+        let [component] = summary.components.as_slice() else {
+            panic!("{summary:?}")
+        };
+        let classes: Vec<_> = component
+            .variants
+            .iter()
+            .map(|v| (v.when.join(","), v.classes.as_str()))
+            .collect();
+        assert_eq!(
+            classes,
+            [
+                ("accent".to_string(), "text-sm text-white"),
+                ("plain".to_string(), "text-sm"),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_map_it_cannot_read_whole_gives_no_entry() {
+        for (map, class_name) in [
+            // A spread could hold any key.
+            ("{ ...base, accent: 'text-white' }", "tones[tone]"),
+            // A computed key is a value the reader would have to guess.
+            ("{ [accent]: 'text-white' }", "tones[tone]"),
+            ("{ accent() { return 'text-white' } }", "tones[tone]"),
+            // One unreadable entry is a wrong look for the value that picks it.
+            (
+                "{ accent: 'text-white', neutral: compute() }",
+                "tones[tone]",
+            ),
+            ("{}", "tones[tone]"),
+            // Picked by something other than a prop.
+            ("{ accent: 'text-white' }", "tones[other]"),
+            ("{ accent: 'text-white' }", "tones['accent' + tone]"),
+            // A map named where a class list belongs.
+            ("{ accent: 'text-white' }", "tones"),
+            ("{ accent: 'text-white' }", "tones.accent"),
+            ("['text-white']", "tones[tone]"),
+        ] {
+            let source = button(&format!(
+                "  return <Host {{...rest}} className={{cx({class_name}, className)}} />"
+            ))
+            .replace(
+                "export function",
+                &format!("const tones = {map}\nexport function"),
+            );
+            assert!(
+                summarize_text_forwarding(&source).components.is_empty(),
+                "{map} / {class_name}"
             );
         }
     }
