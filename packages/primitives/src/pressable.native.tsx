@@ -1,7 +1,11 @@
-import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import {
+  HozoInteractionContext,
+  usePressableInteraction,
+} from '@hozo/behaviors/pressable-interaction'
 import { blendColor } from '@hozo/engine'
 import {
   Children,
+  type Context,
   cloneElement,
   createContext,
   type ElementType,
@@ -128,7 +132,8 @@ export function pressableFor(transition: HozoTransition | undefined): ElementTyp
 }
 const AnimatedText = Animated.createAnimatedComponent(Text)
 type InteractionContextValue = HozoPressableState & { transition?: HozoTransition }
-const InteractionContext = createContext<InteractionContextValue | null>(null)
+// Shared with `@hozo/patterns`' pressable, which provides it too (#974).
+const InteractionContext = HozoInteractionContext as Context<InteractionContextValue | null>
 type AnimationDriver = { current: ((state: HozoPressableState) => void) | null }
 const AnimationDriverContext = createContext<AnimationDriver | null>(null)
 

@@ -124,7 +124,8 @@
           "classes": "relative block w-full text-left text-sm leading-6 text-hozo-text rounded-hozo-control ps-9 pe-3 py-2 cursor-pointer hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:text-hozo-text-subtle disabled:hover:bg-transparent disabled:cursor-not-allowed"
         }
       ],
-      "disabledProp": "disabled"
+      "disabledProp": "disabled",
+      "hostStates": true
     },
     "HozoAlert": {
       "props": [
@@ -249,7 +250,8 @@
           "classes": "relative block w-full text-left text-sm leading-6 text-hozo-text rounded-hozo-control ps-9 pe-3 py-2 cursor-pointer hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:text-hozo-text-subtle disabled:hover:bg-transparent disabled:cursor-not-allowed"
         }
       ],
-      "disabledProp": "disabled"
+      "disabledProp": "disabled",
+      "hostStates": true
     },
     "HozoSwitch": {
       "props": [],
@@ -259,7 +261,8 @@
           "classes": "relative block w-full text-left text-sm leading-6 text-hozo-text rounded-hozo-control ps-11 pe-3 py-2 cursor-pointer hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:text-hozo-text-subtle disabled:hover:bg-transparent disabled:cursor-not-allowed"
         }
       ],
-      "disabledProp": "disabled"
+      "disabledProp": "disabled",
+      "hostStates": true
     },
     "Switch": {
       "props": [],
@@ -269,7 +272,8 @@
           "classes": "relative block w-full text-left text-sm leading-6 text-hozo-text rounded-hozo-control ps-11 pe-3 py-2 cursor-pointer hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:text-hozo-text-subtle disabled:hover:bg-transparent disabled:cursor-not-allowed"
         }
       ],
-      "disabledProp": "disabled"
+      "disabledProp": "disabled",
+      "hostStates": true
     }
   }
 }

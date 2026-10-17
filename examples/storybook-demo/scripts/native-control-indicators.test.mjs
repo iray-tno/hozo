@@ -135,7 +135,10 @@ const probeSources = [
   exportsFrom('HozoChip', 'packages/patterns/src/chip.native.tsx'),
   exportsFrom('HozoOtpInput', 'packages/patterns/src/otp-input.native.tsx'),
   exportsFrom('HozoNavigationProvider', 'packages/engine/src/navigation-context.tsx'),
-  exportsFrom('usePressableInteraction', 'packages/behaviors/src/pressable-interaction.ts'),
+  exportsFrom(
+    'usePressableInteraction, HozoInteractionContext',
+    'packages/behaviors/src/pressable-interaction.ts',
+  ),
 ]
 const bundled = await build({
   stdin: {
@@ -230,7 +233,7 @@ const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.ex
 const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
 const { HozoColorPicker, HozoStepper } = module.exports
 const { HozoChip, HozoOtpInput } = module.exports
-const { usePressableInteraction, UiTree } = module.exports
+const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
 const indicators = (tree) =>
@@ -295,6 +298,41 @@ test('Native checkbox paints all three real indicators, also when disabled', asy
       }
       assert.equal(tree.root.findByType('NativeText').children.join(''), 'Updates')
     }
+})
+
+// #974. A Text a caller nests in the label reads the pattern's state the
+// way it would inside the primitive's pressable: through the shared context
+// `HozoText` reads, so a component's `hover:` text classes reach it.
+test('a Text nested in a Native checkbox or switch label reads its pressable state', async (t) => {
+  const seen = []
+  const Label = () => {
+    const state = React.useContext(HozoInteractionContext)
+    seen.push(state)
+    return React.createElement('NativeText', null, 'Updates')
+  }
+  for (const Component of [HozoCheckbox, HozoSwitch]) {
+    seen.length = 0
+    let tree
+    await act(() => {
+      tree = create(React.createElement(Component, {}, React.createElement(Label)))
+    })
+    t.after(async () => {
+      await act(() => tree.unmount())
+    })
+    const host = () => tree.root.findByType('NativePressable')
+    assert.deepEqual(seen.at(-1), {
+      pressed: false,
+      hovered: false,
+      focused: false,
+      focusVisible: false,
+    })
+    await act(() => host().props.onHoverIn({}))
+    assert.equal(seen.at(-1)?.hovered, true, 'hovered')
+    await act(() => host().props.onHoverOut({}))
+    await act(() => host().props.onKeyDown({}))
+    await act(() => host().props.onFocus({}))
+    assert.equal(seen.at(-1)?.focusVisible, true, 'focused from the keyboard')
+  }
 })
 
 test('Native uncontrolled checkbox changes its mark; a controlled one waits for its owner', async (t) => {
