@@ -1,4 +1,5 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import {
@@ -16,13 +17,14 @@ import type { HozoCommand } from './command-palette.tsx'
 import { currentCommand, rankCommands } from './command-rules.ts'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import type { CommandPaletteSlotFacts } from './slot-facts.native.ts'
+import type { CommandInputSlotFacts, CommandPaletteSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { HozoCommand }
 
 type Style = StyleProp<ViewStyle | TextStyle>
 type ItemState = InteractionState & CommandPaletteSlotFacts
+type InputState = Pick<InteractionState, 'focused' | 'focusVisible'> & CommandInputSlotFacts
 
 export interface HozoCommandPaletteProps {
   open?: boolean
@@ -61,6 +63,8 @@ export interface HozoCommandPaletteProps {
   hozoItemStyle?: (state: ItemState) => Style
   /** @internal The return-key target's look, not an input-focus proxy. */
   hozoActiveItemStyle?: (state: ItemState) => Style
+  /** @internal Only the real search field supplies focus and editable-input facts. */
+  hozoInputStyle?: (state: InputState) => Style
   testID?: string
 }
 
@@ -103,18 +107,23 @@ export function HozoCommandPalette({
   emptyStyle,
   hozoItemStyle,
   hozoActiveItemStyle,
+  hozoInputStyle,
   testID,
 }: HozoCommandPaletteProps) {
   const message = useHozoMessage()
   const { locale } = useHozoI18n()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState<number | null>(null)
+  const { state: inputInteraction, handlers: inputHandlers } = usePressableInteraction({
+    focusVisible: 'keyboard-input',
+  })
   useEffect(() => {
     if (!open) {
       setQuery('')
       setActive(null)
+      inputHandlers.blur()
     }
-  }, [open])
+  }, [open, inputHandlers])
 
   const ranked = rankCommands(commands, query, locale)
   const groups: { name: string | undefined; members: number[] }[] = []
@@ -153,6 +162,19 @@ export function HozoCommandPalette({
   const [rootBox, rootText] = splitTextStyle([hozoClasses(className), style])
   const [panelBox, ownText] = splitTextStyle([hozoClasses(panelClassName), panelStyle])
   const panelText = { ...rootText, ...ownText }
+  // The Web input is editable and aria-expanded while the palette is mounted.
+  // Omit unmeasured pointer facts, even from a compiled residual callback.
+  const inputFacts = {
+    focused: inputInteraction.focused,
+    focusVisible: inputInteraction.focusVisible,
+    disabled: false,
+    enabled: true,
+    readOnly: false,
+    'aria-disabled': false,
+    'aria-selected': false,
+    'aria-checked': false,
+    'aria-expanded': true,
+  } satisfies CommandInputSlotFacts
 
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={close}>
@@ -177,6 +199,11 @@ export function HozoCommandPalette({
           style={panelBox}
         >
           <TextInput
+            onFocus={inputHandlers.focus}
+            onBlur={inputHandlers.blur}
+            onPointerDown={inputHandlers.pointerDown}
+            onPressIn={inputHandlers.pointerDown}
+            onKeyDown={inputHandlers.keyDown}
             value={query}
             onChangeText={(text) => {
               setQuery(text)
@@ -189,7 +216,12 @@ export function HozoCommandPalette({
             autoCapitalize="none"
             returnKeyType="go"
             onSubmitEditing={() => run(current)}
-            style={[panelText, hozoClasses(inputClassName), inputStyle as StyleProp<TextStyle>]}
+            style={[
+              panelText,
+              hozoClasses(inputClassName, inputFacts),
+              hozoInputStyle?.(inputFacts),
+              inputStyle as StyleProp<TextStyle>,
+            ]}
           />
           <ScrollView
             keyboardShouldPersistTaps="handled"

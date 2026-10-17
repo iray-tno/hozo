@@ -45,6 +45,7 @@ const reads = {
     'packages/patterns/src/chip-row-interaction.native.ts',
     'packages/patterns/src/text-style.native.ts',
     'packages/patterns/src/otp-input.native.tsx',
+    'packages/behaviors/src/pressable-interaction.ts',
     'packages/patterns/src/otp-input.tsx',
     'packages/patterns/src/otp-rules.ts',
     'packages/patterns/src/command-palette.native.tsx',

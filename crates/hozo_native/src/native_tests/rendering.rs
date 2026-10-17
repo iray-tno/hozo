@@ -1627,7 +1627,23 @@ fn guarded_secondary_slots_share_capture_and_owner_routes() {
             checked += 1;
         }
     }
-    assert_eq!(checked, 13);
+    assert_eq!(checked, 14);
+}
+
+#[test]
+fn command_search_owns_focus_and_form_facts_but_not_unmeasured_pointer_events() {
+    for variant in ["hover", "not-hover", "active", "not-active"] {
+        let source = format!("import {{ CommandPalette }} from '@hozo/core'; const el = <CommandPalette commands={{[]}} inputClassName=\"{variant}:opacity-50\" />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+            "{variant}: {:?}",
+            out.diagnostics
+        );
+    }
 }
 
 #[test]
@@ -2611,6 +2627,7 @@ fn command_option_semantics_are_not_native_button_pseudo_classes() {
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
         if [
+            "inputClassName",
             "shortcutClassName",
             "groupHeadingClassName",
             "emptyClassName",
@@ -2624,7 +2641,7 @@ fn command_option_semantics_are_not_native_button_pseudo_classes() {
             );
             assert!(
                 !output.jsx.contains("_ariaselected"),
-                "a decoration is never selected: {}",
+                "this owner is never selected: {}",
                 output.jsx
             );
             continue;

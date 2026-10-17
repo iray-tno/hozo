@@ -143,6 +143,14 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    fallback retains root typography and explicit style precedence without
    borrowing a surrounding control's events. Avatar's root is still unaudited.
 
+   The real CommandPalette search field uses OTP's existing keyboard-input
+   focus policy and shared TextInput form-fact profile. While mounted on Web it
+   is enabled, editable and aria-expanded; its options never lend it selected
+   or pointer state. Closing resets its own focus as well as the query. Callback
+   semantic parameters are generated per slot, not from the union of sibling
+   owners' profiles. Source input callbacks omit unmeasured pointer keys so
+   opaque/mixed candidates can still diagnose missing hover/press facts.
+
    Every exported top-level pattern class prop needs an ownership disposition,
    but not every component needs a behavioral patch. Auditing a new owner can
    reuse a reviewed profile, record a component-managed route, or leave an

@@ -137,8 +137,14 @@ ${mappings.join('\n')}
         byProfile.set(slot.profile, grouped)
       }
       if (slot.callback) {
-        for (const [fact, binding] of Object.entries(facts[slot.profile].facts)) {
-          if (typeof binding !== 'boolean') supplied.set(fact, binding.alias)
+        const aliases = Object.entries(facts[slot.profile].facts)
+          .filter(([, binding]) => typeof binding !== 'boolean')
+          .map(([fact, binding]) => `, ${key(fact)}: ${binding.alias}`)
+          .join('')
+        if (aliases) {
+          const names = supplied.get(aliases) ?? []
+          names.push(quoted(slot.classProp))
+          supplied.set(aliases, names)
         }
         interactions.push(
           `        (Primitive::${component}, ${quoted(slot.classProp)}) => Some(InteractionSlot { style_prop: ${quoted(slot.callback)}, focus: ${slot.focus}, pointer: ${slot.pointer}, optional_owner: ${slot.optionalOwner ? `Some(${quoted(slot.optionalOwner)})` : 'None'} }),`,
@@ -157,9 +163,9 @@ ${mappings.join('\n')}
           .join('\n')}\n            _ => None,\n        },`,
       )
     }
-    if (supplied.size)
+    for (const [aliases, names] of supplied)
       parameters.push(
-        `        Primitive::${component} => ${quoted([...supplied].map(([fact, alias]) => `, ${key(fact)}: ${alias}`).join(''))},`,
+        `        (Primitive::${component}, ${names.join(' | ')}) => ${quoted(aliases)},`,
       )
   }
   const native = `${header}
@@ -170,8 +176,8 @@ ${semantics.join('\n')}
     }
 }
 
-pub(super) fn semantic_parameters(primitive: Primitive) -> &'static str {
-    match primitive {
+pub(super) fn semantic_parameters(primitive: Primitive, class_prop: &str) -> &'static str {
+    match (primitive, class_prop) {
 ${parameters.join('\n')}
         _ => "",
     }

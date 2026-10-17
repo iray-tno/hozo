@@ -63,6 +63,7 @@ test('dynamic secondary pattern classes reach their registered slot owner withou
     ['Stepper', 'errorStepClassName', 'errorStepStyle'],
     ['CommandPalette', 'itemClassName', 'itemStyle'],
     ['CommandPalette', 'activeItemClassName', 'activeItemStyle'],
+    ['CommandPalette', 'inputClassName', 'inputStyle'],
     ['OtpInput', 'inputClassName', 'inputStyle'],
   ]) {
     const output = transformHozoSource(
@@ -137,6 +138,7 @@ test('mixed secondary expressions retain AOT and source-ordered guards on regist
     ['ColorPicker', 'swatchClassName', 'hover'],
     ['Stepper', 'stepClassName', 'hover'],
     ['CommandPalette', 'itemClassName', 'hover'],
+    ['CommandPalette', 'inputClassName', 'focus'],
     ['OtpInput', 'inputClassName', 'focus'],
   ]) {
     const output = transformHozoSource(
@@ -202,7 +204,7 @@ export function C() { return <Avatar name="Ada" ${name}ClassName="${variant}:opa
       )
 })
 
-test('CommandPalette pointer slots use the theme, while input-owned focus still refuses the build', () => {
+test('CommandPalette pointer slots use the theme, while option focus still refuses the build', () => {
   const compiler = createCompiler({
     colors: [{ token: 'brand', oklch: '#123456', hex: '#123456' }],
   })
@@ -276,6 +278,26 @@ export function C() { return <OtpInput accessibilityLabel="Code"
       /different owner/,
     )
   }
+})
+
+test('CommandPalette input focus and form predicates belong to the field, not its options', () => {
+  const compiler = createCompiler({
+    colors: [{ token: 'brand', oklch: '#123456', hex: '#123456' }],
+  })
+  const source = `import { CommandPalette } from '@hozo/core'
+export function C() {return <CommandPalette open commands={commands}
+  inputClassName="p-2 enabled:px-3 disabled:opacity-25 read-only:rounded-lg aria-expanded:border-2 aria-selected:mb-8 focus:bg-brand focus-visible:outline-2 not-focus:opacity-50"
+  inputStyle={extra} />}`
+  const output = transformHozoSource(source, 'Commands.tsx', undefined, compiler)
+  assert.ok(output)
+  assert.match(output, /hozoInputStyle=\{\(\{ pressed, hovered, focused, focusVisible \}\) =>/)
+  assert.match(output, /focused &&/)
+  assert.match(output, /focusVisible &&/)
+  assert.match(output, /!\(focused\) &&/)
+  assert.match(output, /backgroundColor: '#123456'/)
+  assert.match(output, /inputStyle=\{extra\}/)
+  assert.doesNotMatch(output, /hozoClasses|candidate|inputClassName=/)
+  assert.doesNotMatch(output, /&& hozoStyles\.\w+_(disabled|readonly|ariaselected)/)
 })
 
 test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {

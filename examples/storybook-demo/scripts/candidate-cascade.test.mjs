@@ -2173,6 +2173,156 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
   }
 })
 
+// A real component on one page and an independent raw Tailwind input on
+// another: a modal focus trap must not pull focus away from the oracle.
+async function patternInputFixture(component, own, props) {
+  const negative = 'enabled:px-3 not-focus:mb-2'
+  const expression = (mode) =>
+    mode === 'literal'
+      ? JSON.stringify(`${own} ${negative}`)
+      : mode === 'opaque'
+        ? `{getClasses('${mode}', ${JSON.stringify(own)})}`
+        : `{cx('p-2 rounded-none opacity-100 ${negative}',getClasses('${mode}',${JSON.stringify(own.replace('p-2 rounded-none opacity-100 ', ''))}))}`
+  const source = `import {View,${component},cx} from '@hozo/core'; const C=()=> <View>
+    ${['literal', 'opaque', 'mixed']
+      .map(
+        (mode) => `<View testID="${mode}"><${component} ${props(mode)}
+      inputClassName=${expression(mode)} /></View>`,
+      )
+      .join('')}
+  </View>`
+  const web = compiler.compile(source)[0]
+  assert.equal(web.diagnostics.length, 1)
+  const [diagnostic] = web.diagnostics
+  assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
+  assert.equal(diagnostic.severity, 'warning')
+  assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed'/)
+  const names = `${own} ${negative}`.split(' ')
+  const candidates = openCandidateCache(path.join(directory, `${component}-input.json`))
+  const candidateCss = candidates.renderCss(undefined, names)
+  const oracleCss = (
+    await compile('@theme {--spacing:0.25rem;--radius-lg:0.5rem;} @tailwind utilities;')
+  ).build(names)
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+      import {${component} as Hozo${component}} from '@hozo/patterns';
+      const root=createRoot(document.getElementById('root'));
+      function Example({mode='literal',open=true,disabled=false,stamp}) {
+        window.calls=[];
+        const getClasses=(name,value)=>{window.calls.push(name);return value};
+        const commands=[{id:'a',label:'Alpha',onSelect:()=>{}},{id:'b',label:'Beta',onSelect:()=>{}}];
+        return <section data-stamp={stamp}>${web.jsx}</section>;
+      }
+      window.show=value=>root.render(<Example {...value}/>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  return { web, candidateCss, oracleCss, bundle, rawClasses: `${own} ${negative}` }
+}
+
+const readPatternInput = (locator) =>
+  locator.evaluate((e) => {
+    const s = getComputedStyle(e)
+    return [
+      s.paddingLeft,
+      s.paddingTop,
+      s.opacity,
+      s.borderRadius,
+      s.borderTopWidth,
+      s.outlineWidth,
+      s.marginTop,
+      s.marginBottom,
+    ]
+  })
+
+async function comparePatternInput(page, oracle, field, raw, focused) {
+  await page.bringToFront()
+  if (focused) await field.focus()
+  else await field.evaluate((e) => e.blur())
+  const actual = await readPatternInput(field)
+  await oracle.bringToFront()
+  if (focused) await raw.focus()
+  else await raw.evaluate((e) => e.blur())
+  assert.deepEqual(actual, await readPatternInput(raw))
+  await page.bringToFront()
+  return actual
+}
+
+test('CommandPalette real input matches independent Tailwind across focus and class routes', {
+  skip: !executablePath,
+}, async () => {
+  const own =
+    'p-2 rounded-none opacity-100 border-0 focus:opacity-50 focus-visible:outline-2 disabled:opacity-25 read-only:rounded-lg aria-expanded:border-2 aria-disabled:mt-4 aria-selected:mb-8'
+  const fixture = await patternInputFixture(
+    'CommandPalette',
+    own,
+    (mode) => `open={open && mode==='${mode}'} portal={false} commands={commands}`,
+  )
+  const page = await browser.newPage()
+  const oracle = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await oracle.setContent(
+      `<style>html{font-size:16px}</style><style>${fixture.oracleCss}</style><input id="oracle" type="text" role="combobox" aria-expanded="true" class="${fixture.rawClasses}"/>`,
+    )
+    const raw = oracle.locator('#oracle')
+    for (const sheets of [
+      [fixture.web.css, fixture.candidateCss],
+      [fixture.candidateCss, fixture.web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div>`,
+      )
+      await page.addScriptTag({ content: fixture.bundle.outputFiles[0].text })
+      for (const mode of ['literal', 'opaque', 'mixed']) {
+        const show = async (open, stamp) => {
+          await page.evaluate((props) => window.show(props), { mode, open, stamp })
+          await page.waitForFunction(
+            (stamp) => document.querySelector('[data-stamp]')?.dataset.stamp === stamp,
+            stamp,
+          )
+          assert.equal((await page.evaluate(() => window.calls)).length, 2)
+        }
+        await show(true, `${mode}-open`)
+        const section = page.getByTestId(mode)
+        const field = section.locator('input')
+        const focused = await comparePatternInput(page, oracle, field, raw, true)
+        assert.deepEqual(focused.slice(0, 4), ['12px', '8px', '0.5', '0px'])
+        assert.equal(focused[4], '2px')
+        assert.equal(focused[5], '2px')
+        await field.fill('Beta')
+        assert.equal(await section.locator('[role="option"]').count(), 1)
+        assert.deepEqual(await readPatternInput(field), focused)
+        assert.equal(
+          (await page.evaluate(() => window.calls)).length,
+          2,
+          'query/focus does not rerun authored inputs',
+        )
+        await comparePatternInput(page, oracle, field, raw, false)
+        assert.equal((await readPatternInput(field))[2], '1')
+        await show(false, `${mode}-closed`)
+        assert.equal(await section.locator('input').count(), 0)
+        await show(true, `${mode}-reopen`)
+        assert.equal(await field.inputValue(), '')
+        await comparePatternInput(page, oracle, field, raw, true)
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+    await oracle.close()
+  }
+})
+
 test('Avatar decorative owners match independent Tailwind through image failure, retry and status changes', {
   skip: !executablePath,
 }, async () => {

@@ -62,7 +62,7 @@ export interface CommandPaletteSlotFacts {
 }
 
 /** Only the real input supplies focus and mutability; disabled fields are read-only too. */
-export interface OtpInputSlotFacts {
+export interface TextInputSlotFacts {
   readonly [fact: string]: unknown
   disabled: boolean
   enabled: boolean
@@ -70,6 +70,18 @@ export interface OtpInputSlotFacts {
   'aria-disabled': false
   'aria-selected': false
   'aria-checked': false
+}
+
+/** The real command search input is always editable and expanded while mounted on Web; options do not own its focus. */
+export interface CommandInputSlotFacts {
+  readonly [fact: string]: unknown
+  disabled: false
+  enabled: true
+  readOnly: false
+  'aria-disabled': false
+  'aria-selected': false
+  'aria-checked': false
+  'aria-expanded': true
 }
 
 /** Non-editable divs/spans match read-only, neither disabled nor enabled. They never borrow input focus. */
