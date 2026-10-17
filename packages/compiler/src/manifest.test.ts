@@ -48,7 +48,8 @@ export { Thing } from 'another-package'
     { when: ['accent'], classes: 'text-white' },
     { when: ['neutral'], classes: 'text-black' },
   ])
-  assert.equal(entry.disabledProp, undefined)
+  // `disabled` stays in the rest, so the caller's own reaches the host.
+  assert.equal(entry.disabledProp, 'disabled')
 })
 
 test('a component exported but not published by the entry is left out', () => {
@@ -114,4 +115,26 @@ export const Saved = () => <Alert tone="danger"><Text>Not saved</Text></Alert>
   const after = compiler.compileNative(source)[0].styles
   assert.doesNotMatch(before, /fontSize/)
   assert.match(after, /fontSize: 14/)
+})
+
+test('and what Checkbox hands its label, with the caller deciding `disabled:`', async () => {
+  const { createCompiler } = await import('./index.ts')
+  const { DEFAULT_PRIMITIVE_SOURCES } = await import('./sources.ts')
+  const { textForwardingModule } = await import('./manifest.ts')
+  const manifestFile = new URL('../../ui/hozo.manifest.json', import.meta.url)
+  const manifest = JSON.parse(readFileSync(manifestFile, 'utf8'))
+  const compiler = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES])
+  const source = `import { Text } from '@hozo/core'
+import { Checkbox } from '@hozo/ui'
+export const Terms = () => <Checkbox disabled={off}><Text>I agree</Text></Checkbox>
+`
+  const before = compiler.compileNative(source)[0]
+  compiler.setTextForwarding([textForwardingModule('@hozo/ui', manifest)])
+  const after = compiler.compileNative(source)[0]
+  assert.doesNotMatch(before.styles, /lineHeight/)
+  assert.match(after.styles, /fontSize: 14/)
+  assert.match(after.styles, /lineHeight: 24/)
+  // `disabled` reaches the pattern through Checkbox's rest, so the caller's
+  // own `off` switches the label to the disabled colour.
+  assert.match(after.jsx, /\(off\) && hozoStyles\.\w+/)
 })

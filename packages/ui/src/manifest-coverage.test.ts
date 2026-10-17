@@ -20,10 +20,17 @@ const manifest = JSON.parse(
 test('the manifest covers every component that hands text to a caller’s children', () => {
   // Each component under every name it is published as. Badge is not here on
   // purpose: on Native it is a Text, and a Text nested in it inherits anyway.
+  // The patterns that take a label as a prop rather than as children --
+  // Tabs, Accordion, SegmentedControl, Radio and the rest -- draw that label
+  // themselves, so there is no caller Text to hand anything to.
   assert.deepEqual(Object.keys(manifest.textForwarding).sort(), [
     'Alert',
     'Button',
+    'Checkbox',
     'HozoAlert',
     'HozoButton',
+    'HozoCheckbox',
+    'HozoSwitch',
+    'Switch',
   ])
 })
