@@ -65,17 +65,23 @@ test('a component exported but not published by the entry is left out', () => {
   assert.deepEqual(manifest.textForwarding, {})
 })
 
-test('const arrow manifests survive re-exports and lower a caller exactly like function manifests', async () => {
+test('const arrows and React wrappers preserve manifests across re-exports and Native callers', async () => {
   const { createCompiler } = await import('./index.ts')
   const { DEFAULT_PRIMITIVE_SOURCES } = await import('./sources.ts')
   const { textForwardingModule } = await import('./manifest.ts')
-  const imports = `import { Checkbox as Host } from '@hozo/patterns'`
+  const imports = `import React, { memo as cached, forwardRef as withRef } from 'react'
+import { Checkbox as Host } from '@hozo/patterns'`
   const params = `{ tone = 'quiet', children, className, ...rest }`
   const host = `<Host {...rest} className={tone === 'loud' ? 'font-bold hover:text-red-500 disabled:text-gray-400' : 'text-sm'}>{children}</Host>`
+  const withRef = host.replace('<Host ', '<Host ref={ref} ')
   const declarations = [
     `${imports}\nexport function Inner(${params}) { return (${host}) }`,
     `${imports}\nexport const Inner = (${params}) => { return (${host}) }`,
     `${imports}\nconst Inner = (${params}) => (${host}); export { Inner }`,
+    `${imports}\nexport const Inner = cached((${params}) => (${host}))`,
+    `${imports}\nexport const Inner = cached(function Render(${params}) { return (${host}) }, () => false)`,
+    `${imports}\nexport const Inner = withRef<Element, Props>((${params}, ref) => (${withRef}))`,
+    `${imports}\nexport const Inner = React.memo(React.forwardRef(function Render(${params}, ref) { return (${withRef}) }))`,
   ]
   const manifests = declarations.map((source) =>
     buildManifest({
@@ -93,6 +99,20 @@ test('const arrow manifests survive re-exports and lower a caller exactly like f
   for (const manifest of manifests) assert.deepEqual(manifest, expected)
 
   const compiler = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES])
+  for (const source of declarations) {
+    // Checkbox is a prebuilt runtime boundary, not a primitive this API
+    // lowers. The primitive equivalent checks that wrapped renderers also
+    // compile their host's state owner, not just a caller's manifest JSON.
+    const producer = source.replace(
+      "Checkbox as Host } from '@hozo/patterns'",
+      "Pressable as Host } from '@hozo/primitives'",
+    )
+    const roots = compiler.compileNative(producer)
+    assert.equal(roots.length, 1, source)
+    assert.match(roots[0].jsx, /HozoPressable/)
+    assert.match(roots[0].jsx, /hovered/)
+    if (source.includes('ref={ref}')) assert.match(roots[0].jsx, /ref=\{ref\}/)
+  }
   const caller = `import { Text } from '@hozo/core'
 import { Check } from 'example-controls'
 export const Terms = () => <Check tone="loud" disabled={off}><Text>I agree</Text></Check>`
@@ -106,6 +126,20 @@ export const Terms = () => <Check tone="loud" disabled={off}><Text>I agree</Text
   assert.match(outputs[0].jsx, /\(off\) && hozoStyles\.\w+/)
   assert.match(outputs[0].jsx, /hovered/)
   for (const output of outputs) assert.deepEqual(output, outputs[0])
+})
+
+test('a same-named non-React wrapper stays out of the published manifest', () => {
+  const source = `import { memo } from 'not-react'
+import { Button as Host } from '@hozo/primitives'
+export const Inner = memo(({children}) => <Host className="text-sm">{children}</Host>)`
+  const manifest = buildManifest({
+    entry: '/pkg/index.ts',
+    readSource: memory({
+      '/pkg/index.ts': `export { Inner as Check } from './check.tsx'`,
+      '/pkg/check.tsx': source,
+    }),
+  })
+  assert.deepEqual(manifest.textForwarding, {})
 })
 
 test('the package directory form writes the file package.json names, and --check compares it', () => {
