@@ -1,0 +1,37 @@
+name: combobox-slot-measure
+on:
+  push:
+    branches: [chore/combobox-slot-measure]
+permissions:
+  contents: read
+jobs:
+  browser-oracles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm exec turbo run build --filter=@hozo/compiler... --filter=@hozo/primitives... --filter=@hozo/form... --filter=@hozo/patterns... --filter=@hozo/tailwind... --concurrency=1
+      - name: Independent browser oracles and Native source probes
+        shell: bash
+        run: |
+          mkdir -p artifacts/combobox-slots
+          git rev-parse HEAD > artifacts/combobox-slots/source.txt
+          git rev-parse HEAD^ > artifacts/combobox-slots/feature-source.txt
+          node --test --test-concurrency=1 examples/storybook-demo/scripts/candidate-cascade.test.mjs examples/storybook-demo/scripts/native-control-indicators.test.mjs 2>&1 | tee artifacts/combobox-slots/result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: combobox-slots
+          path: artifacts/combobox-slots/
+          if-no-files-found: warn
