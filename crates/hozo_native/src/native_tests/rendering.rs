@@ -9,6 +9,9 @@ fn decorative_pattern_semantics_belong_to_the_child_not_the_parent_control() {
         ("Stepper", "errorIndicatorClassName"),
         ("Stepper", "descriptionClassName"),
         ("Pagination", "ellipsisClassName"),
+        ("CommandPalette", "groupHeadingClassName"),
+        ("CommandPalette", "shortcutClassName"),
+        ("CommandPalette", "emptyClassName"),
     ];
     for (component, slot) in slots {
         let source = format!("import {{ {component} }} from '@hozo/core'; const el = <{component} disabled accessibilityState={{{{selected:true,disabled:true}}}} {slot}=\"disabled:opacity-25 enabled:opacity-50 not-disabled:px-2 not-enabled:py-1 read-only:rounded-lg not-read-only:rounded-none aria-selected:border-2 not-aria-selected:mt-2 aria-disabled:border-4\" />");
@@ -2604,6 +2607,25 @@ fn command_option_semantics_are_not_native_button_pseudo_classes() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        if [
+            "shortcutClassName",
+            "groupHeadingClassName",
+            "emptyClassName",
+        ]
+        .contains(&slot)
+        {
+            assert!(
+                output.diagnostics.is_empty(),
+                "{slot}: {:?}",
+                output.diagnostics
+            );
+            assert!(
+                !output.jsx.contains("_ariaselected"),
+                "a decoration is never selected: {}",
+                output.jsx
+            );
+            continue;
+        }
         assert!(
             output.diagnostics.iter().any(
                 |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error

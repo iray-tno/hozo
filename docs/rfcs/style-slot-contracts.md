@@ -125,7 +125,23 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    than silently shrinking static coverage to the runtime intersection.
 
    Other pending owners are still unaudited. This six-slot group does not
-   certify the remaining catalog or fix #993's separate root selector gap.
+   certify the remaining catalog. The separate root selector gap #993 was
+   subsequently fixed by #1005, not by this six-slot Native audit.
+
+   CommandPalette's shortcut, group heading and empty-state props reuse that
+   same NonControl contract. They have distinct existence gates (a ranked
+   command with shortcut content, a named ranked group, or no ranked commands),
+   not three new resolver implementations. The shortcut keeps inherited option
+   typography without borrowing the option's events or selected/disabled facts;
+   query changes mount/remove the appropriate decorative owners. The root,
+   scrim, panel, real input and list are not certified by this three-slot audit.
+
+   Every exported top-level pattern class prop needs an ownership disposition,
+   but not every component needs a behavioral patch. Auditing a new owner can
+   reuse a reviewed profile, record a component-managed route, or leave an
+   explicit limitation. Ordinary primitive root handling is not rewritten once
+   per pattern. Pending inventory entries are neither bug counts nor passing
+   cases; whole-catalog completion still requires independent owner evidence.
 
 Use actual Web DOM/Tailwind as an independent semantic oracle, and execute
 generated Native output against actual component source. Stand-in hosts do
