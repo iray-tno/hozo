@@ -2636,6 +2636,10 @@ test('Listbox option focus and committed selection match isolated Tailwind in bo
           )
           await check(0, false, { hover: true })
           if (mode !== 'literal') {
+            // Removing candidate padding can move the row away from the
+            // pointer. Probe a resting owner so restoring CSS does not also
+            // require another physical mouse move to restore :hover.
+            await check(0, false)
             await assertCandidateStylesRequired(
               page,
               () => read(owner),
