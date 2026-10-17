@@ -79,13 +79,34 @@ export function C() { return <${component} ${slot}={chooseClasses()} ${style}={e
   // No blanket forwarding: an unregistered decorative slot retains its
   // existing fallback, and static interaction refusals below still apply.
   const unowned = transformHozoSource(
-    `import { Avatar } from '@hozo/core'
-export function C() { return <Avatar name="Ada" statusClassName={classes} /> }`,
-    'Avatar.tsx',
+    `import { ColorPicker } from '@hozo/core'
+export function C() { return <ColorPicker thumbClassName={classes} /> }`,
+    'ColorPicker.tsx',
     '/project',
   )
-  assert.match(unowned, /statusStyle=\{hozoClasses\(classes\)\}/)
-  assert.doesNotMatch(unowned, /statusClassName=/)
+  assert.match(unowned, /thumbStyle=\{hozoClasses\(classes\)\}/)
+  assert.doesNotMatch(unowned, /thumbClassName=/)
+})
+
+test('audited Avatar decorations resolve opaque inputs once with their known non-control facts', () => {
+  for (const name of ['image', 'fallback', 'status']) {
+    const output = transformHozoSource(
+      `import { Avatar } from '@hozo/core'
+export function C() { return <Avatar ${name}ClassName={chooseClasses()} ${name}Style={extra} /> }`,
+      'Avatar.tsx',
+      '/project',
+    )
+    assert.ok(output)
+    assert.ok(
+      output.includes(
+        `${name}Style={[hozoClasses(chooseClasses(), { disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }), extra]}`,
+      ),
+      output,
+    )
+    assert.equal(output.match(/chooseClasses\(\)/g)?.length, 1)
+    assert.ok(!output.includes(`${name}ClassName=`), output)
+    assert.doesNotMatch(output, /hozoStyle=|hozoImageStyle=|hozoFallbackStyle=|hozoStatusStyle=/)
+  }
 })
 
 test('mixed Chip root classes capture residuals once between AOT resting and state styles', () => {
@@ -167,15 +188,18 @@ test('mixed secondary expressions retain AOT and source-ordered guards on regist
 })
 
 test('decorative pattern slots still reject static interaction classes in full Metro lowering', () => {
-  assert.throws(
-    () =>
-      transformHozoSource(
-        `import { Avatar } from '@hozo/core'
-export function C() { return <Avatar name="Ada" statusClassName="hover:opacity-50" /> }`,
-        'Avatar.tsx',
-      ),
-    /no readable interaction state/,
-  )
+  for (const name of ['image', 'fallback', 'status'])
+    for (const variant of ['hover', 'not-hover', 'focus', 'not-focus'])
+      assert.throws(
+        () =>
+          transformHozoSource(
+            `import { Avatar } from '@hozo/core'
+export function C() { return <Avatar name="Ada" ${name}ClassName="${variant}:opacity-50" /> }`,
+            'Avatar.tsx',
+          ),
+        /NOT_WIRED_ON_NATIVE:[\s\S]*no readable events on this decorative class owner/,
+        `${name}/${variant}`,
+      )
 })
 
 test('CommandPalette pointer slots use the theme, while input-owned focus still refuses the build', () => {

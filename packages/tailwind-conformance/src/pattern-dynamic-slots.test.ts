@@ -38,9 +38,22 @@ const decorativeExpression = (mode: string, slot: string, extra = '') => {
       ? `{getClasses(${JSON.stringify(slot)}, ${JSON.stringify(`${classes} bg-brand`)})}`
       : `{cx(${JSON.stringify(classes.replace('read-only:rounded-lg', 'rounded-none'))}, getClasses(${JSON.stringify(slot)}, 'bg-brand read-only:rounded-lg'))}`
 }
-const source = `import { View, Text, Button, Pressable, Chip, ColorPicker, Pagination, Stepper, CommandPalette, OtpInput, cx } from '@hozo/core'
-export { Stepper as RawStepper, Pagination as RawPagination, CommandPalette as RawCommandPalette }
+const avatarDecorationClasses =
+  'px-2 py-1 mb-2 bg-brand opacity-100 disabled:opacity-25 read-only:rounded-lg aria-selected:mb-8 aria-disabled:mt-4'
+const avatarExpression = (mode: string, slot: string) => {
+  const negative =
+    mode === 'Opaque' ? '' : 'not-disabled:px-2 not-enabled:py-1 not-aria-selected:mb-2'
+  const classes = `${avatarDecorationClasses} ${negative}`.trim()
+  return mode === 'Literal'
+    ? JSON.stringify(classes)
+    : mode === 'Opaque'
+      ? `{getClasses(${JSON.stringify(slot)}, ${JSON.stringify(classes)})}`
+      : `{cx(${JSON.stringify(classes.replace('read-only:rounded-lg', 'rounded-none'))}, getClasses(${JSON.stringify(slot)}, 'read-only:rounded-lg'))}`
+}
+const source = `import { View, Text, Button, Pressable, Chip, ColorPicker, Pagination, Stepper, CommandPalette, Avatar, OtpInput, cx } from '@hozo/core'
+export { Stepper as RawStepper, Pagination as RawPagination, CommandPalette as RawCommandPalette, Avatar as RawAvatar }
 export const classes = {
+  avatarDecoration: ${JSON.stringify(avatarDecorationClasses)},
   commandParent: 'aria-selected:font-bold',
   decoration: ${JSON.stringify(decorationClasses)},
   unavailableDecoration: 'hover:opacity-50 active:border-8 not-hover:mt-2 not-focus:border-4',
@@ -201,6 +214,21 @@ export function DecorationCandidates({ value }) {
 }
 export function CommandParentCandidates({ value }) {
   return <CommandPalette commands={[]} itemClassName={value ? classes.commandParent : undefined} />
+}
+${['Literal', 'Opaque', 'Mixed']
+  .map(
+    (
+      mode,
+    ) => `export function AvatarDecoration${mode}({ src, name = 'Ada Lovelace', status, fallback, getClasses, extra }) {
+  return <Avatar src={src} name={name} status={status} fallback={fallback} testID="avatar-owner"
+    className="text-[#654321] font-bold"
+    ${['imageClassName', 'fallbackClassName', 'statusClassName'].map((slot) => `${slot}=${avatarExpression(mode, slot)}`).join('\n')}
+    imageStyle={extra} fallbackStyle={extra} statusStyle={extra} />
+}`,
+  )
+  .join('\n')}
+export function AvatarCandidates({ value }) {
+  return <Avatar fallbackClassName={value ? classes.avatarDecoration : classes.unavailableDecoration} />
 }`
 
 const project = mkdtempSync(path.join(root, 'packages/tailwind-conformance/.pattern-project-'))
@@ -491,6 +519,126 @@ test('uncompiled CommandPalette decorations neither borrow option events nor los
     assert.equal(empty.length, 1)
     assert.equal(flat(empty[0]).opacity, 1)
     assert.equal(flat(empty[0]).color, '#123456')
+  } finally {
+    view.unmount()
+  }
+})
+
+for (const mode of ['Literal', 'Opaque', 'Mixed'])
+  test(`Avatar decorations keep their own facts through ${mode} failure, retry and status changes`, () => {
+    let calls = 0
+    const props = {
+      src: 'broken.png',
+      status: 'online',
+      getClasses: (_slot: string, value: string) => {
+        calls++
+        return value
+      },
+    }
+    const view = mount(`AvatarDecoration${mode}`, props)
+    const images = () => view.tree.root.findAllByType('Image')
+    const texts = () => view.tree.root.findAllByType('Text')
+    const outer = () =>
+      view.tree.root.findAll(
+        (node) => node.type === 'View' && node.props.testID === 'avatar-owner',
+      )[0]
+    const parts = () =>
+      outer()
+        .findAllByType('View')
+        .filter((node) => node !== outer())
+    const check = (node: Tree, override = false) => {
+      const style = flat(node)
+      assert.equal(style.paddingStart ?? style.paddingLeft, 8)
+      assert.equal(style.paddingTop, 4)
+      assert.equal(style.marginBottom, override ? 12 : 8, 'not selected or disabled by the parent')
+      assert.equal(style.marginTop, undefined)
+      assert.equal(style.opacity, override ? 0.6 : 1)
+      assert.equal(style.borderRadius, override ? 10 : 8)
+      assert.equal(style.backgroundColor, '#123456')
+      assert.equal(node.props.importantForAccessibility, 'no-hide-descendants')
+    }
+    try {
+      const expectedCalls = mode === 'Literal' ? 0 : 3
+      assert.equal(calls, expectedCalls, 'absent fallback still evaluates its authored prop once')
+      assert.equal(images().length, 1)
+      assert.equal(texts().length, 0)
+      assert.equal(parts().length, 1, 'only the status View exists beside the image')
+      check(images()[0])
+      check(parts()[0])
+      assert.equal(flat(images()[0]).width, '100%', 'existing image geometry is retained')
+      renderer.act(() => images()[0].props.onError())
+      assert.equal(images().length, 0)
+      assert.equal(parts().length, 2, 'failure mounts the fallback beside the status')
+      for (const part of parts()) check(part)
+      assert.equal(texts()[0].props.children, 'AL')
+      assert.equal(flat(texts()[0]).color, '#654321', 'fallback still inherits root typography')
+      assert.equal(flat(texts()[0]).fontWeight, '700')
+      assert.equal(calls, expectedCalls, 'internal failure does not rerun author expressions')
+      view.update({ ...props, src: 'fixed.png', status: undefined })
+      assert.equal(images().length, 1)
+      assert.equal(images()[0].props.source.uri, 'fixed.png')
+      assert.equal(parts().length, 0, 'retry removes fallback and absent status removes the dot')
+      check(images()[0])
+      assert.equal(calls, expectedCalls * 2)
+      const extra = { opacity: 0.6, borderRadius: 10, marginBottom: 12 }
+      view.update({ ...props, src: 'fixed.png', status: 'busy', extra })
+      check(images()[0], true)
+      check(parts()[0], true)
+      renderer.act(() => images()[0].props.onError())
+      for (const part of parts()) check(part, true)
+      assert.equal(calls, expectedCalls * 3)
+      view.update({ ...props, src: undefined, extra: { ...extra, color: '#112233' } })
+      check(texts()[0].parent, true)
+      assert.equal(
+        flat(texts()[0]).color,
+        '#112233',
+        'explicit fallback text wins over inheritance',
+      )
+      assert.equal(flat(texts()[0]).fontWeight, '700')
+      view.update({
+        ...props,
+        src: undefined,
+        name: '',
+        status: undefined,
+        fallback: react.createElement('Text', {}, '?'),
+      })
+      assert.equal(parts().length, 1)
+      assert.equal(texts()[0].props.children, '?')
+      check(texts()[0].parent)
+      assert.equal(outer().props.accessibilityRole, undefined, 'unnamed Avatar stays decorative')
+      assert.equal(calls, expectedCalls * 5)
+    } finally {
+      view.unmount()
+    }
+  })
+
+test('uncompiled Avatar decorations share known facts but do not invent pointer/focus state', () => {
+  const props = {
+    src: 'photo.png',
+    name: 'Ada Lovelace',
+    status: 'online',
+    imageClassName: `${classes.avatarDecoration} ${classes.unavailableDecoration}`,
+    fallbackClassName: `${classes.avatarDecoration} ${classes.unavailableDecoration}`,
+    statusClassName: `${classes.avatarDecoration} ${classes.unavailableDecoration}`,
+  }
+  const view = mount('RawAvatar', props)
+  const check = (node: Tree) => {
+    const style = flat(node)
+    assert.equal(style.opacity, 1)
+    assert.equal(style.borderRadius, 8)
+    assert.equal(style.marginTop, undefined, 'negated unavailable hover does not become true')
+    assert.equal(style.borderWidth ?? style.borderTopWidth, undefined)
+    assert.equal(node.props.onHoverIn, undefined)
+    assert.equal(node.props.onFocus, undefined)
+  }
+  try {
+    const image = view.tree.root.findByType('Image')
+    check(image)
+    check(view.tree.root.findAllByType('View')[1])
+    renderer.act(() => image.props.onError())
+    const parts = view.tree.root.findAllByType('View').slice(1)
+    assert.equal(parts.length, 2)
+    for (const part of parts) check(part)
   } finally {
     view.unmount()
   }

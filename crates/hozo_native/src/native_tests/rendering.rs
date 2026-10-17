@@ -12,6 +12,9 @@ fn decorative_pattern_semantics_belong_to_the_child_not_the_parent_control() {
         ("CommandPalette", "groupHeadingClassName"),
         ("CommandPalette", "shortcutClassName"),
         ("CommandPalette", "emptyClassName"),
+        ("Avatar", "imageClassName"),
+        ("Avatar", "fallbackClassName"),
+        ("Avatar", "statusClassName"),
     ];
     for (component, slot) in slots {
         let source = format!("import {{ {component} }} from '@hozo/core'; const el = <{component} disabled accessibilityState={{{{selected:true,disabled:true}}}} {slot}=\"disabled:opacity-25 enabled:opacity-50 not-disabled:px-2 not-enabled:py-1 read-only:rounded-lg not-read-only:rounded-none aria-selected:border-2 not-aria-selected:mt-2 aria-disabled:border-4\" />");

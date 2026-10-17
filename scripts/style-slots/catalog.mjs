@@ -11,7 +11,7 @@ export const profiles = {
       'aria-selected': false,
       'aria-checked': false,
     },
-    note: 'A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.',
+    note: 'A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.',
   },
   Chip: {
     facts: {
@@ -122,7 +122,32 @@ export const components = {
     },
   }),
   Alert: slots('className'),
-  Avatar: slots('className imageClassName fallbackClassName statusClassName', { secondary: true }),
+  Avatar: slots('className imageClassName fallbackClassName statusClassName', {
+    secondary: true,
+    overrides: {
+      imageClassName: {
+        owner: 'non-control-image-img',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'src-defined-and-not-failed',
+        composition: 'fill-geometry; classes/explicit-style',
+      },
+      fallbackClassName: {
+        owner: 'non-control-fallback-span',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'src-absent-or-failed',
+        composition: 'root-text inheritance; classes/explicit-style; split-box-text',
+      },
+      statusClassName: {
+        owner: 'non-control-status-span',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'nonempty-status',
+        composition: 'classes/explicit-style',
+      },
+    },
+  }),
   BottomSheet: slots('className scrimClassName sheetClassName handleClassName'),
   Checkbox: slots('className'),
   Chip: slots('className removeClassName', {

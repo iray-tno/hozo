@@ -11,6 +11,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { avatarInitials, avatarLabel, type HozoAvatarStatus } from './avatar-initials.ts'
+import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { HozoAvatarStatus }
@@ -75,7 +76,7 @@ export function HozoAvatar({
   const label = avatarLabel(message, name, status, accessibilityLabel)
   const [box, text] = splitTextStyle([hozoClasses(className), style])
   const [fallbackBox, fallbackText] = splitTextStyle([
-    hozoClasses(fallbackClassName),
+    hozoClasses(fallbackClassName, nonControlSlotFacts),
     fallbackStyle,
   ])
 
@@ -94,7 +95,7 @@ export function HozoAvatar({
       {showImage ? (
         <Image
           source={{ uri: src }}
-          style={[FILL, hozoClasses(imageClassName), imageStyle]}
+          style={[FILL, hozoClasses(imageClassName, nonControlSlotFacts), imageStyle]}
           onError={() => setFailed(src)}
           {...hidden}
         />
@@ -103,7 +104,12 @@ export function HozoAvatar({
           {letters ? <Text style={[text, fallbackText]}>{letters}</Text> : fallback}
         </View>
       )}
-      {status ? <View style={[hozoClasses(statusClassName), statusStyle]} {...hidden} /> : null}
+      {status ? (
+        <View
+          style={[hozoClasses(statusClassName, nonControlSlotFacts), statusStyle]}
+          {...hidden}
+        />
+      ) : null}
     </View>
   )
 }

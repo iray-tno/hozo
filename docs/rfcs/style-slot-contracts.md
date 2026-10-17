@@ -136,6 +136,13 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    query changes mount/remove the appropriate decorative owners. The root,
    scrim, panel, real input and list are not certified by this three-slot audit.
 
+   Avatar's image, fallback and status props reuse NonControl too: an `img`
+   and two non-editable spans, not enabled/disabled controls. Image failure
+   mounts the fallback; a different src retries the image; absent status mounts
+   no dot. These existence gates are independent of CSS predicates. The
+   fallback retains root typography and explicit style precedence without
+   borrowing a surrounding control's events. Avatar's root is still unaudited.
+
    Every exported top-level pattern class prop needs an ownership disposition,
    but not every component needs a behavioral patch. Auditing a new owner can
    reuse a reviewed profile, record a component-managed route, or leave an

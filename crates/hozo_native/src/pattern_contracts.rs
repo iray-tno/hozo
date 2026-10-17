@@ -2,6 +2,16 @@
 
 pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition: &Condition) -> Option<&'static str> {
     match (primitive, class_prop) {
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::Avatar, "imageClassName" | "fallbackClassName" | "statusClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
         // A standalone toggle or composite span and its remove button have different facts; the actual Chip supplies them. Neither invents aria-checked/disabled.
         (Primitive::Chip, "className" | "removeClassName") => match condition {
             Condition::Disabled => Some("__hozoSlotDisabled"),
@@ -20,7 +30,7 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "selected" => Some("false"),
             _ => None,
         },
-        // A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
         (Primitive::CommandPalette, "groupHeadingClassName" | "shortcutClassName" | "emptyClassName") => match condition {
             Condition::Disabled => Some("false"),
             Condition::Enabled => Some("false"),
@@ -67,7 +77,7 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "selected" => Some("false"),
             _ => None,
         },
-        // A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
         (Primitive::Pagination, "ellipsisClassName") => match condition {
             Condition::Disabled => Some("false"),
             Condition::Enabled => Some("false"),
@@ -85,7 +95,7 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "disabled" => Some("false"),
             _ => None,
         },
-        // A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
         (Primitive::Stepper, "indicatorClassName" | "completedIndicatorClassName" | "currentIndicatorClassName" | "errorIndicatorClassName" | "descriptionClassName") => match condition {
             Condition::Disabled => Some("false"),
             Condition::Enabled => Some("false"),
@@ -133,7 +143,10 @@ pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option
 
 pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool {
     matches!((primitive, class_prop),
-        (Primitive::CommandPalette, "groupHeadingClassName")
+        (Primitive::Avatar, "imageClassName")
+        |         (Primitive::Avatar, "fallbackClassName")
+        |         (Primitive::Avatar, "statusClassName")
+        |         (Primitive::CommandPalette, "groupHeadingClassName")
         |         (Primitive::CommandPalette, "shortcutClassName")
         |         (Primitive::CommandPalette, "emptyClassName")
         |         (Primitive::Pagination, "ellipsisClassName")
@@ -147,6 +160,9 @@ pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool
 
 pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
     match (primitive, class_prop) {
+        (Primitive::Avatar, "imageClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Avatar, "fallbackClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::Avatar, "statusClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "groupHeadingClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "shortcutClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::CommandPalette, "emptyClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),

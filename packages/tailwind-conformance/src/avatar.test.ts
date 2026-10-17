@@ -28,6 +28,30 @@ const SOURCE = `
       imageClassName="opacity-90" fallbackClassName="p-1" statusClassName="size-3 bg-green-500" />
   }`
 
+test('Avatar decorative slots resolve their known non-control facts without borrowing events', () => {
+  for (const slot of ['imageClassName', 'fallbackClassName', 'statusClassName']) {
+    assert.doesNotThrow(
+      () =>
+        loadNativeModule(`import { Avatar } from '@hozo/core'
+      export function C() {return <Avatar ${slot}="read-only:rounded-lg disabled:opacity-25 aria-selected:opacity-50 not-disabled:px-2 not-enabled:py-1" />}`),
+      slot,
+    )
+    for (const classes of [
+      'aria-expanded:opacity-50',
+      'hover:opacity-50',
+      'not-focus:opacity-50',
+    ]) {
+      assert.throws(
+        () =>
+          loadNativeModule(`import { Avatar } from '@hozo/core'
+      export function C() {return <Avatar ${slot}="${classes}" />}`),
+        /NOT_WIRED_ON_NATIVE/,
+        `${slot}: ${classes}`,
+      )
+    }
+  }
+})
+
 test('on the Web, one image named for the person, and every part has its compiled class', () => {
   const [web] = compile(SOURCE, 'C.tsx')
   assert.ok(web, 'the Web compiler lowered nothing')
