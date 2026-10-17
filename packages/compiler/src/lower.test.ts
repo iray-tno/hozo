@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 import { createCompiler } from './index.ts'
@@ -16,6 +17,14 @@ const ROOT = ''
 
 const file = 'Page.tsx'
 const compiler = createCompiler()
+
+test('the actual UI Combobox wrapper keeps its public alias free for generated runtime imports', () => {
+  const source = readFileSync(new URL('../../ui/src/combobox.tsx', import.meta.url), 'utf8')
+  const output = lowerModule(source, 'Combobox.tsx', 'Combobox.tsx', compiler, ROOT)
+  assert.ok(output)
+  assert.match(output.code, /import \{ HozoCombobox \} from '@hozo\/core\/generated\/combobox'/)
+  assert.match(output.code, /StyledCombobox as HozoCombobox/)
+})
 
 test('generated names import from one leaf each, through core unless the owner is opt-in', () => {
   assert.equal(

@@ -68,6 +68,10 @@
       "types": "./dist/generated/color-picker.d.ts",
       "default": "./dist/generated/color-picker.js"
     },
+    "./generated/combobox": {
+      "types": "./dist/generated/combobox.d.ts",
+      "default": "./dist/generated/combobox.js"
+    },
     "./generated/command-palette": {
       "types": "./dist/generated/command-palette.d.ts",
       "default": "./dist/generated/command-palette.js"

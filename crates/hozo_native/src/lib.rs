@@ -1030,6 +1030,9 @@ fn read_only_prop_guard(props: &hozo_ir::TextInputProps, source: &str) -> Option
 /// expressions a compiled `disabled:` or `aria-*:` reads, under the keys the
 /// candidate module stores them by.
 fn runtime_class_state(node: &Node, source: &str, interaction: bool) -> Option<String> {
+    if let Some(facts) = pattern::constant_facts(node.primitive, "className") {
+        return Some(facts.into());
+    }
     let mut fields: Vec<String> = Vec::new();
     if interaction {
         fields.push(

@@ -341,6 +341,9 @@ pub fn lower_with_evidence(
     if contains_primitive(root, Primitive::CommandPalette) {
         runtime_imports.push("HozoCommandPalette");
     }
+    if contains_primitive(root, Primitive::Combobox) {
+        runtime_imports.push("HozoCombobox");
+    }
     if contains_primitive(root, Primitive::ColorPicker) {
         runtime_imports.push("HozoColorPicker");
     }
@@ -1260,7 +1263,11 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             if !node.class_name_fallback.is_empty() {
                 // Do not turn an empty class list into a truthy one: a runtime
                 // component can use emptiness to select its own defaults.
-                value.push_str(".replace(/\\S/, 'hozo-candidate-owner $&')");
+                value.push_str(if node.primitive.root_owner_has_constant_facts() {
+                    ".replace(/\\S/, 'hozo-candidate-owner hozo-candidate-slot-owner $&')"
+                } else {
+                    ".replace(/\\S/, 'hozo-candidate-owner $&')"
+                });
             }
             format!(" className={{{value}}}")
         };

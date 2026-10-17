@@ -56,6 +56,14 @@
       "types": "./dist/generated/color-picker.d.ts",
       "default": "./dist/generated/color-picker.js"
     },
+    "./generated/combobox": {
+      "react-native": {
+        "types": "./dist/generated/combobox.native.d.ts",
+        "default": "./dist/generated/combobox.native.js"
+      },
+      "types": "./dist/generated/combobox.d.ts",
+      "default": "./dist/generated/combobox.js"
+    },
     "./generated/command-palette": {
       "react-native": {
         "types": "./dist/generated/command-palette.native.d.ts",

@@ -687,13 +687,18 @@ test('Native Combobox options deliver interaction facts and retain filtering, di
       { value: 'b', label: 'Beta' },
       { value: 'c', label: 'Blocked', disabled: true },
     ],
-    optionClassName: interactionClasses,
+    optionClassName: interactionClasses
+      .split(' ')
+      .filter((name) => !name.startsWith('focus:') && !name.startsWith('focus-visible:'))
+      .join(' '),
     onValueChange: (value) => selected.push(value),
   })
   const input = () => tree.root.findByType('NativeTextInput')
   const hosts = () => tree.root.findAllByType('NativePressable')
   await act(() => input().props.onFocus({}))
-  await checkInteraction(tree)
+  assert.equal(hosts().length, 0, 'as on Web, focus alone does not open a filtered popup')
+  await act(() => input().props.onChangeText(''))
+  await checkInteraction(tree, 0, false)
   assert.deepEqual(selected, [])
   assert.equal(input().props.value, '')
   assert.equal(input().props.accessibilityState.expanded, true)
@@ -703,7 +708,7 @@ test('Native Combobox options deliver interaction facts and retain filtering, di
   await act(() => input().props.onChangeText('Be'))
   assert.equal(hosts().length, 1)
   assert.equal(hosts()[0].findByType('NativeText').children.join(''), 'Beta')
-  await checkInteraction(tree)
+  await checkInteraction(tree, 0, false)
   await press(hosts()[0])
   assert.deepEqual(selected, ['b'])
   assert.equal(input().props.value, 'Beta')

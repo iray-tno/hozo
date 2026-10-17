@@ -84,6 +84,29 @@ export interface CommandInputSlotFacts {
   'aria-expanded': true
 }
 
+/** The editable input owns focus and the popup expanded state; neither list nor option lends it events. */
+export interface ComboboxInputSlotFacts {
+  readonly [fact: string]: unknown
+  disabled: false
+  enabled: true
+  readOnly: false
+  'aria-disabled': false
+  'aria-selected': false
+  'aria-checked': false
+  'aria-expanded': boolean
+}
+
+/** Option divs are non-form owners. Selection means the active filtered option, not the committed value; focus stays on the input. */
+export interface ComboboxOptionSlotFacts {
+  readonly [fact: string]: unknown
+  disabled: false
+  enabled: false
+  readOnly: true
+  'aria-disabled': boolean
+  'aria-selected': boolean
+  'aria-checked': false
+}
+
 /** Non-editable divs/spans match read-only, neither disabled nor enabled. They never borrow input focus. */
 export interface OtpDecorationSlotFacts {
   readonly [fact: string]: unknown

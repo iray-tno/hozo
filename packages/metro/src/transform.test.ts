@@ -66,6 +66,8 @@ test('dynamic secondary pattern classes reach their registered slot owner withou
     ['CommandPalette', 'activeItemClassName', 'activeItemStyle'],
     ['CommandPalette', 'inputClassName', 'inputStyle'],
     ['OtpInput', 'inputClassName', 'inputStyle'],
+    ['Combobox', 'inputClassName', 'inputStyle'],
+    ['Combobox', 'optionClassName', 'optionStyle'],
   ]) {
     const output = transformHozoSource(
       `import { ${component} } from '@hozo/core'
@@ -142,6 +144,8 @@ test('mixed secondary expressions retain AOT and source-ordered guards on regist
     ['CommandPalette', 'itemClassName', 'hover'],
     ['CommandPalette', 'inputClassName', 'focus'],
     ['OtpInput', 'inputClassName', 'focus'],
+    ['Combobox', 'inputClassName', 'focus'],
+    ['Combobox', 'optionClassName', 'hover'],
   ]) {
     const output = transformHozoSource(
       `import {${component},cx} from '@hozo/core'; export function C() {return <${component} onStepPress={press} ${slot}={cx('p-2 not-${state}:rounded-lg ${state}:opacity-50 md:mt-2', choose())} />}`,
@@ -322,6 +326,40 @@ export function C() {return <ColorPicker disabled={disabled} accessibilityLabel=
   assert.match(output, /!\(__hozoSlotReadOnly\) &&/)
   assert.match(output, /inputStyle=\{extra\}/)
   assert.doesNotMatch(output, /hozoClasses|candidate|inputClassName=/)
+})
+
+test('Combobox class slots bind editable focus, non-control list and active option facts separately', () => {
+  const output = transformHozoSource(
+    `import {Combobox} from '@hozo/core'; export function C() {return <Combobox options={options}
+      inputClassName="focus:opacity-50 focus-visible:outline-2 enabled:px-3 aria-expanded:border-2"
+      listClassName="read-only:rounded-lg not-disabled:mt-2"
+      optionClassName="hover:opacity-50 aria-selected:border-2 aria-disabled:opacity-25 read-only:rounded-lg"
+      inputStyle={extra} optionStyle={extra}/>}`,
+    'Combobox.tsx',
+  )
+  assert.ok(output)
+  assert.match(output, /hozoInputStyle=/)
+  assert.match(output, /hozoOptionStyle=/)
+  assert.match(output, /'aria-expanded': __hozoSlotAriaExpanded/)
+  assert.match(output, /'aria-selected': __hozoSlotAriaSelected/)
+  assert.match(output, /listStyle=/)
+  assert.match(output, /inputStyle=\{extra\}/)
+  assert.doesNotMatch(
+    output,
+    /hozoClasses|candidate|inputClassName=|optionClassName=|listClassName=/,
+  )
+})
+
+test('opaque Combobox root classes receive the same constant facts as its non-control list', () => {
+  const opaque = transformHozoSource(
+    "import {Combobox} from '@hozo/core'; export function C(){return <Combobox options={[]} className={getClasses()}/>}",
+    'Combobox.tsx',
+    '/project',
+  )
+  assert.match(
+    opaque,
+    /hozoClasses\(getClasses\(\), \{ disabled: false, enabled: false, readOnly: true/,
+  )
 })
 
 test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {

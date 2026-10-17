@@ -9,6 +9,12 @@ const textInputFacts = {
   'aria-selected': false,
   'aria-checked': false,
 }
+const editableInputFacts = {
+  ...textInputFacts,
+  disabled: false,
+  enabled: true,
+  readOnly: false,
+}
 export const profiles = {
   NonControl: {
     facts: {
@@ -75,13 +81,28 @@ export const profiles = {
   },
   CommandInput: {
     facts: {
-      ...textInputFacts,
-      disabled: false,
-      enabled: true,
-      readOnly: false,
+      ...editableInputFacts,
       'aria-expanded': true,
     },
     note: 'The real command search input is always editable and expanded while mounted on Web; options do not own its focus.',
+  },
+  ComboboxInput: {
+    facts: {
+      ...editableInputFacts,
+      'aria-expanded': supplied('__hozoSlotAriaExpanded'),
+    },
+    note: 'The editable input owns focus and the popup expanded state; neither list nor option lends it events.',
+  },
+  ComboboxOption: {
+    facts: {
+      disabled: false,
+      enabled: false,
+      readOnly: true,
+      'aria-disabled': supplied('__hozoSlotAriaDisabled'),
+      'aria-selected': supplied('__hozoSlotAriaSelected'),
+      'aria-checked': false,
+    },
+    note: 'Option divs are non-form owners. Selection means the active filtered option, not the committed value; focus stays on the input.',
   },
   OtpDecoration: {
     facts: {
@@ -195,12 +216,31 @@ export const components = {
     },
   ),
   Combobox: slots('className inputClassName listClassName optionClassName', {
+    secondary: true,
     overrides: {
-      inputClassName: {
-        styleProp: null,
-        reason:
-          'The Native input resolves its classes directly; the current public API declares no inputStyle.',
+      className: {
+        owner: 'non-control-wrapper-div',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'always',
+        composition: 'classes/explicit-style; split-box-text inheritance',
       },
+      inputClassName: owned('real-combobox-input', 'ComboboxInput', 'hozoInputStyle', {
+        pointer: false,
+        composition: 'root-text inheritance; classes/callback/explicit-style',
+      }),
+      listClassName: {
+        owner: 'non-control-listbox-div',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'popup-open',
+        composition: 'root-text inheritance; classes/explicit-style; split-box-text',
+      },
+      optionClassName: owned('option-div', 'ComboboxOption', 'hozoOptionStyle', {
+        focus: false,
+        gate: 'each-filtered-option',
+        composition: 'root/list-text inheritance; classes/callback/explicit-style; split-box-text',
+      }),
     },
   }),
   CommandPalette: slots(

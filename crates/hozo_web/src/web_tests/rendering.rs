@@ -1,5 +1,32 @@
 use super::*;
 
+#[test]
+fn combobox_keeps_actual_owner_classes_and_its_runtime_abi() {
+    let source = r#"import { Combobox } from '@hozo/core'; const el = <Combobox options={options}
+        className="disabled:opacity-25 enabled:opacity-50 read-only:rounded-lg"
+        inputClassName="focus:opacity-50 aria-expanded:border-2"
+        listClassName="read-only:rounded-lg" optionClassName="aria-selected:border-2" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<HozoCombobox"), "{}", out.jsx);
+    assert!(out.runtime_imports.contains(&"HozoCombobox"));
+    assert!(out.jsx.contains("inputClassName="));
+    assert!(out.jsx.contains("listClassName="));
+    assert!(out.jsx.contains("optionClassName="));
+    assert!(!out.css.contains("data-hozo-disabled"), "{}", out.css);
+    assert!(out.css.contains(":disabled"), "{}", out.css);
+    let source = "import { Combobox } from '@hozo/core'; const el = <Combobox options={[]} className={choose()} />";
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(
+        out.jsx
+            .contains("hozo-candidate-owner hozo-candidate-slot-owner"),
+        "{}",
+        out.jsx
+    );
+}
+
 const LOGIN_EXAMPLE: &str = r#"
 import { View, Text, Button } from '@hozo/core'
 

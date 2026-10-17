@@ -54,7 +54,9 @@ const list =
 const option =
   'cursor-pointer rounded-hozo-control px-3 py-2 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
-export function HozoCombobox<T>({ className, ...rest }: HozoComboboxProps<T>) {
+// Compiled output imports HozoCombobox for the pattern below; an export alias
+// preserves the public name without colliding with that generated binding.
+function StyledCombobox<T>({ className, ...rest }: HozoComboboxProps<T>) {
   return (
     <ComboboxPattern
       {...rest}
@@ -66,4 +68,8 @@ export function HozoCombobox<T>({ className, ...rest }: HozoComboboxProps<T>) {
   )
 }
 
-export { HozoCombobox as Combobox, type HozoComboboxProps as ComboboxProps }
+export {
+  type HozoComboboxProps as ComboboxProps,
+  StyledCombobox as HozoCombobox,
+  StyledCombobox as Combobox,
+}

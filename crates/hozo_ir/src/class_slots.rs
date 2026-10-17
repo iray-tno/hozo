@@ -21,6 +21,11 @@ impl Primitive {
                 ClassSlot { class_prop: "thumbClassName", style_prop: "thumbStyle" },
                 ClassSlot { class_prop: "inputClassName", style_prop: "inputStyle" },
             ],
+            Self::Combobox => &[
+                ClassSlot { class_prop: "inputClassName", style_prop: "inputStyle" },
+                ClassSlot { class_prop: "listClassName", style_prop: "listStyle" },
+                ClassSlot { class_prop: "optionClassName", style_prop: "optionStyle" },
+            ],
             Self::CommandPalette => &[
                 ClassSlot { class_prop: "scrimClassName", style_prop: "scrimStyle" },
                 ClassSlot { class_prop: "panelClassName", style_prop: "panelStyle" },
@@ -65,6 +70,12 @@ impl Primitive {
     /// asks that element (`:disabled`, `:enabled`), as it does a secondary
     /// slot's owner: a span or a div is neither (#993).
     pub fn root_owner_is_audited(self) -> bool {
-        matches!(self, Self::Chip | Self::OtpInput)
+        matches!(self, Self::Chip | Self::Combobox | Self::OtpInput)
+    }
+
+    /// A constant non-control root uses actual DOM form predicates for
+    /// candidate classes too, without adding an event owner or callback.
+    pub fn root_owner_has_constant_facts(self) -> bool {
+        matches!(self, Self::Combobox)
     }
 }

@@ -2482,6 +2482,217 @@ test('ColorPicker real input matches independent Tailwind across focus, disabled
   }
 })
 
+test('Combobox real owners match isolated Tailwind across focus, filtering, active options and blur', {
+  skip: !executablePath,
+}, async () => {
+  const looks = {
+    root: 'text-[#654321] opacity-75 disabled:opacity-25 enabled:opacity-50 aria-selected:mt-8',
+    input:
+      'p-2 opacity-100 rounded-none border-0 focus:opacity-50 focus-visible:outline-2 aria-expanded:border-2 enabled:px-3 disabled:mt-8 read-only:mb-8 aria-selected:ml-8',
+    list: 'p-2 opacity-100 rounded-none read-only:rounded-lg disabled:opacity-25 enabled:opacity-50 aria-selected:border-8 text-[#123456]',
+    option:
+      'p-1 opacity-100 border-0 rounded-none hover:opacity-50 active:opacity-75 aria-selected:border-2 aria-disabled:opacity-25 read-only:rounded-lg disabled:mt-8 enabled:mb-8 aria-checked:ml-8',
+  }
+  const expression = (mode, part) => {
+    const classes = looks[part]
+    const base = {
+      root: 'text-[#654321]',
+      input: 'p-2 opacity-100 rounded-none border-0',
+      list: 'p-2 opacity-100 rounded-none',
+      option: 'p-1 opacity-100 border-0 rounded-none',
+    }[part]
+    assert.ok(classes.startsWith(base))
+    return mode === 'literal'
+      ? JSON.stringify(classes)
+      : mode === 'opaque'
+        ? `{getClasses(${JSON.stringify(classes)})}`
+        : `{cx(${JSON.stringify(base)},getClasses(${JSON.stringify(classes.slice(base.length))}))}`
+  }
+  const source = `import {View,Combobox,cx} from '@hozo/core'; const C=()=> <View>
+    ${['literal', 'opaque', 'mixed']
+      .map(
+        (
+          mode,
+        ) => `<View testID="${mode}"><Combobox options={options} value="a" onValueChange={choose}
+      accessibilityLabel="Country" emptyMessage="Nothing" className=${expression(mode, 'root')}
+      ${['input', 'list', 'option'].map((part) => `${part}ClassName=${expression(mode, part)}`).join(' ')}/></View>`,
+      )
+      .join('')}
+    </View>`
+  const web = compiler.compile(source)[0]
+  assert.equal(web.diagnostics.length, 5)
+  for (const diagnostic of web.diagnostics) {
+    assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
+    assert.equal(diagnostic.severity, 'warning')
+    assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\(/)
+  }
+  const candidates = openCandidateCache(path.join(directory, 'combobox-owners.json'))
+  candidates.scanFile('ComboboxFixture.tsx', source, 1)
+  const candidateCss = candidates.renderCss()
+  assert.ok(candidateCss.includes('.p-1') && candidateCss.includes('.p-2'))
+  const oracleCss = (
+    await compile('@theme {--spacing:0.25rem;--radius-lg:0.5rem;} @tailwind utilities;')
+  ).build(Object.values(looks).flatMap((classes) => classes.split(' ')))
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react';import {createRoot} from 'react-dom/client';
+      import {Combobox as HozoCombobox} from '@hozo/patterns';
+      window.calls=0;window.changes=[];
+      const getClasses=value=>{window.calls++;return value};
+      const choose=value=>window.changes.push(value);
+      const options=[{value:'a',label:'Alpha'},{value:'b',label:'Beta',disabled:true},{value:'c',label:'Gamma'}];
+      createRoot(document.getElementById('root')).render(${web.jsx});`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const oracle = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const read = (locator) =>
+    locator.evaluate((e) => {
+      const s = getComputedStyle(e)
+      return [
+        s.paddingLeft,
+        s.paddingTop,
+        s.opacity,
+        s.borderRadius,
+        s.borderTopWidth,
+        s.outlineWidth,
+        s.marginTop,
+        s.marginBottom,
+        s.color,
+      ]
+    })
+  try {
+    await oracle.setContent(`<style>html{font-size:16px}</style><style>${oracleCss}</style><div id="root-owner" class="${looks.root}">
+      <input id="input" type="text" class="${looks.input}" aria-expanded="false"/>
+      <div id="list" role="listbox" class="${looks.list}"><div id="option" role="option" class="${looks.option}" aria-selected="false"></div></div></div>`)
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
+      )
+      await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      for (const mode of ['literal', 'opaque', 'mixed']) {
+        const section = page.getByTestId(mode)
+        const rootOwner = section.locator(':scope > div').first()
+        const field = section.locator('input')
+        const listbox = section.locator('[role="listbox"]')
+        const rows = section.locator('[role="option"]')
+        await field.waitFor()
+        assert.deepEqual(await read(rootOwner), await read(oracle.locator('#root-owner')))
+        assert.equal((await read(rootOwner))[2], '0.75', 'a wrapper div is not an enabled input')
+        if (mode !== 'literal')
+          await assertCandidateStylesRequired(page, () => read(rootOwner), `Combobox root ${mode}`)
+        const inputCheck = async (expanded) => {
+          await oracle
+            .locator('#input')
+            .evaluate((e, expanded) => e.setAttribute('aria-expanded', String(expanded)), expanded)
+          await comparePatternInput(page, oracle, field, oracle.locator('#input'), true)
+          assert.equal(await field.getAttribute('aria-expanded'), String(expanded))
+          assert.equal(await field.evaluate((e) => e === document.activeElement), true)
+        }
+        const optionCheck = async (index, selected, disabled = false, hover = false) => {
+          const owner = rows.nth(index)
+          await page.bringToFront()
+          if (hover) await owner.hover()
+          else await page.mouse.move(0, 0)
+          const actual = await read(owner)
+          await oracle.locator('#option').evaluate(
+            (e, { selected, disabled }) => {
+              e.setAttribute('aria-selected', String(selected))
+              if (disabled) e.setAttribute('aria-disabled', 'true')
+              else e.removeAttribute('aria-disabled')
+            },
+            { selected, disabled },
+          )
+          await oracle.bringToFront()
+          if (hover) await oracle.locator('#option').hover()
+          else await oracle.mouse.move(0, 0)
+          assert.deepEqual(actual, await read(oracle.locator('#option')), `${mode} option ${index}`)
+          await page.bringToFront()
+          assert.equal(await owner.getAttribute('aria-selected'), String(selected))
+          assert.equal(
+            await field.evaluate((e) => e === document.activeElement),
+            true,
+            'options never steal DOM focus',
+          )
+        }
+        await inputCheck(false)
+        assert.equal(await listbox.count(), 0, 'focus alone does not open the popup')
+        await field.fill('')
+        await listbox.waitFor()
+        assert.equal(await rows.count(), 3)
+        await inputCheck(true)
+        assert.deepEqual(await read(listbox), await read(oracle.locator('#list')))
+        await optionCheck(0, false)
+        await optionCheck(1, false, true)
+        if (mode !== 'literal') {
+          await assertCandidateStylesRequired(page, () => read(field), `Combobox input ${mode}`)
+          await assertCandidateStylesRequired(page, () => read(listbox), `Combobox list ${mode}`)
+          await assertCandidateStylesRequired(
+            page,
+            () => read(rows.first()),
+            `Combobox option ${mode}`,
+          )
+        }
+        await field.press('ArrowDown')
+        await optionCheck(0, true)
+        await optionCheck(2, false, false, true)
+        await optionCheck(0, true)
+        await field.press('ArrowDown')
+        await optionCheck(1, true, true)
+        const changes = await page.evaluate(() => window.changes.length)
+        await field.press('Enter')
+        assert.equal(await page.evaluate(() => window.changes.length), changes)
+        await field.press('ArrowDown')
+        await optionCheck(2, true)
+        await field.fill('Ga')
+        assert.equal(await rows.count(), 1)
+        await optionCheck(0, false)
+        await field.press('ArrowUp')
+        await optionCheck(0, true)
+        await field.press('Enter')
+        assert.equal(await field.inputValue(), 'Gamma')
+        assert.equal(await listbox.count(), 0)
+        assert.equal(await page.evaluate(() => window.changes.at(-1)), 'c')
+        await field.press('ArrowDown')
+        await listbox.waitFor()
+        await field.evaluate((e) => e.blur())
+        assert.equal(await listbox.count(), 0)
+        await field.focus()
+        await field.fill('no-match')
+        await listbox.waitFor()
+        assert.equal(await rows.count(), 0)
+        assert.equal(await listbox.textContent(), 'Nothing')
+        await field.press('Escape')
+        assert.equal(await listbox.count(), 0)
+        await field.press('Escape')
+        assert.equal(await field.inputValue(), '')
+        assert.equal(
+          await page.evaluate(() => window.calls),
+          8,
+          'owner events do not rerun authored class inputs',
+        )
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+    await oracle.close()
+  }
+})
+
 test('Avatar decorative owners match independent Tailwind through image failure, retry and status changes', {
   skip: !executablePath,
 }, async () => {
