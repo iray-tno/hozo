@@ -2173,6 +2173,176 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
   }
 })
 
+test('CommandPalette decorative owners match independent Tailwind through query and active-command changes', {
+  skip: !executablePath,
+}, async () => {
+  const own =
+    'px-2 py-1 mb-2 text-[#123456] opacity-100 disabled:opacity-25 read-only:rounded-lg aria-selected:text-[#ff0000] aria-disabled:mt-4'
+  const negative = 'not-disabled:px-2 not-enabled:py-1 not-aria-selected:text-[#123456]'
+  const extra = 'bg-[#123456]'
+  const slots = ['shortcutClassName', 'groupHeadingClassName', 'emptyClassName']
+  const expression = (mode, slot) =>
+    mode === 'literal'
+      ? JSON.stringify(`${own} ${negative} ${extra}`)
+      : mode === 'opaque'
+        ? `{getClasses('${mode}/${slot}', ${JSON.stringify(`${own} ${extra}`)})}`
+        : `{cx(${JSON.stringify(`${own.replace('read-only:rounded-lg', 'rounded-none')} ${negative}`)},getClasses('${mode}/${slot}','${extra} read-only:rounded-lg'))}`
+  const source = `import {View,CommandPalette,cx} from '@hozo/core'; const C=()=> <View>
+    ${['literal', 'opaque', 'mixed']
+      .map(
+        (mode) => `<View testID="${mode}"><CommandPalette
+      open={mode === '${mode}'} portal={false} commands={commands} accessibilityLabel="Decorative commands"
+      itemClassName="aria-selected:font-bold" panelClassName="text-[#654321]"
+      ${slots.map((slot) => `${slot}=${expression(mode, slot)}`).join(' ')} /></View>`,
+      )
+      .join('')}
+  </View>`
+  const web = compiler.compile(source)[0]
+  assert.equal(web.diagnostics.length, 3)
+  for (const diagnostic of web.diagnostics) {
+    assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
+    assert.equal(diagnostic.severity, 'warning')
+    assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)
+  }
+  const candidates = openCandidateCache(path.join(directory, 'command-decorations.json'))
+  const names = `${own} ${negative} ${extra} aria-selected:font-bold`.split(' ')
+  const candidateCss = candidates.renderCss(undefined, names)
+  const oracleCss = (
+    await compile(
+      '@theme { --spacing:0.25rem; --radius-lg:0.5rem; --font-weight-bold:700; } @tailwind utilities;',
+    )
+  ).build(names)
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {CommandPalette as HozoCommandPalette} from '@hozo/patterns';
+        const root=createRoot(document.getElementById('root'));
+        const initial=[{id:'a',label:'Alpha',group:'Group',shortcut:'A',onSelect:()=>{}},
+          {id:'b',label:'Beta',group:'Group',shortcut:'B',disabled:true,onSelect:()=>{}},
+          {id:'c',label:'Gamma',onSelect:()=>{}}];
+        function Example({mode,stamp,plain}) {
+          window.calls=[];
+          const commands=plain ? [{id:'plain',label:'Plain',onSelect:()=>{}}] : initial;
+          const getClasses=(name,value)=>{window.calls.push(name);return value};
+          return <section data-stamp={stamp}>${web.jsx}</section>;
+        }
+        window.show=value=>root.render(<Example {...value}/>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const read = (locator) =>
+    locator.evaluate((e) => {
+      const s = getComputedStyle(e)
+      return [
+        s.paddingLeft,
+        s.paddingTop,
+        s.opacity,
+        s.borderRadius,
+        s.color,
+        s.marginTop,
+        s.marginBottom,
+        s.backgroundColor,
+        s.fontWeight,
+      ]
+    })
+  try {
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      await page.setContent(
+        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><div><span id="oracle" class="${own} ${negative} ${extra}"></span></div>`,
+      )
+      await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      for (const mode of ['literal', 'opaque', 'mixed']) {
+        await page.evaluate((mode) => window.show({ mode, stamp: mode, plain: false }), mode)
+        await page.waitForFunction(
+          (mode) => document.querySelector('[data-stamp]')?.dataset.stamp === mode,
+          mode,
+        )
+        const section = page.locator(`[data-testid="${mode}"]`)
+        const input = section.locator('[role="combobox"]')
+        await input.waitFor()
+        const option = (label) => section.locator('[role="option"]').filter({ hasText: label })
+        const shortcut = (label) => option(label).locator('span[aria-hidden="true"]')
+        const heading = section.locator('[role="group"] > [role="presentation"]')
+        const check = async (locator, bold = false) => {
+          await page.locator('#oracle').evaluate((e, bold) => {
+            e.parentElement.style.fontWeight = bold ? '700' : '400'
+          }, bold)
+          const actual = await read(locator)
+          assert.deepEqual(actual, await read(page.locator('#oracle')), mode)
+          assert.deepEqual(actual, [
+            '8px',
+            '4px',
+            '1',
+            '8px',
+            'rgb(18, 52, 86)',
+            '0px',
+            '8px',
+            'rgb(18, 52, 86)',
+            bold ? '700' : '400',
+          ])
+        }
+        assert.equal(await section.locator('[role="option"]').count(), 3)
+        assert.equal(
+          (await page.evaluate(() => window.calls)).length,
+          6,
+          'closed palettes still evaluate authored props',
+        )
+        await check(heading)
+        await check(shortcut('Alpha'), true)
+        await check(shortcut('Beta'))
+        await option('Gamma').hover()
+        await page.waitForFunction(
+          () =>
+            document.querySelector('[role="option"][aria-selected="true"]')?.textContent ===
+            'Gamma',
+        )
+        await check(shortcut('Alpha'))
+        await input.fill('Beta')
+        await page.waitForFunction(() => document.querySelectorAll('[role="option"]').length === 1)
+        await check(shortcut('Beta'))
+        await input.fill('no-match')
+        await page.waitForFunction(() => document.querySelectorAll('[role="option"]').length === 0)
+        assert.equal(await heading.count(), 0)
+        const empty = section.locator('[role="listbox"] + div').first()
+        await check(empty)
+        assert.equal(
+          (await page.evaluate(() => window.calls)).length,
+          6,
+          'query/hover must not rerun author inputs',
+        )
+        await input.fill('')
+        await page.waitForFunction(() => document.querySelectorAll('[role="option"]').length === 3)
+        await check(shortcut('Alpha'), true)
+        await page.evaluate(
+          (mode) => window.show({ mode, stamp: `${mode}-plain`, plain: true }),
+          mode,
+        )
+        await page.waitForFunction(
+          () => document.querySelector('[role="option"]')?.textContent === 'Plain',
+        )
+        assert.equal(await heading.count(), 0)
+        assert.equal(await section.locator('[role="option"] span[aria-hidden]').count(), 0)
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('decorative Stepper and Pagination owners match independent non-control Tailwind across class routes', {
   skip: !executablePath,
 }, async () => {

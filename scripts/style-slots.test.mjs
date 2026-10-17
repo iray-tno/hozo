@@ -85,7 +85,13 @@ test('audited decorative slots supply the same constant facts without inventing 
   const decorative = Object.values(components)
     .flat()
     .filter((slot) => slot.profile === 'NonControl')
-  assert.equal(decorative.length, 6)
+  assert.equal(decorative.length, 9)
+  assert.deepEqual(
+    components.CommandPalette.filter((slot) => slot.profile === 'NonControl').map(
+      (slot) => slot.classProp,
+    ),
+    ['groupHeadingClassName', 'shortcutClassName', 'emptyClassName'],
+  )
   assert.ok(
     decorative.every(
       (slot) => slot.lowering === 'secondary' && !slot.callback && slot.events === 'unavailable',

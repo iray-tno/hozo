@@ -20,6 +20,16 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "selected" => Some("false"),
             _ => None,
         },
+        // A non-editable decorative span/li is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
+        (Primitive::CommandPalette, "groupHeadingClassName" | "shortcutClassName" | "emptyClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
         // Option divs are neither disabled nor enabled controls. The Web input keeps focus, not its active option.
         (Primitive::CommandPalette, "itemClassName" | "activeItemClassName") => match condition {
             Condition::Disabled => Some("false"),
@@ -123,7 +133,10 @@ pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option
 
 pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool {
     matches!((primitive, class_prop),
-        (Primitive::Pagination, "ellipsisClassName")
+        (Primitive::CommandPalette, "groupHeadingClassName")
+        |         (Primitive::CommandPalette, "shortcutClassName")
+        |         (Primitive::CommandPalette, "emptyClassName")
+        |         (Primitive::Pagination, "ellipsisClassName")
         |         (Primitive::Stepper, "indicatorClassName")
         |         (Primitive::Stepper, "completedIndicatorClassName")
         |         (Primitive::Stepper, "currentIndicatorClassName")
@@ -134,6 +147,9 @@ pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool
 
 pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
     match (primitive, class_prop) {
+        (Primitive::CommandPalette, "groupHeadingClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::CommandPalette, "shortcutClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        (Primitive::CommandPalette, "emptyClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Pagination, "ellipsisClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "indicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "completedIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),

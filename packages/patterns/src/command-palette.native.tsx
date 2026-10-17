@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 import type { HozoCommand } from './command-palette.tsx'
 import { currentCommand, rankCommands } from './command-rules.ts'
+import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import type { CommandPaletteSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
@@ -201,7 +202,7 @@ export function HozoCommandPalette({
                     accessibilityRole="header"
                     style={[
                       panelText,
-                      hozoClasses(groupHeadingClassName),
+                      hozoClasses(groupHeadingClassName, nonControlSlotFacts),
                       groupHeadingStyle as StyleProp<TextStyle>,
                     ]}
                   >
@@ -257,16 +258,11 @@ export function HozoCommandPalette({
                     >
                       {(interaction) => {
                         // A shortcut span owns none of the option's semantic
-                        // attributes or focus. Inherited typography is separate
+                        // attributes or events. Inherited typography is separate
                         // from matching a predicate on the shortcut itself.
-                        const shortcutState = stateFor(interaction)
-                        shortcutState.focused = false
-                        shortcutState.focusVisible = false
-                        shortcutState['aria-disabled'] = false
-                        shortcutState['aria-selected'] = false
                         const [, itemText] = look(interaction)
                         const [shortcutBox, shortcutText] = splitTextStyle([
-                          hozoClasses(shortcutClassName, shortcutState),
+                          hozoClasses(shortcutClassName, nonControlSlotFacts),
                           shortcutStyle,
                         ])
                         return (
@@ -293,7 +289,11 @@ export function HozoCommandPalette({
             ))}
             {count === 0 ? (
               <Text
-                style={[panelText, hozoClasses(emptyClassName), emptyStyle as StyleProp<TextStyle>]}
+                style={[
+                  panelText,
+                  hozoClasses(emptyClassName, nonControlSlotFacts),
+                  emptyStyle as StyleProp<TextStyle>,
+                ]}
               >
                 {message('hozo.commandPalette.empty')}
               </Text>

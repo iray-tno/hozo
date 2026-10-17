@@ -833,7 +833,11 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
   assert.deepEqual(changes, [])
   await act(() => alpha().props.onHoverIn({}))
   const shortcut = () => alpha().findByType('NativeView')
-  assert.equal(flat(shortcut().props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(
+    flat(shortcut().props.style).backgroundColor,
+    undefined,
+    'shortcut does not borrow option hover',
+  )
   assert.equal(
     flat(shortcut().findByType('NativeText').props.style).color,
     color('hozo-accent-text'),
@@ -848,7 +852,16 @@ test('Native CommandPalette current item and shortcut receive host facts indepen
     'option div has no focus typography to inherit to the shortcut',
   )
   await act(() => alpha().props.onPressIn({}))
-  assert.equal(flat(shortcut().props.style).opacity, 0.5)
+  assert.equal(
+    flat(shortcut().props.style).opacity,
+    undefined,
+    'no second active opacity on the shortcut',
+  )
+  assert.equal(
+    flat(alpha().props.style).opacity,
+    0.5,
+    'the actual option still dims its whole subtree',
+  )
   await act(() => alpha().props.onPressOut({}))
   const blocked = hosts().find((node) => node.props.accessibilityLabel === 'Blocked')
   assert.equal(blocked.props.disabled, true)

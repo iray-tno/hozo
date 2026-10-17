@@ -39,8 +39,9 @@ const decorativeExpression = (mode: string, slot: string, extra = '') => {
       : `{cx(${JSON.stringify(classes.replace('read-only:rounded-lg', 'rounded-none'))}, getClasses(${JSON.stringify(slot)}, 'bg-brand read-only:rounded-lg'))}`
 }
 const source = `import { View, Text, Button, Pressable, Chip, ColorPicker, Pagination, Stepper, CommandPalette, OtpInput, cx } from '@hozo/core'
-export { Stepper as RawStepper, Pagination as RawPagination }
+export { Stepper as RawStepper, Pagination as RawPagination, CommandPalette as RawCommandPalette }
 export const classes = {
+  commandParent: 'aria-selected:font-bold',
   decoration: ${JSON.stringify(decorationClasses)},
   unavailableDecoration: 'hover:opacity-50 active:border-8 not-hover:mt-2 not-focus:border-4',
   chip: 'p-2 hover:bg-brand focus-visible:outline-2 disabled:opacity-25 aria-pressed:rounded-lg',
@@ -185,8 +186,21 @@ export function UnavailableDecoration({ getClasses }) {
   return <Stepper steps={[{ label: 'Only', description: 'Details' }]} activeStep={0} onStepPress={() => {}}
     indicatorClassName={getClasses()} descriptionClassName={getClasses()} />
 }
+${['Literal', 'Opaque', 'Mixed']
+  .map(
+    (mode) => `export function CommandDecoration${mode}({ commands, getClasses, extra }) {
+  return <CommandPalette open commands={commands} accessibilityLabel="Decorative commands"
+    panelClassName="text-[#654321]" itemClassName="hover:text-[#abcdef] aria-selected:font-bold"
+    ${['shortcutClassName', 'groupHeadingClassName', 'emptyClassName'].map((slot) => `${slot}=${decorativeExpression(mode, slot)}`).join('\n')}
+    shortcutStyle={extra} groupHeadingStyle={extra} emptyStyle={extra} />
+}`,
+  )
+  .join('\n')}
 export function DecorationCandidates({ value }) {
   return <Stepper steps={[]} activeStep={0} indicatorClassName={value ? classes.decoration : classes.unavailableDecoration} />
+}
+export function CommandParentCandidates({ value }) {
+  return <CommandPalette commands={[]} itemClassName={value ? classes.commandParent : undefined} />
 }`
 
 const project = mkdtempSync(path.join(root, 'packages/tailwind-conformance/.pattern-project-'))
@@ -369,6 +383,116 @@ test('uncompiled pattern sources use the same decorative facts as compiled resid
   } finally {
     steps.unmount()
     pages.unmount()
+  }
+})
+
+for (const mode of ['Literal', 'Opaque', 'Mixed'])
+  test(`CommandPalette decorations keep their own facts across ${mode} query and active-owner changes`, () => {
+    let calls = 0
+    const commands = [
+      { id: 'a', label: 'Alpha', group: 'Group', shortcut: 'A', onSelect: () => {} },
+      { id: 'b', label: 'Beta', group: 'Group', shortcut: 'B', disabled: true, onSelect: () => {} },
+      { id: 'c', label: 'Gamma', onSelect: () => {} },
+    ]
+    const props = {
+      commands,
+      getClasses: (_slot: string, value: string) => {
+        calls++
+        return value
+      },
+    }
+    const view = mount(`CommandDecoration${mode}`, props)
+    const owner = (name: string) =>
+      hosts(view.tree).find((node) => node.props.accessibilityLabel === name)
+    const text = (value: string) =>
+      view.tree.root.findAll((node) => node.type === 'Text' && node.props.children === value)
+    const query = (value: string) =>
+      renderer.act(() => view.tree.root.findByType('TextInput').props.onChangeText(value))
+    const check = (node: Tree, box: Tree, override = false) => {
+      const style = flat(box)
+      assert.equal(style.paddingStart ?? style.paddingLeft, 8)
+      assert.equal(style.paddingTop, 4)
+      assert.equal(style.borderRadius, 8)
+      assert.equal(style.opacity, override ? 0.6 : 1)
+      assert.equal(style.marginTop, undefined, 'does not borrow aria-disabled')
+      assert.equal(flat(node).color, override ? '#112233' : '#123456')
+      assert.equal(style.backgroundColor, '#123456')
+    }
+    try {
+      const expectedCalls = mode === 'Literal' ? 0 : 3
+      assert.equal(calls, expectedCalls)
+      check(text('Group')[0], text('Group')[0])
+      for (const name of ['A', 'B']) check(text(name)[0], text(name)[0].parent!)
+      assert.equal(flat(text('A')[0]).fontWeight, '700', 'active option typography still inherits')
+      assert.equal(flat(text('B')[0]).fontWeight, undefined)
+      event(owner('Alpha'), 'onHoverIn')
+      event(owner('Alpha'), 'onPressIn')
+      event(owner('Alpha'), 'onFocus')
+      for (const name of ['A', 'B']) check(text(name)[0], text(name)[0].parent!)
+      event(owner('Gamma'), 'onHoverIn')
+      assert.equal(flat(text('A')[0]).fontWeight, undefined, 'previous active text is not frozen')
+      assert.equal(calls, expectedCalls, 'owner events do not rerun authored class inputs')
+      query('Beta')
+      check(text('B')[0], text('B')[0].parent!)
+      assert.equal(text('A').length, 0)
+      query('no-match')
+      assert.equal(text('Group').length, 0)
+      assert.equal(text('B').length, 0)
+      const empty = () =>
+        view.tree.root.findAll((node) => node.type === 'Text' && flat(node).borderRadius === 8)[0]
+      check(empty(), empty())
+      assert.equal(calls, expectedCalls, 'internal query state does not rerun author expressions')
+      view.update({ ...props, extra: { opacity: 0.6, color: '#112233' } })
+      check(empty(), empty(), true)
+      query('')
+      check(text('Group')[0], text('Group')[0], true)
+      check(text('A')[0], text('A')[0].parent!, true)
+      assert.equal(calls, expectedCalls * 2)
+      view.update({ ...props, commands: [{ id: 'plain', label: 'Plain', onSelect: () => {} }] })
+      assert.equal(text('Group').length, 0, 'no group heading without a group name')
+      assert.equal(text('A').length, 0, 'no shortcut without shortcut content')
+      assert.equal(
+        calls,
+        expectedCalls * 3,
+        'absent decoration owners do not defer authored input evaluation',
+      )
+      assert.equal(hosts(view.tree).filter((node) => node.props.accessibilityLabel).length, 1)
+    } finally {
+      view.unmount()
+    }
+  })
+
+test('uncompiled CommandPalette decorations neither borrow option events nor lose known form facts', () => {
+  const view = mount('RawCommandPalette', {
+    open: true,
+    commands: [{ id: 'a', label: 'Alpha', group: 'Group', shortcut: 'A', onSelect: () => {} }],
+    itemClassName: classes.commandParent,
+    shortcutClassName: `${classes.decoration} ${classes.unavailableDecoration}`,
+    groupHeadingClassName: classes.decoration,
+    emptyClassName: classes.decoration,
+  })
+  try {
+    const owner = hosts(view.tree).find((node) => node.props.accessibilityLabel === 'Alpha')
+    const text = (value: string) =>
+      view.tree.root.findAll((node) => node.type === 'Text' && node.props.children === value)[0]
+    for (const name of ['onHoverIn', 'onPressIn', 'onFocus']) event(owner, name)
+    assert.equal(flat(text('A').parent!).opacity, 1)
+    assert.equal(flat(text('A').parent!).borderRadius, 8)
+    assert.equal(
+      flat(text('A').parent!).borderWidth ?? flat(text('A').parent!).borderTopWidth,
+      undefined,
+    )
+    assert.equal(flat(text('A')).fontWeight, '700')
+    assert.equal(flat(text('Group')).borderRadius, 8)
+    renderer.act(() => view.tree.root.findByType('TextInput').props.onChangeText('no-match'))
+    const empty = view.tree.root.findAll(
+      (node) => node.type === 'Text' && flat(node).borderRadius === 8,
+    )
+    assert.equal(empty.length, 1)
+    assert.equal(flat(empty[0]).opacity, 1)
+    assert.equal(flat(empty[0]).color, '#123456')
+  } finally {
+    view.unmount()
   }
 })
 

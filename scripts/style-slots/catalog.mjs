@@ -168,6 +168,27 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        groupHeadingClassName: {
+          owner: 'non-control-group-heading-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'each-ranked-named-group',
+          composition: 'root/panel text inheritance; classes/explicit-style',
+        },
+        shortcutClassName: {
+          owner: 'non-control-shortcut-span',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'ranked-command-with-shortcut',
+          composition: 'root/panel/option text inheritance; classes/explicit-style; split-box-text',
+        },
+        emptyClassName: {
+          owner: 'non-control-empty-div',
+          profile: 'NonControl',
+          events: 'unavailable',
+          gate: 'no-ranked-commands',
+          composition: 'root/panel text inheritance; classes/explicit-style',
+        },
         itemClassName: owned('option-div', 'CommandPalette', 'hozoItemStyle', { focus: false }),
         activeItemClassName: owned('option-div', 'CommandPalette', 'hozoActiveItemStyle', {
           focus: false,
