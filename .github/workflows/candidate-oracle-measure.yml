@@ -1,0 +1,37 @@
+name: candidate-oracle-measure
+on:
+  push:
+    branches: [chore/candidate-oracle-measure]
+permissions:
+  contents: read
+jobs:
+  browser-oracles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm exec turbo run build --filter=@hozo/compiler... --filter=@hozo/primitives... --filter=@hozo/form... --filter=@hozo/patterns... --concurrency=1
+      - name: Independent browser oracles and candidate-sheet negative controls
+        shell: bash
+        run: |
+          mkdir -p artifacts/candidate-oracles
+          git rev-parse HEAD > artifacts/candidate-oracles/source.txt
+          git rev-parse HEAD^ > artifacts/candidate-oracles/feature-source.txt
+          node --test --test-concurrency=1 examples/storybook-demo/scripts/candidate-cascade.test.mjs 2>&1 | tee artifacts/candidate-oracles/result.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: candidate-oracles
+          path: artifacts/candidate-oracles/
+          if-no-files-found: warn
