@@ -154,6 +154,7 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
     // with no props in scope: a module constant cannot depend on one.
     let no_props = Params {
         props: BTreeMap::new(),
+        locals: BTreeMap::new(),
         rest: None,
     };
     let mut module_constants = BTreeMap::new();
@@ -255,10 +256,23 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
     }
 }
 
-/// The destructured props: name to default, plus the rest binding.
+/// Defaults belong to public prop names; expressions refer to local names.
+/// Keep that distinction until the summary, including children/className and
+/// the prop that reaches the host's disabled attribute.
 struct Params {
     props: BTreeMap<String, Option<String>>,
+    locals: BTreeMap<String, String>,
     rest: Option<String>,
+}
+
+impl Params {
+    fn prop_name(&self, local: &str) -> Option<&str> {
+        self.locals.get(local).map(String::as_str)
+    }
+
+    fn is_local(&self, name: &str) -> bool {
+        self.locals.contains_key(name) || self.rest.as_deref() == Some(name)
+    }
 }
 
 fn read_params(params: &FormalParameters) -> Option<Params> {
@@ -273,31 +287,35 @@ fn read_props(pattern: &BindingPattern) -> Option<Params> {
         return None;
     };
     let mut props = BTreeMap::new();
+    let mut locals = BTreeMap::new();
     for property in &object.properties {
+        if property.computed {
+            return None;
+        }
         let key = property.key.static_name()?.to_string();
-        let default = match &property.value {
-            BindingPattern::BindingIdentifier(local) if local.name == key.as_str() => None,
+        let (local, default) = match &property.value {
+            BindingPattern::BindingIdentifier(local) => (local.name.to_string(), None),
             BindingPattern::AssignmentPattern(assign) => {
                 let BindingPattern::BindingIdentifier(local) = &assign.left else {
                     return None;
                 };
-                if local.name != key.as_str() {
-                    return None;
-                }
                 // A default that is not a string (`live = false`) is kept as
                 // none. If the classes compare the prop, a caller who leaves
                 // it out then gets nothing handed down, which is the safe
                 // side; if they do not, it never mattered.
-                match &assign.right {
+                let default = match &assign.right {
                     Expression::StringLiteral(value) => Some(value.value.to_string()),
                     _ => None,
-                }
+                };
+                (local.name.to_string(), default)
             }
-            // A renamed binding would need its local name tracked through
-            // every comparison. Not worth it for the shape this reads.
             _ => return None,
         };
-        props.insert(key, default);
+        // Repeated public keys can have different local defaults. One
+        // manifest prop cannot describe those, even if the JS is legal.
+        if props.insert(key.clone(), default).is_some() || locals.insert(local, key).is_some() {
+            return None;
+        }
     }
     let rest = match &object.rest {
         None => None,
@@ -306,7 +324,14 @@ fn read_props(pattern: &BindingPattern) -> Option<Params> {
             _ => return None,
         },
     };
-    Some(Params { props, rest })
+    if rest.as_ref().is_some_and(|name| locals.contains_key(name)) {
+        return None;
+    }
+    Some(Params {
+        props,
+        locals,
+        rest,
+    })
 }
 
 /// A choice between two class lists, made by comparing a prop with a
@@ -329,12 +354,8 @@ fn read_comparison(expr: &Expression, params: &Params) -> Option<Comparison> {
         | (Expression::StringLiteral(lit), Expression::Identifier(id)) => (id, lit),
         _ => return None,
     };
-    let prop = pair.0.name.to_string();
-    if !params.props.contains_key(&prop) {
-        return None;
-    }
     Some(Comparison {
-        prop,
+        prop: params.prop_name(pair.0.name.as_str())?.to_string(),
         value: pair.1.value.to_string(),
     })
 }
@@ -342,7 +363,7 @@ fn read_comparison(expr: &Expression, params: &Params) -> Option<Comparison> {
 /// `prop !== undefined`, `prop != null` or a bare `prop`, on a destructured
 /// prop: a question about whether it was passed, not about its value.
 fn is_presence_test(expr: &Expression, params: &Params) -> bool {
-    let is_prop = |expr: &Expression| matches!(expr.without_parentheses(), Expression::Identifier(id) if params.props.contains_key(id.name.as_str()));
+    let is_prop = |expr: &Expression| matches!(expr.without_parentheses(), Expression::Identifier(id) if params.prop_name(id.name.as_str()).is_some());
     match expr.without_parentheses() {
         Expression::BinaryExpression(binary) => {
             let nothing = |expr: &Expression| match expr.without_parentheses() {
@@ -476,9 +497,14 @@ fn read_classes(expr: &Expression, scope: &Scope) -> Option<Classes> {
         }
         // The caller's own className: compiled in the caller's file, on the
         // element the caller wrote, so it is not this component's to hand down.
-        Expression::Identifier(id) if id.name == "className" => {
+        Expression::Identifier(id)
+            if scope.params.prop_name(id.name.as_str()) == Some("className") =>
+        {
             Some(Classes::Literal(String::new()))
         }
+        // A prop/rest binding shadows a same-named module class list; it is
+        // not a readable constant merely because the spellings match.
+        Expression::Identifier(id) if scope.params.is_local(id.name.as_str()) => None,
         Expression::Identifier(id) => match scope.constants.get(id.name.as_str())? {
             Named::Classes(classes) => Some(classes.clone()),
             Named::Map(_) => None,
@@ -487,7 +513,7 @@ fn read_classes(expr: &Expression, scope: &Scope) -> Option<Classes> {
         Expression::ConditionalExpression(conditional) => {
             // `className ? `${own} ${className}` : own` -- the two branches
             // differ by the caller's part only, which is left out anyway.
-            if matches!(conditional.test.without_parentheses(), Expression::Identifier(id) if id.name == "className")
+            if matches!(conditional.test.without_parentheses(), Expression::Identifier(id) if scope.params.prop_name(id.name.as_str()) == Some("className"))
             {
                 let with = read_classes(&conditional.consequent, scope)?.normalized();
                 let without = read_classes(&conditional.alternate, scope)?.normalized();
@@ -521,17 +547,18 @@ fn read_lookup(member: &oxc_ast::ast::ComputedMemberExpression, scope: &Scope) -
     ) else {
         return None;
     };
+    if scope.params.is_local(map.name.as_str()) {
+        return None;
+    }
     let Named::Map(entries) = scope.constants.get(map.name.as_str())? else {
         return None;
     };
-    if !scope.params.props.contains_key(prop.name.as_str()) {
-        return None;
-    }
+    let prop = scope.params.prop_name(prop.name.as_str())?;
     let mut classes = Classes::Literal(String::new());
     for (key, value) in entries.iter().rev() {
         classes = Classes::Choice {
             when: Comparison {
-                prop: prop.name.to_string(),
+                prop: prop.to_string(),
                 value: key.clone(),
             },
             then: Box::new(value.clone()),
@@ -747,7 +774,7 @@ fn read_render_params(
         return None;
     }
     let shadows = params
-        .props
+        .locals
         .keys()
         .map(String::as_str)
         .chain(params.rest.as_deref())
@@ -989,6 +1016,9 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
     let JSXElementName::IdentifierReference(tag) = &element.opening_element.name else {
         return None;
     };
+    if params.is_local(tag.name.as_str()) {
+        return None;
+    }
     let host = module.import_entries.iter().find_map(|entry| {
         let ImportImportName::Name(imported) = &entry.import_name else {
             return None;
@@ -1044,10 +1074,7 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
                         let JSXExpression::Identifier(id) = &container.expression else {
                             return None;
                         };
-                        if !params.props.contains_key(id.name.as_str()) {
-                            return None;
-                        }
-                        disabled_prop = Some(id.name.to_string());
+                        disabled_prop = Some(params.prop_name(id.name.as_str())?.to_string());
                     }
                     _ => {}
                 }
@@ -1067,7 +1094,7 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
             let JSXExpression::Identifier(id) = &container.expression else {
                 return None;
             };
-            forwards_children = id.name == "children";
+            forwards_children = params.prop_name(id.name.as_str()) == Some("children");
         }
         _ => return None,
     }
@@ -1101,6 +1128,9 @@ fn read_join(call: &CallExpression, scope: &Scope) -> Option<Classes> {
     let Expression::Identifier(callee) = &call.callee else {
         return None;
     };
+    if scope.params.is_local(callee.name.as_str()) {
+        return None;
+    }
     let recognized = scope.module.import_entries.iter().any(|entry| {
         let from = entry.module_request.name.as_str();
         entry.local_name.name == callee.name.as_str()
@@ -1351,6 +1381,127 @@ export function HozoButton({{ tone = 'neutral', size = 'md', className, disabled
     }
 
     #[test]
+    fn renamed_bindings_keep_the_public_prop_names_defaults_and_disabled_source() {
+        let plain = "import {cx} from '@hozo/core'
+import {Button as Host} from '@hozo/primitives'
+export function Check({tone = 'neutral', size = 'md', className, children, inactive, ...rest}) {
+  if (tone === 'accent') return <Host {...rest} disabled={inactive} className={cx('font-bold text-white disabled:text-gray-400', size === 'sm' ? 'text-sm' : 'text-base', className)}>{children}</Host>
+  return <Host {...rest} disabled={inactive} className={cx('text-black', className)}>{children}</Host>
+}";
+        let aliased = plain
+            .replace("{tone = 'neutral', size = 'md', className, children, inactive, ...rest}", "{tone: t = 'neutral', size: s = 'md', className: classes, children: label, inactive: off, ...rest}")
+            .replace("tone ===", "t ===")
+            .replace("size ===", "s ===")
+            .replace("disabled={inactive}", "disabled={off}")
+            .replace(", className)", ", classes)")
+            .replace("{children}</Host>", "{label}</Host>");
+        let expected = summarize_text_forwarding(plain);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(
+            expected.components[0].disabled_prop.as_deref(),
+            Some("inactive")
+        );
+        assert_eq!(expected.components[0].props[0].name, "size");
+        assert_eq!(expected.components[0].props[1].name, "tone");
+        assert_eq!(summarize_text_forwarding(&aliased), expected);
+    }
+
+    #[test]
+    fn renamed_props_compose_with_maps_wrappers_and_the_callers_class_join() {
+        let plain = "import {memo, forwardRef} from 'react'
+import {Button as Host} from '@hozo/primitives'
+const looks = {quiet: 'text-sm', loud: 'font-bold hover:text-red-500 disabled:text-gray-400'} as const
+export const Check = memo(forwardRef(({tone = 'quiet', className, children, disabled, ...rest}, ref) =>
+  <Host ref={ref} {...rest} disabled={disabled} className={className ? `${looks[tone]} ${className}` : looks[tone]}>{children}</Host>))";
+        let aliased = plain
+            .replace(
+                "{tone = 'quiet', className, children, disabled, ...rest}",
+                "{tone: t = 'quiet', className: classes, children: label, disabled: off, ...rest}",
+            )
+            .replace("looks[tone]", "looks[t]")
+            .replace("disabled={disabled}", "disabled={off}")
+            .replace("className ?", "classes ?")
+            .replace("${className}", "${classes}")
+            .replace("{children}</Host>", "{label}</Host>");
+        let expected = summarize_text_forwarding(plain);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(expected.components[0].props[0].name, "tone");
+        assert_eq!(summarize_text_forwarding(&aliased), expected);
+    }
+
+    #[test]
+    fn renaming_a_prop_does_not_put_it_back_in_the_rest() {
+        let source = "import {Checkbox as Host} from '@hozo/patterns'
+export const Check = ({className: classes, disabled: off, ...rest}) => <Host {...rest} className=\"text-sm disabled:text-gray-400\" />";
+        let summary = summarize_text_forwarding(source);
+        assert_eq!(summary.components.len(), 1);
+        assert_eq!(summary.components[0].disabled_prop, None);
+        // Explicitly taken children are not in the rest either.
+        let dropped = source.replace("disabled: off", "disabled: off, children: label");
+        assert!(summarize_text_forwarding(&dropped).components.is_empty());
+    }
+
+    #[test]
+    fn a_renamed_presence_guard_still_requires_the_same_look_on_both_hosts() {
+        let plain = "import {Button as Host} from '@hozo/primitives'
+export function Check({children, href, ...rest}) {
+  if (href != null) return <Host {...rest} href={href} className=\"text-sm\">{children}</Host>
+  return <Host {...rest} className=\"text-sm\">{children}</Host>
+}";
+        let aliased = plain
+            .replace(
+                "{children, href, ...rest}",
+                "{children: label, href: destination, ...rest}",
+            )
+            .replace("href !=", "destination !=")
+            .replace("href={href}", "href={destination}")
+            .replace("{children}", "{label}");
+        let expected = summarize_text_forwarding(plain);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(summarize_text_forwarding(&aliased), expected);
+        let different = aliased.replacen("text-sm", "text-lg", 1);
+        assert!(summarize_text_forwarding(&different).components.is_empty());
+    }
+
+    #[test]
+    fn public_spelling_is_not_a_second_local_binding() {
+        let source = "import {Button as Host} from '@hozo/primitives'
+export const Check = ({tone: t = 'quiet', theme: tone = 'dim', children: label}) =>
+  <Host className={tone === 'bright' ? 'text-white' : 'text-black'}>{label}</Host>";
+        let summary = summarize_text_forwarding(source);
+        assert_eq!(summary.components.len(), 1);
+        assert_eq!(summary.components[0].props[0].name, "theme");
+        assert_eq!(
+            summary.components[0].props[0].default.as_deref(),
+            Some("dim")
+        );
+        // An alias called className is not necessarily the caller's class list.
+        let ordinary = source
+            .replace("theme: tone", "theme: className")
+            .replace("tone ===", "className ===");
+        assert_eq!(summarize_text_forwarding(&ordinary), summary);
+    }
+
+    #[test]
+    fn aliases_do_not_turn_unknown_or_shadowed_values_into_facts() {
+        for (extra, definition) in [
+            ("", "({children: label, tone: t}) => <Host className={tone === 'loud' ? 'text-lg' : 'text-sm'}>{label}</Host>"),
+            ("", "({children: label}) => <Host className=\"text-sm\">{children}</Host>"),
+            ("", "({children, tone: className}) => <Host className={className}>{children}</Host>"),
+            ("const own = 'text-sm'", "({children, tone: own}) => <Host className={own}>{children}</Host>"),
+            ("const looks = {quiet: 'text-sm'}", "({children, tone = 'quiet', look: looks}) => <Host className={looks[tone]}>{children}</Host>"),
+            ("import {cx} from '@hozo/core'", "({children, helper: cx}) => <Host className={cx('text-sm')}>{children}</Host>"),
+            ("", "({children, component: Host}) => <Host className=\"text-sm\">{children}</Host>"),
+            ("", "({children, tone: t = 'quiet', tone: u = 'loud'}) => <Host className={t === 'quiet' ? 'text-lg' : 'text-sm'}>{children}</Host>"),
+            ("", "({children, tone: {value: t}}) => <Host className=\"text-sm\">{children}</Host>"),
+            ("const key = 'tone'", "({children, [key]: t}) => <Host className=\"text-sm\">{children}</Host>"),
+        ] {
+            let source = format!("import {{Button as Host}} from '@hozo/primitives'\n{extra}\nexport const Check = {definition}");
+            assert!(summarize_text_forwarding(&source).components.is_empty(), "{source}");
+        }
+    }
+
+    #[test]
     fn an_exported_const_arrow_block_has_the_same_summary_as_a_function() {
         let source = button(
             "const own = size === 'sm' ? 'text-sm' : 'text-base'
@@ -1564,7 +1715,7 @@ const looks = {quiet: 'text-sm', loud: 'font-bold hover:text-red-500'} as const
             "export const B = ({children}) => <Text className=\"text-sm\">{children}</Text>",
             "export const B = ({children}) => <><Host className=\"text-sm\">{children}</Host></>",
             "export const B = ({children}) => <Host className={compute()}>{children}</Host>",
-            "export const B = ({children, tone: t}) => <Host className={t === 'loud' ? 'text-lg' : 'text-sm'}>{children}</Host>",
+            "export const B = ({children, tone: {value: t}}) => <Host className={t === 'loud' ? 'text-lg' : 'text-sm'}>{children}</Host>",
         ] {
             let source = format!(
                 "import {{ Button as Host, Text }} from '@hozo/primitives'\n{definition}"
