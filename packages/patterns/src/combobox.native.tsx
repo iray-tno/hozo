@@ -5,12 +5,12 @@ import { type StyleProp, Text, TextInput, type TextStyle, View, type ViewStyle }
 import { activeAfter, filterOptions } from './combobox-rules.ts'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import type { ComboboxInputSlotFacts, ComboboxOptionSlotFacts } from './slot-facts.native.ts'
+import type { ComboboxInputSlotFacts, ListOptionSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 type Style = StyleProp<ViewStyle | TextStyle>
 type InputState = Pick<InteractionState, 'focused' | 'focusVisible'> & ComboboxInputSlotFacts
-type OptionState = Pick<InteractionState, 'hovered' | 'pressed'> & ComboboxOptionSlotFacts
+type OptionState = Pick<InteractionState, 'hovered' | 'pressed'> & ListOptionSlotFacts
 
 export interface HozoComboboxOption<T> {
   value: T

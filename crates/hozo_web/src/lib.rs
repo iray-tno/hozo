@@ -344,6 +344,9 @@ pub fn lower_with_evidence(
     if contains_primitive(root, Primitive::Combobox) {
         runtime_imports.push("HozoCombobox");
     }
+    if contains_primitive(root, Primitive::Listbox) {
+        runtime_imports.push("HozoListbox");
+    }
     if contains_primitive(root, Primitive::ColorPicker) {
         runtime_imports.push("HozoColorPicker");
     }

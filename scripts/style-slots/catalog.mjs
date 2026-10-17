@@ -93,7 +93,7 @@ export const profiles = {
     },
     note: 'The editable input owns focus and the popup expanded state; neither list nor option lends it events.',
   },
-  ComboboxOption: {
+  ListOption: {
     facts: {
       disabled: false,
       enabled: false,
@@ -102,7 +102,7 @@ export const profiles = {
       'aria-selected': supplied('__hozoSlotAriaSelected'),
       'aria-checked': false,
     },
-    note: 'Option divs are non-form owners. Selection means the active filtered option, not the committed value; focus stays on the input.',
+    note: 'Option divs are non-form owners. Each widget supplies its own selection meaning; focus ownership is declared per slot.',
   },
   OtpDecoration: {
     facts: {
@@ -236,7 +236,7 @@ export const components = {
         gate: 'popup-open',
         composition: 'root-text inheritance; classes/explicit-style; split-box-text',
       },
-      optionClassName: owned('option-div', 'ComboboxOption', 'hozoOptionStyle', {
+      optionClassName: owned('option-div', 'ListOption', 'hozoOptionStyle', {
         focus: false,
         gate: 'each-filtered-option',
         composition: 'root/list-text inheritance; classes/callback/explicit-style; split-box-text',
@@ -283,7 +283,22 @@ export const components = {
   ),
   Dialog: slots('className'),
   Drawer: slots('className scrimClassName panelClassName'),
-  Listbox: slots('className optionClassName'),
+  Listbox: slots('className optionClassName', {
+    secondary: true,
+    overrides: {
+      className: {
+        owner: 'non-control-listbox-div',
+        profile: 'NonControl',
+        events: 'unavailable',
+        gate: 'always',
+        composition: 'classes/explicit-style; split-box-text inheritance',
+      },
+      optionClassName: owned('option-div', 'ListOption', 'hozoOptionStyle', {
+        gate: 'each-option',
+        composition: 'root-text inheritance; classes/callback/explicit-style; split-box-text',
+      }),
+    },
+  }),
   Menu: slots('className triggerClassName menuClassName itemClassName'),
   OtpInput: slots(
     'className cellClassName activeCellClassName filledCellClassName inputClassName',

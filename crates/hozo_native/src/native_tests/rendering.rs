@@ -1,6 +1,49 @@
 use super::*;
 
 #[test]
+fn listbox_options_own_focus_and_selection_but_are_not_form_controls() {
+    let source = r#"import { Listbox } from '@hozo/core'; const el = <Listbox options={options}
+        className="disabled:opacity-25 enabled:opacity-50 text-red-500"
+        optionClassName="focus:opacity-50 focus-visible:outline-2 hover:opacity-75 aria-selected:border-2 aria-disabled:opacity-25 read-only:rounded-lg disabled:mt-8 enabled:mb-8" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<HozoListbox"), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoOptionStyle="), "{}", out.jsx);
+    assert!(out.jsx.contains("focused &&"), "{}", out.jsx);
+    assert!(out.jsx.contains("focusVisible &&"), "{}", out.jsx);
+    assert!(out.jsx.contains("'aria-selected': __hozoSlotAriaSelected"));
+    assert!(out.jsx.contains("'aria-disabled': __hozoSlotAriaDisabled"));
+    assert!(out.runtime_imports.contains(&"HozoListbox"));
+    for variant in ["focus", "not-focus", "hover", "not-hover"] {
+        let source = format!("import {{ Listbox }} from '@hozo/core'; const el = <Listbox options={{options}} className=\"{variant}:opacity-50\" />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+            "{variant}: {:?}",
+            out.diagnostics
+        );
+    }
+}
+
+#[test]
+fn opaque_listbox_root_has_constant_facts_not_option_focus_or_selection() {
+    let source = "import { Listbox } from '@hozo/core'; const el = <Listbox options={[]} className={choose()} />";
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(
+        out.jsx
+            .contains("hozoClasses(choose(), { disabled: false, enabled: false, readOnly: true"),
+        "{}",
+        out.jsx
+    );
+    assert!(!out.jsx.contains("focused, focusVisible"), "{}", out.jsx);
+}
+
+#[test]
 fn combobox_slots_lower_to_independent_pattern_owners() {
     let source = r#"import { Combobox } from '@hozo/core'; const el = <Combobox options={options}
         className="read-only:rounded-lg disabled:opacity-25"

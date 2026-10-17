@@ -1,9 +1,14 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { optionKey } from './option-key.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import type { ListOptionSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
+
+type Style = StyleProp<ViewStyle | TextStyle>
+type OptionState = InteractionState & ListOptionSlotFacts
 
 export interface HozoListboxOption<T> {
   /**
@@ -28,7 +33,8 @@ interface Shared<T> {
    * On a tag the compiler lowers it is gone by runtime, replaced by a
    * `StyleSheet` entry. Here it arrives as a string and is resolved through
    * the project's candidate map (#886), an option with its interaction,
-   * `aria-selected` and `disabled` state. A string label takes the text half
+   * `aria-selected` and `aria-disabled` state. The Web option is a div,
+   * not a disabled/enabled form control. A string label takes the text half
    * of its option's styles. Each `*Style` prop comes after its class list.
    */
   className?: string
@@ -36,8 +42,10 @@ interface Shared<T> {
   optionClassName?: string
   options: readonly HozoListboxOption<T>[]
   accessibilityLabel?: string
-  style?: StyleProp<ViewStyle>
-  optionStyle?: StyleProp<ViewStyle>
+  style?: Style
+  optionStyle?: Style
+  /** @internal Options own focus and pointer state; selection is the committed value. */
+  hozoOptionStyle?: (state: OptionState) => Style
 }
 
 export interface HozoListboxSingleProps<T> extends Shared<T> {
@@ -57,7 +65,15 @@ export interface HozoListboxMultipleProps<T> extends Shared<T> {
 export type HozoListboxProps<T> = HozoListboxSingleProps<T> | HozoListboxMultipleProps<T>
 
 export function HozoListbox<T>(props: HozoListboxProps<T>) {
-  const { className, optionClassName, options, accessibilityLabel, style, optionStyle } = props
+  const {
+    className,
+    optionClassName,
+    options,
+    accessibilityLabel,
+    style,
+    optionStyle,
+    hozoOptionStyle,
+  } = props
   const multiple = props.multiple === true
 
   const [uncontrolled, setUncontrolled] = useState<T[]>(() =>
@@ -94,24 +110,31 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
     commit(already ? chosen.filter((value) => value !== option.value) : [...chosen, option.value])
   }
 
+  const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
+
   return (
     <View
       accessibilityRole="list"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={multiple ? 'Choose one or more' : undefined}
-      style={[hozoClasses(className), style]}
+      style={rootBox}
     >
       {options.map((option, at) => {
         const selected = chosen.includes(option.value)
-        const look = (interaction: InteractionState) =>
-          splitTextStyle(
-            hozoClasses(optionClassName, {
-              ...interaction,
-              disabled: Boolean(option.disabled),
-              'aria-selected': selected,
-              'aria-disabled': Boolean(option.disabled),
-            }),
-          )
+        const look = (interaction: InteractionState) => {
+          const facts = {
+            ...interaction,
+            ...nonControlSlotFacts,
+            'aria-selected': selected,
+            'aria-disabled': Boolean(option.disabled),
+          } satisfies OptionState
+          return splitTextStyle([
+            rootText,
+            hozoClasses(optionClassName, facts),
+            hozoOptionStyle?.(facts),
+            optionStyle,
+          ])
+        }
         const content = option.render ?? option.label
         return (
           <Pressable
@@ -119,7 +142,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
             accessibilityRole="menuitem"
             accessibilityState={{ selected, disabled: option.disabled }}
             disabled={option.disabled}
-            style={(interaction) => [look(interaction)[0], optionStyle]}
+            style={(interaction) => look(interaction)[0]}
             onPress={() => toggle(at)}
           >
             {(interaction) =>

@@ -68,6 +68,7 @@ test('dynamic secondary pattern classes reach their registered slot owner withou
     ['OtpInput', 'inputClassName', 'inputStyle'],
     ['Combobox', 'inputClassName', 'inputStyle'],
     ['Combobox', 'optionClassName', 'optionStyle'],
+    ['Listbox', 'optionClassName', 'optionStyle'],
   ]) {
     const output = transformHozoSource(
       `import { ${component} } from '@hozo/core'
@@ -146,6 +147,7 @@ test('mixed secondary expressions retain AOT and source-ordered guards on regist
     ['OtpInput', 'inputClassName', 'focus'],
     ['Combobox', 'inputClassName', 'focus'],
     ['Combobox', 'optionClassName', 'hover'],
+    ['Listbox', 'optionClassName', 'focus'],
   ]) {
     const output = transformHozoSource(
       `import {${component},cx} from '@hozo/core'; export function C() {return <${component} onStepPress={press} ${slot}={cx('p-2 not-${state}:rounded-lg ${state}:opacity-50 md:mt-2', choose())} />}`,
@@ -360,6 +362,25 @@ test('opaque Combobox root classes receive the same constant facts as its non-co
     opaque,
     /hozoClasses\(getClasses\(\), \{ disabled: false, enabled: false, readOnly: true/,
   )
+})
+
+test('Listbox slots compile known div facts and each option own focus and selection', () => {
+  const output = transformHozoSource(
+    `import {Listbox} from '@hozo/core';export function C(){return <Listbox options={options}
+      className="disabled:opacity-25 enabled:opacity-50 text-red-500"
+      optionClassName="focus:opacity-50 focus-visible:outline-2 hover:opacity-75 aria-selected:border-2 aria-disabled:opacity-25 read-only:rounded-lg disabled:mt-8 enabled:mb-8"
+      optionStyle={extra}/>} `,
+    'Listbox.tsx',
+  )
+  assert.ok(output)
+  assert.match(output, /hozoOptionStyle=/)
+  assert.match(output, /focused &&/)
+  assert.match(output, /focusVisible &&/)
+  assert.match(output, /'aria-selected': __hozoSlotAriaSelected/)
+  assert.match(output, /'aria-disabled': __hozoSlotAriaDisabled/)
+  assert.match(output, /optionStyle=\{extra\}/)
+  assert.doesNotMatch(output, /hozoClasses|optionClassName=/)
+  assert.doesNotMatch(output.slice(output.indexOf('<HozoListbox')), /_enabled|_disabled/)
 })
 
 test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {

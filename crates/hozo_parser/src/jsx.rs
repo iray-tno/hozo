@@ -902,6 +902,7 @@ fn primitive_for_name(name: &str) -> Option<Primitive> {
         "OtpInput" => Some(Primitive::OtpInput),
         "CommandPalette" => Some(Primitive::CommandPalette),
         "Combobox" => Some(Primitive::Combobox),
+        "Listbox" => Some(Primitive::Listbox),
         "ColorPicker" => Some(Primitive::ColorPicker),
         "Table" => Some(Primitive::Table),
         "TableCaption" => Some(Primitive::TableCaption),

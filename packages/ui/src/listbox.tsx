@@ -45,7 +45,7 @@ const box =
 const option =
   'cursor-pointer rounded-hozo-control px-3 py-2 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-selected:font-semibold aria-selected:text-hozo-accent-text aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
-export function HozoListbox<T>({ className, ...rest }: HozoListboxProps<T>) {
+function StyledListbox<T>({ className, ...rest }: HozoListboxProps<T>) {
   return (
     <ListboxPattern
       // The cast is the price of the distributed type above: JSX resolves a
@@ -58,4 +58,8 @@ export function HozoListbox<T>({ className, ...rest }: HozoListboxProps<T>) {
   )
 }
 
-export { HozoListbox as Listbox, type HozoListboxProps as ListboxProps }
+export {
+  type HozoListboxProps as ListboxProps,
+  StyledListbox as HozoListbox,
+  StyledListbox as Listbox,
+}

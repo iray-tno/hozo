@@ -80,6 +80,14 @@
       "types": "./dist/generated/dialog.d.ts",
       "default": "./dist/generated/dialog.js"
     },
+    "./generated/listbox": {
+      "react-native": {
+        "types": "./dist/generated/listbox.native.d.ts",
+        "default": "./dist/generated/listbox.native.js"
+      },
+      "types": "./dist/generated/listbox.d.ts",
+      "default": "./dist/generated/listbox.js"
+    },
     "./generated/otp-input": {
       "react-native": {
         "types": "./dist/generated/otp-input.native.d.ts",

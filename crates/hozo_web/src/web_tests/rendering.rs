@@ -1,6 +1,30 @@
 use super::*;
 
 #[test]
+fn listbox_keeps_actual_div_selectors_and_its_runtime_abi() {
+    let source = r#"import { Listbox } from '@hozo/core'; const el = <Listbox options={options}
+        className="disabled:opacity-25 enabled:opacity-50"
+        optionClassName="focus:opacity-50 aria-selected:border-2 aria-disabled:opacity-25 disabled:mt-8 enabled:mb-8" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<HozoListbox"), "{}", out.jsx);
+    assert!(out.runtime_imports.contains(&"HozoListbox"));
+    assert!(out.jsx.contains("optionClassName="));
+    assert!(!out.css.contains("data-hozo-disabled"), "{}", out.css);
+    assert!(out.css.contains(":disabled"), "{}", out.css);
+    let source = "import { Listbox } from '@hozo/core'; const el = <Listbox options={[]} className={choose()} />";
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(
+        out.jsx
+            .contains("hozo-candidate-owner hozo-candidate-slot-owner"),
+        "{}",
+        out.jsx
+    );
+}
+
+#[test]
 fn combobox_keeps_actual_owner_classes_and_its_runtime_abi() {
     let source = r#"import { Combobox } from '@hozo/core'; const el = <Combobox options={options}
         className="disabled:opacity-25 enabled:opacity-50 read-only:rounded-lg"

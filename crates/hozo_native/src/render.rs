@@ -1778,6 +1778,9 @@ pub(super) fn render_node(
     if node.primitive == Primitive::Combobox {
         cx.runtime.need_component("HozoCombobox");
     }
+    if node.primitive == Primitive::Listbox {
+        cx.runtime.need_component("HozoListbox");
+    }
     if node.primitive == Primitive::ColorPicker {
         cx.runtime.need_component("HozoColorPicker");
     }
@@ -2353,6 +2356,7 @@ fn renders_text(component: &str) -> bool {
             | "HozoOtpInput"
             | "HozoCommandPalette"
             | "HozoCombobox"
+            | "HozoListbox"
             | "HozoTableCaption"
             | "HozoTableCell"
     )

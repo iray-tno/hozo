@@ -2482,6 +2482,220 @@ test('ColorPicker real input matches independent Tailwind across focus, disabled
   }
 })
 
+test('Listbox option focus and committed selection match isolated Tailwind in both CSS orders', {
+  skip: !executablePath,
+}, async () => {
+  const looks = {
+    root: 'p-2 opacity-75 text-[#654321] disabled:opacity-25 enabled:opacity-50 aria-selected:mt-8',
+    option:
+      'p-1 border-0 opacity-100 rounded-none focus:opacity-50 focus-visible:outline-2 hover:bg-[#123456] active:opacity-75 aria-selected:border-2 aria-selected:text-[#123456] aria-disabled:opacity-25 read-only:rounded-lg disabled:mt-8 enabled:mb-8 aria-checked:ml-8',
+  }
+  const expression = (mode, part) => {
+    const classes = looks[part]
+    const base = part === 'root' ? 'p-2 opacity-75' : 'p-1 border-0 opacity-100 rounded-none'
+    return mode === 'literal'
+      ? JSON.stringify(classes)
+      : mode === 'opaque'
+        ? `{getClasses(${JSON.stringify(classes)})}`
+        : `{cx(${JSON.stringify(base)},getClasses(${JSON.stringify(classes.slice(base.length))}))}`
+  }
+  const source = `import {View,Listbox,cx} from '@hozo/core';const C=()=> <View>
+    ${['literal', 'opaque', 'mixed']
+      .map(
+        (mode) => `<View testID="${mode}"><Listbox options={options} multiple={multiple}
+          value={value} defaultValue={initial} onValueChange={choose} accessibilityLabel="Letters"
+          className=${expression(mode, 'root')} optionClassName=${expression(mode, 'option')}/></View>`,
+      )
+      .join('')}
+    </View>`
+  const web = compiler.compile(source)[0]
+  assert.ok(web.diagnostics.length > 0)
+  for (const diagnostic of web.diagnostics) {
+    assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
+    assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\(/)
+  }
+  const candidates = openCandidateCache(path.join(directory, 'listbox-owners.json'))
+  candidates.scanFile('ListboxFixture.tsx', source, 1)
+  const candidateCss = candidates.renderCss()
+  assert.ok(candidateCss.includes('.p-1') && candidateCss.includes('.p-2'))
+  const oracleCss = (
+    await compile('@theme {--spacing:0.25rem;--radius-lg:0.5rem;} @tailwind utilities;')
+  ).build(Object.values(looks).flatMap((value) => value.split(' ')))
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react';import {createRoot} from 'react-dom/client';
+        import {Listbox as HozoListbox} from '@hozo/patterns';
+        window.calls=0;window.changes=[];
+        const getClasses=value=>{window.calls++;return value};
+        const choose=value=>window.changes.push(value);
+        function App(){
+          const [options,setOptions]=React.useState([{value:'a',label:'Alpha'},{value:'b',label:'Beta',disabled:true},{value:'c',label:'Gamma'}]);
+          const [value,setValue]=React.useState(window.kind==='controlled'?'c':undefined);
+          const multiple=window.kind==='multiple';const initial=multiple?['c']:'c';
+          window.updateListbox=(value)=>{setValue(value);setOptions(options=>[...options].reverse())};
+          return ${web.jsx};
+        }
+        createRoot(document.getElementById('root')).render(<App/>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const oracle = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const read = (locator) =>
+    locator.evaluate((e) => {
+      const s = getComputedStyle(e)
+      return [
+        s.paddingLeft,
+        s.opacity,
+        s.borderRadius,
+        s.borderTopWidth,
+        s.outlineWidth,
+        s.marginTop,
+        s.marginBottom,
+        s.marginLeft,
+        s.color,
+        s.backgroundColor,
+      ]
+    })
+  try {
+    await oracle.setContent(`<style>html{font-size:16px}</style><style>${oracleCss}</style>
+      <div id="owner" role="listbox" class="${looks.root}"><div id="option" tabindex="0" role="option" class="${looks.option}" aria-selected="false">Option</div></div>`)
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      for (const kind of ['single', 'multiple', 'controlled']) {
+        await page.setContent(
+          `<style>html{font-size:16px}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
+        )
+        await page.evaluate((kind) => {
+          window.kind = kind
+        }, kind)
+        await page.addScriptTag({ content: bundle.outputFiles[0].text })
+        for (const mode of ['literal', 'opaque', 'mixed']) {
+          const owner = page.getByTestId(mode).getByRole('listbox')
+          const rows = owner.getByRole('option')
+          await rows.first().waitFor()
+          const initialCalls = await page.evaluate(() => window.calls)
+          await oracle.locator('#option').evaluate((e) => e.blur())
+          await oracle.mouse.move(0, 0)
+          assert.deepEqual(await read(owner), await read(oracle.locator('#owner')))
+          assert.equal((await read(owner))[1], '0.75', 'a list div is neither enabled nor disabled')
+          const check = async (
+            at,
+            selected,
+            { disabled = false, focus = false, hover = false } = {},
+          ) => {
+            await page.bringToFront()
+            await page.mouse.move(0, 0)
+            await page.evaluate(() => document.activeElement?.blur())
+            if (focus) {
+              await page.keyboard.press('Shift')
+              await rows.nth(at).focus()
+            }
+            if (hover) await rows.nth(at).hover()
+            const actual = await read(rows.nth(at))
+            assert.equal(await rows.nth(at).getAttribute('aria-selected'), String(selected))
+            await oracle.bringToFront()
+            await oracle.mouse.move(0, 0)
+            const reference = oracle.locator('#option')
+            await reference.evaluate(
+              (e, { selected, disabled }) => {
+                e.blur()
+                e.setAttribute('aria-selected', String(selected))
+                if (disabled) e.setAttribute('aria-disabled', 'true')
+                else e.removeAttribute('aria-disabled')
+              },
+              { selected, disabled },
+            )
+            if (focus) {
+              await oracle.keyboard.press('Shift')
+              await reference.focus()
+            }
+            if (hover) await reference.hover()
+            assert.deepEqual(actual, await read(reference), `${kind}/${mode}/${at}/${selected}`)
+            await page.bringToFront()
+          }
+          await check(0, false)
+          await check(1, false, { disabled: true })
+          await check(2, true)
+          await check(0, false, { focus: true })
+          assert.equal(
+            await rows.nth(2).getAttribute('aria-selected'),
+            'true',
+            'focus is not selection',
+          )
+          await check(0, false, { hover: true })
+          if (mode !== 'literal') {
+            // Removing candidate padding can move the row away from the
+            // pointer. Probe a resting owner so restoring CSS does not also
+            // require another physical mouse move to restore :hover.
+            await check(0, false)
+            await assertCandidateStylesRequired(
+              page,
+              () => read(owner),
+              `Listbox root ${kind}/${mode}`,
+            )
+            await assertCandidateStylesRequired(
+              page,
+              () => read(rows.first()),
+              `Listbox option ${kind}/${mode}`,
+            )
+          }
+          await rows.first().click()
+          await check(0, kind !== 'controlled')
+          await check(2, kind !== 'single')
+          const count = await page.evaluate(() => window.changes.length)
+          await rows.nth(1).evaluate((e) => e.click())
+          assert.equal(
+            await page.evaluate(() => window.changes.length),
+            count,
+            'disabled option cannot commit',
+          )
+          if (kind === 'multiple') {
+            assert.deepEqual(await page.evaluate(() => window.changes.at(-1)), ['c', 'a'])
+            await rows.first().click()
+            await check(0, false)
+            await check(2, true)
+          } else if (kind === 'controlled') {
+            assert.equal(await page.evaluate(() => window.changes.at(-1)), 'a')
+          }
+          assert.equal(
+            await page.evaluate(() => window.calls),
+            initialCalls,
+            'option events do not rerun authored expressions',
+          )
+        }
+        // A caller update may rerun expressions; DOM identity and focus still
+        // follow the option value, rather than the old array position.
+        const rows = page.getByTestId('literal').getByRole('option')
+        await rows.first().focus()
+        await page.evaluate(() => window.updateListbox(window.kind === 'multiple' ? ['a'] : 'a'))
+        await page.waitForFunction(
+          () =>
+            document.querySelector('[data-testid="literal"] [role="option"]').textContent ===
+            'Gamma',
+        )
+        assert.equal(await rows.nth(2).evaluate((e) => e === document.activeElement), true)
+        assert.equal(await rows.nth(2).getAttribute('aria-selected'), 'true')
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+    await oracle.close()
+  }
+})
+
 test('Combobox real owners match isolated Tailwind across focus, filtering, active options and blur', {
   skip: !executablePath,
 }, async () => {

@@ -37,6 +37,7 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/ui/src/combobox.tsx",
+        "$TURBO_ROOT$/packages/ui/src/listbox.tsx",
         "$TURBO_ROOT$/packages/engine/src/**",
         "$TURBO_ROOT$/packages/rn-compat/src/**",
         "$TURBO_ROOT$/packages/typography/src/**"
