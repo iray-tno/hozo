@@ -50,6 +50,7 @@ assert.match(candidateCss, /\.grid-cols-1 \{/)
 assert.match(candidateCss, /\.flex-col \{/)
 let browser
 let tailwindCss
+const candidateMutationChecks = []
 before(async () => {
   tailwindCss = (
     await compile(
@@ -75,6 +76,11 @@ before(async () => {
 })
 after(async () => {
   await browser?.close()
+  if (candidateMutationChecks.length)
+    console.info(
+      'candidate-sheet negative controls passed:',
+      JSON.stringify(candidateMutationChecks),
+    )
   // This exact mkdtemp result owns only this test's candidate snapshot.
   rmSync(directory, { recursive: true, force: true })
 })
@@ -101,6 +107,7 @@ test('responsive font sizes preserve explicit leading against real Tailwind at e
   ]
   const css = oracle.build(cases.flatMap((classes) => classes.split(' ')))
   const page = await browser.newPage()
+  const reference = await browser.newPage()
   try {
     for (const classes of cases) {
       const [web] = compiler.compile(
@@ -111,22 +118,25 @@ test('responsive font sizes preserve explicit leading against real Tailwind at e
       const html = renderToStaticMarkup(createElement(C))
       for (const width of [375, 639, 640, 767, 768, 1280]) {
         await page.setViewportSize({ width, height: 700 })
-        await page.setContent(
-          `<style>${css}</style><style>${web.css}</style><div id="compiled">${html}</div><div id="oracle"><p class="${classes}">One<br/>Two<br/>Three</p></div>`,
+        await reference.setViewportSize({ width, height: 700 })
+        await page.setContent(`<style>${web.css}</style><div id="compiled">${html}</div>`)
+        await reference.setContent(
+          `<style>${css}</style><p class="${classes}">One<br/>Two<br/>Three</p>`,
         )
-        const measure = (selector) =>
-          page.locator(selector).evaluate((element) => {
+        const measure = (locator) =>
+          locator.evaluate((element) => {
             const style = getComputedStyle(element)
             return [style.fontSize, style.lineHeight, element.getBoundingClientRect().height]
           })
-        const actual = await measure('#compiled > p')
-        assert.deepEqual(actual, await measure('#oracle > p'), `${classes} at ${width}px`)
+        const actual = await measure(page.locator('#compiled > p'))
+        assert.deepEqual(actual, await measure(reference.locator('p')), `${classes} at ${width}px`)
         if (classes === cases[0] && width === 1280)
           assert.deepEqual(actual, ['20px', '32.5px', 97.5])
       }
     }
   } finally {
     await page.close()
+    await reference.close()
   }
 })
 
@@ -140,6 +150,40 @@ function evaluate(code, globals = {}) {
   }).code
   runInNewContext(js, { module, h: createElement, Fragment, ...globals })
   return module.exports
+}
+
+// Ordering names do not populate a candidate cache. Scan the authored source,
+// never generated JSX or compiler metadata, before asking it for rules.
+function scannedCandidateCss(name, source, names) {
+  const candidates = openCandidateCache(path.join(directory, `${name}.json`))
+  candidates.scanFile(`${name}.tsx`, source, 1)
+  const css = candidates.renderCss(undefined, names)
+  assert.ok(css.includes('.px-2'), `${name}: authored candidates must emit actual rules`)
+  return css
+}
+
+function compiledStyles(sheets, candidates) {
+  return sheets
+    .map((css) => `<style${css === candidates ? ' data-hozo-candidates' : ''}>${css}</style>`)
+    .join('')
+}
+
+// A passing comparison must depend on the candidate sheet, not on oracle
+// leakage or AOT rules alone. Restore it even when this negative control fails.
+async function assertCandidateStylesRequired(page, read, label) {
+  const expected = await read()
+  const toggle = (disabled) =>
+    page.locator('style[data-hozo-candidates]').evaluate((e, disabled) => {
+      e.sheet.disabled = disabled
+    }, disabled)
+  try {
+    await toggle(true)
+    assert.notDeepEqual(await read(), expected, `${label}: removing candidates must change pixels`)
+  } finally {
+    await toggle(false)
+  }
+  assert.deepEqual(await read(), expected, `${label}: restoring candidates must restore pixels`)
+  candidateMutationChecks.push(label)
 }
 
 test('Pagination semantic classes distinguish disabled buttons from disabled links at either boundary', {
@@ -1946,6 +1990,7 @@ test('mixed secondary AOT classes use the actual button or link rather than a wi
   const candidates = openCandidateCache(path.join(directory, 'mixed-secondary.json'))
   candidates.scanFile('caller.ts', `const classes = '${caller}'`, 1)
   const candidateCss = candidates.renderCss()
+  assert.ok(candidateCss.includes('.opacity-75'))
   const oracleCss = (
     await compile('@theme { --spacing:0.25rem; --radius-lg:0.5rem; } @tailwind utilities;')
   ).build(`${own} ${caller}`.split(' '))
@@ -1969,15 +2014,19 @@ test('mixed secondary AOT classes use the actual button or link rather than a wi
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   const page = await browser.newPage()
+  const oracle = await browser.newPage()
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
+    await oracle.setContent(
+      `<style>html{font-size:16px}</style><style>${oracleCss}</style><div id="oracle"></div>`,
+    )
     for (const sheets of [
       [web.css, candidateCss],
       [candidateCss, web.css],
     ]) {
       await page.setContent(
-        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><div id="oracle"></div>`,
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
       )
       await page.addScriptTag({ content: bundle.outputFiles[0].text })
       await page.waitForFunction(
@@ -2006,7 +2055,7 @@ test('mixed secondary AOT classes use the actual button or link rather than a wi
             margin: link && boundary ? '8px' : '0px',
           }
           assert.deepEqual(actual, expected, `compiled link=${link}, boundary=${boundary}`)
-          await page.locator('#oracle').evaluate(
+          await oracle.locator('#oracle').evaluate(
             (root, { link, boundary, classes }) => {
               const owner = document.createElement(link ? 'a' : 'button')
               owner.className = classes
@@ -2020,14 +2069,20 @@ test('mixed secondary AOT classes use the actual button or link rather than a wi
           )
           assert.deepEqual(
             actual,
-            await read(page.locator('#oracle > *')),
+            await read(oracle.locator('#oracle > *')),
             'independent Tailwind owner',
+          )
+          await assertCandidateStylesRequired(
+            page,
+            () => read(controls.nth(boundary ? 0 : 1)),
+            `mixed secondary link=${link}, boundary=${boundary}`,
           )
         }
     }
     assert.deepEqual(errors, [])
   } finally {
     await page.close()
+    await oracle.close()
   }
 })
 
@@ -2088,6 +2143,7 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
   const candidates = openCandidateCache(path.join(directory, 'ordered-secondary.json'))
   candidates.scanFile('caller.ts', "const classes = 'opacity-75'", 1)
   const candidateCss = candidates.renderCss()
+  assert.ok(candidateCss.includes('.opacity-75'))
   const oracleCss = (
     await compile('@theme { --spacing:0.25rem; --radius-lg:0.5rem; } @tailwind utilities;')
   ).build(`${own} p-2 p-4 p-6 opacity-75`.split(' '))
@@ -2115,15 +2171,19 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   const page = await browser.newPage()
+  const oracle = await browser.newPage()
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
+    await oracle.setContent(
+      `<style>html{font-size:16px}</style><style>${oracleCss}</style><button id="oracle"></button>`,
+    )
     for (const sheets of [
       [web.css, candidateCss],
       [candidateCss, web.css],
     ]) {
       await page.setContent(
-        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><button id="oracle"></button>`,
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
       )
       await page.addScriptTag({ content: bundle.outputFiles[0].text })
       const read = (locator) =>
@@ -2147,13 +2207,14 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
         const owner = page.locator('#root button').nth(1)
         const expected = { padding: `${values.padding}px`, radius: '8px', opacity: '0.75' }
         assert.deepEqual(await read(owner), expected)
-        await page.locator('#oracle').evaluate(
+        await oracle.locator('#oracle').evaluate(
           (e, classes) => {
             e.className = classes
           },
           `${own} ${values.padding ? `p-${values.padding / 4}` : ''} opacity-75`,
         )
-        assert.deepEqual(await read(page.locator('#oracle')), expected, 'independent Tailwind')
+        assert.deepEqual(await read(oracle.locator('#oracle')), expected, 'independent Tailwind')
+        await assertCandidateStylesRequired(page, () => read(owner), `ordered guard ${values.id}`)
         const calls = ['first', 'outer', values.outer ? 'inner' : 'off', 'last']
         assert.deepEqual(await page.evaluate(() => window.calls), calls)
         await owner.hover()
@@ -2170,6 +2231,7 @@ test('ordered secondary guards match actual owner pixels and independent Tailwin
     assert.deepEqual(errors, [])
   } finally {
     await page.close()
+    await oracle.close()
   }
 })
 
@@ -2282,7 +2344,7 @@ test('CommandPalette real input matches independent Tailwind across focus and cl
       [fixture.candidateCss, fixture.web.css],
     ]) {
       await page.setContent(
-        `<style>html{font-size:16px}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div>`,
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, fixture.candidateCss)}<div id="root"></div>`,
       )
       await page.addScriptTag({ content: fixture.bundle.outputFiles[0].text })
       for (const mode of ['literal', 'opaque', 'mixed']) {
@@ -2301,6 +2363,12 @@ test('CommandPalette real input matches independent Tailwind across focus and cl
         assert.deepEqual(focused.slice(0, 4), ['12px', '8px', '0.5', '0px'])
         assert.equal(focused[4], '2px')
         assert.equal(focused[5], '2px')
+        if (mode !== 'literal')
+          await assertCandidateStylesRequired(
+            page,
+            () => readPatternInput(field),
+            `Command input ${mode}`,
+          )
         await field.fill('Beta')
         assert.equal(await section.locator('[role="option"]').count(), 1)
         assert.deepEqual(await readPatternInput(field), focused)
@@ -2350,7 +2418,7 @@ test('ColorPicker real input matches independent Tailwind across focus, disabled
       [fixture.candidateCss, fixture.web.css],
     ]) {
       await page.setContent(
-        `<style>html{font-size:16px}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div>`,
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, fixture.candidateCss)}<div id="root"></div>`,
       )
       await page.addScriptTag({ content: fixture.bundle.outputFiles[0].text })
       for (const mode of ['literal', 'opaque', 'mixed']) {
@@ -2370,6 +2438,12 @@ test('ColorPicker real input matches independent Tailwind across focus, disabled
         const focused = await comparePatternInput(page, oracle, field, raw, true)
         assert.deepEqual(focused.slice(0, 4), ['12px', '8px', '0.5', '0px'])
         assert.equal(focused[5], '2px')
+        if (mode !== 'literal')
+          await assertCandidateStylesRequired(
+            page,
+            () => readPatternInput(field),
+            `Color input ${mode}`,
+          )
         await field.fill('#abc')
         assert.equal(await field.inputValue(), '#abc')
         await comparePatternInput(page, oracle, field, raw, false)
@@ -2439,9 +2513,9 @@ test('Avatar decorative owners match independent Tailwind through image failure,
     assert.equal(diagnostic.severity, 'warning')
     assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)
   }
-  const candidates = openCandidateCache(path.join(directory, 'avatar-decorations.json'))
   const names = `${own} ${negative} rounded-none text-[#654321] font-bold`.split(' ')
-  const candidateCss = candidates.renderCss(undefined, names)
+  const candidateCss = scannedCandidateCss('avatar-decorations', source, names)
+  assert.ok(candidateCss.includes('read-only'))
   const oracleCss = (
     await compile(
       '@theme { --spacing:0.25rem; --radius-lg:0.5rem; --font-weight-bold:700; } @tailwind utilities;',
@@ -2487,14 +2561,18 @@ test('Avatar decorative owners match independent Tailwind through image failure,
     })
   const picture = (color) =>
     `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4" fill="${color}"/></svg>`)}`
+  const oracle = await browser.newPage()
   try {
+    await oracle.setContent(
+      `<style>html{font-size:16px}</style><style>${oracleCss}</style><img id="image-oracle" class="${own} ${negative}"/><span id="span-oracle" class="${own} ${negative}"></span>`,
+    )
     await page.route('https://avatar.test/**', (route) => route.abort())
     for (const sheets of [
       [web.css, candidateCss],
       [candidateCss, web.css],
     ]) {
       await page.setContent(
-        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><img id="image-oracle" class="${own} ${negative}"/><span id="span-oracle" class="${own} ${negative}"></span>`,
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
       )
       await page.addScriptTag({ content: bundle.outputFiles[0].text })
       const show = async (props, stamp) => {
@@ -2507,7 +2585,10 @@ test('Avatar decorative owners match independent Tailwind through image failure,
       }
       const check = async (part, image = false) => {
         const actual = await read(part)
-        assert.deepEqual(actual, await read(page.locator(image ? '#image-oracle' : '#span-oracle')))
+        assert.deepEqual(
+          actual,
+          await read(oracle.locator(image ? '#image-oracle' : '#span-oracle')),
+        )
         assert.deepEqual(actual, ['8px', '4px', '8px', '0px', '1', '8px', 'rgb(18, 52, 86)'])
         assert.equal(await part.getAttribute('aria-hidden'), 'true')
       }
@@ -2520,6 +2601,10 @@ test('Avatar decorative owners match independent Tailwind through image failure,
         await check(owner.locator('img'), true)
         await check(owner.locator('[data-hozo-status]'))
         assert.equal(await owner.locator('span:not([data-hozo-status])').count(), 0)
+      }
+      for (const mode of ['opaque', 'mixed']) {
+        const owner = page.getByTestId(mode).locator('img')
+        await assertCandidateStylesRequired(page, () => read(owner), `Avatar ${mode}`)
       }
       // Exercise the actual image error handler with a failed request, not
       // a reimplemented fallback condition in the test.
@@ -2538,6 +2623,10 @@ test('Avatar decorative owners match independent Tailwind through image failure,
           ['rgb(101, 67, 33)', '700'],
         )
         await check(owner.locator('[data-hozo-status]'))
+      }
+      for (const mode of ['opaque', 'mixed']) {
+        const owner = page.getByTestId(mode).locator('span:not([data-hozo-status])').last()
+        await assertCandidateStylesRequired(page, () => read(owner), `Avatar fallback ${mode}`)
       }
       assert.equal(
         (await page.evaluate(() => window.calls)).length,
@@ -2565,6 +2654,7 @@ test('Avatar decorative owners match independent Tailwind through image failure,
     assert.deepEqual(errors, [])
   } finally {
     await page.close()
+    await oracle.close()
   }
 })
 
@@ -2599,9 +2689,8 @@ test('CommandPalette decorative owners match independent Tailwind through query 
     assert.equal(diagnostic.severity, 'warning')
     assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)
   }
-  const candidates = openCandidateCache(path.join(directory, 'command-decorations.json'))
   const names = `${own} ${negative} ${extra} aria-selected:font-bold`.split(' ')
-  const candidateCss = candidates.renderCss(undefined, names)
+  const candidateCss = scannedCandidateCss('command-decorations', source, names)
   const oracleCss = (
     await compile(
       '@theme { --spacing:0.25rem; --radius-lg:0.5rem; --font-weight-bold:700; } @tailwind utilities;',
@@ -2650,13 +2739,17 @@ test('CommandPalette decorative owners match independent Tailwind through query 
         s.fontWeight,
       ]
     })
+  const oracle = await browser.newPage()
   try {
+    await oracle.setContent(
+      `<style>html{font-size:16px}</style><style>${oracleCss}</style><div><span id="oracle" class="${own} ${negative} ${extra}"></span></div>`,
+    )
     for (const sheets of [
       [web.css, candidateCss],
       [candidateCss, web.css],
     ]) {
       await page.setContent(
-        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><div><span id="oracle" class="${own} ${negative} ${extra}"></span></div>`,
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
       )
       await page.addScriptTag({ content: bundle.outputFiles[0].text })
       for (const mode of ['literal', 'opaque', 'mixed']) {
@@ -2672,11 +2765,11 @@ test('CommandPalette decorative owners match independent Tailwind through query 
         const shortcut = (label) => option(label).locator('span[aria-hidden="true"]')
         const heading = section.locator('[role="group"] > [role="presentation"]')
         const check = async (locator, bold = false) => {
-          await page.locator('#oracle').evaluate((e, bold) => {
+          await oracle.locator('#oracle').evaluate((e, bold) => {
             e.parentElement.style.fontWeight = bold ? '700' : '400'
           }, bold)
           const actual = await read(locator)
-          assert.deepEqual(actual, await read(page.locator('#oracle')), mode)
+          assert.deepEqual(actual, await read(oracle.locator('#oracle')), mode)
           assert.deepEqual(actual, [
             '8px',
             '4px',
@@ -2698,6 +2791,14 @@ test('CommandPalette decorative owners match independent Tailwind through query 
         await check(heading)
         await check(shortcut('Alpha'), true)
         await check(shortcut('Beta'))
+        if (mode !== 'literal') {
+          await assertCandidateStylesRequired(page, () => read(heading), `Command heading ${mode}`)
+          await assertCandidateStylesRequired(
+            page,
+            () => read(shortcut('Alpha')),
+            `Command shortcut ${mode}`,
+          )
+        }
         await option('Gamma').hover()
         await page.waitForFunction(
           () =>
@@ -2713,6 +2814,8 @@ test('CommandPalette decorative owners match independent Tailwind through query 
         assert.equal(await heading.count(), 0)
         const empty = section.locator('[role="listbox"] + div').first()
         await check(empty)
+        if (mode !== 'literal')
+          await assertCandidateStylesRequired(page, () => read(empty), `Command empty ${mode}`)
         assert.equal(
           (await page.evaluate(() => window.calls)).length,
           6,
@@ -2735,6 +2838,7 @@ test('CommandPalette decorative owners match independent Tailwind through query 
     assert.deepEqual(errors, [])
   } finally {
     await page.close()
+    await oracle.close()
   }
 })
 
@@ -2784,9 +2888,8 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
     assert.equal(diagnostic.severity, 'warning')
     assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed\//)
   }
-  const candidates = openCandidateCache(path.join(directory, 'decorative-owners.json'))
   const names = `${own} ${negative} ${extra} border-2 border-4 border-8`.split(' ')
-  const candidateCss = candidates.renderCss(undefined, names)
+  const candidateCss = scannedCandidateCss('decorative-owners', source, names)
   const oracleCss = (
     await compile('@theme { --spacing:0.25rem; --radius-lg:0.5rem; } @tailwind utilities;')
   ).build(names)
@@ -2832,13 +2935,17 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
         s.borderTopWidth,
       ]
     })
+  const oracle = await browser.newPage()
   try {
+    await oracle.setContent(
+      `<style>html{font-size:16px}</style><style>${oracleCss}</style><span id="oracle"></span>`,
+    )
     for (const sheets of [
       [web.css, candidateCss],
       [candidateCss, web.css],
     ]) {
       await page.setContent(
-        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><span id="oracle"></span>`,
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
       )
       await page.addScriptTag({ content: bundle.outputFiles[0].text })
       for (const value of [
@@ -2864,7 +2971,7 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
               [0, borders[index]],
               [2, 0],
             ]) {
-              await page.locator('#oracle').evaluate(
+              await oracle.locator('#oracle').evaluate(
                 (e, classes) => {
                   e.className = classes
                 },
@@ -2873,7 +2980,7 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
               const actual = await read(spans.nth(position))
               assert.deepEqual(
                 actual,
-                await read(page.locator('#oracle')),
+                await read(oracle.locator('#oracle')),
                 `${mode}/${value.stamp}/${index}/${position}`,
               )
               assert.deepEqual(actual, [
@@ -2887,17 +2994,30 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
                 'rgb(18, 52, 86)',
                 `${border}px`,
               ])
+              if (mode !== 'literal')
+                await assertCandidateStylesRequired(
+                  page,
+                  () => read(spans.nth(position)),
+                  `Stepper ${mode}/${value.stamp}/${index}/${position}`,
+                )
             }
           }
           const ellipses = section.locator('nav li[aria-hidden="true"]')
           if (value.pageCount === 3) assert.equal(await ellipses.count(), 0)
           else {
             assert.ok((await ellipses.count()) > 0)
-            await page.locator('#oracle').evaluate((e, classes) => {
+            await oracle.locator('#oracle').evaluate((e, classes) => {
               e.className = classes
             }, `${own} ${negative} ${extra}`)
-            for (const ellipsis of await ellipses.all())
-              assert.deepEqual(await read(ellipsis), await read(page.locator('#oracle')))
+            for (const ellipsis of await ellipses.all()) {
+              assert.deepEqual(await read(ellipsis), await read(oracle.locator('#oracle')))
+              if (mode !== 'literal')
+                await assertCandidateStylesRequired(
+                  page,
+                  () => read(ellipsis),
+                  `Pagination ellipsis ${mode}/${value.stamp}`,
+                )
+            }
           }
           if (value.clickable) {
             await rows.nth(0).locator('button').focus()
@@ -2913,6 +3033,7 @@ test('decorative Stepper and Pagination owners match independent non-control Tai
     assert.deepEqual(errors, [])
   } finally {
     await page.close()
+    await oracle.close()
   }
 })
 
@@ -2928,6 +3049,7 @@ test('root capture scopes keep inherited and loop-owned pixels aligned with inde
   const candidates = openCandidateCache(path.join(directory, 'root-capture.json'))
   candidates.scanFile('caller.ts', "const classes = 'opacity-75'", 1)
   const candidateCss = candidates.renderCss()
+  assert.ok(candidateCss.includes('.opacity-75'))
   const oracleCss = (await compile('@theme { --spacing:0.25rem; } @tailwind utilities;')).build([
     'text-[#123456]',
     'text-[#654321]',
@@ -2962,15 +3084,19 @@ test('root capture scopes keep inherited and loop-owned pixels aligned with inde
     define: { 'process.env.NODE_ENV': '"production"' },
   })
   const page = await browser.newPage()
+  const oracle = await browser.newPage()
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   try {
+    await oracle.setContent(
+      `<style>html{font-size:16px}</style><style>${oracleCss}</style><section id="oracle"></section>`,
+    )
     for (const sheets of [
       [web.css, candidateCss],
       [candidateCss, web.css],
     ]) {
       await page.setContent(
-        `<style>html{font-size:16px}</style><style>${oracleCss}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><section id="oracle"></section>`,
+        `<style>html{font-size:16px}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
       )
       await page.addScriptTag({ content: bundle.outputFiles[0].text })
       for (const value of [true, false]) {
@@ -3004,7 +3130,7 @@ test('root capture scopes keep inherited and loop-owned pixels aligned with inde
           actual.slice(3).map((item) => item.padding),
           value ? ['8px', '16px'] : ['16px', '8px'],
         )
-        await page.locator('#oracle').evaluate((e, value) => {
+        await oracle.locator('#oracle').evaluate((e, value) => {
           e.className = value ? 'text-[#123456]' : 'text-[#654321]'
           const nodes = ['Known', 'Opaque', 'Fragment', 'one', 'two'].map((text, index) => {
             const span = document.createElement('span')
@@ -3014,7 +3140,7 @@ test('root capture scopes keep inherited and loop-owned pixels aligned with inde
           })
           e.replaceChildren(...nodes)
         }, value)
-        const oracle = await page.locator('#oracle span').evaluateAll((elements) =>
+        const expected = await oracle.locator('#oracle span').evaluateAll((elements) =>
           elements.map((e) => ({
             text: e.textContent,
             color: getComputedStyle(e).color,
@@ -3023,14 +3149,19 @@ test('root capture scopes keep inherited and loop-owned pixels aligned with inde
         )
         assert.deepEqual(
           actual,
-          oracle,
+          expected,
           'independent Tailwind inheritance and per-row guard selection',
         )
+        const rootOpacity = () =>
+          page.getByTestId('captured-root').evaluate((e) => getComputedStyle(e).opacity)
+        assert.equal(await rootOpacity(), '0.75')
+        await assertCandidateStylesRequired(page, rootOpacity, `root capture ${value}`)
       }
     }
     assert.deepEqual(errors, [])
   } finally {
     await page.close()
+    await oracle.close()
   }
 })
 
