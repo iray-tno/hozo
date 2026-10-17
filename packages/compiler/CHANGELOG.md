@@ -1,5 +1,21 @@
 # @hozo/compiler
 
+## 0.3.1
+
+### Patch Changes
+
+- [#1037](https://github.com/iray-tno/hozo/pull/1037) [`6b0c271`](https://github.com/iray-tno/hozo/commit/6b0c271b754c3ba96bf7efe8f241f8784a3e4081) Thanks [@iray-tno](https://github.com/iray-tno)! - A Text nested in `@hozo/ui`'s `Checkbox` or `Switch` now gets its label text styles on Native, as one in `Button` and `Alert` already did. The manifest extractor reads `@hozo/patterns`' Checkbox and Switch as hosts, and takes a `disabled` left in the rest spread as the caller's, so `disabled:` text follows the caller's own `disabled`.
+
+- [#1038](https://github.com/iray-tno/hozo/pull/1038) [`f56c33a`](https://github.com/iray-tno/hozo/commit/f56c33a14738c3f71b2dd0690fad5fb6ef817133) Thanks [@iray-tno](https://github.com/iray-tno)! - A package component whose host is a pressable primitive now hands its `hover:`, `active:` and `focus-visible:` text classes to a Text the caller nests, on Native: the manifest records `hostStates`, and the caller's Text reads the host's state through `HozoText`.
+
+- [#1026](https://github.com/iray-tno/hozo/pull/1026) [`771b369`](https://github.com/iray-tno/hozo/commit/771b369bd74c6ca67717c67d36bfee3de8ea1654) Thanks [@iray-tno](https://github.com/iray-tno)! - Warn (`A11Y_NAME_NOT_FORWARDED`) when a `Modal` is given an accessible name. Neither React Native nor the Web runtime passes it on, so it was never announced; use a `Dialog`, or name a `View` inside the modal.
+
+- [#1028](https://github.com/iray-tno/hozo/pull/1028) [`e88bc55`](https://github.com/iray-tno/hozo/commit/e88bc55c736558b296ac69bef8eb57a50a69c635) Thanks [@iray-tno](https://github.com/iray-tno)! - Warn (`A11Y_MISSING_ACCESSIBLE_NAME`) when an `OtpInput` or a `ColorPicker` has no accessible name. Neither has a default name to fall back on, and a build that strips types without checking them never reported the missing `accessibilityLabel`.
+
+- [#1039](https://github.com/iray-tno/hozo/pull/1039) [`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb) Thanks [@iray-tno](https://github.com/iray-tno)! - A Text nested in `@hozo/ui`'s `Checkbox` or `Switch` label now takes their `hover:`, `active:` and `focus-visible:` text classes on Native. `@hozo/patterns`' pressable provides its state through `HozoInteractionContext`, now in `@hozo/behaviors/pressable-interaction` and shared with `@hozo/primitives`, so the `HozoText` a caller's Text compiles to reads it.
+
+- [#1009](https://github.com/iray-tno/hozo/pull/1009) [`e7b4592`](https://github.com/iray-tno/hozo/commit/e7b4592a8f9ea6e6a556e860a9202876c62d73c8) Thanks [@iray-tno](https://github.com/iray-tno)! - A `ScrollView` given React Native's `refreshControl={<RefreshControl … />}` now pulls to refresh on the Web. It compiled to a plain `div` that took the control as an unknown attribute, so the indicator never appeared and a pull did nothing.
+
 ## 0.3.0
 
 ### Minor Changes

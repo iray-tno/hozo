@@ -1,5 +1,17 @@
 # @hozo/next
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [[`6b0c271`](https://github.com/iray-tno/hozo/commit/6b0c271b754c3ba96bf7efe8f241f8784a3e4081), [`f56c33a`](https://github.com/iray-tno/hozo/commit/f56c33a14738c3f71b2dd0690fad5fb6ef817133), [`771b369`](https://github.com/iray-tno/hozo/commit/771b369bd74c6ca67717c67d36bfee3de8ea1654), [`e88bc55`](https://github.com/iray-tno/hozo/commit/e88bc55c736558b296ac69bef8eb57a50a69c635), [`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb), [`e7b4592`](https://github.com/iray-tno/hozo/commit/e7b4592a8f9ea6e6a556e860a9202876c62d73c8)]:
+  - @hozo/compiler@0.3.1
+  - @hozo/primitives@0.3.1
+  - @hozo/patterns@0.3.1
+  - @hozo/engine@0.3.1
+  - @hozo/rn-compat@0.3.1
+  - @hozo/tailwind@0.3.1
+
 ## 0.3.0
 
 ### Patch Changes

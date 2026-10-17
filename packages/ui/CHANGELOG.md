@@ -1,5 +1,21 @@
 # @hozo/ui
 
+## 0.3.1
+
+### Patch Changes
+
+- [#1037](https://github.com/iray-tno/hozo/pull/1037) [`6b0c271`](https://github.com/iray-tno/hozo/commit/6b0c271b754c3ba96bf7efe8f241f8784a3e4081) Thanks [@iray-tno](https://github.com/iray-tno)! - A Text nested in `@hozo/ui`'s `Checkbox` or `Switch` now gets its label text styles on Native, as one in `Button` and `Alert` already did. The manifest extractor reads `@hozo/patterns`' Checkbox and Switch as hosts, and takes a `disabled` left in the rest spread as the caller's, so `disabled:` text follows the caller's own `disabled`.
+
+- [#1038](https://github.com/iray-tno/hozo/pull/1038) [`f56c33a`](https://github.com/iray-tno/hozo/commit/f56c33a14738c3f71b2dd0690fad5fb6ef817133) Thanks [@iray-tno](https://github.com/iray-tno)! - A package component whose host is a pressable primitive now hands its `hover:`, `active:` and `focus-visible:` text classes to a Text the caller nests, on Native: the manifest records `hostStates`, and the caller's Text reads the host's state through `HozoText`.
+
+- [#1039](https://github.com/iray-tno/hozo/pull/1039) [`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb) Thanks [@iray-tno](https://github.com/iray-tno)! - A Text nested in `@hozo/ui`'s `Checkbox` or `Switch` label now takes their `hover:`, `active:` and `focus-visible:` text classes on Native. `@hozo/patterns`' pressable provides its state through `HozoInteractionContext`, now in `@hozo/behaviors/pressable-interaction` and shared with `@hozo/primitives`, so the `HozoText` a caller's Text compiles to reads it.
+- Updated dependencies [[`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb)]:
+  - @hozo/primitives@0.3.1
+  - @hozo/patterns@0.3.1
+  - @hozo/core@0.3.1
+  - @hozo/form@0.3.1
+  - @hozo/typography@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes

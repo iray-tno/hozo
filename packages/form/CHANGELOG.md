@@ -1,5 +1,13 @@
 # @hozo/form
 
+## 0.3.1
+
+### Patch Changes
+
+- Updated dependencies [[`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb)]:
+  - @hozo/behaviors@0.3.1
+  - @hozo/engine@0.3.1
+
 ## 0.3.0
 
 ### Minor Changes
