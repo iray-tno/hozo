@@ -1,6 +1,7 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import type { StepperSlotFacts } from './slot-facts.native.ts'
 import {
@@ -163,13 +164,7 @@ export function HozoStepper({
           ])
           // Web indicators and descriptions are unfocusable spans. Keep the
           // button's text inheritance without lending them button semantics.
-          const decorationState = {
-            ...state,
-            disabled: false,
-            enabled: false,
-            focused: false,
-            focusVisible: false,
-          }
+          const decorationState = nonControlSlotFacts
           const [markBox, markText] = splitTextStyle([
             styled(indicatorClassName, indicatorStyle, decorationState),
             byStatus(

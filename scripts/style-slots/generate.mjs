@@ -27,6 +27,14 @@ export function validateCatalog(catalog = components, facts = profiles) {
       if (!['root', 'secondary', 'component-managed', 'web-only'].includes(slot.lowering))
         throw new Error(`Missing lowering: ${component}.${slot.classProp}`)
       if (slot.profile && !facts[slot.profile]) throw new Error(`Unknown profile: ${slot.profile}`)
+      if (slot.events !== undefined && (slot.events !== 'unavailable' || slot.callback))
+        throw new Error(`Conflicting event owner: ${component}.${slot.classProp}`)
+      if (
+        slot.profile &&
+        !slot.callback &&
+        Object.values(facts[slot.profile].facts).some((binding) => typeof binding !== 'boolean')
+      )
+        throw new Error(`Facts need a consuming callback: ${component}.${slot.classProp}`)
       if (
         slot.callback &&
         (!slot.profile || typeof slot.focus !== 'boolean' || typeof slot.pointer !== 'boolean')
@@ -90,10 +98,23 @@ ${mappings.join('\n')}
   const semantics = []
   const parameters = []
   const interactions = []
+  const unavailableEvents = []
+  const constantFacts = []
   for (const [component, slots] of Object.entries(catalog)) {
     const byProfile = new Map()
     const supplied = new Map()
     for (const slot of slots) {
+      if (slot.events === 'unavailable' && slot.profile && !slot.callback) {
+        constantFacts.push(
+          `        (Primitive::${component}, ${quoted(slot.classProp)}) => Some(${quoted(
+            `{ ${Object.entries(facts[slot.profile].facts)
+              .map(([fact, value]) => `${key(fact)}: ${value}`)
+              .join(', ')} }`,
+          )}),`,
+        )
+      }
+      if (slot.events === 'unavailable')
+        unavailableEvents.push(`        (Primitive::${component}, ${quoted(slot.classProp)})`)
       if (slot.profile) {
         const grouped = byProfile.get(slot.profile) ?? []
         grouped.push(quoted(slot.classProp))
@@ -143,6 +164,19 @@ ${parameters.join('\n')}
 pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option<InteractionSlot> {
     match (primitive, class_prop) {
 ${interactions.join('\n')}
+        _ => None,
+    }
+}
+
+pub(super) fn events_unavailable(primitive: Primitive, class_prop: &str) -> bool {
+    matches!((primitive, class_prop),
+${unavailableEvents.join('\n        | ')}
+    )
+}
+
+pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+    match (primitive, class_prop) {
+${constantFacts.join('\n')}
         _ => None,
     }
 }

@@ -1491,7 +1491,7 @@ test('Native clickable Stepper keeps focus on the button, not its decorative mar
   )
 })
 
-test('Native Stepper status slots get interaction and descriptive steps remain non-interactive', async (t) => {
+test('Native Stepper step status slots get interaction but decorative status slots do not borrow it', async (t) => {
   for (const [status, prefix] of [
     ['completed', 'completed'],
     ['current', 'current'],
@@ -1507,10 +1507,13 @@ test('Native Stepper status slots get interaction and descriptive steps remain n
       const host = () => tree.root.findByType('NativePressable')
       await act(() => host().props.onHoverIn({}))
       const box = part === 'Step' ? host() : host().findAllByType('NativeView')[0]
-      assert.equal(flat(box.props.style).backgroundColor, color('hozo-accent'))
+      assert.equal(
+        flat(box.props.style).backgroundColor,
+        part === 'Step' ? color('hozo-accent') : undefined,
+      )
       assert.equal(
         flat(host().findAllByType('NativeText')[0].props.style).color,
-        color('hozo-accent-text'),
+        part === 'Step' ? color('hozo-accent-text') : undefined,
       )
       await act(() => host().props.onFocus({}))
       assert.equal(

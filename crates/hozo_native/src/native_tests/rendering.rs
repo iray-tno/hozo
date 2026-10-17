@@ -1,6 +1,86 @@
 use super::*;
 
 #[test]
+fn decorative_pattern_semantics_belong_to_the_child_not_the_parent_control() {
+    let slots = [
+        ("Stepper", "indicatorClassName"),
+        ("Stepper", "completedIndicatorClassName"),
+        ("Stepper", "currentIndicatorClassName"),
+        ("Stepper", "errorIndicatorClassName"),
+        ("Stepper", "descriptionClassName"),
+        ("Pagination", "ellipsisClassName"),
+    ];
+    for (component, slot) in slots {
+        let source = format!("import {{ {component} }} from '@hozo/core'; const el = <{component} disabled accessibilityState={{{{selected:true,disabled:true}}}} {slot}=\"disabled:opacity-25 enabled:opacity-50 not-disabled:px-2 not-enabled:py-1 read-only:rounded-lg not-read-only:rounded-none aria-selected:border-2 not-aria-selected:mt-2 aria-disabled:border-4\" />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(out.diagnostics.is_empty(), "{slot}: {:?}", out.diagnostics);
+        assert!(out.styles.contains("borderRadius: 8"), "{}", out.styles);
+        assert!(out.styles.contains("paddingStart: 8"), "{}", out.styles);
+        assert!(out.styles.contains("paddingTop: 4"), "{}", out.styles);
+        for suffix in [
+            "_disabled",
+            "_enabled",
+            "_notreadonly",
+            "_ariaselected",
+            "_ariadisabled",
+        ] {
+            assert!(
+                !out.jsx.contains(suffix),
+                "false child predicate {suffix}: {}",
+                out.jsx
+            );
+        }
+        for suffix in [
+            "_notdisabled",
+            "_notenabled",
+            "_readonly",
+            "_notariaselected",
+        ] {
+            assert!(
+                out.jsx.contains(suffix),
+                "true child predicate {suffix}: {}",
+                out.jsx
+            );
+        }
+        assert!(
+            !out.jsx.contains("=>"),
+            "no interaction callback: {}",
+            out.jsx
+        );
+        assert!(
+            out.prelude.is_empty(),
+            "no new subscriptions: {:?}",
+            out.prelude
+        );
+        for event in [
+            "hover",
+            "not-hover",
+            "active",
+            "not-active",
+            "focus",
+            "not-focus",
+            "focus-visible",
+            "not-focus-visible",
+        ] {
+            // A modeled parent Pressable must not silently lend its callback
+            // to an audited child slot in either direction.
+            let source = format!("import {{ Pressable, {component} }} from '@hozo/core'; const el = <Pressable><{component} {slot}=\"{event}:opacity-50\" /></Pressable>");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(
+                out.diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::NotWiredOnNative
+                        && d.message.contains("decorative class owner")),
+                "{slot}/{event}: {:?}",
+                out.diagnostics
+            );
+        }
+    }
+}
+
+#[test]
 fn only_disabling_user_resize_is_already_true_on_native() {
     for primitive in ["View", "TextInput"] {
         for utility in ["resize-none", "resize", "resize-x", "resize-y"] {
@@ -1330,6 +1410,24 @@ fn dynamic_secondary_pattern_classes_reach_only_registered_owners() {
                     output.jsx
                 );
                 assert!(!output.jsx.contains("hozoClasses("), "{}", output.jsx);
+                assert!(
+                    warning.message.contains("owner's available state"),
+                    "{}",
+                    warning.message
+                );
+            } else if let Some(facts) = crate::pattern::constant_facts(primitive, slot.class_prop) {
+                assert!(
+                    output
+                        .jsx
+                        .contains(&format!("hozoClasses(selectClasses(), {facts})")),
+                    "{}",
+                    output.jsx
+                );
+                assert!(
+                    !output.jsx.contains("=>"),
+                    "no event callback: {}",
+                    output.jsx
+                );
                 assert!(
                     warning.message.contains("owner's available state"),
                     "{}",

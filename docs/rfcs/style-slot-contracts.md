@@ -102,6 +102,31 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    gates in matrix fixtures. A decorative label can inherit text styling
    without borrowing the parent's focus predicate.
 
+   The first audited group is Stepper's five indicator/description props
+   and Pagination's ellipsis. Their Web owners are non-editable spans/li,
+   neither enabled nor disabled, with no selected/disabled/checked ARIA
+   attributes. The catalog supplies these constant facts to AOT and to
+   compiled opaque/mixed residual resolution; the actual Native components
+   supply the same constants for files outside the compiler. Metadata is
+   generated at build time, not looked up in a render-time registry. Compiled
+   residual calls pass a small fact object during author rendering, but add
+   no callbacks, hosts or subscriptions. Static-only slots need no fact
+   object at runtime. Source fallbacks reuse a shared immutable object.
+
+   Status gates and explicit style order remain component-owned. Parent text
+   inheritance is independent of a child's own form/ARIA predicates. Neither
+   positive nor negated pointer/focus predicates borrow surrounding events:
+   this Native child has not measured them. Those unsupported diagnostics
+   remain visible, including inside a modeled Pressable. This is not a claim
+   that the Web child cannot itself be hovered. The existing candidate
+   resolver's condition subset (in particular unsupported negation/enabled)
+   is unchanged; AOT retains its broader vocabulary. Tests compare the shared
+   supported subset and separately check the extra AOT predicates, rather
+   than silently shrinking static coverage to the runtime intersection.
+
+   Other pending owners are still unaudited. This six-slot group does not
+   certify the remaining catalog or fix #993's separate root selector gap.
+
 Use actual Web DOM/Tailwind as an independent semantic oracle, and execute
 generated Native output against actual component source. Stand-in hosts do
 not certify device pixels, event delivery or assistive technology.

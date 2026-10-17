@@ -1987,7 +1987,9 @@ pub(super) fn render_node(
                 || {
                     expressions
                         .iter()
-                        .map(|expr| format!("hozoClasses({expr})"))
+                        .map(|expr| {
+                            crate::class_route::residual(node.primitive, slot.class_prop, expr)
+                        })
                         .collect()
                 },
                 |route| route.residuals(),
@@ -2027,10 +2029,12 @@ pub(super) fn render_node(
                 continue;
             };
             let owned = crate::pattern::interaction_slot(node.primitive, slot.class_prop).is_some();
+            let has_facts =
+                crate::pattern::constant_facts(node.primitive, slot.class_prop).is_some();
             diagnostics.push(Diagnostic {
                 code: DiagnosticCode::DynamicClassNameNotResolved,
                 severity: Severity::Warning,
-                message: if owned {
+                message: if owned || has_facts {
                     format!(
                         "`{}` can't be resolved at build time. Its pattern slot resolves it on device \
                          from the project-wide candidate map with that owner's available state. \
@@ -2060,7 +2064,11 @@ pub(super) fn render_node(
                 .expect("registered above");
                 props_text.push_str(&route.prop(&[]));
             } else {
-                parts.push(format!("hozoClasses({expr})"));
+                parts.push(crate::class_route::residual(
+                    node.primitive,
+                    slot.class_prop,
+                    &expr,
+                ));
             }
         }
         parts.extend(

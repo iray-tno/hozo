@@ -17,8 +17,32 @@ const renderer = require('react-test-renderer')
 const stub = require('react-native')
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const theme = await loadTheme('@import "tailwindcss"; @theme { --color-brand: #123456; }', root)
+const decorationClasses =
+  'px-2 py-1 mb-2 text-brand opacity-100 disabled:opacity-25 read-only:rounded-lg aria-selected:text-red-500 aria-disabled:mt-4'
+const decorationSlots = {
+  indicatorClassName: '',
+  completedIndicatorClassName: 'border-2',
+  currentIndicatorClassName: 'border-4',
+  errorIndicatorClassName: 'border-8',
+  descriptionClassName: '',
+}
+const decorativeExpression = (mode: string, slot: string, extra = '') => {
+  // Candidate negation is a separate existing limitation. Static/mixed
+  // routes keep the broader AOT vocabulary; opaque routes still warn.
+  const negative =
+    mode === 'Opaque' ? '' : 'not-disabled:px-2 not-enabled:py-1 not-aria-selected:text-brand'
+  const classes = `${decorationClasses} ${negative} ${extra}`.trim()
+  return mode === 'Literal'
+    ? JSON.stringify(`${classes} bg-brand`)
+    : mode === 'Opaque'
+      ? `{getClasses(${JSON.stringify(slot)}, ${JSON.stringify(`${classes} bg-brand`)})}`
+      : `{cx(${JSON.stringify(classes.replace('read-only:rounded-lg', 'rounded-none'))}, getClasses(${JSON.stringify(slot)}, 'bg-brand read-only:rounded-lg'))}`
+}
 const source = `import { View, Text, Button, Pressable, Chip, ColorPicker, Pagination, Stepper, CommandPalette, OtpInput, cx } from '@hozo/core'
+export { Stepper as RawStepper, Pagination as RawPagination }
 export const classes = {
+  decoration: ${JSON.stringify(decorationClasses)},
+  unavailableDecoration: 'hover:opacity-50 active:border-8 not-hover:mt-2 not-focus:border-4',
   chip: 'p-2 hover:bg-brand focus-visible:outline-2 disabled:opacity-25 aria-pressed:rounded-lg',
   swatch: 'p-2 aria-checked:rounded-lg disabled:opacity-25 hover:opacity-50 focus-visible:outline-2 active:border-2 hover:bg-brand',
   selectedSwatch: 'aria-checked:outline-offset-4',
@@ -138,6 +162,31 @@ export function CommandProbe({ commands, extra }) {
 export function OtpProbe({ disabled, readOnly, inputClasses = classes.input, extra }) {
   return <OtpInput accessibilityLabel="Code" value="12" length={4} disabled={disabled} readOnly={readOnly}
     cellClassName="size-8" inputClassName={inputClasses} inputStyle={extra} />
+}
+${['Literal', 'Opaque', 'Mixed']
+  .map(
+    (
+      mode,
+    ) => `export function Decorative${mode}({ getClasses, steps, onStepPress, activeStep = 1, extra, pageCount = 20, page = 10 }) {
+      return <View>
+        <Stepper steps={steps} onStepPress={onStepPress} activeStep={activeStep}
+          stepClassName="text-[#654321] hover:text-[#abcdef]"
+          ${Object.entries(decorationSlots)
+            .map(([slot, extra]) => `${slot}=${decorativeExpression(mode, slot, extra)}`)
+            .join('\n')}
+          descriptionStyle={extra} />
+        <Pagination pageCount={pageCount} page={page} className="text-[#654321]"
+          ellipsisClassName=${decorativeExpression(mode, 'ellipsisClassName')} ellipsisStyle={extra} />
+      </View>
+    }`,
+  )
+  .join('\n')}
+export function UnavailableDecoration({ getClasses }) {
+  return <Stepper steps={[{ label: 'Only', description: 'Details' }]} activeStep={0} onStepPress={() => {}}
+    indicatorClassName={getClasses()} descriptionClassName={getClasses()} />
+}
+export function DecorationCandidates({ value }) {
+  return <Stepper steps={[]} activeStep={0} indicatorClassName={value ? classes.decoration : classes.unavailableDecoration} />
 }`
 
 const project = mkdtempSync(path.join(root, 'packages/tailwind-conformance/.pattern-project-'))
@@ -186,6 +235,142 @@ function mount(name: string, props = {}) {
     unmount: () => renderer.act(() => tree.unmount()),
   }
 }
+
+for (const mode of ['Literal', 'Opaque', 'Mixed'])
+  test(`decorative owners keep non-control facts and status gates through ${mode} lowering`, () => {
+    const calls: string[] = []
+    const steps = [
+      { label: 'Done', description: 'Done details' },
+      { label: 'Now', description: 'Now details', disabled: true },
+      { label: 'Error', description: 'Error details', status: 'error' },
+      { label: 'Later', description: 'Later details' },
+    ]
+    const props = {
+      steps,
+      onStepPress: () => {},
+      getClasses: (slot: string, value: string) => {
+        calls.push(slot)
+        return value
+      },
+    }
+    const view = mount(`Decorative${mode}`, props)
+    const rows = () => hosts(view.tree).filter((node) => node.props.accessibilityHint)
+    const marks = () => rows().map((node) => node.findAllByType('Text')[0])
+    const ellipses = () =>
+      view.tree.root.findAll((node) => node.type === 'Text' && node.props.children === '…')
+    const check = (text: Tree, box: Tree, override = false) => {
+      const style = flat(box)
+      assert.equal(style.paddingStart ?? style.paddingLeft, 8)
+      assert.equal(style.paddingEnd ?? style.paddingRight, 8)
+      assert.equal(style.paddingTop, 4)
+      assert.equal(style.paddingBottom, 4)
+      assert.equal(style.opacity, override ? 0.6 : 1)
+      assert.equal(style.borderRadius, 8)
+      assert.equal(style.marginTop, undefined)
+      assert.equal(style.marginBottom, 8)
+      assert.equal(style.backgroundColor, '#123456')
+      assert.equal(flat(text).color, override ? '#112233' : '#123456')
+    }
+    try {
+      assert.equal(calls.length, mode === 'Literal' ? 0 : 6)
+      for (const row of rows()) {
+        const texts = row.findAllByType('Text')
+        check(texts[0], texts[0].parent!)
+        check(texts[2], texts[2].parent!)
+      }
+      assert.deepEqual(
+        marks().map((text) => flat(text.parent!).borderWidth ?? flat(text.parent!).borderTopWidth),
+        [2, 4, 8, undefined],
+      )
+      assert.ok(ellipses().length > 0)
+      for (const text of ellipses()) check(text, text.parent!)
+      event(rows()[0], 'onHoverIn')
+      event(rows()[0], 'onFocus')
+      assert.equal(calls.length, mode === 'Literal' ? 0 : 6, 'events do not rerun author inputs')
+      check(marks()[0], marks()[0].parent!)
+      view.update({
+        ...props,
+        activeStep: 0,
+        pageCount: 3,
+        extra: { opacity: 0.6, color: '#112233' },
+      })
+      assert.deepEqual(
+        marks().map((text) => flat(text.parent!).borderWidth ?? flat(text.parent!).borderTopWidth),
+        [4, undefined, 8, undefined],
+      )
+      assert.equal(ellipses().length, 0, 'no nonexistent ellipsis owner is mounted')
+      for (const row of rows()) {
+        const text = row.findAllByType('Text')[2]
+        check(text, text.parent!, true)
+      }
+      view.update({ ...props, onStepPress: undefined })
+      assert.equal(rows().length, 0)
+      const details = view.tree.root.findAll(
+        (node) => node.type === 'Text' && node.props.children === 'Done details',
+      )[0]
+      check(details, details.parent!)
+    } finally {
+      view.unmount()
+    }
+  })
+
+test('decorations do not borrow parent pointer or focus, including negated unavailable facts', () => {
+  const warning = mock.method(console, 'warn', () => {})
+  const view = mount('UnavailableDecoration', {
+    getClasses: () => classes.unavailableDecoration,
+  })
+  try {
+    const owner = hosts(view.tree)[0]
+    for (const name of ['onHoverIn', 'onPressIn', 'onFocus']) event(owner, name)
+    for (const text of owner.findAllByType('Text')) {
+      const style = flat(text.parent!)
+      assert.equal(style.opacity, undefined)
+      assert.equal(style.borderRadius, undefined)
+      assert.equal(style.marginTop, undefined)
+      assert.equal(style.borderWidth, undefined)
+    }
+    assert.ok(
+      warning.mock.calls.some((call) => String(call.arguments[0]).includes('does not supply')),
+    )
+  } finally {
+    view.unmount()
+    warning.mock.restore()
+  }
+})
+
+test('uncompiled pattern sources use the same decorative facts as compiled residuals', () => {
+  const steps = mount('RawStepper', {
+    steps: [{ label: 'Only', description: 'Details' }],
+    activeStep: 0,
+    onStepPress: () => {},
+    indicatorClassName: `${classes.decoration} ${classes.unavailableDecoration}`,
+    descriptionClassName: classes.decoration,
+  })
+  const pages = mount('RawPagination', {
+    pageCount: 20,
+    page: 10,
+    ellipsisClassName: classes.decoration,
+  })
+  try {
+    const owner = hosts(steps.tree)[0]
+    const mark = owner.findAllByType('Text')[0]
+    for (const name of ['onHoverIn', 'onPressIn', 'onFocus']) event(owner, name)
+    assert.equal(flat(mark.parent!).borderWidth ?? flat(mark.parent!).borderTopWidth, undefined)
+    const ellipses = pages.tree.root.findAll(
+      (node) => node.type === 'Text' && node.props.children === '…',
+    )
+    assert.ok(ellipses.length > 0)
+    for (const text of [mark, ...ellipses]) {
+      assert.equal(flat(text.parent!).borderRadius, 8)
+      assert.equal(flat(text.parent!).opacity, 1)
+      assert.equal(flat(text.parent!).marginTop, undefined)
+      assert.equal(flat(text).color, '#123456')
+    }
+  } finally {
+    steps.unmount()
+    pages.unmount()
+  }
+})
 
 test('compiled dynamic Chip root follows toggle versus composite ownership without rerunning the author', () => {
   let calls = 0
