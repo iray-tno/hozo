@@ -3028,16 +3028,18 @@ test('a runtime class keeps its pressed and disabled looks on Native', () => {
 // through the project's resolver, with each tab's state. Run from its own
 // source against stand-ins for React Native and React: what is asserted is
 // the style each element is handed, not how React Native draws it.
-test("@hozo/patterns' Native Tabs applies its class props, selected and pressed included", async () => {
-  const look = 'p-4 px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'
+test("@hozo/patterns' Native Tabs applies its class props, selected, pressed, hovered and focus-visible included", async () => {
+  const states = 'hover:bg-red-500 focus-visible:border-2'
+  const look = `p-4 px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50 ${states}`
   const { load } = await patternHarness('tabs-candidates.json', look)
   const { HozoTabs } = load('tabs.native.tsx')
   const tree = HozoTabs({
     className: 'p-4',
-    tabClassName: 'px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50',
+    tabClassName: `px-3 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50 ${states}`,
     tabs: [
       { label: 'One', content: 'first' },
       { label: 'Two', content: 'second', disabled: true },
+      { label: 'Three', content: 'third' },
     ],
   })
   const flat = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
@@ -3049,14 +3051,28 @@ test("@hozo/patterns' Native Tabs applies its class props, selected and pressed 
     for (const child of [node.props?.children].flat(Infinity)) walk(child)
   }
   walk(tree)
-  const [first, second] = found
-  const at = (tab, pressed) => flat(tab.props.style({ pressed }))
+  const [first, second, third] = found
+  const at = (tab, pressed, extra = {}) =>
+    flat(
+      tab.props.style({ pressed, hovered: false, focused: false, focusVisible: false, ...extra }),
+    )
   assert.equal(at(first, false).paddingStart, 12)
   assert.equal(at(first, false).backgroundColor, '#2b7fff', 'the selected tab')
   assert.equal(at(first, false).opacity, undefined)
   assert.equal(at(first, true).opacity, 0.8, 'pressed')
   assert.equal(at(second, false).backgroundColor, undefined, 'not selected')
   assert.equal(at(second, false).opacity, 0.5, 'disabled')
+  // #897: the pattern's pressable reports more than `pressed`, so a pointer
+  // over a tab and keyboard focus on one each have a look on Native too.
+  assert.equal(at(third, false).backgroundColor, undefined, 'at rest')
+  assert.equal(at(third, false, { hovered: true }).backgroundColor, '#fb2c36', 'hovered')
+  assert.equal(at(third, false).borderTopWidth, undefined)
+  assert.equal(at(third, false, { focused: true }).borderTopWidth, undefined, 'focused by a press')
+  assert.equal(
+    at(third, false, { focused: true, focusVisible: true }).borderTopWidth,
+    2,
+    'focused from the keyboard',
+  )
 })
 
 // Runs `@hozo/patterns`' Native components from their own source, against
