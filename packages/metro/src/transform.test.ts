@@ -69,6 +69,8 @@ test('dynamic secondary pattern classes reach their registered slot owner withou
     ['Combobox', 'inputClassName', 'inputStyle'],
     ['Combobox', 'optionClassName', 'optionStyle'],
     ['Listbox', 'optionClassName', 'optionStyle'],
+    ['Menu', 'triggerClassName', 'triggerStyle'],
+    ['Menu', 'itemClassName', 'itemStyle'],
   ]) {
     const output = transformHozoSource(
       `import { ${component} } from '@hozo/core'
@@ -148,6 +150,8 @@ test('mixed secondary expressions retain AOT and source-ordered guards on regist
     ['Combobox', 'inputClassName', 'focus'],
     ['Combobox', 'optionClassName', 'hover'],
     ['Listbox', 'optionClassName', 'focus'],
+    ['Menu', 'triggerClassName', 'focus'],
+    ['Menu', 'itemClassName', 'focus'],
   ]) {
     const output = transformHozoSource(
       `import {${component},cx} from '@hozo/core'; export function C() {return <${component} onStepPress={press} ${slot}={cx('p-2 not-${state}:rounded-lg ${state}:opacity-50 md:mt-2', choose())} />}`,
@@ -362,6 +366,29 @@ test('opaque Combobox root classes receive the same constant facts as its non-co
     opaque,
     /hozoClasses\(getClasses\(\), \{ disabled: false, enabled: false, readOnly: true/,
   )
+})
+
+test('Menu slots keep enabled button expansion apart from non-form item disabled announcements', () => {
+  const output = transformHozoSource(
+    `import {Menu} from '@hozo/core';export function C(){return <Menu trigger="Actions" items={items}
+      className="disabled:opacity-25 enabled:opacity-50 text-red-500"
+      triggerClassName="focus:opacity-50 enabled:px-3 aria-expanded:border-2"
+      menuClassName="read-only:rounded-lg disabled:opacity-25"
+      itemClassName="focus:opacity-50 hover:opacity-75 aria-disabled:opacity-25 aria-selected:ml-8 disabled:mt-8 enabled:mb-8"
+      itemStyle={extra}/>} `,
+    'Menu.tsx',
+  )
+  assert.ok(output)
+  assert.match(output, /hozoTriggerStyle=/)
+  assert.match(output, /hozoItemStyle=/)
+  assert.match(output, /'aria-expanded': __hozoSlotAriaExpanded/)
+  assert.match(output, /'aria-disabled': __hozoSlotAriaDisabled/)
+  assert.match(output, /itemStyle=\{extra\}/)
+  assert.doesNotMatch(output, /hozoClasses|triggerClassName=|itemClassName=/)
+  const jsx = output.slice(output.indexOf('<HozoMenu'))
+  assert.match(jsx, /hozo_r0_1_enabled/)
+  assert.doesNotMatch(jsx, /_disabled|_ariaselected/)
+  assert.doesNotMatch(jsx.slice(jsx.indexOf('hozoItemStyle=')), /_enabled/)
 })
 
 test('Listbox slots compile known div facts and each option own focus and selection', () => {

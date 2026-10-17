@@ -1,6 +1,68 @@
 use super::*;
 
 #[test]
+fn menu_button_and_action_divs_have_distinct_semantic_callbacks() {
+    let source = r#"import { Menu } from '@hozo/core'; const el = <Menu trigger="Actions" items={items}
+        className="disabled:opacity-25 enabled:opacity-50 text-red-500"
+        triggerClassName="focus:opacity-50 enabled:px-3 aria-expanded:border-2 read-only:rounded-lg"
+        menuClassName="read-only:rounded-lg disabled:opacity-25"
+        itemClassName="focus:opacity-50 hover:opacity-75 aria-disabled:opacity-25 aria-selected:ml-8 disabled:mt-8 enabled:mb-8" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(out.jsx.starts_with("<HozoMenu"), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoTriggerStyle="), "{}", out.jsx);
+    assert!(out.jsx.contains("hozoItemStyle="), "{}", out.jsx);
+    let trigger = out
+        .jsx
+        .split("hozoTriggerStyle=")
+        .nth(1)
+        .unwrap()
+        .split("menuStyle=")
+        .next()
+        .unwrap();
+    assert!(
+        trigger.contains("'aria-expanded': __hozoSlotAriaExpanded"),
+        "{trigger}"
+    );
+    assert!(!trigger.contains("__hozoSlotAriaDisabled"), "{trigger}");
+    let item = out.jsx.split("hozoItemStyle=").nth(1).unwrap();
+    assert!(
+        item.contains("'aria-disabled': __hozoSlotAriaDisabled"),
+        "{item}"
+    );
+    assert!(!item.contains("__hozoSlotAriaExpanded"), "{item}");
+    assert!(out.runtime_imports.contains(&"HozoMenu"));
+}
+
+#[test]
+fn menu_non_control_roots_and_panel_cannot_borrow_child_events() {
+    for slot in ["className", "menuClassName"] {
+        for variant in ["hover", "not-active", "focus", "not-focus-visible"] {
+            let source = format!("import {{ Menu }} from '@hozo/core'; const el = <Menu trigger=\"Actions\" items={{items}} {slot}=\"{variant}:opacity-50\" />");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+            assert!(
+                out.diagnostics
+                    .iter()
+                    .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+                "{slot}/{variant}: {:?}",
+                out.diagnostics
+            );
+        }
+    }
+    let source = "import { Menu } from '@hozo/core'; const el = <Menu trigger=\"Actions\" items={[]} className={choose()} />";
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(
+        out.jsx
+            .contains("hozoClasses(choose(), { disabled: false, enabled: false, readOnly: true"),
+        "{}",
+        out.jsx
+    );
+}
+
+#[test]
 fn listbox_options_own_focus_and_selection_but_are_not_form_controls() {
     let source = r#"import { Listbox } from '@hozo/core'; const el = <Listbox options={options}
         className="disabled:opacity-25 enabled:opacity-50 text-red-500"

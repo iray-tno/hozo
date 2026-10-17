@@ -602,7 +602,7 @@ test('Native Menu trigger and items deliver interaction facts independently of o
   const tree = await mount(t, HozoMenu, {
     trigger: 'Actions',
     triggerClassName: `${interactionClasses} aria-expanded:border-2`,
-    itemClassName: `${interactionClasses} disabled:opacity-25`,
+    itemClassName: `${interactionClasses} aria-disabled:opacity-25 disabled:mt-8`,
     items: [
       { label: 'Run', onSelect: () => selected.push('run') },
       { label: 'Blocked', disabled: true, onSelect: () => selected.push('blocked') },
@@ -621,6 +621,12 @@ test('Native Menu trigger and items deliver interaction facts independently of o
   assert.equal(flat(hosts()[0].props.style).backgroundColor, undefined)
   assert.equal(flat(hosts()[3].props.style).backgroundColor, undefined)
   assert.equal(hosts()[3].props.disabled, true)
+  assert.equal(flat(hosts()[3].props.style).opacity, 0.25)
+  assert.equal(
+    flat(hosts()[3].props.style).marginTop,
+    undefined,
+    'the Web item is not a form control',
+  )
   await press(hosts()[3])
   assert.deepEqual(selected, [])
   assert.equal(hosts().length, 4, 'disabled selection does not dismiss')

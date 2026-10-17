@@ -2482,6 +2482,230 @@ test('ColorPicker real input matches independent Tailwind across focus, disabled
   }
 })
 
+test('Menu button expansion and action-div states match isolated Tailwind in both CSS orders', {
+  skip: !executablePath,
+}, async () => {
+  const looks = {
+    root: 'p-2 opacity-75 text-[#654321] disabled:opacity-25 enabled:opacity-50 aria-selected:mt-8',
+    trigger:
+      'p-2 border-0 opacity-100 rounded-none focus:opacity-50 focus-visible:outline-2 hover:bg-[#123456] active:opacity-75 aria-expanded:border-2 read-only:rounded-lg enabled:px-3 disabled:mt-8 aria-disabled:mb-8 aria-selected:ml-8',
+    menu: 'p-2 opacity-100 text-[#123456] read-only:rounded-lg disabled:opacity-25 enabled:opacity-50 aria-selected:border-8',
+    item: 'p-1 border-0 opacity-100 rounded-none focus:opacity-50 focus-visible:outline-2 hover:bg-[#654321] active:opacity-75 aria-disabled:opacity-25 read-only:rounded-lg disabled:mt-8 enabled:mb-8 aria-selected:ml-8 aria-checked:mr-8',
+  }
+  const expression = (mode, part) => {
+    const classes = looks[part]
+    const base =
+      part === 'root'
+        ? 'p-2 opacity-75'
+        : part === 'menu'
+          ? 'p-2 opacity-100'
+          : `${part === 'item' ? 'p-1' : 'p-2'} border-0 opacity-100 rounded-none`
+    return mode === 'literal'
+      ? JSON.stringify(classes)
+      : mode === 'opaque'
+        ? `{getClasses(${JSON.stringify(classes)})}`
+        : `{cx(${JSON.stringify(base)},getClasses(${JSON.stringify(classes.slice(base.length))}))}`
+  }
+  // Opacity-bearing wrappers are stacking contexts. Leave room for each
+  // real popup so a later fixture's button cannot intercept its pointers.
+  const source = `import {View,Menu,cx} from '@hozo/core';const C=()=> <View>
+    ${['literal', 'opaque', 'mixed']
+      .map(
+        (
+          mode,
+        ) => `<View testID="${mode}" className="mb-64"><Menu trigger="Actions" items={items} accessibilityLabel="Letters"
+      className=${expression(mode, 'root')} triggerClassName=${expression(mode, 'trigger')}
+      menuClassName=${expression(mode, 'menu')} itemClassName=${expression(mode, 'item')}/></View>`,
+      )
+      .join('')}
+    </View>`
+  const web = compiler.compile(source)[0]
+  assert.ok(web.diagnostics.length > 0)
+  for (const diagnostic of web.diagnostics) {
+    assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
+    assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\(/)
+  }
+  const candidates = openCandidateCache(path.join(directory, 'menu-owners.json'))
+  candidates.scanFile('MenuFixture.tsx', source, 1)
+  const candidateCss = candidates.renderCss()
+  assert.ok(candidateCss.includes('.p-1') && candidateCss.includes('.p-2'))
+  const oracleCss = (
+    await compile('@theme {--spacing:0.25rem;--radius-lg:0.5rem;} @tailwind utilities;')
+  ).build(Object.values(looks).flatMap((classes) => classes.split(' ')))
+  // The same official reset on each page, without any oracle utilities on
+  // the target. Tailwind's reset makes button typography inherit as in apps.
+  const tailwindRoot = path.dirname(
+    createRequire(import.meta.url).resolve('tailwindcss/package.json'),
+  )
+  const preflight = readFileSync(path.join(tailwindRoot, 'preflight.css'), 'utf8')
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react';import {createRoot} from 'react-dom/client';
+        import {Menu as HozoMenu} from '@hozo/patterns';window.calls=0;window.changes=[];
+        const getClasses=value=>{window.calls++;return value};
+        const items=[{label:'Alpha',onSelect:()=>window.changes.push('a')},{label:'Beta',disabled:true,onSelect:()=>window.changes.push('b')},{label:'Gamma',onSelect:()=>window.changes.push('c')}];
+        createRoot(document.getElementById('root')).render(${web.jsx});`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const oracle = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const read = (locator) =>
+    locator.evaluate((e) => {
+      const s = getComputedStyle(e)
+      return [
+        s.paddingLeft,
+        s.opacity,
+        s.borderRadius,
+        s.borderTopWidth,
+        s.outlineWidth,
+        s.marginTop,
+        s.marginBottom,
+        s.marginLeft,
+        s.marginRight,
+        s.color,
+        s.backgroundColor,
+      ]
+    })
+  try {
+    await oracle.setContent(`<style>${preflight}</style><style>${oracleCss}</style><div id="owner" class="${looks.root}">
+      <button id="trigger" type="button" aria-expanded="false" class="${looks.trigger}">Actions</button>
+      <div id="menu" role="menu" class="${looks.menu}"><div id="item" tabindex="0" role="menuitem" class="${looks.item}">Item</div></div></div>`)
+    for (const sheets of [
+      [web.css, candidateCss],
+      [candidateCss, web.css],
+    ]) {
+      await page.setContent(
+        `<style>${preflight}</style>${compiledStyles(sheets, candidateCss)}<div id="root"></div>`,
+      )
+      await page.addScriptTag({ content: bundle.outputFiles[0].text })
+      for (const mode of ['literal', 'opaque', 'mixed']) {
+        const section = page.getByTestId(mode)
+        const owner = section.locator(':scope > div').first()
+        const trigger = section.getByRole('button', { name: 'Actions' })
+        const menu = section.getByRole('menu')
+        const rows = menu.getByRole('menuitem')
+        await trigger.waitFor()
+        const initialCalls = await page.evaluate(() => window.calls)
+        assert.deepEqual(await read(owner), await read(oracle.locator('#owner')))
+        const compare = async (target, reference, { focus = false, hover = false } = {}) => {
+          await page.bringToFront()
+          await page.mouse.move(1200, 700)
+          await page.evaluate(() => document.activeElement?.blur())
+          if (focus) {
+            await page.keyboard.press('Shift')
+            await target.focus()
+          }
+          if (hover) await target.hover()
+          const actual = await read(target)
+          await oracle.bringToFront()
+          await oracle.mouse.move(1200, 700)
+          await oracle.evaluate(() => document.activeElement?.blur())
+          if (focus) {
+            await oracle.keyboard.press('Shift')
+            await reference.focus()
+          }
+          if (hover) await reference.hover()
+          assert.deepEqual(
+            actual,
+            await read(reference),
+            `${mode}: ${(await target.getAttribute('role')) ?? 'trigger'}`,
+          )
+          await page.bringToFront()
+        }
+        await oracle.locator('#trigger').evaluate((e) => e.setAttribute('aria-expanded', 'false'))
+        await compare(trigger, oracle.locator('#trigger'), { focus: true })
+        assert.equal(await menu.count(), 0, 'trigger focus alone does not open')
+        await trigger.click()
+        await menu.waitFor()
+        await page.waitForFunction(
+          () => document.activeElement?.getAttribute('role') === 'menuitem',
+        )
+        assert.equal(await rows.first().evaluate((e) => e === document.activeElement), true)
+        await rows.nth(2).focus()
+        await page.evaluate(() => window.dispatchEvent(new Event('resize')))
+        await page.evaluate(
+          () =>
+            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        )
+        assert.equal(
+          await rows.nth(2).evaluate((e) => e === document.activeElement),
+          true,
+          'position updates do not rerun the initial focus effect',
+        )
+        await oracle.locator('#trigger').evaluate((e) => e.setAttribute('aria-expanded', 'true'))
+        await compare(trigger, oracle.locator('#trigger'))
+        assert.equal(await trigger.getAttribute('aria-expanded'), 'true')
+        assert.deepEqual(await read(menu), await read(oracle.locator('#menu')))
+        const checkItem = async (at, disabled = false, interaction = {}) => {
+          await oracle.locator('#item').evaluate((e, disabled) => {
+            if (disabled) e.setAttribute('aria-disabled', 'true')
+            else e.removeAttribute('aria-disabled')
+          }, disabled)
+          await compare(rows.nth(at), oracle.locator('#item'), interaction)
+          assert.equal(await rows.nth(at).getAttribute('aria-selected'), null)
+        }
+        await checkItem(0)
+        await checkItem(1, true)
+        await checkItem(0, false, { focus: true })
+        await checkItem(2, false, { hover: true })
+        await checkItem(0) // Stable geometry/modality for CSS-removal controls.
+        if (mode !== 'literal') {
+          for (const [part, node] of [
+            ['root', owner],
+            ['trigger', trigger],
+            ['menu', menu],
+            ['item', rows.first()],
+          ])
+            await assertCandidateStylesRequired(page, () => read(node), `Menu ${part} ${mode}`)
+        }
+        const before = await page.evaluate(() => window.changes.length)
+        await rows.nth(1).evaluate((e) => e.click())
+        assert.equal(await menu.count(), 1)
+        assert.equal(await page.evaluate(() => window.changes.length), before)
+        // Existing Web roving-focus behavior is exercised independently of
+        // Native host events: Down skips disabled Beta and Enter acts once.
+        await rows.first().focus()
+        await page.keyboard.press('ArrowDown')
+        await page.waitForFunction(() => document.activeElement?.textContent === 'Gamma')
+        await page.keyboard.press('Enter')
+        assert.equal(await menu.count(), 0)
+        assert.equal(await page.evaluate(() => window.changes.at(-1)), 'c')
+        assert.equal(await trigger.evaluate((e) => e === document.activeElement), true)
+        assert.equal(await trigger.getAttribute('aria-expanded'), 'false')
+        await trigger.press('ArrowUp')
+        await page.waitForFunction(() => document.activeElement?.textContent === 'Gamma')
+        await page.keyboard.press('Escape')
+        assert.equal(await menu.count(), 0)
+        await trigger.click()
+        await rows.first().waitFor()
+        await page.waitForFunction(() => document.activeElement?.textContent === 'Alpha')
+        await rows.first().click()
+        assert.equal(await page.evaluate(() => window.changes.at(-1)), 'a')
+        assert.equal(await menu.count(), 0)
+        assert.equal(
+          await page.evaluate(() => window.calls),
+          initialCalls,
+          'open and item events do not rerun authored class inputs',
+        )
+      }
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+    await oracle.close()
+  }
+})
+
 test('Listbox option focus and committed selection match isolated Tailwind in both CSS orders', {
   skip: !executablePath,
 }, async () => {
@@ -3970,7 +4194,11 @@ async function patternHarness(cacheName, look) {
 test("@hozo/patterns' Native controls apply their class props with each one's state", async () => {
   const look =
     'p-2 text-red-500 aria-expanded:bg-blue-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'
-  const { load, pressables, at } = await patternHarness('controls-candidates.json', look)
+  const menuLook = `${look} aria-disabled:opacity-50 disabled:mt-8`
+  const { load, pressables, at } = await patternHarness(
+    'controls-candidates.json',
+    `${look} ${menuLook}`,
+  )
 
   const accordion = load('accordion.native.tsx').HozoAccordion({
     triggerClassName: look,
@@ -4023,7 +4251,7 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
 
   const menu = load('menu.native.tsx').HozoMenu({
     triggerClassName: look,
-    itemClassName: look,
+    itemClassName: menuLook,
     trigger: 'More',
     items: [{ label: 'Delete', disabled: true }],
   })
@@ -4031,6 +4259,7 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
   assert.equal(at(trigger, true).box.opacity, 0.8, 'menu: pressed trigger')
   assert.equal(at(trigger, false).text.color, '#fb2c36', 'menu: trigger label')
   assert.equal(at(item, false).box.opacity, 0.5, 'menu: disabled item')
+  assert.equal(at(item, false).box.marginTop, undefined, 'menu: aria-disabled is not form disabled')
 })
 
 // #886, slice 3, second batch: Tabs' labels, Chip, Pagination, Tree,

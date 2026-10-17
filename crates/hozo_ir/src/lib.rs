@@ -485,6 +485,8 @@ pub enum Primitive {
     Combobox,
     /// A list whose options own focus and their committed selection state.
     Listbox,
+    /// An action menu with a button trigger and focusable non-form items.
+    Menu,
     /// A colour, from swatches, three sliders or its hex (#153): a radio
     /// group of swatches, hue/saturation/lightness as ordinary sliders
     /// rather than a two-dimensional square, each read in words.

@@ -41,7 +41,7 @@ const panel =
 const item =
   'cursor-pointer rounded-hozo-control px-3 py-2 text-start text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
-export function HozoMenu({ className, ...rest }: HozoMenuProps) {
+function StyledMenu({ className, ...rest }: HozoMenuProps) {
   return (
     <MenuPattern
       {...rest}
@@ -53,4 +53,4 @@ export function HozoMenu({ className, ...rest }: HozoMenuProps) {
   )
 }
 
-export { HozoMenu as Menu, type HozoMenuProps as MenuProps }
+export { type HozoMenuProps as MenuProps, StyledMenu as HozoMenu, StyledMenu as Menu }

@@ -107,6 +107,29 @@ export interface ListOptionSlotFacts {
   'aria-checked': false
 }
 
+/** The real button is enabled and non-editable. It owns expanded state, not item disabled announcements or selection. */
+export interface MenuTriggerSlotFacts {
+  readonly [fact: string]: unknown
+  disabled: false
+  enabled: true
+  readOnly: true
+  'aria-disabled': false
+  'aria-selected': false
+  'aria-checked': false
+  'aria-expanded': boolean
+}
+
+/** An action div owns focus and aria-disabled, not form disabled/enabled or selected/checked state. */
+export interface MenuItemSlotFacts {
+  readonly [fact: string]: unknown
+  disabled: false
+  enabled: false
+  readOnly: true
+  'aria-disabled': boolean
+  'aria-selected': false
+  'aria-checked': false
+}
+
 /** Non-editable divs/spans match read-only, neither disabled nor enabled. They never borrow input focus. */
 export interface OtpDecorationSlotFacts {
   readonly [fact: string]: unknown

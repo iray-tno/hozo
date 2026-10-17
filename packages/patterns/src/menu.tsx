@@ -11,6 +11,7 @@ import {
 import {
   type KeyboardEvent,
   type ReactNode,
+  type RefObject,
   useCallback,
   useEffect,
   useId,
@@ -69,10 +70,6 @@ export function HozoMenu({
     setActive(index >= 0 && index < items.length ? index : 0)
     setOpen(true)
   }
-
-  useEffect(() => {
-    if (open) itemRefs.current[active]?.focus()
-  }, [open, active])
 
   const onTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (event.key === 'ArrowDown') {
@@ -152,44 +149,69 @@ export function HozoMenu({
           shift
           className="z-50"
         >
-          {() => (
-            <DismissableLayer onDismiss={() => close(false)}>
-              <div
-                role="menu"
-                id={`${base}-menu`}
-                aria-label={accessibilityLabel}
-                className={menuClassName}
-                onKeyDown={onMenuKeyDown}
-              >
-                {items.map((item, at) => (
-                  <div
-                    // Identified by position and nothing else: `defaultIndex`,
-                    // `onKeyDown(event, at)` and the roving `tabIndex` are all indices. A key
-                    // derived from anything else would be a second identity disagreeing with
-                    // the first -- which is the bug `option-key.ts` fixes for the two
-                    // components that select by value instead.
-                    // biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
-                    key={`item-${at}`}
-                    ref={(node) => {
-                      itemRefs.current[at] = node
-                    }}
-                    role="menuitem"
-                    data-hozo-pressable=""
-                    aria-disabled={item.disabled || undefined}
-                    tabIndex={stops[at]}
-                    className={itemClassName}
-                    onClick={() => select(at)}
-                  >
-                    {item.label}
-                  </div>
-                ))}
-              </div>
-            </DismissableLayer>
+          {(position) => (
+            <>
+              <MenuItemFocus
+                ready={position !== null && !position.referenceHidden}
+                active={active}
+                itemRefs={itemRefs}
+              />
+              <DismissableLayer onDismiss={() => close(false)}>
+                <div
+                  role="menu"
+                  id={`${base}-menu`}
+                  aria-label={accessibilityLabel}
+                  className={menuClassName}
+                  onKeyDown={onMenuKeyDown}
+                >
+                  {items.map((item, at) => (
+                    <div
+                      // Identified by position and nothing else: `defaultIndex`,
+                      // `onKeyDown(event, at)` and the roving `tabIndex` are all indices. A key
+                      // derived from anything else would be a second identity disagreeing with
+                      // the first -- which is the bug `option-key.ts` fixes for the two
+                      // components that select by value instead.
+                      // biome-ignore lint/suspicious/noArrayIndexKey: position is the identity here
+                      key={`item-${at}`}
+                      ref={(node) => {
+                        itemRefs.current[at] = node
+                      }}
+                      role="menuitem"
+                      data-hozo-pressable=""
+                      aria-disabled={item.disabled || undefined}
+                      tabIndex={stops[at]}
+                      className={itemClassName}
+                      onClick={() => select(at)}
+                    >
+                      {item.label}
+                    </div>
+                  ))}
+                </div>
+              </DismissableLayer>
+            </>
           )}
         </FloatingPositioner>
       ) : null}
     </div>
   )
+}
+
+/** Positioning initially hides the popup. Focusing before that commit is a
+ * no-op in browsers. Observe readiness, not every geometry update, so a
+ * resize never steals focus back from a caller or another item. */
+function MenuItemFocus({
+  ready,
+  active,
+  itemRefs,
+}: {
+  ready: boolean
+  active: number
+  itemRefs: RefObject<(HTMLDivElement | null)[]>
+}) {
+  useEffect(() => {
+    if (ready) itemRefs.current[active]?.focus()
+  }, [ready, active, itemRefs])
+  return null
 }
 
 export { HozoMenu as Menu, type HozoMenuItem as MenuItem, type HozoMenuProps as MenuProps }

@@ -181,6 +181,21 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    reordering. This audit adds no Native hardware keyboard navigation claim
    and does not infer unmodeled facts such as root aria-multiselectable.
 
+   Menu reuses NonControl for its wrapper and popup panel. Its real button
+   trigger owns enabled and expanded facts; its focusable action divs own
+   aria-disabled, not form disabled/enabled or selected/checked state. Root
+   text reaches the trigger and menu; menu text reaches string item labels,
+   with explicit slot text/box styles last. The compiler keeps those semantic
+   callbacks separate. The popup remains gated by the existing Web open state
+   and Native Modal.visible contract; no Modal lifecycle or OS focus-return
+   claim is introduced. Positional action keys and disabled activation guards
+   remain unchanged. Unsupported wrapper/panel events remain unavailable.
+   The browser audit exposed an independent opening-focus race: the original
+   effect could focus an item while FloatingPositioner still hid its subtree.
+   That existing effect now observes readiness and active index from a
+   headless child, without adding a DOM host, timer or listener. Geometry-only
+   updates do not refocus an item. Native Modal focus behavior is unchanged.
+
    Opaque/mixed secondary Web class lists identify the same real DOM owner
    as their AOT counterpart. Candidate form predicates exclude that slot
    from portable-marker rules (including the lower-priority layered copy),
