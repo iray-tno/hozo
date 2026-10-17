@@ -505,6 +505,16 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     native: ['<HozoColorPicker accessibilityLabel={"Accent"} swatchStyle={hozoStyles.hozo1}'],
   },
   {
+    name: 'an unnamed color picker',
+    purpose: 'a picker with no name is reported on both platforms, as a text field is',
+    // Its type requires the name, but a build strips types without checking
+    // them, and unlike Pagination it has no translated name to fall back on.
+    source: '<ColorPicker value={color} onChange={setColor} />',
+    web: ['<HozoColorPicker value={color}'],
+    native: ['<HozoColorPicker value={color}'],
+    diagnostics: ['A11Y_MISSING_ACCESSIBLE_NAME'],
+  },
+  {
     name: 'a named command palette',
     purpose: 'the dialog name, its open state and the item classes reach the pattern',
     source:
@@ -534,6 +544,14 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
       '<OtpInput length={6} value={code} onChange={setCode} accessibilityLabel="Code" cellClassName="size-10" />',
     web: ['<HozoOtpInput cellClassName="hozo-1" accessibilityLabel={"Code"} length={6}'],
     native: ['<HozoOtpInput accessibilityLabel={"Code"} cellStyle={hozoStyles.hozo1}'],
+  },
+  {
+    name: 'an unnamed one-time code field',
+    purpose: 'a code field with no name is reported on both platforms, as a text field is',
+    source: '<OtpInput length={6} value={code} onChange={setCode} />',
+    web: ['<HozoOtpInput length={6}'],
+    native: ['<HozoOtpInput length={6}'],
+    diagnostics: ['A11Y_MISSING_ACCESSIBLE_NAME'],
   },
   {
     name: 'named pagination',

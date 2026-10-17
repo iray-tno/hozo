@@ -23,7 +23,7 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `Button` | `<button type="button">` | `<Pressable accessibilityRole="button">` | semantic Button |
 | `Chip` | `<HozoChip className="hozo-0" removeClassName="hozo-1" onRemove={remove}>` | `<HozoChip removeStyle={hozoStyles.hozo1} onRemove={remove}>` | a selectable, removable chip |
 | `Code` | `<code>` | `<Text>` | inline emphasis and its meaning |
-| `ColorPicker` | `<HozoColorPicker swatchClassName="hozo-1" accessibilityLabel={"Theme colour"} value={color} onChange={setColor} presets={presets}>` | `<HozoColorPicker accessibilityLabel={"Theme colour"} swatchStyle={hozoStyles.hozo1} value={color} onChange={setColor} presets={presets}>` | a named colour picker |
+| `ColorPicker` | `<HozoColorPicker swatchClassName="hozo-1" accessibilityLabel={"Theme colour"} value={color} onChange={setColor} presets={presets}>` | `<HozoColorPicker accessibilityLabel={"Theme colour"} swatchStyle={hozoStyles.hozo1} value={color} onChange={setColor} presets={presets}>` | a named colour picker; an unnamed color picker |
 | `Combobox` | `<HozoCombobox inputClassName="hozo-1" optionClassName="hozo-2" accessibilityLabel={"Country"} options={options}>` | `<HozoCombobox accessibilityLabel={"Country"} inputStyle={hozoStyles.hozo1} hozoOptionStyle={({ pressed, hovered, focused, focusVisible, 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected }) =>` | a named combobox |
 | `CommandPalette` | `<HozoCommandPalette panelClassName="hozo-1" activeItemClassName="hozo-2" open={open} onOpenChange={setOpen} commands={commands}>` | `<HozoCommandPalette open={open} panelStyle={hozoStyles.hozo1} activeItemStyle={hozoStyles.hozo2} onOpenChange={setOpen} commands={commands}>` | a named command palette |
 | `Description` | `<dd className="hozo-view">` | `<View>` | a description list |
@@ -48,7 +48,7 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `Modal` | `<HozoModal visible onRequestClose={close}>` | `<Modal visible onRequestClose={close}>` | a modal and its system dismissal |
 | `Nav` | `<nav className="hozo-view">` | `<View role="navigation">` | document landmarks |
 | `NoBreak` | `<span}>` | `<Text>` | scripts, small print and an unbreakable run |
-| `OtpInput` | `<HozoOtpInput cellClassName="hozo-1" activeCellClassName="hozo-2" accessibilityLabel={"Verification code"} length={6} onComplete={verify}>` | `<HozoOtpInput accessibilityLabel={"Verification code"} cellStyle={hozoStyles.hozo1} activeCellStyle={hozoStyles.hozo2} length={6} onComplete={verify}>` | a one-time code field |
+| `OtpInput` | `<HozoOtpInput cellClassName="hozo-1" activeCellClassName="hozo-2" accessibilityLabel={"Verification code"} length={6} onComplete={verify}>` | `<HozoOtpInput accessibilityLabel={"Verification code"} cellStyle={hozoStyles.hozo1} activeCellStyle={hozoStyles.hozo2} length={6} onComplete={verify}>` | a one-time code field; an unnamed one-time code field |
 | `Pagination` | `<HozoPagination className="hozo-0" currentItemClassName="hozo-1" page={page} pageCount={20} onPageChange={setPage}>` | `<HozoPagination currentItemStyle={hozoStyles.hozo1} page={page} pageCount={20} onPageChange={setPage}>` | named pagination |
 | `Paragraph` | `<p>` | `<Text>` | semantic document structure; invalid document nesting diagnostic; a disclosure and its trigger; inline emphasis and its meaning; scripts, small print and an unbreakable run |
 | `Preformatted` | `<pre>` | `<Text>` | preformatted text keeps its spaces |
