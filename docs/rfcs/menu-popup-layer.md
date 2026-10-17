@@ -23,7 +23,7 @@ A descendant z-index cannot escape its ancestor stacking context. A body
 Portal can escape that context, but breaks DOM CSS ancestry: inherited
 typography, scoped custom properties, dir/lang and descendant selectors then
 need a separate preservation policy. Moving into a modal ancestor's inert/
-focus boundary is another concern. Native CSS top-layer rendering keeps DOM
+focus boundary is another concern. Browser CSS top-layer rendering keeps DOM
 ancestry, so live theme changes remain ordinary CSS, not an observer/copy
 engine. No additional host, provider, timer or event listener is introduced.
 
@@ -55,6 +55,6 @@ transformed/clipping ancestors; exact original overlap without fixture
 spacing; raw and compiled literal/opaque/mixed paths in both CSS orders;
 live ancestor theme/font/dir/descendant-selector inheritance; position
 alignment after scroll/resize; disabled actions; first/last focus, keyboard
-activation, reopen, outside-click and Escape return; nested native dialog;
+activation, reopen, outside-click and Escape return; nested HTML dialog;
 StrictMode cleanup and unsupported-API warning/inline fallback. A passing
 style comparison alone is not hit-testing evidence.

@@ -2710,7 +2710,7 @@ test('Menu top layer escapes clipping while retaining live CSS ancestry and moda
   skip: !executablePath,
 }, async () => {
   const source = `import React from 'react';import {createRoot} from 'react-dom/client';
-    import {Menu} from '@hozo/patterns';
+    import {HozoMenu as Menu} from '../../packages/patterns/src/menu.tsx';
     window.actions=[];
     const items=[{label:'Alpha',onSelect:()=>window.actions.push('a')},{label:'Beta',disabled:true,onSelect:()=>window.actions.push('b')},{label:'Gamma',onSelect:()=>window.actions.push('c')}];
     const menu=<Menu trigger="Actions" items={items} accessibilityLabel="Letters" menuClassName="panel" itemClassName="item"/>;
@@ -2718,39 +2718,43 @@ test('Menu top layer escapes clipping while retaining live CSS ancestry and moda
       <div id="theme" className="theme" dir="rtl" lang="ja"><div id="clip">{menu}</div></div>
       <button id="outside">Outside</button><dialog id="modal">{menu}</dialog>
     </React.StrictMode>);`
-  const bundleFor = async (mutation = false) =>
-    (
-      await build({
-        stdin: {
-          contents: source,
-          loader: 'tsx',
-          resolveDir: fileURLToPath(new URL('../', import.meta.url)),
-        },
-        bundle: true,
-        write: false,
-        platform: 'browser',
-        format: 'iife',
-        jsx: 'automatic',
-        define: { 'process.env.NODE_ENV': '"development"' },
-        plugins: mutation
-          ? [
-              {
-                name: 'inline-menu-negative-control',
-                setup(builder) {
-                  builder.onLoad(
-                    { filter: /patterns[\\/]src[\\/]menu\.tsx$/ },
-                    ({ path: file }) => {
-                      const contents = readFileSync(file, 'utf8')
-                      assert.equal((contents.match(/\s+topLayer\b/g) ?? []).length, 1)
-                      return { contents: contents.replace(/\s+topLayer\b/, ''), loader: 'tsx' }
-                    },
-                  )
-                },
+  const bundleFor = async (mutation = false) => {
+    let mutations = 0
+    const result = await build({
+      stdin: {
+        contents: source,
+        loader: 'tsx',
+        resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+      },
+      bundle: true,
+      write: false,
+      platform: 'browser',
+      format: 'iife',
+      jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"development"' },
+      plugins: mutation
+        ? [
+            {
+              name: 'inline-menu-negative-control',
+              setup(builder) {
+                builder.onLoad({ filter: /patterns[\\/]src[\\/]menu\.tsx$/ }, ({ path: file }) => {
+                  const contents = readFileSync(file, 'utf8')
+                  assert.equal((contents.match(/\s+topLayer\b/g) ?? []).length, 1)
+                  mutations++
+                  return {
+                    contents: contents.replace(/\s+topLayer\b/, ''),
+                    loader: 'tsx',
+                    resolveDir: path.dirname(file),
+                  }
+                })
               },
-            ]
-          : [],
-      })
-    ).outputFiles[0].text
+            },
+          ]
+        : [],
+    })
+    assert.equal(mutations, mutation ? 1 : 0, 'negative control must mutate the real Menu source')
+    return result.outputFiles[0].text
+  }
   const script = await bundleFor()
   const mutationScript = await bundleFor(true)
   const css = `body{margin:0}#theme{position:absolute;left:35px;top:35px;width:180px;opacity:.7;transform:translate(20px,15px) scale(1.1)}
