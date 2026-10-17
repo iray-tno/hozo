@@ -674,7 +674,7 @@ function importsFor(source: string): string {
 }
 
 export function compareA11yContextual(testCase: A11yContextualCase): A11yContextualResult {
-  const source = importsFor(testCase.source) + `export function C() { return ${testCase.source} }\n`
+  const source = `${importsFor(testCase.source)}export function C() { return ${testCase.source} }\n`
   const [web] = compile(source)
   const [native] = compileNative(source)
   if (!web || !native)
