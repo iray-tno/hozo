@@ -120,6 +120,7 @@ The package names the file in its `package.json` as `"hozo": { "manifest": "./ho
 
 - **What is read.** The components its entry publishes, following relative re-exports. A component is read only in a narrow shape: a pressable or `View` host given the caller's children, with classes chosen by comparing a prop with a literal -- written in place, or through `const` class lists and the `` className ? `${own} ${className}` : own `` join. Any other shape gets no entry, and the caller compiles as it did before.
 - **Classes, not styles.** The manifest records classes as written, so a caller resolves them against its own theme.
+- **Function or const arrow.** A named export can be a function declaration or a synchronous `const` arrow with a block or concise JSX body. Both use the same host, children and class-expression checks, including prop defaults and disabled/state forwarding. Local export aliases and relative re-exports keep their published names. Mutable bindings, `memo`/`forwardRef` wrappers, object maps and `switch` bodies are not inferred; an unreadable shape gets no entry.
 - **In memory.** `buildManifest` and `summarizeTextForwarding` (from `@hozo/compiler/manifest` and `@hozo/compiler`) compute the same result without touching the file system.
 
 The direction behind this, and why a package's facts are shipped rather than cached, is recorded on #656.

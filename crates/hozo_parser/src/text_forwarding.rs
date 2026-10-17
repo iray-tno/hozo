@@ -18,6 +18,10 @@
 //! }
 //! ```
 //!
+//! Exported `const` arrows, with either the same block or a concise JSX
+//! body, use the same reader. Mutable bindings and call-wrapped components
+//! are not unwrapped: their implementation is not this declaration alone.
+//!
 //! The classes are recorded as written, not as styles. The caller resolves
 //! them against its own theme, so `text-hozo-on-accent` means what the
 //! application's theme says it means.
@@ -31,9 +35,9 @@ use hozo_ir::{
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    BindingPattern, CallExpression, Expression, FormalParameters, JSXAttributeItem,
-    JSXAttributeName, JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression,
-    Statement,
+    ArrowFunctionBody, ArrowFunctionExpression, BindingPattern, CallExpression, Declaration,
+    Expression, FormalParameters, JSXAttributeItem, JSXAttributeName, JSXAttributeValue, JSXChild,
+    JSXElement, JSXElementName, JSXExpression, Statement, VariableDeclarationKind,
 };
 use oxc_parser::Parser;
 use oxc_span::SourceType;
@@ -170,33 +174,56 @@ pub fn summarize_text_forwarding(source: &str) -> TextForwardingSummary {
 
     let mut components = Vec::new();
     for statement in &ret.program.body {
-        let function = match statement {
-            Statement::FunctionDeclaration(function) => function,
-            Statement::ExportDeclaration(export) => match &export.declaration {
-                oxc_ast::ast::Declaration::FunctionDeclaration(function) => function,
-                _ => continue,
-            },
-            _ => continue,
+        let declaration = match statement {
+            Statement::ExportDeclaration(export) => Some(&export.declaration),
+            other => other.as_declaration(),
         };
-        let (Some(id), Some(body)) = (&function.id, &function.body) else {
-            continue;
+        let mut record = |local: &str, shape: ForwardingComponent| {
+            for name in &exported_as[local] {
+                components.push(ForwardingComponent {
+                    name: name.clone(),
+                    ..shape.clone()
+                });
+            }
         };
-        let Some(names) = exported_as.get(id.name.as_str()) else {
-            continue;
-        };
-        let Some(shape) = read_component(
-            &function.params,
-            &body.statements,
-            module,
-            &module_constants,
-        ) else {
-            continue;
-        };
-        for name in names {
-            components.push(ForwardingComponent {
-                name: name.clone(),
-                ..shape.clone()
-            });
+        match declaration {
+            Some(Declaration::FunctionDeclaration(function)) => {
+                let (Some(id), Some(body)) = (&function.id, &function.body) else {
+                    continue;
+                };
+                if !exported_as.contains_key(id.name.as_str()) {
+                    continue;
+                }
+                if let Some(shape) = read_component(
+                    &function.params,
+                    &body.statements,
+                    module,
+                    &module_constants,
+                ) {
+                    record(id.name.as_str(), shape);
+                }
+            }
+            Some(Declaration::VariableDeclaration(declaration))
+                if declaration.kind == VariableDeclarationKind::Const =>
+            {
+                for binding in &declaration.declarations {
+                    let BindingPattern::BindingIdentifier(id) = &binding.id else {
+                        continue;
+                    };
+                    if !exported_as.contains_key(id.name.as_str()) {
+                        continue;
+                    }
+                    let Some(Expression::ArrowFunctionExpression(arrow)) =
+                        binding.init.as_ref().map(Expression::without_parentheses)
+                    else {
+                        continue;
+                    };
+                    if let Some(shape) = read_arrow(arrow, module, &module_constants) {
+                        record(id.name.as_str(), shape);
+                    }
+                }
+            }
+            _ => {}
         }
     }
     components.sort_by(|a, b| a.name.cmp(&b.name));
@@ -500,6 +527,37 @@ struct Host {
     states: bool,
 }
 
+fn read_arrow(
+    arrow: &ArrowFunctionExpression,
+    module: &ModuleRecord,
+    module_constants: &BTreeMap<String, Classes>,
+) -> Option<ForwardingComponent> {
+    if arrow.r#async {
+        return None;
+    }
+    match &arrow.body {
+        ArrowFunctionBody::FunctionBody(body) => {
+            read_component(&arrow.params, &body.statements, module, module_constants)
+        }
+        concise => {
+            let Expression::JSXElement(element) = concise.as_expression()?.without_parentheses()
+            else {
+                return None;
+            };
+            let params = read_params(&arrow.params)?;
+            let host = read_host(
+                element,
+                &Scope {
+                    params: &params,
+                    module,
+                    constants: module_constants,
+                },
+            )?;
+            summarize_branches(&params, &[Branch { guard: None, host }])
+        }
+    }
+}
+
 fn read_component(
     params: &FormalParameters,
     statements: &[Statement],
@@ -562,11 +620,14 @@ fn read_component(
             None => read_return(last, &scope)?,
         },
     });
+    summarize_branches(&params, &branches)
+}
 
+fn summarize_branches(params: &Params, branches: &[Branch]) -> Option<ForwardingComponent> {
     // Every value a prop is compared against, plus its default: the values
     // a caller can write that change the classes.
     let mut domain: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    for branch in &branches {
+    for branch in branches {
         let mut seen = Vec::new();
         if let Some(guard) = &branch.guard {
             seen.push(guard);
@@ -1049,6 +1110,84 @@ export function HozoButton({{ tone = 'neutral', size = 'md', className, disabled
         );
         assert_eq!(variant("md", "neutral"), Some("text-black"));
         assert_eq!(component.variants.len(), 4);
+    }
+
+    #[test]
+    fn an_exported_const_arrow_block_has_the_same_summary_as_a_function() {
+        let source = button(
+            "const own = size === 'sm' ? 'text-sm' : 'text-base'
+  if (tone === 'accent') return <Host {...rest} disabled={disabled} className={cx('text-white hover:text-red-500', own, className)} />
+  return <Host {...rest} disabled={disabled} className={cx('text-black', own, className)} />",
+        );
+        let arrow = source.replace(
+            "export function HozoButton({ tone = 'neutral', size = 'md', className, disabled, ...rest }) {",
+            "export const HozoButton = ({ tone = 'neutral', size = 'md', className, disabled, ...rest }) => {",
+        );
+        let expected = summarize_text_forwarding(&source);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(summarize_text_forwarding(&arrow), expected);
+    }
+
+    #[test]
+    fn a_concise_arrow_uses_the_same_host_and_variant_reader() {
+        let imports = "import { Checkbox as Host } from '@hozo/patterns'
+const own = 'text-sm hover:text-red-500 disabled:text-gray-400'
+";
+        let params = "{ tone = 'quiet', children, className, ...rest }: Props";
+        let host = "<Host {...rest} className={tone === 'loud' ? `font-bold ${own} ${className}` : own}>{children}</Host>";
+        let source = format!("{imports}export function Check({params}) {{ return ({host}) }}");
+        let arrow = format!("{imports}export const Check = ({params}) => ({host})");
+        let expected = summarize_text_forwarding(&source);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(
+            expected.components[0].disabled_prop.as_deref(),
+            Some("disabled")
+        );
+        assert!(expected.components[0].host_states);
+        assert_eq!(summarize_text_forwarding(&arrow), expected);
+    }
+
+    #[test]
+    fn arrows_are_recorded_only_under_their_exported_names() {
+        let source = "import { View } from '@hozo/core'
+const Private = ({children}) => <View className=\"text-red-500\">{children}</View>
+const Local = ({children}) => <View className=\"text-sm\">{children}</View>,
+      Other = ({children}) => { return <View className=\"font-bold\">{children}</View> }
+export { Local as Label, Local as Alternate, Other }
+export const Direct = ({children}) => <View className=\"text-lg\">{children}</View>,
+             Second = ({children}) => <View className=\"text-xl\">{children}</View>";
+        let summary = summarize_text_forwarding(source);
+        let names: Vec<_> = summary.components.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["Alternate", "Direct", "Label", "Other", "Second"]);
+        assert_eq!(summary.components[0].variants[0].classes, "text-sm");
+        assert_eq!(summary.components[2].variants[0].classes, "text-sm");
+        assert!(!summary.components[0].host_states);
+    }
+
+    #[test]
+    fn arrow_support_does_not_guess_through_mutation_wrappers_or_unknown_bodies() {
+        for definition in [
+            "export let B = ({children}) => <Host className=\"text-sm\">{children}</Host>",
+            "export var B = ({children}) => <Host className=\"text-sm\">{children}</Host>",
+            "export const B = async ({children}) => <Host className=\"text-sm\">{children}</Host>",
+            "export const B = memo(({children}) => <Host className=\"text-sm\">{children}</Host>)",
+            "export const B = forwardRef(({children}, ref) => <Host ref={ref} className=\"text-sm\">{children}</Host>)",
+            "export const B = ({children}) => makeHost(children)",
+            "export const B = ({children}) => { effect(); return <Host className=\"text-sm\">{children}</Host> }",
+            "export const B = ({children}) => <Host className=\"text-sm\" />",
+            "export const B = ({children}) => <Text className=\"text-sm\">{children}</Text>",
+            "export const B = ({children}) => <><Host className=\"text-sm\">{children}</Host></>",
+            "export const B = ({children}) => <Host className={compute()}>{children}</Host>",
+            "export const B = ({children, tone: t}) => <Host className={t === 'loud' ? 'text-lg' : 'text-sm'}>{children}</Host>",
+        ] {
+            let source = format!(
+                "import {{ Button as Host, Text }} from '@hozo/primitives'\n{definition}"
+            );
+            assert!(
+                summarize_text_forwarding(&source).components.is_empty(),
+                "{definition}"
+            );
+        }
     }
 
     #[test]
