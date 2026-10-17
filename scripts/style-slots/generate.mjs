@@ -89,6 +89,11 @@ export function outputs(catalog = components, facts = profiles) {
       ? [`Self::${component}`]
       : [],
   )
+  const constantRoots = Object.entries(catalog).flatMap(([component, slots]) =>
+    slots.some((slot) => slot.lowering === 'root' && slot.events === 'unavailable' && slot.profile)
+      ? [`Self::${component}`]
+      : [],
+  )
   const ir = `${header}use crate::{ClassSlot, Primitive};
 
 impl Primitive {
@@ -108,6 +113,12 @@ ${mappings.join('\n')}
     /// slot's owner: a span or a div is neither (#993).
     pub fn root_owner_is_audited(self) -> bool {
         ${audited.length ? `matches!(self, ${audited.join(' | ')})` : 'false'}
+    }
+
+    /// A constant non-control root uses actual DOM form predicates for
+    /// candidate classes too, without adding an event owner or callback.
+    pub fn root_owner_has_constant_facts(self) -> bool {
+        ${constantRoots.length ? `matches!(self, ${constantRoots.join(' | ')})` : 'false'}
     }
 }
 `

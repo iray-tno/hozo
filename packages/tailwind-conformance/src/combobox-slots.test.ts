@@ -223,6 +223,21 @@ test('Combobox explicit field and option styles remain last, including inherited
   }
 })
 
+test('compiled opaque Combobox roots keep constant facts without borrowing input events', () => {
+  const warn = mock.method(console, 'warn', () => {})
+  const view = mount('RootCandidates', { value: true })
+  try {
+    const wrapper = view.tree.root.findAllByType('View')[0]
+    assert.equal(flat(wrapper).borderRadius, 8)
+    assert.equal(flat(wrapper).color, undefined, 'root text is split into its own owner')
+    assert.equal(flat(view.tree.root.findByType('TextInput')).color, '#654321')
+    assert.equal(warn.mock.calls.length, 0, 'known constant facts are not unresolved state')
+  } finally {
+    view.unmount()
+    warn.mock.restore()
+  }
+})
+
 test('Combobox unavailable input pointer, option focus and list events remain diagnosed', () => {
   for (const [slot, unsupported] of [
     ['inputClassName', 'hover:opacity-50'],

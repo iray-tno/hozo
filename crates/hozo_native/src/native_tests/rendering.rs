@@ -43,6 +43,20 @@ fn combobox_does_not_lend_events_between_input_list_and_option() {
 }
 
 #[test]
+fn opaque_combobox_root_candidates_keep_known_non_control_facts() {
+    let source = "import { Combobox } from '@hozo/core'; const el = <Combobox options={[]} className={choose()} />";
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(
+        out.jsx
+            .contains("hozoClasses(choose(), { disabled: false, enabled: false, readOnly: true"),
+        "{}",
+        out.jsx
+    );
+    assert!(!out.jsx.contains("focused, focusVisible"), "{}", out.jsx);
+}
+
+#[test]
 fn decorative_pattern_semantics_belong_to_the_child_not_the_parent_control() {
     let slots = [
         ("Stepper", "indicatorClassName"),

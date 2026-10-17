@@ -16,6 +16,15 @@ fn combobox_keeps_actual_owner_classes_and_its_runtime_abi() {
     assert!(out.jsx.contains("optionClassName="));
     assert!(!out.css.contains("data-hozo-disabled"), "{}", out.css);
     assert!(out.css.contains(":disabled"), "{}", out.css);
+    let source = "import { Combobox } from '@hozo/core'; const el = <Combobox options={[]} className={choose()} />";
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(
+        out.jsx
+            .contains("hozo-candidate-owner hozo-candidate-slot-owner"),
+        "{}",
+        out.jsx
+    );
 }
 
 const LOGIN_EXAMPLE: &str = r#"

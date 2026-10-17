@@ -350,6 +350,18 @@ test('Combobox class slots bind editable focus, non-control list and active opti
   )
 })
 
+test('opaque Combobox root classes receive the same constant facts as its non-control list', () => {
+  const opaque = transformHozoSource(
+    "import {Combobox} from '@hozo/core'; export function C(){return <Combobox options={[]} className={getClasses()}/>}",
+    'Combobox.tsx',
+    '/project',
+  )
+  assert.match(
+    opaque,
+    /hozoClasses\(getClasses\(\), \{ disabled: false, enabled: false, readOnly: true/,
+  )
+})
+
 test('lowers Canvas paint to Native colors without requiring a semantic primitive', () => {
   const source = `import { Canvas } from '@hozo/canvas'
 export function Chart() {

@@ -2486,6 +2486,7 @@ test('Combobox real owners match isolated Tailwind across focus, filtering, acti
   skip: !executablePath,
 }, async () => {
   const looks = {
+    root: 'text-[#654321] opacity-75 disabled:opacity-25 enabled:opacity-50 aria-selected:mt-8',
     input:
       'p-2 opacity-100 rounded-none border-0 focus:opacity-50 focus-visible:outline-2 aria-expanded:border-2 enabled:px-3 disabled:mt-8 read-only:mb-8 aria-selected:ml-8',
     list: 'p-2 opacity-100 rounded-none read-only:rounded-lg disabled:opacity-25 enabled:opacity-50 aria-selected:border-8 text-[#123456]',
@@ -2495,6 +2496,7 @@ test('Combobox real owners match isolated Tailwind across focus, filtering, acti
   const expression = (mode, part) => {
     const classes = looks[part]
     const base = {
+      root: 'text-[#654321]',
       input: 'p-2 opacity-100 rounded-none border-0',
       list: 'p-2 opacity-100 rounded-none',
       option: 'p-1 opacity-100 border-0 rounded-none',
@@ -2512,13 +2514,13 @@ test('Combobox real owners match isolated Tailwind across focus, filtering, acti
         (
           mode,
         ) => `<View testID="${mode}"><Combobox options={options} value="a" onValueChange={choose}
-      accessibilityLabel="Country" emptyMessage="Nothing" className="text-[#654321] disabled:opacity-25 enabled:opacity-50"
+      accessibilityLabel="Country" emptyMessage="Nothing" className=${expression(mode, 'root')}
       ${['input', 'list', 'option'].map((part) => `${part}ClassName=${expression(mode, part)}`).join(' ')}/></View>`,
       )
       .join('')}
     </View>`
   const web = compiler.compile(source)[0]
-  assert.equal(web.diagnostics.length, 3)
+  assert.equal(web.diagnostics.length, 5)
   for (const diagnostic of web.diagnostics) {
     assert.equal(diagnostic.code, 'DYNAMIC_CLASS_NAME_NOT_RESOLVED')
     assert.equal(diagnostic.severity, 'warning')
@@ -2570,7 +2572,7 @@ test('Combobox real owners match isolated Tailwind across focus, filtering, acti
       ]
     })
   try {
-    await oracle.setContent(`<style>html{font-size:16px}</style><style>${oracleCss}</style><div style="color:#654321">
+    await oracle.setContent(`<style>html{font-size:16px}</style><style>${oracleCss}</style><div id="root-owner" class="${looks.root}">
       <input id="input" type="text" class="${looks.input}" aria-expanded="false"/>
       <div id="list" role="listbox" class="${looks.list}"><div id="option" role="option" class="${looks.option}" aria-selected="false"></div></div></div>`)
     for (const sheets of [
@@ -2583,10 +2585,15 @@ test('Combobox real owners match isolated Tailwind across focus, filtering, acti
       await page.addScriptTag({ content: bundle.outputFiles[0].text })
       for (const mode of ['literal', 'opaque', 'mixed']) {
         const section = page.getByTestId(mode)
+        const rootOwner = section.locator(':scope > div').first()
         const field = section.locator('input')
         const listbox = section.locator('[role="listbox"]')
         const rows = section.locator('[role="option"]')
         await field.waitFor()
+        assert.deepEqual(await read(rootOwner), await read(oracle.locator('#root-owner')))
+        assert.equal((await read(rootOwner))[2], '0.75', 'a wrapper div is not an enabled input')
+        if (mode !== 'literal')
+          await assertCandidateStylesRequired(page, () => read(rootOwner), `Combobox root ${mode}`)
         const inputCheck = async (expanded) => {
           await oracle
             .locator('#input')
@@ -2674,7 +2681,7 @@ test('Combobox real owners match isolated Tailwind across focus, filtering, acti
         assert.equal(await field.inputValue(), '')
         assert.equal(
           await page.evaluate(() => window.calls),
-          6,
+          8,
           'owner events do not rerun authored class inputs',
         )
       }

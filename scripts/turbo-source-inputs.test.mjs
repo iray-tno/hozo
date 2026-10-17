@@ -16,6 +16,7 @@ const reads = {
     'packages/patterns/src/slider-rules.ts',
   ],
   '@hozo/compiler#test': [
+    'packages/ui/src/combobox.tsx',
     'packages/engine/src/class-resolver.ts',
     'packages/engine/src/transform-slots.ts',
     'packages/rn-compat/src/platform.ts',

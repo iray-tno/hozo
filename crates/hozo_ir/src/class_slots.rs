@@ -72,4 +72,10 @@ impl Primitive {
     pub fn root_owner_is_audited(self) -> bool {
         matches!(self, Self::Chip | Self::Combobox | Self::OtpInput)
     }
+
+    /// A constant non-control root uses actual DOM form predicates for
+    /// candidate classes too, without adding an event owner or callback.
+    pub fn root_owner_has_constant_facts(self) -> bool {
+        matches!(self, Self::Combobox)
+    }
 }
