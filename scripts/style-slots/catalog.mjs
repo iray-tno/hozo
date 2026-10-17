@@ -173,6 +173,10 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        inputClassName: owned('real-hex-input', 'TextInput', 'hozoInputStyle', {
+          pointer: false,
+          composition: 'classes/callback/explicit-style; disabled-is-read-only',
+        }),
         swatchClassName: owned('preset-radio', 'ColorPicker', 'hozoSwatchStyle', {
           composition: 'classes/callback/style; selected-slot; preset-background-last',
         }),

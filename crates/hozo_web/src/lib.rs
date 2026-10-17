@@ -384,6 +384,16 @@ pub fn lower_with_evidence(
     }
 }
 
+fn portable_candidate_selector(selector: &str, real_form: bool) -> std::borrow::Cow<'_, str> {
+    if real_form {
+        std::borrow::Cow::Owned(format!(
+            "{selector}:not(:where(.hozo-candidate-slot-owner))"
+        ))
+    } else {
+        std::borrow::Cow::Borrowed(selector)
+    }
+}
+
 /// One stylesheet for every candidate class in the project, written under
 /// the classes' real Tailwind names.
 ///
@@ -438,6 +448,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
         // each breakpoint, which cannot be one rule.
         let mut rules = String::new();
         let mut owned_rules = String::new();
+        let mut slot_rules = String::new();
         // A theme animation: nothing to write when the theme does not
         // define it (the class reaches the page for the project's own CSS),
         // and its `@keyframes` beside the rule when it does, since this
@@ -490,20 +501,41 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
                 (true, Some(shaded)) => shaded,
                 _ => theme,
             };
-            for (target, output) in [(&selector, &mut rules), (&owned_selector, &mut owned_rules)] {
-                let light = css::render_rule(target, condition, properties, palette);
+            let real_form = css::needs_form_owner(condition);
+            // Portable rules must not leak into a real secondary owner's
+            // :enabled/:disabled (not even from the lower-priority layer).
+            let legacy_selector = portable_candidate_selector(&selector, real_form);
+            let legacy_owned = portable_candidate_selector(&owned_selector, real_form);
+            let slot_selector = real_form
+                .then(|| format!("{selector}:where(.hozo-candidate-slot-owner):not(hozo-none)"));
+            for (enabled, target, output, actual_owner) in [
+                (true, legacy_selector.as_ref(), &mut rules, false),
+                (true, legacy_owned.as_ref(), &mut owned_rules, false),
+                (
+                    real_form,
+                    slot_selector.as_deref().unwrap_or(""),
+                    &mut slot_rules,
+                    true,
+                ),
+            ] {
+                if !enabled {
+                    continue;
+                }
+                let render = |condition, palette| {
+                    if actual_owner {
+                        css::render_slot_rule(target, condition, properties, palette)
+                    } else {
+                        css::render_rule(target, condition, properties, palette)
+                    }
+                };
+                let light = render(condition, palette);
                 output.push_str(&light);
                 output.push_str("\n\n");
                 if !condition.mentions_dark() {
                     if let Some(dark) = &shaded_theme {
-                        let shaded = css::render_rule(target, condition, properties, dark);
+                        let shaded = render(condition, dark);
                         if shaded != light {
-                            output.push_str(&css::render_rule(
-                                target,
-                                &condition.and_dark(),
-                                properties,
-                                dark,
-                            ));
+                            output.push_str(&render(&condition.and_dark(), dark));
                             output.push_str("\n\n");
                         }
                     }
@@ -517,6 +549,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
         }
         out.push_str(&rules);
         owned.push_str(&owned_rules);
+        owned.push_str(&slot_rules);
     }
     if out.is_empty() {
         return out;
@@ -1307,7 +1340,9 @@ fn render_node(
                 .join(", ");
             let mut value = format!("[{parts}].filter(Boolean).join(' ')");
             if !slot.fallback.is_empty() {
-                value.push_str(".replace(/\\S/, 'hozo-candidate-owner $&')");
+                value.push_str(
+                    ".replace(/\\S/, 'hozo-candidate-owner hozo-candidate-slot-owner $&')",
+                );
             }
             if let Some(evaluation) = &slot.evaluation {
                 value = evaluation.wrap(source, &value);
@@ -2163,7 +2198,7 @@ fn render_node(
                 // values so component defaults and descendant raw HTML stay
                 // untouched. Native resolves this same dynamic slot last.
                 source_evidence::expression(&mut attrs, &mut attr_copies, source, expression,
-                    &format!(" {}={{((value) => typeof value === 'string' ? value.replace(/\\S/, 'hozo-candidate-owner $&') : value)(", slot.class_prop), ")}");
+                        &format!(" {}={{((value) => typeof value === 'string' ? value.replace(/\\S/, 'hozo-candidate-owner hozo-candidate-slot-owner $&') : value)(", slot.class_prop), ")}");
                 continue;
             }
         }

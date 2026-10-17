@@ -1,4 +1,5 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import { type StyleProp, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
@@ -6,10 +7,11 @@ import { type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { HozoSlider } from './slider.native.tsx'
-import type { ColorPickerSlotFacts } from './slot-facts.native.ts'
+import type { ColorPickerSlotFacts, TextInputSlotFacts } from './slot-facts.native.ts'
 
 type Style = StyleProp<ViewStyle | TextStyle>
 type SwatchState = InteractionState & ColorPickerSlotFacts
+type InputState = Pick<InteractionState, 'focused' | 'focusVisible'> & TextInputSlotFacts
 
 export interface HozoColorPickerProps {
   value?: string
@@ -43,6 +45,8 @@ export interface HozoColorPickerProps {
   hozoSwatchStyle?: (state: SwatchState) => Style
   /** @internal Evaluated only on the currently selected swatch. */
   hozoSelectedSwatchStyle?: (state: SwatchState) => Style
+  /** @internal Only the hex field supplies focus and editable-input facts. */
+  hozoInputStyle?: (state: InputState) => Style
   sliderStyle?: Style
   thumbStyle?: Style
   inputStyle?: Style
@@ -78,6 +82,7 @@ export function HozoColorPicker({
   selectedSwatchStyle,
   hozoSwatchStyle,
   hozoSelectedSwatchStyle,
+  hozoInputStyle,
   sliderStyle,
   thumbStyle,
   inputStyle,
@@ -87,7 +92,18 @@ export function HozoColorPicker({
   const [hsla, setHsla] = useState<Hsla>(() => hexToHsla(value ?? defaultValue ?? '') ?? FALLBACK)
   const hex = hslaToHex(alpha ? hsla : { ...hsla, a: 1 })
   const [draft, setDraft] = useState(hex)
-  const [editing, setEditing] = useState(false)
+  const { state: inputInteraction, handlers: inputHandlers } = usePressableInteraction({
+    focusVisible: 'keyboard-input',
+  })
+  const editing = inputInteraction.focused
+  // Disabling a Web input blurs it. Native's editable=false need not deliver
+  // the same OS event, so stale focus/draft must not survive re-enabling it.
+  useEffect(() => {
+    if (disabled) {
+      inputHandlers.blur()
+      setDraft(hex)
+    }
+  }, [disabled, hex, inputHandlers])
 
   useEffect(() => {
     if (value === undefined) return
@@ -109,6 +125,16 @@ export function HozoColorPicker({
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
   const slider = [hozoClasses(sliderClassName), sliderStyle] as StyleProp<ViewStyle>
   const thumb = [hozoClasses(thumbClassName), thumbStyle] as StyleProp<ViewStyle>
+  const inputFacts = {
+    focused: !disabled && inputInteraction.focused,
+    focusVisible: !disabled && inputInteraction.focusVisible,
+    disabled: Boolean(disabled),
+    enabled: !disabled,
+    readOnly: Boolean(disabled),
+    'aria-disabled': false,
+    'aria-selected': false,
+    'aria-checked': false,
+  } satisfies TextInputSlotFacts
   // As on Web, a radio group has one checked preset, not every equivalent
   // spelling of its colour. An invalid preset's visual fallback is not a match.
   const selectedPreset = presets?.findIndex((preset) => {
@@ -224,12 +250,23 @@ export function HozoColorPicker({
           setDraft(text)
           chooseHex(text)
         }}
-        onFocus={() => setEditing(true)}
+        onFocus={() => {
+          if (!disabled) inputHandlers.focus()
+        }}
         onBlur={() => {
-          setEditing(false)
+          inputHandlers.blur()
           setDraft(hex)
         }}
-        style={[hozoClasses(inputClassName), inputStyle] as StyleProp<TextStyle>}
+        onPointerDown={inputHandlers.pointerDown}
+        onPressIn={inputHandlers.pointerDown}
+        onKeyDown={inputHandlers.keyDown}
+        style={
+          [
+            hozoClasses(inputClassName, inputFacts),
+            hozoInputStyle?.(inputFacts),
+            inputStyle,
+          ] as StyleProp<TextStyle>
+        }
       />
     </View>
   )

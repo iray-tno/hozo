@@ -390,7 +390,7 @@ test('full ColorPicker lowering keeps unsupported semantic owners and predicates
     ['className', 'aria-checked:opacity-50'],
     ['sliderClassName', 'not-aria-checked:opacity-50'],
     ['thumbClassName', 'aria-checked:hover:opacity-50'],
-    ['inputClassName', 'aria-checked:opacity-50'],
+    ['inputClassName', 'aria-expanded:opacity-50'],
     ['swatchClassName', 'aria-expanded:opacity-50'],
     ['selectedSwatchClassName', 'not-aria-expanded:opacity-50'],
   ]) {

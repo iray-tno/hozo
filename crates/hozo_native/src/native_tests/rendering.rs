@@ -1627,7 +1627,7 @@ fn guarded_secondary_slots_share_capture_and_owner_routes() {
             checked += 1;
         }
     }
-    assert_eq!(checked, 14);
+    assert_eq!(checked, 15);
 }
 
 #[test]
@@ -2838,6 +2838,15 @@ fn color_picker_semantics_belong_to_each_radio_not_the_group() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        if slot == "inputClassName" {
+            assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+            assert!(
+                !output.jsx.contains("_ariachecked"),
+                "the field is never a checked radio: {}",
+                output.jsx
+            );
+            continue;
+        }
         assert!(
             output.diagnostics.iter().any(
                 |d| d.code == DiagnosticCode::NotWiredOnNative && d.severity == Severity::Error
