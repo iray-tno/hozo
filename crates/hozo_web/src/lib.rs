@@ -922,26 +922,8 @@ fn meter_value_text(node: &Node, source: &str) -> Option<String> {
 
 /// The CSS for one class: a rule per condition, and the dark copy a paired
 /// token needs. An element's `className` and a component's other class
-/// lists (`ClassSlot`) are both written by this.
-fn push_rules(
-    class_name: &str,
-    style: &[hozo_ir::StyleDeclaration],
-    span: hozo_ir::SourceSpan,
-    theme: &Theme,
-    rules: &mut String,
-    diagnostics: &mut Vec<Diagnostic>,
-) {
-    push_rules_using(
-        class_name,
-        style,
-        span,
-        theme,
-        rules,
-        diagnostics,
-        css::render_rule,
-    );
-}
-
+/// lists (`ClassSlot`) are both written by this; `render` says whom a
+/// `disabled:` asks.
 fn push_rules_using(
     class_name: &str,
     style: &[hozo_ir::StyleDeclaration],
@@ -1034,13 +1016,21 @@ fn render_node(
     // whether the string is empty.
     let rules_before = rules.len();
 
-    push_rules(
+    // A root the catalog has audited lands on an element the component
+    // draws and keeps its own `disabled` on, which no Hozo marker reaches --
+    // so its CSS asks that element, as a secondary slot's does (#993).
+    push_rules_using(
         &class_name,
         &node.style,
         node.span,
         theme,
         rules,
         diagnostics,
+        if node.primitive.root_owner_is_audited() {
+            css::render_slot_rule
+        } else {
+            css::render_rule
+        },
     );
 
     let (shape, extra_attrs) = markup::element_shape(node, diagnostics);
@@ -4211,6 +4201,33 @@ const el = <Chip onRemove={drop} disabled={busy} className=\"bg-red-500 my-chip\
         );
         assert!(
             output.css.contains("padding-top: 8px") && output.css.contains("768px"),
+            "{}",
+            output.css
+        );
+    }
+
+    /// #993: Chip's root lands on a button or a span the pattern draws, and
+    /// no Hozo marker reaches either; a Pressable's still does.
+    #[test]
+    fn an_audited_root_asks_its_actual_owner_whether_it_is_disabled() {
+        let source = "import { Chip } from '@hozo/core'; const el = <Chip defaultSelected disabled={disabled} className=\"disabled:opacity-25 enabled:border-2 not-disabled:mt-1 not-enabled:mb-1\">Token</Chip>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        for selector in [
+            ".hozo-0:disabled",
+            ".hozo-0:enabled",
+            ".hozo-0:not(:disabled)",
+            ".hozo-0:not(:enabled)",
+        ] {
+            assert!(output.css.contains(selector), "{selector}: {}", output.css);
+        }
+        assert!(!output.css.contains("data-hozo-disabled"), "{}", output.css);
+
+        let source = "import { Pressable } from '@hozo/core'; const el = <Pressable disabled={disabled} className=\"disabled:opacity-25\" />";
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(
+            output.css.contains(".hozo-0[data-hozo-disabled]"),
             "{}",
             output.css
         );

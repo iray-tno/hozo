@@ -343,6 +343,106 @@ test('Chip semantic classes observe the Web class owner across standalone and co
   }
 })
 
+test('AOT Chip root disabled predicates ask the actual Web owner, as Tailwind does, in every shape', {
+  skip: !executablePath,
+}, async () => {
+  // #993: AOT `disabled:` on the root compiled to `[data-hozo-disabled]`,
+  // which the retained Chip never puts on its class owner. The owner is a
+  // button for a standalone toggle and a span otherwise; a span is neither
+  // :disabled nor :enabled, which negation has to keep.
+  const classes =
+    'outline-offset-0 opacity-100 mt-0 mb-0 disabled:outline-offset-4 enabled:opacity-50 not-disabled:mt-1 not-enabled:mb-1'
+  const oracle = (await compile('@theme { --spacing: 0.25rem; } @tailwind utilities;')).build(
+    classes.split(' '),
+  )
+  const shapes = []
+  for (const selectable of [false, true])
+    for (const removable of [false, true]) shapes.push({ selectable, removable })
+  const compiled = shapes.map(({ selectable, removable }) => {
+    const [web] = compiler.compile(
+      `import { Chip } from '@hozo/core'
+      export function C({ disabled }) {
+        return <Chip disabled={disabled}${selectable ? ' defaultSelected' : ''}${removable ? ' onRemove={() => {}}' : ''} className="${classes}">Token</Chip>
+      }`,
+    )
+    assert.deepEqual(web.diagnostics, [])
+    assert.doesNotMatch(web.css, /data-hozo-disabled/, 'no marker the owner never receives')
+    return web
+  })
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {Chip as HozoChip} from '@hozo/patterns';
+        const raw = window.hozoRawChip === true;
+        const Compiled = [${compiled.map((web) => `({ disabled }) => ${web.jsx}`).join(', ')}];
+        const shapes = ${JSON.stringify(shapes)};
+        createRoot(document.getElementById('root')).render(<>{shapes.flatMap((s, index) =>
+          [false, true].map(disabled => {
+            const C = Compiled[index];
+            return <div key={index + '-' + disabled} id={'chip-' + index + '-' + disabled}>
+              {raw ? <HozoChip disabled={disabled}
+                {...(s.selectable ? {defaultSelected: true} : {})}
+                {...(s.removable ? {onRemove: () => {}} : {})}
+                className=${JSON.stringify(classes)}>Token</HozoChip> : <C disabled={disabled}/>}
+            </div>
+          }))}</>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  const readAll = async (raw) => {
+    const sheets = raw ? [oracle] : compiled.map((web) => web.css)
+    await page.setContent(
+      `<style>html {font-size:16px}</style>${sheets.map((css) => `<style>${css}</style>`).join('')}<div id="root"></div><script>window.hozoRawChip = ${raw}</script>`,
+    )
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.waitForFunction(() => document.querySelectorAll('#root > div').length === 8)
+    return page.locator('#root > div > :first-child').evaluateAll((owners) =>
+      owners.map((e) => {
+        const css = getComputedStyle(e)
+        return {
+          tag: e.tagName,
+          offset: css.outlineOffset,
+          opacity: css.opacity,
+          margins: [css.marginTop, css.marginBottom],
+        }
+      }),
+    )
+  }
+  try {
+    const actual = await readAll(false)
+    assert.deepEqual(actual, await readAll(true), 'compiled Chip against Tailwind on the same Chip')
+    // And the facts themselves, so a shared mistake cannot pass both sides.
+    let index = 0
+    for (const { selectable, removable } of shapes)
+      for (const disabled of [false, true]) {
+        const button = selectable && !removable
+        assert.deepEqual(
+          actual[index++],
+          {
+            tag: button ? 'BUTTON' : 'SPAN',
+            offset: button && disabled ? '4px' : '0px',
+            opacity: button && !disabled ? '0.5' : '1',
+            margins: [button && disabled ? '0px' : '4px', button && !disabled ? '0px' : '4px'],
+          },
+          `selectable=${selectable} removable=${removable} disabled=${disabled}`,
+        )
+      }
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('ColorPicker semantic classes read each radio checked and disabled state without invented ARIA', {
   skip: !executablePath,
 }, async () => {
