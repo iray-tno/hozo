@@ -86,8 +86,49 @@ jobs:
       # which is the one thing `--ci` was buying here. `verify` does that
       # instead, and asks the environment the question the tests care about
       # rather than trusting a command that exits 0 either way.
+      #
+      # When it never passes, the job still fails -- a week without a reading
+      # should be seen -- but says it was the runner and not the reader, and
+      # leaves what would tell whose grant TCC looked for (#631): the image,
+      # and TCC's own log of the Apple events it denied, which names the
+      # responsible process.
       - shell: bash
         run: |
+          diagnose() {
+            echo '::group::Why this runner refused automation (#631)'
+            echo "image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+            sw_vers
+            csrutil status
+            # Only osascript's requests: the rest of TCC's traffic (AddressBook
+            # and the like) buries them. The first runs that used this found
+            # /opt/hca/hosted-compute-agent responsible every time.
+            sudo log show --last 10m --style compact --predicate 'subsystem == "com.apple.TCC"' 2>&1 \
+              | grep AUTHREQ_ATTRIBUTION | grep 'requesting={TCCDProcess: identifier=com.apple.osascript' > "$RUNNER_TEMP/tcc.log"
+            echo 'responsible for osascript (count, path):'
+            grep -o 'responsible_path=[^,]*' "$RUNNER_TEMP/tcc.log" | sort | uniq -c
+            tail -5 "$RUNNER_TEMP/tcc.log"
+            echo '::endgroup::'
+          }
+          # Guidepup does write this grant for /opt/hca/hosted-compute-agent,
+          # the process TCC holds responsible here (#631) -- but with
+          # `INSERT OR IGNORE`, so a row the image already has for that pair,
+          # denied, survives it. Say what the row is, then make it a grant.
+          # SIP is off on GitHub's images, which is how Guidepup writes too.
+          grant_agent() {
+            [ "$RUNNER_OS" = macOS ] || return 0
+            local agent=/opt/hca/hosted-compute-agent now
+            now=$(date +%s)
+            for db in "$HOME/Library/Application Support/com.apple.TCC/TCC.db" \
+              '/Library/Application Support/com.apple.TCC/TCC.db'; do
+              echo "System Events grants in $db (client | auth_value | auth_reason):"
+              sudo sqlite3 -separator ' | ' "$db" \
+                "SELECT client, auth_value, auth_reason FROM access WHERE service = 'kTCCServiceAppleEvents' AND indirect_object_identifier = 'com.apple.systemevents';"
+              sudo sqlite3 "$db" \
+                "UPDATE access SET auth_value = 2, auth_reason = 3, last_modified = $now WHERE service = 'kTCCServiceAppleEvents' AND client = '$agent' AND indirect_object_identifier = 'com.apple.systemevents';
+                 INSERT OR IGNORE INTO access VALUES('kTCCServiceAppleEvents','$agent',1,2,3,1,NULL,NULL,0,'com.apple.systemevents',NULL,NULL,$now,NULL,NULL,'UNUSED',$now);"
+            done
+            sleep 1
+          }
           verify() {
             [ "$RUNNER_OS" = macOS ] || return 0
             # VoiceOver's own AppleScript switch, which `setup` writes.
@@ -112,6 +153,7 @@ jobs:
           }
           for attempt in 1 2 3; do
             if npx -y @guidepup/setup@0.25.3 setup --macos-record; then
+              grant_agent
               verify && exit 0
             else
               echo "setup attempt $attempt exited non-zero"
@@ -119,6 +161,12 @@ jobs:
             echo "setup attempt $attempt did not leave a usable environment; retrying"
             sleep 10
           done
+          if [ "$RUNNER_OS" = macOS ]; then
+            diagnose
+            what="VoiceOver's automation permission was not granted on ${ImageOS:-this runner} ${ImageVersion:-}"
+            echo "::error title=Runner, not reader::$what. No story was read; re-run the job. See #631."
+            printf '### voiceover: the runner, not the reader\n\n%s. No story was read; re-run the job. See #631.\n' "$what" >> "$GITHUB_STEP_SUMMARY"
+          fi
           exit 1
       # From the harness package: `install` resolves `@guidepup/guidepup` from
       # the working directory to pick the matching screen reader build, and
@@ -138,7 +186,19 @@ jobs:
           dir=$(node -e "const p=require('node:path');console.log(p.dirname(require.resolve('ffmpeg-static/package.json',{paths:[p.dirname(require.resolve('@guidepup/record'))]})))")
           (cd "$dir" && node install.js)
 
-      - run: pnpm run read
+      # A VoiceOver that refuses to start fails every story the same way it
+      # would fail a wrong reading. Said apart, as `verify` does above (#631).
+      - shell: bash
+        run: |
+          set -o pipefail
+          pnpm run read 2>&1 | tee "$RUNNER_TEMP/read.log" && exit 0
+          if [ "$RUNNER_OS" = macOS ] \
+            && grep -qE 'Unable to activate application: VoiceOver|VoiceOver cannot be started' "$RUNNER_TEMP/read.log"; then
+            what="VoiceOver did not start on ${ImageOS:-this runner} ${ImageVersion:-}"
+            echo "::error title=Runner, not reader::$what. No story was judged by a reader; re-run the job. See #631."
+            printf '### voiceover: the runner, not the reader\n\n%s. No story was judged by a reader; re-run the job. See #631.\n' "$what" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit 1
         working-directory: examples/screen-readers
         env:
           CI: 'true'
