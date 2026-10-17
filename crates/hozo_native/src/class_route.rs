@@ -26,7 +26,7 @@ fn parameters(primitive: Primitive, class_prop: &str) -> String {
     };
     format!(
         "{{ pressed, hovered, focused, focusVisible{availability}{} }}",
-        pattern::semantic_parameters(primitive),
+        pattern::semantic_parameters(primitive, class_prop),
     )
 }
 

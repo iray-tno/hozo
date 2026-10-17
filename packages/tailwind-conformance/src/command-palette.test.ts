@@ -583,7 +583,7 @@ test('full lowering keeps unknown option semantics and unaudited class owners di
   for (const [slot, classes] of [
     ['itemClassName', 'not-aria-expanded:opacity-50'],
     ['activeItemClassName', 'aria-pressed:hover:opacity-50'],
-    ['inputClassName', 'aria-selected:opacity-50'],
+    ['inputClassName', 'aria-pressed:opacity-50'],
     ['listClassName', 'aria-selected:opacity-50'],
     ['panelClassName', 'aria-disabled:opacity-50'],
   ]) {

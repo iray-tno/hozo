@@ -30,6 +30,17 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "selected" => Some("false"),
             _ => None,
         },
+        // The real command search input is always editable and expanded while mounted on Web; options do not own its focus.
+        (Primitive::CommandPalette, "inputClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("true"),
+            Condition::FormState(FormState::ReadOnly) => Some("false"),
+            Condition::Aria(state) if state == "disabled" => Some("false"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            Condition::Aria(state) if state == "expanded" => Some("true"),
+            _ => None,
+        },
         // A non-editable, non-form decorative element is neither disabled nor enabled and carries none of these ARIA attributes. Parent events are unavailable, not false.
         (Primitive::CommandPalette, "groupHeadingClassName" | "shortcutClassName" | "emptyClassName") => match condition {
             Condition::Disabled => Some("false"),
@@ -109,14 +120,14 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
     }
 }
 
-pub(super) fn semantic_parameters(primitive: Primitive) -> &'static str {
-    match primitive {
-        Primitive::Chip => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed",
-        Primitive::ColorPicker => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked",
-        Primitive::CommandPalette => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
-        Primitive::OtpInput => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly",
-        Primitive::Pagination => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled",
-        Primitive::Stepper => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled",
+pub(super) fn semantic_parameters(primitive: Primitive, class_prop: &str) -> &'static str {
+    match (primitive, class_prop) {
+        (Primitive::Chip, "className" | "removeClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed",
+        (Primitive::ColorPicker, "swatchClassName" | "selectedSwatchClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked",
+        (Primitive::CommandPalette, "itemClassName" | "activeItemClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
+        (Primitive::OtpInput, "inputClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly",
+        (Primitive::Pagination, "itemClassName" | "currentItemClassName" | "disabledItemClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-disabled': __hozoSlotAriaDisabled",
+        (Primitive::Stepper, "stepClassName" | "completedStepClassName" | "currentStepClassName" | "errorStepClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled",
         _ => "",
     }
 }
@@ -127,6 +138,7 @@ pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option
         (Primitive::Chip, "removeClassName") => Some(InteractionSlot { style_prop: "hozoRemoveStyle", focus: true, pointer: true, optional_owner: None }),
         (Primitive::ColorPicker, "swatchClassName") => Some(InteractionSlot { style_prop: "hozoSwatchStyle", focus: true, pointer: true, optional_owner: None }),
         (Primitive::ColorPicker, "selectedSwatchClassName") => Some(InteractionSlot { style_prop: "hozoSelectedSwatchStyle", focus: true, pointer: true, optional_owner: None }),
+        (Primitive::CommandPalette, "inputClassName") => Some(InteractionSlot { style_prop: "hozoInputStyle", focus: true, pointer: false, optional_owner: None }),
         (Primitive::CommandPalette, "itemClassName") => Some(InteractionSlot { style_prop: "hozoItemStyle", focus: false, pointer: true, optional_owner: None }),
         (Primitive::CommandPalette, "activeItemClassName") => Some(InteractionSlot { style_prop: "hozoActiveItemStyle", focus: false, pointer: true, optional_owner: None }),
         (Primitive::OtpInput, "inputClassName") => Some(InteractionSlot { style_prop: "hozoInputStyle", focus: true, pointer: false, optional_owner: None }),

@@ -80,6 +80,35 @@ test('catalog validation refuses duplicate, unknown and ambiguous owner declarat
   assert.throws(() => validateCatalog(conflicting), /Conflicting event owner/)
 })
 
+test('semantic callback parameters belong to each slot, not the union of its widget siblings', () => {
+  const future = structuredClone(components)
+  Object.assign(
+    future.ColorPicker.find((slot) => slot.classProp === 'inputClassName'),
+    {
+      owner: 'real-input',
+      profile: 'TextInput',
+      callback: 'hozoInputStyle',
+      focus: true,
+      pointer: false,
+    },
+  )
+  const native = outputs(future)['crates/hozo_native/src/pattern_contracts.rs']
+  const parameters = native.slice(
+    native.indexOf('fn semantic_parameters'),
+    native.indexOf('fn interaction_slot'),
+  )
+  const swatches = parameters
+    .split('\n')
+    .find((line) => line.includes('Primitive::ColorPicker') && line.includes('swatchClassName'))
+  const input = parameters
+    .split('\n')
+    .find((line) => line.includes('Primitive::ColorPicker') && line.includes('inputClassName'))
+  assert.match(input, /readOnly: __hozoSlotReadOnly/)
+  assert.doesNotMatch(input, /__hozoSlotAriaChecked/)
+  assert.match(swatches, /__hozoSlotAriaChecked/)
+  assert.doesNotMatch(swatches, /readOnly/)
+})
+
 test('audited decorative slots supply the same constant facts without inventing an interaction ABI', () => {
   assert.deepEqual(nonControlSlotFacts, profiles.NonControl.facts)
   const decorative = Object.values(components)

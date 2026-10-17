@@ -1,6 +1,14 @@
 // Build-time source of truth, never imported by an application. A slot's
 // presence is an inventory entry, not a claim that its owner has been audited.
 const supplied = (alias) => ({ alias })
+const textInputFacts = {
+  disabled: supplied('__hozoSlotDisabled'),
+  enabled: supplied('__hozoSlotEnabled'),
+  readOnly: supplied('__hozoSlotReadOnly'),
+  'aria-disabled': false,
+  'aria-selected': false,
+  'aria-checked': false,
+}
 export const profiles = {
   NonControl: {
     facts: {
@@ -61,16 +69,19 @@ export const profiles = {
     },
     note: 'Option divs are neither disabled nor enabled controls. The Web input keeps focus, not its active option.',
   },
-  OtpInput: {
-    facts: {
-      disabled: supplied('__hozoSlotDisabled'),
-      enabled: supplied('__hozoSlotEnabled'),
-      readOnly: supplied('__hozoSlotReadOnly'),
-      'aria-disabled': false,
-      'aria-selected': false,
-      'aria-checked': false,
-    },
+  TextInput: {
+    facts: textInputFacts,
     note: 'Only the real input supplies focus and mutability; disabled fields are read-only too.',
+  },
+  CommandInput: {
+    facts: {
+      ...textInputFacts,
+      disabled: false,
+      enabled: true,
+      readOnly: false,
+      'aria-expanded': true,
+    },
+    note: 'The real command search input is always editable and expanded while mounted on Web; options do not own its focus.',
   },
   OtpDecoration: {
     facts: {
@@ -193,6 +204,10 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        inputClassName: owned('real-search-input', 'CommandInput', 'hozoInputStyle', {
+          pointer: false,
+          composition: 'panel-text inheritance; classes/callback/explicit-style',
+        }),
         groupHeadingClassName: {
           owner: 'non-control-group-heading-div',
           profile: 'NonControl',
@@ -255,7 +270,7 @@ export const components = {
           gate: 'filled-cell',
           composition: 'after base-cell and active-slot',
         },
-        inputClassName: owned('real-input', 'OtpInput', 'hozoInputStyle', {
+        inputClassName: owned('real-input', 'TextInput', 'hozoInputStyle', {
           pointer: false,
           composition: 'classes/callback/style; transparent-input/fixed-overlay-geometry',
         }),
