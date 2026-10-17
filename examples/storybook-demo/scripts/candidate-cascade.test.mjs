@@ -2506,12 +2506,14 @@ test('Menu button expansion and action-div states match isolated Tailwind in bot
         ? `{getClasses(${JSON.stringify(classes)})}`
         : `{cx(${JSON.stringify(base)},getClasses(${JSON.stringify(classes.slice(base.length))}))}`
   }
+  // Opacity-bearing wrappers are stacking contexts. Leave room for each
+  // real popup so a later fixture's button cannot intercept its pointers.
   const source = `import {View,Menu,cx} from '@hozo/core';const C=()=> <View>
     ${['literal', 'opaque', 'mixed']
       .map(
         (
           mode,
-        ) => `<View testID="${mode}"><Menu trigger="Actions" items={items} accessibilityLabel="Letters"
+        ) => `<View testID="${mode}" className="mb-64"><Menu trigger="Actions" items={items} accessibilityLabel="Letters"
       className=${expression(mode, 'root')} triggerClassName=${expression(mode, 'trigger')}
       menuClassName=${expression(mode, 'menu')} itemClassName=${expression(mode, 'item')}/></View>`,
       )
