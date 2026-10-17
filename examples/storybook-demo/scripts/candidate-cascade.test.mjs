@@ -2629,6 +2629,17 @@ test('Menu button expansion and action-div states match isolated Tailwind in bot
           () => document.activeElement?.getAttribute('role') === 'menuitem',
         )
         assert.equal(await rows.first().evaluate((e) => e === document.activeElement), true)
+        await rows.nth(2).focus()
+        await page.evaluate(() => window.dispatchEvent(new Event('resize')))
+        await page.evaluate(
+          () =>
+            new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+        )
+        assert.equal(
+          await rows.nth(2).evaluate((e) => e === document.activeElement),
+          true,
+          'position updates do not rerun the initial focus effect',
+        )
         await oracle.locator('#trigger').evaluate((e) => e.setAttribute('aria-expanded', 'true'))
         await compare(trigger, oracle.locator('#trigger'))
         assert.equal(await trigger.getAttribute('aria-expanded'), 'true')
@@ -4181,7 +4192,11 @@ async function patternHarness(cacheName, look) {
 test("@hozo/patterns' Native controls apply their class props with each one's state", async () => {
   const look =
     'p-2 text-red-500 aria-expanded:bg-blue-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'
-  const { load, pressables, at } = await patternHarness('controls-candidates.json', look)
+  const menuLook = `${look} aria-disabled:opacity-50 disabled:mt-8`
+  const { load, pressables, at } = await patternHarness(
+    'controls-candidates.json',
+    `${look} ${menuLook}`,
+  )
 
   const accordion = load('accordion.native.tsx').HozoAccordion({
     triggerClassName: look,
@@ -4234,7 +4249,7 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
 
   const menu = load('menu.native.tsx').HozoMenu({
     triggerClassName: look,
-    itemClassName: look,
+    itemClassName: menuLook,
     trigger: 'More',
     items: [{ label: 'Delete', disabled: true }],
   })
@@ -4242,6 +4257,7 @@ test("@hozo/patterns' Native controls apply their class props with each one's st
   assert.equal(at(trigger, true).box.opacity, 0.8, 'menu: pressed trigger')
   assert.equal(at(trigger, false).text.color, '#fb2c36', 'menu: trigger label')
   assert.equal(at(item, false).box.opacity, 0.5, 'menu: disabled item')
+  assert.equal(at(item, false).box.marginTop, undefined, 'menu: aria-disabled is not form disabled')
 })
 
 // #886, slice 3, second batch: Tabs' labels, Chip, Pagination, Tree,

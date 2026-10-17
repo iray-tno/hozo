@@ -190,6 +190,11 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    and Native Modal.visible contract; no Modal lifecycle or OS focus-return
    claim is introduced. Positional action keys and disabled activation guards
    remain unchanged. Unsupported wrapper/panel events remain unavailable.
+   The browser audit exposed an independent opening-focus race: the original
+   effect could focus an item while FloatingPositioner still hid its subtree.
+   That existing effect now observes readiness and active index from a
+   headless child, without adding a DOM host, timer or listener. Geometry-only
+   updates do not refocus an item. Native Modal focus behavior is unchanged.
 
    Opaque/mixed secondary Web class lists identify the same real DOM owner
    as their AOT counterpart. Candidate form predicates exclude that slot
