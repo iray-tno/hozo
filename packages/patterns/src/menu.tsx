@@ -142,6 +142,7 @@ export function HozoMenu({
       </button>
       {open ? (
         <FloatingPositioner
+          topLayer
           anchorRef={triggerRef}
           placement="bottom-start"
           offset={4}

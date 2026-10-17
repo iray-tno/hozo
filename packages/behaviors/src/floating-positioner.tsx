@@ -4,6 +4,7 @@ import {
   type RefObject,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react'
@@ -121,6 +122,25 @@ export interface FloatingPositionerProps extends ComputePositionOptions {
   anchorRef: RefObject<HTMLElement | null>
   className?: string
   style?: CSSProperties
+  /** Opt in to a non-modal top layer without moving the DOM or its CSS ancestry.
+   * Engines without showPopover keep inline positioning and warn once. */
+  topLayer?: boolean
+}
+
+let warnedTopLayerFallback = false
+
+// Popover's UA box is a visible panel. Here the same host remains only a
+// transparent positioning box; the caller still owns the panel's appearance.
+const topLayerReset: CSSProperties = {
+  inset: 'auto',
+  width: 'auto',
+  height: 'auto',
+  margin: 0,
+  padding: 0,
+  border: 0,
+  overflow: 'visible',
+  color: 'inherit',
+  background: 'transparent',
 }
 
 /**
@@ -132,9 +152,30 @@ export function FloatingPositioner({
   anchorRef,
   className,
   style,
+  topLayer = false,
   ...options
 }: FloatingPositionerProps) {
   const floatingRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const node = floatingRef.current
+    if (!topLayer || !node) return
+    if (typeof node.showPopover !== 'function') {
+      // Otherwise the browser's [popover]:not(:popover-open) rule can keep
+      // an unsupported/polyfilled host hidden rather than restoring inline.
+      node.removeAttribute('popover')
+      if (!warnedTopLayerFallback) {
+        warnedTopLayerFallback = true
+        console.warn(
+          '[hozo] FloatingPositioner: showPopover is unavailable; inline fallback cannot escape ancestor clipping or stacking contexts.',
+        )
+      }
+      return
+    }
+    if (!node.matches(':popover-open')) node.showPopover()
+    // DOM removal (or removing the attribute) removes it from the top layer.
+    // Do not call hidePopover during unmount: Menu owns focus restoration,
+    // including the outside-click path which deliberately does not restore.
+  }, [topLayer])
   const position = useFloatingPosition({
     anchorRef,
     floatingRef,
@@ -146,7 +187,11 @@ export function FloatingPositioner({
         position: 'fixed',
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: options.matchAnchorWidth ? `${position.anchorWidth}px` : undefined,
+        width: options.matchAnchorWidth
+          ? `${position.anchorWidth}px`
+          : topLayer
+            ? 'auto'
+            : undefined,
         willChange: 'transform',
         display: position.referenceHidden ? 'none' : undefined,
       }
@@ -160,8 +205,9 @@ export function FloatingPositioner({
   return (
     <div
       ref={floatingRef}
+      popover={topLayer ? 'manual' : undefined}
       className={className}
-      style={{ ...positionStyles, ...style }}
+      style={{ ...(topLayer ? topLayerReset : undefined), ...positionStyles, ...style }}
       data-placement={position?.placement}
       data-flipped={position?.flipped ? '' : undefined}
       data-shifted={position?.shifted ? '' : undefined}
