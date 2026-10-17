@@ -4,6 +4,12 @@
 use super::*;
 
 fn button_table() -> hozo_parser::ForwardingTable {
+    table_with(false)
+}
+
+/// `host_states`: whether the Button's host shares its pressed, hovered and
+/// focused state with a Text inside it, as `@hozo/ui`'s does (#974).
+fn table_with(host_states: bool) -> hozo_parser::ForwardingTable {
     // What `@hozo/ui`'s manifest says about `Button`, trimmed to two tones.
     let mut table = hozo_parser::ForwardingTable::default();
     table.insert(
@@ -27,18 +33,23 @@ fn button_table() -> hozo_parser::ForwardingTable {
                 },
             ],
             disabled_prop: Some("disabled".to_string()),
+            host_states,
         },
     );
     table
 }
 
 fn compile(source: &str) -> Vec<LowerOutput> {
+    compile_with(source, &button_table())
+}
+
+fn compile_with(source: &str, table: &hozo_parser::ForwardingTable) -> Vec<LowerOutput> {
     // A project's trusted modules, as the integrations default them. With
     // every module trusted, `@hozo/ui`'s `Button` would be read as Hozo's
     // own primitive of that name.
     let sources = ["@hozo/core".to_string(), "react-native".to_string()];
     let mut parsed = hozo_parser::parse_tsx_with(source, Some(&sources));
-    hozo_parser::apply_text_forwarding(&mut parsed, &button_table());
+    hozo_parser::apply_text_forwarding(&mut parsed, table);
     parsed
         .roots
         .iter()
@@ -151,4 +162,35 @@ fn a_component_of_the_same_name_from_elsewhere_hands_down_nothing() {
         "#;
     let output = &compile(source)[0];
     assert!(!output.styles.contains("color"), "{}", output.styles);
+}
+
+#[test]
+fn a_host_that_shares_its_state_hands_its_hover_look_down_too() {
+    // `@hozo/ui`'s Button compiles to a `HozoPressable`, whose state a
+    // `HozoText` anywhere inside it reads (#974).
+    let source = r#"
+        import { View, Text } from '@hozo/core'
+        import { Button } from '@hozo/ui'
+        const el = <Button tone="accent"><View><Text>Save</Text></View></Button>
+        "#;
+    let [output] = compile_with(source, &table_with(true))
+        .try_into()
+        .unwrap_or_else(|o: Vec<_>| panic!("{} roots", o.len()));
+    assert!(output.jsx.contains("<HozoText style={("), "{}", output.jsx);
+    assert!(
+        output.jsx.contains("hovered && hozoStyles."),
+        "{}",
+        output.jsx
+    );
+    assert!(
+        output.styles.contains("color: '#fb2c36'"),
+        "{}",
+        output.styles
+    );
+    // Still not the Button's box.
+    assert!(
+        !output.styles.contains("backgroundColor"),
+        "{}",
+        output.styles
+    );
 }

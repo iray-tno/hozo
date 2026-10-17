@@ -238,6 +238,15 @@ fn forwarded_text(forwarded: &[StyleDeclaration]) -> impl Iterator<Item = &Style
         .filter(|d| text::is_text_property(&d.property))
 }
 
+/// Whether a component around this element shares its interaction state
+/// with it. The parser hands down a `hover:` or `active:` only from a host
+/// that does (#974), so its presence is the answer, and a Text below reads
+/// that state through `HozoText` as it would inside a pressable in its own
+/// file.
+fn forwards_interaction(forwarded: &[StyleDeclaration]) -> bool {
+    forwarded_text(forwarded).any(|d| interaction::uses_interaction(&d.condition))
+}
+
 /// `lower`, for a root inside components whose package's manifest says
 /// what they hand down (`forwarded`, from `Root::forwarded`).
 pub fn lower_forwarded(
@@ -273,7 +282,13 @@ pub fn lower_forwarded(
         grid_columns: None,
         grid_rows: None,
     };
-    let jsx = render_node(root, SiblingPosition::UNKNOWN, false, ancestor, &mut cx);
+    let jsx = render_node(
+        root,
+        SiblingPosition::UNKNOWN,
+        forwards_interaction(forwarded),
+        ancestor,
+        &mut cx,
+    );
 
     // One declaration per distinct hook, however many elements guard on
     // it: the binding is function-scoped, and calling the same hook twice
@@ -726,7 +741,7 @@ fn render_verbatim(
         out.push_str(&render_node(
             &entry.node,
             SiblingPosition::UNKNOWN,
-            interaction_context,
+            interaction_context || forwards_interaction(&entry.forwarded),
             ancestor,
             cx,
         ));

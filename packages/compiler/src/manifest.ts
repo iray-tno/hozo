@@ -36,6 +36,12 @@ export interface TextForwardingEntry {
   variants: { when: string[]; classes: string }[]
   /** The component prop that drives the `disabled:` classes, if any. */
   disabledProp?: string
+  /**
+   * Whether the host shares its pressed, hovered and focused state with a
+   * Text inside it, so the `hover:`, `active:` and `focus-visible:` classes
+   * reach a caller's Text too (#974). Absent means it does not.
+   */
+  hostStates?: true
 }
 
 export interface HozoManifest {
@@ -90,6 +96,7 @@ function toEntry(component: TextForwardingComponent): TextForwardingEntry {
       classes: variant.classes,
     })),
     ...(component.disabledProp ? { disabledProp: component.disabledProp } : {}),
+    ...(component.hostStates ? { hostStates: true as const } : {}),
   }
 }
 
@@ -160,6 +167,7 @@ export function textForwardingModule(module: string, manifest: HozoManifest): Te
       props: entry.props,
       variants: entry.variants,
       disabledProp: entry.disabledProp,
+      hostStates: entry.hostStates === true,
     })),
   }
 }

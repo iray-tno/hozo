@@ -177,6 +177,7 @@ export interface TextForwardingComponent {
   props: { name: string; default?: string | null; values: string[] }[]
   variants: { when: string[]; classes: string }[]
   disabledProp?: string | null
+  hostStates?: boolean | null
 }
 
 /** AST-independent facts the project graph caches for one source module. */
