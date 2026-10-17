@@ -53,8 +53,13 @@ const FORWARDING_HOSTS: [&str; 3] = ["Pressable", "Button", "View"];
 const HOST_MODULES: [&str; 2] = ["@hozo/core", "@hozo/primitives"];
 /// Pattern components that render their children inside a `View`: their own
 /// string child gets the text styles at runtime, a Text the caller nests
-/// does not. `@hozo/ui`'s Alert wears this one since #983.
-const PATTERN_HOSTS: [(&str, &str); 1] = [("@hozo/patterns", "Alert")];
+/// does not. `@hozo/ui`'s Alert wears the first since #983; its Checkbox
+/// and Switch take their label as children the same way (#974).
+const PATTERN_HOSTS: [(&str, &str); 3] = [
+    ("@hozo/patterns", "Alert"),
+    ("@hozo/patterns", "Checkbox"),
+    ("@hozo/patterns", "Switch"),
+];
 
 /// The `cx`-shaped helpers whose arguments are read one by one, as
 /// `dynamic_class` reads them.
@@ -686,6 +691,7 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
     // when `children` was not destructured, or as `{children}` when it was.
     let children_destructured = params.props.contains_key("children");
     let mut forwards_children = false;
+    let mut spreads_rest = false;
     let mut classes = None;
     let mut disabled_prop = None;
     for attribute in &element.opening_element.attributes {
@@ -698,6 +704,7 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
                     return None;
                 }
                 forwards_children |= !children_destructured;
+                spreads_rest = true;
             }
             JSXAttributeItem::Attribute(attribute) => {
                 let JSXAttributeName::Identifier(name) = &attribute.name else {
@@ -745,6 +752,12 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
     }
     if !forwards_children {
         return None;
+    }
+    // A `disabled` left in the rest reaches the host through the spread, so
+    // the caller's own `disabled` decides `disabled:` as if it were named.
+    // `@hozo/ui`'s Checkbox and Switch take it this way (#974).
+    if disabled_prop.is_none() && spreads_rest && !params.props.contains_key("disabled") {
+        disabled_prop = Some("disabled".to_string());
     }
     Some(Host {
         classes: classes?,
@@ -1091,6 +1104,34 @@ export { HozoAlert as Alert }";
             summarize_text_forwarding(&worn).components.len(),
             2,
             "{worn}"
+        );
+    }
+
+    #[test]
+    fn a_pattern_handed_its_label_and_disabled_through_the_rest_is_read() {
+        // `@hozo/ui`'s Checkbox: children and `disabled` both stay in the
+        // rest, so the caller's `disabled` is the one that reaches the host.
+        let source = "import { Checkbox as CheckboxPattern } from '@hozo/patterns'
+const box = 'ps-9 text-sm text-gray-900 disabled:text-gray-400'
+export function HozoCheckbox({ className, ...rest }) {
+  return <CheckboxPattern {...rest} indicator={indicator} className={className ? `${box} ${className}` : box} />
+}
+export { HozoCheckbox as Checkbox }";
+        let summary = summarize_text_forwarding(source);
+        let names: Vec<_> = summary.components.iter().map(|c| c.name.as_str()).collect();
+        assert_eq!(names, ["Checkbox", "HozoCheckbox"]);
+        let checkbox = &summary.components[0];
+        assert_eq!(
+            checkbox.variants[0].classes,
+            "ps-9 text-sm text-gray-900 disabled:text-gray-400"
+        );
+        assert_eq!(checkbox.disabled_prop.as_deref(), Some("disabled"));
+
+        // A `disabled` the component takes for itself is not the caller's.
+        let kept = source.replace("{ className, ...rest }", "{ className, disabled, ...rest }");
+        assert_eq!(
+            summarize_text_forwarding(&kept).components[0].disabled_prop,
+            None
         );
     }
 
