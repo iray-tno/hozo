@@ -696,9 +696,7 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
                 || PATTERN_HOSTS.contains(&(from, name))))
         .then_some((from, name))
     });
-    let Some((from, name)) = host else {
-        return None;
-    };
+    let (from, name) = host?;
     // The pressable primitives. A View has no state, and a pattern's own
     // pressable does not share its state with a Text the caller nests.
     let states = HOST_MODULES.contains(&from) && matches!(name, "Pressable" | "Button");
