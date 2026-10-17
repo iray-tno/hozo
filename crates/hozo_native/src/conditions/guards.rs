@@ -50,16 +50,17 @@ impl Guard {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn resolve(
     condition: &Condition,
-    node: &Node,
+    target: &super::StyleTarget<'_>,
     source: &str,
-    position: SiblingPosition,
     runtime: &mut RuntimeNeeds,
-    interaction_context: bool,
-    pattern_slot: Option<&str>,
 ) -> Result<Guard, String> {
+    let node = target.node;
+    let position = target.position;
+    let interaction_context = target.interaction_context;
+    let pattern_slot = target.pattern_slot;
+
     if let Some(binding) = pattern_slot
         .and_then(|slot| crate::pattern::semantic_binding(node.primitive, slot, condition))
     {
@@ -70,7 +71,7 @@ pub(super) fn resolve(
         });
     }
     match condition {
-        Condition::Not(inner) => resolve(inner, node, source, position, runtime, interaction_context, pattern_slot)
+        Condition::Not(inner) => resolve(inner, target, source, runtime)
             .map(Guard::negate)
             .map_err(|reason| format!("`not-{}:` cannot be resolved: {reason}", condition_suffix(inner).unwrap_or_default())),
         Condition::Disabled => node.props.disabled.as_ref()

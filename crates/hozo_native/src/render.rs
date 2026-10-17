@@ -67,48 +67,28 @@ fn resolve_first_that_works(node: &Node) -> Option<Node> {
         })
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) fn render_node(
     node: &Node,
     position: SiblingPosition,
     interaction_context: bool,
-    grid_columns: Option<usize>,
-    grid_rows: Option<usize>,
-    theme: &Theme,
-    // Text properties inherited from an ancestor. CSS inherits these;
-    // React Native inherits them only from a `Text` to a `Text`. So a
-    // `text-xl` on a View has to be carried down by the compiler, or it
-    // renders at the default size on device while looking right on Web --
-    // the silent divergence this backend exists to avoid.
-    inherited: &[StyleDeclaration],
-    parent_font_size: Option<f64>,
-    // Whether an ancestor carried a style the compiler could not read.
-    //
-    // `parent_font_size` is only as good as what Hozo resolved. An author's
-    // `style={{ fontSize: 20 }}` is a number the compiler never sees, so a
-    // ratio applied against the size it *can* see would scale from the
-    // wrong base -- and silently, which is the failure this backend spends
-    // its time avoiding. Where this is true, the ratio is handed to a
-    // runtime component instead, which reads the size that actually
-    // applied.
-    parent_size_opaque: bool,
-    // Whether the enclosing ruby had to hand its label to a component.
-    //
-    // The reading has to be identifiable there, and a plain `Text` is not:
-    // `HozoRuby` compares by identity to decide what the word is. Static
-    // ruby needs none of this -- the label is already a literal.
-    in_dynamic_ruby: bool,
-    // Styles an ancestor wrote for this element with `*:` or `**:`.
-    from_ancestor: FromAncestor,
-    source: &str,
-    allocator: &mut NameAllocator,
-    style_entries: &mut Vec<StyleEntry>,
-    diagnostics: &mut Vec<Diagnostic>,
-    runtime: &mut RuntimeNeeds,
+    ancestor: AncestorContext<'_>,
+    cx: &mut NativeRenderContext<'_>,
 ) -> String {
+    let AncestorContext {
+        inherited,
+        parent_font_size,
+        parent_size_opaque,
+        in_dynamic_ruby,
+        from_ancestor,
+        grid_columns,
+        grid_rows,
+    } = ancestor;
+    let source = cx.source;
+    let theme = cx.theme;
+
     let resolved_node = resolve_first_that_works(node);
     let node = resolved_node.as_ref().unwrap_or(node);
-    let base_name = allocator.alloc();
+    let base_name = cx.allocator.alloc();
     let mut style_array_parts: Vec<String> = Vec::new();
     // Held separately from `style_array_parts` because they can only be
     // merged once `component` is known (below) -- RN's pressed-render-prop
@@ -125,7 +105,7 @@ pub(super) fn render_node(
     // Registered patterns resolve with their actual owner's state; ordinary
     // primitives keep their existing callback/prop state path below.
     for expr_ref in &node.class_name_fallback {
-        diagnostics.push(Diagnostic {
+        cx.diagnostics.push(Diagnostic {
             code: DiagnosticCode::DynamicClassNameNotResolved,
             severity: Severity::Warning,
             message: if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
@@ -158,7 +138,7 @@ pub(super) fn render_node(
     // Same shape as truncation: a CSS concept React Native keeps on a prop,
     // absorbed before the refusal check so the thing that *does* express it
     // isn't reported as impossible.
-    let placeholder = placeholder_props(node, theme, runtime);
+    let placeholder = placeholder_props(node, theme, cx.runtime);
     // The caret colour is another TextInput prop rather than a style. Kept
     // separate from placeholder because React Native names the two props
     // independently and either utility may appear alone.
@@ -217,7 +197,7 @@ pub(super) fn render_node(
     } else {
         style
     };
-    let grid = native_grid(&style, theme, runtime);
+    let grid = native_grid(&style, theme, cx.runtime);
     let grid_item = native_grid_item(&style, grid_columns, grid_rows);
     // The fast Native transition path is deliberately narrow: opacity on
     // Pressable interaction state can stay entirely on the native driver.
@@ -375,7 +355,7 @@ pub(super) fn render_node(
                          loose rules, and breaking by phrase, wait on React Native -- see \
                          https://github.com/iray-tno/hozo/issues/813"
                     };
-                    diagnostics.push(Diagnostic {
+                    cx.diagnostics.push(Diagnostic {
                         code: DiagnosticCode::WebOnlyPropertyOnNative,
                         severity: Severity::Warning,
                         // A StyleX declaration keeps the reason its
@@ -411,7 +391,8 @@ pub(super) fn render_node(
                 } else {
                     reason
                 };
-                diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+                cx.diagnostics
+                    .push(unwired_variant(node, &reason, Severity::Error));
                 continue;
             }
         }
@@ -419,11 +400,12 @@ pub(super) fn render_node(
             if caret.is_some() {
                 continue;
             }
-            diagnostics.push(unwired_variant(node, &caret_only_reason(), Severity::Error));
+            cx.diagnostics
+                .push(unwired_variant(node, &caret_only_reason(), Severity::Error));
             continue;
         }
         if let Some(reason) = truncation_only_reason(&declaration.property) {
-            diagnostics.push(Diagnostic {
+            cx.diagnostics.push(Diagnostic {
                 code: DiagnosticCode::WebOnlyPropertyOnNative,
                 severity: Severity::Error,
                 message: reason,
@@ -436,21 +418,23 @@ pub(super) fn render_node(
         // can hold the value, and writing a `text-*` on the same element is
         // all it takes.
         if let Some(reason) = font_relative_reason(&declaration.property) {
-            diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+            cx.diagnostics
+                .push(unwired_variant(node, &reason, Severity::Error));
             continue;
         }
         // Possible on the platform, unbuilt here. Named apart from the
         // Web-only refusals so the two don't blur together -- see
         // `DiagnosticCode::NotWiredOnNative`.
         if let Some(reason) = declaration.property.not_wired_on_native() {
-            diagnostics.push(unwired_variant(node, &reason, Severity::Error));
+            cx.diagnostics
+                .push(unwired_variant(node, &reason, Severity::Error));
             continue;
         }
         // Refused rather than dropped: silently ignoring a `block`/`grid`
         // would leave a layout that looks right on Web and is wrong on
         // device with nothing pointing at the cause.
         if let Some(reason) = declaration.property.unsupported_on_native() {
-            diagnostics.push(Diagnostic {
+            cx.diagnostics.push(Diagnostic {
                 code: DiagnosticCode::WebOnlyPropertyOnNative,
                 severity: Severity::Error,
                 message: format!("{reason} -- this utility is Web-only."),
@@ -459,23 +443,23 @@ pub(super) fn render_node(
         }
     }
 
-    let (mut component, extra_props) = markup::native_component(node, diagnostics);
+    let (mut component, extra_props) = markup::native_component(node, cx.diagnostics);
     // A ruby whose word only React Native can read hands the label to a
     // component, and the reading has to be identifiable there -- a plain
     // `Text` is not, since `HozoRuby` compares by identity to decide what
     // the word is. Before `rendered_component`, which reads `component`.
     if node.primitive == Primitive::Ruby && component == "HozoRuby" {
-        runtime.need_component("HozoRuby");
+        cx.runtime.need_component("HozoRuby");
     }
     if in_dynamic_ruby && node.primitive == Primitive::RubyText {
         component = "HozoRubyText";
-        runtime.need_component("HozoRubyText");
+        cx.runtime.need_component("HozoRubyText");
     }
     // Recorded here, where the tag is decided, and only for the primitives
     // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
     // imported and must not be imported over.
     if !matches!(node.primitive, Primitive::Svg(_)) {
-        runtime.need_native(component);
+        cx.runtime.need_native(component);
     }
     // A transition on something that is not a control. `Pressable` has its
     // own path above, driven by the four interaction booleans; this one is
@@ -485,7 +469,7 @@ pub(super) fn render_node(
     // the array becoming a different array.
     if ambient_transition.is_some() && component == "View" {
         component = "HozoAnimated";
-        runtime.need_component("HozoAnimated");
+        cx.runtime.need_component("HozoAnimated");
     }
     if animated_style {
         let animated = match component {
@@ -495,7 +479,7 @@ pub(super) fn render_node(
         };
         if let Some(animated) = animated {
             component = animated;
-            runtime.need_native("Animated");
+            cx.runtime.need_native("Animated");
         }
     }
 
@@ -816,7 +800,7 @@ pub(super) fn render_node(
     let (subtree, style): (Vec<_>, Vec<_>) = style
         .into_iter()
         .partition(|d| d.condition.split_subtree().is_some());
-    let (to_children, to_descendants) = subtree_for_children(&subtree, node, diagnostics);
+    let (to_children, to_descendants) = subtree_for_children(&subtree, node, cx.diagnostics);
     // An ancestor's `**:` keeps going; a parent's `*:` stops here.
     let descendants: Vec<StyleDeclaration> = from_ancestor
         .all
@@ -832,7 +816,7 @@ pub(super) fn render_node(
             .iter()
             .any(|c| matches!(c, hozo_ir::Child::Verbatim { .. }))
     {
-        diagnostics.push(unwired_variant(
+        cx.diagnostics.push(unwired_variant(
             node,
             "`*:`/`**:` hands a style to each child, and one of this element's children is an expression or a component the compiler doesn't read. It reaches the children it can see and not that one. On Web the selector reaches all of them.",
             Severity::Warning,
@@ -900,7 +884,7 @@ pub(super) fn render_node(
     if !text_declarations.is_empty() && !forwards_label {
         match text_reach(node) {
             TextReach::Certain => {}
-            TextReach::Opaque => diagnostics.push(unwired_variant(
+            TextReach::Opaque => cx.diagnostics.push(unwired_variant(
                 node,
                 "this element's text styles are handed down to its children, and one of them is \
                  an expression or a component the compiler doesn't read. React Native doesn't \
@@ -908,7 +892,7 @@ pub(super) fn render_node(
                  come out at the default size. Put the `text-*` on the Text itself.",
                 Severity::Warning,
             )),
-            TextReach::None => diagnostics.push(unwired_variant(
+            TextReach::None => cx.diagnostics.push(unwired_variant(
                 node,
                 "this element sets text styles and contains no text. React Native has no \
                  `fontSize` on a View, so there is nothing for them to apply to -- on Web the \
@@ -955,22 +939,23 @@ pub(super) fn render_node(
     let animates = component == "HozoAnimated";
     let pattern_style_prop = crate::pattern::interaction_style_prop(node.primitive, "className")
         .or_else(|| (node.primitive == Primitive::TextInput).then_some("hozoStyle"));
-    let transform_entry_start = style_entries.len();
+    let transform_entry_start = cx.style_entries.len();
+    let target = crate::conditions::StyleTarget {
+        node,
+        position,
+        interaction_context: interaction_context
+            && renders_text(component)
+            && pattern_style_prop.is_none(),
+        pattern_slot: Some("className"),
+    };
     let state_start = build_style_entries(
         &own_declarations,
         &base_name,
-        source,
-        node,
-        position,
-        style_entries,
+        &target,
         &mut style_array_parts,
         &mut pressed_parts,
-        diagnostics,
-        runtime,
-        interaction_context && renders_text(component) && pattern_style_prop.is_none(),
-        Some("className"),
-        theme,
         animates.then_some(&mut frames),
+        cx,
     );
     // The label's text styles, by state, for `HozoPressable` to hand to a
     // label that arrives as `children`. Compiled here like any other entry;
@@ -978,21 +963,20 @@ pub(super) fn render_node(
     let label_style = if forwards_label {
         let mut parts = Vec::new();
         let mut pressed = Vec::new();
+        let target = crate::conditions::StyleTarget {
+            node,
+            position,
+            interaction_context: true,
+            pattern_slot: None,
+        };
         build_style_entries(
             &text_declarations,
             &format!("{base_name}_label"),
-            source,
-            node,
-            position,
-            style_entries,
+            &target,
             &mut parts,
             &mut pressed,
-            diagnostics,
-            runtime,
-            true,
             None,
-            theme,
-            None,
+            cx,
         );
         parts.extend(pressed);
         (!parts.is_empty()).then_some(parts)
@@ -1006,7 +990,7 @@ pub(super) fn render_node(
             .iter()
             .any(|d| d.condition != Condition::Always)
     {
-        crate::transforms::specs(&style_entries[transform_entry_start..], theme)
+        crate::transforms::specs(&cx.style_entries[transform_entry_start..], theme)
     } else {
         String::new()
     };
@@ -1017,7 +1001,7 @@ pub(super) fn render_node(
         .any(|d| crate::transforms::is_control(&d.property))
         && (!starting_parts.is_empty() || !exit_parts.is_empty())
     {
-        diagnostics.push(unwired_variant(node,
+        cx.diagnostics.push(unwired_variant(node,
             "Transform resets with starting/exit animation frames are not wired on Native yet. Use explicit transform values for these animation endpoints.",
             Severity::Error));
     }
@@ -1040,7 +1024,7 @@ pub(super) fn render_node(
             .collect();
         fixed.dedup();
         if !fixed.is_empty() {
-            diagnostics.push(crate::conditions::unwired_variant(
+            cx.diagnostics.push(crate::conditions::unwired_variant(
                 node,
                 &format!(
                     "`starting:` and `data-[state=closed]:` on React Native animate opacity, \
@@ -1143,7 +1127,7 @@ pub(super) fn render_node(
             .any(|declaration| interaction::uses_interaction(&declaration.condition));
     let link_interaction = component == "HozoLink" && needs_interaction_host;
     if link_interaction {
-        runtime.need_component("HozoPressable");
+        cx.runtime.need_component("HozoPressable");
     }
     // `@container`, which on Web is a property and here is a component:
     // an element has to measure itself before anything below it can query
@@ -1176,7 +1160,7 @@ pub(super) fn render_node(
         && component == "View"
         && !declares_container;
     if matches!(backdrop_filter, Some(NativeBackdropFilter::Blur(_))) && !renders_backdrop_filter {
-        diagnostics.push(unwired_variant(
+        cx.diagnostics.push(unwired_variant(
             node,
             "`backdropFilter` needs an ordinary View on Native; it cannot replace an interactive, text, animated, or container-query component.",
             Severity::Error,
@@ -1186,7 +1170,7 @@ pub(super) fn render_node(
     // View loses Pressable events, Text semantics and ScrollView behavior;
     // container measurement is a provider around this very same host.
     let rendered_component = if renders_backdrop_filter {
-        runtime.need_component("HozoBackdropFilter");
+        cx.runtime.need_component("HozoBackdropFilter");
         "HozoBackdropFilter"
     } else if component == "TextInput"
         && (!pressed_parts.is_empty()
@@ -1194,26 +1178,26 @@ pub(super) fn render_node(
             || node.props.disabled.is_some()
             || node.props.aria_invalid.is_some())
     {
-        runtime.need_component("HozoTextInput");
+        cx.runtime.need_component("HozoTextInput");
         "HozoTextInput"
     } else if component == "Pressable" && needs_interaction_host {
-        runtime.need_component("HozoPressable");
+        cx.runtime.need_component("HozoPressable");
         "HozoPressable"
     } else if renders_text(component) && interaction_context && !pressed_parts.is_empty() {
-        runtime.need_component("HozoText");
+        cx.runtime.need_component("HozoText");
         "HozoText"
     } else if relative_at_runtime.is_some() {
         // The compiler could not see the size this scales against, so the
         // ratio travels to a component that can. Costs a context read, and
         // only here -- everything the compiler *can* resolve stays a plain
         // `Text` with a number in a stylesheet.
-        runtime.need_component("HozoRelativeText");
+        cx.runtime.need_component("HozoRelativeText");
         "HozoRelativeText"
     } else if publishes_size {
         // The other half. This element holds the size the ratio above
         // needs and holds it in a form only React Native can evaluate, so
         // it says what it resolved to.
-        runtime.need_component("HozoTextSize");
+        cx.runtime.need_component("HozoTextSize");
         "HozoTextSize"
     } else {
         component
@@ -1247,7 +1231,7 @@ pub(super) fn render_node(
                 | "Svg"
         );
     if declares_container && !measures_host {
-        diagnostics.push(unwired_variant(
+        cx.diagnostics.push(unwired_variant(
             node,
             &format!("`@container` needs a single layout-reporting host on Native; `{rendered_component}` cannot publish that width through this adapter. Put the container on a View inside or around it instead."),
             Severity::Error,
@@ -1273,7 +1257,7 @@ pub(super) fn render_node(
         // `pressed` comes from Pressable's render-prop `style` form, which
         // only Pressable has. On a View or Text a function isn't a valid
         // `style` value at all, so there's nowhere for these to go.
-        diagnostics.push(unwired_variant(
+        cx.diagnostics.push(unwired_variant(
             node,
             &format!(
                 "`pressed:` needs an element that tracks press state, and `{rendered_component}` doesn't. \
@@ -1415,7 +1399,7 @@ pub(super) fn render_node(
     }
 
     if !transform_specs.is_empty() {
-        runtime.need_component("hozoTransformStyles");
+        cx.runtime.need_component("hozoTransformStyles");
         style_array_parts = vec![format!(
             "hozoTransformStyles([{}], [{}])",
             style_array_parts.join(", "),
@@ -1599,7 +1583,7 @@ pub(super) fn render_node(
         if static_uri {
             props_text.push_str(&format!(" source={{{{ uri: {value} }}}}"));
         } else {
-            runtime.need_component("hozoImageSource");
+            cx.runtime.need_component("hozoImageSource");
             props_text.push_str(&format!(" source={{hozoImageSource({value})}}"));
         }
     }
@@ -1634,7 +1618,7 @@ pub(super) fn render_node(
                         .is_some_and(|n| n.parse::<u32>().is_ok())
                 });
             if widths {
-                diagnostics.push(unwired_variant(
+                cx.diagnostics.push(unwired_variant(
                     node,
                     "React Native's Image reads `srcSet` by density only (`1x`, `2x`, `3x`). Its width descriptors (`800w`) are skipped on device with a warning, and `sizes` is not read at all, so the image may draw nothing there. Give density descriptors, or a `src` it can fall back to. On Web the same `srcSet` is chosen by `sizes`.",
                     Severity::Warning,
@@ -1648,7 +1632,7 @@ pub(super) fn render_node(
         if static_uri {
             props_text.push_str(&format!(" defaultSource={{{{ uri: {value} }}}}"));
         } else {
-            runtime.need_component("hozoImageSource");
+            cx.runtime.need_component("hozoImageSource");
             props_text.push_str(&format!(" defaultSource={{hozoImageSource({value})}}"));
         }
     }
@@ -1691,7 +1675,7 @@ pub(super) fn render_node(
     // registers under the empty key either way, which is what an unnamed
     // `@sm:` reads.
     if measures_host {
-        runtime.need_component("HozoContainer");
+        cx.runtime.need_component("HozoContainer");
         if rendered_component != "View" {
             props_text.push_str(&format!(" hozoContainerComponent={{{rendered_component}}}"));
         }
@@ -1743,7 +1727,7 @@ pub(super) fn render_node(
         // recorded by hand here. Missing it means a bundle that builds and
         // dies on first render, which is exactly how `TextInput` was found
         // missing from Metro's list in the first place.
-        runtime.need_native("RefreshControl");
+        cx.runtime.need_native("RefreshControl");
         props_text.push_str(&format!(
             " refreshControl={{<RefreshControl refreshing={{{refreshing}}}{on_refresh} />}}"
         ));
@@ -1768,65 +1752,66 @@ pub(super) fn render_node(
         ));
     }
     if node.primitive == Primitive::Badge {
-        runtime.need_component("HozoBadge");
+        cx.runtime.need_component("HozoBadge");
     }
     if node.primitive == Primitive::Meter {
-        runtime.need_component("HozoMeter");
+        cx.runtime.need_component("HozoMeter");
     }
     if node.primitive == Primitive::Chip {
-        runtime.need_component("HozoChip");
+        cx.runtime.need_component("HozoChip");
     }
     if node.primitive == Primitive::Avatar {
-        runtime.need_component("HozoAvatar");
+        cx.runtime.need_component("HozoAvatar");
     }
     if node.primitive == Primitive::Pagination {
-        runtime.need_component("HozoPagination");
+        cx.runtime.need_component("HozoPagination");
     }
     if node.primitive == Primitive::Stepper {
-        runtime.need_component("HozoStepper");
+        cx.runtime.need_component("HozoStepper");
     }
     if node.primitive == Primitive::OtpInput {
-        runtime.need_component("HozoOtpInput");
+        cx.runtime.need_component("HozoOtpInput");
     }
     if node.primitive == Primitive::CommandPalette {
-        runtime.need_component("HozoCommandPalette");
+        cx.runtime.need_component("HozoCommandPalette");
     }
     if node.primitive == Primitive::ColorPicker {
-        runtime.need_component("HozoColorPicker");
+        cx.runtime.need_component("HozoColorPicker");
     }
     match node.primitive {
-        Primitive::Table => runtime.need_component("HozoTable"),
-        Primitive::TableCaption => runtime.need_component("HozoTableCaption"),
+        Primitive::Table => cx.runtime.need_component("HozoTable"),
+        Primitive::TableCaption => cx.runtime.need_component("HozoTableCaption"),
         Primitive::TableHeader | Primitive::TableBody | Primitive::TableFooter => {
-            runtime.need_component("HozoTableSection")
+            cx.runtime.need_component("HozoTableSection")
         }
-        Primitive::TableRow => runtime.need_component("HozoTableRow"),
-        Primitive::TableHead | Primitive::TableCell => runtime.need_component("HozoTableCell"),
+        Primitive::TableRow => cx.runtime.need_component("HozoTableRow"),
+        Primitive::TableHead | Primitive::TableCell => cx.runtime.need_component("HozoTableCell"),
         _ => {}
     }
     if matches!(node.primitive, Primitive::Details | Primitive::Summary) {
-        runtime.need_component(if node.primitive == Primitive::Details {
-            "HozoDetails"
-        } else {
-            "HozoSummary"
-        });
+        cx.runtime
+            .need_component(if node.primitive == Primitive::Details {
+                "HozoDetails"
+            } else {
+                "HozoSummary"
+            });
     }
     if node.primitive == Primitive::Dialog {
         // The behaviour lives in `@hozo/behaviors`; the compiler only lowers
         // the styles and checks the props.
-        runtime.need_component("HozoDialog");
+        cx.runtime.need_component("HozoDialog");
     }
     if node.primitive == Primitive::FlatList {
         // The list itself is React Native's. What `@hozo/engine` adds is
         // the collection information Android needs and nothing computes on
         // its own -- see `markup.rs`.
-        runtime.need_component("HozoFlatList");
+        cx.runtime.need_component("HozoFlatList");
     }
     // Imported from the dedicated `@hozo/svg` owner rather than from
     // `react-native-svg` directly. The compiler keeps one import channel;
     // the integration sorts these names into the optional domain package.
     if let Primitive::Svg(element) = node.primitive {
-        runtime.need_component(element.runtime_name());
+        cx.runtime.need_component(element.runtime_name());
     }
     if node.primitive == Primitive::Link
         || (matches!(node.primitive, Primitive::Button | Primitive::Pressable)
@@ -1836,7 +1821,7 @@ pub(super) fn render_node(
                 .iter()
                 .any(|p| p.name.as_deref() == Some("href")))
     {
-        runtime.need_component("HozoLink");
+        cx.runtime.need_component("HozoLink");
     }
     if let Some(on_press) = node.props.on_press {
         props_text.push_str(&format!(" onPress={{{}}}", source_text(source, on_press)));
@@ -1941,21 +1926,20 @@ pub(super) fn render_node(
             .find(|written| written.slot == *slot)
         {
             let mut pressed = Vec::new();
-            let state_start = build_style_entries(
-                &written.style,
-                &allocator.alloc(),
-                source,
+            let target = crate::conditions::StyleTarget {
                 node,
                 position,
-                style_entries,
+                interaction_context: false,
+                pattern_slot: Some(slot.class_prop),
+            };
+            let state_start = build_style_entries(
+                &written.style,
+                &cx.allocator.alloc(),
+                &target,
                 &mut parts,
                 &mut pressed,
-                diagnostics,
-                runtime,
-                false,
-                Some(slot.class_prop),
-                theme,
                 None,
+                cx,
             );
             let expressions = written
                 .fallback
@@ -1976,7 +1960,7 @@ pub(super) fn render_node(
                 written.evaluation.as_deref(),
             );
             for _ in &expressions {
-                diagnostics.push(Diagnostic {
+                cx.diagnostics.push(Diagnostic {
                     code: DiagnosticCode::DynamicClassNameNotResolved,
                     severity: Severity::Warning,
                     message: format!("`{}` retains an opaque class expression resolved from the project-wide candidate map{}; use a static string for build-time validation.", slot.class_prop, if route.is_some() { " with its owner's available state" } else { "" }),
@@ -2031,7 +2015,7 @@ pub(super) fn render_node(
             let owned = crate::pattern::interaction_slot(node.primitive, slot.class_prop).is_some();
             let has_facts =
                 crate::pattern::constant_facts(node.primitive, slot.class_prop).is_some();
-            diagnostics.push(Diagnostic {
+            cx.diagnostics.push(Diagnostic {
                 code: DiagnosticCode::DynamicClassNameNotResolved,
                 severity: Severity::Warning,
                 message: if owned || has_facts {
@@ -2094,7 +2078,7 @@ pub(super) fn render_node(
                 .as_deref()
                 .is_some_and(|name| name.starts_with("data-"))
             {
-                diagnostics.push(Diagnostic {
+                cx.diagnostics.push(Diagnostic {
                     code: DiagnosticCode::WebOnlyPropertyOnNative,
                     severity: Severity::Warning,
                     message: "Button `data-*` metadata requires a Web DOM dataset; React Native does not consume it. Use nativeID for a shared host identifier; metadata is not mapped to accessibility props.".to_string(),
@@ -2109,7 +2093,7 @@ pub(super) fn render_node(
                     .and_then(|text| text.strip_suffix('}'))
                     .and_then(|text| text.trim().strip_prefix("..."))
                 {
-                    runtime.need_component("hozoButtonProps");
+                    cx.runtime.need_component("hozoButtonProps");
                     props_text.push_str(&format!(" {{...hozoButtonProps({expression})}}"));
                     continue;
                 }
@@ -2164,14 +2148,9 @@ pub(super) fn render_node(
         props_text.push_str(&render_verbatim(
             prop.span,
             &prop.nested,
-            theme,
             &descend,
-            source,
-            allocator,
-            style_entries,
-            diagnostics,
-            runtime,
             child_interaction_context,
+            cx,
         ));
     }
 
@@ -2213,24 +2192,22 @@ pub(super) fn render_node(
                     child_node,
                     child_position,
                     child_interaction_context,
-                    grid.as_ref().and_then(|grid| grid.track_count),
-                    grid.as_ref().and_then(|grid| grid.row_track_count),
-                    theme,
-                    &descend,
-                    current_font_size,
-                    parent_size_opaque || opaque_here,
-                    node.primitive == Primitive::Ruby && component == "HozoRuby",
-                    FromAncestor {
-                        direct: &to_children,
-                        all: &descendants,
-                        in_skeleton: from_ancestor.in_skeleton
-                            || node.primitive == Primitive::Skeleton,
+                    AncestorContext {
+                        inherited: &descend,
+                        parent_font_size: current_font_size,
+                        parent_size_opaque: parent_size_opaque || opaque_here,
+                        in_dynamic_ruby: node.primitive == Primitive::Ruby
+                            && component == "HozoRuby",
+                        from_ancestor: FromAncestor {
+                            direct: &to_children,
+                            all: &descendants,
+                            in_skeleton: from_ancestor.in_skeleton
+                                || node.primitive == Primitive::Skeleton,
+                        },
+                        grid_columns: grid.as_ref().and_then(|grid| grid.track_count),
+                        grid_rows: grid.as_ref().and_then(|grid| grid.row_track_count),
                     },
-                    source,
-                    allocator,
-                    style_entries,
-                    diagnostics,
-                    runtime,
+                    cx,
                 ));
             }
             hozo_ir::Child::Text(text) => {
@@ -2251,14 +2228,10 @@ pub(super) fn render_node(
                         &escaped,
                         &descend,
                         &base_name,
-                        source,
                         node,
                         position,
-                        style_entries,
-                        diagnostics,
-                        runtime,
                         child_interaction_context,
-                        theme,
+                        cx,
                     )
                 } else {
                     escaped
@@ -2271,14 +2244,9 @@ pub(super) fn render_node(
                 inner.push_str(&render_verbatim(
                     *expr_ref,
                     nested,
-                    theme,
                     &descend,
-                    source,
-                    allocator,
-                    style_entries,
-                    diagnostics,
-                    runtime,
                     child_interaction_context,
+                    cx,
                 ));
             }
         }
@@ -2286,13 +2254,13 @@ pub(super) fn render_node(
 
     let inner = if let Some(grid) = grid {
         if !child_declarations.is_empty() {
-            diagnostics.push(unwired_variant(
+            cx.diagnostics.push(unwired_variant(
                 node,
                 "grid combined with `space-*`/`divide-*` needs the grid placer to merge those child styles; use `gap-*` for grid spacing",
                 Severity::Error,
             ));
         }
-        runtime.need_component("HozoGrid");
+        cx.runtime.need_component("HozoGrid");
         let row_tracks = grid
             .row_tracks_js
             .as_ref()
@@ -2303,18 +2271,7 @@ pub(super) fn render_node(
             grid.tracks_js, grid.column_gap, grid.row_gap
         )
     } else {
-        spaced_children(
-            inner,
-            &child_declarations,
-            &base_name,
-            source,
-            node,
-            position,
-            style_entries,
-            diagnostics,
-            runtime,
-            theme,
-        )
+        spaced_children(inner, &child_declarations, &base_name, node, position, cx)
     };
 
     // React Native's TextInput takes no children either.
@@ -2335,13 +2292,13 @@ pub(super) fn render_node(
     // children's types to place them, so anything between the two would
     // make a grid item stop looking like one.
     let rendered = if uses_container_query {
-        runtime.need_component("HozoContainerQuery");
+        cx.runtime.need_component("HozoContainerQuery");
         format!("<HozoContainerQuery>{{(__hozoCq) => ({rendered})}}</HozoContainerQuery>")
     } else {
         rendered
     };
     let rendered = if let Some(item) = grid_item {
-        runtime.need_component("HozoGridItem");
+        cx.runtime.need_component("HozoGridItem");
         let start = item
             .column_start
             .map(|start| format!(" columnStart={{{start}}}"))

@@ -249,27 +249,30 @@ fn light_only(condition: &Condition) -> bool {
 // disagreed about `hover:` in the dark. One answer in the IR is the fix that
 // cannot drift.
 
-#[allow(clippy::too_many_arguments)]
+pub(crate) struct StyleTarget<'a> {
+    pub node: &'a Node,
+    pub position: SiblingPosition,
+    pub interaction_context: bool,
+    pub pattern_slot: Option<&'a str>,
+}
+
 pub(super) fn build_style_entries(
     declarations: &[StyleDeclaration],
     base_name: &str,
-    source: &str,
-    node: &Node,
-    position: SiblingPosition,
-    style_entries: &mut Vec<StyleEntry>,
+    target: &StyleTarget<'_>,
     style_array_parts: &mut Vec<String>,
     pressed_parts: &mut Vec<String>,
-    diagnostics: &mut Vec<Diagnostic>,
-    runtime: &mut RuntimeNeeds,
-    interaction_context: bool,
-    pattern_slot: Option<&str>,
-    theme: &Theme,
-    // Where `starting:` and `data-[state=closed]:` styles go, for an
-    // element that can animate (`HozoAnimated`): they are the first and
-    // the last frame, not part of the style array. `None` everywhere else,
-    // which reports them instead.
     mut frames: Option<&mut AnimatedFrames>,
+    cx: &mut crate::NativeRenderContext<'_>,
 ) -> usize {
+    let source = cx.source;
+    let theme = cx.theme;
+    let diagnostics = &mut *cx.diagnostics;
+    let runtime = &mut *cx.runtime;
+    let style_entries = &mut *cx.style_entries;
+    let node = target.node;
+    let interaction_context = target.interaction_context;
+
     // Before anything reads them: a paired token becomes a second
     // declaration, so everything below treats it as an ordinary condition.
     let with_dark = with_dark_copies(declarations, theme);
@@ -449,7 +452,7 @@ pub(super) fn build_style_entries(
             | Condition::Structural(_) | Condition::Not(_) | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible
             | Condition::Responsive(_) | Condition::Width { .. } | Condition::Dark
             | Condition::Container { .. } | Condition::FormState(FormState::ReadOnly) => {
-                match guards::resolve(&condition, node, source, position, runtime, interaction_context, pattern_slot) {
+                match guards::resolve(&condition, target, source, runtime) {
                     Ok(guards::Guard::Known(true)) if condition == Condition::Enabled => base_parts.extend(parts.clone()),
                     Ok(guards::Guard::Known(true)) => conditional.extend(guarded("")),
                     Ok(guards::Guard::Known(false)) => {}
@@ -530,7 +533,7 @@ pub(super) fn build_style_entries(
                             | Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible | Condition::Responsive(_)
                             | Condition::Width { .. } | Condition::Dark | Condition::Container { .. }
                             | Condition::FormState(FormState::ReadOnly) => {
-                                match guards::resolve(atom, node, source, position, runtime, interaction_context, pattern_slot) {
+                                match guards::resolve(atom, target, source, runtime) {
                                     Ok(guards::Guard::Known(true)) => {}
                                     Ok(guards::Guard::Known(false)) => applies = false,
                                     Ok(guards::Guard::Dynamic(guard)) => guards.push(guard),
