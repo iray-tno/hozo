@@ -87,6 +87,12 @@ pub struct ForwardingComponent {
     /// The component prop the host's `disabled` comes from, so a caller's
     /// `disabled={off}` can drive the `disabled:` classes it hands down.
     pub disabled_prop: Option<String>,
+    /// Whether the host shares its pressed, hovered and focused state with
+    /// a Text inside it, so a caller's Text can take the `hover:`,
+    /// `active:` and `focus-visible:` classes it hands down. True for a
+    /// pressable primitive: whenever its classes carry such a variant it is
+    /// compiled to `HozoPressable`, which provides that state.
+    pub host_states: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -487,6 +493,7 @@ struct Branch {
 struct Host {
     classes: Classes,
     disabled_prop: Option<String>,
+    states: bool,
 }
 
 fn read_component(
@@ -583,6 +590,7 @@ fn read_component(
 
     let mut variants = Vec::new();
     let mut disabled_prop = None;
+    let mut host_states = true;
     for when in combinations(&props) {
         let value_of = |prop: &str| {
             let index = props.iter().position(|p| p.name == prop)?;
@@ -607,12 +615,15 @@ fn read_component(
             (Some(seen), found) if Some(seen) != found.as_ref() => return None,
             _ => {}
         }
+        // A caller cannot tell which host it is in either.
+        host_states &= branch.host.states;
     }
     Some(ForwardingComponent {
         name: String::new(),
         props,
         variants,
         disabled_prop,
+        host_states,
     })
 }
 
@@ -643,6 +654,7 @@ fn read_pair(branch: &oxc_ast::ast::IfStatement, last: &Statement, scope: &Scope
     let with = read_return(&branch.consequent, scope)?;
     let without = read_return(last, scope)?;
     let same = with.disabled_prop == without.disabled_prop
+        && with.states == without.states
         && with.classes.normalized() == without.classes.clone().normalized();
     same.then_some(without)
 }
@@ -674,18 +686,20 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
     let JSXElementName::IdentifierReference(tag) = &element.opening_element.name else {
         return None;
     };
-    let is_host = module.import_entries.iter().any(|entry| {
+    let host = module.import_entries.iter().find_map(|entry| {
         let ImportImportName::Name(imported) = &entry.import_name else {
-            return false;
+            return None;
         };
         let (from, name) = (entry.module_request.name.as_str(), imported.name.as_str());
-        entry.local_name.name == tag.name.as_str()
+        (entry.local_name.name == tag.name.as_str()
             && (HOST_MODULES.contains(&from) && FORWARDING_HOSTS.contains(&name)
-                || PATTERN_HOSTS.contains(&(from, name)))
+                || PATTERN_HOSTS.contains(&(from, name))))
+        .then_some((from, name))
     });
-    if !is_host {
-        return None;
-    }
+    let (from, name) = host?;
+    // The pressable primitives. A View has no state, and a pattern's own
+    // pressable does not share its state with a Text the caller nests.
+    let states = HOST_MODULES.contains(&from) && matches!(name, "Pressable" | "Button");
 
     // The caller's children have to reach the host: through the rest spread
     // when `children` was not destructured, or as `{children}` when it was.
@@ -762,6 +776,7 @@ fn read_host(element: &JSXElement, scope: &Scope) -> Option<Host> {
     Some(Host {
         classes: classes?,
         disabled_prop,
+        states,
     })
 }
 
@@ -938,8 +953,14 @@ fn resolve(
                 _ => Condition::Always,
             },
             // Pressed, hovered and focused belong to the component's own
-            // pressable, which a Text in the caller's file is not wired to.
-            // Left out rather than applied unconditionally.
+            // pressable. A host that shares them hands them to the Text,
+            // which reads them at runtime; any other is not wired to it,
+            // so they are left out rather than applied unconditionally.
+            Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible
+                if entry.host_states =>
+            {
+                condition
+            }
             _ => continue,
         };
         for property in properties {
@@ -983,6 +1004,10 @@ export function HozoButton({{ tone = 'neutral', size = 'md', className, disabled
         };
         assert_eq!(component.name, "HozoButton");
         assert_eq!(component.disabled_prop.as_deref(), Some("disabled"));
+        assert!(
+            component.host_states,
+            "a pressable primitive shares its state"
+        );
         let props: Vec<_> = component
             .props
             .iter()
@@ -1088,6 +1113,7 @@ export { HozoAlert as Alert }";
         assert_eq!(classes("danger"), Some("px-4 text-sm text-red-700"));
         assert_eq!(classes("neutral"), Some("px-4 text-sm text-gray-700"));
         assert_eq!(alert.disabled_prop, None);
+        assert!(!alert.host_states, "a View has no state to share");
 
         // And the same through `@hozo/patterns`' Alert, which it wears now.
         let worn = source
@@ -1126,6 +1152,8 @@ export { HozoCheckbox as Checkbox }";
             "ps-9 text-sm text-gray-900 disabled:text-gray-400"
         );
         assert_eq!(checkbox.disabled_prop.as_deref(), Some("disabled"));
+        // A pattern's own pressable does not share its state with the caller's Text.
+        assert!(!checkbox.host_states);
 
         // A `disabled` the component takes for itself is not the caller's.
         let kept = source.replace("{ className, ...rest }", "{ className, disabled, ...rest }");

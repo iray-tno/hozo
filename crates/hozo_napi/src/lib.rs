@@ -650,6 +650,7 @@ impl Compiler {
                             })
                             .collect(),
                         disabled_prop: component.disabled_prop,
+                        host_states: component.host_states.unwrap_or(false),
                     },
                 );
             }
@@ -1389,6 +1390,8 @@ pub struct ForwardingComponent {
     pub props: Vec<ForwardingProp>,
     pub variants: Vec<ForwardingVariant>,
     pub disabled_prop: Option<String>,
+    /// Absent in a manifest written before #974 said it, which is false.
+    pub host_states: Option<bool>,
 }
 
 #[napi(object)]
@@ -1442,6 +1445,7 @@ pub fn summarize_text_forwarding(source: String) -> TextForwardingSummary {
                     })
                     .collect(),
                 disabled_prop: component.disabled_prop,
+                host_states: Some(component.host_states),
             })
             .collect(),
         reexports: summary

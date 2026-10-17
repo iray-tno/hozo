@@ -50,6 +50,8 @@ export { Thing } from 'another-package'
   ])
   // `disabled` stays in the rest, so the caller's own reaches the host.
   assert.equal(entry.disabledProp, 'disabled')
+  // A pressable primitive shares its state with a Text inside it (#974).
+  assert.equal(entry.hostStates, true)
 })
 
 test('a component exported but not published by the entry is left out', () => {

@@ -113,7 +113,8 @@
           "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80 px-3 py-2 text-sm"
         }
       ],
-      "disabledProp": "disabled"
+      "disabledProp": "disabled",
+      "hostStates": true
     },
     "Checkbox": {
       "props": [],
@@ -237,7 +238,8 @@
           "classes": "inline-flex items-center justify-center gap-2 font-semibold rounded-hozo-control transition-colors cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-auto disabled:text-hozo-text-subtle text-hozo-text-body hover:bg-hozo-surface-hover active:opacity-80 px-3 py-2 text-sm"
         }
       ],
-      "disabledProp": "disabled"
+      "disabledProp": "disabled",
+      "hostStates": true
     },
     "HozoCheckbox": {
       "props": [],
