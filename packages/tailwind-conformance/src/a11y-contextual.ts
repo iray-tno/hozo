@@ -505,6 +505,16 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     native: ['<HozoColorPicker accessibilityLabel={"Accent"} swatchStyle={hozoStyles.hozo1}'],
   },
   {
+    name: 'an unnamed color picker',
+    purpose: 'a picker with no name is reported on both platforms, as a text field is',
+    // Its type requires the name, but a build strips types without checking
+    // them, and unlike Pagination it has no translated name to fall back on.
+    source: '<ColorPicker value={color} onChange={setColor} />',
+    web: ['<HozoColorPicker value={color}'],
+    native: ['<HozoColorPicker value={color}'],
+    diagnostics: ['A11Y_MISSING_ACCESSIBLE_NAME'],
+  },
+  {
     name: 'a named command palette',
     purpose: 'the dialog name, its open state and the item classes reach the pattern',
     source:
@@ -513,12 +523,35 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     native: ['<HozoCommandPalette accessibilityLabel={"Commands"} open={open}', 'itemStyle='],
   },
   {
+    name: 'a named combobox',
+    purpose: 'the field name and the selected-option class reach the pattern on both platforms',
+    // The selected option is a state the pattern owns, so on Native its
+    // class arrives as a slot callback reading the option's own facts.
+    source:
+      '<Combobox options={options} value={value} onValueChange={setValue} accessibilityLabel="Fruit" inputClassName="px-2" optionClassName="aria-selected:bg-blue-500" />',
+    web: [
+      '<HozoCombobox inputClassName="hozo-1" optionClassName="hozo-2" accessibilityLabel={"Fruit"}',
+    ],
+    native: [
+      '<HozoCombobox accessibilityLabel={"Fruit"} inputStyle={hozoStyles.hozo1}',
+      '__hozoSlotAriaSelected && hozoStyles.hozo2_ariaselected',
+    ],
+  },
+  {
     name: 'a one-time code field',
     purpose: 'one named field, drawn as cells, on both platforms',
     source:
       '<OtpInput length={6} value={code} onChange={setCode} accessibilityLabel="Code" cellClassName="size-10" />',
     web: ['<HozoOtpInput cellClassName="hozo-1" accessibilityLabel={"Code"} length={6}'],
     native: ['<HozoOtpInput accessibilityLabel={"Code"} cellStyle={hozoStyles.hozo1}'],
+  },
+  {
+    name: 'an unnamed one-time code field',
+    purpose: 'a code field with no name is reported on both platforms, as a text field is',
+    source: '<OtpInput length={6} value={code} onChange={setCode} />',
+    web: ['<HozoOtpInput length={6}'],
+    native: ['<HozoOtpInput length={6}'],
+    diagnostics: ['A11Y_MISSING_ACCESSIBLE_NAME'],
   },
   {
     name: 'named pagination',
