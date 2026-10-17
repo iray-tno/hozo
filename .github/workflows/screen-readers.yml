@@ -99,8 +99,15 @@ jobs:
             echo "image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
             sw_vers
             csrutil status
+            # Only osascript's requests: the rest of TCC's traffic (AddressBook
+            # and the like) buries them. The first run that used this found
+            # /opt/hca/hosted-compute-agent responsible, a path Guidepup does
+            # not pre-grant.
             sudo log show --last 10m --style compact --predicate 'subsystem == "com.apple.TCC"' 2>&1 \
-              | grep -iE 'AppleEvents|responsible|attribution' | tail -60
+              | grep AUTHREQ_ATTRIBUTION | grep 'requesting={TCCDProcess: identifier=com.apple.osascript' > "$RUNNER_TEMP/tcc.log"
+            echo 'responsible for osascript (count, path):'
+            grep -o 'responsible_path=[^,]*' "$RUNNER_TEMP/tcc.log" | sort | uniq -c
+            tail -5 "$RUNNER_TEMP/tcc.log"
             echo '::endgroup::'
           }
           verify() {
