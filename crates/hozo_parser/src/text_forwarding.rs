@@ -626,6 +626,7 @@ struct Branch {
     host: Host,
 }
 
+#[derive(Clone)]
 struct Host {
     classes: Classes,
     disabled_prop: Option<String>,
@@ -832,9 +833,23 @@ fn read_component(
 ) -> Option<ForwardingComponent> {
     let mut constants = module_constants.clone();
     let (last, guarded) = statements.split_last()?;
+    // A terminal switch owns its fallback; one immediately before the last
+    // return can use that return instead. Other switch control flow is not
+    // a return-only component shape this reader understands.
+    let (switch, guarded) = match last {
+        Statement::SwitchStatement(switch) => (Some((&**switch, None)), guarded),
+        _ => match guarded.split_last() {
+            Some((Statement::SwitchStatement(switch), before)) => {
+                (Some((&**switch, Some(last))), before)
+            }
+            _ => (None, guarded),
+        },
+    };
     // The fallthrough may itself be a presence pair, as the last tone is.
     let (trailing, guarded) = match guarded.split_last() {
-        Some((Statement::IfStatement(branch), before)) if is_presence_branch(branch, params) => {
+        Some((Statement::IfStatement(branch), before))
+            if switch.is_none() && is_presence_branch(branch, params) =>
+        {
             (Some(&**branch), before)
         }
         _ => (None, guarded),
@@ -878,17 +893,101 @@ fn read_component(
         module,
         constants: &constants,
     };
-    branches.push(Branch {
-        guard: None,
-        host: match trailing {
-            Some(branch) => read_pair(branch, last, &scope)?,
-            None => read_return(last, &scope)?,
-        },
-    });
+    if let Some((switch, following)) = switch {
+        branches.extend(read_switch(switch, following, &scope)?);
+    } else {
+        branches.push(Branch {
+            guard: None,
+            host: match trailing {
+                Some(branch) => read_pair(branch, last, &scope)?,
+                None => read_return(last, &scope)?,
+            },
+        });
+    }
     summarize_branches(params, &branches)
 }
 
+fn read_switch(
+    switch: &oxc_ast::ast::SwitchStatement,
+    following: Option<&Statement>,
+    scope: &Scope,
+) -> Option<Vec<Branch>> {
+    let Expression::Identifier(id) = switch.discriminant.without_parentheses() else {
+        return None;
+    };
+    let prop = scope.params.prop_name(id.name.as_str())?;
+    let mut seen = BTreeSet::new();
+    let mut default_seen = false;
+    let mut labels = Vec::new();
+    let mut branches = Vec::new();
+    let mut default = None;
+    for case in &switch.cases {
+        let value = match &case.test {
+            Some(test) => {
+                let Expression::StringLiteral(value) = test.without_parentheses() else {
+                    return None;
+                };
+                if !seen.insert(value.value.to_string()) {
+                    return None;
+                }
+                Some(value.value.to_string())
+            }
+            None => {
+                if default_seen {
+                    return None;
+                }
+                default_seen = true;
+                None
+            }
+        };
+        labels.push(value);
+        if case.consequent.is_empty() {
+            continue;
+        }
+        let [only] = case.consequent.as_slice() else {
+            return None;
+        };
+        let host = read_return(only, scope)?;
+        // Empty labels may share one return. No executable statement may
+        // fall through, so this does not simulate arbitrary JS control flow.
+        for value in labels.drain(..) {
+            match value {
+                Some(value) => branches.push(Branch {
+                    guard: Some(Comparison {
+                        prop: prop.to_string(),
+                        value,
+                    }),
+                    host: host.clone(),
+                }),
+                None => default = Some(host.clone()),
+            }
+        }
+    }
+    if !labels.is_empty() {
+        return None;
+    }
+    // A default in the middle is still the fallback, not the first branch.
+    // Require exactly one fallback form rather than guessing through an
+    // extra unreachable return or a switch that can render nothing.
+    let host = match (default, following) {
+        (Some(host), None) => host,
+        (None, Some(statement)) => read_return(statement, scope)?,
+        _ => return None,
+    };
+    branches.push(Branch { guard: None, host });
+    Some(branches)
+}
+
 fn summarize_branches(params: &Params, branches: &[Branch]) -> Option<ForwardingComponent> {
+    // Absence is a real source choice, not "not initialized yet". Every
+    // branch must agree because the manifest has only one disabledProp.
+    let disabled_prop = branches.first()?.host.disabled_prop.clone();
+    if branches
+        .iter()
+        .any(|branch| branch.host.disabled_prop != disabled_prop)
+    {
+        return None;
+    }
     // Every value a prop is compared against, plus its default: the values
     // a caller can write that change the classes.
     let mut domain: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
@@ -919,7 +1018,6 @@ fn summarize_branches(params: &Params, branches: &[Branch]) -> Option<Forwarding
     }
 
     let mut variants = Vec::new();
-    let mut disabled_prop = None;
     let mut host_states = true;
     for when in combinations(&props) {
         let value_of = |prop: &str| {
@@ -938,13 +1036,6 @@ fn summarize_branches(params: &Params, branches: &[Branch]) -> Option<Forwarding
             .collect::<Vec<_>>()
             .join(" ");
         variants.push(ForwardingVariant { when, classes });
-        // Every branch has to agree, or a caller could not tell which
-        // prop drives `disabled:`.
-        match (&disabled_prop, &branch.host.disabled_prop) {
-            (None, found) => disabled_prop = found.clone(),
-            (Some(seen), found) if Some(seen) != found.as_ref() => return None,
-            _ => {}
-        }
         // A caller cannot tell which host it is in either.
         host_states &= branch.host.states;
     }
@@ -1378,6 +1469,81 @@ export function HozoButton({{ tone = 'neutral', size = 'md', className, disabled
         );
         assert_eq!(variant("md", "neutral"), Some("text-black"));
         assert_eq!(component.variants.len(), 4);
+    }
+
+    #[test]
+    fn string_switch_returns_have_the_same_summary_as_an_if_chain() {
+        let imports = "import {Button as Host} from '@hozo/primitives'";
+        let params = "{tone: t = 'quiet', children: label, disabled: off, ...rest}";
+        let loud = "<Host {...rest} disabled={off} className=\"font-bold hover:text-red-500 disabled:text-gray-400\">{label}</Host>";
+        let quiet = "<Host {...rest} disabled={off} className=\"text-sm\">{label}</Host>";
+        let plain = format!("{imports}\nexport function Check({params}) {{ if (t === 'loud') return {loud}; if (t === 'strong') return {loud}; return {quiet} }}");
+        let expected = summarize_text_forwarding(&plain);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(expected.components[0].variants.len(), 3);
+        for body in [
+            format!("switch (t) {{ case 'loud': case 'strong': return {loud}; default: return {quiet}; }}"),
+            format!("switch (t) {{ default: return {quiet}; case 'loud': case 'strong': {{ return {loud}; }} }}"),
+            format!("switch (t) {{ case 'loud': case 'strong': return {loud}; }} return {quiet};"),
+        ] {
+            let source = format!("{imports}\nexport const Check = ({params}) => {{ {body} }}");
+            assert_eq!(summarize_text_forwarding(&source), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn switch_lookups_use_the_same_constants_and_class_reader() {
+        let source = "import {Button as Host} from '@hozo/primitives'
+export function Check({tone = 'quiet', size = 'md', children, ...rest}) {
+ const looks = {sm: 'text-sm', md: 'text-base'} as const
+ switch (tone) {
+   case 'loud': return <Host {...rest} className={looks[size]}>{children}</Host>
+   default: return <Host {...rest} className=\"text-black\">{children}</Host>
+ }
+}";
+        let plain = source
+            .replace("switch (tone) {", "")
+            .replace("case 'loud':", "if (tone === 'loud')")
+            .replace("default:", "")
+            .replacen("\n }\n}", "\n}", 1);
+        let expected = summarize_text_forwarding(&plain);
+        assert_eq!(expected.components.len(), 1);
+        assert_eq!(summarize_text_forwarding(source), expected);
+    }
+
+    #[test]
+    fn unreadable_switch_control_flow_gives_no_entry() {
+        let host = "<Host className=\"text-sm\">{children}</Host>";
+        for body in [
+            format!("switch (tone) {{ case compute(): return {host}; default: return {host}; }}"),
+            format!("switch (tone) {{ case 1: return {host}; default: return {host}; }}"),
+            format!("switch (unknown) {{ case 'a': return {host}; default: return {host}; }}"),
+            format!("switch (tone) {{ case 'a': return {host}; }}"),
+            format!("switch (tone) {{ case 'a': return {host}; case 'a': return {host}; default: return {host}; }}"),
+            format!("switch (tone) {{ case 'a': effect(); default: return {host}; }}"),
+            format!("switch (tone) {{ case 'a': break; default: return {host}; }} return {host};"),
+            format!("switch (tone) {{ case 'a': const own = 'text-lg'; return {host}; default: return {host}; }}"),
+            format!("switch (tone) {{ default: return {host}; case 'a': }}"),
+            format!("switch (tone) {{ default: return {host}; }} return {host};"),
+        ] {
+            let source = format!("import {{Button as Host}} from '@hozo/primitives'\nexport function Check({{tone = 'quiet', children}}) {{ {body} }}");
+            assert!(summarize_text_forwarding(&source).components.is_empty(), "{source}");
+        }
+    }
+
+    #[test]
+    fn an_absent_disabled_source_is_not_an_uninitialized_one() {
+        let source = "import {Button as Host} from '@hozo/primitives'
+export function Check({tone = 'z', children, disabled, ...rest}) {
+ if (tone === 'a') return <Host {...rest} className=\"text-sm disabled:text-gray-400\">{children}</Host>
+ return <Host {...rest} disabled={disabled} className=\"text-sm disabled:text-gray-400\">{children}</Host>
+}";
+        assert!(summarize_text_forwarding(source).components.is_empty());
+        let switched = source
+            .replace("if (tone === 'a')", "switch (tone) { case 'a':")
+            .replace("\n return <Host", "\n default: return <Host")
+            .replace("\n}", "\n} }");
+        assert!(summarize_text_forwarding(&switched).components.is_empty());
     }
 
     #[test]

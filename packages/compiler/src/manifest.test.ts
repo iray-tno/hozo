@@ -65,7 +65,7 @@ test('a component exported but not published by the entry is left out', () => {
   assert.deepEqual(manifest.textForwarding, {})
 })
 
-test('arrows, React wrappers and prop aliases preserve manifests across re-exports and Native callers', async () => {
+test('supported component forms preserve manifests across re-exports and Native callers', async () => {
   const { createCompiler } = await import('./index.ts')
   const { DEFAULT_PRIMITIVE_SOURCES } = await import('./sources.ts')
   const { textForwardingModule } = await import('./manifest.ts')
@@ -74,6 +74,8 @@ import { Checkbox as Host } from '@hozo/patterns'`
   const params = `{ tone = 'quiet', children, className, ...rest }`
   const host = `<Host {...rest} className={tone === 'loud' ? 'font-bold hover:text-red-500 disabled:text-gray-400' : 'text-sm'}>{children}</Host>`
   const withRef = host.replace('<Host ', '<Host ref={ref} ')
+  const loudHost = `<Host {...rest} className="font-bold hover:text-red-500 disabled:text-gray-400">{children}</Host>`
+  const quietHost = `<Host {...rest} className="text-sm">{children}</Host>`
   const declarations = [
     `${imports}\nexport function Inner(${params}) { return (${host}) }`,
     `${imports}\nexport const Inner = (${params}) => { return (${host}) }`,
@@ -84,6 +86,8 @@ import { Checkbox as Host } from '@hozo/patterns'`
     `${imports}\nexport const Inner = React.memo(React.forwardRef(function Render(${params}, ref) { return (${withRef}) }))`,
     `${imports}\nexport const Inner = cached(withRef(({tone: t = 'quiet', children: label, className: classes, disabled: off, ...rest}, ref) =>
       <Host ref={ref} {...rest} disabled={off} className={t === 'loud' ? 'font-bold hover:text-red-500 disabled:text-gray-400' : 'text-sm'}>{label}</Host>))`,
+    `${imports}\nexport function Inner(${params}) { switch (tone) { case 'loud': return ${loudHost}; default: return ${quietHost}; } }`,
+    `${imports}\nexport const Inner = cached(withRef((${params}, ref) => { switch (tone) { case 'loud': return ${loudHost.replace('<Host ', '<Host ref={ref} ')}; } return ${quietHost.replace('<Host ', '<Host ref={ref} ')}; }))`,
   ]
   const manifests = declarations.map((source) =>
     buildManifest({
@@ -110,10 +114,13 @@ import { Checkbox as Host } from '@hozo/patterns'`
       "Pressable as Host } from '@hozo/primitives'",
     )
     const roots = compiler.compileNative(producer)
-    assert.equal(roots.length, 1, source)
-    assert.match(roots[0].jsx, /HozoPressable/)
-    assert.match(roots[0].jsx, /hovered/)
-    if (source.includes('ref={ref}')) assert.match(roots[0].jsx, /ref=\{ref\}/)
+    assert.equal(roots.length, source.includes('switch (') ? 2 : 1, source)
+    assert.ok(
+      roots.some((root) => /HozoPressable/.test(root.jsx) && /hovered/.test(root.jsx)),
+      source,
+    )
+    if (source.includes('ref={ref}'))
+      for (const root of roots) assert.match(root.jsx, /ref=\{ref\}/)
   }
   const caller = `import { Text } from '@hozo/core'
 import { Check } from 'example-controls'
