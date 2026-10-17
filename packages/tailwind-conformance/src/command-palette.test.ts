@@ -553,11 +553,36 @@ test('compiled command option semantics follow target, filtering and availabilit
   }
 })
 
-test('full lowering keeps unknown option semantics and non-option class owners diagnosed', () => {
+test('full lowering resolves decorative owners from their own known non-control facts', () => {
+  for (const slot of ['shortcutClassName', 'groupHeadingClassName', 'emptyClassName']) {
+    // These owners are not selected options or disabled controls. Their known
+    // false facts are supported, not unknown facts that need a diagnostic.
+    assert.doesNotThrow(
+      () =>
+        loadNativeModule(`import { CommandPalette } from '@hozo/core'
+      export function C() {return <CommandPalette commands={[]} ${slot}="aria-selected:opacity-50 aria-disabled:mt-4 disabled:opacity-25 read-only:rounded-lg not-aria-selected:border-2" />}`),
+      slot,
+    )
+    for (const classes of [
+      'aria-expanded:opacity-50',
+      'hover:opacity-50',
+      'not-focus:opacity-50',
+    ]) {
+      assert.throws(
+        () =>
+          loadNativeModule(`import { CommandPalette } from '@hozo/core'
+      export function C() {return <CommandPalette commands={[]} ${slot}="${classes}" />}`),
+        /NOT_WIRED_ON_NATIVE/,
+        `${slot}: ${classes}`,
+      )
+    }
+  }
+})
+
+test('full lowering keeps unknown option semantics and unaudited class owners diagnosed', () => {
   for (const [slot, classes] of [
     ['itemClassName', 'not-aria-expanded:opacity-50'],
     ['activeItemClassName', 'aria-pressed:hover:opacity-50'],
-    ['shortcutClassName', 'aria-selected:opacity-50'],
     ['inputClassName', 'aria-selected:opacity-50'],
     ['listClassName', 'aria-selected:opacity-50'],
     ['panelClassName', 'aria-disabled:opacity-50'],
