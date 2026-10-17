@@ -513,6 +513,21 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     native: ['<HozoCommandPalette accessibilityLabel={"Commands"} open={open}', 'itemStyle='],
   },
   {
+    name: 'a named combobox',
+    purpose: 'the field name and the selected-option class reach the pattern on both platforms',
+    // The selected option is a state the pattern owns, so on Native its
+    // class arrives as a slot callback reading the option's own facts.
+    source:
+      '<Combobox options={options} value={value} onValueChange={setValue} accessibilityLabel="Fruit" inputClassName="px-2" optionClassName="aria-selected:bg-blue-500" />',
+    web: [
+      '<HozoCombobox inputClassName="hozo-1" optionClassName="hozo-2" accessibilityLabel={"Fruit"}',
+    ],
+    native: [
+      '<HozoCombobox accessibilityLabel={"Fruit"} inputStyle={hozoStyles.hozo1}',
+      '__hozoSlotAriaSelected && hozoStyles.hozo2_ariaselected',
+    ],
+  },
+  {
     name: 'a one-time code field',
     purpose: 'one named field, drawn as cells, on both platforms',
     source:
