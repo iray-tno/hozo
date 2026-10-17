@@ -426,6 +426,196 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
       '<Text accessibilityLabel="漢字">漢字<Text style={hozoStyles.hozo1}>かんじ</Text></Text>',
     ],
   },
+  {
+    name: 'preformatted text keeps its spaces',
+    purpose: 'a code block is a block on both platforms, with the spacing as written',
+    // `<pre>` keeps whitespace through the UA stylesheet. React Native's
+    // `Text` keeps it anyway; what it lacks is the monospace face, which
+    // is the style.
+    source: '<Preformatted>a  b</Preformatted>',
+    web: ['<pre>a  b</pre>'],
+    native: ['<Text style={hozoStyles.hozo0}>a  b</Text>'],
+  },
+  {
+    name: 'a named busy indicator',
+    purpose: 'a spinner is announced by its name on both platforms, and draws on the Web',
+    // There is no element for this, so the Web half is a runtime
+    // component rather than a bare box with nothing to draw.
+    source: '<ActivityIndicator accessibilityLabel="Loading" />',
+    web: ['<HozoActivityIndicator accessibilityLabel={"Loading"}'],
+    native: ['<ActivityIndicator accessibilityLabel={"Loading"}'],
+  },
+  {
+    name: 'a meter reports where it stands',
+    purpose: 'a value within a range is read as one, not as a progress bar or as nothing',
+    // `<meter>` alone is read as a bare number by some readers, so the
+    // Web carries the reading as words. React Native has no element, and
+    // the value travels on the runtime component's `accessibilityValue`.
+    source: '<Meter value={0.6} min={0} max={1} accessibilityLabel="Disk" />',
+    web: ['<meter', "aria-valuetext={'60%'}", 'aria-label={"Disk"}', 'value={0.6}'],
+    native: ['<HozoMeter accessibilityLabel={"Disk"} value={0.6} min={0} max={1}'],
+  },
+  {
+    name: 'a skeleton is silent and stills under reduced motion',
+    purpose: 'a placeholder is hidden from assistive technology, and its pulse is conditional',
+    // Decision 007, section 5. On the Web the marker lets one stylesheet
+    // rule stop the animation whatever class started it; on Native the
+    // pulse is gated by the motion environment in the style itself.
+    source: '<Skeleton className="h-4 animate-pulse" />',
+    web: ['aria-hidden={true}', 'data-hozo-skeleton=""'],
+    native: ['<Animated.View', '__hozoEnv_motion_safe && __hozoAnim_pulse', 'aria-hidden'],
+  },
+  {
+    name: 'a counted badge',
+    purpose: 'a number is read with what it counts, which a bare span cannot carry',
+    source: '<Badge count={3} accessibilityLabel="3 unread">3</Badge>',
+    web: ['<HozoBadge accessibilityLabel={"3 unread"} count={3}>'],
+    native: ['<HozoBadge accessibilityLabel={"3 unread"} count={3}>'],
+  },
+  {
+    name: 'an avatar and its parts',
+    purpose: 'a picture named for the person, its part classes reaching each platform owner',
+    // Like every pattern here, the compiler's share is the class lists:
+    // class names on the Web and the pattern's style props on Native.
+    source:
+      '<Avatar src="https://example.com/a.png" name="Ada Lovelace" className="size-10" imageClassName="rounded-full" />',
+    web: ['<HozoAvatar className="hozo-0" imageClassName="hozo-1"', 'name="Ada Lovelace"'],
+    native: ['<HozoAvatar style={hozoStyles.hozo0} imageStyle={hozoStyles.hozo1}'],
+  },
+  {
+    name: 'a selectable, removable chip',
+    purpose: 'a state class reaches the element that has the state, on both platforms',
+    // `disabled:` is asked of the chip's own control on the Web (#993) and
+    // of the fact the pattern supplies on Native; neither reads a marker.
+    source:
+      '<Chip selected={on} onSelectedChange={setOn} onRemove={drop} removeLabel="Remove tag" className="rounded-full disabled:opacity-50" removeClassName="p-1">Tag</Chip>',
+    web: ['<HozoChip className="hozo-0" removeClassName="hozo-1"', 'removeLabel="Remove tag"'],
+    native: [
+      '<HozoChip hozoStyle={({',
+      '__hozoSlotDisabled && hozoStyles.hozo0_disabled',
+      'removeStyle={hozoStyles.hozo1}',
+    ],
+  },
+  {
+    name: 'a named colour picker',
+    purpose: 'the group name and the swatch classes reach the pattern on both platforms',
+    source:
+      '<ColorPicker value={color} onChange={setColor} accessibilityLabel="Accent" swatchClassName="size-6" />',
+    web: ['<HozoColorPicker swatchClassName="hozo-1" accessibilityLabel={"Accent"}'],
+    native: ['<HozoColorPicker accessibilityLabel={"Accent"} swatchStyle={hozoStyles.hozo1}'],
+  },
+  {
+    name: 'a named command palette',
+    purpose: 'the dialog name, its open state and the item classes reach the pattern',
+    source:
+      '<CommandPalette open={open} onOpenChange={setOpen} commands={commands} accessibilityLabel="Commands" itemClassName="px-2" />',
+    web: ['<HozoCommandPalette itemClassName="hozo-1" accessibilityLabel={"Commands"} open={open}'],
+    native: ['<HozoCommandPalette accessibilityLabel={"Commands"} open={open}', 'itemStyle='],
+  },
+  {
+    name: 'a one-time code field',
+    purpose: 'one named field, drawn as cells, on both platforms',
+    source:
+      '<OtpInput length={6} value={code} onChange={setCode} accessibilityLabel="Code" cellClassName="size-10" />',
+    web: ['<HozoOtpInput cellClassName="hozo-1" accessibilityLabel={"Code"} length={6}'],
+    native: ['<HozoOtpInput accessibilityLabel={"Code"} cellStyle={hozoStyles.hozo1}'],
+  },
+  {
+    name: 'named pagination',
+    purpose: 'a named navigation of pages, its current-page class applied by the pattern',
+    // The current page is a state React Native has no selector for, so the
+    // class is a prop the pattern applies rather than a selector.
+    source:
+      '<Pagination page={page} pageCount={10} onPageChange={setPage} accessibilityLabel="Results pages" currentItemClassName="font-bold" />',
+    web: ['<HozoPagination currentItemClassName="hozo-1" accessibilityLabel={"Results pages"}'],
+    native: [
+      '<HozoPagination accessibilityLabel={"Results pages"} currentItemStyle={hozoStyles.hozo1}',
+    ],
+  },
+  {
+    name: 'a named stepper',
+    purpose: 'a process is named, and the current step class reaches the pattern',
+    source:
+      '<Stepper steps={steps} activeStep={1} accessibilityLabel="Checkout" currentStepClassName="font-bold" />',
+    web: ['<HozoStepper currentStepClassName="hozo-1" accessibilityLabel={"Checkout"}'],
+    native: ['<HozoStepper accessibilityLabel={"Checkout"} currentStepStyle={hozoStyles.hozo1}'],
+  },
+  {
+    name: 'a data table',
+    purpose: 'caption, sections, header cells and data cells keep their table relationships',
+    // The Web has the elements and the browser does the rest. Android has
+    // no table to navigate, so on Native the sections, rows and cells are
+    // runtime components that size columns together and read a data cell
+    // with its column's header -- `head` marks the cell that names it.
+    source:
+      '<Table><TableCaption>Totals</TableCaption>' +
+      '<TableHeader><TableRow><TableHead>Name</TableHead></TableRow></TableHeader>' +
+      '<TableBody><TableRow><TableCell>Ada</TableCell></TableRow></TableBody>' +
+      '<TableFooter><TableRow><TableCell>1</TableCell></TableRow></TableFooter></Table>',
+    web: [
+      '<table><caption>Totals</caption>',
+      '<thead><tr><th scope="col">Name</th></tr></thead>',
+      '<tbody><tr><td>Ada</td></tr></tbody>',
+      '<tfoot>',
+    ],
+    native: [
+      '<HozoTable><HozoTableCaption>Totals</HozoTableCaption>',
+      '<HozoTableSection section="header"><HozoTableRow><HozoTableCell head>Name</HozoTableCell>',
+      '<HozoTableSection section="body"><HozoTableRow><HozoTableCell>Ada</HozoTableCell>',
+      '<HozoTableSection section="footer">',
+    ],
+  },
+  {
+    name: 'an opacity press target',
+    purpose: 'the role, the name and the press survive, with the same activation as Pressable',
+    // The feedback is a tiny runtime component on the Web; the tab stop
+    // and keyboard activation come from the same call Pressable uses.
+    source:
+      '<TouchableOpacity onPress={go} accessibilityRole="button" accessibilityLabel="Go"><Text>Go</Text></TouchableOpacity>',
+    web: ['<HozoTouchableOpacity role="button"', '{...hozoInteractive(go)}'],
+    native: ['<TouchableOpacity role="button" accessibilityLabel={"Go"} onPress={go}>'],
+  },
+  {
+    name: 'a press target without feedback',
+    purpose: 'the role, the name and the press attach to the child, adding no layout box',
+    source:
+      '<TouchableWithoutFeedback onPress={go} accessibilityRole="button" accessibilityLabel="Go"><View><Text>Go</Text></View></TouchableWithoutFeedback>',
+    web: ['<HozoTouchableWithoutFeedback role="button"', '{...hozoInteractive(go)}'],
+    native: ['<TouchableWithoutFeedback role="button" accessibilityLabel={"Go"} onPress={go}>'],
+  },
+  {
+    name: 'a modal and its system dismissal',
+    purpose: 'the visibility and the back/escape dismissal reach the top-layer surface',
+    // No name here, deliberately. React Native's Modal types accept View
+    // props but forward none of them to the host, and the Web runtime
+    // matches it, so an `accessibilityLabel` on a Modal is dropped on
+    // both. A modal that needs a name is a `Dialog`, which has a contract
+    // above that says so.
+    source: '<Modal visible={open} onRequestClose={close}><Text>x</Text></Modal>',
+    web: ['<HozoModal visible={open} onRequestClose={close}>'],
+    native: ['<Modal visible={open} onRequestClose={close}>'],
+  },
+  {
+    name: 'pull to refresh, spelled as React Native spells it',
+    purpose: 'a nested refresh control reaches a scroll container that draws it on both',
+    // The Web lowering used to keep a bare `div` here and hand it the
+    // control as an unknown attribute: a pull did nothing and the
+    // indicator never appeared. The runtime reads the nested element.
+    source:
+      '<ScrollView refreshControl={<RefreshControl refreshing={busy} onRefresh={reload} />}><Text>a</Text></ScrollView>',
+    web: [
+      '<HozoScrollView',
+      'refreshControl={<HozoRefreshControl refreshing={busy} onRefresh={reload}>',
+    ],
+    native: ['refreshControl={<RefreshControl refreshing={busy} onRefresh={reload}>'],
+  },
+  {
+    name: 'an animated view',
+    purpose: 'an Animated.View keeps the role and name a View would have',
+    source: '<Animated.View role="img" accessibilityLabel="Box" />',
+    web: ['<HozoAnimatedView className="hozo-view" role="img" accessibilityLabel={"Box"}>'],
+    native: ['<Animated.View role="img" accessibilityLabel={"Box"}>'],
+  },
 ]
 
 /**
@@ -451,15 +641,39 @@ export const CONTRACT_EXEMPT: Record<string, string> = {}
 export function primitivesUnderContract(): Set<string> {
   const named = new Set<string>()
   for (const testCase of A11Y_CONTEXTUAL_CASES) {
-    for (const match of testCase.source.matchAll(/<([A-Z][A-Za-z]*)/g)) named.add(match[1])
+    for (const name of componentsIn(testCase.source)) named.add(name)
   }
   return named
 }
 
+/**
+ * The primitives a source names, as the enum spells them. `Animated.View`
+ * is one primitive, `AnimatedView`; `Svg.Rect` is a shape of `Svg`.
+ */
+function componentsIn(source: string): Set<string> {
+  const named = new Set<string>()
+  for (const match of source.matchAll(/<([A-Z][A-Za-z]*)(?:\.([A-Z][A-Za-z]*))?/g))
+    named.add(match[1] === 'Animated' ? `Animated${match[2]}` : (match[1] as string))
+  return named
+}
+
+/**
+ * The import a case compiles under: every component it names, from where
+ * an application would take it. Derived, so a new case cannot pass by
+ * leaning on a name some other case happened to import.
+ */
+function importsFor(source: string): string {
+  const core = [...componentsIn(source)]
+    .filter((name) => !name.startsWith('Animated') && name !== 'Svg')
+    .sort()
+  const lines = [`import { ${core.join(', ')} } from '@hozo/core'`]
+  if (/<Animated\./.test(source)) lines.push("import { Animated } from 'react-native'")
+  if (/<Svg\b/.test(source)) lines.push("import { Svg } from '@hozo/svg'")
+  return `${lines.join('\n')}\n`
+}
+
 export function compareA11yContextual(testCase: A11yContextualCase): A11yContextualResult {
-  const source =
-    `import { Address, Article, Aside, Button, Code, Description, Details, Dialog, Emphasis, Fieldset, Figcaption, Figure, Footer, Header, Heading, Image, Legend, Link, List, ListItem, Main, Mark, Nav, NoBreak, Paragraph, Pressable, Progress, Ruby, RubyText, Search, Section, Separator, Small, Strikethrough, Strong, Sub, Summary, Sup, Term, TermList, Time, TextInput, Underline } from '@hozo/core'\n` +
-    `export function C() { return ${testCase.source} }\n`
+  const source = importsFor(testCase.source) + `export function C() { return ${testCase.source} }\n`
   const [web] = compile(source)
   const [native] = compileNative(source)
   if (!web || !native)
