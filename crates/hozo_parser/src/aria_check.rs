@@ -200,6 +200,7 @@ fn walk_inner(
         check_name_allowed(node, spec, diagnostics);
     }
     check_name_forwarded(node, diagnostics);
+    check_pattern_named(node, diagnostics);
     check_hidden_focusable(node, diagnostics);
     check_tab_order(node, diagnostics);
     check_interactive_nesting(node, interactive, diagnostics);
@@ -751,6 +752,37 @@ fn check_name_forwarded(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
     });
 }
 
+/// A pattern that has nothing to announce but the name it was given.
+///
+/// `OtpInput` is one text field and `ColorPicker` one group, and neither
+/// has a default name the way `Pagination`, `Stepper` and
+/// `CommandPalette` fall back to a translated one (#1014). Their types
+/// require `accessibilityLabel`, but Vite and Metro strip types without
+/// checking them, so a build is where the omission has to be said. A
+/// spread may hold the name, so it is not guessed at.
+fn check_pattern_named(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
+    let message = match node.primitive {
+        Primitive::OtpInput => {
+            "OtpInput has no accessible name, so a screen reader announces only a text field \
+             and how many characters it takes. Add `accessibilityLabel`."
+        }
+        Primitive::ColorPicker => {
+            "ColorPicker has no accessible name, so its swatches and channels are announced \
+             as an unnamed group. Add `accessibilityLabel`."
+        }
+        _ => return,
+    };
+    if node.props.has_accessible_name() != Some(false) {
+        return;
+    }
+    diagnostics.push(Diagnostic {
+        code: DiagnosticCode::A11yMissingAccessibleName,
+        severity: Severity::Warning,
+        message: message.to_string(),
+        span: node.span,
+    });
+}
+
 fn list(items: &[&str]) -> String {
     let quoted: Vec<String> = items.iter().map(|item| format!("`{item}`")).collect();
     match quoted.split_last() {
@@ -766,7 +798,7 @@ mod tests {
 
     fn codes(element: &str) -> Vec<DiagnosticCode> {
         let source = format!(
-            "import {{ Button, Link, Image, Heading, List, ListItem, Progress, Meter, Separator, Table, TableRow, TableCell, Pressable, View, Text, Paragraph, Section, Modal, Dialog }} from '@hozo/core'\n\
+            "import {{ Button, Link, Image, Heading, List, ListItem, Progress, Meter, Separator, Table, TableRow, TableCell, Pressable, View, Text, Paragraph, Section, Modal, Dialog, OtpInput, ColorPicker, Pagination }} from '@hozo/core'\n\
              const el = {element}\n"
         );
         crate::parse_tsx(&source)
@@ -908,6 +940,33 @@ mod tests {
         )
         .iter()
         .all(|code| *code != DiagnosticCode::A11yNameNotForwarded));
+    }
+
+    #[test]
+    fn a_pattern_with_nothing_else_to_announce_needs_a_name() {
+        for element in [
+            r#"<OtpInput length={6} value={code} onChange={setCode} />"#,
+            r#"<ColorPicker value={color} onChange={setColor} />"#,
+        ] {
+            assert_eq!(
+                codes(element),
+                vec![DiagnosticCode::A11yMissingAccessibleName],
+                "{element}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_named_pattern_or_one_with_a_default_name_is_not_reported() {
+        for element in [
+            r#"<OtpInput length={6} value={code} onChange={setCode} accessibilityLabel="Code" />"#,
+            r#"<ColorPicker value={color} onChange={setColor} aria-labelledby="accent" />"#,
+            r#"<OtpInput length={6} value={code} onChange={setCode} {...field} />"#,
+            // A translated "Pagination" is the name when none is written.
+            r#"<Pagination page={page} pageCount={10} onPageChange={setPage} />"#,
+        ] {
+            assert!(codes(element).is_empty(), "{element}");
+        }
     }
 
     #[test]

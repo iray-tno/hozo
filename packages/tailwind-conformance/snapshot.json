@@ -69,8 +69,8 @@
     "silent": 0
   },
   "a11yContracts": {
-    "cases": 52,
-    "covered": 52,
+    "cases": 54,
+    "covered": 54,
     "primitives": 74,
     "uncontracted": 0
   },
