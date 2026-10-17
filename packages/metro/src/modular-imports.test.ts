@@ -104,3 +104,39 @@ test('a namespace import is left on the barrel', () => {
   const code = "import * as Hozo from '@hozo/core'\n"
   assert.equal(rewrite(code), code)
 })
+
+// Shaped like `@hozo/engine`: the Native entry re-exports the Web one with
+// `*` and overrides the names whose Web implementation touches the DOM.
+pkg('@hozo/engine', {
+  'index.native.js': [
+    "export { hozoDomStyle } from './dom-style.native.js';",
+    "export * from './index.js';",
+  ].join('\n'),
+  'index.js': [
+    "export { blendColor } from './color-transition.js';",
+    "export { hozoDomStyle } from './dom-style.js';",
+  ].join('\n'),
+  'color-transition.js': 'export function blendColor() {}',
+  'dom-style.js': 'export function hozoDomStyle() {}',
+  'dom-style.native.js': 'export function hozoDomStyle() {}',
+})
+
+test("another Hozo package's import from the engine entry skips the DOM half", () => {
+  const primitive = path.join(root, 'node_modules', '@hozo', 'primitives', 'dist', 'a.native.js')
+  const out = modularizeHozoImports(
+    "import { blendColor, hozoDomStyle } from '@hozo/engine';\nimport { hozoPreflight } from '@hozo/engine/project';\n",
+    primitive,
+  )
+  assert.match(
+    out,
+    /import \{ blendColor \} from "\.\.\/\.\.\/engine\/dist\/color-transition\.js"/,
+    out,
+  )
+  // The Native entry's own export wins over the one `*` would bring in.
+  assert.match(
+    out,
+    /import \{ hozoDomStyle \} from "\.\.\/\.\.\/engine\/dist\/dom-style\.native\.js"/,
+    out,
+  )
+  assert.match(out, /import \{ hozoPreflight \} from '@hozo\/engine\/project'/, out)
+})
