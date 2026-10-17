@@ -2181,7 +2181,7 @@ async function patternInputFixture(component, own, props) {
     mode === 'literal'
       ? JSON.stringify(`${own} ${negative}`)
       : mode === 'opaque'
-        ? `{getClasses('${mode}', ${JSON.stringify(own)})}`
+        ? `{getClasses('${mode}', ${JSON.stringify(`${own} ${negative}`)})}`
         : `{cx('p-2 rounded-none opacity-100 ${negative}',getClasses('${mode}',${JSON.stringify(own.replace('p-2 rounded-none opacity-100 ', ''))}))}`
   const source = `import {View,${component},cx} from '@hozo/core'; const C=()=> <View>
     ${['literal', 'opaque', 'mixed']
@@ -2199,7 +2199,9 @@ async function patternInputFixture(component, own, props) {
   assert.match(source.slice(diagnostic.spanStart, diagnostic.spanEnd), /getClasses\('mixed'/)
   const names = `${own} ${negative}`.split(' ')
   const candidates = openCandidateCache(path.join(directory, `${component}-input.json`))
+  candidates.scanFile('InputFixture.tsx', source, 1)
   const candidateCss = candidates.renderCss(undefined, names)
+  assert.ok(candidateCss.includes('.p-2'), 'the actual candidate stylesheet must be populated')
   const oracleCss = (
     await compile('@theme {--spacing:0.25rem;--radius-lg:0.5rem;} @tailwind utilities;')
   ).build(names)
