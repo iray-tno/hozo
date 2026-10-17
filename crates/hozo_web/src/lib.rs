@@ -3113,6 +3113,31 @@ export function Login() {
     }
 
     #[test]
+    fn scroll_view_with_a_nested_refresh_control_reaches_the_runtime_that_reads_it() {
+        // React Native's spelling: the control as an element in a prop. A
+        // `div` took it as an unknown DOM attribute and drew nothing.
+        let source = r#"
+            import { RefreshControl, ScrollView, Text } from '@hozo/core'
+            const el = <ScrollView
+              refreshControl={<RefreshControl refreshing={busy} onRefresh={reload} />}>
+              <Text>row</Text>
+            </ScrollView>
+        "#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(output.jsx.starts_with("<HozoScrollView "), "{}", output.jsx);
+        assert!(
+            output.jsx.contains(
+                "refreshControl={<HozoRefreshControl refreshing={busy} onRefresh={reload}>"
+            ),
+            "{}",
+            output.jsx
+        );
+        assert!(output.runtime_imports.contains(&"HozoScrollView"));
+        assert!(output.runtime_imports.contains(&"HozoRefreshControl"));
+    }
+
+    #[test]
     fn scroll_view_without_refresh_stays_zero_runtime_and_hides_its_active_indicator() {
         let source = r#"
             import { ScrollView } from '@hozo/core'
