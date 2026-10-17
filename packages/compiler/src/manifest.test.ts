@@ -65,6 +65,49 @@ test('a component exported but not published by the entry is left out', () => {
   assert.deepEqual(manifest.textForwarding, {})
 })
 
+test('const arrow manifests survive re-exports and lower a caller exactly like function manifests', async () => {
+  const { createCompiler } = await import('./index.ts')
+  const { DEFAULT_PRIMITIVE_SOURCES } = await import('./sources.ts')
+  const { textForwardingModule } = await import('./manifest.ts')
+  const imports = `import { Checkbox as Host } from '@hozo/patterns'`
+  const params = `{ tone = 'quiet', children, className, ...rest }`
+  const host = `<Host {...rest} className={tone === 'loud' ? 'font-bold hover:text-red-500 disabled:text-gray-400' : 'text-sm'}>{children}</Host>`
+  const declarations = [
+    `${imports}\nexport function Inner(${params}) { return (${host}) }`,
+    `${imports}\nexport const Inner = (${params}) => { return (${host}) }`,
+    `${imports}\nconst Inner = (${params}) => (${host}); export { Inner }`,
+  ]
+  const manifests = declarations.map((source) =>
+    buildManifest({
+      entry: '/pkg/index.ts',
+      readSource: memory({
+        '/pkg/index.ts': `export { Inner as Check } from './check.tsx'`,
+        '/pkg/check.tsx': source,
+      }),
+    }),
+  )
+  const expected = manifests[0]
+  assert.deepEqual(Object.keys(expected.textForwarding), ['Check'])
+  assert.equal(expected.textForwarding.Check.hostStates, true)
+  assert.equal(expected.textForwarding.Check.disabledProp, 'disabled')
+  for (const manifest of manifests) assert.deepEqual(manifest, expected)
+
+  const compiler = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES])
+  const caller = `import { Text } from '@hozo/core'
+import { Check } from 'example-controls'
+export const Terms = () => <Check tone="loud" disabled={off}><Text>I agree</Text></Check>`
+  const baseline = compiler.compileNative(caller)[0]
+  assert.doesNotMatch(baseline.styles, /fontWeight/)
+  const outputs = manifests.map((manifest) => {
+    compiler.setTextForwarding([textForwardingModule('example-controls', manifest)])
+    return compiler.compileNative(caller)[0]
+  })
+  assert.match(outputs[0].styles, /fontWeight: '700'/)
+  assert.match(outputs[0].jsx, /\(off\) && hozoStyles\.\w+/)
+  assert.match(outputs[0].jsx, /hovered/)
+  for (const output of outputs) assert.deepEqual(output, outputs[0])
+})
+
 test('the package directory form writes the file package.json names, and --check compares it', () => {
   const dir = mkdtempSync(path.join(tmpdir(), 'hozo-manifest-'))
   mkdirSync(path.join(dir, 'src'))
