@@ -4,8 +4,8 @@ import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import {
   AccessibilityInfo,
+  type ColorValue,
   Modal,
-  ScrollView,
   type StyleProp,
   Text,
   TextInput,
@@ -17,6 +17,7 @@ import type { HozoCommand } from './command-palette.tsx'
 import { currentCommand, rankCommands } from './command-rules.ts'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import { PatternScrollContainer } from './scroll-container.native.tsx'
 import type { CommandInputSlotFacts, CommandPaletteSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -65,6 +66,10 @@ export interface HozoCommandPaletteProps {
   hozoActiveItemStyle?: (state: ItemState) => Style
   /** @internal Only the real search field supplies focus and editable-input facts. */
   hozoInputStyle?: (state: InputState) => Style
+  /** @internal Placeholder colour reaches the actual search field. */
+  hozoInputPlaceholderTextColor?: ColorValue
+  /** @internal The list already scrolls by default on Native. */
+  hozoListScrollY?: boolean
   testID?: string
 }
 
@@ -108,6 +113,8 @@ export function HozoCommandPalette({
   hozoItemStyle,
   hozoActiveItemStyle,
   hozoInputStyle,
+  hozoInputPlaceholderTextColor,
+  hozoListScrollY,
   testID,
 }: HozoCommandPaletteProps) {
   const message = useHozoMessage()
@@ -210,6 +217,7 @@ export function HozoCommandPalette({
               setActive(null)
             }}
             placeholder={placeholder}
+            placeholderTextColor={hozoInputPlaceholderTextColor}
             accessibilityLabel={placeholder ?? label}
             autoFocus
             autoCorrect={false}
@@ -223,8 +231,8 @@ export function HozoCommandPalette({
               inputStyle as StyleProp<TextStyle>,
             ]}
           />
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
+          <PatternScrollContainer
+            enabled={hozoListScrollY ?? true}
             style={[hozoClasses(listClassName), listStyle] as StyleProp<ViewStyle>}
           >
             {groups.map((group) => (
@@ -330,7 +338,7 @@ export function HozoCommandPalette({
                 {message('hozo.commandPalette.empty')}
               </Text>
             ) : null}
-          </ScrollView>
+          </PatternScrollContainer>
         </View>
       </View>
     </Modal>

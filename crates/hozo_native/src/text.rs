@@ -516,6 +516,20 @@ pub(super) fn placeholder_props(
 
 /// Pattern input slots use the same property adapter, but the prop travels to
 /// their real field rather than being assigned to the enclosing widget.
+pub(super) fn pattern_placeholder_prop(
+    primitive: Primitive,
+    slot: &str,
+    declarations: &[StyleDeclaration],
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+) -> Option<(&'static str, String)> {
+    // The owner gate must precede placeholder_value: that function can
+    // register a dark hook, which an unrelated slot must not acquire.
+    let prop = crate::pattern::placeholder_color_prop(primitive, slot)?;
+    let value = placeholder_value(declarations, theme, runtime)?;
+    Some((prop, value))
+}
+
 pub(super) fn placeholder_value(
     declarations: &[StyleDeclaration],
     theme: &Theme,

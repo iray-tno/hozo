@@ -26,6 +26,7 @@ const compiler = createCompiler(theme)
 // The colour-scheme hook is a platform fact in this host-render test, not
 // evidence about OS subscription delivery. Both palettes run the real output.
 let nativeDark = false
+let nativeViewport = { width: 400, height: 800 }
 const cache = openCandidateCache()
 const interactionClasses =
   'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus:opacity-75 focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50'
@@ -72,6 +73,7 @@ const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boole
 const NativeView = (props) => React.createElement('NativeView', props, props.children)
 const NativeText = (props) => React.createElement('NativeText', props, props.children)
 const NativeTextInput = (props) => React.createElement('NativeTextInput', props)
+const NativeScrollView = (props) => React.createElement('NativeScrollView', props, props.children)
 const NativeModal = ({ visible, ...props }) =>
   visible ? React.createElement('NativeModal', props, props.children) : null
 const announcements = []
@@ -125,6 +127,9 @@ const probeSources = [
   exportsFrom('HozoRadioGroup', 'packages/ui/src/radio.tsx'),
   exportsFrom('HozoTree as UiTree', 'packages/ui/src/tree.tsx'),
   exportsFrom('HozoCombobox as UiCombobox', 'packages/ui/src/combobox.tsx'),
+  exportsFrom('HozoListbox as UiListbox', 'packages/ui/src/listbox.tsx'),
+  exportsFrom('HozoCommandPalette as UiCommandPalette', 'packages/ui/src/command-palette.tsx'),
+  exportsFrom('HozoDialog as UiDialog', 'packages/ui/src/dialog.tsx'),
   exportsFrom('HozoTabs', 'packages/patterns/src/tabs.native.tsx'),
   exportsFrom(
     'HozoCheckbox as CheckboxPattern, HozoSwitch as SwitchPattern',
@@ -170,14 +175,20 @@ const bundled = await build({
           path: '@hozo/engine/project',
           external: true,
         }))
-        builder.onLoad({ filter: /[/\\]ui[/\\]src[/\\]combobox\.tsx$/ }, ({ path: file }) => ({
-          contents: transformHozoSource(readFileSync(file, 'utf8'), file, root, compiler),
-          loader: 'tsx',
-          resolveDir: path.dirname(file),
-        }))
-        builder.onResolve({ filter: /^@hozo\/core\/generated\/combobox$/ }, () => ({
-          path: filename('packages/patterns/src/combobox.native.tsx'),
-        }))
+        builder.onLoad(
+          { filter: /[/\\]ui[/\\]src[/\\](?:combobox|listbox|dialog|command-palette)\.tsx$/ },
+          ({ path: file }) => ({
+            contents: transformHozoSource(readFileSync(file, 'utf8'), file, root, compiler),
+            loader: 'tsx',
+            resolveDir: path.dirname(file),
+          }),
+        )
+        builder.onResolve(
+          { filter: /^@hozo\/core\/generated\/(?:combobox|listbox|dialog|command-palette)$/ },
+          ({ path: specifier }) => ({
+            path: filename(`packages/patterns/src/${specifier.split('/').at(-1)}.native.tsx`),
+          }),
+        )
         builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
           path: 'public-behaviors',
           namespace: 'public-behaviors',
@@ -244,7 +255,7 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         // claim to exercise OS window focus or accessibility restoration.
         AppState: { addEventListener: () => ({ remove: () => {} }) },
         Platform: { OS: 'ios' },
-        ScrollView: NativeView,
+        ScrollView: NativeScrollView,
         AccessibilityInfo: { announceForAccessibility: (message) => announcements.push(message) },
         Linking: { openURL: (url) => openedURLs.push(url) },
         Animated: nativeAnimated,
@@ -254,7 +265,8 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         Pressable: NativePressable,
         StyleSheet: { flatten: flat, create: (styles) => styles },
       }
-    if (name === '@hozo/core/generated/environment') return { useHozoDark: () => nativeDark }
+    if (name === '@hozo/core/generated/environment')
+      return { useHozoDark: () => nativeDark, useHozoViewport: () => nativeViewport }
     if (name === '@hozo/engine/project') return { hozoClasses }
     return require(name)
   },
@@ -269,7 +281,7 @@ const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
 const { Dialog, Tooltip, HozoSlider } = module.exports
 const { HozoColorPicker, HozoStepper } = module.exports
 const { HozoChip, HozoOtpInput } = module.exports
-const { UiCombobox } = module.exports
+const { UiCombobox, UiListbox, UiCommandPalette, UiDialog } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
@@ -308,7 +320,11 @@ async function checkClassSlots(t, Component, initial, slots, options) {
       for (const node of nodes) {
         assert.ok(node, `${classProp}: missing host`)
         assert.equal(typeof node.type, 'string', `${classProp}: inspect the Native host props`)
-        const style = flat(node.props.style)
+        const style = flat(
+          node.type === 'NativeScrollView' ? node.props.contentContainerStyle : node.props.style,
+        )
+        if (node.type === 'NativeScrollView')
+          assert.equal(flat(node.props.style).paddingTop, undefined)
         assert.equal(style.paddingTop, overridden ? 100 + padding : padding * 4, classProp)
         assert.equal(style.paddingBottom, padding * 4, `${classProp}: unoverridden class survives`)
       }
@@ -518,12 +534,7 @@ test('Native overlay CommandPalette applies every container and label slot, incl
       ['scrimClassName', 'scrimStyle', 3, scrim],
       ['panelClassName', 'panelStyle', 4, panel],
       ['inputClassName', 'inputStyle', 5, (tree) => tree.root.findByType('NativeTextInput')],
-      [
-        'listClassName',
-        'listStyle',
-        6,
-        (tree) => views(tree).find((node) => node.props.keyboardShouldPersistTaps),
-      ],
+      ['listClassName', 'listStyle', 6, (tree) => tree.root.findByType('NativeScrollView')],
       [
         'groupHeadingClassName',
         'groupHeadingStyle',
@@ -1116,6 +1127,127 @@ test('compiled UI Combobox keeps placeholder, validation, input focus and active
     assert.equal(options().length, 0)
     assert.equal(flat(input().props.style).outlineWidth, undefined)
   }
+})
+
+test('compiled UI Listbox bounds the real scroller and puts child layout on its content', async (t) => {
+  const props = {
+    accessibilityLabel: 'Delivery',
+    options: [
+      { value: 'a', label: 'Alpha' },
+      { value: 'b', label: 'Beta' },
+    ],
+    className: 'p-3',
+  }
+  const tree = await mount(t, UiListbox, props)
+  const scroll = () => tree.root.findByType('NativeScrollView')
+  assert.equal(scroll().props.accessibilityRole, 'list')
+  assert.equal(flat(scroll().props.style).maxHeight, 240)
+  assert.equal(flat(scroll().props.style).paddingTop, undefined)
+  assert.equal(flat(scroll().props.style).gap, undefined)
+  assert.equal(flat(scroll().props.contentContainerStyle).paddingTop, 12)
+  assert.equal(flat(scroll().props.contentContainerStyle).paddingRight, 12)
+  assert.equal(flat(scroll().props.contentContainerStyle).gap, 4)
+  assert.equal(scroll().props.horizontal, false)
+  assert.equal(scroll().props.keyboardShouldPersistTaps, 'handled')
+  assert.equal(tree.root.findAllByType('NativePressable').length, 2)
+  const explicit = await mount(t, HozoListbox, {
+    options: props.options,
+    hozoScrollY: true,
+    style: [
+      { maxHeight: 240, padding: 4, gap: 4 },
+      { paddingTop: 19, marginTop: 7, overflow: 'hidden' },
+    ],
+  })
+  const owner = explicit.root.findByType('NativeScrollView')
+  assert.equal(flat(owner.props.style).maxHeight, 240)
+  assert.equal(flat(owner.props.style).marginTop, 7)
+  assert.equal(flat(owner.props.contentContainerStyle).paddingTop, 19)
+  assert.equal(
+    owner.props.scrollEnabled,
+    false,
+    'an explicit overflow override still wins at the owner',
+  )
+})
+
+test('compiled UI Combobox scrolls only the popup list, not the editable field', async (t) => {
+  const tree = await mount(t, UiCombobox, {
+    options: [{ value: 'a', label: 'Alpha' }],
+    accessibilityLabel: 'Language',
+  })
+  assert.equal(tree.root.findAllByType('NativeScrollView').length, 0)
+  await act(() => tree.root.findByType('NativeTextInput').props.onChangeText(''))
+  const list = tree.root.findByType('NativeScrollView')
+  assert.equal(list.props.accessibilityRole, 'list')
+  assert.equal(flat(list.props.style).maxHeight, 240)
+  assert.equal(flat(list.props.contentContainerStyle).gap, 4)
+  assert.equal(
+    tree.root.findByType('NativeTextInput').props.placeholderTextColor,
+    color('hozo-text-subtle'),
+  )
+})
+
+test('compiled UI Dialog separates backdrop, viewport bound and scroll-content padding in both palettes', async (t) => {
+  t.after(() => {
+    nativeDark = false
+    nativeViewport = { width: 400, height: 800 }
+  })
+  for (const dark of [false, true]) {
+    nativeDark = dark
+    nativeViewport = { width: 400, height: 800 }
+    const props = {
+      open: true,
+      onClose: () => {},
+      accessibilityLabel: 'Confirm',
+      testID: 'ui-dialog',
+    }
+    const tree = await mount(t, UiDialog, props)
+    const panel = () => tree.root.findByType('NativeScrollView')
+    assert.equal(flat(panel().props.style).maxHeight, 680)
+    assert.equal(panel().props.testID, 'ui-dialog')
+    assert.equal(panel().props.accessible, false)
+    assert.equal(panel().props.accessibilityViewIsModal, true)
+    assert.equal(flat(panel().props.contentContainerStyle).paddingTop, 24)
+    const frame = tree.root
+      .findAllByType('NativeView')
+      .find((node) => flat(node.props.style).flex === 1)
+    assert.ok(frame)
+    assert.equal(flat(frame.props.style).justifyContent, 'center')
+    assert.match(flat(frame.props.style).backgroundColor, /^rgba\(/)
+    assert.notEqual(
+      flat(frame.props.style).backgroundColor,
+      flat(panel().props.style).backgroundColor,
+    )
+    nativeViewport = { width: 800, height: 400 }
+    await act(() => tree.update(React.createElement(UiDialog, props)))
+    assert.equal(flat(panel().props.style).maxHeight, 340, 'rotation recomputes the bound')
+  }
+})
+
+test('compiled UI CommandPalette uses its Modal viewport and real search/list owners', async (t) => {
+  nativeViewport = { width: 400, height: 800 }
+  t.after(() => {
+    nativeViewport = { width: 400, height: 800 }
+  })
+  const props = {
+    open: true,
+    accessibilityLabel: 'Commands',
+    commands: [{ id: 'open', label: 'Open', onSelect: () => {} }],
+  }
+  const tree = await mount(t, UiCommandPalette, props)
+  const frame = () =>
+    tree.root
+      .findAllByType('NativeView')
+      .find((node) => flat(node.props.style).position === 'absolute')
+  assert.ok(frame())
+  assert.equal(flat(frame().props.style).paddingTop, 96)
+  const input = tree.root.findByType('NativeTextInput')
+  assert.equal(input.props.placeholderTextColor, color('hozo-text-subtle'))
+  const list = tree.root.findByType('NativeScrollView')
+  assert.equal(flat(list.props.style).maxHeight, 320)
+  assert.equal(flat(list.props.contentContainerStyle).paddingTop, 8)
+  nativeViewport = { width: 400, height: 1000 }
+  await act(() => tree.update(React.createElement(UiCommandPalette, props)))
+  assert.equal(flat(frame().props.style).paddingTop, 120)
 })
 
 test('Native Tree interaction does not expand branches or select leaves', async (t) => {

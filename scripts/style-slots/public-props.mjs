@@ -33,10 +33,12 @@ export function publicPropsProbe(catalog = components) {
   )
   const placeholderProps = Object.entries(catalog).flatMap(([name, slots]) =>
     slots
-      .filter((slot) => slot.placeholderColorProp)
+      .flatMap((slot) =>
+        [slot.placeholderColorProp, slot.scrollYProp, slot.backdropStyleProp].filter(Boolean),
+      )
       .map(
-        (slot) =>
-          `export const ${name}_${slot.placeholderColorProp}: true = null as unknown as (${quote(slot.placeholderColorProp)} extends keyof PropsOf<typeof N.${name}> ? true : ${quote(`${name}.${slot.placeholderColorProp} missing placeholder prop`)})`,
+        (prop) =>
+          `export const ${name}_${prop}: true = null as unknown as (${quote(prop)} extends keyof PropsOf<typeof N.${name}> ? true : ${quote(`${name}.${prop} missing layout/property declaration`)})`,
       ),
   )
   return `import type { JSXElementConstructor } from 'react'

@@ -11,6 +11,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import { PatternScrollContainer } from './scroll-container.native.tsx'
 
 // TalkBack acceptance sweeps on the reference emulator failed through 175ms
 // after Android's window-focus signal and succeeded from 200ms. This is an
@@ -67,6 +68,10 @@ export interface DialogProps {
    */
   restoreFocusTo?: RefObject<ComponentRef<typeof View> | null> | null
   style?: unknown
+  /** @internal The panel is a real bounded vertical scroll container. */
+  hozoScrollY?: boolean
+  /** @internal Dialog's backdrop is a sibling of its content, never the panel's colour. */
+  hozoBackdropStyle?: StyleProp<ViewStyle>
   /**
    * Dropped until a device said so.
    *
@@ -88,6 +93,8 @@ export function Dialog({
   restoreFocusTo,
   className,
   style,
+  hozoScrollY,
+  hozoBackdropStyle,
   testID,
   children,
 }: DialogProps) {
@@ -156,22 +163,35 @@ export function Dialog({
     }
   }, [restoreFocusTo])
 
+  const panel = (
+    <PatternScrollContainer
+      enabled={hozoScrollY}
+      style={[hozoClasses(className), style] as StyleProp<ViewStyle>}
+      // A dialog is a container, not one combined accessibility element.
+      // On iOS an accessible parent hides its descendant controls from AX.
+      // Keep modal isolation without swallowing confirm/cancel buttons.
+      accessible={false}
+      accessibilityViewIsModal
+      accessibilityRole="none"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      testID={testID}
+    >
+      {children}
+    </PatternScrollContainer>
+  )
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <View
-        style={[hozoClasses(className), style] as StyleProp<ViewStyle>}
-        // A dialog is a container, not one combined accessibility element.
-        // On iOS an accessible parent hides its descendant controls from AX.
-        // Keep modal isolation without swallowing confirm/cancel buttons.
-        accessible={false}
-        accessibilityViewIsModal
-        accessibilityRole="none"
-        accessibilityLabel={accessibilityLabel}
-        accessibilityHint={accessibilityHint}
-        testID={testID}
-      >
-        {children}
-      </View>
+      {hozoScrollY || hozoBackdropStyle ? (
+        <View
+          accessible={false}
+          style={[{ flex: 1, justifyContent: 'center', alignItems: 'center' }, hozoBackdropStyle]}
+        >
+          {panel}
+        </View>
+      ) : (
+        panel
+      )}
     </Modal>
   )
 }

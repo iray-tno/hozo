@@ -30,6 +30,7 @@
  * without one.
  */
 
+import { cx } from '@hozo/core'
 import { Dialog as DialogPattern, type DialogProps } from '@hozo/patterns'
 
 export type HozoDialogProps = DialogProps
@@ -59,7 +60,7 @@ const panel =
  * because an export alias is not a binding.
  */
 function StyledDialog({ className, ...rest }: HozoDialogProps) {
-  return <DialogPattern {...rest} className={className ? `${panel} ${className}` : panel} />
+  return <DialogPattern {...rest} className={cx(panel, className)} />
 }
 
 export { type HozoDialogProps as DialogProps, StyledDialog as Dialog, StyledDialog as HozoDialog }
