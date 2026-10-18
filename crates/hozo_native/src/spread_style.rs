@@ -29,9 +29,11 @@ use hozo_ir::PassthroughProp;
 /// Whether an attribute the renderer emits carries a style. `style`, and
 /// the slot and pattern props named after it (`optionStyle`,
 /// `contentContainerStyle`). A class prop handed on for the owner to
-/// resolve is not one: it is not a style to compose.
+/// resolve is not one: it is not a style to compose. Nor is a pattern's
+/// private `hozo…Style` callback: it is generated-code ABI that no caller
+/// writes, so no spread carries it, and it stays a plain attribute.
 fn is_style_attribute(name: &str) -> bool {
-    name == "style" || name.ends_with("Style")
+    !name.starts_with("hozo") && (name == "style" || name.ends_with("Style"))
 }
 
 /// Style attributes held back because a spread might carry them.
@@ -157,6 +159,7 @@ mod tests {
         );
         assert_eq!(split_attribute(" style=\"x\""), None);
         assert!(!is_style_attribute("className"));
+        assert!(!is_style_attribute("hozoOptionStyle"));
     }
 
     #[test]

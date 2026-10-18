@@ -4465,15 +4465,18 @@ test("a UI wrapper keeps its compiled look when a caller's Native style comes th
   assert.ok(native.jsx.includes('{...hozoSpreadStyles('), native.jsx)
   const { HozoListbox } = load('listbox.native.tsx')
   const render = (rest) => {
-    const element = evaluate(`const hozoStyles = ${native.styles};module.exports = (${native.jsx})`, {
-      rest,
-      className: undefined,
-      // The module constant the compiled class residual still names.
-      box: /const box =\s*'([^']+)'/.exec(source)[1],
-      hozoClasses: () => undefined,
-      hozoSpreadStyles,
-      HozoListbox,
-    })
+    const element = evaluate(
+      `const hozoStyles = ${native.styles};module.exports = (${native.jsx})`,
+      {
+        rest,
+        className: undefined,
+        // The module constant the compiled class residual still names.
+        box: /const box =\s*'([^']+)'/.exec(source)[1],
+        hozoClasses: () => undefined,
+        hozoSpreadStyles,
+        HozoListbox,
+      },
+    )
     return element.type(element.props)
   }
   const options = [{ value: 'a', label: 'A' }]
