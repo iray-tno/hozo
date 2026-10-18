@@ -288,6 +288,10 @@ do not smuggle a second reactive engine into this RFC's first implementation.
 
 ## 7. Implementation slices and stop conditions
 
+Slice 1's reproducible code/props/counting harness and its evidence limits
+are described in [the baseline guide](../native-text-inheritance-baseline.md).
+It does not implement the runtime protocol or accept this RFC.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.
