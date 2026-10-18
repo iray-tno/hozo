@@ -1,0 +1,5 @@
+heading, Switch, level 2
+switch, Enabled off switch, not checked
+switch, Enabled on switch, checked
+switch, Disabled off switch, not checked, disabled
+switch, Disabled on switch, checked, disabled

@@ -1,0 +1,15 @@
+heading, Accordion, level 2
+group
+heading, Shipping, level 3
+button, Shipping, 1 control, expanded
+end of heading, Shipping, level 3
+region, Shipping
+Dispatches in two days.
+end of region, Shipping
+heading, Returns, level 3
+button, Returns, 1 control, not expanded
+end of heading, Returns, level 3
+heading, Gift wrapping unavailable, level 3
+button, Gift wrapping unavailable, 1 control, disabled, not expanded
+end of heading, Gift wrapping unavailable, level 3
+end of group

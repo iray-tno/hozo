@@ -40,6 +40,23 @@ These are not screenshots, accessibility-device results or proof of Web/Native
 visual parity. Capture each story on Android and iOS, record initial/changed
 states and platform details, and keep failures; #898 tracks that evidence.
 
+For each platform, keep an initial capture per story and the changed states
+below. Record the source commit, OS/device, viewport, colour scheme and font
+scale. These are present-version captures, not historical before/after #886.
+
+| Story | Initial state to inspect | Follow-up capture |
+| --- | --- | --- |
+| Tabs | Overview selected; Unavailable disabled | Select Activity |
+| Accordion | Shipping open; Returns closed; Gift wrapping disabled | Open Returns |
+| Radio | Express selected; Unavailable disabled | Select Standard |
+| Listbox | Standard selected; Unavailable disabled | Add Express to the selection |
+| Menu | Closed trigger | Open once; capture disabled Delete, then choose Archive |
+| Chip | Remote selected; Full time unselected; two disabled references | Toggle Remote off |
+| Pagination | Page 2 of 5 | Use each boundary button; capture disabled previous/next |
+| Tree | Documentation expanded; Introduction selected; Assets closed; Locked file disabled | Select Guide; expand Assets |
+| Checkbox | Six labelled indicator references | Toggle an enabled row; disabled references stay unchanged |
+| Switch | Four labelled track/knob references | Toggle an enabled row; disabled references stay unchanged |
+
 ## SVG filters
 
 `SvgFiltersDemo` is shared by Web's **Showcase / Shared Web and Native / Svg Filters**

@@ -1,0 +1,11 @@
+heading, Tabs, level 2
+tablist, UI workspace tabs, orientated horizontally
+tab, Overview, selected, 1 control, position 1, set size 3
+tab, Activity, not selected, 1 control, position 2, set size 3
+tab, Unavailable, not selected, 1 control, disabled, position 3, set size 3
+end of tablist, UI workspace tabs, orientated horizontally
+tabpanel, Overview
+Workspace overview
+end of tabpanel, Overview
+Selected tab:
+Overview
