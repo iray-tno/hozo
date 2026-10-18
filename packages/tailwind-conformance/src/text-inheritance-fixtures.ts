@@ -170,3 +170,23 @@ export const WORKLOAD_SOURCE = `import { Button, Text } from '@hozo/core'
 export function Cell({index}) {
   return <Button testID={'button-'+index} onPress={()=>{}} className="text-red-500 active:text-blue-500 text-[20px]"><Text testID={'label-'+index}>Label</Text></Button>
 }`
+
+export const WORKLOAD_EXPECTED = {
+  restingColor: '#fb2c36',
+  fontSize: 20,
+  pressedColor: '#2b7fff',
+  restoredColor: '#fb2c36',
+} as const
+
+// The open workload is intentionally separate: the baseline drops inherited
+// styles here, so zero Text updates must not be sold as superior performance.
+export const OPEN_WORKLOAD_MODULES = {
+  scene: `import { Button } from '@hozo/core'
+import { Label } from 'fixture:label'
+export function Cell({index}) {
+  return <Button testID={'button-'+index} onPress={()=>{}} className="text-red-500 active:text-blue-500 text-[20px]"><Label index={index} /></Button>
+}`,
+  label: `import { Text } from '@hozo/core'
+import { memo } from 'react'
+export const Label = memo(function Label({index}) { return <Text testID={'label-'+index}>Label</Text> })`,
+}

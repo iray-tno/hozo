@@ -11,7 +11,13 @@ import { createCompiler, summarizeTextForwarding } from '@hozo/compiler'
 import { transformHozoSource } from '@hozo/metro'
 import { transformSync } from 'esbuild'
 import './native-render.ts'
-import { TEXT_FIXTURES, TEXT_PROPERTIES, WORKLOAD_SOURCE } from './text-inheritance-fixtures.ts'
+import {
+  OPEN_WORKLOAD_MODULES,
+  TEXT_FIXTURES,
+  TEXT_PROPERTIES,
+  WORKLOAD_EXPECTED,
+  WORKLOAD_SOURCE,
+} from './text-inheritance-fixtures.ts'
 import { resetTextCounts, textCounts } from './text-inheritance-host.ts'
 
 // Only this test/standalone process gets the counting host; the shared stub
@@ -31,6 +37,15 @@ const renderer = require('react-test-renderer')
 const stub = require('./react-native-stub.js')
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const hash = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
+export type TextInheritanceMode = 'baseline' | 'reference'
+const reference = () =>
+  require('./text-inheritance-reference.ts') as typeof import('./text-inheritance-reference.ts')
+const referenceCounts = (mode: TextInheritanceMode) =>
+  mode === 'reference' ? reference().referenceExecutions() : {}
+const executionDelta = (before: Record<string, number>, after: Record<string, number>) =>
+  Object.fromEntries(
+    Object.entries(after).map(([name, value]) => [name, value - (before[name] ?? 0)]),
+  )
 
 export function classifyObservation(
   expected: Record<string, unknown>,
@@ -42,7 +57,11 @@ export function classifyObservation(
   return { status: missing.length === 0 ? 'supported' : 'gap', mismatches: missing }
 }
 
-function compileGraph(modules: Record<string, string>, summaries: readonly string[] = []) {
+function compileGraph(
+  modules: Record<string, string>,
+  summaries: readonly string[] = [],
+  mode: TextInheritanceMode = 'baseline',
+) {
   const compiler = createCompiler()
   compiler.setTextForwarding(
     summaries.map((name) => ({
@@ -87,10 +106,19 @@ function compileGraph(modules: Record<string, string>, summaries: readonly strin
     }
     const module = { exports: {} }
     new Function('require', 'module', 'exports', js)(
-      (specifier: string) =>
-        specifier.startsWith('fixture:')
-          ? load(specifier.slice('fixture:'.length))
-          : require(specifier),
+      (specifier: string) => {
+        if (specifier.startsWith('fixture:')) return load(specifier.slice('fixture:'.length))
+        const imported = require(specifier)
+        if (mode === 'reference' && specifier === 'react-native')
+          return reference().referenceNativeImports(imported)
+        if (
+          mode === 'reference' &&
+          /^@hozo\/(core|primitives)\/generated\/pressable$/.test(specifier)
+        ) {
+          return { ...imported, HozoPressable: reference().ReferencePressable }
+        }
+        return imported
+      },
       module,
       module.exports,
     )
@@ -124,10 +152,15 @@ function observedLabel(tree: ReturnType<typeof renderer.create>) {
   )
 }
 
-export function measureTextFixtures() {
+export function measureTextFixtures(mode: TextInheritanceMode = 'baseline') {
   return TEXT_FIXTURES.map((fixture) => {
-    const compiled = compileGraph(fixture.modules, 'summarize' in fixture ? fixture.summarize : [])
+    const compiled = compileGraph(
+      fixture.modules,
+      'summarize' in fixture ? fixture.summarize : [],
+      mode,
+    )
     resetTextCounts()
+    if (mode === 'reference') reference().resetReferenceExecutions()
     let tree: ReturnType<typeof renderer.create>
     let commits = 0
     const scene = (props: object) =>
@@ -144,6 +177,7 @@ export function measureTextFixtures() {
     try {
       const stages = fixture.stages.map((stage, index) => {
         const before = textCounts()
+        const previousReference = referenceCounts(mode)
         commits = 0
         renderer.act(() => {
           if (index === 0) tree = renderer.create(scene(stage.props))
@@ -156,6 +190,7 @@ export function measureTextFixtures() {
           actual,
           ...classifyObservation(stage.expected, actual),
           textExecutions: delta(before, textCounts()),
+          referenceExecutions: executionDelta(previousReference, referenceCounts(mode)),
           sceneCommits: commits,
         }
       })
@@ -175,10 +210,19 @@ export function measureTextFixtures() {
   })
 }
 
-export function measureTextWorkload(rows: number) {
+export function measureTextWorkload(
+  rows: number,
+  mode: TextInheritanceMode = 'baseline',
+  shape: 'closed' | 'opaque' = 'closed',
+) {
   assert.ok(Number.isInteger(rows) && rows > 0 && rows <= 1000, 'rows must be 1..1000')
-  const compiled = compileGraph({ scene: WORKLOAD_SOURCE })
+  const compiled = compileGraph(
+    shape === 'closed' ? { scene: WORKLOAD_SOURCE } : OPEN_WORKLOAD_MODULES,
+    [],
+    mode,
+  )
   resetTextCounts()
+  if (mode === 'reference') reference().resetReferenceExecutions()
   const commits: Record<string, number> = {}
   const cells = () =>
     Array.from({ length: rows }, (_, index) =>
@@ -203,11 +247,13 @@ export function measureTextWorkload(rows: number) {
   const operations = []
   function operation(name: string, work: () => void) {
     const before = textCounts()
+    const previousReference = referenceCounts(mode)
     for (const id of Object.keys(commits)) delete commits[id]
     renderer.act(work)
     operations.push({
       name,
       textExecutions: delta(before, textCounts()),
+      referenceExecutions: executionDelta(previousReference, referenceCounts(mode)),
       cellCommits: { ...commits },
     })
   }
@@ -219,6 +265,7 @@ export function measureTextWorkload(rows: number) {
       (node: { type: string; props: { testID?: string } }) =>
         node.type === 'Text' && node.props.testID === 'label-0',
     )[0]
+    const resting = stub.StyleSheet.flatten(first.props.style)
     operation('stable-children-parent-update', () => tree.update(scene(stableChildren, 1)))
     operation('reconstructed-children-parent-update', () => tree.update(scene(cells(), 2)))
     const host = () =>
@@ -227,9 +274,16 @@ export function measureTextWorkload(rows: number) {
           node.type === 'Pressable' && node.props.testID === 'button-0',
       )[0]
     operation('one-button-press', () => host().props.onPressIn({ nativeEvent: {} }))
-    const pressedColor = stub.StyleSheet.flatten(first.props.style).color
+    const pressedColor = stub.StyleSheet.flatten(first.props.style).color ?? null
     operation('one-button-release', () => host().props.onPressOut({ nativeEvent: {} }))
-    const restoredColor = stub.StyleSheet.flatten(first.props.style).color
+    const restoredColor = stub.StyleSheet.flatten(first.props.style).color ?? null
+    const expected = WORKLOAD_EXPECTED
+    const actual = {
+      restingColor: resting.color ?? null,
+      fontSize: resting.fontSize ?? null,
+      pressedColor,
+      restoredColor,
+    }
     const retainedHost =
       first ===
       tree.root.findAll(
@@ -242,6 +296,8 @@ export function measureTextWorkload(rows: number) {
     })
     return {
       rows,
+      shape,
+      semantics: { expected, actual, ...classifyObservation(expected, actual) },
       operations,
       retainedHost,
       pressedColor,
@@ -253,7 +309,8 @@ export function measureTextWorkload(rows: number) {
   }
 }
 
-export function captureTextBaseline(rows = 8) {
+export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'baseline') {
+  assert.ok(mode === 'baseline' || mode === 'reference', 'unknown text inheritance mode')
   const warnings: string[] = []
   const previousWarn = console.warn
   const previousError = console.error
@@ -264,8 +321,8 @@ export function captureTextBaseline(rows = 8) {
     warnings.push(message)
   }
   try {
-    const cases = measureTextFixtures()
-    const workloads = [measureTextWorkload(rows)]
+    const cases = measureTextFixtures(mode)
+    const workloads = [measureTextWorkload(rows, mode), measureTextWorkload(rows, mode, 'opaque')]
     const supported = cases.filter((entry) =>
       entry.stages.every((stage) => stage.status === 'supported'),
     ).length
@@ -274,9 +331,32 @@ export function captureTextBaseline(rows = 8) {
       .map((entry) => entry.id)
     const binary = path.join(root, 'packages/compiler/hozo_napi.node')
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
+      experiment: {
+        mode,
+        wiring: 'test-only import substitution; generated compiler output is unchanged',
+        referenceModule:
+          mode === 'reference'
+            ? (() => {
+                const source = readFileSync(
+                  new URL('./text-inheritance-reference.ts', import.meta.url),
+                  'utf8',
+                )
+                return {
+                  source,
+                  sha256: hash(source),
+                  sourceBytes: Buffer.byteLength(source),
+                  minifiedModuleBytes: Buffer.byteLength(
+                    transformSync(source, { loader: 'ts', format: 'esm', minify: true }).code,
+                  ),
+                }
+              })()
+            : null,
+      },
       measurementValid: regressions.length === 0,
-      compatibilityComplete: supported === cases.length,
+      compatibilityComplete:
+        supported === cases.length &&
+        workloads.every((entry) => entry.semantics.status === 'supported'),
       summary: { cases: cases.length, supported, gaps: cases.length - supported, regressions },
       provenance: {
         sourceCommit: execFileSync('git', ['rev-parse', 'HEAD'], {
@@ -292,12 +372,15 @@ export function captureTextBaseline(rows = 8) {
             properties: TEXT_PROPERTIES,
             fixtures: TEXT_FIXTURES,
             workload: WORKLOAD_SOURCE,
+            workloadExpected: WORKLOAD_EXPECTED,
+            openWorkload: OPEN_WORKLOAD_MODULES,
           }),
         ),
         driverHash: hash(
           [
             'text-inheritance-baseline.ts',
             'text-inheritance-host.ts',
+            'text-inheritance-reference.ts',
             'native-render.ts',
             'react-native-stub.js',
           ]

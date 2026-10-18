@@ -292,6 +292,11 @@ Slice 1's reproducible code/props/counting harness and its evidence limits
 are described in [the baseline guide](../native-text-inheritance-baseline.md).
 It does not implement the runtime protocol or accept this RFC.
 
+The same guide now also records a **test-only** partial Context reference.
+It exercises two channels and the legacy-size bridge without enabling a
+production path. Its remaining lowering gaps and generic-Text
+over-subscription are evidence for the next slice, not an accepted trade-off.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

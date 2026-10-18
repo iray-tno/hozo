@@ -9,17 +9,19 @@ import { compareTextBaselines } from '../packages/tailwind-conformance/src/text-
 let rows = 8
 let output
 let baseline
+let mode = 'baseline'
 for (let index = 2; index < process.argv.length; index += 2) {
   const [key, value] = [process.argv[index], process.argv[index + 1]]
   assert.ok(value, `missing value for ${key}`)
   if (key === '--rows') rows = Number(value)
   else if (key === '--output') output = path.resolve(value)
   else if (key === '--baseline') baseline = path.resolve(value)
+  else if (key === '--mode') mode = value
   else throw new Error(`unknown option ${key}`)
 }
 assert.ok(Number.isInteger(rows) && rows > 0 && rows <= 1000, 'rows must be 1..1000')
 assert.ok(!output || output !== baseline, 'the output must not overwrite the baseline')
-const report = captureTextBaseline(rows)
+const report = captureTextBaseline(rows, mode)
 if (baseline)
   report.comparison = compareTextBaselines(JSON.parse(readFileSync(baseline, 'utf8')), report)
 const json = `${JSON.stringify(report, null, 2)}\n`
