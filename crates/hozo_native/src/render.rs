@@ -1950,13 +1950,18 @@ pub(super) fn render_node(
             // Only a catalogued real input can consume placeholder colour.
             // All other pseudo-element declarations still reach diagnostics;
             // this is a prop adaptation, not a general pseudo-style escape.
-            let placeholder =
-                crate::pattern::placeholder_color_prop(node.primitive, slot.class_prop).and_then(
-                    |prop| {
-                        crate::text::placeholder_value(&written.style, cx.theme, cx.runtime)
-                            .map(|value| (prop, value))
-                    },
-                );
+            // Not `Option::zip`, which clippy suggests: zip evaluates both
+            // sides, and `placeholder_value` registers runtime needs (the
+            // dark-scheme hook), which a slot with no placeholder prop must
+            // not import.
+            let placeholder = if let Some(prop) =
+                crate::pattern::placeholder_color_prop(node.primitive, slot.class_prop)
+            {
+                crate::text::placeholder_value(&written.style, cx.theme, cx.runtime)
+                    .map(|value| (prop, value))
+            } else {
+                None
+            };
             let field_style: Option<Vec<_>> = placeholder.as_ref().map(|_| {
                 written
                     .style
