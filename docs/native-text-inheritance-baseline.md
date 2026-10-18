@@ -117,7 +117,7 @@ cover transformed source and esbuild-minified JS, not an application bundle.
 Development Text instrumentation adds work and is unsuitable for timing claims.
 
 The original capture is baseline **A** only. The subsequent experimental B
-below is still not a complete reference implementation; optimized C and a
+below is still not a complete reference implementation; a full optimized C and a
 browser-computed-style oracle do not exist yet. There is no evidence
 justifying default rollout. RFC 006's correctness, timing and physical-device
 acceptance requirements remain unchanged.
@@ -206,3 +206,70 @@ There is no selector store, monkey patch of RN, production provider insertion
 or per-frame Context traffic. Next work is proof-based retention/elimination
 of reads/publications plus the missing compiler intent, with paired timing
 and physical-device evidence still required before adoption.
+
+## Paint-read elimination experiment (partial C)
+
+Tracking: [#1078](https://github.com/iray-tno/hozo/issues/1078).
+This remains private test wiring, not an author API or an enabled compiler
+path. `text-inheritance-static-proof.ts` inspects the actual post-Metro JSX
+AST using the existing Babel dependency; it is a bounded proof experiment,
+not another production lowering pipeline. It selects a fixed `PaintMaskedText`
+helper only for an unconditional inline literal color, with no prop/style
+spread, computed key, getter, duplicate field or unresolved class. Arrays,
+registered styles and dynamic/absent colors conservatively keep reference B.
+It neither evaluates an expression to guess its value nor registers wrapper
+components. Authored expressions are still evaluated once.
+
+There is a second proof obligation: **component identity**. Two conditional
+Text sites can occupy one React position. Changing only one site's helper
+type would remount its stateful children when the branch changes. This first
+experiment therefore accepts only an unconditional Text root in an inline
+canonical `React.memo` render function. Other roots/render helpers retain B;
+using memo is **not required for correct inheritance** and is not a proposed
+Hozo authoring restriction. A live branch-change/state test guards the
+fallback. Wider elimination needs an equally strong identity proof, not a
+longer list of component names. No hook is selected from a current style value.
+
+The selected helper omits only its Paint read. It still reads Metrics,
+publishes the resolved local paint to opaque descendants, and bridges the
+same numeric size to the legacy size context. An explicit color or font size
+does not prove that the other metric fields or descendant providers are
+unnecessary. No provider or metric read is eliminated in this slice.
+
+```sh
+node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-static-proof.test.ts
+node scripts/text-inheritance-static-proof.mjs --rows 32 --output artifacts/text-inheritance/static-proof.json
+```
+
+The separate B/C artifact (its own schema 1) records the control, optimized
+ten-case corpus and both original button workloads, plus a masked-color
+workload with separately compiled memoized labels and opaque descendants.
+Each attempted Text proof retains its source span, subject, disposition and
+reason. Modules retain both the original Metro lowering and the experimental
+executed source, with byte counts. Proof/driver hashes and Babel version
+supplement the control's provenance. CI uploads it beside the schema-2 A/B
+records; these formats are not interchangeable.
+
+At 32 rows, a color-only ancestor update changes masked host-Text-wrapper
+executions from 32 to 0. The opaque descendant host wrappers execute 0 in
+both versions, and all seven applied properties remain equal to independent
+expectations. Metrics changes still update both levels, and every measured
+lifetime mounts/unmounts once. The original corpus remains 8 supported / 2
+gaps: the static View information loss and folded relative intent are not
+fixed by this proof. Closed compiler output and real button-owner event
+behavior remain unchanged.
+
+**Zero host-wrapper executions is not zero React work.** In this workload
+React can attempt an opaque descendant reference function, then bail out
+before executing its host wrapper. At 32 rows, the color-only update still
+attempts 32 descendant reference functions in C, versus 64 reference Text
+functions across both levels in B. The artifact retains these counts and
+render-time Context-read hook invocation counts; neither counts live
+subscriptions, native work or time. Mounting removes 32 Paint read calls but
+keeps the same Metrics read count. This is deterministic work reduction, not
+a measured speedup or a production bundle-size improvement.
+
+StrictMode, dynamic override removal and single-evaluation checks run in
+tests. Abandoned/concurrent renders, animation, portal ownership, actual
+browser/native rendering, production timing and a default rollout remain
+open. This partial C does not establish RFC 006 acceptance or an ADR.

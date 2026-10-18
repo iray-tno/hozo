@@ -296,6 +296,9 @@ The same guide now also records a **test-only** partial Context reference.
 It exercises two channels and the legacy-size bridge without enabling a
 production path. Its remaining lowering gaps and generic-Text
 over-subscription are evidence for the next slice, not an accepted trade-off.
+The guide also records a private partial-C paint-read elimination experiment:
+literal masking plus stable component-identity proof, with rejected proofs
+retaining B. It is not production compiler integration or default rollout.
 
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as

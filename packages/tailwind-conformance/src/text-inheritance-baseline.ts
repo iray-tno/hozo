@@ -38,6 +38,7 @@ const stub = require('./react-native-stub.js')
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const hash = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
 export type TextInheritanceMode = 'baseline' | 'reference'
+type Experiment = (code: string) => { code: string; decisions: unknown[] }
 const reference = () =>
   require('./text-inheritance-reference.ts') as typeof import('./text-inheritance-reference.ts')
 const referenceCounts = (mode: TextInheritanceMode) =>
@@ -57,10 +58,11 @@ export function classifyObservation(
   return { status: missing.length === 0 ? 'supported' : 'gap', mismatches: missing }
 }
 
-function compileGraph(
+export function compileTextGraph(
   modules: Record<string, string>,
   summaries: readonly string[] = [],
   mode: TextInheritanceMode = 'baseline',
+  experiment?: Experiment,
 ) {
   const compiler = createCompiler()
   compiler.setTextForwarding(
@@ -92,7 +94,9 @@ function compileGraph(
         return result
       },
     })
-    const code = transformed ?? modules[name]
+    const lowered = transformed ?? modules[name]
+    const experimental = experiment?.(lowered)
+    const code = experimental?.code ?? lowered
     const js = transformSync(code, { loader: 'tsx', jsx: 'automatic', format: 'cjs' }).code
     const minified = transformSync(js, { loader: 'js', minify: true, format: 'cjs' }).code
     records[name] = {
@@ -103,10 +107,13 @@ function compileGraph(
       minifiedModuleBytes: Buffer.byteLength(minified),
       runtimeImports: [...imports].sort(),
       diagnostics,
+      ...(experimental ? { experiment: { lowered, decisions: experimental.decisions } } : {}),
     }
     const module = { exports: {} }
     new Function('require', 'module', 'exports', js)(
       (specifier: string) => {
+        if (experiment && specifier === 'fixture:paint-masked-text')
+          return { PaintMaskedText: reference().PaintMaskedText }
         if (specifier.startsWith('fixture:')) return load(specifier.slice('fixture:'.length))
         const imported = require(specifier)
         if (mode === 'reference' && specifier === 'react-native')
@@ -152,12 +159,16 @@ function observedLabel(tree: ReturnType<typeof renderer.create>) {
   )
 }
 
-export function measureTextFixtures(mode: TextInheritanceMode = 'baseline') {
+export function measureTextFixtures(
+  mode: TextInheritanceMode = 'baseline',
+  experiment?: Experiment,
+) {
   return TEXT_FIXTURES.map((fixture) => {
-    const compiled = compileGraph(
+    const compiled = compileTextGraph(
       fixture.modules,
       'summarize' in fixture ? fixture.summarize : [],
       mode,
+      experiment,
     )
     resetTextCounts()
     if (mode === 'reference') reference().resetReferenceExecutions()
@@ -214,12 +225,14 @@ export function measureTextWorkload(
   rows: number,
   mode: TextInheritanceMode = 'baseline',
   shape: 'closed' | 'opaque' = 'closed',
+  experiment?: Experiment,
 ) {
   assert.ok(Number.isInteger(rows) && rows > 0 && rows <= 1000, 'rows must be 1..1000')
-  const compiled = compileGraph(
+  const compiled = compileTextGraph(
     shape === 'closed' ? { scene: WORKLOAD_SOURCE } : OPEN_WORKLOAD_MODULES,
     [],
     mode,
+    experiment,
   )
   resetTextCounts()
   if (mode === 'reference') reference().resetReferenceExecutions()
