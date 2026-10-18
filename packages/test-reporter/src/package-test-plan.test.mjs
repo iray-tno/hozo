@@ -50,6 +50,17 @@ test('every current package test script is fully represented without executing t
   assert.ok(packages >= 23, 'package discovery cannot silently become empty')
 })
 
+test('an unexpected collector crash is itself wrapped as a failed report on main', () => {
+  const workflow = readFileSync(
+    new URL('../../../.github/workflows/deploy-pages.yml', import.meta.url),
+    'utf8',
+  )
+  assert.match(
+    workflow,
+    /run-command-junit\.mjs node-tests node packages\/test-reporter\/src\/run-tests-junit\.mjs/,
+  )
+})
+
 test('quoted && stays one preparation command and Node argument values stay paired', () => {
   const stages = testStages(
     'node -e "console.log(1 && 2)" && node --test --test-concurrency=1 --test-name-pattern "a case" "space dir/*.test.mjs"',
