@@ -10,6 +10,7 @@ import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
 import { createClassResolver } from '@hozo/engine'
+import { hozoSpreadStyles } from '@hozo/engine/generated/spread-styles'
 import { NativeSelect } from '@hozo/form'
 import { Button as ButtonFallback } from '@hozo/primitives'
 import { build, transformSync } from 'esbuild'
@@ -4451,6 +4452,50 @@ async function patternHarness(cacheName, look) {
 // #886, slice 3: the rest of `@hozo/patterns`' Native components, through
 // `patternHarness`. `text-style.native.ts` -- which moves a label's colour and
 // weight off a Pressable onto its Text -- is loaded as the real one.
+// #1054: `@hozo/ui`'s Listbox, compiled from its real source, rendered by the
+// real Native pattern. A caller's `style` reaches it through the wrapper's
+// `...rest`, and used to replace the compiled box instead of following it.
+test("a UI wrapper keeps its compiled look when a caller's Native style comes through its spread", async () => {
+  const { load, flat } = await patternHarness('ui-spread-candidates.json', 'p-1')
+  const source = readFileSync(
+    new URL('../../../packages/ui/src/listbox.tsx', import.meta.url),
+    'utf8',
+  )
+  const native = compiler.compileNative(source).find((part) => part.jsx.includes('HozoListbox'))
+  assert.ok(native.jsx.includes('{...hozoSpreadStyles('), native.jsx)
+  const { HozoListbox } = load('listbox.native.tsx')
+  const render = (rest) => {
+    const element = evaluate(`const hozoStyles = ${native.styles};module.exports = (${native.jsx})`, {
+      rest,
+      className: undefined,
+      // The module constant the compiled class residual still names.
+      box: /const box =\s*'([^']+)'/.exec(source)[1],
+      hozoClasses: () => undefined,
+      hozoSpreadStyles,
+      HozoListbox,
+    })
+    return element.type(element.props)
+  }
+  const options = [{ value: 'a', label: 'A' }]
+
+  const bare = flat(render({ options }).props.style)
+  assert.equal(bare.maxHeight, 240, 'without a caller style, the compiled bound')
+
+  let reads = 0
+  const rest = {
+    options,
+    get style() {
+      reads += 1
+      return { paddingTop: 19, marginTop: 7 }
+    },
+  }
+  const styled = flat(render(rest).props.style)
+  assert.equal(styled.maxHeight, 240, 'the compiled bound survives a caller style')
+  assert.equal(styled.paddingTop, 19, "the caller's edge beats the compiled padding")
+  assert.equal(styled.marginTop, 7, "and the caller's own property arrives")
+  assert.equal(reads, 1, 'the spread is read once')
+})
+
 test("@hozo/patterns' Native controls apply their class props with each one's state", async () => {
   const look =
     'p-2 text-red-500 aria-expanded:bg-blue-500 aria-checked:bg-blue-500 aria-selected:bg-blue-500 active:opacity-80 disabled:opacity-50'

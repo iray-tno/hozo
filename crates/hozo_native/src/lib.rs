@@ -61,6 +61,7 @@ mod keyframes;
 mod markup;
 mod pattern;
 mod render;
+mod spread_style;
 mod style;
 mod text;
 mod transforms;
