@@ -237,6 +237,11 @@ pub enum DiagnosticCode {
     /// A prop spread appears after a statically compiled className/style and
     /// could silently override it at runtime; that node's className is not
     /// compiled and falls back instead of failing silently.
+    ///
+    /// Native also raises it where it cannot compose a spread's style after
+    /// the compiled one (#1054) -- a prop between two spreads it does not
+    /// take apart -- because the emission it falls back to lets the spread
+    /// replace the compiled style.
     UnsafePropSpreadAfterStyle,
     /// A utility with no React Native equivalent reached the Native
     /// backend. Verified against Yoga (RN's layout engine), whose `display`
