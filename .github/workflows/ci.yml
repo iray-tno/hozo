@@ -142,7 +142,7 @@ jobs:
       - run: pnpm manifests:check
       # Branch-only measurement; removed once its generated snapshot is reviewed.
       - name: Measure conformance for the Native UI repair
-        if: github.head_ref == 'feat/shared-ui-state-showcase'
+        if: ${{ !cancelled() && github.head_ref == 'feat/shared-ui-state-showcase' }}
         run: |
           mkdir -p artifacts/ui-native-conformance
           git rev-parse HEAD > artifacts/ui-native-conformance/source.txt

@@ -91,6 +91,7 @@ const reads = {
   '@hozo/example-native-showcase#test': [
     'packages/ui/src/theme.css',
     'packages/patterns/src/dialog.native.tsx',
+    'packages/patterns/src/scroll-container.native.tsx',
     'packages/three/src/r3f-native.tsx',
     'packages/svg/src/index.native.tsx',
     'packages/compiler/src/index.ts',
