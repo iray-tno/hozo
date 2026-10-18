@@ -141,6 +141,7 @@ PR or issue if one seems missing.
 | `performance` | Speed or size of the compiler or runtime — with a number |
 | `direction` | Where the project is going; no owner yet |
 | `blocked-upstream` | Waiting on a fix or feature outside this repository (React Native, WebKit, a dependency); the issue says what to do when it lands |
+| `flaky` | A test that fails or passes without a code change; one issue per test, listed in [`docs/flaky-tests.md`](docs/flaky-tests.md) |
 
 ## Writing
 

@@ -40,6 +40,9 @@ publishing checks and application integration tests must all succeed. The
 final package check must report that every public package packs correctly;
 the exact task/package counts grow as packages are added.
 
+A test that fails without your change may be a known flake: see
+[`docs/flaky-tests.md`](docs/flaky-tests.md) before chasing it.
+
 If your change moves any conformance number, also run the audit and commit the
 new snapshot. Build the addon in release first — the audit is almost entirely
 that binary now, and it is the difference between 312 seconds and 48:
