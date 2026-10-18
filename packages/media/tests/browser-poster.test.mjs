@@ -51,6 +51,22 @@ async function visiblePixels(page) {
   }, screenshot.toString('base64'))
 }
 
+/**
+ * Samples until the decoded frame shows, within a bound. Removing the cover
+ * and the compositor presenting the paused frame are separate steps, and on a
+ * loaded runner a screenshot can fall between them and see neither the poster
+ * nor the frame (#1066). A frame that never appears still fails, with the
+ * last sample.
+ */
+async function decodedPixels(page) {
+  const deadline = Date.now() + 2000
+  for (;;) {
+    const pixels = await visiblePixels(page)
+    if (pixels.purple > 0.02 || Date.now() > deadline) return pixels
+    await page.evaluate(() => new Promise(requestAnimationFrame))
+  }
+}
+
 for (const fallback of [false, true]) {
   test(`real browser poster pixels, stable controls/host, source reset and image failure (${fallback ? 'decoded-data fallback' : 'compositor callback'})`, async (t) => {
     if (!executablePath) {
@@ -175,7 +191,7 @@ for (const fallback of [false, true]) {
         'Play video',
         'cover removal cannot retire the focused controls',
       )
-      const decoded = await visiblePixels(page)
+      const decoded = await decodedPixels(page)
       assert.ok(decoded.purple > 0.02 && decoded.teal < 0.001, JSON.stringify(decoded))
       await page.evaluate(() => window.configure({ poster: '/poster.png?changed', fit: 'cover' }))
       await page.waitForFunction(() => document.querySelector('video').style.objectFit === 'cover')
@@ -206,7 +222,7 @@ for (const fallback of [false, true]) {
       await page.evaluate(() => window.ref.current.seekTo(0))
       await page.waitForFunction(() => !document.querySelector('img'))
       assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
-      const atZero = await visiblePixels(page)
+      const atZero = await decodedPixels(page)
       assert.ok(atZero.purple > 0.02 && atZero.teal < 0.001, JSON.stringify(atZero))
       await page.evaluate(() =>
         window.configure({ src: '/clip.mp4?missingPoster', poster: '/missing.png' }),
