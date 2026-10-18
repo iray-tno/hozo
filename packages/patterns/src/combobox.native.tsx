@@ -13,6 +13,7 @@ import {
 import { activeAfter, filterOptions } from './combobox-rules.ts'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import { PatternScrollContainer } from './scroll-container.native.tsx'
 import type { ComboboxInputSlotFacts, ListOptionSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -57,6 +58,8 @@ export interface HozoComboboxProps<T> {
   hozoInputStyle?: (state: InputState) => Style
   /** @internal Placeholder colour is a field prop, never a TextStyle. */
   hozoInputPlaceholderTextColor?: ColorValue
+  /** @internal Popup overflow belongs to its own real scroll host. */
+  hozoListScrollY?: boolean
   /** @internal Options own pointer/active facts, never the input's focus. */
   hozoOptionStyle?: (state: OptionState) => Style
   emptyMessage?: ReactNode
@@ -80,6 +83,7 @@ export function HozoCombobox<T>({
   optionStyle,
   hozoInputStyle,
   hozoInputPlaceholderTextColor,
+  hozoListScrollY,
   hozoOptionStyle,
   emptyMessage,
 }: HozoComboboxProps<T>) {
@@ -170,7 +174,12 @@ export function HozoCombobox<T>({
         }}
       />
       {open ? (
-        <View accessibilityRole="list" accessibilityLabel={accessibilityLabel} style={listBox}>
+        <PatternScrollContainer
+          enabled={hozoListScrollY}
+          accessibilityRole="list"
+          accessibilityLabel={accessibilityLabel}
+          style={listBox}
+        >
           {visible.length === 0
             ? emptyMessage
             : visible.map((index, at) => {
@@ -217,7 +226,7 @@ export function HozoCombobox<T>({
                   </Pressable>
                 )
               })}
-        </View>
+        </PatternScrollContainer>
       ) : null}
     </View>
   )

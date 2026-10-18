@@ -1,0 +1,20 @@
+heading, Tree, level 2
+tree, UI workspace files, orientated vertically
+treeitem, Documentation, expanded, level 1, position 1, not selected, set size 3
+Documentation
+end of treeitem, Documentation, expanded, level 1, position 1, not selected, set size 3
+treeitem, Introduction, level 2, position 1, selected, set size 2
+Introduction
+end of treeitem, Introduction, level 2, position 1, selected, set size 2
+treeitem, Guide, level 2, position 2, not selected, set size 2
+Guide
+end of treeitem, Guide, level 2, position 2, not selected, set size 2
+treeitem, Assets, not expanded, level 1, position 2, not selected, set size 3
+Assets
+end of treeitem, Assets, not expanded, level 1, position 2, not selected, set size 3
+treeitem, Locked file, disabled, level 1, position 3, not selected, set size 3
+Locked file
+end of treeitem, Locked file, disabled, level 1, position 3, not selected, set size 3
+end of tree, UI workspace files, orientated vertically
+Selected file:
+intro

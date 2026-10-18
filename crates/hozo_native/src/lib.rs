@@ -60,6 +60,7 @@ mod interaction;
 mod keyframes;
 mod markup;
 mod pattern;
+mod pattern_layout;
 mod render;
 mod spread_style;
 mod style;
@@ -795,8 +796,25 @@ fn viewport_dimension(prop: &StyleProperty) -> Option<(&'static str, &'static st
     let axis = |dim: &hozo_ir::Dimension| match dim {
         hozo_ir::Dimension::ViewportWidth(pct) => Some(("width", *pct)),
         hozo_ir::Dimension::ViewportHeight(pct) => Some(("height", *pct)),
+        hozo_ir::Dimension::Length(hozo_ir::Length::Unit(pct, hozo_ir::LengthUnit::Vw)) => {
+            Some(("width", *pct))
+        }
+        hozo_ir::Dimension::Length(hozo_ir::Length::Unit(pct, hozo_ir::LengthUnit::Vh)) => {
+            Some(("height", *pct))
+        }
         _ => None,
     };
+    let padding = match prop {
+        StyleProperty::PaddingTop(length) => Some(("paddingTop", length)),
+        StyleProperty::PaddingRight(length) => Some(("paddingRight", length)),
+        StyleProperty::PaddingBottom(length) => Some(("paddingBottom", length)),
+        StyleProperty::PaddingLeft(length) => Some(("paddingLeft", length)),
+        _ => None,
+    };
+    if let Some((key, length)) = padding {
+        return axis(&hozo_ir::Dimension::Length(length.clone()))
+            .map(|(axis, pct)| (key, axis, pct));
+    }
     let (key, dim) = match prop {
         StyleProperty::Width(d) => ("width", d),
         StyleProperty::Height(d) => ("height", d),

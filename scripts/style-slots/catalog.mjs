@@ -248,6 +248,7 @@ export const components = {
       },
       listClassName: {
         owner: 'non-control-listbox-div',
+        scrollYProp: 'hozoListScrollY',
         profile: 'NonControl',
         events: 'unavailable',
         gate: 'popup-open',
@@ -265,10 +266,14 @@ export const components = {
     {
       secondary: true,
       overrides: {
-        inputClassName: owned('real-search-input', 'CommandInput', 'hozoInputStyle', {
-          pointer: false,
-          composition: 'panel-text inheritance; classes/callback/explicit-style',
-        }),
+        inputClassName: {
+          ...owned('real-search-input', 'CommandInput', 'hozoInputStyle', {
+            pointer: false,
+            composition: 'panel-text inheritance; classes/callback/explicit-style',
+          }),
+          placeholderColorProp: 'hozoInputPlaceholderTextColor',
+        },
+        listClassName: { scrollYProp: 'hozoListScrollY' },
         groupHeadingClassName: {
           owner: 'non-control-group-heading-div',
           profile: 'NonControl',
@@ -298,13 +303,18 @@ export const components = {
       },
     },
   ),
-  Dialog: slots('className'),
+  Dialog: slots('className', {
+    overrides: {
+      className: { scrollYProp: 'hozoScrollY', backdropStyleProp: 'hozoBackdropStyle' },
+    },
+  }),
   Drawer: slots('className scrimClassName panelClassName'),
   Listbox: slots('className optionClassName', {
     secondary: true,
     overrides: {
       className: {
         owner: 'non-control-listbox-div',
+        scrollYProp: 'hozoScrollY',
         profile: 'NonControl',
         events: 'unavailable',
         gate: 'always',

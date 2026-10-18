@@ -1,0 +1,218 @@
+//! Adapt styles only where a real pattern host can implement their meaning.
+//! An ordinary View does not become scrollable or viewport-fixed by dropping
+//! a diagnostic. The catalogue identifies each consuming property's owner.
+
+use hozo_ir::{Condition, Position, Primitive, StyleDeclaration, StyleProperty};
+
+pub(super) struct Layout {
+    pub style: Vec<StyleDeclaration>,
+    pub scroll_prop: Option<&'static str>,
+    pub backdrop: Vec<StyleDeclaration>,
+}
+
+pub(super) fn applies(primitive: Primitive, slot: &str) -> bool {
+    crate::pattern::scroll_y_prop(primitive, slot).is_some()
+        || (matches!(primitive, Primitive::Dialog | Primitive::CommandPalette)
+            && slot == "className")
+}
+
+pub(super) fn adapt(
+    primitive: Primitive,
+    slot: &str,
+    declarations: Vec<StyleDeclaration>,
+) -> Layout {
+    if !applies(primitive, slot) {
+        return Layout {
+            style: declarations,
+            scroll_prop: None,
+            backdrop: Vec::new(),
+        };
+    }
+    let mut out = Layout {
+        style: Vec::new(),
+        scroll_prop: None,
+        backdrop: Vec::new(),
+    };
+    for declaration in declarations {
+        if declaration.condition == Condition::Always {
+            if matches!(
+                declaration.property,
+                StyleProperty::OverflowY(
+                    hozo_ir::Overflow::Css("auto") | hozo_ir::Overflow::Scroll
+                )
+            ) {
+                if let Some(prop) = crate::pattern::scroll_y_prop(primitive, slot) {
+                    out.scroll_prop = Some(prop);
+                    continue;
+                }
+            }
+            // The palette root is inside a full-window RN Modal. Only here
+            // does absolute positioning have the same containing block.
+            if primitive == Primitive::CommandPalette
+                && slot == "className"
+                && matches!(
+                    declaration.property,
+                    StyleProperty::Position(Position::Css("fixed"))
+                )
+            {
+                out.style.push(StyleDeclaration {
+                    property: StyleProperty::Position(Position::Absolute),
+                    ..declaration
+                });
+                continue;
+            }
+        }
+        if crate::pattern::backdrop_style_prop(primitive, slot).is_some()
+            && matches!(declaration.property, StyleProperty::BackgroundColor(_))
+        {
+            if let Some(condition) = backdrop_condition(&declaration.condition) {
+                out.backdrop.push(StyleDeclaration {
+                    condition,
+                    ..declaration
+                });
+                continue;
+            }
+        }
+        out.style.push(declaration);
+    }
+    out
+}
+
+fn backdrop_condition(condition: &Condition) -> Option<Condition> {
+    match condition {
+        Condition::PseudoElement(hozo_ir::PseudoElement::Backdrop) => Some(Condition::Always),
+        Condition::All(conditions)
+            if conditions.contains(&Condition::PseudoElement(hozo_ir::PseudoElement::Backdrop)) =>
+        {
+            Some(Condition::all(
+                conditions
+                    .iter()
+                    .filter(|condition| {
+                        !matches!(
+                            condition,
+                            Condition::PseudoElement(hozo_ir::PseudoElement::Backdrop)
+                        )
+                    })
+                    .cloned()
+                    .collect(),
+            ))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use hozo_ir::{Severity, Theme};
+
+    fn compile(source: &str) -> crate::LowerOutput {
+        let parsed = hozo_parser::parse_tsx(source);
+        crate::lower(&parsed.roots[0].node, source, &Theme::default())
+    }
+
+    #[test]
+    fn viewport_units_are_runtime_values_not_zeroes_in_a_sheet() {
+        let out = compile(
+            r#"import { View } from '@hozo/core'; function C() { return <View className="max-h-[85vh] w-[50vw] pt-[12vh]" /> }"#,
+        );
+        assert!(
+            !out.diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Error),
+            "{:?}",
+            out.diagnostics
+        );
+        for expression in [
+            "maxHeight: __hozoViewport.height * 0.85",
+            "width: __hozoViewport.width * 0.5",
+            "paddingTop: __hozoViewport.height * 0.12",
+        ] {
+            assert!(out.jsx.contains(expression), "{}", out.jsx);
+        }
+        assert_eq!(
+            out.prelude
+                .iter()
+                .filter(|line| line.contains("useHozoViewport()"))
+                .count(),
+            1
+        );
+    }
+
+    #[test]
+    fn vertical_overflow_reaches_only_catalogued_scroll_hosts() {
+        for (tag, slot, prop) in [
+            ("Dialog", "className", "hozoScrollY"),
+            ("Listbox", "className", "hozoScrollY"),
+            ("Combobox", "listClassName", "hozoListScrollY"),
+            ("CommandPalette", "listClassName", "hozoListScrollY"),
+        ] {
+            let out = compile(&format!("import {{ {tag} }} from '@hozo/core'; function C() {{ return <{tag} {slot}=\"overflow-y-auto max-h-60 p-2 gap-1\" /> }}"));
+            assert!(
+                !out.diagnostics
+                    .iter()
+                    .any(|d| d.severity == Severity::Error),
+                "{tag}: {:?}",
+                out.diagnostics
+            );
+            assert!(out.jsx.contains(&format!("{prop}={{true}}")), "{}", out.jsx);
+            assert!(!out.styles.contains("overflow"), "{}", out.styles);
+            assert!(out.styles.contains("maxHeight: 240"), "{}", out.styles);
+        }
+        for (tag, slot, classes) in [
+            ("View", "className", "overflow-y-auto"),
+            ("Combobox", "optionClassName", "overflow-y-auto"),
+            ("CommandPalette", "panelClassName", "fixed"),
+            ("Dialog", "className", "fixed"),
+            ("Listbox", "className", "md:overflow-y-auto"),
+        ] {
+            let out = compile(&format!("import {{ {tag} }} from '@hozo/core'; function C() {{ return <{tag} {slot}=\"{classes}\" /> }}"));
+            assert!(
+                out.diagnostics
+                    .iter()
+                    .any(|d| d.severity == Severity::Error),
+                "{tag}.{slot}={classes}: {:?}",
+                out.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn fixed_palette_and_dialog_backdrop_have_real_native_containing_blocks() {
+        let out = compile(
+            r#"import { CommandPalette } from '@hozo/core'; function C() { return <CommandPalette className="fixed inset-0 pt-[12vh]" /> }"#,
+        );
+        assert!(
+            !out.diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Error),
+            "{:?}",
+            out.diagnostics
+        );
+        assert!(
+            out.styles.contains("position: 'absolute'"),
+            "{}",
+            out.styles
+        );
+        let out = compile(
+            r#"import { Dialog } from '@hozo/core'; function C() { return <Dialog className="bg-white backdrop:bg-black/50 dark:backdrop:bg-red-500/50" open onClose={close} accessibilityLabel="Test" /> }"#,
+        );
+        assert!(
+            !out.diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Error),
+            "{:?}",
+            out.diagnostics
+        );
+        assert!(out.jsx.contains("hozoBackdropStyle="), "{}", out.jsx);
+        assert!(out.jsx.contains("__hozoDark &&"), "{}", out.jsx);
+        assert!(
+            !out.jsx
+                .split("style=")
+                .last()
+                .unwrap()
+                .contains("_backdrop"),
+            "{}",
+            out.jsx
+        );
+    }
+}

@@ -1,0 +1,8 @@
+heading, Radio, level 2
+radiogroup, UI delivery speed, orientated vertically
+radio, Standard, not checked, position 1, set size 3
+radio, Express, checked, position 2, set size 3
+radio, Unavailable, not checked, disabled, position 3, set size 3
+end of radiogroup, UI delivery speed, orientated vertically
+Delivery:
+express

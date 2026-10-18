@@ -485,13 +485,32 @@ test('Native Dialog isolates its modal without combining descendant controls', (
     'utf8',
   )
   const { code } = transformSync(source, { loader: 'tsx', format: 'cjs', jsx: 'automatic' })
-  const native = { Modal: 'NativeModal', View: 'NativeView' }
+  const native = {
+    Modal: 'NativeModal',
+    View: 'NativeView',
+    ScrollView: 'NativeScrollView',
+    StyleSheet: {
+      flatten: (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean)),
+    },
+  }
   const module = { exports: {} }
   const load = (name) => {
     if (name === 'react')
       return { ...react, useEffect: () => {}, useRef: (current) => ({ current }) }
     if (name === 'react/jsx-runtime') return require(name)
     if (name === 'react-native') return native
+    if (name === './scroll-container.native.tsx') {
+      const helper = { exports: {} }
+      const { code } = transformSync(
+        readFileSync(
+          path.join(root, '../../packages/patterns/src/scroll-container.native.tsx'),
+          'utf8',
+        ),
+        { loader: 'tsx', format: 'cjs', jsx: 'automatic' },
+      )
+      new Function('require', 'module', code)(load, helper)
+      return helper.exports
+    }
     if (name === '@hozo/behaviors') return { shouldRestoreFocus: () => false }
     if (name === '@hozo/behaviors/native') return { moveAccessibilityFocus: () => {} }
     // Its `className`, resolved through the project's candidate map (#886).
@@ -513,13 +532,30 @@ test('Native Dialog isolates its modal without combining descendant controls', (
   assert.equal(modal.type, native.Modal)
   assert.equal(modal.props.visible, true)
   assert.equal(modal.props.onRequestClose, onClose)
-  const panel = modal.props.children
+  const panelElement = modal.props.children
+  const panel = panelElement.type(panelElement.props)
   assert.equal(panel.type, native.View)
   assert.equal(panel.props.accessible, false)
   assert.equal(panel.props.accessibilityViewIsModal, true)
   assert.equal(panel.props.accessibilityLabel, 'Save workspace changes')
   assert.equal(panel.props.testID, 'confirmation')
   assert.equal(panel.props.children, controls)
+  const styled = module.exports.Dialog({
+    open: true,
+    onClose,
+    accessibilityLabel: 'Save workspace changes',
+    hozoScrollY: true,
+    hozoBackdropStyle: { backgroundColor: 'black' },
+    children: controls,
+  })
+  const frame = styled.props.children
+  assert.equal(frame.type, native.View)
+  assert.equal(frame.props.accessible, false)
+  const scroll = frame.props.children.type(frame.props.children.props)
+  assert.equal(scroll.type, native.ScrollView)
+  assert.equal(scroll.props.accessible, false)
+  assert.equal(scroll.props.accessibilityViewIsModal, true)
+  assert.equal(scroll.props.children, controls)
 })
 
 test('Storybook composes with the Hozo transformer and host singleton resolver', async () => {
@@ -544,6 +580,29 @@ test('Storybook composes with the Hozo transformer and host singleton resolver',
       assert.equal(resolved.filePath, require.resolve(request))
     }
   }
+  // Keep candidate generation in this one test process. A second config
+  // loader in another .test.mjs could race this writer under node --test.
+  const generated = config.resolver.resolveRequest(context, '@hozo/engine/project', 'ios')
+  const { code } = require('esbuild').transformSync(readFileSync(generated.filePath, 'utf8'), {
+    format: 'cjs',
+  })
+  const module = { exports: {} }
+  new Function('require', 'module', 'exports', code)(
+    (name) => (name === 'react-native' ? { I18nManager: { isRTL: false } } : require(name)),
+    module,
+    module.exports,
+  )
+  const metroRequire = createRequire(require.resolve('@hozo/metro'))
+  const theme = await metroRequire('@hozo/tailwind').loadProjectTheme(root, {
+    css: './src/index.css',
+    warn: assert.fail,
+  })
+  const look = Object.assign({}, ...module.exports.hozoClasses('bg-hozo-accent'))
+  assert.equal(
+    look.backgroundColor,
+    theme.colors.find((entry) => entry.token === 'hozo-accent').hex,
+    'Metro must scan the UI package and resolve its actual themed candidates',
+  )
 })
 
 test('shared patterns keep platform-neutral bodies and lower their primitive children', () => {
@@ -633,6 +692,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === '@hozo/core/generated/pressable') return { HozoPressable: 'Pressable' }
     if (name === '@hozo/core/generated/text-input') return { HozoTextInput: 'TextInput' }
     if (name === './patterns.tsx') return {}
+    if (name === './ui-states.tsx') return {}
     if (name === './svg-filters.tsx') return {}
     if (name === './video.tsx') return {}
     if (name === './audio.tsx') return {}

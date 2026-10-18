@@ -47,6 +47,10 @@ export function validateCatalog(catalog = components, facts = profiles) {
         (!slot.callback || !/^hozo[A-Za-z]+PlaceholderTextColor$/.test(slot.placeholderColorProp))
       )
         throw new Error(`Invalid placeholder prop owner: ${component}.${slot.classProp}`)
+      if (slot.scrollYProp && !/^hozo(?:[A-Z][a-z]+)?ScrollY$/.test(slot.scrollYProp))
+        throw new Error(`Invalid scroll prop owner: ${component}.${slot.classProp}`)
+      if (slot.backdropStyleProp && slot.backdropStyleProp !== 'hozoBackdropStyle')
+        throw new Error(`Invalid backdrop prop owner: ${component}.${slot.classProp}`)
       if (
         ![slot.owner, slot.gate, slot.composition].every(
           (value) => typeof value === 'string' && value.length,
@@ -133,10 +137,20 @@ ${mappings.join('\n')}
   const unavailableEvents = []
   const constantFacts = []
   const placeholderProps = []
+  const scrollProps = []
+  const backdropProps = []
   for (const [component, slots] of Object.entries(catalog)) {
     const byProfile = new Map()
     const supplied = new Map()
     for (const slot of slots) {
+      if (slot.backdropStyleProp)
+        backdropProps.push(
+          `        (Primitive::${component}, ${quoted(slot.classProp)}) => Some(${quoted(slot.backdropStyleProp)}),`,
+        )
+      if (slot.scrollYProp)
+        scrollProps.push(
+          `        (Primitive::${component}, ${quoted(slot.classProp)}) => Some(${quoted(slot.scrollYProp)}),`,
+        )
       if (slot.placeholderColorProp)
         placeholderProps.push(
           `        (Primitive::${component}, ${quoted(slot.classProp)}) => Some(${quoted(slot.placeholderColorProp)}),`,
@@ -227,6 +241,20 @@ ${constantFacts.join('\n')}
 pub(super) fn placeholder_color_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
     match (primitive, class_prop) {
 ${placeholderProps.join('\n')}
+        _ => None,
+    }
+}
+
+pub(super) fn scroll_y_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+    match (primitive, class_prop) {
+${scrollProps.join('\n')}
+        _ => None,
+    }
+}
+
+pub(super) fn backdrop_style_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+    match (primitive, class_prop) {
+${backdropProps.join('\n')}
         _ => None,
     }
 }

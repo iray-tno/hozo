@@ -18,7 +18,8 @@
     "@hozo/patterns": "workspace:^",
     "@hozo/primitives": "workspace:^",
     "@hozo/svg": "workspace:^",
-    "@hozo/typography": "workspace:^"
+    "@hozo/typography": "workspace:^",
+    "@hozo/ui": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0"

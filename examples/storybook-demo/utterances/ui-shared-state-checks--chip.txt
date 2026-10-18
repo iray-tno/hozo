@@ -1,0 +1,7 @@
+heading, Chip, level 2
+button, Remote, pressed
+button, Full time, not pressed
+button, Disabled selected, disabled, pressed
+button, Disabled unselected, disabled, not pressed
+Remote:
+selected

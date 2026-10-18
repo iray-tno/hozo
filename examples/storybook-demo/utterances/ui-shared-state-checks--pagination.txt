@@ -1,0 +1,41 @@
+heading, Pagination, level 2
+navigation, UI result pages
+list
+listitem, level 1, position 1, set size 7
+button, Previous page
+end of listitem, level 1, position 1, set size 7
+listitem, level 1, position 2, set size 7
+button, Page 1
+1
+end of button, Page 1
+end of listitem, level 1, position 2, set size 7
+listitem, level 1, position 3, set size 7
+button, Page 2, current page
+2
+end of button, Page 2, current page
+end of listitem, level 1, position 3, set size 7
+listitem, level 1, position 4, set size 7
+button, Page 3
+3
+end of button, Page 3
+end of listitem, level 1, position 4, set size 7
+listitem, level 1, position 5, set size 7
+button, Page 4
+4
+end of button, Page 4
+end of listitem, level 1, position 5, set size 7
+listitem, level 1, position 6, set size 7
+button, Page 5
+5
+end of button, Page 5
+end of listitem, level 1, position 6, set size 7
+listitem, level 1, position 7, set size 7
+button, Next page
+end of listitem, level 1, position 7, set size 7
+end of list
+end of navigation, UI result pages
+button, Show first page
+button, Show last page
+Page:
+2
+of 5

@@ -25,7 +25,13 @@ const reads = {
     'packages/typography/src/fonts.ts',
   ],
   '@hozo/migration-audit#test': ['packages/typography/src/fonts.ts'],
-  '@hozo/metro#test': ['packages/ui/src/combobox.tsx', 'packages/ui/src/theme.css'],
+  '@hozo/metro#test': [
+    'packages/ui/src/combobox.tsx',
+    'packages/ui/src/listbox.tsx',
+    'packages/ui/src/command-palette.tsx',
+    'packages/ui/src/dialog.tsx',
+    'packages/ui/src/theme.css',
+  ],
   '@hozo/example-storybook#test': [
     'packages/metro/src/transform.ts',
     'packages/metro/src/project.ts',
@@ -71,6 +77,7 @@ const reads = {
     'packages/patterns/src/menu.tsx',
     'packages/patterns/src/menu.native.tsx',
     'packages/patterns/src/listbox.native.tsx',
+    'packages/patterns/src/scroll-container.native.tsx',
     'packages/patterns/src/option-key.ts',
     'packages/patterns/src/non-control-facts.native.ts',
     'packages/patterns/src/stepper.native.tsx',
@@ -82,7 +89,9 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    'packages/ui/src/theme.css',
     'packages/patterns/src/dialog.native.tsx',
+    'packages/patterns/src/scroll-container.native.tsx',
     'packages/three/src/r3f-native.tsx',
     'packages/svg/src/index.native.tsx',
     'packages/compiler/src/index.ts',

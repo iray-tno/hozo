@@ -1,0 +1,7 @@
+heading, Checkbox, level 2
+checkbox, Enabled unchecked checkbox, not checked
+checkbox, Enabled checked checkbox, checked
+checkbox, Enabled mixed checkbox, partially checked
+checkbox, Disabled unchecked checkbox, not checked, disabled
+checkbox, Disabled checked checkbox, checked, disabled
+checkbox, Disabled mixed checkbox, partially checked, disabled

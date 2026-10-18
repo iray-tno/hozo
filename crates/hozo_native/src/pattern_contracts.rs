@@ -306,6 +306,24 @@ pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&
 pub(super) fn placeholder_color_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
     match (primitive, class_prop) {
         (Primitive::Combobox, "inputClassName") => Some("hozoInputPlaceholderTextColor"),
+        (Primitive::CommandPalette, "inputClassName") => Some("hozoInputPlaceholderTextColor"),
+        _ => None,
+    }
+}
+
+pub(super) fn scroll_y_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+    match (primitive, class_prop) {
+        (Primitive::Combobox, "listClassName") => Some("hozoListScrollY"),
+        (Primitive::CommandPalette, "listClassName") => Some("hozoListScrollY"),
+        (Primitive::Dialog, "className") => Some("hozoScrollY"),
+        (Primitive::Listbox, "className") => Some("hozoScrollY"),
+        _ => None,
+    }
+}
+
+pub(super) fn backdrop_style_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+    match (primitive, class_prop) {
+        (Primitive::Dialog, "className") => Some("hozoBackdropStyle"),
         _ => None,
     }
 }

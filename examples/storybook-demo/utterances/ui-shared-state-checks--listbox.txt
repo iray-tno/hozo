@@ -1,0 +1,8 @@
+heading, Listbox, level 2
+listbox, UI selected services, orientated vertically, multi-selectable
+option, Standard, selected, position 1, set size 3
+option, Express, not selected, position 2, set size 3
+option, Unavailable, not selected, disabled, position 3, set size 3
+end of listbox, UI selected services, orientated vertically, multi-selectable
+Services:
+standard

@@ -7,6 +7,7 @@ export { AudioPlaybackProbe } from './audio-probe.tsx'
 export { AudioSettingsProbe } from './audio-settings-probe.tsx'
 export { DialogDemo, PreferencesDemo, TabsDemo } from './patterns.tsx'
 export { SvgFiltersDemo } from './svg-filters.tsx'
+export { uiStateScenes } from './ui-states.tsx'
 export { VideoDemo } from './video.tsx'
 export { VideoPlaybackProbe } from './video-probe.tsx'
 

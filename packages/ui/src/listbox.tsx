@@ -26,6 +26,7 @@
  * so keyboard and pointer agree without this file knowing anything about it.
  */
 
+import { cx } from '@hozo/core'
 import { Listbox as ListboxPattern, type ListboxProps } from '@hozo/patterns'
 
 /**
@@ -52,7 +53,7 @@ function StyledListbox<T>({ className, ...rest }: HozoListboxProps<T>) {
       // spread of a union poorly. The discriminant is intact where the caller
       // writes it, which is where it earns its keep.
       {...(rest as ListboxProps<T>)}
-      className={className ? `${box} ${className}` : box}
+      className={cx(box, className)}
       optionClassName={option}
     />
   )

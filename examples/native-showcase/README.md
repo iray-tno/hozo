@@ -64,6 +64,18 @@ driver installed, use `HOZO_IOS_SCENARIO=svg-filters pnpm --filter
 
 ## Run on a device
 
+**UI / Shared state checks** contains the ten styled shared screens documented
+in [the shared showcase](../showcase/README.md#styled-ui-state-checks). Reload a
+story to restore its deterministic initial state. These do not replace the
+existing full smoke scenario or extend its evidence claims yet. In particular,
+opening a story or exporting a Metro bundle is not visual verification of its
+selected/expanded/disabled look. #898 still needs Android/iOS captures.
+
+`metro.config.js` reads `src/index.css` for the UI theme, and trusts the canonical
+`@hozo/core` authoring imports used inside styled wrappers as well as the
+primitive, typography and pattern owners. `@hozo/ui` itself is not registered as
+a primitive source: its styled wrappers must not lower into bare primitives.
+
 From the repository root:
 
 ```sh
