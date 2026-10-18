@@ -1150,6 +1150,19 @@ test('compiled UI Listbox bounds the real scroller and puts child layout on its 
   assert.equal(scroll().props.horizontal, false)
   assert.equal(scroll().props.keyboardShouldPersistTaps, 'handled')
   assert.equal(tree.root.findAllByType('NativePressable').length, 2)
+  // #1056 composes the wrapper's caller spread with its compiled defaults.
+  // Keep the bounded scroller when only one content property is overridden.
+  const styled = await mount(t, UiListbox, {
+    ...props,
+    style: { paddingTop: 19, marginTop: 7, overflow: 'hidden' },
+  })
+  const styledOwner = styled.root.findByType('NativeScrollView')
+  assert.equal(flat(styledOwner.props.style).maxHeight, 240)
+  assert.equal(flat(styledOwner.props.style).marginTop, 7)
+  assert.equal(flat(styledOwner.props.contentContainerStyle).paddingTop, 19)
+  assert.equal(flat(styledOwner.props.contentContainerStyle).paddingRight, 12)
+  assert.equal(flat(styledOwner.props.contentContainerStyle).gap, 4)
+  assert.equal(styledOwner.props.scrollEnabled, false)
   const explicit = await mount(t, HozoListbox, {
     options: props.options,
     hozoScrollY: true,
