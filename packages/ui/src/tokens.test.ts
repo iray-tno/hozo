@@ -90,7 +90,7 @@ test('no component writes a literal colour', () => {
   }
 })
 
-test('every class list that styles hover also carries the focus ring', () => {
+test('every hoverable control carries its keyboard-owner ring', () => {
   // The gap this package was built to close: the Storybook demo it took its
   // look from had a focus ring on four controls and nothing on the rest. A
   // ring that is part of every class list a control can have is a ring nobody
@@ -98,16 +98,18 @@ test('every class list that styles hover also carries the focus ring', () => {
   //
   // Per class list rather than per file, because a component with four tones
   // has four of them and three-quarters coverage is the bug. `hover:` is the
-  // marker for "this list styles an interactive element", which is not a law
-  // of nature but is true of everything here and fails loudly if it stops
-  // being.
+  // marker for an interactive owner. Combobox alone uses an active descendant:
+  // its input keeps focus while aria-selected identifies the highlighted row.
+  // Require that row's real-state ring, not a focus rule that can never match.
   for (const { name, strings } of components) {
     for (const value of strings) {
       if (!value.includes('hover:')) continue
+      const activeDescendant =
+        name === 'combobox.tsx' && value.includes('aria-selected:bg-hozo-accent-subtle')
       assert.match(
         value,
-        /focus-visible:outline-hozo-focus/,
-        `a class list in ${name} styles hover and not focus`,
+        activeDescendant ? /aria-selected:outline-hozo-focus/ : /focus-visible:outline-hozo-focus/,
+        `a class list in ${name} styles hover without its keyboard-owner ring`,
       )
     }
   }

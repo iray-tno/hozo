@@ -91,6 +91,7 @@ export const profiles = {
     facts: {
       ...editableInputFacts,
       'aria-expanded': supplied('__hozoSlotAriaExpanded'),
+      'aria-invalid': supplied('__hozoSlotAriaInvalid'),
     },
     note: 'The editable input owns focus and the popup expanded state; neither list nor option lends it events.',
   },
@@ -238,10 +239,13 @@ export const components = {
         gate: 'always',
         composition: 'classes/explicit-style; split-box-text inheritance',
       },
-      inputClassName: owned('real-combobox-input', 'ComboboxInput', 'hozoInputStyle', {
-        pointer: false,
-        composition: 'root-text inheritance; classes/callback/explicit-style',
-      }),
+      inputClassName: {
+        ...owned('real-combobox-input', 'ComboboxInput', 'hozoInputStyle', {
+          pointer: false,
+          composition: 'root-text inheritance; classes/callback/explicit-style',
+        }),
+        placeholderColorProp: 'hozoInputPlaceholderTextColor',
+      },
       listClassName: {
         owner: 'non-control-listbox-div',
         profile: 'NonControl',

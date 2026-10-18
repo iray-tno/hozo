@@ -25,7 +25,11 @@ const reads = {
     'packages/typography/src/fonts.ts',
   ],
   '@hozo/migration-audit#test': ['packages/typography/src/fonts.ts'],
+  '@hozo/metro#test': ['packages/ui/src/combobox.tsx', 'packages/ui/src/theme.css'],
   '@hozo/example-storybook#test': [
+    'packages/metro/src/transform.ts',
+    'packages/metro/src/project.ts',
+    'packages/ui/src/combobox.tsx',
     'packages/ui/src/toggle.tsx',
     'packages/ui/src/theme.css',
     'packages/behaviors/src/pressable-interaction.ts',

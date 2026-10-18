@@ -45,12 +45,28 @@ test('the field is the same list Input uses, to the class', () => {
   assert.equal(list('combobox.tsx', 'field'), /class="([^"]*)"/.exec(html)?.[1])
 })
 
-test('a highlight is a tint; a selection is a tint and a weight', () => {
+test('active-descendant styling uses actual highlight state, not focus that stays on the field', () => {
   const highlighted = list('combobox.tsx', 'option')
   const chosen = list('listbox.tsx', 'option')
   assert.match(highlighted, /aria-selected:bg-hozo-accent-subtle/)
+  assert.match(highlighted, /aria-selected:outline-2/)
+  assert.doesNotMatch(highlighted, /focus(?:-visible)?:/)
   assert.doesNotMatch(highlighted, /aria-selected:font-/, 'a highlight must not read as an answer')
   assert.match(chosen, /aria-selected:font-semibold/)
+})
+
+test('validation is forwarded to the real editable field, not the wrapper', () => {
+  for (const invalid of [false, true, 'grammar', 'spelling'] as const) {
+    const html = renderToStaticMarkup(
+      createElement(Combobox, {
+        options: OPTIONS,
+        accessibilityLabel: 'Language',
+        'aria-invalid': invalid,
+      }),
+    )
+    assert.match(html, new RegExp(`<input[^>]*aria-invalid="${invalid}"`))
+    assert.doesNotMatch(html, /<div[^>]*aria-invalid=/)
+  }
 })
 
 test('the field is a combobox before it is opened, and says so', () => {

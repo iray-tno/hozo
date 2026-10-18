@@ -7,13 +7,14 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { openCandidateCache } from '@hozo/compiler'
+import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { createClassResolver } from '@hozo/engine'
 import { loadTheme } from '@hozo/tailwind'
 import { build } from 'esbuild'
 import React, { act } from 'react'
 import { create } from 'react-test-renderer'
 import { hozoTransformStyles } from '../../../packages/engine/src/transform-slots.ts'
+import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
 const require = createRequire(import.meta.url)
@@ -21,6 +22,10 @@ const root = fileURLToPath(new URL('../../../', import.meta.url))
 const filename = (relative) => path.join(root, relative).replaceAll('\\', '/')
 const uiRoot = path.join(root, 'packages/ui')
 const theme = await loadTheme('@import "tailwindcss"; @import "./src/theme.css";', uiRoot)
+const compiler = createCompiler(theme)
+// The colour-scheme hook is a platform fact in this host-render test, not
+// evidence about OS subscription delivery. Both palettes run the real output.
+let nativeDark = false
 const cache = openCandidateCache()
 const interactionClasses =
   'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus:opacity-75 focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50'
@@ -119,6 +124,7 @@ const probeSources = [
   exportsFrom('HozoCheckbox, HozoSwitch', 'packages/ui/src/toggle.tsx'),
   exportsFrom('HozoRadioGroup', 'packages/ui/src/radio.tsx'),
   exportsFrom('HozoTree as UiTree', 'packages/ui/src/tree.tsx'),
+  exportsFrom('HozoCombobox as UiCombobox', 'packages/ui/src/combobox.tsx'),
   exportsFrom('HozoTabs', 'packages/patterns/src/tabs.native.tsx'),
   exportsFrom(
     'HozoCheckbox as CheckboxPattern, HozoSwitch as SwitchPattern',
@@ -160,6 +166,18 @@ const bundled = await build({
     {
       name: 'native-patterns',
       setup(builder) {
+        builder.onResolve({ filter: /(?:^|\/)candidates\.native\.js$/ }, () => ({
+          path: '@hozo/engine/project',
+          external: true,
+        }))
+        builder.onLoad({ filter: /[/\\]ui[/\\]src[/\\]combobox\.tsx$/ }, ({ path: file }) => ({
+          contents: transformHozoSource(readFileSync(file, 'utf8'), file, root, compiler),
+          loader: 'tsx',
+          resolveDir: path.dirname(file),
+        }))
+        builder.onResolve({ filter: /^@hozo\/core\/generated\/combobox$/ }, () => ({
+          path: filename('packages/patterns/src/combobox.native.tsx'),
+        }))
         builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
           path: 'public-behaviors',
           namespace: 'public-behaviors',
@@ -234,8 +252,9 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         PanResponder: nativePanResponder,
         I18nManager: { isRTL: false },
         Pressable: NativePressable,
-        StyleSheet: { flatten: flat },
+        StyleSheet: { flatten: flat, create: (styles) => styles },
       }
+    if (name === '@hozo/core/generated/environment') return { useHozoDark: () => nativeDark }
     if (name === '@hozo/engine/project') return { hozoClasses }
     return require(name)
   },
@@ -250,6 +269,7 @@ const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
 const { Dialog, Tooltip, HozoSlider } = module.exports
 const { HozoColorPicker, HozoStepper } = module.exports
 const { HozoChip, HozoOtpInput } = module.exports
+const { UiCombobox } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
@@ -1050,6 +1070,52 @@ test('Native Combobox options deliver interaction facts and retain filtering, di
   assert.equal(input().props.value, 'Beta')
   assert.equal(input().props.accessibilityState.expanded, false)
   assert.equal(hosts().length, 0)
+})
+
+test('compiled UI Combobox keeps placeholder, validation, input focus and active-option looks on their real owners', async (t) => {
+  t.after(() => {
+    nativeDark = false
+  })
+  const props = {
+    options: [
+      { value: 'a', label: 'Alpha' },
+      { value: 'b', label: 'Beta' },
+    ],
+    accessibilityLabel: 'Language',
+    placeholder: 'Choose a language',
+  }
+  const token = (name) => theme.colors.find((entry) => entry.token === name)
+  for (const dark of [false, true]) {
+    nativeDark = dark
+    const expected = (name) => (dark ? token(name).dark.hex : token(name).hex)
+    const tree = await mount(t, UiCombobox, props)
+    const input = () => tree.root.findByType('NativeTextInput')
+    assert.equal(input().props.placeholderTextColor, expected('hozo-text-subtle'))
+    assert.equal(flat(input().props.style).color, expected('hozo-text'))
+    assert.equal(flat(input().props.style).borderColor, expected('hozo-border-strong'))
+    await act(() =>
+      tree.update(React.createElement(UiCombobox, { ...props, 'aria-invalid': true })),
+    )
+    assert.equal(flat(input().props.style).borderColor, expected('hozo-danger'))
+    await act(() =>
+      tree.update(React.createElement(UiCombobox, { ...props, 'aria-invalid': 'grammar' })),
+    )
+    assert.equal(flat(input().props.style).borderColor, expected('hozo-border-strong'))
+    await act(() => input().props.onFocus({}))
+    assert.equal(flat(input().props.style).outlineWidth, 2)
+    await act(() => input().props.onChangeText(''))
+    const options = () => tree.root.findAllByType('NativePressable')
+    assert.equal(options().length, 2)
+    assert.equal(flat(options()[0].props.style).outlineWidth, undefined)
+    await act(() => input().props.onKeyPress({ nativeEvent: { key: 'ArrowDown' } }))
+    assert.equal(options()[0].props.accessibilityState.selected, true)
+    assert.equal(flat(options()[0].props.style).outlineWidth, 2)
+    assert.equal(flat(options()[1].props.style).outlineWidth, undefined)
+    assert.equal(flat(input().props.style).outlineWidth, 2)
+    await act(() => input().props.onBlur({}))
+    assert.equal(options().length, 0)
+    assert.equal(flat(input().props.style).outlineWidth, undefined)
+  }
 })
 
 test('Native Tree interaction does not expand branches or select leaves', async (t) => {

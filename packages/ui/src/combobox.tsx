@@ -46,13 +46,16 @@ const list =
   'flex flex-col gap-1 max-h-60 overflow-y-auto rounded-hozo-surface border border-hozo-border bg-hozo-surface p-1 shadow-hozo-surface'
 
 /**
- * A highlight and not a selection: a tint and nothing else.
+ * A highlight and not a selection: a tint and the active-descendant outline.
  *
  * No weight change, deliberately -- that is `Listbox`'s way of saying "this is
  * the answer", and the two must not look the same.
+ * Focus remains on the input, so a focus-visible rule on an option never
+ * matched on Web. Drive the option outline from its actual active state on
+ * both platforms instead of borrowing the input's focus on Native.
  */
 const option =
-  'cursor-pointer rounded-hozo-control px-3 py-2 text-sm text-hozo-text hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
+  'cursor-pointer rounded-hozo-control px-3 py-2 text-sm text-hozo-text hover:bg-hozo-surface-hover aria-selected:outline-2 aria-selected:outline-offset-2 aria-selected:outline-hozo-focus aria-selected:bg-hozo-accent-subtle aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
 // Compiled output imports HozoCombobox for the pattern below; an export alias
 // preserves the public name without colliding with that generated binding.

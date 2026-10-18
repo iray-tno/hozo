@@ -59,6 +59,7 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "selected" => Some("false"),
             Condition::Aria(state) if state == "checked" => Some("false"),
             Condition::Aria(state) if state == "expanded" => Some("__hozoSlotAriaExpanded"),
+            Condition::Aria(state) if state == "invalid" => Some("__hozoSlotAriaInvalid"),
             _ => None,
         },
         // Option divs are non-form owners. Each widget supplies its own selection meaning; focus ownership is declared per slot.
@@ -217,7 +218,7 @@ pub(super) fn semantic_parameters(primitive: Primitive, class_prop: &str) -> &'s
         (Primitive::Chip, "className" | "removeClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed",
         (Primitive::ColorPicker, "swatchClassName" | "selectedSwatchClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked",
         (Primitive::ColorPicker, "inputClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly",
-        (Primitive::Combobox, "inputClassName") => ", 'aria-expanded': __hozoSlotAriaExpanded",
+        (Primitive::Combobox, "inputClassName") => ", 'aria-expanded': __hozoSlotAriaExpanded, 'aria-invalid': __hozoSlotAriaInvalid",
         (Primitive::Combobox, "optionClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
         (Primitive::CommandPalette, "itemClassName" | "activeItemClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
         (Primitive::Listbox, "optionClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
@@ -298,6 +299,13 @@ pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&
         (Primitive::Stepper, "currentIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "errorIndicatorClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
         (Primitive::Stepper, "descriptionClassName") => Some("{ disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }"),
+        _ => None,
+    }
+}
+
+pub(super) fn placeholder_color_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+    match (primitive, class_prop) {
+        (Primitive::Combobox, "inputClassName") => Some("hozoInputPlaceholderTextColor"),
         _ => None,
     }
 }

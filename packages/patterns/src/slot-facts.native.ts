@@ -94,6 +94,7 @@ export interface ComboboxInputSlotFacts {
   'aria-selected': false
   'aria-checked': false
   'aria-expanded': boolean
+  'aria-invalid': boolean
 }
 
 /** Option divs are non-form owners. Each widget supplies its own selection meaning; focus ownership is declared per slot. */

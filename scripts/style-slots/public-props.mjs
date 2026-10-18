@@ -31,6 +31,14 @@ export function publicPropsProbe(catalog = components) {
           `export const ${name}_${slot.classProp}_style: true = null as unknown as (${quote(slot.styleProp)} extends keyof PropsOf<typeof N.${name}> ? true : ${quote(`${name}.${slot.styleProp} missing style prop`)})`,
       ),
   )
+  const placeholderProps = Object.entries(catalog).flatMap(([name, slots]) =>
+    slots
+      .filter((slot) => slot.placeholderColorProp)
+      .map(
+        (slot) =>
+          `export const ${name}_${slot.placeholderColorProp}: true = null as unknown as (${quote(slot.placeholderColorProp)} extends keyof PropsOf<typeof N.${name}> ? true : ${quote(`${name}.${slot.placeholderColorProp} missing placeholder prop`)})`,
+      ),
+  )
   return `import type { JSXElementConstructor } from 'react'
 import type * as W from '../src/index.ts'
 import type * as N from '../src/index.native.ts'
@@ -67,6 +75,7 @@ declare const resolved: [Unresolved<typeof W> | Unresolved<typeof N>] extends [n
 export const exportsHaveReadableTypes: true = resolved
 ${callbacks.join('\n')}
 ${styles.join('\n')}
+${placeholderProps.join('\n')}
 // Negative controls: the type comparison must detect both directions,
 // including a new component absent from the catalog entirely.
 export const controlMissing: 'Extra.newClassName' = null as unknown as Delta<{Extra:'newClassName'}, {Extra:'className'}>
