@@ -52,6 +52,15 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm test:packages
+      # Counts/props and per-module bytes, not a device or timing gate. The
+      # report keeps known inheritance gaps visible even when tests pass.
+      - run: node scripts/text-inheritance-baseline.mjs --rows 32 --output artifacts/text-inheritance/baseline.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-text-inheritance-baseline
+          path: artifacts/text-inheritance/baseline.json
+          if-no-files-found: warn
       - run: pnpm test:publishing
       # The full report installs Allure only on main. These dependency-free
       # pipeline fixtures still guard discovery/reporting on every PR.

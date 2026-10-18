@@ -102,6 +102,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'crates/hozo_native/src/text.rs',
     // class-name-parity enumerates *all* component packages. Its domain is
     // intentionally wider than media's three Slider sources.
     'packages/form/src/time-picker.native.tsx',

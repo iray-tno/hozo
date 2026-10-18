@@ -49,6 +49,7 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/*/src/**",
+        "$TURBO_ROOT$/crates/hozo_native/src/text.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/lib.rs"
       ]
     },
