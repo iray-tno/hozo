@@ -538,6 +538,32 @@ export const A11Y_CONTEXTUAL_CASES: A11yContextualCase[] = [
     ],
   },
   {
+    name: 'a named listbox',
+    purpose: 'one named list of options, its selected-option class applied by the pattern',
+    // As Combobox's options: selection is the pattern's state, so on Native
+    // the class arrives as a slot callback reading each option's own facts.
+    source:
+      '<Listbox options={options} value={value} onValueChange={setValue} accessibilityLabel="Fruit" optionClassName="aria-selected:bg-blue-500" />',
+    web: ['<HozoListbox optionClassName="hozo-1" accessibilityLabel={"Fruit"}'],
+    native: [
+      '<HozoListbox accessibilityLabel={"Fruit"} hozoOptionStyle={',
+      '__hozoSlotAriaSelected && hozoStyles.hozo1_ariaselected',
+    ],
+  },
+  {
+    name: 'a menu',
+    purpose: 'a trigger and its items, a disabled item styled from its own state',
+    // The trigger's look is static, so it is a plain style; an item's
+    // disabled state is the pattern's, so it is a slot callback.
+    source:
+      '<Menu trigger="Actions" items={items} triggerClassName="px-2" itemClassName="aria-disabled:opacity-50" />',
+    web: ['<HozoMenu triggerClassName="hozo-1" itemClassName="hozo-2" trigger="Actions"'],
+    native: [
+      '<HozoMenu triggerStyle={hozoStyles.hozo1} hozoItemStyle={',
+      '__hozoSlotAriaDisabled && hozoStyles.hozo2_ariadisabled',
+    ],
+  },
+  {
     name: 'a one-time code field',
     purpose: 'one named field, drawn as cells, on both platforms',
     source:
