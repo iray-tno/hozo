@@ -65,7 +65,7 @@ test('a component exported but not published by the entry is left out', () => {
   assert.deepEqual(manifest.textForwarding, {})
 })
 
-test('const arrows and React wrappers preserve manifests across re-exports and Native callers', async () => {
+test('arrows, React wrappers and prop aliases preserve manifests across re-exports and Native callers', async () => {
   const { createCompiler } = await import('./index.ts')
   const { DEFAULT_PRIMITIVE_SOURCES } = await import('./sources.ts')
   const { textForwardingModule } = await import('./manifest.ts')
@@ -82,6 +82,8 @@ import { Checkbox as Host } from '@hozo/patterns'`
     `${imports}\nexport const Inner = cached(function Render(${params}) { return (${host}) }, () => false)`,
     `${imports}\nexport const Inner = withRef<Element, Props>((${params}, ref) => (${withRef}))`,
     `${imports}\nexport const Inner = React.memo(React.forwardRef(function Render(${params}, ref) { return (${withRef}) }))`,
+    `${imports}\nexport const Inner = cached(withRef(({tone: t = 'quiet', children: label, className: classes, disabled: off, ...rest}, ref) =>
+      <Host ref={ref} {...rest} disabled={off} className={t === 'loud' ? 'font-bold hover:text-red-500 disabled:text-gray-400' : 'text-sm'}>{label}</Host>))`,
   ]
   const manifests = declarations.map((source) =>
     buildManifest({
@@ -126,6 +128,11 @@ export const Terms = () => <Check tone="loud" disabled={off}><Text>I agree</Text
   assert.match(outputs[0].jsx, /\(off\) && hozoStyles\.\w+/)
   assert.match(outputs[0].jsx, /hovered/)
   for (const output of outputs) assert.deepEqual(output, outputs[0])
+  // Local implementation names are not public props. With no authored tone,
+  // the public default is quiet, even if an unrelated `t` prop says loud.
+  const defaulted = compiler.compileNative(caller.replace('tone="loud"', 't="loud"'))[0]
+  assert.match(defaulted.styles, /fontSize: 14/)
+  assert.doesNotMatch(defaulted.styles, /fontWeight: '700'/)
 })
 
 test('a same-named non-React wrapper stays out of the published manifest', () => {
@@ -140,6 +147,30 @@ export const Inner = memo(({children}) => <Host className="text-sm">{children}</
     }),
   })
   assert.deepEqual(manifest.textForwarding, {})
+})
+
+test('a renamed disabled source drives caller styles through its public prop, not its local alias', async () => {
+  const { createCompiler } = await import('./index.ts')
+  const { DEFAULT_PRIMITIVE_SOURCES } = await import('./sources.ts')
+  const { textForwardingModule } = await import('./manifest.ts')
+  const manifest = buildManifest({
+    entry: '/pkg/index.ts',
+    readSource: memory({
+      '/pkg/index.ts': `export { Inner as Control } from './inner.tsx'`,
+      '/pkg/inner.tsx': `import {Button as Host} from '@hozo/primitives'
+export const Inner = ({inactive: off, children: label}) =>
+  <Host disabled={off} className="text-sm disabled:text-gray-400">{label}</Host>`,
+    }),
+  })
+  assert.equal(manifest.textForwarding.Control.disabledProp, 'inactive')
+  const compiler = createCompiler(undefined, [...DEFAULT_PRIMITIVE_SOURCES])
+  compiler.setTextForwarding([textForwardingModule('example-controls', manifest)])
+  const output = compiler.compileNative(`import {Text} from '@hozo/core'
+import {Control} from 'example-controls'
+export const Save = () => <Control inactive={locked}><Text>Save</Text></Control>`)[0]
+  assert.match(output.styles, /fontSize: 14/)
+  assert.match(output.jsx, /\(locked\) && hozoStyles\.\w+/)
+  assert.doesNotMatch(output.jsx, /\boff\b/)
 })
 
 test('the package directory form writes the file package.json names, and --check compares it', () => {
