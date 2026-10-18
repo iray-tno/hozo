@@ -15,7 +15,6 @@ investigation moves.
 
 | Test | Where | Issue |
 | --- | --- | --- |
-| real browser decodes the local MP4, plays, seeks, loops, errors, changes sources and cleans up under StrictMode | `packages/media/tests/browser-video.test.mjs` | [#1065](https://github.com/iray-tno/hozo/issues/1065) |
 | real browser poster pixels, stable controls/host, source reset and image failure (compositor callback) | `packages/media/tests/browser-poster.test.mjs` | [#1066](https://github.com/iray-tno/hozo/issues/1066) |
 | The `ios` job, before any test runs ("Timed out waiting for AX loaded notification") | `.github/workflows` | [#530](https://github.com/iray-tno/hozo/issues/530) |
 | The `voiceover` job, on the runner ("-1743", VoiceOver refusing to launch) | `.github/workflows` | [#631](https://github.com/iray-tno/hozo/issues/631) |
