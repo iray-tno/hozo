@@ -29,6 +29,7 @@ test('steps come in the order one unblocks the next, and only the ones that appl
         finding('a.tsx', 'RN_COMPAT_NOT_INSTALLED'),
         finding('b.tsx', 'DYNAMIC_PROP_NOT_RESOLVED', 'error'),
       ],
+      reactNativeImportDecisions: { rewrittenBindings: 2 },
       reactNativeValueDecisions: {
         inventory: [
           {
@@ -60,6 +61,7 @@ test('steps come in the order one unblocks the next, and only the ones that appl
     'Decide what replaces the APIs still on React Native.',
     'Review the warnings, most widespread first.',
     'Check the APIs Hozo moved to its own adapters.',
+    'Optionally, write the import moves into the source.',
   ])
   assert.match(steps[0], /src\/broken\.tsx \[web\]: Unexpected token/)
   assert.match(steps[1], /`SectionList` \(2\)/)
@@ -67,6 +69,13 @@ test('steps come in the order one unblocks the next, and only the ones that appl
   // The compat warning is its own step, not a row among the warnings.
   assert.doesNotMatch(steps[5], /RN_COMPAT_NOT_INSTALLED/)
   assert.match(steps[6], /`Platform\.OS`/)
+  assert.match(steps[7], /2 React Native imports .* `--fix --write` applies it/)
+})
+
+test('no import moved, no --fix step', () => {
+  for (const decisions of [undefined, { rewrittenBindings: 0 }]) {
+    assert.deepEqual(nextSteps(report({ reactNativeImportDecisions: decisions })), [])
+  }
 })
 
 test('a warning raised for both backends in one file counts as one file', () => {
