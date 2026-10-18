@@ -162,6 +162,8 @@ pub(super) fn render_node(
         field_style.as_deref().unwrap_or(&node.style),
         inherited,
     ));
+    let layout = crate::pattern_layout::adapt(node.primitive, "className", style);
+    let style = layout.style;
     // A skeleton's animation runs only when motion is allowed, whatever the
     // class said: `animate-pulse` on one is read as
     // `motion-safe:animate-pulse` (decision 007, section 5). The Web half is
@@ -264,6 +266,9 @@ pub(super) fn render_node(
     let mut backdrop_filter = None;
 
     for declaration in &style {
+        if is_viewport_sized(&declaration.property) {
+            continue;
+        }
         // Lowered as a prop just above, so it must not also be reported as
         // a style this platform cannot hold.
         if !svg_paint.is_empty()
@@ -957,6 +962,18 @@ pub(super) fn render_node(
         animates.then_some(&mut frames),
         cx,
     );
+    let mut backdrop_parts = Vec::new();
+    if !layout.backdrop.is_empty() {
+        build_style_entries(
+            &layout.backdrop,
+            &format!("{base_name}_backdrop"),
+            &target,
+            &mut backdrop_parts,
+            &mut Vec::new(),
+            None,
+            cx,
+        );
+    }
     // The label's text styles, by state, for `HozoPressable` to hand to a
     // label that arrives as `children`. Compiled here like any other entry;
     // only which element they land on waits for runtime.
@@ -1275,6 +1292,14 @@ pub(super) fn render_node(
         .iter()
         .map(|residual| format!(" {{...({})}}", residual.render_expression(source)))
         .collect::<String>();
+    if let Some(prop) = layout.scroll_prop {
+        props_text.push_str(&format!(" {prop}={{true}}"));
+    }
+    if !backdrop_parts.is_empty() {
+        let prop = crate::pattern::backdrop_style_prop(node.primitive, "className")
+            .expect("a backdrop style must have a catalogued owner");
+        props_text.push_str(&format!(" {prop}={{[{}]}}", backdrop_parts.join(", ")));
+    }
     if link_interaction {
         props_text.push_str(" hozoLinkComponent={HozoPressable}");
     }
@@ -1935,6 +1960,60 @@ pub(super) fn render_node(
             .find(|written| written.slot == *slot)
         {
             let mut pressed = Vec::new();
+            let slot_layout =
+                crate::pattern_layout::applies(node.primitive, slot.class_prop).then(|| {
+                    crate::pattern_layout::adapt(
+                        node.primitive,
+                        slot.class_prop,
+                        written.style.clone(),
+                    )
+                });
+            if let Some(prop) = slot_layout.as_ref().and_then(|layout| layout.scroll_prop) {
+                props_text.push_str(&format!(" {prop}={{true}}"));
+            }
+            let slot_style = slot_layout
+                .as_ref()
+                .map_or(&written.style, |layout| &layout.style);
+            // Only a catalogued real input can consume placeholder colour.
+            // All other pseudo-element declarations still reach diagnostics;
+            // this is a prop adaptation, not a general pseudo-style escape.
+            let placeholder = crate::text::pattern_placeholder_prop(
+                node.primitive,
+                slot.class_prop,
+                slot_style,
+                cx.theme,
+                cx.runtime,
+            );
+            let field_style: Option<Vec<_>> = placeholder.as_ref().map(|_| {
+                slot_style
+                    .iter()
+                    .filter(|declaration| placeholder_colour(declaration).is_none())
+                    .cloned()
+                    .collect()
+            });
+            for declaration in field_style.as_deref().unwrap_or(slot_style) {
+                // A rejected layout cannot become an empty secondary style.
+                // Keep this owner adaptation scoped: other property families
+                // retain their existing validation/adapter policy.
+                if matches!(
+                    declaration.property,
+                    StyleProperty::OverflowX(_)
+                        | StyleProperty::OverflowY(_)
+                        | StyleProperty::Position(hozo_ir::Position::Css(_))
+                ) {
+                    if let Some(reason) = declaration.property.unsupported_on_native() {
+                        cx.diagnostics.push(Diagnostic {
+                            code: DiagnosticCode::WebOnlyPropertyOnNative,
+                            severity: Severity::Error,
+                            message: format!("{}: {reason}", slot.class_prop),
+                            span: written.span,
+                        });
+                    }
+                }
+            }
+            if let Some((prop, value)) = placeholder {
+                props_text.push_str(&format!(" {prop}={{{value}}}"));
+            }
             let target = crate::conditions::StyleTarget {
                 node,
                 position,
@@ -1942,7 +2021,7 @@ pub(super) fn render_node(
                 pattern_slot: Some(slot.class_prop),
             };
             let state_start = build_style_entries(
-                &written.style,
+                field_style.as_deref().unwrap_or(slot_style),
                 &cx.allocator.alloc(),
                 &target,
                 &mut parts,

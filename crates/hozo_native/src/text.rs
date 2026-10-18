@@ -510,10 +510,35 @@ pub(super) fn placeholder_props(
     {
         return None;
     }
+    placeholder_value(&node.style, theme, runtime)
+        .map(|value| vec![("placeholderTextColor", value)])
+}
+
+/// Pattern input slots use the same property adapter, but the prop travels to
+/// their real field rather than being assigned to the enclosing widget.
+pub(super) fn pattern_placeholder_prop(
+    primitive: Primitive,
+    slot: &str,
+    declarations: &[StyleDeclaration],
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+) -> Option<(&'static str, String)> {
+    // The owner gate must precede placeholder_value: that function can
+    // register a dark hook, which an unrelated slot must not acquire.
+    let prop = crate::pattern::placeholder_color_prop(primitive, slot)?;
+    let value = placeholder_value(declarations, theme, runtime)?;
+    Some((prop, value))
+}
+
+pub(super) fn placeholder_value(
+    declarations: &[StyleDeclaration],
+    theme: &Theme,
+    runtime: &mut RuntimeNeeds,
+) -> Option<String> {
     let dark_theme = theme.dark();
     let mut light = None;
     let mut dark = None;
-    for declaration in &node.style {
+    for declaration in declarations {
         let Some((colour, dark_only)) = placeholder_colour(declaration) else {
             continue;
         };
@@ -544,7 +569,7 @@ pub(super) fn placeholder_props(
     } else {
         light?
     };
-    Some(vec![("placeholderTextColor", value)])
+    Some(value)
 }
 
 pub(super) fn placeholder_only_reason(property: &StyleProperty) -> Option<String> {

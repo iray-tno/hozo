@@ -1,9 +1,10 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, type ViewStyle } from 'react-native'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { optionKey } from './option-key.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import { PatternScrollContainer } from './scroll-container.native.tsx'
 import type { ListOptionSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -46,6 +47,8 @@ interface Shared<T> {
   optionStyle?: Style
   /** @internal Options own focus and pointer state; selection is the committed value. */
   hozoOptionStyle?: (state: OptionState) => Style
+  /** @internal A real vertical scroll host, not an overflow style approximation. */
+  hozoScrollY?: boolean
 }
 
 export interface HozoListboxSingleProps<T> extends Shared<T> {
@@ -73,6 +76,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
     style,
     optionStyle,
     hozoOptionStyle,
+    hozoScrollY,
   } = props
   const multiple = props.multiple === true
 
@@ -113,7 +117,8 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
   const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
 
   return (
-    <View
+    <PatternScrollContainer
+      enabled={hozoScrollY}
       accessibilityRole="list"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={multiple ? 'Choose one or more' : undefined}
@@ -155,7 +160,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
           </Pressable>
         )
       })}
-    </View>
+    </PatternScrollContainer>
   )
 }
 

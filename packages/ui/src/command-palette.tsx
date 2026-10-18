@@ -11,7 +11,7 @@
  * as they are typed for, and a centred panel would move its own field.
  */
 
-import { CommandPalette, type CommandPaletteProps } from '@hozo/core'
+import { CommandPalette, type CommandPaletteProps, cx } from '@hozo/core'
 
 export type HozoCommandPaletteProps = Omit<CommandPaletteProps, 'className' | 'scrimClassName'>
 
@@ -28,8 +28,6 @@ const item =
 const active = 'bg-hozo-accent-subtle text-hozo-accent-text'
 const shortcut = 'text-xs text-hozo-text-subtle'
 const empty = 'px-4 py-6 text-center text-hozo-text-subtle'
-
-const plus = (own: string, extra: string | undefined) => (extra ? `${own} ${extra}` : own)
 
 // Not named `HozoCommandPalette` here: compiled output imports a runtime
 // component under that name for the `<CommandPalette>` below (#670).
@@ -49,14 +47,14 @@ function StyledCommandPalette({
       {...rest}
       className={root}
       scrimClassName={scrim}
-      panelClassName={plus(panel, panelClassName)}
-      inputClassName={plus(input, inputClassName)}
-      listClassName={plus(list, listClassName)}
-      groupHeadingClassName={plus(heading, groupHeadingClassName)}
-      itemClassName={plus(item, itemClassName)}
-      activeItemClassName={plus(active, activeItemClassName)}
-      shortcutClassName={plus(shortcut, shortcutClassName)}
-      emptyClassName={plus(empty, emptyClassName)}
+      panelClassName={cx(panel, panelClassName)}
+      inputClassName={cx(input, inputClassName)}
+      listClassName={cx(list, listClassName)}
+      groupHeadingClassName={cx(heading, groupHeadingClassName)}
+      itemClassName={cx(item, itemClassName)}
+      activeItemClassName={cx(active, activeItemClassName)}
+      shortcutClassName={cx(shortcut, shortcutClassName)}
+      emptyClassName={cx(empty, emptyClassName)}
     />
   )
 }

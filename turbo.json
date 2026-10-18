@@ -56,6 +56,10 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/typography/src/**"]
     },
+    "@hozo/metro#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/**"]
+    },
     "@hozo/media#test": {
       "dependsOn": ["^build"],
       "inputs": [
@@ -88,7 +92,8 @@
         "$TURBO_ROOT$/packages/behaviors/src/floating-geometry.ts",
         "$TURBO_ROOT$/packages/engine/src/navigation*.ts",
         "$TURBO_ROOT$/packages/engine/src/navigation*.tsx",
-        "$TURBO_ROOT$/packages/engine/src/transform-slots.ts"
+        "$TURBO_ROOT$/packages/engine/src/transform-slots.ts",
+        "$TURBO_ROOT$/packages/metro/src/**"
       ]
     },
     "@hozo/example-native-showcase#test": {
