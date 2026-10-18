@@ -228,6 +228,37 @@ export function rehomeReactNativeRuntimeImports(code: string, file?: string): st
   return rehomeReactNativeImports(code, RN_OWNED_RUNTIME_EXPORTS, '@hozo/rn-compat', file)
 }
 
+/**
+ * The runtime-API move as source edits, for `migration-audit --fix` (#1053).
+ *
+ * The same pass the Web build runs, observed rather than repeated, so the
+ * codemod cannot drift from what the build does. Only the runtime half:
+ * `@hozo/rn-compat` re-exports React Native's own objects under its
+ * `react-native` condition, so the move written to source changes nothing
+ * on Native. The component half is left out, because `@hozo/core`'s
+ * `Pressable` and `TextInput` are Hozo's own components on Native, not
+ * React Native's. Edit spans are offsets into `code`.
+ */
+export function reactNativeImportFix(
+  code: string,
+  file?: string,
+): { code: string; edits: SourceEdit[]; decisions: ReactNativeImportDecision[] } {
+  let observed: { edits: SourceEdit[]; decisions: ReactNativeImportDecision[] } = {
+    edits: [],
+    decisions: [],
+  }
+  const next = rehomeReactNativeImports(
+    code,
+    RN_OWNED_RUNTIME_EXPORTS,
+    '@hozo/rn-compat',
+    file,
+    (decisions, edits) => {
+      observed = { decisions, edits }
+    },
+  )
+  return { code: next, ...observed }
+}
+
 export function rehomeReactNativeComponentImports(code: string, file?: string): string {
   // `@hozo/core` rather than the owner, for the reason compiled imports go
   // through it: the application declared core, not `@hozo/primitives`.

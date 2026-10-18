@@ -725,8 +725,10 @@ to check every entry point is actually in them.
 
 ## What Hozo does not do yet
 
-- **Migration is manual.** An existing app adopting Hozo changes its
-  imports at the boundary itself; there is no codemod.
+- **Migration is mostly manual.** `npx @hozo/migration-audit . --fix`
+  moves the React Native APIs Hozo owns (`Platform`, `Keyboard`, …) to
+  `@hozo/rn-compat` in source; components and everything else are still
+  changed by hand.
 - **No physical-device validation.** The Native backend does run on an
   Android emulator and an iOS simulator — `.github/workflows/native.yml`
   boots both, drives the demo app, and compares the accessibility tree
