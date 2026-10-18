@@ -85,6 +85,10 @@
       "types": "./dist/generated/scrollable.d.ts",
       "default": "./dist/generated/scrollable.js"
     },
+    "./generated/spread-styles": {
+      "types": "./dist/generated/spread-styles.d.ts",
+      "default": "./dist/generated/spread-styles.js"
+    },
     "./generated/transform-slots": {
       "types": "./dist/generated/transform-slots.d.ts",
       "default": "./dist/generated/transform-slots.js"
