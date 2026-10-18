@@ -140,6 +140,22 @@ jobs:
       # The manifests component packages ship (#950), generated from their
       # source for the same reason and with the same staleness to catch.
       - run: pnpm manifests:check
+      # Branch-only measurement; removed once its generated snapshot is reviewed.
+      - name: Measure conformance for the Native UI repair
+        if: github.head_ref == 'feat/shared-ui-state-showcase'
+        run: |
+          mkdir -p artifacts/ui-native-conformance
+          git rev-parse HEAD > artifacts/ui-native-conformance/source.txt
+          pnpm --filter @hozo/compiler build:native:release
+          pnpm --filter @hozo/tailwind-conformance report > artifacts/ui-native-conformance/report.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always() && github.head_ref == 'feat/shared-ui-state-showcase'
+        with:
+          name: ui-native-conformance-evidence
+          path: |
+            artifacts/ui-native-conformance/
+            packages/tailwind-conformance/snapshot.json
+          if-no-files-found: error
 
   platform-compat:
     strategy:
