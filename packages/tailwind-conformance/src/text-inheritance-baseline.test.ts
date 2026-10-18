@@ -138,6 +138,9 @@ test('paired comparisons retain zero deltas and reject incomplete or incompatibl
   }
   for (const mutate of [
     (copy: typeof result) => {
+      copy.schemaVersion = 1
+    },
+    (copy: typeof result) => {
       copy.provenance.fixtureHash = 'other'
     },
     (copy: typeof result) => {

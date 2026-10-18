@@ -1,11 +1,33 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { type captureTextBaseline, classifyObservation } from './text-inheritance-baseline.ts'
-import { TEXT_FIXTURES } from './text-inheritance-fixtures.ts'
+import { TEXT_FIXTURES, WORKLOAD_EXPECTED } from './text-inheritance-fixtures.ts'
 
 type Report = ReturnType<typeof captureTextBaseline>
 
 function validate(report: Report) {
-  assert.equal(report.schemaVersion, 1)
+  assert.equal(
+    report.schemaVersion,
+    2,
+    'comparison requires schema 2; re-capture the control with this driver',
+  )
+  assert.ok(['baseline', 'reference'].includes(report.experiment.mode))
+  if (report.experiment.mode === 'baseline') assert.equal(report.experiment.referenceModule, null)
+  else {
+    assert.ok(report.experiment.referenceModule)
+    assert.equal(
+      report.experiment.referenceModule.sourceBytes,
+      Buffer.byteLength(report.experiment.referenceModule.source),
+    )
+    assert.ok(
+      Number.isInteger(report.experiment.referenceModule.minifiedModuleBytes) &&
+        report.experiment.referenceModule.minifiedModuleBytes > 0,
+    )
+    assert.equal(
+      report.experiment.referenceModule.sha256,
+      createHash('sha256').update(report.experiment.referenceModule.source).digest('hex'),
+    )
+  }
   assert.deepEqual(
     report.cases.map((entry) => entry.id),
     TEXT_FIXTURES.map((entry) => entry.id),
@@ -50,9 +72,21 @@ function validate(report: Report) {
     regressions,
   })
   assert.equal(report.measurementValid, regressions.length === 0)
-  assert.equal(report.compatibilityComplete, supported === TEXT_FIXTURES.length)
-  assert.equal(report.workloads.length, 1)
+  assert.equal(
+    report.compatibilityComplete,
+    supported === TEXT_FIXTURES.length &&
+      report.workloads.every((entry) => entry.semantics.status === 'supported'),
+  )
+  assert.deepEqual(
+    report.workloads.map((entry) => entry.shape),
+    ['closed', 'opaque'],
+  )
   for (const workload of report.workloads) {
+    assert.deepEqual(workload.semantics.expected, WORKLOAD_EXPECTED)
+    assert.deepEqual(
+      { status: workload.semantics.status, mismatches: workload.semantics.mismatches },
+      classifyObservation(workload.semantics.expected, workload.semantics.actual),
+    )
     assert.ok(Number.isInteger(workload.rows) && workload.rows > 0 && workload.rows <= 1000)
     assert.deepEqual(
       workload.operations.map((operation) => operation.name),
@@ -66,6 +100,12 @@ function validate(report: Report) {
       ],
     )
     for (const operation of workload.operations) {
+      assert.ok(
+        Object.values(operation.referenceExecutions).every(
+          (value) => Number.isInteger(value) && value >= 0,
+        ),
+      )
+      if (report.experiment.mode === 'baseline') assert.deepEqual(operation.referenceExecutions, {})
       assert.deepEqual(
         Object.keys(operation.textExecutions).sort(),
         Array.from({ length: workload.rows }, (_, index) => `label-${index}`).sort(),
@@ -79,7 +119,10 @@ function validate(report: Report) {
         assert.ok(Number.isInteger(value) && value >= 0)
       }
     }
-    assert.deepEqual(Object.keys(workload.modules), ['scene'])
+    assert.deepEqual(
+      Object.keys(workload.modules).sort(),
+      workload.shape === 'closed' ? ['scene'] : ['label', 'scene'],
+    )
     const module = workload.modules.scene as {
       transformed: string
       transformedBytes: number
@@ -136,38 +179,70 @@ export function compareTextBaselines(before: Report, after: Report) {
       })
     }
   }
-  const workload = after.workloads[0]
-  assert.equal(before.workloads[0].rows, workload.rows, 'incomparable row count')
-  const executions = workload.operations.map((operation, index) => {
-    const previous = before.workloads[0].operations[index]
-    return {
-      operation: operation.name,
-      textExecutionDeltas: Object.fromEntries(
-        Object.entries(operation.textExecutions).map(([id, counts]) => [
-          id,
-          Object.fromEntries(
-            Object.entries(counts).map(([key, value]) => [
-              key,
-              value - previous.textExecutions[id][key],
+  const executions = after.workloads.flatMap((workload, workloadIndex) => {
+    assert.equal(before.workloads[workloadIndex].rows, workload.rows, 'incomparable row count')
+    return workload.operations.map((operation, index) => {
+      const previous = before.workloads[workloadIndex].operations[index]
+      return {
+        shape: workload.shape,
+        operation: operation.name,
+        referenceExecutionDeltas: Object.fromEntries(
+          [
+            ...new Set([
+              ...Object.keys(operation.referenceExecutions),
+              ...Object.keys(previous.referenceExecutions),
             ]),
-          ),
-        ]),
-      ),
-      cellCommitDelta:
-        Object.values(operation.cellCommits).reduce((sum, value) => sum + value, 0) -
-        Object.values(previous.cellCommits).reduce((sum, value) => sum + value, 0),
-    }
-  })
-  for (const [name, value] of Object.entries(workload.modules)) {
-    const current = value as { transformedBytes: number; minifiedModuleBytes: number }
-    const old = before.workloads[0].modules[name] as typeof current
-    assert.ok(old, `missing workload module ${name}`)
-    codeSize.push({
-      case: 'workload',
-      module: name,
-      transformedBytesDelta: current.transformedBytes - old.transformedBytes,
-      minifiedModuleBytesDelta: current.minifiedModuleBytes - old.minifiedModuleBytes,
+          ].map((name) => [
+            name,
+            (operation.referenceExecutions[name] ?? 0) - (previous.referenceExecutions[name] ?? 0),
+          ]),
+        ),
+        textExecutionDeltas: Object.fromEntries(
+          Object.entries(operation.textExecutions).map(([id, counts]) => [
+            id,
+            Object.fromEntries(
+              Object.entries(counts).map(([key, value]) => [
+                key,
+                value - previous.textExecutions[id][key],
+              ]),
+            ),
+          ]),
+        ),
+        cellCommitDelta:
+          Object.values(operation.cellCommits).reduce((sum, value) => sum + value, 0) -
+          Object.values(previous.cellCommits).reduce((sum, value) => sum + value, 0),
+      }
     })
+  })
+  for (const [workloadIndex, workload] of after.workloads.entries())
+    for (const [name, value] of Object.entries(workload.modules)) {
+      const current = value as { transformedBytes: number; minifiedModuleBytes: number }
+      const old = before.workloads[workloadIndex].modules[name] as typeof current
+      assert.ok(old, `missing workload module ${name}`)
+      codeSize.push({
+        case: `workload:${workload.shape}`,
+        module: name,
+        transformedBytesDelta: current.transformedBytes - old.transformedBytes,
+        minifiedModuleBytesDelta: current.minifiedModuleBytes - old.minifiedModuleBytes,
+      })
+    }
+  return {
+    changes,
+    codeSize,
+    executions,
+    referenceModuleBytesDelta:
+      (after.experiment.referenceModule?.minifiedModuleBytes ?? 0) -
+      (before.experiment.referenceModule?.minifiedModuleBytes ?? 0),
+    modes: { before: before.experiment.mode, after: after.experiment.mode },
+    workloadSupport: after.workloads.map((workload, index) => ({
+      shape: workload.shape,
+      before: before.workloads[index].semantics.status,
+      after: workload.semantics.status,
+      equalFeatureWork:
+        JSON.stringify(before.workloads[index].semantics.actual) ===
+        JSON.stringify(workload.semantics.actual),
+    })),
+    timingAssessed: false,
+    requiresReview: true,
   }
-  return { changes, codeSize, executions, timingAssessed: false, requiresReview: true }
 }

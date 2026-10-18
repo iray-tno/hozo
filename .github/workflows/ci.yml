@@ -55,11 +55,12 @@ jobs:
       # Counts/props and per-module bytes, not a device or timing gate. The
       # report keeps known inheritance gaps visible even when tests pass.
       - run: node scripts/text-inheritance-baseline.mjs --rows 32 --output artifacts/text-inheritance/baseline.json
+      - run: node scripts/text-inheritance-baseline.mjs --rows 32 --mode reference --baseline artifacts/text-inheritance/baseline.json --output artifacts/text-inheritance/reference.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: native-text-inheritance-baseline
-          path: artifacts/text-inheritance/baseline.json
+          path: artifacts/text-inheritance/*.json
           if-no-files-found: warn
       - run: pnpm test:publishing
       # The full report installs Allure only on main. These dependency-free
