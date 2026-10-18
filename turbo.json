@@ -100,6 +100,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/.github/workflows/deploy-pages.yml",
         "$TURBO_ROOT$/examples/showcase/src/**",
         "$TURBO_ROOT$/examples/showcase/assets/**",
         "$TURBO_ROOT$/examples/storybook-demo/src/**",

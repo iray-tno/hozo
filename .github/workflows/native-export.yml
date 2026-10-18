@@ -1,0 +1,42 @@
+# Verify this integration harness before main: JS exports, not device/GPU builds.
+name: native-export
+on:
+  pull_request:
+    paths:
+      - 'examples/native-showcase/scripts/check-bundles.mjs'
+      - 'examples/native-showcase/scripts/export-evidence*'
+      - '.github/workflows/native-export.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: native-export-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - name: Unit probes then real Android and iOS exports, bounded app concurrency
+        run: |
+          mkdir -p artifacts
+          pnpm turbo run test --filter=@hozo/example-native-showcase --concurrency=2 --force 2>&1 | tee artifacts/native-export.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-export-evidence
+          path: |
+            artifacts/native-export.log
+            examples/native-showcase/artifacts/bundle-exports/
+            examples/native-showcase/dist/check-*/metadata.json
+          if-no-files-found: error
