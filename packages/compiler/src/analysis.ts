@@ -41,6 +41,7 @@ export type { ReactNativeMemberContract } from './analysis-rn-contracts.ts'
 export { discoverAnalysisSources, sourcePlatform } from './analysis-sources.ts'
 export { type AnalysisPlatform, prepareAnalysisStylex } from './analysis-stylex.ts'
 export type { FontAvailability } from './font-diagnostics.ts'
+export { reactNativeImportFix } from './lower.ts'
 
 export type AnalysisBackend = 'source' | 'web' | 'native'
 

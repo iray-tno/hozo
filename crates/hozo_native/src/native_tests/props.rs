@@ -8,7 +8,14 @@ fn unmodeled_props_and_spreads_reach_the_output() {
             "#;
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(output.jsx.contains("{...rest}"));
+    // The spread may carry `style`, so the compiled one goes through it (#1054).
+    assert!(
+        output
+            .jsx
+            .contains("{...hozoSpreadStyles({ style: hozoStyles.hozo0 }, [], rest)}"),
+        "{}",
+        output.jsx
+    );
     assert!(output.jsx.contains("onLayout={onLayout}"));
     assert!(output.jsx.contains(r#"testID={"row"}"#));
 }
@@ -255,4 +262,129 @@ fn caret_colour_lowers_to_text_inputs_cursor_prop() {
         "{}",
         output.jsx
     );
+}
+
+fn native(source: &str) -> String {
+    let parsed = hozo_parser::parse_tsx(source);
+    lower(&parsed.roots[0].node, source, &Theme::default()).jsx
+}
+
+#[test]
+fn a_spread_that_cannot_carry_style_keeps_the_plain_attribute() {
+    // `style` was taken out by name, so `rest` provably has none: no helper,
+    // and the output is what it was before #1054.
+    let jsx = native(
+        r#"
+        import { View } from '@hozo/core'
+        function Box({ style, ...rest }) { return <View {...rest} className="p-4" style={style} /> }
+        "#,
+    );
+    assert_eq!(
+        jsx,
+        "<View style={[hozoStyles.hozo0, style]} {...rest}></View>"
+    );
+    // No spread at all, no helper.
+    let plain = native(
+        r#"
+        import { View } from '@hozo/core'
+        const el = <View className="p-4" testID="a" />
+        "#,
+    );
+    assert!(!plain.contains("hozoSpreadStyles"), "{plain}");
+}
+
+#[test]
+fn a_wrappers_spread_composes_with_the_pattern_slot_styles_it_compiled() {
+    // The issue's shape: a UI wrapper over a pattern, handing `rest` on.
+    let jsx = native(
+        r#"
+        import { cx } from '@hozo/core'
+        import { Listbox as ListboxPattern } from '@hozo/patterns'
+        const box = 'max-h-60 p-2'
+        function UiListbox({ className, ...rest }) {
+          return <ListboxPattern {...rest} className={cx(box, className)} optionClassName="px-2" />
+        }
+        "#,
+    );
+    assert!(
+        jsx.starts_with("<HozoListbox {...hozoSpreadStyles({ "),
+        "{jsx}"
+    );
+    assert!(jsx.contains("optionStyle: hozoStyles.hozo1"), "{jsx}");
+    assert!(
+        jsx.contains("style: [hozoStyles.hozo0, hozoClasses(className, "),
+        "{jsx}"
+    );
+    assert!(jsx.ends_with("}, [], rest)}></HozoListbox>"), "{jsx}");
+    // Each held style once, and `rest` once: nothing reads `rest.style`.
+    assert_eq!(jsx.matches("rest").count(), 1, "{jsx}");
+}
+
+#[test]
+fn multiple_spreads_keep_their_order_with_the_props_between_them() {
+    // Unmodelled props, re-emitted from source in their order: one before the
+    // spreads, two between them, one after.
+    let jsx = native(
+        r#"
+        import { View } from '@hozo/core'
+        const el = <View first="1" {...a} label="Go" onThing={measure} {...b} className="p-4" last />
+        "#,
+    );
+    assert_eq!(
+        jsx,
+        r#"<View first="1" {...hozoSpreadStyles({ style: hozoStyles.hozo0 }, [], a, { "label": "Go" }, { "onThing": (measure) }, b)} last></View>"#
+    );
+}
+
+#[test]
+fn a_style_written_after_the_spreads_still_wins_over_theirs() {
+    let after = native(
+        r#"
+        import { View } from '@hozo/core'
+        const el = <View {...rest} className="p-4" style={mine} />
+        "#,
+    );
+    assert!(
+        after.contains(r#"hozoSpreadStyles({ style: [hozoStyles.hozo0, mine] }, ["style"], rest)"#),
+        "{after}"
+    );
+    // Written before: the spread's style came later in source, so it composes.
+    let before = native(
+        r#"
+        import { View } from '@hozo/core'
+        const el = <View style={mine} className="p-4" {...rest} />
+        "#,
+    );
+    assert!(
+        before.contains(r#"hozoSpreadStyles({ style: [hozoStyles.hozo0, mine] }, [], rest)"#),
+        "{before}"
+    );
+}
+
+#[test]
+fn a_pressed_style_function_goes_through_the_spread_too() {
+    let jsx = native(
+        r#"
+        import { Pressable } from '@hozo/core'
+        const el = <Pressable {...rest} role="button" aria-label="Go" onPress={go} className="p-4 active:p-2" />
+        "#,
+    );
+    assert!(
+        jsx.contains("{...hozoSpreadStyles({ style: ({ pressed }) => ["),
+        "{jsx}"
+    );
+    assert!(jsx.contains("}, [], rest)}"), "{jsx}");
+}
+
+#[test]
+fn an_attribute_between_spreads_it_cannot_take_apart_keeps_the_old_emission() {
+    // An entity in a JSX string means something else in a JS one.
+    let jsx = native(
+        r#"
+        import { View } from '@hozo/core'
+        const el = <View {...a} title="a &amp; b" {...b} className="p-4" />
+        "#,
+    );
+    assert!(!jsx.contains("hozoSpreadStyles"), "{jsx}");
+    assert!(jsx.contains("{...a}") && jsx.contains("{...b}"), "{jsx}");
 }

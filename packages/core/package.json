@@ -164,6 +164,10 @@
       "types": "./dist/generated/spaced.d.ts",
       "default": "./dist/generated/spaced.js"
     },
+    "./generated/spread-styles": {
+      "types": "./dist/generated/spread-styles.d.ts",
+      "default": "./dist/generated/spread-styles.js"
+    },
     "./generated/stepper": {
       "types": "./dist/generated/stepper.d.ts",
       "default": "./dist/generated/stepper.js"

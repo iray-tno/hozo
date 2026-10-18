@@ -16,6 +16,8 @@ import {
 import { loadStaticProjectTheme } from '@hozo/tailwind'
 import { compareReports, comparisonMarkdown, validateBaseline } from './comparison.mjs'
 import { escapeMarkdown, findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
+import { FixRefusedError, runImportFix } from './fix.mjs'
+import { nextStepsMarkdown } from './next-steps.mjs'
 import { evaluateFailurePolicy, failurePolicyMarkdown } from './policy.mjs'
 
 const SAMPLE_LIMIT = 12
@@ -46,6 +48,10 @@ Options:
   --details                 Include every finding in Markdown (JSON is always complete)
   --compare <report>         Compare with a previous JSON audit (informational by default)
   --fail-on none|error|new-errors CI finding policy (default: none); new-errors requires --compare
+  --fix                     Print, as a diff, the react-native imports the Web build moves to
+                            @hozo/rn-compat, written into source; no report is produced
+  --write                   With --fix, apply the diff (refuses files with uncommitted changes)
+  --force                   With --fix --write, write without the Git check
   --help                    Show this help
 
 JS/TS (.tsx/.jsx/.ts/.js/.mts/.mjs) source is observed. Dependencies, declarations,
@@ -60,6 +66,10 @@ function parseArgs(argv) {
     if (key === '--help') return { help: true }
     if (key === '--details') {
       options.details = true
+      continue
+    }
+    if (key === '--fix' || key === '--write' || key === '--force') {
+      options[key.slice(2)] = true
       continue
     }
     // `npx @hozo/migration-audit .` is the first thing anyone types, and it
@@ -97,6 +107,8 @@ function parseArgs(argv) {
     else throw new AuditInputError(`Unknown option or value: ${key} ${value}`)
   }
   if (!options.root) throw new AuditInputError('A checkout is required; use --help for usage')
+  if ((options.write || options.force) && !options.fix)
+    throw new AuditInputError('--write and --force only apply to --fix')
   if (options.failOn === 'new-errors' && !options.compare)
     throw new AuditInputError('--fail-on new-errors requires --compare <JSON report>')
   return options
@@ -600,6 +612,8 @@ This is a read-only compiler measurement, not a claim that the application can b
 3. ${rnJsxFinding}
 4. ${stylingFinding}
 
+${nextStepsMarkdown(report)}
+
 ## Authored surface
 
 | Signal | Files or bindings |
@@ -856,6 +870,15 @@ export async function runCli(argv = process.argv.slice(2), { stdout = process.st
   if (options.help) {
     stdout.write(`${HELP}\n`)
     return
+  }
+  if (options.fix) {
+    const root = path.resolve(options.root)
+    try {
+      return runImportFix(root, sourceFiles(root, options).files, { ...options, stdout })
+    } catch (error) {
+      if (error instanceof FixRefusedError) throw new AuditInputError(error.message)
+      throw error
+    }
   }
   options.format ??= options.output
     ? options.output.endsWith('.md')

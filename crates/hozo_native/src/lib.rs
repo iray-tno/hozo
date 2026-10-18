@@ -62,6 +62,7 @@ mod markup;
 mod pattern;
 mod pattern_layout;
 mod render;
+mod spread_style;
 mod style;
 mod text;
 mod transforms;

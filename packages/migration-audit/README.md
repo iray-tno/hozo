@@ -18,6 +18,8 @@ npx @hozo/migration-audit . --font-availability hozo-font-availability.json
 npx @hozo/migration-audit . --compare previous-audit.json --output changes.md
 npx @hozo/migration-audit . --fail-on error --output hozo-audit.json
 npx @hozo/migration-audit . --compare previous-audit.json --fail-on new-errors --output changes.md
+npx @hozo/migration-audit . --fix            # print the import moves as a diff
+npx @hozo/migration-audit . --fix --write    # apply them
 ```
 
 Without `--source`, the tool scans nonempty `src/` and `app/` directories (both when present),
@@ -33,6 +35,31 @@ checkout and cannot select a directory symlink. Empty selections fail with a sho
 Explicit includes for a monorepo should be paired with `--source .` or the appropriate roots.
 Known declaration/custom-excluded source files are listed separately; built-in excluded directory
 contents and unsupported extensions are not enumerated, rather than reported as zero.
+
+### `--fix`: the import moves, written to source
+
+With `unloweredReactNativeJsx: 'warn' | 'error'`, the Web build moves the React Native APIs Hozo owns
+(`Platform`, `Dimensions`, `Keyboard`, `StyleSheet` and the rest) from `react-native` to
+`@hozo/rn-compat`, invisibly. `--fix` writes that move into the source, using the compiler's own pass,
+so it moves exactly the imports the report's "Web React Native import decisions" counts as moved to
+`@hozo/rn-compat`. Comments, aliases and type-only imports are kept. A second run changes nothing.
+
+- **Dry run by default.** It prints a zero-context unified diff (`git apply --unidiff-zero` takes it)
+  and a summary. `--write` applies it, and refuses files with uncommitted changes, or a checkout
+  that is not a Git repository, unless `--force` is given.
+- **Native-only files are left alone.** The build makes the move for the Web only. In shared files
+  it changes nothing on Native: `@hozo/rn-compat`'s `react-native` condition hands back React Native's
+  own objects, and a test fails if a moved API ever stops being one.
+- **Components are not moved.** The build also moves `Pressable` and `TextInput` to `@hozo/core`,
+  but on Native those are Hozo's own components rather than React Native's, so writing that move
+  into shared source would change Native. `View`, `Text` and the rest are lowered, not moved.
+- It says when `@hozo/rn-compat` is missing from `package.json`. It does not edit it.
+
+The Markdown report opens with **Next steps**: the order to work in, taken from the evidence
+below it and adding no measurement of its own. Files that fail to parse come first, then React
+Native JSX left in Web output, errors, a missing `@hozo/rn-compat`, APIs still on React Native,
+warnings grouped by code and counted by file, and the adapter subsets to check. Each step names
+its count and up to three files; the full lists stay in the sections it points to.
 
 Interactive terminals receive Markdown; piped stdout stays JSON. `--output *.md` selects
 Markdown, other output paths select JSON, and explicit `--format json|markdown` always wins.

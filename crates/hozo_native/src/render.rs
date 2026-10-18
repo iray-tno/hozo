@@ -1415,9 +1415,15 @@ pub(super) fn render_node(
     // Pattern callbacks are a private generated-code ABI, not an authored
     // style function. Keep the caller's style separate and last, so a state
     // class cannot override it or put a function inside an RN style array.
+    // Style attributes a spread could replace are held here and composed
+    // with the spreads where those are emitted (`spread_style`).
+    let mut held = crate::spread_style::HeldStyles::new(&node.props.passthrough);
     if (needs_pressed_fn || pattern_classes.is_some()) && pattern_style_prop.is_some() {
         if !authored_style.is_empty() {
-            props_text.push_str(&format!(" style={{[{}]}}", authored_style.join(", ")));
+            held.emit(
+                &mut props_text,
+                &format!(" style={{[{}]}}", authored_style.join(", ")),
+            );
         }
     } else {
         style_array_parts.extend(authored_style);
@@ -1433,7 +1439,7 @@ pub(super) fn render_node(
     }
 
     if let Some(route) = &pattern_classes {
-        props_text.push_str(&route.prop(&style_array_parts));
+        held.emit(&mut props_text, &route.prop(&style_array_parts));
     } else if needs_pressed_fn {
         let callback = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
             crate::class_route::static_callback(node.primitive, "className", &style_array_parts)
@@ -1447,14 +1453,20 @@ pub(super) fn render_node(
             };
             format!("({state}) => [{}]", style_array_parts.join(", "))
         };
-        props_text.push_str(&format!(
-            " {}={{{callback}}}",
-            pattern_style_prop.unwrap_or("style"),
-        ));
+        held.emit(
+            &mut props_text,
+            &format!(" {}={{{callback}}}", pattern_style_prop.unwrap_or("style")),
+        );
     } else if style_array_parts.len() == 1 && !style_array_parts[0].contains("&&") {
-        props_text.push_str(&format!(" style={{{}}}", style_array_parts[0]));
+        held.emit(
+            &mut props_text,
+            &format!(" style={{{}}}", style_array_parts[0]),
+        );
     } else if !style_array_parts.is_empty() {
-        props_text.push_str(&format!(" style={{[{}]}}", style_array_parts.join(", ")));
+        held.emit(
+            &mut props_text,
+            &format!(" style={{[{}]}}", style_array_parts.join(", ")),
+        );
     }
     if let Some((duration, delay, easing, opacity, transform, colors)) = transition {
         props_text.push_str(&format!(
@@ -2069,7 +2081,7 @@ pub(super) fn render_node(
             parts.splice(state_start..state_start, residuals);
             if let Some(route) = route {
                 parts.extend(pressed);
-                props_text.push_str(&route.prop(&parts));
+                held.emit(&mut props_text, &route.prop(&parts));
                 parts.clear();
             } else if !pressed.is_empty() {
                 parts.extend(pressed);
@@ -2078,7 +2090,7 @@ pub(super) fn render_node(
                         .expect("a pattern interaction guard requires a consuming slot");
                 let callback =
                     crate::class_route::static_callback(node.primitive, slot.class_prop, &parts);
-                props_text.push_str(&format!(" {style_prop}={{{callback}}}",));
+                held.emit(&mut props_text, &format!(" {style_prop}={{{callback}}}"));
                 parts.clear();
             }
             if let Some(evaluation) = written.evaluation.as_ref().filter(|_| {
@@ -2134,7 +2146,7 @@ pub(super) fn render_node(
                     None,
                 )
                 .expect("registered above");
-                props_text.push_str(&route.prop(&[]));
+                held.emit(&mut props_text, &route.prop(&[]));
             } else {
                 parts.push(crate::class_route::residual(
                     node.primitive,
@@ -2152,13 +2164,20 @@ pub(super) fn render_node(
         );
         match parts.len() {
             0 => {}
-            1 => props_text.push_str(&format!(" {}={{{}}}", slot.style_prop, parts[0])),
-            _ => props_text.push_str(&format!(" {}={{[{}]}}", slot.style_prop, parts.join(", "))),
+            1 => held.emit(
+                &mut props_text,
+                &format!(" {}={{{}}}", slot.style_prop, parts[0]),
+            ),
+            _ => held.emit(
+                &mut props_text,
+                &format!(" {}={{[{}]}}", slot.style_prop, parts.join(", ")),
+            ),
         }
     }
     // Everything Hozo doesn't model, re-emitted verbatim and last so JSX's
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.
+    let mut rendered: Vec<(&hozo_ir::PassthroughProp, String)> = Vec::new();
     for prop in &node.props.passthrough {
         if node.primitive == Primitive::Button {
             if prop
@@ -2182,7 +2201,7 @@ pub(super) fn render_node(
                     .and_then(|text| text.trim().strip_prefix("..."))
                 {
                     cx.runtime.need_component("hozoButtonProps");
-                    props_text.push_str(&format!(" {{...hozoButtonProps({expression})}}"));
+                    rendered.push((prop, format!("{{...hozoButtonProps({expression})}}")));
                     continue;
                 }
             }
@@ -2232,14 +2251,76 @@ pub(super) fn render_node(
         {
             continue;
         }
-        props_text.push(' ');
-        props_text.push_str(&render_verbatim(
-            prop.span,
-            &prop.nested,
-            &descend,
-            child_interaction_context,
-            cx,
+        rendered.push((
+            prop,
+            render_verbatim(
+                prop.span,
+                &prop.nested,
+                &descend,
+                child_interaction_context,
+                cx,
+            ),
         ));
+    }
+    // Held styles go through the spreads, with whatever sits between them,
+    // in source order. A shape between the spreads that cannot be taken
+    // apart keeps the old emission rather than a guessed one.
+    let spreads: Vec<usize> = (0..rendered.len())
+        .filter(|&index| rendered[index].0.is_spread)
+        .collect();
+    let group = match (held.held.is_empty(), spreads.first(), spreads.last()) {
+        (false, Some(&first), Some(&last)) => rendered[first..=last]
+            .iter()
+            .map(|(prop, text)| {
+                if prop.is_spread {
+                    crate::spread_style::spread_expression(text).map(str::to_string)
+                } else {
+                    crate::spread_style::attribute_object(text)
+                }
+            })
+            .collect::<Option<Vec<_>>>()
+            .map(|args| (first, last, args)),
+        _ => None,
+    };
+    match group {
+        Some((first, last, args)) => {
+            let after = rendered[last].0.span.0.start;
+            let written_last: Vec<String> = held
+                .held
+                .iter()
+                .map(|(name, _)| name.clone())
+                .filter(|name| {
+                    node.props.passthrough.iter().any(|prop| {
+                        !prop.is_spread
+                            && prop.name.as_deref() == Some(name.as_str())
+                            && prop.span.0.start > after
+                    })
+                })
+                .collect();
+            cx.runtime.need_component("hozoSpreadStyles");
+            for (_, text) in &rendered[..first] {
+                props_text.push(' ');
+                props_text.push_str(text);
+            }
+            props_text.push_str(&crate::spread_style::helper_call(
+                &held.held,
+                &written_last,
+                &args,
+            ));
+            for (_, text) in &rendered[last + 1..] {
+                props_text.push(' ');
+                props_text.push_str(text);
+            }
+        }
+        None => {
+            for (name, value) in &held.held {
+                props_text.push_str(&format!(" {name}={{{value}}}"));
+            }
+            for (_, text) in &rendered {
+                props_text.push(' ');
+                props_text.push_str(text);
+            }
+        }
     }
 
     // Every child, in source order. A `Verbatim` is re-emitted from source
