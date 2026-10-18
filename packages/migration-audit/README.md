@@ -1,9 +1,10 @@
 # @hozo/migration-audit
 
-Read-only migration analysis for real React Native applications. It runs Hozo's Web and Native
-lowerers over a checkout without installing or modifying that application, respects platform file
-suffixes, and reports parse failures, diagnostics, React Native JSX left in Web output, and
-structural wrong-output invariants.
+Migration analysis for real React Native applications. It runs Hozo's Web and Native lowerers over
+a checkout without installing anything into that application, respects platform file suffixes, and
+reports parse failures, diagnostics, React Native JSX left in Web output, and structural
+wrong-output invariants. It reads the checkout and writes nothing to it unless asked; see
+[What it writes](#what-it-writes).
 
 ```sh
 npx @hozo/migration-audit .
@@ -45,8 +46,8 @@ so it moves exactly the imports the report's "Web React Native import decisions"
 `@hozo/rn-compat`. Comments, aliases and type-only imports are kept. A second run changes nothing.
 
 - **Dry run by default.** It prints a zero-context unified diff (`git apply --unidiff-zero` takes it)
-  and a summary. `--write` applies it, and refuses files with uncommitted changes, or a checkout
-  that is not a Git repository, unless `--force` is given.
+  and a summary. `--write` applies it, and refuses files Git has no copy of (uncommitted or
+  untracked), or a checkout that is not a Git repository, unless `--force` is given.
 - **Native-only files are left alone.** The build makes the move for the Web only. In shared files
   it changes nothing on Native: `@hozo/rn-compat`'s `react-native` condition hands back React Native's
   own objects, and a test fails if a moved API ever stops being one.
@@ -55,10 +56,28 @@ so it moves exactly the imports the report's "Web React Native import decisions"
   into shared source would change Native. `View`, `Text` and the rest are lowered, not moved.
 - It says when `@hozo/rn-compat` is missing from `package.json`. It does not edit it.
 
+### What it writes
+
+This is a contract, not a description of the current code: a change that widens it is a breaking
+change and needs its own decision.
+
+- **Without `--fix --write`, nothing in the checkout.** The one file an ordinary run writes is the
+  report, and only when `--output` names a path. It writes there, creating the directory if needed.
+- **With `--fix --write`, only import declarations in the selected source files.** It writes the
+  edits the dry run printed and nothing else. That means `react-native` import specifiers moved to a
+  `@hozo/rn-compat` import, never a component, and never a Native-only file.
+- **Never `package.json`, a lockfile, configuration, or anything outside the selected sources.** A
+  missing `@hozo/rn-compat` is reported, not installed.
+- **Never over work that has no other record.** `--write` refuses when a file it would change has
+  uncommitted changes or is untracked (an ignored file selected by `--include` counts), and when
+  the checkout is not a Git repository. `--force` is the only way past that, and it is per run, not
+  remembered.
+
 The Markdown report opens with **Next steps**: the order to work in, taken from the evidence
 below it and adding no measurement of its own. Files that fail to parse come first, then React
 Native JSX left in Web output, errors, a missing `@hozo/rn-compat`, APIs still on React Native,
-warnings grouped by code and counted by file, and the adapter subsets to check. Each step names
+warnings grouped by code and counted by file, the adapter subsets to check, and, when the build
+moved any import, the optional `--fix` above. Each step names
 its count and up to three files; the full lists stay in the sections it points to.
 
 Interactive terminals receive Markdown; piped stdout stays JSON. `--output *.md` selects

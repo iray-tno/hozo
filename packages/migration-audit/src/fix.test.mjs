@@ -124,12 +124,34 @@ test('--write leaves a file with uncommitted changes alone unless forced', async
     writeFileSync(path.join(root, 'src', 'util.ts'), edited)
     await assert.rejects(cli([root, '--fix', '--write']), (error) => {
       assert.ok(error instanceof AuditInputError)
-      assert.match(error.message, /uncommitted changes in src\/util\.ts/)
+      assert.match(error.message, /no copy of .* in src\/util\.ts/)
       return true
     })
     assert.equal(readFileSync(path.join(root, 'src', 'util.ts'), 'utf8'), edited)
     await cli([root, '--fix', '--write', '--force'])
     assert.match(readFileSync(path.join(root, 'src', 'util.ts'), 'utf8'), /@hozo\/rn-compat/)
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('--write leaves untracked and ignored files alone too: Git has no copy of either', async () => {
+  const root = checkout({ 'util.ts': UTIL })
+  try {
+    writeFileSync(path.join(root, '.gitignore'), 'src/generated.ts\n')
+    git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'add', '.gitignore')
+    git(root, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'ignore')
+    writeFileSync(path.join(root, 'src', 'new.ts'), UTIL)
+    // Status does not list an ignored file, but an explicit include selects it.
+    writeFileSync(path.join(root, 'src', 'generated.ts'), UTIL)
+    await assert.rejects(cli([root, '--fix', '--write', '--include', 'src/**/*.ts']), (error) => {
+      assert.match(error.message, /src\/new\.ts/)
+      assert.match(error.message, /src\/generated\.ts/)
+      assert.doesNotMatch(error.message, /src\/util\.ts/)
+      return true
+    })
+    for (const name of ['new.ts', 'generated.ts', 'util.ts'])
+      assert.equal(readFileSync(path.join(root, 'src', name), 'utf8'), UTIL, name)
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

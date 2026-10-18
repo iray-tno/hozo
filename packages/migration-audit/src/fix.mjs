@@ -118,30 +118,28 @@ export function planImportFix(root, files) {
   })
 }
 
-function dirtyFiles(root, files) {
+function git(root, args) {
+  return execFileSync(
+    'git',
+    ['--no-optional-locks', '-c', 'core.fsmonitor=false', '-C', root, ...args],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+  )
+    .split('\0')
+    .filter(Boolean)
+}
+
+/**
+ * The files whose current content Git has no copy of: changed since the last
+ * commit, or not tracked at all. `status` alone misses an ignored file, which
+ * an explicit `--include` can select, so tracking is asked separately.
+ */
+function unrecordedFiles(root, files) {
   try {
-    const output = execFileSync(
-      'git',
-      [
-        '--no-optional-locks',
-        '-c',
-        'core.fsmonitor=false',
-        '-C',
-        root,
-        'status',
-        '--porcelain',
-        '-z',
-        '--',
-        ...files,
-      ],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    const changed = git(root, ['status', '--porcelain', '-z', '--', ...files]).map((entry) =>
+      entry.slice(3),
     )
-    return new Set(
-      output
-        .split('\0')
-        .filter(Boolean)
-        .map((entry) => entry.slice(3)),
-    )
+    const tracked = new Set(git(root, ['ls-files', '-z', '--', ...files]))
+    return new Set([...changed, ...files.filter((file) => !tracked.has(file))])
   } catch {
     return null
   }
@@ -168,7 +166,7 @@ export function runImportFix(root, files, { write = false, force = false, stdout
   const plan = planImportFix(root, files)
   const changed = plan.filter((entry) => entry.status === 'changed')
   if (write && !force && changed.length > 0) {
-    const dirty = dirtyFiles(
+    const dirty = unrecordedFiles(
       root,
       changed.map((entry) => entry.file),
     )
@@ -179,7 +177,7 @@ export function runImportFix(root, files, { write = false, force = false, stdout
     const blocked = changed.filter((entry) => dirty.has(entry.file))
     if (blocked.length > 0)
       throw new FixRefusedError(
-        `--write would overwrite uncommitted changes in ${blocked.map((entry) => entry.file).join(', ')}; commit them or pass --force`,
+        `--write would overwrite work Git has no copy of (uncommitted changes, or an untracked file) in ${blocked.map((entry) => entry.file).join(', ')}; commit them or pass --force`,
       )
   }
   for (const entry of changed) {
