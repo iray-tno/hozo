@@ -1,7 +1,15 @@
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { type StyleProp, Text, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
+import {
+  type ColorValue,
+  type StyleProp,
+  Text,
+  TextInput,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 import { activeAfter, filterOptions } from './combobox-rules.ts'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
@@ -39,12 +47,16 @@ export interface HozoComboboxProps<T> {
   match?: 'starts' | 'contains'
   accessibilityLabel?: string
   placeholder?: string
+  /** Application validation state belongs to the editable field. */
+  'aria-invalid'?: boolean | 'false' | 'true' | 'grammar' | 'spelling'
   style?: Style
   inputStyle?: Style
   listStyle?: Style
   optionStyle?: Style
   /** @internal The editable field owns focus and expanded state. */
   hozoInputStyle?: (state: InputState) => Style
+  /** @internal Placeholder colour is a field prop, never a TextStyle. */
+  hozoInputPlaceholderTextColor?: ColorValue
   /** @internal Options own pointer/active facts, never the input's focus. */
   hozoOptionStyle?: (state: OptionState) => Style
   emptyMessage?: ReactNode
@@ -61,11 +73,13 @@ export function HozoCombobox<T>({
   match = 'starts',
   accessibilityLabel,
   placeholder,
+  'aria-invalid': invalid,
   style,
   inputStyle,
   listStyle,
   optionStyle,
   hozoInputStyle,
+  hozoInputPlaceholderTextColor,
   hozoOptionStyle,
   emptyMessage,
 }: HozoComboboxProps<T>) {
@@ -109,6 +123,7 @@ export function HozoCombobox<T>({
     'aria-selected': false,
     'aria-checked': false,
     'aria-expanded': open,
+    'aria-invalid': String(invalid) === 'true',
   } satisfies ComboboxInputSlotFacts
 
   return (
@@ -124,6 +139,7 @@ export function HozoCombobox<T>({
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ expanded: open }}
         placeholder={placeholder}
+        placeholderTextColor={hozoInputPlaceholderTextColor}
         value={query}
         onChangeText={(text: string) => {
           setQuery(text)

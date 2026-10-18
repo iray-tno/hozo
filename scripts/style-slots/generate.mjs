@@ -43,6 +43,11 @@ export function validateCatalog(catalog = components, facts = profiles) {
       if (slot.callback && !['root', 'secondary'].includes(slot.lowering))
         throw new Error(`Callback has no compiler route: ${component}.${slot.classProp}`)
       if (
+        slot.placeholderColorProp &&
+        (!slot.callback || !/^hozo[A-Za-z]+PlaceholderTextColor$/.test(slot.placeholderColorProp))
+      )
+        throw new Error(`Invalid placeholder prop owner: ${component}.${slot.classProp}`)
+      if (
         ![slot.owner, slot.gate, slot.composition].every(
           (value) => typeof value === 'string' && value.length,
         )
@@ -127,10 +132,15 @@ ${mappings.join('\n')}
   const interactions = []
   const unavailableEvents = []
   const constantFacts = []
+  const placeholderProps = []
   for (const [component, slots] of Object.entries(catalog)) {
     const byProfile = new Map()
     const supplied = new Map()
     for (const slot of slots) {
+      if (slot.placeholderColorProp)
+        placeholderProps.push(
+          `        (Primitive::${component}, ${quoted(slot.classProp)}) => Some(${quoted(slot.placeholderColorProp)}),`,
+        )
       if (slot.events === 'unavailable' && slot.profile && !slot.callback) {
         constantFacts.push(
           `        (Primitive::${component}, ${quoted(slot.classProp)}) => Some(${quoted(
@@ -210,6 +220,13 @@ ${unavailableEvents.join('\n        | ')}
 pub(super) fn constant_facts(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
     match (primitive, class_prop) {
 ${constantFacts.join('\n')}
+        _ => None,
+    }
+}
+
+pub(super) fn placeholder_color_prop(primitive: Primitive, class_prop: &str) -> Option<&'static str> {
+    match (primitive, class_prop) {
+${placeholderProps.join('\n')}
         _ => None,
     }
 }

@@ -1935,6 +1935,27 @@ pub(super) fn render_node(
             .find(|written| written.slot == *slot)
         {
             let mut pressed = Vec::new();
+            // Only a catalogued real input can consume placeholder colour.
+            // All other pseudo-element declarations still reach diagnostics;
+            // this is a prop adaptation, not a general pseudo-style escape.
+            let placeholder =
+                crate::pattern::placeholder_color_prop(node.primitive, slot.class_prop).and_then(
+                    |prop| {
+                        crate::text::placeholder_value(&written.style, cx.theme, cx.runtime)
+                            .map(|value| (prop, value))
+                    },
+                );
+            let field_style: Option<Vec<_>> = placeholder.as_ref().map(|_| {
+                written
+                    .style
+                    .iter()
+                    .filter(|declaration| placeholder_colour(declaration).is_none())
+                    .cloned()
+                    .collect()
+            });
+            if let Some((prop, value)) = placeholder {
+                props_text.push_str(&format!(" {prop}={{{value}}}"));
+            }
             let target = crate::conditions::StyleTarget {
                 node,
                 position,
@@ -1942,7 +1963,7 @@ pub(super) fn render_node(
                 pattern_slot: Some(slot.class_prop),
             };
             let state_start = build_style_entries(
-                &written.style,
+                field_style.as_deref().unwrap_or(&written.style),
                 &cx.allocator.alloc(),
                 &target,
                 &mut parts,

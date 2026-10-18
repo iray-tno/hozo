@@ -53,9 +53,12 @@ test('spurious slots and missing private callback declarations are not silently 
   const spurious = structuredClone(components)
   spurious.Chip.push({ ...spurious.Chip[0], classProp: 'inventedClassName', callback: undefined })
   spurious.Chip[0].callback = 'hozoMissingStyle'
+  spurious.Combobox.find((slot) => slot.classProp === 'inputClassName').placeholderColorProp =
+    'hozoMissingPlaceholderTextColor'
   const output = checkPublicProps(spurious)
   assert.match(output, /Chip\.inventedClassName/)
   assert.match(output, /Chip\.hozoMissingStyle/)
+  assert.match(output, /Combobox\.hozoMissingPlaceholderTextColor/)
 })
 
 test('catalog validation refuses duplicate, unknown and ambiguous owner declarations', () => {
@@ -78,6 +81,11 @@ test('catalog validation refuses duplicate, unknown and ambiguous owner declarat
   const conflicting = structuredClone(components)
   conflicting.Chip[0].events = 'unavailable'
   assert.throws(() => validateCatalog(conflicting), /Conflicting event owner/)
+  const noPlaceholderOwner = structuredClone(components)
+  const input = noPlaceholderOwner.Combobox.find((slot) => slot.classProp === 'inputClassName')
+  delete input.callback
+  input.profile = 'NonControl'
+  assert.throws(() => validateCatalog(noPlaceholderOwner), /Invalid placeholder prop owner/)
 })
 
 test('semantic callback parameters belong to each slot, not the union of its widget siblings', () => {

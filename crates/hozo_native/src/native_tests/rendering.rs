@@ -125,6 +125,48 @@ fn combobox_slots_lower_to_independent_pattern_owners() {
 }
 
 #[test]
+fn combobox_placeholder_uses_its_real_field_prop_not_a_text_style() {
+    let source = r#"import { Combobox } from '@hozo/core'; function C() {
+        return <Combobox options={[]} inputClassName="text-green-500 placeholder:text-red-500 dark:placeholder:text-blue-500 aria-[invalid=true]:border-2" />;
+    }"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let out = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(out.diagnostics.is_empty(), "{:?}", out.diagnostics);
+    assert!(
+        out.jsx
+            .contains("hozoInputPlaceholderTextColor={__hozoDark ?"),
+        "{}",
+        out.jsx
+    );
+    assert!(out.jsx.contains("__hozoSlotAriaInvalid &&"), "{}", out.jsx);
+    assert!(out.jsx.contains("'#fb2c36'"), "{}", out.jsx);
+    assert!(!out.styles.contains("#fb2c36"), "{}", out.styles);
+    assert!(out.prelude.iter().any(|line| line.contains("useHozoDark")));
+}
+
+#[test]
+fn pattern_placeholder_adaptation_does_not_bless_other_owners_or_pseudo_styles() {
+    for (slot, classes) in [
+        ("optionClassName", "placeholder:text-red-500"),
+        ("listClassName", "placeholder:text-red-500"),
+        ("inputClassName", "placeholder:font-bold"),
+        ("inputClassName", "focus:placeholder:text-red-500"),
+        ("inputClassName", "placeholder:text-current"),
+    ] {
+        let source = format!("import {{ Combobox }} from '@hozo/core'; function C() {{ return <Combobox options={{[]}} {slot}=\"{classes}\" /> }}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let out = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == DiagnosticCode::NotWiredOnNative),
+            "{slot}={classes}: {:?}",
+            out.diagnostics
+        );
+    }
+}
+
+#[test]
 fn combobox_does_not_lend_events_between_input_list_and_option() {
     for (slot, variant) in [
         ("inputClassName", "hover"),

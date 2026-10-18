@@ -31,6 +31,8 @@ export interface HozoComboboxProps<T> {
   match?: 'starts' | 'contains'
   accessibilityLabel?: string
   placeholder?: string
+  /** Application validation state belongs to the editable field. */
+  'aria-invalid'?: boolean | 'false' | 'true' | 'grammar' | 'spelling'
   className?: string
   inputClassName?: string
   listClassName?: string
@@ -46,6 +48,7 @@ export function HozoCombobox<T>({
   match = 'starts',
   accessibilityLabel,
   placeholder,
+  'aria-invalid': invalid,
   className,
   inputClassName,
   listClassName,
@@ -137,6 +140,7 @@ export function HozoCombobox<T>({
         aria-controls={open ? `${base}-list` : undefined}
         aria-activedescendant={activeId}
         aria-autocomplete={autocomplete}
+        aria-invalid={invalid}
         autoComplete="off"
         placeholder={placeholder}
         className={inputClassName}
