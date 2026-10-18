@@ -30,3 +30,4 @@ smaller questions that came up on the way, and their answers.
 | [006](006-shipping-native-code.md) | Hozo may ship native code, in one optional package, behind a registered provider |
 | [007](007-motion-is-written-as-classes.md) | Motion is written as classes, and Native learns `starting:` |
 | [008](008-i18n-is-a-connection.md) | Hozo connects to an i18n library rather than being one, and the connection is a behaviour |
+| [009](009-a-callers-class-sits-between-rest-and-state.md) | A caller's class beats a component's resting look and loses to its state; what the build can see, it compiles |
