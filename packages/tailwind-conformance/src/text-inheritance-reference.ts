@@ -51,15 +51,26 @@ const FIELDS = [
 ] as const
 
 let executions: Record<string, number> = {}
+let reads = { metrics: 0, paint: 0, legacySize: 0 }
 const note = (name: string) => {
   executions[name] = (executions[name] ?? 0) + 1
 }
 export const referenceExecutions = () => ({ ...executions })
+// Hook invocations during renders, not a count of live subscriptions or of
+// native work. Keep them separate from component function executions.
+export const referenceReads = () => ({ ...reads })
 export const resetReferenceExecutions = () => {
   executions = {}
+  reads = { metrics: 0, paint: 0, legacySize: 0 }
 }
-export const useReferenceMetrics = () => useContext(Metrics)
-export const useReferencePaint = () => useContext(Paints)
+export const useReferenceMetrics = () => {
+  reads.metrics += 1
+  return useContext(Metrics)
+}
+export const useReferencePaint = () => {
+  reads.paint += 1
+  return useContext(Paints)
+}
 
 function flatStyle(style: unknown): Style {
   if (typeof style === 'function')
@@ -76,8 +87,12 @@ function flatStyle(style: unknown): Style {
 }
 
 function useEffective(own: Style) {
-  const inheritedMetrics = useContext(Metrics)
-  const inheritedPaint = useContext(Paints)
+  const inheritedMetrics = useReferenceMetrics()
+  const inheritedPaint = useReferencePaint()
+  return useResolved(own, inheritedMetrics, inheritedPaint)
+}
+
+function useResolved(own: Style, inheritedMetrics: Metric, inheritedPaint: Paint) {
   const fontSize = own.fontSize ?? inheritedMetrics.fontSize
   const fontWeight = own.fontWeight ?? inheritedMetrics.fontWeight
   const lineHeight = own.lineHeight ?? inheritedMetrics.lineHeight
@@ -110,6 +125,7 @@ function Scope({
   children?: ReactNode
 }) {
   note('Scope')
+  reads.legacySize += 1
   const oldSize = useContext(HozoTextSizeContext)
   const size = typeof frame.metrics.fontSize === 'number' ? frame.metrics.fontSize : oldSize
   // The shape never depends on whether style currently exists. The old size
@@ -130,6 +146,27 @@ type Props = { children?: ReactNode; style?: unknown; [name: string]: unknown }
 export function ReferenceText({ children, style, ...props }: Props) {
   note('ReferenceText')
   const frame = useEffective(flatStyle(style))
+  return renderText(frame, children, style, props)
+}
+
+// Experimental C uses a different, statically selected component identity,
+// never a hook selected by the current style value. Only the private proof
+// pass may emit it. Metrics and descendant publication are still necessary:
+// an own color does not mask weight/line-height or opaque descendant needs.
+export function PaintMaskedText({ children, style, ...props }: Props) {
+  note('PaintMaskedText')
+  const own = flatStyle(style)
+  if (typeof own.color !== 'string') throw new Error('missing static paint proof')
+  const frame = useResolved(own, useReferenceMetrics(), EMPTY)
+  return renderText(frame, children, style, props)
+}
+
+function renderText(
+  frame: ReturnType<typeof useEffective>,
+  children: ReactNode,
+  style: unknown,
+  props: Record<string, unknown>,
+) {
   return createElement(
     Scope,
     { frame },
