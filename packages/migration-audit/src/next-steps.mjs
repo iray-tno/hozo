@@ -151,6 +151,16 @@ export function nextSteps(report) {
     )
   }
 
+  // Last, and optional: the build already makes this move on its own.
+  // Offered because the source otherwise keeps naming `react-native` for
+  // APIs the Web never takes from it.
+  const moved = report.reactNativeImportDecisions?.rewrittenBindings ?? 0
+  if (moved > 0) {
+    steps.push(
+      `**Optionally, write the import moves into the source.** The Web build moves ${plural(moved, 'React Native import')} to \`@hozo/rn-compat\` by itself, while the source still names \`react-native\`. \`--fix\` prints that move as a diff, and \`--fix --write\` applies it.`,
+    )
+  }
+
   return steps
 }
 
