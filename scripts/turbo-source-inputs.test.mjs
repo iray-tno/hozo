@@ -78,6 +78,7 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    'packages/ui/src/theme.css',
     'packages/patterns/src/dialog.native.tsx',
     'packages/three/src/r3f-native.tsx',
     'packages/svg/src/index.native.tsx',

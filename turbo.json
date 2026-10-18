@@ -100,6 +100,7 @@
         "$TURBO_ROOT$/examples/storybook-demo/src/**",
         "$TURBO_ROOT$/packages/compiler/src/**",
         "$TURBO_ROOT$/packages/metro/src/**",
+        "$TURBO_ROOT$/packages/ui/src/theme.css",
         "$TURBO_ROOT$/packages/patterns/src/**",
         "$TURBO_ROOT$/packages/svg/src/**",
         "$TURBO_ROOT$/packages/three/src/**"

@@ -16,6 +16,30 @@ resolution); the demo package's development React is not another renderer.
 
 For device setup, see [the Native showcase](../native-showcase/README.md).
 
+## Styled UI state checks
+
+Both hosts publish **UI / Shared state checks**, ten stories referencing the
+same `uiStateScenes` functions in `src/ui-states.tsx`. Tabs, Accordion, Radio,
+Listbox, Menu, Pagination and Tree use `@hozo/ui`, as do the six-state Checkbox
+and four-state Switch matrices. Chip is the canonical `@hozo/patterns` component
+with an explicitly shared token-based look; it is not an `@hozo/ui` export.
+
+Each story starts deterministically and can be reloaded to restore that state.
+Tabs/Radio/Listbox/Tree have selected and disabled choices; Accordion starts
+with Shipping expanded, Returns collapsed and Gift wrapping disabled. Open the
+Menu once to see its enabled and disabled actions. Pagination's **Show first
+page** / **Show last page** buttons expose each disabled boundary. Checkbox has
+unchecked, checked and mixed states both enabled and disabled; Switch has off
+and on both enabled and disabled. Enabled rows remain interactive.
+
+Native's Metro config reads `src/index.css`, including `@hozo/ui/theme.css`;
+it is build input, not a CSS import in the Native app. Web uses its existing
+UI theme. The fixture tests check shared scene identity, initial state and
+callbacks; Native lowering and candidate-resolution tests check compiler input.
+These are not screenshots, accessibility-device results or proof of Web/Native
+visual parity. Capture each story on Android and iOS, record initial/changed
+states and platform details, and keep failures; #898 tracks that evidence.
+
 ## SVG filters
 
 `SvgFiltersDemo` is shared by Web's **Showcase / Shared Web and Native / Svg Filters**

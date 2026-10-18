@@ -544,6 +544,29 @@ test('Storybook composes with the Hozo transformer and host singleton resolver',
       assert.equal(resolved.filePath, require.resolve(request))
     }
   }
+  // Keep candidate generation in this one test process. A second config
+  // loader in another .test.mjs could race this writer under node --test.
+  const generated = config.resolver.resolveRequest(context, '@hozo/engine/project', 'ios')
+  const { code } = require('esbuild').transformSync(readFileSync(generated.filePath, 'utf8'), {
+    format: 'cjs',
+  })
+  const module = { exports: {} }
+  new Function('require', 'module', 'exports', code)(
+    (name) => (name === 'react-native' ? { I18nManager: { isRTL: false } } : require(name)),
+    module,
+    module.exports,
+  )
+  const metroRequire = createRequire(require.resolve('@hozo/metro'))
+  const theme = await metroRequire('@hozo/tailwind').loadProjectTheme(root, {
+    css: './src/index.css',
+    warn: assert.fail,
+  })
+  const look = Object.assign({}, ...module.exports.hozoClasses('bg-hozo-accent'))
+  assert.equal(
+    look.backgroundColor,
+    theme.colors.find((entry) => entry.token === 'hozo-accent').hex,
+    'Metro must scan the UI package and resolve its actual themed candidates',
+  )
 })
 
 test('shared patterns keep platform-neutral bodies and lower their primitive children', () => {
@@ -633,6 +656,7 @@ test('the actual shared name field disables dictionary corrections without bypas
     if (name === '@hozo/core/generated/pressable') return { HozoPressable: 'Pressable' }
     if (name === '@hozo/core/generated/text-input') return { HozoTextInput: 'TextInput' }
     if (name === './patterns.tsx') return {}
+    if (name === './ui-states.tsx') return {}
     if (name === './svg-filters.tsx') return {}
     if (name === './video.tsx') return {}
     if (name === './audio.tsx') return {}
