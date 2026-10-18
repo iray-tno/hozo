@@ -380,9 +380,11 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     await page.getByRole('button', { name: 'Seek forward 1 second' }).focus()
     await page.keyboard.press('Enter')
     await page.waitForFunction(() => window.ref.current.getStatus().currentTime >= 1)
-    await page.evaluate(() => window.ref.current.seekTo(1))
+    // Inside the second cue (1s–4s), not on its boundary: at exactly 1s either
+    // cue may be showing, depending on where the decoder lands (#1065).
+    await page.evaluate(() => window.ref.current.seekTo(1.5))
     await page
-      .waitForFunction(() => Math.abs(window.ref.current.getStatus().currentTime - 1) < 0.2)
+      .waitForFunction(() => Math.abs(window.ref.current.getStatus().currentTime - 1.5) < 0.2)
       .catch(async (error) => {
         console.error(
           '[media] seek failure',
@@ -425,7 +427,12 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     assert.equal(pixels.width, 320)
     assert.equal(pixels.height, 180)
     assert.ok(pixels.purple > 800, `Decoded square pixel count ${pixels.purple}`)
-    assert.equal(await captions.textContent(), '<b>Moving square</b>\nNo speech')
+    // The caption follows the status, so it can land a render after the seek.
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[aria-label="Clip captions"]')?.textContent ===
+        '<b>Moving square</b>\nNo speech',
+    )
     assert.equal(await captions.locator('b').count(), 0, 'cue markup is literal, never HTML')
     await page.evaluate(() => {
       window.ref.current.seekTo(window.ref.current.getStatus().duration - 0.15)
