@@ -53,6 +53,9 @@ jobs:
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm test:packages
       - run: pnpm test:publishing
+      # The full report installs Allure only on main. These dependency-free
+      # pipeline fixtures still guard discovery/reporting on every PR.
+      - run: node --test --test-concurrency=1 packages/test-reporter/src/package-test-plan.test.mjs
       # The packed packages, installed into an empty project under pnpm's
       # strict layout. A workspace resolves every package from everywhere,
       # so compiled output that imported packages an application never

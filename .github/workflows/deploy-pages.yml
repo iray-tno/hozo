@@ -91,7 +91,9 @@ jobs:
         run: pnpm exec biome check --reporter=json . 2>/dev/null | node packages/test-reporter/src/biome-to-junit.mjs > junit-reports/biome.xml || true
 
       - name: Report (TypeScript & Unit tests)
-        run: node packages/test-reporter/src/run-tests-junit.mjs || true
+        # A discovery/runner crash must also leave a failed suite, even if it
+        # happens before the per-package reports can be written.
+        run: node packages/test-reporter/src/run-command-junit.mjs node-tests node packages/test-reporter/src/run-tests-junit.mjs || true
 
       - name: Report (real app integration builds)
         run: node packages/test-reporter/src/run-command-junit.mjs integration pnpm test:integration || true
