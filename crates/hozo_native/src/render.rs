@@ -2269,22 +2269,54 @@ pub(super) fn render_node(
     }
     // Held styles go through the spreads, with whatever sits between them,
     // in source order. A shape between the spreads that cannot be taken
-    // apart keeps the old emission rather than a guessed one.
+    // apart keeps the old emission rather than a guessed one -- and says
+    // so, because that emission lets a spread's style replace the compiled
+    // one, which is the bug composing exists to fix (#1054).
     let spreads: Vec<usize> = (0..rendered.len())
         .filter(|&index| rendered[index].0.is_spread)
         .collect();
     let group = match (held.held.is_empty(), spreads.first(), spreads.last()) {
-        (false, Some(&first), Some(&last)) => rendered[first..=last]
-            .iter()
-            .map(|(prop, text)| {
-                if prop.is_spread {
+        (false, Some(&first), Some(&last)) => {
+            let mut args = Vec::new();
+            let mut refused = None;
+            for (prop, text) in &rendered[first..=last] {
+                let arg = if prop.is_spread {
                     crate::spread_style::spread_expression(text).map(str::to_string)
                 } else {
                     crate::spread_style::attribute_object(text)
+                };
+                match arg {
+                    Some(arg) => args.push(arg),
+                    None => {
+                        refused = Some(*prop);
+                        break;
+                    }
                 }
-            })
-            .collect::<Option<Vec<_>>>()
-            .map(|args| (first, last, args)),
+            }
+            if let Some(prop) = refused {
+                let names = held
+                    .held
+                    .iter()
+                    .map(|(name, _)| format!("`{name}`"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                cx.diagnostics.push(Diagnostic {
+                    code: DiagnosticCode::UnsafePropSpreadAfterStyle,
+                    severity: Severity::Warning,
+                    message: format!(
+                        "A prop between this element's spreads is written in a form Hozo does not \
+                         take apart (an entity in a string, or an element as the value), so on \
+                         Native a {names} the spreads carry replaces the compiled one instead of \
+                         composing after it. Write the value in braces, or move the prop outside \
+                         the spreads."
+                    ),
+                    span: prop.span.0,
+                });
+                None
+            } else {
+                Some((first, last, args))
+            }
+        }
         _ => None,
     };
     match group {

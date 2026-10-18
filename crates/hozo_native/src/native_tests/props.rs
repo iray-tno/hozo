@@ -379,12 +379,41 @@ fn a_pressed_style_function_goes_through_the_spread_too() {
 #[test]
 fn an_attribute_between_spreads_it_cannot_take_apart_keeps_the_old_emission() {
     // An entity in a JSX string means something else in a JS one.
-    let jsx = native(
-        r#"
+    let source = r#"
         import { View } from '@hozo/core'
         const el = <View {...a} title="a &amp; b" {...b} className="p-4" />
-        "#,
-    );
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    let jsx = &output.jsx;
     assert!(!jsx.contains("hozoSpreadStyles"), "{jsx}");
     assert!(jsx.contains("{...a}") && jsx.contains("{...b}"), "{jsx}");
+    // That emission lets a spread's style replace the compiled one, so it
+    // is said, at the prop that stopped the composition.
+    let warning = output
+        .diagnostics
+        .iter()
+        .find(|d| d.code == DiagnosticCode::UnsafePropSpreadAfterStyle)
+        .expect("the fallback is reported");
+    assert_eq!(warning.severity, Severity::Warning);
+    assert!(warning.message.contains("`style`"), "{}", warning.message);
+    assert_eq!(
+        &source[warning.span.start as usize..warning.span.end as usize],
+        r#"title="a &amp; b""#
+    );
+}
+
+#[test]
+fn a_composed_spread_raises_no_fallback_warning() {
+    let source = r#"
+        import { View } from '@hozo/core'
+        const el = <View {...a} title="Go" {...b} className="p-4" />
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.jsx.contains("hozoSpreadStyles"), "{}", output.jsx);
+    assert!(output
+        .diagnostics
+        .iter()
+        .all(|d| d.code != DiagnosticCode::UnsafePropSpreadAfterStyle));
 }
