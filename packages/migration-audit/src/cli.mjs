@@ -6,7 +6,7 @@ try {
   const report = await runCli()
   // runCli writes evidence before returning and does not mutate its caller's
   // process. The executable alone translates the recorded policy into an exit.
-  if (report?.failurePolicy.exitCode) {
+  if (report?.failurePolicy?.exitCode) {
     console.error(`hozo-migration-audit: ${report.failurePolicy.reasons.join(' ')}`)
     process.exitCode = report.failurePolicy.exitCode
   }
