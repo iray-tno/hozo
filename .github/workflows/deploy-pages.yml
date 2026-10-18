@@ -96,7 +96,15 @@ jobs:
         run: node packages/test-reporter/src/run-command-junit.mjs node-tests node packages/test-reporter/src/run-tests-junit.mjs || true
 
       - name: Report (real app integration builds)
-        run: node packages/test-reporter/src/run-command-junit.mjs integration pnpm test:integration || true
+        # Several app exports/Next builds otherwise compete with Metro's own
+        # workers. Keep the same checks/deadlines, with two app tasks at once.
+        run: node packages/test-reporter/src/run-command-junit.mjs integration pnpm test:integration --concurrency=2 || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-export-evidence
+          path: examples/native-showcase/artifacts/bundle-exports/
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: always()
         with:

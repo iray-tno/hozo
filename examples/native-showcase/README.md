@@ -62,6 +62,21 @@ On macOS, with the release Simulator app built as described below and the input
 driver installed, use `HOZO_IOS_SCENARIO=svg-filters pnpm --filter
 @hozo/example-native-showcase smoke:ios` for the isolated iOS measurement.
 
+## Export-check evidence
+
+`pnpm --filter @hozo/example-native-showcase test` runs the unit probes, then
+fresh production Android/iOS Metro exports, serially. Each export retains its
+original 180s deadline and two-worker limit. A timeout or signal fails even if
+Expo handles SIGTERM by exiting zero; no retry is performed. Unique output
+directories prevent an earlier bundle from hiding an incomplete export.
+
+`artifacts/bundle-exports/{android,ios}.json` records the subprocess result,
+elapsed time, failure phase, source SHA and metadata/bundle hashes. Success
+requires all existing story-content and exact local media-asset assertions.
+The narrowly triggered `native-export` workflow preserves these records and
+the complete live log before main; the main integration report retains the
+same JSON. This is bundle evidence, not device pixels or AT verification.
+
 ## Run on a device
 
 **UI / Shared state checks** contains the ten styled shared screens documented

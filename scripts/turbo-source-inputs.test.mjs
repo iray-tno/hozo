@@ -89,6 +89,7 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    '.github/workflows/deploy-pages.yml',
     'packages/ui/src/theme.css',
     'packages/patterns/src/dialog.native.tsx',
     'packages/patterns/src/scroll-container.native.tsx',
