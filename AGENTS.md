@@ -39,6 +39,11 @@ Things that look harmless and are not (details in `CONTRIBUTING.md`):
   do not hand-edit the generated section.
 - **A conformance number that moves, in either direction, needs the snapshot
   committed and a reason in the PR.**
+- **`<div>` and `<span>` do not exist on React Native.** In any module Native
+  can load, write `View`/`Text` or another `@hozo/core` primitive; only the
+  Web half of a split component (`x.tsx` beside `x.native.tsx`) writes the
+  DOM. `scripts/native-hosts.test.mjs` enforces it; see
+  [decision 010](docs/decisions/010-primitives-not-tags.md).
 - **A change users will notice needs a changeset** (`pnpm changeset`). Under
   `0.x`, breaking is `minor`. See [`.changeset/README.md`](.changeset/README.md).
 
