@@ -69,9 +69,9 @@
     "silent": 0
   },
   "a11yContracts": {
-    "cases": 54,
-    "covered": 54,
-    "primitives": 74,
+    "cases": 56,
+    "covered": 56,
+    "primitives": 76,
     "uncontracted": 0
   },
   "ariaRoles": {

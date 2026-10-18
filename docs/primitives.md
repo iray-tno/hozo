@@ -41,11 +41,11 @@ columns are what the compiler emitted for a snippet, in the same run that wrote 
 | `Legend` | `<legend>` | `<Text>` | a group of fields and its name |
 | `Link` | `<a href="/a">` | `<HozoLink href="/a">` | semantic Link |
 | `List` | `<ul className="hozo-view">` | `<View accessibilityRole="list">` | ordered static list |
-| `Listbox` | `<HozoListbox optionClassName="hozo-1" accessibilityLabel={"Country"} options={options}>` | `<HozoListbox accessibilityLabel={"Country"} hozoOptionStyle={({ pressed, hovered, focused, focusVisible, 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected }) =>` | — |
+| `Listbox` | `<HozoListbox optionClassName="hozo-1" accessibilityLabel={"Country"} options={options}>` | `<HozoListbox accessibilityLabel={"Country"} hozoOptionStyle={({ pressed, hovered, focused, focusVisible, 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected }) =>` | a named listbox |
 | `ListItem` | `<li className="hozo-view">` | `<View role="listitem">` | ordered static list |
 | `Main` | `<main className="hozo-view">` | `<View role="main">` | landmark regions |
 | `Mark` | `<mark>` | `<Text>` | inline emphasis and its meaning |
-| `Menu` | `<HozoMenu triggerClassName="hozo-1" itemClassName="hozo-2" trigger="Actions" items={items}>` | `<HozoMenu hozoTriggerStyle={({ pressed, hovered, focused, focusVisible, 'aria-expanded': __hozoSlotAriaExpanded }) =>` | — |
+| `Menu` | `<HozoMenu triggerClassName="hozo-1" itemClassName="hozo-2" trigger="Actions" items={items}>` | `<HozoMenu hozoTriggerStyle={({ pressed, hovered, focused, focusVisible, 'aria-expanded': __hozoSlotAriaExpanded }) =>` | a menu |
 | `Meter` | `<meter aria-valuetext={'60%'} aria-label={"Disk usage"} value={0.6}>` | `<HozoMeter accessibilityLabel={"Disk usage"} value={0.6}>` | a meter reports where it stands |
 | `Modal` | `<HozoModal visible onRequestClose={close}>` | `<Modal visible onRequestClose={close}>` | a modal and its system dismissal |
 | `Nav` | `<nav className="hozo-view">` | `<View role="navigation">` | document landmarks |
