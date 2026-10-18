@@ -36,11 +36,14 @@ const commandSemanticClasses =
 const activeCommandSemanticClasses = 'aria-selected:border-4'
 const shortcutSemanticClasses =
   'disabled:mt-8 aria-selected:border-2 aria-disabled:opacity-25 aria-checked:outline-4'
+// Distinct looks make a class sent to the wrong owner fail, not merely one
+// dropped entirely. Explicit styles below override only the top edge.
+const overlaySlotClasses = 'p-2 p-3 p-4 p-5 p-6 p-7 p-8 p-9 p-10 p-12'
 const otpSemanticClasses =
   'disabled:opacity-25 read-only:outline-2 read-only:focus:outline-4 aria-disabled:border-4 aria-selected:mt-8'
 cache.scanFile(
   'tab-state-look.ts',
-  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${otpSemanticClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
+  `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${otpSemanticClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} ${overlaySlotClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
 )
 for (const file of ['toggle.tsx', 'radio.tsx', 'tree.tsx']) {
@@ -130,6 +133,9 @@ const probeSources = [
   exportsFrom('HozoPopover', 'packages/patterns/src/popover.native.tsx'),
   exportsFrom('HozoDrawer', 'packages/patterns/src/drawer.native.tsx'),
   exportsFrom('HozoBottomSheet', 'packages/patterns/src/bottom-sheet.native.tsx'),
+  exportsFrom('Dialog', 'packages/patterns/src/dialog.native.tsx'),
+  exportsFrom('Tooltip', 'packages/patterns/src/tooltip.native.tsx'),
+  exportsFrom('HozoSlider', 'packages/patterns/src/slider.native.tsx'),
   exportsFrom('HozoColorPicker', 'packages/patterns/src/color-picker.native.tsx'),
   exportsFrom('HozoStepper', 'packages/patterns/src/stepper.native.tsx'),
   exportsFrom('HozoChip', 'packages/patterns/src/chip.native.tsx'),
@@ -162,6 +168,7 @@ const bundled = await build({
           contents: [
             exportsFrom('useHozoMessage, useHozoI18n', 'packages/behaviors/src/i18n.ts'),
             exportsFrom('hozoTextChildren', 'packages/behaviors/src/text-child.native.tsx'),
+            exportsFrom('shouldRestoreFocus', 'packages/behaviors/src/focus-scope.native.tsx'),
           ].join('\n'),
           loader: 'ts',
           resolveDir: root,
@@ -178,6 +185,11 @@ const bundled = await build({
             ),
             exportsFrom('Portal', 'packages/behaviors/src/portal.native.tsx'),
             exportsFrom('usePresence', 'packages/behaviors/src/presence.native.ts'),
+            exportsFrom('useHoverTrigger', 'packages/behaviors/src/hover-trigger.native.tsx'),
+            exportsFrom(
+              'moveAccessibilityFocus',
+              'packages/behaviors/src/accessibility-focus.native.ts',
+            ),
           ].join('\n'),
           loader: 'ts',
           resolveDir: root,
@@ -210,6 +222,10 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         Text: NativeText,
         TextInput: NativeTextInput,
         Modal: NativeModal,
+        // Dialog installs this listener on mount. These style probes never
+        // claim to exercise OS window focus or accessibility restoration.
+        AppState: { addEventListener: () => ({ remove: () => {} }) },
+        Platform: { OS: 'ios' },
         ScrollView: NativeView,
         AccessibilityInfo: { announceForAccessibility: (message) => announcements.push(message) },
         Linking: { openURL: (url) => openedURLs.push(url) },
@@ -231,6 +247,7 @@ const { CheckboxPattern, SwitchPattern, RadioPattern, HozoAccordion } = module.e
 const { HozoMenu, HozoListbox, HozoCombobox, HozoTree } = module.exports
 const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.exports
 const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
+const { Dialog, Tooltip, HozoSlider } = module.exports
 const { HozoColorPicker, HozoStepper } = module.exports
 const { HozoChip, HozoOtpInput } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
@@ -253,6 +270,281 @@ async function mount(t, Component, props, options) {
 const press = async (node) => {
   await act(() => node.props.onPress?.())
 }
+
+// Inspect actual host props after real React hooks, pattern code and the
+// generated candidate resolver have run. Native scheduling/painting is not
+// emulated; a passing test is not device, focus-restoration or pixel evidence.
+const views = (tree) => tree.root.findAllByType('NativeView')
+const panel = (tree) => views(tree).find((node) => node.props.accessibilityViewIsModal)
+const scrim = (tree) => tree.root.findAllByType('NativePressable')[0]
+async function checkClassSlots(t, Component, initial, slots, options) {
+  const props = { ...initial }
+  for (const [classProp, , padding] of slots) props[classProp] = `p-${padding}`
+  const tree = await mount(t, Component, props, options)
+  const inspect = (target, overridden) => {
+    for (const [classProp, , padding, select] of slots) {
+      const nodes = [select(target)].flat()
+      assert.ok(nodes.length > 0, `${classProp}: require a real host, not a vacuous match`)
+      for (const node of nodes) {
+        assert.ok(node, `${classProp}: missing host`)
+        assert.equal(typeof node.type, 'string', `${classProp}: inspect the Native host props`)
+        const style = flat(node.props.style)
+        assert.equal(style.paddingTop, overridden ? 100 + padding : padding * 4, classProp)
+        assert.equal(style.paddingBottom, padding * 4, `${classProp}: unoverridden class survives`)
+      }
+    }
+  }
+  inspect(tree, false)
+  const explicit = { ...props }
+  for (const [, styleProp, padding] of slots) explicit[styleProp] = { paddingTop: 100 + padding }
+  const override = await mount(t, Component, explicit, options)
+  inspect(override, true)
+  return { tree, props, override, explicit }
+}
+
+// Measurements here are supplied host fixtures, not simulator geometry. The
+// real FloatingPositioner still computes and installs its position style.
+const measuredHosts = {
+  createNodeMock: (node) => ({
+    measureInWindow: (done) =>
+      node.type === 'NativePressable' || node.props.testID === 'tooltip-anchor'
+        ? done(100, 200, 40, 20)
+        : done(0, 0, 80, 30),
+  }),
+}
+
+test('Native overlay Popover keeps root and animated panel classes on separate owners', async (t) => {
+  const { tree } = await checkClassSlots(
+    t,
+    HozoPopover,
+    { open: true, trigger: 'Show', placement: 'bottom-start', offset: 4 },
+    [
+      ['className', 'style', 2, (tree) => views(tree)[0]],
+      ['panelClassName', 'panelStyle', 4, (tree) => tree.root.findByType('NativeAnimatedView')],
+    ],
+    measuredHosts,
+  )
+  const floating = views(tree)[1]
+  assert.equal(flat(floating.props.style).left, 100)
+  assert.equal(flat(floating.props.style).top, 224)
+  assert.equal(flat(floating.props.style).opacity, 1)
+  assert.equal(
+    flat(floating.props.style).paddingTop,
+    undefined,
+    'panel class is not the positioner',
+  )
+})
+
+for (const [name, Component, ownClass, ownStyle] of [
+  ['Drawer', HozoDrawer, 'panelClassName', 'panelStyle'],
+  ['BottomSheet', HozoBottomSheet, 'sheetClassName', 'sheetStyle'],
+]) {
+  test(`Native overlay ${name} keeps root, scrim and panel classes through its modal`, async (t) => {
+    const { tree, props } = await checkClassSlots(t, Component, { open: true }, [
+      ['className', 'style', 2, (tree) => views(tree)[0]],
+      ['scrimClassName', 'scrimStyle', 3, scrim],
+      [ownClass, ownStyle, 4, panel],
+    ])
+    assert.ok(
+      flat(panel(tree).props.style).transform,
+      'layout transform remains after caller styles',
+    )
+    assert.equal(tree.root.findByType('NativeModal').props.style, undefined)
+    await act(() => tree.update(React.createElement(Component, { ...props, open: false })))
+    assert.equal(tree.root.findAllByType('NativeModal').length, 0, 'closed modal removes its hosts')
+  })
+}
+
+test('Native overlay BottomSheet resolves both the plain and pressable handle owners', async (t) => {
+  for (const detents of [[1], [0.5, 1]]) {
+    const resizable = detents.length > 1
+    const { tree } = await checkClassSlots(t, HozoBottomSheet, { open: true, detents }, [
+      [
+        'handleClassName',
+        'handleStyle',
+        5,
+        (tree) =>
+          tree.root
+            .findAllByType(resizable ? 'NativePressable' : 'NativeView')
+            .find((node) => node.props.onMoveShouldSetResponder),
+      ],
+    ])
+    const handle = tree.root
+      .findAllByType(resizable ? 'NativePressable' : 'NativeView')
+      .find((node) => node.props.onMoveShouldSetResponder)
+    assert.equal(handle.props.accessibilityRole, resizable ? 'button' : undefined)
+  }
+})
+
+test('Native overlay Dialog styles the uncombined content, not the Modal host', async (t) => {
+  const { tree } = await checkClassSlots(t, Dialog, { open: true }, [
+    ['className', 'style', 2, panel],
+  ])
+  assert.equal(panel(tree).props.accessible, false)
+  assert.equal(tree.root.findByType('NativeModal').props.style, undefined)
+})
+
+test('Native overlay Tooltip carries classes through the real positioner with and without Portal', async (t) => {
+  const Probe = (props) =>
+    React.createElement(
+      Tooltip,
+      props,
+      React.createElement(NativeView, { testID: 'tooltip-anchor' }),
+    )
+  const floating = (tree) => views(tree).find((node) => node.props.testID !== 'tooltip-anchor')
+  for (const portal of [false, true]) {
+    const { tree, props } = await checkClassSlots(
+      t,
+      Probe,
+      { open: true, portal, content: 'Help', placement: 'bottom-start', offset: 4 },
+      [['className', 'style', 6, floating]],
+      measuredHosts,
+    )
+    assert.equal(flat(floating(tree).props.style).left, 100)
+    assert.equal(flat(floating(tree).props.style).top, 224)
+    assert.equal(flat(floating(tree).props.style).opacity, 1)
+    assert.equal(
+      flat(views(tree)[0].props.style).paddingTop,
+      undefined,
+      'trigger is not the tooltip',
+    )
+    await act(() => tree.update(React.createElement(Probe, { ...props, open: false })))
+    assert.equal(views(tree).length, 1, 'only the anchor remains')
+  }
+  // No PortalProvider is installed: portal=true exercises the real Portal's
+  // documented inline fallback, not relocation to another native host tree.
+})
+
+test('Native overlay Slider keeps track, fill and thumb classes alongside value geometry', async (t) => {
+  const thumb = (tree) => views(tree).find((node) => node.props.accessibilityRole === 'adjustable')
+  const fill = (tree) => views(tree).find((node) => node.props.accessibilityElementsHidden)
+  const { tree, props } = await checkClassSlots(t, HozoSlider, { value: 25 }, [
+    ['className', 'style', 2, (tree) => views(tree)[0]],
+    ['fillClassName', 'fillStyle', 3, fill],
+    ['thumbClassName', 'thumbStyle', 4, thumb],
+  ])
+  assert.equal(flat(fill(tree).props.style).width, '25%')
+  assert.equal(flat(thumb(tree).props.style).start, '25%')
+  await act(() =>
+    tree.update(
+      React.createElement(HozoSlider, {
+        ...props,
+        value: 75,
+        disabled: true,
+        orientation: 'vertical',
+        thumbClassName: `${props.thumbClassName} disabled:opacity-25`,
+      }),
+    ),
+  )
+  assert.equal(flat(fill(tree).props.style).height, '75%')
+  assert.equal(flat(thumb(tree).props.style).bottom, '75%')
+  assert.equal(flat(thumb(tree).props.style).opacity, 0.25)
+  assert.equal(flat(thumb(tree).props.style).paddingTop, 16)
+})
+
+test('Native overlay ColorPicker applies root, swatch, input and nested slider class slots', async (t) => {
+  const sliders = (tree) => tree.root.findAllByType(HozoSlider)
+  const radios = (tree) => tree.root.findAllByType('NativePressable')
+  await checkClassSlots(
+    t,
+    HozoColorPicker,
+    {
+      accessibilityLabel: 'Colour',
+      alpha: true,
+      presets: ['#ff0000', '#0000ff'],
+      value: '#ff0000',
+    },
+    [
+      ['className', 'style', 2, (tree) => views(tree)[0]],
+      [
+        'sliderClassName',
+        'sliderStyle',
+        3,
+        (tree) => sliders(tree).map((node) => node.findAllByType('NativeView')[0]),
+      ],
+      ['swatchClassName', 'swatchStyle', 4, (tree) => radios(tree)[1]],
+      ['selectedSwatchClassName', 'selectedSwatchStyle', 5, (tree) => radios(tree)[0]],
+      ['inputClassName', 'inputStyle', 6, (tree) => tree.root.findByType('NativeTextInput')],
+      [
+        'thumbClassName',
+        'thumbStyle',
+        7,
+        (tree) => views(tree).filter((node) => node.props.accessibilityRole === 'adjustable'),
+      ],
+    ],
+  )
+})
+
+test('Native overlay CommandPalette applies every container and label slot, including empty results', async (t) => {
+  const item = (tree, label) =>
+    tree.root
+      .findAllByType('NativePressable')
+      .find((node) => node.props.accessibilityLabel === label)
+  const { tree, props, override, explicit } = await checkClassSlots(
+    t,
+    HozoCommandPalette,
+    {
+      open: true,
+      commands: ['Alpha', 'Beta'].map((label) => ({
+        id: label,
+        label,
+        group: 'Actions',
+        shortcut: label[0],
+        onSelect: () => {},
+      })),
+    },
+    [
+      ['className', 'style', 2, (tree) => views(tree)[0]],
+      ['scrimClassName', 'scrimStyle', 3, scrim],
+      ['panelClassName', 'panelStyle', 4, panel],
+      ['inputClassName', 'inputStyle', 5, (tree) => tree.root.findByType('NativeTextInput')],
+      [
+        'listClassName',
+        'listStyle',
+        6,
+        (tree) => views(tree).find((node) => node.props.keyboardShouldPersistTaps),
+      ],
+      [
+        'groupHeadingClassName',
+        'groupHeadingStyle',
+        7,
+        (tree) =>
+          tree.root
+            .findAllByType('NativeText')
+            .find((node) => node.props.accessibilityRole === 'header'),
+      ],
+      ['itemClassName', 'itemStyle', 8, (tree) => item(tree, 'Beta')],
+      ['activeItemClassName', 'activeItemStyle', 9, (tree) => item(tree, 'Alpha')],
+      [
+        'shortcutClassName',
+        'shortcutStyle',
+        10,
+        (tree) => item(tree, 'Alpha').findByType('NativeView'),
+      ],
+    ],
+  )
+  for (const [target, initial, top] of [
+    [tree, props, 48],
+    [override, explicit, 123],
+  ]) {
+    await act(() =>
+      target.update(
+        React.createElement(HozoCommandPalette, {
+          ...initial,
+          emptyClassName: 'p-12',
+          emptyStyle: top === 123 ? { paddingTop: top } : undefined,
+        }),
+      ),
+    )
+    await act(() =>
+      target.root.findByType('NativeTextInput').props.onChangeText('no matching command'),
+    )
+    assert.equal(target.root.findAllByType('NativeText').length, 1)
+    const empty = target.root.findByType('NativeText')
+    assert.equal(flat(empty.props.style).paddingTop, top)
+    assert.equal(flat(empty.props.style).paddingBottom, 48)
+  }
+})
 
 test('Native checkbox paints all three real indicators, also when disabled', async (t) => {
   for (const disabled of [false, true])
