@@ -23,6 +23,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [002](002-universal-dialog.md) | Universal Dialog Component | Layer 3 (`@hozo/patterns`) | **Implemented** | #156, #167, #203 |
 | [003](003-universal-navigation-and-links.md) | Universal Navigation, Links, Pressables & Router Adapters | Layer 1 & 2 (`@hozo/core`, `@hozo/navigation`, `@hozo/canvas`) | **Implemented** | #185 |
 | [004](004-three-renderer-families.md) | Three.js Renderer Families | `@hozo/three` | **Accepted** | #574 |
+| [006](006-native-text-inheritance.md) | Native text inheritance with a measured static fast path | Compiler, primitives, engine, typography and patterns | **Draft** | Not assigned |
 
 ---
 
