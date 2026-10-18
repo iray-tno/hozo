@@ -16,6 +16,7 @@ import {
 import { loadStaticProjectTheme } from '@hozo/tailwind'
 import { compareReports, comparisonMarkdown, validateBaseline } from './comparison.mjs'
 import { escapeMarkdown, findingDetails, recordAnalysis, toolchainEvidence } from './evidence.mjs'
+import { nextStepsMarkdown } from './next-steps.mjs'
 import { evaluateFailurePolicy, failurePolicyMarkdown } from './policy.mjs'
 
 const SAMPLE_LIMIT = 12
@@ -599,6 +600,8 @@ This is a read-only compiler measurement, not a claim that the application can b
 2. ${webStyleFinding}
 3. ${rnJsxFinding}
 4. ${stylingFinding}
+
+${nextStepsMarkdown(report)}
 
 ## Authored surface
 

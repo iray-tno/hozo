@@ -34,6 +34,12 @@ Explicit includes for a monorepo should be paired with `--source .` or the appro
 Known declaration/custom-excluded source files are listed separately; built-in excluded directory
 contents and unsupported extensions are not enumerated, rather than reported as zero.
 
+The Markdown report opens with **Next steps**: the order to work in, taken from the evidence
+below it and adding no measurement of its own. Files that fail to parse come first, then React
+Native JSX left in Web output, errors, a missing `@hozo/rn-compat`, APIs still on React Native,
+warnings grouped by code and counted by file, and the adapter subsets to check. Each step names
+its count and up to three files; the full lists stay in the sections it points to.
+
 Interactive terminals receive Markdown; piped stdout stays JSON. `--output *.md` selects
 Markdown, other output paths select JSON, and explicit `--format json|markdown` always wins.
 Use `--help` for all options and `--expected-commit` to make a corpus measurement reproducible.
