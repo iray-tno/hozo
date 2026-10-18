@@ -758,8 +758,11 @@ fn check_name_forwarded(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
 /// has a default name the way `Pagination`, `Stepper` and
 /// `CommandPalette` fall back to a translated one (#1014). Their types
 /// require `accessibilityLabel`, but Vite and Metro strip types without
-/// checking them, so a build is where the omission has to be said. A
-/// spread may hold the name, so it is not guessed at.
+/// checking them, so a build is where the omission has to be said.
+/// `Listbox` is the same on both platforms -- a list of options under no
+/// name -- though its type leaves the label optional. (`Menu` is not: its
+/// trigger's text names it.) A spread may hold the name, so it is not
+/// guessed at.
 fn check_pattern_named(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
     let message = match node.primitive {
         Primitive::OtpInput => {
@@ -769,6 +772,10 @@ fn check_pattern_named(node: &Node, diagnostics: &mut Vec<Diagnostic>) {
         Primitive::ColorPicker => {
             "ColorPicker has no accessible name, so its swatches and channels are announced \
              as an unnamed group. Add `accessibilityLabel`."
+        }
+        Primitive::Listbox => {
+            "Listbox has no accessible name, so a screen reader announces its options with \
+             nothing to say what they choose. Add `accessibilityLabel`."
         }
         _ => return,
     };
@@ -798,7 +805,7 @@ mod tests {
 
     fn codes(element: &str) -> Vec<DiagnosticCode> {
         let source = format!(
-            "import {{ Button, Link, Image, Heading, List, ListItem, Progress, Meter, Separator, Table, TableRow, TableCell, Pressable, View, Text, Paragraph, Section, Modal, Dialog, OtpInput, ColorPicker, Pagination }} from '@hozo/core'\n\
+            "import {{ Button, Link, Image, Heading, List, ListItem, Progress, Meter, Separator, Table, TableRow, TableCell, Pressable, View, Text, Paragraph, Section, Modal, Dialog, OtpInput, ColorPicker, Pagination, Listbox, Menu }} from '@hozo/core'\n\
              const el = {element}\n"
         );
         crate::parse_tsx(&source)
@@ -947,6 +954,7 @@ mod tests {
         for element in [
             r#"<OtpInput length={6} value={code} onChange={setCode} />"#,
             r#"<ColorPicker value={color} onChange={setColor} />"#,
+            r#"<Listbox options={options} value={fruit} onValueChange={setFruit} />"#,
         ] {
             assert_eq!(
                 codes(element),
@@ -964,6 +972,9 @@ mod tests {
             r#"<OtpInput length={6} value={code} onChange={setCode} {...field} />"#,
             // A translated "Pagination" is the name when none is written.
             r#"<Pagination page={page} pageCount={10} onPageChange={setPage} />"#,
+            r#"<Listbox options={options} value={fruit} onValueChange={setFruit} accessibilityLabel="Fruit" />"#,
+            // The trigger's text is the menu's name.
+            r#"<Menu trigger="Actions" items={items} />"#,
         ] {
             assert!(codes(element).is_empty(), "{element}");
         }
