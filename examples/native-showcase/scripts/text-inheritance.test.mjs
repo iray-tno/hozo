@@ -23,6 +23,37 @@ const flatten = (style) =>
       ? { ...style }
       : {}
 
+test('both Native jobs install the private proof workspace before running source-backed tests', () => {
+  const workflow = readFileSync(
+    new URL('../../../.github/workflows/native-showcase.yml', import.meta.url),
+    'utf8',
+  )
+  for (const job of ['android', 'ios']) {
+    const body = new RegExp(`^  ${job}:[\\s\\S]*?(?=^  [a-z][\\w-]*:|(?![\\s\\S]))`, 'm').exec(
+      workflow,
+    )?.[0]
+    assert.ok(body, job)
+    const install = /- run: pnpm install[^\r\n]*/.exec(body)?.[0]
+    assert.ok(install, `${job} needs an explicit install`)
+    assert.match(install, /--frozen-lockfile\b/)
+    assert.match(install, /--filter @hozo\/example-native-showcase\.\.\./)
+    assert.match(
+      install,
+      /--filter @hozo\/tailwind-conformance(?:\s|$)/,
+      `${job}: a full workspace install can hide the generator's missing @babel/core`,
+    )
+    assert.ok(
+      body.indexOf(install) < body.indexOf('pnpm --filter @hozo/example-native-showcase test:unit'),
+    )
+  }
+  const app = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.equal(
+    app.dependencies['@hozo/tailwind-conformance'],
+    undefined,
+    'test-only source reads must not add a production conformance dependency',
+  )
+})
+
 test('the device fixture is reproducible and binding decisions come from the existing proof', () => {
   execFileSync(process.execPath, ['scripts/generate-text-inheritance.mjs', '--check'], {
     cwd: root,
