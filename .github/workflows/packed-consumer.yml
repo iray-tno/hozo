@@ -9,6 +9,9 @@ on:
       - '.github/workflows/packed-consumer.yml'
       - 'scripts/check-packed-consumer*'
       - 'scripts/fixtures/packed-consumer/**'
+      - 'scripts/guide-snippets.mjs'
+      # The guides it builds, so an edit to one is built before it lands.
+      - 'apps/landing/src/content/docs/docs/getting-started/**'
   schedule:
     - cron: '15 4 * * 1'
 
