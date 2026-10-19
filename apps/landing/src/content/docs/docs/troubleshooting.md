@@ -15,12 +15,6 @@ React Native 0.87 resolves androidx.collection 1.4.0–1.4.2, which can lose
 entries. Pin `androidx.collection:collection:1.4.4`. See
 [Metro](../getting-started/metro/).
 
-## Tailwind utilities lose to a reset
-
-If your stylesheet already imports Tailwind, it has its own preflight inside
-`@layer base`, and Hozo's unlayered copy beats your utilities. Pass
-`preflight: false` to the integration.
-
 ## A box lays its children out in a column, not a row
 
 `className="flex"` does not make a row. Hozo's boxes follow React Native,

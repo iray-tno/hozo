@@ -44,8 +44,7 @@ export default defineConfig({
     // Hozo first, for the reason `examples/login-demo` gives: it has to see
     // the source as written, before any JSX transform.
     // Landing already imports Tailwind v4 in global.css, which ships its own
-    // preflight inside `@layer base`. Disabling Hozo's injected preflight prevents
-    // unlayered `* { margin: 0; padding: 0; }` from overriding Tailwind utility classes.
+    // preflight, so Hozo's would be a second copy of it.
     plugins: [hozo({ preflight: false }), tailwindcss()],
     // /tailwind/ compiles its sample at build time. Bundled, the compiler
     // looks for its native addon beside the bundle instead of its package.
