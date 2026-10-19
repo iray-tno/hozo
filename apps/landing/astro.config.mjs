@@ -23,7 +23,12 @@ export default defineConfig({
       editLink: { baseUrl: 'https://github.com/iray-tno/hozo/edit/main/apps/landing/' },
       // The landing owns the site's 404 and its home page; Starlight owns /docs.
       disable404Route: true,
-      components: { Head: './src/components/DocsHead.astro' },
+      components: {
+        Head: './src/components/DocsHead.astro',
+        SiteTitle: './src/components/DocsSiteTitle.astro',
+        Footer: './src/components/DocsFooter.astro',
+      },
+      customCss: ['./src/styles/docs.css'],
       sidebar: [
         { label: 'Overview', link: '/docs/' },
         {

@@ -1,11 +1,11 @@
 import { Link, Nav, Text, View } from '@hozo/core'
+import { SiteLinks } from './SiteLinks.tsx'
 
 export interface FooterProps {
   baseUrl?: string
 }
 
 export function Footer({ baseUrl = '' }: FooterProps) {
-  const cleanBase = baseUrl ? baseUrl.replace(/\/$/, '') : ''
   const year = new Date().getFullYear()
 
   return (
@@ -46,98 +46,7 @@ export function Footer({ baseUrl = '' }: FooterProps) {
             </View>
           </View>
 
-          <View className="flex flex-row flex-wrap items-center justify-center sm:justify-start gap-x-6 gap-y-3 pt-6 border-t border-hinoki/18 text-xs font-medium">
-            <Link
-              href={`${cleanBase}/docs/`}
-              className="hover:text-hinoki-light text-shikkui-muted transition-colors"
-            >
-              <Text>Documentation</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/docs/getting-started/`}
-              className="hover:text-hinoki-light text-shikkui-muted transition-colors"
-            >
-              <Text>Getting started</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/#try-hozo`}
-              className="hover:text-hinoki-light text-shikkui-muted transition-colors"
-            >
-              <Text>Try Hozo</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/repl/`}
-              className="hover:text-bengara text-shikkui-muted transition-colors"
-            >
-              <Text>Interactive REPL</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/storybook/`}
-              className="hover:text-tatami-light text-shikkui-muted transition-colors"
-            >
-              <Text>Storybook</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/reports/`}
-              className="hover:text-hinoki-light text-shikkui-muted transition-colors"
-            >
-              <Text>Test Reports (Allure)</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/conformance/`}
-              className="hover:text-hinoki text-shikkui-muted transition-colors"
-            >
-              <Text>Conformance Matrix</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/three/`}
-              className="hover:text-hinoki text-shikkui-muted transition-colors"
-            >
-              <Text>Three.js (3D)</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/canvas/`}
-              className="hover:text-tatami-light text-shikkui-muted transition-colors"
-            >
-              <Text>2D Canvas</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/svg/`}
-              className="hover:text-hinoki-light text-shikkui-muted transition-colors"
-            >
-              <Text>Universal SVG</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/tailwind/`}
-              className="hover:text-bengara text-shikkui-muted transition-colors"
-            >
-              <Text>Tailwind AOT</Text>
-            </Link>
-            <Link
-              href={`${cleanBase}/stylex/`}
-              className="hover:text-hinoki text-shikkui-muted transition-colors"
-            >
-              <Text>StyleX</Text>
-            </Link>
-            <Link
-              href="https://github.com/iray-tno/hozo"
-              className="hover:text-shikkui transition-colors"
-            >
-              <Text>GitHub Repository</Text>
-            </Link>
-            <Link
-              href="https://github.com/iray-tno/hozo/blob/main/docs/proposal.md"
-              className="hover:text-shikkui transition-colors"
-            >
-              <Text>Proposal (JP)</Text>
-            </Link>
-            <Link
-              href="https://github.com/iray-tno/hozo/blob/main/LICENSE"
-              className="hover:text-shikkui transition-colors"
-            >
-              <Text>MIT License</Text>
-            </Link>
-          </View>
+          <SiteLinks baseUrl={baseUrl} />
         </View>
       </View>
     </View>

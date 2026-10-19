@@ -1,0 +1,57 @@
+/* /docs in the landing's materials, without the landing's room.
+ *
+ * The landing is one dark, atmospheric page; /docs is read for a long time,
+ * in either theme, so it takes the landing's type and its timber accent and
+ * keeps Starlight's layout and both of its themes. The greys are warmed
+ * toward the landing's, not replaced by them.
+ *
+ * None of this is what @hozo/ui looks like. That package's look is its own
+ * theme (packages/ui/src/theme.css); a page here that shows its components
+ * shows them in that theme, not in this one.
+ */
+
+:root {
+  --sl-font: "Plus Jakarta Sans", "Zen Kaku Gothic New";
+  --sl-font-mono: "JetBrains Mono";
+
+  /* Dark: the landing's yakisugi and shikkui, hinoki for the accent. */
+  --sl-color-white: #f7f5f0;
+  --sl-color-gray-1: #efece4;
+  --sl-color-gray-2: #dcd7cc;
+  --sl-color-gray-3: #a39b8e;
+  --sl-color-gray-4: #6b645a;
+  --sl-color-gray-5: #33302b;
+  --sl-color-gray-6: #1c1a18;
+  --sl-color-black: #100f0e;
+  --sl-color-accent-low: #3a2e22;
+  --sl-color-accent: #c8a882;
+  --sl-color-accent-high: #dfc8ab;
+}
+
+:root[data-theme="light"] {
+  /* Light: kuri, the darker wood, so accent text holds 4.5:1 on white. */
+  --sl-color-white: #141312;
+  --sl-color-gray-1: #1c1a18;
+  --sl-color-gray-2: #33302b;
+  --sl-color-gray-3: #5c554c;
+  --sl-color-gray-4: #8a8276;
+  --sl-color-gray-5: #c9c2b6;
+  --sl-color-gray-6: #efece4;
+  --sl-color-gray-7: #f7f5f0;
+  --sl-color-black: #fdfcfa;
+  --sl-color-accent-low: #efe4d6;
+  --sl-color-accent: #7a5c43;
+  --sl-color-accent-high: #543f2e;
+}
+
+/* The landing's components, written against its tokens, rendered here by
+ * the header and footer (BrandMark, SiteLinks). Bound to Starlight's
+ * colours, they follow its theme switch rather than staying dark. */
+:root {
+  --hozo-color-shikkui: var(--sl-color-white);
+  --hozo-color-shikkui-muted: var(--sl-color-gray-2);
+  --hozo-color-hinoki: var(--sl-color-accent);
+  --hozo-color-hinoki-light: var(--sl-color-text-accent);
+  --hozo-color-yakisugi-950: var(--sl-color-black);
+  --hozo-color-kuri: #7a5c43;
+}
