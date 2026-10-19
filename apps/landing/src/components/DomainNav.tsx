@@ -16,6 +16,14 @@ export function DomainNav({ baseUrl = '', currentDomain }: DomainNavProps) {
     { id: 'tailwind', label: 'Tailwind AOT', path: `${cleanBase}/tailwind/`, group: 'Styling' },
     { id: 'stylex', label: 'StyleX CSS-in-JS', path: `${cleanBase}/stylex/`, group: 'Styling' },
   ] as const
+  // The docs page that explains what this page shows, or the docs home where
+  // there is no such page yet.
+  const guides: Partial<Record<DomainNavProps['currentDomain'], { label: string; path: string }>> =
+    {
+      tailwind: { label: 'How styles are resolved', path: `${cleanBase}/docs/guides/styles/` },
+      stylex: { label: 'StyleX guide', path: `${cleanBase}/docs/guides/stylex/` },
+    }
+  const docs = guides[currentDomain] ?? { label: 'Docs', path: `${cleanBase}/docs/` }
 
   return (
     <View className="mb-10 w-full min-w-0">
@@ -56,6 +64,16 @@ export function DomainNav({ baseUrl = '', currentDomain }: DomainNavProps) {
             </Link>
           )
         })}
+        <Text className="text-stone-600 shrink-0" aria-hidden="true">
+          |
+        </Text>
+        <Link
+          href={docs.path}
+          className="inline-flex flex-row items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-all text-hinoki-light hover:text-shikkui hover:bg-yakisugi-800/80"
+        >
+          <Text>{docs.label}</Text>
+          <Text aria-hidden="true">&rarr;</Text>
+        </Link>
       </Nav>
     </View>
   )

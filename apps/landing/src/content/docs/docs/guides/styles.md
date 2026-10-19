@@ -72,3 +72,8 @@ The theme behind all of this is read from the project's own Tailwind
 entry stylesheet by running Tailwind's resolver, rather than by parsing a
 config file — the same discipline the conformance suite uses when it asks
 Tailwind for its own class list instead of keeping a copy.
+
+To see it compiled, the [Tailwind page](../../../tailwind/) puts one component
+beside the CSS and the `StyleSheet` the build makes from it, and the
+[Conformance Matrix](../../../conformance/) shows class by class how close the
+output is to Tailwind's own.

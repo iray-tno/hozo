@@ -1,6 +1,4 @@
 ---
-import { Accessibility } from '../components/Accessibility.tsx'
-import { Architecture } from '../components/Architecture.tsx'
 import { CodeShowcase } from '../components/CodeShowcase.tsx'
 import { DomainShowcase } from '../components/DomainShowcase.tsx'
 import { Footer } from '../components/Footer.tsx'
@@ -10,7 +8,6 @@ import { Kumimono } from '../components/Kumimono.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import { Philosophy } from '../components/Philosophy.tsx'
 import SiteHead from '../components/SiteHead.astro'
-import { TieredStyles } from '../components/TieredStyles.tsx'
 import { TryShowcase } from '../components/TryShowcase.tsx'
 import { loadShowcaseRelease } from '../lib/showcase-release'
 import '../styles/global.css'
@@ -77,16 +74,15 @@ const showcaseRelease = await loadShowcaseRelease()
     <main id="main-content" tabindex="-1">
       <Hero baseUrl={baseUrl} />
       <!-- What it is, what it does, why it is better, how to start, then the
-           rest: one question per section, in the order a visitor asks them. -->
+           rest: one question per section, in the order a visitor asks them.
+           Each section links to the /docs page that goes deeper, rather than
+           carrying that depth here. -->
       <CodeShowcase />
-      <Philosophy />
-      <Accessibility />
-      <TieredStyles />
+      <Philosophy baseUrl={baseUrl} />
       <Integrations baseUrl={baseUrl} />
       <TryShowcase baseUrl={baseUrl} release={showcaseRelease} />
       <DomainShowcase baseUrl={baseUrl} />
       <Kumimono client:visible baseUrl={baseUrl} />
-      <Architecture />
     </main>
     <Footer baseUrl={baseUrl} />
   </body>

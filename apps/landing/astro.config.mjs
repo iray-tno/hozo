@@ -35,6 +35,22 @@ export default defineConfig({
         { label: 'Concepts', items: [{ autogenerate: { directory: 'docs/concepts' } }] },
         { label: 'Troubleshooting', link: '/docs/troubleshooting/' },
         { label: 'What Hozo does not do yet', link: '/docs/status/' },
+        // The rest of the site, so /docs is not a dead end: the landing's
+        // own header is not on these pages.
+        {
+          label: 'Explore',
+          items: [
+            { label: 'Home', link: '/' },
+            { label: 'REPL', link: '/repl/' },
+            { label: 'Conformance Matrix', link: '/conformance/' },
+            { label: 'Storybook', link: '/storybook/' },
+            { label: 'Tailwind, compiled', link: '/tailwind/' },
+            { label: 'StyleX, compiled', link: '/stylex/' },
+            { label: 'Universal SVG', link: '/svg/' },
+            { label: '2D Canvas', link: '/canvas/' },
+            { label: 'Three.js', link: '/three/' },
+          ],
+        },
       ],
     }),
     react(),

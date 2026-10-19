@@ -263,3 +263,6 @@ remain with StyleX. Direction-dependent logical/physical edge conflicts and
 Grid shorthand/line conflicts also remain explicit `STYLEX_NOT_LOWERED` gaps:
 their Native result needs runtime context or a more expressive Grid IR, so Hozo
 does not approximate them.
+
+The [StyleX page](../../../stylex/) shows sample sheets beside what each backend
+makes of them.
