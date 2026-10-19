@@ -3,6 +3,10 @@ title: "Hozo documentation"
 description: "Write React Native components once; Hozo compiles them to semantic HTML and CSS on the Web and to React Native on iOS and Android."
 ---
 
+import CompiledExample from '../../../components/docs/CompiledExample.astro'
+import { Welcome } from '../../../examples/Welcome.tsx'
+import welcome from '../../../examples/Welcome.tsx?raw'
+
 Hozo is a compiler. You write components with React Native's vocabulary
 (`View`, `Text`, `Pressable`, and semantic primitives such as `Heading` and
 `Nav`) and Tailwind classes. The build turns them into semantic HTML, CSS and
@@ -13,6 +17,20 @@ is left to a small runtime.
 Hozo is early (`0.x`). It is published and tested, and its APIs may still
 change in any minor release. [What Hozo does not do yet](./status/) is the
 honest list.
+
+## One component, both platforms
+
+This is the component from the README, rendered here by this site's own build.
+Under its source is what the compiler wrote for each platform:
+
+<CompiledExample source={welcome} file="Welcome.tsx">
+  <Welcome />
+</CompiledExample>
+
+On the Web, a `<section>` with a name is a region landmark, the heading is an
+`<h2>`, and the classes are real CSS; no React Native for Web and no style
+runtime is involved. On iOS and Android the same source becomes `View` and
+`Text` with `StyleSheet` values.
 
 ## Where to start
 

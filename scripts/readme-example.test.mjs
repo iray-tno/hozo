@@ -39,3 +39,14 @@ test('the README example output is what the compiler writes', () => {
     .join('\n')
   assert.equal(css.body, rules, 'README CSS differs from compiler output')
 })
+
+// The docs' overview renders the same component, compiled when the site is
+// built (apps/landing/src/examples/Welcome.tsx). One example, so the README
+// and the docs cannot come to show two different things.
+test('the docs render the README example, not a copy that drifted', () => {
+  const docs = readFileSync(
+    new URL('../apps/landing/src/examples/Welcome.tsx', import.meta.url),
+    'utf8',
+  )
+  assert.equal(docs.trim(), blocks[0].body)
+})
