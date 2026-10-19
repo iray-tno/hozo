@@ -22,6 +22,7 @@ test('normal Android evidence runs SVG then full; explicit isolated runs do not 
     ['svg-filters', [['svg-filters', 'artifacts/native-showcase-svg']]],
     ['audio-output', [['audio-output', 'artifacts/native-showcase-audio']]],
     ['audio-settings', [['audio-settings', 'artifacts/native-showcase-audio-settings']]],
+    ['text-inheritance', [['text-inheritance', 'artifacts/native-showcase-text']]],
   ]) {
     const calls = []
     runAndroidScenarios(scenario, (...args) => calls.push(args))
@@ -30,7 +31,13 @@ test('normal Android evidence runs SVG then full; explicit isolated runs do not 
 })
 
 test('a failed driver aborts without retrying or running the next scenario; unknown modes fail closed', () => {
-  for (const scenario of ['full', 'svg-filters', 'audio-output', 'audio-settings']) {
+  for (const scenario of [
+    'full',
+    'svg-filters',
+    'audio-output',
+    'audio-settings',
+    'text-inheritance',
+  ]) {
     const calls = []
     const failure = new Error('driver failed')
     assert.throws(

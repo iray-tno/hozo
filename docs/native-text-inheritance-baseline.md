@@ -625,3 +625,27 @@ remains, so this is not a zero-Context or measured-speedup claim. Native/device
 verification of this path, broader static regions, View/provider elimination,
 production integration and the remaining animation/portal/concurrency gates
 remain open. No production default or ADR acceptance follows.
+
+## Opt-in Android rendering comparison
+
+Follow-up: [#1102](https://github.com/iray-tno/hozo/issues/1102). The same story
+can reveal each mounted binding at the same position. A separate mode-color
+marker, excluded from the Text crop, verifies screenshot presentation rather
+than treating AX labels as presented text. A dedicated hosted run uses
+`platform=android`, `android-scenario=text-inheritance`, diagnostics off and a
+fresh build. It is not part of full/SVG/release gates.
+
+The driver measures initial, ancestor change, label update and restoration
+for both static and runtime-style cases and all three bindings (24 samples).
+It checks retained mount IDs, nonblank root/nested paint, exact same-device
+glyph-region pixels/dimensions, static shielding, runtime color/height change
+and restoration. It never rescales/translates/blurs crops or ignores differing
+pixels. A mismatch fails and retains screenshots, AX, source/fixture/APK hashes,
+callback logcat and partial results. No failing interaction is replayed.
+
+These are bounded visible-region comparisons, not a native attributed-span
+inspection, complete seven-property or paragraph-shaping conformance, physical
+device throughput, iOS/AT evidence or a production rollout gate. Requested
+state labels are distinct from pixel measurements; onTextLayout records still
+say not-assessed. Mock-host and synthetic pixel tests validate the harness
+only. An actual hosted run and its artifacts must be reviewed separately.

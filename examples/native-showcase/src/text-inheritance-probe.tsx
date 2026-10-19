@@ -59,6 +59,7 @@ export function TextInheritanceProbe() {
   const [kind, setKind] = React.useState<'static' | 'runtime'>('static')
   const [changed, setChanged] = React.useState(false)
   const [tick, setTick] = React.useState(0)
+  const [visibleMode, setVisibleMode] = React.useState<(typeof modes)[number]>('ordinary')
   const observations = React.useRef(0)
   const [observed, setObserved] = React.useState(0)
   const entry = textFixtureManifest.cases.find((entry) => entry.name === kind)!
@@ -137,23 +138,48 @@ export function TextInheritanceProbe() {
           setChanged(false)
           setTick(0)
         })}
+        {modes.map((mode) => button(`Show ${mode}`, () => setVisibleMode(mode)))}
       </View>
-      {modes.map((mode) => {
-        const Label = labels[kind][mode]
-        return (
-          <View
-            key={mode}
-            testID={`text-fixture-panel-${mode}`}
-            collapsable={false}
-            style={{ gap: 4 }}
-          >
-            <Text>{mode}</Text>
-            <nativeTextReference.ReferenceView style={[{ width: 240 }, frame]}>
-              <Label name={mode} tick={tick} frame={frame} onTextLayout={callbacks[mode]} />
-            </nativeTextReference.ReferenceView>
-          </View>
-        )
-      })}
+      <Text style={{ height: 40 }}>
+        {`Text probe state: ${kind} ${changed ? 'changed' : 'rest'} tick ${tick} mode ${visibleMode}`}
+      </Text>
+      <View
+        accessible
+        accessibilityRole="image"
+        accessibilityLabel={`Text frame ${visibleMode}`}
+        style={{
+          width: 32,
+          height: 12,
+          backgroundColor: {
+            ordinary: '#df2020',
+            reference: '#20a040',
+            optimized: '#3040df',
+          }[visibleMode],
+        }}
+      />
+      <View style={{ width: 240, height: 200, backgroundColor: '#ffffff' }}>
+        {modes.map((mode) => {
+          const Label = labels[kind][mode]
+          return (
+            <View
+              key={mode}
+              testID={`text-fixture-panel-${mode}`}
+              collapsable={false}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width: 240,
+                display: visibleMode === mode ? 'flex' : 'none',
+              }}
+            >
+              <nativeTextReference.ReferenceView style={[{ width: 240 }, frame]}>
+                <Label name={mode} tick={tick} frame={frame} onTextLayout={callbacks[mode]} />
+              </nativeTextReference.ReferenceView>
+            </View>
+          )
+        })}
+      </View>
       <Text>Layout observations: {observed}; correctness: not assessed</Text>
       <Text>
         Switching cases starts a new comparison. Within-case controls must retain mount identity. No

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
 import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
@@ -14,6 +15,7 @@ import { centre, changedFraction, imageRegion, matchLabel, parseNodes } from './
 import { waitForImage } from './image-ready.mjs'
 import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters, readAndroidScenario } from './svg-filter-evidence.mjs'
+import { exerciseTextInheritance, textFrame, textImage } from './text-pixels.mjs'
 import {
   exerciseVideo,
   exerciseVideoPoster,
@@ -369,6 +371,65 @@ try {
       evidence,
       process.env.QEMU_WAV_PATH,
       output,
+    )
+  } else if (evidence.scenario === 'text-inheritance') {
+    const { prepareTextDeviceFixture } = await import(
+      '../../../packages/tailwind-conformance/src/text-inheritance-device-source.ts'
+    )
+    evidence.textFixture = prepareTextDeviceFixture().manifest
+    evidence.apkSha256 = createHash('sha256')
+      .update(readFileSync(resolve(root, 'android/app/build/outputs/apk/release/app-release.apk')))
+      .digest('hex')
+    assert.ok(
+      evidence.binaryRun && evidence.binaryRun === process.env.GITHUB_RUN_ID,
+      'text evidence needs a fresh build from this run',
+    )
+    assert.match(evidence.driverCommit ?? '', /^[a-f0-9]{40}$/, 'missing driver source commit')
+    assert.equal(evidence.diagnostic, false, 'text equivalence is not a diagnostic-mode success')
+    const require = createRequire(import.meta.url)
+    evidence.androidApiLevel = adb('shell', 'getprop', 'ro.build.version.sdk').toString().trim()
+    evidence.installedRuntimeVersions = {
+      react: require('react/package.json').version,
+      reactNative: require('react-native/package.json').version,
+    }
+    evidence.textSourceHashes = Object.fromEntries(
+      [
+        'src/text-inheritance-generated.tsx',
+        'src/text-inheritance-probe.tsx',
+        'src/text-inheritance-reference.native.ts',
+        'scripts/text-pixels.mjs',
+      ].map((name) => [
+        name,
+        createHash('sha256')
+          .update(readFileSync(resolve(root, name)))
+          .digest('hex'),
+      ]),
+    )
+    await exerciseTextInheritance(
+      {
+        story,
+        tap: (value) => tap(label(value), value),
+        waitFor: (value) => waitFor(label(value), value),
+        waitForImage,
+        record,
+        capture: async (name, mode, tick) => {
+          const expression = new RegExp(`^${mode} mount [1-9]\\d* tick ${tick}$`)
+          const node = await waitFor(
+            (node) => expression.test(node['content-desc'] ?? ''),
+            `${mode} Text mount identity`,
+          )
+          const frameNode = await waitFor(label(`Text frame ${mode}`), 'presented mode marker')
+          const buffer = screenshot(name)
+          return {
+            name,
+            bounds: node.rect,
+            label: node['content-desc'],
+            image: textImage(buffer, node.rect),
+            frame: textFrame(buffer, frameNode.rect, mode),
+          }
+        },
+      },
+      evidence,
     )
   } else if (evidence.scenario === 'svg-filters') {
     evidence.sceneSourceSha256 = createHash('sha256')
