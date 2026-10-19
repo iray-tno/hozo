@@ -20,6 +20,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { hostTarget, publishManifest } from '../packages/compiler/src/native-targets.ts'
+import { BUILT_GUIDES, readGuide } from './guide-snippets.mjs'
 import { PACKAGE_NAMES } from './package-metadata.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -30,6 +31,13 @@ const json = (file) => JSON.parse(readFileSync(file, 'utf8'))
 // Opt-in domains do not enter core's dependency closure. They still need
 // an installed-package check before their first release.
 export const WEB_CONSUMER_PACKAGES = ['core', 'compiler', 'vite', 'ui', 'three', 'media', 'webview']
+
+function filesUnder(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const file = path.join(directory, entry.name)
+    return entry.isDirectory() ? filesUnder(file) : [file]
+  })
+}
 
 function fixtureHash(directory) {
   const hash = createHash('sha256')
@@ -94,6 +102,57 @@ function installedVersion(from, name) {
   return manifest.version
 }
 
+// What a guide installs by name, pinned to the version this repository
+// already builds against, so the guide is tested against a known tree.
+const GUIDE_VERSION_SOURCES = [
+  'packages/core',
+  'packages/vite',
+  'examples/astro-demo',
+  'examples/login-demo',
+]
+function guideVersion(name) {
+  const from = GUIDE_VERSION_SOURCES.find((directory) =>
+    existsSync(path.join(root, directory, 'node_modules', name, 'package.json')),
+  )
+  assert.ok(from, `no workspace package installs ${name}, so the guide's version cannot be pinned`)
+  return installedVersion(from, name)
+}
+
+// The packages each guide's starter already has, and how it builds.
+export const GUIDE_STARTERS = {
+  vite: { packages: ['react', 'react-dom', 'vite', '@vitejs/plugin-react'], build: 'vite' },
+  astro: { packages: ['astro'], build: 'astro' },
+}
+
+function workspaceYaml(tarballs) {
+  return [
+    'nodeLinker: isolated',
+    'autoInstallPeers: false',
+    'strictPeerDependencies: false',
+    'overrides:',
+    ...Object.entries(tarballs).map(([name, spec]) => `  '${name}': '${spec}'`),
+    '',
+  ].join('\n')
+}
+
+/** What a guide's build has to contain for the guide to be telling the truth. */
+export function guideOutputProblems(files) {
+  const text = files.map(({ content }) => content).join('\n')
+  const problems = []
+  // Static HTML from Astro; `jsx(`h1`, ...)` from Vite, which quotes with backticks.
+  if (!/<h1 class="hozo-|["'`]h1["'`]/.test(text))
+    problems.push('the Heading did not lower to an <h1>')
+  if (!text.includes('oklch(62% .19 258)'))
+    problems.push("the theme's --color-brand never reached the CSS: `css` was not read")
+  if (
+    files.some(
+      ({ file, content }) => file.endsWith('.js') && /from\s*["']@hozo\/core["']/.test(content),
+    )
+  )
+    problems.push('a client chunk still imports @hozo/core')
+  return problems
+}
+
 async function main() {
   const artifacts = path.join(root, 'artifacts/packed-consumer')
   mkdirSync(artifacts, { recursive: true })
@@ -116,7 +175,7 @@ async function main() {
     checks: [],
     packages: [],
     scope:
-      'Local release tarballs; compiler execution, SSR, Vite browser interaction, Android/iOS Metro, Android autolink/codegen. Not registry authentication, Gradle compilation or device rendering.',
+      'Local release tarballs; compiler execution, SSR, Vite browser interaction, Android/iOS Metro, Android autolink/codegen, the Vite and Astro getting-started guides built as written. Not registry authentication, Gradle compilation or device rendering.',
   }
   const env = consumerEnvironment(process.env)
   const save = () =>
@@ -273,17 +332,7 @@ async function main() {
         path.join(app, 'package.json'),
         `${JSON.stringify({ name: `packed-hozo-${kind}`, private: true, type: 'module', dependencies: { ...peers, ...Object.fromEntries(hozo.map((name) => [`@hozo/${name}`, tarballs[`@hozo/${name}`]])) } }, null, 2)}\n`,
       )
-      writeFileSync(
-        path.join(app, 'pnpm-workspace.yaml'),
-        [
-          'nodeLinker: isolated',
-          'autoInstallPeers: false',
-          'strictPeerDependencies: false',
-          'overrides:',
-          ...Object.entries(tarballs).map(([name, spec]) => `  '${name}': '${spec}'`),
-          '',
-        ].join('\n'),
-      )
+      writeFileSync(path.join(app, 'pnpm-workspace.yaml'), workspaceYaml(tarballs))
       pnpm(`install-${kind}`, ['install', '--ignore-scripts'], app)
       const require = createRequire(path.join(app, 'package.json'))
       const compilerRequire = createRequire(require.resolve('@hozo/compiler/package.json'))
@@ -308,6 +357,38 @@ async function main() {
             cpSync(path.join(app, 'output'), path.join(output, 'native'), { recursive: true })
         }
       }
+    }
+    // The getting-started guides, built from their own code blocks over a
+    // stand-in for the framework's starter (`guide-snippets.mjs`).
+    for (const name of BUILT_GUIDES) {
+      const guide = readGuide(name)
+      const starter = GUIDE_STARTERS[name]
+      const app = path.join(work, `guide-${name}`)
+      cpSync(path.join(fixtureRoot, 'guides', name), app, { recursive: true })
+      for (const file of guide.files) {
+        mkdirSync(path.dirname(path.join(app, file.path)), { recursive: true })
+        writeFileSync(path.join(app, file.path), file.content)
+      }
+      const specs = (names) =>
+        Object.fromEntries(names.map((dep) => [dep, tarballs[dep] ?? guideVersion(dep)]))
+      writeFileSync(
+        path.join(app, 'package.json'),
+        `${JSON.stringify({ name: `packed-hozo-guide-${name}`, private: true, type: 'module', dependencies: specs([...starter.packages, ...guide.dependencies]), devDependencies: specs(guide.devDependencies) }, null, 2)}\n`,
+      )
+      writeFileSync(path.join(app, 'pnpm-workspace.yaml'), workspaceYaml(tarballs))
+      pnpm(`install-guide-${name}`, ['install', '--ignore-scripts'], app)
+      pnpm(`build-guide-${name}`, ['exec', starter.build, 'build'], app)
+      const built = filesUnder(path.join(app, 'dist'))
+        .filter((file) => /\.(?:js|css|html)$/.test(file))
+        .map((file) => ({ file, content: readFileSync(file, 'utf8') }))
+      const problems = guideOutputProblems(built)
+      evidence.checks.push({
+        name: `output-guide-${name}`,
+        passed: problems.length === 0,
+        problems,
+      })
+      save()
+      assert.deepEqual(problems, [], `the ${name} guide's build is wrong`)
     }
     evidence.passed = true
   } catch (error) {
