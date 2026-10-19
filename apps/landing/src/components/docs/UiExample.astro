@@ -1,0 +1,32 @@
+---
+// A @hozo/ui component, live: the page hydrates the example as an island
+// so a reader can press, type and open it here, then reads its source
+// below. The preview is server-rendered first, so it is there before the
+// script arrives and without one.
+import { Code } from '@astrojs/starlight/components'
+import { UiStage } from './UiStage.tsx'
+
+interface Props {
+  /** The example's source, as the page imports it with `?raw`. */
+  source: string
+  /** The file name the source is shown under. */
+  file: string
+}
+
+const { source, file } = Astro.props
+---
+
+<figure class="not-content hozo-ui-example">
+  <UiStage><slot /></UiStage>
+</figure>
+
+<Code code={source.trim()} lang="tsx" title={file} />
+
+<style>
+  .hozo-ui-example {
+    margin-block: 1.5rem 1rem;
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+</style>

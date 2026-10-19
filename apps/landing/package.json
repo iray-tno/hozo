@@ -11,7 +11,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "test:build": "node --test scripts/format-jsx.test.ts scripts/showcase-release.test.ts && node scripts/copy-wasm.mjs && astro build --outDir dist-check && node scripts/check-build.mjs dist-check && node scripts/check-static.mjs && node scripts/check-showcase-build.mjs",
-    "test": "pnpm test:build && node scripts/check-repl.mjs dist-check && node scripts/check-navbar.mjs dist-check && node scripts/check-landing.mjs dist-check && node scripts/check-kumimono.mjs dist-check && node scripts/check-canvas.mjs dist-check && node scripts/check-svg.mjs dist-check && node scripts/check-tailwind.mjs dist-check && node scripts/check-stylex.mjs dist-check"
+    "test": "pnpm test:build && node scripts/check-repl.mjs dist-check && node scripts/check-navbar.mjs dist-check && node scripts/check-landing.mjs dist-check && node scripts/check-kumimono.mjs dist-check && node scripts/check-canvas.mjs dist-check && node scripts/check-svg.mjs dist-check && node scripts/check-tailwind.mjs dist-check && node scripts/check-stylex.mjs dist-check && node scripts/check-components.mjs dist-check"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.0",
@@ -23,6 +23,7 @@
     "@hozo/patterns": "workspace:*",
     "@hozo/svg": "workspace:*",
     "@hozo/three": "workspace:*",
+    "@hozo/ui": "workspace:*",
     "@tailwindcss/vite": "^4.0.9",
     "astro": "^7.2.10",
     "codejar": "^4.3.0",

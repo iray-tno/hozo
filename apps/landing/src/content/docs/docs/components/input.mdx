@@ -1,0 +1,30 @@
+---
+title: "Input"
+description: "A text field, and the Field that wires its label, description and error, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { InputDemo } from '../../../../examples/ui/InputDemo.tsx'
+import source from '../../../../examples/ui/InputDemo.tsx?raw'
+
+`Input` is the `TextInput` primitive with a look. `Field` gives it a label, a
+description and an error. Type something that is not an email address:
+
+<UiExample source={source} file="InputDemo.tsx">
+  <InputDemo client:visible />
+</UiExample>
+
+`Field` is where the accessibility work is. Four elements have to agree on
+their ids: the `<label for>`, an `aria-describedby` naming both the
+description and the error, an `aria-invalid` that matches whether there is an
+error, and an `aria-required` that the asterisk alone cannot carry. `Field`
+hands all of them to its child through `control`, so spreading it onto the
+`Input` is the whole of the wiring.
+
+- **The error look comes from `aria-invalid`,** not from a prop. The border
+  turns red because `Field` marked the control invalid, so how it looks and
+  what a screen reader announces cannot disagree.
+- **`multiline`** makes it a textarea with a matching height. For a field that
+  grows as it is typed into, use `TextArea`.
+- **`value`, `onChangeText`, `inputMode`** and the rest are the primitive's.
+  `Input` keeps no state of its own.

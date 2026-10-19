@@ -1,0 +1,36 @@
+---
+title: "Dialog"
+description: "A modal dialog with a panel and a scrim, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { DialogDemo } from '../../../../examples/ui/DialogDemo.tsx'
+import source from '../../../../examples/ui/DialogDemo.tsx?raw'
+
+`Dialog` draws a panel and a scrim. The behaviour comes from `@hozo/patterns`.
+Open it, then press Escape or one of its buttons:
+
+<UiExample source={source} file="DialogDemo.tsx">
+  <DialogDemo client:visible />
+</UiExample>
+
+On the Web it is a real `<dialog>` opened with `showModal()`, so the browser
+supplies what a modal needs:
+- the rest of the page becomes inert
+- focus stays inside
+- Escape closes it, through the `cancel` event
+- focus goes back to the button that opened it
+
+The scrim is the dialog's `::backdrop`, so there is no overlay element and no
+z-index to manage.
+
+- **`open`** drives it, and **`onClose`** is called when the browser asks to
+  close it (Escape). Keep `open` in your state and set it to `false` there.
+- **`accessibilityLabel`** is the dialog's accessible name. A screen reader
+  announces it when the dialog opens.
+- **There is no close button.** A dismiss control needs a name and a place in
+  the reading order, so it is yours to put in the children, as the example
+  does. Escape works without one.
+- **On React Native** it is a `Modal`. Pass `restoreFocusTo` with a ref to the
+  opener so TalkBack and VoiceOver land back on it, since React Native cannot
+  report what had focus.
