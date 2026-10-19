@@ -212,6 +212,23 @@ checks.push([docsPages.length >= 10, `only ${docsPages.length} docs pages were f
     [!/<astro-island/.test(overview), 'docs overview: the example shipped an island'],
   )
 }
+// The styles guide shows the conditional tier: one chip active, two not.
+// The class that carries the condition is on exactly one of the three, so
+// the preview really rendered both branches of the compiled `cx`.
+{
+  const guide = readFileSync(path.join(dist, 'docs', 'guides', 'styles', 'index.html'), 'utf8')
+  const stage = guide.match(/class="hozo-example-stage[^"]*">([\s\S]*?)<figcaption/)?.[1] ?? ''
+  const chips = [...stage.matchAll(/<div class="(hozo-view hozo-[^"]*)"/g)].map(([, c]) => c)
+  const conditional = chips.filter((c) => /hozo-cond-/.test(c))
+  checks.push(
+    [chips.length === 3, `docs styles: expected 3 lowered chips, found ${chips.length}`],
+    [
+      conditional.length === 1,
+      `docs styles: expected the condition class on 1 chip, found ${conditional.length}`,
+    ],
+    [!/<astro-island/.test(guide), 'docs styles: the example shipped an island'],
+  )
+}
 for (const page of sitePages) {
   const head = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
   const label = page === '' ? 'index' : page
