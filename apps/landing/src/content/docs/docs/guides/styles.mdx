@@ -5,6 +5,10 @@ sidebar:
   order: 1
 ---
 
+import CompiledExample from '../../../../components/docs/CompiledExample.astro'
+import { Filter } from '../../../../examples/Filter.tsx'
+import filter from '../../../../examples/Filter.tsx?raw'
+
 Hozo does not treat a dynamic `className` as a single thing to give up on.
 There are three tiers, and only the last one costs anything at runtime.
 
@@ -27,6 +31,18 @@ import { cx, View } from '@hozo/core'
 The compiler does not need to know what `active` is. It keeps the shape of
 the expression and compiles each branch, so all three classes are real CSS
 and the choice between them is a boolean at runtime.
+
+Here is a filter chip in that shape, rendered by this site's build. Open the
+outputs: each `cx` becomes a conditional over class names that already exist
+in the stylesheet, on the Web, and over `StyleSheet` entries on React Native.
+
+<CompiledExample source={filter} file="Filter.tsx">
+  <div style={{ display: 'flex', gap: '8px', padding: '24px' }}>
+    <Filter label="All" active />
+    <Filter label="Open" active={false} />
+    <Filter label="Closed" active={false} />
+  </div>
+</CompiledExample>
 
 The shapes it reads are a string, `&&`, a ternary, a template literal, and a
 call to `cx` from `@hozo/core`, or to a function imported from `clsx`,
