@@ -667,3 +667,11 @@ raw screenshots, AX and syslog remain in the ordinary iOS evidence artifact.
 Full/SVG/Canvas/release defaults and deadlines are unchanged. Synthetic
 adapter tests are not CoreText results; a dedicated Simulator result still
 needs artifact review, and no production default changes.
+
+The corrected-source dedicated iOS run 39305398979 was independently reviewed:
+all 24 saved PNG/AX pairs, 40 comparisons, 32 acknowledged actions and the
+downloaded archive/extracted JS-bundle hashes matched. The earlier unit-test
+failure is preserved separately. See [the pinned iOS measurement](measurements/native-text-inheritance-ios.md)
+for versions, dimensions and limits. The existing runtime fixture passes its
+frame as a prop; opaque View propagation without that prop and performance
+acceptance remain separate work. RFC 006 is still Draft.
