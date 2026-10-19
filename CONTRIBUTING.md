@@ -19,6 +19,104 @@ directly.
 | `docs/decisions/` | Questions already settled, with the evidence. Read the relevant record before reopening one. |
 | `docs/rfcs/` | Technical specifications, API proposals, and assistive technology (AT) verification matrices. |
 
+### Every directory
+
+Generated from the directories that exist and what each one says about
+itself (`pnpm docs:layout`).
+
+<!-- generated: repository-layout -->
+
+```
+packages/
+  behaviors/               Hozo's accessibility and internationalisation behaviours (FocusScope, RovingFocus, LiveRegion, Portal, DismissableLayer, FloatingPositioner), shared by Web and React Native.
+  canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
+  compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
+  core/                    Zero-setup facade over Hozo's canonical authoring packages.
+  engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
+  form/                    Accessible universal form and date-selection components for Hozo applications.
+  media/                   Universal video and audio playback with shared controls and platform-owned engines.
+  metro/                   Metro integration for the Hozo compiler (Native lowering backend).
+  migration-audit/         Measure how safely Hozo can lower a real React Native application.
+  native/                  Hozo's optional native module: the accessibility capabilities React Native does not expose to JavaScript.
+  navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
+  next/                    Next.js integration for the Hozo compiler (Web lowering backend).
+  patterns/                Accessible composite UI patterns for Hozo applications.
+  primitives/              Canonical universal UI primitives for Hozo applications.
+  rn-compat/               Optional React Native compatibility APIs for incrementally migrating applications to Hozo.
+  semantics/               Universal landmarks, document sectioning, and semantic page structure primitives for Hozo.
+  storybook/               Zero-config Storybook Vite preset for Hozo.
+  svg/                     Universal SVG primitives for Hozo, backed by browser SVG and react-native-svg.
+  tailwind/                Tailwind integration for Hozo's Style IR.
+  tailwind-conformance/    Differential test: compares Hozo's compiled CSS against the real Tailwind engine's output, per utility.
+  test-reporter/           JUnit normalization and Allure 3 test report generator for Hozo
+  three/                   Projects Three.js scenes into portable Hozo Canvas scenes.
+  typography/              Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.
+  ui/                      A styled component library for Hozo, shipped as source and compiled by your own build.
+  vite/                    Vite integration for the Hozo compiler (Web lowering backend).
+  webview/                 Universal embedded web content for Hozo: an iframe on the Web and react-native-webview on Native.
+
+crates/
+  hozo_cache/     Build cache for Hozo's candidate-class scan, with a swappable backing store.
+  hozo_ir/        Platform-independent intermediate representation shared across the Hozo compiler pipeline.
+  hozo_napi/      Node native binding exposing the Hozo compiler to JS build tooling.
+  hozo_native/    Hozo IR to React Native primitive/StyleSheet lowering (Native backend).
+  hozo_parser/    TSX analysis and Style IR construction.
+  hozo_wasm/      WebAssembly binding exposing the Hozo compiler to a browser.
+  hozo_web/       Hozo IR to DOM/CSS/ARIA lowering (Web backend).
+
+apps/
+  landing/    Landing site, interactive REPL playground, and the live conformance matrix.
+
+examples/
+  expo-router-demo/     @hozo/example-expo-router-demo    — Real Expo Router type and production-export fixture for @hozo/navigation.
+  login-demo/           login-demo                        — Phase 0 benchmark app -- exercises @hozo/core through @hozo/vite end to end.
+  native-demo/          @hozo/example-native-demo         — React Native example, and the end-to-end check that a Hozo source survives a real Metro bundle.
+  native-showcase/      @hozo/example-native-showcase     — Expo development app with on-device React Native Storybook and shared Hozo demos.
+  next-demo/            @hozo/example-next                — Next.js, on both bundlers.
+  screen-readers/       @hozo/example-screen-readers      — Real screen readers, NVDA and VoiceOver, reading the Storybook catalogue through Guidepup.
+  showcase/             @hozo/example-showcase            — Platform-neutral demo bodies shared by Web and Native Storybook hosts.
+  storybook-demo/       @hozo/example-storybook           — Storybook, audited against axe-core in CI.
+  tanstack-start-demo/  @hozo/example-tanstack-start      — TanStack Start.
+  three-kumimono/       @hozo/example-three-kumimono      — Shared DOM-free Kumimono Three.js scene for the landing page and Native GPU probe.
+  three-native-probe/   @hozo/example-three-native-probe  — Device probe for candidate Native GPU hosts used by @hozo/three.
+
+docs/
+  proposal.md      the full design document
+  primitives.md    every primitive and what it lowers to, generated
+  decisions/       settled questions, with the evidence behind them
+  measurements/    what was measured, and against what
+  rfcs/            technical specifications and AT verification matrices
+```
+
+<!-- /generated: repository-layout -->
+
+## Setting up
+
+Requires Node 22+, pnpm 11 and a Rust toolchain.
+
+```sh
+pnpm install
+pnpm --filter @hozo/compiler build:native   # the Rust addon, once
+pnpm build
+pnpm test                                   # JS suites + package packing
+cargo test --workspace                      # Rust suites
+pnpm typecheck
+```
+
+The pinned Bluesky corpus is also reproducible from a fresh checkout. The command acquires the
+corpus at the exact commit recorded in the measurement, refuses an existing checkout at a
+different commit, builds the compiler, writes an audit under `artifacts/measurements`, and compares
+it with the committed baseline. It does not install the corpus dependencies:
+
+```sh
+pnpm measure:bluesky
+```
+
+The publishing metadata for every package is generated by
+`scripts/package-metadata.mjs`; `scripts/check-packages.mjs` re-derives it,
+fails on drift, and then looks inside the tarballs `npm pack` would produce
+to check every entry point is actually in them.
+
 ## Before you open a pull request
 
 ```sh

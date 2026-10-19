@@ -1,4 +1,4 @@
-// The repository layout section of the README, generated rather than written.
+// The repository layout section of CONTRIBUTING.md, generated rather than written.
 //
 //   node scripts/repository-layout.mjs          # rewrite the section
 //   node scripts/repository-layout.mjs --check  # verify, exit 1 on drift
@@ -18,7 +18,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const README = path.join(root, 'README.md')
+const TARGET = path.join(root, 'CONTRIBUTING.md')
 const START = '<!-- generated: repository-layout -->'
 const END = '<!-- /generated: repository-layout -->'
 
@@ -129,11 +129,11 @@ if (missing.length > 0) {
 
 const section = [START, '', '```', [...blocks, DOCS].join('\n\n'), '```', '', END].join('\n')
 
-const readme = readFileSync(README, 'utf8')
+const readme = readFileSync(TARGET, 'utf8')
 const from = readme.indexOf(START)
 const to = readme.indexOf(END)
 if (from === -1 || to === -1) {
-  console.error(`README.md has no ${START} / ${END} pair to write between`)
+  console.error(`CONTRIBUTING.md has no ${START} / ${END} pair to write between`)
   process.exit(1)
 }
 const next = readme.slice(0, from) + section + readme.slice(to + END.length)
@@ -141,14 +141,14 @@ const next = readme.slice(0, from) + section + readme.slice(to + END.length)
 if (process.argv.includes('--check')) {
   if (readme !== next) {
     console.error(
-      'the README repository layout is out of date. Run: node scripts/repository-layout.mjs\n\n' +
+      'the CONTRIBUTING repository layout is out of date. Run: node scripts/repository-layout.mjs\n\n' +
         'It is generated from the directories that exist and from what each one says about ' +
-        'itself, so a difference means one of those changed and the README did not.',
+        'itself, so a difference means one of those changed and CONTRIBUTING.md did not.',
     )
     process.exit(1)
   }
-  console.log('README repository layout is current')
+  console.log('CONTRIBUTING repository layout is current')
 } else {
-  writeFileSync(README, next)
-  console.log('rewrote the README repository layout')
+  writeFileSync(TARGET, next)
+  console.log('rewrote the CONTRIBUTING repository layout')
 }

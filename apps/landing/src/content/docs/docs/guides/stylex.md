@@ -1,0 +1,265 @@
+---
+title: "StyleX"
+description: "Reading StyleX sheets into the same compiler, beside Tailwind."
+sidebar:
+  order: 5
+---
+
+Hozo can also read a static same-file StyleX sheet into the same IR. This
+works alongside Tailwind on one element and lowers through the ordinary Web
+and Native backends:
+
+```tsx
+import * as stylex from '@stylexjs/stylex'
+import { View } from '@hozo/core'
+
+const styles = stylex.create({
+  root: { padding: 16, backgroundColor: '#2563eb' },
+  active: { opacity: 0.7 },
+})
+
+export function Card({ active }: { active: boolean }) {
+  return <View className="rounded-xl" {...stylex.props(styles.root, active && styles.active)} />
+}
+```
+
+The transform order is load-bearing: **Hozo must run before the official
+StyleX transform**. Hozo consumes `stylex.props` from the original TSX; the
+StyleX pass afterward eliminates the now-unused `stylex.create` definition.
+Running StyleX first turns the spread into a second `className`, after which
+JSX last-wins semantics have already lost the information needed to combine
+the two frontends safely. Vite plugin order should therefore put `hozo()`
+before the StyleX plugin; Metro's Hozo wrapper already sends its rewritten
+source to the configured Babel transformer afterward.
+
+The first slice accepts a namespace import, a same-file module-scope static
+`stylex.create`, static string/number values, and
+`stylex.props(styles.base, condition && styles.variant)`. It covers the common
+universal layout, spacing, size, colour, opacity, radius and text properties,
+including border/outline, text-decoration, blend, pointer and sizing keywords.
+Against StyleX 0.19.0's published types that is **505/522 property names
+(96.7%)**, including **134/134 (100%)** when the denominator includes both
+React Native's published keys and exact compile-time Native equivalents, and
+**21/21 (100%)** contextual-runtime names. Web-only lowering is reported
+independently at **349/366 (95.4%)**. The
+reviewed compiler-relevant surface is **504/504 (100%)**. Including optional
+platform adapters it is **505/505 (100%)**: `backdropFilter` uses an opt-in
+Native component adapter. The other 17 published names are not current compiler work: StyleX itself
+deliberately disallows 13 shorthands in its default mode, two are `@font-face` descriptors, and
+two are obsolete or non-standard. These are
+property-name upper bounds: each
+property still accepts only the statically safe value subset the shared IR can
+represent.
+
+The 522-name denominator and every mapped/unmapped claim live in the generated
+`packages/tailwind-conformance/stylex-manifest.json`. Each entry records its
+Universal, Contextual, Adapter, or Web-only lane and the implementation basis
+for counting it. Conformance reports consume that manifest rather than parsing
+Rust source formatting; a drift test regenerates it from pinned StyleX and
+React Native types plus the frontend lowering table. After a deliberate
+frontend or dependency change, refresh it with
+`pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
+
+Property names are no longer the only StyleX score. The executable practical
+corpus currently measures **349/349 (100%)** representative values, **19/19
+(100%)** common authoring constructs, and **271/271 (100%)** declarations after
+weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
+and Border scenarios. Every representative value runs the Hozo Web and Native
+compilers and counts only when Web agrees with the official StyleX Babel output
+and Native either lowers faithfully or follows the entry's explicit Web-only policy.
+Unsupported cases may remain official residuals, but do not earn coverage.
+The current corpus has zero silent failures.
+
+Generated `content` supports the exact common static subset: `normal`, `none`,
+quoted strings, and quote-control keywords. Function forms such as `attr()` and
+`counter()` remain with the official StyleX compiler until their wider grammar
+and pseudo-element use are represented without accepting arbitrary CSS text.
+The `caret` shorthand expands into independently ranked `caret-color` and
+`caret-shape` slots on Web, so either longhand can override it with StyleX's
+property-specificity ordering. Native refuses the shorthand explicitly because
+React Native cannot preserve its shape component.
+
+Static StyleX `textShadow` values are portable when they are `none` or one
+explicitly coloured layer whose offsets and optional blur use px/zero. Web
+keeps the authored CSS semantics; Native expands the declaration to
+`textShadowColor`, `textShadowOffset`, and `textShadowRadius`. Multi-layer,
+relative-unit, and dynamic values remain with the official StyleX transform.
+Portable `placeContent` similarly expands common flex alignment values into
+independent `alignContent` and `justifyContent` slots on both platforms.
+
+The common single-family `font` shorthand lowers exactly on Web for optional
+normal/italic style and numeric or keyword weight, a static size, optional
+line-height, and one identifier or quoted family. Keeping the shorthand intact
+preserves its full reset behavior. Variant/stretch syntax, family lists, system
+fonts, and dynamic values remain official residuals with explicit Native
+refusal.
+
+StyleX's standalone `translate`, `rotate`, and `scale` properties use typed IR
+instead of becoming Web-only CSS strings. Web preserves their authored
+component count and agrees with the official atomic CSS; Native composes them
+into its transform array in CSS's fixed translate-rotate-scale order. The
+portable subset covers one- or two-axis px/% translation, degree rotation, and
+one- to three-axis numeric/percentage scale. Wider syntax remains residual.
+
+Common animation control longhands are exact Web-only declarations:
+composition, signed delay, direction, fill mode, non-negative iteration count,
+play state, and keyword, `cubic-bezier()`, or `steps()` timing functions. Native
+consumes them with an explicit Web-only diagnostic rather than implying that
+arbitrary CSS keyframes run on React Native. A module-scope static
+`stylex.keyframes` referenced by
+`animationName` is carried in typed IR, content-hashed, hoisted once on Web,
+and follows the same explicit Native refusal policy; exported sheets carry it
+through the project module registry. Static keyframe references also preserve
+the official fallback order in `firstThatWorks(...)` and value arrays. Dynamic
+keyframes, simultaneous animation-name lists, and wider easing syntax remain with the
+official StyleX compiler. Practical single `animationRange`, `scrollTimeline`, and
+`viewTimeline` shorthands expand into independently ranked longhand slots on Web;
+lists and dynamic timeline functions remain residual.
+
+Common Web compositing and 3D controls lower without runtime CSS parsing:
+`clipPath`, `perspective`, `perspectiveOrigin`, `transformBox`,
+`transformStyle`, and `willChange`. Their accepted static grammar is validated
+and Native refusal remains explicit. A single static non-negative
+`backdropFilter: 'blur(Npx)'` on an ordinary View lowers through an opt-in Native
+component adapter; `none` is a no-op. Expo integration is supplied as a factory
+without making `expo-blur` a Hozo dependency. CSS blur radius and Expo intensity
+are different scales, so their mapping is explicitly configurable. Filter chains,
+conditional blur, and incompatible component contexts remain residual or diagnosed.
+
+The common mask longhands are exact Web-only declarations: prefixed and
+standard mask images, mode, repeat, position, size, origin, clip, composite,
+and type. The accepted subset includes ordinary URLs and gradients, layered
+keyword values, and static length/percentage positions and sizes. The practical
+single-layer `mask` shorthand remains a CSS shorthand so its mask-border resets
+are preserved, while its image, position, size, repeat, box, mode, and composite
+components are validated before lowering. The source-first `maskBorder`
+shorthand likewise reuses the validated slice, width, outset, repeat, and mode
+grammar while retaining its CSS resets. Multiple layers, wider image
+functions, variables, and less common component orderings remain with the
+official StyleX compiler instead of being approximated.
+
+Modern anchor placement covers StyleX's published `positionArea` keywords and
+the common static `positionTry`, `positionTryFallbacks`, and legacy
+`positionTryOptions` fallback lists. Named fallbacks and the three flip tactics
+are validated and emitted exactly on Web; variables and wider future grammar
+remain official residuals, with explicit Native refusal.
+
+CSS corner shapes cover the shorthand, four logical corners, and four physical
+corners using StyleX's six published keywords: `round`, `scoop`, `bevel`,
+`notch`, `square`, and `squircle`. Open-ended strings such as future
+`superellipse()` syntax remain official residuals until their grammar is
+stable enough to validate; Native refusal is explicit.
+
+Static motion paths and float shapes cover the common `offsetAnchor`,
+`offsetDistance`, `offsetPath`, `offsetPosition`, and `offsetRotate` longhands,
+plus physical `float`/`clear`, `shapeOutside`, `shapeMargin`, and
+`shapeImageThreshold`. Safe paths, rays, basic shapes, positions, angles, and
+lengths lower exactly on Web. The common single-path `offset` shorthand also
+expands to its five independently ranked longhand slots, including CSS initial
+values. Position/anchor slash forms, direction-relative float values,
+calculations, and newer shape syntax remain official residuals.
+
+Common border-image longhands cover `borderImageSource`, `borderImageSlice`,
+`borderImageWidth`, `borderImageOutset`, and `borderImageRepeat`. Ordinary URLs
+and gradients, `fill`, static number/length/percentage lists, and repeat
+keywords lower exactly on Web. The practical source-first `borderImage`
+shorthand is also validated and kept as a CSS shorthand so its resets remain
+exact. Wider image functions, calculations, variables, and less common
+component orderings remain with the official StyleX compiler; Native refusal
+remains explicit.
+
+Implicit browser Grid now covers `gridAutoColumns`, `gridAutoRows`,
+`gridAutoFlow`, and `gridTemplateAreas`. Static track sizes, dense flow, and
+rectangular named-area templates lower exactly on Web and fail explicitly on
+Native. Calculated or repeated implicit tracks, variables, and non-rectangular
+area definitions remain with the official StyleX compiler.
+The practical track-only `grid: "rows / columns"` shorthand reuses the same
+contextual Native track runtime. On Web it additionally emits the shorthand's
+required initial resets for template areas, implicit tracks, and auto-flow;
+area-bearing and auto-flow forms remain residual.
+
+The static construct slice now flattens recursive `stylex.props` arrays,
+preserves logical and ternary guards, and expands module-local `const` object
+literals used only through object spreads. A mutable, exported, late-declared,
+escaped, or dynamically produced spread stays with the official StyleX pass.
+Static `stylex.firstThatWorks(...)` candidates for one typed property also
+lower without losing the fallback: Web emits the official reverse declaration
+order, while Native selects the first candidate its style model can represent.
+Dynamic, empty, multi-declaration, or mismatched candidates remain residual.
+
+The first explicit Web-only slice covers closed-keyword appearance,
+color-scheme, image-rendering, overflow/overscroll, print-color adjustment,
+resize, scroll snap, scrollbar width/gutter, text rendering, and touch-action
+longhands. Their CSS is differential-tested against the official StyleX
+plugin. Native consumes the StyleX spread but emits
+`WEB_ONLY_PROPERTY_ON_NATIVE` rather than silently dropping the declaration;
+values outside the checked keyword grammar remain with official StyleX.
+The second Web-only slice reuses existing typed IR for integer `order`,
+axis-specific overflow, scroll behavior, physical/logical scroll margin and
+padding longhands, and text indentation. This keeps their established
+Tailwind lowering and Native refusal policy rather than introducing another
+CSS-string path. The common `columns`, `columnRule`, and `listStyle`
+shorthands expand to their final Web-only slots before atomic priority is
+resolved. Physical `scrollMargin` and `scrollPadding` expand their exact
+one-to-four-value box syntax; their `Block` and `Inline` counterparts expand
+one or two values along the logical axis. Ambiguous or wider values remain
+residual.
+
+The layout shorthand slice expands `flexFlow`, `gridGap`, `gridRowGap`, and
+`gridColumnGap` into the same typed properties React Native already carries,
+so the aliases work on both platforms without runtime code. `container`
+expands into the existing contextual name/type IR. Their shorthand/longhand
+priority is resolved per final property slot, including conditional rules.
+
+The border-axis slice covers the width, style, and color longhands that the
+official StyleX compiler actually emits. Logical width and color aliases lower
+to existing Native edge properties. Side-specific styles remain exact on Web
+and fail explicitly on Native, whose single `borderStyle` cannot preserve
+different styles per edge. The compound `border`/`borderTop` family remains
+unmapped because StyleX 0.19 itself rejects those shorthands in its default
+property-specificity mode.
+
+The contextual slice is currently Grid: static `gridTemplateColumns`/
+`gridTemplateRows` tracks made from positive `fr`, non-negative `px`, or
+`minmax(px, fr)` values (plus equal-track `repeat`), and integer line or
+`auto`/equal-span/full-span item placement. A four-line numeric `gridArea`
+shorthand expands to row/column start/end and shares the same Native path. A track-only
+`gridTemplate` similarly splits rows from columns. On Native these reuse `HozoGrid`
+and `HozoGridItem`; unsupported CSS Grid values remain with StyleX and produce
+`STYLEX_NOT_LOWERED` instead of being approximated.
+Static transition property, duration, delay, and timing configuration also reaches
+the existing Native interaction/ambient transition runtime. The accepted
+subset is deliberately limited to properties and easing curves that runtime
+can interpolate faithfully. The practical single-transition shorthand expands
+to all four reset slots on both platforms, and Native passes its delay through
+to `Animated.timing`; lists, negative delays, and wider easing syntax remain
+with official StyleX.
+Static `container`, `containerName`, and `containerType` also reuse `HozoContainer` on
+Native. The supported type subset is `normal`, `size`, and `inline-size`, and
+the runtime currently accepts one conservative CSS identifier as its lookup
+name. Multiple names and wider CSS syntax remain with official StyleX.
+StyleX 0.19's default property-specificity mode is preserved for the supported
+static slice. Hozo resolves the same four atomic priority tiers before entering
+the shared IR, so physical longhands still beat later shorthands on both Web
+and Native; conditional arguments retain their fallback and override behavior.
+This is frontend-only work and adds no runtime priority machinery.
+
+A mixed rule no longer makes its supported declarations all-or-nothing.
+Hozo lowers the supported static properties and rebuilds the unsupported
+properties as a residual inline `stylex.create`; the official transform
+continues to own that residual, while its generated `className` is combined
+with Hozo's class instead of replacing it. Conditional `props()` arguments
+keep the same guards. If the residual overlaps a lowered property family, or
+the rule contains an opaque object spread/computed key, Hozo keeps the original
+call intact rather than approximating the cascade.
+
+Static sheets may live in another file and pass through named, star, or
+namespace re-export chains. Vite, Next, and Metro feed their authoritative
+alias resolution into the shared module registry; Metro keeps those answers
+separate per platform. Unsupported members remain with official StyleX.
+
+`createTheme`, keyframes, unsupported nested selectors/at-rules, and `sx`
+remain with StyleX. Direction-dependent logical/physical edge conflicts and
+Grid shorthand/line conflicts also remain explicit `STYLEX_NOT_LOWERED` gaps:
+their Native result needs runtime context or a more expressive Grid IR, so Hozo
+does not approximate them.

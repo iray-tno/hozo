@@ -178,14 +178,21 @@ checks.push(
 // What a search engine or a link preview reads. The pages are found in the
 // build rather than named here, so a page added without `SiteHead` fails
 // instead of being skipped. The MDX probe is a test fixture, not a page for
-// readers, and is the one that must *not* be indexed.
-const sitePages = [
-  '',
-  ...readdirSync(dist, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && entry.name !== 'mdx-example')
-    .filter((entry) => existsSync(path.join(dist, entry.name, 'index.html')))
-    .map((entry) => `${entry.name}/`),
-]
+// readers, and is the one that must *not* be indexed. `docs/` is read all
+// the way down: its pages are Starlight's, with DocsHead added, and each one
+// is a page a search result can land on.
+function pagesUnder(directory) {
+  return readdirSync(path.join(dist, directory), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      const page = `${directory}${entry.name}/`
+      const here = existsSync(path.join(dist, page, 'index.html')) ? [page] : []
+      return page.startsWith('docs/') ? [...here, ...pagesUnder(page)] : here
+    })
+}
+const sitePages = ['', ...pagesUnder('').filter((page) => page !== 'mdx-example/')]
+const docsPages = sitePages.filter((page) => page.startsWith('docs/'))
+checks.push([docsPages.length >= 10, `only ${docsPages.length} docs pages were found in the build`])
 for (const page of sitePages) {
   const head = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
   const label = page === '' ? 'index' : page
