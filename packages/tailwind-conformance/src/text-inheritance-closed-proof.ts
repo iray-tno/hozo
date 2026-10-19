@@ -10,7 +10,7 @@ type Decision = {
   start: number
   end: number
   subject: string
-  disposition: 'closed-leaf' | 'closed-subtree' | 'reference'
+  disposition: 'closed-leaf' | 'closed-subtree' | 'native-region' | 'reference'
   reason: string
 }
 
@@ -55,7 +55,7 @@ function knownChildren(path: NodePath<t.JSXElement | t.JSXFragment>): boolean {
     (child) =>
       literalChild(child.node) ||
       (child.isJSXFragment() && knownChildren(child)) ||
-      // Complete styles are checked for *each* node by the normal visitor.
+      // Each node's local style/region requirements are checked by the visitor.
       // The import-wide coverage gate rejects the region if any node fails.
       (child.isJSXElement() && Boolean(nativeTextBinding(child)) && knownChildren(child)),
   )
@@ -72,8 +72,9 @@ function stableNestedRoot(path: NodePath<t.JSXElement>) {
 
 export const proveClosedText = (code: string) => analyzeClosedText(code, false)
 export const proveTextSubtree = (code: string) => analyzeClosedText(code, true)
+export const proveNativeTextRegion = (code: string) => analyzeClosedText(code, true, true)
 
-function analyzeClosedText(code: string, subtrees: boolean) {
+function analyzeClosedText(code: string, subtrees: boolean, nativeInheritance = false) {
   const decisions: Decision[] = []
   let plainText = false
   let boundary = {
@@ -134,9 +135,11 @@ function analyzeClosedText(code: string, subtrees: boolean) {
                     end: opening.end!,
                     subject: code.slice(opening.start!, opening.end!),
                     disposition: eligible
-                      ? subtrees
-                        ? 'closed-subtree'
-                        : 'closed-leaf'
+                      ? nativeInheritance
+                        ? 'native-region'
+                        : subtrees
+                          ? 'closed-subtree'
+                          : 'closed-leaf'
                       : 'reference',
                     reason,
                   })
@@ -163,26 +166,38 @@ function analyzeClosedText(code: string, subtrees: boolean) {
                     (attribute) =>
                       attribute.isJSXAttribute() && attribute.node.name.name === 'style',
                   )
+                const partialNativeChild = nativeInheritance && !isStableTextRoot(path)
                 if (
-                  attrs.length !== 1 ||
-                  !attrs[0].isJSXAttribute() ||
-                  !t.isJSXExpressionContainer(attrs[0].node.value)
+                  !(partialNativeChild && attrs.length === 0) &&
+                  (attrs.length !== 1 ||
+                    !attrs[0].isJSXAttribute() ||
+                    !t.isJSXExpressionContainer(attrs[0].node.value))
                 ) {
                   decide('requires one explicit style expression')
                   return
                 }
-                const value = attrs[0].get('value')
-                const fields = value.isJSXExpressionContainer()
+                const value = attrs[0]?.get('value')
+                const fields = value?.isJSXExpressionContainer()
                   ? resolveTextStyle(value.get('expression'))
-                  : undefined
+                  : partialNativeChild && attrs.length === 0
+                    ? new Map<string, t.Node>()
+                    : undefined
                 if (!fields) {
                   decide('unknown or escaping style expression; keep runtime resolution')
                   return
                 }
                 if (
-                  !required.every((name) => fields.has(name) && scalar(name, fields.get(name)!))
+                  !required.every(
+                    (name) =>
+                      (partialNativeChild && !fields.has(name)) ||
+                      (fields.has(name) && scalar(name, fields.get(name)!)),
+                  )
                 ) {
-                  decide('not all seven own fields are unconditional supported scalars')
+                  decide(
+                    partialNativeChild
+                      ? 'unsupported local inherited field; keep runtime resolution'
+                      : 'not all seven own fields are unconditional supported scalars',
+                  )
                   return
                 }
                 if (!(subtrees ? knownChildren(path) : path.node.children.every(literalChild))) {
@@ -191,9 +206,11 @@ function analyzeClosedText(code: string, subtrees: boolean) {
                 }
                 selected.add(path.node)
                 decide(
-                  subtrees
-                    ? 'complete own frame and known Text children; coverage requires every descendant to own its frame'
-                    : 'complete own frame and literal children; no inheritance read or publish needed',
+                  nativeInheritance
+                    ? 'complete root and known static nested Text; RN owns descendant inheritance'
+                    : subtrees
+                      ? 'complete own frame and known Text children; coverage requires every descendant to own its frame'
+                      : 'complete own frame and literal children; no inheritance read or publish needed',
                   true,
                 )
               },
@@ -219,9 +236,11 @@ function analyzeClosedText(code: string, subtrees: boolean) {
               uses.every((binding) => binding.covered)
             boundary = {
               reason: plainText
-                ? subtrees
-                  ? 'every RN Text use belongs to a self-contained stable Text region'
-                  : 'every RN Text use is a proved stable closed leaf'
+                ? nativeInheritance
+                  ? 'every RN Text use belongs to a complete-root native Text region'
+                  : subtrees
+                    ? 'every RN Text use belongs to a self-contained stable Text region'
+                    : 'every RN Text use is a proved stable closed leaf'
                 : opaqueAccess
                   ? 'opaque native module access'
                   : 'another Text binding use is outside the proof',

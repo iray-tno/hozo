@@ -493,3 +493,68 @@ This remains private loader wiring. Partial-frame static inheritance,
 whole View/provider elimination, production integration, concurrency,
 animation/portal ownership and physical-device performance gates remain open.
 No production default or ADR acceptance follows.
+
+## Partial descendants using RN's own nested-Text inheritance
+
+Tracking: [#1097](https://github.com/iray-tno/hozo/issues/1097).
+Ordinary compilation does not copy every parent's attribute into a nested
+Text's style. RN already carries text attributes down its attributed-string
+tree. A separate `native-region` experiment permits partial static Text
+descendants below a complete static seven-property root, without a new
+compiler inheritance calculator or a source rewrite. The root must satisfy
+the stable memo identity guard and mask unknown ancestor values. Every Text
+use still needs coverage; dynamic styles, opaque children, View boundaries,
+relative helpers, spreads and unsupported local fields retain Context.
+
+```sh
+node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-native-region.test.ts
+node scripts/text-inheritance-static-proof.mjs --kind native-region --rows 32 --output artifacts/text-inheritance/native-region.json
+```
+
+This experiment needs a different observation from the earlier flattened
+props check. The instrumented host remains unchanged: it does not simulate
+native inheritance. `actual` still records the styles passed to host Text.
+The new `projectedNativeAttributes` field is explicitly a **prediction**, not
+an observed native-renderer value. A test-only seven-field projection walks
+the simulated host tree, lets the closest Text override its parent, and
+resets at View/other hosts. Independent expected values, a negative View
+boundary control and unchanged host grouping check this bounded projection.
+It does not model font shaping, paragraph/layout behavior, scaling, colors
+after native processing, other inherited fields, pixels or accessibility.
+
+The uncached standalone command also checks the installed RN source shape
+and records its version plus four source-file SHA256 hashes:
+`Text.js`, `BaseTextShadowNode.cpp`, `TextAttributes.cpp`, `BaseTextProps.cpp`.
+In the observed RN 0.87.1 source, nested Text uses NativeVirtualText;
+buildAttributedString copies the base TextAttributes and applies local
+attributes; apply retains the parent when the local attribute is absent.
+All seven property mappings are present. This is source evidence, **not
+execution of RN's JS/C++ or a device test**. These uncached capture checks do
+not add hidden external-source reads to the Turbo unit-test task.
+
+The report distinguishes `kind: test-only-native-text-inheritance-region`
+and `styleForm: native-region`, retaining model/proof sources and hashes.
+A separately compiled ordinary module is also recorded: its transformed
+source and minified bytes exactly equal the optimized Text module. That is
+an evidence control, not an additional production compilation pass.
+
+At 32 rows, the same work-count deltas as the self-contained subtree apply:
+root host executions 32 to zero on ancestor changes, nested hosts already
+zero in B and still zero in C, and Metrics/Paint read calls plus ReferenceText
+invocations reduced by 64. Scope/legacy-size calls fall by 64 on mount,
+metrics changes and restoration, but 32 on color-only changes. Partial/open
+controls outside the region remain live. Ten selected cases, button-owner
+workloads, host grouping and lifetimes remain equal.
+
+The nested host's actual style now deliberately omits fontSize and other
+inherited metrics; the reference passed a complete resolved frame. Both
+seven-field projections match independent expected values. Raw declarations
+for every other host remain equal. State/host identity and authored evaluation
+are tested with and without StrictMode; an opaque View plus a removed dynamic
+override is checked using actual contextual host props, not the projection.
+
+Only Hozo's inheritance helpers are omitted. RN's own TextAncestorContext
+remains, so this is not a zero-Context or measured-speedup claim. Native/device
+verification of this path, broader static regions, View/provider elimination,
+production integration and the remaining animation/portal/concurrency gates
+remain open. No production default or ADR acceptance follows.

@@ -10,8 +10,13 @@ import {
   measureTextFixtures,
   measureTextWorkload,
 } from './text-inheritance-baseline.ts'
-import { proveClosedText, proveTextSubtree } from './text-inheritance-closed-proof.ts'
+import {
+  proveClosedText,
+  proveNativeTextRegion,
+  proveTextSubtree,
+} from './text-inheritance-closed-proof.ts'
 import { resetTextCounts, textCounts } from './text-inheritance-host.ts'
+import { projectNativeText } from './text-inheritance-native-projection.ts'
 import {
   referenceExecutions,
   referenceReads,
@@ -28,7 +33,23 @@ const stub = require('./react-native-stub.js')
 export const CLOSED_STYLE = `{color:'#102030',fontSize:12,fontWeight:'600',lineHeight:18,letterSpacing:1,textAlign:'left',textTransform:'uppercase',opacity:0.5}`
 export const CLOSED_CLASS =
   'text-[#102030] text-[12px] font-semibold leading-[18px] tracking-[1px] text-left uppercase opacity-50'
-type StyleForm = 'inline' | 'registered' | 'subtree'
+type StyleForm = 'inline' | 'registered' | 'subtree' | 'native-region'
+const NATIVE_EXPECTED = {
+  color: '#8899aa',
+  fontSize: 12,
+  fontWeight: '500',
+  lineHeight: 18,
+  letterSpacing: 1,
+  textAlign: 'left',
+  textTransform: 'uppercase',
+}
+const isRegion = (form: StyleForm) => ['subtree', 'native-region'].includes(form)
+const proofFor = (form: StyleForm) =>
+  form === 'native-region'
+    ? proveNativeTextRegion
+    : form === 'subtree'
+      ? proveTextSubtree
+      : proveClosedText
 export const NESTED_STYLE = `{color:'#8899aa',fontSize:14,fontWeight:'500',lineHeight:22,letterSpacing:0,textAlign:'right',textTransform:'lowercase'}`
 const NESTED_EXPECTED = {
   color: '#8899aa',
@@ -132,11 +153,16 @@ export function measureClosedText(rows = 8, optimize = false, styleForm: StyleFo
       '>Closed</Text>',
       `>Closed<><Text testID={'nested-'+index} style={${NESTED_STYLE}}>Nested</Text></></Text>`,
     )
+  if (styleForm === 'native-region')
+    sources.closed = sources.closed.replace(
+      '>Closed</Text>',
+      `>Closed<><Text testID={'nested-'+index} className="text-[#8899aa] font-medium">Nested</Text></></Text>`,
+    )
   const compiled = compileTextGraph(
     sources,
     [],
     'reference-intent',
-    optimize ? (styleForm === 'subtree' ? proveTextSubtree : proveClosedText) : undefined,
+    optimize ? proofFor(styleForm) : undefined,
   )
   resetTextCounts()
   resetReferenceExecutions()
@@ -152,7 +178,7 @@ export function measureClosedText(rows = 8, optimize = false, styleForm: StyleFo
     const actual: Record<string, Record<string, unknown>> = {}
     if (name !== 'unmount') {
       const hosts = tree.root.findAll((node: { type: string }) => node.type === 'Text')
-      assert.equal(hosts.length, rows * (styleForm === 'subtree' ? 6 : 5))
+      assert.equal(hosts.length, rows * (isRegion(styleForm) ? 6 : 5))
       for (const node of hosts) {
         const id = node.props.testID as string
         assert.ok(!Object.hasOwn(actual, id), `duplicate host ${id}`)
@@ -163,6 +189,12 @@ export function measureClosedText(rows = 8, optimize = false, styleForm: StyleFo
       name,
       expectedFrame,
       actual,
+      ...(styleForm === 'native-region'
+        ? {
+            projectedNativeAttributes:
+              name === 'unmount' ? {} : projectNativeText(tree.toJSON(), stub.StyleSheet.flatten),
+          }
+        : {}),
       hostStructure: name === 'unmount' ? null : hostStructure(tree.toJSON()),
       textExecutions: Object.fromEntries(
         Object.entries(textCounts()).map(([id, counts]) => [id, delta(before[id] ?? {}, counts)]),
@@ -214,7 +246,7 @@ export function measureClosedText(rows = 8, optimize = false, styleForm: StyleFo
 }
 
 export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline') {
-  const proof = styleForm === 'subtree' ? proveTextSubtree : proveClosedText
+  const proof = proofFor(styleForm)
   const control = captureTextBaseline(rows, 'reference-intent')
   assert.equal(control.compatibilityComplete, true, 'the selected control corpus must still pass')
   const cases = measureTextFixtures('reference-intent', proof)
@@ -243,7 +275,14 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
   const after = measureClosedText(rows, true, styleForm)
   for (const [index, operation] of after.operations.entries()) {
     assert.equal(operation.name, before.operations[index].name)
-    assert.deepEqual(operation.actual, before.operations[index].actual)
+    const effective =
+      styleForm === 'native-region' ? operation.projectedNativeAttributes! : operation.actual
+    assert.deepEqual(
+      effective,
+      styleForm === 'native-region'
+        ? before.operations[index].projectedNativeAttributes
+        : before.operations[index].actual,
+    )
     assert.deepEqual(operation.hostStructure, before.operations[index].hostStructure)
     const previous = before.operations[index]
     if (['mount', 'color-only', 'metrics-change', 'restore'].includes(operation.name)) {
@@ -251,8 +290,7 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
         assert.equal(
           previous.contextReadHookCalls[channel] - operation.contextReadHookCalls[channel],
           rows *
-            (styleForm === 'subtree' &&
-            (channel !== 'legacySize' || operation.name !== 'color-only')
+            (isRegion(styleForm) && (channel !== 'legacySize' || operation.name !== 'color-only')
               ? 2
               : 1),
         )
@@ -260,7 +298,7 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
         assert.equal(
           previous.helperExecutions[helper] - operation.helperExecutions[helper],
           rows *
-            (styleForm === 'subtree' && (helper !== 'Scope' || operation.name !== 'color-only')
+            (isRegion(styleForm) && (helper !== 'Scope' || operation.name !== 'color-only')
               ? 2
               : 1),
         )
@@ -271,7 +309,7 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
         assert.equal(operation.textExecutions[`closed-${row}`].renders, 0)
         assert.equal(operation.textExecutions[`partial-${row}`].renders, 1)
         assert.equal(operation.textExecutions[`open-${row}`].renders, 1)
-        if (styleForm === 'subtree') {
+        if (isRegion(styleForm)) {
           assert.equal(previous.textExecutions[`nested-${row}`].renders, 0)
           assert.equal(operation.textExecutions[`nested-${row}`].renders, 0)
         }
@@ -283,8 +321,7 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
       for (const result of [previous, operation])
         for (let row = 0; row < rows; row += 1) {
           assert.equal(result.textExecutions[`closed-${row}`].renders, 1)
-          if (styleForm === 'subtree')
-            assert.equal(result.textExecutions[`nested-${row}`].renders, 1)
+          if (isRegion(styleForm)) assert.equal(result.textExecutions[`nested-${row}`].renders, 1)
         }
     if (operation.name === 'unmount') continue
     for (let row = 0; row < rows; row += 1)
@@ -294,7 +331,7 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
         'open',
         'owner',
         'child',
-        ...(styleForm === 'subtree' ? ['nested'] : []),
+        ...(isRegion(styleForm) ? ['nested'] : []),
       ]) {
         const expected =
           prefix === 'open'
@@ -302,11 +339,13 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
             : prefix === 'partial'
               ? { ...operation.expectedFrame, color: '#102030', fontSize: 12 }
               : prefix === 'nested'
-                ? NESTED_EXPECTED
+                ? styleForm === 'native-region'
+                  ? NATIVE_EXPECTED
+                  : NESTED_EXPECTED
                 : CLOSED_EXPECTED
         for (const [key, value] of Object.entries(expected))
           assert.equal(
-            operation.actual[`${prefix}-${row}`][key],
+            effective[`${prefix}-${row}`][key],
             value,
             `${operation.name} ${prefix} ${key}`,
           )
@@ -330,11 +369,36 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
     assert.equal(current.minifiedModuleBytes, old.minifiedModuleBytes)
     assert.equal(current.experiment.plainText, name === 'closed')
   }
+  let ordinaryModule: { transformed: string; minifiedModuleBytes: number } | undefined
+  if (styleForm === 'native-region') {
+    const module = after.modules.closed as {
+      source: string
+      transformed: string
+      minifiedModuleBytes: number
+    }
+    ordinaryModule = compileTextGraph({ scene: module.source }, [], 'baseline').modules.scene as {
+      transformed: string
+      minifiedModuleBytes: number
+    }
+    assert.equal(module.transformed, ordinaryModule.transformed)
+    assert.equal(module.minifiedModuleBytes, ordinaryModule.minifiedModuleBytes)
+    for (const [index, operation] of after.operations.entries()) {
+      const old = before.operations[index]
+      for (const [id, style] of Object.entries(operation.actual)) {
+        if (!id.startsWith('nested-')) assert.deepEqual(style, old.actual[id])
+        else if (operation.name !== 'unmount') {
+          assert.equal(style.fontSize, undefined, 'keep native inheritance, not copied child props')
+          assert.equal(old.actual[id].fontSize, 12)
+        }
+      }
+    }
+  }
   const proofSources = [
     'text-inheritance-closed-proof.ts',
     'text-inheritance-proof-boundary.ts',
     'text-inheritance-style-proof.ts',
     'text-inheritance-closed-workload.ts',
+    ...(styleForm === 'native-region' ? ['text-inheritance-native-projection.ts'] : []),
   ].map((name) => {
     const source = readFileSync(new URL(name, import.meta.url), 'utf8')
     return { name, source, sha256: createHash('sha256').update(source).digest('hex') }
@@ -346,8 +410,16 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
         ? 'test-only-closed-text-fast-path'
         : styleForm === 'registered'
           ? 'test-only-registered-text-fast-path'
-          : 'test-only-self-contained-text-subtree',
+          : styleForm === 'subtree'
+            ? 'test-only-self-contained-text-subtree'
+            : 'test-only-native-text-inheritance-region',
     styleForm,
+    ...(styleForm === 'native-region'
+      ? {
+          effectiveStyleSource: 'seven-field-native-attribute-projection-not-device-rendering',
+          ordinaryModule,
+        }
+      : {}),
     provenance: control.provenance,
     babel: require('@babel/core/package.json').version,
     proofSources,
@@ -358,7 +430,9 @@ export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline'
     timingAssessed: false,
     limits: [
       'private post-Metro proof/loader wiring; no production enablement',
-      'only complete scalar frames at every selected Text, literal or proved Text descendants and stable memo roots; no partial-frame inheritance folding',
+      styleForm === 'native-region'
+        ? 'complete static root and static direct Text descendants; existing RN inheritance, not new compiler folding'
+        : 'only complete scalar frames at every selected Text, literal or proved Text descendants and stable memo roots; no partial-frame inheritance folding',
       'all uses of the RN Text binding must be covered; mixed/escaped uses retain context',
       'the enclosing View and unrelated open Text remain contextual',
       'hook calls and helper executions are not live subscriptions, native commits or timing',
