@@ -42,6 +42,21 @@ test('the actual UI Menu wrapper preserves its public aliases beside the generat
   assert.match(output.code, /StyledMenu as HozoMenu/)
 })
 
+test('the actual UI Button translates its rest spread for the element it was decided into', () => {
+  // #1096. The spread carries `onPress`; raw, the `<button>` ignored it and
+  // the button did nothing when clicked. Only the weekly packed consumer saw.
+  const source = readFileSync(new URL('../../ui/src/button.tsx', import.meta.url), 'utf8')
+  const output = lowerModule(source, 'Button.tsx', 'Button.tsx', compiler, ROOT)
+  assert.ok(output)
+  assert.doesNotMatch(output.code, /hozoDomProps\(rest\)/)
+  assert.match(output.code, /\{\.\.\.hozoButtonDomProps\(rest\)\}><\/button>/)
+  assert.match(output.code, /\{\.\.\.hozoLinkDomProps\(rest, \(disabled\)\)\} href=\{href\}><\/a>/)
+  assert.match(
+    output.code,
+    /import \{ hozoButtonDomProps, hozoLinkDomProps \} from '@hozo\/core\/generated\/button-dom-props'/,
+  )
+})
+
 test('generated names import from one leaf each, through core unless the owner is opt-in', () => {
   assert.equal(
     generatedRuntimeImports([

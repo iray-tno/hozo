@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { captureClosedTextProof } from '../packages/tailwind-conformance/src/text-inheritance-closed-workload.ts'
+import { nativeTextSourceEvidence } from '../packages/tailwind-conformance/src/text-inheritance-native-projection.ts'
 import { captureStaticPaintProof } from '../packages/tailwind-conformance/src/text-inheritance-static-workload.ts'
 
 let rows = 8
@@ -19,8 +20,8 @@ for (let index = 2; index < process.argv.length; index += 2) {
 }
 assert.ok(Number.isInteger(rows) && rows > 0 && rows <= 1000, 'rows must be 1..1000')
 assert.ok(
-  ['paint', 'closed-leaf', 'registered-leaf'].includes(kind),
-  'kind must be paint, closed-leaf or registered-leaf',
+  ['paint', 'closed-leaf', 'registered-leaf', 'closed-subtree', 'native-region'].includes(kind),
+  'kind must be paint, closed-leaf, registered-leaf, closed-subtree or native-region',
 )
 const warnings = []
 const originalWarn = console.warn
@@ -36,8 +37,18 @@ try {
   report = {
     ...(kind === 'paint'
       ? captureStaticPaintProof(rows)
-      : captureClosedTextProof(rows, kind === 'registered-leaf' ? 'registered' : 'inline')),
+      : captureClosedTextProof(
+          rows,
+          kind === 'native-region'
+            ? 'native-region'
+            : kind === 'closed-subtree'
+              ? 'subtree'
+              : kind === 'registered-leaf'
+                ? 'registered'
+                : 'inline',
+        )),
     warnings,
+    ...(kind === 'native-region' ? { nativeSourceEvidence: nativeTextSourceEvidence() } : {}),
   }
 } finally {
   console.warn = originalWarn

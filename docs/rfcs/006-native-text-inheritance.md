@@ -311,6 +311,15 @@ The follow-up also proves non-escaping local registered styles and static
 arrays from actual class lowering. Unknown/mutable style routes retain the
 reference; this does not introduce a second Tailwind resolver or enable a
 production path.
+A separate private region proof permits nested Text only when each node
+independently owns the complete supported frame. A partial/opaque descendant
+keeps publication and runtime reads. It records host grouping as well as work
+counts; it does not fold partial inherited styles or remove View providers.
+A separate private native-region experiment delegates known partial Text
+descendants to RN's existing nested-Text inheritance below a complete static
+root. It records actual props separately from a source-backed attribute
+projection and retains ordinary module bytes. The projection is not native
+execution/device evidence; RN's own TextAncestorContext remains.
 
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
