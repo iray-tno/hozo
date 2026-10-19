@@ -675,3 +675,37 @@ failure is preserved separately. See [the pinned iOS measurement](measurements/n
 for versions, dimensions and limits. The existing runtime fixture passes its
 frame as a prop; opaque View propagation without that prop and performance
 acceptance remain separate work. RFC 006 is still Draft.
+
+## Opaque View propagation without inherited props
+
+Follow-up: [#1112](https://github.com/iray-tno/hozo/issues/1112). The private
+device fixture adds a third label from a separate authored source with no
+root typography or `frame` prop. Its real lowered output fails the complete
+region proof, retaining Context. A separately compiled, memoized wrapper adds
+an ordinary RN View and forwards only label identity/tick/callback props to
+the reference and optimized labels. The callbacks remain stable across
+ancestor-only updates so they cannot force a render through the memo boundary.
+
+The ordinary comparator deliberately uses the existing explicitly styled RN
+runtime label, not a Context reader; the manifest records that distinct source
+and compiled hash. All modes have the same authored View boundaries. Reference
+and optimized labels must update from Context while the wrapper bails out,
+apply a local owner override, resume ancestor inheritance when it is removed,
+and retain label state through updates/restoration. This exercises the initial
+seven-field frame, not every supported typography combination or third-party
+host internals.
+
+The dedicated scenario now retains the original 24 static/runtime states and
+adds 18 opaque states: initial, ancestor change, label update, local override,
+override removal and restoration across three bindings. The same strict crop,
+ink, marker and equality gates check **42 states / 67 intended comparisons /
+56 acknowledged actions**. Applying the complete local override must restore
+initial pixels despite the changed outer owner; removing it must recover the
+changed ancestor pixels. No failed input is replayed.
+
+Mock-host tests verify frame omission, propagation below a memo bailout,
+override removal and state identity. Synthetic images verify failure retention
+for opaque-only ignored inheritance/overrides, not actual glyphs. Fresh
+Android/iOS runs and their archive/PNG/AX review are still required before
+claiming the expanded device result. Full/release defaults and production
+behavior remain unchanged. No performance or ADR acceptance follows.

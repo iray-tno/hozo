@@ -541,11 +541,14 @@ separate checks. The harness setup itself establishes none of those results.
 ### Native text inheritance comparison (experimental)
 
 Select `Diagnostics/Text inheritance/Comparison`
-(`diagnostics-text-inheritance--comparison`). Three mounted panels share the real
-compiled label body: ordinary RN Text, the private RFC 006 Context reference,
+(`diagnostics-text-inheritance--comparison`). Three mounted panels compare real
+compiled labels: ordinary RN Text, the private RFC 006 Context reference,
 and a binding selected by the existing static proof. The static case can use
 RN's built-in nested-Text inheritance; the runtime-style case must retain
-the Context fallback. Production compilation and full/release scenarios do
+the Context fallback. The opaque case adds a separately compiled memo/View
+wrapper: B/C receive no frame/style prop, while the ordinary control uses the
+explicitly styled runtime label. Its distinct source is recorded in the manifest.
+Production compilation and full/release scenarios do
 not enable this experimental protocol.
 
 Use `Show ordinary/reference/optimized` to reveal each panel at the same
@@ -565,9 +568,10 @@ Details and remaining device evidence:
 [Native text baseline guide](../../docs/native-text-inheritance-baseline.md#shared-reference-and-native-comparison-preparation).
 
 Select `platform=android`, `android-scenario=text-inheritance`, diagnostics off,
-with no reused build, for the opt-in screenshot driver (#1102). It measures
-24 observations: static/runtime style, initial/ancestor-change/label-update/
-restoration, ordinary/reference/optimized binding. AX provides actual Text
+with no reused build, for the opt-in screenshot driver (#1102/#1112). It retains
+24 static/runtime observations and adds 18 opaque observations, including
+local override application/removal: 42 states / 67 intended comparisons /
+56 actions across ordinary/reference/optimized bindings. AX provides actual Text
 bounds and mount IDs. A screenshot must also show the current mode marker,
 source-colored root/nested ink and white background. It then requires exact
 same-device crop pixels and dimensions between bindings, static shielding,
@@ -582,7 +586,7 @@ manifest. Failure stops immediately with partial observations retained;
 inputs are never retried. Full/SVG/release scenarios are unchanged. The
 analyzer's synthetic tests are not Android results; actual run evidence must
 be inspected separately before claiming emulator rendering equivalence.
-Physical devices, iOS, exact individual-property semantics, AT and performance
+Physical devices, exact individual-property semantics, AT and performance
 remain separate checks. No production default changes.
 
 The [first dedicated Android measurement](../../docs/measurements/native-text-inheritance-android.md)
@@ -597,6 +601,13 @@ No pixel resizing, blur or extra tolerance is introduced. Its synthetic
 geometry/provenance tests are not an iOS rendering result; inspect the actual
 dedicated run before claiming equivalence. Default full/SVG/Canvas/release
 coverage is unchanged.
+
+The [first dedicated iOS measurement](../../docs/measurements/native-text-inheritance-ios.md)
+also reviewed the original 24 states and archive/bundle hashes. Neither that
+sample nor the Android sample certifies the new opaque case. Its mock-host
+tests prove stable props and Context propagation beneath a memo bailout, not
+Native pixels; review the new dedicated runs separately. No performance or
+production fallback claim follows.
 
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and

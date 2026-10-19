@@ -397,6 +397,7 @@ try {
         'src/text-inheritance-generated.tsx',
         'src/text-inheritance-probe.tsx',
         'src/text-inheritance-reference.native.ts',
+        'src/text-inheritance-opaque.native.tsx',
         'scripts/text-pixels.mjs',
       ].map((name) => [
         name,
