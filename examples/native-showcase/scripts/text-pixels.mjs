@@ -103,7 +103,7 @@ export async function exerciseTextInheritance(driver, evidence) {
   const modes = ['ordinary', 'reference', 'optimized']
   const result = {
     scope:
-      'bounded same-device Android text pixels, not individual-property/AT/performance conformance',
+      'bounded same-device Native text pixels, not individual-property/AT/performance conformance',
     passed: false,
     phases: [],
     actions: [],
@@ -154,6 +154,13 @@ export async function exerciseTextInheritance(driver, evidence) {
                 bounds: captured.bounds,
                 ink,
                 frame: captured.frame,
+                ...(captured.pointBounds
+                  ? {
+                      pointBounds: captured.pointBounds,
+                      markerPointBounds: captured.markerPointBounds,
+                      screenBounds: captured.screenBounds,
+                    }
+                  : {}),
                 ...textSignature(captured.image),
               }
               observation.captures.push(measured)
