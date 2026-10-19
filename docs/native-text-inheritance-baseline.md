@@ -341,3 +341,56 @@ rollout. Physical-device timing, browser-computed-style validation, relative
 line-height/em-spacing descriptors, animation, pattern/portal ownership and
 abandoned/concurrent-render behavior remain open. Raw third-party Text is
 still outside the protocol. No default enablement or ADR acceptance follows.
+
+## Complete Text leaves (bounded private fast path)
+
+Tracking: [#1085](https://github.com/iray-tno/hozo/issues/1085).
+The next partial C compares against `reference-intent`, not the earlier
+eight-case reference. A private post-Metro analysis may restore the ordinary
+RN Text binding only when every use of that module's Text imports is a
+proved leaf: all seven own properties are supported unconditional inline
+scalars, children are literal text, and the render root has stable canonical
+React memo identity. The identity guard is shared with the paint experiment.
+
+Mixed open/closed uses, escaped bindings, namespace/default native imports,
+native reexports and opaque module access keep the contextual binding.
+Dynamic or partial styles and opaque descendants also keep it. This is not
+an authoring restriction: failed proof means runtime inheritance, not an
+error or lost styles. Registered styles and class-derived proof are not yet
+implemented. Even an entirely specified parent Text must publish its frame
+when an opaque child might consume it.
+
+```sh
+node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-closed-proof.test.ts
+node scripts/text-inheritance-static-proof.mjs --kind closed-leaf --rows 32 --output artifacts/text-inheritance/closed-text.json
+```
+
+The separate schema-1 report keeps all ten selected reference cases, both
+button workloads and a new paired workload with complete, partial, open,
+opaque-owner and opaque-child Text per row. Seven applied properties have
+independent expected values through color/metrics updates and restoration.
+The report validates these, balanced lifetimes and the binding decision
+before declaring itself validated; it does not only count successful renders.
+
+At 32 rows, ancestor color/metrics changes and restoration execute the
+complete leaf's host wrapper 32 times in B and zero in C. Each of the three
+Context-read hook counters, ReferenceText and Scope executes 32 fewer times
+on mount and these updates. The partial and open hosts still execute once
+per row when the frame changes. Equal values and unrelated parent styles
+produce no host-wrapper executions in either version; a changed label prop
+still updates the complete leaf. StrictMode/state retention, dynamic override
+removal and single authored evaluation are separate regression tests.
+
+No source is rewritten and no new render helper is inserted: the test loader
+changes only the proven module's Text binding, leaving View contextual. All
+six workload modules retain identical lowered source and minified byte
+counts. The artifact records that loader decision and proof/boundary/driver
+source hashes so unchanged bytes cannot hide different executed wiring.
+This is not a production bundle-size result, measured speedup, native commit
+count or claim of zero React work for the enclosing tree.
+
+The selected corpus remains 10 supported / 0 gaps, not a compatibility
+percentage. Whole closed-tree/provider elimination, class/StyleSheet proof,
+production compiler integration, concurrency/portal/animation checks and
+physical-device performance remain open. This experiment does not satisfy
+RFC 006's full static-output gates or enable a production default.

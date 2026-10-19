@@ -38,7 +38,12 @@ const stub = require('./react-native-stub.js')
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const hash = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
 export type TextInheritanceMode = 'baseline' | 'reference' | 'reference-intent'
-type Experiment = (code: string) => { code: string; decisions: unknown[] }
+type Experiment = (code: string) => {
+  code: string
+  decisions: unknown[]
+  plainText?: boolean
+  boundary?: unknown
+}
 const reference = () =>
   require('./text-inheritance-reference.ts') as typeof import('./text-inheritance-reference.ts')
 const referenceCounts = (mode: TextInheritanceMode) =>
@@ -112,7 +117,17 @@ export function compileTextGraph(
       minifiedModuleBytes: Buffer.byteLength(minified),
       runtimeImports: [...imports].sort(),
       diagnostics,
-      ...(experimental ? { experiment: { lowered, decisions: experimental.decisions } } : {}),
+      ...(experimental
+        ? {
+            experiment: {
+              lowered,
+              decisions: experimental.decisions,
+              ...(experimental.plainText !== undefined
+                ? { plainText: experimental.plainText, boundary: experimental.boundary }
+                : {}),
+            },
+          }
+        : {}),
     }
     const module = { exports: {} }
     new Function('require', 'module', 'exports', js)(
@@ -121,8 +136,10 @@ export function compileTextGraph(
           return { PaintMaskedText: reference().PaintMaskedText }
         if (specifier.startsWith('fixture:')) return load(specifier.slice('fixture:'.length))
         const imported = require(specifier)
-        if (mode !== 'baseline' && specifier === 'react-native')
-          return reference().referenceNativeImports(imported)
+        if (mode !== 'baseline' && specifier === 'react-native') {
+          const contextual = reference().referenceNativeImports(imported)
+          return experimental?.plainText ? { ...contextual, Text: imported.Text } : contextual
+        }
         if (
           mode !== 'baseline' &&
           /^@hozo\/(core|primitives)\/generated\/pressable$/.test(specifier)
@@ -429,6 +446,7 @@ export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'basel
             'text-inheritance-host.ts',
             'text-inheritance-reference.ts',
             'text-inheritance-relative-reference.ts',
+            'text-inheritance-proof-boundary.ts',
             '../../primitives/src/runtime-text-size.native.tsx',
             'native-render.ts',
             'react-native-stub.js',
