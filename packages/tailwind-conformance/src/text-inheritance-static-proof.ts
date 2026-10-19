@@ -2,6 +2,7 @@
 // Inspect the actual post-Metro AST. Never infer safety from fixture IDs,
 // rendered values, a missing forwarding summary, or component spelling alone.
 import { transformSync } from '@babel/core'
+import { isStableTextRoot } from './text-inheritance-proof-boundary.ts'
 
 export type PaintDecision = {
   start: number
@@ -109,39 +110,7 @@ export function proveTextPaint(code: string) {
                 // unconditional root of an inline, canonical React.memo
                 // render function. memo's object boundary also rules out a
                 // callable render helper being inlined at another position.
-                const render = path.getFunctionParent()
-                const body = render?.node.body
-                const renderName = render?.isFunctionExpression() ? render.node.id?.name : undefined
-                const renderEscapes = renderName && render?.scope.getBinding(renderName)?.referenced
-                const last = t.isBlockStatement(body) ? body.body.at(-1) : undefined
-                const stableRoot =
-                  body === path.node ||
-                  (t.isBlockStatement(body) &&
-                    body.body.length > 0 &&
-                    body.body
-                      .slice(0, -1)
-                      .every((statement) => t.isVariableDeclaration(statement)) &&
-                    t.isReturnStatement(last) &&
-                    last.argument === path.node)
-                const call = render?.parentPath
-                const memo =
-                  call?.isCallExpression() && t.isIdentifier(call.node.callee)
-                    ? call.scope.getBinding(call.node.callee.name)
-                    : undefined
-                const memoImport = memo?.path
-                if (
-                  !stableRoot ||
-                  renderEscapes ||
-                  !call?.isCallExpression() ||
-                  call.node.arguments[0] !== render?.node ||
-                  !memo?.constant ||
-                  !memoImport?.isImportSpecifier() ||
-                  !t.isIdentifier(memoImport.node.imported, { name: 'memo' }) ||
-                  !t.isImportDeclaration(memoImport.parent) ||
-                  memoImport.parent.source.value !== 'react' ||
-                  memoImport.parent.importKind === 'type' ||
-                  memoImport.node.importKind === 'type'
-                ) {
+                if (!isStableTextRoot(path)) {
                   decide(
                     'no stable memo render root proof; changing helper type could remount children',
                   )
