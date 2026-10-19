@@ -1,9 +1,9 @@
 import { Link, Nav, Text, View } from '@hozo/core'
-
 // The published version, read from the package that carries it rather than
 // written here. The badge said "v0.0.0 prototype" through the first release,
 // because it was a string nobody had a reason to revisit.
 import { version } from '../../../../packages/core/package.json'
+import { BrandMark } from './BrandMark.tsx'
 
 export interface NavbarProps {
   baseUrl?: string
@@ -32,14 +32,7 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
       <View className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-12 sm:h-14 md:h-16 flex flex-row items-center justify-between gap-4">
         <View className="flex flex-row items-center gap-3 shrink-0">
           <Link href={homeUrl} className="flex flex-row items-center gap-2 group">
-            <View className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-hinoki-light via-hinoki to-kuri items-center justify-center p-0.5 shadow-md group-hover:scale-105 transition-transform">
-              <View className="w-full h-full bg-yakisugi-950 rounded-[6px] items-center justify-center font-bold text-shikkui tracking-tighter text-xs sm:text-sm">
-                <Text>HZ</Text>
-              </View>
-            </View>
-            <Text className="font-extrabold text-lg sm:text-xl tracking-tight text-shikkui">
-              Hozo
-            </Text>
+            <BrandMark />
             <Text className="hidden sm:inline-flex text-xs px-2 py-0.5 rounded-full bg-hinoki/10 text-hinoki border border-hinoki/18 font-medium">
               {`v${version}`}
             </Text>

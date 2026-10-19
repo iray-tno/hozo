@@ -1,0 +1,31 @@
+---
+// Starlight's site title, as the landing's mark: the same Hozo component the
+// landing's header renders, so the two halves of the site carry one name.
+// It still links where Starlight's does -- the site's root, the landing.
+import { BrandMark } from './BrandMark.tsx'
+
+const { siteTitleHref } = Astro.locals.starlightRoute
+---
+
+<a href={siteTitleHref} class="site-title group">
+  <BrandMark />
+  <span class="docs-label">Docs</span>
+</a>
+
+<style>
+  .site-title {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    text-decoration: none;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .docs-label {
+    font-size: var(--sl-text-sm);
+    font-weight: 600;
+    color: var(--sl-color-gray-3);
+    padding-inline-start: 0.625rem;
+    border-inline-start: 1px solid var(--sl-color-hairline-light);
+  }
+</style>

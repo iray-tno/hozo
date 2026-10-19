@@ -1,0 +1,19 @@
+---
+// Starlight's footer (edit link, pagination), then the row of site links the
+// landing's footer carries -- one Hozo component on both halves of the site.
+import Default from '@astrojs/starlight/components/Footer.astro'
+import { SiteLinks } from './SiteLinks.tsx'
+
+const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
+---
+
+<Default />
+<div class="site-links">
+  <SiteLinks baseUrl={baseUrl} />
+</div>
+
+<style>
+  .site-links {
+    margin-top: 2rem;
+  }
+</style>
