@@ -709,3 +709,37 @@ for opaque-only ignored inheritance/overrides, not actual glyphs. Fresh
 Android/iOS runs and their archive/PNG/AX review are still required before
 claiming the expanded device result. Full/release defaults and production
 behavior remain unchanged. No performance or ADR acceptance follows.
+
+## Suspended and abandoned React renders
+
+Follow-up: [#1114](https://github.com/iray-tno/hozo/issues/1114). A small separate
+test suite injects mock host names and real React contexts into the same
+portable core. It uses actual `startTransition` and Suspense promises, not
+timers or a simulated Context implementation. It does not depend on an
+unreviewed success from the expanded Android/iOS pixel scenario.
+
+```sh
+node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-concurrent.test.ts
+```
+
+With and without StrictMode, a new seven-field ancestor frame is actually
+read before a descendant suspends. The last committed host style and frozen
+metric/paint records must stay unchanged while pending. A separately forced
+read in another root must still see its own default contexts. On successful
+release, metrics, paint and the legacy numeric size must commit coherently;
+on an urgent superseding update, releasing the abandoned promise must never
+commit the stale frame. Removing a local color/size override while suspended
+must preserve the old committed override until inheritance resumes at commit.
+
+Render-read logs deliberately include speculative work. Layout-effect records
+are the committed observations; the two are not interchangeable. Mock-host
+identity, host grouping, label state tokens and effect lifetimes must survive
+each transition. StrictMode's initial effect replay is part of each test's
+baseline, not reported as extra mounts caused by an ancestor update.
+
+These are six bounded React-level scenarios on the conformance workspace's
+React/renderer, not native glyphs, React Native commits/subscriptions, Hermes
+or physical-device performance, a proof of all concurrency interleavings,
+portal/animation coverage or a production/ADR rollout gate. In particular,
+the app's separately installed React/RN versions still require their own
+device evidence. No timing thresholds or shared helper behavior change.
