@@ -400,6 +400,9 @@ pub fn lower_with_evidence(
     if jsx.contains("hozoLinkDomProps(") {
         runtime_imports.push("hozoLinkDomProps");
     }
+    if jsx.contains("hozoTextInputDomProps(") {
+        runtime_imports.push("hozoTextInputDomProps");
+    }
     LowerOutput {
         jsx,
         css,
@@ -2012,9 +2015,11 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             // The wrapper the fallback `TextInput` in `@hozo/core` has
             // always written, generated here instead. Parenthesised
             // because the handler is an arbitrary expression and
-            // `a || b` beside a call would bind the wrong way.
+            // `a || b` beside a call would bind the wrong way. Optional,
+            // because a wrapper passing its own optional prop on hands
+            // over `undefined`, and typing must not throw (#1118).
             attrs.push_str(&format!(
-                " onChange={{(event) => ({})(event.target.value)}}",
+                " onChange={{(event) => ({})?.(event.target.value)}}",
                 source_text(source, handler),
             ));
         }
@@ -2269,6 +2274,15 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                         Some(disabled) => format!(", ({disabled}))}}"),
                         None => ")}".to_string(),
                     },
+                ),
+                // The same for a TextInput: `onChangeText`, `editable` and the
+                // rest are the primitive's words, not the DOM's (#1118).
+                (Primitive::TextInput, "input") => {
+                    (" {...hozoTextInputDomProps(".to_string(), ")}".to_string())
+                }
+                (Primitive::TextInput, "textarea") => (
+                    " {...hozoTextInputDomProps(".to_string(),
+                    ", true)}".to_string(),
                 ),
                 _ => (" {...hozoDomProps(".to_string(), ")}".to_string()),
             };

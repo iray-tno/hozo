@@ -2889,7 +2889,7 @@ fn on_change_text_becomes_the_handler_the_dom_actually_has() {
     // correctly the whole time.
     let jsx = jsx_for(r#"<TextInput accessibilityLabel="N" onChangeText={handle} />"#);
     assert!(
-        jsx.contains("onChange={(event) => (handle)(event.target.value)}"),
+        jsx.contains("onChange={(event) => (handle)?.(event.target.value)}"),
         "{jsx}"
     );
     assert!(!jsx.contains("onChangeText"), "{jsx}");
@@ -3187,4 +3187,30 @@ fn a_colon_inside_an_arbitrary_value_is_the_values_own() {
     // And the pseudo-element family still works where it is genuinely
     // the utility rather than a variant that resembled one.
     assert!(css_for("placeholder-blue-500").contains("::placeholder"));
+}
+
+#[test]
+fn a_text_inputs_spread_is_translated_for_the_element_it_lowered_to() {
+    // #1118. A spread on a TextInput still speaks the primitive's props
+    // (`onChangeText`, `editable`), so it goes through the uncompiled
+    // TextInput's translation, told whether the element is a textarea.
+    // Raw, `onChangeText` reached the DOM as an unknown attribute and a
+    // controlled field could not be typed into.
+    let lowered = |body: &str| {
+        let source = format!("import {{ TextInput }} from '@hozo/core'\n{body}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default()).jsx
+    };
+    let single = lowered("function F(props) { return <TextInput {...props} /> }");
+    assert!(
+        single.contains("{...hozoTextInputDomProps(props)}"),
+        "{single}"
+    );
+    assert!(!single.contains("hozoDomProps("), "{single}");
+    let multi = lowered("function F(props) { return <TextInput multiline {...props} /> }");
+    assert!(multi.starts_with("<textarea"), "{multi}");
+    assert!(
+        multi.contains("{...hozoTextInputDomProps(props, true)}"),
+        "{multi}"
+    );
 }
