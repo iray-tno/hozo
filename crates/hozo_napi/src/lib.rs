@@ -606,10 +606,12 @@ impl Compiler {
             &self.theme,
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
-            source_file.as_deref(),
+            NativeModuleOptions {
+                source_file: source_file.as_deref(),
+                text_reference: text_reference.unwrap_or(false),
+            },
             &self.text_forwarding,
             &self.class_helpers,
-            text_reference.unwrap_or(false),
         )
     }
 
@@ -1085,6 +1087,14 @@ fn lower_native(
     lower_native_components(source, theme, &parsed, false)
 }
 
+/// Module-only choices stay together; the reference experiment must not
+/// become mutable Compiler state or change later ordinary compilations.
+#[derive(Default)]
+struct NativeModuleOptions<'a> {
+    source_file: Option<&'a str>,
+    text_reference: bool,
+}
+
 fn lower_native_module(
     source: &str,
     theme: &hozo_ir::Theme,
@@ -1093,10 +1103,9 @@ fn lower_native_module(
         &hozo_parser::StylexModuleRegistry,
         &[hozo_parser::StylexExternalBinding],
     )>,
-    source_file: Option<&str>,
+    options: NativeModuleOptions<'_>,
     text_forwarding: &hozo_parser::ForwardingTable,
     class_helpers: &[hozo_parser::ClassHelper],
-    text_reference: bool,
 ) -> CompiledNativeModule {
     let (registry, bindings) = match stylex {
         Some((registry, bindings)) => (Some(registry), bindings),
@@ -1107,11 +1116,11 @@ fn lower_native_module(
         sources,
         registry,
         bindings,
-        source_file,
+        options.source_file,
         class_helpers,
     );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
-    let components = lower_native_components(source, theme, &parsed, text_reference);
+    let components = lower_native_components(source, theme, &parsed, options.text_reference);
     let imports = parsed
         .imports
         .iter()
@@ -1492,10 +1501,9 @@ mod utf16_tests {
             &hozo_ir::Theme::default(),
             None,
             None,
-            None,
+            NativeModuleOptions::default(),
             &Default::default(),
             &[],
-            false,
         );
         assert!(module.components.is_empty());
         assert_eq!(module.syntax_diagnostics.len(), parsed.syntax_errors.len());
