@@ -57,6 +57,7 @@ jobs:
       - run: node scripts/text-inheritance-baseline.mjs --rows 32 --output artifacts/text-inheritance/baseline.json
       - run: node scripts/text-inheritance-baseline.mjs --rows 32 --mode reference --baseline artifacts/text-inheritance/baseline.json --output artifacts/text-inheritance/reference.json
       - run: node scripts/text-inheritance-static-proof.mjs --rows 32 --output artifacts/text-inheritance/static-proof.json
+      - run: node scripts/text-inheritance-baseline.mjs --rows 32 --mode reference-intent --baseline artifacts/text-inheritance/reference.json --output artifacts/text-inheritance/reference-intent.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -199,6 +199,9 @@ pub(crate) struct NativeRenderContext<'a> {
     pub style_entries: &'a mut Vec<StyleEntry>,
     pub diagnostics: &'a mut Vec<Diagnostic>,
     pub runtime: &'a mut RuntimeNeeds,
+    /// RFC 006 experiment only; normal lowering never enables it. The
+    /// resulting owner styles require the private contextual test hosts.
+    pub text_reference: bool,
 }
 
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
@@ -257,6 +260,29 @@ pub fn lower_forwarded(
     source: &str,
     theme: &Theme,
 ) -> LowerOutput {
+    lower_forwarded_impl(root, forwarded, source, theme, false)
+}
+
+/// RFC 006's opt-in measurement path, not a production fallback. Retain
+/// owner typography and relative intent for the private Context reference.
+/// No application/bundler configuration selects this output.
+#[doc(hidden)]
+pub fn lower_text_reference(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+) -> LowerOutput {
+    lower_forwarded_impl(root, forwarded, source, theme, true)
+}
+
+fn lower_forwarded_impl(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+    text_reference: bool,
+) -> LowerOutput {
     let inherited: Vec<StyleDeclaration> = forwarded_text(forwarded).cloned().collect();
     let mut allocator = NameAllocator { next: 0 };
     let mut style_entries: Vec<StyleEntry> = Vec::new();
@@ -274,11 +300,14 @@ pub fn lower_forwarded(
         style_entries: &mut style_entries,
         diagnostics: &mut diagnostics,
         runtime: &mut runtime,
+        text_reference,
     };
     let ancestor = AncestorContext {
         inherited: &inherited,
         parent_font_size: None,
-        parent_size_opaque: false,
+        // A separately compiled root cannot prove its future caller's size.
+        // Only the reference experiment pays this open-boundary cost today.
+        parent_size_opaque: text_reference,
         in_dynamic_ruby: false,
         from_ancestor: FromAncestor::default(),
         grid_columns: None,

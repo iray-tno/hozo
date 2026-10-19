@@ -770,6 +770,15 @@ pub(super) fn render_node(
         // Provenance resolves competing utilities on the *same* element.
         // A child's own font fallback still outranks an inherited leading;
         // do not let the parent's Written marker reverse CSS inheritance.
+        // Context is the reference's source of inherited values. A copied
+        // class size/color could mask the parent's later inline override
+        // or replace a relative helper's computed size. Normal lowering
+        // keeps its existing iterator with no per-declaration extra test.
+        let inherited = if cx.text_reference {
+            &[][..]
+        } else {
+            inherited
+        };
         let inherited: Vec<_> = inherited
             .iter()
             .filter(|parent| {
@@ -885,7 +894,7 @@ pub(super) fn render_node(
     // it renders through, which is what a Button with an `href` becomes.
     let forwards_label = !text_declarations.is_empty()
         && matches!(component, "Pressable" | "HozoLink")
-        && !matches!(text_reach(node), TextReach::Certain);
+        && (cx.text_reference || !matches!(text_reach(node), TextReach::Certain));
     if !text_declarations.is_empty() && !forwards_label {
         match text_reach(node) {
             TextReach::Certain => {}
@@ -954,7 +963,14 @@ pub(super) fn render_node(
         pattern_slot: Some("className"),
     };
     let state_start = build_style_entries(
-        &own_declarations,
+        // RN View cannot inherit these fields. Experimental ReferenceView
+        // consumes them before rendering its host, including opaque labels.
+        // Do not change normal output until RFC 006's rollout gates pass.
+        if cx.text_reference && component == "View" {
+            &style
+        } else {
+            &own_declarations
+        },
         &base_name,
         &target,
         &mut style_array_parts,

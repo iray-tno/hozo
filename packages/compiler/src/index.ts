@@ -328,6 +328,7 @@ interface NativeCompiler {
     source: string,
     bindings?: StylexExternalBinding[],
     sourceFile?: string,
+    textReference?: boolean,
   ): CompiledNativeModule
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
   setStylexModules(modules: StylexModuleSource[]): void
@@ -483,6 +484,8 @@ export interface Compiler {
     source: string,
     bindings?: StylexExternalBinding[],
     sourceFile?: string,
+    /** @internal RFC 006 test wiring only; output requires private contextual hosts. */
+    experiment?: { textReference: boolean },
   ): CompiledNativeModule
   /**
    * A machine-folded module with its primitives written back as JSX,
@@ -566,8 +569,13 @@ export function createCompiler(
           ),
         ],
       })),
-    compileNativeModule: (source, bindings, sourceFile) => {
-      const module = inner.compileNativeModule(source, bindings, sourceFile)
+    compileNativeModule: (source, bindings, sourceFile, experiment) => {
+      const module = inner.compileNativeModule(
+        source,
+        bindings,
+        sourceFile,
+        experiment?.textReference,
+      )
       return {
         ...module,
         components: module.components.map((result) => ({
