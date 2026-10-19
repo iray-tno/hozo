@@ -30,7 +30,7 @@ const footer = [
   `Part of [Hozo](${SITE}), a Rust-powered universal UI compiler and accessibility-first layer ` +
     'for React Native. Most applications install ' +
     '[`@hozo/core`](https://www.npmjs.com/package/@hozo/core) and one build integration; see ' +
-    `[Getting started](${REPOSITORY}#getting-started). Source and issues: ` +
+    `[Getting started](${SITE}docs/getting-started/). Source and issues: ` +
     `[github.com/iray-tno/hozo](${REPOSITORY}).`,
   '',
   END,

@@ -104,10 +104,7 @@ export function TryShowcase({
               instructions.
             </Paragraph>
           )}
-          <Link
-            href="https://github.com/iray-tno/hozo#getting-started"
-            className="underline hover:text-shikkui"
-          >
+          <Link href={`${base}/docs/getting-started/`} className="underline hover:text-shikkui">
             Use Hozo in your project
           </Link>
         </View>

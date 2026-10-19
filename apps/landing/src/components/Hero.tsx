@@ -81,7 +81,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               <Code>{'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'}</Code>
             </Preformatted>
             <Link
-              href="https://github.com/iray-tno/hozo#getting-started"
+              href={`${cleanBase}/docs/getting-started/`}
               className="inline-flex mt-3 text-hinoki-light underline hover:text-shikkui"
             >
               Vite setup &amp; other integrations &rarr;
