@@ -9,10 +9,10 @@ export function Philosophy({ baseUrl = '' }: PhilosophyProps) {
   return (
     <Section
       nativeID="philosophy"
-      className="py-24 border-t border-hinoki/18 relative bg-yakisugi-900"
+      className="py-20 border-t border-hinoki/18 relative bg-yakisugi-900"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
+        <View className="text-center max-w-3xl mx-auto mb-10 flex flex-col items-center">
           <Text className="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">
             Why Hozo
           </Text>

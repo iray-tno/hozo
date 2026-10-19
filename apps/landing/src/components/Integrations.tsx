@@ -1,34 +1,56 @@
-import { Code, Heading, Link, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
+import { Heading, Link, List, ListItem, Paragraph, Section, Text, View } from '@hozo/core'
 
 export interface IntegrationsProps {
   baseUrl?: string
 }
 
-// The card's way on: the docs page that sets this integration up.
-function GuideLink({ href, label }: { href: string; label: string }) {
+// One line per integration and a link to its setup guide. The config each
+// one needs used to sit here as a code sample, six of them, beside guides
+// that carry the same config with the starter it assumes -- so the landing
+// says where to go, and the guide says how.
+function Integration({
+  href,
+  name,
+  pkg,
+  children,
+}: {
+  href: string
+  name: string
+  pkg: string
+  children: string
+}) {
   return (
-    <Link
-      href={href}
-      className="mt-4 inline-flex flex-row items-center gap-1.5 text-xs font-semibold text-hinoki-light hover:text-shikkui underline transition-colors"
-    >
-      <Text>{`${label} setup guide`}</Text>
-      <Text aria-hidden="true">&rarr;</Text>
-    </Link>
+    <ListItem className="flex">
+      <Link
+        href={href}
+        className="group w-full p-5 rounded-xl timber-panel border border-hinoki/18 hover:border-hinoki/50 transition-colors flex flex-col gap-1.5"
+      >
+        <View className="flex flex-row items-baseline justify-between gap-3">
+          <Text className="text-base font-bold text-shikkui group-hover:text-hinoki-light transition-colors">
+            {name}
+          </Text>
+          <Text className="text-[11px] font-mono text-stone-500">{pkg}</Text>
+        </View>
+        <Text className="text-xs text-stone-400 leading-relaxed">{children}</Text>
+        <Text className="mt-1 text-xs font-semibold text-hinoki-light">
+          {`${name} setup guide →`}
+        </Text>
+      </Link>
+    </ListItem>
   )
 }
 
 export function Integrations({ baseUrl = '' }: IntegrationsProps) {
   const cleanBase = baseUrl ? baseUrl.replace(/\/$/, '') : ''
-  const storybookUrl = `${cleanBase}/storybook/`
-  const guidesUrl = `${cleanBase}/docs/getting-started`
+  const guides = `${cleanBase}/docs/getting-started`
 
   return (
     <Section
       nativeID="integrations"
-      className="py-24 border-t border-hinoki/18 relative bg-yakisugi-950"
+      className="py-20 border-t border-hinoki/18 relative bg-yakisugi-950"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
+        <View className="text-center max-w-3xl mx-auto mb-10 flex flex-col items-center">
           <Text className="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">
             Ecosystem
           </Text>
@@ -39,254 +61,30 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
             Works in the Build You Already Have
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            Vite, Next.js, Metro, Astro, Storybook, and TanStack Start. Each is one plugin or
-            wrapper in the config you already have, and each has a setup guide.
+            Each is one plugin or wrapper in the config you already have.
           </Paragraph>
         </View>
 
-        {/* Integrations Grid */}
-        <View className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {/* Vite */}
-          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Heading
-                  level={4}
-                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
-                >
-                  <Text className="w-7 h-7 rounded-lg bg-hinoki/10 text-hinoki inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-hinoki/35">
-                    V
-                  </Text>
-                  <Text>Vite</Text>
-                </Heading>
-                <Text className="text-xs font-mono text-stone-400">@hozo/vite</Text>
-              </View>
-              <Paragraph className="text-stone-400 text-xs mb-4">
-                Executes ahead of the React plugin, lowering JSX directly to semantic DOM and
-                compiled CSS.
-              </Paragraph>
-              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <Code>
-                  <Text className="text-hinoki">import</Text> {'{ hozo }'}{' '}
-                  <Text className="text-hinoki">from</Text>{' '}
-                  <Text className="text-tatami-light">'@hozo/vite'</Text>
-                  {'\n\n'}
-                  <Text className="text-hinoki">export default</Text> defineConfig({'{'}
-                  {'\n'}
-                  {'  '}
-                  <Text className="text-stone-400">plugins:</Text> [{'\n'}
-                  {'    '}hozo({'{ '}
-                  <Text className="text-stone-400">css:</Text>{' '}
-                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'}),
-                  {'\n'}
-                  {'    '}react(),
-                  {'\n'}
-                  {'  '}],
-                  {'\n'}
-                  {'}'})
-                </Code>
-              </Preformatted>
-            </View>
-            <GuideLink href={`${guidesUrl}/vite/`} label="Vite" />
-          </View>
-
-          {/* Next.js */}
-          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Heading
-                  level={4}
-                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
-                >
-                  <Text className="w-7 h-7 rounded-lg bg-hinoki/10 text-shikkui inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-hinoki/18">
-                    N
-                  </Text>
-                  <Text>Next.js</Text>
-                </Heading>
-                <Text className="text-xs font-mono text-stone-400">@hozo/next</Text>
-              </View>
-              <Paragraph className="text-stone-400 text-xs mb-4">
-                Tested with Turbopack (Next.js 16) and Webpack.
-              </Paragraph>
-              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <Code>
-                  <Text className="text-hinoki">import</Text> {'{ withHozo }'}{' '}
-                  <Text className="text-hinoki">from</Text>{' '}
-                  <Text className="text-tatami-light">'@hozo/next'</Text>
-                  {'\n\n'}
-                  <Text className="text-hinoki">export default</Text> withHozo(
-                  {'\n'}
-                  {'  '}
-                  {'{ '}
-                  <Text className="text-stone-500">{'/* next config */'}</Text> {'}'},{'\n'}
-                  {'  '}
-                  {'{ '}
-                  <Text className="text-stone-400">css:</Text>{' '}
-                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'}
-                  {'\n'})
-                </Code>
-              </Preformatted>
-            </View>
-            <GuideLink href={`${guidesUrl}/next/`} label="Next.js" />
-          </View>
-
-          {/* Metro (Expo / React Native) */}
-          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Heading
-                  level={4}
-                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
-                >
-                  <Text className="w-7 h-7 rounded-lg bg-tatami/15 text-tatami-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-tatami/30">
-                    M
-                  </Text>
-                  <Text>Metro / Expo</Text>
-                </Heading>
-                <Text className="text-xs font-mono text-stone-400">@hozo/metro</Text>
-              </View>
-              <Paragraph className="text-stone-400 text-xs mb-4">
-                Compiles React Native components into optimized native StyleSheets and Fabric
-                primitives.
-              </Paragraph>
-              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <Code>
-                  <Text className="text-hinoki">const</Text> {'{ withHozo }'} = require(
-                  <Text className="text-tatami-light">'@hozo/metro/config'</Text>){'\n\n'}
-                  module.exports = withHozo(
-                  {'\n'}
-                  {'  '}getDefaultConfig(__dirname),
-                  {'\n'}
-                  {'  '}
-                  {'{ '}
-                  <Text className="text-stone-400">css:</Text>{' '}
-                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'}
-                  {'\n'})
-                </Code>
-              </Preformatted>
-            </View>
-            <GuideLink href={`${guidesUrl}/metro/`} label="Metro / Expo" />
-          </View>
-
-          {/* Storybook */}
-          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Heading
-                  level={4}
-                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
-                >
-                  <Text className="w-7 h-7 rounded-lg bg-bengara/12 text-bengara inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-bengara/30">
-                    S
-                  </Text>
-                  <Text>Storybook</Text>
-                </Heading>
-                <Text className="text-xs font-mono text-stone-400">@hozo/storybook</Text>
-              </View>
-              <Paragraph className="text-stone-400 text-xs mb-4">
-                Zero-configuration preset built on top of the Vite Web backend.
-              </Paragraph>
-              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto mb-4">
-                <Code>
-                  <Text className="text-hinoki">export default</Text> {'{'}
-                  {'\n'}
-                  {'  '}
-                  <Text className="text-stone-400">framework:</Text>{' '}
-                  <Text className="text-tatami-light">'@storybook/react-vite'</Text>,{'\n'}
-                  {'  '}
-                  <Text className="text-stone-400">addons:</Text> [
-                  <Text className="text-tatami-light">'@hozo/storybook'</Text>],
-                  {'\n'}
-                  {'}'}
-                </Code>
-              </Preformatted>
-              <Link
-                href={storybookUrl}
-                className="inline-flex flex-row items-center gap-1.5 text-xs font-semibold text-bengara hover:text-bengara-hover transition-colors"
-              >
-                <Text>Open Storybook Preview</Text>
-                <Text>&rarr;</Text>
-              </Link>
-            </View>
-            <GuideLink href={`${guidesUrl}/storybook/`} label="Storybook" />
-          </View>
-
-          {/* TanStack Start */}
-          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Heading
-                  level={4}
-                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
-                >
-                  <Text className="w-7 h-7 rounded-lg bg-hinoki/10 text-hinoki-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-hinoki/18">
-                    T
-                  </Text>
-                  <Text>TanStack Start</Text>
-                </Heading>
-                <Text className="text-xs font-mono text-stone-400">@hozo/vite</Text>
-              </View>
-              <Paragraph className="text-stone-400 text-xs mb-4">
-                Full-stack SSR with TanStack Start, Nitro, and Hozo Vite compilation.
-              </Paragraph>
-              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <Code>
-                  <Text className="text-hinoki">export default</Text> defineConfig({'{'}
-                  {'\n'}
-                  {'  '}
-                  <Text className="text-stone-400">plugins:</Text> [{'\n'}
-                  {'    '}hozo({'{ '}
-                  <Text className="text-stone-400">css:</Text>{' '}
-                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'}),
-                  {'\n'}
-                  {'    '}tanstackStart(),
-                  {'\n'}
-                  {'  '}],
-                  {'\n'}
-                  {'}'})
-                </Code>
-              </Preformatted>
-            </View>
-            <GuideLink href={`${guidesUrl}/tanstack-start/`} label="TanStack Start" />
-          </View>
-
-          {/* Astro */}
-          <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Heading
-                  level={4}
-                  className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
-                >
-                  <Text className="w-7 h-7 rounded-lg bg-bengara/10 text-bengara inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-bengara/30">
-                    A
-                  </Text>
-                  <Text>Astro</Text>
-                </Heading>
-                <Text className="text-xs font-mono text-stone-400">@hozo/vite</Text>
-              </View>
-              <Paragraph className="text-stone-400 text-xs mb-4">
-                Static components ship no JavaScript; islands hydrate as usual.
-              </Paragraph>
-              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
-                <Code>
-                  <Text className="text-hinoki">export default</Text> defineConfig({'{'}
-                  {'\n'}
-                  {'  '}
-                  <Text className="text-stone-400">integrations:</Text> [react()],
-                  {'\n'}
-                  {'  '}
-                  <Text className="text-stone-400">vite:</Text> {'{ '}
-                  <Text className="text-stone-400">plugins:</Text> [hozo({'{ '}
-                  <Text className="text-stone-400">css:</Text>{' '}
-                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'})] {'}'},{'\n'}
-                  {'}'})
-                </Code>
-              </Preformatted>
-            </View>
-            <GuideLink href={`${guidesUrl}/astro/`} label="Astro" />
-          </View>
-        </View>
+        <List className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto list-none p-0 m-0">
+          <Integration href={`${guides}/vite/`} name="Vite" pkg="@hozo/vite">
+            Runs before the React plugin and lowers JSX to semantic DOM and compiled CSS.
+          </Integration>
+          <Integration href={`${guides}/next/`} name="Next.js" pkg="@hozo/next">
+            One wrapper around your Next config, on Turbopack or webpack.
+          </Integration>
+          <Integration href={`${guides}/astro/`} name="Astro" pkg="@hozo/vite">
+            Static components ship no JavaScript; islands hydrate as usual.
+          </Integration>
+          <Integration href={`${guides}/metro/`} name="Metro / Expo" pkg="@hozo/metro">
+            Precomputed StyleSheets for iOS and Android from the same source.
+          </Integration>
+          <Integration href={`${guides}/storybook/`} name="Storybook" pkg="@hozo/storybook">
+            An addon for the Storybook you already run.
+          </Integration>
+          <Integration href={`${guides}/tanstack-start/`} name="TanStack Start" pkg="@hozo/vite">
+            Full-stack SSR with TanStack Start and Nitro.
+          </Integration>
+        </List>
       </View>
     </Section>
   )

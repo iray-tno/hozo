@@ -1,7 +1,41 @@
-import { Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
+import { Heading, Link, List, ListItem, Paragraph, Section, Text, View } from '@hozo/core'
 
 export interface DomainShowcaseProps {
   baseUrl?: string
+}
+
+// One card per page of the site that shows a domain at work. Each page has
+// the detail; the card says what it is and where it goes.
+function Domain({
+  href,
+  name,
+  pkg,
+  children,
+}: {
+  href: string
+  name: string
+  pkg: string
+  children: string
+}) {
+  return (
+    <ListItem className="flex">
+      <Link
+        href={href}
+        className="group w-full p-5 rounded-xl timber-panel border border-hinoki/18 hover:border-hinoki/50 transition-colors flex flex-col gap-1.5"
+      >
+        <View className="flex flex-row items-baseline justify-between gap-3">
+          <Heading
+            level={3}
+            className="text-base font-bold text-shikkui group-hover:text-hinoki-light transition-colors"
+          >
+            {name}
+          </Heading>
+          <Text className="text-[11px] font-mono text-stone-500">{pkg}</Text>
+        </View>
+        <Text className="text-xs text-stone-400 leading-relaxed">{children}</Text>
+      </Link>
+    </ListItem>
+  )
 }
 
 export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
@@ -10,204 +44,46 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
   return (
     <Section
       nativeID="domain-showcase"
-      className="py-24 border-t border-hinoki/18 bg-yakisugi-950 relative overflow-hidden"
+      className="py-20 border-t border-hinoki/18 bg-yakisugi-950 relative overflow-hidden"
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <View className="text-center max-w-3xl mx-auto mb-16 flex flex-col items-center">
-          <View className="inline-flex flex-row items-center gap-2 mb-3">
-            <View className="w-2 h-2 rounded-full bg-hinoki animate-pulse" />
-            <Text className="text-xs font-bold uppercase tracking-widest text-hinoki">
-              Architectural Pillars
-            </Text>
-          </View>
+        <View className="text-center max-w-3xl mx-auto mb-10 flex flex-col items-center">
           <Heading
             level={2}
             className="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4"
           >
-            Specialized Graphics & Styling Domains
+            Beyond Boxes and Text
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            3D scenes, a 2D canvas, SVG with filters, Tailwind and StyleX, on the same primitives
-            and the same compiler. Each has a guide and a live workbench.
+            3D, a 2D canvas, SVG, Tailwind and StyleX, on the same primitives and the same compiler.
+            Each has a live page.
           </Paragraph>
         </View>
 
-        {/* 5 Domains Grid */}
-        <View className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-          {/* Card 1: Three.js 3D */}
-          <Link
-            href={`${cleanBase}/three/`}
-            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
-          >
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-[11px] font-mono font-bold px-2.5 py-1 rounded bg-hinoki/10 text-hinoki border border-hinoki/20">
-                  Spatial 3D
-                </Text>
-                <Text className="text-xs font-mono text-stone-500">@hozo/three</Text>
-              </View>
-              <Heading
-                level={3}
-                className="text-xl font-bold text-shikkui group-hover:text-hinoki transition-colors mb-2"
-              >
-                Three.js & 3D Spatial
-              </Heading>
-              <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Three.js scenes on WebGL and WebGPU, with a bounded Native GPU path. Try the
-                Kumimono timber joinery proof with bounded shaders and demand rendering.
-              </Paragraph>
-            </View>
-            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-hinoki">
-              <Text>Explore 3D Guide & Workbench</Text>
-              <Text aria-hidden="true">&rarr;</Text>
-            </View>
-          </Link>
-
-          {/* Card 2: 2D Canvas */}
-          <Link
-            href={`${cleanBase}/canvas/`}
-            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-tatami-light/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
-          >
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-[11px] font-mono font-bold px-2.5 py-1 rounded bg-tatami/15 text-tatami-light border border-tatami/30">
-                  Data Density
-                </Text>
-                <Text className="text-xs font-mono text-stone-500">@hozo/canvas</Text>
-              </View>
-              <Heading
-                level={3}
-                className="text-xl font-bold text-shikkui group-hover:text-tatami-light transition-colors mb-2"
-              >
-                Declarative 2D Canvas
-              </Heading>
-              <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Charts, particle fields, and heatmaps on a single drawing surface. Compiles to HTML5
-                Canvas on Web and React Native Skia on Mobile.
-              </Paragraph>
-            </View>
-            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-tatami-light">
-              <Text>Explore 2D Canvas Guide & Demo</Text>
-              <Text aria-hidden="true">&rarr;</Text>
-            </View>
-          </Link>
-
-          {/* Card 3: Universal SVG */}
-          <Link
-            href={`${cleanBase}/svg/`}
-            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki-light/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
-          >
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-[11px] font-mono font-bold px-2.5 py-1 rounded bg-hinoki-light/10 text-hinoki-light border border-hinoki-light/20">
-                  Vector & Filters
-                </Text>
-                <Text className="text-xs font-mono text-stone-500">@hozo/svg</Text>
-              </View>
-              <Heading
-                level={3}
-                className="text-xl font-bold text-shikkui group-hover:text-hinoki-light transition-colors mb-2"
-              >
-                Universal SVG & Filters
-              </Heading>
-              <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                One SVG source, compiled to DOM SVG on the Web and react-native-svg on Native, with
-                live filter effects (feDropShadow, feGaussianBlur) and Svg.Link.
-              </Paragraph>
-            </View>
-            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-hinoki-light">
-              <Text>Explore SVG Guide & Studio</Text>
-              <Text aria-hidden="true">&rarr;</Text>
-            </View>
-          </Link>
-
-          {/* Card 4: Ahead-of-Time Tailwind */}
-          <Link
-            href={`${cleanBase}/tailwind/`}
-            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-bengara/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg"
-          >
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-[11px] font-mono font-bold px-2.5 py-1 rounded bg-bengara/15 text-bengara border border-bengara/30">
-                  AOT Utility Styling
-                </Text>
-                <Text className="text-xs font-mono text-stone-500">@hozo/tailwind</Text>
-              </View>
-              <Heading
-                level={3}
-                className="text-xl font-bold text-shikkui group-hover:text-bengara-hover transition-colors mb-2"
-              >
-                Tailwind AOT Compiler
-              </Heading>
-              <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Three-tier style resolution, state variants such as hover: and focus-visible: on
-                both platforms, and every class measured against Tailwind's own output.
-              </Paragraph>
-            </View>
-            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-bengara">
-              <Text>Explore Tailwind AOT & Conformance</Text>
-              <Text aria-hidden="true">&rarr;</Text>
-            </View>
-          </Link>
-
-          {/* Card 5: StyleX CSS-in-JS */}
-          <Link
-            href={`${cleanBase}/stylex/`}
-            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/50 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg md:col-span-2 lg:col-span-1"
-          >
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-[11px] font-mono font-bold px-2.5 py-1 rounded bg-hinoki/10 text-hinoki border border-hinoki/20">
-                  Type-Safe Tokens
-                </Text>
-                <Text className="text-xs font-mono text-stone-500">@hozo/stylex</Text>
-              </View>
-              <Heading
-                level={3}
-                className="text-xl font-bold text-shikkui group-hover:text-hinoki transition-colors mb-2"
-              >
-                StyleX CSS-in-JS
-              </Heading>
-              <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Build-time compilation of Meta's StyleX, with its merge order and typed tokens kept,
-                beside Tailwind in the same project.
-              </Paragraph>
-            </View>
-            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-hinoki">
-              <Text>Explore StyleX Guide & Contracts</Text>
-              <Text aria-hidden="true">&rarr;</Text>
-            </View>
-          </Link>
-
-          {/* Card 6: Conformance & Evidence */}
-          <Link
+        <List className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-6xl mx-auto list-none p-0 m-0">
+          <Domain href={`${cleanBase}/three/`} name="Three.js" pkg="@hozo/three">
+            Scenes on WebGL and WebGPU, with a bounded Native GPU path.
+          </Domain>
+          <Domain href={`${cleanBase}/canvas/`} name="2D Canvas" pkg="@hozo/canvas">
+            Charts and heatmaps: HTML5 Canvas on the Web, Skia on Native.
+          </Domain>
+          <Domain href={`${cleanBase}/svg/`} name="Universal SVG" pkg="@hozo/svg">
+            One SVG source, DOM SVG on the Web and react-native-svg on Native, filters included.
+          </Domain>
+          <Domain href={`${cleanBase}/tailwind/`} name="Tailwind, compiled" pkg="@hozo/tailwind">
+            Classes and state variants resolved at build time on both platforms.
+          </Domain>
+          <Domain href={`${cleanBase}/stylex/`} name="StyleX, compiled" pkg="@stylexjs/stylex">
+            Meta's StyleX read into the same compiler, beside Tailwind.
+          </Domain>
+          <Domain
             href={`${cleanBase}/conformance/`}
-            className="group p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-white/40 transition-all flex flex-col justify-between hover:scale-[1.01] active:scale-[0.99] shadow-lg md:col-span-2 lg:col-span-1"
+            name="Conformance Matrix"
+            pkg="snapshot from CI"
           >
-            <View>
-              <View className="flex flex-row items-center justify-between mb-4">
-                <Text className="text-[11px] font-mono font-bold px-2.5 py-1 rounded bg-white/10 text-shikkui border border-white/20">
-                  Differential Snapshot
-                </Text>
-                <Text className="text-xs font-mono text-emerald-400">CI Verified</Text>
-              </View>
-              <Heading
-                level={3}
-                className="text-xl font-bold text-shikkui group-hover:text-white transition-colors mb-2"
-              >
-                Conformance Matrix
-              </Heading>
-              <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                A snapshot from CI of how far Hozo's output matches Tailwind, React Native and
-                WAI-ARIA, including where it does not.
-              </Paragraph>
-            </View>
-            <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-stone-300">
-              <Text>View Automated Conformance</Text>
-              <Text aria-hidden="true">&rarr;</Text>
-            </View>
-          </Link>
-        </View>
+            How far the output matches Tailwind, React Native and WAI-ARIA, and where it does not.
+          </Domain>
+        </List>
       </View>
     </Section>
   )
