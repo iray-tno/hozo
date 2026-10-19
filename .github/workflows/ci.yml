@@ -59,6 +59,7 @@ jobs:
       - run: node scripts/text-inheritance-static-proof.mjs --rows 32 --output artifacts/text-inheritance/static-proof.json
       - run: node scripts/text-inheritance-baseline.mjs --rows 32 --mode reference-intent --baseline artifacts/text-inheritance/reference.json --output artifacts/text-inheritance/reference-intent.json
       - run: node scripts/text-inheritance-static-proof.mjs --kind closed-leaf --rows 32 --output artifacts/text-inheritance/closed-text.json
+      - run: node scripts/text-inheritance-static-proof.mjs --kind registered-leaf --rows 32 --output artifacts/text-inheritance/registered-text.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

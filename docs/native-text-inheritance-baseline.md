@@ -356,9 +356,9 @@ Mixed open/closed uses, escaped bindings, namespace/default native imports,
 native reexports and opaque module access keep the contextual binding.
 Dynamic or partial styles and opaque descendants also keep it. This is not
 an authoring restriction: failed proof means runtime inheritance, not an
-error or lost styles. Registered styles and class-derived proof are not yet
-implemented. Even an entirely specified parent Text must publish its frame
-when an opaque child might consume it.
+error or lost styles. The initial slice did not prove registered or class
+styles (extended below). Even an entirely specified parent Text must publish
+its frame when an opaque child might consume it.
 
 ```sh
 node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-closed-proof.test.ts
@@ -390,7 +390,53 @@ This is not a production bundle-size result, measured speedup, native commit
 count or claim of zero React work for the enclosing tree.
 
 The selected corpus remains 10 supported / 0 gaps, not a compatibility
-percentage. Whole closed-tree/provider elimination, class/StyleSheet proof,
+percentage. Whole closed-tree/provider elimination, broader style proofs,
 production compiler integration, concurrency/portal/animation checks and
 physical-device performance remain open. This experiment does not satisfy
 RFC 006's full static-output gates or enable a production default.
+
+## Class-generated registered styles (private follow-up)
+
+Tracking: [#1088](https://github.com/iray-tno/hozo/issues/1088).
+The same closed-leaf proof now recognizes module-local `const` registries
+created by the trusted RN `StyleSheet.create` import and literal style arrays.
+It consumes actual post-Metro style output; it neither parses Tailwind again
+nor executes expressions during analysis. Literal array layers merge in RN
+source order. Unknown layers are never skipped; a final undefined/dynamic
+field cannot be certified from an earlier complete frame.
+
+`const` alone does not prove an immutable object. Registry references must
+be static member reads in trusted RN Text style props. Mutation, deletion,
+export, aliasing, unknown consumers and a changed/escaped StyleSheet import
+retain the contextual binding. Registries with spread/getter/computed or
+nonliteral definitions are also unproved. This deliberately does not handle
+imported registries, `StyleSheet.flatten`, dynamic array layers or arbitrary
+style objects. None is an authoring error; all keep runtime fallback.
+
+```sh
+node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-style-proof.test.ts
+node scripts/text-inheritance-static-proof.mjs --kind registered-leaf --rows 32 --output artifacts/text-inheritance/registered-text.json
+```
+
+The additive schema-1 report identifies its registered-style workload with
+`kind: test-only-registered-text-fast-path` and `styleForm: registered`.
+It retains sources/hashes of the style proof as well as the shared closed
+proof and driver. The original inline and paint captures remain separate.
+Both sides execute the same actual class lowering, including a final inline
+color different from the class color, so independent expected styles test
+precedence rather than merely agreeing on identical declarations.
+
+At 32 rows, the registered workload retains all ten selected cases and both
+button workloads. Complete-leaf ancestor color/metrics/restoration host
+executions fall 32 to zero; each Context-read hook counter and ReferenceText/
+Scope invocation count falls by 32 on mount and those updates. Partial/open
+readers remain live, the opaque owner still publishes, and lifetime counts
+remain balanced. All six modules keep identical transformed/minified bytes
+between contextual and optimized runs; no source is rewritten. Separate
+tests cover override removal, host/state retention with and without
+StrictMode, and single authored evaluation outside StrictMode.
+
+These are simulated-host work counts, not device speed or a production
+bundle-size change. Production integration, whole-tree elimination and the
+remaining concurrency/portal/animation/device gates are still open. No
+default enablement or ADR acceptance follows.

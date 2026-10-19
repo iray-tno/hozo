@@ -307,6 +307,10 @@ A bounded follow-up restores ordinary RN Text bindings for proven complete
 literal leaves in the expanded reference. Mixed/open uses retain Context;
 the guide records paired work counts and identical lowered bytes. This is
 still private loader wiring, not whole-tree proof or production integration.
+The follow-up also proves non-escaping local registered styles and static
+arrays from actual class lowering. Unknown/mutable style routes retain the
+reference; this does not introduce a second Tailwind resolver or enable a
+production path.
 
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as

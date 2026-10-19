@@ -55,7 +55,7 @@ test('each missing or dynamic inherited field keeps the contextual path', () => 
   }
   for (const style of [
     'props.style',
-    `[${CLOSED_STYLE}]`,
+    `[${CLOSED_STYLE}, props.style]`,
     `{...props.style,...${CLOSED_STYLE}}`,
     CLOSED_STYLE.replace('fontSize:12', 'fontSize:undefined'),
     CLOSED_STYLE.replace("color:'#102030'", "color:'currentColor'"),
