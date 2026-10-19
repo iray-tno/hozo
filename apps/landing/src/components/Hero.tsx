@@ -1,15 +1,4 @@
-import {
-  Code,
-  Heading,
-  Link,
-  List,
-  ListItem,
-  Paragraph,
-  Preformatted,
-  Section,
-  Text,
-  View,
-} from '@hozo/core'
+import { Code, Heading, Link, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
 
 export interface HeroProps {
   baseUrl?: string
@@ -98,56 +87,6 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               Set it up for Vite, Next.js, Astro, Metro &amp; more &rarr;
             </Link>
           </View>
-
-          {/* The four claims, each a link to the page that backs it */}
-          <List className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-16 max-w-4xl w-full text-left list-none p-0 m-0">
-            <ListItem className="flex">
-              <Link
-                href={`${cleanBase}/docs/guides/styles/`}
-                className="block w-full p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-md border hover:border-hinoki transition-colors"
-              >
-                <Text className="text-lg sm:text-xl font-bold text-shikkui mb-1 block">
-                  Static paths
-                </Text>
-                <Text className="text-xs text-stone-400 block">Compiled at build time</Text>
-              </Link>
-            </ListItem>
-            <ListItem className="flex">
-              <Link
-                href={`${cleanBase}/docs/guides/accessibility/`}
-                className="block w-full p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-md border hover:border-hinoki transition-colors"
-              >
-                <Text className="text-lg sm:text-xl font-bold text-hinoki mb-1 block">
-                  Accessibility
-                </Text>
-                <Text className="text-xs text-stone-400 block">First-class by design</Text>
-              </Link>
-            </ListItem>
-            <ListItem className="flex">
-              <Link
-                href="#integrations"
-                className="block w-full p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-md border hover:border-hinoki transition-colors"
-              >
-                <Text className="text-lg sm:text-xl font-bold text-tatami-light mb-1 block">
-                  Integrations
-                </Text>
-                <Text className="text-xs text-stone-400 block leading-tight">
-                  Vite · Next.js · Astro · Metro · Storybook
-                </Text>
-              </Link>
-            </ListItem>
-            <ListItem className="flex">
-              <Link
-                href={`${cleanBase}/docs/concepts/architecture/`}
-                className="block w-full p-4 rounded-xl bg-yakisugi-800 timber-grain timber-plank border-hinoki/35 shadow-md border hover:border-hinoki transition-colors"
-              >
-                <Text className="text-lg sm:text-xl font-bold text-bengara mb-1 block">
-                  Compiler
-                </Text>
-                <Text className="text-xs text-stone-400 block">Rust + oxc</Text>
-              </Link>
-            </ListItem>
-          </List>
         </View>
       </View>
     </Section>
