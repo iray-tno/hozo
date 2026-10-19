@@ -4,6 +4,7 @@
 import { types as t, transformSync } from '@babel/core'
 import { TEXT_PROPERTIES } from './text-inheritance-fixtures.ts'
 import { isStableTextRoot } from './text-inheritance-proof-boundary.ts'
+import { resolveTextStyle } from './text-inheritance-style-proof.ts'
 
 type Decision = {
   start: number
@@ -138,36 +139,28 @@ export function proveClosedText(code: string) {
                   decide('unknown props, children or class style')
                   return
                 }
-                const attrs = opening.attributes.filter(
-                  (attribute) => t.isJSXAttribute(attribute) && attribute.name.name === 'style',
-                )
+                const attrs = path
+                  .get('openingElement')
+                  .get('attributes')
+                  .filter(
+                    (attribute) =>
+                      attribute.isJSXAttribute() && attribute.node.name.name === 'style',
+                  )
                 if (
                   attrs.length !== 1 ||
-                  !t.isJSXAttribute(attrs[0]) ||
-                  !t.isJSXExpressionContainer(attrs[0].value) ||
-                  !t.isObjectExpression(attrs[0].value.expression)
+                  !attrs[0].isJSXAttribute() ||
+                  !t.isJSXExpressionContainer(attrs[0].node.value)
                 ) {
-                  decide(
-                    'requires one inline object; array/registered style proof is not implemented',
-                  )
+                  decide('requires one explicit style expression')
                   return
                 }
-                const fields = new Map<string, t.Node>()
-                for (const property of attrs[0].value.expression.properties) {
-                  if (!t.isObjectProperty(property) || property.computed) {
-                    decide('spread, getter, method or computed style')
-                    return
-                  }
-                  const name = t.isIdentifier(property.key)
-                    ? property.key.name
-                    : t.isStringLiteral(property.key)
-                      ? property.key.value
-                      : null
-                  if (name === null || name === '__proto__' || fields.has(name)) {
-                    decide('ambiguous style property')
-                    return
-                  }
-                  fields.set(name, property.value)
+                const value = attrs[0].get('value')
+                const fields = value.isJSXExpressionContainer()
+                  ? resolveTextStyle(value.get('expression'))
+                  : undefined
+                if (!fields) {
+                  decide('unknown or escaping style expression; keep runtime resolution')
+                  return
                 }
                 if (
                   !required.every((name) => fields.has(name) && scalar(name, fields.get(name)!))

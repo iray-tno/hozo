@@ -26,6 +26,9 @@ const stub = require('./react-native-stub.js')
 // Keep the source literal separate from expected values. Changing a source
 // value must not automatically change the measurement's oracle.
 export const CLOSED_STYLE = `{color:'#102030',fontSize:12,fontWeight:'600',lineHeight:18,letterSpacing:1,textAlign:'left',textTransform:'uppercase',opacity:0.5}`
+export const CLOSED_CLASS =
+  'text-[#102030] text-[12px] font-semibold leading-[18px] tracking-[1px] text-left uppercase opacity-50'
+type StyleForm = 'inline' | 'registered'
 export const CLOSED_EXPECTED = {
   color: '#102030',
   fontSize: 12,
@@ -76,10 +79,27 @@ export const Child=memo(function Child({index}) {return <Text testID={'child-'+i
 const delta = (before: Record<string, number>, after: Record<string, number>) =>
   Object.fromEntries(Object.entries(after).map(([key, value]) => [key, value - (before[key] ?? 0)]))
 
-export function measureClosedText(rows = 8, optimize = false) {
+export function measureClosedText(rows = 8, optimize = false, styleForm: StyleForm = 'inline') {
   assert.ok(Number.isInteger(rows) && rows > 0 && rows <= 1000, 'rows must be 1..1000')
+  const sources =
+    styleForm === 'inline'
+      ? modules
+      : {
+          ...modules,
+          // The class is lowered by the real compiler. A final own override also
+          // exercises the generated registered-style/inline array in source order.
+          closed: modules.closed.replace(
+            `style={${CLOSED_STYLE}}`,
+            `className="${CLOSED_CLASS.replace('text-[#102030]', 'text-[#445566]')}" style={{color:'#102030'}}`,
+          ),
+          partial: modules.partial.replace(
+            "style={{color:'#102030',fontSize:12}}",
+            'className="text-[#102030] text-[12px]"',
+          ),
+          owner: modules.owner.replace(`style={${CLOSED_STYLE}}`, `className="${CLOSED_CLASS}"`),
+        }
   const compiled = compileTextGraph(
-    modules,
+    sources,
     [],
     'reference-intent',
     optimize ? proveClosedText : undefined,
@@ -145,13 +165,20 @@ export function measureClosedText(rows = 8, optimize = false) {
       tree.unmount()
       tree = undefined
     })
-    return { rows, optimize, modules: compiled.modules, operations, lifetime: textCounts() }
+    return {
+      rows,
+      optimize,
+      styleForm,
+      modules: compiled.modules,
+      operations,
+      lifetime: textCounts(),
+    }
   } finally {
     if (tree) renderer.act(() => tree.unmount())
   }
 }
 
-export function captureClosedTextProof(rows = 8) {
+export function captureClosedTextProof(rows = 8, styleForm: StyleForm = 'inline') {
   const control = captureTextBaseline(rows, 'reference-intent')
   assert.equal(control.compatibilityComplete, true, 'the selected control corpus must still pass')
   const cases = measureTextFixtures('reference-intent', proveClosedText)
@@ -176,8 +203,8 @@ export function captureClosedTextProof(rows = 8) {
     assert.equal(workload.retainedHost, true)
     assert.deepEqual(workload.operations, control.workloads[index].operations)
   }
-  const before = measureClosedText(rows)
-  const after = measureClosedText(rows, true)
+  const before = measureClosedText(rows, false, styleForm)
+  const after = measureClosedText(rows, true, styleForm)
   for (const [index, operation] of after.operations.entries()) {
     assert.equal(operation.name, before.operations[index].name)
     assert.deepEqual(operation.actual, before.operations[index].actual)
@@ -236,6 +263,7 @@ export function captureClosedTextProof(rows = 8) {
   const proofSources = [
     'text-inheritance-closed-proof.ts',
     'text-inheritance-proof-boundary.ts',
+    'text-inheritance-style-proof.ts',
     'text-inheritance-closed-workload.ts',
   ].map((name) => {
     const source = readFileSync(new URL(name, import.meta.url), 'utf8')
@@ -243,7 +271,11 @@ export function captureClosedTextProof(rows = 8) {
   })
   return {
     schemaVersion: 1,
-    kind: 'test-only-closed-text-fast-path',
+    kind:
+      styleForm === 'inline'
+        ? 'test-only-closed-text-fast-path'
+        : 'test-only-registered-text-fast-path',
+    styleForm,
     provenance: control.provenance,
     babel: require('@babel/core/package.json').version,
     proofSources,
@@ -254,7 +286,7 @@ export function captureClosedTextProof(rows = 8) {
     timingAssessed: false,
     limits: [
       'private post-Metro proof/loader wiring; no production enablement',
-      'only complete inline scalar frames, literal children and stable memo roots; no class/StyleSheet proof',
+      'only complete scalar frames, literal children and stable memo roots; inline objects or non-escaping local StyleSheet.create members/static arrays',
       'all uses of the RN Text binding must be covered; mixed/escaped uses retain context',
       'the enclosing View and unrelated open Text remain contextual',
       'hook calls and helper executions are not live subscriptions, native commits or timing',

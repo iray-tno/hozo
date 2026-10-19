@@ -18,7 +18,10 @@ for (let index = 2; index < process.argv.length; index += 2) {
   else throw new Error(`unknown option ${key}`)
 }
 assert.ok(Number.isInteger(rows) && rows > 0 && rows <= 1000, 'rows must be 1..1000')
-assert.ok(['paint', 'closed-leaf'].includes(kind), 'kind must be paint or closed-leaf')
+assert.ok(
+  ['paint', 'closed-leaf', 'registered-leaf'].includes(kind),
+  'kind must be paint, closed-leaf or registered-leaf',
+)
 const warnings = []
 const originalWarn = console.warn
 const originalError = console.error
@@ -31,7 +34,9 @@ console.error = (...args) => {
 let report
 try {
   report = {
-    ...(kind === 'closed-leaf' ? captureClosedTextProof(rows) : captureStaticPaintProof(rows)),
+    ...(kind === 'paint'
+      ? captureStaticPaintProof(rows)
+      : captureClosedTextProof(rows, kind === 'registered-leaf' ? 'registered' : 'inline')),
     warnings,
   }
 } finally {
