@@ -27,9 +27,8 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
             Specialized Graphics & Styling Domains
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            Hozo eliminates silos between 3D scenes, high-density 2D canvas, scalable vector
-            filters, AOT utility styles, and type-safe CSS-in-JS. Explore the dedicated guides and
-            live workbenches.
+            3D scenes, a 2D canvas, SVG with filters, Tailwind and StyleX, on the same primitives
+            and the same compiler. Each has a guide and a live workbench.
           </Paragraph>
         </View>
 
@@ -112,8 +111,8 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 Universal SVG & Filters
               </Heading>
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Zero-runtime vector lowering into native DOM SVG and react-native-svg. Features live
-                filter effects (feDropShadow, feGaussianBlur) and Svg.Link.
+                One SVG source, compiled to DOM SVG on the Web and react-native-svg on Native, with
+                live filter effects (feDropShadow, feGaussianBlur) and Svg.Link.
               </Paragraph>
             </View>
             <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-hinoki-light">
@@ -141,8 +140,8 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 Tailwind AOT Compiler
               </Heading>
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Zero-runtime 3-tier style resolution, cross-platform pseudo-classes (hover:,
-                focus-visible:, dark:), and verified official engine fidelity.
+                Three-tier style resolution, state variants such as hover: and focus-visible: on
+                both platforms, and every class measured against Tailwind's own output.
               </Paragraph>
             </View>
             <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-bengara">
@@ -170,8 +169,8 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 StyleX CSS-in-JS
               </Heading>
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Zero-runtime static analysis for Meta's StyleX. Deterministic style merge order and
-                typed token contracts, seamlessly coexisting with Tailwind.
+                Build-time compilation of Meta's StyleX, with its merge order and typed tokens kept,
+                beside Tailwind in the same project.
               </Paragraph>
             </View>
             <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-hinoki">
@@ -199,8 +198,8 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
                 Conformance Matrix
               </Heading>
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
-                Live differential snapshot generated from automated CI suites, measuring exact
-                oracle fidelity against Tailwind, React Native Fabric, and W3C ARIA.
+                A snapshot from CI of how far Hozo's output matches Tailwind, React Native and
+                WAI-ARIA, including where it does not.
               </Paragraph>
             </View>
             <View className="pt-4 border-t border-hinoki/10 flex flex-row items-center justify-between text-xs font-semibold text-stone-300">

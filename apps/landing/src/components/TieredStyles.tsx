@@ -19,9 +19,9 @@ export function TieredStyles() {
             Tiered Style Resolution
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            Even with dynamic class names, Hozo never compromises. From compile-time static
-            extraction to structural boolean toggles and incremental candidate caching, three
-            interlocking tiers eliminate runtime overhead.
+            A dynamic class name is not all-or-nothing. Hozo compiles what it can read, compiles
+            each branch of what it can partly read, and leaves a runtime lookup only for the rest.
+            Only the third tier costs anything at runtime.
           </Paragraph>
         </View>
 
@@ -34,7 +34,7 @@ export function TieredStyles() {
                   Tier 1 • Static
                 </Text>
                 <Text className="text-xs font-mono text-tatami-light font-semibold">
-                  0ms Runtime
+                  No runtime work
                 </Text>
               </View>
               <Heading level={3} className="text-lg font-bold text-shikkui mb-2">
@@ -124,7 +124,7 @@ export function TieredStyles() {
               </Heading>
               <Paragraph className="text-stone-400 text-sm mb-6">
                 For props and unknown dynamic variables, Hozo analyzes candidate classes across the
-                project and pre-generates them into a high-speed cached lookup.
+                project and emits them ahead of time, so the runtime only looks them up.
               </Paragraph>
               <View className="rounded-xl bg-yakisugi-950 border border-hinoki/18 p-4 font-mono text-xs text-shikkui-muted mb-4 overflow-x-auto">
                 <Text className="text-stone-500 block mb-1">{'// Input (Source)'}</Text>
@@ -144,7 +144,7 @@ export function TieredStyles() {
             </View>
             <View className="text-xs text-stone-400 border-t border-hinoki/18 pt-4">
               <Text>&bull; Incremental candidate caching</Text>
-              <Text>&bull; Zero missing CSS rules</Text>
+              <Text>&bull; Any class written in the project is defined</Text>
             </View>
           </View>
         </View>

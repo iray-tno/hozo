@@ -21,7 +21,7 @@ export function Accessibility() {
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
             Accessibility isn't decorative trim—it is the foundational joinery of software. Hozo
             validates supported WAI-ARIA role and attribute constraints at compile time and provides
-            seamless cross-platform keyboard and focus behaviors.
+            keyboard and focus behaviour on both Web and Native.
           </Paragraph>
         </View>
 
@@ -51,8 +51,8 @@ export function Accessibility() {
               <Paragraph className="text-stone-400 text-sm leading-relaxed mb-6">
                 Directly derived from the machine-readable W3C specification via{' '}
                 <Code className="text-shikkui-muted text-xs">aria-query</Code>. Catches invalid
-                roles, missing attributes, and malformed states during compilation before they ship
-                to production.
+                roles, missing attributes, and malformed states during compilation, as build
+                warnings to production.
               </Paragraph>
 
               <View className="p-4 rounded-xl bg-bengara/12 border border-bengara/30 font-mono text-xs text-shikkui">
@@ -128,7 +128,7 @@ export function Accessibility() {
                 <Text className="text-tatami-light">✓</Text> WAI-ARIA compliant keyboard listeners
               </ListItem>
               <ListItem className="flex flex-row items-center gap-2">
-                <Text className="text-tatami-light">✓</Text> Deterministic focus restoration on
+                <Text className="text-tatami-light">✓</Text> Focus returns to the opener on
                 dismissal
               </ListItem>
             </List>

@@ -97,7 +97,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
               <Text className="text-lg sm:text-xl font-bold text-shikkui mb-1 block">
                 Static paths
               </Text>
-              <Text className="text-xs text-stone-400 block">Zero-runtime styling</Text>
+              <Text className="text-xs text-stone-400 block">Compiled at build time</Text>
             </Link>
             <Link
               href="#accessibility"
