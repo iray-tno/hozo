@@ -116,12 +116,13 @@ test('fresh Simulator provenance rejects old/changed archives, rebundles, diagno
   assert.throws(() => iosTextProvenance(parent, '123', build, archive, Buffer.alloc(0)))
 })
 
-test('the unchanged 24-state driver consumes actual Retina crops and preserves failed iOS observations', async () => {
+test('the shared 42-state driver consumes Retina crops and preserves failed iOS observations', async () => {
   for (const broken of [false, true]) {
     let kind = 'static',
       changed = false,
       tick = 0,
-      mode = 'ordinary'
+      mode = 'ordinary',
+      override = false
     const evidence = { platform: 'iOS' }
     const driver = {
       async story(id) {
@@ -129,19 +130,23 @@ test('the unchanged 24-state driver consumes actual Retina crops and preserves f
       },
       async tap(action) {
         if (action === 'Use runtime fallback') kind = 'runtime'
+        else if (action === 'Use opaque boundary') kind = 'opaque'
         else if (action === 'Change ancestor') changed = !changed
         else if (action === 'Update label') tick++
         else if (action === 'Restore text fixture') {
           changed = false
           tick = 0
-        } else if (action.startsWith('Show ')) mode = action.slice(5)
+          override = false
+        } else if (action === 'Apply local override') override = true
+        else if (action === 'Remove local override') override = false
+        else if (action.startsWith('Show ')) mode = action.slice(5)
         else assert.equal(action, 'Use static region')
       },
       async waitFor(label) {
-        assert.equal(label, textState(kind, changed, tick, mode))
+        assert.equal(label, textState(kind, changed, tick, mode, override))
       },
       async capture(name) {
-        const c = capture(3, mode, kind === 'runtime' && changed)
+        const c = capture(3, mode, kind !== 'static' && changed && !override)
         const actual = iosTextCapture(c.buffer, c.node, c.marker, c.screen, mode)
         if (broken && mode === 'optimized') actual.image.data[0]--
         return { name, label: `${mode} mount 1 tick ${tick}`, ...actual }
@@ -163,7 +168,7 @@ test('the unchanged 24-state driver consumes actual Retina crops and preserves f
       assert.equal(evidence.checked, undefined)
     } else {
       await exerciseTextInheritance(driver, evidence)
-      assert.equal(evidence.textInheritance.phases.length, 24)
+      assert.equal(evidence.textInheritance.phases.length, 42)
       assert.ok(
         evidence.textInheritance.phases.every(
           (phase) => phase.captures[0].screenBounds && phase.captures[0].pointBounds,

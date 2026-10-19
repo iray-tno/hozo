@@ -94,8 +94,8 @@ export function textDifference(a, b) {
   }
 }
 
-export const textState = (kind, changed, tick, mode) =>
-  `Text probe state: ${kind} ${changed ? 'changed' : 'rest'} tick ${tick} mode ${mode}`
+export const textState = (kind, changed, tick, mode, override = false) =>
+  `Text probe state: ${kind} ${changed ? 'changed' : 'rest'} tick ${tick} mode ${mode}${kind === 'opaque' ? ` override ${override ? 'on' : 'off'}` : ''}`
 
 // No resize, translation, blur or selected-success sampling. The fixture
 // reveals each already-mounted label at the same position for this reason.
@@ -121,23 +121,44 @@ export async function exerciseTextInheritance(driver, evidence) {
     result.actions.at(-1).acknowledged = true
   }
   await driver.story('diagnostics-text-inheritance--comparison', 'Show ordinary')
-  for (const kind of ['static', 'runtime']) {
-    await tap(kind === 'static' ? 'Use static region' : 'Use runtime fallback')
+  for (const kind of ['static', 'runtime', 'opaque']) {
+    await tap(
+      {
+        static: 'Use static region',
+        runtime: 'Use runtime fallback',
+        opaque: 'Use opaque boundary',
+      }[kind],
+    )
     const mounts = {},
       initial = {},
       previous = {}
-    for (const [phase, changed, tick, action] of [
+    for (const [phase, changed, tick, action, override = false] of [
       ['initial', false, 0],
       ['ancestor', true, 0, 'Change ancestor'],
       ['label', true, 1, 'Update label'],
+      ...(kind === 'opaque'
+        ? [
+            ['override', true, 1, 'Apply local override', true],
+            ['unoverride', true, 1, 'Remove local override', false],
+          ]
+        : []),
       ['restore', false, 0, 'Restore text fixture'],
     ]) {
       if (action) await tap(action)
       const positions = {}
       for (const mode of modes) {
         await tap(`Show ${mode}`)
-        await driver.waitFor(textState(kind, changed, tick, mode))
-        const observation = { kind, phase, mode, changed, tick, passed: false, captures: [] }
+        await driver.waitFor(textState(kind, changed, tick, mode, override))
+        const observation = {
+          kind,
+          phase,
+          mode,
+          changed,
+          tick,
+          ...(kind === 'opaque' ? { override } : {}),
+          passed: false,
+          captures: [],
+        }
         result.phases.push(observation)
         const image = await driver
           .waitForImage(
@@ -147,7 +168,7 @@ export async function exerciseTextInheritance(driver, evidence) {
                 mode,
                 tick,
               )
-              const ink = textInk(captured.image, kind === 'runtime' && changed)
+              const ink = textInk(captured.image, kind !== 'static' && changed && !override)
               const measured = {
                 name: captured.name,
                 label: captured.label,
@@ -172,7 +193,7 @@ export async function exerciseTextInheritance(driver, evidence) {
               return { image: captured.image, frame: captured.frame }
             },
             ({ image, frame }) =>
-              frame.valid && textInk(image, kind === 'runtime' && changed).valid,
+              frame.valid && textInk(image, kind !== 'static' && changed && !override).valid,
             `${kind}/${phase}/${mode} glyphs`,
           )
           .then(({ image }) => image)
@@ -186,11 +207,11 @@ export async function exerciseTextInheritance(driver, evidence) {
           )
         positions[mode] = bounds
         if (phase === 'initial') initial[mode] = image
-        if (kind === 'static' || phase === 'restore')
+        if (kind === 'static' || phase === 'restore' || phase === 'override')
           same(initial[mode], image, `${kind}/${phase}/${mode} shield or restore`)
-        if (kind === 'runtime' && phase === 'ancestor') {
+        if (kind !== 'static' && phase === 'ancestor') {
           const difference = textDifference(initial[mode], image)
-          result.comparisons.push({ subject: `runtime/${mode} visible change`, ...difference })
+          result.comparisons.push({ subject: `${kind}/${mode} visible change`, ...difference })
           assert.equal(difference.equal, false, 'runtime change only updated labels, not glyphs')
           assert.ok(
             image.height > initial[mode].height,
@@ -201,6 +222,12 @@ export async function exerciseTextInheritance(driver, evidence) {
           same(previous.ordinary, image, `${kind}/${phase}/ordinary vs ${mode}`)
         if (phase === 'label')
           same(previous[`${mode}-ancestor`], image, `${kind}/${mode} label update keeps pixels`)
+        if (phase === 'unoverride')
+          same(
+            previous[`${mode}-ancestor`],
+            image,
+            `${kind}/${mode} removed override resumes inheritance`,
+          )
         previous[mode] = image
         if (phase === 'ancestor') previous[`${mode}-ancestor`] = image
         observation.passed = true
@@ -209,7 +236,7 @@ export async function exerciseTextInheritance(driver, evidence) {
   }
   result.passed = true
   driver.record(
-    'static and runtime Text retain mount identity, same-device pixels and restoration',
+    'static, runtime and opaque Text retain mount identity, same-device pixels and restoration',
     { observations: result.phases.length },
   )
 }

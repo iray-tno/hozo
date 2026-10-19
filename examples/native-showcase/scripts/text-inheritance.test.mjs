@@ -68,9 +68,16 @@ test('the device fixture is reproducible and binding decisions come from the exi
   )
   assert.deepEqual(
     prepared.manifest.cases.map(({ route }) => route),
-    ['plain-native', 'context-fallback'],
+    ['plain-native', 'context-fallback', 'context-fallback'],
   )
   for (const entry of prepared.cases) assert.equal(entry.ordinary, entry.reference)
+  const opaque = prepared.cases.find((entry) => entry.name === 'opaque')
+  assert.doesNotMatch(opaque.source, /\bframe\b|\bstyle=/)
+  assert.equal(prepared.manifest.cases[2].ordinarySha256, prepared.manifest.cases[1].ordinarySha256)
+  assert.equal(
+    prepared.manifest.cases[2].ordinaryControl.sourceSha256,
+    prepared.manifest.cases[1].sourceSha256,
+  )
   const negative = prepareTextDeviceFixture(deviceLabelSource().replace('text-left ', ''))
   assert.equal(
     negative.manifest.cases[0].route,
@@ -80,7 +87,7 @@ test('the device fixture is reproducible and binding decisions come from the exi
   assert.notEqual(negative.manifest.cases[0].sourceSha256, prepared.manifest.cases[0].sourceSha256)
 })
 
-async function loadProbe() {
+async function loadProbe(viewRenders = []) {
   const { build } = require('esbuild')
   const result = await build({
     entryPoints: [fileURLToPath(new URL('../src/text-inheritance-probe.tsx', import.meta.url))],
@@ -108,7 +115,8 @@ async function loadProbe() {
   })
   const files = Object.keys(result.metafile.inputs).map((file) => file.replaceAll('\\', '/'))
   assert.ok(files.some((file) => file.endsWith('text-inheritance-reference-core.ts')))
-  assert.equal(files.length, 4, JSON.stringify(files))
+  assert.ok(files.some((file) => file.endsWith('text-inheritance-opaque.native.tsx')))
+  assert.equal(files.length, 5, JSON.stringify(files))
   assert.ok(
     files.every(
       (file) =>
@@ -124,7 +132,10 @@ async function loadProbe() {
       if (name === 'react-native')
         return {
           Text: 'NativeText',
-          View: 'NativeView',
+          View: (props) => {
+            if (props.testID?.startsWith('text-opaque-boundary-')) viewRenders.push(props.testID)
+            return react.createElement('NativeView', props)
+          },
           Pressable: 'NativePressable',
           ScrollView: 'NativeScrollView',
           StyleSheet: { create: (styles) => styles, flatten },
@@ -246,5 +257,99 @@ test('Native fixture uses one app React, preserves within-case identities and ne
   } finally {
     renderer.act(() => tree?.unmount())
     console.info = original
+  }
+})
+
+test('opaque memo/View labels receive no frame prop, inherit through a bailout and resume after override removal', async () => {
+  const renders = []
+  const Probe = await loadProbe(renders)
+  let tree
+  try {
+    renderer.act(() => {
+      tree = renderer.create(react.createElement(Probe))
+    })
+    const press = (title) =>
+      renderer.act(() =>
+        tree.root
+          .findAll(
+            (node) => node.type === 'NativePressable' && node.props.accessibilityLabel === title,
+          )[0]
+          .props.onPress(),
+      )
+    const roots = () =>
+      tree.root.findAll(
+        (node) =>
+          node.type === 'NativeText' &&
+          /^(ordinary|reference|optimized) mount /.test(node.props.accessibilityLabel ?? ''),
+      )
+    const styles = () => roots().map((node) => flatten(node.props.style))
+    const ids = () => roots().map((node) => node.props.accessibilityLabel.match(/mount (\d+)/)[1])
+    const opaque = () =>
+      tree.root.findAll(
+        (node) => typeof node.type === 'function' && node.type.name === 'OpaqueTextBoundary',
+      )
+    press('Use opaque boundary')
+    const mounted = ids()
+    const callbacks = roots().map((node) => node.props.onTextLayout)
+    assert.equal(mounted.length, 3)
+    assert.equal(opaque().length, 3, 'all three bindings must cross the actual memo wrapper')
+    for (const node of opaque()) {
+      if (node.props.name !== 'ordinary') {
+        assert.equal(Object.hasOwn(node.props, 'frame'), false)
+        assert.equal(Object.hasOwn(node.props, 'style'), false)
+      }
+    }
+    const before = [...renders]
+    for (const mode of ['ordinary', 'reference', 'optimized'])
+      assert.equal(before.filter((id) => id.endsWith(mode)).length, 1)
+    press('Change ancestor')
+    assert.deepEqual(ids(), mounted)
+    assert.deepEqual(
+      styles().map((style) => [style.color, style.fontSize, style.lineHeight]),
+      Array(3).fill(['#7c2d12', 28, 40]),
+    )
+    assert.deepEqual(
+      roots().map((node) => node.props.onTextLayout),
+      callbacks,
+    )
+    const assertBailout = () => {
+      for (const mode of ['reference', 'optimized'])
+        assert.equal(
+          renders.filter((id) => id.endsWith(mode)).length,
+          before.filter((id) => id.endsWith(mode)).length,
+          `${mode}: typography must update below a memo bailout, not via forwarded props`,
+        )
+    }
+    assertBailout()
+    assert.equal(
+      renders.filter((id) => id.endsWith('ordinary')).length,
+      2,
+      'only the explicit control receives a changed frame prop',
+    )
+    press('Apply local override')
+    assert.deepEqual(
+      styles().map((style) => [style.color, style.fontSize]),
+      Array(3).fill(['#111111', 22]),
+    )
+    assert.deepEqual(ids(), mounted)
+    assertBailout()
+    press('Remove local override')
+    assert.deepEqual(
+      styles().map((style) => [style.color, style.fontSize]),
+      Array(3).fill(['#7c2d12', 28]),
+    )
+    assert.deepEqual(ids(), mounted)
+    assertBailout()
+    press('Update label')
+    assert.ok(roots().every((node) => /tick 1$/.test(node.props.accessibilityLabel)))
+    assert.deepEqual(ids(), mounted)
+    press('Restore text fixture')
+    assert.deepEqual(
+      styles().map((style) => [style.color, style.fontSize]),
+      Array(3).fill(['#111111', 22]),
+    )
+    assert.deepEqual(ids(), mounted)
+  } finally {
+    renderer.act(() => tree?.unmount())
   }
 })

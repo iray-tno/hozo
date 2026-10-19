@@ -110,6 +110,7 @@
         "$TURBO_ROOT$/packages/metro/src/**",
         "$TURBO_ROOT$/packages/tailwind-conformance/package.json",
         "$TURBO_ROOT$/packages/tailwind-conformance/fixtures/native-text-label.tsx",
+        "$TURBO_ROOT$/packages/tailwind-conformance/fixtures/native-text-opaque-label.tsx",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-reference-core.ts",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-device-source.ts",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-closed-proof.ts",

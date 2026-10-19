@@ -10,13 +10,20 @@ import {
   View,
 } from 'react-native'
 import {
+  createOpaqueLabel,
   createRuntimeLabel,
   createStaticLabel,
   textFixtureManifest,
 } from './text-inheritance-generated'
+import { createOpaqueTextBoundary } from './text-inheritance-opaque.native'
 import { nativeTextReference } from './text-inheritance-reference.native'
 
-const factories = { static: createStaticLabel, runtime: createRuntimeLabel }
+type Kind = 'static' | 'runtime' | 'opaque'
+const factories = {
+  static: createStaticLabel,
+  runtime: createRuntimeLabel,
+  opaque: createOpaqueLabel,
+}
 const modes = ['ordinary', 'reference', 'optimized'] as const
 const labels = Object.fromEntries(
   textFixtureManifest.cases.map((entry) => [
@@ -24,7 +31,9 @@ const labels = Object.fromEntries(
     Object.fromEntries(
       modes.map((mode) => [
         mode,
-        factories[entry.name](
+        (entry.name === 'opaque' && mode === 'ordinary'
+          ? createRuntimeLabel
+          : factories[entry.name])(
           mode === 'reference' || (mode === 'optimized' && entry.route === 'context-fallback')
             ? nativeTextReference.ReferenceText
             : Text,
@@ -32,10 +41,7 @@ const labels = Object.fromEntries(
       ]),
     ),
   ]),
-) as Record<
-  'static' | 'runtime',
-  Record<(typeof modes)[number], ReturnType<typeof createStaticLabel>>
->
+) as Record<Kind, Record<(typeof modes)[number], ReturnType<typeof createStaticLabel>>>
 const REST: TextStyle = {
   color: '#111111',
   fontSize: 22,
@@ -55,15 +61,25 @@ const CHANGED: TextStyle = {
   textTransform: 'lowercase',
 }
 
+// Fixed component identities, independent of the current owner style.
+const opaqueLabels = Object.fromEntries(
+  modes.map((mode) => [mode, createOpaqueTextBoundary(labels.opaque[mode])]),
+) as (typeof labels)['opaque']
+
 export function TextInheritanceProbe() {
-  const [kind, setKind] = React.useState<'static' | 'runtime'>('static')
+  const [kind, setKind] = React.useState<Kind>('static')
   const [changed, setChanged] = React.useState(false)
   const [tick, setTick] = React.useState(0)
   const [visibleMode, setVisibleMode] = React.useState<(typeof modes)[number]>('ordinary')
+  const [override, setOverride] = React.useState(false)
   const observations = React.useRef(0)
   const [observed, setObserved] = React.useState(0)
   const entry = textFixtureManifest.cases.find((entry) => entry.name === kind)!
   const frame = changed ? CHANGED : REST
+  const request = React.useRef({ kind, changed, tick, override })
+  React.useLayoutEffect(() => {
+    request.current = { kind, changed, tick, override }
+  }, [kind, changed, tick, override])
   const callbacks = React.useMemo(
     () =>
       Object.fromEntries(
@@ -93,7 +109,13 @@ export function TextInheritanceProbe() {
                 platform: Platform.OS,
                 react: React.version,
                 reactNative: Platform.constants.reactNativeVersion,
-                request: { kind, changed, tick, mode },
+                request: {
+                  kind,
+                  changed: request.current.changed,
+                  tick: request.current.tick,
+                  mode,
+                  ...(kind === 'opaque' ? { override: request.current.override } : {}),
+                },
                 route: entry.route,
                 sourceSha256: entry.sourceSha256,
                 coreSha256: textFixtureManifest.coreSha256,
@@ -106,7 +128,9 @@ export function TextInheritanceProbe() {
           }) satisfies NonNullable<TextProps['onTextLayout']>,
         ]),
       ) as Record<(typeof modes)[number], NonNullable<TextProps['onTextLayout']>>,
-    [kind, changed, tick, entry],
+    // Ancestor-only changes must not punch through the opaque memo boundary
+    // by changing callback identity. Queued callbacks remain non-oracle logs.
+    [kind, entry],
   )
   const button = (title: string, action: () => void) => (
     <Pressable
@@ -132,16 +156,23 @@ export function TextInheritanceProbe() {
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {button('Use static region', () => setKind('static'))}
         {button('Use runtime fallback', () => setKind('runtime'))}
+        {button('Use opaque boundary', () => {
+          setKind('opaque')
+          setOverride(false)
+        })}
         {button('Change ancestor', () => setChanged((value) => !value))}
         {button('Update label', () => setTick((value) => value + 1))}
         {button('Restore text fixture', () => {
           setChanged(false)
           setTick(0)
+          setOverride(false)
         })}
+        {kind === 'opaque' && button('Apply local override', () => setOverride(true))}
+        {kind === 'opaque' && button('Remove local override', () => setOverride(false))}
         {modes.map((mode) => button(`Show ${mode}`, () => setVisibleMode(mode)))}
       </View>
       <Text style={{ height: 40 }}>
-        {`Text probe state: ${kind} ${changed ? 'changed' : 'rest'} tick ${tick} mode ${visibleMode}`}
+        {`Text probe state: ${kind} ${changed ? 'changed' : 'rest'} tick ${tick} mode ${visibleMode}${kind === 'opaque' ? ` override ${override ? 'on' : 'off'}` : ''}`}
       </Text>
       <View
         accessible
@@ -159,7 +190,9 @@ export function TextInheritanceProbe() {
       />
       <View style={{ width: 240, height: 200, backgroundColor: '#ffffff' }}>
         {modes.map((mode) => {
-          const Label = labels[kind][mode]
+          const Label = kind === 'opaque' ? opaqueLabels[mode] : labels[kind][mode]
+          const Owner =
+            kind === 'opaque' && mode === 'ordinary' ? View : nativeTextReference.ReferenceView
           return (
             <View
               key={mode}
@@ -174,7 +207,24 @@ export function TextInheritanceProbe() {
               }}
             >
               <nativeTextReference.ReferenceView style={[{ width: 240 }, frame]}>
-                <Label name={mode} tick={tick} frame={frame} onTextLayout={callbacks[mode]} />
+                {kind === 'opaque' ? (
+                  <Owner
+                    style={
+                      mode === 'ordinary'
+                        ? { width: 240 }
+                        : [{ width: 240 }, override ? REST : undefined]
+                    }
+                  >
+                    <Label
+                      name={mode}
+                      tick={tick}
+                      onTextLayout={callbacks[mode]}
+                      {...(mode === 'ordinary' ? { frame: override ? REST : frame } : {})}
+                    />
+                  </Owner>
+                ) : (
+                  <Label name={mode} tick={tick} frame={frame} onTextLayout={callbacks[mode]} />
+                )}
               </nativeTextReference.ReferenceView>
             </View>
           )

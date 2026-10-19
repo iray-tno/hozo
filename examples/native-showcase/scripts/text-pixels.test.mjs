@@ -64,7 +64,8 @@ function harness(mutate = () => {}) {
   let kind = 'static',
     changed = false,
     tick = 0,
-    mode = 'ordinary'
+    mode = 'ordinary',
+    override = false
   const driver = {
     async story(id) {
       assert.equal(id, 'diagnostics-text-inheritance--comparison')
@@ -73,19 +74,23 @@ function harness(mutate = () => {}) {
       actions.push(label)
       if (label === 'Use runtime fallback') kind = 'runtime'
       else if (label === 'Use static region') kind = 'static'
+      else if (label === 'Use opaque boundary') kind = 'opaque'
       else if (label === 'Change ancestor') changed = !changed
       else if (label === 'Update label') tick++
       else if (label === 'Restore text fixture') {
         changed = false
         tick = 0
-      } else if (label.startsWith('Show ')) mode = label.slice(5)
+        override = false
+      } else if (label === 'Apply local override') override = true
+      else if (label === 'Remove local override') override = false
+      else if (label.startsWith('Show ')) mode = label.slice(5)
       else assert.fail(label)
     },
     async waitFor(label) {
-      assert.equal(label, textState(kind, changed, tick, mode))
+      assert.equal(label, textState(kind, changed, tick, mode, override))
     },
     async capture(name) {
-      const rendered = image(kind === 'runtime' && changed)
+      const rendered = image(kind !== 'static' && changed && !override)
       const captured = {
         name,
         image: rendered,
@@ -93,7 +98,7 @@ function harness(mutate = () => {}) {
         bounds: [0, 0, 120, rendered.height],
         frame: { valid: true, rgb: [0, 0, 0] },
       }
-      mutate(captured, { kind, changed, tick, mode, actions })
+      mutate(captured, { kind, changed, tick, mode, override, actions })
       captures.push(name)
       return captured
     },
@@ -109,16 +114,18 @@ function harness(mutate = () => {}) {
   return { evidence, driver, actions, captures }
 }
 
-test('the driver measures all 24 states, comparisons and mount retention without self-certified callbacks', async () => {
+test('the driver measures all 42 states, comparisons and mount retention without self-certified callbacks', async () => {
   const { evidence, driver, actions } = harness()
   await exerciseTextInheritance(driver, evidence)
   assert.equal(evidence.textInheritance.passed, true)
-  assert.equal(evidence.textInheritance.phases.length, 24)
+  assert.equal(evidence.textInheritance.phases.length, 42)
+  assert.equal(evidence.textInheritance.comparisons.length, 67)
+  assert.equal(actions.length, 56)
   assert.ok(
     evidence.textInheritance.phases.every((phase) => phase.passed && phase.captures.length === 1),
   )
-  assert.equal(actions.filter((label) => label === 'Change ancestor').length, 2)
-  assert.equal(actions.filter((label) => label.startsWith('Show ')).length, 24)
+  assert.equal(actions.filter((label) => label === 'Change ancestor').length, 3)
+  assert.equal(actions.filter((label) => label.startsWith('Show ')).length, 42)
   assert.ok(
     evidence.textInheritance.comparisons.some(
       (comparison) =>
@@ -151,7 +158,7 @@ test('wrong pixels, ignored changes, remounts and stale mode markers abort at th
     assert.equal(evidence.checks, undefined)
     assert.equal(evidence.textInheritance.phases.at(-1).passed, false)
     assert.equal(evidence.textInheritance.phases.at(-1).captures.length, 1)
-    assert.ok(actions.length < 32, 'no later phases or successful retries')
+    assert.ok(actions.length < 56, 'no later phases or successful retries')
   }
   const failure = new Error('ambiguous tap')
   const state = harness()
@@ -184,4 +191,45 @@ test('Android text rendering is opt-in, source-bound and retained separately wit
   assert.match(smoke, /prepareTextDeviceFixture\(\)\.manifest/)
   assert.match(smoke, /textFrame\(buffer, frameNode\.rect, mode\)/)
   assert.match(smoke, /writeFileSync\(resolve\(output, 'logcat\.txt'\)/)
+})
+
+test('opaque-only missing inheritance, ignored overrides/removal and state loss cannot pass earlier successful cases', async () => {
+  for (const [phase, mutate] of [
+    [
+      'ancestor',
+      (sample, state) => {
+        if (state.changed) sample.image = image()
+      },
+    ],
+    [
+      'override',
+      (sample, state) => {
+        if (state.override) sample.image = image(true)
+      },
+    ],
+    [
+      'unoverride',
+      (sample, state) => {
+        if (state.actions.includes('Remove local override')) sample.image = image()
+      },
+    ],
+    [
+      'ancestor',
+      (sample, state) => {
+        if (state.changed) sample.label = `${state.mode} mount 2 tick ${state.tick}`
+      },
+    ],
+  ]) {
+    const { driver, evidence, actions } = harness((sample, state) => {
+      if (state.kind === 'opaque' && state.mode === 'optimized') mutate(sample, state)
+    })
+    await assert.rejects(exerciseTextInheritance(driver, evidence))
+    assert.ok(evidence.textInheritance.phases.slice(0, 24).every((item) => item.passed))
+    assert.equal(evidence.textInheritance.phases.at(-1).kind, 'opaque')
+    assert.equal(evidence.textInheritance.phases.at(-1).phase, phase)
+    assert.equal(evidence.textInheritance.phases.at(-1).passed, false)
+    assert.equal(evidence.textInheritance.passed, false)
+    assert.equal(evidence.checks, undefined)
+    assert.ok(actions.length < 56)
+  }
 })

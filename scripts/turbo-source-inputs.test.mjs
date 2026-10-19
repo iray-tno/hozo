@@ -100,6 +100,7 @@ const reads = {
     'packages/metro/src/transform.ts',
     'packages/tailwind-conformance/package.json',
     'packages/tailwind-conformance/fixtures/native-text-label.tsx',
+    'packages/tailwind-conformance/fixtures/native-text-opaque-label.tsx',
     'packages/tailwind-conformance/src/text-inheritance-reference-core.ts',
     'packages/tailwind-conformance/src/text-inheritance-device-source.ts',
     'packages/tailwind-conformance/src/text-inheritance-closed-proof.ts',
