@@ -440,3 +440,56 @@ These are simulated-host work counts, not device speed or a production
 bundle-size change. Production integration, whole-tree elimination and the
 remaining concurrency/portal/animation/device gates are still open. No
 default enablement or ADR acceptance follows.
+
+## Self-contained nested Text (private region proof)
+
+Tracking: [#1092](https://github.com/iray-tno/hozo/issues/1092).
+`closed-subtree` is a separate experiment, not a broader meaning silently
+assigned to the leaf captures. It permits literal text, structural fragments
+and directly nested trusted RN Text inside a stable memo render root. Every
+Text must independently own all seven supported scalar fields. The existing
+module-wide import-use coverage, registered-style mutation/escape checks and
+identity guard still apply. One partial/dynamic Text, opaque component,
+spread or unknown child expression retains the contextual module binding,
+including its parent. Named Fragment components, View descendants, imported
+component bodies and conditional child trees are not proved by this slice.
+
+This intentionally does not fold a parent's values into a partially styled
+child or add another inheritance evaluator. Known child syntax alone is not
+proof that the child does not need the parent's published frame. No source
+rewrite or new render helper is needed for the independently complete case.
+
+```sh
+node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-subtree-proof.test.ts
+node scripts/text-inheritance-static-proof.mjs --kind closed-subtree --rows 32 --output artifacts/text-inheritance/closed-subtree.json
+```
+
+The schema-1 report uses `kind: test-only-self-contained-text-subtree` and
+`styleForm: subtree`. Each row adds a nested Text with a different independent
+seven-property oracle, for six Text hosts per row. Paired operations compare
+the simulated host hierarchy, scalar child order and accessible role/name
+props as well as applied styles and balanced lifetimes. The same structural
+comparison also strengthens the older inline/registered captures. These are
+not device layout, text shaping or screen-reader measurements.
+
+At 32 rows, ancestor color/metrics/restoration changes reduce the closed root
+host-wrapper executions 32 to zero. Nested host executions are already zero
+in B and remain zero in C: do not count that as a new rendering saving.
+Metrics/Paint read-hook calls and ReferenceText function invocations fall by
+64. Scope invocations and legacy-size read calls fall by 64 on mount, metrics
+changes and restoration, but only 32 for a color-only change. The reference
+can attempt a nested helper and then bail out before reaching its Scope or
+host; these counters are deliberately separate. The remaining contextual
+View and open controls still perform work.
+
+All ten selected cases, button-owner workloads, independent styles and six
+module byte counts remain equal between B/C. Equal-value/unrelated parent
+updates execute no host Text wrappers; a changed label prop still executes
+both closed root and nested host once per row. Tests also cover normal and
+StrictMode host/state identity, authored evaluation and removing a dynamic
+child override back to its actual owner's frame rather than an outer View.
+
+This remains private loader wiring. Partial-frame static inheritance,
+whole View/provider elimination, production integration, concurrency,
+animation/portal ownership and physical-device performance gates remain open.
+No production default or ADR acceptance follows.

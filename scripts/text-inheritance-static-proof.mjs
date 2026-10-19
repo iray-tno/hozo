@@ -19,8 +19,8 @@ for (let index = 2; index < process.argv.length; index += 2) {
 }
 assert.ok(Number.isInteger(rows) && rows > 0 && rows <= 1000, 'rows must be 1..1000')
 assert.ok(
-  ['paint', 'closed-leaf', 'registered-leaf'].includes(kind),
-  'kind must be paint, closed-leaf or registered-leaf',
+  ['paint', 'closed-leaf', 'registered-leaf', 'closed-subtree'].includes(kind),
+  'kind must be paint, closed-leaf, registered-leaf or closed-subtree',
 )
 const warnings = []
 const originalWarn = console.warn
@@ -36,7 +36,14 @@ try {
   report = {
     ...(kind === 'paint'
       ? captureStaticPaintProof(rows)
-      : captureClosedTextProof(rows, kind === 'registered-leaf' ? 'registered' : 'inline')),
+      : captureClosedTextProof(
+          rows,
+          kind === 'closed-subtree'
+            ? 'subtree'
+            : kind === 'registered-leaf'
+              ? 'registered'
+              : 'inline',
+        )),
     warnings,
   }
 } finally {

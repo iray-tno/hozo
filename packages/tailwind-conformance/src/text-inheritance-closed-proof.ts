@@ -1,16 +1,16 @@
 // Private post-Metro proof, not a second style resolver. No expression is
 // executed and no source is rewritten. The test loader can bind RN Text
 // directly only when *every* use of that module's Text binding is covered.
-import { types as t, transformSync } from '@babel/core'
+import { type NodePath, types as t, transformSync } from '@babel/core'
 import { TEXT_PROPERTIES } from './text-inheritance-fixtures.ts'
-import { isStableTextRoot } from './text-inheritance-proof-boundary.ts'
+import { isStableTextRoot, nativeTextBinding } from './text-inheritance-proof-boundary.ts'
 import { resolveTextStyle } from './text-inheritance-style-proof.ts'
 
 type Decision = {
   start: number
   end: number
   subject: string
-  disposition: 'closed-leaf' | 'reference'
+  disposition: 'closed-leaf' | 'closed-subtree' | 'reference'
   reason: string
 }
 
@@ -43,7 +43,37 @@ const scalar = (name: string, value: t.Node): boolean => {
   return false
 }
 
-export function proveClosedText(code: string) {
+const literalChild = (child: t.Node) =>
+  t.isJSXText(child) ||
+  (t.isJSXExpressionContainer(child) &&
+    (t.isStringLiteral(child.expression) ||
+      t.isNumericLiteral(child.expression) ||
+      t.isJSXEmptyExpression(child.expression)))
+
+function knownChildren(path: NodePath<t.JSXElement | t.JSXFragment>): boolean {
+  return path.get('children').every(
+    (child) =>
+      literalChild(child.node) ||
+      (child.isJSXFragment() && knownChildren(child)) ||
+      // Complete styles are checked for *each* node by the normal visitor.
+      // The import-wide coverage gate rejects the region if any node fails.
+      (child.isJSXElement() && Boolean(nativeTextBinding(child)) && knownChildren(child)),
+  )
+}
+
+function stableNestedRoot(path: NodePath<t.JSXElement>) {
+  let root: NodePath = path
+  while (root.parentPath?.isJSXElement() || root.parentPath?.isJSXFragment()) {
+    root = root.parentPath
+    if (root.isJSXElement() && !nativeTextBinding(root)) return false
+  }
+  return root.isJSXElement() && isStableTextRoot(root)
+}
+
+export const proveClosedText = (code: string) => analyzeClosedText(code, false)
+export const proveTextSubtree = (code: string) => analyzeClosedText(code, true)
+
+function analyzeClosedText(code: string, subtrees: boolean) {
   const decisions: Decision[] = []
   let plainText = false
   let boundary = {
@@ -97,34 +127,21 @@ export function proveClosedText(code: string) {
               },
               JSXElement(path) {
                 const opening = path.node.openingElement
-                if (!t.isJSXIdentifier(opening.name)) return
-                const binding = path.scope.getBinding(opening.name.name)
-                if (!binding?.constant || !binding.path.isImportSpecifier()) return
-                const declaration = binding.path.parent
-                const imported = binding.path.node.imported
-                if (
-                  !t.isImportDeclaration(declaration) ||
-                  declaration.source.value !== 'react-native' ||
-                  !(
-                    (t.isIdentifier(imported) && imported.name === 'Text') ||
-                    (t.isStringLiteral(imported) && imported.value === 'Text')
-                  )
-                )
-                  return
+                if (!nativeTextBinding(path)) return
                 const decide = (reason: string, eligible = false) => {
                   decisions.push({
                     start: opening.start!,
                     end: opening.end!,
                     subject: code.slice(opening.start!, opening.end!),
-                    disposition: eligible ? 'closed-leaf' : 'reference',
+                    disposition: eligible
+                      ? subtrees
+                        ? 'closed-subtree'
+                        : 'closed-leaf'
+                      : 'reference',
                     reason,
                   })
                 }
-                if (declaration.importKind === 'type' || binding.path.node.importKind === 'type') {
-                  decide('not a runtime Text binding')
-                  return
-                }
-                if (!isStableTextRoot(path)) {
+                if (!(subtrees ? stableNestedRoot(path) : isStableTextRoot(path))) {
                   decide('no stable memo render root proof')
                   return
                 }
@@ -168,22 +185,15 @@ export function proveClosedText(code: string) {
                   decide('not all seven own fields are unconditional supported scalars')
                   return
                 }
-                if (
-                  !path.node.children.every(
-                    (child) =>
-                      t.isJSXText(child) ||
-                      (t.isJSXExpressionContainer(child) &&
-                        (t.isStringLiteral(child.expression) ||
-                          t.isNumericLiteral(child.expression) ||
-                          t.isJSXEmptyExpression(child.expression))),
-                  )
-                ) {
+                if (!(subtrees ? knownChildren(path) : path.node.children.every(literalChild))) {
                   decide('opaque children may consume the published frame')
                   return
                 }
                 selected.add(path.node)
                 decide(
-                  'complete own frame and literal children; no inheritance read or publish needed',
+                  subtrees
+                    ? 'complete own frame and known Text children; coverage requires every descendant to own its frame'
+                    : 'complete own frame and literal children; no inheritance read or publish needed',
                   true,
                 )
               },
@@ -209,7 +219,9 @@ export function proveClosedText(code: string) {
               uses.every((binding) => binding.covered)
             boundary = {
               reason: plainText
-                ? 'every RN Text use is a proved stable closed leaf'
+                ? subtrees
+                  ? 'every RN Text use belongs to a self-contained stable Text region'
+                  : 'every RN Text use is a proved stable closed leaf'
                 : opaqueAccess
                   ? 'opaque native module access'
                   : 'another Text binding use is outside the proof',
@@ -217,7 +229,7 @@ export function proveClosedText(code: string) {
             }
             if (!plainText)
               for (const decision of decisions)
-                if (decision.disposition === 'closed-leaf') {
+                if (decision.disposition !== 'reference') {
                   decision.disposition = 'reference'
                   decision.reason = `local proof retained but binding not elided: ${boundary.reason}`
                 }
