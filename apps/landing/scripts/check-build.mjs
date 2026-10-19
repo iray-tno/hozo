@@ -244,7 +244,10 @@ for (const [page, element] of [
   checks.push(
     [islands.length === 1, `docs components/${page}: expected 1 island, found ${islands.length}`],
     [/client="visible"/.test(islands[0] ?? ''), `docs components/${page}: not hydrated on visible`],
-    [element.test(islands[0] ?? ''), `docs components/${page}: the preview was not server-rendered`],
+    [
+      element.test(islands[0] ?? ''),
+      `docs components/${page}: the preview was not server-rendered`,
+    ],
   )
 }
 for (const page of sitePages) {

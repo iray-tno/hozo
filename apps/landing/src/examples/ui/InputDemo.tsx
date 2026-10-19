@@ -11,9 +11,7 @@ export function InputDemo() {
       error={wrong ? 'That does not look like an email address.' : undefined}
       required
     >
-      {(control) => (
-        <Input {...control} inputMode="email" value={email} onChangeText={setEmail} />
-      )}
+      {(control) => <Input {...control} inputMode="email" value={email} onChangeText={setEmail} />}
     </Field>
   )
 }
