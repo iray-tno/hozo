@@ -394,6 +394,12 @@ pub fn lower_with_evidence(
     if jsx.contains("hozoDomProps(") {
         runtime_imports.push("hozoDomProps");
     }
+    if jsx.contains("hozoButtonDomProps(") {
+        runtime_imports.push("hozoButtonDomProps");
+    }
+    if jsx.contains("hozoLinkDomProps(") {
+        runtime_imports.push("hozoLinkDomProps");
+    }
     LowerOutput {
         jsx,
         css,
@@ -2249,14 +2255,24 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 .and_then(|rest| rest.strip_suffix('}'))
                 .unwrap_or(text)
                 .trim();
-            source_evidence::expression(
-                &mut attrs,
-                &mut attr_copies,
-                source,
-                value,
-                " {...hozoDomProps(",
-                ")}",
-            );
+            // A Button decided at build time still receives its spread in
+            // the primitive's vocabulary (`onPress`, `accessibilityLabel`),
+            // which means nothing to a DOM element (#1096). Translate it the
+            // way the uncompiled Button translates its named props.
+            let (open, close) = match (node.primitive, tag) {
+                (Primitive::Button, "button") => {
+                    (" {...hozoButtonDomProps(".to_string(), ")}".to_string())
+                }
+                (Primitive::Button, "a") => (
+                    " {...hozoLinkDomProps(".to_string(),
+                    match &disabled_expr {
+                        Some(disabled) => format!(", ({disabled}))}}"),
+                        None => ")}".to_string(),
+                    },
+                ),
+                _ => (" {...hozoDomProps(".to_string(), ")}".to_string()),
+            };
+            source_evidence::expression(&mut attrs, &mut attr_copies, source, value, &open, &close);
             continue;
         }
         // `external` is not an attribute the DOM has; it was lowered into

@@ -2295,14 +2295,21 @@ fn a_rest_that_took_href_out_cannot_carry_it() {
     };
     assert_eq!(
         lowered("function B({ href, ...rest }) { return <Button {...rest}>Go</Button> }"),
-        r#"<button type="button" {...hozoDomProps(rest)}>Go</button>"#
+        r#"<button type="button" {...hozoButtonDomProps(rest)}>Go</button>"#
     );
     assert_eq!(
         lowered(
             "function B({ href, ...rest }) { return <Button {...rest} href={href}>Go</Button> }"
         ),
-        r#"<a {...hozoDomProps(rest)} href={href}>Go</a>"#
+        r#"<a {...hozoLinkDomProps(rest)} href={href}>Go</a>"#
     );
+    // #1096. The spread still speaks the primitive's props (`onPress`), so
+    // it goes through the Button's translation, told about a `disabled` the
+    // element names so a press on the anchor stays suppressed.
+    assert!(lowered(
+        "function B({ href, disabled, ...rest }) { return <Button {...rest} href={href} disabled={disabled}>Go</Button> }"
+    )
+    .contains("{...hozoLinkDomProps(rest, (disabled))}"));
     // `href` not taken out: the spread may still hold it.
     assert_eq!(
         lowered("function B({ tone, ...rest }) { return <Button {...rest}>Go</Button> }"),
