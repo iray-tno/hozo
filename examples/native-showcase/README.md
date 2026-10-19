@@ -538,16 +538,19 @@ successful run establishes virtual output; physical speakers, iOS output,
 Video speed, exact DSP parity, AT and session/interruption behavior remain
 separate checks. The harness setup itself establishes none of those results.
 
-### Native text inheritance comparison (preparation only)
+### Native text inheritance comparison (experimental)
 
 Select `Diagnostics/Text inheritance/Comparison`
-(`diagnostics-text-inheritance--comparison`). Three panels share the real
+(`diagnostics-text-inheritance--comparison`). Three mounted panels share the real
 compiled label body: ordinary RN Text, the private RFC 006 Context reference,
 and a binding selected by the existing static proof. The static case can use
 RN's built-in nested-Text inheritance; the runtime-style case must retain
 the Context fallback. Production compilation and full/release scenarios do
 not enable this experimental protocol.
 
+Use `Show ordinary/reference/optimized` to reveal each panel at the same
+position. Hidden panels remain mounted; an external mode-color marker lets
+the screenshot driver verify actual presentation independently of AX.
 Within a case, change the ancestor, update the label and restore; mount IDs
 in accessible labels must stay stable. Switching cases intentionally starts
 new labels. Actual `onTextLayout` callbacks log `[Hozo text layout]` records
@@ -560,6 +563,27 @@ Regenerate/check its compiled source with
 `node scripts/generate-text-inheritance.mjs [--check]` from this directory.
 Details and remaining device evidence:
 [Native text baseline guide](../../docs/native-text-inheritance-baseline.md#shared-reference-and-native-comparison-preparation).
+
+Select `platform=android`, `android-scenario=text-inheritance`, diagnostics off,
+with no reused build, for the opt-in screenshot driver (#1102). It measures
+24 observations: static/runtime style, initial/ancestor-change/label-update/
+restoration, ordinary/reference/optimized binding. AX provides actual Text
+bounds and mount IDs. A screenshot must also show the current mode marker,
+source-colored root/nested ink and white background. It then requires exact
+same-device crop pixels and dimensions between bindings, static shielding,
+runtime color/height change and restoration. No image translation, scaling,
+blur or per-pixel tolerance hides a mismatch. Bounds compare the visible
+Text region; they are not native line/span introspection or complete paragraph
+shaping conformance. Callback logs remain diagnostic, not a pass oracle.
+
+`hozo-native-showcase-android-text-evidence` retains evidence.json, every
+screenshot/AX dump, raw callback logcat, APK hash, source commit and fixture
+manifest. Failure stops immediately with partial observations retained;
+inputs are never retried. Full/SVG/release scenarios are unchanged. The
+analyzer's synthetic tests are not Android results; actual run evidence must
+be inspected separately before claiming emulator rendering equivalence.
+Physical devices, iOS, exact individual-property semantics, AT and performance
+remain separate checks. No production default changes.
 
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and

@@ -62,9 +62,9 @@ on:
         type: string
         default: '1'
       android-scenario:
-        description: 'Full showcase, SVG only, or isolated actual Android audio output/settings'
+        description: 'Full showcase or isolated SVG, audio output/settings, or text inheritance'
         type: choice
-        options: [full, svg-filters, audio-output, audio-settings]
+        options: [full, svg-filters, audio-output, audio-settings, text-inheritance]
         default: full
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'
@@ -210,6 +210,13 @@ jobs:
         with:
           name: hozo-native-showcase-android-svg-evidence
           path: artifacts/native-showcase-svg
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-android-text-evidence
+          path: artifacts/native-showcase-text
           if-no-files-found: ignore
           retention-days: 30
       - uses: actions/upload-artifact@v4

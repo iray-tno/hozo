@@ -196,7 +196,10 @@ test('settings diagnosis has a separate capture/artifact and does not silently a
     new URL('../../../.github/workflows/native-showcase.yml', import.meta.url),
     'utf8',
   )
-  assert.match(workflow, /options: \[full, svg-filters, audio-output, audio-settings\]/)
+  assert.match(
+    workflow,
+    /options: \[full, svg-filters, audio-output, audio-settings, text-inheritance\]/,
+  )
   assert.match(workflow, /inputs.android-scenario == 'audio-settings'/)
   assert.match(workflow, /name: hozo-native-showcase-android-audio-settings-evidence/)
   assert.match(workflow, /path: artifacts\/native-showcase-audio-settings/)

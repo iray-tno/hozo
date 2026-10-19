@@ -14,6 +14,10 @@ const execute = (scenario, output) =>
 // fresh shell. Keep branching here so one failed driver aborts the sequence.
 export function runAndroidScenarios(value, run = execute) {
   const scenario = readAndroidScenario(value)
+  if (scenario === 'text-inheritance') {
+    run(scenario, 'artifacts/native-showcase-text')
+    return
+  }
   if (scenario === 'audio-output') {
     run(scenario, 'artifacts/native-showcase-audio')
     return

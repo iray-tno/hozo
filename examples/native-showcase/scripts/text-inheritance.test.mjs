@@ -177,6 +177,19 @@ test('Native fixture uses one app React, preserves within-case identities and ne
     const ids = () => roots().map((node) => node.props.accessibilityLabel.match(/mount (\d+)/)[1])
     const staticIds = ids()
     assert.equal(staticIds.length, 3)
+    for (const mode of ['reference', 'optimized', 'ordinary']) {
+      press(`Show ${mode}`)
+      assert.deepEqual(ids(), staticIds)
+      const panels = tree.root.findAll(
+        (node) =>
+          node.type === 'NativeView' && node.props.testID?.startsWith('text-fixture-panel-'),
+      )
+      assert.equal(panels.filter((node) => node.props.style.display !== 'none').length, 1)
+      assert.equal(
+        panels.find((node) => node.props.style.display !== 'none').props.testID,
+        `text-fixture-panel-${mode}`,
+      )
+    }
     press('Change ancestor')
     assert.deepEqual(ids(), staticIds)
     assert.deepEqual(
