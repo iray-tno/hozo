@@ -1,8 +1,11 @@
 import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { setTimeout as delay } from 'node:timers/promises'
 import { EXPORT_TIMEOUT_MS, verifyExpoExport } from './export-evidence.mjs'
 
 function fixture(t, body) {
@@ -78,13 +81,13 @@ test('status zero cannot swallow a spawn timeout or signal, and neither is retri
     assert.equal(verified, false)
     assert.equal(f.read().passed, false)
     assert.equal(f.read().phase, 'process')
+    assert.equal(f.read().process.status, 0)
+    if (partial.error) assert.equal(f.read().process.error.code, 'ETIMEDOUT')
   }
 })
 
-test('a real SIGTERM handler can return zero while spawn reports ETIMEDOUT', {
-  skip: process.platform === 'win32',
-}, (t) => {
-  const f = fixture(t, `process.on('SIGTERM',()=>process.exit(0)); setInterval(()=>{},1000);`)
+test('a real spawn timeout is rejected regardless of child startup speed', (t) => {
+  const f = fixture(t, 'setInterval(()=>{},1000);')
   assert.throws(
     () =>
       verifyExpoExport({
@@ -96,9 +99,48 @@ test('a real SIGTERM handler can return zero while spawn reports ETIMEDOUT', {
     /ETIMEDOUT/,
   )
   const evidence = f.read()
-  assert.equal(evidence.process.status, 0)
   assert.equal(evidence.process.error.code, 'ETIMEDOUT')
   assert.equal(evidence.passed, false)
+  assert.equal(evidence.phase, 'process')
+})
+
+test('a ready SIGTERM handler exits zero even when startup exceeds the timeout fixture budget', {
+  skip: process.platform === 'win32',
+  timeout: 15_000,
+}, async (t) => {
+  // spawnSync's deadline includes Node startup. Check its timeout above and the
+  // recorded status-zero/ETIMEDOUT pair separately, rather than assume the
+  // handler was installed within 400ms on a loaded CI runner.
+  const f = fixture(
+    t,
+    `setTimeout(()=>{
+    process.on('SIGTERM',()=>process.exit(0));
+    setInterval(()=>{},1000);
+    process.send('ready');
+  },600);`,
+  )
+  const env = { ...process.env }
+  delete env.NODE_TEST_CONTEXT
+  const child = spawn(process.execPath, [f.cli], {
+    cwd: f.root,
+    env,
+    stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+  })
+  const closed = once(child, 'close')
+  t.after(async () => {
+    if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL')
+    await closed
+  })
+  const message = await Promise.race([
+    once(child, 'message', { signal: t.signal }),
+    closed.then(() => assert.fail('child exited before installing its SIGTERM handler')),
+  ])
+  assert.equal(message[0], 'ready')
+  // Only this deliberately armed watchdog sends SIGTERM; startup cannot use up
+  // its budget. This observes the signal behavior, not a spawnSync error object.
+  await delay(400, undefined, { signal: t.signal })
+  assert.equal(child.kill('SIGTERM'), true)
+  assert.deepEqual(await closed, [0, null])
 })
 
 test('a stale conventional export cannot certify an incomplete successful child', (t) => {

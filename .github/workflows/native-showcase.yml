@@ -72,9 +72,9 @@ on:
         options: [ax, axbridge]
         default: ax
       ios-scenario:
-        description: 'Full interactions plus SVG pixels, isolated SVG pixels, or Canvas diagnosis'
+        description: 'Full interactions/SVG, isolated SVG/text pixels, or Canvas diagnosis'
         type: choice
-        options: [full, svg-filters, canvas, gl-control]
+        options: [full, svg-filters, canvas, gl-control, text-inheritance]
         default: full
       ios-canvas-mode:
         description: 'Controlled frame-loop comparison; demand is the canonical story'

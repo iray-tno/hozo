@@ -585,6 +585,19 @@ be inspected separately before claiming emulator rendering equivalence.
 Physical devices, iOS, exact individual-property semantics, AT and performance
 remain separate checks. No production default changes.
 
+The [first dedicated Android measurement](../../docs/measurements/native-text-inheritance-android.md)
+reviewed all 24 states/40 comparisons and their actual screenshots/APK hash.
+That does not validate CoreText. For the separate iOS follow-up, select
+`platform=ios`, `ios-scenario=text-inheritance`, diagnostics off and no reused
+or rebundled binary. The same driver/comparator uses measured AX points and
+screen dimensions to crop Retina pixels, retaining both coordinate systems.
+Fresh archive/source/run checks, archive/JS-bundle hashes and unchanged
+failure screenshots/AX/syslog are recorded in `hozo-native-showcase-ios-evidence`.
+No pixel resizing, blur or extra tolerance is introduced. Its synthetic
+geometry/provenance tests are not an iOS rendering result; inspect the actual
+dedicated run before claiming equivalence. Default full/SVG/Canvas/release
+coverage is unchanged.
+
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and
 disassemble the 3D scene; enable reduced motion; background/resume; switch away

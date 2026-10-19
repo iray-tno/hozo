@@ -649,3 +649,21 @@ device throughput, iOS/AT evidence or a production rollout gate. Requested
 state labels are distinct from pixel measurements; onTextLayout records still
 say not-assessed. Mock-host and synthetic pixel tests validate the harness
 only. An actual hosted run and its artifacts must be reviewed separately.
+
+The first dedicated Android run was reviewed after #1103: all 24 states and
+40 intended comparisons passed, with independently re-cropped screenshots
+and a matching APK hash. See [the pinned measurement](measurements/native-text-inheritance-android.md)
+for source/run identifiers, observed bounds and limits. This is not iOS or
+opaque-View inheritance evidence and does not accept RFC 006.
+
+The iOS follow-up (#1105) selects `platform=ios`,
+`ios-scenario=text-inheritance`, diagnostics off, no reuse/rebundle. It uses
+the same fixture, 24-state driver and exact comparator, with an AX-points to
+Retina-pixels adapter. Measured point/pixel/screen/marker bounds remain in the
+artifact; inward rounding excludes boundary pixels rather than resizing or
+blurring glyphs. Geometry mismatches fail instead of guessing a scale.
+Fresh archive/source/run checks precede input. Archive and JS bundle hashes,
+raw screenshots, AX and syslog remain in the ordinary iOS evidence artifact.
+Full/SVG/Canvas/release defaults and deadlines are unchanged. Synthetic
+adapter tests are not CoreText results; a dedicated Simulator result still
+needs artifact review, and no production default changes.
