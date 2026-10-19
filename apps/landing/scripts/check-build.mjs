@@ -193,6 +193,25 @@ function pagesUnder(directory) {
 const sitePages = ['', ...pagesUnder('').filter((page) => page !== 'mdx-example/')]
 const docsPages = sitePages.filter((page) => page.startsWith('docs/'))
 checks.push([docsPages.length >= 10, `only ${docsPages.length} docs pages were found in the build`])
+
+// The docs overview renders the README's component, compiled by this
+// build, and says it ships no JavaScript for it. Both are checked: the
+// preview is a lowered <section> with generated classes, and the page has
+// no island. (The printed output's class names differ from the preview's:
+// the hash is of the file's path, and the printed copy is compiled from
+// the source alone.)
+{
+  const overview = readFileSync(path.join(dist, 'docs', 'index.html'), 'utf8')
+  const stage = overview.match(/class="hozo-example-stage[^"]*">([\s\S]*?)<\/div>/)?.[1] ?? ''
+  checks.push(
+    [
+      /<section class="hozo-view hozo-[a-z0-9]+-r\d+-\d+" aria-label="Welcome">/.test(stage),
+      'docs overview: the example did not render as a lowered, named <section>',
+    ],
+    [/<h2 class="hozo-/.test(stage), 'docs overview: the example heading did not lower to <h2>'],
+    [!/<astro-island/.test(overview), 'docs overview: the example shipped an island'],
+  )
+}
 for (const page of sitePages) {
   const head = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
   const label = page === '' ? 'index' : page

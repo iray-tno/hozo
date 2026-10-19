@@ -39,3 +39,18 @@ test('the README example output is what the compiler writes', () => {
     .join('\n')
   assert.equal(css.body, rules, 'README CSS differs from compiler output')
 })
+
+// The docs' overview renders the same component, compiled when the site is
+// built (apps/landing/src/examples/Welcome.tsx). One example, so the README
+// and the docs cannot come to show two different things.
+test('the docs render the README example, not a copy that drifted', () => {
+  const docs = readFileSync(
+    new URL('../apps/landing/src/examples/Welcome.tsx', import.meta.url),
+    'utf8',
+  )
+  // Biome formats the file and not the README, so a JSX child may wrap
+  // in one and not the other; whitespace is not what this is about.
+  const words = (source) =>
+    source.replace(/>\s+/g, '>').replace(/\s+</g, '<').replace(/\s+/g, ' ').trim()
+  assert.equal(words(docs), words(blocks[0].body))
+})

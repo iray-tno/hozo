@@ -1,0 +1,83 @@
+---
+// A docs example that shows what it claims: the component rendered, then
+// its source and what the compiler makes of it for each platform -- all
+// produced when the site is built, so a page cannot show output the
+// compiler no longer writes.
+//
+// The preview is the component itself, imported by the page and compiled by
+// the same Vite plugin as the rest of the site; it ships no JavaScript. Its
+// colours are the example's own classes (Tailwind's default palette), not
+// this site's theme.
+import { Code } from '@astrojs/starlight/components'
+import { compile, compileNative } from '@hozo/compiler'
+import { formatJsx } from '../../scripts/format-jsx.ts'
+
+interface Props {
+  /** The component's source, as the page imports it with `?raw`. */
+  source: string
+  /** The file name the source is shown under. */
+  file: string
+}
+
+const { source, file } = Astro.props
+const [web] = compile(source)
+const [native] = compileNative(source)
+if (!web || !native) throw new Error(`${file} compiled to nothing`)
+
+// The base layer is the same for every View; the component's own rules are
+// the part worth reading.
+const webCss = web.css.replace(/^@layer base \{[\s\S]*?\n\}\n/, '').trim()
+const nativeCode = [...native.prelude, formatJsx(native.jsx)].join('\n')
+---
+
+<figure class="not-content hozo-example">
+  <div class="hozo-example-stage">
+    <slot />
+  </div>
+  <figcaption>
+    Rendered by Hozo when this page was built. No JavaScript reaches the browser for it.
+  </figcaption>
+</figure>
+
+<Code code={source.trim()} lang="tsx" title={file} />
+
+{/* Disclosures rather than Starlight's <Tabs>: Tabs processes its panels
+    with satteri, a native module the prerender bundle cannot load from
+    where it lands, and a disclosure needs no script either. */}
+<details class="hozo-example-output">
+  <summary>What the Web build writes</summary>
+  <Code code={formatJsx(web.jsx)} lang="tsx" title="Markup" />
+  <Code code={webCss} lang="css" title="CSS" />
+</details>
+<details class="hozo-example-output">
+  <summary>What the React Native build writes</summary>
+  <Code code={nativeCode} lang="tsx" title="Components" />
+  <Code code={native.styles} lang="js" title="StyleSheet" />
+</details>
+
+<style>
+  .hozo-example {
+    margin-block: 1.5rem 1rem;
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  /* A white stage in both themes: the example is written in Tailwind's
+     default palette for a light page, and the preview shows exactly that. */
+  .hozo-example-stage {
+    background: #fff;
+    color: #0a0a0a;
+    font-family: system-ui, sans-serif;
+  }
+  .hozo-example-output summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--sl-color-white);
+  }
+  .hozo-example figcaption {
+    padding: 0.5rem 0.875rem;
+    font-size: var(--sl-text-xs);
+    color: var(--sl-color-gray-3);
+    border-top: 1px solid var(--sl-color-hairline-light);
+  }
+</style>
