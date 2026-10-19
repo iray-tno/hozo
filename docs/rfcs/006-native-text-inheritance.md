@@ -327,6 +327,16 @@ the existing proof, not render-time style heuristics. The story logs actual
 layout callbacks only when run; its preparation and mock-host wiring tests
 do not establish native rendering, performance or RFC acceptance.
 
+The first **production-owned, internal opt-in** slice now lives in engine
+and primitives. It is not the default lowering path. Passive Text/View
+roots use shipped generated-code leaves; the independent private reference
+remains the differential oracle. See the baseline guide's
+[integration scope](../native-text-inheritance-baseline.md#production-owned-internal-opt-in)
+for the assessed domain and remaining gates. This conservative opt-in does
+not yet port private static-erasure proofs, so even a closed static tree
+pays runtime work when explicitly selected. It must not be enabled by
+default on that evidence.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

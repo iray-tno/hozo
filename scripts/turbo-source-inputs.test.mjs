@@ -113,6 +113,17 @@ const reads = {
   ],
   '@hozo/tailwind-conformance#test': [
     'crates/hozo_native/src/text.rs',
+    'packages/engine/src/text-inheritance.ts',
+    'packages/engine/src/generated/text-inheritance-protocol.ts',
+    'packages/engine/src/generated/text-size-context.ts',
+    'packages/engine/src/text-size.ts',
+    'packages/primitives/src/generated/inherited-text.ts',
+    'packages/primitives/src/generated/inherited-view.ts',
+    'packages/primitives/src/inherited-text-scope.tsx',
+    'packages/primitives/src/inherited-text-style.native.ts',
+    'packages/primitives/src/inherited-text.native.tsx',
+    'packages/primitives/src/inherited-view.native.tsx',
+    'packages/metro/src/transform.ts',
     // class-name-parity enumerates *all* component packages. Its domain is
     // intentionally wider than media's three Slider sources.
     'packages/form/src/time-picker.native.tsx',

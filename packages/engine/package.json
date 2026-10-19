@@ -89,6 +89,14 @@
       "types": "./dist/generated/spread-styles.d.ts",
       "default": "./dist/generated/spread-styles.js"
     },
+    "./generated/text-inheritance-protocol": {
+      "types": "./dist/generated/text-inheritance-protocol.d.ts",
+      "default": "./dist/generated/text-inheritance-protocol.js"
+    },
+    "./generated/text-size-context": {
+      "types": "./dist/generated/text-size-context.d.ts",
+      "default": "./dist/generated/text-size-context.js"
+    },
     "./generated/transform-slots": {
       "types": "./dist/generated/transform-slots.d.ts",
       "default": "./dist/generated/transform-slots.js"

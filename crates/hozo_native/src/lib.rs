@@ -202,6 +202,8 @@ pub(crate) struct NativeRenderContext<'a> {
     /// RFC 006 experiment only; normal lowering never enables it. The
     /// resulting owner styles require the private contextual test hosts.
     pub text_reference: bool,
+    /// Internal per-call runtime integration. Never a project/default mode.
+    pub text_inheritance: bool,
 }
 
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
@@ -260,7 +262,7 @@ pub fn lower_forwarded(
     source: &str,
     theme: &Theme,
 ) -> LowerOutput {
-    lower_forwarded_impl(root, forwarded, source, theme, false)
+    lower_forwarded_impl(root, forwarded, source, theme, false, false)
 }
 
 /// RFC 006's opt-in measurement path, not a production fallback. Retain
@@ -273,7 +275,74 @@ pub fn lower_text_reference(
     source: &str,
     theme: &Theme,
 ) -> LowerOutput {
-    lower_forwarded_impl(root, forwarded, source, theme, true)
+    lower_forwarded_impl(root, forwarded, source, theme, true, false)
+}
+
+/// First production-owned ABI slice. Conservative opt-in: no proof-based
+/// elimination or interaction/relative/layout adapter integration yet.
+#[doc(hidden)]
+pub fn lower_text_inheritance(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+) -> LowerOutput {
+    fn passive(node: &Node) -> bool {
+        matches!(node.primitive, Primitive::View | Primitive::Text)
+            && node.class_name_fallback.is_empty()
+            && node.style.iter().all(|style| {
+                style.condition == Condition::Always
+                    && !matches!(
+                        style.property,
+                        StyleProperty::TransitionProperty(..)
+                            | StyleProperty::TransitionDuration(..)
+                            | StyleProperty::TransitionDelay(..)
+                            | StyleProperty::TransitionTimingFunction(..)
+                            | StyleProperty::AnimationName(..)
+                            | StyleProperty::Animation(..)
+                            | StyleProperty::ThemeAnimation(..)
+                            | StyleProperty::FontFamily(..)
+                            | StyleProperty::FontVariant(..)
+                            | StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(..))
+                            | StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(..))
+                            | StyleProperty::FontSize(Length::Unit(_, hozo_ir::LengthUnit::Em))
+                            | StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Unit(
+                                _,
+                                hozo_ir::LengthUnit::Em
+                            )))
+                            | StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(
+                                Length::Unit(_, hozo_ir::LengthUnit::Em)
+                            ))
+                    )
+            })
+            && node.children.iter().all(|child| match child {
+                hozo_ir::Child::Node(node) => passive(node),
+                hozo_ir::Child::Verbatim { nested, .. } => {
+                    nested.iter().all(|nested| passive(&nested.node))
+                }
+                hozo_ir::Child::Text(_) => true,
+            })
+    }
+    if passive(root) {
+        let output = lower_forwarded_impl(root, forwarded, source, theme, true, true);
+        if output
+            .runtime_imports
+            .iter()
+            .all(|name| matches!(*name, "HozoInheritedText" | "HozoInheritedView"))
+        {
+            return output;
+        }
+    }
+    // An explicitly requested internal path must not silently certify a
+    // partially integrated owner. Ordinary output itself is kept intact.
+    let mut output = lower_forwarded(root, forwarded, source, theme);
+    output.diagnostics.push(Diagnostic {
+        code: DiagnosticCode::NotWiredOnNative,
+        severity: Severity::Error,
+        message: "Internal text inheritance currently assesses passive Text/View roots with resolved seven-field typography only, without conditional classes, animation, relative metrics, font families/variants or additional generated adapters. This root retains ordinary lowering; it is not runtime-inheritance evidence.".to_string(),
+        span: root.span,
+    });
+    output
 }
 
 fn lower_forwarded_impl(
@@ -282,6 +351,7 @@ fn lower_forwarded_impl(
     source: &str,
     theme: &Theme,
     text_reference: bool,
+    text_inheritance: bool,
 ) -> LowerOutput {
     let inherited: Vec<StyleDeclaration> = forwarded_text(forwarded).cloned().collect();
     let mut allocator = NameAllocator { next: 0 };
@@ -301,12 +371,13 @@ fn lower_forwarded_impl(
         diagnostics: &mut diagnostics,
         runtime: &mut runtime,
         text_reference,
+        text_inheritance,
     };
     let ancestor = AncestorContext {
         inherited: &inherited,
         parent_font_size: None,
         // A separately compiled root cannot prove its future caller's size.
-        // Only the reference experiment pays this open-boundary cost today.
+        // Only the internal text experiments pay this open-boundary cost today.
         parent_size_opaque: text_reference,
         in_dynamic_ruby: false,
         from_ancestor: FromAncestor::default(),

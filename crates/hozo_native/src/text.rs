@@ -153,6 +153,13 @@ pub(super) fn wrap_in_text(
     interaction_context: bool,
     cx: &mut crate::NativeRenderContext<'_>,
 ) -> String {
+    if cx.text_inheritance {
+        // The generated View publishes its effective frame, including inline
+        // overrides. Copying its static classes onto this synthetic Text
+        // would mask those overrides before the runtime can inherit them.
+        cx.runtime.need_component("HozoInheritedText");
+        return format!("<HozoInheritedText>{content}</HozoInheritedText>");
+    }
     // A `Text` that no `Primitive::Text` asked for: the author wrote a bare
     // string inside a View, and React Native crashes on one. Synthesized
     // here rather than by `native_component`, so it has to say so here too.
@@ -746,6 +753,54 @@ pub(super) fn truncation_only_reason(property: &StyleProperty) -> Option<String>
 mod tests {
     use crate::lower;
     use hozo_ir::{DiagnosticCode, Theme};
+
+    #[test]
+    fn runtime_inheritance_emits_owned_abi_and_retains_normal_output() {
+        for source in [
+            "import {Text} from '@hozo/core'; const el=<Text>Label</Text>",
+            "import {View,Text} from '@hozo/core'; const el=<View className=\"text-red-500 text-[20px]\"><Text>Label</Text><Opaque/></View>",
+            "import {View,Text} from '@hozo/core'; const el=<View style={frame}>{show && <Text style={own}>Label</Text>}</View>",
+            "import {View} from '@hozo/core'; const el=<View className=\"text-red-500\" style={frame}>Raw</View>",
+        ] {
+            let parsed = hozo_parser::parse_tsx(source);
+            let node = &parsed.roots[0].node;
+            let normal = lower(node, source, &Theme::default());
+            let runtime = crate::lower_text_inheritance(node, &[], source, &Theme::default());
+            assert!(runtime.jsx.contains("HozoInheritedText"), "{}", runtime.jsx);
+            assert!(runtime.runtime_imports.contains(&"HozoInheritedText"));
+            assert!(!runtime.native_imports.contains(&"Text"));
+            assert!(!runtime.native_imports.contains(&"View"));
+            let after = lower(node, source, &Theme::default());
+            assert_eq!(after.jsx, normal.jsx);
+            assert_eq!(after.styles, normal.styles);
+            assert_eq!(after.runtime_imports, normal.runtime_imports);
+            assert_eq!(after.diagnostics, normal.diagnostics);
+        }
+    }
+
+    #[test]
+    fn runtime_inheritance_keeps_unassessed_roots_ordinary_and_reports_an_error() {
+        for source in [
+            "import {Button} from '@hozo/core'; const el=<Button>Label</Button>",
+            "import {View,Small} from '@hozo/core'; const el=<View><Small>Label</Small></View>",
+            "import {Text} from '@hozo/core'; const el=<Text className=\"dark:text-red-500\">Label</Text>",
+            "import {View} from '@hozo/core'; const el=<View className=\"transition-colors\"><Opaque/></View>",
+            "import {Text} from '@hozo/core'; const el=<Text className={classes}>Label</Text>",
+            "import {Text} from '@hozo/core'; const el=<Text className=\"text-xl leading-tight\">Label</Text>",
+            "import {Text} from '@hozo/core'; const el=<Text className=\"tracking-wide\">Label</Text>",
+            "import {Text} from '@hozo/core'; const el=<Text className=\"animate-pulse\">Label</Text>",
+            "import {View} from '@hozo/core'; const el=<View className=\"font-sans\"><Opaque/></View>",
+        ] {
+            let parsed = hozo_parser::parse_tsx(source);
+            let node = &parsed.roots[0].node;
+            let normal = lower(node, source, &Theme::default());
+            let runtime = crate::lower_text_inheritance(node, &[], source, &Theme::default());
+            assert_eq!(runtime.jsx, normal.jsx);
+            assert_eq!(runtime.styles, normal.styles);
+            assert_eq!(runtime.runtime_imports, normal.runtime_imports);
+            assert!(runtime.diagnostics.iter().any(|d| d.severity == hozo_ir::Severity::Error && d.message.contains("Internal text inheritance")));
+        }
+    }
 
     #[test]
     fn reference_retains_view_typography_without_changing_normal_lowering() {

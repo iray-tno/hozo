@@ -329,6 +329,7 @@ interface NativeCompiler {
     bindings?: StylexExternalBinding[],
     sourceFile?: string,
     textReference?: boolean,
+    textInheritance?: boolean,
   ): CompiledNativeModule
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
   setStylexModules(modules: StylexModuleSource[]): void
@@ -484,8 +485,11 @@ export interface Compiler {
     source: string,
     bindings?: StylexExternalBinding[],
     sourceFile?: string,
-    /** @internal RFC 006 test wiring only; output requires private contextual hosts. */
-    experiment?: { textReference: boolean },
+    /** @internal Per-call RFC 006 experiments, not project/bundler configuration.
+     * textReference needs private test hosts; textInheritance emits shipped
+     * passive Text/View ABI helpers, conservatively without static erasure.
+     */
+    experiment?: { textReference?: boolean; textInheritance?: boolean },
   ): CompiledNativeModule
   /**
    * A machine-folded module with its primitives written back as JSX,
@@ -570,11 +574,14 @@ export function createCompiler(
         ],
       })),
     compileNativeModule: (source, bindings, sourceFile, experiment) => {
+      if (experiment?.textReference && experiment.textInheritance)
+        throw new Error('Select one internal text experiment per compile call')
       const module = inner.compileNativeModule(
         source,
         bindings,
         sourceFile,
         experiment?.textReference,
+        experiment?.textInheritance,
       )
       return {
         ...module,
