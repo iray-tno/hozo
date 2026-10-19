@@ -8,52 +8,63 @@
 [![Conformance](https://img.shields.io/badge/conformance-matrix-556348)](https://iray-tno.github.io/hozo/conformance/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-9e3d31)](LICENSE)
 
-> A Rust-powered universal UI compiler and accessibility-first layer for React Native.
+> Write React Native. Ship semantic HTML on the Web and native UI on iOS and Android.
 
-**Status: early, `0.x`.** Published to npm and crates.io. The Rust compiler, five
-bundler and framework integrations, both lowering backends, the runtime
-adapters and the conformance suite are implemented and tested. Public APIs
-and package boundaries may still change in any minor release. See
-[docs/proposal.md](docs/proposal.md) for the design document (Japanese).
+Hozo is a compiler written in Rust. You write components with React Native's
+vocabulary (`View`, `Text`, `Pressable`, and semantic primitives such as
+`Heading` and `Section`) and Tailwind classes. The build turns them into
+semantic HTML, CSS and ARIA on the Web, and into React Native components and
+`StyleSheet` values on iOS and Android. What the build can read is compiled;
+only what it cannot read is left to a small runtime.
 
-[Website](https://iray-tno.github.io/hozo/) · [REPL](https://iray-tno.github.io/hozo/repl/) · [Storybook](https://iray-tno.github.io/hozo/storybook/) · [Releases](https://github.com/iray-tno/hozo/releases)
+**[Documentation](https://iray-tno.github.io/hozo/docs/)** · [Website](https://iray-tno.github.io/hozo/) · [REPL](https://iray-tno.github.io/hozo/repl/) · [Storybook](https://iray-tno.github.io/hozo/storybook/) · [Conformance](https://iray-tno.github.io/hozo/conformance/) · [Releases](https://github.com/iray-tno/hozo/releases)
 
-## What is Hozo
+## What it does
 
-Hozo compiles React Native source toward the platform it actually runs on:
+```tsx
+import { Heading, Section, Text } from '@hozo/core'
 
-- **Web** — semantic DOM, CSS and ARIA, with a minimal runtime
-- **Native** — React Native / Fabric, with a minimal runtime
+export function Welcome() {
+  return (
+    <Section accessibilityLabel="Welcome" className="gap-2 p-6">
+      <Heading level={2} className="text-xl font-bold">Hello</Heading>
+      <Text className="text-gray-600">Compiled at build time.</Text>
+    </Section>
+  )
+}
+```
 
-Applications import canonical primitives from `@hozo/core` (or keep
-importing from `react-native`), typography from `@hozo/typography`, and
-semantic landmarks from `@hozo/semantics`. Hozo lowers those primitives to semantic
-HTML5 DOM and CSS on Web, or to React Native components and `StyleSheet` values
-on Native. Foundation primitives are completely zero-runtime and safe for static
-SSR and React Server Components (RSC) without `'use client'`.
+On the Web, the build writes this (compiler output, unedited):
 
-Hozo is a compilation layer rather than a heavyweight component framework. Its Web
-output is designed to keep React Native for Web off compiled paths while
-preserving React Native's component and event contracts where practical.
+```tsx
+<section className="hozo-view hozo-9hei4i-r0-0" aria-label={"Welcome"}><h2 className="hozo-9hei4i-r0-1">Hello</h2><span className="hozo-9hei4i-r0-2">Compiled at build time.</span></section>
+```
 
-Accessibility is a requirement from v1, not an add-on. Every primitive and behavior
-is verified against canonical WAI-ARIA and platform accessibility models.
+```css
+.hozo-9hei4i-r0-0 { gap: 8px; padding-top: 24px; padding-right: 24px; padding-bottom: 24px; padding-left: 24px; }
+.hozo-9hei4i-r0-1 { font-size: 20px; line-height: var(--tw-leading, 28px); font-weight: 700; }
+.hozo-9hei4i-r0-2 { color: oklch(44.6% 0.03 256.802); }
+```
 
-## Getting started
+A `<section>` with a name is a region landmark, the heading is an `<h2>`, and
+the classes are real CSS. No React Native for Web and no style runtime is
+involved. On React Native the same source becomes `View` and `Text` with
+`StyleSheet` values, and the heading a `Text` with the `header` role. The
+[REPL](https://iray-tno.github.io/hozo/repl/) shows both outputs for anything
+you type.
 
-Every integration takes the same options, and the only one most projects
-need is `css` — the path to the Tailwind entry stylesheet that defines the
-project's design tokens. Left out, Hozo looks for the usual filenames and
-falls back to Tailwind's defaults if it finds none. If your tokens live
-somewhere it did not guess, say so: a project compiled against the wrong
-palette gets wrong numbers and unresolved variables, not an error.
+## Try it
 
-### Vite
+| Stack | Install | Guide |
+| --- | --- | --- |
+| Vite 8+ | `@hozo/vite` | [Vite](https://iray-tno.github.io/hozo/docs/getting-started/vite/) |
+| Next.js | `@hozo/next` | [Next.js](https://iray-tno.github.io/hozo/docs/getting-started/next/) |
+| React Native, Expo | `@hozo/metro` | [Metro](https://iray-tno.github.io/hozo/docs/getting-started/metro/) |
+| Astro | `@hozo/vite` | [Astro](https://iray-tno.github.io/hozo/docs/getting-started/astro/) |
+| Storybook | `@hozo/storybook` | [Storybook](https://iray-tno.github.io/hozo/docs/getting-started/storybook/) |
+| TanStack Start | `@hozo/vite` | [TanStack Start](https://iray-tno.github.io/hozo/docs/getting-started/tanstack-start/) |
 
-Requires **Vite 8 or newer**. The plugin calls Vite's own `transformWithOxc`,
-which Vite 6 and 7 do not export -- on those the build fails at config load
-with `does not provide an export named 'transformWithOxc'`, naming neither
-Vite nor its version.
+On Vite, for example:
 
 ```sh
 npm install --save-dev @hozo/vite @hozo/compiler
@@ -61,690 +72,39 @@ npm install @hozo/core
 ```
 
 ```ts
-// vite.config.ts
-import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
-import { hozo } from '@hozo/vite'
-
-export default defineConfig({
-  // `hozo()` before `react()`: it has to see the original JSX, before
-  // the React plugin's transform touches the file.
-  plugins: [hozo({ css: 'src/theme.css' }), react()],
-})
+// vite.config.ts: hozo() before react(), so it sees the JSX as written
+plugins: [hozo({ css: 'src/theme.css' }), react()]
 ```
 
-### Next.js
-
-Works with both bundlers — Turbopack (the default from Next 16) and
-`next build --webpack`.
-
-```sh
-npm install --save-dev @hozo/next @hozo/compiler
-npm install @hozo/core
-```
-
-```ts
-// next.config.ts
-import { withHozo } from '@hozo/next'
-
-export default withHozo({ /* your Next config */ }, { css: 'src/theme.css' })
-```
-
-### Metro (React Native, Expo)
-
-```sh
-npm install --save-dev @hozo/metro @hozo/compiler
-npm install @hozo/core
-```
-
-```js
-// metro.config.js
-const { getDefaultConfig } = require('@react-native/metro-config')
-const { withHozo } = require('@hozo/metro/config')
-
-// Exported as a promise, which Metro awaits: the project-wide candidate
-// module has to be generated before the bundle starts.
-module.exports = withHozo(getDefaultConfig(__dirname), { css: 'src/theme.css' })
-```
-
-**On React Native 0.87, pin androidx.collection on Android.** This is not
-Hozo's bug, but any app on 0.87 can hit it. React Native 0.87 keeps Android's
-view registry in androidx.collection's `MutableIntObjectMap`, and the 1.4.0–1.4.2
-versions it resolves can lose entries after a run of removals. Views that were
-never deleted then stop receiving updates: text stays stale, buttons stop
-responding, and logcat says `Unable to find viewState for tag N`.
-`examples/native-demo` hit this in about half its runs until it pinned the fix:
-
-```groovy
-// android/app/build.gradle
-dependencies {
-    implementation("androidx.collection:collection:1.4.4")
-}
-```
-
-React Native 0.86 uses a different registry by default, and 0.88 ships 1.4.4
-([reactwg/react-native-releases#1426](https://github.com/reactwg/react-native-releases/issues/1426)),
-so the pin is for 0.87 only.
-
-### Storybook
-
-Zero configuration beyond the addon — it wraps `@hozo/vite`. It inherits that
-plugin's floor: **Vite 8 or newer**.
-
-```sh
-npm install --save-dev @hozo/storybook
-```
-
-```ts
-// .storybook/main.ts
-export default {
-  framework: '@storybook/react-vite',
-  stories: ['../src/**/*.stories.tsx'],
-  addons: ['@hozo/storybook'],
-}
-```
-
-### TanStack Start
-
-The Vite plugin, first in the list:
-
-```ts
-export default defineConfig({
-  plugins: [hozo({ css: 'src/theme.css' }), tanstackStart(), viteReact(), nitro()],
-})
-```
-
-### Seeing what the compiler says
-
-Every build prints Hozo's diagnostics: `@hozo/vite` warns per file, and `@hozo/metro` stops on an error. To check a whole project without building it, for an agent's loop or for CI, run the audit:
-
-```sh
-npx @hozo/migration-audit . --format json
-```
-
-Each finding carries its `file`, `location.line` and `location.column`, its `code` and `severity`, and a message that says what to change. For example, a `role="heading"` with no `aria-level` produces `ARIA_INCOMPLETE_PATTERN`.
-
-There is no editor or linter plugin, and none is planned (#263). The diagnostics already reach whoever runs the build, and in an agent-driven loop that is the agent.
-
-## How styles are resolved
-
-Hozo does not treat a dynamic `className` as a single thing to give up on.
-There are three tiers, and only the last one costs anything at runtime.
-
-**Static — compiled away.**
-
-```tsx
-<View className="p-4 bg-blue-500" />
-```
-
-Becomes a scoped class in a real stylesheet. Nothing is left at runtime.
-
-**Structurally dynamic — compiled into a conditional.**
-
-```tsx
-import { cx, View } from '@hozo/core'
-
-<View className={cx('p-4', active && 'bg-blue-500', size === 'lg' && 'text-xl')} />
-```
-
-The compiler does not need to know what `active` is. It keeps the shape of
-the expression and compiles each branch, so all three classes are real CSS
-and the choice between them is a boolean at runtime.
-
-The shapes it reads are a string, `&&`, a ternary, a template literal, and a
-call to `cx` from `@hozo/core`, or to a function imported from `clsx`,
-`classnames` or `tailwind-merge`. Inside them, a part it cannot read, such as
-a caller's `className`, falls back alone and the rest still compiles.
-
-A project's own helper is not one of them, even when it only wraps those
-libraries, as shadcn/ui's `cn` in `@/lib/utils` does. The compiler reads one
-file at a time, so it cannot see what `cn` does, and the whole call takes the
-runtime fallback below. On the Web the classes still apply. On React Native,
-`hover:`, `active:`, `disabled:` and `focus-visible:` cannot be carried by
-the fallback, so the component loses its state styles.
-
-So Hozo follows the import to the helper's file and reads it. A
-function that only hands its arguments to `clsx`, `classnames`,
-`tailwind-merge` or `cx`, as `cn` does, is then read as `clsx` is (#964).
-Anything else can be declared, and a declaration wins over what was found:
-
-```ts
-hozo({ classHelpers: [{ module: '@/lib/utils', name: 'cn' }] })
-```
-
-`module` is the specifier as callers write it, and `recognize: false` undoes
-a function found automatically. The same option works for `withHozo` on
-Metro. Vite resolves the import as the build does and re-reads the helper
-when it changes. Metro reads helpers once when it starts, resolving relative
-imports and tsconfig `paths`, so a helper edited while it runs needs a
-restart, and one behind any other alias needs declaring. Or use `cx` from
-`@hozo/core`, which needs neither.
-
-**Truly dynamic — a runtime fallback.**
-
-```tsx
-<View className={classNameFromProps} />
-```
-
-Here the compiler genuinely cannot tell. Every class *any* source file in
-the project mentions is scanned and emitted into one project-wide
-stylesheet, so whatever the expression produces is already defined. The
-scan is cached and incremental.
-
-The theme behind all of this is read from the project's own Tailwind
-entry stylesheet by running Tailwind's resolver, rather than by parsing a
-config file — the same discipline the conformance suite uses when it asks
-Tailwind for its own class list instead of keeping a copy.
-
-### StyleX frontend
-
-Hozo can also read a static same-file StyleX sheet into the same IR. This
-works alongside Tailwind on one element and lowers through the ordinary Web
-and Native backends:
-
-```tsx
-import * as stylex from '@stylexjs/stylex'
-import { View } from '@hozo/core'
-
-const styles = stylex.create({
-  root: { padding: 16, backgroundColor: '#2563eb' },
-  active: { opacity: 0.7 },
-})
-
-export function Card({ active }: { active: boolean }) {
-  return <View className="rounded-xl" {...stylex.props(styles.root, active && styles.active)} />
-}
-```
-
-The transform order is load-bearing: **Hozo must run before the official
-StyleX transform**. Hozo consumes `stylex.props` from the original TSX; the
-StyleX pass afterward eliminates the now-unused `stylex.create` definition.
-Running StyleX first turns the spread into a second `className`, after which
-JSX last-wins semantics have already lost the information needed to combine
-the two frontends safely. Vite plugin order should therefore put `hozo()`
-before the StyleX plugin; Metro's Hozo wrapper already sends its rewritten
-source to the configured Babel transformer afterward.
-
-The first slice accepts a namespace import, a same-file module-scope static
-`stylex.create`, static string/number values, and
-`stylex.props(styles.base, condition && styles.variant)`. It covers the common
-universal layout, spacing, size, colour, opacity, radius and text properties,
-including border/outline, text-decoration, blend, pointer and sizing keywords.
-Against StyleX 0.19.0's published types that is **505/522 property names
-(96.7%)**, including **134/134 (100%)** when the denominator includes both
-React Native's published keys and exact compile-time Native equivalents, and
-**21/21 (100%)** contextual-runtime names. Web-only lowering is reported
-independently at **349/366 (95.4%)**. The
-reviewed compiler-relevant surface is **504/504 (100%)**. Including optional
-platform adapters it is **505/505 (100%)**: `backdropFilter` uses an opt-in
-Native component adapter. The other 17 published names are not current compiler work: StyleX itself
-deliberately disallows 13 shorthands in its default mode, two are `@font-face` descriptors, and
-two are obsolete or non-standard. These are
-property-name upper bounds: each
-property still accepts only the statically safe value subset the shared IR can
-represent.
-
-The 522-name denominator and every mapped/unmapped claim live in the generated
-`packages/tailwind-conformance/stylex-manifest.json`. Each entry records its
-Universal, Contextual, Adapter, or Web-only lane and the implementation basis
-for counting it. Conformance reports consume that manifest rather than parsing
-Rust source formatting; a drift test regenerates it from pinned StyleX and
-React Native types plus the frontend lowering table. After a deliberate
-frontend or dependency change, refresh it with
-`pnpm --filter @hozo/tailwind-conformance stylex:manifest`.
-
-Property names are no longer the only StyleX score. The executable practical
-corpus currently measures **349/349 (100%)** representative values, **19/19
-(100%)** common authoring constructs, and **271/271 (100%)** declarations after
-weighting the same values across Card, Typography, Input, Scroll, Motion, Grid,
-and Border scenarios. Every representative value runs the Hozo Web and Native
-compilers and counts only when Web agrees with the official StyleX Babel output
-and Native either lowers faithfully or follows the entry's explicit Web-only policy.
-Unsupported cases may remain official residuals, but do not earn coverage.
-The current corpus has zero silent failures.
-
-Generated `content` supports the exact common static subset: `normal`, `none`,
-quoted strings, and quote-control keywords. Function forms such as `attr()` and
-`counter()` remain with the official StyleX compiler until their wider grammar
-and pseudo-element use are represented without accepting arbitrary CSS text.
-The `caret` shorthand expands into independently ranked `caret-color` and
-`caret-shape` slots on Web, so either longhand can override it with StyleX's
-property-specificity ordering. Native refuses the shorthand explicitly because
-React Native cannot preserve its shape component.
-
-Static StyleX `textShadow` values are portable when they are `none` or one
-explicitly coloured layer whose offsets and optional blur use px/zero. Web
-keeps the authored CSS semantics; Native expands the declaration to
-`textShadowColor`, `textShadowOffset`, and `textShadowRadius`. Multi-layer,
-relative-unit, and dynamic values remain with the official StyleX transform.
-Portable `placeContent` similarly expands common flex alignment values into
-independent `alignContent` and `justifyContent` slots on both platforms.
-
-The common single-family `font` shorthand lowers exactly on Web for optional
-normal/italic style and numeric or keyword weight, a static size, optional
-line-height, and one identifier or quoted family. Keeping the shorthand intact
-preserves its full reset behavior. Variant/stretch syntax, family lists, system
-fonts, and dynamic values remain official residuals with explicit Native
-refusal.
-
-StyleX's standalone `translate`, `rotate`, and `scale` properties use typed IR
-instead of becoming Web-only CSS strings. Web preserves their authored
-component count and agrees with the official atomic CSS; Native composes them
-into its transform array in CSS's fixed translate-rotate-scale order. The
-portable subset covers one- or two-axis px/% translation, degree rotation, and
-one- to three-axis numeric/percentage scale. Wider syntax remains residual.
-
-Common animation control longhands are exact Web-only declarations:
-composition, signed delay, direction, fill mode, non-negative iteration count,
-play state, and keyword, `cubic-bezier()`, or `steps()` timing functions. Native
-consumes them with an explicit Web-only diagnostic rather than implying that
-arbitrary CSS keyframes run on React Native. A module-scope static
-`stylex.keyframes` referenced by
-`animationName` is carried in typed IR, content-hashed, hoisted once on Web,
-and follows the same explicit Native refusal policy; exported sheets carry it
-through the project module registry. Static keyframe references also preserve
-the official fallback order in `firstThatWorks(...)` and value arrays. Dynamic
-keyframes, simultaneous animation-name lists, and wider easing syntax remain with the
-official StyleX compiler. Practical single `animationRange`, `scrollTimeline`, and
-`viewTimeline` shorthands expand into independently ranked longhand slots on Web;
-lists and dynamic timeline functions remain residual.
-
-Common Web compositing and 3D controls lower without runtime CSS parsing:
-`clipPath`, `perspective`, `perspectiveOrigin`, `transformBox`,
-`transformStyle`, and `willChange`. Their accepted static grammar is validated
-and Native refusal remains explicit. A single static non-negative
-`backdropFilter: 'blur(Npx)'` on an ordinary View lowers through an opt-in Native
-component adapter; `none` is a no-op. Expo integration is supplied as a factory
-without making `expo-blur` a Hozo dependency. CSS blur radius and Expo intensity
-are different scales, so their mapping is explicitly configurable. Filter chains,
-conditional blur, and incompatible component contexts remain residual or diagnosed.
-
-The common mask longhands are exact Web-only declarations: prefixed and
-standard mask images, mode, repeat, position, size, origin, clip, composite,
-and type. The accepted subset includes ordinary URLs and gradients, layered
-keyword values, and static length/percentage positions and sizes. The practical
-single-layer `mask` shorthand remains a CSS shorthand so its mask-border resets
-are preserved, while its image, position, size, repeat, box, mode, and composite
-components are validated before lowering. The source-first `maskBorder`
-shorthand likewise reuses the validated slice, width, outset, repeat, and mode
-grammar while retaining its CSS resets. Multiple layers, wider image
-functions, variables, and less common component orderings remain with the
-official StyleX compiler instead of being approximated.
-
-Modern anchor placement covers StyleX's published `positionArea` keywords and
-the common static `positionTry`, `positionTryFallbacks`, and legacy
-`positionTryOptions` fallback lists. Named fallbacks and the three flip tactics
-are validated and emitted exactly on Web; variables and wider future grammar
-remain official residuals, with explicit Native refusal.
-
-CSS corner shapes cover the shorthand, four logical corners, and four physical
-corners using StyleX's six published keywords: `round`, `scoop`, `bevel`,
-`notch`, `square`, and `squircle`. Open-ended strings such as future
-`superellipse()` syntax remain official residuals until their grammar is
-stable enough to validate; Native refusal is explicit.
-
-Static motion paths and float shapes cover the common `offsetAnchor`,
-`offsetDistance`, `offsetPath`, `offsetPosition`, and `offsetRotate` longhands,
-plus physical `float`/`clear`, `shapeOutside`, `shapeMargin`, and
-`shapeImageThreshold`. Safe paths, rays, basic shapes, positions, angles, and
-lengths lower exactly on Web. The common single-path `offset` shorthand also
-expands to its five independently ranked longhand slots, including CSS initial
-values. Position/anchor slash forms, direction-relative float values,
-calculations, and newer shape syntax remain official residuals.
-
-Common border-image longhands cover `borderImageSource`, `borderImageSlice`,
-`borderImageWidth`, `borderImageOutset`, and `borderImageRepeat`. Ordinary URLs
-and gradients, `fill`, static number/length/percentage lists, and repeat
-keywords lower exactly on Web. The practical source-first `borderImage`
-shorthand is also validated and kept as a CSS shorthand so its resets remain
-exact. Wider image functions, calculations, variables, and less common
-component orderings remain with the official StyleX compiler; Native refusal
-remains explicit.
-
-Implicit browser Grid now covers `gridAutoColumns`, `gridAutoRows`,
-`gridAutoFlow`, and `gridTemplateAreas`. Static track sizes, dense flow, and
-rectangular named-area templates lower exactly on Web and fail explicitly on
-Native. Calculated or repeated implicit tracks, variables, and non-rectangular
-area definitions remain with the official StyleX compiler.
-The practical track-only `grid: "rows / columns"` shorthand reuses the same
-contextual Native track runtime. On Web it additionally emits the shorthand's
-required initial resets for template areas, implicit tracks, and auto-flow;
-area-bearing and auto-flow forms remain residual.
-
-The static construct slice now flattens recursive `stylex.props` arrays,
-preserves logical and ternary guards, and expands module-local `const` object
-literals used only through object spreads. A mutable, exported, late-declared,
-escaped, or dynamically produced spread stays with the official StyleX pass.
-Static `stylex.firstThatWorks(...)` candidates for one typed property also
-lower without losing the fallback: Web emits the official reverse declaration
-order, while Native selects the first candidate its style model can represent.
-Dynamic, empty, multi-declaration, or mismatched candidates remain residual.
-
-The first explicit Web-only slice covers closed-keyword appearance,
-color-scheme, image-rendering, overflow/overscroll, print-color adjustment,
-resize, scroll snap, scrollbar width/gutter, text rendering, and touch-action
-longhands. Their CSS is differential-tested against the official StyleX
-plugin. Native consumes the StyleX spread but emits
-`WEB_ONLY_PROPERTY_ON_NATIVE` rather than silently dropping the declaration;
-values outside the checked keyword grammar remain with official StyleX.
-The second Web-only slice reuses existing typed IR for integer `order`,
-axis-specific overflow, scroll behavior, physical/logical scroll margin and
-padding longhands, and text indentation. This keeps their established
-Tailwind lowering and Native refusal policy rather than introducing another
-CSS-string path. The common `columns`, `columnRule`, and `listStyle`
-shorthands expand to their final Web-only slots before atomic priority is
-resolved. Physical `scrollMargin` and `scrollPadding` expand their exact
-one-to-four-value box syntax; their `Block` and `Inline` counterparts expand
-one or two values along the logical axis. Ambiguous or wider values remain
-residual.
-
-The layout shorthand slice expands `flexFlow`, `gridGap`, `gridRowGap`, and
-`gridColumnGap` into the same typed properties React Native already carries,
-so the aliases work on both platforms without runtime code. `container`
-expands into the existing contextual name/type IR. Their shorthand/longhand
-priority is resolved per final property slot, including conditional rules.
-
-The border-axis slice covers the width, style, and color longhands that the
-official StyleX compiler actually emits. Logical width and color aliases lower
-to existing Native edge properties. Side-specific styles remain exact on Web
-and fail explicitly on Native, whose single `borderStyle` cannot preserve
-different styles per edge. The compound `border`/`borderTop` family remains
-unmapped because StyleX 0.19 itself rejects those shorthands in its default
-property-specificity mode.
-
-The contextual slice is currently Grid: static `gridTemplateColumns`/
-`gridTemplateRows` tracks made from positive `fr`, non-negative `px`, or
-`minmax(px, fr)` values (plus equal-track `repeat`), and integer line or
-`auto`/equal-span/full-span item placement. A four-line numeric `gridArea`
-shorthand expands to row/column start/end and shares the same Native path. A track-only
-`gridTemplate` similarly splits rows from columns. On Native these reuse `HozoGrid`
-and `HozoGridItem`; unsupported CSS Grid values remain with StyleX and produce
-`STYLEX_NOT_LOWERED` instead of being approximated.
-Static transition property, duration, delay, and timing configuration also reaches
-the existing Native interaction/ambient transition runtime. The accepted
-subset is deliberately limited to properties and easing curves that runtime
-can interpolate faithfully. The practical single-transition shorthand expands
-to all four reset slots on both platforms, and Native passes its delay through
-to `Animated.timing`; lists, negative delays, and wider easing syntax remain
-with official StyleX.
-Static `container`, `containerName`, and `containerType` also reuse `HozoContainer` on
-Native. The supported type subset is `normal`, `size`, and `inline-size`, and
-the runtime currently accepts one conservative CSS identifier as its lookup
-name. Multiple names and wider CSS syntax remain with official StyleX.
-StyleX 0.19's default property-specificity mode is preserved for the supported
-static slice. Hozo resolves the same four atomic priority tiers before entering
-the shared IR, so physical longhands still beat later shorthands on both Web
-and Native; conditional arguments retain their fallback and override behavior.
-This is frontend-only work and adds no runtime priority machinery.
-
-A mixed rule no longer makes its supported declarations all-or-nothing.
-Hozo lowers the supported static properties and rebuilds the unsupported
-properties as a residual inline `stylex.create`; the official transform
-continues to own that residual, while its generated `className` is combined
-with Hozo's class instead of replacing it. Conditional `props()` arguments
-keep the same guards. If the residual overlaps a lowered property family, or
-the rule contains an opaque object spread/computed key, Hozo keeps the original
-call intact rather than approximating the cascade.
-
-Static sheets may live in another file and pass through named, star, or
-namespace re-export chains. Vite, Next, and Metro feed their authoritative
-alias resolution into the shared module registry; Metro keeps those answers
-separate per platform. Unsupported members remain with official StyleX.
-
-`createTheme`, keyframes, unsupported nested selectors/at-rules, and `sx`
-remain with StyleX. Direction-dependent logical/physical edge conflicts and
-Grid shorthand/line conflicts also remain explicit `STYLEX_NOT_LOWERED` gaps:
-their Native result needs runtime context or a more expressive Grid IR, so Hozo
-does not approximate them.
-
-### Every primitive, and what it becomes
-
-[`docs/primitives.md`](docs/primitives.md) lists all 54, with what each one compiles to on the Web and on React Native and which conformance case pins it. It is **generated** — `pnpm docs:primitives` — by compiling one snippet per primitive through both backends, so it cannot describe a lowering the compiler does not do. Adding a primitive without a snippet or a doc comment fails rather than leaving a hole, and CI checks the page is current.
-
-The half worth reading is where a role has to be written on one side and not the other: 17 of the 54. A `<nav>` is a navigation landmark because it is a `<nav>`; React Native has no elements, so every role it keeps is one the compiler put there — and the ones it has no word for are the ones genuinely lost.
-
-### A box is a column, and `flex` does not change that
-
-The one thing a Web developer trips over. In a browser, `display: flex` on a `<div>` lays its children out in a **row**, because that is CSS's initial value. Hozo's boxes are not `<div>`s — they lower to a React Native `View`, whose direction is **column**, and the Web base follows React Native rather than the other way round. `react-native-web` makes the same choice, and applies it to `<nav>` and `<section>` as well as to `<div>`.
-
-```tsx
-<View className="flex items-center justify-between">   // a column, on both platforms
-<View className="flex-row items-center justify-between">  // a row
-```
-
-So `className="flex"` on a box is two things at once: redundant, because the box is already a flex container, and usually a defect, because the person who typed it was picturing a row. The compiler says so — `FLEX_DIRECTION_UNSAID` — and the fix is one word: `flex-row` for a horizontal layout, `flex-col` to record that the column was meant, or drop `flex` entirely.
-
-A direction written under any variant counts as having said so, so `flex md:flex-row` is quiet.
-
-This applies to every primitive that becomes a React Native `View` — `View`, `Section`, `Article`, `Nav`, `Main`, `Header`, `Footer`, `Aside`, `Search`, `Figure`, `Address`, `Fieldset`, `List`, `ListItem` and the description-list pair. `Text` is a React Native `Text` and keeps CSS's own default, so nothing is said about it.
-
-## Accessibility
-
-ARIA is the vocabulary. React Native has supported the `role` prop since
-0.71, so a single `role="switch"` means the same thing to both backends;
-`accessibilityRole` is still accepted and mapped where the two differ
-(`header` → `heading`, `search` → `searchbox`, `image` → `img`,
-`adjustable` → `slider`).
-
-The role table is generated from
-[`aria-query`](https://www.npmjs.com/package/aria-query) — the machine-readable
-ARIA specification that `eslint-plugin-jsx-a11y` and Testing Library read —
-rather than hand-kept, so it cannot quietly drift. With it the compiler can
-say more than "that is not a role":
-
-- an abstract role (`role="widget"`) is named as one, not rejected as unknown
-- a role used without the states or properties it is meaningless without is
-  reported as an incomplete pattern
-- a role with no Web equivalent is reported rather than silently dropped
-
-`@hozo/behaviors` carries the headless primitives that need real runtime behaviour — focus
-management, keyboard handling, floating positioning, and hover delay groups.
-
-Every Storybook story is continuously checked against `axe-core` in CI,
-catching automated regressions in contrast, structural ARIA syntax, and roles
-with zero violations. Real screen readers read part of it weekly: NVDA and
-VoiceOver over the Storybook patterns, and TalkBack over the Native demo app's
-controls. iOS VoiceOver is not automated. Full conformance still requires
-manual screen reader testing.
-
-## How the packages stack
-
-Hozo's packages divide by *who runs them*: the compiler, or your app at
-runtime. The dependency arrows point down, and the bottom depends on nothing:
-
-```
-┌───────────────────────────────────────────────────────────────┐
-│ @hozo/ui        Looks: classes over the layers below.         │
-│                 Shipped as source, compiled by your build.    │
-└───────────────────────────────────────────────────────────────┘
-                               │
-┌───────────────────────────────────────────────────────────────┐
-│ @hozo/core      Re-exports, for zero-setup authoring.         │
-│                 Owns no implementation.                       │
-└───────────────────────────────────────────────────────────────┘
-               │                                 │
-┌──────────────────────────────┐ ┌──────────────────────────────┐
-│ Primitives (compiled)        │ │ Patterns (runtime)           │
-│ @hozo/primitives             │ │ @hozo/patterns · @hozo/form  │
-│ @hozo/semantics              │ │ Dialog · Tabs · Menu ·       │
-│ @hozo/typography             │ │ Combobox · Popover · Chip ·  │
-│ Lowered by the compiler;     │ │ DatePicker · TextArea …      │
-│ listed in docs/primitives.md │ │ Write host elements directly │
-└──────────────────────────────┘ └──────────────────────────────┘
-               │                                 │
-┌──────────────────────────────┐                 │
-│ @hozo/engine                 │                 │
-│ What compiled output calls   │                 │
-│ at runtime: environment,     │                 │
-│ animation and class hooks    │                 │
-└──────────────────────────────┘                 │
-               │                                 │
-┌───────────────────────────────────────────────────────────────┐
-│ @hozo/behaviors  Accessibility and internationalisation as    │
-│                  first-class behaviours: FocusScope ·         │
-│                  RovingFocus · LiveRegion · Portal ·          │
-│                  FloatingPositioner · usePresence ·           │
-│                  HozoI18nProvider. Depends on nothing.        │
-└───────────────────────────────────────────────────────────────┘
-```
-
-- **Primitives** are what you write: `View`, `Text`, `Heading`, `Meter`, and the rest. The compiler lowers each one to a host element (`<div>`, React Native's `View`) with its classes compiled. A few lower to a small runtime component instead, such as `HozoBadge` or `HozoDialog`, when the element needs structure a single tag cannot carry. Static output is safe for server rendering without `'use client'`.
-- **`@hozo/engine`** is the runtime the compiled output calls: environment hooks (`dark:`, `md:`, `motion-safe:`), the animation and keyframe hooks, and the class resolver for classes only known at runtime.
-- **Patterns** are stateful widgets that ship as ordinary runtime code. They compose **behaviors over host elements**: `<button>` and `<div>` on the Web, `Pressable` and `View` on React Native. They do not use primitives. Published packages are not run through your compiler, so writing the host elements directly is what keeps their markup and ARIA exactly as designed. The same reason is why their class slots are resolved on the Web and carried on Native, where a pattern takes `style` props for its look.
-- **`@hozo/behaviors`** is the base every string-showing and focus-handling package builds on, so accessibility and internationalisation are designed in from the start rather than added at the end ([decision 008](docs/decisions/008-i18n-is-a-connection.md)). The compiler statically removes what is knowable at build time (static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
-- **`@hozo/ui`** is a look. Its components are classes over the packages above, shipped as source so your build compiles them with your theme.
-- The RFCs and older comments call these Layer 1 (primitives), Layer 2 (behaviors) and Layer 3 (patterns). The numbering reads as if each layer were built from the one below it. Patterns are built on behaviors, not on primitives, which is what this section used to get wrong (#764).
-- Domain packages (`@hozo/three`, `@hozo/canvas`, `@hozo/svg`, `@hozo/native`) and the migration package (`@hozo/rn-compat`) sit beside this stack as opt-in packages.
-
-## Architecture
-
-```
-                       Application
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-        @hozo/core                Existing RN code
-             │                           │
-             └─────────────┬─────────────┘
-                           │
-                           ▼
-                    Hozo Compiler
-                      (Rust core)
-                           │
-             ┌─────────────┼─────────────┐
-             │             │             │
-          Style IR    Semantic IR    Diagnostics
-             │             │             │
-             └─────────────┼─────────────┘
-                           │
-                       Hozo IR
-                           │
-             ┌─────────────┴─────────────┐
-             │                           │
-         Web backend                Native backend
-             │                           │
-        DOM + CSS + ARIA           React Native
-        semantic HTML              View / Text
-                                     StyleSheet
-```
-
-## Repository layout
-
-<!-- generated: repository-layout -->
-
-```
-packages/
-  behaviors/               Hozo's accessibility and internationalisation behaviours (FocusScope, RovingFocus, LiveRegion, Portal, DismissableLayer, FloatingPositioner), shared by Web and React Native.
-  canvas/                  A declarative Canvas scene for Hozo, rendered by Canvas 2D on Web and Skia on React Native.
-  compiler/                JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).
-  core/                    Zero-setup facade over Hozo's canonical authoring packages.
-  engine/                  Runtime fallback for genuinely dynamic styles, interactive behavior, and accessibility behavior.
-  form/                    Accessible universal form and date-selection components for Hozo applications.
-  media/                   Universal video and audio playback with shared controls and platform-owned engines.
-  metro/                   Metro integration for the Hozo compiler (Native lowering backend).
-  migration-audit/         Measure how safely Hozo can lower a real React Native application.
-  native/                  Hozo's optional native module: the accessibility capabilities React Native does not expose to JavaScript.
-  navigation/              Router-agnostic universal navigation for Hozo links and destination-bearing controls.
-  next/                    Next.js integration for the Hozo compiler (Web lowering backend).
-  patterns/                Accessible composite UI patterns for Hozo applications.
-  primitives/              Canonical universal UI primitives for Hozo applications.
-  rn-compat/               Optional React Native compatibility APIs for incrementally migrating applications to Hozo.
-  semantics/               Universal landmarks, document sectioning, and semantic page structure primitives for Hozo.
-  storybook/               Zero-config Storybook Vite preset for Hozo.
-  svg/                     Universal SVG primitives for Hozo, backed by browser SVG and react-native-svg.
-  tailwind/                Tailwind integration for Hozo's Style IR.
-  tailwind-conformance/    Differential test: compares Hozo's compiled CSS against the real Tailwind engine's output, per utility.
-  test-reporter/           JUnit normalization and Allure 3 test report generator for Hozo
-  three/                   Projects Three.js scenes into portable Hozo Canvas scenes.
-  typography/              Universal typography, semantic text formatting, and accessible CJK ruby primitives for Hozo.
-  ui/                      A styled component library for Hozo, shipped as source and compiled by your own build.
-  vite/                    Vite integration for the Hozo compiler (Web lowering backend).
-  webview/                 Universal embedded web content for Hozo: an iframe on the Web and react-native-webview on Native.
-
-crates/
-  hozo_cache/     Build cache for Hozo's candidate-class scan, with a swappable backing store.
-  hozo_ir/        Platform-independent intermediate representation shared across the Hozo compiler pipeline.
-  hozo_napi/      Node native binding exposing the Hozo compiler to JS build tooling.
-  hozo_native/    Hozo IR to React Native primitive/StyleSheet lowering (Native backend).
-  hozo_parser/    TSX analysis and Style IR construction.
-  hozo_wasm/      WebAssembly binding exposing the Hozo compiler to a browser.
-  hozo_web/       Hozo IR to DOM/CSS/ARIA lowering (Web backend).
-
-apps/
-  landing/    Landing site, interactive REPL playground, and the live conformance matrix.
-
-examples/
-  expo-router-demo/     @hozo/example-expo-router-demo    — Real Expo Router type and production-export fixture for @hozo/navigation.
-  login-demo/           login-demo                        — Phase 0 benchmark app -- exercises @hozo/core through @hozo/vite end to end.
-  native-demo/          @hozo/example-native-demo         — React Native example, and the end-to-end check that a Hozo source survives a real Metro bundle.
-  native-showcase/      @hozo/example-native-showcase     — Expo development app with on-device React Native Storybook and shared Hozo demos.
-  next-demo/            @hozo/example-next                — Next.js, on both bundlers.
-  screen-readers/       @hozo/example-screen-readers      — Real screen readers, NVDA and VoiceOver, reading the Storybook catalogue through Guidepup.
-  showcase/             @hozo/example-showcase            — Platform-neutral demo bodies shared by Web and Native Storybook hosts.
-  storybook-demo/       @hozo/example-storybook           — Storybook, audited against axe-core in CI.
-  tanstack-start-demo/  @hozo/example-tanstack-start      — TanStack Start.
-  three-kumimono/       @hozo/example-three-kumimono      — Shared DOM-free Kumimono Three.js scene for the landing page and Native GPU probe.
-  three-native-probe/   @hozo/example-three-native-probe  — Device probe for candidate Native GPU hosts used by @hozo/three.
-
-docs/
-  proposal.md      the full design document
-  primitives.md    every primitive and what it lowers to, generated
-  decisions/       settled questions, with the evidence behind them
-  measurements/    what was measured, and against what
-  rfcs/            technical specifications and AT verification matrices
-```
-
-<!-- /generated: repository-layout -->
-
-## Development
-
-Requires Node 22+, pnpm 11 and a Rust toolchain.
-
-```sh
-pnpm install
-pnpm --filter @hozo/compiler build:native   # the Rust addon, once
-pnpm build
-pnpm test                                   # JS suites + package packing
-cargo test --workspace                      # Rust suites
-pnpm typecheck
-```
-
-The pinned Bluesky corpus is also reproducible from a fresh checkout. The command acquires the
-corpus at the exact commit recorded in the measurement, refuses an existing checkout at a
-different commit, builds the compiler, writes an audit under `artifacts/measurements`, and compares
-it with the committed baseline. It does not install the corpus dependencies:
-
-```sh
-pnpm measure:bluesky
-```
-
-The publishing metadata for every package is generated by
-`scripts/package-metadata.mjs`; `scripts/check-packages.mjs` re-derives it,
-fails on drift, and then looks inside the tarballs `npm pack` would produce
-to check every entry point is actually in them.
-
-## What Hozo does not do yet
-
-- **Migration is mostly manual.** `npx @hozo/migration-audit . --fix`
-  moves the React Native APIs Hozo owns (`Platform`, `Keyboard`, …) to
-  `@hozo/rn-compat` in source; components and everything else are still
-  changed by hand.
-- **No physical-device validation.** The Native backend does run on an
-  Android emulator and an iOS simulator — `.github/workflows/native.yml`
-  boots both, drives the demo app, and compares the accessibility tree
-  each platform actually produces against what the compiler said it
-  would. What is untested is real hardware. Screen readers are partly
-  automated: NVDA and VoiceOver on the Web patterns and TalkBack on the
-  demo app's controls, weekly. iOS VoiceOver, and anything those runs do
-  not reach, is still read by hand.
-- **The Grid subset is partial**, and the Tailwind surface is wide but not
-  complete — `@hozo/tailwind-conformance` reports exactly which utilities
-  match the real engine. Its current numbers are committed at
-  [packages/tailwind-conformance/snapshot.json](packages/tailwind-conformance/snapshot.json),
-  published live at the [Conformance Matrix](https://iray-tno.github.io/hozo/conformance/),
-  and CI fails if a change moves any of them without moving that file too.
-  They are not repeated here: a number copied into prose is a number that
-  can drift from the thing it describes.
+If something stops you, [Troubleshooting](https://iray-tno.github.io/hozo/docs/troubleshooting/)
+lists what others hit first. For an existing React Native app,
+`npx @hozo/migration-audit .` reports what Hozo would change before you
+change anything.
+
+## Status
+
+**Early, `0.x`.** Published to npm and crates.io, and tested in CI on every
+change; the Native backend also runs weekly on an Android emulator and an iOS
+simulator. Public APIs and package boundaries may still change in any minor
+release.
+
+What is partial, manual or not yet tested is listed in
+[What Hozo does not do yet](https://iray-tno.github.io/hozo/docs/status/).
+How far the output matches Tailwind, React Native and WAI-ARIA is measured, not
+claimed: see the [Conformance Matrix](https://iray-tno.github.io/hozo/conformance/).
+
+## Learn more
+
+- [How styles are resolved](https://iray-tno.github.io/hozo/docs/guides/styles/): what compiles, and what is left to the runtime
+- [Accessibility](https://iray-tno.github.io/hozo/docs/guides/accessibility/): ARIA as the vocabulary, checked on every build
+- [How the packages stack](https://iray-tno.github.io/hozo/docs/concepts/packages/): which packages the compiler runs and which your app runs
+- [Design decisions](docs/decisions/): settled questions, with the evidence
+- [docs/proposal.md](docs/proposal.md): the design document (Japanese)
+
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the repository layout, setup, and the
+checks a pull request runs. Agents also read [AGENTS.md](AGENTS.md).
 
 ## License
 
