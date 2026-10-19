@@ -140,7 +140,8 @@ export function guideOutputProblems(files) {
   const text = files.map(({ content }) => content).join('\n')
   const problems = []
   // Static HTML from Astro; `jsx(`h1`, ...)` from Vite, which quotes with backticks.
-  if (!/<h1 class="hozo-|["'`]h1["'`]/.test(text)) problems.push('the Heading did not lower to an <h1>')
+  if (!/<h1 class="hozo-|["'`]h1["'`]/.test(text))
+    problems.push('the Heading did not lower to an <h1>')
   if (!text.includes('oklch(62% .19 258)'))
     problems.push("the theme's --color-brand never reached the CSS: `css` was not read")
   if (
