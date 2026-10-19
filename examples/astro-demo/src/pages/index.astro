@@ -1,0 +1,21 @@
+---
+import { Counter } from '../components/Counter'
+import { Welcome } from '../components/Welcome'
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hozo + Astro</title>
+  </head>
+  <body style="margin: 0; background: #0f172a; padding: 2rem">
+    <main style="max-width: 36rem; margin: 0 auto">
+      <Welcome />
+      <Counter client:load />
+      <p style="margin-top: 1.5rem; color: #cbd5e1">
+        <a href="notes/" style="color: inherit">Primitives in MDX</a>
+      </p>
+    </main>
+  </body>
+</html>
