@@ -590,12 +590,15 @@ impl Compiler {
     /// Native output plus module metadata collected by the same source parse.
     /// Metro needs both to rewrite imports without reparsing the file. Optional
     /// source_file selects grammar; omitted retains the historical TSX API.
+    /// text_reference is internal RFC 006 test wiring, never a project option;
+    /// its output requires private contextual hosts and is not a shipped ABI.
     #[napi]
     pub fn compile_native_module(
         &self,
         source: String,
         bindings: Option<Vec<StylexExternalBinding>>,
         source_file: Option<String>,
+        text_reference: Option<bool>,
     ) -> CompiledNativeModule {
         let bindings = external_bindings(bindings);
         lower_native_module(
@@ -603,7 +606,10 @@ impl Compiler {
             &self.theme,
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
-            source_file.as_deref(),
+            NativeModuleOptions {
+                source_file: source_file.as_deref(),
+                text_reference: text_reference.unwrap_or(false),
+            },
             &self.text_forwarding,
             &self.class_helpers,
         )
@@ -1078,7 +1084,15 @@ fn lower_native(
         class_helpers,
     );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
-    lower_native_components(source, theme, &parsed)
+    lower_native_components(source, theme, &parsed, false)
+}
+
+/// Module-only choices stay together; the reference experiment must not
+/// become mutable Compiler state or change later ordinary compilations.
+#[derive(Default)]
+struct NativeModuleOptions<'a> {
+    source_file: Option<&'a str>,
+    text_reference: bool,
 }
 
 fn lower_native_module(
@@ -1089,7 +1103,7 @@ fn lower_native_module(
         &hozo_parser::StylexModuleRegistry,
         &[hozo_parser::StylexExternalBinding],
     )>,
-    source_file: Option<&str>,
+    options: NativeModuleOptions<'_>,
     text_forwarding: &hozo_parser::ForwardingTable,
     class_helpers: &[hozo_parser::ClassHelper],
 ) -> CompiledNativeModule {
@@ -1102,11 +1116,11 @@ fn lower_native_module(
         sources,
         registry,
         bindings,
-        source_file,
+        options.source_file,
         class_helpers,
     );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
-    let components = lower_native_components(source, theme, &parsed);
+    let components = lower_native_components(source, theme, &parsed, options.text_reference);
     let imports = parsed
         .imports
         .iter()
@@ -1152,13 +1166,18 @@ fn lower_native_components(
     source: &str,
     theme: &hozo_ir::Theme,
     parsed: &hozo_parser::ParseOutput,
+    text_reference: bool,
 ) -> Vec<CompiledNativeComponent> {
     let offsets = Utf16Offsets::new(source);
     parsed
         .roots
         .iter()
         .map(|root| {
-            let output = hozo_native::lower_forwarded(&root.node, &root.forwarded, source, theme);
+            let output = if text_reference {
+                hozo_native::lower_text_reference(&root.node, &root.forwarded, source, theme)
+            } else {
+                hozo_native::lower_forwarded(&root.node, &root.forwarded, source, theme)
+            };
             let mut diagnostics = parser_diagnostics_for(parsed, &root.node, &offsets);
             diagnostics.extend(
                 output
@@ -1482,7 +1501,7 @@ mod utf16_tests {
             &hozo_ir::Theme::default(),
             None,
             None,
-            None,
+            NativeModuleOptions::default(),
             &Default::default(),
             &[],
         );

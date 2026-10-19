@@ -747,6 +747,41 @@ mod tests {
     use crate::lower;
     use hozo_ir::{DiagnosticCode, Theme};
 
+    #[test]
+    fn reference_retains_view_typography_without_changing_normal_lowering() {
+        let source = "import {View} from '@hozo/core'; const el=<View className=\"text-red-500 text-[20px]\"><Label/></View>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let node = &parsed.roots[0].node;
+        let normal = lower(node, source, &Theme::default());
+        let reference = crate::lower_text_reference(node, &[], source, &Theme::default());
+        assert!(!normal.jsx.contains("style="), "{}", normal.jsx);
+        assert!(reference.jsx.contains("style="), "{}", reference.jsx);
+        assert!(reference.styles.contains("fontSize: 20"));
+        assert!(reference.styles.contains("color:"));
+        let after = lower(node, source, &Theme::default());
+        assert_eq!(normal.jsx, after.jsx);
+        assert_eq!(normal.styles, after.styles);
+        assert_eq!(normal.runtime_imports, after.runtime_imports);
+        assert_eq!(normal.diagnostics, after.diagnostics);
+    }
+
+    #[test]
+    fn reference_keeps_open_root_ratio_and_does_not_copy_an_inherited_size_over_it() {
+        for source in [
+            "import {Small} from '@hozo/core'; const el=<Small>x</Small>",
+            "import {View,Small} from '@hozo/core'; const el=<View className=\"text-[20px]\"><Small>x</Small></View>",
+        ] {
+            let parsed = hozo_parser::parse_tsx(source);
+            let node = &parsed.roots[0].node;
+            let normal = lower(node, source, &Theme::default());
+            let reference = crate::lower_text_reference(node, &[], source, &Theme::default());
+            assert!(!normal.jsx.contains("HozoRelativeText"), "{}", normal.jsx);
+            assert!(reference.jsx.contains("HozoRelativeText"), "{}", reference.jsx);
+            assert!(reference.jsx.contains("hozoRelative="), "{}", reference.jsx);
+            assert!(reference.runtime_imports.contains(&"HozoRelativeText"));
+        }
+    }
+
     /// A project that ships a CSS reset, which is what `preflight: 'auto'`
     /// resolves to for anything using Tailwind -- so it is the theme most
     /// of these cases are about. Under it `small` is 80% and `sub`/`sup`

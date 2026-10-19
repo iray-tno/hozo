@@ -8,10 +8,26 @@ type Report = ReturnType<typeof captureTextBaseline>
 function validate(report: Report) {
   assert.equal(
     report.schemaVersion,
-    2,
-    'comparison requires schema 2; re-capture the control with this driver',
+    3,
+    'comparison requires schema 3; re-capture the control with this driver',
   )
-  assert.ok(['baseline', 'reference'].includes(report.experiment.mode))
+  assert.ok(['baseline', 'reference', 'reference-intent'].includes(report.experiment.mode))
+  const intent = report.experiment.mode === 'reference-intent'
+  assert.equal(report.experiment.compilerTextReference, intent)
+  assert.deepEqual(
+    report.experiment.intentModules.map((entry) => entry.name),
+    intent
+      ? [
+          './text-inheritance-relative-reference.ts',
+          '../../primitives/src/runtime-text-size.native.tsx',
+        ]
+      : ['../../primitives/src/runtime-text-size.native.tsx'],
+  )
+  for (const module of report.experiment.intentModules) {
+    assert.equal(module.sourceBytes, Buffer.byteLength(module.source))
+    assert.equal(module.sha256, createHash('sha256').update(module.source).digest('hex'))
+    assert.ok(Number.isInteger(module.minifiedModuleBytes) && module.minifiedModuleBytes > 0)
+  }
   if (report.experiment.mode === 'baseline') assert.equal(report.experiment.referenceModule, null)
   else {
     assert.ok(report.experiment.referenceModule)
@@ -233,6 +249,15 @@ export function compareTextBaselines(before: Report, after: Report) {
     referenceModuleBytesDelta:
       (after.experiment.referenceModule?.minifiedModuleBytes ?? 0) -
       (before.experiment.referenceModule?.minifiedModuleBytes ?? 0),
+    intentModuleBytesDelta:
+      after.experiment.intentModules.reduce(
+        (bytes, entry) => bytes + entry.minifiedModuleBytes,
+        0,
+      ) -
+      before.experiment.intentModules.reduce(
+        (bytes, entry) => bytes + entry.minifiedModuleBytes,
+        0,
+      ),
     modes: { before: before.experiment.mode, after: after.experiment.mode },
     workloadSupport: after.workloads.map((workload, index) => ({
       shape: workload.shape,

@@ -37,12 +37,12 @@ const renderer = require('react-test-renderer')
 const stub = require('./react-native-stub.js')
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const hash = (value: string | Buffer) => createHash('sha256').update(value).digest('hex')
-export type TextInheritanceMode = 'baseline' | 'reference'
+export type TextInheritanceMode = 'baseline' | 'reference' | 'reference-intent'
 type Experiment = (code: string) => { code: string; decisions: unknown[] }
 const reference = () =>
   require('./text-inheritance-reference.ts') as typeof import('./text-inheritance-reference.ts')
 const referenceCounts = (mode: TextInheritanceMode) =>
-  mode === 'reference' ? reference().referenceExecutions() : {}
+  mode !== 'baseline' ? reference().referenceExecutions() : {}
 const executionDelta = (before: Record<string, number>, after: Record<string, number>) =>
   Object.fromEntries(
     Object.entries(after).map(([name, value]) => [name, value - (before[name] ?? 0)]),
@@ -86,7 +86,12 @@ export function compileTextGraph(
     const transformed = transformHozoSource(modules[name], `${name}.tsx`, undefined, {
       ...compiler,
       compileNativeModule(...args) {
-        const result = compiler.compileNativeModule(...args)
+        const result = compiler.compileNativeModule(
+          args[0],
+          args[1],
+          args[2],
+          mode === 'reference-intent' ? { textReference: true } : args[3],
+        )
         for (const component of result.components) {
           diagnostics.push(...component.diagnostics)
           for (const entry of component.runtimeImports) imports.add(entry)
@@ -116,14 +121,19 @@ export function compileTextGraph(
           return { PaintMaskedText: reference().PaintMaskedText }
         if (specifier.startsWith('fixture:')) return load(specifier.slice('fixture:'.length))
         const imported = require(specifier)
-        if (mode === 'reference' && specifier === 'react-native')
+        if (mode !== 'baseline' && specifier === 'react-native')
           return reference().referenceNativeImports(imported)
         if (
-          mode === 'reference' &&
+          mode !== 'baseline' &&
           /^@hozo\/(core|primitives)\/generated\/pressable$/.test(specifier)
         ) {
           return { ...imported, HozoPressable: reference().ReferencePressable }
         }
+        if (
+          mode === 'reference-intent' &&
+          /^@hozo\/(core|primitives)\/generated\/text-size$/.test(specifier)
+        )
+          return require('./text-inheritance-relative-reference.ts').relativeReferenceImports
         return imported
       },
       module,
@@ -171,7 +181,7 @@ export function measureTextFixtures(
       experiment,
     )
     resetTextCounts()
-    if (mode === 'reference') reference().resetReferenceExecutions()
+    if (mode !== 'baseline') reference().resetReferenceExecutions()
     let tree: ReturnType<typeof renderer.create>
     let commits = 0
     const scene = (props: object) =>
@@ -235,7 +245,7 @@ export function measureTextWorkload(
     experiment,
   )
   resetTextCounts()
-  if (mode === 'reference') reference().resetReferenceExecutions()
+  if (mode !== 'baseline') reference().resetReferenceExecutions()
   const commits: Record<string, number> = {}
   const cells = () =>
     Array.from({ length: rows }, (_, index) =>
@@ -323,7 +333,10 @@ export function measureTextWorkload(
 }
 
 export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'baseline') {
-  assert.ok(mode === 'baseline' || mode === 'reference', 'unknown text inheritance mode')
+  assert.ok(
+    ['baseline', 'reference', 'reference-intent'].includes(mode),
+    'unknown text inheritance mode',
+  )
   const warnings: string[] = []
   const previousWarn = console.warn
   const previousError = console.error
@@ -344,12 +357,33 @@ export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'basel
       .map((entry) => entry.id)
     const binary = path.join(root, 'packages/compiler/hozo_napi.node')
     return {
-      schemaVersion: 2,
+      schemaVersion: 3,
       experiment: {
         mode,
-        wiring: 'test-only import substitution; generated compiler output is unchanged',
+        wiring:
+          mode === 'reference-intent'
+            ? 'internal compiler text-reference experiment plus test-only import substitution'
+            : 'test-only import substitution; generated compiler output is unchanged',
+        compilerTextReference: mode === 'reference-intent',
+        intentModules: [
+          ...(mode === 'reference-intent' ? ['./text-inheritance-relative-reference.ts'] : []),
+          // The ordinary relative fixture already uses this implementation.
+          // Count it in every mode, not as an imaginary new cost only in C.
+          '../../primitives/src/runtime-text-size.native.tsx',
+        ].map((name) => {
+          const source = readFileSync(new URL(name, import.meta.url), 'utf8')
+          return {
+            name,
+            source,
+            sha256: hash(source),
+            sourceBytes: Buffer.byteLength(source),
+            minifiedModuleBytes: Buffer.byteLength(
+              transformSync(source, { loader: 'tsx', format: 'esm', minify: true }).code,
+            ),
+          }
+        }),
         referenceModule:
-          mode === 'reference'
+          mode !== 'baseline'
             ? (() => {
                 const source = readFileSync(
                   new URL('./text-inheritance-reference.ts', import.meta.url),
@@ -394,6 +428,8 @@ export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'basel
             'text-inheritance-baseline.ts',
             'text-inheritance-host.ts',
             'text-inheritance-reference.ts',
+            'text-inheritance-relative-reference.ts',
+            '../../primitives/src/runtime-text-size.native.tsx',
             'native-render.ts',
             'react-native-stub.js',
           ]
@@ -410,6 +446,7 @@ export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'basel
       },
       methodology: {
         mode: 'instrumented-development-react',
+        compatibilityScope: 'selected regression corpus only; not general compatibility',
         scope:
           'Text wrapper executions/effect mounts, Profiler subtree commits, and applied style props on simulated RN hosts',
         excluded: [

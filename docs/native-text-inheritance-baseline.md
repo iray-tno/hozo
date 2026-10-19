@@ -136,8 +136,8 @@ node scripts/text-inheritance-baseline.mjs --rows 32 --output artifacts/text-inh
 node scripts/text-inheritance-baseline.mjs --rows 32 --mode reference --baseline artifacts/text-inheritance/control.json --output artifacts/text-inheritance/reference.json
 ```
 
-Re-capture both records with this same driver. These records use schema 2;
-earlier schema-1 artifacts have a different driver/fixture hash and must not
+Re-capture both records with this same driver. Current records use schema 3;
+earlier schema-1/2 artifacts have a different driver/fixture hash and must not
 be silently compared to the new two-workload records. Baseline remains the
 default; there is no application
 setup flag or public API for this experiment.
@@ -247,7 +247,7 @@ workload with separately compiled memoized labels and opaque descendants.
 Each attempted Text proof retains its source span, subject, disposition and
 reason. Modules retain both the original Metro lowering and the experimental
 executed source, with byte counts. Proof/driver hashes and Babel version
-supplement the control's provenance. CI uploads it beside the schema-2 A/B
+supplement the control's provenance. CI uploads it beside the current A/B
 records; these formats are not interchangeable.
 
 At 32 rows, a color-only ancestor update changes masked host-Text-wrapper
@@ -273,3 +273,71 @@ StrictMode, dynamic override removal and single-evaluation checks run in
 tests. Abandoned/concurrent renders, animation, portal ownership, actual
 browser/native rendering, production timing and a default rollout remain
 open. This partial C does not establish RFC 006 acceptance or an ADR.
+
+## Retaining compiler intent (expanded reference, still opt-in)
+
+Tracking: [#1082](https://github.com/iray-tno/hozo/issues/1082).
+The `reference-intent` capture pairs the same private Context hosts with an
+**internal** native compiler experiment. It is not a Metro/project setup
+option or a production fallback. Ordinary `compileNative` and the default
+`compileNativeModule` route stay unchanged, including after experimental
+calls on the same compiler instance. The internal fourth-argument test
+option is not an accepted generated-code ABI; its output must not be used
+with bare RN hosts.
+
+The compiler's existing parse/lower walk retains two previously lost inputs:
+
+- A plain View's own resolved typography is retained on its experimental
+  style so ReferenceView can publish it. Normal output still forwards
+  declarations to visible text and diagnoses opaque descendants. In a final
+  implementation, owner typography needs a deliberate helper/prop ABI, not
+  unsupported text-style keys passed to bare RN View.
+- A separately compiled relative root retains its semantic ratio instead
+  of folding against an assumed 14. The reference conservatively treats
+  root ancestry as opaque, using the existing HozoRelativeText implementation.
+  Its private adapter binds only that implementation's RN Text import to
+  ReferenceText, so the resulting size also reaches metric readers and
+  opaque descendants. The ratio calculation is not reimplemented in the
+  harness. Existing explicit-size precedence remains in effect.
+
+Inherited declarations are not copied into Text in this reference route:
+such a copy could override the runtime parent's later inline style or the
+relative helper's computed size. Pressable publishes its resolved label
+style even for visible Text, using the same real interaction owner and one
+callback evaluation. None of these changes run in default compilation.
+
+```sh
+node scripts/text-inheritance-baseline.mjs --rows 32 --mode reference --output artifacts/text-inheritance/reference.json
+node scripts/text-inheritance-baseline.mjs --rows 32 --mode reference-intent --baseline artifacts/text-inheritance/reference.json --output artifacts/text-inheritance/reference-intent.json
+```
+
+Rebuild the addon **and** compiler JS first. Schema 3 records the selected
+compiler experiment and the source/hash/minified bytes of the relative
+adapter and actual primitive source, beside the original reference helper.
+Comparisons validate that evidence and report its bytes separately. The
+actual primitive source is recorded in **every** mode because the ordinary
+relative fixture already uses it; only the private adapter is newly added
+in the intent experiment. These source payloads are not bundled-app costs.
+Existing relative helper functions themselves are not instrumented by the
+reference execution counters; their selected imports/source remain visible.
+The existing partial-C paint proof continues comparing its original reference;
+it does not silently relabel the new compiler experiment as the old driver.
+
+For the selected original ten cases, this reference observes 10 supported
+versus 8 in the earlier reference (and 6 in ordinary production output).
+The newly passing View and cross-module relative cases include live size
+updates. Additional checks cover inline style overriding a parent's static
+class, nested relative sizes, opaque metric descendants, local explicit
+sizes, current color, and balanced effect lifetimes. Both button workloads
+retain actual-owner press/release behavior and no sibling Text updates.
+This is a regression corpus, **not 100% compatibility** or a production fix.
+
+The conservative reference deliberately gives up static folding at open
+roots and can add helper calls/bytes even where the existing path was already
+correct. Per-stage counts and generated modules remain in the artifact;
+unchanged default output does not imply the experiment itself is free.
+Proof-based recovery of closed-static output is still required before a
+rollout. Physical-device timing, browser-computed-style validation, relative
+line-height/em-spacing descriptors, animation, pattern/portal ownership and
+abandoned/concurrent-render behavior remain open. Raw third-party Text is
+still outside the protocol. No default enablement or ADR acceptance follows.
