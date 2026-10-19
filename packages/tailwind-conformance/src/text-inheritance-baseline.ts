@@ -374,7 +374,7 @@ export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'basel
       .map((entry) => entry.id)
     const binary = path.join(root, 'packages/compiler/hozo_napi.node')
     return {
-      schemaVersion: 3,
+      schemaVersion: 4,
       experiment: {
         mode,
         wiring:
@@ -407,6 +407,18 @@ export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'basel
                   'utf8',
                 )
                 return {
+                  dependencies: ['./text-inheritance-reference-core.ts'].map((name) => {
+                    const source = readFileSync(new URL(name, import.meta.url), 'utf8')
+                    return {
+                      name,
+                      source,
+                      sha256: hash(source),
+                      sourceBytes: Buffer.byteLength(source),
+                      minifiedModuleBytes: Buffer.byteLength(
+                        transformSync(source, { loader: 'ts', format: 'esm', minify: true }).code,
+                      ),
+                    }
+                  }),
                   source,
                   sha256: hash(source),
                   sourceBytes: Buffer.byteLength(source),
@@ -445,6 +457,7 @@ export function captureTextBaseline(rows = 8, mode: TextInheritanceMode = 'basel
             'text-inheritance-baseline.ts',
             'text-inheritance-host.ts',
             'text-inheritance-reference.ts',
+            'text-inheritance-reference-core.ts',
             'text-inheritance-relative-reference.ts',
             'text-inheritance-proof-boundary.ts',
             '../../primitives/src/runtime-text-size.native.tsx',

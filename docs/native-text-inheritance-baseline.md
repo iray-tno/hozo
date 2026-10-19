@@ -126,8 +126,9 @@ acceptance requirements remain unchanged.
 
 Tracking: [#1076](https://github.com/iray-tno/hozo/issues/1076).
 `text-inheritance-reference.ts` lives in the private conformance package.
-It is not exported by engine/primitives, selected by the compiler, or used
-by any application. Normal compilation and runtime imports are unchanged.
+It is not exported by engine/primitives or selected by production compilation.
+The later private diagnostic story below uses its shared core explicitly;
+normal application compilation and runtime imports are unchanged.
 The driver explicitly substitutes generic Text/View and the generated
 Pressable leaf only when running `--mode reference`:
 
@@ -136,9 +137,13 @@ node scripts/text-inheritance-baseline.mjs --rows 32 --output artifacts/text-inh
 node scripts/text-inheritance-baseline.mjs --rows 32 --mode reference --baseline artifacts/text-inheritance/control.json --output artifacts/text-inheritance/reference.json
 ```
 
-Re-capture both records with this same driver. Current records use schema 3;
-earlier schema-1/2 artifacts have a different driver/fixture hash and must not
-be silently compared to the new two-workload records. Baseline remains the
+Re-capture both records with this same driver. Current records use schema 4;
+earlier schema-1/2/3 artifacts must not be silently paired with this driver.
+Schema 4 records both the Node adapter and its portable core dependency,
+including source, hashes and minified module bytes. The comparison sums both
+modules; extracting the core must not make its cost disappear. These are
+separately minified source-module totals, not tree-shaken application bundle
+sizes. Baseline remains the
 default; there is no application
 setup flag or public API for this experiment.
 
@@ -493,6 +498,68 @@ This remains private loader wiring. Partial-frame static inheritance,
 whole View/provider elimination, production integration, concurrency,
 animation/portal ownership and physical-device performance gates remain open.
 No production default or ADR acceptance follows.
+
+## Shared reference and Native comparison preparation
+
+Tracking: [#1100](https://github.com/iray-tno/hozo/issues/1100).
+The algorithm now lives in `text-inheritance-reference-core.ts`. A factory
+receives React, RN-shaped hosts, the existing size/interaction Contexts and
+style flattening. It has no runtime imports or Node API. The Node adapter
+retains instrumented hosts and all existing entry points; the Native adapter
+instantiates the same factory once at module scope with the app's React and
+actual RN hosts. Metrics/Paint contexts and counters belong to that instance.
+It is not a public engine API or a production fallback switch.
+
+The app uses React 19.2.3/RN 0.86.3, while the Node reference currently uses
+React 19.2.8/RN 0.87.1. React injection prevents accidentally bundling the
+conformance package's different React. The RN 0.87.1 source fingerprints above
+are not evidence that the app's RN version renders identically. The Native
+adapter consumes owner typography before removing those seven fields from
+the RN View's host style; it preserves layout styles and adds no native host.
+Node simulated-host declarations remain unchanged.
+
+The local pre/post extraction check retained all ten selected case records
+and both workloads exactly, including lowered modules, helper/host execution
+counts and lifetimes (`reference-intent`, 32 rows). The separately minified
+Node reference went from 3,172 bytes to 3,988 bytes for adapter plus core
+(+816 bytes). That is private module/factory wiring cost, not an app-bundle or
+device-time result. The addon was rebuilt at current main after the pre-check
+(an intervening Web-only change), so this cross-schema inspection deliberately
+does not claim identical binary provenance or use the paired comparison API.
+
+`Diagnostics/Text inheritance/Comparison` is a preparation fixture with three
+panels: ordinary compiled RN Text, Context reference, and proof-selected Text.
+Its author source is `packages/tailwind-conformance/fixtures/native-text-label.tsx`.
+The generator runs the actual Metro/compiler path and existing native-region
+proof. A complete static root with partial nested Text gets `plain-native`;
+a runtime root style gets `context-fallback`. The compiler bodies are equal
+between ordinary/reference modes for this bounded fixture. No style value at
+render time selects a component identity. Generated bodies and hashes are
+committed, with a unit staleness check:
+
+```sh
+node examples/native-showcase/scripts/generate-text-inheritance.mjs
+node examples/native-showcase/scripts/generate-text-inheritance.mjs --check
+node --test --test-concurrency=1 examples/native-showcase/scripts/text-inheritance.test.mjs
+```
+
+Each case has mount identity in its accessible label. Case switching starts
+a new comparison; ancestor changes, label updates and restoration within one
+case must preserve identity. All three panels share an experimental owner
+scope so this screen is not a performance comparison against the production
+ordinary app tree. State/prop tests use mock RN hosts and explicitly do not
+simulate nested native inheritance.
+
+When run on a device, actual `onTextLayout` callbacks log `[Hozo text layout]`
+records with line metrics, source/core hashes and React/RN versions. Request
+labels are not certified native-frame epochs: callbacks can be queued. The
+records deliberately say `verdict: not-assessed`. They do not infer font color
+or weight, rendered pixels, accessibility behavior or elapsed performance.
+Synthetic unit callbacks validate the record shape only. No emulator run,
+native span/layout equivalence or physical-device measurement is established
+by preparing this story. A later Android driver must collect independent
+evidence and source/binary provenance before reporting those results. Existing
+Showcase full/release scenarios and production defaults remain unchanged.
 
 ## Partial descendants using RN's own nested-Text inheritance
 

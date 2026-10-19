@@ -117,7 +117,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: gradle/actions/setup-gradle@v4
-      - run: pnpm install --frozen-lockfile --filter @hozo/example-native-showcase...
+      # The text fixture's Node-only generator/proof lives in the private
+      # conformance workspace and needs its own Babel dependency installed.
+      # It is test tooling, not a production dependency of the Native app.
+      - run: pnpm install --frozen-lockfile --filter @hozo/example-native-showcase... --filter @hozo/tailwind-conformance
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm --filter @hozo/example-native-showcase... --if-present build
       - run: pnpm --filter @hozo/example-native-showcase test:unit
@@ -233,7 +236,8 @@ jobs:
         run: node examples/native-showcase/scripts/prepare-ios-simulator.mjs artifacts/native-showcase-ios/simulator-preparation.json
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: pnpm install --frozen-lockfile --filter @hozo/example-native-showcase...
+      # Match Android's test-only source tooling without adding it to the app.
+      - run: pnpm install --frozen-lockfile --filter @hozo/example-native-showcase... --filter @hozo/tailwind-conformance
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm --filter @hozo/example-native-showcase... --if-present build
       - run: pnpm --filter @hozo/example-native-showcase test:unit

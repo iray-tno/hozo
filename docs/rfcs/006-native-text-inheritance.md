@@ -320,6 +320,12 @@ descendants to RN's existing nested-Text inheritance below a complete static
 root. It records actual props separately from a source-backed attribute
 projection and retains ordinary module bytes. The projection is not native
 execution/device evidence; RN's own TextAncestorContext remains.
+A shared-core factory and a private Native Storybook comparison now prepare
+the next validation step (#1100). Both adapters use the same algorithm with
+injected React/hosts/Context singletons. Generated static/runtime labels use
+the existing proof, not render-time style heuristics. The story logs actual
+layout callbacks only when run; its preparation and mock-host wiring tests
+do not establish native rendering, performance or RFC acceptance.
 
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as

@@ -26,6 +26,9 @@ for (const platform of ['android', 'ios']) {
       ).replace(/\\u([\da-f]{4})/gi, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)))
       for (const label of [
         'Primitives/Shared showcase',
+        'Diagnostics/Text inheritance',
+        'Use runtime fallback',
+        'Native text inheritance experiment',
         'Media/Video',
         'Media/Audio',
         'Animation captions',
