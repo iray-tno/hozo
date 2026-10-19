@@ -52,6 +52,10 @@
       "types": "./dist/generated/badge.d.ts",
       "default": "./dist/generated/badge.js"
     },
+    "./generated/button-dom-props": {
+      "types": "./dist/generated/button-dom-props.d.ts",
+      "default": "./dist/generated/button-dom-props.js"
+    },
     "./generated/button-props": {
       "types": "./dist/generated/button-props.d.ts",
       "default": "./dist/generated/button-props.js"
