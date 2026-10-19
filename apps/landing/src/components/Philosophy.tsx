@@ -1,6 +1,11 @@
 import { Code, Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
 
-export function Philosophy() {
+export interface PhilosophyProps {
+  baseUrl?: string
+}
+
+export function Philosophy({ baseUrl = '' }: PhilosophyProps) {
+  const cleanBase = baseUrl.replace(/\/$/, '')
   return (
     <Section
       nativeID="philosophy"
@@ -73,7 +78,7 @@ export function Philosophy() {
               Build-time ARIA checks + semantic elements from semantic primitives
             </View>
             <Link
-              href="#accessibility"
+              href={`${cleanBase}/docs/guides/accessibility/`}
               className="mt-4 inline-flex text-sm font-semibold text-hinoki-light underline hover:text-shikkui"
             >
               How accessibility is checked &rarr;
@@ -97,7 +102,7 @@ export function Philosophy() {
               Static (0 JS) &rarr; Structural (Boolean fold) &rarr; Dynamic fallback
             </View>
             <Link
-              href="#performance"
+              href={`${cleanBase}/docs/guides/styles/`}
               className="mt-4 inline-flex text-sm font-semibold text-hinoki-light underline hover:text-shikkui"
             >
               How styles compile &rarr;

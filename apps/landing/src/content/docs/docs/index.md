@@ -22,5 +22,5 @@ honest list.
   traps people hit first.
 - **How it works:** [How styles are resolved](./guides/styles/) and
   [How the packages stack](./concepts/packages/).
-- **Trying it without installing:** the [REPL](/hozo/repl/) compiles in your
-  browser, and the [Storybook](/hozo/storybook/) shows every component.
+- **Trying it without installing:** the [REPL](../repl/) compiles in your
+  browser, and the [Storybook](../storybook/) shows every component.

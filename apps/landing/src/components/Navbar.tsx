@@ -17,7 +17,7 @@ export interface NavbarProps {
 // the GitHub button. The sections are one scroll away on the page they
 // belong to; the header holds what is not.
 //
-// Four links written out rather than mapped from a table: a class name
+// Five links written out rather than mapped from a table: a class name
 // assembled in a template literal cannot be read at build time, and the
 // header would lose its compiled styles to the runtime candidate sheet.
 export function Navbar({ baseUrl = '' }: NavbarProps) {
@@ -47,6 +47,13 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
         </View>
 
         <Nav className="hidden md:flex md:flex-row items-center gap-5 lg:gap-7 min-w-0 text-sm font-semibold whitespace-nowrap">
+          <Link
+            href={`${cleanBase}/docs/`}
+            className="text-shikkui hover:text-hinoki-light flex flex-row items-center gap-1.5 transition-colors shrink-0"
+          >
+            <View className="w-2 h-2 rounded-full bg-shikkui" />
+            <Text>Docs</Text>
+          </Link>
           <Link
             href={`${cleanBase}/conformance/`}
             className="text-hinoki hover:text-hinoki-light flex flex-row items-center gap-1.5 transition-colors shrink-0"
@@ -78,6 +85,12 @@ export function Navbar({ baseUrl = '' }: NavbarProps) {
         </Nav>
 
         <View className="flex flex-row items-center gap-2 sm:gap-3 shrink-0">
+          <Link
+            href={`${cleanBase}/docs/`}
+            className="inline-flex flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-yakisugi-800 hover:bg-yakisugi-700 text-shikkui border border-hinoki/18 transition-all md:hidden"
+          >
+            <Text>Docs</Text>
+          </Link>
           <Link
             href={`${cleanBase}/repl/`}
             className="inline-flex flex-row items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-bengara hover:bg-bengara-hover text-shikkui shadow-sm transition-all md:hidden"

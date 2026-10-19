@@ -4,10 +4,23 @@ export interface IntegrationsProps {
   baseUrl?: string
 }
 
+// The card's way on: the docs page that sets this integration up.
+function GuideLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="mt-4 inline-flex flex-row items-center gap-1.5 text-xs font-semibold text-hinoki-light hover:text-shikkui underline transition-colors"
+    >
+      <Text>{`${label} setup guide`}</Text>
+      <Text aria-hidden="true">&rarr;</Text>
+    </Link>
+  )
+}
+
 export function Integrations({ baseUrl = '' }: IntegrationsProps) {
   const cleanBase = baseUrl ? baseUrl.replace(/\/$/, '') : ''
   const storybookUrl = `${cleanBase}/storybook/`
-  const conformanceUrl = `${cleanBase}/conformance/`
+  const guidesUrl = `${cleanBase}/docs/getting-started`
 
   return (
     <Section
@@ -23,11 +36,11 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
             level={2}
             className="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4"
           >
-            Five Bundler and Framework Integrations
+            Works in the Build You Already Have
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            Vite, Next.js, Metro, Storybook, and TanStack Start. Each is one plugin or wrapper in
-            the config you already have.
+            Vite, Next.js, Metro, Astro, Storybook, and TanStack Start. Each is one plugin or
+            wrapper in the config you already have, and each has a setup guide.
           </Paragraph>
         </View>
 
@@ -74,6 +87,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 </Code>
               </Preformatted>
             </View>
+            <GuideLink href={`${guidesUrl}/vite/`} label="Vite" />
           </View>
 
           {/* Next.js */}
@@ -113,6 +127,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 </Code>
               </Preformatted>
             </View>
+            <GuideLink href={`${guidesUrl}/next/`} label="Next.js" />
           </View>
 
           {/* Metro (Expo / React Native) */}
@@ -150,6 +165,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 </Code>
               </Preformatted>
             </View>
+            <GuideLink href={`${guidesUrl}/metro/`} label="Metro / Expo" />
           </View>
 
           {/* Storybook */}
@@ -192,6 +208,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 <Text>&rarr;</Text>
               </Link>
             </View>
+            <GuideLink href={`${guidesUrl}/storybook/`} label="Storybook" />
           </View>
 
           {/* TanStack Start */}
@@ -230,9 +247,10 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 </Code>
               </Preformatted>
             </View>
+            <GuideLink href={`${guidesUrl}/tanstack-start/`} label="TanStack Start" />
           </View>
 
-          {/* Conformance */}
+          {/* Astro */}
           <View className="p-6 rounded-2xl timber-panel border border-hinoki/18 hover:border-hinoki/35 transition-all flex flex-col justify-between">
             <View>
               <View className="flex flex-row items-center justify-between mb-4">
@@ -240,28 +258,33 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                   level={4}
                   className="text-lg font-bold text-shikkui flex flex-row items-center gap-2"
                 >
-                  <Text className="w-7 h-7 rounded-lg bg-tatami/15 text-tatami-light inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-tatami/30">
-                    C
+                  <Text className="w-7 h-7 rounded-lg bg-bengara/10 text-bengara inline-flex flex-row items-center justify-center font-mono text-xs font-bold border border-bengara/30">
+                    A
                   </Text>
-                  <Text>Conformance</Text>
+                  <Text>Astro</Text>
                 </Heading>
-                <Text className="text-xs font-mono text-stone-400">@hozo/tailwind-conformance</Text>
+                <Text className="text-xs font-mono text-stone-400">@hozo/vite</Text>
               </View>
               <Paragraph className="text-stone-400 text-xs mb-4">
-                Automated differential test suite comparing Hozo's output against the official
-                Tailwind engine.
+                Static components ship no JavaScript; islands hydrate as usual.
               </Paragraph>
-              <View className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 text-xs text-tatami-light font-mono mb-4">
-                <Text>&check; Continuous differential snapshots verified in CI</Text>
-              </View>
-              <Link
-                href={conformanceUrl}
-                className="inline-flex flex-row items-center gap-1.5 text-xs font-semibold text-hinoki hover:text-hinoki-light transition-colors"
-              >
-                <Text>Open Conformance Matrix</Text>
-                <Text>&rarr;</Text>
-              </Link>
+              <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
+                <Code>
+                  <Text className="text-hinoki">export default</Text> defineConfig({'{'}
+                  {'\n'}
+                  {'  '}
+                  <Text className="text-stone-400">integrations:</Text> [react()],
+                  {'\n'}
+                  {'  '}
+                  <Text className="text-stone-400">vite:</Text> {'{ '}
+                  <Text className="text-stone-400">plugins:</Text> [hozo({'{ '}
+                  <Text className="text-stone-400">css:</Text>{' '}
+                  <Text className="text-tatami-light">'src/theme.css'</Text> {'}'})] {'}'},{'\n'}
+                  {'}'})
+                </Code>
+              </Preformatted>
             </View>
+            <GuideLink href={`${guidesUrl}/astro/`} label="Astro" />
           </View>
         </View>
       </View>

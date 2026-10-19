@@ -19,7 +19,7 @@ description: "The honest list: what is partial, manual or untested."
   complete — `@hozo/tailwind-conformance` reports exactly which utilities
   match the real engine. Its current numbers are committed at
   [packages/tailwind-conformance/snapshot.json](https://github.com/iray-tno/hozo/blob/main/packages/tailwind-conformance/snapshot.json),
-  published live at the [Conformance Matrix](https://iray-tno.github.io/hozo/conformance/),
+  published live at the [Conformance Matrix](../../conformance/),
   and CI fails if a change moves any of them without moving that file too.
   They are not repeated here: a number copied into prose is a number that
   can drift from the thing it describes.

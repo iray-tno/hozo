@@ -24,6 +24,9 @@ say more than "that is not a role":
 
 `@hozo/behaviors` carries the headless primitives that need real runtime behaviour — focus
 management, keyboard handling, floating positioning, and hover delay groups.
+`@hozo/patterns` builds stateful widgets on them with the WAI-ARIA keyboard
+contract built in, on the Web and on Native; the
+[Storybook](../../../storybook/) shows each one.
 
 Every Storybook story is continuously checked against `axe-core` in CI,
 catching automated regressions in contrast, structural ARIA syntax, and roles
