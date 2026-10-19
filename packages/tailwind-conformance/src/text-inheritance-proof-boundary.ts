@@ -3,6 +3,24 @@
 // Failing it means runtime inheritance, not an authoring error.
 import { type NodePath, types as t } from '@babel/core'
 
+export function nativeTextBinding(path: NodePath<t.JSXElement>) {
+  const name = path.node.openingElement.name
+  if (!t.isJSXIdentifier(name)) return
+  const binding = path.scope.getBinding(name.name)
+  if (!binding?.constant || !binding.path.isImportSpecifier()) return
+  const declaration = binding.path.parent
+  const imported = binding.path.node.imported
+  if (
+    t.isImportDeclaration(declaration) &&
+    declaration.source.value === 'react-native' &&
+    declaration.importKind !== 'type' &&
+    binding.path.node.importKind !== 'type' &&
+    ((t.isIdentifier(imported) && imported.name === 'Text') ||
+      (t.isStringLiteral(imported) && imported.value === 'Text'))
+  )
+    return binding
+}
+
 export function isStableTextRoot(path: NodePath<t.JSXElement>): boolean {
   const render = path.getFunctionParent()
   const body = render?.node.body
