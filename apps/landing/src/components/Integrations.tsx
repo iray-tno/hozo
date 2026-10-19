@@ -26,8 +26,8 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
             Five Bundler and Framework Integrations
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            Vite, Next.js, Metro, Storybook, and TanStack Start. Across supported stacks, Hozo
-            integrates in a single line of configuration.
+            Vite, Next.js, Metro, Storybook, and TanStack Start. Each is one plugin or wrapper in
+            the config you already have.
           </Paragraph>
         </View>
 
@@ -92,7 +92,7 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 <Text className="text-xs font-mono text-stone-400">@hozo/next</Text>
               </View>
               <Paragraph className="text-stone-400 text-xs mb-4">
-                Verified with Turbopack (Next.js 16) and Webpack with zero manual setup.
+                Tested with Turbopack (Next.js 16) and Webpack.
               </Paragraph>
               <Preformatted className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 font-mono text-[11px] text-shikkui-muted overflow-x-auto">
                 <Code>
@@ -248,8 +248,8 @@ export function Integrations({ baseUrl = '' }: IntegrationsProps) {
                 <Text className="text-xs font-mono text-stone-400">@hozo/tailwind-conformance</Text>
               </View>
               <Paragraph className="text-stone-400 text-xs mb-4">
-                Automated differential test suite comparing Hozo 1:1 against the official Tailwind
-                engine.
+                Automated differential test suite comparing Hozo's output against the official
+                Tailwind engine.
               </Paragraph>
               <View className="p-3 rounded-lg bg-yakisugi-900 border border-hinoki/18 text-xs text-tatami-light font-mono mb-4">
                 <Text>&check; Continuous differential snapshots verified in CI</Text>

@@ -18,10 +18,9 @@ export function Philosophy() {
             Keep the source. Lose the runtime.
           </Heading>
           <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
-            Cross-platform UI usually forces an unwanted compromise: heavy client-side wrappers on
-            the Web, or inflexible WebViews on Mobile. Hozo eliminates unnecessary runtime
-            wrappers—compiling standard React Native components directly into each platform's native
-            primitives.
+            React Native on the Web usually means React Native for Web: a runtime that turns
+            components and styles into DOM in the browser, on every render. Hozo does that work at
+            build time wherever the source says enough, and leaves a runtime only where it does not.
           </Paragraph>
         </View>
 
@@ -38,8 +37,8 @@ export function Philosophy() {
               Write standard components imported from{' '}
               <Code className="text-shikkui-muted text-xs font-mono">react-native</Code> or{' '}
               <Code className="text-shikkui-muted text-xs font-mono">@hozo/core</Code>. No
-              proprietary DSL, no framework rewrites. Adopt incrementally in existing production
-              codebases without breaking a line of business logic.
+              proprietary DSL, no framework rewrites. Adopt it file by file, and run the migration
+              audit first to see what changes before anything does.
             </Paragraph>
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-xs text-shikkui-muted font-mono">
               <Text>
@@ -65,13 +64,13 @@ export function Philosophy() {
               First-Class Accessibility
             </Heading>
             <Paragraph className="text-stone-400 text-sm leading-relaxed mb-4">
-              ARIA is not an afterthought or runtime patch. Hozo treats W3C ARIA as a foundational
-              grammar, validating roles and required attributes at build time via{' '}
-              <Code className="text-shikkui-muted text-xs font-mono">aria-query</Code> before code
-              ever reaches production.
+              ARIA is not an afterthought or runtime patch. Hozo checks roles and their required
+              attributes against the WAI-ARIA data in{' '}
+              <Code className="text-shikkui-muted text-xs font-mono">aria-query</Code> on every
+              build, and names the file and line of each problem it finds.
             </Paragraph>
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-xs text-shikkui-muted font-mono">
-              Build-time W3C ARIA validation + Zero div-soup
+              Build-time ARIA checks + semantic elements from semantic primitives
             </View>
             <Link
               href="#accessibility"
@@ -90,9 +89,9 @@ export function Philosophy() {
               Zero-Runtime Static Paths
             </Heading>
             <Paragraph className="text-stone-400 text-sm leading-relaxed mb-4">
-              All static styles compile to zero-runtime CSS classes on Web and precomputed
-              StyleSheets on Native. Static utilities cost 0ms at runtime; finite dynamic branches
-              are precompiled so runtime work is reduced to the remaining condition.
+              Class names the build can read compile to CSS classes on the Web and precomputed
+              StyleSheets on Native, with no style work left at runtime. A conditional class
+              compiles each branch, so only the condition is left to run.
             </Paragraph>
             <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-xs text-tatami-light font-mono">
               Static (0 JS) &rarr; Structural (Boolean fold) &rarr; Dynamic fallback
