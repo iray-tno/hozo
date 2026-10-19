@@ -28,5 +28,48 @@ const require = createRequire(import.meta.url)
  */
 export function preflightCss(): string {
   const content = readFileSync(require.resolve('tailwindcss/preflight.css'), 'utf8')
-  return `@layer base {\n${content}\n}`
+  return `@layer base {\n${resolveThemeCalls(content)}\n}`
+}
+
+/**
+ * `--theme(--name, fallback)` replaced by its fallback.
+ *
+ * The file is Tailwind source, not CSS: `--theme()` is a function only
+ * Tailwind's compiler evaluates. Shipped as it is, a browser reads the
+ * declaration as invalid and drops it, so `html` lost its sans-serif and
+ * `code` its monospace, and the page fell back to the browser's serif with
+ * no error anywhere (#1089).
+ *
+ * The fallback is what Tailwind itself writes when the theme does not
+ * define the variable. Hozo writes no theme variables to the page -- its
+ * `font-sans` is a literal stack -- so nothing would ever define one, and a
+ * `var(--default-font-family, ...)` would be the same value with a lookup
+ * in front of it.
+ */
+export function resolveThemeCalls(css: string): string {
+  const open = '--theme('
+  let out = ''
+  let at = 0
+  for (let start = css.indexOf(open); start !== -1; start = css.indexOf(open, at)) {
+    let depth = 1
+    let end = start + open.length
+    for (; end < css.length && depth > 0; end++) {
+      if (css[end] === '(') depth++
+      else if (css[end] === ')') depth--
+    }
+    if (depth > 0) throw new Error(`unclosed --theme( in tailwindcss/preflight.css`)
+    const args = css.slice(start + open.length, end - 1)
+    const comma = args.indexOf(',')
+    if (comma === -1) {
+      throw new Error(`--theme(${args.trim()}) in tailwindcss/preflight.css has no fallback`)
+    }
+    out +=
+      css.slice(at, start) +
+      args
+        .slice(comma + 1)
+        .trim()
+        .replace(/\s+/g, ' ')
+    at = end
+  }
+  return out + css.slice(at)
 }
