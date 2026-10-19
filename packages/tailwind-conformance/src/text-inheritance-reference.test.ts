@@ -57,6 +57,16 @@ test('same compiled fixtures improve two gaps without changing normal codegen or
   const corrupt = structuredClone(reference)
   corrupt.experiment.referenceModule!.sha256 = 'incorrect'
   assert.throws(() => compareTextBaselines(baseline, corrupt))
+  for (const field of ['sha256', 'sourceBytes', 'minifiedModuleBytes'] as const) {
+    const copy = structuredClone(reference)
+    const dependency = copy.experiment.referenceModule!.dependencies[0]
+    if (field === 'sha256') dependency[field] = 'incorrect'
+    else dependency[field] = -1
+    assert.throws(() => compareTextBaselines(baseline, copy), field)
+  }
+  const missing = structuredClone(reference)
+  missing.experiment.referenceModule!.dependencies = []
+  assert.throws(() => compareTextBaselines(baseline, missing))
   const opaque = reference.workloads.find((entry) => entry.shape === 'opaque')!
   assert.equal(opaque.semantics.status, 'supported')
   assert.equal(opaque.retainedHost, true)

@@ -538,6 +538,29 @@ successful run establishes virtual output; physical speakers, iOS output,
 Video speed, exact DSP parity, AT and session/interruption behavior remain
 separate checks. The harness setup itself establishes none of those results.
 
+### Native text inheritance comparison (preparation only)
+
+Select `Diagnostics/Text inheritance/Comparison`
+(`diagnostics-text-inheritance--comparison`). Three panels share the real
+compiled label body: ordinary RN Text, the private RFC 006 Context reference,
+and a binding selected by the existing static proof. The static case can use
+RN's built-in nested-Text inheritance; the runtime-style case must retain
+the Context fallback. Production compilation and full/release scenarios do
+not enable this experimental protocol.
+
+Within a case, change the ancestor, update the label and restore; mount IDs
+in accessible labels must stay stable. Switching cases intentionally starts
+new labels. Actual `onTextLayout` callbacks log `[Hozo text layout]` records
+with line metrics and versions, but always `verdict: not-assessed`. These are
+not pixel, font-color/weight, AT or timing results. This change prepares the
+screen; it does not claim it has been run on Android/iOS. The app's RN 0.86.3
+also differs from the Node source probe's 0.87.1.
+
+Regenerate/check its compiled source with
+`node scripts/generate-text-inheritance.mjs [--check]` from this directory.
+Details and remaining device evidence:
+[Native text baseline guide](../../docs/native-text-inheritance-baseline.md#shared-reference-and-native-comparison-preparation).
+
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and
 disassemble the 3D scene; enable reduced motion; background/resume; switch away

@@ -312,9 +312,15 @@ importers:
       '@gorhom/bottom-sheet':
         specifier: ^5.2.8
         version: 5.2.14(a9a92976281b215e73240107feb355ee)
+      '@hozo/behaviors':
+        specifier: workspace:^
+        version: link:../../packages/behaviors
       '@hozo/core':
         specifier: workspace:^
         version: link:../../packages/core
+      '@hozo/engine':
+        specifier: workspace:^
+        version: link:../../packages/engine
       '@hozo/example-showcase':
         specifier: workspace:*
         version: link:../showcase

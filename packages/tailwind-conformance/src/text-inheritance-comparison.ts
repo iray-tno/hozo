@@ -8,8 +8,8 @@ type Report = ReturnType<typeof captureTextBaseline>
 function validate(report: Report) {
   assert.equal(
     report.schemaVersion,
-    3,
-    'comparison requires schema 3; re-capture the control with this driver',
+    4,
+    'comparison requires schema 4; re-capture the control with this driver',
   )
   assert.ok(['baseline', 'reference', 'reference-intent'].includes(report.experiment.mode))
   const intent = report.experiment.mode === 'reference-intent'
@@ -31,6 +31,17 @@ function validate(report: Report) {
   if (report.experiment.mode === 'baseline') assert.equal(report.experiment.referenceModule, null)
   else {
     assert.ok(report.experiment.referenceModule)
+    assert.deepEqual(
+      report.experiment.referenceModule.dependencies.map((entry) => entry.name),
+      ['./text-inheritance-reference-core.ts'],
+    )
+    for (const dependency of report.experiment.referenceModule.dependencies) {
+      assert.equal(dependency.sourceBytes, Buffer.byteLength(dependency.source))
+      assert.equal(dependency.sha256, createHash('sha256').update(dependency.source).digest('hex'))
+      assert.ok(
+        Number.isInteger(dependency.minifiedModuleBytes) && dependency.minifiedModuleBytes > 0,
+      )
+    }
     assert.equal(
       report.experiment.referenceModule.sourceBytes,
       Buffer.byteLength(report.experiment.referenceModule.source),
@@ -248,7 +259,15 @@ export function compareTextBaselines(before: Report, after: Report) {
     executions,
     referenceModuleBytesDelta:
       (after.experiment.referenceModule?.minifiedModuleBytes ?? 0) -
-      (before.experiment.referenceModule?.minifiedModuleBytes ?? 0),
+      (before.experiment.referenceModule?.minifiedModuleBytes ?? 0) +
+      (after.experiment.referenceModule?.dependencies.reduce(
+        (sum, entry) => sum + entry.minifiedModuleBytes,
+        0,
+      ) ?? 0) -
+      (before.experiment.referenceModule?.dependencies.reduce(
+        (sum, entry) => sum + entry.minifiedModuleBytes,
+        0,
+      ) ?? 0),
     intentModuleBytesDelta:
       after.experiment.intentModules.reduce(
         (bytes, entry) => bytes + entry.minifiedModuleBytes,
