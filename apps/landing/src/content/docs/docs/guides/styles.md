@@ -1,0 +1,74 @@
+---
+title: "How styles are resolved"
+description: "The three tiers: compiled away, compiled into a conditional, and the runtime fallback."
+sidebar:
+  order: 1
+---
+
+Hozo does not treat a dynamic `className` as a single thing to give up on.
+There are three tiers, and only the last one costs anything at runtime.
+
+**Static — compiled away.**
+
+```tsx
+<View className="p-4 bg-blue-500" />
+```
+
+Becomes a scoped class in a real stylesheet. Nothing is left at runtime.
+
+**Structurally dynamic — compiled into a conditional.**
+
+```tsx
+import { cx, View } from '@hozo/core'
+
+<View className={cx('p-4', active && 'bg-blue-500', size === 'lg' && 'text-xl')} />
+```
+
+The compiler does not need to know what `active` is. It keeps the shape of
+the expression and compiles each branch, so all three classes are real CSS
+and the choice between them is a boolean at runtime.
+
+The shapes it reads are a string, `&&`, a ternary, a template literal, and a
+call to `cx` from `@hozo/core`, or to a function imported from `clsx`,
+`classnames` or `tailwind-merge`. Inside them, a part it cannot read, such as
+a caller's `className`, falls back alone and the rest still compiles.
+
+A project's own helper is not one of them, even when it only wraps those
+libraries, as shadcn/ui's `cn` in `@/lib/utils` does. The compiler reads one
+file at a time, so it cannot see what `cn` does, and the whole call takes the
+runtime fallback below. On the Web the classes still apply. On React Native,
+`hover:`, `active:`, `disabled:` and `focus-visible:` cannot be carried by
+the fallback, so the component loses its state styles.
+
+So Hozo follows the import to the helper's file and reads it. A
+function that only hands its arguments to `clsx`, `classnames`,
+`tailwind-merge` or `cx`, as `cn` does, is then read as `clsx` is (#964).
+Anything else can be declared, and a declaration wins over what was found:
+
+```ts
+hozo({ classHelpers: [{ module: '@/lib/utils', name: 'cn' }] })
+```
+
+`module` is the specifier as callers write it, and `recognize: false` undoes
+a function found automatically. The same option works for `withHozo` on
+Metro. Vite resolves the import as the build does and re-reads the helper
+when it changes. Metro reads helpers once when it starts, resolving relative
+imports and tsconfig `paths`, so a helper edited while it runs needs a
+restart, and one behind any other alias needs declaring. Or use `cx` from
+`@hozo/core`, which needs neither.
+
+**Truly dynamic — a runtime fallback.**
+
+```tsx
+<View className={classNameFromProps} />
+```
+
+Here the compiler genuinely cannot tell. Every class *any* source file in
+the project mentions is scanned and emitted into one project-wide
+stylesheet, so whatever the expression produces is already defined. The
+scan is cached and incremental.
+
+The theme behind all of this is read from the project's own Tailwind
+entry stylesheet by running Tailwind's resolver, rather than by parsing a
+config file — the same discipline the conformance suite uses when it asks
+Tailwind for its own class list instead of keeping a copy.
