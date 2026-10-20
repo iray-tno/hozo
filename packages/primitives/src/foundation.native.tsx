@@ -3,7 +3,6 @@ import { HozoTextSizeContext } from '@hozo/engine'
 import React, { type ComponentRef, type ComponentType, type ReactNode, type Ref } from 'react'
 import {
   type AccessibilityRole,
-  type HostInstance,
   Pressable as RNPressable,
   type PressableProps as RNPressableProps,
   Text as RNText,
@@ -69,7 +68,10 @@ export interface PressableProps extends RNPressableProps {
    * A caller needs it to hand the control to something else: `Dialog`'s
    * `restoreFocusTo` is where this came up (#462).
    */
-  ref?: Ref<HostInstance>
+  // RN 0.86's Pressable ref is a View instance; later minors expose a
+  // HostInstance. Derive it from the actual peer rather than widening it
+  // beyond what that peer's Pressable accepts (and Dialog can restore).
+  ref?: Ref<ComponentRef<typeof RNPressable>>
   href?: string
   external?: boolean
   replace?: boolean

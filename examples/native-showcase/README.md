@@ -541,17 +541,23 @@ separate checks. The harness setup itself establishes none of those results.
 ### Native text inheritance comparison (experimental)
 
 Select `Diagnostics/Text inheritance/Comparison`
-(`diagnostics-text-inheritance--comparison`). Three mounted panels compare real
+(`diagnostics-text-inheritance--comparison`). Four mounted panels compare real
 compiled labels: ordinary RN Text, the private RFC 006 Context reference,
-and a binding selected by the existing static proof. The static case can use
+the binding selected by the existing private static proof, and the production
+Text/View ABI from #1120. The production factory keeps its actual compiler/Metro
+imports; it does not receive an injected reference Text. Its owners use the
+shipped View helper and independent engine contexts, with no static erasure.
+The private optimized static case can use
 RN's built-in nested-Text inheritance; the runtime-style case must retain
 the Context fallback. The opaque case adds a separately compiled memo/View
-wrapper: B/C receive no frame/style prop, while the ordinary control uses the
+wrapper: reference/optimized/production receive no frame/style prop, while the ordinary control uses the
 explicitly styled runtime label. Its distinct source is recorded in the manifest.
-Production compilation and full/release scenarios do
-not enable this experimental protocol.
+Ordinary compilation and full/release scenarios do not enable the protocol
+by default. Manifest v2 fingerprints all twelve production leaf/source
+dependencies plus the actual per-case compiled output separately from the
+private reference and proof.
 
-Use `Show ordinary/reference/optimized` to reveal each panel at the same
+Use `Show ordinary/reference/optimized/production` to reveal each panel at the same
 position. Hidden panels remain mounted; an external mode-color marker lets
 the screenshot driver verify actual presentation independently of AX.
 Within a case, change the ancestor, update the label and restore; mount IDs
@@ -561,6 +567,10 @@ with line metrics and versions, but always `verdict: not-assessed`. These are
 not pixel, font-color/weight, AT or timing results. This change prepares the
 screen; it does not claim it has been run on Android/iOS. The app's RN 0.86.3
 also differs from the Node source probe's 0.87.1.
+The app's TypeScript `react-native` path mirrors its Metro singleton:
+workspace helper declarations are checked against the app's actual RN 0.86
+host, not their separate RN 0.87 development installation. This changes
+type resolution, not runtime imports or the comparator.
 
 Regenerate/check its compiled source with
 `node scripts/generate-text-inheritance.mjs [--check]` from this directory.
@@ -569,9 +579,9 @@ Details and remaining device evidence:
 
 Select `platform=android`, `android-scenario=text-inheritance`, diagnostics off,
 with no reused build, for the opt-in screenshot driver (#1102/#1112). It retains
-24 static/runtime observations and adds 18 opaque observations, including
-local override application/removal: 42 states / 67 intended comparisons /
-56 actions across ordinary/reference/optimized bindings. AX provides actual Text
+32 static/runtime observations and 24 opaque observations, including
+local override application/removal: 56 states / 94 intended comparisons /
+70 actions across all four bindings. AX provides actual Text
 bounds and mount IDs. A screenshot must also show the current mode marker,
 source-colored root/nested ink and white background. It then requires exact
 same-device crop pixels and dimensions between bindings, static shielding,
@@ -604,10 +614,12 @@ coverage is unchanged.
 
 The [first dedicated iOS measurement](../../docs/measurements/native-text-inheritance-ios.md)
 also reviewed the original 24 states and archive/bundle hashes. Neither that
-sample nor the Android sample certifies the new opaque case. Its mock-host
+sample nor the Android sample certifies the expanded opaque/production cases. Their mock-host
 tests prove stable props and Context propagation beneath a memo bailout, not
 Native pixels; review the new dedicated runs separately. No performance or
-production fallback claim follows.
+default production fallback claim follows. Inspect the new source-bound
+Android/iOS run separately before treating these production leaves as
+device-verified; neither a synthetic image nor an older reference run does that.
 
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and

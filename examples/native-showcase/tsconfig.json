@@ -3,7 +3,10 @@
   "compilerOptions": {
     "strict": true,
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "react-native": ["./node_modules/react-native"]
+    }
   },
   "include": [
     "App.tsx",

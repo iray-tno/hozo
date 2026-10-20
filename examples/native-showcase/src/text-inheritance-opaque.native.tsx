@@ -6,7 +6,7 @@ type Props = {
   name: string
   tick: number
   onTextLayout?: TextProps['onTextLayout']
-  // Only the ordinary explicit RN control receives this; B/C omit the prop.
+  // Only the ordinary explicit RN control receives this; B/C/production omit it.
   frame?: TextStyle
 }
 
