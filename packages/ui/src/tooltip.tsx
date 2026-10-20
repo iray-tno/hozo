@@ -6,11 +6,13 @@
  * `aria-describedby` wired to the trigger, dismissal, and the floating
  * positioner's flip and shift. This file gives it a background.
  *
- * ## It is the positioner that gets the class list
+ * ## It is the box around the label that gets the class list
  *
- * The pattern puts `className` on the floating element and leaves the inner
- * `role="tooltip"` div bare, which is the right way round for this: the
- * positioner is the box, and the element with the role is a label inside it.
+ * The pattern puts `className` on a box inside the floating positioner and
+ * leaves the inner `role="tooltip"` div bare, which is the right way round
+ * for this: the box is the bubble, and the element with the role is a label
+ * inside it. Not on the positioner itself, which is in the top layer and
+ * resets its own background there.
  * So the padding and the background go here, and nothing this package writes
  * lands on the element a reader reads.
  *
