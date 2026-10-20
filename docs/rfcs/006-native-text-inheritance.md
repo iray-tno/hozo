@@ -344,6 +344,13 @@ boundary. These bounded rendering results do not measure its cost or port
 the private static-erasure proof. The remaining integration and rollout
 gates below are unchanged.
 
+The [first internal production static selection](../native-text-inheritance-baseline.md#first-production-static-region-selection-internal)
+now proves a bounded complete-class memo Text region in the existing
+parser/Native backend. It retains the measured runtime-only control, and
+failed proofs use that runtime ABI. This is not yet the broader private
+inline/registered-style proof, a production static-path device result or
+default rollout.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

@@ -5,6 +5,7 @@ import test from 'node:test'
 import { transformSync } from 'esbuild'
 import { createCompiler } from '../../compiler/src/index.ts'
 import { transformHozoSource } from '../../metro/src/transform.ts'
+import { projectNativeText, type TextHostJson } from './text-inheritance-native-projection.ts'
 import { createTextReference, TEXT_REFERENCE_FIELDS } from './text-inheritance-reference-core.ts'
 import {
   flattenRuntimeStyle as flatten,
@@ -35,7 +36,12 @@ export function Scene({frame,own,tick,viewRef,textRef,onLayout}) {return <View r
 export const Label=memo(function Label({tick,textRef}){const [id]=useState(()=>++next);return <Text ref={textRef} testID="label" accessibilityLabel={id+':'+tick}>Parent<Text testID="nested" className="text-[#1355bb] font-medium">Nested</Text></Text>})`,
 }
 
-function graph(runtime: boolean, sceneSource = sources.scene) {
+function graph(
+  runtime: boolean,
+  sceneSource = sources.scene,
+  textStatic = false,
+  labelSource = sources.label,
+) {
   const legacy = React.createContext(14)
   const shipped = loadTextInheritanceRuntime(legacy)
   const reference = createTextReference({
@@ -58,7 +64,7 @@ function graph(runtime: boolean, sceneSource = sources.scene) {
   const load = (name: string): Record<string, unknown> => {
     if (cache.has(name)) return cache.get(name)!
     const output = transformHozoSource(
-      name === 'scene' ? sceneSource : sources[name],
+      name === 'scene' ? sceneSource : name === 'label' ? labelSource : sources[name],
       `${name}.tsx`,
       undefined,
       {
@@ -68,7 +74,7 @@ function graph(runtime: boolean, sceneSource = sources.scene) {
             input,
             bindings,
             file,
-            runtime ? { textInheritance: true } : { textReference: true },
+            runtime ? { textInheritance: true, textStatic } : { textReference: true },
           )
         },
       },
@@ -101,8 +107,9 @@ function graph(runtime: boolean, sceneSource = sources.scene) {
 
 test('actual cross-file generated ABI matches the private oracle across owner updates, override removal, refs and grouping', () => {
   const records = []
-  for (const runtime of [false, true]) {
-    const fixture = graph(runtime)
+  for (const mode of ['reference', 'runtime', 'optimized']) {
+    const runtime = mode !== 'reference'
+    const fixture = graph(runtime, sources.scene, mode === 'optimized')
     const textRef = React.createRef(),
       viewRef = React.createRef()
     const onLayout = () => {}
@@ -184,7 +191,109 @@ test('actual cross-file generated ABI matches the private oracle across owner up
     assert.equal(viewRef.current, null)
   }
   assert.deepEqual(records[1], records[0])
+  assert.deepEqual(records[2], records[0])
   assert.equal(REST.color, '#112233', 'normalizing a View must not edit the authored style')
+})
+
+test('proved production memo Text keeps ordinary host output, state and refs with zero inheritance helpers', () => {
+  // The counting mock deliberately does not emulate RN attributed strings.
+  // Retain actual props separately; this projection is not device evidence.
+  const projectHosts = (node: TextHostJson): TextHostJson => {
+    if (node === null || typeof node === 'string') return node
+    if (Array.isArray(node)) return node.map(projectHosts)
+    return {
+      ...node,
+      type: node.type === 'NativeText' ? 'Text' : node.type,
+      children: node.children?.map(projectHosts) ?? null,
+    }
+  }
+  const label = sources.label.replace(
+    '<Text ref=',
+    '<Text className="text-[#111111] text-[22px] font-semibold leading-[32px] tracking-[1px] text-left uppercase" ref=',
+  )
+  const expected = {
+    color: '#111111',
+    fontSize: 22,
+    fontWeight: '600',
+    lineHeight: 32,
+    letterSpacing: 1,
+    textAlign: 'left',
+    textTransform: 'uppercase',
+  }
+  const records = []
+  for (const optimized of [false, true]) {
+    const fixture = graph(true, sources.scene, optimized, label)
+    if (optimized) {
+      assert.doesNotMatch(fixture.code.label, /HozoInheritedText|generated\/inherited-text/)
+      assert.match(fixture.code.label, /from 'react-native'/)
+    } else assert.match(fixture.code.label, /generated\/inherited-text/)
+    // Removing a Text region must not erase the opaque/dynamic View owners.
+    assert.match(fixture.code.scene, /generated\/inherited-view/)
+    const textRef = React.createRef()
+    let tree: ReturnType<typeof renderer.create>
+    let first: unknown, firstRef: unknown
+    const stages = []
+    try {
+      for (const [step, { tick, frame }] of [
+        { tick: 0, frame: REST },
+        { tick: 0, frame: NEXT },
+        { tick: 1, frame: NEXT },
+        { tick: 0, frame: REST },
+      ].entries()) {
+        renderer.act(() => {
+          const element = React.createElement(fixture.Scene, { frame, tick, textRef })
+          if (tree) tree.update(element)
+          else
+            tree = renderer.create(element, {
+              createNodeMock: (node: { props: { testID: string } }) => ({ id: node.props.testID }),
+            })
+        })
+        const hosts = tree.root.findAll((node: { type: unknown }) => node.type === 'NativeText')
+        assert.equal(hosts.length, 2)
+        assert.deepEqual(flatten(hosts[0].props.style), expected)
+        const nestedExpected = {
+          ...expected,
+          color: '#1355bb',
+          fontWeight: '500',
+        }
+        assert.deepEqual(
+          flatten(hosts[1].props.style),
+          optimized ? { color: '#1355bb', fontWeight: '500' } : nestedExpected,
+        )
+        const projected = projectNativeText(projectHosts(tree.toJSON()), flatten)
+        assert.deepEqual(projected, { label: expected, nested: nestedExpected })
+        assert.equal(hosts[0].props.accessibilityLabel, `1:${tick}`)
+        assert.deepEqual(textRef.current, { id: 'label' })
+        if (step === 0) {
+          first = hosts[0]
+          firstRef = textRef.current
+        }
+        assert.equal(hosts[0], first)
+        assert.equal(textRef.current, firstRef)
+        assert.equal(
+          tree.root.findAllByType(fixture.shipped.HozoInheritedText).length,
+          optimized ? 0 : 2,
+        )
+        assert.equal(
+          tree.root.findAll((node: { type: unknown }) => node.type === 'NativeView').length,
+          2,
+        )
+        stages.push(
+          hosts.map(
+            (host: { props: { style: unknown; accessibilityLabel: string; testID: string } }) => ({
+              style: projected[host.props.testID],
+              label: host.props.accessibilityLabel,
+            }),
+          ),
+        )
+      }
+      records.push(stages)
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+    assert.equal(textRef.current, null)
+  }
+  assert.deepEqual(records[1], records[0])
 })
 
 test('compiler-inserted raw Text reads effective View overrides rather than copying static owner classes', () => {
@@ -206,6 +315,37 @@ test('compiler-inserted raw Text reads effective View overrides rather than copy
       assert.equal(flatten(texts[0].props.style).fontSize, frame.fontSize)
     }
     assert.doesNotMatch(fixture.code.scene, /<Text\b/)
+  } finally {
+    renderer.act(() => tree?.unmount())
+  }
+})
+
+test('Metro executes mixed native and runtime Text bindings from the same authored import', () => {
+  const label = `${sources.label.replace(
+    '<Text ref=',
+    '<Text className="text-[#111111] text-[22px] font-semibold leading-[32px] tracking-[1px] text-left uppercase" ref=',
+  )};export const Open=memo(()=> <Text testID="open">Open</Text>)`
+  const scene = `import {View} from '@hozo/core';import {Label,Open} from 'fixture:label';
+export const Scene=({frame})=> <View style={frame}><Label tick={0}/><Open/></View>`
+  const fixture = graph(true, scene, true, label)
+  assert.match(fixture.code.label, /<Text\b/)
+  assert.match(fixture.code.label, /<HozoInheritedText\b/)
+  let tree: ReturnType<typeof renderer.create>
+  try {
+    for (const frame of [REST, NEXT, REST]) {
+      renderer.act(() => {
+        const element = React.createElement(fixture.Scene, { frame })
+        if (tree) tree.update(element)
+        else tree = renderer.create(element)
+      })
+      const hosts = tree.root.findAll((node: { type: unknown }) => node.type === 'NativeText')
+      assert.equal(hosts.length, 3)
+      assert.equal(flatten(hosts[0].props.style).fontSize, 22)
+      assert.equal(hosts[0].props.accessibilityLabel, '1:0')
+      assert.equal(flatten(hosts[2].props.style).fontSize, frame.fontSize)
+      assert.equal(flatten(hosts[2].props.style).color, frame.color)
+      assert.equal(tree.root.findAllByType(fixture.shipped.HozoInheritedText).length, 1)
+    }
   } finally {
     renderer.act(() => tree?.unmount())
   }

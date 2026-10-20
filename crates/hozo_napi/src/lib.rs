@@ -602,6 +602,7 @@ impl Compiler {
         source_file: Option<String>,
         text_reference: Option<bool>,
         text_inheritance: Option<bool>,
+        text_static: Option<bool>,
     ) -> CompiledNativeModule {
         let bindings = external_bindings(bindings);
         lower_native_module(
@@ -613,6 +614,7 @@ impl Compiler {
                 source_file: source_file.as_deref(),
                 text_reference: text_reference.unwrap_or(false),
                 text_inheritance: text_inheritance.unwrap_or(false),
+                text_static: text_static.unwrap_or(false) && text_inheritance.unwrap_or(false),
             },
             &self.text_forwarding,
             &self.class_helpers,
@@ -1098,6 +1100,7 @@ struct NativeModuleOptions<'a> {
     source_file: Option<&'a str>,
     text_reference: bool,
     text_inheritance: bool,
+    text_static: bool,
 }
 
 fn lower_native_module(
@@ -1116,7 +1119,12 @@ fn lower_native_module(
         Some((registry, bindings)) => (Some(registry), bindings),
         None => (None, &[][..]),
     };
-    let mut parsed = hozo_parser::parse_module_for_file_with_helpers(
+    let parse = if options.text_static {
+        hozo_parser::parse_module_with_text_regions
+    } else {
+        hozo_parser::parse_module_for_file_with_helpers
+    };
+    let mut parsed = parse(
         source,
         sources,
         registry,
@@ -1185,7 +1193,15 @@ fn lower_native_components(
         .roots
         .iter()
         .map(|root| {
-            let output = if text_inheritance {
+            let output = if text_inheritance && !parsed.stable_text_roots.is_empty() {
+                hozo_native::lower_text_inheritance_static(
+                    &root.node,
+                    &root.forwarded,
+                    source,
+                    theme,
+                    parsed.stable_text_roots.contains(&root.node.span),
+                )
+            } else if text_inheritance {
                 hozo_native::lower_text_inheritance(&root.node, &root.forwarded, source, theme)
             } else if text_reference {
                 hozo_native::lower_text_reference(&root.node, &root.forwarded, source, theme)

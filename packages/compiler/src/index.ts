@@ -330,6 +330,7 @@ interface NativeCompiler {
     sourceFile?: string,
     textReference?: boolean,
     textInheritance?: boolean,
+    textStatic?: boolean,
   ): CompiledNativeModule
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
   setStylexModules(modules: StylexModuleSource[]): void
@@ -487,9 +488,10 @@ export interface Compiler {
     sourceFile?: string,
     /** @internal Per-call RFC 006 experiments, not project/bundler configuration.
      * textReference needs private test hosts; textInheritance emits shipped
-     * passive Text/View ABI helpers, conservatively without static erasure.
+     * passive Text/View ABI helpers. textStatic additionally proves bounded
+     * memo Text regions; failed proofs keep the same runtime ABI.
      */
-    experiment?: { textReference?: boolean; textInheritance?: boolean },
+    experiment?: { textReference?: boolean; textInheritance?: boolean; textStatic?: boolean },
   ): CompiledNativeModule
   /**
    * A machine-folded module with its primitives written back as JSX,
@@ -576,12 +578,15 @@ export function createCompiler(
     compileNativeModule: (source, bindings, sourceFile, experiment) => {
       if (experiment?.textReference && experiment.textInheritance)
         throw new Error('Select one internal text experiment per compile call')
+      if (experiment?.textStatic && !experiment.textInheritance)
+        throw new Error('Internal textStatic requires textInheritance')
       const module = inner.compileNativeModule(
         source,
         bindings,
         sourceFile,
         experiment?.textReference,
         experiment?.textInheritance,
+        experiment?.textStatic,
       )
       return {
         ...module,

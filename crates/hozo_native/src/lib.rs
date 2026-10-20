@@ -65,6 +65,7 @@ mod render;
 mod spread_style;
 mod style;
 mod text;
+mod text_region;
 mod transforms;
 mod transition;
 
@@ -287,43 +288,7 @@ pub fn lower_text_inheritance(
     source: &str,
     theme: &Theme,
 ) -> LowerOutput {
-    fn passive(node: &Node) -> bool {
-        matches!(node.primitive, Primitive::View | Primitive::Text)
-            && node.class_name_fallback.is_empty()
-            && node.style.iter().all(|style| {
-                style.condition == Condition::Always
-                    && !matches!(
-                        style.property,
-                        StyleProperty::TransitionProperty(..)
-                            | StyleProperty::TransitionDuration(..)
-                            | StyleProperty::TransitionDelay(..)
-                            | StyleProperty::TransitionTimingFunction(..)
-                            | StyleProperty::AnimationName(..)
-                            | StyleProperty::Animation(..)
-                            | StyleProperty::ThemeAnimation(..)
-                            | StyleProperty::FontFamily(..)
-                            | StyleProperty::FontVariant(..)
-                            | StyleProperty::LineHeight(hozo_ir::LineHeight::Ratio(..))
-                            | StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Em(..))
-                            | StyleProperty::FontSize(Length::Unit(_, hozo_ir::LengthUnit::Em))
-                            | StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Unit(
-                                _,
-                                hozo_ir::LengthUnit::Em
-                            )))
-                            | StyleProperty::LetterSpacing(hozo_ir::LetterSpacing::Px(
-                                Length::Unit(_, hozo_ir::LengthUnit::Em)
-                            ))
-                    )
-            })
-            && node.children.iter().all(|child| match child {
-                hozo_ir::Child::Node(node) => passive(node),
-                hozo_ir::Child::Verbatim { nested, .. } => {
-                    nested.iter().all(|nested| passive(&nested.node))
-                }
-                hozo_ir::Child::Text(_) => true,
-            })
-    }
-    if passive(root) {
+    if text_region::passive(root) {
         let output = lower_forwarded_impl(root, forwarded, source, theme, true, true);
         if output
             .runtime_imports
@@ -343,6 +308,33 @@ pub fn lower_text_inheritance(
         span: root.span,
     });
     output
+}
+
+/// Opt-in static selection keeps the measured runtime route independently
+/// callable. Identity comes from the same parser AST; styles from this IR.
+#[doc(hidden)]
+pub fn lower_text_inheritance_static(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+    stable_root: bool,
+) -> LowerOutput {
+    if stable_root
+        && forwarded.is_empty()
+        && text_region::passive(root)
+        && text_region::prove(root, theme).is_ok()
+    {
+        let output = lower_forwarded(root, forwarded, source, theme);
+        if output.runtime_imports.is_empty()
+            && output.prelude.is_empty()
+            && output.diagnostics.is_empty()
+            && output.native_imports.iter().all(|name| *name == "Text")
+        {
+            return output;
+        }
+    }
+    lower_text_inheritance(root, forwarded, source, theme)
 }
 
 fn lower_forwarded_impl(
