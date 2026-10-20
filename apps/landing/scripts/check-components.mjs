@@ -299,6 +299,17 @@ const pages = {
     await page.keyboard.press('ArrowDown')
     await page.keyboard.press('Enter')
     await page.getByText('Selected: ir').waitFor()
+    // A pointer opens a branch too, and selects it (#1143).
+    const packages = page.getByRole('treeitem', { name: 'packages' })
+    await packages.click()
+    assert.equal(await packages.getAttribute('aria-expanded'), 'true', 'tree: a click did not open')
+    await page.getByText('Selected: packages').waitFor()
+    await packages.click()
+    assert.equal(
+      await packages.getAttribute('aria-expanded'),
+      'false',
+      'tree: a click did not close',
+    )
   },
   async calendar(page) {
     const grid = page.getByRole('grid')

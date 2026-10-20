@@ -7,8 +7,8 @@ import UiExample from '../../../../components/docs/UiExample.astro'
 import { TreeDemo } from '../../../../examples/ui/TreeDemo.tsx'
 import source from '../../../../examples/ui/TreeDemo.tsx?raw'
 
-`Tree` shows nested items that open and close. Click a row to select it, or Tab
-into the tree and use the arrow keys to move, open and close:
+`Tree` shows nested items that open and close. Click a folder, or Tab into the
+tree and use the arrow keys:
 
 <UiExample source={source} file="TreeDemo.tsx">
   <TreeDemo client:visible />
@@ -18,8 +18,10 @@ into the tree and use the arrow keys to move, open and close:
   that can expand.
 - **`defaultExpanded`** lists the ids that start open.
 - **`selectedId`** and **`onSelect`** hold the selected item.
-- **A click selects and does not open a branch.** For now, branches open and
-  close only from the keyboard ([#1143](https://github.com/iray-tno/hozo/issues/1143)).
+- **A click on a branch selects it and opens or closes it**, because the marker
+  is a chevron, which reads as "this row opens". When branches are things to
+  choose rather than folders, or the marker is a `+` box, `@hozo/patterns`'
+  `Tree` takes `toggleOn="marker"`: then only the marker opens and closes.
 - **The keyboard follows the ARIA tree pattern:**
   - Up and Down move between visible rows.
   - Right opens a branch, or moves into it once it is open.

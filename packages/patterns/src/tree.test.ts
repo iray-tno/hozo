@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { horizontalMove, type TreeNode, visibleRows } from './tree-rules.ts'
+import { horizontalMove, rowPress, type TreeNode, visibleRows } from './tree-rules.ts'
 
 const tree: TreeNode[] = [
   {
@@ -76,4 +76,16 @@ test('the arrows swap when the tree is drawn right to left', () => {
   assert.deepEqual(horizontalMove('ArrowLeft', closed, 0, true), { kind: 'expand', id: 'src' })
   const open = visibleRows(tree, new Set(['src']))
   assert.deepEqual(horizontalMove('ArrowRight', open, 0, true), { kind: 'collapse', id: 'src' })
+})
+
+test('a row press selects, and opens or closes a branch unless the marker is the toggle', () => {
+  const branch = { branch: true, disabled: false }
+  const leaf = { branch: false, disabled: false }
+  assert.deepEqual(rowPress(branch, 'row'), { select: true, toggle: true })
+  assert.deepEqual(rowPress(leaf, 'row'), { select: true, toggle: false })
+  assert.deepEqual(rowPress(branch, 'marker'), { select: true, toggle: false })
+  assert.deepEqual(rowPress({ branch: true, disabled: true }, 'row'), {
+    select: false,
+    toggle: false,
+  })
 })
