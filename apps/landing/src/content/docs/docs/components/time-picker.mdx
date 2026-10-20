@@ -1,0 +1,25 @@
+---
+title: "Time Picker"
+description: "A field for an hour and a minute, built on @hozo/form, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { TimePickerDemo } from '../../../../examples/ui/TimePickerDemo.tsx'
+import source from '../../../../examples/ui/TimePickerDemo.tsx?raw'
+
+`TimePicker` is a field with an hour, a minute and, on a twelve-hour clock, a
+period. Tab to a part and type, or use the up and down arrows or the buttons:
+
+<UiExample source={source} file="TimePickerDemo.tsx">
+  <TimePickerDemo client:visible />
+</UiExample>
+
+- **`value`** and **`onChange`** hold `{ hour, minute }`. `hour` is 0 to 23
+  even on a twelve-hour clock, which is only a way of writing it.
+- **Each part is a spinbutton** with its own name: **`hourFieldLabel`**,
+  **`minuteFieldLabel`** and **`periodFieldLabel`**. A reader hears its value,
+  and the arrows change it.
+- **`step`** is how many minutes the arrows move. It does not refuse a typed
+  minute between steps, because rounding what someone typed would lose it.
+- **`hour12`** chooses the clock. By default `locale` decides.
+- **`min`** and **`max`** bound the time.

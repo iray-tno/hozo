@@ -1,0 +1,31 @@
+---
+title: "Listbox"
+description: "A list to choose one or several options from, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { ListboxDemo } from '../../../../examples/ui/ListboxDemo.tsx'
+import source from '../../../../examples/ui/ListboxDemo.tsx?raw'
+
+`Listbox` shows its options as a list that stays on the page. Click an option,
+or Tab to the list and use the arrow keys, then Space or Enter:
+
+<UiExample source={source} file="ListboxDemo.tsx">
+  <ListboxDemo client:visible />
+</UiExample>
+
+- **`options`:** `{ value, label, disabled? }` for each option.
+- **`multiple`** lets several be chosen. Then `value` and `onValueChange` hold
+  an array, and the list announces `aria-multiselectable`. Without it, they
+  hold one value.
+- **`value`** and **`onValueChange`** control it, or **`defaultValue`** leaves
+  it uncontrolled.
+- **The list is one tab stop.** The arrows move between options, and typing a
+  letter moves to the next option that starts with it. A disabled option is
+  skipped.
+- **The chosen options are tinted and bold**, not tinted alone, because colour
+  alone fails WCAG 1.4.1. The style comes from `aria-selected`, which is what
+  a reader is told.
+- **`orientation`** is `vertical` by default. `horizontal` swaps the arrow keys.
+- In TypeScript, the option type is inferred from `options` and `value`. When
+  it cannot be, as with `multiple`, give it: `<Listbox<string> …>`.

@@ -1,0 +1,34 @@
+---
+title: "Tree"
+description: "A nested list that expands and collapses, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { TreeDemo } from '../../../../examples/ui/TreeDemo.tsx'
+import source from '../../../../examples/ui/TreeDemo.tsx?raw'
+
+`Tree` shows nested items that open and close. Click a row to select it, or Tab
+into the tree and use the arrow keys to move, open and close:
+
+<UiExample source={source} file="TreeDemo.tsx">
+  <TreeDemo client:visible />
+</UiExample>
+
+- **`nodes`:** `{ id, label, children? }`. A node with `children` is a branch
+  that can expand.
+- **`defaultExpanded`** lists the ids that start open.
+- **`selectedId`** and **`onSelect`** hold the selected item.
+- **A click selects and does not open a branch.** For now, branches open and
+  close only from the keyboard ([#1143](https://github.com/iray-tno/hozo/issues/1143)).
+- **The keyboard follows the ARIA tree pattern:**
+  - Up and Down move between visible rows.
+  - Right opens a branch, or moves into it once it is open.
+  - Left closes a branch, or moves to its parent.
+  - Enter selects.
+  - Typing a letter moves to the next row that starts with it.
+  - In a right-to-left interface, Left and Right swap.
+- **The open and closed marker is drawn by CSS**, not written into the label.
+  A reader already hears "expanded" or "collapsed", so a ▾ in the text would
+  say it twice.
+- **`renderRow`** replaces what a row shows. It is given the row's level and
+  whether it is open.
