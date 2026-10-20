@@ -1,0 +1,27 @@
+---
+title: "Avatar"
+description: "A picture or initials, with a presence dot, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { AvatarDemo } from '../../../../examples/ui/AvatarDemo.tsx'
+import source from '../../../../examples/ui/AvatarDemo.tsx?raw'
+
+An `Avatar` shows a picture and falls back to initials when there is none or
+it fails to load. It is one image named for the person, and the status is read
+after the name. The status colour is chosen in the component rather than by a
+CSS selector, because React Native has no selectors and both platforms need
+the dot.
+
+<UiExample source={source} file="AvatarDemo.tsx">
+  <AvatarDemo client:visible />
+</UiExample>
+
+- **`name`:** the person's name. It is the accessible name, and the initials
+  come from it.
+- **`src`:** the picture. Without one, or when it fails, the initials show.
+- **`status`:** `online`, `busy` or `offline`, drawn as a dot and read
+  after the name.
+- **`size`:** `sm` (32px), `md` (40px, the default) or `lg` (56px).
+- **`initials`** and **`fallback`** replace the derived initials, and
+  **`accessibilityLabel`** replaces the name as what is read.

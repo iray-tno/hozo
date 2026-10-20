@@ -143,6 +143,55 @@ const pages = {
     await select.selectOption('bike')
     assert.equal(await select.inputValue(), 'bike', 'native-select: choice did not stick')
   },
+  async badge(page) {
+    // Static, but hydrated all the same: the count is read by its label.
+    await page
+      .locator('.hozo-ui-example')
+      .getByText('3 unread messages')
+      .waitFor({ state: 'attached' })
+  },
+  async alert(page) {
+    assert.equal(
+      await page.getByRole('status').count(),
+      0,
+      'alert: announced before anything happened',
+    )
+    await page.getByRole('button', { name: 'Save draft' }).click()
+    await page.getByRole('status').filter({ hasText: 'Draft saved.' }).waitFor()
+  },
+  async avatar(page) {
+    await page.getByRole('img', { name: 'Grace Hopper, busy' }).waitFor()
+  },
+  async skeleton(page) {
+    await page.getByRole('button', { name: 'Finish loading' }).click()
+    await page
+      .locator('.hozo-ui-example')
+      .getByText('Ada Lovelace replied to your comment.')
+      .waitFor()
+  },
+  async tabs(page) {
+    const details = page.getByRole('tab', { name: 'Details' })
+    await details.focus()
+    // Manual activation: the arrow moves focus, and Enter shows the panel.
+    await page.keyboard.press('ArrowRight')
+    const shipping = page.getByRole('tab', { name: 'Shipping' })
+    assert.equal(await shipping.evaluate((el) => el === document.activeElement), true)
+    await page.keyboard.press('Enter')
+    assert.equal(await shipping.getAttribute('aria-selected'), 'true', 'tabs: Enter did not select')
+    await page.getByRole('tabpanel').filter({ hasText: 'Two days' }).waitFor()
+  },
+  async accordion(page) {
+    const returns = page.getByRole('button', { name: 'Can I send it back?' })
+    await returns.click()
+    await page.locator('.hozo-ui-example').getByText('Within thirty days, unopened.').waitFor()
+    assert.equal(
+      await page
+        .getByRole('button', { name: 'When does it arrive?' })
+        .getAttribute('aria-expanded'),
+      'false',
+      'accordion: opening one did not close the other',
+    )
+  },
 }
 
 let browser

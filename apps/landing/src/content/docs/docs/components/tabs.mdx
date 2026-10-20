@@ -1,0 +1,27 @@
+---
+title: "Tabs"
+description: "A tab strip with panels, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { TabsDemo } from '../../../../examples/ui/TabsDemo.tsx'
+import source from '../../../../examples/ui/TabsDemo.tsx?raw'
+
+`Tabs` choose which panel is shown. The strip is one tab stop: the arrow keys
+move between tabs, and Enter or Space shows the one with focus. Home and End go
+to the ends, and a disabled tab is skipped. The chosen tab is styled from
+`aria-selected`, which is what a reader is told.
+
+<UiExample source={source} file="TabsDemo.tsx">
+  <TabsDemo client:visible />
+</UiExample>
+
+- **`tabs`:** `{ label, content, disabled? }` for each tab.
+- **`index`** and **`onIndexChange`**, or **`defaultIndex`** for uncontrolled
+  tabs.
+- **`accessibilityLabel`:** the strip's name.
+- **`orientation`:** `horizontal` (the default) or `vertical`, which puts the
+  strip beside the panel.
+
+Use a [segmented control](../segmented-control/) instead when a value is being
+chosen and nothing below changes.
