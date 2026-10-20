@@ -67,7 +67,13 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/examples/showcase/assets/**",
         "$TURBO_ROOT$/packages/patterns/src/slider*.ts",
-        "$TURBO_ROOT$/packages/patterns/src/slider*.tsx"
+        "$TURBO_ROOT$/packages/patterns/src/slider*.tsx",
+        "$TURBO_ROOT$/examples/native-showcase/src/Audio.stories.tsx",
+        "$TURBO_ROOT$/examples/native-showcase/src/Video.stories.tsx",
+        "$TURBO_ROOT$/examples/native-showcase/tsconfig.json",
+        "$TURBO_ROOT$/examples/storybook-demo/src/Audio.stories.tsx",
+        "$TURBO_ROOT$/examples/storybook-demo/src/Video.stories.tsx",
+        "$TURBO_ROOT$/examples/storybook-demo/tsconfig.json"
       ]
     },
     "@hozo/example-storybook#test": {

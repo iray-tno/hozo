@@ -14,6 +14,12 @@ const reads = {
     'packages/patterns/src/slider.tsx',
     'packages/patterns/src/slider.native.tsx',
     'packages/patterns/src/slider-rules.ts',
+    'examples/native-showcase/src/Audio.stories.tsx',
+    'examples/native-showcase/src/Video.stories.tsx',
+    'examples/native-showcase/tsconfig.json',
+    'examples/storybook-demo/src/Audio.stories.tsx',
+    'examples/storybook-demo/src/Video.stories.tsx',
+    'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
     'packages/ui/src/combobox.tsx',

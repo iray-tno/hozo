@@ -40,6 +40,11 @@ async function story(t, native, video) {
     platform: 'node',
     format: 'cjs',
     packages: 'external',
+    // These hosts are injected below. packages:external alone runs after
+    // tsconfig path resolution, so the app's RN singleton alias otherwise
+    // turns this mock boundary into a real Flow-typed RN source import.
+    external: ['react-native'],
+    metafile: true,
     loader: { '.css': 'empty' },
     plugins: [
       {
@@ -59,6 +64,19 @@ async function story(t, native, video) {
       },
     ],
   })
+  assert.ok(
+    Object.keys(built.metafile.inputs).every(
+      (name) => !/(?:^|\/)node_modules\/react-native\//.test(name.replaceAll('\\', '/')),
+    ),
+    'the source-story harness must not bundle its mocked Native host',
+  )
+  if (native && video)
+    assert.ok(
+      Object.values(built.metafile.outputs).some((output) =>
+        output.imports.some((entry) => entry.path === 'react-native' && entry.external),
+      ),
+      'retain the RN import for the explicit mock even under the app tsconfig alias',
+    )
   const module = { exports: {} }
   new Function('require', 'module', 'exports', built.outputFiles[0].text)(
     (name) => {
