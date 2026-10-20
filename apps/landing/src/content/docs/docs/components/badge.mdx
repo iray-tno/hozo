@@ -1,0 +1,25 @@
+---
+title: "Badge"
+description: "A short status word or a count, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { BadgeDemo } from '../../../../examples/ui/BadgeDemo.tsx'
+import source from '../../../../examples/ui/BadgeDemo.tsx?raw'
+
+A `Badge` is a word with a colour, or a number. A word badge is a `<span>` with
+no role: the word carries the meaning, and the colour repeats it, so a reader
+who cannot see the colour loses nothing. A count is the case with something to
+get right, because "3" read alone means nothing. So a count badge draws the
+digit and is read as its `accessibilityLabel`.
+
+<UiExample source={source} file="BadgeDemo.tsx">
+  <BadgeDemo client:visible />
+</UiExample>
+
+- **`tone`:** `neutral` (the default), `accent` or `danger`.
+- **`count`:** a number to show instead of the children.
+- **`max`:** above it, the badge shows `99+` (for `max={99}`). There is no
+  default, so without it every digit is shown.
+- **`accessibilityLabel`:** what a count is read as, such as "3 unread
+  messages". Without it, an overflowing count is read as "more than 99".
