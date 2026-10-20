@@ -1,0 +1,26 @@
+---
+title: "Accordion"
+description: "Sections that open and close, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { AccordionDemo } from '../../../../examples/ui/AccordionDemo.tsx'
+import source from '../../../../examples/ui/AccordionDemo.tsx?raw'
+
+An `Accordion` is a set of disclosures that know about each other. Unlike
+[tabs](../tabs/), every header is its own tab stop, as the ARIA Authoring
+Practices ask: each header is something to act on, not a choice in a strip.
+The arrow keys still move between headers, and change nothing else.
+
+<UiExample source={source} file="AccordionDemo.tsx">
+  <AccordionDemo client:visible />
+</UiExample>
+
+- **`items`:** `{ id, header, content, disabled? }` for each section. Key by
+  `id`, so reordering the list does not move the open panel.
+- **`defaultExpanded`**, or **`expanded`** and **`onExpandedChange`:** the open
+  section's id, or `null`.
+- **`multiple`:** lets several be open at once; the expanded value is then a
+  list of ids.
+- **`headingLevel`:** the heading each header sits in, `3` by default. Only
+  you know what is above the accordion, so set it to fit the page's outline.

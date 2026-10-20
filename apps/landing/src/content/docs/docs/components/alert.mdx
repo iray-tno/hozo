@@ -1,0 +1,25 @@
+---
+title: "Alert"
+description: "A notice, announced or not, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { AlertDemo } from '../../../../examples/ui/AlertDemo.tsx'
+import source from '../../../../examples/ui/AlertDemo.tsx?raw'
+
+An `Alert` is a sentence in a box, and whether a screen reader announces it is
+a separate decision: `role="status"` waits for a pause, and `role="alert"`
+interrupts. On React Native it is a live region on Android and an announcement
+on iOS. Press **Save draft** above: the notice that appears is announced
+politely. The two that were there when the page loaded are not.
+
+<UiExample source={source} file="AlertDemo.tsx">
+  <AlertDemo client:visible />
+</UiExample>
+
+- **`tone`:** `neutral` (the default), `accent` or `danger`. The tone is
+  the look only; it does not decide whether the alert is announced.
+- **`live`:** `'polite'`, `'assertive'` or `false` (the default). It
+  defaults to silence because an alert rendered with the page is announced on
+  load, and a notice that speaks on every visit is one people turn their
+  reader off for. Use `'assertive'` only for something that went wrong.

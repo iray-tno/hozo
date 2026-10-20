@@ -258,6 +258,12 @@ for (const [page, element] of [
   ['slider', /<div role="slider" aria-label="Volume"/],
   ['text-area', /<textarea [^>]*maxLength="160"/],
   ['native-select', /<select\b/],
+  ['badge', /<span aria-hidden="true">99\+<\/span>/],
+  ['alert', /Your session expires in two minutes\./],
+  ['avatar', /<span role="img" aria-label="Ada Lovelace, online"/],
+  ['skeleton', /<div [^>]*aria-hidden="true"[^>]*data-hozo-skeleton=""/],
+  ['tabs', /<div role="tablist" aria-label="Product"/],
+  ['accordion', /<h3[^>]*><button [^>]*aria-expanded="true"/],
 ]) {
   const html = readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8')
   const islands = html.match(/<astro-island\b[\s\S]*?<\/astro-island>/g) ?? []
