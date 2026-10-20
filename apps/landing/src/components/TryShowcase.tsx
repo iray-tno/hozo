@@ -10,23 +10,23 @@ export function TryShowcase({
 }) {
   const base = baseUrl.replace(/\/$/, '')
   return (
-    <Section
-      nativeID="try-hozo"
-      className="py-16 sm:py-24 border-t border-hinoki/18 bg-yakisugi-900"
-    >
+    <Section nativeID="try-hozo" className="py-20 border-t border-hinoki/18 bg-yakisugi-900">
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <View className="max-w-3xl mb-8">
+        <View className="text-center max-w-3xl mx-auto mb-10 flex flex-col items-center">
+          <Text className="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">
+            Showcase
+          </Text>
           <Heading
             level={2}
             className="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4"
           >
             Try Hozo
           </Heading>
-          <Paragraph className="text-shikkui-muted leading-relaxed">
+          <Paragraph className="text-shikkui-muted text-base sm:text-lg leading-relaxed">
             Explore the components, SVG effects and 3D scenes in the browser or the native showcase.
           </Paragraph>
         </View>
-        <View className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <View className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-6xl mx-auto">
           <View className="p-6 rounded-2xl timber-panel flex flex-col gap-4">
             <Heading level={3} className="text-xl font-bold text-shikkui">
               Web
@@ -88,7 +88,7 @@ export function TryShowcase({
             )}
           </View>
         </View>
-        <View className="flex flex-row flex-wrap items-center gap-x-6 gap-y-3 mt-6 text-sm text-shikkui-muted">
+        <View className="flex flex-row flex-wrap items-center justify-center gap-x-6 gap-y-3 mt-6 text-sm text-shikkui-muted text-center">
           {release ? (
             <>
               <Link href={release.url} className="underline hover:text-shikkui">
