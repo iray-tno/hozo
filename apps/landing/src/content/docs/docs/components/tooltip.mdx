@@ -1,0 +1,29 @@
+---
+title: "Tooltip"
+description: "A short label shown on hover or focus, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { TooltipDemo } from '../../../../examples/ui/TooltipDemo.tsx'
+import source from '../../../../examples/ui/TooltipDemo.tsx?raw'
+
+`Tooltip` shows a short phrase next to the element it wraps. Hover a button,
+or Tab to it:
+
+<UiExample source={source} file="TooltipDemo.tsx">
+  <TooltipDemo client:visible />
+</UiExample>
+
+- **The child is the trigger.** The tooltip adds a ref, the pointer and focus
+  handlers, and `aria-describedby` to it, so a screen reader reads the phrase
+  after the button's name. The child has to be one element that accepts those
+  props, such as a `Button`.
+- **`content`** is the phrase. Keep it to one: the bubble stops at `max-w-xs`,
+  and anything a reader must know belongs on the page, where touch users can
+  see it too.
+- **It opens on focus as well as hover**, and Escape closes it. The pointer can
+  move from the trigger onto the bubble without it closing.
+- **`placement`** is `top` by default, and it flips when there is no room.
+  **`openDelay`** and **`closeDelay`** tune the timing.
+- **The colours are inverted:** dark on a light page and light on a dark one,
+  so it reads as something above the page rather than part of it.

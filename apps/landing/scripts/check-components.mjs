@@ -247,6 +247,23 @@ const pages = {
     await page.keyboard.press('Escape')
     await sheet.waitFor({ state: 'hidden' })
   },
+  async tooltip(page) {
+    // The trigger is an @hozo/ui Button, which dropped the ref, handlers and
+    // aria-describedby the tooltip clones onto it, so it never opened (#1137).
+    const save = page.getByRole('button', { name: 'Save' })
+    await save.focus()
+    const tip = page.getByRole('tooltip').filter({ hasText: 'Saves without leaving the page' })
+    await tip.waitFor()
+    assert.equal(
+      await save.getAttribute('aria-describedby'),
+      await tip.getAttribute('id'),
+      'tooltip: the button is not described by the bubble',
+    )
+    await page.keyboard.press('Escape')
+    await tip.waitFor({ state: 'hidden' })
+    await page.getByRole('button', { name: 'Share' }).hover()
+    await page.getByRole('tooltip').filter({ hasText: 'Copies a link' }).waitFor()
+  },
 }
 
 let browser

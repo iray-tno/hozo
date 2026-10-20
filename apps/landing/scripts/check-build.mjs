@@ -269,6 +269,7 @@ for (const [page, element] of [
   // A drawer and a sheet are closed until pressed, so only the opener is there.
   ['drawer', /<button [^>]*>Open navigation<\/button>/],
   ['bottom-sheet', /<button [^>]*>Filters<\/button>/],
+  ['tooltip', /<button [^>]*>Save<\/button>/],
 ]) {
   const html = readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8')
   const islands = html.match(/<astro-island\b[\s\S]*?<\/astro-island>/g) ?? []
