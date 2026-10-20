@@ -25,12 +25,15 @@ export interface HozoAvatarProps extends AvatarProps {
   size?: HozoAvatarSize
 }
 
+// `flex` because the Web element is a `<span>`, where `items-center` and
+// `justify-center` do nothing on their own; a Native View is flex already,
+// which is how the initials ended up centred on one platform only.
 const sm =
-  'relative items-center justify-center rounded-full size-8 text-xs font-medium bg-hozo-surface-raised text-hozo-text-body'
+  'relative flex items-center justify-center rounded-full size-8 text-xs font-medium bg-hozo-surface-raised text-hozo-text-body'
 const md =
-  'relative items-center justify-center rounded-full size-10 text-sm font-medium bg-hozo-surface-raised text-hozo-text-body'
+  'relative flex items-center justify-center rounded-full size-10 text-sm font-medium bg-hozo-surface-raised text-hozo-text-body'
 const lg =
-  'relative items-center justify-center rounded-full size-14 text-lg font-medium bg-hozo-surface-raised text-hozo-text-body'
+  'relative flex items-center justify-center rounded-full size-14 text-lg font-medium bg-hozo-surface-raised text-hozo-text-body'
 
 const image = 'size-full object-cover'
 
