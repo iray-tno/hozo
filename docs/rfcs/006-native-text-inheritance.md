@@ -337,6 +337,13 @@ not yet port private static-erasure proofs, so even a closed static tree
 pays runtime work when explicitly selected. It must not be enabled by
 default on that evidence.
 
+A [fresh production-helper comparison](../measurements/native-text-inheritance-production.md)
+now independently reviews the four-panel Android/iOS PNGs, AX and binary
+hashes, including context-only propagation beneath an opaque memo/View
+boundary. These bounded rendering results do not measure its cost or port
+the private static-erasure proof. The remaining integration and rollout
+gates below are unchanged.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

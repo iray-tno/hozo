@@ -837,3 +837,22 @@ and iOS builds and independent archive/PNG/AX review are still required for
 this new code. Previous 24- or 42-state reference evidence cannot certify
 the fourth panel. Physical-device performance, static erasure, broader
 ownership integration and ADR/default acceptance remain separate work.
+
+## Production Native evidence reviewed
+
+The [production measurement review](measurements/native-text-inheritance-production.md)
+completes the raw evidence portion of #1123 and the opaque memo/View slice
+in #1112. Fresh run [39365177992](https://github.com/iray-tno/hozo/actions/runs/39365177992)
+used source `83d96d9c32da00ba312eb16920e790ea58272728` on both platforms.
+An independent offline reader recalculated all 56 PNG/AX states and 94
+comparisons per OS (86 equalities, eight intended changes), checked 70
+actions and stable within-case tokens, and hashed the actual APK, Simulator
+archive and archived JS bundle. All matched. Ten representative production
+screenshots were also visually reviewed; this is not manual inspection of
+every capture.
+
+These results supersede the pending-review statement above for this pinned
+fixture, not for later changed code. Production still uses its conservative
+Context route even in the complete static case. Static-erasure integration,
+broader owner coverage and performance remain separate from this bounded
+rendering result. No default/API change or ADR acceptance follows.
