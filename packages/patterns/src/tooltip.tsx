@@ -35,7 +35,9 @@ export interface TooltipProps
   flip?: boolean
   shift?: boolean
   portal?: boolean
+  /** The bubble's look, on the box around the `role="tooltip"` label. */
   className?: string
+  /** Inline styles for that same box. */
   style?: CSSProperties
   arrowPadding?: number
 }
@@ -144,7 +146,14 @@ export function Tooltip({
 
   const floatingContent = isOpen ? (
     <DismissableLayer onDismiss={() => setIsOpen(false)}>
+      {/* The top layer, as `Menu` does: a bubble with no stacking of its
+          own was painted under any positioned neighbour, such as a fixed
+          sidebar beside the trigger. The top layer's positioner resets its
+          own background and padding inline, so `className` -- the bubble's
+          look -- goes on a box inside it, and still not on the element a
+          reader reads. */}
       <FloatingPositioner
+        topLayer
         anchorRef={anchorRef}
         placement={placement}
         offset={offset}
@@ -152,14 +161,12 @@ export function Tooltip({
         flip={flip}
         shift={shift}
         arrowPadding={arrowPadding}
-        className={className}
-        style={{
-          pointerEvents: hoverableContent ? 'auto' : 'none',
-          ...style,
-        }}
+        style={{ pointerEvents: hoverableContent ? 'auto' : 'none' }}
       >
-        <div id={triggerProps['aria-describedby']} role="tooltip" {...contentProps}>
-          {content}
+        <div className={className} style={style}>
+          <div id={triggerProps['aria-describedby']} role="tooltip" {...contentProps}>
+            {content}
+          </div>
         </div>
       </FloatingPositioner>
     </DismissableLayer>

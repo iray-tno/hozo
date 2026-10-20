@@ -14,7 +14,10 @@ import {
 import {
   type AriaRole,
   type CSSProperties,
+  type FocusEventHandler,
+  type KeyboardEventHandler,
   type MouseEventHandler,
+  type PointerEventHandler,
   type ReactNode,
   type Ref,
   useCallback,
@@ -22,7 +25,12 @@ import {
   useRef,
   useState,
 } from 'react'
-import { type ButtonDataProps, buttonDataProps } from './button-host-attributes.ts'
+import {
+  BUTTON_TRIGGER_PROPS_WEB,
+  type ButtonDataProps,
+  buttonDataProps,
+  buttonTriggerProps,
+} from './button-host-attributes.ts'
 import { HozoLink } from './link.ts'
 import { HozoPressable, type HozoPressableProps } from './pressable.ts'
 import { HozoTextInput, type HozoTextInputProps } from './text-input.ts'
@@ -308,6 +316,18 @@ export interface ButtonProps extends ButtonDataProps {
   testID?: string
   /** Stable host ID: DOM id on Web, nativeID on React Native. */
   nativeID?: string
+  /**
+   * What a wrapper writes to make this a trigger -- `Tooltip` positions
+   * against the ref, opens on these handlers, and names its bubble with
+   * `aria-describedby` (#1137). Forwarded to the element as given.
+   */
+  ref?: Ref<HTMLElement>
+  onFocus?: FocusEventHandler<HTMLElement>
+  onBlur?: FocusEventHandler<HTMLElement>
+  onKeyDown?: KeyboardEventHandler<HTMLElement>
+  onPointerEnter?: PointerEventHandler<HTMLElement>
+  onPointerLeave?: PointerEventHandler<HTMLElement>
+  'aria-describedby'?: string
 }
 
 export function Button({
@@ -328,7 +348,10 @@ export function Button({
   nativeID,
   ...metadata
 }: ButtonProps) {
-  const data = buttonDataProps(metadata)
+  const data = {
+    ...buttonDataProps(metadata),
+    ...buttonTriggerProps(metadata, BUTTON_TRIGGER_PROPS_WEB),
+  }
   if (href != null) {
     return (
       <HozoLink

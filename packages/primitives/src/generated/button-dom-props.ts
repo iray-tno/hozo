@@ -34,6 +34,16 @@ function common(props: Props, out: Props, name: string, value: unknown): boolean
       return true
     case 'className':
     case 'children':
+    // What a wrapper writes to make the Button a trigger: `Tooltip` clones
+    // its child with these (#1137). The uncompiled Button forwards the same
+    // list, `BUTTON_TRIGGER_PROPS_WEB`.
+    case 'ref':
+    case 'onFocus':
+    case 'onBlur':
+    case 'onKeyDown':
+    case 'onPointerEnter':
+    case 'onPointerLeave':
+    case 'aria-describedby':
       out[name] = value
       return true
     case 'style':

@@ -13,7 +13,12 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native'
-import { type ButtonDataProps, buttonDataProps } from './button-host-attributes.ts'
+import {
+  BUTTON_TRIGGER_PROPS_NATIVE,
+  type ButtonDataProps,
+  buttonDataProps,
+  buttonTriggerProps,
+} from './button-host-attributes.ts'
 import { hozoButtonProps } from './button-host-props.native.ts'
 import { HozoLink } from './link.native.tsx'
 import { type NativeTextInputProps, nativeTextInputProps } from './text-input-props.native.ts'
@@ -157,6 +162,17 @@ export interface ButtonProps extends ButtonDataProps {
   style?: StyleProp<ViewStyle>
   testID?: string
   nativeID?: string
+  /**
+   * What a wrapper writes to make this a trigger -- `Tooltip` measures the
+   * ref and opens on hover or a long press (#1137). Forwarded to the
+   * Pressable as given.
+   */
+  ref?: Ref<ComponentRef<typeof RNPressable>>
+  onFocus?: RNPressableProps['onFocus']
+  onBlur?: RNPressableProps['onBlur']
+  onHoverIn?: RNPressableProps['onHoverIn']
+  onHoverOut?: RNPressableProps['onHoverOut']
+  onLongPress?: RNPressableProps['onLongPress']
 }
 
 export type ButtonNativeProps = ButtonProps
@@ -178,6 +194,7 @@ export function Button({
 }: ButtonProps) {
   const shared = {
     ...hozoButtonProps(buttonDataProps(metadata)),
+    ...buttonTriggerProps(metadata, BUTTON_TRIGGER_PROPS_NATIVE),
     disabled,
     accessibilityLabel,
     accessibilityHint,
