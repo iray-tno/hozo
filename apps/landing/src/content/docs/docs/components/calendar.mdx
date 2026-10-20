@@ -1,0 +1,32 @@
+---
+title: "Calendar"
+description: "A month grid to choose a day or a range from, built on @hozo/form, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { CalendarDemo } from '../../../../examples/ui/CalendarDemo.tsx'
+import source from '../../../../examples/ui/CalendarDemo.tsx?raw'
+
+`Calendar` is a month grid that stays on the page. Click a day, or Tab into the
+grid and move with the arrow keys:
+
+<UiExample source={source} file="CalendarDemo.tsx">
+  <CalendarDemo client:visible />
+</UiExample>
+
+- **Dates are plain records:** `{ year, month, day }`, with `month` from 1 to
+  12. There is no `Date` and no time zone, so the 24th stays the 24th
+  wherever the page is read.
+- **`value`** and **`onChange`** hold the chosen day. With **`range`**, they
+  hold `{ start, end }` instead.
+- **The keyboard:**
+  - the arrows move by a day or a week
+  - Home and End go to the start and end of the week
+  - Page Up and Page Down move by a month
+  - Enter chooses the day
+- **`min`** and **`max`** disable the days outside them. That is why the days
+  before the 24th cannot be chosen here.
+- **`locale`** names the month and the weekdays, and **`firstDayOfWeek`**
+  overrides where the week starts.
+- **`today`** marks a day. It defaults to the device's date, and the example
+  pins it so the page reads the same on any day.

@@ -1,0 +1,28 @@
+---
+title: "Combobox"
+description: "A text field that filters a list of options as you type, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { ComboboxDemo } from '../../../../examples/ui/ComboboxDemo.tsx'
+import source from '../../../../examples/ui/ComboboxDemo.tsx?raw'
+
+`Combobox` is a text field with a list of options under it. The list narrows
+as you type. Type "j", then use the arrow keys and Enter, or click an option:
+
+<UiExample source={source} file="ComboboxDemo.tsx">
+  <ComboboxDemo client:visible />
+</UiExample>
+
+- **`options`:** `{ value, label, disabled? }` for each option.
+- **`value`** and **`onValueChange`** hold the chosen option's value.
+- **Focus stays in the field.** The arrows move a highlight through the list
+  with `aria-activedescendant`, so typing can carry on at any moment. Enter
+  chooses the highlighted option, and Escape closes the list.
+- **`match`** is `starts` by default, or `contains` to match anywhere in a
+  label.
+- **`autocomplete`** is `list` by default, which filters the list. `both` also
+  completes the rest of the first match inline, and `none` shows every option.
+- **`emptyMessage`** is shown when nothing matches.
+- **`accessibilityLabel`** names the field. **`placeholder`** is a hint inside
+  it, not a label.

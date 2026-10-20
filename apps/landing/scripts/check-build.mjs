@@ -270,6 +270,14 @@ for (const [page, element] of [
   ['drawer', /<button [^>]*>Open navigation<\/button>/],
   ['bottom-sheet', /<button [^>]*>Filters<\/button>/],
   ['tooltip', /<button [^>]*>Save<\/button>/],
+  ['listbox', /<div role="listbox" aria-label="Languages"[^>]*aria-multiselectable="true"/],
+  ['combobox', /<input [^>]*role="combobox" aria-label="Country"/],
+  ['tree', /<div role="tree" aria-label="Repository"/],
+  ['calendar', /<table role="grid"/],
+  ['date-picker', /<button [^>]*aria-haspopup="dialog"[^>]*>.*Pick a day/],
+  ['date-range-picker', /<button [^>]*aria-haspopup="dialog"[^>]*>.*Pick your dates/],
+  ['date-time-picker', /<button [^>]*aria-haspopup="dialog"[^>]*>.*Pick a moment/],
+  ['time-picker', /role="spinbutton"[^>]*aria-label="Hour" aria-valuenow="9"/],
 ]) {
   const html = readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8')
   const islands = html.match(/<astro-island\b[\s\S]*?<\/astro-island>/g) ?? []

@@ -1,0 +1,27 @@
+---
+title: "Date Time Picker"
+description: "A button that opens a calendar and a clock to choose a day and a time, built on @hozo/form, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { DateTimePickerDemo } from '../../../../examples/ui/DateTimePickerDemo.tsx'
+import source from '../../../../examples/ui/DateTimePickerDemo.tsx?raw'
+
+`DateTimePicker` opens a calendar with a [Time Picker](../time-picker/) under
+it. Choose a day, set the time, then press Done:
+
+<UiExample source={source} file="DateTimePickerDemo.tsx">
+  <DateTimePickerDemo client:visible />
+</UiExample>
+
+- **`value`** and **`onChange`** hold one flat record:
+  `{ year, month, day, hour, minute }`. It can be passed to anything that wants
+  a date or a time.
+- **Choosing a day does not close the popover**, because the time is still to
+  come, so it has a Done button. **Done only closes it.** Every change to the
+  day or the time has already been reported through `onChange`, which is why
+  there is no Cancel beside it. Escape and a press outside close it too.
+  **`doneLabel`** renames the button.
+- **`hour12`** chooses a twelve-hour clock. By default `locale` decides.
+- **`min`** and **`max`** are moments, not days.
+- Everything else is as in [Date Picker](../date-picker/).

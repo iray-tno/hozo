@@ -1,0 +1,24 @@
+---
+title: "Date Range Picker"
+description: "A button that opens a calendar to choose a start and an end day, built on @hozo/form, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { DateRangePickerDemo } from '../../../../examples/ui/DateRangePickerDemo.tsx'
+import source from '../../../../examples/ui/DateRangePickerDemo.tsx?raw'
+
+`DateRangePicker` works like [Date Picker](../date-picker/), but chooses two
+days. Open it, click a first day, then a second:
+
+<UiExample source={source} file="DateRangePickerDemo.tsx">
+  <DateRangePickerDemo client:visible />
+</UiExample>
+
+- **`value`** and **`onChange`** hold `{ start, end }`. The two days can be
+  chosen in either order, and `start` is always the earlier one.
+- **The days between are marked** with `aria-selected`, and the two ends are
+  styled from data attributes. A reader hears **`rangeStartLabel`** and
+  **`rangeEndLabel`** on the ends.
+- **`rangeSeparator`** goes between the two dates on the button.
+- Everything else is as in Date Picker: the popover is modal, Escape closes it,
+  and `min`, `max` and `locale` pass to the calendar.

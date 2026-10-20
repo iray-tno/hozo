@@ -1,0 +1,27 @@
+---
+title: "Date Picker"
+description: "A button that opens a calendar to choose a day, built on @hozo/form, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { DatePickerDemo } from '../../../../examples/ui/DatePickerDemo.tsx'
+import source from '../../../../examples/ui/DatePickerDemo.tsx?raw'
+
+`DatePicker` is a button that shows the chosen day and opens a calendar in a
+popover. Open it, then click a day, or move with the arrow keys and press Enter:
+
+<UiExample source={source} file="DatePickerDemo.tsx">
+  <DatePickerDemo client:visible />
+</UiExample>
+
+- **`value`** and **`onChange`** hold a `{ year, month, day }`, as in
+  [Calendar](../calendar/). Choosing a day closes the popover.
+- **The popover is modal.** Tab stays inside it, because a grid you move around
+  with the arrows is unusable if Tab can leave it. Escape closes it, and focus
+  goes back to the button.
+- **`placeholder`** is shown until a day is chosen. **`formatValue`** changes
+  how a chosen day is written. By default it uses `locale`.
+- **`min`**, **`max`**, **`locale`**, **`firstDayOfWeek`** and **`today`** pass
+  to the calendar inside.
+- **`accessibilityLabel`** names the button, and **`dialogLabel`** names the
+  popover.

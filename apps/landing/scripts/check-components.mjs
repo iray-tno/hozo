@@ -264,6 +264,96 @@ const pages = {
     await page.getByRole('button', { name: 'Share' }).hover()
     await page.getByRole('tooltip').filter({ hasText: 'Copies a link' }).waitFor()
   },
+  async listbox(page) {
+    await page.getByRole('option', { name: 'Go' }).click()
+    await page.getByText('Chosen: rust, go').waitFor()
+    assert.equal(
+      await page.getByRole('option', { name: 'COBOL' }).getAttribute('aria-disabled'),
+      'true',
+      'listbox: the disabled option is not marked',
+    )
+  },
+  async combobox(page) {
+    const field = page.getByRole('combobox', { name: 'Country' })
+    await field.fill('j')
+    // Japan, Jamaica, Jordan: the list narrows to what starts with the text.
+    await page.waitForFunction(() => document.querySelectorAll('[role=option]').length === 3)
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Enter')
+    await page.getByText('Chosen: jm').waitFor()
+    assert.equal(
+      await field.evaluate((el) => el === document.activeElement),
+      true,
+      'combobox: focus left the field',
+    )
+  },
+  async tree(page) {
+    const crates = page.getByRole('treeitem', { name: 'crates' })
+    await page.getByRole('treeitem', { name: 'README.md' }).focus()
+    await crates.focus()
+    await page.keyboard.press('ArrowLeft')
+    assert.equal(await crates.getAttribute('aria-expanded'), 'false', 'tree: Left did not close')
+    await page.keyboard.press('ArrowRight')
+    assert.equal(await crates.getAttribute('aria-expanded'), 'true', 'tree: Right did not open')
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Enter')
+    await page.getByText('Selected: ir').waitFor()
+  },
+  async calendar(page) {
+    const grid = page.getByRole('grid')
+    await grid.getByRole('gridcell', { name: /September 28/ }).click()
+    await page.getByText('Delivery: 2026-09-28').waitFor()
+    await page.keyboard.press('ArrowRight')
+    await page.keyboard.press('Enter')
+    await page.getByText('Delivery: 2026-09-29').waitFor()
+  },
+  async 'date-picker'(page) {
+    const trigger = page.getByRole('button', { name: /Delivery day/ })
+    await trigger.click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('gridcell', { name: /September 28/ }).click()
+    await dialog.waitFor({ state: 'hidden' })
+    assert.match(
+      await trigger.innerText(),
+      /9\/28\/2026|Sep(tember)? 28/,
+      'date-picker: no day shown',
+    )
+  },
+  async 'date-range-picker'(page) {
+    const trigger = page.getByRole('button', { name: /Stay/ })
+    await trigger.click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('gridcell', { name: /September 28/ }).click()
+    await dialog.getByRole('gridcell', { name: /September 25/ }).click()
+    await dialog.waitFor({ state: 'hidden' })
+    // Chosen in reverse, shown in order.
+    assert.match(
+      await trigger.innerText(),
+      /25.*28/s,
+      'date-range-picker: range not shown in order',
+    )
+  },
+  async 'date-time-picker'(page) {
+    const trigger = page.getByRole('button', { name: /Meeting/ })
+    await trigger.click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('gridcell', { name: /September 28/ }).click()
+    // A day alone does not close it: the time is still to come.
+    await dialog.getByRole('button', { name: 'Done' }).click()
+    await dialog.waitFor({ state: 'hidden' })
+    assert.match(await trigger.innerText(), /28/, 'date-time-picker: no day shown')
+  },
+  async 'time-picker'(page) {
+    const hour = page.getByRole('spinbutton', { name: 'Hour' })
+    await hour.focus()
+    await page.keyboard.press('ArrowUp')
+    await page.getByText('Stored as 10:30').waitFor()
+    await page.getByRole('spinbutton', { name: 'Minute' }).focus()
+    await page.keyboard.press('ArrowUp')
+    // A step of fifteen minutes.
+    await page.getByText('Stored as 10:45').waitFor()
+  },
 }
 
 let browser
