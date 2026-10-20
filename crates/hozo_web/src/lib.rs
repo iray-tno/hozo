@@ -464,6 +464,7 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     let mut out = String::new();
     let mut owned = String::new();
     let mut uses_leading = false;
+    let mut uses_content = false;
     for name in class_names {
         let Some(utility) = hozo_parser::resolve_class_name(name) else {
             continue;
@@ -525,6 +526,12 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
             uses_leading |= properties
                 .iter()
                 .any(|p| matches!(p, hozo_ir::StyleProperty::LineHeight(_)));
+            uses_content |= condition
+                .pseudo_element()
+                .is_some_and(|pseudo| pseudo.needs_content())
+                || properties
+                    .iter()
+                    .any(|p| matches!(p, hozo_ir::StyleProperty::Content(_)));
             // The same pairing `render_node` does, on the other path a class
             // can reach the output by. A utility in this sheet is written
             // once and used by every element that names it, so a project
@@ -591,6 +598,14 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     }
     if uses_leading {
         out.insert_str(0, LEADING_BASE_CSS);
+    }
+    // The rules above write `content: var(--hozo-content)` for a `before:`
+    // or `after:` class, and a lowered file that uses one carries the
+    // register. A class that reaches the page only through this sheet --
+    // a component's class list passed to a plain element at runtime -- has
+    // no such file, so without it the pseudo-element is never generated.
+    if uses_content {
+        out.insert_str(0, CONTENT_BASE_CSS);
     }
     // A named sublayer loses to Tailwind's direct utilities regardless of
     // which stylesheet loads first. Declare the standard layer order too:

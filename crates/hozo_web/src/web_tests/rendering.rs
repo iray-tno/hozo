@@ -289,6 +289,21 @@ fn candidate_css_uses_the_real_tailwind_names() {
 }
 
 #[test]
+fn candidate_css_registers_the_content_property_for_pseudo_elements() {
+    // A bottom sheet's grabber is `before:block before:h-1 ...` in a class
+    // list the pattern passes to a plain <button>, so this sheet is the only
+    // CSS it gets. `content: var(--hozo-content)` with nothing registering
+    // the property is invalid, and the bar was never drawn.
+    let css = render_candidate_stylesheet(&["before:block".to_string()], &Theme::default());
+    assert!(css.contains("content: var(--hozo-content);"), "{css}");
+    assert!(css.contains("@property --hozo-content {"), "{css}");
+    assert!(css.contains("initial-value: \"\";"), "{css}");
+
+    let css = render_candidate_stylesheet(&["p-2".to_string()], &Theme::default());
+    assert!(!css.contains("--hozo-content"), "{css}");
+}
+
+#[test]
 fn candidate_secondary_form_predicates_keep_real_owners_separate_from_portable_roots() {
     let names = [
         "p-2",
