@@ -1,0 +1,28 @@
+---
+title: "Drawer"
+description: "A modal panel against the edge of the screen, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { DrawerDemo } from '../../../../examples/ui/DrawerDemo.tsx'
+import source from '../../../../examples/ui/DrawerDemo.tsx?raw'
+
+`Drawer` slides a panel in from the side of the screen, over a scrim. Open it,
+then press Escape, click the scrim, or press Close:
+
+<UiExample source={source} file="DrawerDemo.tsx">
+  <DrawerDemo client:visible />
+</UiExample>
+
+- **`open`** drives it, and **`onClose`** is called when it asks to go away:
+  Escape or the scrim. Keep `open` in your state, as with `Dialog`.
+- **It is modal.** Focus stays inside while it is open, the page behind it
+  stops scrolling, and focus goes back to the opener when it closes.
+- **`side`** is `left` by default. `start` and `end` follow the reading
+  direction, so `start` is the right-hand side in a right-to-left interface.
+- **`accessibilityLabel`** names it, or **`accessibilityLabelledBy`** points at
+  a heading inside it.
+- **There is no close button**, for the reason `Dialog` has none: put one in
+  the children, as the example does.
+- **On React Native** it is drawn over a `Modal`, and a swipe toward the edge
+  closes it.
