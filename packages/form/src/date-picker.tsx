@@ -183,7 +183,18 @@ export function HozoDatePicker({
         )}
       </button>
       {open ? (
-        <FloatingPositioner anchorRef={triggerRef} placement="bottom-start" offset={4} flip shift>
+        // The top layer, as `Menu` and `Tooltip` do: a fixed panel with no
+        // stacking of its own was painted under whatever positioned content
+        // came after the picker in the page. The range and date-time
+        // pickers do the same for the same reason.
+        <FloatingPositioner
+          topLayer
+          anchorRef={triggerRef}
+          placement="bottom-start"
+          offset={4}
+          flip
+          shift
+        >
           {() => (
             <DismissableLayer onDismiss={() => change(false)}>
               {/*

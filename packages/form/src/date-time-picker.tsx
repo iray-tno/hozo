@@ -278,7 +278,14 @@ export function HozoDateTimePicker({
         )}
       </button>
       {open ? (
-        <FloatingPositioner anchorRef={triggerRef} placement="bottom-start" offset={4} flip shift>
+        <FloatingPositioner
+          topLayer
+          anchorRef={triggerRef}
+          placement="bottom-start"
+          offset={4}
+          flip
+          shift
+        >
           {() => (
             <DismissableLayer onDismiss={() => change(false)}>
               {/*
