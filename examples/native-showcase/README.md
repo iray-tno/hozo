@@ -564,8 +564,8 @@ Within a case, change the ancestor, update the label and restore; mount IDs
 in accessible labels must stay stable. Switching cases intentionally starts
 new labels. Actual `onTextLayout` callbacks log `[Hozo text layout]` records
 with line metrics and versions, but always `verdict: not-assessed`. These are
-not pixel, font-color/weight, AT or timing results. This change prepares the
-screen; it does not claim it has been run on Android/iOS. The app's RN 0.86.3
+not pixel, font-color/weight, AT or timing results. The source-bound device
+review is linked below. The app's RN 0.86.3
 also differs from the Node source probe's 0.87.1.
 The app's TypeScript `react-native` path mirrors its Metro singleton:
 workspace helper declarations are checked against the app's actual RN 0.86
@@ -614,12 +614,13 @@ coverage is unchanged.
 
 The [first dedicated iOS measurement](../../docs/measurements/native-text-inheritance-ios.md)
 also reviewed the original 24 states and archive/bundle hashes. Neither that
-sample nor the Android sample certifies the expanded opaque/production cases. Their mock-host
-tests prove stable props and Context propagation beneath a memo bailout, not
-Native pixels; review the new dedicated runs separately. No performance or
-default production fallback claim follows. Inspect the new source-bound
-Android/iOS run separately before treating these production leaves as
-device-verified; neither a synthetic image nor an older reference run does that.
+sample nor the Android sample certifies the expanded opaque/production cases.
+The separate [production review](../../docs/measurements/native-text-inheritance-production.md)
+now checks the new 56-state four-panel run on each OS, including the opaque
+boundary, actual binary hashes and independent raw PNG/AX recomputation.
+`scripts/review-text-evidence.mjs` reproduces that offline check; the report
+lists its commands, visual subset and limits. No performance, default
+production fallback or production static-erasure claim follows.
 
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and
