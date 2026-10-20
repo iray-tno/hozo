@@ -48,6 +48,9 @@ export function DomainShowcase({ baseUrl = '' }: DomainShowcaseProps) {
     >
       <View className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <View className="text-center max-w-3xl mx-auto mb-10 flex flex-col items-center">
+          <Text className="text-xs font-bold uppercase tracking-widest text-hinoki mb-3 block">
+            Domains
+          </Text>
           <Heading
             level={2}
             className="text-3xl sm:text-5xl font-extrabold text-shikkui tracking-tight mb-4"
