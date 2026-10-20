@@ -1,0 +1,26 @@
+---
+title: "Radio group"
+description: "Choose one of several options, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { RadioGroupDemo } from '../../../../examples/ui/RadioGroupDemo.tsx'
+import source from '../../../../examples/ui/RadioGroupDemo.tsx?raw'
+
+A `RadioGroup` is one tab stop for the whole group, and the arrow keys choose
+within it. That is what makes it a radio group rather than a column of
+checkboxes. Each option is `role="radio"`, and its ring and dot are drawn from
+`aria-checked`.
+
+<UiExample source={source} file="RadioGroupDemo.tsx">
+  <RadioGroupDemo client:visible />
+</UiExample>
+
+- **`options`:** `{ value, label, disabled? }` for each option. A disabled
+  option is skipped by the arrows rather than stopped on.
+- **`value`** and **`onValueChange`**, or **`defaultValue`** for an
+  uncontrolled group. The value can be any type, not only a string.
+- **`accessibilityLabel`:** the group's name. A group without one is a list of
+  answers to a question nobody asked.
+- **`orientation`:** `vertical` (the default) or `horizontal`, which also
+  changes which arrows move the choice.

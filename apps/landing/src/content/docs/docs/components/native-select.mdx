@@ -1,0 +1,25 @@
+---
+title: "Native select"
+description: "The platform's own select, styled when closed, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { NativeSelectDemo } from '../../../../examples/ui/NativeSelectDemo.tsx'
+import source from '../../../../examples/ui/NativeSelectDemo.tsx?raw'
+
+A `NativeSelect` is a real `<select>` on the Web, so its open list is the
+operating system's: the wheel on iOS Safari, the dropdown on Android Chrome.
+Only the closed box is styled. That is the trade, not an omission. On React
+Native, it is an action sheet on iOS and a modal list on Android.
+
+<UiExample source={source} file="NativeSelectDemo.tsx">
+  <NativeSelectDemo client:visible />
+</UiExample>
+
+- **`options`:** `{ value, label, disabled? }` for each option. The values are
+  strings, as they are in a `<select>`.
+- **`value`** and **`onValueChange`**, or **`defaultValue`**.
+- **`placeholder`:** shown until something is chosen, and not choosable itself.
+- Inside a [`Field`](../input/), `{...control}` gives it its label, as it does
+  for `Input`. When you need a list you can style, use `Listbox` or
+  `Combobox`.

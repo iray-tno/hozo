@@ -1,0 +1,28 @@
+---
+title: "Checkbox"
+description: "A checkbox with a mixed state, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { CheckboxDemo } from '../../../../examples/ui/CheckboxDemo.tsx'
+import source from '../../../../examples/ui/CheckboxDemo.tsx?raw'
+
+A `Checkbox` wears the checkbox pattern from `@hozo/patterns`: on the Web it
+is a `<button>` with `role="checkbox"`, so the browser makes it focusable and
+lets Space toggle it, and on React Native it is a
+`Pressable` with the same role. The box and its tick are drawn from the
+checked state the pattern reports, so the look cannot disagree with what a
+screen reader announces.
+
+<UiExample source={source} file="CheckboxDemo.tsx">
+  <CheckboxDemo client:visible />
+</UiExample>
+
+- **`checked`:** `true`, `false` or `'mixed'`. Mixed is the state no input
+  attribute can express: the parent above is mixed while some but not all of
+  the meals are chosen.
+- **`onCheckedChange`:** called with the next `true` or `false`. Pressing a
+  mixed box checks it.
+- **`defaultChecked`:** for an uncontrolled checkbox.
+- **`disabled`**, **`accessibilityLabel`** and **`className`** do what they
+  say. The children are the label, and pressing the label toggles the box.

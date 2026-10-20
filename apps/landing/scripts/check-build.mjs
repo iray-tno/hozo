@@ -251,6 +251,13 @@ for (const [page, element] of [
   ['input', /<label for="[^"]+"[^>]*>Email/],
   ['card', /<h3 class="[^"]*">Weekly report<\/h3>/],
   ['dialog', /<dialog\b/],
+  ['checkbox', /<button [^>]*role="checkbox" aria-checked="mixed"/],
+  ['switch', /<button [^>]*role="switch" aria-checked="true"/],
+  ['radio-group', /<div role="radiogroup" aria-label="Shipping"/],
+  ['segmented-control', /<div role="radiogroup" aria-label="Range" aria-orientation="horizontal"/],
+  ['slider', /<div role="slider" aria-label="Volume"/],
+  ['text-area', /<textarea [^>]*maxLength="160"/],
+  ['native-select', /<select\b/],
 ]) {
   const html = readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8')
   const islands = html.match(/<astro-island\b[\s\S]*?<\/astro-island>/g) ?? []

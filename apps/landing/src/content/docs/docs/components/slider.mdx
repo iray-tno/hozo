@@ -1,0 +1,26 @@
+---
+title: "Slider"
+description: "A slider with a 24px thumb, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { SliderDemo } from '../../../../examples/ui/SliderDemo.tsx'
+import source from '../../../../examples/ui/SliderDemo.tsx?raw'
+
+A `Slider` is `role="slider"` with the keys the ARIA Authoring Practices list:
+the arrows step, Page Up and Page Down take big steps, and Home and End go to
+the ends. A drag keeps going past the end of the track. The thumb is 24 by 24,
+as WCAG 2.5.8 asks, and the whole row is the target.
+
+<UiExample source={source} file="SliderDemo.tsx">
+  <SliderDemo client:visible />
+</UiExample>
+
+- **`value`** and **`onValueChange`**, or **`defaultValue`**.
+  **`onValueCommit`** is called once, when a drag or a key press ends.
+- **`min`**, **`max`**, **`step`** and **`bigStep`:** 0 to 100 in steps of
+  1 by default.
+- **`valueText`:** what a screen reader says for a value. Above, it says
+  "40 percent" rather than "40".
+- **`accessibilityLabel`**, **`disabled`** and **`orientation`**. `className`
+  reaches the track, for a width or a margin.
