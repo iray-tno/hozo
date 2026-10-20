@@ -57,6 +57,21 @@ test('the actual UI Button translates its rest spread for the element it was dec
   )
 })
 
+test('the actual UI Input translates its rest spread, so its onChangeText is called', () => {
+  // #1118. The spread carries `onChangeText`; raw, the `<input>` ignored it
+  // and a controlled Input was reset on every keystroke.
+  const source = readFileSync(new URL('../../ui/src/input.tsx', import.meta.url), 'utf8')
+  const output = lowerModule(source, 'Input.tsx', 'Input.tsx', compiler, ROOT)
+  assert.ok(output)
+  assert.doesNotMatch(output.code, /hozoDomProps\(rest\)/)
+  assert.match(output.code, /<input [^>]*\{\.\.\.hozoTextInputDomProps\(rest\)\}/)
+  assert.match(output.code, /<textarea [^>]*\{\.\.\.hozoTextInputDomProps\(rest, true\)\}/)
+  assert.match(
+    output.code,
+    /import \{ hozoTextInputDomProps \} from '@hozo\/core\/generated\/text-input-dom-props'/,
+  )
+})
+
 test('generated names import from one leaf each, through core unless the owner is opt-in', () => {
   assert.equal(
     generatedRuntimeImports([

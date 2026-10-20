@@ -106,7 +106,13 @@ export function renderWeb(
     // keeping a second list. A caller's own scope still wins, since that
     // is where the module-level identifiers come from.
     const runtime = require('@hozo/engine') as Record<string, unknown>
-    const full = { ...runtime, ...scope }
+    // And the spread translators for a lowered Button and TextInput, which
+    // `@hozo/primitives` owns rather than the engine (#1096, #1118).
+    const translators = {
+      ...(require('@hozo/primitives/generated/button-dom-props') as Record<string, unknown>),
+      ...(require('@hozo/primitives/generated/text-input-dom-props') as Record<string, unknown>),
+    }
+    const full = { ...runtime, ...translators, ...scope }
     const globals = globalThis as Record<string, unknown>
     const restore = Object.keys(full).map((key) => [key, globals[key]] as const)
     Object.assign(globals, full)

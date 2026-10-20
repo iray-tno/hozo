@@ -188,6 +188,10 @@
       "types": "./dist/generated/text-input.d.ts",
       "default": "./dist/generated/text-input.js"
     },
+    "./generated/text-input-dom-props": {
+      "types": "./dist/generated/text-input-dom-props.d.ts",
+      "default": "./dist/generated/text-input-dom-props.js"
+    },
     "./generated/text-size": {
       "types": "./dist/generated/text-size.d.ts",
       "default": "./dist/generated/text-size.js"

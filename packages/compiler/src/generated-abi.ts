@@ -53,6 +53,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoTableSection: '@hozo/core/generated/table',
   HozoText: '@hozo/core/generated/text',
   HozoTextInput: '@hozo/core/generated/text-input',
+  hozoTextInputDomProps: '@hozo/core/generated/text-input-dom-props',
   HozoTextSize: '@hozo/core/generated/text-size',
   HozoTouchableOpacity: '@hozo/rn-compat/generated/touchable-opacity',
   HozoTouchableWithoutFeedback: '@hozo/rn-compat/generated/touchable-without-feedback',
