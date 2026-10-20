@@ -50,6 +50,19 @@ const stylesheets = [
 
 const checks = [
   [html.includes('id="try-hozo"'), 'the home page has no showcase entry section'],
+  // @hozo/ui, server-rendered by Hozo: a real <button> and <input>, and a
+  // link to each component page that exists.
+  [
+    /id="ui-components"[\s\S]*<input [^>]*placeholder="you@example.com"[\s\S]*<button [^>]*>Subscribe<\/button>/.test(
+      html,
+    ),
+    'the @hozo/ui section did not render its components',
+  ],
+  ...['button', 'input', 'card', 'dialog'].map((slug) => [
+    html.includes(`href="/hozo/docs/components/${slug}/"`) &&
+      existsSync(path.join(dist, 'docs', 'components', slug, 'index.html')),
+    `the @hozo/ui section does not link to a built ${slug} page`,
+  ]),
   [
     html.includes('href="#main-content"') && html.includes('id="main-content" tabindex="-1"'),
     'the keyboard skip link has no focusable destination',

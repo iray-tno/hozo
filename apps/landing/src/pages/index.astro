@@ -9,6 +9,7 @@ import { Navbar } from '../components/Navbar.tsx'
 import { Philosophy } from '../components/Philosophy.tsx'
 import SiteHead from '../components/SiteHead.astro'
 import { TryShowcase } from '../components/TryShowcase.tsx'
+import { UiShowcase } from '../components/UiShowcase.tsx'
 import { loadShowcaseRelease } from '../lib/showcase-release'
 import '../styles/global.css'
 
@@ -80,6 +81,7 @@ const showcaseRelease = await loadShowcaseRelease()
       <CodeShowcase />
       <Philosophy baseUrl={baseUrl} />
       <Integrations baseUrl={baseUrl} />
+      <UiShowcase baseUrl={baseUrl} />
       <TryShowcase baseUrl={baseUrl} release={showcaseRelease} />
       <DomainShowcase baseUrl={baseUrl} />
       <Kumimono client:visible baseUrl={baseUrl} />
