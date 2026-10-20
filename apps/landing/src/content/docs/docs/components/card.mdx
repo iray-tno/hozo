@@ -1,0 +1,22 @@
+---
+title: "Card"
+description: "A raised or flat surface for grouping content, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { CardDemo } from '../../../../examples/ui/CardDemo.tsx'
+import source from '../../../../examples/ui/CardDemo.tsx?raw'
+
+A `Card` is a `View` with a surface: a border, a radius, padding and a
+shadow.
+
+<UiExample source={source} file="CardDemo.tsx">
+  <CardDemo client:visible />
+</UiExample>
+
+- **`flat`** drops the shadow. Use it for a card inside another surface, where
+  a shadow reads as dirt.
+- **`className`** is added after the card's own classes.
+
+A `Card` is not a landmark and has no role. If it is a region a reader should
+be able to jump to, put a `Section` with an `accessibilityLabel` inside it.

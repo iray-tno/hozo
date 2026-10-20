@@ -1,0 +1,27 @@
+---
+title: "Button"
+description: "A pressable control in four tones and two sizes, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { ButtonDemo } from '../../../../examples/ui/ButtonDemo.tsx'
+import source from '../../../../examples/ui/ButtonDemo.tsx?raw'
+
+A `Button` is the `Button` primitive with a look. On the Web it is
+a real `<button>`, or an `<a>` when it has an `href`; on React Native it is a
+`Pressable` with the button role.
+
+<UiExample source={source} file="ButtonDemo.tsx">
+  <ButtonDemo client:visible />
+</UiExample>
+
+- **`tone`:** `accent`, `neutral` (the default), `quiet` or `danger`. Use one
+  `accent` per view, for the action the view is for.
+- **`size`:** `md` (the default, 44px tall) or `sm` (36px). Both are larger
+  than the 24px WCAG 2.5.8 asks for.
+- **`disabled`:** sets the real `disabled` attribute, and the disabled look is
+  styled from that attribute, so the two cannot disagree.
+- **`href`:** makes it a link that looks like a button.
+
+Everything else, such as `onPress` and `accessibilityLabel`, is the
+primitive's and passes straight through.

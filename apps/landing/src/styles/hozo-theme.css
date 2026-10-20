@@ -1,0 +1,12 @@
+/* What Hozo resolves this site's classes against: Tailwind's defaults and
+ * the tokens @hozo/ui is written against, for its live previews in /docs.
+ *
+ * The landing's own palette (shikkui, hinoki, yakisugi...) is deliberately
+ * not here. Left unresolved, those classes compile to
+ * `var(--hozo-color-<name>)`, which global.css defines for the landing and
+ * docs.css rebinds to Starlight's colours -- that is how the brand mark and
+ * the site links follow the docs' light/dark switch. Declared here, they
+ * would compile to literals and stop following it.
+ */
+@import "tailwindcss";
+@import "@hozo/ui/theme.css";

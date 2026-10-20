@@ -36,6 +36,7 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'docs/getting-started' } }],
         },
         { label: 'Guides', items: [{ autogenerate: { directory: 'docs/guides' } }] },
+        { label: 'Components', items: [{ autogenerate: { directory: 'docs/components' } }] },
         { label: 'Reference', items: [{ autogenerate: { directory: 'docs/reference' } }] },
         { label: 'Concepts', items: [{ autogenerate: { directory: 'docs/concepts' } }] },
         { label: 'Troubleshooting', link: '/docs/troubleshooting/' },
@@ -66,7 +67,7 @@ export default defineConfig({
     // the source as written, before any JSX transform.
     // Landing already imports Tailwind v4 in global.css, which ships its own
     // preflight, so Hozo's would be a second copy of it.
-    plugins: [hozo({ preflight: false }), tailwindcss()],
+    plugins: [hozo({ preflight: false, css: 'src/styles/hozo-theme.css' }), tailwindcss()],
     // /tailwind/ compiles its sample at build time. Bundled, the compiler
     // looks for its native addon beside the bundle instead of its package.
     environments: { prerender: { resolve: { external: ['@hozo/compiler'] } } },

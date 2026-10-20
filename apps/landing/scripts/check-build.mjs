@@ -229,6 +229,27 @@ checks.push([docsPages.length >= 10, `only ${docsPages.length} docs pages were f
     [!/<astro-island/.test(guide), 'docs styles: the example shipped an island'],
   )
 }
+// The component pages are the opposite case: @hozo/ui previews a reader can
+// press and type into, so each is one island that hydrates when visible.
+// It is also server-rendered, so the component is in the HTML before any
+// script runs -- the element each one lowers to is checked inside it.
+for (const [page, element] of [
+  ['button', /<button [^>]*type="button"[^>]*>Accent<\/button>/],
+  ['input', /<label for="[^"]+"[^>]*>Email/],
+  ['card', /<h3 class="[^"]*">Weekly report<\/h3>/],
+  ['dialog', /<dialog\b/],
+]) {
+  const html = readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8')
+  const islands = html.match(/<astro-island\b[\s\S]*?<\/astro-island>/g) ?? []
+  checks.push(
+    [islands.length === 1, `docs components/${page}: expected 1 island, found ${islands.length}`],
+    [/client="visible"/.test(islands[0] ?? ''), `docs components/${page}: not hydrated on visible`],
+    [
+      element.test(islands[0] ?? ''),
+      `docs components/${page}: the preview was not server-rendered`,
+    ],
+  )
+}
 for (const page of sitePages) {
   const head = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
   const label = page === '' ? 'index' : page
