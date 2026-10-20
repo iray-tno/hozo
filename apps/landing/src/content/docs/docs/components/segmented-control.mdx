@@ -1,0 +1,23 @@
+---
+title: "Segmented control"
+description: "A radio group drawn as a strip, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { SegmentedControlDemo } from '../../../../examples/ui/SegmentedControlDemo.tsx'
+import source from '../../../../examples/ui/SegmentedControlDemo.tsx?raw'
+
+A `SegmentedControl` is a [radio group](../radio-group/) drawn as a strip,
+with the same props and the same keys. The chosen segment is `aria-checked`.
+
+It looks like a row of tabs, but it means something different: tabs choose
+which panel is shown, and a segmented control chooses a value. Use `Tabs` when
+something below changes, and this when a field is being filled in.
+
+<UiExample source={source} file="SegmentedControlDemo.tsx">
+  <SegmentedControlDemo client:visible />
+</UiExample>
+
+- **`options`**, **`value`**, **`onValueChange`**, **`defaultValue`** and
+  **`accessibilityLabel`** are the radio group's.
+- The strip is as wide as its segments, not as wide as the form.

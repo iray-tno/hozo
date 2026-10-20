@@ -92,6 +92,57 @@ const pages = {
       'dialog: focus did not return to the button that opened it',
     )
   },
+  async checkbox(page) {
+    const all = page.getByRole('checkbox', { name: 'All meals' })
+    assert.equal(await all.getAttribute('aria-checked'), 'mixed', 'checkbox: parent not mixed')
+    await all.click()
+    await page.getByText('Chosen: Breakfast, Lunch, Dinner').waitFor()
+    await page.getByRole('checkbox', { name: 'Lunch' }).click()
+    assert.equal(
+      await all.getAttribute('aria-checked'),
+      'mixed',
+      'checkbox: parent not mixed again',
+    )
+  },
+  async switch(page) {
+    const emails = page.getByRole('switch', { name: 'Email notifications' })
+    await emails.click()
+    await page.getByText('Emails are off.').waitFor()
+    assert.equal(await emails.getAttribute('aria-checked'), 'false', 'switch: still on')
+  },
+  async 'radio-group'(page) {
+    const standard = page.getByRole('radio', { name: 'Standard, two days' })
+    await standard.focus()
+    await page.keyboard.press('ArrowDown')
+    await page.getByText('Shipping: express').waitFor()
+    // The disabled option is skipped: one more arrow wraps to the first.
+    await page.keyboard.press('ArrowDown')
+    await page.getByText('Shipping: standard').waitFor()
+  },
+  async 'segmented-control'(page) {
+    await page.getByRole('radio', { name: 'Month' }).click()
+    await page.getByText('Showing one month.').waitFor()
+  },
+  async slider(page) {
+    const slider = page.getByRole('slider', { name: 'Volume' })
+    await slider.focus()
+    await page.keyboard.press('ArrowRight')
+    await page.getByText('Volume: 41').waitFor()
+    await page.keyboard.press('End')
+    await page.getByText('Volume: 100').waitFor()
+    assert.equal(await slider.getAttribute('aria-valuetext'), '100 percent', 'slider: value text')
+  },
+  async 'text-area'(page) {
+    const field = page.getByRole('textbox', { name: 'Notes' })
+    await field.fill('Ring twice')
+    assert.equal(await field.inputValue(), 'Ring twice', 'text-area: typing did not stick')
+    await page.getByText('150 of 160 characters left').waitFor()
+  },
+  async 'native-select'(page) {
+    const select = page.getByRole('combobox', { name: 'Courier' })
+    await select.selectOption('bike')
+    assert.equal(await select.inputValue(), 'bike', 'native-select: choice did not stick')
+  },
 }
 
 let browser
@@ -103,7 +154,10 @@ try {
     page.on('pageerror', (error) => errors.push(String(error)))
     page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
     await page.goto(`${base}/${name}/`, { waitUntil: 'networkidle' })
-    await page.locator('astro-island').scrollIntoViewIfNeeded()
+    // The island is `display: contents`, and Playwright judges its
+    // visibility by its first child, which for some previews is the
+    // `<style>` of the View base. Scroll to the first child that renders.
+    await page.locator('astro-island > :not(style)').first().scrollIntoViewIfNeeded()
     await page.waitForFunction(() => !document.querySelector('astro-island[ssr]'))
     await exercise(page)
     assert.deepEqual(errors, [], `${name}: the page logged errors`)

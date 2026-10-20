@@ -1,0 +1,25 @@
+---
+title: "Text area"
+description: "A multiline field that grows as it is typed into, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { TextAreaDemo } from '../../../../examples/ui/TextAreaDemo.tsx'
+import source from '../../../../examples/ui/TextAreaDemo.tsx?raw'
+
+A `TextArea` grows as it is typed into, between `minRows` and `maxRows`, and
+scrolls after that. With `maxLength`, it shows how many characters are left.
+The count is a description rather than a live region: a screen reader reads it
+on reaching the field, and announces it unprompted only twice, entering the last
+ten characters and running out.
+
+<UiExample source={source} file="TextAreaDemo.tsx">
+  <TextAreaDemo client:visible />
+</UiExample>
+
+- **`value`** and **`onChangeText`**, or **`defaultValue`**.
+- **`minRows`** and **`maxRows`:** line counts rather than pixels, so they
+  survive a change of text size.
+- **`maxLength`:** the limit and the counter.
+- Inside a [`Field`](../input/), `{...control}` passes the label, the
+  description and the error, as it does for `Input`.

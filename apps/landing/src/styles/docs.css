@@ -55,3 +55,25 @@
   --hozo-color-yakisugi-950: var(--sl-color-black);
   --hozo-color-kuri: #7a5c43;
 }
+
+/* The @hozo/ui previews on /docs/components/. The package is written for a
+ * page with Tailwind's preflight, and this site runs without it (Starlight
+ * styles its own content), so inside a preview the browser's own button
+ * chrome showed through: a grey, bevelled box around every Checkbox and
+ * Switch. This is the part of preflight those components lean on, scoped to
+ * the preview and kept in `base`, so every utility class still wins. */
+@layer base {
+  :where(.hozo-ui-example) *,
+  :where(.hozo-ui-example) ::before,
+  :where(.hozo-ui-example) ::after {
+    box-sizing: border-box;
+    border: 0 solid;
+    margin: 0;
+    padding: 0;
+  }
+  :where(.hozo-ui-example) :is(button, input, select, textarea) {
+    font: inherit;
+    color: inherit;
+    background-color: transparent;
+  }
+}

@@ -1,0 +1,23 @@
+---
+title: "Switch"
+description: "An on/off switch, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { SwitchDemo } from '../../../../examples/ui/SwitchDemo.tsx'
+import source from '../../../../examples/ui/SwitchDemo.tsx?raw'
+
+A `Switch` is a checkbox drawn as a track and a knob, with `role="switch"`.
+Use it for a setting that takes effect at once. Use a [checkbox](../checkbox/)
+for a choice that a form submits later.
+
+<UiExample source={source} file="SwitchDemo.tsx">
+  <SwitchDemo client:visible />
+</UiExample>
+
+- **`checked`** and **`onCheckedChange`:** `true` or `false`. A switch has no
+  mixed state, so it draws none.
+- **`defaultChecked`:** for an uncontrolled switch.
+- **`disabled`:** the knob stays where it is, and the switch drops out of the
+  tab order.
+- The children are the label, and pressing the label flips the switch.
