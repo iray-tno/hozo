@@ -140,6 +140,10 @@
       "types": "./dist/generated/view.d.ts",
       "default": "./dist/generated/view.js"
     },
+    "./generated/view-dom-props": {
+      "types": "./dist/generated/view-dom-props.d.ts",
+      "default": "./dist/generated/view-dom-props.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

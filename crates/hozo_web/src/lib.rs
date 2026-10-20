@@ -403,6 +403,12 @@ pub fn lower_with_evidence(
     if jsx.contains("hozoTextInputDomProps(") {
         runtime_imports.push("hozoTextInputDomProps");
     }
+    if jsx.contains("hozoViewDomProps(") {
+        runtime_imports.push("hozoViewDomProps");
+    }
+    if jsx.contains("hozoImageDomProps(") {
+        runtime_imports.push("hozoImageDomProps");
+    }
     LowerOutput {
         jsx,
         css,
@@ -2284,7 +2290,13 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                     " {...hozoTextInputDomProps(".to_string(),
                     ", true)}".to_string(),
                 ),
-                _ => (" {...hozoDomProps(".to_string(), ")}".to_string()),
+                // And for everything else that shares the universal props:
+                // `accessibilityLabel`, `testID`, `accessibilityState` (#1122).
+                (Primitive::Image, "img") => {
+                    (" {...hozoImageDomProps(".to_string(), ")}".to_string())
+                }
+                (Primitive::Svg(_), _) => (" {...hozoDomProps(".to_string(), ")}".to_string()),
+                _ => (" {...hozoViewDomProps(".to_string(), ")}".to_string()),
             };
             source_evidence::expression(&mut attrs, &mut attr_copies, source, value, &open, &close);
             continue;

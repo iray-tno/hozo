@@ -223,7 +223,7 @@ fn host_dom_normalizes_inline_style_and_spread_values() {
         output.jsx
     );
     assert!(
-        output.jsx.contains("{...hozoDomProps(rest)}"),
+        output.jsx.contains("{...hozoViewDomProps(rest)}"),
         "{}",
         output.jsx
     );
@@ -233,7 +233,7 @@ fn host_dom_normalizes_inline_style_and_spread_values() {
         output.runtime_imports
     );
     assert!(
-        output.runtime_imports.contains(&"hozoDomProps"),
+        output.runtime_imports.contains(&"hozoViewDomProps"),
         "{:?}",
         output.runtime_imports
     );
@@ -250,7 +250,7 @@ fn static_host_dom_keeps_the_zero_runtime_path() {
 
     assert!(!output.jsx.contains("hozoDom"), "{}", output.jsx);
     assert!(!output.runtime_imports.contains(&"hozoDomStyle"));
-    assert!(!output.runtime_imports.contains(&"hozoDomProps"));
+    assert!(!output.runtime_imports.contains(&"hozoViewDomProps"));
 }
 
 #[test]
@@ -2356,7 +2356,7 @@ fn a_spread_gives_up_nothing_where_the_shape_is_fixed() {
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert_eq!(
         output.jsx,
-        r#"<div className="hozo-view" {...hozoDomProps(rest)}>x</div>"#
+        r#"<div className="hozo-view" {...hozoViewDomProps(rest)}>x</div>"#
     );
 }
 
@@ -3213,4 +3213,48 @@ fn a_text_inputs_spread_is_translated_for_the_element_it_lowered_to() {
         multi.contains("{...hozoTextInputDomProps(props, true)}"),
         "{multi}"
     );
+}
+
+#[test]
+fn a_spread_on_a_plain_element_primitive_is_translated_like_its_named_props() {
+    // #1122. `accessibilityLabel`, `testID` and the rest of the universal
+    // props are translated when written by name; through a spread they
+    // reached the DOM raw, and the element lost its accessible name.
+    let lowered = |import: &str, body: &str| {
+        let source = format!("import {{ {import} }} from '@hozo/core'\n{body}");
+        let parsed = hozo_parser::parse_tsx(&source);
+        lower(&parsed.roots[0].node, &source, &Theme::default())
+    };
+    for (import, body, tag) in [
+        ("View", "const el = <View {...rest}>x</View>", "<div"),
+        ("Text", "const el = <Text {...rest}>x</Text>", "<span"),
+        (
+            "Heading",
+            "const el = <Heading level={2} {...rest}>x</Heading>",
+            "<h2",
+        ),
+        (
+            "Section",
+            "const el = <Section {...rest}>x</Section>",
+            "<section",
+        ),
+    ] {
+        let output = lowered(import, body);
+        assert!(output.jsx.starts_with(tag), "{}", output.jsx);
+        assert!(
+            output.jsx.contains("{...hozoViewDomProps(rest)}"),
+            "{}",
+            output.jsx
+        );
+        assert!(
+            output.runtime_imports.contains(&"hozoViewDomProps"),
+            "{:?}",
+            output.runtime_imports
+        );
+    }
+    // An Image's `src` may be an object and its label is its `alt`, so it
+    // has its own translation.
+    let image = lowered("Image", "const el = <Image {...rest} />");
+    assert_eq!(image.jsx, "<img {...hozoImageDomProps(rest)} />");
+    assert!(image.runtime_imports.contains(&"hozoImageDomProps"));
 }

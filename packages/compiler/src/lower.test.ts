@@ -72,6 +72,25 @@ test('the actual UI Input translates its rest spread, so its onChangeText is cal
   )
 })
 
+test('a View or Image wrapper translates its rest spread, so its accessibility label survives', () => {
+  // #1122. Raw, `accessibilityLabel` and `testID` reached the `<div>` as
+  // unknown attributes, and the element had no accessible name.
+  const source = [
+    "import { Image, View } from '@hozo/core'",
+    'export function Box(props) { return <View {...props}>x</View> }',
+    'export function Picture(props) { return <Image {...props} /> }',
+  ].join('\n')
+  const output = lowerModule(source, 'Box.tsx', 'Box.tsx', compiler, ROOT)
+  assert.ok(output)
+  assert.doesNotMatch(output.code, /hozoDomProps\(/)
+  assert.match(output.code, /<div [^>]*\{\.\.\.hozoViewDomProps\(props\)\}/)
+  assert.match(output.code, /<img \{\.\.\.hozoImageDomProps\(props\)\}/)
+  assert.match(
+    output.code,
+    /import \{ hozoImageDomProps, hozoViewDomProps \} from '@hozo\/core\/generated\/view-dom-props'/,
+  )
+})
+
 test('generated names import from one leaf each, through core unless the owner is opt-in', () => {
   assert.equal(
     generatedRuntimeImports([
@@ -367,10 +386,12 @@ export function Page() {
     lowered.code,
     /style=\{hozoDomStyle\(\[\{ padding: 4 \}, false, \{ padding: 8 \}\]\)\}/,
   )
-  assert.match(lowered.code, /\{\.\.\.hozoDomProps\(props\)\}/)
+  // The spread is a View's, so it is translated as one (#1122).
+  assert.match(lowered.code, /\{\.\.\.hozoViewDomProps\(props\)\}/)
+  assert.match(lowered.code, /import \{ hozoDomStyle \} from '@hozo\/core\/generated\/dom-style'/)
   assert.match(
     lowered.code,
-    /import \{ hozoDomProps, hozoDomStyle \} from '@hozo\/core\/generated\/dom-style'/,
+    /import \{ hozoViewDomProps \} from '@hozo\/core\/generated\/view-dom-props'/,
   )
 })
 
