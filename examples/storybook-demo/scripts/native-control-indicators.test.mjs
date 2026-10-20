@@ -1310,7 +1310,10 @@ test('Native Tree with toggleOn="marker": the row selects, and the marker or an 
   const tree = await mount(t, HozoTree, {
     nodes: [{ id: 'folder', label: 'Folder', children: [{ id: 'leaf', label: 'Leaf' }] }],
     toggleOn: 'marker',
-    rowLook: ({ branch }) => ({ indentClassName: 'flex-row', markerClassName: branch ? 'size-6' : 'size-2' }),
+    rowLook: ({ branch }) => ({
+      indentClassName: 'flex-row',
+      markerClassName: branch ? 'size-6' : 'size-2',
+    }),
     onSelect: (id) => selected.push(id),
   })
   const rows = () =>
