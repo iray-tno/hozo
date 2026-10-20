@@ -1,0 +1,29 @@
+---
+title: "Bottom Sheet"
+description: "A modal panel against the bottom edge that can be dragged, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { BottomSheetDemo } from '../../../../examples/ui/BottomSheetDemo.tsx'
+import source from '../../../../examples/ui/BottomSheetDemo.tsx?raw'
+
+`BottomSheet` rises from the bottom of the screen. On a wide screen it becomes
+a centred panel instead, and it can still be dragged. Open it, then drag the
+handle, press Escape, or click the scrim:
+
+<UiExample source={source} file="BottomSheetDemo.tsx">
+  <BottomSheetDemo client:visible />
+</UiExample>
+
+- **`open`** drives it, and **`onClose`** is called on Escape, on the scrim, and
+  when a drag ends low enough.
+- **`detents`** are the heights it rests at, as fractions of the sheet: `[1]`
+  by default, or `[0.5, 1]` for half, then full. **`defaultDetent`** chooses
+  where it opens, and **`dismissBelow`** where a release closes it.
+- **With more than one detent the handle is a button**, named by
+  **`handleAccessibilityLabel`** ("Resize" by default). Pressing it or using the
+  arrow keys changes the size, so nobody has to drag.
+- **It is modal**, like `Dialog` and `Drawer`, because a sheet that dims the
+  page has already said the page is unavailable.
+- **There is no close button**: put one in the children when the design wants
+  one visible.

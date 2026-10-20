@@ -1,0 +1,28 @@
+---
+title: "Menu"
+description: "A button that opens a list of commands, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { MenuDemo } from '../../../../examples/ui/MenuDemo.tsx'
+import source from '../../../../examples/ui/MenuDemo.tsx?raw'
+
+`Menu` is a button that opens a list of commands. Open it with a click, or
+focus it and press Enter, Space or the down arrow, then move with the arrows:
+
+<UiExample source={source} file="MenuDemo.tsx">
+  <MenuDemo client:visible />
+</UiExample>
+
+- **`trigger`** is what the button says. It gets `aria-haspopup` and
+  `aria-expanded`.
+- **`items`:** `{ label, onSelect?, disabled? }` for each command. Choosing one
+  calls `onSelect` and closes the menu.
+- **The keyboard:** Enter, Space and Down open it on the first item, and Up
+  opens it on the last. Inside, the arrows move between items, and Escape
+  closes it and returns focus to the button. Typing a letter moves to the next
+  item that starts with it.
+- **A disabled item stays in the list**, marked `aria-disabled`, so a reader
+  still hears that the command exists.
+- **`accessibilityLabel`** names the menu. It defaults to the button's name.
+- The panel flips above the button when there is no room below it.

@@ -1,0 +1,31 @@
+---
+title: "Popover"
+description: "A panel anchored to the button that opens it, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { PopoverDemo } from '../../../../examples/ui/PopoverDemo.tsx'
+import source from '../../../../examples/ui/PopoverDemo.tsx?raw'
+
+`Popover` opens a panel next to its trigger button. The panel holds whatever
+you put in it, which is why it is a `role="dialog"` and not a menu: a reader
+told "menu" expects a list of commands. Open it, then press Escape, click
+outside it, or Tab out of it:
+
+<UiExample source={source} file="PopoverDemo.tsx">
+  <PopoverDemo client:visible />
+</UiExample>
+
+- **`trigger`** is what the button says. The component draws the button itself
+  and wires `aria-expanded` and `aria-controls` to the panel.
+- **`accessibilityLabel`** names the panel, or **`accessibilityLabelledBy`**
+  points at a heading inside it. A dialog with no name is one a screen reader
+  announces and can say nothing about.
+- **Not modal by default.** The rest of the page stays reachable, and the panel
+  closes when focus leaves it, so it is never left open behind the page. Pass
+  **`modal`** when the contents need the keyboard to stay inside, as a date grid
+  does: it then traps Tab and announces `aria-modal` together.
+- **`open`** and **`onOpenChange`** control it, or **`defaultOpen`** opens it on
+  mount and leaves it uncontrolled.
+- **`placement`** and **`offset`** say where the panel goes. It flips to the
+  other side when there is no room.

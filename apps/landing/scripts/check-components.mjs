@@ -192,6 +192,61 @@ const pages = {
       'accordion: opening one did not close the other',
     )
   },
+  async popover(page) {
+    const trigger = page.getByRole('button', { name: 'Shipping', exact: true })
+    await trigger.click()
+    const panel = page.getByRole('dialog', { name: 'Shipping' })
+    await panel.getByText('Two days, or four to an island.', { exact: false }).waitFor()
+    await page.keyboard.press('Escape')
+    await panel.waitFor({ state: 'hidden' })
+    assert.equal(await trigger.getAttribute('aria-expanded'), 'false', 'popover: still expanded')
+  },
+  async menu(page) {
+    const trigger = page.getByRole('button', { name: 'Actions' })
+    await trigger.focus()
+    await page.keyboard.press('ArrowDown')
+    const rename = page.getByRole('menuitem', { name: 'Rename' })
+    await rename.waitFor()
+    assert.equal(await rename.evaluate((el) => el === document.activeElement), true)
+    await page.keyboard.press('ArrowDown')
+    await page.keyboard.press('Enter')
+    await page.getByText('Chosen: Duplicate').waitFor()
+    assert.equal(
+      await trigger.evaluate((el) => el === document.activeElement),
+      true,
+      'menu: focus did not return to the button',
+    )
+  },
+  async drawer(page) {
+    const opener = page.getByRole('button', { name: 'Open navigation' })
+    await opener.click()
+    const drawer = page.getByRole('dialog', { name: 'Navigation' })
+    await drawer.waitFor()
+    await page.keyboard.press('Escape')
+    await drawer.waitFor({ state: 'hidden' })
+    assert.equal(
+      await opener.evaluate((el) => el === document.activeElement),
+      true,
+      'drawer: focus did not return to the button that opened it',
+    )
+  },
+  async 'bottom-sheet'(page) {
+    await page.getByRole('button', { name: 'Filters' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Filters' })
+    await sheet.waitFor()
+    // The grabber is a `before:` box on a class list passed at runtime, so
+    // only the candidate stylesheet draws it; without its `content` the bar
+    // was missing (#1136).
+    assert.equal(
+      await sheet
+        .getByRole('button', { name: 'Resize' })
+        .evaluate((el) => getComputedStyle(el, '::before').content),
+      '""',
+      'bottom-sheet: the grabber bar is not drawn',
+    )
+    await page.keyboard.press('Escape')
+    await sheet.waitFor({ state: 'hidden' })
+  },
 }
 
 let browser

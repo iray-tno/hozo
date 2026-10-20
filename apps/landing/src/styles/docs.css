@@ -61,17 +61,21 @@
  * styles its own content), so inside a preview the browser's own button
  * chrome showed through: a grey, bevelled box around every Checkbox and
  * Switch. This is the part of preflight those components lean on, scoped to
- * the preview and kept in `base`, so every utility class still wins. */
+ * the preview and kept in `base`, so every utility class still wins.
+ *
+ * A Drawer or BottomSheet is portalled to `<body>`, outside the preview, so
+ * its root is in the scope too: it is the only direct child of `<body>`
+ * carrying `data-hozo-state`, which the overlay patterns write. */
 @layer base {
-  :where(.hozo-ui-example) *,
-  :where(.hozo-ui-example) ::before,
-  :where(.hozo-ui-example) ::after {
+  :where(.hozo-ui-example, body > [data-hozo-state]) *,
+  :where(.hozo-ui-example, body > [data-hozo-state]) ::before,
+  :where(.hozo-ui-example, body > [data-hozo-state]) ::after {
     box-sizing: border-box;
     border: 0 solid;
     margin: 0;
     padding: 0;
   }
-  :where(.hozo-ui-example) :is(button, input, select, textarea) {
+  :where(.hozo-ui-example, body > [data-hozo-state]) :is(button, input, select, textarea) {
     font: inherit;
     color: inherit;
     background-color: transparent;

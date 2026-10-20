@@ -264,6 +264,11 @@ for (const [page, element] of [
   ['skeleton', /<div [^>]*aria-hidden="true"[^>]*data-hozo-skeleton=""/],
   ['tabs', /<div role="tablist" aria-label="Product"/],
   ['accordion', /<h3[^>]*><button [^>]*aria-expanded="true"/],
+  ['popover', /<button [^>]*aria-haspopup="dialog" aria-expanded="false"[^>]*>Shipping<\/button>/],
+  ['menu', /<button [^>]*aria-haspopup="menu" aria-expanded="false"[^>]*>Actions<\/button>/],
+  // A drawer and a sheet are closed until pressed, so only the opener is there.
+  ['drawer', /<button [^>]*>Open navigation<\/button>/],
+  ['bottom-sheet', /<button [^>]*>Filters<\/button>/],
 ]) {
   const html = readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8')
   const islands = html.match(/<astro-island\b[\s\S]*?<\/astro-island>/g) ?? []
