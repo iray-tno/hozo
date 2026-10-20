@@ -329,8 +329,7 @@ pub fn parse_module_for_file(
         bindings,
         ReactNativeCompat::Lower,
         file,
-        &[],
-        false,
+        ParseFeatures::default(),
     )
 }
 
@@ -351,8 +350,10 @@ pub fn parse_module_for_file_with_helpers(
         bindings,
         ReactNativeCompat::Lower,
         file,
-        class_helpers,
-        false,
+        ParseFeatures {
+            class_helpers,
+            ..ParseFeatures::default()
+        },
     )
 }
 
@@ -374,8 +375,10 @@ pub fn parse_module_with_text_regions(
         bindings,
         ReactNativeCompat::Lower,
         file,
-        class_helpers,
-        true,
+        ParseFeatures {
+            class_helpers,
+            text_regions: true,
+        },
     )
 }
 
@@ -419,8 +422,7 @@ pub fn parse_tsx_for_web(
         bindings,
         compat,
         None,
-        &[],
-        false,
+        ParseFeatures::default(),
     )
 }
 
@@ -441,9 +443,19 @@ pub fn parse_tsx_for_web_with_helpers(
         bindings,
         compat,
         None,
-        class_helpers,
-        false,
+        ParseFeatures {
+            class_helpers,
+            ..ParseFeatures::default()
+        },
     )
+}
+
+/// Per-call optional analyses stay named and default-off. In particular,
+/// ordinary helper resolution must not accidentally select text proofs.
+#[derive(Default)]
+struct ParseFeatures<'a> {
+    class_helpers: &'a [ClassHelper],
+    text_regions: bool,
 }
 
 fn parse(
@@ -453,8 +465,7 @@ fn parse(
     bindings: &[StylexExternalBinding],
     compat: ReactNativeCompat,
     file: Option<&str>,
-    class_helpers: &[ClassHelper],
-    text_regions: bool,
+    features: ParseFeatures<'_>,
 ) -> ParseOutput {
     let allocator = Allocator::default();
     let source_type = source_type_for_file(file);
@@ -492,7 +503,7 @@ fn parse(
         rest_exclusions: &bindings_facts.rest,
         constants: &bindings_facts.constants,
         module_record: &ret.module_record,
-        class_helpers,
+        class_helpers: features.class_helpers,
         foreign: &foreign,
         primitive_aliases: &primitive_aliases,
         allow_unbound_primitives: sources.is_none(),
@@ -525,7 +536,7 @@ fn parse(
     non_class_spans.extend(text.spans);
 
     ParseOutput {
-        stable_text_roots: if text_regions && ret.diagnostics.is_empty() {
+        stable_text_roots: if features.text_regions && ret.diagnostics.is_empty() {
             text_regions::stable_roots(&ret.program)
         } else {
             Vec::new()
