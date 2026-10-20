@@ -463,8 +463,8 @@ pub(super) fn render_node(
     // Recorded here, where the tag is decided, and only for the primitives
     // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
     // imported and must not be imported over.
-    if !matches!(node.primitive, Primitive::Svg(_))
-        && !(cx.text_inheritance && matches!(component, "Text" | "View"))
+    if !(matches!(node.primitive, Primitive::Svg(_))
+        || cx.text_inheritance && matches!(component, "Text" | "View"))
     {
         cx.runtime.need_native(component);
     }

@@ -856,3 +856,54 @@ fixture, not for later changed code. Production still uses its conservative
 Context route even in the complete static case. Static-erasure integration,
 broader owner coverage and performance remain separate from this bounded
 rendering result. No default/API change or ADR acceptance follows.
+
+## First production static-region selection (internal)
+
+Follow-up: [#1135](https://github.com/iray-tno/hozo/issues/1135). An additional
+per-call internal selection `{ textInheritance: true, textStatic: true }`
+tries the first production static proof. `textStatic` without the production
+experiment is an error; it is not a project/Metro setting or a new public
+Provider. `{ textInheritance: true }` alone retains the independently
+measured runtime-only route, and ordinary/reference calls remain unchanged.
+
+The parser reuses its existing AST, with a semantic binding pass only on
+this explicit selection. It requires an actual imported React `memo`
+render function with a fixed returned Text root (a concise arrow, or local
+variable declarations followed by one final return). A named render
+function must not escape/recurse. Every direct child must be literal text
+or another imported Text. Names alone, shadowed/type-only/mutated imports,
+alternate returns, opaque expressions, fragments and View boundaries do
+not establish this proof. No second source parse or application expression
+execution is used. Ordinary parsing does not build these proof facts.
+
+The Native backend separately requires all seven root fields to resolve
+unconditionally to supported scalars through the existing class/style
+lowering. Known nested Text can own a partial static frame. Any authored
+inline style, spread, children prop, dynamic class, residual style, forwarded
+owner or unassessed protocol feature prevents this first optimization.
+Finally, ordinary lowering must produce only RN Text, with no generated
+adapter, hook prelude or backend diagnostic. Only then is that exact ordinary
+JSX/StyleSheet output returned. The same module can contain an optimized
+root and an unrelated runtime root; this is not an import-wide substitution.
+Missing proof selects the unchanged runtime helper, not an authoring error
+or an invented platform default. The existing experiment's unsupported-root
+diagnostics remain identical, including for otherwise inert animation or
+transition declarations.
+
+The compiler/Metro mock-host tests execute the actual shipped leaves with
+separately compiled labels. A complete two-Text memo label has two inherited
+Text helpers on the runtime route and zero on the static route, while its
+two dynamic View owners remain. Ancestor/label updates preserve mock host
+identity, refs and label state. The static nested Text keeps only its own
+declared props and delegates seven-field inheritance to RN; the mock does
+not pretend to render that inheritance. Its separately labelled attribute
+projection agrees with the runtime effective frame. The open opaque/memo
+case also runs with static selection and must keep its runtime propagation,
+override/removal and grouping behavior.
+
+These are output/helper-count and React/mock-host observations, not a new
+Native pixel or elapsed-time result. RN's own TextAncestorContext remains.
+The reviewed four-panel device fixture is intentionally unchanged and still
+uses the runtime-only production selection. A new production static-path
+device comparison, broader integration and physical-device performance
+review remain before any default rollout or ADR acceptance.
