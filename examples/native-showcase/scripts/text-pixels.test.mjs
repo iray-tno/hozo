@@ -114,18 +114,24 @@ function harness(mutate = () => {}) {
   return { evidence, driver, actions, captures }
 }
 
-test('the driver measures all 42 states, comparisons and mount retention without self-certified callbacks', async () => {
+test('the driver measures all 56 states, comparisons and mount retention without self-certified callbacks', async () => {
   const { evidence, driver, actions } = harness()
   await exerciseTextInheritance(driver, evidence)
   assert.equal(evidence.textInheritance.passed, true)
-  assert.equal(evidence.textInheritance.phases.length, 42)
-  assert.equal(evidence.textInheritance.comparisons.length, 67)
-  assert.equal(actions.length, 56)
+  assert.equal(evidence.textInheritance.phases.length, 56)
+  assert.equal(evidence.textInheritance.comparisons.length, 94)
+  assert.equal(actions.length, 70)
+  assert.deepEqual(evidence.textInheritance.modes, [
+    'ordinary',
+    'reference',
+    'optimized',
+    'production',
+  ])
   assert.ok(
     evidence.textInheritance.phases.every((phase) => phase.passed && phase.captures.length === 1),
   )
   assert.equal(actions.filter((label) => label === 'Change ancestor').length, 3)
-  assert.equal(actions.filter((label) => label.startsWith('Show ')).length, 42)
+  assert.equal(actions.filter((label) => label.startsWith('Show ')).length, 56)
   assert.ok(
     evidence.textInheritance.comparisons.some(
       (comparison) =>
@@ -138,6 +144,9 @@ test('wrong pixels, ignored changes, remounts and stale mode markers abort at th
   for (const mutate of [
     (sample, state) => {
       if (state.mode === 'optimized') sample.image.data[0]--
+    },
+    (sample, state) => {
+      if (state.mode === 'production') sample.image.data[0]--
     },
     (sample, state) => {
       if (state.kind === 'runtime' && state.changed) sample.image = image()
@@ -158,7 +167,7 @@ test('wrong pixels, ignored changes, remounts and stale mode markers abort at th
     assert.equal(evidence.checks, undefined)
     assert.equal(evidence.textInheritance.phases.at(-1).passed, false)
     assert.equal(evidence.textInheritance.phases.at(-1).captures.length, 1)
-    assert.ok(actions.length < 56, 'no later phases or successful retries')
+    assert.ok(actions.length < 70, 'no later phases or successful retries')
   }
   const failure = new Error('ambiguous tap')
   const state = harness()
@@ -194,42 +203,44 @@ test('Android text rendering is opt-in, source-bound and retained separately wit
 })
 
 test('opaque-only missing inheritance, ignored overrides/removal and state loss cannot pass earlier successful cases', async () => {
-  for (const [phase, mutate] of [
-    [
-      'ancestor',
-      (sample, state) => {
-        if (state.changed) sample.image = image()
-      },
-    ],
-    [
-      'override',
-      (sample, state) => {
-        if (state.override) sample.image = image(true)
-      },
-    ],
-    [
-      'unoverride',
-      (sample, state) => {
-        if (state.actions.includes('Remove local override')) sample.image = image()
-      },
-    ],
-    [
-      'ancestor',
-      (sample, state) => {
-        if (state.changed) sample.label = `${state.mode} mount 2 tick ${state.tick}`
-      },
-    ],
-  ]) {
-    const { driver, evidence, actions } = harness((sample, state) => {
-      if (state.kind === 'opaque' && state.mode === 'optimized') mutate(sample, state)
-    })
-    await assert.rejects(exerciseTextInheritance(driver, evidence))
-    assert.ok(evidence.textInheritance.phases.slice(0, 24).every((item) => item.passed))
-    assert.equal(evidence.textInheritance.phases.at(-1).kind, 'opaque')
-    assert.equal(evidence.textInheritance.phases.at(-1).phase, phase)
-    assert.equal(evidence.textInheritance.phases.at(-1).passed, false)
-    assert.equal(evidence.textInheritance.passed, false)
-    assert.equal(evidence.checks, undefined)
-    assert.ok(actions.length < 56)
+  for (const mode of ['optimized', 'production']) {
+    for (const [phase, mutate] of [
+      [
+        'ancestor',
+        (sample, state) => {
+          if (state.changed) sample.image = image()
+        },
+      ],
+      [
+        'override',
+        (sample, state) => {
+          if (state.override) sample.image = image(true)
+        },
+      ],
+      [
+        'unoverride',
+        (sample, state) => {
+          if (state.actions.includes('Remove local override')) sample.image = image()
+        },
+      ],
+      [
+        'ancestor',
+        (sample, state) => {
+          if (state.changed) sample.label = `${state.mode} mount 2 tick ${state.tick}`
+        },
+      ],
+    ]) {
+      const { driver, evidence, actions } = harness((sample, state) => {
+        if (state.kind === 'opaque' && state.mode === mode) mutate(sample, state)
+      })
+      await assert.rejects(exerciseTextInheritance(driver, evidence))
+      assert.ok(evidence.textInheritance.phases.slice(0, 32).every((item) => item.passed))
+      assert.equal(evidence.textInheritance.phases.at(-1).kind, 'opaque')
+      assert.equal(evidence.textInheritance.phases.at(-1).phase, phase)
+      assert.equal(evidence.textInheritance.phases.at(-1).passed, false)
+      assert.equal(evidence.textInheritance.passed, false)
+      assert.equal(evidence.checks, undefined)
+      assert.ok(actions.length < 70)
+    }
   }
 })

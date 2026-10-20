@@ -54,6 +54,14 @@ test('both Native jobs install the private proof workspace before running source
   )
 })
 
+test('Native helper types and Metro use the same app-owned RN peer, not the workspace development peer', () => {
+  const config = JSON.parse(readFileSync(new URL('../tsconfig.json', import.meta.url), 'utf8'))
+  assert.deepEqual(config.compilerOptions.paths['react-native'], ['./node_modules/react-native'])
+  const metro = readFileSync(new URL('../metro.config.js', import.meta.url), 'utf8')
+  assert.match(metro, /'react-native'/)
+  assert.match(metro, /require\.resolve\(request, \{ paths: \[projectRoot\] \}\)/)
+})
+
 test('the device fixture is reproducible and binding decisions come from the existing proof', () => {
   execFileSync(process.execPath, ['scripts/generate-text-inheritance.mjs', '--check'], {
     cwd: root,
@@ -71,6 +79,18 @@ test('the device fixture is reproducible and binding decisions come from the exi
     ['plain-native', 'context-fallback', 'context-fallback'],
   )
   for (const entry of prepared.cases) assert.equal(entry.ordinary, entry.reference)
+  assert.equal(prepared.manifest.schemaVersion, 2)
+  assert.equal(Object.keys(prepared.manifest.production.sourceSha256).length, 12)
+  for (const entry of prepared.cases) {
+    assert.match(entry.production, /@hozo\/core\/generated\/inherited-text/)
+    assert.notEqual(entry.production, entry.reference)
+    assert.match(entry.productionBody, /<HozoInheritedText\b/)
+    assert.doesNotMatch(entry.productionBody, /<Text\b|ReferenceText/)
+    assert.equal(
+      prepared.manifest.cases.find((c) => c.name === entry.name).productionSha256.length,
+      64,
+    )
+  }
   const opaque = prepared.cases.find((entry) => entry.name === 'opaque')
   assert.doesNotMatch(opaque.source, /\bframe\b|\bstyle=/)
   assert.equal(prepared.manifest.cases[2].ordinarySha256, prepared.manifest.cases[1].ordinarySha256)
@@ -96,12 +116,25 @@ async function loadProbe(viewRenders = []) {
     format: 'cjs',
     platform: 'node',
     jsx: 'automatic',
-    external: ['react', 'react/*', 'react-native', '@hozo/*'],
+    external: ['react', 'react/*', 'react-native'],
     metafile: true,
     plugins: [
       {
         name: 'actual-hozo-transform',
         setup(build) {
+          const leaves = {
+            '@hozo/core/generated/inherited-text':
+              '../../../packages/primitives/src/generated/inherited-text.ts',
+            '@hozo/core/generated/inherited-view':
+              '../../../packages/primitives/src/generated/inherited-view.ts',
+            '@hozo/engine/generated/text-inheritance-protocol':
+              '../../../packages/engine/src/generated/text-inheritance-protocol.ts',
+          }
+          build.onResolve({ filter: /^@hozo\// }, ({ path }) =>
+            leaves[path]
+              ? { path: fileURLToPath(new URL(leaves[path], import.meta.url)) }
+              : { path, external: true },
+          )
           build.onLoad({ filter: /\.[jt]sx?$/ }, ({ path }) => {
             const source = readFileSync(path, 'utf8')
             return {
@@ -116,7 +149,15 @@ async function loadProbe(viewRenders = []) {
   const files = Object.keys(result.metafile.inputs).map((file) => file.replaceAll('\\', '/'))
   assert.ok(files.some((file) => file.endsWith('text-inheritance-reference-core.ts')))
   assert.ok(files.some((file) => file.endsWith('text-inheritance-opaque.native.tsx')))
-  assert.equal(files.length, 5, JSON.stringify(files))
+  for (const file of [
+    'engine/src/text-inheritance.ts',
+    'primitives/src/inherited-text.native.tsx',
+    'primitives/src/inherited-view.native.tsx',
+  ])
+    assert.ok(
+      files.some((name) => name.endsWith(file)),
+      file,
+    )
   assert.ok(
     files.every(
       (file) =>
@@ -145,6 +186,8 @@ async function loadProbe(viewRenders = []) {
           },
         }
       if (name === '@hozo/engine') return { HozoTextSizeContext: legacy }
+      if (name === '@hozo/engine/generated/text-size-context')
+        return { HozoTextSizeContext: legacy }
       if (name === '@hozo/behaviors/pressable-interaction')
         return { HozoInteractionContext: interaction }
       if (name === '@hozo/primitives/generated/pressable')
@@ -183,12 +226,14 @@ test('Native fixture uses one app React, preserves within-case identities and ne
       tree.root.findAll(
         (node) =>
           node.type === 'NativeText' &&
-          /^(ordinary|reference|optimized) mount /.test(node.props.accessibilityLabel ?? ''),
+          /^(ordinary|reference|optimized|production) mount /.test(
+            node.props.accessibilityLabel ?? '',
+          ),
       )
     const ids = () => roots().map((node) => node.props.accessibilityLabel.match(/mount (\d+)/)[1])
     const staticIds = ids()
-    assert.equal(staticIds.length, 3)
-    for (const mode of ['reference', 'optimized', 'ordinary']) {
+    assert.equal(staticIds.length, 4)
+    for (const mode of ['reference', 'optimized', 'production', 'ordinary']) {
       press(`Show ${mode}`)
       assert.deepEqual(ids(), staticIds)
       const panels = tree.root.findAll(
@@ -205,7 +250,7 @@ test('Native fixture uses one app React, preserves within-case identities and ne
     assert.deepEqual(ids(), staticIds)
     assert.deepEqual(
       roots().map((node) => flatten(node.props.style).fontSize),
-      [22, 22, 22],
+      [22, 22, 22, 22],
     )
     press('Update label')
     assert.deepEqual(ids(), staticIds)
@@ -214,13 +259,13 @@ test('Native fixture uses one app React, preserves within-case identities and ne
     const runtimeIds = ids()
     assert.deepEqual(
       roots().map((node) => flatten(node.props.style).fontSize),
-      [28, 28, 28],
+      [28, 28, 28, 28],
     )
     press('Restore text fixture')
     assert.deepEqual(ids(), runtimeIds)
     assert.deepEqual(
       roots().map((node) => flatten(node.props.style).fontSize),
-      [22, 22, 22],
+      [22, 22, 22, 22],
     )
     const nested = roots().map(
       (node) => node.findAll((child) => child !== node && child.type === 'NativeText')[0],
@@ -235,6 +280,11 @@ test('Native fixture uses one app React, preserves within-case identities and ne
       flatten(nested[2].props.style).fontSize,
       22,
       'unproved optimized module uses the shared fallback',
+    )
+    assert.equal(
+      flatten(nested[3].props.style).fontSize,
+      22,
+      'production uses its actual shipped context, not the private oracle',
     )
     renderer.act(() =>
       roots()[2].props.onTextLayout({
@@ -280,7 +330,9 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
       tree.root.findAll(
         (node) =>
           node.type === 'NativeText' &&
-          /^(ordinary|reference|optimized) mount /.test(node.props.accessibilityLabel ?? ''),
+          /^(ordinary|reference|optimized|production) mount /.test(
+            node.props.accessibilityLabel ?? '',
+          ),
       )
     const styles = () => roots().map((node) => flatten(node.props.style))
     const ids = () => roots().map((node) => node.props.accessibilityLabel.match(/mount (\d+)/)[1])
@@ -291,8 +343,8 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
     press('Use opaque boundary')
     const mounted = ids()
     const callbacks = roots().map((node) => node.props.onTextLayout)
-    assert.equal(mounted.length, 3)
-    assert.equal(opaque().length, 3, 'all three bindings must cross the actual memo wrapper')
+    assert.equal(mounted.length, 4)
+    assert.equal(opaque().length, 4, 'all four bindings must cross the actual memo wrapper')
     for (const node of opaque()) {
       if (node.props.name !== 'ordinary') {
         assert.equal(Object.hasOwn(node.props, 'frame'), false)
@@ -300,20 +352,20 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
       }
     }
     const before = [...renders]
-    for (const mode of ['ordinary', 'reference', 'optimized'])
+    for (const mode of ['ordinary', 'reference', 'optimized', 'production'])
       assert.equal(before.filter((id) => id.endsWith(mode)).length, 1)
     press('Change ancestor')
     assert.deepEqual(ids(), mounted)
     assert.deepEqual(
       styles().map((style) => [style.color, style.fontSize, style.lineHeight]),
-      Array(3).fill(['#7c2d12', 28, 40]),
+      Array(4).fill(['#7c2d12', 28, 40]),
     )
     assert.deepEqual(
       roots().map((node) => node.props.onTextLayout),
       callbacks,
     )
     const assertBailout = () => {
-      for (const mode of ['reference', 'optimized'])
+      for (const mode of ['reference', 'optimized', 'production'])
         assert.equal(
           renders.filter((id) => id.endsWith(mode)).length,
           before.filter((id) => id.endsWith(mode)).length,
@@ -329,14 +381,14 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
     press('Apply local override')
     assert.deepEqual(
       styles().map((style) => [style.color, style.fontSize]),
-      Array(3).fill(['#111111', 22]),
+      Array(4).fill(['#111111', 22]),
     )
     assert.deepEqual(ids(), mounted)
     assertBailout()
     press('Remove local override')
     assert.deepEqual(
       styles().map((style) => [style.color, style.fontSize]),
-      Array(3).fill(['#7c2d12', 28]),
+      Array(4).fill(['#7c2d12', 28]),
     )
     assert.deepEqual(ids(), mounted)
     assertBailout()
@@ -346,7 +398,7 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
     press('Restore text fixture')
     assert.deepEqual(
       styles().map((style) => [style.color, style.fontSize]),
-      Array(3).fill(['#111111', 22]),
+      Array(4).fill(['#111111', 22]),
     )
     assert.deepEqual(ids(), mounted)
   } finally {

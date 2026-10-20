@@ -28,6 +28,8 @@ for (const platform of ['android', 'ios']) {
         'Primitives/Shared showcase',
         'Diagnostics/Text inheritance',
         'Use runtime fallback',
+        'Show production',
+        'context-runtime; no static erasure',
         'Native text inheritance experiment',
         'Media/Video',
         'Media/Audio',

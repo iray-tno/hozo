@@ -1,4 +1,5 @@
 // Private RFC 006 preparation: no automatic verdict or synthetic Native values.
+import { HozoInheritedView } from '@hozo/core/generated/inherited-view'
 import * as React from 'react'
 import {
   Platform,
@@ -11,6 +12,9 @@ import {
 } from 'react-native'
 import {
   createOpaqueLabel,
+  createProductionOpaqueLabel,
+  createProductionRuntimeLabel,
+  createProductionStaticLabel,
   createRuntimeLabel,
   createStaticLabel,
   textFixtureManifest,
@@ -24,20 +28,27 @@ const factories = {
   runtime: createRuntimeLabel,
   opaque: createOpaqueLabel,
 }
-const modes = ['ordinary', 'reference', 'optimized'] as const
+const productionFactories = {
+  static: createProductionStaticLabel,
+  runtime: createProductionRuntimeLabel,
+  opaque: createProductionOpaqueLabel,
+}
+const modes = ['ordinary', 'reference', 'optimized', 'production'] as const
 const labels = Object.fromEntries(
   textFixtureManifest.cases.map((entry) => [
     entry.name,
     Object.fromEntries(
       modes.map((mode) => [
         mode,
-        (entry.name === 'opaque' && mode === 'ordinary'
-          ? createRuntimeLabel
-          : factories[entry.name])(
-          mode === 'reference' || (mode === 'optimized' && entry.route === 'context-fallback')
-            ? nativeTextReference.ReferenceText
-            : Text,
-        ),
+        mode === 'production'
+          ? productionFactories[entry.name]()
+          : (entry.name === 'opaque' && mode === 'ordinary'
+              ? createRuntimeLabel
+              : factories[entry.name])(
+              mode === 'reference' || (mode === 'optimized' && entry.route === 'context-fallback')
+                ? nativeTextReference.ReferenceText
+                : Text,
+            ),
       ]),
     ),
   ]),
@@ -116,9 +127,10 @@ export function TextInheritanceProbe() {
                   mode,
                   ...(kind === 'opaque' ? { override: request.current.override } : {}),
                 },
-                route: entry.route,
+                route: mode === 'production' ? textFixtureManifest.production.route : entry.route,
                 sourceSha256: entry.sourceSha256,
                 coreSha256: textFixtureManifest.coreSha256,
+                ...(mode === 'production' ? { productionSha256: entry.productionSha256 } : {}),
                 lines,
                 verdict: 'not-assessed',
                 scope: 'layout callback only; no color/weight/pixel/AT/timing verdict',
@@ -185,6 +197,7 @@ export function TextInheritanceProbe() {
             ordinary: '#df2020',
             reference: '#20a040',
             optimized: '#3040df',
+            production: '#a020c0',
           }[visibleMode],
         }}
       />
@@ -192,7 +205,13 @@ export function TextInheritanceProbe() {
         {modes.map((mode) => {
           const Label = kind === 'opaque' ? opaqueLabels[mode] : labels[kind][mode]
           const Owner =
-            kind === 'opaque' && mode === 'ordinary' ? View : nativeTextReference.ReferenceView
+            mode === 'production'
+              ? HozoInheritedView
+              : kind === 'opaque' && mode === 'ordinary'
+                ? View
+                : nativeTextReference.ReferenceView
+          const Outer =
+            mode === 'production' ? HozoInheritedView : nativeTextReference.ReferenceView
           return (
             <View
               key={mode}
@@ -206,7 +225,7 @@ export function TextInheritanceProbe() {
                 display: visibleMode === mode ? 'flex' : 'none',
               }}
             >
-              <nativeTextReference.ReferenceView style={[{ width: 240 }, frame]}>
+              <Outer style={[{ width: 240 }, frame]}>
                 {kind === 'opaque' ? (
                   <Owner
                     style={
@@ -225,7 +244,7 @@ export function TextInheritanceProbe() {
                 ) : (
                   <Label name={mode} tick={tick} frame={frame} onTextLayout={callbacks[mode]} />
                 )}
-              </nativeTextReference.ReferenceView>
+              </Outer>
             </View>
           )
         })}
@@ -233,7 +252,8 @@ export function TextInheritanceProbe() {
       <Text>Layout observations: {observed}; correctness: not assessed</Text>
       <Text>
         Switching cases starts a new comparison. Within-case controls must retain mount identity. No
-        production fallback is enabled.
+        default production fallback is enabled. The fourth panel uses the internal production ABI
+        without static erasure.
       </Text>
     </ScrollView>
   )

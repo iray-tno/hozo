@@ -62,9 +62,12 @@ export function textFrame(buffer, bounds, mode) {
   const rgb = Array.from(
     image.data.subarray((y * image.width + x) * 4, (y * image.width + x) * 4 + 3),
   )
-  const expected = { ordinary: [223, 32, 32], reference: [32, 160, 64], optimized: [48, 64, 223] }[
-    mode
-  ]
+  const expected = {
+    ordinary: [223, 32, 32],
+    reference: [32, 160, 64],
+    optimized: [48, 64, 223],
+    production: [160, 32, 192],
+  }[mode]
   assert.ok(expected)
   return {
     bounds,
@@ -100,11 +103,12 @@ export const textState = (kind, changed, tick, mode, override = false) =>
 // No resize, translation, blur or selected-success sampling. The fixture
 // reveals each already-mounted label at the same position for this reason.
 export async function exerciseTextInheritance(driver, evidence) {
-  const modes = ['ordinary', 'reference', 'optimized']
+  const modes = ['ordinary', 'reference', 'optimized', 'production']
   const result = {
     scope:
       'bounded same-device Native text pixels, not individual-property/AT/performance conformance',
     passed: false,
+    modes,
     phases: [],
     actions: [],
     comparisons: [],

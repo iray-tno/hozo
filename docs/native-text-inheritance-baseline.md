@@ -803,3 +803,37 @@ device results cannot certify changed production code. Typography,
 interaction, animation and portal integration, static erasure, actual
 device comparison and performance review remain before default rollout
 and an accepted ADR. RFC 006 remains a draft.
+
+## Production Native comparison preparation
+
+Follow-up: [#1123](https://github.com/iray-tno/hozo/issues/1123). The isolated
+Native story now retains all three earlier controls and adds a fourth
+`production` panel. A real internal compiler/Metro call generates each
+production label with imports of the shipped Text ABI. Its factory has no
+Text injection parameter, and its owners use the shipped View ABI rather
+than the reference's Context. The opaque memo/View boundary receives no
+frame prop for production, exactly as for the two contextual controls.
+
+Manifest v2 records the twelve production source/forwarding dependencies
+and the three production compiled-output hashes separately from the
+reference core and static-proof hashes. The production route is explicitly
+runtime-only even in the complete static case; private proof success does
+not select its binding. Ordinary compilation and full/release scenarios
+remain unchanged.
+
+The shared Android/iOS screenshot driver now intends **56 observations /
+94 comparisons / 70 acknowledged actions** across four modes. The fourth
+presented-frame marker has its own color. Same-position exact pixels,
+source-colored ink, static shielding, ancestor color/height change, local
+override/removal, restoration and within-case mount identity remain
+required. Synthetic negative tests corrupt only the production panel,
+including opaque-only inheritance/override/state failures: earlier
+successful controls cannot hide them. Input failures are not replayed.
+
+Mock tests bundle the actual production engine and primitives source with
+the app's React and mock RN hosts; the private reference stays independent.
+They establish wiring/state invariants, not Native pixels. Fresh Android
+and iOS builds and independent archive/PNG/AX review are still required for
+this new code. Previous 24- or 42-state reference evidence cannot certify
+the fourth panel. Physical-device performance, static erasure, broader
+ownership integration and ADR/default acceptance remain separate work.
