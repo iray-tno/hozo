@@ -112,6 +112,14 @@
       "types": "./dist/generated/image-source.d.ts",
       "default": "./dist/generated/image-source.js"
     },
+    "./generated/inherited-text": {
+      "types": "./dist/generated/inherited-text.d.ts",
+      "default": "./dist/generated/inherited-text.js"
+    },
+    "./generated/inherited-view": {
+      "types": "./dist/generated/inherited-view.d.ts",
+      "default": "./dist/generated/inherited-view.js"
+    },
     "./generated/interactive": {
       "types": "./dist/generated/interactive.d.ts",
       "default": "./dist/generated/interactive.js"
@@ -184,6 +192,10 @@
       "types": "./dist/generated/text.d.ts",
       "default": "./dist/generated/text.js"
     },
+    "./generated/text-inheritance-protocol": {
+      "types": "./dist/generated/text-inheritance-protocol.d.ts",
+      "default": "./dist/generated/text-inheritance-protocol.js"
+    },
     "./generated/text-input": {
       "types": "./dist/generated/text-input.d.ts",
       "default": "./dist/generated/text-input.js"
@@ -195,6 +207,10 @@
     "./generated/text-size": {
       "types": "./dist/generated/text-size.d.ts",
       "default": "./dist/generated/text-size.js"
+    },
+    "./generated/text-size-context": {
+      "types": "./dist/generated/text-size-context.d.ts",
+      "default": "./dist/generated/text-size-context.js"
     },
     "./generated/transform-slots": {
       "types": "./dist/generated/transform-slots.d.ts",

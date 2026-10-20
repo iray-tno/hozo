@@ -68,6 +68,14 @@
       "types": "./dist/generated/grid.d.ts",
       "default": "./dist/generated/grid.js"
     },
+    "./generated/inherited-text": {
+      "types": "./dist/generated/inherited-text.d.ts",
+      "default": "./dist/generated/inherited-text.js"
+    },
+    "./generated/inherited-view": {
+      "types": "./dist/generated/inherited-view.d.ts",
+      "default": "./dist/generated/inherited-view.js"
+    },
     "./generated/link": {
       "react-native": {
         "types": "./dist/generated/link.native.d.ts",

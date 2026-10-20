@@ -2,6 +2,68 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createCompiler } from './index.ts'
 
+test('internal runtime integration emits shipped passive ABI without changing ordinary or reference output', () => {
+  const compiler = createCompiler()
+  for (const source of [
+    `import {Text} from '@hozo/core'; export const Label=()=> <Text>Label</Text>`,
+    `import {View,Text} from '@hozo/core'; export const Label=()=> <View className="text-red-500 text-[20px]"><Text>Label</Text><Opaque/></View>`,
+  ]) {
+    const normal = compiler.compileNativeModule(source)
+    const reference = compiler.compileNativeModule(source, undefined, undefined, {
+      textReference: true,
+    })
+    const runtime = compiler.compileNativeModule(source, undefined, undefined, {
+      textInheritance: true,
+    })
+    assert.ok(runtime.components.some((c) => c.runtimeImports.includes('HozoInheritedText')))
+    assert.ok(runtime.components.every((c) => !c.diagnostics.some((d) => d.severity === 'error')))
+    assert.deepEqual(runtime.imports, normal.imports)
+    assert.deepEqual(compiler.compileNativeModule(source), normal)
+    assert.deepEqual(
+      compiler.compileNativeModule(source, undefined, undefined, { textInheritance: false }),
+      normal,
+    )
+    assert.deepEqual(
+      compiler.compileNativeModule(source, undefined, undefined, { textReference: true }),
+      reference,
+    )
+    assert.throws(
+      () =>
+        compiler.compileNativeModule(source, undefined, undefined, {
+          textInheritance: true,
+          textReference: true,
+        }),
+      /one internal text experiment/,
+    )
+  }
+})
+
+test('internal runtime integration refuses unassessed primitives and conditions, not ordinary support', () => {
+  const compiler = createCompiler()
+  for (const source of [
+    `import {Button} from '@hozo/core'; export const Label=()=> <Button>Label</Button>`,
+    `import {Text} from '@hozo/core'; export const Label=()=> <Text className="dark:text-red-500">Label</Text>`,
+    `import {Small} from '@hozo/core'; export const Label=()=> <Small>Label</Small>`,
+  ]) {
+    const normal = compiler.compileNativeModule(source)
+    const runtime = compiler.compileNativeModule(source, undefined, undefined, {
+      textInheritance: true,
+    })
+    assert.deepEqual(
+      runtime.components.map((c) => [c.jsx, c.styles, c.runtimeImports]),
+      normal.components.map((c) => [c.jsx, c.styles, c.runtimeImports]),
+    )
+    assert.ok(
+      runtime.components.some((c) =>
+        c.diagnostics.some(
+          (d) => d.severity === 'error' && /Internal text inheritance/.test(d.message),
+        ),
+      ),
+    )
+    assert.deepEqual(compiler.compileNativeModule(source), normal)
+  }
+})
+
 test('internal text experiment is opt-in and cannot leak into subsequent ordinary compilation', () => {
   const compiler = createCompiler()
   for (const source of [

@@ -743,3 +743,63 @@ or physical-device performance, a proof of all concurrency interleavings,
 portal/animation coverage or a production/ADR rollout gate. In particular,
 the app's separately installed React/RN versions still require their own
 device evidence. No timing thresholds or shared helper behavior change.
+
+## Production-owned internal opt-in
+
+Follow-up: [#1117](https://github.com/iray-tno/hozo/issues/1117). Engine now
+owns the seven-field, immutable metrics/paint protocol. Primitives owns
+`HozoInheritedText` and `HozoInheritedView`; compiler output reaches them
+through generated-code leaves. The legacy numeric-size bridge uses the
+existing engine Context singleton through a narrow leaf, not another copy
+or the whole engine barrel. No author-facing Provider, project configuration
+or root component export is added.
+
+The per-call internal compiler selection `{ textInheritance: true }` is
+separate from `{ textReference: true }`; selecting both is an error. Ordinary
+compilation before and after either call remains unchanged. Production code
+does not import the private reference or its instrumentation. The reference
+is kept independent so differential agreement is not a comparison of one
+implementation against itself.
+
+This slice assesses passive Text/View graphs with numeric resolved font
+size, line height and letter spacing, string/number weight/color, and text
+alignment/transform. It accepts ordinary static classes and inline style
+arrays/records, including opaque separately compiled memoized children.
+The same rendered graph must participate in the protocol; raw third-party
+text owners and mixed-mode graphs are not claimed to inherit correctly.
+The View publishes its effective frame before removing text fields from
+its native host. Both compiler-inserted text and runtime raw scalar
+children read that frame. Providers introduce no native wrapper boxes.
+
+Conditional/dynamic classes, animations/transitions, relative metric
+declarations, font families/variants and extra generated adapters are not
+assessed. Such compiler roots retain ordinary output and gain an explicit
+internal-experiment error, rather than being counted as integrated. Opaque
+style callbacks, Animated/object colors, non-finite metrics and font
+family/variant/style records fail explicitly at the experimental leaf.
+These are restrictions on the internal experiment, not new restrictions on
+ordinary Hozo authoring. Runtime values must already be resolved RN styles;
+the protocol is not another Tailwind or CSS resolver.
+
+```sh
+node --test --test-concurrency=1 packages/compiler/src/text-reference.test.ts packages/engine/src/text-inheritance.test.ts packages/tailwind-conformance/src/text-inheritance-runtime.test.ts packages/tailwind-conformance/src/text-inheritance-concurrent.test.ts
+```
+
+The actual compiler/Metro path and shipped leaves are executed with mock
+Native hosts. A separately compiled memoized label receives no forwarded
+frame prop; seven fields update through Context, local overrides can be
+removed, state and refs survive, and the existing layout handler remains
+on one existing host. A raw-string regression checks that static owner
+classes do not mask later inline overrides. The suspended/abandoned-render
+suite now runs against both independent implementations, including
+StrictMode, sibling-root isolation and coherent legacy-size commits.
+
+This is a conservative runtime-only route when opted in: private
+proof-based static erasure is **not** ported here. Generic Text still reads
+both channels and each helper retains a stable provider shape. These mock
+tests establish neither native glyph/pixel equality for the new production
+leaves nor Hermes/physical-device performance. Earlier private-reference
+device results cannot certify changed production code. Typography,
+interaction, animation and portal integration, static erasure, actual
+device comparison and performance review remain before default rollout
+and an accepted ADR. RFC 006 remains a draft.

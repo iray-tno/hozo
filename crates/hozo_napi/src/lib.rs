@@ -592,6 +592,8 @@ impl Compiler {
     /// source_file selects grammar; omitted retains the historical TSX API.
     /// text_reference is internal RFC 006 test wiring, never a project option;
     /// its output requires private contextual hosts and is not a shipped ABI.
+    /// text_inheritance instead selects the bounded production-owned ABI for
+    /// internal evaluation, also per-call and never a project option.
     #[napi]
     pub fn compile_native_module(
         &self,
@@ -599,6 +601,7 @@ impl Compiler {
         bindings: Option<Vec<StylexExternalBinding>>,
         source_file: Option<String>,
         text_reference: Option<bool>,
+        text_inheritance: Option<bool>,
     ) -> CompiledNativeModule {
         let bindings = external_bindings(bindings);
         lower_native_module(
@@ -609,6 +612,7 @@ impl Compiler {
             NativeModuleOptions {
                 source_file: source_file.as_deref(),
                 text_reference: text_reference.unwrap_or(false),
+                text_inheritance: text_inheritance.unwrap_or(false),
             },
             &self.text_forwarding,
             &self.class_helpers,
@@ -1084,7 +1088,7 @@ fn lower_native(
         class_helpers,
     );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
-    lower_native_components(source, theme, &parsed, false)
+    lower_native_components(source, theme, &parsed, false, false)
 }
 
 /// Module-only choices stay together; the reference experiment must not
@@ -1093,6 +1097,7 @@ fn lower_native(
 struct NativeModuleOptions<'a> {
     source_file: Option<&'a str>,
     text_reference: bool,
+    text_inheritance: bool,
 }
 
 fn lower_native_module(
@@ -1120,7 +1125,13 @@ fn lower_native_module(
         class_helpers,
     );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
-    let components = lower_native_components(source, theme, &parsed, options.text_reference);
+    let components = lower_native_components(
+        source,
+        theme,
+        &parsed,
+        options.text_reference,
+        options.text_inheritance,
+    );
     let imports = parsed
         .imports
         .iter()
@@ -1167,13 +1178,16 @@ fn lower_native_components(
     theme: &hozo_ir::Theme,
     parsed: &hozo_parser::ParseOutput,
     text_reference: bool,
+    text_inheritance: bool,
 ) -> Vec<CompiledNativeComponent> {
     let offsets = Utf16Offsets::new(source);
     parsed
         .roots
         .iter()
         .map(|root| {
-            let output = if text_reference {
+            let output = if text_inheritance {
+                hozo_native::lower_text_inheritance(&root.node, &root.forwarded, source, theme)
+            } else if text_reference {
                 hozo_native::lower_text_reference(&root.node, &root.forwarded, source, theme)
             } else {
                 hozo_native::lower_forwarded(&root.node, &root.forwarded, source, theme)

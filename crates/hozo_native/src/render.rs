@@ -463,7 +463,9 @@ pub(super) fn render_node(
     // Recorded here, where the tag is decided, and only for the primitives
     // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
     // imported and must not be imported over.
-    if !matches!(node.primitive, Primitive::Svg(_)) {
+    if !matches!(node.primitive, Primitive::Svg(_))
+        && !(cx.text_inheritance && matches!(component, "Text" | "View"))
+    {
         cx.runtime.need_native(component);
     }
     // A transition on something that is not a control. `Pressable` has its
@@ -895,7 +897,7 @@ pub(super) fn render_node(
     let forwards_label = !text_declarations.is_empty()
         && matches!(component, "Pressable" | "HozoLink")
         && (cx.text_reference || !matches!(text_reach(node), TextReach::Certain));
-    if !text_declarations.is_empty() && !forwards_label {
+    if !text_declarations.is_empty() && !forwards_label && !cx.text_inheritance {
         match text_reach(node) {
             TextReach::Certain => {}
             TextReach::Opaque => cx.diagnostics.push(unwired_variant(
@@ -2499,6 +2501,12 @@ pub(super) fn render_node(
     // React Native's TextInput takes no children either.
     let tag = if measures_host {
         "HozoContainer"
+    } else if cx.text_inheritance && rendered_component == "Text" {
+        cx.runtime.need_component("HozoInheritedText");
+        "HozoInheritedText"
+    } else if cx.text_inheritance && rendered_component == "View" {
+        cx.runtime.need_component("HozoInheritedView");
+        "HozoInheritedView"
     } else {
         rendered_component
     };
