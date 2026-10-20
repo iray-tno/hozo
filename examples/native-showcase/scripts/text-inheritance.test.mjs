@@ -69,6 +69,9 @@ test('the device fixture is reproducible and binding decisions come from the exi
   const prepared = prepareTextDeviceFixture()
   const generated = fileURLToPath(new URL('../src/text-inheritance-generated.tsx', import.meta.url))
   const source = readFileSync(generated, 'utf8')
+  assert.match(source, /import \* as Native from 'react-native'/)
+  assert.match(source, /const NativeText = Native.Text/)
+  assert.doesNotMatch(source, /createProductionStatic\w+Label\(Text:/)
   assert.equal(
     transformHozoSource(source, generated) ?? source,
     source,
@@ -79,8 +82,17 @@ test('the device fixture is reproducible and binding decisions come from the exi
     ['plain-native', 'context-fallback', 'context-fallback'],
   )
   for (const entry of prepared.cases) assert.equal(entry.ordinary, entry.reference)
-  assert.equal(prepared.manifest.schemaVersion, 2)
+  assert.equal(prepared.manifest.schemaVersion, 3)
   assert.equal(Object.keys(prepared.manifest.production.sourceSha256).length, 12)
+  assert.equal(Object.keys(prepared.manifest.productionStatic.sourceSha256).length, 11)
+  assert.deepEqual(prepared.manifest.productionStatic.selection, {
+    textInheritance: true,
+    textStatic: true,
+  })
+  assert.deepEqual(
+    prepared.manifest.cases.map(({ productionStaticRoute }) => productionStaticRoute),
+    ['plain-native', 'context-fallback', 'context-fallback'],
+  )
   for (const entry of prepared.cases) {
     assert.match(entry.production, /@hozo\/core\/generated\/inherited-text/)
     assert.notEqual(entry.production, entry.reference)
@@ -90,6 +102,20 @@ test('the device fixture is reproducible and binding decisions come from the exi
       prepared.manifest.cases.find((c) => c.name === entry.name).productionSha256.length,
       64,
     )
+  }
+  for (const entry of prepared.cases) {
+    assert.equal(
+      prepared.manifest.cases.find((c) => c.name === entry.name).productionStaticSha256.length,
+      64,
+    )
+    assert.equal(
+      entry.productionStatic,
+      entry.productionStaticRoute === 'plain-native' ? entry.ordinary : entry.production,
+    )
+    if (entry.productionStaticRoute === 'plain-native') {
+      assert.match(entry.productionStaticBody, /<NativeText\b/)
+      assert.doesNotMatch(entry.productionStaticBody, /HozoInheritedText|ReferenceText/)
+    } else assert.match(entry.productionStaticBody, /<HozoInheritedText\b/)
   }
   const opaque = prepared.cases.find((entry) => entry.name === 'opaque')
   assert.doesNotMatch(opaque.source, /\bframe\b|\bstyle=/)
@@ -105,6 +131,8 @@ test('the device fixture is reproducible and binding decisions come from the exi
     'an incomplete static root must not bypass Context',
   )
   assert.notEqual(negative.manifest.cases[0].sourceSha256, prepared.manifest.cases[0].sourceSha256)
+  assert.equal(negative.manifest.cases[0].productionStaticRoute, 'context-fallback')
+  assert.equal(negative.cases[0].productionStatic, negative.cases[0].production)
 })
 
 async function loadProbe(viewRenders = []) {
@@ -226,14 +254,29 @@ test('Native fixture uses one app React, preserves within-case identities and ne
       tree.root.findAll(
         (node) =>
           node.type === 'NativeText' &&
-          /^(ordinary|reference|optimized|production) mount /.test(
+          /^(ordinary|reference|optimized|production|production-static) mount /.test(
             node.props.accessibilityLabel ?? '',
           ),
       )
     const ids = () => roots().map((node) => node.props.accessibilityLabel.match(/mount (\d+)/)[1])
     const staticIds = ids()
-    assert.equal(staticIds.length, 4)
-    for (const mode of ['reference', 'optimized', 'production', 'ordinary']) {
+    assert.equal(staticIds.length, 5)
+    const candidate = () =>
+      tree.root.findAll(
+        (node) =>
+          node.type === 'NativeView' &&
+          node.props.testID === 'text-fixture-panel-production-static',
+      )[0]
+    const helpers = () =>
+      candidate().findAll(
+        (node) => typeof node.type === 'function' && node.type.name === 'HozoInheritedText',
+      )
+    assert.equal(
+      helpers().length,
+      0,
+      'the actual compiler must remove inherited Text helpers in the complete static label',
+    )
+    for (const mode of ['reference', 'optimized', 'production', 'production-static', 'ordinary']) {
       press(`Show ${mode}`)
       assert.deepEqual(ids(), staticIds)
       const panels = tree.root.findAll(
@@ -250,7 +293,7 @@ test('Native fixture uses one app React, preserves within-case identities and ne
     assert.deepEqual(ids(), staticIds)
     assert.deepEqual(
       roots().map((node) => flatten(node.props.style).fontSize),
-      [22, 22, 22, 22],
+      [22, 22, 22, 22, 22],
     )
     press('Update label')
     assert.deepEqual(ids(), staticIds)
@@ -259,13 +302,14 @@ test('Native fixture uses one app React, preserves within-case identities and ne
     const runtimeIds = ids()
     assert.deepEqual(
       roots().map((node) => flatten(node.props.style).fontSize),
-      [28, 28, 28, 28],
+      [28, 28, 28, 28, 28],
     )
+    assert.equal(helpers().length, 2, 'a runtime style must keep the shipped helper graph')
     press('Restore text fixture')
     assert.deepEqual(ids(), runtimeIds)
     assert.deepEqual(
       roots().map((node) => flatten(node.props.style).fontSize),
-      [22, 22, 22, 22],
+      [22, 22, 22, 22, 22],
     )
     const nested = roots().map(
       (node) => node.findAll((child) => child !== node && child.type === 'NativeText')[0],
@@ -285,6 +329,11 @@ test('Native fixture uses one app React, preserves within-case identities and ne
       flatten(nested[3].props.style).fontSize,
       22,
       'production uses its actual shipped context, not the private oracle',
+    )
+    assert.equal(
+      flatten(nested[4].props.style).fontSize,
+      22,
+      'the production static selection retains Context when the proof fails',
     )
     renderer.act(() =>
       roots()[2].props.onTextLayout({
@@ -330,7 +379,7 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
       tree.root.findAll(
         (node) =>
           node.type === 'NativeText' &&
-          /^(ordinary|reference|optimized|production) mount /.test(
+          /^(ordinary|reference|optimized|production|production-static) mount /.test(
             node.props.accessibilityLabel ?? '',
           ),
       )
@@ -343,8 +392,8 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
     press('Use opaque boundary')
     const mounted = ids()
     const callbacks = roots().map((node) => node.props.onTextLayout)
-    assert.equal(mounted.length, 4)
-    assert.equal(opaque().length, 4, 'all four bindings must cross the actual memo wrapper')
+    assert.equal(mounted.length, 5)
+    assert.equal(opaque().length, 5, 'all five bindings must cross the actual memo wrapper')
     for (const node of opaque()) {
       if (node.props.name !== 'ordinary') {
         assert.equal(Object.hasOwn(node.props, 'frame'), false)
@@ -352,20 +401,20 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
       }
     }
     const before = [...renders]
-    for (const mode of ['ordinary', 'reference', 'optimized', 'production'])
+    for (const mode of ['ordinary', 'reference', 'optimized', 'production', 'production-static'])
       assert.equal(before.filter((id) => id.endsWith(mode)).length, 1)
     press('Change ancestor')
     assert.deepEqual(ids(), mounted)
     assert.deepEqual(
       styles().map((style) => [style.color, style.fontSize, style.lineHeight]),
-      Array(4).fill(['#7c2d12', 28, 40]),
+      Array(5).fill(['#7c2d12', 28, 40]),
     )
     assert.deepEqual(
       roots().map((node) => node.props.onTextLayout),
       callbacks,
     )
     const assertBailout = () => {
-      for (const mode of ['reference', 'optimized', 'production'])
+      for (const mode of ['reference', 'optimized', 'production', 'production-static'])
         assert.equal(
           renders.filter((id) => id.endsWith(mode)).length,
           before.filter((id) => id.endsWith(mode)).length,
@@ -381,14 +430,14 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
     press('Apply local override')
     assert.deepEqual(
       styles().map((style) => [style.color, style.fontSize]),
-      Array(4).fill(['#111111', 22]),
+      Array(5).fill(['#111111', 22]),
     )
     assert.deepEqual(ids(), mounted)
     assertBailout()
     press('Remove local override')
     assert.deepEqual(
       styles().map((style) => [style.color, style.fontSize]),
-      Array(4).fill(['#7c2d12', 28]),
+      Array(5).fill(['#7c2d12', 28]),
     )
     assert.deepEqual(ids(), mounted)
     assertBailout()
@@ -398,7 +447,7 @@ test('opaque memo/View labels receive no frame prop, inherit through a bailout a
     press('Restore text fixture')
     assert.deepEqual(
       styles().map((style) => [style.color, style.fontSize]),
-      Array(4).fill(['#111111', 22]),
+      Array(5).fill(['#111111', 22]),
     )
     assert.deepEqual(ids(), mounted)
   } finally {

@@ -67,6 +67,7 @@ export function textFrame(buffer, bounds, mode) {
     reference: [32, 160, 64],
     optimized: [48, 64, 223],
     production: [160, 32, 192],
+    'production-static': [208, 112, 0],
   }[mode]
   assert.ok(expected)
   return {
@@ -103,7 +104,7 @@ export const textState = (kind, changed, tick, mode, override = false) =>
 // No resize, translation, blur or selected-success sampling. The fixture
 // reveals each already-mounted label at the same position for this reason.
 export async function exerciseTextInheritance(driver, evidence) {
-  const modes = ['ordinary', 'reference', 'optimized', 'production']
+  const modes = ['ordinary', 'reference', 'optimized', 'production', 'production-static']
   const result = {
     scope:
       'bounded same-device Native text pixels, not individual-property/AT/performance conformance',

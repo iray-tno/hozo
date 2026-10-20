@@ -9,12 +9,13 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { PNG } from 'pngjs'
 
-const modes = ['ordinary', 'reference', 'optimized', 'production']
+const modes = ['ordinary', 'reference', 'optimized', 'production', 'production-static']
 const colors = [
   [223, 32, 32],
   [32, 160, 64],
   [48, 64, 223],
   [160, 32, 192],
+  [208, 112, 0],
 ]
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const rect = ({ x, y, width, height }) => [x, y, x + width, y + height]
@@ -135,9 +136,12 @@ export function reviewTextEvidence({ platform, evidenceDir, binaryDir, run, comm
   assert.equal(e.passed, true)
   assert.ok(e.checks.length && e.checks.every((c) => c.passed))
   assert.deepEqual(e.textFixture, manifest)
-  assert.equal(e.textFixture.schemaVersion, 2)
+  assert.ok([2, 3].includes(e.textFixture.schemaVersion))
+  // Historical four-panel bytes keep their own denominator. A new manifest
+  // must not reinterpret them as a five-panel static-selection result.
+  const selectedModes = e.textFixture.schemaVersion === 3 ? modes : modes.slice(0, 4)
   assert.equal(r.passed, true)
-  assert.deepEqual(r.modes, modes)
+  assert.deepEqual(r.modes, selectedModes)
   const metadata = json(binaryDir, platform === 'ios' ? 'build.json' : 'signing.json')
   assert.equal(metadata.run, run)
   assert.equal(metadata.commit, commit)
@@ -195,7 +199,7 @@ export function reviewTextEvidence({ platform, evidenceDir, binaryDir, run, comm
       ['restore', false, 0, 'Restore text fixture'],
     ]) {
       if (action) actions.push(action)
-      for (const mode of modes) {
+      for (const mode of selectedModes) {
         actions.push(`Show ${mode}`)
         const p = r.phases[index++]
         assert.ok(p, 'missing phase')
@@ -256,13 +260,13 @@ export function reviewTextEvidence({ platform, evidenceDir, binaryDir, run, comm
     }
   }
   assert.equal(r.phases.length, index)
-  assert.equal(samples.size, 56)
+  assert.equal(samples.size, e.textFixture.schemaVersion === 3 ? 70 : 56)
   assert.deepEqual(
     r.actions,
     actions.map((label) => ({ label, acknowledged: true })),
   )
-  assert.equal(actions.length, 70)
-  assert.equal(comparisons.length, 94)
+  assert.equal(actions.length, e.textFixture.schemaVersion === 3 ? 84 : 70)
+  assert.equal(comparisons.length, e.textFixture.schemaVersion === 3 ? 121 : 94)
   assert.deepEqual(
     r.comparisons.map(({ subject, equal }) => ({ subject, equal })),
     comparisons,
