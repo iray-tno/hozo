@@ -32,7 +32,7 @@ use super::*;
 /// is actually used rather than rendering silently wrong.
 ///
 /// The element's own state is different (#886). `hover:`, `active:`,
-/// `focus-visible:`, `disabled:` and `aria-*:` need no tracking here: the
+/// `focus-visible:`, `disabled:`, `aria-*:` and data-presence conditions need no tracking here: the
 /// pressable rendering the element already tracks them, and the compiler
 /// hands them to `hozoClasses` beside the class string. They go into
 /// `states`, keyed by the state they need. `rtl:` and `ltr:` join them
@@ -251,6 +251,21 @@ fn state_keys(condition: &Condition) -> Option<Vec<String>> {
         Condition::Disabled => vec!["disabled".to_string()],
         Condition::FormState(FormState::ReadOnly) => vec!["readOnly".to_string()],
         Condition::Aria(state) => vec![format!("aria-{state}")],
+        Condition::DataAttribute(selector) => {
+            // The parser has already classified this as an attribute query.
+            // Only a plain presence selector becomes a boolean owner fact;
+            // values, CSS escapes/flags and relations still need another route.
+            // There is no selector or raw attribute-value interpreter in JS.
+            let name = selector.strip_prefix("[data-")?.strip_suffix(']')?;
+            if name.is_empty()
+                || !name
+                    .bytes()
+                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
+            {
+                return None;
+            }
+            vec![format!("data-{name}")]
+        }
         Condition::Environment(Environment::Rtl) => vec!["rtl".to_string()],
         Condition::Environment(Environment::Ltr) => vec!["ltr".to_string()],
         Condition::All(conditions) => {
@@ -336,6 +351,46 @@ pub(crate) fn style_pairs<'a>(props: &'a [StyleProperty], theme: &Theme) -> Vec<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn data_presence_candidates_use_boolean_owner_facts_not_a_selector_interpreter() {
+        let module = render_candidate_module(
+            &[
+                "data-[hozo-range-start]:p-4",
+                "data-[hozo-disabled]:hover:opacity-50",
+                "rtl:data-open:aria-selected:border-2",
+            ]
+            .map(String::from),
+            &Theme::default(),
+        );
+        assert!(
+            module.contains(r#""data-[hozo-range-start]:p-4": [[["data-hozo-range-start"], "#),
+            "{module}"
+        );
+        assert!(
+            module.contains(
+                r#""data-[hozo-disabled]:hover:opacity-50": [[["data-hozo-disabled", "hovered"], "#
+            ),
+            "{module}"
+        );
+        assert!(module.contains(r#""rtl:data-open:aria-selected:border-2": [[["rtl", "data-open", "aria-selected"], "#), "{module}");
+        assert!(!module.contains("is conditional"), "{module}");
+    }
+
+    #[test]
+    fn data_values_relations_negation_and_unsafe_names_remain_unsupported() {
+        for condition in [
+            Condition::DataAttribute("[data-state=\"closed\"]".into()),
+            Condition::DataAttribute("[data-]".into()),
+            Condition::DataAttribute("[data-foo bar]".into()),
+            Condition::DataAttribute("[data-foo][data-bar]".into()),
+            Condition::DataAttribute("[data-Foo]".into()),
+            Condition::Not(Box::new(Condition::DataAttribute("[data-open]".into()))),
+            Condition::Group(Box::new(Condition::DataAttribute("[data-open]".into()))),
+        ] {
+            assert!(state_keys(&condition).is_none(), "{condition:?}");
+        }
+    }
 
     #[test]
     fn reset_candidates_carry_slots_without_private_stylesheet_keys() {

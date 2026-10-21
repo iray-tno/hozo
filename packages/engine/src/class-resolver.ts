@@ -6,7 +6,10 @@ export type StyleObject = Record<string, unknown>
  * its pressable reports (`pressed`, `hovered`, `focused`, `focusVisible`)
  * and what its props say: `disabled`, and `aria-checked`, `aria-selected` and
  * the rest under their attribute names, so `aria-pressed` cannot be read as
- * the pointer's `pressed`.
+ * the pointer's `pressed`. Plain data-presence conditions use `data-foo`
+ * booleans supplied by the actual owner: true means the attribute is present,
+ * false means absent, and a missing key is unassessed (and diagnosed).
+ * These are normalized facts, not raw HTML attribute values or selectors.
  */
 export type ClassState = Readonly<Record<string, unknown>>
 
