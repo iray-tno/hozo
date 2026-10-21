@@ -375,6 +375,16 @@ does not resolve a day or month-button list against trigger/dialog facts.
 This forwarding slice adds no host, hook, provider or resolver and does not
 certify wrapper/trigger/dialog/Done styling, modal focus or the clock seam.
 
+The three date-picker triggers now share one internal Native button consumer.
+It resolves triggerClassName with actual button form/expanded facts and local
+hover/press/focus/visible-focus tracking; it does not invent authored
+aria-disabled or aria-selected attributes. Text declarations reach the owned
+value Text, then explicit triggerTextStyle. Disabled clears stale focus/press.
+The leaf component keeps event updates out of Calendar/clock render paths
+without adding a Native host, provider, listener or new resolver. Root/dialog
+class consumption and DateTime Done remain separate work; this trigger slice
+does not claim root-to-panel typography or modal focus-restoration parity.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner

@@ -1035,6 +1035,114 @@ test('Native UI date pickers route the same Calendar look as standalone UI Calen
   }
 })
 
+for (const [name, Picker, , value] of pickerCases) {
+  test(`Native ${name} trigger owns interaction, expansion and disabled styling`, async (t) => {
+    const opened = [],
+      changed = []
+    let dayCalls = 0
+    const props = {
+      ...calendarProps,
+      value,
+      accessibilityLabel: 'Departure',
+      triggerClassName: `${interactionClasses} aria-expanded:border-2 disabled:opacity-25 aria-disabled:mt-8 aria-selected:mb-8`,
+      onOpenChange: (next) => opened.push(next),
+      onChange: (next) => changed.push(next),
+      renderDay: (day) => {
+        dayCalls++
+        return day.date.day
+      },
+    }
+    const tree = await mount(t, Picker, props)
+    const trigger = tree.root.findAllByType('NativePressable')[0]
+    const text = trigger.props.accessibilityValue.text
+    assert.equal(trigger.props.accessibilityLabel, 'Departure')
+    assert.ok(text.includes('2026'))
+    assert.equal(flat(trigger.props.style).paddingTop, 16)
+    assert.equal(flat(trigger.props.style).marginTop, undefined, 'not an authored aria-disabled')
+    await act(() => trigger.props.onHoverIn())
+    assert.equal(flat(trigger.props.style).backgroundColor, color('hozo-accent'))
+    assert.equal(flat(trigger.props.children.props.style).color, color('hozo-accent-text'))
+    assert.equal(flat(views(tree)[0].props.style).backgroundColor, undefined)
+    await act(() => trigger.props.onFocus())
+    assert.equal(flat(trigger.props.style).opacity, 0.75)
+    assert.equal(String(flat(trigger.props.children.props.style).fontWeight), '700')
+    await act(() => trigger.props.onPointerDown())
+    assert.equal(flat(trigger.props.children.props.style).fontWeight, undefined)
+    await act(() => trigger.props.onKeyDown())
+    assert.equal(String(flat(trigger.props.children.props.style).fontWeight), '700')
+    await act(() => trigger.props.onPressIn())
+    assert.equal(flat(trigger.props.style).opacity, 0.5)
+    await act(() => trigger.props.onPressOut())
+    await press(trigger)
+    assert.equal(trigger.props.accessibilityState.expanded, true)
+    assert.equal(flat(trigger.props.style).borderTopWidth, 2)
+    const before = dayCalls
+    assert.ok(before >= 42)
+    await act(() => {
+      trigger.props.onHoverOut()
+      trigger.props.onHoverIn()
+    })
+    assert.equal(dayCalls, before, 'local trigger events do not reevaluate Calendar renderers')
+    assert.equal(flat(calendarJuneDay(tree, 12).props.style).borderTopWidth, undefined)
+    await press(calendarJuneDay(tree, 12))
+    if (name === 'DateRangePicker') {
+      assert.equal(tree.root.findAllByType('NativeModal').length, 1, 'first range press is pending')
+      await press(calendarJuneDay(tree, 15))
+    } else if (name === 'DateTimePicker') {
+      assert.equal(
+        tree.root.findAllByType('NativeModal').length,
+        1,
+        'day does not close the clock picker',
+      )
+      await act(() => tree.root.findByType('NativeModal').props.onRequestClose())
+    }
+    assert.equal(changed.length, 1)
+    assert.deepEqual(opened, [true, false])
+    assert.equal(flat(trigger.props.style).borderTopWidth, undefined)
+    await act(() => {
+      trigger.props.onPressIn()
+      tree.update(React.createElement(Picker, { ...props, disabled: true }))
+    })
+    assert.equal(trigger.props.accessibilityState.disabled, true)
+    assert.equal(flat(trigger.props.style).opacity, 0.25)
+    assert.equal(flat(trigger.props.style).outlineWidth, undefined)
+    await press(trigger)
+    assert.deepEqual(opened, [true, false])
+    await act(() => tree.update(React.createElement(Picker, props)))
+    assert.equal(
+      flat(trigger.props.style).opacity,
+      undefined,
+      'disabled clears stale focus and press',
+    )
+    const explicit = {
+      ...props,
+      triggerStyle: { paddingTop: 91 },
+      triggerTextStyle: { color: '#abcdef' },
+    }
+    await act(() => tree.update(React.createElement(Picker, explicit)))
+    assert.equal(flat(trigger.props.style).paddingTop, 91)
+    assert.equal(flat(trigger.props.style).paddingBottom, 16)
+    assert.equal(flat(trigger.props.children.props.style).color, '#abcdef')
+    await act(() =>
+      tree.update(React.createElement(Picker, { ...explicit, triggerClassName: undefined })),
+    )
+    assert.equal(flat(trigger.props.style).paddingBottom, undefined)
+    assert.equal(flat(trigger.props.style).paddingTop, 91)
+    assert.equal(trigger.props.accessibilityValue.text, text)
+  })
+}
+
+test('Native UI date-picker triggers draw their shared real look', async (t) => {
+  for (const [name, , Picker, value] of pickerCases) {
+    const tree = await mount(t, Picker, { ...calendarProps, value })
+    const trigger = tree.root.findAllByType('NativePressable')[0]
+    assert.equal(flat(trigger.props.style).paddingTop, 12, name)
+    assert.equal(flat(trigger.props.style).paddingStart, 16, name)
+    assert.equal(flat(trigger.props.children.props.style).fontSize, 14, name)
+    assert.equal(flat(trigger.props.children.props.style).color, color('hozo-text-body'), name)
+  }
+})
+
 test('Native UI Calendar draws selected single days, range caps, interiors and unavailable days', async (t) => {
   const tree = await mount(t, UiCalendar, {
     ...calendarProps,
