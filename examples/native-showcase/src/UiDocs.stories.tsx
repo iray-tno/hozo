@@ -78,8 +78,11 @@ function Preview({ page, load }: { page: string; load: () => ComponentType }) {
 function Surface({ page, load }: { page: string; load: () => ComponentType }) {
   return (
     <View className="flex-1 items-start bg-hozo-surface p-6 text-hozo-text">
+      {/* A label alone does not keep a layout-only View from being
+          flattened away, and a flattened View never reaches the UI dump
+          that waits for this marker. */}
       <View
-        accessible={false}
+        collapsable={false}
         accessibilityLabel={`UI docs ${page}`}
         className="w-full items-start"
       >
