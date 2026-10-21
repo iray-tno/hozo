@@ -7,7 +7,9 @@
 // Under the preview, one line on what React Native makes of the same look.
 // It is the compiler's verdict on the component's classes
 // (`scripts/ui-native-status.mjs`), not a screenshot: the classes it lists
-// have no effect there, and anything it does not list may still behave
+// have no effect there, the class props it lists are not applied there at
+// all (`scripts/ui-native-unapplied.mjs`), and anything it does not list may
+// still behave
 // differently for reasons classes do not show. The components overview
 // says so to the reader.
 import { Code } from '@astrojs/starlight/components'
@@ -24,7 +26,9 @@ interface Props {
 const { source, file } = Astro.props
 type Finding = { className: string; reason: string }
 const slug = Astro.url.pathname.replace(/\/$/, '').split('/').pop() ?? ''
-const native = (status as Record<string, { missing: Finding[]; cosmetic: Finding[] }>)[slug]
+const native = (
+  status as Record<string, { missing: Finding[]; cosmetic: Finding[]; unapplied: string[] }>
+)[slug]
 // The compiler writes code in backticks; show it as code.
 const pieces = (reason: string) => reason.split('`').map((text, at) => ({ text, code: at % 2 === 1 }))
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 'es'}`
@@ -36,8 +40,12 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
 
 {
   native && (
-    <div class="hozo-ui-native" data-native-missing={native.missing.length}>
-      {native.missing.length === 0 ? (
+    <div
+      class="hozo-ui-native"
+      data-native-missing={native.missing.length}
+      data-native-unapplied={native.unapplied.length}
+    >
+      {native.missing.length === 0 && native.unapplied.length === 0 ? (
         <p>
           <strong>React Native:</strong> no class in this look is Web-only
           {native.cosmetic.length > 0 &&
@@ -47,20 +55,42 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
       ) : (
         <details>
           <summary>
-            <strong>React Native:</strong> {plural(native.missing.length, 'class')} in this look
-            have no effect there
-            {native.cosmetic.length > 0 &&
-              `, besides ${plural(native.cosmetic.length, 'class')} for a cursor or a CSS transition`}
+            <strong>React Native:</strong>{' '}
+            {[
+              native.unapplied.length > 0 &&
+                `${native.unapplied.length === 1 ? 'one class prop' : `${native.unapplied.length} class props`} of this look ${native.unapplied.length === 1 ? 'is' : 'are'} not applied there yet`,
+              native.missing.length > 0 &&
+                `${plural(native.missing.length, 'class')} ${native.missing.length === 1 ? 'has' : 'have'} no effect there`,
+              native.cosmetic.length > 0 &&
+                `${plural(native.cosmetic.length, 'class')} for a cursor or a CSS transition ${native.cosmetic.length === 1 ? 'does' : 'do'} not apply`,
+            ]
+              .filter(Boolean)
+              .join('; ')}
             .
           </summary>
-          <ul>
-            {native.missing.map(({ className, reason }) => (
-              <li>
-                <code>{className}</code>:{' '}
-                {pieces(reason).map(({ text, code }) => (code ? <code>{text}</code> : text))}
-              </li>
-            ))}
-          </ul>
+          {native.unapplied.length > 0 && (
+            <p>
+              Not applied on React Native yet: the component's Native half accepts{' '}
+              {native.unapplied.map((prop, at) => (
+                <>
+                  {at > 0 && ', '}
+                  <code>{prop}</code>
+                </>
+              ))}{' '}
+              and does not use {native.unapplied.length === 1 ? 'it' : 'them'}, so that part of
+              the look is missing there whatever its classes are.
+            </p>
+          )}
+          {native.missing.length > 0 && (
+            <ul>
+              {native.missing.map(({ className, reason }) => (
+                <li>
+                  <code>{className}</code>:{' '}
+                  {pieces(reason).map(({ text, code }) => (code ? <code>{text}</code> : text))}
+                </li>
+              ))}
+            </ul>
+          )}
         </details>
       )}
     </div>

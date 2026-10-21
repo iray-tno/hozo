@@ -20,6 +20,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nativeClassReport, nativeClassVerdicts } from '@hozo/compiler'
 import ts from 'typescript'
+import { unappliedOnNative } from './ui-native-unapplied.mjs'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const landing = path.resolve(here, '..')
@@ -99,16 +100,28 @@ for (const page of readdirSync(pages)
     unique
       .filter((finding) => finding.kind === kind)
       .map(({ className, reason }) => ({ className, reason }))
-  status[page] = { missing: of('missing'), cosmetic: of('cosmetic') }
+  // The other way a look goes missing: class props the pattern's Native half
+  // accepts and does not apply (`ui-native-unapplied.mjs`).
+  const unapplied = [
+    ...new Set(
+      (SOURCES[page] ?? [{ file: `${page}.tsx` }]).flatMap(({ file, element }) =>
+        unappliedOnNative(path.resolve(ui, '../../..'), path.join(ui, file), element).map(
+          (entry) => entry.prop,
+        ),
+      ),
+    ),
+  ]
+  status[page] = { missing: of('missing'), cosmetic: of('cosmetic'), unapplied }
 }
 
 const text = `${JSON.stringify(status, null, 2)}\n`
 if (process.argv.includes('--check')) {
+  // Compared as data: `pnpm lint:fix` formats the JSON file its own way.
   let current = ''
   try {
-    current = readFileSync(out, 'utf8')
+    current = JSON.stringify(JSON.parse(readFileSync(out, 'utf8')))
   } catch {}
-  if (current !== text) {
+  if (current !== JSON.stringify(status)) {
     console.error('ui-native-status.json is out of date: run node scripts/ui-native-status.mjs')
     process.exit(1)
   }
