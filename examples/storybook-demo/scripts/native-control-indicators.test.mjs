@@ -143,6 +143,7 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
 const exportsFrom = (names, relative) =>
   `export { ${names} } from ${JSON.stringify(filename(relative))};`
 const probeSources = [
+  exportsFrom('HozoCalendar', 'packages/form/src/calendar.native.tsx'),
   exportsFrom('HozoNativeSelect as UiNativeSelect', 'packages/ui/src/native-select.tsx'),
   exportsFrom(
     'HozoNativeSelect, NativeSelectProvider',
@@ -347,6 +348,7 @@ const { UiCombobox, UiListbox, UiCommandPalette, UiDialog } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
 const { HozoForm, HozoTextArea, UiForm, UiTextArea, useFormSubmit } = module.exports
 const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect } = module.exports
+const { HozoCalendar } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
 const indicators = (tree) =>
@@ -889,6 +891,112 @@ test('NativeSelect row classes diagnose unmeasured focus/hover instead of borrow
     nativePlatform.OS = 'ios'
     console.warn = original
   }
+})
+
+const calendarProps = {
+  defaultMonth: { year: 2026, month: 6 },
+  today: { year: 2026, month: 6, day: 15 },
+  locale: 'en-US',
+  weeks: 6,
+}
+const calendarDays = (tree) =>
+  tree.root
+    .findAllByType('NativePressable')
+    .filter((node) => node.props.accessibilityLabel?.includes('2026'))
+
+test('Native Calendar wraps primitive custom day labels in the same Text as its default', async (t) => {
+  for (const renderDay of [
+    undefined,
+    (day) => day.date.day,
+    (day) => `Day ${day.date.day}`,
+    () => 0,
+    () => '',
+  ]) {
+    let calls = 0
+    const tree = await mount(t, HozoCalendar, {
+      ...calendarProps,
+      dayTextStyle: { color: '#123456', fontSize: 18 },
+      renderDay:
+        renderDay &&
+        ((day) => {
+          calls++
+          return renderDay(day)
+        }),
+    })
+    const days = calendarDays(tree)
+    assert.equal(days.length, 42)
+    for (const day of days) {
+      const child = day.props.children
+      assert.ok(React.isValidElement(child), 'Native day host must not receive raw text')
+      assert.equal(child.type, NativeText)
+      assert.equal(flat(child.props.style).color, '#123456')
+      assert.equal(flat(child.props.style).fontSize, 18)
+    }
+    assert.equal(calls, renderDay ? 42 : 0, 'evaluate the custom renderer once per cell')
+    if (renderDay) {
+      const expected = renderDay({ date: { day: 31 } })
+      if (typeof expected === 'number' && expected === 0)
+        assert.equal(days[0].props.children.props.children, 0)
+      if (expected === '') assert.equal(days[0].props.children.props.children, '')
+    }
+  }
+})
+
+test('Native Calendar leaves custom layout elements and absent day content alone', async (t) => {
+  for (const content of [
+    null,
+    false,
+    React.createElement(
+      NativeView,
+      { testID: 'custom-day' },
+      React.createElement(NativeText, null, 'Custom'),
+    ),
+    React.createElement(React.Fragment, null, React.createElement(NativeText, null, 'Fragment')),
+  ]) {
+    const tree = await mount(t, HozoCalendar, { ...calendarProps, renderDay: () => content })
+    assert.equal(calendarDays(tree).length, 42)
+    for (const day of calendarDays(tree)) assert.equal(day.props.children, content)
+  }
+})
+
+test('Native Calendar primitive labels preserve accessible names, bounds and complete range commits', async (t) => {
+  const changes = []
+  const props = {
+    ...calendarProps,
+    min: { year: 2026, month: 6, day: 10 },
+    max: { year: 2026, month: 6, day: 20 },
+    renderDay: (day) => day.date.day,
+  }
+  const tree = await mount(t, HozoCalendar, { ...props, onChange: (date) => changes.push(date) })
+  const days = calendarDays(tree)
+  const find = (n) =>
+    days.find(
+      (day) =>
+        day.props.children.props.children === n && day.props.accessibilityLabel.includes('June'),
+    )
+  const selected = find(12)
+  assert.ok(selected.props.accessibilityLabel.includes('June 12, 2026'))
+  await press(find(9))
+  assert.deepEqual(changes, [])
+  await press(selected)
+  assert.deepEqual(changes, [{ year: 2026, month: 6, day: 12 }])
+  const ranges = []
+  const range = await mount(t, HozoCalendar, {
+    ...props,
+    range: true,
+    onChange: (value) => ranges.push(value),
+  })
+  const rangeDay = (n) =>
+    calendarDays(range).find(
+      (day) =>
+        day.props.children.props.children === n && day.props.accessibilityLabel.includes('June'),
+    )
+  await press(rangeDay(12))
+  assert.deepEqual(ranges, [])
+  await press(rangeDay(15))
+  assert.deepEqual(ranges, [
+    { start: { year: 2026, month: 6, day: 12 }, end: { year: 2026, month: 6, day: 15 } },
+  ])
 })
 
 test('Native overlay Popover keeps root and animated panel classes on separate owners', async (t) => {
