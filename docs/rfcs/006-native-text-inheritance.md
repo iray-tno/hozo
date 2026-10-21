@@ -352,10 +352,12 @@ establish a production static-path device result. It does not implement the
 broader private inline/registered-style proof or enable default rollout.
 
 The subsequent [five-panel comparison](../measurements/native-text-inheritance-static.md)
-has independently reviewed Android static-path/fallback pixels and binary
-provenance. iOS stopped before app compilation in cold Simulator discovery;
-an identical-source iOS-only follow-up is pending. This partial result does
-not complete the two-platform gate or relax the rollout requirements below.
+now independently reviews static-path/fallback pixels and actual binary
+provenance on both OSes. The original iOS cold-discovery failure is retained;
+the successful iOS-only follow-up used identical source and unchanged budgets.
+The bounded two-platform rendering gate is complete, not the integration,
+update-cost or rollout requirements below. The next implementation slice is
+real typography/owner integration, not more panels in the same fixture.
 
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as

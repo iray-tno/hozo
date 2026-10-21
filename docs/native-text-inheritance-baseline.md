@@ -944,16 +944,19 @@ retain evidence even after all earlier panels passed. Offline review handles
 v2 and v3 with their own fixed denominators, never counting a historical
 four-panel run as new static-path evidence.
 
-Preparation and synthetic rejection checks are not Native results. The
-reviewed four-panel run remains historical; this new source needs fresh
+Preparation and synthetic rejection checks alone are not Native results.
+The reviewed four-panel run remains historical; the v3 source required fresh
 Android/iOS binaries and independent raw PNG/AX/archive review. Full/release
 scenarios, ordinary lowering and the runtime-only control selection remain
 unchanged. This does not assess physical-device performance or accept an ADR.
 
 The [v3 static-selection report](measurements/native-text-inheritance-static.md)
-now independently reviews Android's 70 PNG/AX pairs and APK provenance. The
-dedicated iOS job failed during cold Simulator discovery before building or
-comparing Text; its failure is retained, and an identical-source iOS-only
-follow-up is pending. A successful full Showcase run is not substituted for
-the isolated comparison. This is still an incomplete two-platform gate, not
-permission to enable default inheritance or static selection.
+now independently reviews 70 PNG/AX pairs per OS plus actual APK, Simulator
+archive and archived JS-bundle provenance. Both OS samples have 121 expected
+comparisons and 84 acknowledged actions. The first iOS attempt failed during
+cold Simulator discovery; that failure is retained separately from the
+successful identical-source iOS-only follow-up. The full Showcase run is not
+substituted for isolated evidence. This completes the bounded two-platform
+rendering gate, not typography/widget/portal integration, measured update
+cost or permission to enable default inheritance/static selection. Next work
+should integrate real owners rather than expand this same comparison again.
