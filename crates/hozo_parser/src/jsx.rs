@@ -481,6 +481,12 @@ fn passthrough_prop(
         is_spread: false,
         spread_excludes: Vec::new(),
         later_names: Vec::new(),
+        class_literals: match &attr.name {
+            JSXAttributeName::Identifier(name) if name.name.ends_with("ClassName") => {
+                crate::class_literals::class_literals(&attr.value, scope.constants)
+            }
+            _ => Vec::new(),
+        },
         // A namespaced name (`xlink:href`) is not something Hozo emits a
         // semantic counterpart for, so leaving it `None` costs nothing and
         // avoids inventing a spelling for it.
@@ -1086,6 +1092,7 @@ fn build_node(
                 props.passthrough.push(PassthroughProp {
                     span: to_expr_ref(spread.span()),
                     is_spread: true,
+                    class_literals: Vec::new(),
                     later_names: named
                         .iter()
                         .filter(|(start, _)| *start > spread.span.start)

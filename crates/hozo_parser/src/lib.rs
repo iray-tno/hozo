@@ -10,6 +10,7 @@ pub mod aria;
 mod aria_check;
 mod canvas;
 mod class_helpers;
+mod class_literals;
 mod dynamic_class;
 mod jsx;
 mod rest;
@@ -27,6 +28,7 @@ pub(crate) mod tailwind_variants;
 pub use bindings::top_level_bindings;
 pub use canvas::{parse_canvas_paints, CanvasClassPaint};
 pub use class_helpers::{class_helper_candidates, summarize_class_helpers, ClassHelperCandidate};
+pub use class_literals::{runtime_class_lists, RuntimeClassList};
 pub use dynamic_class::ClassHelper;
 pub use jsx::is_primitive_name;
 pub use rn_imports::{

@@ -62,6 +62,7 @@ mod markup;
 mod pattern;
 mod pattern_layout;
 mod render;
+mod runtime_classes;
 mod spread_style;
 mod style;
 mod text;
@@ -93,6 +94,10 @@ use hozo_ir::{
     StyleDeclaration, StyleProperty, SvgElement, TextOverflow, Theme, WhiteSpace,
 };
 use render::render_node;
+pub use runtime_classes::{
+    native_class_report, native_class_verdict, NativeClassFinding, NativeClassKind,
+    NativeClassVerdict,
+};
 use transition::{ambient_transition, native_driver_transition};
 
 pub struct LowerOutput {
