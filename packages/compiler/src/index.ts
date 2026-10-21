@@ -728,6 +728,9 @@ export interface NativeClassFinding extends NativeClassVerdict {
  * a pattern such as `BottomSheet`, which the compiler does not lower and
  * so never examined. Values are read as far as the file spells them out:
  * literals, module constants, both arms of a ternary, a joiner's arguments.
+ *
+ * Unstable: the shape may change while the audit (#1167) and build warnings
+ * (#1166) adopt it.
  */
 export function nativeClassReport(source: string): NativeClassFinding[] {
   return loadNative().nativeClassReport(source) as NativeClassFinding[]
