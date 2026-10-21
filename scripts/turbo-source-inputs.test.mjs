@@ -54,7 +54,6 @@ const reads = {
     'packages/form/src/date-time-picker.tsx',
     'packages/form/src/time-picker.tsx',
     'packages/behaviors/src/focus-scope.tsx',
-    'packages/behaviors/src/dismissable-layer.tsx',
     'packages/form/src/date-range-picker.native.tsx',
     'packages/form/src/date-time-picker.native.tsx',
     'packages/form/src/date-time-format.ts',
