@@ -369,6 +369,12 @@ following that default. Root/grid text precedes cell text and explicit
 dayTextStyle; custom element/layout content is still caller-owned. This is
 not default Text inheritance or a hardware-event/pixel certification.
 
+DatePicker, DateRangePicker and DateTimePicker now forward their Calendar
+class slots unchanged to that same Calendar consumer. The enclosing picker
+does not resolve a day or month-button list against trigger/dialog facts.
+This forwarding slice adds no host, hook, provider or resolver and does not
+certify wrapper/trigger/dialog/Done styling, modal focus or the clock seam.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner

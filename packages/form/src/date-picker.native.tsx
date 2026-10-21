@@ -29,7 +29,7 @@ export interface HozoDatePickerProps {
   dialogClassName?: string
   calendarClassName?: string
   dayClassName?: string
-  /** Calendar slots accepted by shared UI source, like `calendarClassName`. */
+  /** Forwarded to Calendar, which resolves each slot with its own owner facts. */
   headerClassName?: string
   gridClassName?: string
   monthButtonClassName?: string
@@ -103,6 +103,10 @@ export function HozoDatePicker({
   triggerTextStyle,
   dialogStyle,
   calendarClassName,
+  headerClassName,
+  gridClassName,
+  monthButtonClassName,
+  dayClassName,
   value,
   onChange,
   defaultOpen = false,
@@ -202,6 +206,10 @@ export function HozoDatePicker({
         >
           <HozoCalendar
             className={calendarClassName}
+            headerClassName={headerClassName}
+            gridClassName={gridClassName}
+            monthButtonClassName={monthButtonClassName}
+            dayClassName={dayClassName}
             value={value}
             onChange={choose}
             defaultMonth={defaultMonth}
