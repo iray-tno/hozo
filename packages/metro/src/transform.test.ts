@@ -58,6 +58,7 @@ test('dynamic secondary pattern classes reach their registered slot owner withou
     ['ColorPicker', 'swatchClassName', 'swatchStyle'],
     ['ColorPicker', 'selectedSwatchClassName', 'selectedSwatchStyle'],
     ['ColorPicker', 'inputClassName', 'inputStyle'],
+    ['ColorPicker', 'thumbClassName', 'thumbStyle'],
     ['Stepper', 'stepClassName', 'stepStyle'],
     ['Stepper', 'completedStepClassName', 'completedStepStyle'],
     ['Stepper', 'currentStepClassName', 'currentStepStyle'],
@@ -87,12 +88,12 @@ export function C() { return <${component} ${slot}={chooseClasses()} ${style}={e
   // existing fallback, and static interaction refusals below still apply.
   const unowned = transformHozoSource(
     `import { ColorPicker } from '@hozo/core'
-export function C() { return <ColorPicker thumbClassName={classes} /> }`,
+export function C() { return <ColorPicker sliderClassName={classes} /> }`,
     'ColorPicker.tsx',
     '/project',
   )
-  assert.match(unowned, /thumbStyle=\{hozoClasses\(classes\)\}/)
-  assert.doesNotMatch(unowned, /thumbClassName=/)
+  assert.match(unowned, /sliderStyle=\{hozoClasses\(classes\)\}/)
+  assert.doesNotMatch(unowned, /sliderClassName=/)
 })
 
 test('audited Avatar decorations resolve opaque inputs once with their known non-control facts', () => {
@@ -143,6 +144,7 @@ test('mixed secondary expressions retain AOT and source-ordered guards on regist
     ['Pagination', 'itemClassName', 'hover'],
     ['ColorPicker', 'swatchClassName', 'hover'],
     ['ColorPicker', 'inputClassName', 'focus'],
+    ['ColorPicker', 'thumbClassName', 'focus'],
     ['Stepper', 'stepClassName', 'hover'],
     ['CommandPalette', 'itemClassName', 'hover'],
     ['CommandPalette', 'inputClassName', 'focus'],
@@ -332,6 +334,36 @@ export function C() {return <ColorPicker disabled={disabled} accessibilityLabel=
   assert.match(output, /!\(__hozoSlotReadOnly\) &&/)
   assert.match(output, /inputStyle=\{extra\}/)
   assert.doesNotMatch(output, /hozoClasses|candidate|inputClassName=/)
+})
+
+test('ColorPicker thumb focus reaches the slider callback while pointer states remain unsupported', () => {
+  const output = transformHozoSource(
+    `import { ColorPicker } from '@hozo/core'
+export function C() {return <ColorPicker accessibilityLabel="Theme"
+ thumbClassName="focus:opacity-50 focus-visible:outline-2 aria-disabled:border-4 disabled:mt-8 enabled:mb-8"
+ thumbStyle={extra} />}`,
+    'ColorThumb.tsx',
+  )
+  assert.ok(output)
+  assert.match(output, /hozoThumbStyle=\{/)
+  assert.match(output, /'aria-disabled': __hozoSlotAriaDisabled/)
+  assert.match(output, /focused &&/)
+  assert.match(output, /focusVisible &&/)
+  assert.match(output, /__hozoSlotAriaDisabled &&/)
+  assert.match(output, /thumbStyle=\{extra\}/)
+  assert.doesNotMatch(output, /hozoClasses|candidate|thumbClassName=/)
+  assert.doesNotMatch(output, /hozoStyles\.\w+_(disabled|enabled)/)
+  for (const variant of ['hover', 'not-hover', 'active', 'hover:focus-visible']) {
+    assert.throws(
+      () =>
+        transformHozoSource(
+          `import {ColorPicker} from '@hozo/core'; export function C() {return <ColorPicker thumbClassName="${variant}:opacity-50" />}`,
+          'ColorThumb.tsx',
+        ),
+      /NOT_WIRED_ON_NATIVE/,
+      variant,
+    )
+  }
 })
 
 test('Combobox class slots bind editable focus, non-control list and active option facts separately', () => {
