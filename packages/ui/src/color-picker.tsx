@@ -7,7 +7,7 @@
  * one, rounded tracks the pattern paints with the colour, and a thumb.
  */
 
-import { ColorPicker, type ColorPickerProps } from '@hozo/core'
+import { ColorPicker, type ColorPickerProps, cx } from '@hozo/core'
 
 export type HozoColorPickerProps = ColorPickerProps
 
@@ -22,8 +22,6 @@ const input =
   'w-32 rounded-hozo-control border border-hozo-border-strong bg-hozo-surface px-3 py-2 font-mono text-sm text-hozo-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
 const eyeDropper =
   'self-start rounded-hozo-control border border-hozo-border px-3 py-2 text-sm text-hozo-text-body hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
-
-const plus = (own: string, extra: string | undefined) => (extra ? `${own} ${extra}` : own)
 
 // Not named `HozoColorPicker` here: compiled output imports a runtime
 // component under that name for the `<ColorPicker>` below (#670).
@@ -40,13 +38,13 @@ function StyledColorPicker({
   return (
     <ColorPicker
       {...rest}
-      className={plus(root, className)}
-      swatchClassName={plus(swatch, swatchClassName)}
-      selectedSwatchClassName={plus(selected, selectedSwatchClassName)}
-      sliderClassName={plus(slider, sliderClassName)}
-      thumbClassName={plus(thumb, thumbClassName)}
-      inputClassName={plus(input, inputClassName)}
-      eyeDropperClassName={plus(eyeDropper, eyeDropperClassName)}
+      className={cx(root, className)}
+      swatchClassName={cx(swatch, swatchClassName)}
+      selectedSwatchClassName={cx(selected, selectedSwatchClassName)}
+      sliderClassName={cx(slider, sliderClassName)}
+      thumbClassName={cx(thumb, thumbClassName)}
+      inputClassName={cx(input, inputClassName)}
+      eyeDropperClassName={cx(eyeDropper, eyeDropperClassName)}
     />
   )
 }

@@ -51,6 +51,17 @@ export interface ColorPickerSlotFacts {
   'aria-selected': false
 }
 
+/** The adjustable div owns non-touch focus and aria-disabled, not form disabled/enabled. Its Native track consumes pointers; the thumb cannot borrow pointer state. */
+export interface SliderThumbSlotFacts {
+  readonly [fact: string]: unknown
+  disabled: false
+  enabled: false
+  readOnly: true
+  'aria-disabled': boolean
+  'aria-selected': false
+  'aria-checked': false
+}
+
 /** Option divs are neither disabled nor enabled controls. The Web input keeps focus, not its active option. */
 export interface CommandPaletteSlotFacts {
   readonly [fact: string]: unknown

@@ -66,6 +66,13 @@ export const profiles = {
     },
     note: 'Each radio owns checked/disabled; Native announcements do not create absent Web attributes.',
   },
+  SliderThumb: {
+    facts: {
+      ...nonControlFacts,
+      'aria-disabled': supplied('__hozoSlotAriaDisabled'),
+    },
+    note: 'The adjustable div owns non-touch focus and aria-disabled, not form disabled/enabled. Its Native track consumes pointers; the thumb cannot borrow pointer state.',
+  },
   CommandPalette: {
     facts: {
       disabled: false,
@@ -208,6 +215,11 @@ export const components = {
     {
       secondary: true,
       overrides: {
+        thumbClassName: owned('adjustable-slider-thumb', 'SliderThumb', 'hozoThumbStyle', {
+          pointer: false,
+          composition:
+            'thumb classes/callback/explicit-style; geometry-last; independent per slider',
+        }),
         inputClassName: owned('real-hex-input', 'TextInput', 'hozoInputStyle', {
           pointer: false,
           composition: 'classes/callback/explicit-style; disabled-is-read-only',

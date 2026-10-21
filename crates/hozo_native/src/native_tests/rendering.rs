@@ -1830,7 +1830,7 @@ fn guarded_secondary_slots_share_capture_and_owner_routes() {
             checked += 1;
         }
     }
-    assert_eq!(checked, 15);
+    assert_eq!(checked, 16);
 }
 
 #[test]
@@ -3028,7 +3028,8 @@ fn color_picker_semantics_belong_to_each_radio_not_the_group() {
             output.diagnostics
         );
     }
-    // No ARIA facts are invented for the group, track, thumb or hex field.
+    // The thumb and hex field have audited absent checked state; the group
+    // and track still have no semantic owner contract.
     for slot in [
         "className",
         "sliderClassName",
@@ -3041,11 +3042,11 @@ fn color_picker_semantics_belong_to_each_radio_not_the_group() {
         );
         let parsed = hozo_parser::parse_tsx(&source);
         let output = lower(&parsed.roots[0].node, &source, &Theme::default());
-        if slot == "inputClassName" {
+        if slot == "inputClassName" || slot == "thumbClassName" {
             assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
             assert!(
                 !output.jsx.contains("_ariachecked"),
-                "the field is never a checked radio: {}",
+                "the field/thumb is never a checked radio: {}",
                 output.jsx
             );
             continue;

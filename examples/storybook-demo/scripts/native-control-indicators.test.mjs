@@ -48,6 +48,11 @@ const overlaySlotClasses = 'p-2 p-3 p-4 p-5 p-6 p-7 p-8 p-9 p-10 p-12'
 const otpSemanticClasses =
   'disabled:opacity-25 read-only:outline-2 read-only:focus:outline-4 aria-disabled:border-4 aria-selected:mt-8'
 cache.scanFile(
+  'slider-thumb.ts',
+  "export const c = 'focus:outline-4 focus-visible:opacity-75 aria-disabled:border-4 disabled:mt-8 enabled:mb-8'",
+  1,
+)
+cache.scanFile(
   'tab-state-look.ts',
   `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${otpSemanticClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} ${overlaySlotClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
@@ -123,6 +128,15 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
 const exportsFrom = (names, relative) =>
   `export { ${names} } from ${JSON.stringify(filename(relative))};`
 const probeSources = [
+  transformHozoSource(
+    `import { ColorPicker, cx } from '@hozo/core'
+     export function CompiledThumbPicker({ thumbClassName, ...rest }) {
+       return <ColorPicker {...rest} thumbClassName={cx('p-2 focus:outline-2 focus-visible:opacity-75 aria-disabled:border-4 disabled:mt-8 enabled:mb-8', thumbClassName)} />
+     }`,
+    filename('thumb-focus-fixture.tsx'),
+    root,
+    compiler,
+  ),
   exportsFrom('HozoCheckbox, HozoSwitch', 'packages/ui/src/toggle.tsx'),
   exportsFrom('HozoRadioGroup', 'packages/ui/src/radio.tsx'),
   exportsFrom('HozoTree as UiTree', 'packages/ui/src/tree.tsx'),
@@ -161,11 +175,13 @@ const bundled = await build({
   stdin: {
     contents: probeSources.join('\n'),
     resolveDir: root,
+    loader: 'tsx',
   },
   bundle: true,
   write: false,
   platform: 'node',
   format: 'cjs',
+  jsx: 'automatic',
   packages: 'external',
   plugins: [
     {
@@ -184,7 +200,10 @@ const bundled = await build({
           }),
         )
         builder.onResolve(
-          { filter: /^@hozo\/core\/generated\/(?:combobox|listbox|dialog|command-palette)$/ },
+          {
+            filter:
+              /^@hozo\/(?:core|patterns)\/generated\/(?:combobox|listbox|dialog|command-palette|color-picker)$/,
+          },
           ({ path: specifier }) => ({
             path: filename(`packages/patterns/src/${specifier.split('/').at(-1)}.native.tsx`),
           }),
@@ -280,6 +299,7 @@ const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.ex
 const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
 const { Dialog, Tooltip, HozoSlider } = module.exports
 const { HozoColorPicker, HozoStepper } = module.exports
+const { CompiledThumbPicker } = module.exports
 const { HozoChip, HozoOtpInput } = module.exports
 const { UiCombobox, UiListbox, UiCommandPalette, UiDialog } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
@@ -468,7 +488,7 @@ test('Native overlay Slider keeps track, fill and thumb classes alongside value 
         value: 75,
         disabled: true,
         orientation: 'vertical',
-        thumbClassName: `${props.thumbClassName} disabled:opacity-25`,
+        thumbClassName: `${props.thumbClassName} aria-disabled:opacity-25`,
       }),
     ),
   )
@@ -476,6 +496,79 @@ test('Native overlay Slider keeps track, fill and thumb classes alongside value 
   assert.equal(flat(thumb(tree).props.style).bottom, '75%')
   assert.equal(flat(thumb(tree).props.style).opacity, 0.25)
   assert.equal(flat(thumb(tree).props.style).paddingTop, 16)
+})
+
+test('Native slider thumbs own focus for runtime and compiled ColorPicker slots', async (t) => {
+  const classes =
+    'p-4 focus:outline-4 focus-visible:opacity-75 aria-disabled:border-4 disabled:mt-8 enabled:mb-8'
+  for (const Component of [HozoSlider, HozoColorPicker, CompiledThumbPicker]) {
+    const changes = []
+    const props = {
+      accessibilityLabel: 'Value',
+      alpha: true,
+      thumbClassName: classes,
+      onChange: (value) => changes.push(value),
+      onValueChange: (value) => changes.push(value),
+    }
+    const tree = await mount(t, Component, props)
+    const thumbs = () => views(tree).filter((node) => node.props.accessibilityRole === 'adjustable')
+    assert.equal(thumbs().length, Component === HozoSlider ? 1 : 4)
+    const box = (index = 0) => flat(thumbs()[index].props.style)
+    assert.equal(thumbs()[0].props.focusable, true)
+    assert.equal(box().paddingTop, 16, 'caller resting class follows compiled p-2')
+    assert.equal(box().outlineWidth, undefined)
+    await act(() => thumbs()[0].props.onFocus({}))
+    assert.equal(box().outlineWidth, Component === CompiledThumbPicker ? 2 : 4)
+    assert.equal(box().opacity, 0.75)
+    if (thumbs().length > 1)
+      assert.equal(box(1).outlineWidth, undefined, 'another slider does not borrow focus')
+    assert.equal(changes.length, 0, 'focus does not edit the value')
+    await act(() => thumbs()[0].props.onBlur({}))
+    assert.equal(box().outlineWidth, undefined)
+    await act(() => thumbs()[0].props.onFocus({}))
+    await act(() => tree.update(React.createElement(Component, { ...props, disabled: true })))
+    assert.equal(thumbs()[0].props.focusable, false)
+    assert.equal(typeof thumbs()[0].props.onFocus, 'function')
+    assert.equal(box().outlineWidth, Component === CompiledThumbPicker ? 2 : 4)
+    assert.equal(box().opacity, 0.75, 'aria-disabled alone does not invent blur')
+    assert.equal(box().borderTopWidth, 4, 'aria-disabled describes the actual slider div')
+    assert.equal(box().marginTop, undefined, ':disabled does not match a div')
+    assert.equal(box().marginBottom, undefined, ':enabled does not match a div either')
+    await act(() =>
+      thumbs()[0].props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }),
+    )
+    assert.equal(changes.length, 0, 'disabled accessibility actions remain guarded')
+    await act(() => thumbs()[0].props.onBlur({}))
+    assert.equal(box().outlineWidth, undefined)
+    assert.equal(box().opacity, undefined)
+    await act(() => tree.update(React.createElement(Component, props)))
+    assert.equal(
+      box().outlineWidth,
+      undefined,
+      're-enabling must not invent focus after a real blur',
+    )
+    await act(() =>
+      tree.update(
+        React.createElement(Component, { ...props, thumbStyle: { opacity: 0.9, outlineWidth: 7 } }),
+      ),
+    )
+    await act(() => thumbs()[0].props.onFocus({}))
+    assert.equal(box().opacity, 0.9)
+    assert.equal(box().outlineWidth, 7, 'explicit thumb style stays last')
+    const slider = tree.root.findAllByType(HozoSlider)[0]
+    const track = slider.findAllByType('NativeView')[0]
+    assert.equal(track.props.pointerEvents, 'box-only')
+    assert.equal(track.props.accessible, false)
+    await act(() => track.props.onLayout({ nativeEvent: { layout: { width: 100, height: 10 } } }))
+    await act(() => track.props.onResponderGrant({ nativeEvent: { locationX: 50, locationY: 5 } }))
+    await act(() => track.props.onResponderRelease())
+    assert.ok(changes.length > 0, 'the track still owns pan/value changes')
+    const afterPan = changes.length
+    await act(() =>
+      thumbs()[0].props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }),
+    )
+    assert.ok(changes.length > afterPan, 'enabled adjustable actions remain connected')
+  }
 })
 
 test('Native overlay ColorPicker applies root, swatch, input and nested slider class slots', async (t) => {

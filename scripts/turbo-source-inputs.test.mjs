@@ -14,6 +14,7 @@ const reads = {
     'packages/patterns/src/slider.tsx',
     'packages/patterns/src/slider.native.tsx',
     'packages/patterns/src/slider-rules.ts',
+    'packages/behaviors/src/pressable-interaction.ts',
     'examples/native-showcase/src/Audio.stories.tsx',
     'examples/native-showcase/src/Video.stories.tsx',
     'examples/native-showcase/tsconfig.json',
@@ -42,6 +43,7 @@ const reads = {
     'packages/metro/src/transform.ts',
     'packages/metro/src/project.ts',
     'packages/ui/src/combobox.tsx',
+    'packages/ui/src/color-picker.tsx',
     'packages/ui/src/avatar.tsx',
     'packages/ui/src/skeleton.tsx',
     'packages/ui/src/card.tsx',
@@ -97,6 +99,9 @@ const reads = {
     'packages/patterns/src/stepper-rules.ts',
     'packages/patterns/src/color-picker.tsx',
     'packages/patterns/src/color-picker.native.tsx',
+    'packages/patterns/src/slider.native.tsx',
+    'packages/patterns/src/slider.tsx',
+    'packages/patterns/src/slider-rules.ts',
     'packages/patterns/src/color-rules.ts',
     'packages/patterns/src/color-words.ts',
     'examples/showcase/src/patterns.tsx',
@@ -159,7 +164,7 @@ const reads = {
     'packages/primitives/src/inherited-view.native.tsx',
     'packages/metro/src/transform.ts',
     // class-name-parity enumerates *all* component packages. Its domain is
-    // intentionally wider than media's three Slider sources.
+    // intentionally wider than media's Slider and interaction-hook sources.
     'packages/form/src/time-picker.native.tsx',
     'packages/primitives/src/pressable.native.tsx',
     'packages/ui/src/input.tsx',

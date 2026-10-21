@@ -129,12 +129,18 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
 
    OTP and Stepper now use the trusted `cx` helper on their thirteen root
    and secondary slots. Their own literals compile below the caller tier;
-   only caller strings reach the candidate resolver. ColorPicker is **not**
-   migrated by the same substitution: exposing its thumb's existing
-   `focus-visible` classes produces `NOT_WIRED_ON_NATIVE`, because that slot
-   has no readable focus state. Its state/owner path must be addressed, not
-   hidden by a joiner or fixed by dropping the Web focus decoration. Other
-   function-local selections also remain part of #1152.
+   only caller strings reach the candidate resolver. ColorPicker initially
+   exposed a missing thumb focus owner rather than a safe helper-only
+   migration. #1169 connects that slot to each actual adjustable Slider
+   View's non-touch focus/blur, using the shared interaction hook and one
+   snapshot for its runtime resolver and generated callback. The track's
+   pointer hit testing/PanResponder are unchanged; pointer conditions remain
+   unavailable, not false. `aria-disabled` describes the slider div, not
+   form `disabled`/`enabled`. Like the Web div, changing `aria-disabled`
+   does not itself invent blur; actual host focus/blur owns those facts.
+   Its six Native-owned slots now compile their resting classes via `cx`.
+   EyeDropper remains a Web-only passthrough; this is not a claim that its
+   own/caller boundary or every unmodelled widget has been fixed.
 
    Card's flat choice and Stack's direction/gap/alignment choices now live
    directly in `cx` arguments as finite conditionals. No function interpreter

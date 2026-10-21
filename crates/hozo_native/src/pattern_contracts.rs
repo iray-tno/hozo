@@ -30,6 +30,16 @@ pub(super) fn semantic_binding(primitive: Primitive, class_prop: &str, condition
             Condition::Aria(state) if state == "selected" => Some("false"),
             _ => None,
         },
+        // The adjustable div owns non-touch focus and aria-disabled, not form disabled/enabled. Its Native track consumes pointers; the thumb cannot borrow pointer state.
+        (Primitive::ColorPicker, "thumbClassName") => match condition {
+            Condition::Disabled => Some("false"),
+            Condition::Enabled => Some("false"),
+            Condition::FormState(FormState::ReadOnly) => Some("true"),
+            Condition::Aria(state) if state == "disabled" => Some("__hozoSlotAriaDisabled"),
+            Condition::Aria(state) if state == "selected" => Some("false"),
+            Condition::Aria(state) if state == "checked" => Some("false"),
+            _ => None,
+        },
         // Only the real input supplies focus and mutability; disabled fields are read-only too.
         (Primitive::ColorPicker, "inputClassName") => match condition {
             Condition::Disabled => Some("__hozoSlotDisabled"),
@@ -217,6 +227,7 @@ pub(super) fn semantic_parameters(primitive: Primitive, class_prop: &str) -> &'s
     match (primitive, class_prop) {
         (Primitive::Chip, "className" | "removeClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-pressed': __hozoSlotAriaPressed",
         (Primitive::ColorPicker, "swatchClassName" | "selectedSwatchClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, 'aria-checked': __hozoSlotAriaChecked",
+        (Primitive::ColorPicker, "thumbClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled",
         (Primitive::ColorPicker, "inputClassName") => ", disabled: __hozoSlotDisabled, enabled: __hozoSlotEnabled, readOnly: __hozoSlotReadOnly",
         (Primitive::Combobox, "inputClassName") => ", 'aria-expanded': __hozoSlotAriaExpanded, 'aria-invalid': __hozoSlotAriaInvalid",
         (Primitive::Combobox, "optionClassName") => ", 'aria-disabled': __hozoSlotAriaDisabled, 'aria-selected': __hozoSlotAriaSelected",
@@ -237,6 +248,7 @@ pub(super) fn interaction_slot(primitive: Primitive, class_prop: &str) -> Option
         (Primitive::Chip, "removeClassName") => Some(InteractionSlot { style_prop: "hozoRemoveStyle", focus: true, pointer: true, optional_owner: None }),
         (Primitive::ColorPicker, "swatchClassName") => Some(InteractionSlot { style_prop: "hozoSwatchStyle", focus: true, pointer: true, optional_owner: None }),
         (Primitive::ColorPicker, "selectedSwatchClassName") => Some(InteractionSlot { style_prop: "hozoSelectedSwatchStyle", focus: true, pointer: true, optional_owner: None }),
+        (Primitive::ColorPicker, "thumbClassName") => Some(InteractionSlot { style_prop: "hozoThumbStyle", focus: true, pointer: false, optional_owner: None }),
         (Primitive::ColorPicker, "inputClassName") => Some(InteractionSlot { style_prop: "hozoInputStyle", focus: true, pointer: false, optional_owner: None }),
         (Primitive::Combobox, "inputClassName") => Some(InteractionSlot { style_prop: "hozoInputStyle", focus: true, pointer: false, optional_owner: None }),
         (Primitive::Combobox, "optionClassName") => Some(InteractionSlot { style_prop: "hozoOptionStyle", focus: false, pointer: true, optional_owner: None }),
