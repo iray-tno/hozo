@@ -86,6 +86,67 @@ impl<'a> Visit<'a> for Safety {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn mixed_templates_capture_only_opaque_parts_in_the_authored_branch() {
+        for host in ["View", "Text"] {
+            let source = format!("import {{{host}}} from '@hozo/core'; const own='p-2 rounded-md'; const el=<{host} className={{choose() ? `${{own}} ${{extra()}} ${{last()}}` : own}} />");
+            let parsed = crate::parse_tsx(&source);
+            let root = &parsed.roots[0].node;
+            let plan = root
+                .root_class_evaluation()
+                .expect("guarded template capture");
+            let residuals = root
+                .class_name_fallback
+                .iter()
+                .map(|r| &source[r.0.start as usize..r.0.end as usize])
+                .collect::<Vec<_>>();
+            assert_eq!(residuals, ["extra()", "last()"]);
+            let input = plan.render(&source);
+            assert_eq!(input.matches("choose()").count(), 1);
+            assert!(input.contains("`${(extra())}`"), "{input}");
+            assert!(input.contains("`${(last())}`"), "{input}");
+            assert!(
+                !input.contains("own"),
+                "compiled constants do not reenter candidates"
+            );
+        }
+        let source = "import {Chip} from '@hozo/core'; const own='p-2'; const el=<Chip label='x' removeClassName={choose() ? `${own} ${extra()}` : own} />";
+        let parsed = crate::parse_tsx(source);
+        let slot = &parsed.roots[0].node.props.class_slots[0];
+        assert!(
+            slot.evaluation.is_some(),
+            "secondary slots share the same plan"
+        );
+        assert_eq!(slot.fallback.len(), 1);
+        let span = slot.fallback[0].0;
+        assert_eq!(&source[span.start as usize..span.end as usize], "extra()");
+    }
+
+    #[test]
+    fn incomplete_or_lexically_unsafe_templates_keep_the_legacy_route() {
+        for jsx in [
+            "<View testID={before()} className={choose() ? `${own} ${extra()}` : own} />",
+            "<View className={choose() ? `p-${extra()}` : own} />",
+            "<View className={choose() ? `${own} ${inner() ? 'p-4' : 'p-8'}` : own} />",
+        ] {
+            let source =
+                format!("import {{View}} from '@hozo/core'; const own='p-2'; const el={jsx}");
+            let parsed = crate::parse_tsx(&source);
+            assert!(
+                parsed.roots[0].node.root_class_evaluation().is_none(),
+                "{jsx}"
+            );
+        }
+        let source = "import {View} from '@hozo/core';const own='p-2 project-custom';const el=<View className={choose() ? `${own} ${extra()}` : own} />";
+        let parsed = crate::parse_tsx(source);
+        assert!(parsed.roots[0].node.root_class_evaluation().is_none());
+        let fallback = &parsed.roots[0].node.class_name_fallback;
+        assert_eq!(fallback.len(), 1);
+        assert!(
+            source[fallback[0].0.start as usize..fallback[0].0.end as usize].contains("choose()")
+        );
+    }
+
+    #[test]
     fn roots_capture_before_children_but_not_before_evaluated_earlier_props() {
         for jsx in [
             "<View className={guard() ? 'p-2' : 'p-4'} testID={after()}><Text>Label</Text></View>",
