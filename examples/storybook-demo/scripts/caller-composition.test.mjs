@@ -654,6 +654,8 @@ test('the real Web Calendar separates group, header and table typography without
     headerClassName: 'p-3 text-[14px] text-[#abcdef] disabled:opacity-25',
     gridClassName: 'p-4 text-[18px] disabled:opacity-25',
   }
+  const monthClasses =
+    'enabled:border-2 disabled:opacity-25 aria-selected:outline-4 aria-disabled:mt-8 hover:bg-[#dd1100] focus:opacity-75 focus-visible:font-bold active:opacity-50'
   const fixture = await build({
     stdin: {
       contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoCalendar} from ${JSON.stringify(source('packages/form/src/calendar.tsx'))};
@@ -681,7 +683,7 @@ test('the real Web Calendar separates group, header and table typography without
   })
   const css = (
     await compile('@theme { --spacing: .25rem; --font-weight-bold:700; } @tailwind utilities;')
-  ).build(Object.values(chrome).flatMap((value) => value.split(' ')))
+  ).build([...Object.values(chrome), monthClasses].flatMap((value) => value.split(' ')))
   const page = await browser.newPage()
   try {
     // Actual Tailwind Preflight in standards mode, like the application.
@@ -729,6 +731,51 @@ test('the real Web Calendar separates group, header and table typography without
     assert.deepEqual(await read(grid.locator('th').first()), ['rgb(18, 52, 86)', '18px', '700'])
     assert.deepEqual(await read(grid.locator('td').first()), ['rgb(18, 52, 86)', '18px', '700'])
     assert.equal(await grid.locator('td').count(), 42)
+    await page.evaluate(
+      (classes) =>
+        window.renderCalendar({
+          max: { year: 2026, month: 8, day: 31 },
+          monthButtonClassName: classes,
+        }),
+      monthClasses,
+    )
+    const back = header.locator('button').first()
+    const next = header.locator('button').last()
+    assert.equal(await back.evaluate((element) => getComputedStyle(element).opacity), '0.25')
+    assert.deepEqual(
+      await next.evaluate((element) => {
+        const s = getComputedStyle(element)
+        return [
+          element.matches(':disabled'),
+          element.matches(':enabled'),
+          element.matches(':read-only'),
+          element.hasAttribute('aria-selected'),
+          element.hasAttribute('aria-disabled'),
+          s.borderTopWidth,
+          s.outlineWidth === '4px',
+          s.marginTop,
+        ]
+      }),
+      [false, true, true, false, false, '2px', false, '0px'],
+    )
+    await next.hover()
+    assert.equal(
+      await next.evaluate((element) => getComputedStyle(element).backgroundColor),
+      'rgb(221, 17, 0)',
+    )
+    assert.notEqual(
+      await back.evaluate((element) => getComputedStyle(element).backgroundColor),
+      'rgb(221, 17, 0)',
+    )
+    await next.focus()
+    assert.equal(await next.evaluate((element) => getComputedStyle(element).opacity), '0.75')
+    assert.equal(await next.evaluate((element) => element.matches(':focus-visible')), true)
+    await page.mouse.down()
+    assert.equal(await next.evaluate((element) => getComputedStyle(element).opacity), '0.5')
+    await page.mouse.up()
+    await page.evaluate(() => window.renderCalendar({ max: { year: 2026, month: 7, day: 31 } }))
+    assert.equal(await next.isDisabled(), true)
+    assert.equal(await next.evaluate((element) => element.matches(':focus')), false)
   } finally {
     await page.close()
   }

@@ -911,6 +911,97 @@ const calendarDays = (tree) =>
   tree.root
     .findAllByType('NativePressable')
     .filter((node) => node.props.accessibilityLabel?.includes('2026'))
+const calendarMonthButtons = (tree) =>
+  tree.root
+    .findAllByType('NativePressable')
+    .filter((node) => !node.props.accessibilityLabel?.includes('2026'))
+
+test('Native Calendar month classes follow each actual button, not its sibling or chrome', async (t) => {
+  let dayRenders = 0
+  const tree = await mount(t, HozoCalendar, {
+    ...calendarProps,
+    monthButtonClassName: interactionClasses,
+    renderDay: (day) => {
+      dayRenders++
+      return day.date.day
+    },
+  })
+  const [back, next] = calendarMonthButtons(tree)
+  assert.equal(flat(back.props.style).paddingTop, 16)
+  await act(() => next.props.onHoverIn())
+  assert.equal(flat(next.props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(next.props.children.props.style).color, color('hozo-accent-text'))
+  assert.equal(flat(back.props.style).backgroundColor, undefined)
+  assert.equal(flat(views(tree)[0].props.style).backgroundColor, undefined)
+  assert.equal(flat(calendarDays(tree)[0].props.style).backgroundColor, undefined)
+  await act(() => next.props.onFocus())
+  assert.equal(flat(next.props.style).opacity, 0.75)
+  assert.equal(String(flat(next.props.children.props.style).fontWeight), '700')
+  assert.equal(flat(back.props.style).opacity, undefined)
+  await act(() => next.props.onPointerDown())
+  assert.equal(flat(next.props.children.props.style).fontWeight, undefined)
+  await act(() => next.props.onKeyDown())
+  assert.equal(String(flat(next.props.children.props.style).fontWeight), '700')
+  await act(() => next.props.onPressIn())
+  assert.equal(flat(next.props.style).opacity, 0.5)
+  await act(() => {
+    next.props.onPressOut()
+    next.props.onBlur()
+    next.props.onHoverOut()
+  })
+  assert.equal(flat(next.props.style).opacity, undefined)
+  assert.equal(flat(next.props.children.props.style).color, undefined)
+  assert.equal(dayRenders, 42, 'button events do not rerender the entire calendar')
+})
+
+test('Native Calendar month bounds, explicit styles and disabling clear local interaction', async (t) => {
+  const changes = []
+  const props = {
+    ...calendarProps,
+    min: { year: 2026, month: 6, day: 1 },
+    max: { year: 2026, month: 8, day: 31 },
+    monthButtonClassName: `${interactionClasses} disabled:opacity-25`,
+    monthButtonStyle: { paddingTop: 91, color: '#abcdef', fontSize: 23 },
+    onMonthChange: (month) => changes.push(month),
+  }
+  const tree = await mount(t, HozoCalendar, props)
+  const [back, next] = calendarMonthButtons(tree)
+  assert.equal(back.props.accessibilityState.disabled, true)
+  assert.equal(flat(back.props.style).opacity, 0.25)
+  assert.equal(flat(next.props.style).paddingTop, 91)
+  assert.equal(flat(next.props.style).paddingBottom, 16)
+  assert.equal(flat(next.props.children.props.style).color, '#abcdef')
+  assert.equal(flat(next.props.children.props.style).fontSize, 23)
+  assert.equal(flat(next.props.style).color, undefined)
+  await press(back)
+  assert.deepEqual(changes, [])
+  await press(next)
+  assert.deepEqual(changes, [{ year: 2026, month: 7 }])
+  assert.equal(back.props.accessibilityState.disabled, false)
+  await act(() => {
+    next.props.onFocus()
+    next.props.onPressIn()
+  })
+  await act(() =>
+    tree.update(
+      React.createElement(HozoCalendar, { ...props, max: { year: 2026, month: 7, day: 31 } }),
+    ),
+  )
+  assert.equal(next.props.accessibilityState.disabled, true)
+  assert.equal(flat(next.props.style).opacity, 0.25)
+  assert.equal(flat(next.props.style).outlineWidth, undefined)
+  await act(() => tree.update(React.createElement(HozoCalendar, props)))
+  assert.equal(
+    flat(next.props.style).opacity,
+    undefined,
+    'reenabling does not revive old press/focus',
+  )
+  await act(() =>
+    tree.update(React.createElement(HozoCalendar, { ...props, monthButtonClassName: undefined })),
+  )
+  assert.equal(flat(next.props.style).paddingBottom, undefined)
+  assert.equal(flat(next.props.style).paddingTop, 91)
+})
 
 test('Native Calendar chrome keeps wrapper, header and grid classes on distinct owners', async (t) => {
   const tree = await mount(t, HozoCalendar, {
@@ -981,6 +1072,12 @@ test('the UI Calendar supplies its real chrome classes to Native owners', async 
   const grid = views(tree).find((node) => flat(node.props.style).width === '100%')
   assert.ok(grid, 'real gridClassName is not lost')
   assert.equal(grid.findAllByType('NativeView').length, 8, 'one grid and seven week rows')
+  for (const button of calendarMonthButtons(tree)) {
+    assert.equal(flat(button.props.style).width, 36)
+    assert.equal(flat(button.props.style).height, 36)
+    assert.equal(flat(button.props.children.props.style).color, color('hozo-text-muted'))
+    assert.equal(flat(button.props.children.props.style).fontSize, 14)
+  }
 })
 
 test('Native Calendar wraps primitive custom day labels in the same Text as its default', async (t) => {

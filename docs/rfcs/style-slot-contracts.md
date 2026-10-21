@@ -345,7 +345,17 @@ layout (explicit weekStyle wins); this is not a table/border-collapse engine.
 Root typography reaches owned labels, then the relevant header or grid
 typography, then explicit dayTextStyle. Custom renderDay elements remain
 caller-owned: no cloning, text provider or default inheritance rollout is
-implied. Month-button and day-cell class contracts remain separate follow-ups.
+implied. Day-cell class contracts remain a separate follow-up.
+
+Each Calendar month button now resolves its own class with its actual Web
+button form facts and the existing Native local interaction tracker. It owns
+disabled/enabled but no authored aria-selected/aria-disabled attribute. Disabled
+press/focus are cleared; hover remains an independent observation. Button
+typography follows inherited root/header declarations, and explicit
+monthButtonStyle follows its classes. A leaf React component scopes the two
+local hooks so hover/focus/press does not rerender every day or reevaluate
+renderDay. No additional Native host, provider or global listener is added.
+Hardware event delivery and actual screen-reader paging remain unmeasured.
 
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
