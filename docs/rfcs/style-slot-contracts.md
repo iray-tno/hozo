@@ -126,6 +126,15 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    template expressions and unsafe root lexical boundaries retain their
    existing route and diagnostics. UI's local joiners and function-local
    opaque class selections are separate follow-ups, not fixed by this step.
+
+   OTP and Stepper now use the trusted `cx` helper on their thirteen root
+   and secondary slots. Their own literals compile below the caller tier;
+   only caller strings reach the candidate resolver. ColorPicker is **not**
+   migrated by the same substitution: exposing its thumb's existing
+   `focus-visible` classes produces `NOT_WIRED_ON_NATIVE`, because that slot
+   has no readable focus state. Its state/owner path must be addressed, not
+   hidden by a joiner or fixed by dropping the Web focus decoration. Other
+   function-local selections also remain part of #1152.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/
    mixed, shape changes, absent owners, explicit style overrides and status
    gates in matrix fixtures. A decorative label can inherit text styling

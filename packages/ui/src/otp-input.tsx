@@ -8,7 +8,7 @@
  * which reach React Native as well.
  */
 
-import { OtpInput, type OtpInputProps } from '@hozo/core'
+import { cx, OtpInput, type OtpInputProps } from '@hozo/core'
 
 export type HozoOtpInputProps = OtpInputProps
 
@@ -21,8 +21,6 @@ const active = 'border-2 border-hozo-accent'
 const filled = 'border-hozo-border-strong'
 const input =
   'rounded-hozo-control focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
-
-const plus = (own: string, extra: string | undefined) => (extra ? `${own} ${extra}` : own)
 
 // Not named `HozoOtpInput` here: compiled output imports a runtime component
 // under that name for the `<OtpInput>` below (#670).
@@ -37,11 +35,11 @@ function StyledOtpInput({
   return (
     <OtpInput
       {...rest}
-      className={plus(row, className)}
-      cellClassName={plus(cell, cellClassName)}
-      activeCellClassName={plus(active, activeCellClassName)}
-      filledCellClassName={plus(filled, filledCellClassName)}
-      inputClassName={plus(input, inputClassName)}
+      className={cx(row, className)}
+      cellClassName={cx(cell, cellClassName)}
+      activeCellClassName={cx(active, activeCellClassName)}
+      filledCellClassName={cx(filled, filledCellClassName)}
+      inputClassName={cx(input, inputClassName)}
     />
   )
 }
