@@ -22,7 +22,10 @@ use oxc_ast::ast::{
     JSXAttributeValue, JSXChild, JSXElement, JSXElementName, JSXExpression, ObjectPropertyKind,
     PropertyKey,
 };
-use oxc_ast_visit::walk::{walk_arrow_function_expression, walk_function, walk_jsx_element};
+use oxc_ast_visit::walk::{
+    walk_arrow_function_expression, walk_function, walk_jsx_element, walk_method_definition,
+    walk_property_definition,
+};
 use oxc_ast_visit::Visit;
 use oxc_span::{GetSpan, Span};
 use oxc_syntax::module_record::ModuleRecord;
@@ -2413,6 +2416,9 @@ pub struct JsxCollector<'r, 'a> {
     /// The components the walk is inside, outermost first.
     enclosing: Vec<EnclosingComponent>,
     expression_container: bool,
+    /// Set while entering a class method, so the function that is its body
+    /// gets no hook slot. See `visit_method_definition`.
+    method_body: bool,
     scope: &'r Scope<'r, 'a>,
 }
 
@@ -2425,6 +2431,7 @@ impl<'r, 'a> JsxCollector<'r, 'a> {
             hook_slot: None,
             enclosing: Vec::new(),
             expression_container: false,
+            method_body: false,
             scope,
         }
     }
@@ -2506,19 +2513,44 @@ impl<'r, 'a> Visit<'a> for JsxCollector<'r, 'a> {
     }
 
     fn visit_function(&mut self, it: &Function<'a>, flags: ScopeFlags) {
-        let slot = it.body.as_ref().map(|body| body.span.start + 1);
+        // A class method's body is a function too, and a hook there -- a
+        // class component's `render()` -- is an invalid hook call on every
+        // render (#1183). No slot, so a condition that needs one is refused
+        // at build time instead of crashing on the device.
+        let method = std::mem::replace(&mut self.method_body, false);
+        let slot = if method {
+            None
+        } else {
+            it.body.as_ref().map(|body| body.span.start + 1)
+        };
         self.within_function(slot, |this| walk_function(this, it, flags));
+    }
+
+    fn visit_method_definition(&mut self, it: &oxc_ast::ast::MethodDefinition<'a>) {
+        self.method_body = true;
+        walk_method_definition(self, it);
+        self.method_body = false;
     }
 
     fn visit_arrow_function_expression(&mut self, it: &ArrowFunctionExpression<'a>) {
         // A concise body (`() => <View/>`) is an expression, not a block,
         // so there is no statement position to splice into. Reported as
         // "no slot" rather than silently producing invalid code.
+        let method = std::mem::replace(&mut self.method_body, false);
         let slot = match &it.body {
-            oxc_ast::ast::ArrowFunctionBody::FunctionBody(body) => Some(body.span.start + 1),
+            oxc_ast::ast::ArrowFunctionBody::FunctionBody(body) if !method => {
+                Some(body.span.start + 1)
+            }
             _ => None,
         };
         self.within_function(slot, |this| walk_arrow_function_expression(this, it));
+    }
+
+    // `render = () => { ... }` on a class: the same as a method.
+    fn visit_property_definition(&mut self, it: &oxc_ast::ast::PropertyDefinition<'a>) {
+        self.method_body = true;
+        walk_property_definition(self, it);
+        self.method_body = false;
     }
 }
 

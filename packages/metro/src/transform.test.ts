@@ -836,6 +836,24 @@ const el = <View className="dark:bg-black" />
   )
 })
 
+test("refuses a hook in a class component's render, where any hook is invalid (#1183)", () => {
+  for (const body of ['render() {', 'render = () => {']) {
+    const source = `import { Component } from 'react'
+import { Text } from '@hozo/core'
+export class Caught extends Component {
+  ${body}
+    return <Text className="dark:text-white">failed</Text>
+  }
+}
+`
+    assert.throws(
+      () => transformHozoSource(source, '/app/src/x.tsx', '/app'),
+      /class component's render/,
+      body,
+    )
+  }
+})
+
 test('lowers ScrollView refresh through a native RefreshControl', () => {
   const source = `import { ScrollView, Text } from '@hozo/core'
 export function Results({ refreshing, reload, horizontal }) {

@@ -1007,6 +1007,22 @@ export function Login() {
     }
 
     #[test]
+    fn a_class_components_render_has_no_slot() {
+        // A hook in a class's `render()` -- method or arrow field -- is an
+        // invalid hook call on every render (#1183). A function component
+        // written inside one still has its own.
+        for source in [
+            "import { Text } from '@hozo/core'\nclass C extends Component {\n  render() {\n    return <Text className=\"dark:text-white\">x</Text>\n  }\n}\n",
+            "import { Text } from '@hozo/core'\nclass C extends Component {\n  render = () => {\n    return <Text className=\"dark:text-white\">x</Text>\n  }\n}\n",
+        ] {
+            let output = parse_tsx(source);
+            assert_eq!(output.roots[0].hook_slot, None, "{source}");
+        }
+        let nested = "import { Text } from '@hozo/core'\nclass C extends Component {\n  render() {\n    function Inner() { return <Text>x</Text> }\n    return <Inner />\n  }\n}\n";
+        assert!(parse_tsx(nested).roots[0].hook_slot.is_some(), "{nested}");
+    }
+
+    #[test]
     fn a_nested_function_shadows_its_parent() {
         // The hook belongs to the function that actually renders the JSX,
         // not to whatever encloses it.

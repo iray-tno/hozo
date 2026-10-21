@@ -191,10 +191,12 @@ export function transformHozoSource(
       // A hook needs a statement position. There isn't one at module
       // scope or in a concise arrow body, and inlining the call into the
       // JSX would break the rules of hooks the moment the element sits
-      // behind a conditional.
+      // behind a conditional. Nor in a class component's `render`, where
+      // any hook is an invalid call (#1183).
       throw new Error(
         `[hozo] ${filename}: \`dark:\` and breakpoint variants need a React hook, which can ` +
-          `only go inside a component function. Move this JSX into a function component with a ` +
+          `only go inside a component function -- not at module scope, in a concise arrow body, ` +
+          `or in a class component's render. Move this JSX into a function component with a ` +
           `block body (\`function C() { return <View .../> }\`).`,
       )
     }
