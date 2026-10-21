@@ -278,6 +278,20 @@ for (const [page, element] of [
   ['date-range-picker', /<button [^>]*aria-haspopup="dialog"[^>]*>.*Pick your dates/],
   ['date-time-picker', /<button [^>]*aria-haspopup="dialog"[^>]*>.*Pick a moment/],
   ['time-picker', /role="spinbutton"[^>]*aria-label="Hour" aria-valuenow="9"/],
+  // One tab stop: the first item 0, the rest -1 (a Button that dropped the
+  // roving tabIndex left every item in the tab order).
+  [
+    'toolbar',
+    /<div role="toolbar" aria-label="Formatting"[^>]*><button [^>]*tabindex="0"[^>]*>Bold<\/button><button [^>]*tabindex="-1"/,
+  ],
+  ['pagination', /<nav [^>]*aria-label="Pagination"/],
+  ['stepper', /Step 2 of 4: Address, current/],
+  ['color-picker', /role="radiogroup"[^>]*aria-label="Presets"/],
+  ['command-palette', /<button [^>]*>Open the command palette<\/button>/],
+  ['file-dropzone', /<button [^>]*aria-label="Upload a photo"/],
+  ['otp-input', /autoComplete="one-time-code"/],
+  ['form', /<form [^>]*aria-label="Newsletter"/],
+  ['stack', />centred<\/span>/],
 ]) {
   const html = readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8')
   const islands = html.match(/<astro-island\b[\s\S]*?<\/astro-island>/g) ?? []

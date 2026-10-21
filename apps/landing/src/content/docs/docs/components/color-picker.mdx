@@ -1,0 +1,28 @@
+---
+title: "Color Picker"
+description: "A colour chosen from swatches, three sliders or its hex, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { ColorPickerDemo } from '../../../../examples/ui/ColorPickerDemo.tsx'
+import source from '../../../../examples/ui/ColorPickerDemo.tsx?raw'
+
+`ColorPicker` chooses a colour from swatches, from three sliders, or by typing
+its hex. Try all three:
+
+<UiExample source={source} file="ColorPickerDemo.tsx">
+  <ColorPickerDemo client:visible />
+</UiExample>
+
+- **`value`** and **`onChange`** hold a hex string, `#rrggbb`. With **`alpha`**
+  it is `#rrggbbaa` and there is an opacity slider.
+- **Three sliders, not a square.** There is no accessible way to move one
+  control in two directions at once, so hue, saturation and lightness are
+  three ordinary sliders. Each says its value in words: "Hue, 217 degrees,
+  blue".
+- **A colour is read with a name and its hex**, such as "blue, #3b82f6", so
+  the hex is not six digits of nothing.
+- **`presets`** are swatches: a radio group that is one tab stop, moved through
+  with the arrow keys.
+- **`showEyeDropper`** adds a button that picks a colour from the screen, in
+  browsers that have the EyeDropper API.

@@ -1,0 +1,30 @@
+---
+title: "Command Palette"
+description: "A searchable list of commands in a modal, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { CommandPaletteDemo } from '../../../../examples/ui/CommandPaletteDemo.tsx'
+import source from '../../../../examples/ui/CommandPaletteDemo.tsx?raw'
+
+`CommandPalette` opens a search field over the page with a list of commands
+under it. Open it, type "dark", then press Enter:
+
+<UiExample source={source} file="CommandPaletteDemo.tsx">
+  <CommandPaletteDemo client:visible />
+</UiExample>
+
+- **`commands`:** `{ id, label, onSelect, group?, keywords?, shortcut?,
+  disabled? }`. Commands with the same `group` are listed under one heading.
+  `keywords` match as well as the label, which is why "colour" finds "Toggle
+  dark mode".
+- **`open`** and **`onOpenChange`** control it. **Opening it is yours to
+  wire**, from a button as here or from a key such as Ctrl K in your app.
+- **It is a modal dialog holding a combobox.** Focus goes into the field, Tab
+  cannot leave the dialog, and Escape or a press outside closes it and puts
+  focus back where it was.
+- **The arrow keys move through the commands** while focus stays in the field,
+  and Enter runs the highlighted one and closes. As the list narrows, how many
+  commands match is announced politely.
+- **`shortcut`** is shown beside a command. It is a label, and it does not bind
+  the key.

@@ -1,0 +1,26 @@
+---
+title: "Stepper"
+description: "Where a person is in a process of several steps, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { StepperDemo } from '../../../../examples/ui/StepperDemo.tsx'
+import source from '../../../../examples/ui/StepperDemo.tsx?raw'
+
+`Stepper` shows the steps of a process and which one a person is on. Press Next
+and Back, or a step itself:
+
+<UiExample source={source} file="StepperDemo.tsx">
+  <StepperDemo client:visible />
+</UiExample>
+
+- **`steps`:** `{ label, description?, status? }` for each step.
+- **`activeStep`** is the index of the current step. The steps before it are
+  completed and the ones after are upcoming, unless a step's `status` says
+  otherwise, such as `error`.
+- **The status is said in words, not only in colour.** It is an ordered list,
+  the current step is `aria-current="step"`, and a reader hears "Step 2 of 4:
+  Address, current". The number or check mark is hidden, because the words
+  already say it.
+- **`onStepPress`** makes the steps buttons. Without it they are text, which
+  suits a process that has to be done in order.

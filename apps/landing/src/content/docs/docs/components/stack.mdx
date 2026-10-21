@@ -1,0 +1,23 @@
+---
+title: "Stack"
+description: "A row or a column with one of four gaps, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { StackDemo } from '../../../../examples/ui/StackDemo.tsx'
+import source from '../../../../examples/ui/StackDemo.tsx?raw'
+
+`Stack` lays its children out in a row or a column, with a gap between them.
+It is how the other examples on these pages space their buttons:
+
+<UiExample source={source} file="StackDemo.tsx">
+  <StackDemo client:visible />
+</UiExample>
+
+- **`direction`** is `column` by default, or `row`.
+- **`gap`** is one of four: `none`, `tight` (8px), `normal` (16px, the default)
+  and `loose` (24px). A short list keeps spacing consistent across a screen.
+  For any other gap, use a `View` with a `gap-*` class.
+- **`align`** places the children across the direction: `start`, `center`,
+  `end` or `stretch`.
+- **`className`** is added after the stack's own classes.

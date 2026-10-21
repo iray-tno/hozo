@@ -1,0 +1,26 @@
+---
+title: "File Dropzone"
+description: "A place to drop files that is also a button for the file picker, built on @hozo/form, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { FileDropzoneDemo } from '../../../../examples/ui/FileDropzoneDemo.tsx'
+import source from '../../../../examples/ui/FileDropzoneDemo.tsx?raw'
+
+`FileDropzone` takes files dropped onto it, and is also a button that opens the
+file picker. Drop an image on it, or press it:
+
+<UiExample source={source} file="FileDropzoneDemo.tsx">
+  <FileDropzoneDemo client:visible />
+</UiExample>
+
+- **A button first.** Dragging has no keyboard or screen-reader equivalent, so
+  the zone is a real `<button>`, and Enter and Space open the picker. The drop
+  is a shortcut on top of it.
+- **`accept`**, **`maxSize`**, **`minSize`**, **`multiple`** and **`maxFiles`**
+  are the rules. Files that break one go to **`onRejected`** with a reason,
+  and the rest go to **`onFilesSelected`**.
+- **What was added and what was refused is announced** in one sentence, such as
+  "a.gif is not an accepted kind of file", so a refusal is not only a red line
+  a reader cannot see.
+- **`accessibilityLabel`** names the button. **`children`** are what it shows.

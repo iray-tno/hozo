@@ -1,0 +1,26 @@
+---
+title: "Toolbar"
+description: "A row of controls that is one tab stop, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { ToolbarDemo } from '../../../../examples/ui/ToolbarDemo.tsx'
+import source from '../../../../examples/ui/ToolbarDemo.tsx?raw'
+
+`Toolbar` groups controls into one tab stop. Tab to it, then move with the
+arrow keys, Home and End:
+
+<UiExample source={source} file="ToolbarDemo.tsx">
+  <ToolbarDemo client:visible />
+</UiExample>
+
+- **`items`:** `{ render, disabled? }` for each control. `render` is given the
+  props that make the control part of the toolbar: a roving `tabIndex`, the
+  key handler, a focus handler and a ref. Spread them onto your control, as
+  the example does with `Button`.
+- **One tab stop.** Tab enters the toolbar on the control used last, and
+  leaves it on the next Tab. A disabled item is skipped.
+- **`orientation`** is `horizontal` by default, so Left and Right move.
+  `vertical` uses Up and Down. **`wrap`** makes the ends wrap around.
+- **`accessibilityLabel`** names the toolbar, so a reader hears what the
+  controls are for.
