@@ -949,3 +949,11 @@ reviewed four-panel run remains historical; this new source needs fresh
 Android/iOS binaries and independent raw PNG/AX/archive review. Full/release
 scenarios, ordinary lowering and the runtime-only control selection remain
 unchanged. This does not assess physical-device performance or accept an ADR.
+
+The [v3 static-selection report](measurements/native-text-inheritance-static.md)
+now independently reviews Android's 70 PNG/AX pairs and APK provenance. The
+dedicated iOS job failed during cold Simulator discovery before building or
+comparing Text; its failure is retained, and an identical-source iOS-only
+follow-up is pending. A successful full Showcase run is not substituted for
+the isolated comparison. This is still an incomplete two-platform gate, not
+permission to enable default inheritance or static selection.
