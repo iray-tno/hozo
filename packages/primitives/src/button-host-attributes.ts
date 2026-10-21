@@ -19,6 +19,8 @@ export function buttonDataProps(props: ButtonDataProps): ButtonDataProps {
  * `Tooltip` clones its child with a ref to position against, the handlers
  * that open it, and -- on the Web -- `aria-describedby` naming the bubble.
  * A Button that dropped them was a trigger nothing could hear (#1137).
+ * `Toolbar` hands its items a roving `tabIndex` on the Web, and a Button
+ * that dropped it left every item a tab stop of its own.
  * Still a list rather than "every leftover prop": the rule above stands,
  * and these are the ones a known wrapper writes.
  */
@@ -30,6 +32,7 @@ export const BUTTON_TRIGGER_PROPS_WEB = [
   'onPointerEnter',
   'onPointerLeave',
   'aria-describedby',
+  'tabIndex',
 ] as const
 
 export const BUTTON_TRIGGER_PROPS_NATIVE = [

@@ -102,3 +102,23 @@ test('what a wrapper writes to make a Button a trigger reaches the element, comp
   )
   assert.doesNotMatch(html, /title=/)
 })
+
+// Toolbar hands its items a roving tabIndex on the Web.
+test('a roving tabIndex reaches the element, and a disabled link still leaves the tab order', () => {
+  assert.equal((hozoButtonDomProps({ tabIndex: -1 }) as Record<string, unknown>).tabIndex, -1)
+  assert.equal((hozoLinkDomProps({ tabIndex: 0 }) as Record<string, unknown>).tabIndex, 0)
+  for (const order of [
+    { tabIndex: 0, disabled: true },
+    { disabled: true, tabIndex: 0 },
+  ]) {
+    assert.equal((hozoLinkDomProps(order) as Record<string, unknown>).tabIndex, -1)
+  }
+  assert.equal(
+    (hozoLinkDomProps({ disabled: false, tabIndex: 0 }) as Record<string, unknown>).tabIndex,
+    0,
+  )
+  assert.match(
+    renderToStaticMarkup(createElement(Button, { tabIndex: -1 }, 'Bold')),
+    /tabindex="-1"/i,
+  )
+})

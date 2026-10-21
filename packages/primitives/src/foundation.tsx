@@ -328,6 +328,8 @@ export interface ButtonProps extends ButtonDataProps {
   onPointerEnter?: PointerEventHandler<HTMLElement>
   onPointerLeave?: PointerEventHandler<HTMLElement>
   'aria-describedby'?: string
+  /** A roving tab stop, as `Toolbar` hands its items. */
+  tabIndex?: number
 }
 
 export function Button({
