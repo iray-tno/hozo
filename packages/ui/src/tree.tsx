@@ -58,7 +58,11 @@
 
 import { Tree as TreePattern, type TreeProps } from '@hozo/patterns'
 
-export type HozoTreeProps = Omit<TreeProps, 'rowClassName' | 'rowLook'>
+/**
+ * `toggleOn` is fixed at the pattern's `row`: this look's marker is a chevron,
+ * which reads as "this row opens", and at 8px it is no target on its own.
+ */
+export type HozoTreeProps = Omit<TreeProps, 'rowClassName' | 'rowLook' | 'toggleOn'>
 export type { TreeNode as HozoTreeNode } from '@hozo/patterns'
 
 const container =

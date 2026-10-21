@@ -1,7 +1,13 @@
 import { isTypeaheadKey, nextIndex, nextSearch, type RovingKey, searchIndex } from '@hozo/behaviors'
 import { type KeyboardEvent, type ReactNode, useCallback, useRef, useState } from 'react'
 
-import { horizontalMove, type TreeNode, visibleRows } from './tree-rules.ts'
+import {
+  horizontalMove,
+  rowPress,
+  type TreeNode,
+  type TreeToggleOn,
+  visibleRows,
+} from './tree-rules.ts'
 
 export type { TreeNode }
 
@@ -33,6 +39,8 @@ export interface HozoTreeProps {
     level: number
     expanded: boolean
     branch: boolean
+    /** Opens or closes this branch: for a marker drawn by `renderRow`. */
+    toggle: () => void
   }) => ReactNode
   /**
    * The row's inside as a look, for a caller who wants a marker and an
@@ -48,6 +56,23 @@ export interface HozoTreeProps {
    * are given.
    */
   rowLook?: (row: { level: number; expanded: boolean; branch: boolean }) => HozoTreeRowLook
+  /**
+   * What a pointer presses to open or close a branch (#1143).
+   *
+   * `row`, the default: the whole row, which also selects it. That suits a
+   * marker that points, a chevron or a triangle, which reads as "this row
+   * opens".
+   *
+   * `marker`: only the marker, and a press anywhere else on the row only
+   * selects it. That suits a `+` box, which reads as a control of its own,
+   * and a tree whose branches are things to choose -- a navigation tree or a
+   * settings section -- where opening one should not be a side effect of
+   * choosing it. Give the marker a target of at least 24px in the look.
+   *
+   * The keyboard is the same either way: Left and Right open and close,
+   * Enter and Space select.
+   */
+  toggleOn?: TreeToggleOn
 }
 
 export function HozoTree({
@@ -60,6 +85,7 @@ export function HozoTree({
   rowClassName,
   renderRow,
   rowLook,
+  toggleOn = 'row',
 }: HozoTreeProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(defaultExpanded))
   const [active, setActive] = useState(0)
@@ -78,6 +104,12 @@ export function HozoTree({
       return next
     })
   }, [])
+
+  const press = (row: (typeof rows)[number]) => {
+    const outcome = rowPress(row, toggleOn)
+    if (outcome.toggle) setOpen(row.id, !row.expanded)
+    if (outcome.select) onSelect?.(row.id)
+  }
 
   const move = (at: number) => {
     setActive(at)
@@ -149,7 +181,7 @@ export function HozoTree({
           className={rowClassName}
           onKeyDown={(event) => onKeyDown(event, at)}
           onFocus={() => setActive(at)}
-          onClick={() => !row.disabled && onSelect?.(row.id)}
+          onClick={() => press(row)}
         >
           {renderRow
             ? renderRow({
@@ -158,11 +190,15 @@ export function HozoTree({
                 level: row.level,
                 expanded: row.expanded,
                 branch: row.branch,
+                toggle: () => setOpen(row.id, !row.expanded),
               })
             : rowLook
               ? rowInside(
                   rowLook({ level: row.level, expanded: row.expanded, branch: row.branch }),
                   row.label,
+                  toggleOn === 'marker' && row.branch && !row.disabled
+                    ? () => setOpen(row.id, !row.expanded)
+                    : undefined,
                 )
               : row.label}
         </div>
@@ -171,11 +207,25 @@ export function HozoTree({
   )
 }
 
-function rowInside(look: HozoTreeRowLook, label: string) {
+function rowInside(look: HozoTreeRowLook, label: string, toggle?: () => void) {
   return (
     <span className={look.indentClassName}>
       {look.markerClassName === undefined ? null : (
-        <span aria-hidden="true" className={look.markerClassName} />
+        // Still hidden and not a tab stop when it toggles: the keyboard opens
+        // a branch with the arrows, so this is a target for a pointer only.
+        // The row's own click would select as well, so it stops here.
+        <span
+          aria-hidden="true"
+          className={look.markerClassName}
+          onClick={
+            toggle
+              ? (event) => {
+                  event.stopPropagation()
+                  toggle()
+                }
+              : undefined
+          }
+        />
       )}
       <span>{label}</span>
     </span>

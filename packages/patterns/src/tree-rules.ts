@@ -82,3 +82,21 @@ export function horizontalMove(
   const parent = rows.findIndex((candidate) => candidate.id === row.parent)
   return parent === -1 ? null : { kind: 'focus', index: parent }
 }
+
+/** What a pointer presses to open or close a branch; see `toggleOn`. */
+export type TreeToggleOn = 'row' | 'marker'
+
+/**
+ * What a press on a row does, the same on both platforms (#1143).
+ *
+ * A row press always selects. It also opens or closes a branch unless the
+ * marker is the toggle, in which case the marker's own press does that and
+ * the row's does not.
+ */
+export function rowPress(
+  row: Pick<TreeRow, 'branch' | 'disabled'>,
+  toggleOn: TreeToggleOn,
+): { select: boolean; toggle: boolean } {
+  if (row.disabled) return { select: false, toggle: false }
+  return { select: true, toggle: row.branch && toggleOn === 'row' }
+}

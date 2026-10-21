@@ -1263,7 +1263,9 @@ test('compiled UI CommandPalette uses its Modal viewport and real search/list ow
   assert.equal(flat(frame().props.style).paddingTop, 120)
 })
 
-test('Native Tree interaction does not expand branches or select leaves', async (t) => {
+// #1143: a press selects, and opens or closes a branch too -- the Web half's
+// behaviour. This half used to toggle a branch and never select it.
+test('Native Tree: a press selects a row and opens or closes a branch', async (t) => {
   const selected = []
   const tree = await mount(t, HozoTree, {
     nodes: [
@@ -1294,11 +1296,43 @@ test('Native Tree interaction does not expand branches or select leaves', async 
   await checkInteraction(tree, 1)
   assert.equal(hosts()[1].props.accessibilityState.selected, true)
   assert.equal(flat(hosts()[1].props.style).borderTopWidth, 2)
-  assert.deepEqual(selected, [])
+  assert.deepEqual(selected, ['folder'])
   await press(hosts()[1])
-  assert.deepEqual(selected, ['leaf'])
+  assert.deepEqual(selected, ['folder', 'leaf'])
   await press(hosts()[0])
   assert.equal(hosts().length, 2)
+  assert.deepEqual(selected, ['folder', 'leaf', 'folder'])
+  assert.equal(hosts()[0].props.accessibilityActions, undefined)
+})
+
+test('Native Tree with toggleOn="marker": the row selects, and the marker or an action toggles', async (t) => {
+  const selected = []
+  const tree = await mount(t, HozoTree, {
+    nodes: [{ id: 'folder', label: 'Folder', children: [{ id: 'leaf', label: 'Leaf' }] }],
+    toggleOn: 'marker',
+    rowLook: ({ branch }) => ({
+      indentClassName: 'flex-row',
+      markerClassName: branch ? 'size-6' : 'size-2',
+    }),
+    onSelect: (id) => selected.push(id),
+  })
+  const rows = () =>
+    tree.root.findAllByType('NativePressable').filter((node) => node.props.accessibilityRole)
+  const markers = () =>
+    tree.root.findAllByType('NativePressable').filter((node) => !node.props.accessibilityRole)
+  await press(rows()[0])
+  assert.deepEqual(selected, ['folder'])
+  assert.equal(rows().length, 1, 'a row press opened the branch')
+  assert.equal(markers()[0].props.accessible, false)
+  await press(markers()[0])
+  assert.equal(rows().length, 2, 'the marker did not open the branch')
+  assert.deepEqual(selected, ['folder'], 'the marker also selected')
+  // The marker is hidden from a screen reader, so the row offers the action.
+  assert.deepEqual(rows()[0].props.accessibilityActions, [{ name: 'collapse' }])
+  await act(() =>
+    rows()[0].props.onAccessibilityAction({ nativeEvent: { actionName: 'collapse' } }),
+  )
+  assert.equal(rows().length, 1)
 })
 
 test('Native UI Tree draws a real, hidden marker and keeps the row text style on its label', async (t) => {

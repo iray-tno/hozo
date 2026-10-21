@@ -1,10 +1,17 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import {
+  Pressable as NativePressable,
+  type StyleProp,
+  Text,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
-import { type TreeNode, visibleRows } from './tree-rules.ts'
+import { rowPress, type TreeNode, type TreeToggleOn, visibleRows } from './tree-rules.ts'
 
 export type { TreeNode }
 
@@ -48,6 +55,8 @@ export interface HozoTreeProps {
     level: number
     expanded: boolean
     branch: boolean
+    /** Opens or closes this branch: for a marker drawn by `renderRow`. */
+    toggle: () => void
   }) => ReactNode
   /**
    * The row's inside as a look, for a caller who wants a marker and an
@@ -63,6 +72,23 @@ export interface HozoTreeProps {
    * are given.
    */
   rowLook?: (row: { level: number; expanded: boolean; branch: boolean }) => HozoTreeRowLook
+  /**
+   * What a pointer presses to open or close a branch (#1143).
+   *
+   * `row`, the default: the whole row, which also selects it. That suits a
+   * marker that points, a chevron or a triangle, which reads as "this row
+   * opens".
+   *
+   * `marker`: only the marker, and a press anywhere else on the row only
+   * selects it. That suits a `+` box, which reads as a control of its own,
+   * and a tree whose branches are things to choose -- a navigation tree or a
+   * settings section -- where opening one should not be a side effect of
+   * choosing it. Give the marker a target of at least 24px in the look.
+   *
+   * The keyboard is the same either way: Left and Right open and close,
+   * Enter and Space select.
+   */
+  toggleOn?: TreeToggleOn
 }
 
 export function HozoTree({
@@ -77,6 +103,7 @@ export function HozoTree({
   rowStyle,
   renderRow,
   rowLook,
+  toggleOn = 'row',
 }: HozoTreeProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set(defaultExpanded))
   const rows = visibleRows(nodes, expanded)
@@ -119,10 +146,25 @@ export function HozoTree({
             }}
             disabled={row.disabled}
             style={(interaction) => [look(interaction)[0], rowStyle]}
+            // A press selects, and opens or closes a branch too unless the
+            // marker is the toggle -- the same as the Web half, which this
+            // half used to disagree with by toggling a branch and never
+            // selecting it.
             onPress={() => {
-              if (row.disabled) return
-              if (row.branch) toggle(row.id)
-              else onSelect?.(row.id)
+              const outcome = rowPress(row, toggleOn)
+              if (outcome.toggle) toggle(row.id)
+              if (outcome.select) onSelect?.(row.id)
+            }}
+            // With the marker as the toggle, a screen reader cannot reach it
+            // (it is hidden), so the row offers expand and collapse instead.
+            accessibilityActions={
+              row.branch && toggleOn === 'marker'
+                ? [{ name: row.expanded ? 'collapse' : 'expand' }]
+                : undefined
+            }
+            onAccessibilityAction={(event) => {
+              const name = event.nativeEvent.actionName
+              if (name === 'expand' || name === 'collapse') toggle(row.id)
             }}
           >
             {(interaction) =>
@@ -133,12 +175,16 @@ export function HozoTree({
                   level: row.level,
                   expanded: row.expanded,
                   branch: row.branch,
+                  toggle: () => toggle(row.id),
                 })
               ) : rowLook ? (
                 rowInside(
                   rowLook({ level: row.level, expanded: row.expanded, branch: row.branch }),
                   row.label,
                   look(interaction)[1],
+                  toggleOn === 'marker' && row.branch && !row.disabled
+                    ? () => toggle(row.id)
+                    : undefined,
                 )
               ) : (
                 <Text style={look(interaction)[1]}>{row.label}</Text>
@@ -151,15 +197,20 @@ export function HozoTree({
   )
 }
 
-function rowInside(look: HozoTreeRowLook, label: string, text: TextStyle) {
+function rowInside(look: HozoTreeRowLook, label: string, text: TextStyle, toggle?: () => void) {
+  const marker = hozoClasses(look.markerClassName)
   return (
     <View style={hozoClasses(look.indentClassName)}>
-      {look.markerClassName === undefined ? null : (
-        <View
+      {look.markerClassName === undefined ? null : toggle ? (
+        // Its own press, which the row's does not also receive.
+        <NativePressable
           accessible={false}
           importantForAccessibility="no-hide-descendants"
-          style={hozoClasses(look.markerClassName)}
+          style={marker}
+          onPress={toggle}
         />
+      ) : (
+        <View accessible={false} importantForAccessibility="no-hide-descendants" style={marker} />
       )}
       <Text style={text}>{label}</Text>
     </View>
