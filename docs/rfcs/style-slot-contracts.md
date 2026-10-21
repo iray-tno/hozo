@@ -318,10 +318,18 @@ events through the existing interaction hook, without a new Provider. Its
 form facts follow an actual Web select: it is read-only even when enabled,
 and its implicit popup state is not an authored `aria-expanded` attribute.
 Native accessibility still announces its expanded state independently.
-ActionSheet, presenter and fallback selection/dismissal behavior are preserved;
-the fallback's three Native-only class slots are not certified by this
-closed-control audit. Neither operating-system picker drawing nor Native
-hardware event delivery is established by host tests.
+ActionSheet, presenter and fallback selection/dismissal behavior are preserved.
+The subsequent Native-only popup slice resolves sheet/scrim classes
+only while Hozo's own fallback is open. Sheet typography reaches its owned
+row labels, with explicit box/text styles last. The trigger cannot lend
+its own events or form predicates to the sheet/scrim. Unmeasured hover/focus
+keys remain absent and are diagnosed on use. Option classes remain a
+separate row-owner slice.
+This is the Native-only popup API, not CSS compatibility with an OS-drawn Web
+option list. Unused system/presenter popup classes are neither resolved nor
+warned about. No new hook, provider or host is added by the popup slice.
+Neither operating-system picker drawing nor Native hardware event delivery
+is established by host tests.
 
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`

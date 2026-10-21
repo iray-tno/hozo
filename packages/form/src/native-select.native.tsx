@@ -16,6 +16,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import { nonControlClassFacts } from './class-facts.native.ts'
 
 export interface HozoNativeSelectOption {
   value: string
@@ -43,9 +44,10 @@ export interface HozoNativeSelectProps {
    * label; explicit Native styles follow classes.
    */
   className?: string
-  /** Native fallback classes are not resolved yet; explicit *Style props still supply its chrome. */
+  /** Native-owned fallback chrome only; neither the system picker nor the Web select uses these. */
   sheetClassName?: string
   scrimClassName?: string
+  /** Native fallback row classes remain unresolved; optionStyle supplies the row appearance. */
   optionClassName?: string
   /**
    * What the fallback's dismiss says, and what iOS puts on its cancel button.
@@ -160,6 +162,8 @@ export function HozoNativeSelect({
   'aria-required': required,
   disabled,
   className,
+  sheetClassName,
+  scrimClassName,
   cancelLabel: cancelLabelProp,
   sheetStyle,
   scrimStyle,
@@ -209,6 +213,13 @@ export function HozoNativeSelect({
 
   const chosen = options.find((option) => option.value === current)
   const shown = chosen?.label ?? placeholder ?? ''
+  // System/presenter paths have no Hozo popup owner. Do not even resolve
+  // their unused class lists (or emit state warnings for absent chrome).
+  const sheet = open
+    ? hozoSplitTextStyle(
+        StyleSheet.flatten([hozoClasses(sheetClassName, nonControlClassFacts), sheetStyle]) ?? {},
+      )
+    : null
 
   const choosable = useMemo(() => options.filter((option) => !option.disabled), [options])
 
@@ -299,7 +310,7 @@ export function HozoNativeSelect({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={scrimStyle}
+          style={[open && hozoClasses(scrimClassName, nonControlClassFacts), scrimStyle]}
           onPress={() => setOpen(false)}
         />
         <View
@@ -313,7 +324,7 @@ export function HozoNativeSelect({
           onAccessibilityAction={(event) => {
             if (event.nativeEvent.actionName === 'escape') setOpen(false)
           }}
-          style={sheetStyle}
+          style={sheet?.[0] as ViewStyle}
         >
           <ScrollView accessibilityRole="list" accessibilityLabel={accessibilityLabel}>
             {options.map((option) => (
@@ -334,7 +345,7 @@ export function HozoNativeSelect({
                   setOpen(false)
                 }}
               >
-                <Text style={textStyle}>{option.label}</Text>
+                <Text style={[sheet?.[1] as TextStyle, textStyle]}>{option.label}</Text>
               </Pressable>
             ))}
           </ScrollView>
