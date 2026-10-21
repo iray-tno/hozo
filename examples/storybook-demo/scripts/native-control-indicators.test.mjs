@@ -59,6 +59,10 @@ cache.scanFile(
   "export const c = 'focus:opacity-75 disabled:opacity-25 read-only:border-4 aria-[invalid=true]:border-4 aria-required:outline-4 aria-expanded:mt-8 text-hozo-accent'",
   1,
 )
+// Missing-fact warnings are once per candidate for this resolver. Keep this
+// ownership probe independent of warnings already emitted by other controls.
+const dialogUnmeasuredClass = 'hover:text-[#13579b]'
+cache.scanFile('picker-dialog-warning.tsx', `<View className="${dialogUnmeasuredClass}" />`, 1)
 cache.scanFile(
   'slider-thumb.ts',
   "export const c = 'focus:outline-4 focus-visible:opacity-75 aria-disabled:border-4 disabled:mt-8 enabled:mb-8'",
@@ -1251,6 +1255,190 @@ test('Native UI DateTime Done draws its actual accent look', async (t) => {
   assert.equal(flat(done.props.children.props.style).color, color('hozo-on-accent'))
   await act(() => done.props.onHoverIn())
   assert.equal(flat(done.props.style).backgroundColor, color('hozo-accent-hover'))
+})
+
+for (const [name, Picker, , value] of pickerCases) {
+  test(`Native ${name} frame owns its boxes and routes inherited text below child declarations`, async (t) => {
+    const props = {
+      ...calendarProps,
+      value,
+      defaultOpen: true,
+      disabled: true,
+      className: 'p-4 text-hozo-accent font-bold disabled:opacity-25 aria-disabled:mt-8',
+      dialogClassName: 'p-6 text-hozo-text-subtle text-lg disabled:opacity-25 aria-disabled:mt-8',
+      style: { paddingTop: 91 },
+      dialogStyle: { paddingTop: 92 },
+    }
+    const tree = await mount(t, Picker, props)
+    const root = views(tree)[0]
+    const trigger = tree.root.findAllByType('NativePressable')[0]
+    const heading = () => tree.root.findByProps({ accessibilityLiveRegion: 'polite' })
+    assert.equal(flat(root.props.style).paddingTop, 91)
+    assert.equal(flat(root.props.style).paddingBottom, 16)
+    assert.equal(flat(root.props.style).color, undefined)
+    assert.equal(flat(root.props.style).opacity, undefined, 'wrapper is not the disabled control')
+    assert.equal(flat(root.props.style).marginTop, undefined)
+    assert.equal(flat(panel(tree).props.style).paddingTop, 92)
+    assert.equal(flat(panel(tree).props.style).paddingBottom, 24)
+    assert.equal(flat(panel(tree).props.style).fontSize, undefined)
+    assert.equal(flat(panel(tree).props.style).opacity, undefined)
+    assert.equal(flat(panel(tree).props.style).marginTop, undefined)
+    assert.equal(flat(trigger.props.children.props.style).color, color('hozo-accent'))
+    assert.equal(flat(heading().props.style).color, color('hozo-text-subtle'))
+    assert.equal(flat(heading().props.style).fontSize, 18)
+    assert.equal(String(flat(heading().props.style).fontWeight), '700')
+    assert.equal(
+      flat(calendarJuneDay(tree, 12).props.children.props.style).color,
+      color('hozo-text-subtle'),
+    )
+    const own = {
+      ...props,
+      calendarClassName: 'text-hozo-text-body',
+      triggerClassName: 'text-hozo-text-body',
+      doneClassName: 'text-hozo-text-body',
+    }
+    await act(() => tree.update(React.createElement(Picker, own)))
+    assert.equal(
+      flat(heading().props.style).color,
+      color('hozo-text-body'),
+      'child declaration beats inherited panel text',
+    )
+    assert.equal(flat(trigger.props.children.props.style).color, color('hozo-text-body'))
+    assert.equal(
+      flat(calendarJuneDay(tree, 12).props.children.props.style).color,
+      color('hozo-text-body'),
+    )
+    if (name === 'DateTimePicker')
+      assert.equal(
+        flat(dateTimeDone(tree).props.children.props.style).color,
+        color('hozo-text-body'),
+      )
+    await act(() =>
+      tree.update(
+        React.createElement(Picker, {
+          ...own,
+          style: { paddingTop: 91, color: '#123456', fontSize: 31 },
+          dialogStyle: { paddingTop: 92, color: '#654321', fontSize: 29 },
+          triggerTextStyle: { color: '#fedcba' },
+          doneTextStyle: { color: '#fedcba' },
+        }),
+      ),
+    )
+    assert.equal(flat(trigger.props.children.props.style).color, '#fedcba')
+    assert.equal(flat(trigger.props.children.props.style).fontSize, 31)
+    assert.equal(
+      flat(heading().props.style).color,
+      color('hozo-text-body'),
+      'own class beats even explicit ancestor style',
+    )
+    assert.equal(flat(heading().props.style).fontSize, 29)
+    if (name === 'DateTimePicker')
+      assert.equal(flat(dateTimeDone(tree).props.children.props.style).color, '#fedcba')
+    await act(() =>
+      tree.update(
+        React.createElement(Picker, { ...props, className: undefined, dialogClassName: undefined }),
+      ),
+    )
+    assert.equal(flat(root.props.style).paddingBottom, undefined)
+    assert.equal(flat(panel(tree).props.style).paddingBottom, undefined)
+    assert.equal(flat(heading().props.style).color, undefined)
+    assert.equal(flat(heading().props.style).fontWeight, undefined)
+    assert.equal(flat(root.props.style).paddingTop, 91)
+    assert.equal(flat(panel(tree).props.style).paddingTop, 92)
+  })
+}
+
+test('Native date-picker frame leaves custom day and clock layouts caller-owned', async (t) => {
+  const customDay = React.createElement(
+    NativeText,
+    { testID: 'custom-day', style: { color: '#123456' } },
+    'Custom day',
+  )
+  const clock = React.createElement(
+    NativeText,
+    { testID: 'custom-clock', style: { color: '#abcdef' } },
+    'Custom clock',
+  )
+  const Picker = (props) => React.createElement(HozoDateTimePicker, props, () => clock)
+  const tree = await mount(t, Picker, {
+    ...calendarProps,
+    defaultOpen: true,
+    dialogClassName: 'text-hozo-accent',
+    renderDay: () => customDay,
+  })
+  for (const node of tree.root
+    .findAllByType('NativeText')
+    .filter((node) => node.props.testID === 'custom-day'))
+    assert.deepEqual(node.props.style, { color: '#123456' })
+  assert.equal(
+    tree.root.findAllByType('NativeText').filter((node) => node.props.testID === 'custom-day')
+      .length,
+    42,
+  )
+  assert.deepEqual(
+    tree.root.findAllByType('NativeText').find((node) => node.props.testID === 'custom-clock').props
+      .style,
+    { color: '#abcdef' },
+  )
+})
+
+test('Native UI date-picker panels consume their real chrome without overriding the child look', async (t) => {
+  for (const [name, , Picker, value] of pickerCases) {
+    const tree = await mount(t, Picker, {
+      ...calendarProps,
+      value,
+      defaultOpen: true,
+      className: 'text-lg font-bold',
+      renderDay: (day) => day.date.day,
+    })
+    assert.equal(flat(panel(tree).props.style).paddingTop, 8, name)
+    assert.equal(flat(panel(tree).props.style).backgroundColor, color('hozo-surface'), name)
+    const trigger = tree.root.findAllByType('NativePressable')[0]
+    assert.equal(flat(trigger.props.children.props.style).fontSize, 14, name)
+    const heading = tree.root.findByProps({ accessibilityLiveRegion: 'polite' })
+    assert.equal(flat(heading.props.style).fontSize, 14, name)
+    assert.equal(flat(heading.props.style).color, color('hozo-text'), name)
+  }
+})
+
+test('Native DateTime frame reaches the default owned clock, not only Calendar and Done', async (t) => {
+  const Picker = (props) => React.createElement(HozoDateTimePicker, props, undefined)
+  const tree = await mount(t, Picker, {
+    ...calendarProps,
+    defaultOpen: true,
+    hour12: true,
+    className: 'font-bold',
+    dialogClassName: 'text-hozo-accent text-lg',
+  })
+  const clock = views(tree).find(
+    (node) => node.props.accessibilityRole === 'none' && !node.props.accessibilityViewIsModal,
+  )
+  assert.ok(clock)
+  for (const text of clock.findAllByType('NativeText')) {
+    assert.equal(flat(text.props.style).color, color('hozo-accent'))
+    assert.equal(flat(text.props.style).fontSize, 18)
+    assert.equal(String(flat(text.props.style).fontWeight), '700')
+  }
+  assert.equal(clock.findAllByType('NativeText').length, 7)
+  assert.equal(flat(dateTimeDone(tree).props.children.props.style).color, color('hozo-accent'))
+})
+
+test('Native date-picker dialog classes are resolved only while that owner exists', async (t) => {
+  const warnings = []
+  const original = console.warn
+  console.warn = (message) => warnings.push(message)
+  try {
+    const tree = await mount(t, HozoDatePicker, {
+      ...calendarProps,
+      dialogClassName: dialogUnmeasuredClass,
+    })
+    assert.deepEqual(warnings, [])
+    await press(tree.root.findAllByType('NativePressable')[0])
+    assert.ok(warnings.some((message) => message.includes('needs state (hovered)')))
+    assert.equal(flat(panel(tree).props.style).color, undefined)
+  } finally {
+    console.warn = original
+  }
 })
 
 test('Native UI Calendar draws selected single days, range caps, interiors and unavailable days', async (t) => {

@@ -861,12 +861,13 @@ for (const [name, file, value] of [
       fileURLToPath(new URL(`../../../${relative}`, import.meta.url)).replaceAll('\\', '/')
     const classes =
       'p-4 hover:bg-[#dd1100] focus:opacity-75 active:opacity-50 aria-expanded:border-2 disabled:opacity-25 aria-disabled:mt-8'
+    const frameClasses = 'p-6 text-[#dd1100] text-[#0011dd] text-[#118800] text-lg font-bold'
     const fixture = await build({
       stdin: {
         contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {Hozo${name}} from ${JSON.stringify(source(`packages/form/src/${file}.tsx`))};
         const root = createRoot(document.getElementById('picker'));
         window.pickerChanges = []; window.pickerOpens = [];
-        window.renderPicker = (disabled = false) => flushSync(() => root.render(createElement(Hozo${name}, {disabled, value:${JSON.stringify(value)}, defaultMonth:{year:2026,month:6},today:{year:2026,month:6,day:15},locale:'en-US',accessibilityLabel:'Departure',formatValue:()=>'Chosen 2026',className:'disabled:opacity-25',triggerClassName:${JSON.stringify(classes)},doneClassName:${JSON.stringify(classes)},onChange: value => window.pickerChanges.push(value),onOpenChange: open => window.pickerOpens.push(open)}, () => null)));
+        window.renderPicker = (disabled = false, extra = {}) => flushSync(() => root.render(createElement(Hozo${name}, {disabled, value:${JSON.stringify(value)}, defaultMonth:{year:2026,month:6},today:{year:2026,month:6,day:15},locale:'en-US',accessibilityLabel:'Departure',formatValue:()=>'Chosen 2026',className:'disabled:opacity-25',triggerClassName:${JSON.stringify(classes)},doneClassName:${JSON.stringify(classes)},onChange: value => window.pickerChanges.push(value),onOpenChange: open => window.pickerOpens.push(open),...extra}, () => null)));
         window.renderPicker();`,
         resolveDir: source('examples/storybook-demo'),
       },
@@ -899,9 +900,11 @@ for (const [name, file, value] of [
         },
       ],
     })
-    const css = (await compile('@theme { --spacing:.25rem; } @tailwind utilities;')).build(
-      classes.split(' '),
-    )
+    const css = (
+      await compile(
+        '@theme { --spacing:.25rem; --text-lg:1.125rem; --font-weight-bold:700; } @tailwind utilities;',
+      )
+    ).build(`${classes} ${frameClasses}`.split(' '))
     const page = await browser.newPage()
     try {
       const preflight = readFileSync(
@@ -1006,6 +1009,67 @@ for (const [name, file, value] of [
       )
       assert.equal(await trigger.locator('[hidden]').innerText(), 'Departure')
       assert.equal(await trigger.locator('span').last().innerText(), 'Chosen 2026')
+      const frame = {
+        className: 'p-4 text-[#dd1100] font-bold',
+        dialogClassName: 'p-6 text-[#0011dd] text-lg',
+        triggerClassName: '',
+        doneClassName: '',
+      }
+      await page.evaluate((frame) => window.renderPicker(false, frame), frame)
+      assert.equal(
+        await trigger.evaluate((element) => getComputedStyle(element).color),
+        'rgb(221, 17, 0)',
+      )
+      await trigger.click()
+      const dialog = page.locator('[role="dialog"]')
+      await dialog.waitFor({ state: 'visible' })
+      assert.equal(await dialog.evaluate((element) => getComputedStyle(element).paddingTop), '24px')
+      assert.equal(
+        await trigger.evaluate((element) => getComputedStyle(element.parentElement).paddingTop),
+        '16px',
+      )
+      const heading = dialog.locator('[aria-live="polite"]')
+      for (const label of [heading, dialog.locator('td').first()]) {
+        assert.deepEqual(
+          await label.evaluate((element) => {
+            const style = getComputedStyle(element)
+            return [style.color, style.fontSize, style.fontWeight]
+          }),
+          ['rgb(0, 17, 221)', '18px', '700'],
+        )
+      }
+      await page.evaluate(
+        (frame) =>
+          window.renderPicker(false, {
+            ...frame,
+            calendarClassName: 'text-[#118800]',
+            triggerClassName: 'text-[#118800]',
+            doneClassName: 'text-[#118800]',
+          }),
+        frame,
+      )
+      assert.equal(
+        await heading.evaluate((element) => getComputedStyle(element).color),
+        'rgb(17, 136, 0)',
+      )
+      assert.equal(
+        await trigger.evaluate((element) => getComputedStyle(element).color),
+        'rgb(17, 136, 0)',
+      )
+      if (name === 'DateTimePicker')
+        assert.equal(
+          await page
+            .getByRole('button', { name: 'Done', exact: true })
+            .evaluate((element) => getComputedStyle(element).color),
+          'rgb(17, 136, 0)',
+        )
+      await page.evaluate(() =>
+        window.renderPicker(false, { triggerClassName: '', doneClassName: '' }),
+      )
+      assert.equal(await dialog.evaluate((element) => getComputedStyle(element).paddingTop), '0px')
+      assert.equal(await heading.evaluate((element) => getComputedStyle(element).fontWeight), '400')
+      await page.keyboard.press('Escape')
+      await dialog.waitFor({ state: 'detached' })
     } finally {
       await page.close()
     }

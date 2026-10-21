@@ -76,6 +76,8 @@ interface Shared {
   /** Each month button resolves this with its own interaction/bounds facts. */
   monthButtonClassName?: string
   style?: StyleProp<ViewStyle>
+  /** @internal Resolved picker ancestry, below Calendar's own declarations. */
+  hozoInheritedTextStyle?: StyleProp<TextStyle>
   headerStyle?: StyleProp<ViewStyle>
   weekStyle?: StyleProp<ViewStyle>
   dayStyle?: StyleProp<ViewStyle>
@@ -437,6 +439,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
     monthButtonClassName,
     dayClassName,
     style,
+    hozoInheritedTextStyle,
     headerStyle,
     weekStyle,
     dayStyle,
@@ -539,7 +542,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           disabled={!monthIsReachable(monthStep(shown, -1), min, max)}
           className={monthButtonClassName}
           style={monthButtonStyle}
-          inheritedText={[rootText as TextStyle, headerText as TextStyle]}
+          inheritedText={[hozoInheritedTextStyle, rootText as TextStyle, headerText as TextStyle]}
           onPress={() => page(-1)}
         >
           {'‹'}
@@ -552,7 +555,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
         */}
         <Text
           accessibilityLiveRegion="polite"
-          style={[rootText as TextStyle, headerText as TextStyle]}
+          style={[hozoInheritedTextStyle, rootText as TextStyle, headerText as TextStyle]}
         >
           {monthLabel(shown, locale)}
         </Text>
@@ -561,7 +564,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           disabled={!monthIsReachable(monthStep(shown, 1), min, max)}
           className={monthButtonClassName}
           style={monthButtonStyle}
-          inheritedText={[rootText as TextStyle, headerText as TextStyle]}
+          inheritedText={[hozoInheritedTextStyle, rootText as TextStyle, headerText as TextStyle]}
           onPress={() => page(1)}
         >
           {'›'}
@@ -579,6 +582,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
               key={label.long}
               style={[
                 { flex: 1, textAlign: 'center' },
+                hozoInheritedTextStyle,
                 rootText as TextStyle,
                 gridText as TextStyle,
               ]}
@@ -609,7 +613,11 @@ export function HozoCalendar(props: HozoCalendarProps) {
                   className={dayClassName}
                   style={dayStyle}
                   textStyle={dayTextStyle}
-                  inheritedText={[rootText as TextStyle, gridText as TextStyle]}
+                  inheritedText={[
+                    hozoInheritedTextStyle,
+                    rootText as TextStyle,
+                    gridText as TextStyle,
+                  ]}
                   onChoose={() => choose(cell.date)}
                 />
               )

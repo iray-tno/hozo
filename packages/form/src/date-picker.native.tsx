@@ -13,14 +13,15 @@ import { HozoCalendar, type HozoCalendarDay } from './calendar.native.tsx'
 import { dayLabel } from './calendar-format.ts'
 import type { CalendarDate, CalendarMonth, Weekday } from './calendar-rules.ts'
 import { DatePickerButton } from './date-picker-button.native.tsx'
+import { resolveDatePickerFrame } from './date-picker-frame.native.ts'
 
 export interface HozoDatePickerProps {
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
-   * Wrapper/dialog classes remain unapplied here. Trigger classes resolve
-   * through the existing project candidate map with that button's facts;
-   * Calendar slots are passed to their own consumers, not resolved here.
+   * Each owner resolves through the existing project candidate map with its
+   * own facts. Wrapper/dialog text reaches owned labels below their own styles;
+   * custom renderDay elements remain caller-owned. Calendar slots are forwarded.
    */
   className?: string
   triggerClassName?: string
@@ -96,6 +97,8 @@ export interface HozoDatePickerProps {
  * trap in the first place.
  */
 export function HozoDatePicker({
+  className,
+  dialogClassName,
   style,
   triggerClassName,
   triggerStyle,
@@ -151,9 +154,10 @@ export function HozoDatePicker({
   }
 
   const text = value ? formatValue(value, locale) : placeholder
+  const frame = resolveDatePickerFrame({ className, style, dialogClassName, dialogStyle, open })
 
   return (
-    <View style={style}>
+    <View style={frame.box}>
       <DatePickerButton
         accessibilityLabel={accessibilityLabel}
         // The chosen value, so a reader hears it and not only what the field is
@@ -181,6 +185,7 @@ export function HozoDatePicker({
         disabled={disabled}
         style={triggerStyle}
         textStyle={triggerTextStyle}
+        inheritedTextStyle={frame.text}
         className={triggerClassName}
         onPress={() => change(true)}
       >
@@ -202,9 +207,10 @@ export function HozoDatePicker({
           accessibilityViewIsModal
           accessibilityRole="none"
           accessibilityLabel={dialogLabel}
-          style={dialogStyle}
+          style={frame.dialogBox}
         >
           <HozoCalendar
+            hozoInheritedTextStyle={frame.contentText}
             className={calendarClassName}
             headerClassName={headerClassName}
             gridClassName={gridClassName}
