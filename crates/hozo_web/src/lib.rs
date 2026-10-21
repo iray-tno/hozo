@@ -419,6 +419,41 @@ pub fn lower_with_evidence(
     }
 }
 
+/// The object pattern that takes the props written after `spread` out of
+/// it, as `{ "testID": _hozoOmit0, ..._hozoRest }`, or `None` when there
+/// are none to take.
+///
+/// Not a key the spread provably lacks (`{ href, ...rest }`), and not a
+/// passthrough prop after it: those are emitted after the spread in source
+/// order and win already.
+fn omit_later_names(
+    spread: &hozo_ir::PassthroughProp,
+    passthrough: &[hozo_ir::PassthroughProp],
+) -> Option<String> {
+    let mut seen: Vec<&str> = Vec::new();
+    for name in &spread.later_names {
+        let emitted_after = passthrough.iter().any(|prop| {
+            !prop.is_spread
+                && prop.name.as_deref() == Some(name.as_str())
+                && prop.span.0.start > spread.span.0.start
+        });
+        if emitted_after || spread.spread_excludes.contains(name) || seen.contains(&name.as_str()) {
+            continue;
+        }
+        seen.push(name);
+    }
+    if seen.is_empty() {
+        return None;
+    }
+    let keys = seen
+        .iter()
+        .enumerate()
+        .map(|(at, name)| format!("{name:?}: _hozoOmit{at}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    Some(format!("{{ {keys}, ..._hozoRest }}"))
+}
+
 fn portable_candidate_selector(selector: &str, real_form: bool) -> std::borrow::Cow<'_, str> {
     if real_form {
         std::borrow::Cow::Owned(format!(
@@ -2313,6 +2348,18 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 (Primitive::Svg(_), _) => (" {...hozoDomProps(".to_string(), ")}".to_string()),
                 _ => (" {...hozoViewDomProps(".to_string(), ")}".to_string()),
             };
+            // A prop written after the spread overrides it in JSX, but the
+            // modeled props were emitted above, before it. Take those keys
+            // out of the spread so the author's later value still wins
+            // (#1127). Only when there are any: the common case stays a
+            // plain spread with no allocation.
+            let (open, close) = match omit_later_names(prop, &node.props.passthrough) {
+                Some(destructure) => (
+                    format!("{open}(({destructure}) => _hozoRest)(("),
+                    format!(") ?? {{}}){close}"),
+                ),
+                None => (open, close),
+            };
             source_evidence::expression(&mut attrs, &mut attr_copies, source, value, &open, &close);
             continue;
         }
@@ -2337,6 +2384,28 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             )
         {
             continue;
+        }
+        // The same as a translated spread above, for one kept as written
+        // (a component such as `HozoView`): its modeled props were emitted
+        // first, so the keys the author wrote after it come out of it.
+        if prop.is_spread && prop.nested.is_empty() {
+            if let Some(destructure) = omit_later_names(prop, &node.props.passthrough) {
+                let text = source_text(source, prop.span);
+                let value = text
+                    .strip_prefix("{...")
+                    .and_then(|rest| rest.strip_suffix('}'))
+                    .unwrap_or(text)
+                    .trim();
+                source_evidence::expression(
+                    &mut attrs,
+                    &mut attr_copies,
+                    source,
+                    value,
+                    &format!(" {{...(({destructure}) => _hozoRest)(("),
+                    ") ?? {})}",
+                );
+                continue;
+            }
         }
         attrs.push(' ');
         source_evidence::append(

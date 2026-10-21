@@ -459,6 +459,7 @@ fn passthrough_prop(
         span: to_expr_ref(attr.span()),
         is_spread: false,
         spread_excludes: Vec::new(),
+        later_names: Vec::new(),
         // A namespaced name (`xlink:href`) is not something Hozo emits a
         // semantic counterpart for, so leaving it `None` costs nothing and
         // avoids inventing a spelling for it.
@@ -993,6 +994,22 @@ fn build_node(
     let mut carried_classes: Vec<String> = Vec::new();
     let mut props = PropSet::default();
     let mut seen_class_name = false;
+    // Every named attribute and where it starts, so a spread can know which
+    // of them come after it (`PassthroughProp::later_names`).
+    let named: Vec<(u32, String)> = el
+        .opening_element
+        .attributes
+        .iter()
+        .filter_map(|item| match item {
+            JSXAttributeItem::Attribute(attr) => match &attr.name {
+                JSXAttributeName::Identifier(name) => {
+                    Some((attr.span.start, name.name.to_string()))
+                }
+                JSXAttributeName::NamespacedName(_) => None,
+            },
+            JSXAttributeItem::SpreadAttribute(_) => None,
+        })
+        .collect();
     for attr_item in &el.opening_element.attributes {
         let attr = match attr_item {
             JSXAttributeItem::Attribute(attr) => attr,
@@ -1048,6 +1065,11 @@ fn build_node(
                 props.passthrough.push(PassthroughProp {
                     span: to_expr_ref(spread.span()),
                     is_spread: true,
+                    later_names: named
+                        .iter()
+                        .filter(|(start, _)| *start > spread.span.start)
+                        .map(|(_, name)| name.clone())
+                        .collect(),
                     name: None,
                     literal: None,
                     nested: Vec::new(),

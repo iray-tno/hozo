@@ -91,6 +91,42 @@ test('a View or Image wrapper translates its rest spread, so its accessibility l
   )
 })
 
+test('a prop written after a spread still wins over the spread, translated or kept', () => {
+  // #1127. The modeled props are emitted before the spread, so the keys the
+  // author wrote after it are taken out of it. The emitted spread is
+  // evaluated here and the module is parsed. The translator is passed as
+  // the identity: what is under test is which keys reach it, and the real
+  // one lives in a package this one does not depend on (its own tests cover
+  // the translation).
+  const hozoViewDomProps = (props: unknown) => props
+  const source = [
+    "import { View } from '@hozo/core'",
+    'export function Box(props) { return <View accessibilityLabel="x" {...props} testID="t">x</View> }',
+  ].join('\n')
+  const output = lowerModule(source, 'Box.tsx', 'Box.tsx', compiler, ROOT)
+  assert.ok(output)
+  assert.equal(compiler.compileNativeModule(output.code).syntaxDiagnostics.length, 0)
+  const spread = /\{\.\.\.(hozoViewDomProps\(.*?\?\? \{\}\)\))\}/.exec(output.code)?.[1]
+  assert.ok(spread, output.code)
+  const evaluate = new Function('hozoViewDomProps', 'props', `return ${spread}`)
+  const dom = evaluate(hozoViewDomProps, { testID: 'from-props', accessibilityLabel: 'from-props' })
+  // The later `testID` is the author's; the earlier label is the spread's.
+  assert.deepEqual(dom, { accessibilityLabel: 'from-props' })
+  assert.match(output.code, /data-testid=\{"t"\}/)
+  // A spread of null still spreads nothing.
+  assert.deepEqual(evaluate(hozoViewDomProps, null), {})
+
+  // A spread with no props after it is left alone.
+  const plain = lowerModule(
+    "import { View } from '@hozo/core'\nexport function Box(props) { return <View {...props}>x</View> }",
+    'Box.tsx',
+    'Box.tsx',
+    compiler,
+    ROOT,
+  )
+  assert.match(plain?.code ?? '', /\{\.\.\.hozoViewDomProps\(props\)\}/)
+})
+
 test('generated names import from one leaf each, through core unless the owner is opt-in', () => {
   assert.equal(
     generatedRuntimeImports([

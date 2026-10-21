@@ -116,7 +116,10 @@ fn opaque_spreads_leave_canonical_props_with_the_component_that_owns_them() {
             output.jsx
         );
         for expected in [
-            "{...props}",
+            // The props written after the spread come out of it, so the
+            // author's later values win as in JSX (#1127).
+            r#"{ "nativeID": _hozoOmit0, "disabled": _hozoOmit1, "onPress": _hozoOmit2, ..._hozoRest }"#,
+            "_hozoRest)((props) ?? {})}",
             "nativeID={\"docs\"}",
             "disabled={blocked}",
             "onPress={visit}",

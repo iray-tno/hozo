@@ -1121,6 +1121,13 @@ pub struct PassthroughProp {
     /// out by name from the object pattern that bound it, as in
     /// `function Button({ href, ...rest })`. Empty when nothing is known.
     pub spread_excludes: Vec<String>,
+    /// For a spread, the attributes written after it, by name.
+    ///
+    /// JSX lets a later prop override a spread: in `<View {...rest}
+    /// testID="t">` the explicit `testID` wins. A backend that emits its
+    /// modeled props before the spread has to take these keys out of the
+    /// spread to keep that, or the spread's copy wins instead (#1127).
+    pub later_names: Vec<String>,
     /// Hozo primitives inside an opaque prop expression such as
     /// `renderItem={() => <View />}`.
     pub nested: Vec<NestedNode>,
