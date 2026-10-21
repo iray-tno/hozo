@@ -708,6 +708,91 @@ test('NativeSelect fallback keeps popup lifecycle and disabled options independe
   }
 })
 
+test('NativeSelect sheet and scrim classes style their own Native owners and preserve dismissal', async (t) => {
+  nativePlatform.OS = 'android'
+  try {
+    const props = {
+      options: selectOptions,
+      defaultValue: 'slow',
+      className: 'p-2',
+      sheetClassName: 'p-4 text-sm text-hozo-accent',
+      scrimClassName: 'p-3',
+    }
+    const tree = await mount(t, HozoNativeSelect, props)
+    await press(selectControl(tree))
+    const sheet = () => panel(tree)
+    const rows = () =>
+      tree.root
+        .findAllByType('NativePressable')
+        .filter((node) => node.props.accessibilityRole === 'menuitem')
+    const backdrop = () =>
+      tree.root
+        .findAllByType('NativePressable')
+        .find((node) => node.props.accessibilityElementsHidden)
+    assert.equal(flat(selectControl(tree).props.style).paddingTop, 8)
+    assert.equal(flat(sheet().props.style).paddingTop, 16)
+    assert.equal(flat(backdrop().props.style).paddingTop, 12)
+    assert.equal(flat(sheet().props.style).color, undefined)
+    assert.equal(backdrop().props.importantForAccessibility, 'no-hide-descendants')
+    assert.equal(flat(rows()[0].findByType('NativeText').props.style).color, color('hozo-accent'))
+    assert.equal(flat(rows()[0].findByType('NativeText').props.style).fontSize, 14)
+    await act(() =>
+      tree.update(
+        React.createElement(HozoNativeSelect, {
+          ...props,
+          sheetStyle: { paddingTop: 91 },
+          scrimStyle: { paddingTop: 92 },
+          optionStyle: { paddingTop: 93 },
+          textStyle: { color: '#abcdef' },
+        }),
+      ),
+    )
+    assert.equal(flat(sheet().props.style).paddingTop, 91)
+    assert.equal(flat(sheet().props.style).paddingBottom, 16)
+    assert.equal(flat(backdrop().props.style).paddingTop, 92)
+    assert.equal(flat(rows()[0].props.style).paddingTop, 93)
+    assert.equal(flat(rows()[0].findByType('NativeText').props.style).color, '#abcdef')
+    await press(rows()[2])
+    assert.equal(tree.root.findAllByType('NativeModal').length, 1)
+    await press(rows()[1])
+    assert.equal(tree.root.findAllByType('NativeModal').length, 0)
+    assert.equal(selectControl(tree).props.accessibilityValue.text, 'Express')
+    await press(selectControl(tree))
+    assert.equal(rows()[0].props.accessibilityState.selected, false)
+    assert.equal(rows()[1].props.accessibilityState.selected, true)
+    await press(backdrop())
+    assert.equal(tree.root.findAllByType('NativeModal').length, 0)
+  } finally {
+    nativePlatform.OS = 'ios'
+  }
+})
+
+test('NativeSelect never resolves popup classes while its own popup is absent', async (t) => {
+  const warnings = []
+  const original = console.warn
+  console.warn = (message) => warnings.push(message)
+  try {
+    const props = {
+      options: selectOptions,
+      sheetClassName: 'hover:bg-hozo-accent',
+      scrimClassName: 'focus:opacity-75',
+      optionClassName: 'hover:bg-hozo-accent',
+    }
+    const ios = await mount(t, HozoNativeSelect, props)
+    await press(selectControl(ios))
+    assert.deepEqual(warnings, [])
+    nativePlatform.OS = 'android'
+    const android = await mount(t, HozoNativeSelect, props)
+    assert.deepEqual(warnings, [], 'closed Android modal has no rendered class owner')
+    await press(selectControl(android))
+    assert.ok(warnings.some((message) => message.includes('needs state (hovered)')))
+    assert.ok(warnings.some((message) => message.includes('needs state (focused)')))
+  } finally {
+    nativePlatform.OS = 'ios'
+    console.warn = original
+  }
+})
+
 test('Native overlay Popover keeps root and animated panel classes on separate owners', async (t) => {
   const { tree } = await checkClassSlots(
     t,
