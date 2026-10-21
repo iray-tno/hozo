@@ -656,11 +656,14 @@ test('the real Web Calendar separates group, header and table typography without
   }
   const monthClasses =
     'enabled:border-2 disabled:opacity-25 aria-selected:outline-4 aria-disabled:mt-8 hover:bg-[#dd1100] focus:opacity-75 focus-visible:font-bold active:opacity-50'
+  const dayClasses =
+    'p-2 aria-selected:border-2 aria-disabled:opacity-25 data-[hozo-range-start]:border-4 data-[hozo-range-end]:border-4 data-[hozo-in-range]:opacity-75 data-[hozo-outside]:opacity-50 disabled:mt-8 enabled:mb-8 focus:font-bold hover:underline data-[hozo-disabled]:hover:no-underline'
   const fixture = await build({
     stdin: {
       contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoCalendar} from ${JSON.stringify(source('packages/form/src/calendar.tsx'))};
       const root = createRoot(document.getElementById('root'));
-      window.renderCalendar = (props = {}) => flushSync(() => root.render(createElement(HozoCalendar, {defaultMonth:{year:2026,month:6},today:{year:2026,month:6,day:15},locale:'en-US',weeks:6,min:{year:2026,month:6,day:1},max:{year:2026,month:6,day:30},...${JSON.stringify(chrome)}, ...props})));
+      window.calendarChanges = [];
+      window.renderCalendar = (props = {}) => flushSync(() => root.render(createElement(HozoCalendar, {onChange:value => window.calendarChanges.push(value),defaultMonth:{year:2026,month:6},today:{year:2026,month:6,day:15},locale:'en-US',weeks:6,min:{year:2026,month:6,day:1},max:{year:2026,month:6,day:30},...${JSON.stringify(chrome)}, ...props})));
       window.renderCalendar();`,
       resolveDir: source('examples/storybook-demo'),
     },
@@ -683,7 +686,7 @@ test('the real Web Calendar separates group, header and table typography without
   })
   const css = (
     await compile('@theme { --spacing: .25rem; --font-weight-bold:700; } @tailwind utilities;')
-  ).build([...Object.values(chrome), monthClasses].flatMap((value) => value.split(' ')))
+  ).build([...Object.values(chrome), monthClasses, dayClasses].flatMap((value) => value.split(' ')))
   const page = await browser.newPage()
   try {
     // Actual Tailwind Preflight in standards mode, like the application.
@@ -776,6 +779,67 @@ test('the real Web Calendar separates group, header and table typography without
     await page.evaluate(() => window.renderCalendar({ max: { year: 2026, month: 7, day: 31 } }))
     assert.equal(await next.isDisabled(), true)
     assert.equal(await next.evaluate((element) => element.matches(':focus')), false)
+    const dayProps = {
+      month: { year: 2026, month: 6 },
+      min: { year: 2026, month: 6, day: 10 },
+      max: { year: 2026, month: 6, day: 20 },
+      range: true,
+      value: { start: { year: 2026, month: 6, day: 12 }, end: { year: 2026, month: 6, day: 15 } },
+      dayClassName: dayClasses,
+    }
+    await page.evaluate((props) => window.renderCalendar(props), dayProps)
+    const day = (n) => grid.locator(`td[aria-label*="June ${n},"]`)
+    for (const end of [12, 15])
+      assert.equal(
+        await day(end).evaluate((element) => getComputedStyle(element).borderTopWidth),
+        '4px',
+      )
+    assert.equal(await day(12).getAttribute('data-hozo-range-start'), '')
+    assert.equal(await day(15).getAttribute('data-hozo-range-end'), '')
+    assert.equal(await day(13).getAttribute('data-hozo-in-range'), '')
+    assert.equal(await day(13).evaluate((element) => getComputedStyle(element).opacity), '0.75')
+    assert.equal(await day(13).getAttribute('aria-selected'), 'true')
+    assert.deepEqual(
+      await day(9).evaluate((element) => {
+        const s = getComputedStyle(element)
+        return [
+          element.matches(':disabled'),
+          element.matches(':enabled'),
+          element.matches(':read-only'),
+          s.marginTop,
+          s.marginBottom,
+          s.opacity,
+        ]
+      }),
+      [false, false, true, '0px', '0px', '0.25'],
+    )
+    assert.equal(await day(9).getAttribute('data-hozo-disabled'), '')
+    const outside = grid.locator('td[data-hozo-outside]').first()
+    assert.equal(await outside.evaluate((element) => getComputedStyle(element).opacity), '0.5')
+    await day(12).focus()
+    await page.evaluate(
+      (props) => window.renderCalendar({ ...props, min: { year: 2026, month: 6, day: 14 } }),
+      dayProps,
+    )
+    assert.equal(await day(12).getAttribute('aria-disabled'), 'true')
+    assert.equal(
+      await day(12).evaluate((element) => document.activeElement === element),
+      true,
+      'aria-disabled td retains actual focus',
+    )
+    await day(12).dispatchEvent('click')
+    assert.deepEqual(await page.evaluate(() => window.calendarChanges), [])
+    await page.evaluate(
+      (props) =>
+        window.renderCalendar({ ...props, range: false, value: { year: 2026, month: 6, day: 12 } }),
+      dayProps,
+    )
+    assert.equal(await day(12).getAttribute('data-hozo-range-start'), null)
+    assert.equal(await day(12).getAttribute('data-hozo-range-end'), null)
+    assert.equal(
+      await day(12).evaluate((element) => getComputedStyle(element).borderTopWidth),
+      '2px',
+    )
   } finally {
     await page.close()
   }
