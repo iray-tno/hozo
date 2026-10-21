@@ -71,7 +71,7 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/text.rs':
         'c1f77791cc9fd05dc327e70525cb9baec2ce886a17637375a50d2b19db25b98d',
       'crates/hozo_ir/src/lib.rs':
-        '4e59c6b593670826351a7935b696032c4a03aae1a7332d96b28faf7b39beb52e',
+        '209e95c592db829b5eba7bf5229b8b174c3549c85b68f4d9f8526d66e544e98b',
     },
   },
   proofSha256: 'bd200723fe8c7f94c7fc318db95e2be6e2db28fc00886420727a45c671cb52db',
