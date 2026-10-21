@@ -26,6 +26,8 @@ const compiler = createCompiler(theme)
 // The colour-scheme hook is a platform fact in this host-render test, not
 // evidence about OS subscription delivery. Both palettes run the real output.
 let nativeDark = false
+const nativePlatform = { OS: 'ios' }
+const actionSheets = []
 let nativeViewport = { width: 400, height: 800 }
 const cache = openCandidateCache()
 const interactionClasses =
@@ -49,7 +51,7 @@ const otpSemanticClasses =
   'disabled:opacity-25 read-only:outline-2 read-only:focus:outline-4 aria-disabled:border-4 aria-selected:mt-8'
 cache.scanFile(
   'form-field.ts',
-  "export const c = 'focus:opacity-75 disabled:opacity-25 read-only:border-4 aria-[invalid=true]:border-4 aria-required:outline-4'",
+  "export const c = 'focus:opacity-75 disabled:opacity-25 read-only:border-4 aria-[invalid=true]:border-4 aria-required:outline-4 aria-expanded:mt-8 text-hozo-accent'",
   1,
 )
 cache.scanFile(
@@ -62,7 +64,14 @@ cache.scanFile(
   `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${otpSemanticClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} ${overlaySlotClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
 )
-for (const file of ['toggle.tsx', 'radio.tsx', 'tree.tsx', 'form.tsx', 'text-area.tsx']) {
+for (const file of [
+  'toggle.tsx',
+  'radio.tsx',
+  'tree.tsx',
+  'form.tsx',
+  'text-area.tsx',
+  'native-select.tsx',
+]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
 const moduleSource = cache
@@ -134,6 +143,11 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
 const exportsFrom = (names, relative) =>
   `export { ${names} } from ${JSON.stringify(filename(relative))};`
 const probeSources = [
+  exportsFrom('HozoNativeSelect as UiNativeSelect', 'packages/ui/src/native-select.tsx'),
+  exportsFrom(
+    'HozoNativeSelect, NativeSelectProvider',
+    'packages/form/src/native-select.native.tsx',
+  ),
   exportsFrom('HozoForm as UiForm', 'packages/ui/src/form.tsx'),
   exportsFrom('HozoTextArea as UiTextArea', 'packages/ui/src/text-area.tsx'),
   exportsFrom('HozoForm, useFormSubmit', 'packages/form/src/form.native.tsx'),
@@ -271,6 +285,7 @@ const bundled = await build({
           contents: [
             exportsFrom('Form, useFormSubmit', 'packages/form/src/form.native.tsx'),
             exportsFrom('TextArea', 'packages/form/src/text-area.native.tsx'),
+            exportsFrom('NativeSelect', 'packages/form/src/native-select.native.tsx'),
           ].join('\n'),
           loader: 'tsx',
           resolveDir: root,
@@ -296,7 +311,10 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         // Dialog installs this listener on mount. These style probes never
         // claim to exercise OS window focus or accessibility restoration.
         AppState: { addEventListener: () => ({ remove: () => {} }) },
-        Platform: { OS: 'ios' },
+        Platform: nativePlatform,
+        ActionSheetIOS: {
+          showActionSheetWithOptions: (options, choose) => actionSheets.push({ options, choose }),
+        },
         ScrollView: NativeScrollView,
         AccessibilityInfo: { announceForAccessibility: (message) => announcements.push(message) },
         Linking: { openURL: (url) => openedURLs.push(url) },
@@ -328,6 +346,7 @@ const { HozoChip, HozoOtpInput } = module.exports
 const { UiCombobox, UiListbox, UiCommandPalette, UiDialog } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
 const { HozoForm, HozoTextArea, UiForm, UiTextArea, useFormSubmit } = module.exports
+const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
 const indicators = (tree) =>
@@ -507,6 +526,186 @@ test('Native TextArea input predicates and focus do not leak to its wrapper or c
   await act(() => input().props.onBlur())
   assert.deepEqual(events, ['focus', 'focus', 'blur'])
   assert.deepEqual(changes, ['hello'], 'style/focus updates never edit text')
+})
+
+const selectOptions = [
+  { value: 'slow', label: 'Standard' },
+  { value: 'fast', label: 'Express' },
+  { value: 'closed', label: 'Unavailable', disabled: true },
+]
+const selectControl = (tree) =>
+  tree.root
+    .findAllByType('NativePressable')
+    .find((node) => node.props.accessibilityRole === 'combobox')
+
+test('NativeSelect applies closed-control classes to the box and its owned value label', async (t) => {
+  const ui = await mount(t, UiNativeSelect, {
+    options: selectOptions,
+    defaultValue: 'fast',
+    accessibilityLabel: 'Courier',
+  })
+  const control = selectControl(ui)
+  const box = flat(control.props.style)
+  const label = control.findByType('NativeText')
+  assert.equal(box.paddingStart, 12)
+  assert.equal(box.paddingTop, 8)
+  assert.equal(box.borderTopWidth, 1)
+  assert.equal(box.backgroundColor, color('hozo-surface'))
+  assert.equal(box.color, undefined, 'text properties do not land on a View')
+  assert.equal(flat(label.props.style).color, color('hozo-text'))
+  assert.equal(flat(label.props.style).fontSize, 14)
+  assert.deepEqual(label.props.children, 'Express')
+  assert.equal(control.props.accessibilityLabel, 'Courier')
+  assert.deepEqual(control.props.accessibilityValue, { text: 'Express' })
+  await act(() =>
+    ui.update(
+      React.createElement(UiNativeSelect, {
+        options: selectOptions,
+        defaultValue: 'fast',
+        disabled: true,
+      }),
+    ),
+  )
+  assert.equal(flat(selectControl(ui).props.style).backgroundColor, color('hozo-surface-raised'))
+  assert.equal(
+    flat(selectControl(ui).findByType('NativeText').props.style).color,
+    color('hozo-text-subtle'),
+  )
+  const custom = await mount(t, HozoNativeSelect, {
+    options: selectOptions,
+    className: 'p-4 text-hozo-accent',
+    style: { paddingTop: 99 },
+    textStyle: { color: '#abcdef' },
+  })
+  assert.equal(flat(selectControl(custom).props.style).paddingTop, 99)
+  assert.equal(flat(selectControl(custom).props.style).paddingBottom, 16)
+  assert.equal(flat(selectControl(custom).findByType('NativeText').props.style).color, '#abcdef')
+})
+
+test('NativeSelect owns focus, pointer and form facts without changing its choice', async (t) => {
+  const changes = []
+  const events = []
+  const props = {
+    options: selectOptions,
+    defaultValue: 'slow',
+    className:
+      'p-2 focus:opacity-75 focus-visible:outline-2 active:opacity-50 hover:bg-hozo-accent read-only:border-4 disabled:opacity-25 aria-[invalid=true]:border-4 aria-required:outline-4 aria-expanded:mt-8',
+    onValueChange: (value) => changes.push(value),
+    onFocus: () => events.push('focus'),
+    onBlur: () => events.push('blur'),
+  }
+  const tree = await mount(t, HozoNativeSelect, props)
+  const control = () => selectControl(tree)
+  assert.equal(
+    flat(control().props.style).borderTopWidth,
+    4,
+    'select is read-only without being disabled',
+  )
+  await act(() => control().props.onFocus())
+  assert.equal(flat(control().props.style).opacity, 0.75)
+  assert.equal(flat(control().props.style).outlineWidth, 2)
+  await act(() => control().props.onHoverIn())
+  assert.equal(flat(control().props.style).backgroundColor, color('hozo-accent'))
+  await act(() => control().props.onPressIn())
+  assert.equal(flat(control().props.style).opacity, 0.5)
+  assert.equal(flat(control().props.style).outlineWidth, undefined)
+  await act(() => control().props.onPressOut())
+  await act(() => control().props.onKeyDown())
+  assert.equal(flat(control().props.style).outlineWidth, 2)
+  await act(() => tree.update(React.createElement(HozoNativeSelect, { ...props, disabled: true })))
+  assert.equal(control().props.disabled, true)
+  assert.equal(flat(control().props.style).opacity, 0.25)
+  assert.equal(flat(control().props.style).outlineWidth, undefined)
+  await press(control())
+  await act(() =>
+    tree.update(
+      React.createElement(HozoNativeSelect, {
+        ...props,
+        'aria-invalid': true,
+        'aria-required': true,
+      }),
+    ),
+  )
+  assert.equal(flat(control().props.style).opacity, undefined, 'enable does not revive focus/press')
+  assert.equal(flat(control().props.style).outlineWidth, 4)
+  assert.equal(flat(control().props.style).marginTop, undefined)
+  await act(() => control().props.onBlur())
+  assert.deepEqual(events, ['focus', 'blur'])
+  assert.deepEqual(changes, [])
+})
+
+test('NativeSelect preserves iOS ActionSheet and controlled presenter paths', async (t) => {
+  const start = actionSheets.length
+  const changes = []
+  const tree = await mount(t, HozoNativeSelect, {
+    options: selectOptions,
+    defaultValue: 'slow',
+    onValueChange: (value) => changes.push(value),
+  })
+  await press(selectControl(tree))
+  const sheet = actionSheets.at(-1)
+  assert.equal(actionSheets.length, start + 1)
+  assert.deepEqual(sheet.options.options, ['Standard', 'Express', 'Cancel'])
+  await act(() => sheet.choose(sheet.options.cancelButtonIndex))
+  assert.deepEqual(changes, [], 'cancel does not manufacture a selection')
+  await act(() => sheet.choose(1))
+  assert.deepEqual(changes, ['fast'])
+  assert.equal(selectControl(tree).props.accessibilityValue.text, 'Express')
+  const requests = []
+  function Presented() {
+    return React.createElement(
+      NativeSelectProvider,
+      { presenter: { present: (request) => requests.push(request) } },
+      React.createElement(HozoNativeSelect, {
+        options: selectOptions,
+        value: 'slow',
+        onValueChange: (value) => changes.push(value),
+        className: 'p-4',
+      }),
+    )
+  }
+  const presented = await mount(t, Presented)
+  await press(selectControl(presented))
+  assert.equal(requests.length, 1)
+  await act(() => requests[0].onSelect('fast'))
+  assert.equal(
+    selectControl(presented).props.accessibilityValue.text,
+    'Standard',
+    'controlled value is not overwritten',
+  )
+  assert.equal(actionSheets.length, start + 1, 'presenter bypasses ActionSheet')
+})
+
+test('NativeSelect fallback keeps popup lifecycle and disabled options independent of trigger classes', async (t) => {
+  nativePlatform.OS = 'android'
+  try {
+    const tree = await mount(t, HozoNativeSelect, {
+      options: selectOptions,
+      className: 'p-4 aria-expanded:mt-8',
+    })
+    assert.equal(tree.root.findAllByType('NativeModal').length, 0)
+    await press(selectControl(tree))
+    assert.equal(tree.root.findAllByType('NativeModal').length, 1)
+    assert.equal(selectControl(tree).props.accessibilityState.expanded, true)
+    assert.equal(
+      flat(selectControl(tree).props.style).marginTop,
+      undefined,
+      'RN expanded announcement is not an authored Web attribute',
+    )
+    const rows = tree.root
+      .findAllByType('NativePressable')
+      .filter((node) => node.props.accessibilityRole === 'menuitem')
+    await press(rows[2])
+    assert.equal(tree.root.findAllByType('NativeModal').length, 1)
+    await press(rows[1])
+    assert.equal(selectControl(tree).props.accessibilityValue.text, 'Express')
+    assert.equal(tree.root.findAllByType('NativeModal').length, 0)
+    await press(selectControl(tree))
+    await act(() => tree.root.findByType('NativeModal').props.onRequestClose())
+    assert.equal(tree.root.findAllByType('NativeModal').length, 0)
+  } finally {
+    nativePlatform.OS = 'ios'
+  }
 })
 
 test('Native overlay Popover keeps root and animated panel classes on separate owners', async (t) => {

@@ -1,5 +1,8 @@
 import { useHozoMessage } from '@hozo/behaviors'
-import { createContext, type ReactNode, useContext, useMemo, useState } from 'react'
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoClasses } from '@hozo/engine/project'
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react'
 import {
   ActionSheetIOS,
   Modal,
@@ -7,6 +10,7 @@ import {
   Pressable,
   ScrollView,
   type StyleProp,
+  StyleSheet,
   Text,
   type TextStyle,
   View,
@@ -34,15 +38,12 @@ export interface HozoNativeSelectProps {
   name?: string
   id?: string
   /**
-   * Tailwind classes, the same props the Web half takes.
-   *
-   * On a tag the compiler lowers they are gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else they are carried and ignored here -- this
-   * side has no CSS engine to resolve a class list against -- and the types still
-   * have to accept them, because an app is type-checked against the source the
-   * compiler reads rather than its output.
+   * The closed control's classes use the project candidate resolver, with
+   * that control's own events/form facts. Text properties reach its value
+   * label; explicit Native styles follow classes.
    */
   className?: string
+  /** Native fallback classes are not resolved yet; explicit *Style props still supply its chrome. */
   sheetClassName?: string
   scrimClassName?: string
   optionClassName?: string
@@ -155,7 +156,10 @@ export function HozoNativeSelect({
   onValueChange,
   placeholder,
   accessibilityLabel,
+  'aria-invalid': invalid,
+  'aria-required': required,
   disabled,
+  className,
   cancelLabel: cancelLabelProp,
   sheetStyle,
   scrimStyle,
@@ -173,6 +177,34 @@ export function HozoNativeSelect({
   const presenter = useNativeSelectPresenter()
   const [uncontrolled, setUncontrolled] = useState(defaultValue)
   const [open, setOpen] = useState(false)
+  const { state: interaction, handlers } = usePressableInteraction({ focusVisible: true })
+  useEffect(() => {
+    if (disabled) {
+      handlers.blur()
+      handlers.pressOut()
+    }
+  }, [disabled, handlers])
+  // A select is :read-only even when enabled: it is not an editable text
+  // field. Its implicit popup state is not an authored aria-expanded
+  // attribute on the Web select, so do not borrow Native's expanded state.
+  const facts = {
+    hovered: interaction.hovered,
+    pressed: !disabled && interaction.pressed,
+    focused: !disabled && interaction.focused,
+    focusVisible: !disabled && interaction.focusVisible,
+    disabled: Boolean(disabled),
+    enabled: !disabled,
+    readOnly: true,
+    'aria-invalid': Boolean(invalid),
+    'aria-required': Boolean(required),
+    'aria-disabled': false,
+    'aria-expanded': false,
+    'aria-selected': false,
+    'aria-checked': false,
+  }
+  const [controlBox, controlText] = hozoSplitTextStyle(
+    StyleSheet.flatten([hozoClasses(className, facts), style]) ?? {},
+  )
   const current = controlled ?? uncontrolled
 
   const chosen = options.find((option) => option.value === current)
@@ -230,12 +262,26 @@ export function HozoNativeSelect({
         accessibilityState={{ disabled: Boolean(disabled), expanded: open }}
         disabled={disabled}
         testID={testID}
-        style={style}
+        style={controlBox as ViewStyle}
         onPress={openPicker}
-        onBlur={onBlur}
-        onFocus={onFocus}
+        onHoverIn={handlers.hoverIn}
+        onHoverOut={handlers.hoverOut}
+        onPressIn={() => {
+          if (!disabled) handlers.pressIn()
+        }}
+        onPressOut={handlers.pressOut}
+        onPointerDown={handlers.pointerDown}
+        onKeyDown={handlers.keyDown}
+        onBlur={() => {
+          handlers.blur()
+          onBlur?.()
+        }}
+        onFocus={() => {
+          if (!disabled) handlers.focus()
+          onFocus?.()
+        }}
       >
-        <Text style={textStyle}>{shown}</Text>
+        <Text style={[controlText as TextStyle, textStyle]}>{shown}</Text>
       </Pressable>
       <Modal
         visible={open}

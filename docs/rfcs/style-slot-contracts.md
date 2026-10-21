@@ -310,6 +310,19 @@ independent Web TextArea browser test establishes disabled/read-only/focus
 semantics; Native host tests establish callback/style routing, not device
 event delivery or pixel parity.
 
+The next Form slice routes NativeSelect's closed-control classes through
+that same candidate resolver. A shared engine partition (extracted unchanged
+from patterns) moves resolved text properties to its owned value Text,
+while explicit box/text styles retain precedence. The control alone tracks
+events through the existing interaction hook, without a new Provider. Its
+form facts follow an actual Web select: it is read-only even when enabled,
+and its implicit popup state is not an authored `aria-expanded` attribute.
+Native accessibility still announces its expanded state independently.
+ActionSheet, presenter and fallback selection/dismissal behavior are preserved;
+the fallback's three Native-only class slots are not certified by this
+closed-control audit. Neither operating-system picker drawing nor Native
+hardware event delivery is established by host tests.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner
