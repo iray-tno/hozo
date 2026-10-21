@@ -36,3 +36,23 @@ app. The docs' theme switch does not change them.
 
 Every component in the package, with every state, is also in the
 [Storybook](../../../storybook/).
+
+## The React Native line under each preview
+
+Under each preview is one line on what React Native makes of the same
+component's look. The compiler writes it: it reads every class the
+component's source gives its parts, including the class lists it hands to
+`@hozo/patterns`, and lists the ones React Native has no equivalent for, with
+the reason. A `before:` marker, a `backdrop:` scrim and `overflow-y-auto` are
+typical. A cursor shape or a CSS transition is counted separately, because a
+touch screen does without it.
+
+What it does not say:
+
+- **It is about classes, not behaviour.** A component can behave differently
+  on React Native for reasons no class shows; the components' pages describe
+  those where they are known.
+- **State classes are not judged.** `hover:`, `aria-selected:` or
+  `data-[state=open]:` work on React Native when the component's Native half
+  hands that state to its styles, which varies by component.
+- **It is not a screenshot.** Nothing here was run on a device to produce it.

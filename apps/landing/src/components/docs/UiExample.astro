@@ -3,7 +3,15 @@
 // so a reader can press, type and open it here, then reads its source
 // below. The preview is server-rendered first, so it is there before the
 // script arrives and without one.
+//
+// Under the preview, one line on what React Native makes of the same look.
+// It is the compiler's verdict on the component's classes
+// (`scripts/ui-native-status.mjs`), not a screenshot: the classes it lists
+// have no effect there, and anything it does not list may still behave
+// differently for reasons classes do not show. The components overview
+// says so to the reader.
 import { Code } from '@astrojs/starlight/components'
+import status from '../../data/ui-native-status.json'
 import { UiStage } from './UiStage.tsx'
 
 interface Props {
@@ -14,19 +22,66 @@ interface Props {
 }
 
 const { source, file } = Astro.props
+type Finding = { className: string; reason: string }
+const slug = Astro.url.pathname.replace(/\/$/, '').split('/').pop() ?? ''
+const native = (status as Record<string, { missing: Finding[]; cosmetic: Finding[] }>)[slug]
+// The compiler writes code in backticks; show it as code.
+const pieces = (reason: string) => reason.split('`').map((text, at) => ({ text, code: at % 2 === 1 }))
+const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 'es'}`
 ---
 
 <figure class="not-content hozo-ui-example">
   <UiStage><slot /></UiStage>
 </figure>
 
+{
+  native && (
+    <div class="hozo-ui-native" data-native-missing={native.missing.length}>
+      {native.missing.length === 0 ? (
+        <p>
+          <strong>React Native:</strong> no class in this look is Web-only
+          {native.cosmetic.length > 0 &&
+            `, apart from ${plural(native.cosmetic.length, 'class')} for a cursor or a CSS transition`}
+          .
+        </p>
+      ) : (
+        <details>
+          <summary>
+            <strong>React Native:</strong> {plural(native.missing.length, 'class')} in this look
+            have no effect there
+            {native.cosmetic.length > 0 &&
+              `, besides ${plural(native.cosmetic.length, 'class')} for a cursor or a CSS transition`}
+            .
+          </summary>
+          <ul>
+            {native.missing.map(({ className, reason }) => (
+              <li>
+                <code>{className}</code>:{' '}
+                {pieces(reason).map(({ text, code }) => (code ? <code>{text}</code> : text))}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  )
+}
+
 <Code code={source.trim()} lang="tsx" title={file} />
 
 <style>
   .hozo-ui-example {
-    margin-block: 1.5rem 1rem;
+    margin-block: 1.5rem 0.5rem;
     border: 1px solid var(--sl-color-hairline-light);
     border-radius: 0.5rem;
     overflow: hidden;
+  }
+  .hozo-ui-native {
+    margin-block: 0 1rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+  .hozo-ui-native ul {
+    margin-block-start: 0.5rem;
   }
 </style>
