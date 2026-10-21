@@ -11,7 +11,7 @@
  * `Card` is the composition this package is for.
  */
 
-import { View } from '@hozo/core'
+import { cx, View } from '@hozo/core'
 import type { ReactNode } from 'react'
 
 export interface HozoCardProps {
@@ -26,8 +26,7 @@ const raised =
 const level = 'rounded-hozo-panel border border-hozo-border bg-hozo-surface p-6'
 
 export function HozoCard({ children, flat, className }: HozoCardProps) {
-  const own = flat ? level : raised
-  return <View className={className ? `${own} ${className}` : own}>{children}</View>
+  return <View className={cx(flat ? level : raised, className)}>{children}</View>
 }
 
 export { HozoCard as Card, type HozoCardProps as CardProps }

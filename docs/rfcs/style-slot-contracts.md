@@ -135,6 +135,17 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    has no readable focus state. Its state/owner path must be addressed, not
    hidden by a joiner or fixed by dropping the Web focus decoration. Other
    function-local selections also remain part of #1152.
+
+   Card's flat choice and Stack's direction/gap/alignment choices now live
+   directly in `cx` arguments as finite conditionals. No function interpreter
+   is added: the shared decomposer already understands those choices. The
+   browser/Native regression covers both Card branches, all 32 Stack
+   combinations and defaults, with absent, empty and conflicting caller
+   classes. Generated static declarations grow rather than re-resolving
+   the component's own strings at render time. Custom `--shadow-*` scales
+   are still outside the current theme-loader payload; this slice preserves
+   Card's authored flat selection and old resolver behaviour, not new
+   custom-shadow coverage.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/
    mixed, shape changes, absent owners, explicit style overrides and status
    gates in matrix fixtures. A decorative label can inherit text styling
