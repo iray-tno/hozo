@@ -4,7 +4,9 @@
 // implementation, which is what `dialog.native.tsx` relies on for
 // `shouldRestoreFocus`.
 import { useAnnounce, useHozoMessage } from '@hozo/behaviors'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoClasses } from '@hozo/engine/project'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   type StyleProp,
   StyleSheet,
@@ -14,6 +16,7 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import { nonControlClassFacts } from './class-facts.native.ts'
 
 import {
   clampedSize,
@@ -32,10 +35,8 @@ export interface HozoTextAreaProps {
   /**
    * The three a `Field` hands its control. Carried here and mostly unused: React
    * Native maps a handful of `aria-*` props onto its own accessibility props and
-   * these are not among them, so a field cannot announce itself as invalid on
-   * this platform at all. Accepted anyway, because the same application source
-   * compiles for both and a prop the types rejected would be a build error on one
-   * platform only.
+   * these are not among them. Invalid/required still supply the field's class
+   * predicates, not a claim that the Native accessibility tree exposes them.
    */
   'aria-describedby'?: string
   'aria-invalid'?: boolean
@@ -54,11 +55,8 @@ export interface HozoTextAreaProps {
   /**
    * Tailwind classes, the same props the Web half takes.
    *
-   * On a tag the compiler lowers they are gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else they are carried and ignored here -- this
-   * side has no CSS engine to resolve a class list against -- and the types still
-   * have to accept them, because an app is type-checked against the source the
-   * compiler reads rather than its output.
+   * Each list uses the project's existing candidate resolver on its real
+   * owner, before explicit style. Only the editable field owns input focus.
    */
   className?: string
   fieldClassName?: string
@@ -102,6 +100,8 @@ export function HozoTextArea({
   placeholder,
   accessibilityLabel,
   'aria-describedby': describedBy,
+  'aria-invalid': invalid,
+  'aria-required': required,
   autoGrow = true,
   minRows = 2,
   maxRows,
@@ -110,6 +110,9 @@ export function HozoTextArea({
   announceRemaining = 10,
   disabled,
   readOnly,
+  className,
+  fieldClassName,
+  countClassName,
   style,
   fieldStyle,
   countStyle,
@@ -130,22 +133,44 @@ export function HozoTextArea({
   const [uncontrolled, setUncontrolled] = useState(defaultValue)
   const text = controlled ?? uncontrolled
   const [content, setContent] = useState(0)
+  const { state: interaction, handlers } = usePressableInteraction({
+    focusVisible: 'keyboard-input',
+  })
+  // A disabled textarea is not editable either; a read-only textarea can
+  // still receive focus. Neither fact belongs to the wrapper or counter.
+  const fieldFacts = {
+    focused: !disabled && interaction.focused,
+    focusVisible: !disabled && interaction.focusVisible,
+    disabled: Boolean(disabled),
+    enabled: !disabled,
+    readOnly: Boolean(disabled || readOnly),
+    'aria-invalid': Boolean(invalid),
+    'aria-required': Boolean(required),
+    'aria-disabled': false,
+    'aria-selected': false,
+    'aria-checked': false,
+  }
+  useEffect(() => {
+    if (disabled) handlers.blur()
+  }, [disabled, handlers])
 
   const remaining = remainingCharacters(text, maxLength)
   const announced = useRef<number | null>(null)
   const announce = useAnnounce()
 
-  const lineHeight = useMemo(() => {
-    const resolved = StyleSheet.flatten(fieldStyle) ?? {}
-    return usableLineHeight(resolved.lineHeight, resolved.fontSize)
-  }, [fieldStyle])
-
-  const padding = useMemo(() => {
-    const resolved = StyleSheet.flatten(fieldStyle) ?? {}
-    const top = resolved.paddingTop ?? resolved.paddingVertical ?? resolved.padding ?? 0
-    const bottom = resolved.paddingBottom ?? resolved.paddingVertical ?? resolved.padding ?? 0
-    return typeof top === 'number' && typeof bottom === 'number' ? top + bottom : 0
-  }, [fieldStyle])
+  // Growth uses the same class + explicit style that the field draws, not
+  // only its inline override. Resolve once, then share the flattened result.
+  const resolvedField =
+    StyleSheet.flatten([
+      hozoClasses(fieldClassName, fieldFacts) as StyleProp<TextStyle>,
+      fieldStyle,
+    ]) ?? {}
+  const lineHeight = usableLineHeight(resolvedField.lineHeight, resolvedField.fontSize)
+  const top =
+    resolvedField.paddingTop ?? resolvedField.paddingVertical ?? resolvedField.padding ?? 0
+  const bottom =
+    resolvedField.paddingBottom ?? resolvedField.paddingVertical ?? resolvedField.padding ?? 0
+  const padding = typeof top === 'number' && typeof bottom === 'number' ? top + bottom : 0
 
   const size = clampedSize({ content, lineHeight, extra: padding, minRows, maxRows })
 
@@ -162,7 +187,7 @@ export function HozoTextArea({
   }, [announce, announceRemaining, formatCount, maxLength, remaining])
 
   return (
-    <View style={style}>
+    <View style={[hozoClasses(className, nonControlClassFacts), style]}>
       <TextInput
         multiline
         value={text}
@@ -187,13 +212,19 @@ export function HozoTextArea({
           if (controlled === undefined) setUncontrolled(next)
           onChangeText?.(next)
         }}
-        onBlur={onBlur}
-        onFocus={onFocus}
+        onBlur={() => {
+          handlers.blur()
+          onBlur?.()
+        }}
+        onFocus={() => {
+          if (!disabled) handlers.focus()
+          onFocus?.()
+        }}
         // `textAlignVertical` so Android starts the text at the top rather than
         // centring one line in a four-line box, which is the difference between
         // a textarea and a very tall single-line field.
         style={[
-          fieldStyle,
+          resolvedField,
           { textAlignVertical: 'top' },
           autoGrow ? { height: size.height } : null,
         ]}
@@ -203,7 +234,11 @@ export function HozoTextArea({
         // the field's hint. On the Web the counter *is* the description, through
         // `aria-describedby`; here there is no id to point at, so the text is
         // duplicated and the visible copy is the one that steps aside.
-        <Text accessibilityElementsHidden importantForAccessibility="no" style={countStyle}>
+        <Text
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          style={[hozoClasses(countClassName, nonControlClassFacts), countStyle]}
+        >
           {formatCount(remaining, maxLength)}
         </Text>
       ) : null}

@@ -1,5 +1,7 @@
+import { hozoClasses } from '@hozo/engine/project'
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
 import { Keyboard, type StyleProp, View, type ViewStyle } from 'react-native'
+import { nonControlClassFacts } from './class-facts.native.ts'
 
 export interface HozoFormProps {
   onSubmit?: () => void
@@ -21,11 +23,8 @@ export interface HozoFormProps {
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
-   * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here -- this side
-   * has no CSS engine to resolve a class list against -- and the type still has to
-   * accept it, because an app is type-checked against the source the compiler
-   * reads rather than its output.
+   * Resolved against the project's candidate map on the form's wrapper,
+   * before explicit style. Child controls do not supply its interaction state.
    */
   className?: string
   style?: StyleProp<ViewStyle>
@@ -71,7 +70,14 @@ export function useFormSubmit(): () => void {
  * submission closes it first. On the Web nothing is covering anything and there is
  * nothing to do.
  */
-export function HozoForm({ onSubmit, accessibilityLabel, style, testID, children }: HozoFormProps) {
+export function HozoForm({
+  onSubmit,
+  accessibilityLabel,
+  className,
+  style,
+  testID,
+  children,
+}: HozoFormProps) {
   const context = useMemo<FormContextValue>(
     () => ({
       submit: () => {
@@ -85,7 +91,11 @@ export function HozoForm({ onSubmit, accessibilityLabel, style, testID, children
 
   return (
     <FormContext.Provider value={context}>
-      <View accessibilityLabel={accessibilityLabel} style={style} testID={testID}>
+      <View
+        accessibilityLabel={accessibilityLabel}
+        style={[hozoClasses(className, nonControlClassFacts), style]}
+        testID={testID}
+      >
         {children}
       </View>
     </FormContext.Provider>

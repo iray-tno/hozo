@@ -290,6 +290,26 @@ Use actual Web DOM/Tailwind as an independent semantic oracle, and execute
 generated Native output against actual component source. Stand-in hosts do
 not certify device pixels, event delivery or assistive technology.
 
+The separate `@hozo/form` source boundary is not yet a compiler-retained
+slot family. Its Native Form wrapper and TextArea wrapper/field/counter now
+use the existing project candidate resolver rather than accepting and
+discarding their class props (#1175). The field alone owns focus/visible
+focus, disabled/read-only and authored invalid/required facts. Non-editable
+wrappers/counters share constant form facts without borrowing input events.
+Explicit Native styles follow classes; TextArea's existing measured height
+still follows its field style. Measurement now reads class-supplied line
+height and padding from the same resolved field style that is drawn.
+
+This runtime repair is not an AOT/caller-composition audit or a rollout of
+the text-inheritance protocol. It adds one local interaction hook to a
+TextArea, not a provider, global listener or resolver. Negated/environment
+conditions and placeholder/numeric-font features retain the candidate
+resolver's existing limitations and warnings. Root typography propagation
+and the remaining Form controls are not certified by this slice. The
+independent Web TextArea browser test establishes disabled/read-only/focus
+semantics; Native host tests establish callback/style routing, not device
+event delivery or pixel parity.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner

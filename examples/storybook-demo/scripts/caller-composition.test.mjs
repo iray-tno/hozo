@@ -127,6 +127,9 @@ uiCache.scanFile('caller.ts', JSON.stringify(layoutCaller), 1)
 const sliderFocusClasses =
   'focus:opacity-75 focus-visible:outline-2 aria-disabled:border-4 disabled:mt-8'
 uiCache.scanFile('slider-focus.ts', JSON.stringify(sliderFocusClasses), 1)
+const textAreaFocusClasses =
+  'focus:opacity-75 focus-visible:outline-2 disabled:opacity-25 read-only:border-4 aria-[invalid=true]:border-4 aria-required:outline-4'
+uiCache.scanFile('text-area-focus.ts', JSON.stringify(textAreaFocusClasses), 1)
 const radiusCandidates = [
   'size-10',
   'h-4',
@@ -505,6 +508,84 @@ test('the real Web slider keeps focus when aria-disabled changes, until its host
     await page.evaluate(() => window.renderSlider(false))
     assert.equal(await thumb.evaluate((element) => document.activeElement === element), false)
     assert.equal(await thumb.evaluate((element) => getComputedStyle(element).opacity), '1')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the real Web TextArea owns editable focus and form predicates, not its wrapper or count', {
+  skip: !executablePath,
+}, async () => {
+  const source = (relative) =>
+    fileURLToPath(new URL(`../../../${relative}`, import.meta.url)).replaceAll('\\', '/')
+  const fixture = await build({
+    stdin: {
+      contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoTextArea} from ${JSON.stringify(source('packages/form/src/text-area.tsx'))};
+      const root = createRoot(document.getElementById('root'));
+      window.renderTextArea = (props = {}) => flushSync(() => root.render(createElement(HozoTextArea, {maxLength:20, className:'disabled:opacity-25', countClassName:'disabled:opacity-25', fieldClassName:${JSON.stringify(textAreaFocusClasses)}, ...props})));
+      window.renderTextArea();`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+    plugins: [
+      {
+        name: 'web-form-behaviors',
+        setup(builder) {
+          builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
+            path: 'web-form-behaviors',
+            namespace: 'form-probe',
+          }))
+          builder.onLoad({ filter: /.*/, namespace: 'form-probe' }, () => ({
+            contents: `export {useAnnounce} from ${JSON.stringify(source('packages/behaviors/src/live-region.tsx'))}; export {useHozoMessage} from ${JSON.stringify(source('packages/behaviors/src/i18n.ts'))};`,
+            loader: 'ts',
+            resolveDir: source(''),
+          }))
+        },
+      },
+    ],
+  })
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<style>${uiCandidates}</style><div id="root"></div>`)
+    await page.addScriptTag({ content: fixture.outputFiles[0].text })
+    const field = page.locator('textarea')
+    const read = () =>
+      field.evaluate((element) => {
+        const style = getComputedStyle(element)
+        return {
+          focused: element.matches(':focus'),
+          readOnly: element.matches(':read-only'),
+          opacity: style.opacity,
+          border: style.borderTopWidth,
+          outline: style.outlineWidth,
+          wrapperOpacity: getComputedStyle(element.parentElement).opacity,
+          countOpacity: getComputedStyle(element.parentElement.querySelector('span')).opacity,
+        }
+      })
+    await field.focus()
+    assert.equal((await read()).opacity, '0.75')
+    assert.equal((await read()).wrapperOpacity, '1')
+    assert.equal((await read()).countOpacity, '1')
+    await page.evaluate(() => window.renderTextArea({ readOnly: true }))
+    assert.equal((await read()).focused, true)
+    assert.equal((await read()).readOnly, true)
+    assert.equal((await read()).border, '4px')
+    await page.evaluate(() => window.renderTextArea({ disabled: true }))
+    assert.equal((await read()).focused, false)
+    assert.equal((await read()).readOnly, true)
+    assert.equal((await read()).opacity, '0.25')
+    await page.evaluate(() =>
+      window.renderTextArea({ 'aria-invalid': true, 'aria-required': true }),
+    )
+    assert.equal((await read()).focused, false)
+    assert.equal((await read()).opacity, '1')
+    assert.equal((await read()).border, '4px')
+    assert.equal((await read()).outline, '4px')
   } finally {
     await page.close()
   }

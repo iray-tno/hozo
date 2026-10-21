@@ -48,6 +48,11 @@ const overlaySlotClasses = 'p-2 p-3 p-4 p-5 p-6 p-7 p-8 p-9 p-10 p-12'
 const otpSemanticClasses =
   'disabled:opacity-25 read-only:outline-2 read-only:focus:outline-4 aria-disabled:border-4 aria-selected:mt-8'
 cache.scanFile(
+  'form-field.ts',
+  "export const c = 'focus:opacity-75 disabled:opacity-25 read-only:border-4 aria-[invalid=true]:border-4 aria-required:outline-4'",
+  1,
+)
+cache.scanFile(
   'slider-thumb.ts',
   "export const c = 'focus:outline-4 focus-visible:opacity-75 aria-disabled:border-4 disabled:mt-8 enabled:mb-8'",
   1,
@@ -57,7 +62,7 @@ cache.scanFile(
   `export const c = '${interactionClasses} ${otpCellFocusClasses} ${otpUnsupportedFocusClasses} ${otpSemanticClasses} ${swatchSemanticClasses} ${selectedSwatchSemanticClasses} ${commandSemanticClasses} ${activeCommandSemanticClasses} ${shortcutSemanticClasses} ${overlaySlotClasses} aria-checked:border-2 aria-expanded:border-2 aria-selected:border-2 disabled:opacity-25 hover:border-2 active:font-bold aria-pressed:border-2 aria-pressed:hover:opacity-50 aria-checked:outline-4 aria-disabled:border-4 aria-disabled:opacity-25 aria-selected:outline-4'`,
   1,
 )
-for (const file of ['toggle.tsx', 'radio.tsx', 'tree.tsx']) {
+for (const file of ['toggle.tsx', 'radio.tsx', 'tree.tsx', 'form.tsx', 'text-area.tsx']) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
 const moduleSource = cache
@@ -82,6 +87,7 @@ const NativeScrollView = (props) => React.createElement('NativeScrollView', prop
 const NativeModal = ({ visible, ...props }) =>
   visible ? React.createElement('NativeModal', props, props.children) : null
 const announcements = []
+let keyboardDismissals = 0
 const openedURLs = []
 // Animation and responder scheduling are host facilities here, not GPU or
 // gesture-system evidence. The actual pattern callbacks still run unchanged.
@@ -128,6 +134,10 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
 const exportsFrom = (names, relative) =>
   `export { ${names} } from ${JSON.stringify(filename(relative))};`
 const probeSources = [
+  exportsFrom('HozoForm as UiForm', 'packages/ui/src/form.tsx'),
+  exportsFrom('HozoTextArea as UiTextArea', 'packages/ui/src/text-area.tsx'),
+  exportsFrom('HozoForm, useFormSubmit', 'packages/form/src/form.native.tsx'),
+  exportsFrom('HozoTextArea', 'packages/form/src/text-area.native.tsx'),
   transformHozoSource(
     `import { ColorPicker, cx } from '@hozo/core'
      export function CompiledThumbPicker({ thumbClassName, ...rest }) {
@@ -217,6 +227,7 @@ const bundled = await build({
             exportsFrom('useHozoMessage, useHozoI18n', 'packages/behaviors/src/i18n.ts'),
             exportsFrom('hozoTextChildren', 'packages/behaviors/src/text-child.native.tsx'),
             exportsFrom('shouldRestoreFocus', 'packages/behaviors/src/focus-scope.native.tsx'),
+            exportsFrom('useAnnounce', 'packages/behaviors/src/live-region.native.tsx'),
           ].join('\n'),
           loader: 'ts',
           resolveDir: root,
@@ -252,6 +263,18 @@ const bundled = await build({
           path: 'native-patterns',
           namespace: 'probe',
         }))
+        builder.onResolve({ filter: /^@hozo\/form$/ }, () => ({
+          path: 'native-form',
+          namespace: 'native-form',
+        }))
+        builder.onLoad({ filter: /.*/, namespace: 'native-form' }, () => ({
+          contents: [
+            exportsFrom('Form, useFormSubmit', 'packages/form/src/form.native.tsx'),
+            exportsFrom('TextArea', 'packages/form/src/text-area.native.tsx'),
+          ].join('\n'),
+          loader: 'tsx',
+          resolveDir: root,
+        }))
         builder.onLoad({ filter: /.*/, namespace: 'probe' }, () => ({
           contents: `export { HozoCheckbox as Checkbox, HozoSwitch as Switch } from ${JSON.stringify(filename('packages/patterns/src/toggle.native.tsx'))}; export { HozoRadioGroup as RadioGroup } from ${JSON.stringify(filename('packages/patterns/src/radio.native.tsx'))}; export { HozoTree as Tree } from ${JSON.stringify(filename('packages/patterns/src/tree.native.tsx'))};`,
           loader: 'ts',
@@ -280,6 +303,7 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         Animated: nativeAnimated,
         Easing: { quad: (value) => value * value, out: (easing) => easing },
         PanResponder: nativePanResponder,
+        Keyboard: { dismiss: () => keyboardDismissals++ },
         I18nManager: { isRTL: false },
         Pressable: NativePressable,
         StyleSheet: { flatten: flat, create: (styles) => styles },
@@ -303,6 +327,7 @@ const { CompiledThumbPicker } = module.exports
 const { HozoChip, HozoOtpInput } = module.exports
 const { UiCombobox, UiListbox, UiCommandPalette, UiDialog } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
+const { HozoForm, HozoTextArea, UiForm, UiTextArea, useFormSubmit } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
 const indicators = (tree) =>
@@ -368,6 +393,121 @@ const measuredHosts = {
         : done(0, 0, 80, 30),
   }),
 }
+
+test('Native Form applies its own classes before explicit style and preserves submit ordering', async (t) => {
+  const { tree } = await checkClassSlots(
+    t,
+    HozoForm,
+    { accessibilityLabel: 'Delivery', testID: 'form' },
+    [['className', 'style', 4, (tree) => views(tree)[0]]],
+  )
+  assert.equal(views(tree)[0].props.accessibilityLabel, 'Delivery')
+  assert.equal(views(tree)[0].props.testID, 'form')
+  const ui = await mount(t, UiForm, {})
+  assert.equal(flat(views(ui)[0].props.style).gap, 16)
+  assert.equal(flat(views(ui)[0].props.style).flexDirection, 'column')
+  let submit
+  const before = keyboardDismissals
+  let submitted = 0
+  function Submit() {
+    submit = useFormSubmit()
+    return null
+  }
+  let form
+  await act(() => {
+    form = create(
+      React.createElement(
+        HozoForm,
+        {
+          onSubmit: () => {
+            assert.equal(keyboardDismissals, before + 1, 'dismiss before submitting')
+            submitted++
+          },
+        },
+        React.createElement(Submit),
+      ),
+    )
+  })
+  t.after(async () => act(() => form.unmount()))
+  await act(() => submit())
+  assert.equal(submitted, 1)
+  assert.equal(keyboardDismissals, before + 1)
+})
+
+test('Native TextArea resolves wrapper/field/count classes and measures the field it draws', async (t) => {
+  const { tree } = await checkClassSlots(
+    t,
+    HozoTextArea,
+    { maxLength: 20, defaultValue: 'Hello', minRows: 2, maxRows: 3 },
+    [
+      ['className', 'style', 2, (tree) => views(tree)[0]],
+      ['fieldClassName', 'fieldStyle', 3, (tree) => tree.root.findByType('NativeTextInput')],
+      ['countClassName', 'countStyle', 4, (tree) => tree.root.findByType('NativeText')],
+    ],
+  )
+  const ui = await mount(t, UiTextArea, { maxLength: 20, defaultValue: 'Hi', maxRows: 3 })
+  const field = () => ui.root.findByType('NativeTextInput')
+  const initial = flat(field().props.style)
+  assert.equal(initial.lineHeight, 24)
+  assert.equal(initial.paddingTop, 8)
+  assert.equal(initial.paddingStart, 12)
+  assert.equal(initial.height, 64, 'two 24px rows plus class-supplied padding')
+  assert.equal(initial.color, color('hozo-text'))
+  assert.equal(flat(ui.root.findByType('NativeText').props.style).fontSize, 12)
+  await act(() =>
+    field().props.onContentSizeChange({ nativeEvent: { contentSize: { height: 200 } } }),
+  )
+  assert.equal(flat(field().props.style).height, 88, 'three rows cap plus class padding')
+  const counter = tree.root.findByType('NativeText')
+  assert.equal(counter.props.accessibilityElementsHidden, true)
+  assert.equal(counter.props.importantForAccessibility, 'no')
+  await act(() => tree.update(React.createElement(HozoTextArea)))
+  assert.equal(tree.root.findAllByType('NativeText').length, 0)
+})
+
+test('Native TextArea input predicates and focus do not leak to its wrapper or counter', async (t) => {
+  const changes = []
+  const events = []
+  const props = {
+    maxLength: 20,
+    fieldClassName:
+      'p-2 focus:opacity-75 focus-visible:outline-2 disabled:opacity-25 read-only:border-4 aria-[invalid=true]:border-4 aria-required:outline-4',
+    className: 'p-3 disabled:opacity-25',
+    countClassName: 'p-4 disabled:opacity-25',
+    onFocus: () => events.push('focus'),
+    onBlur: () => events.push('blur'),
+    onChangeText: (value) => changes.push(value),
+  }
+  const tree = await mount(t, HozoTextArea, props)
+  const input = () => tree.root.findByType('NativeTextInput')
+  await act(() => input().props.onFocus())
+  assert.equal(flat(input().props.style).opacity, 0.75)
+  assert.equal(flat(input().props.style).outlineWidth, 2)
+  assert.equal(flat(views(tree)[0].props.style).opacity, undefined)
+  assert.equal(flat(tree.root.findByType('NativeText').props.style).opacity, undefined)
+  await act(() => input().props.onChangeText('hello'))
+  assert.deepEqual(changes, ['hello'])
+  assert.equal(input().props.value, 'hello')
+  await act(() => tree.update(React.createElement(HozoTextArea, { ...props, readOnly: true })))
+  assert.equal(input().props.editable, false)
+  assert.equal(flat(input().props.style).borderTopWidth, 4)
+  assert.equal(flat(input().props.style).opacity, 0.75, 'read-only fields can retain focus')
+  await act(() => tree.update(React.createElement(HozoTextArea, { ...props, disabled: true })))
+  assert.equal(flat(input().props.style).opacity, 0.25)
+  assert.equal(flat(input().props.style).outlineWidth, undefined)
+  await act(() =>
+    tree.update(
+      React.createElement(HozoTextArea, { ...props, 'aria-invalid': true, 'aria-required': true }),
+    ),
+  )
+  assert.equal(flat(input().props.style).opacity, undefined, 're-enabling does not invent focus')
+  assert.equal(flat(input().props.style).borderTopWidth, 4)
+  assert.equal(flat(input().props.style).outlineWidth, 4)
+  await act(() => input().props.onFocus())
+  await act(() => input().props.onBlur())
+  assert.deepEqual(events, ['focus', 'focus', 'blur'])
+  assert.deepEqual(changes, ['hello'], 'style/focus updates never edit text')
+})
 
 test('Native overlay Popover keeps root and animated panel classes on separate owners', async (t) => {
   const { tree } = await checkClassSlots(
