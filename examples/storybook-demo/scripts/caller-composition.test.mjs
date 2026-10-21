@@ -865,7 +865,8 @@ for (const [name, file, value] of [
       stdin: {
         contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {Hozo${name}} from ${JSON.stringify(source(`packages/form/src/${file}.tsx`))};
         const root = createRoot(document.getElementById('picker'));
-        window.renderPicker = (disabled = false) => flushSync(() => root.render(createElement(Hozo${name}, {disabled, value:${JSON.stringify(value)}, defaultMonth:{year:2026,month:6},today:{year:2026,month:6,day:15},locale:'en-US',accessibilityLabel:'Departure',formatValue:()=>'Chosen 2026',className:'disabled:opacity-25',triggerClassName:${JSON.stringify(classes)}}, () => null)));
+        window.pickerChanges = []; window.pickerOpens = [];
+        window.renderPicker = (disabled = false) => flushSync(() => root.render(createElement(Hozo${name}, {disabled, value:${JSON.stringify(value)}, defaultMonth:{year:2026,month:6},today:{year:2026,month:6,day:15},locale:'en-US',accessibilityLabel:'Departure',formatValue:()=>'Chosen 2026',className:'disabled:opacity-25',triggerClassName:${JSON.stringify(classes)},doneClassName:${JSON.stringify(classes)},onChange: value => window.pickerChanges.push(value),onOpenChange: open => window.pickerOpens.push(open)}, () => null)));
         window.renderPicker();`,
         resolveDir: source('examples/storybook-demo'),
       },
@@ -942,6 +943,42 @@ for (const [name, file, value] of [
         await trigger.evaluate((element) => getComputedStyle(element).borderTopWidth),
         '2px',
       )
+      if (name === 'DateTimePicker') {
+        // This button is inside the dialog, but is not its expansion trigger.
+        // Even disabling the already-open field must leave its exit operable.
+        await page.evaluate(() => window.renderPicker(true))
+        const done = page.getByRole('button', { name: 'Done', exact: true })
+        assert.equal(await done.isEnabled(), true)
+        assert.equal(await done.getAttribute('aria-expanded'), null)
+        assert.equal(await done.getAttribute('aria-disabled'), null)
+        assert.deepEqual(
+          await done.evaluate((element) => [
+            element.matches(':enabled'),
+            element.matches(':read-only'),
+          ]),
+          [true, true],
+        )
+        assert.equal(await done.evaluate((element) => getComputedStyle(element).paddingTop), '16px')
+        assert.equal(
+          await done.evaluate((element) => getComputedStyle(element).borderTopWidth),
+          '0px',
+        )
+        assert.equal(await done.evaluate((element) => getComputedStyle(element).marginTop), '0px')
+        await done.hover()
+        assert.equal(
+          await done.evaluate((element) => getComputedStyle(element).backgroundColor),
+          'rgb(221, 17, 0)',
+        )
+        await done.focus()
+        assert.equal(await done.evaluate((element) => getComputedStyle(element).opacity), '0.75')
+        await done.press('Enter')
+        await page.locator('[role="dialog"]').waitFor({ state: 'detached' })
+        assert.deepEqual(await page.evaluate(() => window.pickerChanges), [])
+        assert.deepEqual(await page.evaluate(() => window.pickerOpens), [true, false])
+        await page.evaluate(() => window.renderPicker(false))
+        await trigger.click()
+        await page.locator('[role="dialog"]').waitFor({ state: 'visible' })
+      }
       await page.keyboard.press('Escape')
       await page.locator('[role="dialog"]').waitFor({ state: 'detached' })
       assert.equal(await trigger.getAttribute('aria-expanded'), 'false')

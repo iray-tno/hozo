@@ -12,10 +12,11 @@ import {
 } from 'react-native'
 import { nonControlClassFacts } from './class-facts.native.ts'
 
-/** The three date pickers have the same real Web button owner, not three
- * subtly different interpretations of expanded/disabled and text styles.
+/** The date-picker triggers and Done share the same real Web button owner,
+ * not subtly different interpretations of interaction and text styles.
+ * Only triggers supply expanded: Done has no expansion state to announce.
  * This leaf also keeps pointer/focus updates out of their Calendar render. */
-export function DatePickerTrigger({
+export function DatePickerButton({
   children,
   className,
   style,
@@ -30,7 +31,7 @@ export function DatePickerTrigger({
   className?: string
   style?: StyleProp<ViewStyle>
   textStyle?: StyleProp<TextStyle>
-  expanded: boolean
+  expanded?: boolean
   disabled?: boolean
   accessibilityLabel?: string
   accessibilityValue?: { text: string }
@@ -53,7 +54,7 @@ export function DatePickerTrigger({
         pressed: !disabled && state.pressed,
         focused: !disabled && state.focused,
         focusVisible: !disabled && state.focusVisible,
-        'aria-expanded': expanded,
+        'aria-expanded': expanded ?? false,
       }),
       style,
     ]) ?? {},
@@ -63,7 +64,7 @@ export function DatePickerTrigger({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityValue={accessibilityValue}
-      accessibilityState={{ expanded, disabled }}
+      accessibilityState={expanded === undefined ? { disabled } : { expanded, disabled }}
       disabled={disabled}
       style={box as ViewStyle}
       onPress={() => {
