@@ -19,6 +19,7 @@ investigation moves.
 | The `voiceover` job, on the runner ("-1743", VoiceOver refusing to launch) | `.github/workflows` | [#631](https://github.com/iray-tno/hozo/issues/631) |
 | The Native Dialog returning focus to its opener | device a11y checks | [#484](https://github.com/iray-tno/hozo/issues/484) |
 | `check-kumimono` timing out in `page.goto` or scrolling to `#kumimono`, locally under load | `apps/landing/scripts` | [#1140](https://github.com/iray-tno/hozo/issues/1140) |
+| The native-showcase `android` job, when the emulator's System UI stops responding ("the OS alert blocks the showcase") | `.github/workflows` | [#1172](https://github.com/iray-tno/hozo/issues/1172) |
 
 ## When you meet one
 
