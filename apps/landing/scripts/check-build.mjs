@@ -314,13 +314,14 @@ for (const [page, element] of [
     )
   const sheet = line('bottom-sheet')
   const button = line('button')
-  // The calendar's Native half accepts its class props and does not apply
-  // them: a drawable look missing all the same.
-  const calendar = line('calendar')
+  // The time picker's Native half accepts its class props and does not apply
+  // them: a drawable look missing all the same. When it starts applying
+  // them, point this at another page the generated status still lists.
+  const timePicker = line('time-picker')
   checks.push(
     [
-      Number(calendar?.[2]) > 0 && /dayClassName/.test(calendar?.[3] ?? ''),
-      'docs components/calendar: the unapplied class props are not listed',
+      Number(timePicker?.[2]) > 0 && /periodClassName/.test(timePicker?.[3] ?? ''),
+      'docs components/time-picker: the unapplied class props are not listed',
     ],
     [button?.[2] === '0', 'docs components/button: a class prop is listed as unapplied'],
     [Number(sheet?.[1]) > 0, 'docs components/bottom-sheet: no React Native line listing classes'],

@@ -48,7 +48,7 @@ typical. A cursor shape or a CSS transition is counted separately, because a
 touch screen does without it.
 
 It also lists the class props the component's React Native half accepts and
-does not apply yet -- the Calendar family's `dayClassName`, for example. That
+does not apply yet -- the TimePicker's `periodClassName`, for example. That
 part of the look is missing there however drawable its classes are. Only a
 prop that is never used counts; one the Native half might pass on is not
 listed.

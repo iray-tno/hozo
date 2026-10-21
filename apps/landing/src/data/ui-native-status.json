@@ -187,13 +187,7 @@
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
     ],
-    "unapplied": [
-      "className",
-      "headerClassName",
-      "monthButtonClassName",
-      "gridClassName",
-      "dayClassName"
-    ]
+    "unapplied": []
   },
   "card": {
     "missing": [],
@@ -297,14 +291,7 @@
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
     ],
-    "unapplied": [
-      "triggerClassName",
-      "dialogClassName",
-      "headerClassName",
-      "monthButtonClassName",
-      "gridClassName",
-      "dayClassName"
-    ]
+    "unapplied": ["dialogClassName"]
   },
   "date-range-picker": {
     "missing": [
@@ -355,14 +342,7 @@
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
     ],
-    "unapplied": [
-      "triggerClassName",
-      "dialogClassName",
-      "headerClassName",
-      "monthButtonClassName",
-      "gridClassName",
-      "dayClassName"
-    ]
+    "unapplied": ["dialogClassName"]
   },
   "date-time-picker": {
     "missing": [
@@ -413,15 +393,7 @@
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
     ],
-    "unapplied": [
-      "triggerClassName",
-      "dialogClassName",
-      "headerClassName",
-      "monthButtonClassName",
-      "gridClassName",
-      "dayClassName",
-      "doneClassName"
-    ]
+    "unapplied": ["dialogClassName", "doneClassName"]
   },
   "dialog": {
     "missing": [
@@ -489,7 +461,7 @@
   "form": {
     "missing": [],
     "cosmetic": [],
-    "unapplied": ["className"]
+    "unapplied": []
   },
   "input": {
     "missing": [],
@@ -533,7 +505,7 @@
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
     ],
-    "unapplied": ["className"]
+    "unapplied": []
   },
   "otp-input": {
     "missing": [],
@@ -711,7 +683,7 @@
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
     ],
-    "unapplied": ["className", "fieldClassName", "countClassName"]
+    "unapplied": []
   },
   "time-picker": {
     "missing": [
