@@ -35,21 +35,26 @@ test('a failed or unreachable demo is recorded and the walk goes on', async () =
     {
       open: (id) => opened.push(id),
       waitForEither: async (labels) => {
-        if (labels[1] === 'UI docs gone') throw new Error('never appeared')
-        return labels[1] === 'UI docs broken' ? labels[0] : labels[1]
+        if (labels[2] === 'UI docs gone') throw new Error('never appeared')
+        // labels: [ours failed, Storybook failed, ready]
+        if (labels[2] === 'UI docs crashed') return labels[1]
+        return labels[2] === 'UI docs broken' ? labels[0] : labels[2]
       },
       settle: async () => {},
       capture: (name) => captured.push(name),
     },
     output,
-    { pages: ['button', 'broken', 'gone', 'card'], now: () => new Date('2026-10-21T00:00:00Z') },
+    {
+      pages: ['button', 'broken', 'gone', 'crashed', 'card'],
+      now: () => new Date('2026-10-21T00:00:00Z'),
+    },
   )
-  assert.deepEqual(opened, ['button', 'broken', 'gone', 'card'].map(uiDocStoryId))
+  assert.deepEqual(opened, ['button', 'broken', 'gone', 'crashed', 'card'].map(uiDocStoryId))
   assert.deepEqual(
     Object.fromEntries(Object.entries(manifest.pages).map(([page, entry]) => [page, entry.status])),
-    { button: 'ok', broken: 'failed', gone: 'unreached', card: 'ok' },
+    { button: 'ok', broken: 'failed', gone: 'unreached', crashed: 'failed', card: 'ok' },
   )
-  assert.deepEqual(captured, ['button', 'broken', 'gone', 'card'])
+  assert.deepEqual(captured, ['button', 'broken', 'gone', 'crashed', 'card'])
   assert.equal(manifest.takenAt, '2026-10-21T00:00:00.000Z')
   assert.deepEqual(JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8')), manifest)
 })

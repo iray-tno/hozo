@@ -15,19 +15,34 @@ import { Text, View } from '@hozo/core'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { Component, type ComponentType, type ReactNode } from 'react'
 
-class Caught extends Component<{ page: string; children: ReactNode }, { error?: Error }> {
-  state: { error?: Error } = {}
-  static getDerivedStateFromError(error: Error) {
-    return { error }
+/** What was thrown, as text: not every throw is an `Error`. */
+const describe = (thrown: unknown) =>
+  thrown instanceof Error ? `${thrown.name}: ${thrown.message}` : String(thrown)
+
+class Caught extends Component<
+  { page: string; children: ReactNode },
+  { thrown?: { value: unknown } }
+> {
+  state: { thrown?: { value: unknown } } = {}
+  static getDerivedStateFromError(value: unknown) {
+    return { thrown: { value } }
+  }
+  componentDidCatch(value: unknown) {
+    // One line the driver collects from logcat, with the stack the screen
+    // has no room for.
+    console.error(
+      `[hozo-ui-docs] ${this.props.page}: ${describe(value)}`,
+      value instanceof Error ? value.stack : '',
+    )
   }
   render() {
-    if (!this.state.error) return this.props.children
+    if (!this.state.thrown) return this.props.children
     return (
       <Text
         accessibilityLabel={`UI docs ${this.props.page} failed`}
         className="text-sm text-hozo-danger-text"
       >
-        {`This demo failed on React Native: ${this.state.error.message}`}
+        {`This demo failed on React Native: ${describe(this.state.thrown.value)}`}
       </Text>
     )
   }
@@ -44,6 +59,17 @@ function Load({ load }: { load: () => ComponentType }) {
  * children, so the demo's own accessibility tree is unchanged.
  */
 function Preview({ page, load }: { page: string; load: () => ComponentType }) {
+  // Outermost too: a failure in the surface itself must be shown and named,
+  // not left to Storybook's own boundary, which says only that something
+  // went wrong.
+  return (
+    <Caught page={page}>
+      <Surface page={page} load={load} />
+    </Caught>
+  )
+}
+
+function Surface({ page, load }: { page: string; load: () => ComponentType }) {
   return (
     <View className="flex-1 items-start bg-hozo-surface p-6 text-hozo-text">
       <View

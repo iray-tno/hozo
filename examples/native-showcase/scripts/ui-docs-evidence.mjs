@@ -16,12 +16,16 @@ import { UI_DOC_PAGES } from './ui-docs-pages.mjs'
 
 export const uiDocStoryId = (page) => `ui-docs--${page}`
 
+/** What Storybook's own boundary shows when a story throws past ours. */
+export const STORYBOOK_FAILURE = 'Something went wrong rendering your story'
+
 /**
  * @param {{
  *   open: (storyId: string) => void,
  *   waitForEither: (labels: string[], timeout: number) => Promise<string>,
  *   settle: () => Promise<void>,
  *   capture: (name: string) => void,
+ *   logs?: () => string,
  * }} device
  */
 export async function exerciseUiDocs(
@@ -40,10 +44,12 @@ export async function exerciseUiDocs(
     const failed = `UI docs ${page} failed`
     try {
       device.open(uiDocStoryId(page))
-      const seen = await device.waitForEither([failed, ready], timeout)
+      // A failure is either ours, named, or Storybook's, which says only that
+      // something went wrong; both are failures, not a 30-second wait.
+      const seen = await device.waitForEither([failed, STORYBOOK_FAILURE, ready], timeout)
       await device.settle()
       device.capture(page)
-      manifest.pages[page] = { status: seen === failed ? 'failed' : 'ok', image: `${page}.png` }
+      manifest.pages[page] = { status: seen === ready ? 'ok' : 'failed', image: `${page}.png` }
     } catch (error) {
       manifest.pages[page] = { status: 'unreached', reason: String(error?.message ?? error) }
       try {
@@ -55,6 +61,12 @@ export async function exerciseUiDocs(
     }
   }
   writeFileSync(resolve(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
+  // What each failure threw, which the screenshot shows only in part.
+  try {
+    writeFileSync(resolve(output, 'logcat.txt'), device.logs?.() ?? '')
+  } catch {
+    /* The manifest stands without it. */
+  }
   const reached = Object.values(manifest.pages).filter((entry) => entry.status !== 'unreached')
   // Only a walk that showed nothing at all is a failure of the walk itself.
   if (reached.length === 0) throw new Error('No UI docs story could be opened')

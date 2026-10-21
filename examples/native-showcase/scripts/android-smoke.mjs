@@ -477,6 +477,7 @@ try {
         // Fonts, images and the first layout pass, which the marker can
         // precede by a frame or two.
         settle: () => pause(1500),
+        logs: () => adb('logcat', '-d', '-s', 'ReactNativeJS:*').toString(),
         capture: (name) =>
           writeFileSync(resolve(output, `${name}.png`), adb('exec-out', 'screencap', '-p')),
       },
