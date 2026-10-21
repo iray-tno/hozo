@@ -1372,11 +1372,71 @@ fn unmodeled_props_and_spreads_reach_the_output() {
         "#;
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
-    assert!(output.jsx.contains("{...rest}"));
+    // `onLayout` and `testID` come after the spread, so they are taken out
+    // of it: the author's later values win, as in JSX (#1127).
+    assert!(
+        output.jsx.contains(
+            r#"{...(({ "onLayout": _hozoOmit0, "testID": _hozoOmit1, ..._hozoRest }) => _hozoRest)((rest) ?? {})}"#
+        ),
+        "{}",
+        output.jsx
+    );
     assert!(output.jsx.contains("onLayout={onLayout}"));
     assert!(output.jsx.starts_with("<HozoView "), "{}", output.jsx);
     assert_eq!(output.runtime_imports, vec!["HozoView"]);
     assert!(output.jsx.contains(r#"testID={"row"}"#));
+}
+
+#[test]
+fn a_named_prop_after_a_translated_spread_is_taken_out_of_it() {
+    // #1127: the modeled props are emitted before the spread, so without
+    // this a `testID` inside `props` became `data-testid` and beat the
+    // later explicit one. One case per translator.
+    for (source, translator) in [
+        (
+            r#"
+            import { View } from '@hozo/core'
+            const el = <View accessibilityLabel="x" {...props} testID="t">x</View>
+            "#,
+            "hozoViewDomProps",
+        ),
+        (
+            r#"
+            import { Button } from '@hozo/core'
+            function B({ href, ...rest }) { return <Button {...rest} onPress={go}>Go</Button> }
+            "#,
+            "hozoButtonDomProps",
+        ),
+        (
+            r#"
+            import { TextInput } from '@hozo/core'
+            const el = <TextInput {...rest} editable={false} />
+            "#,
+            "hozoTextInputDomProps",
+        ),
+    ] {
+        let parsed = hozo_parser::parse_tsx(source);
+        let output = lower(&parsed.roots[0].node, source, &Theme::default());
+        let spread = output
+            .jsx
+            .find(&format!("{{...{translator}("))
+            .unwrap_or_else(|| panic!("{translator} not used: {}", output.jsx));
+        let rest = &output.jsx[spread..];
+        assert!(rest.contains("_hozoOmit0"), "{}", output.jsx);
+        assert!(rest.contains("..._hozoRest"), "{}", output.jsx);
+    }
+    // A prop before the spread stays the spread's to override.
+    let source = r#"
+        import { View } from '@hozo/core'
+        const el = <View accessibilityLabel="x" {...props}>x</View>
+        "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(
+        output.jsx.contains("{...hozoViewDomProps(props)}"),
+        "{}",
+        output.jsx
+    );
 }
 
 #[test]
