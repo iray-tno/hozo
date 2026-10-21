@@ -9,7 +9,7 @@ import { runInNewContext } from 'node:vm'
 import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
-import { createClassResolver } from '@hozo/engine'
+import { createClassResolver, hozoSplitTextStyle } from '@hozo/engine'
 import { hozoSpreadStyles } from '@hozo/engine/generated/spread-styles'
 import { NativeSelect } from '@hozo/form'
 import { Button as ButtonFallback } from '@hozo/primitives'
@@ -4380,50 +4380,55 @@ async function patternHarness(cacheName, look) {
     }
     return loaded.get(file)
   }
-  const modules = (name) =>
-    name.startsWith('./')
-      ? load(name.slice(2))
-      : {
-          react: {
-            useState: (value) => [typeof value === 'function' ? value() : value, () => {}],
-            useCallback: (fn) => fn,
-            useRef: (current) => ({ current }),
-            useMemo: (fn) => fn(),
-            useEffect: () => {},
-            // This stateless probe does not mount React. OTP's committed
-            // selection-buffer effect is exercised by the real renderer
-            // in otp-caret.test.ts, not by these resting style lookups.
-            useLayoutEffect: () => {},
-          },
-          'react-native': {
-            View: 'View',
-            Pressable: 'Pressable',
-            Text: 'Text',
-            Modal: 'Modal',
-            TextInput: 'TextInput',
-            Image: 'Image',
-            Linking: { openURL: () => {} },
-            StyleSheet: { flatten: flat },
-          },
-          '@hozo/engine/project': { hozoClasses },
-          '@hozo/behaviors': {
-            hozoTextChildren: (children) => children,
-            useHozoMessage: () => (key, _values, fallback) => fallback ?? key,
-            useHozoI18n: () => ({ dir: 'ltr', locale: 'en' }),
-          },
-          // Initial input state only in these structural probes. Real events
-          // and tracker updates are tested in the browser-free React probe.
-          '@hozo/behaviors/pressable-interaction': {
-            usePressableInteraction: () => ({
-              state: { pressed: false, hovered: false, focused: false, focusVisible: false },
-              handlers: {},
-            }),
-          },
-          '@hozo/engine/navigation': {
-            activateHozoNavigation: () => {},
-            useHozoNavigation: () => ({}),
-          },
-        }[name]
+  const modules = (name) => {
+    if (name.startsWith('./')) return load(name.slice(2))
+    const resolved = {
+      react: {
+        useState: (value) => [typeof value === 'function' ? value() : value, () => {}],
+        useCallback: (fn) => fn,
+        useRef: (current) => ({ current }),
+        useMemo: (fn) => fn(),
+        useEffect: () => {},
+        // This stateless probe does not mount React. OTP's committed
+        // selection-buffer effect is exercised by the real renderer
+        // in otp-caret.test.ts, not by these resting style lookups.
+        useLayoutEffect: () => {},
+      },
+      'react-native': {
+        View: 'View',
+        Pressable: 'Pressable',
+        Text: 'Text',
+        Modal: 'Modal',
+        TextInput: 'TextInput',
+        Image: 'Image',
+        Linking: { openURL: () => {} },
+        StyleSheet: { flatten: flat },
+      },
+      '@hozo/engine/project': { hozoClasses },
+      // Use the real shared partition; this fixture only stands in for
+      // hosts/hooks, not for the production style classification rules.
+      '@hozo/engine': { hozoSplitTextStyle },
+      '@hozo/behaviors': {
+        hozoTextChildren: (children) => children,
+        useHozoMessage: () => (key, _values, fallback) => fallback ?? key,
+        useHozoI18n: () => ({ dir: 'ltr', locale: 'en' }),
+      },
+      // Initial input state only in these structural probes. Real events
+      // and tracker updates are tested in the browser-free React probe.
+      '@hozo/behaviors/pressable-interaction': {
+        usePressableInteraction: () => ({
+          state: { pressed: false, hovered: false, focused: false, focusVisible: false },
+          handlers: {},
+        }),
+      },
+      '@hozo/engine/navigation': {
+        activateHozoNavigation: () => {},
+        useHozoNavigation: () => ({}),
+      },
+    }[name]
+    assert.ok(resolved, `Native pattern fixture has no module binding for ${name}`)
+    return resolved
+  }
   const pressables = (tree) => {
     const found = []
     const walk = (node) => {
