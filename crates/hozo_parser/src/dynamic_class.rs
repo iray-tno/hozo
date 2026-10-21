@@ -21,7 +21,7 @@ use oxc_syntax::module_record::{ImportImportName, ModuleRecord};
 use crate::tailwind;
 
 mod evaluation;
-pub(crate) use evaluation::capture_evaluation;
+pub(crate) use evaluation::{capture_evaluation, capture_template_parts};
 
 /// Import sources whose default export/named exports are trusted to behave
 /// like `clsx` (join truthy string arguments with a space) when recognized
@@ -56,6 +56,9 @@ pub struct Decomposed {
     /// diagnostics and the reason is worth keeping: it decomposes an
     /// expression and knows nothing about what a message should say.
     pub unsupported_variants: Vec<UnsupportedVariant>,
+    /// The optional guarded-template proof is irrelevant to other legacy
+    /// failures; do not decompose ordinary opaque branches a second time.
+    pub guarded_template: bool,
 }
 
 /// A class the author wrote that Hozo could not compile, and why.
@@ -95,6 +98,7 @@ pub(crate) fn decompose_class_name(expr: &JSXExpression, module_record: &Joiners
         None,
         &mut out,
         module_record,
+        false,
     );
     out
 }
@@ -116,7 +120,7 @@ pub(crate) fn decompose_class_pieces(
         _ => {}
     }
     let mut out = Decomposed::default();
-    decompose(target, None, None, &mut out, joiners);
+    decompose(target, None, None, &mut out, joiners, false);
     Some(out)
 }
 
@@ -367,6 +371,7 @@ fn decompose(
     guard: Option<Span>,
     out: &mut Decomposed,
     module_record: &Joiners,
+    capture_templates: bool,
 ) {
     match target {
         Target::StringLiteral(lit) => {
@@ -402,6 +407,7 @@ fn decompose(
         // carried as written in that case, and a template's text on its own
         // is not an expression that could be.
         Target::Template(template) => {
+            out.guarded_template |= guard.is_some();
             let whole = guard.unwrap_or(template.span);
             let text = |index: usize| {
                 let quasi = &template.quasis[index];
@@ -433,6 +439,30 @@ fn decompose(
                 fall_back_to(out, whole);
                 return;
             }
+            // Only a capture plan may separate guarded interpolations. Prove
+            // each part first: fully compiled, or wholly opaque. A partial
+            // literal must retain its original fallback/diagnostic route.
+            let mut parts = Vec::new();
+            if capture_templates {
+                for expression in &template.expressions {
+                    let mut part = Decomposed::default();
+                    decompose(
+                        classify_expression(expression),
+                        condition.clone(),
+                        None,
+                        &mut part,
+                        module_record,
+                        true,
+                    );
+                    let wholly_opaque = part.declarations.is_empty()
+                        && part.fallback == [to_expr_ref(expression.span())];
+                    if !(part.fallback.is_empty() || wholly_opaque) {
+                        fall_back_to(out, whole);
+                        return;
+                    }
+                    parts.push(part);
+                }
+            }
             for (index, quasi) in template.quasis.iter().enumerate() {
                 for token in text(index).split_whitespace() {
                     let (token_condition, properties) = tailwind::expand_utility(token);
@@ -455,14 +485,24 @@ fn decompose(
                     });
                 }
             }
-            for expression in &template.expressions {
-                decompose(
-                    classify_expression(expression),
-                    condition.clone(),
-                    guard,
-                    out,
-                    module_record,
-                );
+            if capture_templates {
+                for part in parts {
+                    out.declarations.extend(part.declarations);
+                    out.fallback.extend(part.fallback);
+                    out.consumed.extend(part.consumed);
+                    out.unsupported_variants.extend(part.unsupported_variants);
+                }
+            } else {
+                for expression in &template.expressions {
+                    decompose(
+                        classify_expression(expression),
+                        condition.clone(),
+                        guard,
+                        out,
+                        module_record,
+                        false,
+                    );
+                }
             }
         }
         Target::Logical(logical) => {
@@ -474,6 +514,7 @@ fn decompose(
                 guard,
                 out,
                 module_record,
+                capture_templates,
             );
         }
         Target::Conditional(cond) => {
@@ -485,6 +526,7 @@ fn decompose(
                 guard,
                 out,
                 module_record,
+                capture_templates,
             );
             let when_false = and_not_ref(&condition, cond.test.span());
             decompose(
@@ -493,6 +535,7 @@ fn decompose(
                 guard,
                 out,
                 module_record,
+                capture_templates,
             );
         }
         Target::Call(call) if is_recognized_cx_call(&call.callee, module_record).is_some() => {
@@ -503,6 +546,7 @@ fn decompose(
                     guard,
                     out,
                     module_record,
+                    capture_templates,
                 );
             }
         }

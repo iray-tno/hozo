@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node --test --test-concurrency=1 scripts/utterance-walk.test.mjs scripts/a11y-audit.test.mjs scripts/a11y-catalogue.test.mjs scripts/shared-showcase-readiness.test.mjs scripts/candidate-cascade.test.mjs scripts/disabled-link.test.mjs scripts/native-control-indicators.test.mjs && tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check && node scripts/check-appearance.mjs storybook-static-check && node scripts/check-shared-showcase.mjs storybook-static-check",
+    "test": "node --test --test-concurrency=1 scripts/utterance-walk.test.mjs scripts/a11y-audit.test.mjs scripts/a11y-catalogue.test.mjs scripts/shared-showcase-readiness.test.mjs scripts/candidate-cascade.test.mjs scripts/caller-composition.test.mjs scripts/disabled-link.test.mjs scripts/native-control-indicators.test.mjs && tsc --noEmit -p . && node scripts/build.mjs storybook-static-check && node scripts/check-build.mjs storybook-static-check && node scripts/check-a11y.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check && node scripts/check-appearance.mjs storybook-static-check && node scripts/check-shared-showcase.mjs storybook-static-check",
     "utterances:update": "node scripts/build.mjs storybook-static-check && node scripts/check-utterances.mjs storybook-static-check --update",
     "typecheck": "tsc --noEmit -p .",
     "check:a11y": "node scripts/check-a11y.mjs"

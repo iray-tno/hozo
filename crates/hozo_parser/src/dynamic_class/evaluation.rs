@@ -4,6 +4,25 @@
 use super::*;
 use hozo_ir::{ClassEvaluation, ClassEvaluationStep as Step};
 
+/// Retry only through the same decomposer. The caller must install this
+/// replacement together with its plan, or keep its unchanged legacy result.
+pub(crate) fn capture_template_parts(
+    expression: &JSXExpression,
+    joiners: &Joiners,
+) -> Option<(Decomposed, ClassEvaluation)> {
+    let mut decomposed = Decomposed::default();
+    decompose(
+        classify_jsx_expression(expression),
+        None,
+        None,
+        &mut decomposed,
+        joiners,
+        true,
+    );
+    let evaluation = capture_evaluation(expression, &decomposed)?;
+    Some((decomposed, evaluation))
+}
+
 fn collect_guards(expression: &ConditionExpr, out: &mut Vec<ExprRef>) {
     match expression {
         ConditionExpr::Ref(reference) => out.push(*reference),
@@ -87,8 +106,23 @@ fn capture(target: Target, references: &[ExprRef]) -> Option<Vec<Step>> {
             }
             Some(out)
         }
-        // Guarded templates retain their original coercion behavior, including
-        // user-defined toString. A value-array capture cannot promise that yet.
+        Target::Template(template) => {
+            let mut out = Vec::new();
+            for expression in &template.expressions {
+                // Preserve conversion immediately after each expression,
+                // before evaluating the next one. Complex partial expressions
+                // remain legacy rather than guessing their conversion order.
+                let part = capture(classify_expression(expression), references)?;
+                match part.as_slice() {
+                    [] => (),
+                    [Step::Value(reference)] if *reference == to_expr_ref(expression.span()) => {
+                        out.push(Step::TemplateValue(*reference));
+                    }
+                    _ => return None,
+                }
+            }
+            Some(out)
+        }
         _ => None,
     }
 }

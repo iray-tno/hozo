@@ -56,6 +56,9 @@ impl ClassEvaluation {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClassEvaluationStep {
     Value(ExprRef),
+    /// A template interpolation uses ToString (hint string), not a bare
+    /// value or String(value). In particular, Symbols must still throw.
+    TemplateValue(ExprRef),
     Branch {
         test: ExprRef,
         consequent: Vec<Self>,
@@ -66,7 +69,7 @@ pub enum ClassEvaluationStep {
 impl ClassEvaluationStep {
     fn width(&self) -> usize {
         match self {
-            Self::Value(_) => 1,
+            Self::Value(_) | Self::TemplateValue(_) => 1,
             Self::Branch {
                 consequent,
                 alternate,
@@ -80,7 +83,7 @@ impl ClassEvaluationStep {
 
     fn references(&self, out: &mut Vec<ExprRef>) {
         match self {
-            Self::Value(reference) => out.push(*reference),
+            Self::Value(reference) | Self::TemplateValue(reference) => out.push(*reference),
             Self::Branch {
                 test,
                 consequent,
@@ -99,6 +102,7 @@ impl ClassEvaluationStep {
             |reference: ExprRef| &source[reference.0.start as usize..reference.0.end as usize];
         match self {
             Self::Value(reference) => format!("({})", text(*reference)),
+            Self::TemplateValue(reference) => format!("`${{({})}}`", text(*reference)),
             Self::Branch {
                 test,
                 consequent,

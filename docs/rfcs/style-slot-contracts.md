@@ -97,6 +97,17 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    merely by enclosing a capture correctly.
    Secondary Web CSS asks the real DOM child about disabled/enabled, including
    stacking and negation; it does not expect a marker on the widget root.
+
+   The mixed-ternary increment for #1152 separates guarded templates when
+   every interpolation is wholly compiled or wholly opaque. An emitted
+   capture preserves branch selection and string conversion immediately
+   after each opaque expression (including hint-string conversion and Symbol
+   errors), before evaluating the next one. Only opaque strings reach the
+   candidate tier; compiled pieces do not re-enter it beside the caller.
+   Root/secondary slots share that plan. Partial literals, nested partial
+   template expressions and unsafe root lexical boundaries retain their
+   existing route and diagnostics. UI's local joiners and function-local
+   opaque class selections are separate follow-ups, not fixed by this step.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/
    mixed, shape changes, absent owners, explicit style overrides and status
    gates in matrix fixtures. A decorative label can inherit text styling

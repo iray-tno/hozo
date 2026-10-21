@@ -235,6 +235,27 @@ fn class_expression(
     Some(decomposed)
 }
 
+fn capture_class_expression(
+    expression: &JSXExpression,
+    scope: &Scope,
+    decomposed: &mut dynamic_class::Decomposed,
+) -> Option<hozo_ir::ClassEvaluation> {
+    if let Some(evaluation) = dynamic_class::capture_evaluation(expression, decomposed) {
+        return Some(evaluation);
+    }
+    if !decomposed.guarded_template {
+        return None;
+    }
+    let joiners = dynamic_class::Joiners {
+        module_record: scope.module_record,
+        helpers: scope.class_helpers,
+        constants: scope.constants,
+    };
+    let (replacement, evaluation) = dynamic_class::capture_template_parts(expression, &joiners)?;
+    *decomposed = replacement;
+    Some(evaluation)
+}
+
 /// Finds and lowers Hozo primitives nested inside something the compiler
 /// is only carrying, not reading -- an expression container, or an
 /// unmodeled component's children.
@@ -1255,9 +1276,10 @@ fn build_node(
                             .any(|d| matches!(d.condition, Condition::Expr(_)))
                             && root_capture::can_wrap(el, attr.span)
                         {
-                            if let Some(mut evaluation) = dynamic_class::capture_evaluation(
+                            if let Some(mut evaluation) = capture_class_expression(
                                 &container.expression,
-                                &decomposed,
+                                scope,
+                                &mut decomposed,
                             ) {
                                 for declaration in &mut decomposed.declarations {
                                     if let Condition::Expr(expression) = &mut declaration.condition
@@ -1362,7 +1384,9 @@ fn build_node(
                     .iter()
                     .any(|d| matches!(d.condition, Condition::Expr(_)));
                 let evaluation = guarded
-                    .then(|| dynamic_class::capture_evaluation(&container.expression, &decomposed))
+                    .then(|| {
+                        capture_class_expression(&container.expression, scope, &mut decomposed)
+                    })
                     .flatten();
                 if decomposed.declarations.is_empty() || (guarded && evaluation.is_none()) {
                     props
