@@ -1,3 +1,4 @@
+import { hozoSplitTextStyle } from '@hozo/engine'
 import { type StyleProp, StyleSheet, type TextStyle, type ViewStyle } from 'react-native'
 
 /**
@@ -9,31 +10,8 @@ import { type StyleProp, StyleSheet, type TextStyle, type ViewStyle } from 'reac
  * onto it -- the move the compiler makes for a `View`'s children, done by
  * the component because the compiler never sees the `Text` it draws.
  */
-const TEXT_KEYS = new Set([
-  'color',
-  'fontFamily',
-  'fontSize',
-  'fontStyle',
-  'fontVariant',
-  'fontWeight',
-  'letterSpacing',
-  'lineHeight',
-  'textAlign',
-  'textDecorationColor',
-  'textDecorationLine',
-  'textDecorationStyle',
-  'textShadowColor',
-  'textShadowOffset',
-  'textShadowRadius',
-  'textTransform',
-])
-
 /** `style`, split into what its box draws and what its text does. */
 export function splitTextStyle(style: StyleProp<ViewStyle | TextStyle>): [ViewStyle, TextStyle] {
-  const box: Record<string, unknown> = {}
-  const text: Record<string, unknown> = {}
-  for (const [key, value] of Object.entries(StyleSheet.flatten(style) ?? {})) {
-    ;(TEXT_KEYS.has(key) ? text : box)[key] = value
-  }
+  const [box, text] = hozoSplitTextStyle(StyleSheet.flatten(style) ?? {})
   return [box as ViewStyle, text as TextStyle]
 }
