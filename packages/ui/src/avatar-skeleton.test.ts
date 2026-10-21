@@ -25,7 +25,7 @@ test('an Avatar is a flex box, so its centring classes centre the initials', () 
   }
 })
 
-test('a Skeleton keeps the default corners only when the caller names none', () => {
+test('a Skeleton always declares its resting corners for the compiler to separate from callers', () => {
   const corners = (className?: string) =>
     classOf(
       renderToStaticMarkup(createElement(Skeleton, { className })),
@@ -34,6 +34,9 @@ test('a Skeleton keeps the default corners only when the caller names none', () 
 
   assert.deepEqual(corners(), ['rounded-hozo-control'])
   assert.deepEqual(corners('h-4 w-48'), ['rounded-hozo-control'])
-  assert.deepEqual(corners('size-10 rounded-full'), ['rounded-full'])
-  assert.deepEqual(corners('h-4 md:rounded-none'), ['md:rounded-none'])
+  // This is authored markup, not a computed-style oracle. The compiler
+  // places the default below the caller; the browser composition fixture
+  // checks full and responsive radii in both stylesheet orders.
+  assert.deepEqual(corners('size-10 rounded-full'), ['rounded-hozo-control', 'rounded-full'])
+  assert.deepEqual(corners('h-4 md:rounded-none'), ['rounded-hozo-control', 'md:rounded-none'])
 })

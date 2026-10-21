@@ -60,6 +60,7 @@ const uiCompiler = createCompiler(uiTheme)
 const uiCache = openCandidateCache(path.join(directory, 'ui-candidates.json'))
 const layoutCaller = `${caller} flex flex-col gap-8 items-start`
 const uiCases = [
+  ['skeleton', 'Skeleton', ['className']],
   [
     'avatar',
     'Avatar',
@@ -111,6 +112,15 @@ const uiCases = [
   return { file, name, slots, source, variants, classes }
 })
 uiCache.scanFile('caller.ts', JSON.stringify(layoutCaller), 1)
+const radiusCandidates = [
+  'size-10',
+  'h-4',
+  'rounded-full',
+  'md:rounded-none',
+  'md:rounded-full',
+  'rounded-hozo-control',
+]
+uiCache.scanFile('radius-callers.ts', JSON.stringify(radiusCandidates.join(' ')), 1)
 const uiCandidates = uiCache.renderCss(uiTheme)
 const { hozoClasses: resolveUiClasses } = evaluate(
   uiCache.renderNativeModule(uiTheme).replace(/^import .*$/gm, ''),
@@ -132,6 +142,10 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
       [name]: name,
       [`Hozo${name}`]: name,
       View: 'View',
+      Animated: { View: 'AnimatedView' },
+      // Scheduling/motion delivery are not measured by this style probe.
+      useHozoAnimation: () => undefined,
+      useHozoEnvironment: () => false,
       StyleSheet: { create: (styles) => styles },
       useHozoDark: () => false,
       hozoSpreadStyles,
@@ -140,7 +154,10 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
         return resolveUiClasses(classes, state)
       },
     }
-    const moduleFrom = (code) => evaluate(code.replace(/^import .*$/gm, ''), context)[name]
+    const moduleFrom = (code) => {
+      const exported = evaluate(code.replace(/^import .*$/gm, ''), context)
+      return exported[name] ?? exported[`Hozo${name}`]
+    }
     const webComponent = moduleFrom(web.code)
     const nativeComponent = moduleFrom(native)
     const authoredComponent = moduleFrom(source)
@@ -332,6 +349,67 @@ after(async () => {
   await browser?.close()
   // Only this test's exact mkdtemp directory is owned here.
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('Skeleton resting corners survive outside a caller breakpoint and lose inside it', {
+  skip: !executablePath,
+}, async () => {
+  const { source } = uiCases.find((entry) => entry.name === 'Skeleton')
+  const web = lowerModule(source, 'skeleton.tsx', 'skeleton.tsx', uiCompiler, '')
+  assert.ok(web)
+  const { HozoSkeleton } = evaluate(web.code.replace(/^import .*$/gm, ''), {
+    cx,
+    h: (_type, props) => props,
+    Skeleton: 'Skeleton',
+    View: 'View',
+  })
+  // Force the default's candidate rule after the callers: leaking it back
+  // into that tier must visibly break the full/desktop radii below.
+  const css = uiCache.renderCss(uiTheme, radiusCandidates)
+  const page = await browser.newPage()
+  const read = () =>
+    page
+      .locator('div')
+      .evaluate((element) => parseFloat(getComputedStyle(element).borderTopLeftRadius))
+  try {
+    for (const className of [
+      undefined,
+      'size-10 rounded-full',
+      'h-4 md:rounded-none',
+      'h-4 md:rounded-full',
+    ]) {
+      const props = HozoSkeleton({ className })
+      for (const width of [375, 1024]) {
+        await page.setViewportSize({ width, height: 400 })
+        const round =
+          className?.includes('rounded-full') && (!className.includes('md:') || width >= 768)
+        const expected = width >= 768 && className?.includes('md:rounded-none') ? 0 : 8
+        for (const sheets of [
+          [web.css, css],
+          [css, web.css],
+        ]) {
+          await page.setContent(
+            `${sheets.map((value) => `<style>${value}</style>`).join('')}<div class="${props.className}">Loading</div>`,
+          )
+          const actual = await read()
+          if (round) assert.ok(actual >= 20, `${className} at ${width}: full radius`)
+          else assert.equal(actual, expected, `${className} at ${width}: resting/responsive radius`)
+          if (round || expected === 0) {
+            await page
+              .locator('div')
+              .evaluate((element) => element.classList.add('rounded-hozo-control'))
+            assert.equal(
+              await read(),
+              8,
+              'reintroducing the default candidate must expose the original leak',
+            )
+          }
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
 })
 
 for (const host of ['View', 'Text', 'Chip root', 'Chip remove']) {

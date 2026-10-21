@@ -18,30 +18,23 @@
  * put `aria-busy` on it until the content arrives.
  */
 
-import { Skeleton, View } from '@hozo/core'
+import { cx, Skeleton, View } from '@hozo/core'
 
 export interface HozoSkeletonProps {
   /** The placeholder's size and shape: `h-4 w-48`, `size-10 rounded-full`. */
   className?: string
 }
 
-const shape = 'relative overflow-hidden'
 const corners = 'relative overflow-hidden rounded-hozo-control'
 const pulse = 'absolute inset-0 bg-hozo-surface-raised motion-safe:animate-pulse'
 
-// Whether the caller chose the corners. With both lists on one element, the
-// winner is decided by the order of the rules in the stylesheet, not by the
-// order of the words in `className` -- and on the Web the default won, so
-// `size-10 rounded-full` drew a rounded square. The default corners are
-// added only when the caller's list names none.
-const choosesCorners = (className: string) =>
-  className.split(/\s+/).some((name) => /^rounded(-|$)/.test(name.slice(name.lastIndexOf(':') + 1)))
-
 // Not named `Skeleton` here: that is the semantic component this draws.
 function StyledSkeleton({ className }: HozoSkeletonProps) {
-  const own = className && choosesCorners(className) ? shape : corners
   return (
-    <Skeleton className={className ? `${own} ${className}` : own}>
+    // The default is a compiled resting declaration, below caller classes.
+    // Do not inspect their text: a responsive radius must not erase the
+    // default at every other breakpoint (#1152).
+    <Skeleton className={cx(corners, className)}>
       <View className={pulse} />
     </Skeleton>
   )
