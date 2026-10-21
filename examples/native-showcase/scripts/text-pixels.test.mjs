@@ -114,24 +114,27 @@ function harness(mutate = () => {}) {
   return { evidence, driver, actions, captures }
 }
 
-test('the driver measures all 56 states, comparisons and mount retention without self-certified callbacks', async () => {
+test('the driver measures all 70 states, comparisons and mount retention without self-certified callbacks', async () => {
   const { evidence, driver, actions } = harness()
   await exerciseTextInheritance(driver, evidence)
   assert.equal(evidence.textInheritance.passed, true)
-  assert.equal(evidence.textInheritance.phases.length, 56)
-  assert.equal(evidence.textInheritance.comparisons.length, 94)
-  assert.equal(actions.length, 70)
+  assert.equal(evidence.textInheritance.phases.length, 70)
+  assert.equal(evidence.textInheritance.comparisons.length, 121)
+  assert.equal(actions.length, 84)
   assert.deepEqual(evidence.textInheritance.modes, [
     'ordinary',
     'reference',
     'optimized',
     'production',
+    'production-static',
   ])
   assert.ok(
     evidence.textInheritance.phases.every((phase) => phase.passed && phase.captures.length === 1),
   )
   assert.equal(actions.filter((label) => label === 'Change ancestor').length, 3)
-  assert.equal(actions.filter((label) => label.startsWith('Show ')).length, 56)
+  assert.equal(actions.filter((label) => label.startsWith('Show ')).length, 70)
+  assert.equal(evidence.textInheritance.comparisons.filter((c) => c.equal).length, 111)
+  assert.equal(evidence.textInheritance.comparisons.filter((c) => !c.equal).length, 10)
   assert.ok(
     evidence.textInheritance.comparisons.some(
       (comparison) =>
@@ -147,6 +150,16 @@ test('wrong pixels, ignored changes, remounts and stale mode markers abort at th
     },
     (sample, state) => {
       if (state.mode === 'production') sample.image.data[0]--
+    },
+    (sample, state) => {
+      if (state.mode === 'production-static') sample.image.data[0]--
+    },
+    (sample, state) => {
+      if (state.mode === 'production-static' && state.changed)
+        sample.label = `${state.mode} mount 2 tick ${state.tick}`
+    },
+    (sample, state) => {
+      if (state.mode === 'production-static') sample.frame.valid = false
     },
     (sample, state) => {
       if (state.kind === 'runtime' && state.changed) sample.image = image()
@@ -167,7 +180,7 @@ test('wrong pixels, ignored changes, remounts and stale mode markers abort at th
     assert.equal(evidence.checks, undefined)
     assert.equal(evidence.textInheritance.phases.at(-1).passed, false)
     assert.equal(evidence.textInheritance.phases.at(-1).captures.length, 1)
-    assert.ok(actions.length < 70, 'no later phases or successful retries')
+    assert.ok(actions.length < 84, 'no later phases or successful retries')
   }
   const failure = new Error('ambiguous tap')
   const state = harness()
@@ -203,7 +216,7 @@ test('Android text rendering is opt-in, source-bound and retained separately wit
 })
 
 test('opaque-only missing inheritance, ignored overrides/removal and state loss cannot pass earlier successful cases', async () => {
-  for (const mode of ['optimized', 'production']) {
+  for (const mode of ['optimized', 'production', 'production-static']) {
     for (const [phase, mutate] of [
       [
         'ancestor',
@@ -234,13 +247,13 @@ test('opaque-only missing inheritance, ignored overrides/removal and state loss 
         if (state.kind === 'opaque' && state.mode === mode) mutate(sample, state)
       })
       await assert.rejects(exerciseTextInheritance(driver, evidence))
-      assert.ok(evidence.textInheritance.phases.slice(0, 32).every((item) => item.passed))
+      assert.ok(evidence.textInheritance.phases.slice(0, 40).every((item) => item.passed))
       assert.equal(evidence.textInheritance.phases.at(-1).kind, 'opaque')
       assert.equal(evidence.textInheritance.phases.at(-1).phase, phase)
       assert.equal(evidence.textInheritance.phases.at(-1).passed, false)
       assert.equal(evidence.textInheritance.passed, false)
       assert.equal(evidence.checks, undefined)
-      assert.ok(actions.length < 70)
+      assert.ok(actions.length < 84)
     }
   }
 })

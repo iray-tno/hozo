@@ -5,7 +5,7 @@ import test from 'node:test'
 import { PNG } from 'pngjs'
 import { reviewTextCapture } from './review-text-evidence.mjs'
 
-function fixture(platform, scale = 1) {
+function fixture(platform, scale = 1, mode = 'production') {
   const png = new PNG({ width: 300 * scale, height: 180 * scale })
   png.data.fill(255)
   const fill = ([x, y, width, height], rgb) => {
@@ -15,7 +15,8 @@ function fixture(platform, scale = 1) {
   }
   fill([10, 50, 10, 10], [17, 17, 17])
   fill([20, 50, 10, 10], [19, 85, 187])
-  fill([10, 20, 32, 12], [160, 32, 192])
+  const color = mode === 'production-static' ? [208, 112, 0] : [160, 32, 192]
+  fill([10, 20, 32, 12], color)
   const points = [10, 50, 250, 90],
     marker = [10, 20, 42, 32]
   const bounds = points.map((v) => v * scale)
@@ -28,7 +29,7 @@ function fixture(platform, scale = 1) {
     ),
   )
   const capture = {
-    label: 'production mount 1 tick 0',
+    label: `${mode} mount 1 tick 0`,
     mount: 1,
     bounds,
     width: 240 * scale,
@@ -42,8 +43,8 @@ function fixture(platform, scale = 1) {
     },
     frame: {
       bounds: marker.map((v) => v * scale),
-      rgb: [160, 32, 192],
-      expected: [160, 32, 192],
+      rgb: [...color],
+      expected: [...color],
       valid: true,
     },
     ...(platform === 'ios'
@@ -58,12 +59,12 @@ function fixture(platform, scale = 1) {
             frame: { x: 0, y: 0, width: 300, height: 180 },
             children: [
               { AXLabel: capture.label, frame: { x: 10, y: 50, width: 240, height: 40 } },
-              { AXLabel: 'Text frame production', frame: { x: 10, y: 20, width: 32, height: 12 } },
+              { AXLabel: `Text frame ${mode}`, frame: { x: 10, y: 20, width: 32, height: 12 } },
             ],
           },
         ])
-      : `<hierarchy><node content-desc="${capture.label}" bounds="[10,50][250,90]"/><node content-desc="Text frame production" bounds="[10,20][42,32]"/></hierarchy>`
-  const phase = { kind: 'static', mode: 'production', changed: false, tick: 0 }
+      : `<hierarchy><node content-desc="${capture.label}" bounds="[10,50][250,90]"/><node content-desc="Text frame ${mode}" bounds="[10,20][42,32]"/></hierarchy>`
+  const phase = { kind: 'static', mode, changed: false, tick: 0 }
   return { png, capture, phase, ax }
 }
 
@@ -73,11 +74,17 @@ test('offline review independently reads Android pixels and iOS 2x/3x AX coordin
     ['ios', 2],
     ['ios', 3],
   ]) {
-    const f = fixture(platform, scale)
-    const result = reviewTextCapture(platform, f.phase, f.capture, PNG.sync.write(f.png), f.ax)
-    assert.equal(result.width, 240 * scale)
-    assert.equal(result.height, 40 * scale)
-    assert.equal(result.mount, 1)
+    for (const mode of ['production', 'production-static']) {
+      const f = fixture(platform, scale, mode)
+      const result = reviewTextCapture(platform, f.phase, f.capture, PNG.sync.write(f.png), f.ax)
+      assert.equal(result.width, 240 * scale)
+      assert.equal(result.height, 40 * scale)
+      assert.equal(result.mount, 1)
+      f.capture.frame.expected = [223, 32, 32]
+      assert.throws(() =>
+        reviewTextCapture(platform, f.phase, f.capture, PNG.sync.write(f.png), f.ax),
+      )
+    }
   }
 })
 

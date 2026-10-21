@@ -541,23 +541,29 @@ separate checks. The harness setup itself establishes none of those results.
 ### Native text inheritance comparison (experimental)
 
 Select `Diagnostics/Text inheritance/Comparison`
-(`diagnostics-text-inheritance--comparison`). Four mounted panels compare real
+(`diagnostics-text-inheritance--comparison`). Five mounted panels compare real
 compiled labels: ordinary RN Text, the private RFC 006 Context reference,
 the binding selected by the existing private static proof, and the production
-Text/View ABI from #1120. The production factory keeps its actual compiler/Metro
+Text/View runtime ABI from #1120, plus the production static selection from
+#1139. Both production factories keep their actual compiler/Metro
 imports; it does not receive an injected reference Text. Its owners use the
-shipped View helper and independent engine contexts, with no static erasure.
+shipped View helper and independent engine contexts. `production` remains
+runtime-only. `production-static` uses the additional internal `textStatic`
+selection: a proved complete Text root uses RN directly; missing proof keeps
+the exact runtime output. Route classification compares actual compiler
+outputs, not case names or the private proof.
 The private optimized static case can use
 RN's built-in nested-Text inheritance; the runtime-style case must retain
 the Context fallback. The opaque case adds a separately compiled memo/View
-wrapper: reference/optimized/production receive no frame/style prop, while the ordinary control uses the
+wrapper: reference/optimized/both production panels receive no frame/style prop, while the ordinary control uses the
 explicitly styled runtime label. Its distinct source is recorded in the manifest.
 Ordinary compilation and full/release scenarios do not enable the protocol
-by default. Manifest v2 fingerprints all twelve production leaf/source
-dependencies plus the actual per-case compiled output separately from the
-private reference and proof.
+by default. Manifest v3 retains the twelve production leaf/source hashes,
+adds eleven compiler/proof selection-input hashes and fingerprints both
+production compiled outputs per case, separately from the private proof.
+The run/source commit pins the complete checkout beyond those explicit inputs.
 
-Use `Show ordinary/reference/optimized/production` to reveal each panel at the same
+Use `Show ordinary/reference/optimized/production/production-static` to reveal each panel at the same
 position. Hidden panels remain mounted; an external mode-color marker lets
 the screenshot driver verify actual presentation independently of AX.
 Within a case, change the ancestor, update the label and restore; mount IDs
@@ -579,9 +585,9 @@ Details and remaining device evidence:
 
 Select `platform=android`, `android-scenario=text-inheritance`, diagnostics off,
 with no reused build, for the opt-in screenshot driver (#1102/#1112). It retains
-32 static/runtime observations and 24 opaque observations, including
-local override application/removal: 56 states / 94 intended comparisons /
-70 actions across all four bindings. AX provides actual Text
+40 static/runtime observations and 30 opaque observations, including
+local override application/removal: 70 states / 121 intended comparisons /
+84 actions across all five bindings. AX provides actual Text
 bounds and mount IDs. A screenshot must also show the current mode marker,
 source-colored root/nested ink and white background. It then requires exact
 same-device crop pixels and dimensions between bindings, static shielding,
@@ -616,11 +622,13 @@ The [first dedicated iOS measurement](../../docs/measurements/native-text-inheri
 also reviewed the original 24 states and archive/bundle hashes. Neither that
 sample nor the Android sample certifies the expanded opaque/production cases.
 The separate [production review](../../docs/measurements/native-text-inheritance-production.md)
-now checks the new 56-state four-panel run on each OS, including the opaque
+checks the previous 56-state four-panel run on each OS, including the opaque
 boundary, actual binary hashes and independent raw PNG/AX recomputation.
 `scripts/review-text-evidence.mjs` reproduces that offline check; the report
-lists its commands, visual subset and limits. No performance, default
-production fallback or production static-erasure claim follows.
+lists its commands, visual subset and limits. That historical run does not
+certify this new five-panel fixture or production static selection; fresh
+Android/iOS builds and raw review are required. No performance, default
+production fallback or ADR acceptance follows.
 
 Manual checks on both platforms: select every story; toggle `disabled`; press
 and reset the counter; type/save a name; open/close the keyboard; assemble and

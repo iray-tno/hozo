@@ -907,3 +907,45 @@ The reviewed four-panel device fixture is intentionally unchanged and still
 uses the runtime-only production selection. A new production static-path
 device comparison, broader integration and physical-device performance
 review remain before any default rollout or ADR acceptance.
+
+## Production static-path Native comparison preparation
+
+Follow-up: [#1146](https://github.com/iray-tno/hozo/issues/1146). The isolated
+story retains the four earlier controls and adds `production-static`, built
+by the actual `{ textInheritance: true, textStatic: true }` compiler/Metro
+call. Its factory takes no replacement Text. A hygienic alias of the real
+RN namespace export retains the compiled plain Text binding without asking
+ordinary Metro to lower the already-compiled factory a second time. The
+generated module must remain byte-identical through that ordinary transform;
+neither a skip pragma nor a compiler-policy change is used.
+
+The preparation classifies the fifth result from actual emitted code: it
+must be exactly the ordinary result or exactly the runtime-only production
+result. Any third result fails preparation. Removing a required root field
+must resume the runtime route. Manifest v3 keeps the runtime leaf graph and
+adds explicit selection/proof input hashes and the per-case fifth output
+hash/route. A source-bound run still pins the whole repository; these named
+inputs are not a claim to enumerate every transitive compiler dependency.
+Turbo's Native test inputs include the newly read Rust files.
+
+Mock-host tests observe zero inherited Text helpers in the fifth static
+panel and two when its runtime proof fails. Both production panels retain
+their shipped View owners. The opaque wrapper receives no frame/style prop;
+ancestor changes and local override/removal must propagate through its memo
+bailout with unchanged label state/callback identities. The reference remains
+independent. UI control text is compacted to fit five mode controls; target
+Text styles and exact comparison thresholds are unchanged.
+
+The shared image driver now requires **70 states / 121 comparisons / 84
+acknowledged actions**, including 111 exact equalities and ten intended
+ancestor changes. The fifth marker has a distinct orange color. A fifth-only
+pixel, marker, remount or opaque inheritance/override failure must abort and
+retain evidence even after all earlier panels passed. Offline review handles
+v2 and v3 with their own fixed denominators, never counting a historical
+four-panel run as new static-path evidence.
+
+Preparation and synthetic rejection checks are not Native results. The
+reviewed four-panel run remains historical; this new source needs fresh
+Android/iOS binaries and independent raw PNG/AX/archive review. Full/release
+scenarios, ordinary lowering and the runtime-only control selection remain
+unchanged. This does not assess physical-device performance or accept an ADR.

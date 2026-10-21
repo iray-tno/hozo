@@ -19,6 +19,7 @@ function capture(scale, mode = 'ordinary', changed = false) {
     reference: [32, 160, 64],
     optimized: [48, 64, 223],
     production: [160, 32, 192],
+    'production-static': [208, 112, 0],
   }[mode]
   for (let y = 0; y < png.height; y++)
     for (let x = 0; x < png.width; x++) {
@@ -51,7 +52,7 @@ test('iOS keeps AX points and Retina pixels separate without normalizing glyph i
     assert.equal(ordinary.bounds[0], Math.ceil(16.5 * scale))
     assert.equal(ordinary.frame.valid, true)
     assert.equal(textInk(ordinary.image, false).valid, true)
-    for (const mode of ['reference', 'optimized', 'production']) {
+    for (const mode of ['reference', 'optimized', 'production', 'production-static']) {
       const next = capture(scale, mode)
       const actual = iosTextCapture(next.buffer, next.node, next.marker, next.screen, mode)
       assert.equal(actual.frame.valid, true)
@@ -117,8 +118,8 @@ test('fresh Simulator provenance rejects old/changed archives, rebundles, diagno
   assert.throws(() => iosTextProvenance(parent, '123', build, archive, Buffer.alloc(0)))
 })
 
-test('the shared 56-state driver consumes Retina crops and preserves failed iOS observations', async () => {
-  for (const brokenMode of [undefined, 'optimized', 'production']) {
+test('the shared 70-state driver consumes Retina crops and preserves failed iOS observations', async () => {
+  for (const brokenMode of [undefined, 'optimized', 'production', 'production-static']) {
     let kind = 'static',
       changed = false,
       tick = 0,
@@ -164,12 +165,15 @@ test('the shared 56-state driver consumes Retina crops and preserves failed iOS 
     if (brokenMode) {
       await assert.rejects(exerciseTextInheritance(driver, evidence), /Text differs/)
       assert.equal(evidence.textInheritance.passed, false)
-      assert.equal(evidence.textInheritance.phases.length, brokenMode === 'production' ? 4 : 3)
+      assert.equal(
+        evidence.textInheritance.phases.length,
+        { optimized: 3, production: 4, 'production-static': 5 }[brokenMode],
+      )
       assert.equal(evidence.textInheritance.phases.at(-1).passed, false)
       assert.equal(evidence.checked, undefined)
     } else {
       await exerciseTextInheritance(driver, evidence)
-      assert.equal(evidence.textInheritance.phases.length, 56)
+      assert.equal(evidence.textInheritance.phases.length, 70)
       assert.ok(
         evidence.textInheritance.phases.every(
           (phase) => phase.captures[0].screenBounds && phase.captures[0].pointBounds,
