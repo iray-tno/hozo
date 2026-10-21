@@ -370,3 +370,55 @@ export function createResponderDomProps<T extends HTMLElement>(
     onLostPointerCapture,
   }
 }
+
+/** The responder props by name, for a caller that has them in an untyped bag. */
+export const RESPONDER_PROPS = [
+  'onStartShouldSetResponder',
+  'onStartShouldSetResponderCapture',
+  'onMoveShouldSetResponder',
+  'onMoveShouldSetResponderCapture',
+  'onResponderGrant',
+  'onResponderStart',
+  'onResponderMove',
+  'onResponderEnd',
+  'onResponderRelease',
+  'onResponderReject',
+  'onResponderTerminate',
+  'onResponderTerminationRequest',
+] as const satisfies readonly (keyof ResponderProps)[]
+
+const latestResponderProps = new WeakMap<HTMLElement, { current: ResponderProps }>()
+
+/**
+ * The responder without a hook, for a spread translated during render (#1126).
+ *
+ * `useResponderDomProps` keeps the latest props in a ref and releases the
+ * pointer in an effect. A compiled element's spread has neither, so the
+ * element it lands on holds the latest props instead: `attach` (from a
+ * callback ref) records them against the element, and the handlers read
+ * them from there, so a re-render during a gesture does not leave the
+ * registration with the props of the render that began it. `release`, when
+ * the element goes, is the hook's effect cleanup.
+ */
+export function createSpreadResponder(props: ResponderProps) {
+  const elementRef: { current: HTMLElement | null } = { current: null }
+  const propsRef = {
+    get current(): ResponderProps {
+      const element = elementRef.current
+      return (element && latestResponderProps.get(element)?.current) || props
+    },
+  }
+  return {
+    handlers: createResponderDomProps(elementRef, propsRef),
+    attach(element: HTMLElement) {
+      elementRef.current = element
+      const box = latestResponderProps.get(element)
+      if (box) box.current = props
+      else latestResponderProps.set(element, { current: props })
+    },
+    release(element: HTMLElement) {
+      latestResponderProps.delete(element)
+      if (activeResponder?.element === element) releaseRegistration(activeResponder.props)
+    },
+  }
+}

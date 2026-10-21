@@ -35,10 +35,12 @@ export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.ts'
 export { externalLinkAttributes } from './external-link.ts'
 export { hozoInteractive } from './interactive.ts'
 export {
+  createSpreadResponder,
   type HozoResponderEvent,
   type HozoResponderTouch,
   type HozoTouchHistory,
   type HozoTouchTrack,
+  RESPONDER_PROPS,
   type ResponderProps,
   useResponderDomProps,
 } from './responder.ts'

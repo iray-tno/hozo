@@ -15,10 +15,18 @@
 // does not hold are not set, because explicit attributes the compiler wrote
 // before the spread must survive it.
 //
-// `onLayout` and the responder props are not here: they need the element and
-// an effect, which a function called during render does not have.
+// `onLayout` and the responder props need the element and an effect, which a
+// function called during render does not have (#1126). So when the spread
+// carries one, the translation adds a callback ref: it is handed the element,
+// and the cleanup React 19 runs when the element goes is the effect's.
 
-import { type HozoDomStyle, hozoDomStyle } from '@hozo/engine'
+import {
+  createSpreadResponder,
+  type HozoDomStyle,
+  hozoDomStyle,
+  RESPONDER_PROPS,
+  type ResponderProps,
+} from '@hozo/engine'
 
 type Props = Record<string, unknown>
 type State = {
@@ -42,6 +50,99 @@ const UNIVERSAL = new Set([
   'style',
   'testID',
 ])
+
+type LayoutEvent = {
+  nativeEvent: { layout: { x: number; y: number; width: number; height: number } }
+}
+type Attached = {
+  onLayout?: (event: LayoutEvent) => void
+  observer?: ResizeObserver
+  previous: string
+  // Set by the cleanup, cleared when the element is attached again.
+  leaving: boolean
+}
+
+// Per element, not per render: the ref is a new function each render, so
+// React detaches the old one and attaches the new to the same element. The
+// observer survives that, and so does the last layout reported -- as with
+// the uncompiled View, `onLayout` fires when the layout changes, not on
+// every render.
+const attached = new WeakMap<HTMLElement, Attached>()
+
+function observe(element: HTMLElement, state: Attached) {
+  const emit = () => {
+    const rect = element.getBoundingClientRect()
+    const layout = {
+      x: element.offsetLeft,
+      y: element.offsetTop,
+      width: rect.width,
+      height: rect.height,
+    }
+    const key = `${layout.x}:${layout.y}:${layout.width}:${layout.height}`
+    if (key === state.previous) return
+    state.previous = key
+    state.onLayout?.({ nativeEvent: { layout } })
+  }
+  emit()
+  if (typeof ResizeObserver === 'undefined') return
+  state.observer = new ResizeObserver(emit)
+  state.observer.observe(element)
+}
+
+type ElementRef =
+  | ((node: HTMLElement | null) => undefined | (() => void))
+  | { current: unknown }
+  | null
+  | undefined
+
+/** The callback ref that gives a translated spread its element, or none when it needs none. */
+function elementRef(source: Props):
+  | (((node: HTMLElement | null) => (() => void) | undefined) & {
+      responder?: ReturnType<typeof createSpreadResponder>
+    })
+  | undefined {
+  const onLayout = source.onLayout as Attached['onLayout']
+  const responderProps: ResponderProps = {}
+  for (const name of RESPONDER_PROPS) {
+    if (Object.hasOwn(source, name)) (responderProps as Props)[name] = source[name]
+  }
+  const responder =
+    Object.keys(responderProps).length > 0 ? createSpreadResponder(responderProps) : undefined
+  if (!onLayout && !responder) return undefined
+  const forwarded = source.ref as ElementRef
+  return Object.assign(
+    (node: HTMLElement | null) => {
+      if (!node) return undefined
+      let state = attached.get(node)
+      if (!state) {
+        state = { previous: '', leaving: false }
+        attached.set(node, state)
+      }
+      state.leaving = false
+      state.onLayout = onLayout
+      if (onLayout && !state.observer) observe(node, state)
+      responder?.attach(node)
+      let release: (() => void) | undefined
+      if (typeof forwarded === 'function') release = forwarded(node)
+      else if (forwarded) forwarded.current = node
+      const current = state
+      return () => {
+        if (typeof release === 'function') release()
+        else if (typeof forwarded === 'function') forwarded(null)
+        else if (forwarded) forwarded.current = null
+        // Not yet: a re-render detaches and reattaches the same element.
+        current.leaving = true
+        queueMicrotask(() => {
+          if (!current.leaving) return
+          current.observer?.disconnect()
+          attached.delete(node)
+          responder?.release(node)
+        })
+      }
+    },
+    { responder },
+  )
+}
 
 function translate(source: Props, consumed: Set<string>): Props {
   const has = (name: string) => Object.hasOwn(source, name)
@@ -76,6 +177,15 @@ function translate(source: Props, consumed: Set<string>): Props {
     out['aria-valuetext'] = value?.text
   }
   if (has('style')) out.style = hozoDomStyle(source.style as HozoDomStyle)
+
+  const ref = elementRef(source)
+  if (ref) {
+    out.ref = ref
+    delete out.onLayout
+    for (const name of RESPONDER_PROPS) delete out[name]
+    // The pointer handlers the responder needs, after any the spread named.
+    Object.assign(out, ref.responder?.handlers)
+  }
   return out
 }
 
@@ -87,8 +197,8 @@ export function hozoViewDomProps<T>(props: T): T {
 
 const IMAGE = new Set([...UNIVERSAL, 'defaultSource', 'src'])
 
-// The uncompiled Image's resolution, minus the fallback to `defaultSource`
-// after a load error: that needs state, and this runs during render.
+// The uncompiled Image's resolution. Its fallback to `defaultSource` after a
+// load error is state there; here it is the `onError` below.
 function webSource(source: Source): string | undefined {
   if (typeof source === 'string') return source
   if (!source || typeof source !== 'object') return undefined
@@ -121,6 +231,17 @@ export function hozoImageDomProps<T>(props: T): T {
   if (Object.hasOwn(source, 'accessibilityLabel')) {
     delete out['aria-label']
     if (!Object.hasOwn(source, 'alt')) out.alt = source.accessibilityLabel
+  }
+  // A `src` that fails to load falls back to `defaultSource`, as it does
+  // uncompiled (#1126). Set on the element rather than kept in state: the
+  // next render writes the same `src` prop, which React leaves alone.
+  const fallback = webSource(source.defaultSource as Source)
+  if (fallback && webSource(source.src as Source)) {
+    const onError = source.onError as ((event: unknown) => void) | undefined
+    out.onError = (event: { currentTarget: HTMLImageElement }) => {
+      if (event.currentTarget.getAttribute('src') !== fallback) event.currentTarget.src = fallback
+      onError?.(event)
+    }
   }
   return out as T
 }
