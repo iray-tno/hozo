@@ -29,4 +29,9 @@ export function HozoForm(props: HozoFormProps) {
   return <FormBase {...props} className={form} />
 }
 
+// The one way a `Button` submits the form it is in, since a Button is not a
+// `<button type="submit">`. Re-exported so this package's Form is usable
+// without installing `@hozo/form` beside it.
+export { useFormSubmit } from '@hozo/form'
+
 export { HozoForm as Form, type HozoFormProps as FormProps }

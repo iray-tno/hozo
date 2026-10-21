@@ -13,9 +13,13 @@ import { Stepper, type StepperProps } from '@hozo/core'
 export type HozoStepperProps = StepperProps
 
 const list = 'flex flex-col gap-3 text-sm text-hozo-text-body'
-const step = 'flex-row items-center gap-3 rounded-hozo-control'
+// `flex` on the step and the indicator because the Web elements are an
+// `<li>`, a `<button>` and a `<span>`, where `gap-3`, `size-7` and the
+// centring do nothing on their own; a Native View is flex already, so the
+// lists looked right there and nowhere else.
+const step = 'flex flex-row items-center gap-3 rounded-hozo-control'
 const indicator =
-  'size-7 items-center justify-center rounded-full border-2 border-hozo-border-strong text-xs font-medium text-hozo-text-subtle'
+  'flex size-7 shrink-0 items-center justify-center rounded-full border-2 border-hozo-border-strong text-xs font-medium text-hozo-text-subtle'
 const indicatorDone = 'border-hozo-accent bg-hozo-accent text-hozo-on-accent'
 const indicatorCurrent = 'border-hozo-accent text-hozo-accent-text'
 const indicatorError = 'border-hozo-danger bg-hozo-danger text-hozo-on-danger'
