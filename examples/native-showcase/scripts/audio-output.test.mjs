@@ -212,7 +212,7 @@ test('audio diagnosis is isolated, capture-enabled and does not change full/SVG 
   )
   assert.match(
     workflow,
-    /options: \[full, svg-filters, audio-output, audio-settings, text-inheritance\]/,
+    /options: \[full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs\]/,
   )
   assert.match(
     workflow,
