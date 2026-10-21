@@ -15,6 +15,24 @@ plan for static, dynamic and mixed input. Neither should resolve an opaque
 string before its actual owner can supply state. Authored expressions must
 not be moved inside event callbacks or evaluated more often than before.
 
+### Own/caller provenance is also a text-integration prerequisite
+
+[#1152](https://github.com/iray-tno/hozo/issues/1152) exposes a composition
+gap even when the runtime candidate owner is correct: retained whole ternaries
+and opaque local helpers can place the component's own classes at the caller's
+tier too. Root and secondary decomposition must preserve the source boundary
+and [decision 009](../decisions/009-a-callers-class-sits-between-rest-and-state.md),
+without re-evaluating author code or inventing provenance for an opaque string.
+A known UI joiner can reuse the verified joiner contract rather than demand
+general function-body analysis. Fixing one component's default classes is not
+acceptance for the shared route.
+
+[RFC 006's inheritance protocol](006-native-text-inheritance.md#composition-correctness-precedes-inheritance-correctness)
+consumes the owner's resolved declarations; it does not repair their cascade.
+Keep cross-platform own/caller/state/explicit-style tests at this shared layer,
+and test text propagation separately against their independent expected result.
+An inherited value carries no parent specificity or interaction ownership.
+
 ## First slice: canonical build-time metadata
 
 `scripts/style-slots/catalog.mjs` inventories top-level class props of every

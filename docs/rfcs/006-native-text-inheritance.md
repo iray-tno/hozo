@@ -147,6 +147,39 @@ fields they actually declare. Pattern label scopes are declared at their
 actual internal owners, not around an entire widget including unrelated
 controls, icons, inputs and popup content.
 
+### Composition correctness precedes inheritance correctness
+
+[#1152](https://github.com/iray-tno/hozo/issues/1152) is an upstream composition
+dependency, not a defect this Context protocol can repair. A component's own
+classes can leak back into the candidate sheet beside the caller's classes
+when a mixed ternary is retained whole; an opaque local joiner can send both
+lists there without any AOT separation. Native and Web may then disagree
+about the owner's own declaration before any child inherits it. Passing that
+wrong value faithfully through Context is not end-to-end equivalence.
+
+Keep the stages separate: existing slot/candidate machinery establishes the
+owner's own declarations using [decision 009](../decisions/009-a-callers-class-sits-between-rest-and-state.md)
+(resting look, caller, element state, then explicit style); the inheritance
+protocol merges inherited values **before** those own declarations and
+publishes the effective seven-field frame. It does not receive class strings,
+re-sort sources, merge Tailwind conflicts, or introduce another resolver.
+The parent's winning state color is inherited data, not a priority or state
+predicate: a child's own color still overrides it.
+
+Repair the class provenance/decomposition in the shared style-slot route,
+not in Typography or a per-widget Context adapter. For Hozo-owned joiners,
+prefer an already verified joiner or shared decomposition rather than adding
+arbitrary function-body interpretation to this text project. Preserve authored
+evaluation count/order and AOT/runtime coverage; do not infer own/caller
+provenance from a fully opaque returned string or an identifier's spelling.
+
+Isolated passive Native integration with independently specified resolved
+styles can proceed behind the internal opt-in. Mixed-class Web/Native owner
+parity and default rollout cannot be certified while #1152 remains unresolved.
+The five-panel device report covers explicit resolved frames and fixed class
+roots, not this own/caller composition boundary; its bounded results remain
+valid without claiming to have tested that boundary.
+
 Inherited resolved color is data, not an inherited interaction predicate.
 It must not make a decorative Text hoverable/focusable, grant unsupported
 conditions, or let a nested control borrow an outer control's own events.
@@ -233,6 +266,15 @@ Correctness fixtures must cover:
   semantic defaults, preflight, theme/breakpoint and nested relative sizes.
 - All seven initial properties separately and together; intermediate Text
   overrides; mixed static/dynamic classes and single authored evaluation.
+- Own resting typography, caller overrides, owner state and explicit style
+  must first resolve consistently on the same Web/Native owner (#1152).
+  Cover separated templates, mixed ternaries and the joiner shapes actually
+  shipped by UI, root and secondary slots, color/size/weight conflicts, and
+  removing overrides. Then assert opaque descendants inherit that independently
+  expected result while their own declarations still win. Use real computed
+  Web styles under both CSS load orders and generated Native owner output;
+  codegen-only checks or agreement between two Context implementations cannot
+  certify the composition stage.
 - Ordinary nested RN Text as a control, and explicit raw third-party
   boundaries with no false compatibility claim.
 - Hover/press/focus/disabled typography with the existing owner machine;
