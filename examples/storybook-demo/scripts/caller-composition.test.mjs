@@ -58,7 +58,23 @@ const uiTheme = await loadTheme(
 )
 const uiCompiler = createCompiler(uiTheme)
 const uiCache = openCandidateCache(path.join(directory, 'ui-candidates.json'))
+const layoutCaller = `${caller} flex flex-col gap-8 items-start`
 const uiCases = [
+  ['card', 'Card', ['className'], [{}, { flat: false }, { flat: true }]],
+  [
+    'stack',
+    'Stack',
+    ['className'],
+    [
+      {},
+      ...['row', 'column'].flatMap((direction) =>
+        ['none', 'tight', 'normal', 'loose'].flatMap((gap) =>
+          ['start', 'center', 'end', 'stretch'].map((align) => ({ direction, gap, align })),
+        ),
+      ),
+    ],
+    layoutCaller,
+  ],
   [
     'otp-input',
     'OtpInput',
@@ -78,19 +94,19 @@ const uiCases = [
       'descriptionClassName',
     ],
   ],
-].map(([file, name, slots]) => {
+].map(([file, name, slots, variants = [{}], classes = caller]) => {
   const source = readFileSync(new URL(`src/${file}.tsx`, uiRoot), 'utf8')
   uiCache.scanFile(`${file}.tsx`, source, 1)
-  return { file, name, slots, source }
+  return { file, name, slots, source, variants, classes }
 })
-uiCache.scanFile('caller.ts', JSON.stringify(caller), 1)
+uiCache.scanFile('caller.ts', JSON.stringify(layoutCaller), 1)
 const uiCandidates = uiCache.renderCss(uiTheme)
 const { hozoClasses: resolveUiClasses } = evaluate(
   uiCache.renderNativeModule(uiTheme).replace(/^import .*$/gm, ''),
   { createClassResolver },
 )
 
-for (const { file, name, slots, source } of uiCases) {
+for (const { file, name, slots, source, variants, classes } of uiCases) {
   test(`shipped ${name} compiles its own classes separately on every slot`, {
     skip: !executablePath,
   }, async () => {
@@ -104,6 +120,7 @@ for (const { file, name, slots, source } of uiCases) {
       h: (_type, props) => props,
       [name]: name,
       [`Hozo${name}`]: name,
+      View: 'View',
       StyleSheet: { create: (styles) => styles },
       useHozoDark: () => false,
       hozoSpreadStyles,
@@ -117,7 +134,7 @@ for (const { file, name, slots, source } of uiCases) {
     const nativeComponent = moduleFrom(native)
     const authoredComponent = moduleFrom(source)
     const opaqueSource = `${source.replaceAll('cx(', 'joinOpaque(')}
-      const joinOpaque = (own, extra) => extra ? \`${'${own} ${extra}'}\` : own`
+      const joinOpaque = (...classes) => classes.filter(Boolean).join(' ')`
     const opaque = lowerModule(opaqueSource, `${file}.tsx`, `${file}.tsx`, uiCompiler, '')
     assert.ok(opaque)
     const opaqueProps = moduleFrom(opaque.code)(
@@ -135,69 +152,120 @@ for (const { file, name, slots, source } of uiCases) {
     }
     const page = await browser.newPage()
     try {
-      for (const extra of [undefined, '', caller]) {
-        const input = Object.fromEntries(slots.map((slot) => [slot, extra]))
-        const webProps = webComponent(input)
-        calls.length = 0
-        const nativeProps = nativeComponent(input)
-        const authoredProps = authoredComponent(input)
-        for (const slot of slots) {
-          const residual = webProps[slot]
-            .split(/\s+/)
-            .filter((value) => value && !value.startsWith('hozo-'))
-          assert.equal(residual.join(' '), extra ?? '', `${name}.${slot}: caller-only Web residual`)
-          assert.ok(authoredProps[slot], `${name}.${slot}: original resting classes exist`)
-          if (extra) {
-            // All compiler-generated owners are ordinary spans here: this
-            // measures the composition boundary, not pattern DOM/event code.
-            for (const sheets of [
-              [web.css, uiCandidates],
-              [uiCandidates, web.css],
-            ]) {
-              await page.setContent(
-                `${sheets.map((css) => `<style>${css}</style>`).join('')}<span class="${webProps[slot]}">Label</span>`,
+      for (const variant of variants) {
+        for (const extra of [undefined, '', classes]) {
+          const input = { ...variant, ...Object.fromEntries(slots.map((slot) => [slot, extra])) }
+          const webProps = webComponent(input)
+          calls.length = 0
+          const nativeProps = nativeComponent(input)
+          const authoredProps = authoredComponent(input)
+          for (const slot of slots) {
+            const residual = webProps[slot]
+              .split(/\s+/)
+              .filter((value) => value && !value.startsWith('hozo-'))
+            assert.equal(
+              residual.join(' '),
+              extra ?? '',
+              `${name}.${slot}: caller-only Web residual`,
+            )
+            assert.ok(authoredProps[slot], `${name}.${slot}: original resting classes exist`)
+            if (extra) {
+              // All compiler-generated owners are ordinary spans here: this
+              // measures the composition boundary, not pattern DOM/event code.
+              for (const sheets of [
+                [web.css, uiCandidates],
+                [uiCandidates, web.css],
+              ]) {
+                await page.setContent(
+                  `${sheets.map((css) => `<style>${css}</style>`).join('')}<span class="${webProps[slot]}">Label</span>`,
+                )
+                assert.deepEqual(
+                  await page.locator('span').evaluate((element) => {
+                    const style = getComputedStyle(element)
+                    return [
+                      style.paddingTop,
+                      style.borderTopLeftRadius,
+                      style.color,
+                      style.fontSize,
+                      style.fontWeight,
+                      style.lineHeight,
+                    ]
+                  }),
+                  ['32px', '48px', 'rgb(0, 17, 221)', '28px', '400', '36px'],
+                  `${name}.${slot}: caller wins in either stylesheet order`,
+                )
+              }
+            }
+            const stem = slot === 'className' ? '' : slot.replace(/ClassName$/, '')
+            const capital = stem ? stem[0].toUpperCase() + stem.slice(1) : ''
+            const style =
+              nativeProps[`hozo${capital}Style`] ?? nativeProps[stem ? `${stem}Style` : 'style']
+            assert.ok(style, `${name}.${slot}: compiled Native style exists`)
+            const flat = Object.assign(
+              {},
+              ...[typeof style === 'function' ? style({}) : style].flat(Infinity).filter(Boolean),
+            )
+            if (name === 'Card') {
+              assert.equal(authoredProps.className.includes('shadow-hozo-surface'), !variant.flat)
+              // Theme loading currently exports colours/radii/animations,
+              // not custom shadow scales. Compare the old resolver path
+              // rather than claiming that this composition fix adds them.
+              const previous = Object.assign(
+                {},
+                ...resolveUiClasses(authoredProps.className).flat(Infinity).filter(Boolean),
               )
-              assert.deepEqual(
-                await page.locator('span').evaluate((element) => {
-                  const style = getComputedStyle(element)
-                  return [
-                    style.paddingTop,
-                    style.borderTopLeftRadius,
-                    style.color,
-                    style.fontSize,
-                    style.fontWeight,
-                    style.lineHeight,
+              assert.deepEqual(flat.boxShadow, previous.boxShadow)
+              if (!extra) {
+                assert.equal(flat.paddingTop, 24)
+                assert.equal(flat.borderRadius, 16)
+              }
+            }
+            if (name === 'Stack') {
+              const direction = extra ? 'column' : (variant.direction ?? 'column')
+              const gap = extra
+                ? 32
+                : { none: 0, tight: 8, normal: 16, loose: 24 }[variant.gap ?? 'normal']
+              const align = extra
+                ? 'flex-start'
+                : { start: 'flex-start', center: 'center', end: 'flex-end', stretch: 'stretch' }[
+                    variant.align ?? 'stretch'
                   ]
-                }),
-                ['32px', '48px', 'rgb(0, 17, 221)', '28px', '400', '36px'],
-                `${name}.${slot}: caller wins in either stylesheet order`,
+              assert.equal(flat.flexDirection, direction)
+              assert.equal(flat.gap, gap)
+              assert.equal(flat.alignItems, align)
+              for (const sheets of [
+                [web.css, uiCandidates],
+                [uiCandidates, web.css],
+              ]) {
+                await page.setContent(
+                  `${sheets.map((css) => `<style>${css}</style>`).join('')}<div class="${webProps.className}">Label</div>`,
+                )
+                assert.deepEqual(
+                  await page.locator('div').evaluate((element) => {
+                    const style = getComputedStyle(element)
+                    return [style.display, style.flexDirection, style.gap, style.alignItems]
+                  }),
+                  ['flex', direction, `${gap}px`, align],
+                  `Stack ${JSON.stringify(variant)} preserves its layout choices and caller overrides`,
+                )
+              }
+            }
+            if (extra) {
+              assert.equal(flat.paddingTop, 32, `${name}.${slot}: Native caller padding`)
+              assert.equal(flat.borderRadius, 48, `${name}.${slot}: Native caller radius`)
+            } else {
+              assert.ok(
+                Object.keys(flat).length,
+                `${name}.${slot}: resting style survives without a caller`,
               )
             }
           }
-          const stem = slot === 'className' ? '' : slot.replace(/ClassName$/, '')
-          const capital = stem ? stem[0].toUpperCase() + stem.slice(1) : ''
-          const style =
-            nativeProps[`hozo${capital}Style`] ?? nativeProps[stem ? `${stem}Style` : 'style']
-          assert.ok(style, `${name}.${slot}: compiled Native style exists`)
-          const flat = Object.assign(
-            {},
-            ...[typeof style === 'function' ? style({}) : style].flat(Infinity).filter(Boolean),
+          assert.equal(calls.length, slots.length)
+          assert.ok(
+            calls.every((classes) => classes === extra),
+            `${name}: only caller strings reach the Native resolver`,
           )
-          if (extra) {
-            assert.equal(flat.paddingTop, 32, `${name}.${slot}: Native caller padding`)
-            assert.equal(flat.borderRadius, 48, `${name}.${slot}: Native caller radius`)
-          } else {
-            assert.ok(
-              Object.keys(flat).length,
-              `${name}.${slot}: resting style survives without a caller`,
-            )
-          }
         }
-        assert.equal(calls.length, slots.length)
-        assert.ok(
-          calls.every((classes) => classes === extra),
-          `${name}: only caller strings reach the Native resolver`,
-        )
       }
     } finally {
       await page.close()

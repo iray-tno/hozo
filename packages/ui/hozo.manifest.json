@@ -253,6 +253,231 @@
       "disabledProp": "disabled",
       "hostStates": true
     },
+    "HozoStack": {
+      "props": [
+        {
+          "name": "align",
+          "default": "stretch",
+          "values": [
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        {
+          "name": "direction",
+          "default": "column",
+          "values": [
+            "column",
+            "row"
+          ]
+        },
+        {
+          "name": "gap",
+          "default": "normal",
+          "values": [
+            "loose",
+            "none",
+            "normal",
+            "tight"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "when": [
+            "center",
+            "column",
+            "loose"
+          ],
+          "classes": "flex flex-col gap-6 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "column",
+            "none"
+          ],
+          "classes": "flex flex-col gap-0 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "column",
+            "normal"
+          ],
+          "classes": "flex flex-col gap-4 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "column",
+            "tight"
+          ],
+          "classes": "flex flex-col gap-2 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "row",
+            "loose"
+          ],
+          "classes": "flex flex-row gap-6 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "row",
+            "none"
+          ],
+          "classes": "flex flex-row gap-0 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "row",
+            "normal"
+          ],
+          "classes": "flex flex-row gap-4 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "row",
+            "tight"
+          ],
+          "classes": "flex flex-row gap-2 items-center"
+        },
+        {
+          "when": [
+            "end",
+            "column",
+            "loose"
+          ],
+          "classes": "flex flex-col gap-6 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "column",
+            "none"
+          ],
+          "classes": "flex flex-col gap-0 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "column",
+            "normal"
+          ],
+          "classes": "flex flex-col gap-4 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "column",
+            "tight"
+          ],
+          "classes": "flex flex-col gap-2 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "row",
+            "loose"
+          ],
+          "classes": "flex flex-row gap-6 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "row",
+            "none"
+          ],
+          "classes": "flex flex-row gap-0 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "row",
+            "normal"
+          ],
+          "classes": "flex flex-row gap-4 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "row",
+            "tight"
+          ],
+          "classes": "flex flex-row gap-2 items-end"
+        },
+        {
+          "when": [
+            "stretch",
+            "column",
+            "loose"
+          ],
+          "classes": "flex flex-col gap-6 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "column",
+            "none"
+          ],
+          "classes": "flex flex-col gap-0 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "column",
+            "normal"
+          ],
+          "classes": "flex flex-col gap-4 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "column",
+            "tight"
+          ],
+          "classes": "flex flex-col gap-2 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "row",
+            "loose"
+          ],
+          "classes": "flex flex-row gap-6 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "row",
+            "none"
+          ],
+          "classes": "flex flex-row gap-0 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "row",
+            "normal"
+          ],
+          "classes": "flex flex-row gap-4 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "row",
+            "tight"
+          ],
+          "classes": "flex flex-row gap-2 items-stretch"
+        }
+      ]
+    },
     "HozoSwitch": {
       "props": [],
       "variants": [
@@ -263,6 +488,231 @@
       ],
       "disabledProp": "disabled",
       "hostStates": true
+    },
+    "Stack": {
+      "props": [
+        {
+          "name": "align",
+          "default": "stretch",
+          "values": [
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        {
+          "name": "direction",
+          "default": "column",
+          "values": [
+            "column",
+            "row"
+          ]
+        },
+        {
+          "name": "gap",
+          "default": "normal",
+          "values": [
+            "loose",
+            "none",
+            "normal",
+            "tight"
+          ]
+        }
+      ],
+      "variants": [
+        {
+          "when": [
+            "center",
+            "column",
+            "loose"
+          ],
+          "classes": "flex flex-col gap-6 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "column",
+            "none"
+          ],
+          "classes": "flex flex-col gap-0 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "column",
+            "normal"
+          ],
+          "classes": "flex flex-col gap-4 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "column",
+            "tight"
+          ],
+          "classes": "flex flex-col gap-2 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "row",
+            "loose"
+          ],
+          "classes": "flex flex-row gap-6 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "row",
+            "none"
+          ],
+          "classes": "flex flex-row gap-0 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "row",
+            "normal"
+          ],
+          "classes": "flex flex-row gap-4 items-center"
+        },
+        {
+          "when": [
+            "center",
+            "row",
+            "tight"
+          ],
+          "classes": "flex flex-row gap-2 items-center"
+        },
+        {
+          "when": [
+            "end",
+            "column",
+            "loose"
+          ],
+          "classes": "flex flex-col gap-6 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "column",
+            "none"
+          ],
+          "classes": "flex flex-col gap-0 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "column",
+            "normal"
+          ],
+          "classes": "flex flex-col gap-4 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "column",
+            "tight"
+          ],
+          "classes": "flex flex-col gap-2 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "row",
+            "loose"
+          ],
+          "classes": "flex flex-row gap-6 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "row",
+            "none"
+          ],
+          "classes": "flex flex-row gap-0 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "row",
+            "normal"
+          ],
+          "classes": "flex flex-row gap-4 items-end"
+        },
+        {
+          "when": [
+            "end",
+            "row",
+            "tight"
+          ],
+          "classes": "flex flex-row gap-2 items-end"
+        },
+        {
+          "when": [
+            "stretch",
+            "column",
+            "loose"
+          ],
+          "classes": "flex flex-col gap-6 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "column",
+            "none"
+          ],
+          "classes": "flex flex-col gap-0 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "column",
+            "normal"
+          ],
+          "classes": "flex flex-col gap-4 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "column",
+            "tight"
+          ],
+          "classes": "flex flex-col gap-2 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "row",
+            "loose"
+          ],
+          "classes": "flex flex-row gap-6 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "row",
+            "none"
+          ],
+          "classes": "flex flex-row gap-0 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "row",
+            "normal"
+          ],
+          "classes": "flex flex-row gap-4 items-stretch"
+        },
+        {
+          "when": [
+            "stretch",
+            "row",
+            "tight"
+          ],
+          "classes": "flex flex-row gap-2 items-stretch"
+        }
+      ]
     },
     "Switch": {
       "props": [],

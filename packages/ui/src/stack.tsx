@@ -10,7 +10,7 @@
  * the thing this exists to prevent has happened.
  */
 
-import { View } from '@hozo/core'
+import { cx, View } from '@hozo/core'
 import type { ReactNode } from 'react'
 
 export type HozoStackGap = 'none' | 'tight' | 'normal' | 'loose'
@@ -24,21 +24,6 @@ export interface HozoStackProps {
   className?: string
 }
 
-function classes(direction: 'row' | 'column', gap: HozoStackGap, align: string): string {
-  const flow = direction === 'row' ? 'flex flex-row' : 'flex flex-col'
-  const space =
-    gap === 'none' ? 'gap-0' : gap === 'tight' ? 'gap-2' : gap === 'loose' ? 'gap-6' : 'gap-4'
-  const cross =
-    align === 'center'
-      ? 'items-center'
-      : align === 'end'
-        ? 'items-end'
-        : align === 'stretch'
-          ? 'items-stretch'
-          : 'items-start'
-  return `${flow} ${space} ${cross}`
-}
-
 export function HozoStack({
   children,
   direction = 'column',
@@ -46,8 +31,26 @@ export function HozoStack({
   align = 'stretch',
   className,
 }: HozoStackProps) {
-  const own = classes(direction, gap, align)
-  return <View className={className ? `${own} ${className}` : own}>{children}</View>
+  // Keep these finite choices at the class boundary: a local joining
+  // function hides the resting look beside the caller's candidates (#1152).
+  return (
+    <View
+      className={cx(
+        direction === 'row' ? 'flex flex-row' : 'flex flex-col',
+        gap === 'none' ? 'gap-0' : gap === 'tight' ? 'gap-2' : gap === 'loose' ? 'gap-6' : 'gap-4',
+        align === 'center'
+          ? 'items-center'
+          : align === 'end'
+            ? 'items-end'
+            : align === 'stretch'
+              ? 'items-stretch'
+              : 'items-start',
+        className,
+      )}
+    >
+      {children}
+    </View>
+  )
 }
 
 export { HozoStack as Stack, type HozoStackGap as StackGap, type HozoStackProps as StackProps }

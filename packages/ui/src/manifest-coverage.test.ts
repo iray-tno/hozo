@@ -23,6 +23,8 @@ test('the manifest covers every component that hands text to a caller’s childr
   // The patterns that take a label as a prop rather than as children --
   // Tabs, Accordion, SegmentedControl, Radio and the rest -- draw that label
   // themselves, so there is no caller Text to hand anything to.
+  // Stack's finite choices are now visible at the class boundary too;
+  // keeping its inventory here prevents a helper refactor hiding it again.
   assert.deepEqual(Object.keys(manifest.textForwarding).sort(), [
     'Alert',
     'Button',
@@ -30,7 +32,9 @@ test('the manifest covers every component that hands text to a caller’s childr
     'HozoAlert',
     'HozoButton',
     'HozoCheckbox',
+    'HozoStack',
     'HozoSwitch',
+    'Stack',
     'Switch',
   ])
 })
