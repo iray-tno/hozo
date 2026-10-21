@@ -370,6 +370,17 @@ tested separately because Web Chip does not publish a style prop.
 
 ## Performance and coverage constraints
 
+Plain lower-case ASCII data-attribute presence candidates (`data-open:` or
+`data-[hozo-range-start]:`) can now use the same existing state-group path as
+ARIA/hover. Build-time candidate generation encodes the `data-*` boolean key;
+the actual component must supply true for present and false for absent.
+Unprovided is not false and retains the resolver's missing-fact warning.
+This adds no runtime selector/attribute-value interpreter, condition registry,
+subscription or new resolver. Conjunctions with supported local/direction
+facts compose normally, including transform slots. Attribute equality,
+negation, relations and environment queries retain their existing refusals;
+support in the candidate map alone does not certify any component owner.
+
 - Keep static work AOT, including existing negated and ambient conditions.
   Do not reduce it to the runtime condition subset.
 - Keep the existing candidate cache/resolver for opaque residual strings.
