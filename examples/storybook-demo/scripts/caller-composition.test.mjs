@@ -12,7 +12,7 @@ import { lowerModule } from '@hozo/compiler/lower'
 import { createClassResolver, cx } from '@hozo/engine'
 import { Chip } from '@hozo/patterns'
 import { loadTheme } from '@hozo/tailwind'
-import { transformSync } from 'esbuild'
+import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -60,6 +60,18 @@ const uiCompiler = createCompiler(uiTheme)
 const uiCache = openCandidateCache(path.join(directory, 'ui-candidates.json'))
 const layoutCaller = `${caller} flex flex-col gap-8 items-start`
 const uiCases = [
+  [
+    'color-picker',
+    'ColorPicker',
+    [
+      'className',
+      'swatchClassName',
+      'selectedSwatchClassName',
+      'sliderClassName',
+      'thumbClassName',
+      'inputClassName',
+    ],
+  ],
   ['skeleton', 'Skeleton', ['className']],
   [
     'avatar',
@@ -112,6 +124,9 @@ const uiCases = [
   return { file, name, slots, source, variants, classes }
 })
 uiCache.scanFile('caller.ts', JSON.stringify(layoutCaller), 1)
+const sliderFocusClasses =
+  'focus:opacity-75 focus-visible:outline-2 aria-disabled:border-4 disabled:mt-8'
+uiCache.scanFile('slider-focus.ts', JSON.stringify(sliderFocusClasses), 1)
 const radiusCandidates = [
   'size-10',
   'h-4',
@@ -233,6 +248,38 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
               {},
               ...[typeof style === 'function' ? style({}) : style].flat(Infinity).filter(Boolean),
             )
+            if (name === 'ColorPicker' && slot === 'thumbClassName') {
+              assert.equal(flat.outlineWidth, undefined)
+              const focused = Object.assign(
+                {},
+                ...style({ focused: true, focusVisible: true, 'aria-disabled': false })
+                  .flat(Infinity)
+                  .filter(Boolean),
+              )
+              assert.equal(focused.outlineWidth, 2)
+              assert.equal(focused.outlineOffset, 2)
+              assert.equal(
+                focused.outlineColor,
+                uiTheme.colors.find((entry) => entry.token === 'hozo-focus')?.hex,
+              )
+              for (const sheets of [
+                [web.css, uiCandidates],
+                [uiCandidates, web.css],
+              ]) {
+                await page.setContent(
+                  `${sheets.map((css) => `<style>${css}</style>`).join('')}<div role="slider" tabindex="0" class="${webProps[slot]}">Thumb</div>`,
+                )
+                await page.locator('div').focus()
+                assert.deepEqual(
+                  await page.locator('div').evaluate((element) => {
+                    const css = getComputedStyle(element)
+                    return [css.outlineWidth, css.outlineOffset, css.outlineStyle]
+                  }),
+                  ['2px', '2px', 'solid'],
+                  'the shipped thumb look has the same focused outline geometry on Web',
+                )
+              }
+            }
             if (name === 'Card') {
               assert.equal(authoredProps.className.includes('shadow-hozo-surface'), !variant.flat)
               // Theme loading currently exports colours/radii/animations,
@@ -316,7 +363,7 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
               )
             }
           }
-          assert.equal(calls.length, slots.length)
+          assert.equal(calls.length, slots.length + (name === 'ColorPicker' ? 1 : 0))
           assert.ok(
             calls.every((classes) => classes === extra),
             `${name}: only caller strings reach the Native resolver`,
@@ -407,6 +454,57 @@ test('Skeleton resting corners survive outside a caller breakpoint and lose insi
         }
       }
     }
+  } finally {
+    await page.close()
+  }
+})
+
+test('the real Web slider keeps focus when aria-disabled changes, until its host blurs', {
+  skip: !executablePath,
+}, async () => {
+  const fixture = await build({
+    stdin: {
+      contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoSlider} from ${JSON.stringify(fileURLToPath(new URL('../../../packages/patterns/src/slider.tsx', import.meta.url)))};
+      const root = createRoot(document.getElementById('root'));
+      window.renderSlider = (disabled) => flushSync(() => root.render(createElement(HozoSlider, {disabled, defaultValue:50, thumbClassName:${JSON.stringify(sliderFocusClasses)}})));
+      window.renderSlider(false);`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<style>${uiCandidates}</style><div id="root"></div>`)
+    await page.addScriptTag({ content: fixture.outputFiles[0].text })
+    const thumb = page.locator('[role="slider"]')
+    await thumb.focus()
+    await page.evaluate(() => window.renderSlider(true))
+    assert.equal(await thumb.getAttribute('tabindex'), '-1')
+    assert.equal(await thumb.getAttribute('aria-disabled'), 'true')
+    assert.deepEqual(
+      await thumb.evaluate((element) => {
+        const style = getComputedStyle(element)
+        return [
+          document.activeElement === element,
+          style.opacity,
+          style.outlineWidth,
+          style.borderTopWidth,
+          style.marginTop,
+        ]
+      }),
+      [true, '0.75', '2px', '4px', '0px'],
+    )
+    await thumb.press('ArrowRight')
+    assert.equal(await thumb.getAttribute('aria-valuenow'), '50')
+    await thumb.evaluate((element) => element.blur())
+    await page.evaluate(() => window.renderSlider(false))
+    assert.equal(await thumb.evaluate((element) => document.activeElement === element), false)
+    assert.equal(await thumb.evaluate((element) => getComputedStyle(element).opacity), '1')
   } finally {
     await page.close()
   }

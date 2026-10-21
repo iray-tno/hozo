@@ -7,6 +7,47 @@ import { transformSync } from 'esbuild'
 import { createCompiler } from './index.ts'
 
 const compiler = createCompiler()
+
+test('ColorPicker thumb callbacks have focus and real div facts, never borrowed pointer state', () => {
+  const source = `import {ColorPicker,cx} from '@hozo/core'; const own='p-2 focus:outline-2 aria-disabled:border-4 disabled:mt-8 enabled:mb-8'; const el=<ColorPicker thumbClassName={cx(own, extra)} />`
+  const native = compiler.compileNative(source)[0]!
+  assert.equal(
+    native.diagnostics.some((entry) => entry.severity === 'error'),
+    false,
+  )
+  const states: unknown[] = []
+  const props = evaluate(
+    native.jsx,
+    {
+      HozoColorPicker: 'ColorPicker',
+      extra: 'p-4',
+      hozoClasses: (_classes: unknown, state: unknown) => {
+        states.push(state)
+        return { paddingTop: 16 }
+      },
+    },
+    native.styles,
+  )
+  const callback = props.hozoThumbStyle as (state: Record<string, unknown>) => unknown[]
+  assert.equal(typeof callback, 'function')
+  const facts = { focused: true, focusVisible: true, 'aria-disabled': true }
+  const style = Object.assign({}, ...callback(facts).flat(Infinity).filter(Boolean))
+  assert.equal(style.paddingTop, 16)
+  assert.equal(style.outlineWidth, 2)
+  assert.equal(style.borderTopWidth, 4)
+  assert.equal(style.marginTop, undefined)
+  assert.equal(style.marginBottom, undefined)
+  assert.equal(states[0], facts)
+  for (const classes of ['hover:opacity-50', 'not-hover:opacity-50', 'active:opacity-50']) {
+    const rejected = compiler.compileNative(
+      `import {ColorPicker} from '@hozo/core'; const el=<ColorPicker thumbClassName="${classes}" />`,
+    )[0]!
+    assert.ok(
+      rejected.diagnostics.some((entry) => entry.code === 'NOT_WIRED_ON_NATIVE'),
+      classes,
+    )
+  }
+})
 function evaluate(jsx: string, context: Record<string, unknown>, styles = '{}') {
   const module = { exports: undefined as unknown }
   const code = transformSync(`const hozoStyles=${styles}; module.exports=(${jsx})`, {

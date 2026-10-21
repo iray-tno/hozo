@@ -6,7 +6,7 @@ import { type StyleProp, TextInput, type TextStyle, View, type ViewStyle } from 
 import { type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import { HozoSlider } from './slider.native.tsx'
+import { HozoSlider, type SliderThumbState } from './slider.native.tsx'
 import type { ColorPickerSlotFacts, TextInputSlotFacts } from './slot-facts.native.ts'
 
 type Style = StyleProp<ViewStyle | TextStyle>
@@ -47,6 +47,8 @@ export interface HozoColorPickerProps {
   hozoSelectedSwatchStyle?: (state: SwatchState) => Style
   /** @internal Only the hex field supplies focus and editable-input facts. */
   hozoInputStyle?: (state: InputState) => Style
+  /** @internal Each slider supplies its own thumb's non-touch focus state. */
+  hozoThumbStyle?: (state: SliderThumbState) => StyleProp<ViewStyle>
   sliderStyle?: Style
   thumbStyle?: Style
   inputStyle?: Style
@@ -83,6 +85,7 @@ export function HozoColorPicker({
   hozoSwatchStyle,
   hozoSelectedSwatchStyle,
   hozoInputStyle,
+  hozoThumbStyle,
   sliderStyle,
   thumbStyle,
   inputStyle,
@@ -124,7 +127,7 @@ export function HozoColorPicker({
   }
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
   const slider = [hozoClasses(sliderClassName), sliderStyle] as StyleProp<ViewStyle>
-  const thumb = [hozoClasses(thumbClassName), thumbStyle] as StyleProp<ViewStyle>
+  const thumb = thumbStyle as StyleProp<ViewStyle>
   const inputFacts = {
     focused: !disabled && inputInteraction.focused,
     focusVisible: !disabled && inputInteraction.focusVisible,
@@ -208,6 +211,8 @@ export function HozoColorPicker({
         }
         disabled={disabled}
         style={slider}
+        thumbClassName={thumbClassName}
+        hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
       />
       <HozoSlider
@@ -217,6 +222,8 @@ export function HozoColorPicker({
         valueText={percent}
         disabled={disabled}
         style={slider}
+        thumbClassName={thumbClassName}
+        hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
       />
       <HozoSlider
@@ -226,6 +233,8 @@ export function HozoColorPicker({
         valueText={percent}
         disabled={disabled}
         style={slider}
+        thumbClassName={thumbClassName}
+        hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
       />
       {alpha ? (
@@ -236,6 +245,8 @@ export function HozoColorPicker({
           valueText={(a) => message('hozo.colorPicker.alphaValue', { value: a })}
           disabled={disabled}
           style={slider}
+          thumbClassName={thumbClassName}
+          hozoThumbStyle={hozoThumbStyle}
           thumbStyle={thumb}
         />
       ) : null}

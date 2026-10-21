@@ -21,6 +21,7 @@ import { hozoClasses } from '@hozo/engine/project'
  * cannot move at all.
  */
 
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   I18nManager,
@@ -31,6 +32,9 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { fractionAt, fractionOf, movedBy, type SliderRange, snap, valueAt } from './slider-rules.ts'
+import type { SliderThumbSlotFacts } from './slot-facts.native.ts'
+
+export type SliderThumbState = SliderThumbSlotFacts & { focused: boolean; focusVisible: boolean }
 
 export interface HozoSliderProps extends Partial<SliderRange> {
   value?: number
@@ -47,7 +51,8 @@ export interface HozoSliderProps extends Partial<SliderRange> {
    *
    * On a tag the compiler lowers they are gone by runtime, replaced by a
    * `StyleSheet` entry. Here they arrive as strings and are resolved through
-   * the project's candidate map (#886), the thumb with its `disabled` state.
+   * the project's candidate map (#886), the thumb with its own focus and
+   * aria-disabled state. Like its Web div, it is not a disabled form control.
    * Each `*Style` prop comes after its class list, and a fill is drawn when
    * either is given.
    */
@@ -56,6 +61,8 @@ export interface HozoSliderProps extends Partial<SliderRange> {
   fillClassName?: string
   style?: StyleProp<ViewStyle>
   thumbStyle?: StyleProp<ViewStyle>
+  /** @internal Compiled classes, evaluated by the actual adjustable thumb. */
+  hozoThumbStyle?: (state: SliderThumbState) => StyleProp<ViewStyle>
   fillStyle?: StyleProp<ViewStyle>
 }
 
@@ -78,8 +85,27 @@ export function HozoSlider({
   fillClassName,
   style,
   thumbStyle,
+  hozoThumbStyle,
   fillStyle,
 }: HozoSliderProps) {
+  // View's non-touch focus events belong to the adjustable thumb, not the
+  // track that receives the pan. A non-touch focus ring needs no pointer
+  // subscriptions, Pressable host or change to drag hit testing.
+  const { state: interaction, handlers } = usePressableInteraction({
+    focusVisible: 'keyboard-input',
+  })
+  const thumbFacts = {
+    // aria-disabled is not a form-disabled host and does not imply blur.
+    // Follow actual host events rather than inventing a lost focus fact.
+    focused: interaction.focused,
+    focusVisible: interaction.focusVisible,
+    disabled: false,
+    enabled: false,
+    readOnly: true,
+    'aria-disabled': Boolean(disabled),
+    'aria-selected': false,
+    'aria-checked': false,
+  } satisfies SliderThumbState
   const range: SliderRange = { min, max, step, bigStep }
   const vertical = orientation === 'vertical'
   const [uncontrolled, setUncontrolled] = useState(() => snap(defaultValue ?? min, range))
@@ -201,6 +227,9 @@ export function HozoSlider({
       )}
       <View
         accessible
+        focusable={!disabled}
+        onFocus={handlers.focus}
+        onBlur={handlers.blur}
         accessibilityRole="adjustable"
         accessibilityLabel={accessibilityLabel}
         accessibilityValue={{ min, max, now: current, text: valueText?.(current) }}
@@ -215,10 +244,8 @@ export function HozoSlider({
           if (event.nativeEvent.actionName === 'decrement') step1('ArrowDown')
         }}
         style={[
-          hozoClasses(thumbClassName, {
-            disabled: Boolean(disabled),
-            'aria-disabled': Boolean(disabled),
-          }),
+          hozoClasses(thumbClassName, thumbFacts),
+          hozoThumbStyle?.(thumbFacts),
           thumbStyle,
           vertical ? { bottom: `${fraction * 100}%` } : { start: `${fraction * 100}%` },
         ]}

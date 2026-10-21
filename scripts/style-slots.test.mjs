@@ -6,6 +6,17 @@ import { components, profiles } from './style-slots/catalog.mjs'
 import { checkGenerated, outputs, validateCatalog } from './style-slots/generate.mjs'
 import { checkPublicProps } from './style-slots/public-props.mjs'
 
+test('ColorPicker thumb focus belongs to each slider, separate from swatch pointer and input facts', () => {
+  const thumb = components.ColorPicker.find((slot) => slot.classProp === 'thumbClassName')
+  assert.equal(thumb.callback, 'hozoThumbStyle')
+  assert.equal(thumb.focus, true)
+  assert.equal(thumb.pointer, false)
+  assert.equal(thumb.profile, 'SliderThumb')
+  assert.equal(profiles.SliderThumb.facts.disabled, false)
+  assert.equal(profiles.SliderThumb.facts.enabled, false)
+  assert.deepEqual(profiles.SliderThumb.facts['aria-disabled'], { alias: '__hozoSlotAriaDisabled' })
+})
+
 test('the one catalog generates current IR mappings, Native callback contracts and type-only facts', () => {
   assert.deepEqual(checkGenerated(), [])
   const rendered = outputs()
