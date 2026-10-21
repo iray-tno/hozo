@@ -347,9 +347,15 @@ gates below are unchanged.
 The [first internal production static selection](../native-text-inheritance-baseline.md#first-production-static-region-selection-internal)
 now proves a bounded complete-class memo Text region in the existing
 parser/Native backend. It retains the measured runtime-only control, and
-failed proofs use that runtime ABI. This is not yet the broader private
-inline/registered-style proof, a production static-path device result or
-default rollout.
+failed proofs use that runtime ABI. That first compiler slice alone did not
+establish a production static-path device result. It does not implement the
+broader private inline/registered-style proof or enable default rollout.
+
+The subsequent [five-panel comparison](../measurements/native-text-inheritance-static.md)
+has independently reviewed Android static-path/fallback pixels and binary
+provenance. iOS stopped before app compilation in cold Simulator discovery;
+an identical-source iOS-only follow-up is pending. This partial result does
+not complete the two-platform gate or relax the rollout requirements below.
 
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
