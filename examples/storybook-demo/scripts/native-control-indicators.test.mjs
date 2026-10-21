@@ -77,6 +77,9 @@ for (const file of [
   'text-area.tsx',
   'native-select.tsx',
   'calendar-look.ts',
+  'date-picker.tsx',
+  'date-range-picker.tsx',
+  'date-time-picker.tsx',
 ]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
@@ -151,6 +154,13 @@ const exportsFrom = (names, relative) =>
 const probeSources = [
   exportsFrom('HozoCalendar', 'packages/form/src/calendar.native.tsx'),
   exportsFrom('HozoCalendar as UiCalendar', 'packages/ui/src/calendar.tsx'),
+  ...['DatePicker', 'DateRangePicker', 'DateTimePicker'].flatMap((name) => {
+    const file = name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`).slice(1)
+    return [
+      exportsFrom(`Hozo${name}`, `packages/form/src/${file}.native.tsx`),
+      exportsFrom(`Hozo${name} as Ui${name}`, `packages/ui/src/${file}.tsx`),
+    ]
+  }),
   exportsFrom('HozoNativeSelect as UiNativeSelect', 'packages/ui/src/native-select.tsx'),
   exportsFrom(
     'HozoNativeSelect, NativeSelectProvider',
@@ -295,6 +305,10 @@ const bundled = await build({
             exportsFrom('TextArea', 'packages/form/src/text-area.native.tsx'),
             exportsFrom('NativeSelect', 'packages/form/src/native-select.native.tsx'),
             exportsFrom('Calendar', 'packages/form/src/calendar.native.tsx'),
+            exportsFrom('DatePicker', 'packages/form/src/date-picker.native.tsx'),
+            exportsFrom('DateRangePicker', 'packages/form/src/date-range-picker.native.tsx'),
+            exportsFrom('DateTimePicker', 'packages/form/src/date-time-picker.native.tsx'),
+            exportsFrom('TimePicker', 'packages/form/src/time-picker.native.tsx'),
           ].join('\n'),
           loader: 'tsx',
           resolveDir: root,
@@ -357,6 +371,31 @@ const { usePressableInteraction, HozoInteractionContext, UiTree } = module.expor
 const { HozoForm, HozoTextArea, UiForm, UiTextArea, useFormSubmit } = module.exports
 const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect } = module.exports
 const { HozoCalendar, UiCalendar } = module.exports
+const {
+  HozoDatePicker,
+  HozoDateRangePicker,
+  HozoDateTimePicker,
+  UiDatePicker,
+  UiDateRangePicker,
+  UiDateTimePicker,
+} = module.exports
+// The clock is an author-supplied seam, not part of these Calendar-slot probes.
+const withoutClock = (Component) => (props) => React.createElement(Component, props, () => null)
+const pickerCases = [
+  ['DatePicker', HozoDatePicker, UiDatePicker, { year: 2026, month: 6, day: 12 }],
+  [
+    'DateRangePicker',
+    HozoDateRangePicker,
+    UiDateRangePicker,
+    { start: { year: 2026, month: 6, day: 12 }, end: { year: 2026, month: 6, day: 15 } },
+  ],
+  [
+    'DateTimePicker',
+    withoutClock(HozoDateTimePicker),
+    withoutClock(UiDateTimePicker),
+    { year: 2026, month: 6, day: 12, hour: 9, minute: 10 },
+  ],
+]
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
 const indicators = (tree) =>
@@ -917,6 +956,84 @@ const calendarMonthButtons = (tree) =>
     .filter((node) => !node.props.accessibilityLabel?.includes('2026'))
 const calendarJuneDay = (tree, number) =>
   calendarDays(tree).find((node) => node.props.accessibilityLabel.includes(`June ${number},`))
+
+for (const [name, Picker, , value] of pickerCases) {
+  test(`Native ${name} forwards each Calendar class slot without restyling its dialog`, async (t) => {
+    const props = {
+      ...calendarProps,
+      value,
+      defaultOpen: true,
+      calendarClassName: 'p-4',
+      headerClassName: 'p-3',
+      gridClassName: 'p-5',
+      monthButtonClassName: 'p-6',
+      dayClassName: 'p-7 aria-selected:border-2',
+    }
+    const tree = await mount(t, Picker, props)
+    const calendar = views(tree).find((node) => node.props.accessibilityRole === 'grid')
+    assert.ok(calendar)
+    assert.equal(flat(calendar.props.style).paddingTop, 16)
+    const heading = calendar.findByProps({ accessibilityLiveRegion: 'polite' })
+    assert.equal(flat(heading.parent.parent.props.style).paddingTop, 12)
+    const grid = calendar
+      .findAllByType('NativeView')
+      .find((node) => flat(node.props.style).paddingTop === 20)
+    assert.ok(grid, 'one owned grid box, not repeated padding')
+    for (const button of calendar
+      .findAllByType('NativePressable')
+      .filter((node) => !node.props.accessibilityLabel?.includes('2026')))
+      assert.equal(flat(button.props.style).paddingTop, 24)
+    assert.equal(flat(calendarJuneDay(tree, 12).props.style).paddingTop, 28)
+    assert.equal(flat(calendarJuneDay(tree, 12).props.style).borderTopWidth, 2)
+    assert.equal(
+      flat(panel(tree).props.style).paddingTop,
+      undefined,
+      'Calendar classes do not belong to the dialog',
+    )
+    const modal = tree.root.findByType('NativeModal')
+    await act(() => modal.props.onRequestClose())
+    assert.equal(tree.root.findAllByType('NativeModal').length, 0)
+    await press(tree.root.findAllByType('NativePressable')[0])
+    assert.equal(flat(calendarJuneDay(tree, 12).props.style).paddingTop, 28)
+    await act(() =>
+      tree.update(
+        React.createElement(Picker, {
+          ...props,
+          headerClassName: undefined,
+          dayClassName: undefined,
+        }),
+      ),
+    )
+    assert.equal(flat(calendarJuneDay(tree, 12).props.style).paddingTop, undefined)
+    assert.equal(
+      flat(tree.root.findByProps({ accessibilityLiveRegion: 'polite' }).parent.parent.props.style)
+        .paddingTop,
+      undefined,
+    )
+  })
+}
+
+test('Native UI date pickers route the same Calendar look as standalone UI Calendar', async (t) => {
+  for (const [name, , Picker, value] of pickerCases) {
+    const tree = await mount(t, Picker, {
+      ...calendarProps,
+      value,
+      defaultOpen: true,
+      renderDay: (day) => day.date.day,
+    })
+    const heading = tree.root.findByProps({ accessibilityLiveRegion: 'polite' })
+    assert.equal(flat(heading.props.style).fontSize, 14, name)
+    const day = calendarJuneDay(tree, 12)
+    assert.equal(flat(day.props.style).paddingTop, 8, name)
+    assert.equal(flat(day.props.style).backgroundColor, color('hozo-accent'), name)
+    assert.equal(flat(day.props.children.props.style).color, color('hozo-on-accent'), name)
+    if (name === 'DateRangePicker')
+      assert.equal(
+        flat(calendarJuneDay(tree, 13).props.style).backgroundColor,
+        color('hozo-accent-subtle'),
+      )
+  }
+})
 
 test('Native UI Calendar draws selected single days, range caps, interiors and unavailable days', async (t) => {
   const tree = await mount(t, UiCalendar, {
