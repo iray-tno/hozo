@@ -62,9 +62,9 @@ on:
         type: string
         default: '1'
       android-scenario:
-        description: 'Full showcase or isolated SVG, audio output/settings, or text inheritance'
+        description: 'Full showcase or isolated SVG, audio output/settings, text inheritance, or the docs previews'
         type: choice
-        options: [full, svg-filters, audio-output, audio-settings, text-inheritance]
+        options: [full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs]
         default: full
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'
@@ -226,6 +226,16 @@ jobs:
           path: artifacts/native-showcase
           if-no-files-found: ignore
           retention-days: 30
+      # The docs component previews, one image per page and a manifest of
+      # what each is of (#1159). The docs deploy fetches the newest of these
+      # from a successful run (#1160), so they are kept longer than the rest.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-android-ui-docs
+          path: artifacts/native-showcase-ui-docs
+          if-no-files-found: ignore
+          retention-days: 90
 
   ios:
     name: ${{ inputs.reuse-build-run != '' && 'ios (reused binary diagnostic)' || 'ios' }}
