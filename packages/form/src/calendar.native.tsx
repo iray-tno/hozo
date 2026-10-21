@@ -1,7 +1,8 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoSplitTextStyle } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import {
   Pressable,
   type StyleProp,
@@ -72,7 +73,7 @@ interface Shared {
   headerClassName?: string
   /** On the box around weekday headings and weeks, like the Web table. */
   gridClassName?: string
-  /** Accepted for parity with the Web half, which puts it on its two buttons. */
+  /** Each month button resolves this with its own interaction/bounds facts. */
   monthButtonClassName?: string
   style?: StyleProp<ViewStyle>
   headerStyle?: StyleProp<ViewStyle>
@@ -273,6 +274,74 @@ function monthStep(month: CalendarMonth, months: number): CalendarMonth {
   return { year: at.year, month: at.month }
 }
 
+// A leaf keeps a button's hover/press/focus out of the 42-day render path.
+// It uses the existing local tracker, not a calendar-wide event context.
+function CalendarMonthButton({
+  label,
+  children,
+  disabled,
+  className,
+  style,
+  inheritedText,
+  onPress,
+}: {
+  label: string
+  children: string
+  disabled: boolean
+  className?: string
+  style?: StyleProp<ViewStyle>
+  inheritedText: StyleProp<TextStyle>
+  onPress: () => void
+}) {
+  const { state, handlers } = usePressableInteraction({ focusVisible: true })
+  useEffect(() => {
+    if (disabled) {
+      handlers.blur()
+      handlers.pressOut()
+    }
+  }, [disabled, handlers])
+  const [box, text] = hozoSplitTextStyle(
+    StyleSheet.flatten([
+      hozoClasses(className, {
+        ...nonControlClassFacts,
+        ...state,
+        disabled,
+        enabled: !disabled,
+        pressed: !disabled && state.pressed,
+        focused: !disabled && state.focused,
+        focusVisible: !disabled && state.focusVisible,
+      }),
+      style,
+    ]) ?? {},
+  )
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      style={box as ViewStyle}
+      onPress={() => {
+        if (!disabled) onPress()
+      }}
+      onHoverIn={handlers.hoverIn}
+      onHoverOut={handlers.hoverOut}
+      onFocus={() => {
+        if (!disabled) handlers.focus()
+      }}
+      onBlur={handlers.blur}
+      onPressIn={() => {
+        if (!disabled) handlers.pressIn()
+      }}
+      onPressOut={handlers.pressOut}
+      onPointerDown={handlers.pointerDown}
+      onKeyDown={handlers.keyDown}
+    >
+      <Text style={[inheritedText, text as TextStyle]}>{children}</Text>
+    </Pressable>
+  )
+}
+
 /**
  * A month grid for React Native, reached by touch rather than by arrow keys.
  *
@@ -292,6 +361,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
     className,
     headerClassName,
     gridClassName,
+    monthButtonClassName,
     style,
     headerStyle,
     weekStyle,
@@ -390,16 +460,16 @@ export function HozoCalendar(props: HozoCalendarProps) {
       style={rootBox as ViewStyle}
     >
       <View style={headerBox as ViewStyle}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={previousMonthLabel}
-          accessibilityState={{ disabled: !monthIsReachable(monthStep(shown, -1), min, max) }}
+        <CalendarMonthButton
+          label={previousMonthLabel}
           disabled={!monthIsReachable(monthStep(shown, -1), min, max)}
+          className={monthButtonClassName}
           style={monthButtonStyle}
+          inheritedText={[rootText as TextStyle, headerText as TextStyle]}
           onPress={() => page(-1)}
         >
-          <Text style={[rootText as TextStyle, headerText as TextStyle]}>{'‹'}</Text>
-        </Pressable>
+          {'‹'}
+        </CalendarMonthButton>
         {/*
           `accessibilityLiveRegion` so Android announces the month when the
           paging buttons change it. iOS has no equivalent on a `View`; there
@@ -412,16 +482,16 @@ export function HozoCalendar(props: HozoCalendarProps) {
         >
           {monthLabel(shown, locale)}
         </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={nextMonthLabel}
-          accessibilityState={{ disabled: !monthIsReachable(monthStep(shown, 1), min, max) }}
+        <CalendarMonthButton
+          label={nextMonthLabel}
           disabled={!monthIsReachable(monthStep(shown, 1), min, max)}
+          className={monthButtonClassName}
           style={monthButtonStyle}
+          inheritedText={[rootText as TextStyle, headerText as TextStyle]}
           onPress={() => page(1)}
         >
-          <Text style={[rootText as TextStyle, headerText as TextStyle]}>{'›'}</Text>
-        </Pressable>
+          {'›'}
+        </CalendarMonthButton>
       </View>
       {/* One box owns the table's classes. Repeating them on each week
           would repeat padding/borders and cannot draw a grid background. */}
