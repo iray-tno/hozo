@@ -37,15 +37,21 @@ class Caught extends Component<
   }
   render() {
     if (!this.state.thrown) return this.props.children
-    return (
-      <Text
-        accessibilityLabel={`UI docs ${this.props.page} failed`}
-        className="text-sm text-hozo-danger-text"
-      >
-        {`This demo failed on React Native: ${describe(this.state.thrown.value)}`}
-      </Text>
-    )
+    return <Failure page={this.props.page} thrown={this.state.thrown.value} />
   }
+}
+
+// A function component, not the boundary's own `render`: the Native
+// compiler puts the dark-mode hook a themed class needs at the top of the
+// enclosing function, and inside a class's `render` that is an invalid hook
+// call (#1183) -- which is what every story here threw on the first device
+// run.
+function Failure({ page, thrown }: { page: string; thrown: unknown }) {
+  return (
+    <Text accessibilityLabel={`UI docs ${page} failed`} className="text-sm text-hozo-danger-text">
+      {`This demo failed on React Native: ${describe(thrown)}`}
+    </Text>
+  )
 }
 
 function Load({ load }: { load: () => ComponentType }) {
