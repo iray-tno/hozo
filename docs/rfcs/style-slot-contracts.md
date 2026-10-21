@@ -323,8 +323,14 @@ The subsequent Native-only popup slice resolves sheet/scrim classes
 only while Hozo's own fallback is open. Sheet typography reaches its owned
 row labels, with explicit box/text styles last. The trigger cannot lend
 its own events or form predicates to the sheet/scrim. Unmeasured hover/focus
-keys remain absent and are diagnosed on use. Option classes remain a
-separate row-owner slice.
+keys remain absent and are diagnosed on use. The following row-owner slice
+resolves option classes using each Native row's actual selected/disabled
+accessibility state and RN press snapshot. Sheet text precedes row text,
+then explicit textStyle; explicit optionStyle follows its classes. It does
+not infer row focus/hover or borrow them from the trigger, add hooks, or
+change selection behavior. Disabled press snapshots cannot activate a row's
+pressed look. These Native-only class facts are not assertions about an
+authored ARIA attribute on the Web select's OS-owned option list.
 This is the Native-only popup API, not CSS compatibility with an OS-drawn Web
 option list. Unused system/presenter popup classes are neither resolved nor
 warned about. No new hook, provider or host is added by the popup slice.

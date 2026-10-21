@@ -47,7 +47,7 @@ export interface HozoNativeSelectProps {
   /** Native-owned fallback chrome only; neither the system picker nor the Web select uses these. */
   sheetClassName?: string
   scrimClassName?: string
-  /** Native fallback row classes remain unresolved; optionStyle supplies the row appearance. */
+  /** Native fallback rows receive their own press/disabled/selected facts. */
   optionClassName?: string
   /**
    * What the fallback's dismiss says, and what iOS puts on its cancel button.
@@ -164,6 +164,7 @@ export function HozoNativeSelect({
   className,
   sheetClassName,
   scrimClassName,
+  optionClassName,
   cancelLabel: cancelLabelProp,
   sheetStyle,
   scrimStyle,
@@ -220,6 +221,24 @@ export function HozoNativeSelect({
         StyleSheet.flatten([hozoClasses(sheetClassName, nonControlClassFacts), sheetStyle]) ?? {},
       )
     : null
+  // The fallback's Native-only rows expose the same disabled/selected
+  // facts they announce, not the trigger's state or a Web option attribute.
+  // RN supplies press snapshots. Omit unmeasured focus/hover facts.
+  const optionLook = (option: HozoNativeSelectOption, pressed: boolean) =>
+    hozoSplitTextStyle(
+      StyleSheet.flatten([
+        hozoClasses(optionClassName, {
+          pressed: !option.disabled && pressed,
+          disabled: Boolean(option.disabled),
+          enabled: !option.disabled,
+          readOnly: true,
+          'aria-selected': option.value === current,
+          'aria-disabled': Boolean(option.disabled),
+          'aria-checked': false,
+        }),
+        optionStyle,
+      ]) ?? {},
+    )
 
   const choosable = useMemo(() => options.filter((option) => !option.disabled), [options])
 
@@ -336,7 +355,7 @@ export function HozoNativeSelect({
                   disabled: option.disabled,
                 }}
                 disabled={option.disabled}
-                style={optionStyle}
+                style={({ pressed }) => optionLook(option, pressed)[0] as ViewStyle}
                 onPress={() => {
                   select(option.value)
                   // Closed on choosing. A list that stayed open after a
@@ -345,7 +364,17 @@ export function HozoNativeSelect({
                   setOpen(false)
                 }}
               >
-                <Text style={[sheet?.[1] as TextStyle, textStyle]}>{option.label}</Text>
+                {({ pressed }) => (
+                  <Text
+                    style={[
+                      sheet?.[1] as TextStyle,
+                      optionLook(option, pressed)[1] as TextStyle,
+                      textStyle,
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                )}
               </Pressable>
             ))}
           </ScrollView>
