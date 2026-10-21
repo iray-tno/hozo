@@ -304,6 +304,28 @@ for (const [page, element] of [
     ],
   )
 }
+// The React Native line under each preview, from the compiler's verdict
+// (#1165). The bottom sheet's grabber is a `before:` box React Native cannot
+// draw; the button's look has nothing Web-only but a transition.
+{
+  const line = (page) =>
+    /<div class="hozo-ui-native[^"]*" data-native-missing="(\d+)">([\s\S]*?)<\/div>/.exec(
+      readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8'),
+    )
+  const sheet = line('bottom-sheet')
+  const button = line('button')
+  checks.push(
+    [Number(sheet?.[1]) > 0, 'docs components/bottom-sheet: no React Native line listing classes'],
+    [
+      /before:block/.test(sheet?.[2] ?? ''),
+      'docs components/bottom-sheet: the grabber is not listed',
+    ],
+    [
+      button?.[1] === '0',
+      'docs components/button: the React Native line is missing or lists classes',
+    ],
+  )
+}
 for (const page of sitePages) {
   const head = readFileSync(path.join(dist, page, 'index.html'), 'utf8')
   const label = page === '' ? 'index' : page

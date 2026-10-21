@@ -309,6 +309,8 @@ interface NativeBinding {
   summarizeStylexModule(source: string, sourceFile?: string): StylexModuleSummary
   summarizeTextForwarding(source: string): TextForwardingSummary
   classHelperCandidates(source: string): { specifier: string; imported: string }[]
+  nativeClassReport(source: string): NativeClassFinding[]
+  nativeClassVerdicts(classNames: string[]): (NativeClassVerdict | null)[]
   summarizeClassHelpers(source: string): string[]
   CandidateCache: CandidateCacheConstructor
   Compiler: CompilerConstructor
@@ -699,6 +701,46 @@ export function summarizeTextForwarding(source: string): TextForwardingSummary {
  * compiler already recognizes: the ones worth resolving to see whether they
  * are (#964). See `findClassHelpers` in `./project.ts`.
  */
+/**
+ * Why React Native cannot draw a class (#1165). `missing` is something the
+ * Web draws and Native does not -- a pseudo-element, a scrim, a selector;
+ * `cosmetic` is a cursor shape or a CSS transition, which nobody would see
+ * as broken. State a component's Native half may supply (`hover:`,
+ * `aria-*:`, `data-*:`) is not reported.
+ */
+export interface NativeClassVerdict {
+  kind: 'missing' | 'cosmetic'
+  reason: string
+}
+
+/** One class in a module's class prop that React Native cannot draw. */
+export interface NativeClassFinding extends NativeClassVerdict {
+  element: string
+  prop: string
+  className: string
+  spanStart: number
+  spanEnd: number
+}
+
+/**
+ * Every class in the module's `className` and `*ClassName` props, on any
+ * element, that React Native cannot draw -- including class lists handed to
+ * a pattern such as `BottomSheet`, which the compiler does not lower and
+ * so never examined. Values are read as far as the file spells them out:
+ * literals, module constants, both arms of a ternary, a joiner's arguments.
+ *
+ * Unstable: the shape may change while the audit (#1167) and build warnings
+ * (#1166) adopt it.
+ */
+export function nativeClassReport(source: string): NativeClassFinding[] {
+  return loadNative().nativeClassReport(source) as NativeClassFinding[]
+}
+
+/** The same verdict for loose class names, in order; `null` where Native can draw it. */
+export function nativeClassVerdicts(classNames: readonly string[]): (NativeClassVerdict | null)[] {
+  return loadNative().nativeClassVerdicts([...classNames]) as (NativeClassVerdict | null)[]
+}
+
 export function classHelperCandidates(source: string): { specifier: string; imported: string }[] {
   return loadNative().classHelperCandidates(source)
 }

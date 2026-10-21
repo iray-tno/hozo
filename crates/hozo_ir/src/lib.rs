@@ -1128,6 +1128,13 @@ pub struct PassthroughProp {
     /// modeled props before the spread has to take these keys out of the
     /// spread to keep that, or the spread's copy wins instead (#1127).
     pub later_names: Vec<String>,
+    /// For a class prop the backend does not lower (a pattern's
+    /// `sheetClassName`), every class list its value can be that the file
+    /// spells out: literals, module constants, both arms of a ternary, a
+    /// joiner's arguments. Empty for anything else. The Native backend
+    /// checks the classes in them, which otherwise reached React Native's
+    /// runtime resolver unexamined (#1165).
+    pub class_literals: Vec<String>,
     /// Hozo primitives inside an opaque prop expression such as
     /// `renderItem={() => <View />}`.
     pub nested: Vec<NestedNode>,
