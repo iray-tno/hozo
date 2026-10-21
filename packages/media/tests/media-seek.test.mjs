@@ -34,6 +34,20 @@ async function load(native = false, slider = false, rtl = false) {
     platform: 'node',
     format: 'cjs',
     packages: 'external',
+    plugins: [
+      {
+        name: 'slider-interaction-source',
+        setup(builder) {
+          // The raw Slider probe must load its real hook without making
+          // behaviors a production dependency of the media package.
+          builder.onResolve({ filter: /^@hozo\/behaviors\/pressable-interaction$/ }, () => ({
+            path: fileURLToPath(
+              new URL('../../behaviors/src/pressable-interaction.ts', import.meta.url),
+            ),
+          }))
+        },
+      },
+    ],
   })
   const module = { exports: {} }
   new Function('require', 'module', 'exports', result.outputFiles[0].text)(
@@ -328,6 +342,10 @@ for (const native of [false, true])
       assert.equal(track().props.pointerEvents, 'box-only')
       assert.equal(thumb().props.accessible, true)
       assert.deepEqual(thumb().props.style.at(-1), { start: '12.5%' })
+      await act(async () => thumb().props.onFocus())
+      await act(async () => thumb().props.onBlur())
+      assert.deepEqual(p.requests, [], 'thumb focus is not a seek command')
+      assert.equal(p.last.previewing, false)
     }
     if (native)
       await act(async () =>
