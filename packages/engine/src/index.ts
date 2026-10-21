@@ -50,4 +50,5 @@ export {
   HozoTextSizeContext,
   useHozoTextSize,
 } from './text-size.ts'
+export { hozoSplitTextStyle } from './text-style.ts'
 export { hozoViewBase, hozoViewClassName } from './view-base.ts'
