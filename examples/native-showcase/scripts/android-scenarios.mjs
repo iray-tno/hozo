@@ -26,8 +26,18 @@ export function runAndroidScenarios(value, run = execute) {
     run(scenario, 'artifacts/native-showcase-audio-settings')
     return
   }
+  if (scenario === 'ui-docs') {
+    run(scenario, 'artifacts/native-showcase-ui-docs')
+    return
+  }
   run('svg-filters', 'artifacts/native-showcase-svg')
-  if (scenario === 'full') run('full', 'artifacts/native-showcase')
+  if (scenario === 'full') {
+    run('full', 'artifacts/native-showcase')
+    // The docs component previews, last: the weekly run is where the docs
+    // site fetches them from (#1160), and they assert nothing the full
+    // showcase depends on.
+    run('ui-docs', 'artifacts/native-showcase-ui-docs')
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))

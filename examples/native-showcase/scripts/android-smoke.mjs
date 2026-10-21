@@ -16,6 +16,7 @@ import { waitForImage } from './image-ready.mjs'
 import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters, readAndroidScenario } from './svg-filter-evidence.mjs'
 import { exerciseTextInheritance, textFrame, textImage } from './text-pixels.mjs'
+import { exerciseUiDocs } from './ui-docs-evidence.mjs'
 import {
   exerciseVideo,
   exerciseVideoPoster,
@@ -449,6 +450,38 @@ try {
         record,
       },
       evidence,
+    )
+  } else if (evidence.scenario === 'ui-docs') {
+    evidence.uiDocs = await exerciseUiDocs(
+      {
+        open: (id) =>
+          adb(
+            'shell',
+            'am',
+            'start',
+            '-W',
+            '-a',
+            'android.intent.action.VIEW',
+            '-d',
+            `hozo-showcase://storybook?STORYBOOK_STORY_ID=${id}`,
+            app,
+          ),
+        waitForEither: async (labels, timeout) => {
+          const node = await waitFor(
+            (candidate) => labels.some((value) => matchLabel(candidate, value)),
+            labels.join(' or '),
+            timeout,
+          )
+          return labels.find((value) => matchLabel(node, value))
+        },
+        // Fonts, images and the first layout pass, which the marker can
+        // precede by a frame or two.
+        settle: () => pause(1500),
+        logs: () => adb('logcat', '-d', '-s', 'ReactNativeJS:*').toString(),
+        capture: (name) =>
+          writeFileSync(resolve(output, `${name}.png`), adb('exec-out', 'screencap', '-p')),
+      },
+      output,
     )
   } else {
     await fullShowcase()

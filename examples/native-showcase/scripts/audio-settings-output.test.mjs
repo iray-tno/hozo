@@ -198,7 +198,7 @@ test('settings diagnosis has a separate capture/artifact and does not silently a
   )
   assert.match(
     workflow,
-    /options: \[full, svg-filters, audio-output, audio-settings, text-inheritance\]/,
+    /options: \[full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs\]/,
   )
   assert.match(workflow, /inputs.android-scenario == 'audio-settings'/)
   assert.match(workflow, /name: hozo-native-showcase-android-audio-settings-evidence/)
