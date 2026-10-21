@@ -154,6 +154,16 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    `cx` substitution alone leaves their whole wrapper unlowered. Those
    owners require a compiler boundary/slot design, not another local joiner
    or a claim that every UI component is fixed by the same substitution.
+
+   Skeleton now declares its default corners as a compiled resting look.
+   Its old `choosesCorners` string scan is removed: `md:rounded-none` must
+   not erase the default below `md`. The browser regression tests default,
+   full and responsive radii at 375/1024px with both stylesheet orders,
+   and deliberately leaks the default candidate to verify that the oracle
+   catches the original bug. Native generated-style checks cover the
+   unconditional caller override; dynamic environment variants retain
+   their existing Native resolver limitation. Pulse/reduced-motion ownership
+   is unchanged and is not newly certified by the composition probe.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/
    mixed, shape changes, absent owners, explicit style overrides and status
    gates in matrix fixtures. A decorative label can inherit text styling
