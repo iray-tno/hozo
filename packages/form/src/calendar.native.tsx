@@ -405,6 +405,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
               bounds: { min, max },
             })
             const said = spokenExtras(day, { todayLabel, rangeStartLabel, rangeEndLabel })
+            const content = renderDay ? renderDay(day) : dayNumber(cell.date, locale)
             return (
               <Pressable
                 key={cellKey(cell.date)}
@@ -416,10 +417,13 @@ export function HozoCalendar(props: HozoCalendarProps) {
                 style={dayStyle}
                 onPress={() => choose(cell.date)}
               >
-                {renderDay ? (
-                  renderDay(day)
+                {/* A custom renderer may return the bare day number, as
+                    @hozo/ui does. RN requires its Text boundary just as on
+                    the default path; arbitrary custom layouts stay untouched. */}
+                {typeof content === 'string' || typeof content === 'number' ? (
+                  <Text style={dayTextStyle}>{content}</Text>
                 ) : (
-                  <Text style={dayTextStyle}>{dayNumber(cell.date, locale)}</Text>
+                  content
                 )}
               </Pressable>
             )
