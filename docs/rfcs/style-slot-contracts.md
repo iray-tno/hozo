@@ -146,6 +146,14 @@ The output comparison is exact; timings are descriptive, not a flaky CI gate.
    are still outside the current theme-loader payload; this slice preserves
    Card's authored flat selection and old resolver behaviour, not new
    custom-shadow coverage.
+
+   Avatar's size and status choices are likewise finite `cx` arguments;
+   its root/image/status slots keep only caller strings in the residual.
+   This does not generalise to every UI wrapper: Toolbar and RadioGroup,
+   for example, are not modelled primitive tags in the current parser. A
+   `cx` substitution alone leaves their whole wrapper unlowered. Those
+   owners require a compiler boundary/slot design, not another local joiner
+   or a claim that every UI component is fixed by the same substitution.
 2. Audit pending owners and decorative semantics. Require literal/dynamic/
    mixed, shape changes, absent owners, explicit style overrides and status
    gates in matrix fixtures. A decorative label can inherit text styling

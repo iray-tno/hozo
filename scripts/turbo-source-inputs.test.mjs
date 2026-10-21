@@ -42,6 +42,7 @@ const reads = {
     'packages/metro/src/transform.ts',
     'packages/metro/src/project.ts',
     'packages/ui/src/combobox.tsx',
+    'packages/ui/src/avatar.tsx',
     'packages/ui/src/card.tsx',
     'packages/ui/src/stack.tsx',
     'packages/ui/src/otp-input.tsx',

@@ -60,6 +60,17 @@ const uiCompiler = createCompiler(uiTheme)
 const uiCache = openCandidateCache(path.join(directory, 'ui-candidates.json'))
 const layoutCaller = `${caller} flex flex-col gap-8 items-start`
 const uiCases = [
+  [
+    'avatar',
+    'Avatar',
+    ['className', 'imageClassName', 'statusClassName'],
+    [
+      {},
+      ...['sm', 'md', 'lg'].flatMap((size) =>
+        [undefined, 'online', 'busy', 'offline'].map((status) => ({ size, status })),
+      ),
+    ],
+  ],
   ['card', 'Card', ['className'], [{}, { flat: false }, { flat: true }]],
   [
     'stack',
@@ -214,6 +225,34 @@ for (const { file, name, slots, source, variants, classes } of uiCases) {
                 {},
                 ...resolveUiClasses(authoredProps.className).flat(Infinity).filter(Boolean),
               )
+              if (name === 'Avatar') {
+                if (slot === 'className') {
+                  const size = { sm: 32, md: 40, lg: 56 }[variant.size ?? 'md']
+                  assert.equal(flat.width, size)
+                  assert.equal(flat.height, size)
+                  assert.equal(
+                    flat.fontSize,
+                    extra ? 28 : { sm: 12, md: 14, lg: 18 }[variant.size ?? 'md'],
+                  )
+                }
+                if (slot === 'statusClassName') {
+                  const token =
+                    variant.status === 'online'
+                      ? 'hozo-presence'
+                      : variant.status === 'busy'
+                        ? 'hozo-danger'
+                        : 'hozo-border-strong'
+                  const color = uiTheme.colors.find((entry) => entry.token === token)?.hex
+                  assert.ok(color)
+                  assert.equal(flat.backgroundColor, color)
+                  assert.equal(flat.width, 12)
+                  assert.equal(flat.height, 12)
+                }
+                if (slot === 'imageClassName') {
+                  assert.equal(flat.width, '100%')
+                  assert.equal(flat.height, '100%')
+                }
+              }
               assert.deepEqual(flat.boxShadow, previous.boxShadow)
               if (!extra) {
                 assert.equal(flat.paddingTop, 24)
