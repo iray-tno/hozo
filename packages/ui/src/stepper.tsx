@@ -8,7 +8,7 @@
  * class lists, which reach React Native as well as the Web.
  */
 
-import { Stepper, type StepperProps } from '@hozo/core'
+import { cx, Stepper, type StepperProps } from '@hozo/core'
 
 export type HozoStepperProps = StepperProps
 
@@ -26,8 +26,6 @@ const indicatorError = 'border-hozo-danger bg-hozo-danger text-hozo-on-danger'
 const current = 'font-medium text-hozo-text'
 const description = 'text-xs text-hozo-text-subtle'
 
-const plus = (own: string, extra: string | undefined) => (extra ? `${own} ${extra}` : own)
-
 // Not named `HozoStepper` here: compiled output imports a runtime component
 // under that name for the `<Stepper>` below (#670).
 function StyledStepper({
@@ -44,14 +42,14 @@ function StyledStepper({
   return (
     <Stepper
       {...rest}
-      className={plus(list, className)}
-      stepClassName={plus(step, stepClassName)}
-      currentStepClassName={plus(current, currentStepClassName)}
-      indicatorClassName={plus(indicator, indicatorClassName)}
-      completedIndicatorClassName={plus(indicatorDone, completedIndicatorClassName)}
-      currentIndicatorClassName={plus(indicatorCurrent, currentIndicatorClassName)}
-      errorIndicatorClassName={plus(indicatorError, errorIndicatorClassName)}
-      descriptionClassName={plus(description, descriptionClassName)}
+      className={cx(list, className)}
+      stepClassName={cx(step, stepClassName)}
+      currentStepClassName={cx(current, currentStepClassName)}
+      indicatorClassName={cx(indicator, indicatorClassName)}
+      completedIndicatorClassName={cx(indicatorDone, completedIndicatorClassName)}
+      currentIndicatorClassName={cx(indicatorCurrent, currentIndicatorClassName)}
+      errorIndicatorClassName={cx(indicatorError, errorIndicatorClassName)}
+      descriptionClassName={cx(description, descriptionClassName)}
     />
   )
 }
