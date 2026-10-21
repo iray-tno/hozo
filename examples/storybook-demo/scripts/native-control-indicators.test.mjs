@@ -793,6 +793,104 @@ test('NativeSelect never resolves popup classes while its own popup is absent', 
   }
 })
 
+test('NativeSelect option classes follow each Native row, not its trigger or siblings', async (t) => {
+  nativePlatform.OS = 'android'
+  try {
+    const props = {
+      options: selectOptions,
+      defaultValue: 'slow',
+      className: 'aria-selected:border-2',
+      sheetClassName: 'text-sm text-hozo-accent aria-selected:border-2',
+      optionClassName:
+        'p-5 aria-selected:border-2 aria-selected:font-bold disabled:opacity-25 disabled:text-hozo-text-subtle active:opacity-50',
+    }
+    const tree = await mount(t, HozoNativeSelect, props)
+    const rows = () =>
+      tree.root
+        .findAllByType('NativePressable')
+        .filter((node) => node.props.accessibilityRole === 'menuitem')
+    await press(selectControl(tree))
+    assert.equal(flat(rows()[0].props.style).paddingTop, 20)
+    assert.equal(flat(rows()[0].props.style).borderTopWidth, 2)
+    assert.equal(flat(rows()[1].props.style).borderTopWidth, undefined)
+    assert.equal(flat(rows()[2].props.style).opacity, 0.25)
+    assert.equal(flat(selectControl(tree).props.style).borderTopWidth, undefined)
+    assert.equal(flat(panel(tree).props.style).borderTopWidth, undefined)
+    assert.equal(flat(rows()[0].findByType('NativeText').props.style).fontWeight, '700')
+    assert.equal(flat(rows()[1].findByType('NativeText').props.style).fontWeight, undefined)
+    assert.equal(flat(rows()[1].findByType('NativeText').props.style).color, color('hozo-accent'))
+    assert.equal(flat(rows()[1].findByType('NativeText').props.style).fontSize, 14)
+    assert.equal(
+      flat(rows()[2].findByType('NativeText').props.style).color,
+      color('hozo-text-subtle'),
+    )
+    // Snapshot evaluation checks the actual RN style/children callbacks;
+    // this host stand-in does not certify platform gesture delivery.
+    const callbacks = tree.root
+      .findAllByType(NativePressable)
+      .filter((node) => node.props.accessibilityRole === 'menuitem')
+    assert.equal(flat(callbacks[0].props.style({ pressed: true })).opacity, 0.5)
+    assert.equal(flat(callbacks[2].props.style({ pressed: true })).opacity, 0.25)
+    const pressedLabel = callbacks[0].props.children({ pressed: true })
+    assert.equal(flat(pressedLabel.props.style).fontWeight, '700')
+    await act(() =>
+      tree.update(
+        React.createElement(HozoNativeSelect, {
+          ...props,
+          options: [selectOptions[1], selectOptions[0], selectOptions[2]],
+          optionStyle: { paddingTop: 93, borderTopWidth: 9 },
+          textStyle: { color: '#abcdef' },
+        }),
+      ),
+    )
+    assert.equal(rows()[0].props.accessibilityState.selected, false)
+    assert.equal(rows()[1].props.accessibilityState.selected, true)
+    assert.equal(flat(rows()[1].props.style).paddingTop, 93)
+    assert.equal(flat(rows()[1].props.style).paddingBottom, 20)
+    assert.equal(flat(rows()[1].props.style).borderTopWidth, 9)
+    assert.equal(flat(rows()[1].props.style).borderBottomWidth, 2)
+    assert.equal(flat(rows()[1].findByType('NativeText').props.style).color, '#abcdef')
+    await press(rows()[2])
+    assert.equal(tree.root.findAllByType('NativeModal').length, 1)
+    await press(rows()[0])
+    assert.equal(tree.root.findAllByType('NativeModal').length, 0)
+    assert.equal(selectControl(tree).props.accessibilityValue.text, 'Express')
+    await press(selectControl(tree))
+    assert.equal(rows()[0].props.accessibilityState.selected, true)
+    assert.equal(rows()[1].props.accessibilityState.selected, false)
+    await act(() =>
+      tree.update(React.createElement(HozoNativeSelect, { ...props, optionClassName: undefined })),
+    )
+    assert.equal(
+      flat(rows()[0].props.style).paddingTop,
+      undefined,
+      'removing classes leaves no stale row look',
+    )
+  } finally {
+    nativePlatform.OS = 'ios'
+  }
+})
+
+test('NativeSelect row classes diagnose unmeasured focus/hover instead of borrowing the trigger', async (t) => {
+  nativePlatform.OS = 'android'
+  const warnings = []
+  const original = console.warn
+  console.warn = (message) => warnings.push(message)
+  try {
+    const tree = await mount(t, HozoNativeSelect, {
+      options: selectOptions,
+      optionClassName: 'focus-visible:opacity-75 hover:text-hozo-accent-text',
+    })
+    assert.deepEqual(warnings, [])
+    await press(selectControl(tree))
+    assert.ok(warnings.some((message) => message.includes('needs state (focusVisible)')))
+    assert.ok(warnings.some((message) => message.includes('needs state (hovered)')))
+  } finally {
+    nativePlatform.OS = 'ios'
+    console.warn = original
+  }
+})
+
 test('Native overlay Popover keeps root and animated panel classes on separate owners', async (t) => {
   const { tree } = await checkClassSlots(
     t,
