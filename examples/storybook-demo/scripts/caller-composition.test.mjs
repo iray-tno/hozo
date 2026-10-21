@@ -130,6 +130,8 @@ uiCache.scanFile('slider-focus.ts', JSON.stringify(sliderFocusClasses), 1)
 const textAreaFocusClasses =
   'focus:opacity-75 focus-visible:outline-2 disabled:opacity-25 read-only:border-4 aria-[invalid=true]:border-4 aria-required:outline-4'
 uiCache.scanFile('text-area-focus.ts', JSON.stringify(textAreaFocusClasses), 1)
+const selectFocusClasses = `${textAreaFocusClasses} aria-expanded:mt-8`
+uiCache.scanFile('select-focus.ts', JSON.stringify(selectFocusClasses), 1)
 const radiusCandidates = [
   'size-10',
   'h-4',
@@ -586,6 +588,57 @@ test('the real Web TextArea owns editable focus and form predicates, not its wra
     assert.equal((await read()).opacity, '1')
     assert.equal((await read()).border, '4px')
     assert.equal((await read()).outline, '4px')
+  } finally {
+    await page.close()
+  }
+})
+
+test('the real Web NativeSelect is read-only, blurs when disabled and has no authored expanded fact', {
+  skip: !executablePath,
+}, async () => {
+  const fixture = await build({
+    stdin: {
+      contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoNativeSelect} from ${JSON.stringify(fileURLToPath(new URL('../../../packages/form/src/native-select.tsx', import.meta.url)))};
+      const root = createRoot(document.getElementById('root'));
+      window.renderSelect = (props = {}) => flushSync(() => root.render(createElement(HozoNativeSelect, {options:[{value:'slow', label:'Standard'},{value:'fast',label:'Express'},{value:'closed',label:'Unavailable',disabled:true}], defaultValue:'slow', className:${JSON.stringify(selectFocusClasses)}, ...props})));
+      window.renderSelect();`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<style>${uiCandidates}</style><div id="root"></div>`)
+    await page.addScriptTag({ content: fixture.outputFiles[0].text })
+    const control = page.locator('select')
+    const read = () =>
+      control.evaluate((element) => {
+        const s = getComputedStyle(element)
+        return [
+          element.matches(':focus'),
+          element.matches(':read-only'),
+          s.opacity,
+          s.borderTopWidth,
+          s.marginTop,
+          element.value,
+        ]
+      })
+    await control.focus()
+    assert.deepEqual(await read(), [true, true, '0.75', '4px', '0px', 'slow'])
+    assert.equal(await control.getAttribute('aria-expanded'), null)
+    await page.evaluate(() => window.renderSelect({ disabled: true }))
+    assert.deepEqual(await read(), [false, true, '0.25', '4px', '0px', 'slow'])
+    await page.evaluate(() => window.renderSelect({ 'aria-invalid': true, 'aria-required': true }))
+    assert.deepEqual(await read(), [false, true, '1', '4px', '0px', 'slow'])
+    assert.equal(await control.evaluate((element) => getComputedStyle(element).outlineWidth), '4px')
+    await control.selectOption('fast')
+    assert.equal(await control.inputValue(), 'fast')
+    assert.equal(await page.locator('option[value="closed"]').isDisabled(), true)
   } finally {
     await page.close()
   }

@@ -42,6 +42,9 @@ const reads = {
   '@hozo/example-storybook#test': [
     'packages/form/src/form.native.tsx',
     'packages/form/src/text-area.native.tsx',
+    'packages/form/src/native-select.native.tsx',
+    'packages/form/src/native-select.tsx',
+    'packages/ui/src/native-select.tsx',
     'packages/form/src/text-area.tsx',
     'packages/behaviors/src/live-region.tsx',
     'packages/form/src/class-facts.native.ts',
