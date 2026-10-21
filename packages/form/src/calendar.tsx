@@ -53,7 +53,7 @@ export interface HozoCalendarDay {
 
 interface Shared {
   className?: string
-  /** On the `<td>` that is the grid cell, so `disabled:` variants reach it. */
+  /** On the gridcell td: unavailable days use aria-disabled, not :disabled. */
   dayClassName?: string
   headerClassName?: string
   /**

@@ -51,7 +51,7 @@ const otpSemanticClasses =
   'disabled:opacity-25 read-only:outline-2 read-only:focus:outline-4 aria-disabled:border-4 aria-selected:mt-8'
 cache.scanFile(
   'calendar-chrome.tsx',
-  '<View className="text-hozo-text-subtle text-lg font-bold" />',
+  '<View className="text-hozo-text-subtle text-lg font-bold aria-disabled:opacity-25 data-[hozo-range-start]:border-2 data-[hozo-range-end]:border-4 data-[hozo-in-range]:opacity-75 data-[hozo-outside]:opacity-50" />',
   1,
 )
 cache.scanFile(
@@ -915,6 +915,180 @@ const calendarMonthButtons = (tree) =>
   tree.root
     .findAllByType('NativePressable')
     .filter((node) => !node.props.accessibilityLabel?.includes('2026'))
+const calendarJuneDay = (tree, number) =>
+  calendarDays(tree).find((node) => node.props.accessibilityLabel.includes(`June ${number},`))
+
+test('Native UI Calendar draws selected single days, range caps, interiors and unavailable days', async (t) => {
+  const tree = await mount(t, UiCalendar, {
+    ...calendarProps,
+    value: { year: 2026, month: 6, day: 12 },
+    renderDay: (day) => day.date.day,
+    min: { year: 2026, month: 6, day: 10 },
+    max: { year: 2026, month: 6, day: 20 },
+  })
+  const selected = calendarJuneDay(tree, 12)
+  assert.equal(flat(selected.props.style).paddingTop, 8)
+  assert.equal(flat(selected.props.style).minWidth, 36)
+  assert.equal(flat(selected.props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(selected.props.children.props.style).color, color('hozo-on-accent'))
+  assert.equal(String(flat(selected.props.children.props.style).fontWeight), '600')
+  assert.equal(flat(calendarJuneDay(tree, 13).props.style).backgroundColor, undefined)
+  assert.equal(
+    flat(calendarJuneDay(tree, 9).props.children.props.style).color,
+    color('hozo-text-subtle'),
+  )
+  assert.equal(
+    flat(calendarDays(tree)[0].props.children.props.style).color,
+    color('hozo-text-subtle'),
+  )
+  const changes = []
+  const props = {
+    ...calendarProps,
+    range: true,
+    renderDay: (day) => day.date.day,
+    onChange: (value) => changes.push(value),
+  }
+  const range = await mount(t, UiCalendar, props)
+  await press(calendarJuneDay(range, 12))
+  assert.deepEqual(changes, [])
+  assert.equal(flat(calendarJuneDay(range, 12).props.style).backgroundColor, color('hozo-accent'))
+  await press(calendarJuneDay(range, 15))
+  assert.deepEqual(changes, [
+    { start: { year: 2026, month: 6, day: 12 }, end: { year: 2026, month: 6, day: 15 } },
+  ])
+  await act(() => range.update(React.createElement(UiCalendar, { ...props, value: changes[0] })))
+  for (const end of [12, 15]) {
+    assert.equal(
+      flat(calendarJuneDay(range, end).props.style).backgroundColor,
+      color('hozo-accent'),
+    )
+    assert.equal(
+      flat(calendarJuneDay(range, end).props.children.props.style).color,
+      color('hozo-on-accent'),
+    )
+  }
+  for (const inside of [13, 14]) {
+    assert.equal(
+      flat(calendarJuneDay(range, inside).props.style).backgroundColor,
+      color('hozo-accent-subtle'),
+    )
+    assert.equal(
+      flat(calendarJuneDay(range, inside).props.children.props.style).color,
+      color('hozo-accent-text'),
+    )
+    assert.equal(calendarJuneDay(range, inside).props.accessibilityState.selected, true)
+  }
+})
+
+test('Native Calendar day events are local and td facts do not become button form predicates', async (t) => {
+  let calls = 0
+  const props = {
+    ...calendarProps,
+    dayClassName: `${interactionClasses} disabled:mt-8 enabled:mb-8 aria-disabled:border-4`,
+    renderDay: (day) => {
+      calls++
+      return day.date.day
+    },
+  }
+  const tree = await mount(t, HozoCalendar, props)
+  const a = calendarJuneDay(tree, 12),
+    b = calendarJuneDay(tree, 13)
+  await act(() => a.props.onHoverIn())
+  assert.equal(flat(a.props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(b.props.style).backgroundColor, undefined)
+  assert.equal(flat(a.props.children.props.style).color, color('hozo-accent-text'))
+  await act(() => a.props.onFocus())
+  assert.equal(flat(a.props.style).opacity, 0.75)
+  await act(() => a.props.onPressIn())
+  assert.equal(flat(a.props.style).opacity, 0.5)
+  await act(() => {
+    a.props.onPressOut()
+    a.props.onKeyDown()
+  })
+  assert.equal(flat(a.props.style).outlineWidth, 2)
+  assert.equal(calls, 42, 'a day interaction must not reevaluate all renderDay callbacks')
+  await act(() =>
+    tree.update(
+      React.createElement(HozoCalendar, { ...props, min: { year: 2026, month: 6, day: 15 } }),
+    ),
+  )
+  assert.equal(a.props.accessibilityState.disabled, true)
+  assert.equal(flat(a.props.style).borderTopWidth, 4)
+  assert.equal(flat(a.props.style).marginTop, undefined, 'aria-disabled td is not :disabled')
+  assert.equal(flat(a.props.style).marginBottom, undefined, 'td is not :enabled')
+  assert.equal(flat(a.props.style).opacity, 0.75, 'aria-disabled does not blur a Web td')
+  await act(() => {
+    a.props.onBlur()
+    a.props.onHoverOut()
+  })
+  assert.equal(flat(a.props.style).opacity, undefined)
+})
+
+test('Native Calendar data-presence facts distinguish range start, end, interior and outside', async (t) => {
+  const props = {
+    ...calendarProps,
+    range: true,
+    value: { start: { year: 2026, month: 6, day: 12 }, end: { year: 2026, month: 6, day: 15 } },
+    dayClassName:
+      'aria-disabled:opacity-25 data-[hozo-range-start]:border-2 data-[hozo-range-end]:border-4 data-[hozo-in-range]:opacity-75 data-[hozo-outside]:opacity-50',
+    min: { year: 2026, month: 6, day: 10 },
+  }
+  const tree = await mount(t, HozoCalendar, props)
+  assert.equal(flat(calendarJuneDay(tree, 12).props.style).borderTopWidth, 2)
+  assert.equal(flat(calendarJuneDay(tree, 15).props.style).borderTopWidth, 4)
+  assert.equal(flat(calendarJuneDay(tree, 13).props.style).borderTopWidth, undefined)
+  assert.equal(flat(calendarJuneDay(tree, 13).props.style).opacity, 0.75)
+  assert.equal(flat(calendarJuneDay(tree, 11).props.style).opacity, undefined)
+  assert.equal(flat(calendarJuneDay(tree, 9).props.style).opacity, 0.25)
+  assert.equal(flat(calendarDays(tree)[0].props.style).opacity, 0.5)
+  await act(() =>
+    tree.update(
+      React.createElement(HozoCalendar, {
+        ...props,
+        range: false,
+        value: { year: 2026, month: 6, day: 12 },
+      }),
+    ),
+  )
+  assert.equal(calendarJuneDay(tree, 12).props.accessibilityState.selected, true)
+  assert.equal(
+    flat(calendarJuneDay(tree, 12).props.style).borderTopWidth,
+    undefined,
+    'single selection has neither range cap',
+  )
+})
+
+test('Native Calendar day classes preserve explicit style priority and clear changed selection', async (t) => {
+  const props = {
+    ...calendarProps,
+    value: { year: 2026, month: 6, day: 12 },
+    dayClassName: 'p-2 aria-selected:border-2 aria-selected:font-bold',
+    dayStyle: { paddingTop: 91, borderTopWidth: 9, fontSize: 23 },
+    dayTextStyle: { fontSize: 25 },
+  }
+  const tree = await mount(t, HozoCalendar, props)
+  const a = calendarJuneDay(tree, 12)
+  assert.equal(flat(a.props.style).paddingBottom, 8)
+  assert.equal(flat(a.props.style).paddingTop, 91)
+  assert.equal(flat(a.props.style).borderTopWidth, 9)
+  assert.equal(flat(a.props.style).borderBottomWidth, 2)
+  assert.equal(flat(a.props.style).fontSize, undefined)
+  assert.equal(flat(a.props.children.props.style).fontSize, 25)
+  assert.equal(String(flat(a.props.children.props.style).fontWeight), '700')
+  await act(() =>
+    tree.update(
+      React.createElement(HozoCalendar, { ...props, value: { year: 2026, month: 6, day: 13 } }),
+    ),
+  )
+  assert.equal(flat(a.props.style).borderBottomWidth, undefined)
+  assert.equal(flat(a.props.children.props.style).fontWeight, undefined)
+  assert.equal(flat(calendarJuneDay(tree, 13).props.style).borderBottomWidth, 2)
+  await act(() =>
+    tree.update(React.createElement(HozoCalendar, { ...props, dayClassName: undefined })),
+  )
+  assert.equal(flat(a.props.style).paddingBottom, undefined)
+  assert.equal(flat(a.props.style).paddingTop, 91)
+})
 
 test('Native Calendar month classes follow each actual button, not its sibling or chrome', async (t) => {
   let dayRenders = 0

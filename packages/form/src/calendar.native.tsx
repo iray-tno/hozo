@@ -68,7 +68,7 @@ interface Shared {
    * Custom renderDay elements keep ownership of their own text/layout.
    */
   className?: string
-  /** Not yet resolved on Native; day cells need their own state contract. */
+  /** Each cell's classes use its Web td facts, ARIA/data state and local events. */
   dayClassName?: string
   headerClassName?: string
   /** On the box around weekday headings and weeks, like the Web table. */
@@ -274,6 +274,79 @@ function monthStep(month: CalendarMonth, months: number): CalendarMonth {
   return { year: at.year, month: at.month }
 }
 
+// Native activates a Pressable, but this shared class prop belongs to a Web
+// td: aria-disabled does not make a td match :disabled or blur it. A leaf
+// scopes interaction updates without reevaluating the caller's renderDay.
+function CalendarDay({
+  day,
+  label,
+  extra,
+  content,
+  className,
+  style,
+  textStyle,
+  inheritedText,
+  onChoose,
+}: {
+  day: HozoCalendarDay
+  label: string
+  extra: string
+  content: ReactNode
+  className?: string
+  style?: StyleProp<ViewStyle>
+  textStyle?: StyleProp<TextStyle>
+  inheritedText: StyleProp<TextStyle>
+  onChoose: () => void
+}) {
+  const { state, handlers } = usePressableInteraction({ focusVisible: true })
+  const [box, text] = hozoSplitTextStyle(
+    StyleSheet.flatten([
+      { flex: 1 },
+      hozoClasses(className, {
+        ...nonControlClassFacts,
+        ...state,
+        'aria-selected': day.selected,
+        'aria-disabled': day.disabled,
+        'data-hozo-outside': day.outside,
+        'data-hozo-disabled': day.disabled,
+        'data-hozo-range-start': day.rangeStart,
+        'data-hozo-range-end': day.rangeEnd,
+        'data-hozo-in-range': day.inRange,
+      }),
+      style,
+    ]) ?? {},
+  )
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: day.selected, disabled: day.disabled }}
+      accessibilityValue={extra ? { text: extra } : undefined}
+      disabled={day.disabled}
+      style={box as ViewStyle}
+      onPress={() => {
+        if (!day.disabled) onChoose()
+      }}
+      onHoverIn={handlers.hoverIn}
+      onHoverOut={handlers.hoverOut}
+      onFocus={handlers.focus}
+      onBlur={handlers.blur}
+      onPressIn={handlers.pressIn}
+      onPressOut={handlers.pressOut}
+      onPointerDown={handlers.pointerDown}
+      onKeyDown={handlers.keyDown}
+    >
+      {/* As on the default path, primitive custom labels need a Text. Do not
+        wrap arbitrary caller-owned layouts or clone their elements. */}
+      {typeof content === 'string' || typeof content === 'number' ? (
+        <Text style={[inheritedText, text as TextStyle, textStyle]}>{content}</Text>
+      ) : (
+        content
+      )}
+    </Pressable>
+  )
+}
+
 // A leaf keeps a button's hover/press/focus out of the 42-day render path.
 // It uses the existing local tracker, not a calendar-wide event context.
 function CalendarMonthButton({
@@ -362,6 +435,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
     headerClassName,
     gridClassName,
     monthButtonClassName,
+    dayClassName,
     style,
     headerStyle,
     weekStyle,
@@ -526,27 +600,18 @@ export function HozoCalendar(props: HozoCalendarProps) {
               const said = spokenExtras(day, { todayLabel, rangeStartLabel, rangeEndLabel })
               const content = renderDay ? renderDay(day) : dayNumber(cell.date, locale)
               return (
-                <Pressable
+                <CalendarDay
                   key={cellKey(cell.date)}
-                  accessibilityRole="button"
-                  accessibilityLabel={dayLabel(cell.date, locale)}
-                  accessibilityState={{ selected: day.selected, disabled: day.disabled }}
-                  accessibilityValue={said ? { text: said } : undefined}
-                  disabled={day.disabled}
+                  day={day}
+                  label={dayLabel(cell.date, locale)}
+                  extra={said}
+                  content={content}
+                  className={dayClassName}
                   style={dayStyle}
-                  onPress={() => choose(cell.date)}
-                >
-                  {/* A custom renderer may return the bare day number, as
-                    @hozo/ui does. RN requires its Text boundary just as on
-                    the default path; arbitrary custom layouts stay untouched. */}
-                  {typeof content === 'string' || typeof content === 'number' ? (
-                    <Text style={[rootText as TextStyle, gridText as TextStyle, dayTextStyle]}>
-                      {content}
-                    </Text>
-                  ) : (
-                    content
-                  )}
-                </Pressable>
+                  textStyle={dayTextStyle}
+                  inheritedText={[rootText as TextStyle, gridText as TextStyle]}
+                  onChoose={() => choose(cell.date)}
+                />
               )
             })}
           </View>
