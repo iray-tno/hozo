@@ -47,6 +47,21 @@ const server = createServer((req, res) => {
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const url = `http://127.0.0.1:${server.address().port}/hozo/`
 const args = ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+// The home page loads Google Fonts, Analytics and Clarity, and `load` waits
+// for all of them. On a slow or loaded machine that is where `goto` spent
+// its 30 seconds (#1140), on requests this check asserts nothing about --
+// and every run sent a page view. Same origin only, as check-landing does,
+// and wait for the section rather than for the whole page.
+const open = async (page) => {
+  await page.route('**/*', (route) =>
+    route.request().url().startsWith(url) ? route.continue() : route.abort(),
+  )
+  await page.goto(url, { waitUntil: 'domcontentloaded' })
+  const section = page.locator('#kumimono')
+  await section.waitFor()
+  await section.scrollIntoViewIfNeeded()
+  return section
+}
 let browser
 try {
   browser = await chromium.launch({ executablePath, args })
@@ -54,9 +69,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 900 } })
     const errors = []
     page.on('pageerror', (error) => errors.push(error.message))
-    await page.goto(url)
-    const section = page.locator('#kumimono')
-    await section.scrollIntoViewIfNeeded()
+    const section = await open(page)
     const button = section.getByRole('button', { name: 'Disassemble', exact: true })
     await button.waitFor()
     await page.waitForFunction(() => !document.querySelector('#kumimono button').disabled)
@@ -158,8 +171,7 @@ try {
   await browser.close()
   browser = await chromium.launch({ executablePath, args: [...args, '--disable-webgl'] })
   const page = await browser.newPage()
-  await page.goto(url)
-  await page.locator('#kumimono').scrollIntoViewIfNeeded()
+  await open(page)
   await page.getByText('The 3D study needs WebGL.', { exact: false }).waitFor()
   assert.equal(await page.locator('#kumimono button').isDisabled(), true)
   console.log(
