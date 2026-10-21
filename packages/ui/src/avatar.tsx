@@ -17,7 +17,7 @@
  * role the interface already had (accent, danger), and "here" was not one.
  */
 
-import { Avatar, type AvatarProps } from '@hozo/core'
+import { Avatar, type AvatarProps, cx } from '@hozo/core'
 
 export type HozoAvatarSize = 'sm' | 'md' | 'lg'
 
@@ -55,15 +55,16 @@ function StyledAvatar({
   statusClassName,
   ...rest
 }: HozoAvatarProps) {
-  const own = size === 'sm' ? sm : size === 'lg' ? lg : md
-  const dot = status === 'online' ? online : status === 'busy' ? busy : offline
   return (
     <Avatar
       {...rest}
       status={status}
-      className={className ? `${own} ${className}` : own}
-      imageClassName={imageClassName ? `${image} ${imageClassName}` : image}
-      statusClassName={statusClassName ? `${dot} ${statusClassName}` : dot}
+      className={cx(size === 'sm' ? sm : size === 'lg' ? lg : md, className)}
+      imageClassName={cx(image, imageClassName)}
+      statusClassName={cx(
+        status === 'online' ? online : status === 'busy' ? busy : offline,
+        statusClassName,
+      )}
     />
   )
 }
