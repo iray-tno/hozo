@@ -644,6 +644,96 @@ test('the real Web NativeSelect is read-only, blurs when disabled and has no aut
   }
 })
 
+test('the real Web Calendar separates group, header and table typography without borrowing disabled', {
+  skip: !executablePath,
+}, async () => {
+  const source = (relative) =>
+    fileURLToPath(new URL(`../../../${relative}`, import.meta.url)).replaceAll('\\', '/')
+  const chrome = {
+    className: 'p-2 text-[#123456] font-bold disabled:opacity-25',
+    headerClassName: 'p-3 text-[14px] text-[#abcdef] disabled:opacity-25',
+    gridClassName: 'p-4 text-[18px] disabled:opacity-25',
+  }
+  const fixture = await build({
+    stdin: {
+      contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoCalendar} from ${JSON.stringify(source('packages/form/src/calendar.tsx'))};
+      const root = createRoot(document.getElementById('root'));
+      window.renderCalendar = (props = {}) => flushSync(() => root.render(createElement(HozoCalendar, {defaultMonth:{year:2026,month:6},today:{year:2026,month:6,day:15},locale:'en-US',weeks:6,min:{year:2026,month:6,day:1},max:{year:2026,month:6,day:30},...${JSON.stringify(chrome)}, ...props})));
+      window.renderCalendar();`,
+      resolveDir: source('examples/storybook-demo'),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+    plugins: [
+      {
+        name: 'calendar-web-i18n',
+        setup(builder) {
+          builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
+            path: source('packages/behaviors/src/i18n.ts'),
+          }))
+        },
+      },
+    ],
+  })
+  const css = (
+    await compile('@theme { --spacing: .25rem; --font-weight-bold:700; } @tailwind utilities;')
+  ).build(Object.values(chrome).flatMap((value) => value.split(' ')))
+  const page = await browser.newPage()
+  try {
+    // Actual Tailwind Preflight in standards mode, like the application.
+    // Quirks mode gives tables legacy color behavior unrelated to Hozo.
+    const preflight = readFileSync(
+      fileURLToPath(import.meta.resolve('tailwindcss/preflight.css')),
+      'utf8',
+    )
+    await page.setContent(`<!doctype html><style>${preflight}\n${css}</style><div id="root"></div>`)
+    assert.equal(await page.evaluate(() => document.compatMode), 'CSS1Compat')
+    await page.addScriptTag({ content: fixture.outputFiles[0].text })
+    const root = page.locator('[role="group"]')
+    const header = root.locator(':scope > div')
+    const grid = root.locator('table')
+    for (const [owner, padding] of [
+      [root, '8px'],
+      [header, '12px'],
+      [grid, '16px'],
+    ]) {
+      assert.deepEqual(
+        await owner.evaluate((element) => {
+          const s = getComputedStyle(element)
+          return [
+            element.matches(':disabled'),
+            element.matches(':enabled'),
+            element.matches(':read-only'),
+            s.paddingTop,
+            s.opacity,
+          ]
+        }),
+        [false, false, true, padding, '1'],
+      )
+    }
+    assert.equal(await header.locator('button:disabled').count(), 2)
+    const read = (locator) =>
+      locator.evaluate((element) => {
+        const s = getComputedStyle(element)
+        return [s.color, s.fontSize, s.fontWeight]
+      })
+    assert.deepEqual(await read(header.locator('[aria-live]')), [
+      'rgb(171, 205, 239)',
+      '14px',
+      '700',
+    ])
+    assert.deepEqual(await read(grid.locator('th').first()), ['rgb(18, 52, 86)', '18px', '700'])
+    assert.deepEqual(await read(grid.locator('td').first()), ['rgb(18, 52, 86)', '18px', '700'])
+    assert.equal(await grid.locator('td').count(), 42)
+  } finally {
+    await page.close()
+  }
+})
+
 for (const host of ['View', 'Text', 'Chip root', 'Chip remove']) {
   test(`a mixed ternary keeps own classes below caller classes on ${host}`, {
     skip: !executablePath,

@@ -337,6 +337,16 @@ warned about. No new hook, provider or host is added by the popup slice.
 Neither operating-system picker drawing nor Native hardware event delivery
 is established by host tests.
 
+Calendar's group/header/grid now resolve their classes against NonControl
+facts, without borrowing a month button's disabled state or events. The grid
+requires one Native box around weekday headings and weeks: per-week padding
+or borders cannot represent the Web table's single box. Weeks default to row
+layout (explicit weekStyle wins); this is not a table/border-collapse engine.
+Root typography reaches owned labels, then the relevant header or grid
+typography, then explicit dayTextStyle. Custom renderDay elements remain
+caller-owned: no cloning, text provider or default inheritance rollout is
+implied. Month-button and day-cell class contracts remain separate follow-ups.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner

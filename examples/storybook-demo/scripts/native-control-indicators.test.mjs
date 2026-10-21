@@ -50,6 +50,11 @@ const overlaySlotClasses = 'p-2 p-3 p-4 p-5 p-6 p-7 p-8 p-9 p-10 p-12'
 const otpSemanticClasses =
   'disabled:opacity-25 read-only:outline-2 read-only:focus:outline-4 aria-disabled:border-4 aria-selected:mt-8'
 cache.scanFile(
+  'calendar-chrome.tsx',
+  '<View className="text-hozo-text-subtle text-lg font-bold" />',
+  1,
+)
+cache.scanFile(
   'form-field.ts',
   "export const c = 'focus:opacity-75 disabled:opacity-25 read-only:border-4 aria-[invalid=true]:border-4 aria-required:outline-4 aria-expanded:mt-8 text-hozo-accent'",
   1,
@@ -71,6 +76,7 @@ for (const file of [
   'form.tsx',
   'text-area.tsx',
   'native-select.tsx',
+  'calendar-look.ts',
 ]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
@@ -144,6 +150,7 @@ const exportsFrom = (names, relative) =>
   `export { ${names} } from ${JSON.stringify(filename(relative))};`
 const probeSources = [
   exportsFrom('HozoCalendar', 'packages/form/src/calendar.native.tsx'),
+  exportsFrom('HozoCalendar as UiCalendar', 'packages/ui/src/calendar.tsx'),
   exportsFrom('HozoNativeSelect as UiNativeSelect', 'packages/ui/src/native-select.tsx'),
   exportsFrom(
     'HozoNativeSelect, NativeSelectProvider',
@@ -287,6 +294,7 @@ const bundled = await build({
             exportsFrom('Form, useFormSubmit', 'packages/form/src/form.native.tsx'),
             exportsFrom('TextArea', 'packages/form/src/text-area.native.tsx'),
             exportsFrom('NativeSelect', 'packages/form/src/native-select.native.tsx'),
+            exportsFrom('Calendar', 'packages/form/src/calendar.native.tsx'),
           ].join('\n'),
           loader: 'tsx',
           resolveDir: root,
@@ -348,7 +356,7 @@ const { UiCombobox, UiListbox, UiCommandPalette, UiDialog } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
 const { HozoForm, HozoTextArea, UiForm, UiTextArea, useFormSubmit } = module.exports
 const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect } = module.exports
-const { HozoCalendar } = module.exports
+const { HozoCalendar, UiCalendar } = module.exports
 const color = (token) => theme.colors.find((value) => value.token === token)?.hex
 assert.ok(color('hozo-accent'), 'load the real theme, not empty token stand-ins')
 const indicators = (tree) =>
@@ -903,6 +911,77 @@ const calendarDays = (tree) =>
   tree.root
     .findAllByType('NativePressable')
     .filter((node) => node.props.accessibilityLabel?.includes('2026'))
+
+test('Native Calendar chrome keeps wrapper, header and grid classes on distinct owners', async (t) => {
+  const tree = await mount(t, HozoCalendar, {
+    ...calendarProps,
+    className: 'p-2 text-hozo-accent font-bold',
+    headerClassName: 'p-3 text-sm text-hozo-text-subtle',
+    gridClassName: 'p-4 text-lg',
+    dayTextStyle: { color: '#abcdef' },
+  })
+  const root = views(tree)[0]
+  const header = root.findAllByType('NativeView')[1]
+  // The grid needs one actual box, not the same padding repeated per week.
+  const grid = views(tree).find((node) => flat(node.props.style).paddingTop === 16)
+  assert.ok(grid, 'gridClassName styles a real grid container')
+  assert.equal(flat(root.props.style).paddingTop, 8)
+  assert.equal(flat(header.props.style).paddingTop, 12)
+  assert.equal(grid.parent.parent, root)
+  for (const box of [root, header, grid]) assert.equal(flat(box.props.style).color, undefined)
+  const month = header.findByProps({ accessibilityLiveRegion: 'polite' })
+  assert.equal(flat(month.props.style).color, color('hozo-text-subtle'))
+  assert.equal(flat(month.props.style).fontSize, 14)
+  assert.equal(String(flat(month.props.style).fontWeight), '700')
+  const weekday = grid.findAllByType('NativeText')[0]
+  assert.equal(flat(weekday.props.style).fontSize, 18)
+  assert.equal(flat(weekday.props.style).color, color('hozo-accent'))
+  assert.equal(flat(calendarDays(tree)[0].props.children.props.style).fontSize, 18)
+  assert.equal(flat(calendarDays(tree)[0].props.children.props.style).color, '#abcdef')
+  for (const row of grid.findAllByType('NativeView').slice(1)) {
+    assert.equal(flat(row.props.style).flexDirection, 'row')
+    assert.equal(flat(row.props.style).paddingTop, undefined, 'do not repeat grid padding')
+  }
+})
+
+test('Native Calendar chrome preserves explicit styles and clears removed classes', async (t) => {
+  const props = {
+    ...calendarProps,
+    className: 'p-2 text-hozo-accent',
+    headerClassName: 'p-3 text-sm',
+    gridClassName: 'p-4 text-lg',
+    style: { paddingTop: 81, color: '#112233' },
+    headerStyle: { paddingTop: 82, fontSize: 21 },
+    weekStyle: { paddingTop: 83 },
+  }
+  const tree = await mount(t, HozoCalendar, props)
+  assert.equal(flat(views(tree)[0].props.style).paddingTop, 81)
+  assert.equal(flat(views(tree)[0].props.style).paddingBottom, 8)
+  const month = tree.root.findByProps({ accessibilityLiveRegion: 'polite' })
+  assert.equal(flat(month.props.style).fontSize, 21)
+  assert.equal(flat(month.props.style).color, '#112233')
+  assert.equal(flat(calendarDays(tree)[0].props.children.props.style).fontSize, 18)
+  await act(() => tree.update(React.createElement(HozoCalendar, calendarProps)))
+  assert.equal(flat(views(tree)[0].props.style).paddingTop, undefined)
+  assert.equal(
+    flat(tree.root.findByProps({ accessibilityLiveRegion: 'polite' }).props.style).fontSize,
+    undefined,
+  )
+  assert.equal(flat(calendarDays(tree)[0].props.children.props.style).fontSize, undefined)
+})
+
+test('the UI Calendar supplies its real chrome classes to Native owners', async (t) => {
+  const tree = await mount(t, UiCalendar, { ...calendarProps, renderDay: () => null })
+  assert.equal(flat(views(tree)[0].props.style).paddingTop, 16)
+  const month = tree.root.findByProps({ accessibilityLiveRegion: 'polite' })
+  assert.equal(flat(month.props.style).fontSize, 14)
+  assert.equal(String(flat(month.props.style).fontWeight), '600')
+  const header = month.parent.parent
+  assert.equal(flat(header.props.style).flexDirection, 'row')
+  const grid = views(tree).find((node) => flat(node.props.style).width === '100%')
+  assert.ok(grid, 'real gridClassName is not lost')
+  assert.equal(grid.findAllByType('NativeView').length, 8, 'one grid and seven week rows')
+})
 
 test('Native Calendar wraps primitive custom day labels in the same Text as its default', async (t) => {
   for (const renderDay of [

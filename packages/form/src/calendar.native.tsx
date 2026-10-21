@@ -1,6 +1,16 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
-import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import {
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 
 import { dayLabel, dayNumber, monthLabel, weekdayLabels } from './calendar-format.ts'
 import {
@@ -20,6 +30,7 @@ import {
   type Weekday,
   firstDayOfWeek as weekStartFor,
 } from './calendar-rules.ts'
+import { nonControlClassFacts } from './class-facts.native.ts'
 
 export interface HozoCalendarDay {
   date: CalendarDate
@@ -51,16 +62,15 @@ interface Shared {
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
-   * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * Wrapper, header and grid resolve through the project's candidate map.
+   * Their typography reaches owned labels; explicit Native styles win.
+   * Custom renderDay elements keep ownership of their own text/layout.
    */
   className?: string
+  /** Not yet resolved on Native; day cells need their own state contract. */
   dayClassName?: string
   headerClassName?: string
-  /** Accepted for parity with the Web half, which puts it on its `<table>`. */
+  /** On the box around weekday headings and weeks, like the Web table. */
   gridClassName?: string
   /** Accepted for parity with the Web half, which puts it on its two buttons. */
   monthButtonClassName?: string
@@ -110,7 +120,7 @@ interface Shared {
   today?: CalendarDate
   weeks?: number
   /**
-   * Carried and ignored, like `className`.
+   * Carried and ignored on Native.
    *
    * On the Web this puts DOM focus on the focused day when the grid mounts.
    * React Native has no DOM focus to move and no tab order to move it
@@ -279,6 +289,9 @@ function monthStep(month: CalendarMonth, months: number): CalendarMonth {
  */
 export function HozoCalendar(props: HozoCalendarProps) {
   const {
+    className,
+    headerClassName,
+    gridClassName,
     style,
     headerStyle,
     weekStyle,
@@ -357,10 +370,26 @@ export function HozoCalendar(props: HozoCalendarProps) {
 
   const labels = weekdayLabels(weekStart, locale)
   const grid = monthGrid({ year: shown.year, month: shown.month, firstDayOfWeek: weekStart, weeks })
+  // Typography is inherited down the Web's group/header/table branches,
+  // not drawn on a Native View. Only labels owned here receive these
+  // declarations; this is not a provider or a clone of custom day layouts.
+  const [rootBox, rootText] = hozoSplitTextStyle(
+    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), style]) ?? {},
+  )
+  const [headerBox, headerText] = hozoSplitTextStyle(
+    StyleSheet.flatten([hozoClasses(headerClassName, nonControlClassFacts), headerStyle]) ?? {},
+  )
+  const [gridBox, gridText] = hozoSplitTextStyle(
+    StyleSheet.flatten(hozoClasses(gridClassName, nonControlClassFacts)) ?? {},
+  )
 
   return (
-    <View accessibilityRole="grid" accessibilityLabel={accessibilityLabel} style={style}>
-      <View style={headerStyle}>
+    <View
+      accessibilityRole="grid"
+      accessibilityLabel={accessibilityLabel}
+      style={rootBox as ViewStyle}
+    >
+      <View style={headerBox as ViewStyle}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={previousMonthLabel}
@@ -369,7 +398,7 @@ export function HozoCalendar(props: HozoCalendarProps) {
           style={monthButtonStyle}
           onPress={() => page(-1)}
         >
-          <Text>{'‹'}</Text>
+          <Text style={[rootText as TextStyle, headerText as TextStyle]}>{'‹'}</Text>
         </Pressable>
         {/*
           `accessibilityLiveRegion` so Android announces the month when the
@@ -377,7 +406,12 @@ export function HozoCalendar(props: HozoCalendarProps) {
           the day cells carry the month in their own names, which is what a
           VoiceOver user hears on arriving at one.
         */}
-        <Text accessibilityLiveRegion="polite">{monthLabel(shown, locale)}</Text>
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[rootText as TextStyle, headerText as TextStyle]}
+        >
+          {monthLabel(shown, locale)}
+        </Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={nextMonthLabel}
@@ -386,50 +420,68 @@ export function HozoCalendar(props: HozoCalendarProps) {
           style={monthButtonStyle}
           onPress={() => page(1)}
         >
-          <Text>{'›'}</Text>
+          <Text style={[rootText as TextStyle, headerText as TextStyle]}>{'›'}</Text>
         </Pressable>
       </View>
-      <View importantForAccessibility="no-hide-descendants" style={weekStyle}>
-        {labels.map((label) => (
-          <Text key={label.long}>{label.short}</Text>
-        ))}
-      </View>
-      {grid.map((week) => (
-        <View key={weekKey(week)} style={weekStyle}>
-          {week.map((cell) => {
-            const day = dayState(cell, {
-              ranged,
-              chosen,
-              pending,
-              today: currentDay,
-              bounds: { min, max },
-            })
-            const said = spokenExtras(day, { todayLabel, rangeStartLabel, rangeEndLabel })
-            const content = renderDay ? renderDay(day) : dayNumber(cell.date, locale)
-            return (
-              <Pressable
-                key={cellKey(cell.date)}
-                accessibilityRole="button"
-                accessibilityLabel={dayLabel(cell.date, locale)}
-                accessibilityState={{ selected: day.selected, disabled: day.disabled }}
-                accessibilityValue={said ? { text: said } : undefined}
-                disabled={day.disabled}
-                style={dayStyle}
-                onPress={() => choose(cell.date)}
-              >
-                {/* A custom renderer may return the bare day number, as
+      {/* One box owns the table's classes. Repeating them on each week
+          would repeat padding/borders and cannot draw a grid background. */}
+      <View style={gridBox as ViewStyle}>
+        <View
+          importantForAccessibility="no-hide-descendants"
+          style={[{ flexDirection: 'row' }, weekStyle]}
+        >
+          {labels.map((label) => (
+            <Text
+              key={label.long}
+              style={[
+                { flex: 1, textAlign: 'center' },
+                rootText as TextStyle,
+                gridText as TextStyle,
+              ]}
+            >
+              {label.short}
+            </Text>
+          ))}
+        </View>
+        {grid.map((week) => (
+          <View key={weekKey(week)} style={[{ flexDirection: 'row' }, weekStyle]}>
+            {week.map((cell) => {
+              const day = dayState(cell, {
+                ranged,
+                chosen,
+                pending,
+                today: currentDay,
+                bounds: { min, max },
+              })
+              const said = spokenExtras(day, { todayLabel, rangeStartLabel, rangeEndLabel })
+              const content = renderDay ? renderDay(day) : dayNumber(cell.date, locale)
+              return (
+                <Pressable
+                  key={cellKey(cell.date)}
+                  accessibilityRole="button"
+                  accessibilityLabel={dayLabel(cell.date, locale)}
+                  accessibilityState={{ selected: day.selected, disabled: day.disabled }}
+                  accessibilityValue={said ? { text: said } : undefined}
+                  disabled={day.disabled}
+                  style={dayStyle}
+                  onPress={() => choose(cell.date)}
+                >
+                  {/* A custom renderer may return the bare day number, as
                     @hozo/ui does. RN requires its Text boundary just as on
                     the default path; arbitrary custom layouts stay untouched. */}
-                {typeof content === 'string' || typeof content === 'number' ? (
-                  <Text style={dayTextStyle}>{content}</Text>
-                ) : (
-                  content
-                )}
-              </Pressable>
-            )
-          })}
-        </View>
-      ))}
+                  {typeof content === 'string' || typeof content === 'number' ? (
+                    <Text style={[rootText as TextStyle, gridText as TextStyle, dayTextStyle]}>
+                      {content}
+                    </Text>
+                  ) : (
+                    content
+                  )}
+                </Pressable>
+              )
+            })}
+          </View>
+        ))}
+      </View>
     </View>
   )
 }
