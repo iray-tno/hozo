@@ -17,6 +17,7 @@ import {
   todayLocal,
   type Weekday,
 } from './calendar-rules.ts'
+import { DatePickerTrigger } from './date-picker-trigger.native.tsx'
 import { dateTimeLabel } from './date-time-format.ts'
 import {
   type CalendarDateTime,
@@ -54,11 +55,9 @@ export interface HozoDateTimePickerProps {
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
-   * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * Wrapper/dialog/Done classes remain unapplied here. Trigger classes resolve
+   * through the existing project candidate map with that button's facts;
+   * Calendar slots are passed to their own consumers, not resolved here.
    */
   className?: string
   triggerClassName?: string
@@ -155,6 +154,7 @@ const MIDNIGHT: CalendarTime = { hour: 0, minute: 0 }
  */
 export function HozoDateTimePicker({
   style,
+  triggerClassName,
   triggerStyle,
   triggerTextStyle,
   dialogStyle,
@@ -253,8 +253,7 @@ export function HozoDateTimePicker({
 
   return (
     <View style={style}>
-      <Pressable
-        accessibilityRole="button"
+      <DatePickerTrigger
         accessibilityLabel={accessibilityLabel}
         // The chosen value, so a reader hears it and not only what the field is
         // for.
@@ -277,13 +276,15 @@ export function HozoDateTimePicker({
         // *is* this text: `BaseViewManager` would join it to itself and iOS
         // would say it twice.
         accessibilityValue={accessibilityLabel ? { text } : undefined}
-        accessibilityState={{ expanded: open, disabled }}
+        expanded={open}
         disabled={disabled}
         style={triggerStyle}
+        textStyle={triggerTextStyle}
+        className={triggerClassName}
         onPress={() => change(true)}
       >
-        <Text style={triggerTextStyle}>{text}</Text>
-      </Pressable>
+        {text}
+      </DatePickerTrigger>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => change(false)}>
         {/*
           Hidden from the accessibility tree rather than merely transparent.

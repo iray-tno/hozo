@@ -845,6 +845,136 @@ test('the real Web Calendar separates group, header and table typography without
   }
 })
 
+for (const [name, file, value] of [
+  ['DatePicker', 'date-picker', { year: 2026, month: 6, day: 12 }],
+  [
+    'DateRangePicker',
+    'date-range-picker',
+    { start: { year: 2026, month: 6, day: 12 }, end: { year: 2026, month: 6, day: 15 } },
+  ],
+  ['DateTimePicker', 'date-time-picker', { year: 2026, month: 6, day: 12, hour: 9, minute: 10 }],
+]) {
+  test(`the real Web ${name} trigger owns form, expansion and interaction facts`, {
+    skip: !executablePath,
+  }, async () => {
+    const source = (relative) =>
+      fileURLToPath(new URL(`../../../${relative}`, import.meta.url)).replaceAll('\\', '/')
+    const classes =
+      'p-4 hover:bg-[#dd1100] focus:opacity-75 active:opacity-50 aria-expanded:border-2 disabled:opacity-25 aria-disabled:mt-8'
+    const fixture = await build({
+      stdin: {
+        contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {Hozo${name}} from ${JSON.stringify(source(`packages/form/src/${file}.tsx`))};
+        const root = createRoot(document.getElementById('picker'));
+        window.renderPicker = (disabled = false) => flushSync(() => root.render(createElement(Hozo${name}, {disabled, value:${JSON.stringify(value)}, defaultMonth:{year:2026,month:6},today:{year:2026,month:6,day:15},locale:'en-US',accessibilityLabel:'Departure',formatValue:()=>'Chosen 2026',className:'disabled:opacity-25',triggerClassName:${JSON.stringify(classes)}}, () => null)));
+        window.renderPicker();`,
+        resolveDir: source('examples/storybook-demo'),
+      },
+      bundle: true,
+      write: false,
+      platform: 'browser',
+      format: 'iife',
+      jsx: 'automatic',
+      define: { 'process.env.NODE_ENV': '"production"' },
+      plugins: [
+        {
+          name: 'picker-web-behaviors',
+          setup(builder) {
+            builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
+              path: 'web-picker-behaviors',
+              namespace: 'picker-probe',
+            }))
+            builder.onLoad({ filter: /.*/, namespace: 'picker-probe' }, () => ({
+              contents: [
+                `export {useHozoI18n,useHozoMessage} from ${JSON.stringify(source('packages/behaviors/src/i18n.ts'))};`,
+                ...['FloatingPositioner', 'FocusScope', 'DismissableLayer'].map(
+                  (entry, i) =>
+                    `export {${entry}} from ${JSON.stringify(source(`packages/behaviors/src/${['floating-positioner', 'focus-scope', 'dismissable-layer'][i]}.tsx`))};`,
+                ),
+              ].join('\n'),
+              loader: 'ts',
+              resolveDir: source(''),
+            }))
+          },
+        },
+      ],
+    })
+    const css = (await compile('@theme { --spacing:.25rem; } @tailwind utilities;')).build(
+      classes.split(' '),
+    )
+    const page = await browser.newPage()
+    try {
+      const preflight = readFileSync(
+        fileURLToPath(import.meta.resolve('tailwindcss/preflight.css')),
+        'utf8',
+      )
+      await page.setContent(
+        `<!doctype html><style>${preflight}\n${css}</style><div id="picker"></div>`,
+      )
+      await page.addScriptTag({ content: fixture.outputFiles[0].text })
+      const trigger = page.locator('#picker > div > button')
+      assert.equal(await trigger.getAttribute('aria-expanded'), 'false')
+      assert.equal(await trigger.getAttribute('aria-disabled'), null)
+      assert.equal(await trigger.getAttribute('aria-selected'), null)
+      assert.deepEqual(
+        await trigger.evaluate((element) => [
+          element.matches(':read-only'),
+          element.matches(':enabled'),
+        ]),
+        [true, true],
+      )
+      assert.equal(
+        await trigger.evaluate((element) => getComputedStyle(element).paddingTop),
+        '16px',
+      )
+      await trigger.hover()
+      assert.equal(
+        await trigger.evaluate((element) => getComputedStyle(element).backgroundColor),
+        'rgb(221, 17, 0)',
+      )
+      await trigger.focus()
+      assert.equal(await trigger.evaluate((element) => getComputedStyle(element).opacity), '0.75')
+      await page.mouse.down()
+      assert.equal(await trigger.evaluate((element) => getComputedStyle(element).opacity), '0.5')
+      await page.mouse.up()
+      await page.locator('[role="dialog"]').waitFor({ state: 'visible' })
+      assert.equal(await trigger.getAttribute('aria-expanded'), 'true')
+      assert.equal(
+        await trigger.evaluate((element) => getComputedStyle(element).borderTopWidth),
+        '2px',
+      )
+      await page.keyboard.press('Escape')
+      await page.locator('[role="dialog"]').waitFor({ state: 'detached' })
+      assert.equal(await trigger.getAttribute('aria-expanded'), 'false')
+      // Dialog removal is not a browser focus-settled signal. Establish
+      // this next case's focus explicitly, then observe the result of the
+      // one disabled update rather than sampling a transient focus pseudo.
+      await trigger.focus()
+      assert.equal(await trigger.evaluate((element) => element.matches(':focus')), true)
+      await page.evaluate(() => window.renderPicker(true))
+      assert.equal(await trigger.isDisabled(), true)
+      await page.waitForFunction(
+        () => {
+          const button = document.querySelector('#picker > div > button')
+          return button?.matches(':disabled') && !button.matches(':focus')
+        },
+        null,
+        { timeout: 2000 },
+      )
+      assert.equal(await trigger.evaluate((element) => element.matches(':focus')), false)
+      assert.equal(await trigger.evaluate((element) => getComputedStyle(element).opacity), '0.25')
+      assert.equal(await trigger.evaluate((element) => getComputedStyle(element).marginTop), '0px')
+      assert.equal(
+        await trigger.evaluate((element) => getComputedStyle(element.parentElement).opacity),
+        '1',
+      )
+      assert.equal(await trigger.locator('[hidden]').innerText(), 'Departure')
+      assert.equal(await trigger.locator('span').last().innerText(), 'Chosen 2026')
+    } finally {
+      await page.close()
+    }
+  })
+}
+
 for (const host of ['View', 'Text', 'Chip root', 'Chip remove']) {
   test(`a mixed ternary keeps own classes below caller classes on ${host}`, {
     skip: !executablePath,
