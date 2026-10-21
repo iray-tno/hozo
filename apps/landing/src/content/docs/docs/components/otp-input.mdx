@@ -1,0 +1,25 @@
+---
+title: "OTP Input"
+description: "A one-time code or a PIN, one real input drawn as cells, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { OtpInputDemo } from '../../../../examples/ui/OtpInputDemo.tsx'
+import source from '../../../../examples/ui/OtpInputDemo.tsx?raw'
+
+`OtpInput` takes a one-time code or a PIN. Type six digits, or paste them:
+
+<UiExample source={source} file="OtpInputDemo.tsx">
+  <OtpInputDemo client:visible />
+</UiExample>
+
+- **One field, not six.** The cells are drawn over a single input, which is
+  what a screen reader hears ("Verification code, 6 characters") and what the
+  operating system fills when it offers a code from a text message. A paste
+  of the whole code lands at once.
+- **`value`** and **`onChange`** hold the code as a string. **`onComplete`** is
+  called once it is full.
+- **`length`** is 6 by default. **`type`** is `number`, which brings up a
+  number pad, or `text`.
+- **`mask`** hides the characters, for a PIN.
+- **`accessibilityLabel`** names the field.

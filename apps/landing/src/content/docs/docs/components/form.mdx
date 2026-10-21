@@ -1,0 +1,40 @@
+---
+title: "Form and Field"
+description: "A form that submits through one path, and a labelled field, built on @hozo/form, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { FormDemo } from '../../../../examples/ui/FormDemo.tsx'
+import source from '../../../../examples/ui/FormDemo.tsx?raw'
+
+`Form` turns a submission into one `onSubmit` call, and `Field` gives a control
+its label, description and error. Press Send with the field empty, then fix
+the address and send again:
+
+<UiExample source={source} file="FormDemo.tsx">
+  <FormDemo client:visible />
+</UiExample>
+
+## Form
+
+- **`onSubmit`** is called with no event. Enter in a field, a real submit
+  button and **`useFormSubmit()`** all arrive there, in one order.
+- **A `Button` submits through `useFormSubmit()`**, because a Button is not a
+  `<button type="submit">`. Call the hook in a component inside the form, as
+  the example's `Submit` does.
+- **It does not submit past a control marked `aria-invalid`.** It focuses that
+  control instead, so a screen reader hears which field is wrong, not only a
+  sighted person. **`focusInvalidOnSubmit={false}`** turns that off.
+- **`accessibilityLabel`** names the form.
+
+## Field
+
+- **`label`** labels the control, **`description`** says what it is for, and
+  **`error`** says what is wrong. The control is described by both and marked
+  `aria-invalid` while there is an error.
+- **`children` is a function** that is given `control`: the id and the ARIA
+  attributes that connect the control to the label, the description and the
+  error. Spread it onto `Input`, `TextArea` or `NativeSelect`.
+- **`required`** marks the control `aria-required` and shows a marker beside
+  the label. It does not add the browser's own `required`, so the browser
+  does not show its own message.

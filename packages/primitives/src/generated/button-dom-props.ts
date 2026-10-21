@@ -66,7 +66,10 @@ export function hozoButtonDomProps<T>(props: T): T {
     if (!Object.hasOwn(source, name)) continue
     const value = source[name]
     if (common(source, out, name, value)) continue
-    if (name === 'onPress') {
+    if (name === 'tabIndex') {
+      // A roving tab stop, as `Toolbar` hands its items (BUTTON_TRIGGER_PROPS_WEB).
+      out.tabIndex = value
+    } else if (name === 'onPress') {
       out.onClick = value
       if (value) out['data-hozo-pressable'] = ''
     } else if (name === 'disabled') {
@@ -99,10 +102,15 @@ export function hozoLinkDomProps<T>(props: T, disabled?: unknown): T {
       case 'onPress':
         out.onClick = off ? prevent : value
         break
+      case 'tabIndex':
+        // A roving tab stop, but never one while disabled.
+        out.tabIndex = off ? -1 : value
+        break
       case 'disabled':
         out['aria-disabled'] = value ? true : undefined
         out['data-hozo-disabled'] = value ? '' : undefined
-        out.tabIndex = value ? -1 : undefined
+        if (value) out.tabIndex = -1
+        else if (!Object.hasOwn(source, 'tabIndex')) out.tabIndex = undefined
         if (value) {
           out.onClick ??= prevent
           out.onAuxClick = prevent

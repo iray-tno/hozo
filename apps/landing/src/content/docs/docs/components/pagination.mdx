@@ -1,0 +1,28 @@
+---
+title: "Pagination"
+description: "Numbered pages with previous and next, built on @hozo/patterns, from @hozo/ui."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { PaginationDemo } from '../../../../examples/ui/PaginationDemo.tsx'
+import source from '../../../../examples/ui/PaginationDemo.tsx?raw'
+
+`Pagination` shows numbered pages, with previous and next. Press a page, or the
+arrows at either end:
+
+<UiExample source={source} file="PaginationDemo.tsx">
+  <PaginationDemo client:visible />
+</UiExample>
+
+- **`page`** and **`onPageChange`** control it, or **`defaultPage`** leaves it
+  uncontrolled. **`pageCount`** is the number of pages.
+- **It is a navigation landmark** named "Pagination", holding a list, so a
+  reader can jump to it. Each page is named "Page 5", and the current one is
+  `aria-current="page"`.
+- **Previous and next are disabled at the ends, not removed**, so the controls
+  do not move under a pointer.
+- **The gaps are ellipses**, hidden from a reader. **`siblingCount`** is how
+  many pages show beside the current one, and **`boundaryCount`** how many at
+  each end.
+- **`getPageHref`** turns every page into a link, which is what a page with its
+  own address should be.

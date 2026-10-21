@@ -13,8 +13,10 @@ import { OtpInput, type OtpInputProps } from '@hozo/core'
 export type HozoOtpInputProps = OtpInputProps
 
 const row = 'flex flex-row gap-2 rounded-hozo-control'
+// `flex` because a cell is a `<span>` on the Web, where the centring does
+// nothing on its own and the character sat in the top-left corner.
 const cell =
-  'size-11 items-center justify-center rounded-hozo-control border border-hozo-border-strong bg-hozo-surface text-lg font-medium text-hozo-text'
+  'flex size-11 items-center justify-center rounded-hozo-control border border-hozo-border-strong bg-hozo-surface text-lg font-medium text-hozo-text'
 const active = 'border-2 border-hozo-accent'
 const filled = 'border-hozo-border-strong'
 const input =

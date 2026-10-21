@@ -365,6 +365,88 @@ const pages = {
     // A step of fifteen minutes.
     await page.getByText('Stored as 10:45').waitFor()
   },
+  async toolbar(page) {
+    const bold = page.getByRole('button', { name: 'Bold' })
+    const italic = page.getByRole('button', { name: 'Italic' })
+    await bold.focus()
+    await page.keyboard.press('ArrowRight')
+    assert.equal(await italic.evaluate((el) => el === document.activeElement), true)
+    // One tab stop: the one moved to is the only one Tab reaches.
+    assert.equal(await italic.getAttribute('tabindex'), '0', 'toolbar: not the tab stop')
+    assert.equal(await bold.getAttribute('tabindex'), '-1', 'toolbar: two tab stops')
+    await page.keyboard.press('Enter')
+    await page.getByText('Pressed: Italic').waitFor()
+  },
+  async pagination(page) {
+    const seven = page.getByRole('button', { name: 'Page 7' })
+    await seven.click()
+    await page.getByText('Showing page 7 of 20').waitFor()
+    assert.equal(await seven.getAttribute('aria-current'), 'page', 'pagination: not current')
+    await page.getByRole('button', { name: 'Previous page' }).click()
+    await page.getByText('Showing page 6 of 20').waitFor()
+  },
+  async stepper(page) {
+    await page.getByRole('button', { name: 'Next' }).click()
+    await page.getByText('Step 3 of 4: Payment, current').waitFor({ state: 'attached' })
+    await page.getByRole('button', { name: /Step 1 of 4: Cart/ }).click()
+    await page.getByText('Step 1 of 4: Cart, current').waitFor({ state: 'attached' })
+  },
+  async 'color-picker'(page) {
+    await page.getByRole('radio', { name: 'red, #ef4444' }).click()
+    await page.getByText('Chosen: #ef4444').waitFor()
+    const hex = page.locator('.hozo-ui-example input')
+    await hex.fill('#10b981')
+    await hex.press('Enter')
+    await page.getByText('Chosen: #10b981').waitFor()
+  },
+  async 'command-palette'(page) {
+    const opener = page.getByRole('button', { name: 'Open the command palette' })
+    await opener.click()
+    const dialog = page.getByRole('dialog')
+    await dialog.waitFor()
+    // A keyword finds a command its label does not name.
+    await page.keyboard.type('colour')
+    await dialog.getByRole('option', { name: /Toggle dark mode/ }).waitFor()
+    await page.keyboard.press('Enter')
+    await dialog.waitFor({ state: 'hidden' })
+    await page.getByText('Ran: Toggle dark mode').waitFor()
+    assert.equal(
+      await opener.evaluate((el) => el === document.activeElement),
+      true,
+      'command-palette: focus did not return to the button',
+    )
+  },
+  async 'file-dropzone'(page) {
+    const input = page.locator('.hozo-ui-example input[type=file]')
+    await input.setInputFiles({ name: 'cat.png', mimeType: 'image/png', buffer: Buffer.from('x') })
+    await page.getByText('Chosen: cat.png').waitFor()
+    await input.setInputFiles({ name: 'cat.gif', mimeType: 'image/gif', buffer: Buffer.from('x') })
+    await page.getByText('Refused: type').waitFor()
+  },
+  async 'otp-input'(page) {
+    await page.getByRole('textbox', { name: 'Verification code' }).click()
+    await page.keyboard.type('123456')
+    await page.getByText('Checking 123456').waitFor()
+  },
+  async form(page) {
+    const email = page.getByRole('textbox', { name: 'Email' })
+    const send = page.getByRole('button', { name: 'Send' })
+    await send.click()
+    await page
+      .locator('.hozo-ui-example')
+      .getByText('That does not look like an email address.')
+      .waitFor()
+    assert.equal(await email.getAttribute('aria-invalid'), 'true', 'form: not marked invalid')
+    // It does not submit past the invalid field; it focuses it instead.
+    await send.click()
+    assert.equal(await email.evaluate((el) => el === document.activeElement), true)
+    await email.fill('ada@example.com')
+    await send.click()
+    await page.getByText('Subscribed ada@example.com').waitFor()
+  },
+  async stack(page) {
+    await page.locator('.hozo-ui-example').getByText('centred').waitFor()
+  },
 }
 
 let browser
