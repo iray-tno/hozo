@@ -30,6 +30,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   hozoImageSource: '@hozo/core/generated/image-source',
   HozoInheritedMetricsContext: '@hozo/core/generated/text-inheritance-protocol',
   HozoInheritedPaintContext: '@hozo/core/generated/text-inheritance-protocol',
+  HozoInheritedPressable: '@hozo/core/generated/inherited-pressable',
   HozoInheritedRelativeText: '@hozo/core/generated/inherited-relative-text',
   HozoInheritedText: '@hozo/core/generated/inherited-text',
   HozoInheritedView: '@hozo/core/generated/inherited-view',

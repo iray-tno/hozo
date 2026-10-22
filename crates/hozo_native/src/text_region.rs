@@ -33,6 +33,8 @@ pub(super) fn passive(node: &Node) -> bool {
             | Primitive::Sup
             | Primitive::Mark
             | Primitive::NoBreak
+            | Primitive::Button
+            | Primitive::Pressable
     ) && !matches!(
         node.props.heading_level,
         Some(hozo_ir::HeadingLevel::Dynamic(_))

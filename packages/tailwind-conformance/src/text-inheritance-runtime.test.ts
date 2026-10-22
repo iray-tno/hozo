@@ -43,14 +43,15 @@ function graph(
   textStatic = false,
   labelSource = sources.label,
   preflight?: boolean,
+  labels = false,
 ) {
   const legacy = React.createContext(14)
-  const shipped = loadTextInheritanceRuntime(legacy)
+  const shipped = loadTextInheritanceRuntime(legacy, undefined, labels)
   const reference = createTextReference({
     react: React,
     Text: 'NativeText' as never,
     View: 'NativeView' as never,
-    HozoPressable: 'Unused' as never,
+    HozoPressable: labels ? shipped.HozoPressable! : ('Unused' as never),
     HozoTextSizeContext: legacy,
     HozoInteractionContext: React.createContext(null),
     flattenStyle: flatten,
@@ -113,6 +114,10 @@ function graph(
             : { ...shipped.native, Text: reference.ReferenceText, View: reference.ReferenceView }
         if (specifier === '@hozo/core/generated/inherited-text')
           return { HozoInheritedText: shipped.HozoInheritedText }
+        if (specifier === '@hozo/core/generated/inherited-pressable')
+          return { HozoInheritedPressable: shipped.HozoInheritedPressable }
+        if (specifier === '@hozo/core/generated/pressable')
+          return { HozoPressable: reference.ReferencePressable }
         if (specifier === '@hozo/core/generated/inherited-relative-text')
           return { HozoInheritedRelativeText: shipped.HozoInheritedRelativeText }
         if (specifier === '@hozo/core/generated/text-size') return relativeModule.exports
@@ -416,6 +421,291 @@ export function Scene({frame,own,smallRef}) {return <View testID="outer" style={
     assert.deepEqual(records[1], records[0], 'shipped helper agrees with independent reference')
     assert.deepEqual(records[2], records[0], 'unproved semantic roots retain runtime correctness')
   }
+})
+
+test('generated Button labels inherit across an opaque memo/View without duplicating the event owner', () => {
+  const scene = `import {View,Button} from '@hozo/core';import {Label} from 'fixture:label';export const Scene=({frame,own,press,buttonRef})=> <View style={frame}><Button ref={buttonRef} testID="button" accessibilityLabel="Save" onPress={press} className="text-[#1355bb] text-[18px] p-4" style={own}><View><Label tick={0}/></View>Raw{0}</Button></View>`
+  const records = []
+  for (const mode of ['reference', 'runtime', 'optimized']) {
+    const fixture = graph(
+      mode !== 'reference',
+      scene,
+      mode === 'optimized',
+      sources.label,
+      undefined,
+      true,
+    )
+    const buttonRef = React.createRef()
+    const press = () => {}
+    let tree: ReturnType<typeof renderer.create>
+    let first: unknown, buttonInstance: unknown
+    const stages = []
+    try {
+      for (const [frame, own] of [
+        [REST, undefined],
+        [NEXT, undefined],
+        [NEXT, OWN],
+        [REST, OWN],
+        [REST, undefined],
+      ] as const) {
+        renderer.act(() => {
+          const element = React.createElement(fixture.Scene, { frame, own, press, buttonRef })
+          if (tree) tree.update(element)
+          else
+            tree = renderer.create(element, {
+              createNodeMock: (node: { props: { testID?: string } }) => ({ id: node.props.testID }),
+            })
+        })
+        const button = tree.root.findByType('Pressable')
+        const label = tree.root.findAll(
+          (node: { type: unknown; props: { testID?: string } }) =>
+            node.type === 'NativeText' && node.props.testID === 'label',
+        )[0]
+        first ??= label
+        buttonInstance ??= buttonRef.current
+        assert.equal(label, first)
+        assert.equal(buttonRef.current, buttonInstance)
+        assert.deepEqual(buttonRef.current, { id: 'button' })
+        assert.equal(button.props.onPress, press)
+        assert.equal(button.props.accessibilityRole, 'button')
+        assert.equal(button.props.accessibilityLabel, 'Save')
+        assert.equal(button.props.hozoTextStyle, undefined)
+        assert.equal(tree.root.findAllByType(fixture.shipped.HozoPressable).length, 1)
+        assert.equal(tree.root.findAllByType('NativeView').length, 2)
+        const expected = {
+          ...Object.fromEntries(
+            Object.entries(frame).filter(([name]) =>
+              TEXT_REFERENCE_FIELDS.includes(name as (typeof TEXT_REFERENCE_FIELDS)[number]),
+            ),
+          ),
+          fontSize: own?.fontSize ?? 18,
+          color: own?.color ?? '#1355bb',
+        }
+        assert.deepEqual(flatten(label.props.style), expected)
+        const style = button.props.style({ pressed: false })
+        if (mode !== 'reference') {
+          assert.deepEqual(flatten(style), {
+            paddingTop: 16,
+            paddingRight: 16,
+            paddingBottom: 16,
+            paddingLeft: 16,
+          })
+          const texts = tree.root.findAllByType('NativeText')
+          assert.ok(texts.some((node: { children: unknown[] }) => node.children.includes('Raw')))
+          assert.ok(texts.some((node: { children: unknown[] }) => node.children.includes('0')))
+        }
+        stages.push(flatten(label.props.style))
+      }
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+    assert.equal(buttonRef.current, null)
+    records.push(stages)
+  }
+  assert.deepEqual(records[1], records[0])
+  assert.deepEqual(records[2], records[0])
+})
+
+test('inherited label scope uses one committed owner snapshot and isolates nested and sibling controls', () => {
+  const renders: Record<string, number> = {}
+  const runtime = loadTextInheritanceRuntime(
+    React.createContext(14),
+    {
+      View: 'NativeView',
+      Text(props: { testID: string }) {
+        renders[props.testID] = (renders[props.testID] ?? 0) + 1
+        return React.createElement('NativeText', props)
+      },
+    },
+    true,
+  )
+  const snapshots: Record<string, { pressed: boolean; hovered: boolean; focused: boolean }[]> = {
+    first: [],
+    second: [],
+    nested: [],
+  }
+  const resolve =
+    (id: string) => (state: { pressed: boolean; hovered: boolean; focused: boolean }) => {
+      snapshots[id].push({ ...state })
+      return {
+        color:
+          id === 'first'
+            ? state.pressed
+              ? '#cc0000'
+              : state.hovered
+                ? '#00aa00'
+                : '#1355bb'
+            : '#abcdef',
+        fontWeight: '500',
+      }
+    }
+  const label = (id: string) => React.createElement(runtime.HozoInheritedText, { testID: id }, id)
+  const Opaque = React.memo(({ id }: { id: string }) =>
+    React.createElement(runtime.HozoInheritedView, null, label(id)),
+  )
+  const nested = React.createElement(
+    runtime.HozoInheritedPressable,
+    {
+      key: 'nested',
+      testID: 'nested-button',
+      hozoTextStyle: resolve('nested'),
+      style: { fontSize: 11 },
+    },
+    React.createElement(Opaque, { id: 'nested' }),
+  )
+  let childCalls = 0
+  const children = [
+    React.createElement(
+      runtime.HozoInheritedPressable,
+      {
+        key: 'a',
+        testID: 'first-button',
+        hozoTextStyle: resolve('first'),
+        style: { fontSize: 22, fontWeight: '700', padding: 4 },
+      },
+      () => {
+        childCalls++
+        return [React.createElement(Opaque, { key: 'label', id: 'first' }), nested]
+      },
+    ),
+    React.createElement(
+      runtime.HozoInheritedPressable,
+      {
+        key: 'b',
+        testID: 'second-button',
+        hozoTextStyle: resolve('second'),
+        style: { fontSize: 24 },
+      },
+      React.createElement(Opaque, { id: 'second' }),
+    ),
+  ]
+  let tree: ReturnType<typeof renderer.create>
+  try {
+    renderer.act(() => {
+      tree = renderer.create(
+        React.createElement(runtime.HozoInheritedView, { style: REST }, children),
+      )
+    })
+    const button = (id: string) =>
+      tree.root.findAll(
+        (node: { type: unknown; props: { testID?: string } }) =>
+          node.type === 'Pressable' && node.props.testID === `${id}-button`,
+      )[0]
+    const text = (id: string) =>
+      tree.root.findAll(
+        (node: { type: unknown; props: { testID?: string } }) =>
+          node.type === 'NativeText' && node.props.testID === id,
+      )[0]
+    const first = text('first')
+    assert.equal(childCalls, 1)
+    assert.equal(snapshots.first.length, 1)
+    assert.equal(snapshots.second.length, 1)
+    assert.equal(snapshots.nested.length, 1)
+    assert.equal(tree.root.findAllByType(runtime.HozoPressable).length, 3)
+    assert.equal(tree.root.findAllByType('Pressable').length, 3)
+    assert.equal(runtime.native.Animated.__hozoTimings.length, 0)
+    assert.equal(
+      flatten(first.props.style).fontWeight,
+      '700',
+      'explicit owner style follows its class label',
+    )
+    const secondRenders = renders.second
+    renderer.act(() => button('first').props.onHoverIn({}))
+    assert.equal(snapshots.first.length, 2, 'resolve once for the existing committed owner update')
+    assert.equal(childCalls, 2, 'RN executes the authored function child once')
+    assert.equal(flatten(text('first').props.style).color, '#00aa00')
+    assert.equal(renders.second, secondRenders)
+    assert.equal(snapshots.second.length, 1)
+    assert.equal(snapshots.nested.at(-1)!.hovered, false, 'nested owner does not borrow hover')
+    renderer.act(() => button('first').props.onPressIn({}))
+    assert.equal(snapshots.first.length, 3)
+    assert.equal(flatten(text('first').props.style).color, '#cc0000')
+    assert.equal(snapshots.nested.at(-1)!.pressed, false, 'nested owner does not borrow press')
+    assert.equal(renders.second, secondRenders)
+    renderer.act(() => button('first').props.onPressOut({}))
+    assert.equal(snapshots.first.length, 4)
+    assert.equal(flatten(text('first').props.style).color, '#00aa00')
+    const shielded = { ...renders }
+    renderer.act(() =>
+      tree.update(
+        React.createElement(
+          runtime.HozoInheritedView,
+          { style: { ...REST, color: '#eecc00' } },
+          children,
+        ),
+      ),
+    )
+    assert.deepEqual(
+      renders,
+      shielded,
+      'effective local colors shield all three stable Text children',
+    )
+    assert.equal(text('first'), first)
+    assert.equal(runtime.native.Animated.__hozoTimings.length, 0)
+    assert.deepEqual(button('first').props.style({ pressed: false }), { padding: 4 })
+  } finally {
+    renderer.act(() => tree?.unmount())
+  }
+})
+
+test('label callbacks receive disposable snapshots, not the shared interaction value', () => {
+  const runtime = loadTextInheritanceRuntime(React.createContext(14), undefined, true)
+  function Observe() {
+    const state = React.useContext(runtime.HozoInteractionContext)
+    return React.createElement('Observer', { hovered: state.hovered })
+  }
+  let tree: ReturnType<typeof renderer.create>
+  try {
+    renderer.act(() => {
+      tree = renderer.create(
+        React.createElement(
+          runtime.HozoInheritedPressable,
+          {
+            hozoTextStyle(state: { hovered: boolean }) {
+              state.hovered = false
+              return { color: '#1355bb' }
+            },
+          },
+          React.createElement(Observe),
+        ),
+      )
+    })
+    renderer.act(() => tree.root.findByType('Pressable').props.onHoverIn({}))
+    assert.equal(tree.root.findByType('Observer').props.hovered, true)
+  } finally {
+    renderer.act(() => tree?.unmount())
+  }
+})
+
+test('unassessed label transitions and host style callbacks fail without evaluating a callback', () => {
+  const runtime = loadTextInheritanceRuntime(React.createContext(14), undefined, true)
+  let calls = 0
+  for (const props of [
+    {
+      style: () => {
+        calls++
+        return {}
+      },
+    },
+    {
+      hozoTransition: {
+        duration: 100,
+        easing: 'linear',
+        opacity: false,
+        transform: false,
+        colors: true,
+      },
+    },
+  ]) {
+    assert.throws(
+      () =>
+        renderer.act(() =>
+          renderer.create(React.createElement(runtime.HozoInheritedPressable, props, 'Label')),
+        ),
+      /does not assess/,
+    )
+  }
+  assert.equal(calls, 0)
 })
 
 test('compiler-inserted raw Text reads effective View overrides rather than copying static owner classes', () => {

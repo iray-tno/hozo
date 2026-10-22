@@ -1010,3 +1010,45 @@ RFC 006; merging this compiler slice does not complete #1207 or authorize
 an accepted ADR. Historical device results above remain pinned to their
 original sources; regenerating the fixture's current source hashes is not
 a new device result.
+
+## Bounded label-owner compiler integration
+
+The next internal slice admits non-animated Button/Pressable roots whose class
+styles are unconditional and whose host styles are resolved records/arrays.
+The compiler emits `HozoInheritedPressable`; ordinary output still selects its
+unchanged existing host. Stateful class conditions, host style callbacks,
+transitions, Link/navigation adapters and other widgets remain outside this
+compiler slice. No default/bundler or normal docs-capture selection changes.
+
+The adapter reuses the actual `HozoPressable` source without modifying its
+event or animation implementation. It partitions resolved own text fields off
+the Native View style and places a label scope inside that existing owner's
+interaction Context. The label class callback runs there once per committed
+scope render, with a disposable snapshot, followed by explicit owner styles.
+The shared seven-field frame reaches participating opaque memo/View labels;
+only direct raw scalar children are normalized, not arbitrary React children.
+No second event machine, added Native box, animation driver or child cloning
+is introduced. A callback-supplied RN press snapshot remains distinct from the
+owner's committed interaction snapshot.
+
+Compiler regression tests fail at the former Button gate and pass with the
+new adapter; actual Metro-generated Button output is compared to the retained
+private reference and proof-selected route through ancestor changes, own
+overrides/removal, label state/host/ref identity, raw strings/zero, accessibility
+props and original press callbacks. The independent reference still delegates
+to the same existing event owner, not the new label adapter.
+
+A separate source-backed test drives that owner, not an imitation state
+machine. Three controls produce three existing owners/Native Pressable hosts
+and zero animation timings. Hover/press changes resolve the first label once,
+leave the sibling Text unchanged and do not lend state to the nested control.
+Local effective colors shield all three stable Text children from an ancestor
+paint update. A mutation regression ensures a label callback cannot alter the
+shared interaction value; transition and style-callback refusals are tested
+without invoking the refused callback. These helper-level state observations
+do not enable compiler state-conditioned classes or prove OS event delivery.
+
+Uncompiled typography, raw third-party/RN label hosts outside the protocol,
+other widget scopes, CSS/Native form-state parity, interrupted transitions,
+portals and native glyph/performance validation remain separate. The bounded
+compiler/static controls and historical device measurements stay unchanged.

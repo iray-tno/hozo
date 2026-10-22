@@ -179,10 +179,30 @@ test('internal inheritance preserves semantic typography and runtime ratios with
   }
 })
 
+test('bounded label owners select the inherited adapter without changing ordinary output', () => {
+  const compiler = createCompiler()
+  for (const name of ['Button', 'Pressable']) {
+    const source = `import {${name},View,Text} from '@hozo/core';export const Owner=({children,own})=> <${name} className="text-[#1355bb] text-[20px] p-4" style={own}><View><Text>Visible</Text>{children}</View></${name}>`
+    const ordinary = compiler.compileNativeModule(source)
+    const selected = compiler.compileNativeModule(source, undefined, undefined, {
+      textInheritance: true,
+      textStatic: true,
+    })
+    assert.ok(
+      selected.components.every((c) => !c.diagnostics.some((d) => d.severity === 'error')),
+      JSON.stringify(selected.components),
+    )
+    assert.ok(selected.components[0].runtimeImports.includes('HozoInheritedPressable'))
+    assert.ok(!selected.components[0].runtimeImports.includes('HozoPressable'))
+    assert.match(selected.components[0].jsx, /hozoTextStyle=/)
+    assert.deepEqual(compiler.compileNativeModule(source), ordinary)
+  }
+})
+
 test('internal runtime integration refuses unassessed primitives and conditions, not ordinary support', () => {
   const compiler = createCompiler()
   for (const source of [
-    `import {Button} from '@hozo/core'; export const Label=()=> <Button>Label</Button>`,
+    `import {Button} from '@hozo/core'; export const Label=()=> <Button className="active:text-red-500">Label</Button>`,
     `import {Text} from '@hozo/core'; export const Label=()=> <Text className="dark:text-red-500">Label</Text>`,
     `import {Code} from '@hozo/core'; export const Label=()=> <Code>Label</Code>`,
     `import {Emphasis} from '@hozo/core'; export const Label=()=> <Emphasis>Label</Emphasis>`,

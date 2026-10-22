@@ -464,7 +464,7 @@ pub(super) fn render_node(
     // Hozo lowered: a carried `Child::Verbatim` keeps whatever the author
     // imported and must not be imported over.
     if !(matches!(node.primitive, Primitive::Svg(_))
-        || cx.text_inheritance && matches!(component, "Text" | "View"))
+        || cx.text_inheritance && matches!(component, "Text" | "View" | "Pressable"))
     {
         cx.runtime.need_native(component);
     }
@@ -1215,6 +1215,9 @@ pub(super) fn render_node(
     {
         cx.runtime.need_component("HozoTextInput");
         "HozoTextInput"
+    } else if component == "Pressable" && cx.text_inheritance {
+        cx.runtime.need_component("HozoInheritedPressable");
+        "HozoInheritedPressable"
     } else if component == "Pressable" && needs_interaction_host {
         cx.runtime.need_component("HozoPressable");
         "HozoPressable"
@@ -1279,7 +1282,11 @@ pub(super) fn render_node(
     }
     // An intervening control owns its own interaction. Neither an enhanced
     // nor a plain link may borrow an outer button's hover/focus context.
-    let child_interaction_context = rendered_component == "HozoPressable"
+    let owns_pressable_interaction = matches!(
+        rendered_component,
+        "HozoPressable" | "HozoInheritedPressable"
+    );
+    let child_interaction_context = owns_pressable_interaction
         || link_interaction
         || (interaction_context
             && !matches!(
@@ -1523,12 +1530,12 @@ pub(super) fn render_node(
     if let Some(ratio) = relative_at_runtime {
         props_text.push_str(&format!(" hozoRelative={{{ratio}}}"));
     }
-    if needs_focus_visible && (rendered_component == "HozoPressable" || link_interaction) {
+    if needs_focus_visible && (owns_pressable_interaction || link_interaction) {
         props_text.push_str(" hozoFocusVisible");
     }
     if let Some(parts) = label_style
         .as_ref()
-        .filter(|_| rendered_component == "HozoPressable" || link_interaction)
+        .filter(|_| owns_pressable_interaction || link_interaction)
     {
         props_text.push_str(&format!(
             " hozoTextStyle={{({{ pressed, hovered, focused, focusVisible }}) => [{}]}}",
