@@ -255,6 +255,10 @@ export function Image({
   const webSrc = (failedSource === src ? undefined : primary) ?? fallback
   // A server-rendered `<img>` starts loading before React hydrates, so its
   // `error` event may already have fired when `onError` is attached (#1156).
+  // `complete && naturalWidth === 0` spots that, and `decode()` separates a
+  // broken load from a widthless SVG that some browsers report as 0px wide.
+  // The caller's `onError` is not synthesized here because the native error
+  // event has already come and gone before hydration.
   const stateRef = useRef({ src, primary, fallback, failedSource })
   stateRef.current = { src, primary, fallback, failedSource }
   const imageRef = useCallback(
@@ -269,7 +273,14 @@ export function Image({
         node.complete &&
         node.naturalWidth === 0
       ) {
-        setFailedSource(current.src)
+        const failed = current.src
+        if (typeof node.decode === 'function') {
+          node.decode().then(undefined, () => {
+            if (stateRef.current.src === failed) setFailedSource(failed)
+          })
+        } else {
+          setFailedSource(failed)
+        }
       }
     },
     [setRef],

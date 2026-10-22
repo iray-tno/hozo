@@ -118,8 +118,15 @@ function elementRef(
       if (!node) return undefined
       if (fallback) {
         const img = node as HTMLImageElement
-        if (img.complete && img.naturalWidth === 0 && img.getAttribute('src') !== fallback) {
-          img.src = fallback
+        const currentSrc = img.getAttribute('src')
+        if (img.complete && img.naturalWidth === 0 && currentSrc !== fallback) {
+          if (typeof img.decode === 'function') {
+            img.decode().then(undefined, () => {
+              if (img.getAttribute('src') === currentSrc) img.src = fallback
+            })
+          } else {
+            img.src = fallback
+          }
         }
       }
       let current: Attached | undefined

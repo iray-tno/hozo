@@ -202,7 +202,7 @@ test('an Image spread falls back to defaultSource when its src fails to load', (
   )
 })
 
-test('an Image spread whose src already failed before hydration falls back when its ref attaches', () => {
+test('an Image spread whose src already failed before hydration falls back when its ref attaches', async () => {
   const seen: unknown[] = []
   const dom = hozoImageDomProps({
     src: 'https://example.com/missing.png',
@@ -236,18 +236,54 @@ test('an Image spread whose src already failed before hydration falls back when 
   ;(dom.ref as Ref)(loadedImg)?.()
   assert.equal(loadedSrc, 'https://example.com/ok.png')
 
-  // Already failed before hydration (`complete && naturalWidth === 0`): swaps in defaultSource.
+  // Widthless SVG (complete && naturalWidth === 0, but decode() resolves): left alone.
+  let svgSrc = 'https://example.com/icon.svg'
+  const svgImg = {
+    complete: true,
+    naturalWidth: 0,
+    decode: () => Promise.resolve(),
+    getAttribute: () => svgSrc,
+    set src(value: string) {
+      svgSrc = value
+    },
+  } as unknown as HTMLElement
+  ;(dom.ref as Ref)(svgImg)?.()
+  await Promise.resolve()
+  assert.equal(svgSrc, 'https://example.com/icon.svg')
+
+  // Already failed before hydration (complete && naturalWidth === 0, decode() rejects): swaps in defaultSource.
   let failedSrc = 'https://example.com/missing.png'
   const failedImg = {
     complete: true,
     naturalWidth: 0,
+    decode: () => Promise.reject(new Error('EncodingError')),
     getAttribute: () => failedSrc,
     set src(value: string) {
       failedSrc = value
     },
   } as unknown as HTMLElement
   const cleanup = (dom.ref as Ref)(failedImg)
+  await Promise.resolve()
   assert.equal(failedSrc, '/fallback.png')
   cleanup?.()
-  assert.deepEqual(seen, [pendingImg, null, loadedImg, null, failedImg, null])
+  assert.deepEqual(seen, [pendingImg, null, loadedImg, null, svgImg, null, failedImg, null])
+
+  // Re-render with the same src keeps fallback; changing src to b.png and failing falls back again.
+  const rerenderSame = hozoImageDomProps({
+    src: 'https://example.com/missing.png',
+    defaultSource: { uri: '/fallback.png' },
+  }) as Record<string, unknown>
+  ;(rerenderSame.ref as Ref)(failedImg)?.()
+  await Promise.resolve()
+  assert.equal(failedSrc, '/fallback.png')
+
+  const changedSrc = hozoImageDomProps({
+    src: 'https://example.com/b.png',
+    defaultSource: { uri: '/fallback.png' },
+  }) as Record<string, unknown>
+  // React updates the DOM attribute when the rendered `src` prop changes from a.png to b.png.
+  failedSrc = changedSrc.src as string
+  assert.equal(failedSrc, 'https://example.com/b.png')
+  ;(changedSrc.onError as (event: unknown) => void)({ currentTarget: failedImg })
+  assert.equal(failedSrc, '/fallback.png')
 })
