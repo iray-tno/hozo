@@ -314,7 +314,7 @@ pub fn lower_text_inheritance(
     output.diagnostics.push(Diagnostic {
         code: DiagnosticCode::NotWiredOnNative,
         severity: Severity::Error,
-        message: "Internal text inheritance currently assesses passive Text/View, bounded semantic typography and non-animated Button/Pressable labels with unconditional seven-field styles. Conditional classes, animation, relative CSS metrics, dynamic heading levels, font families/styles/variants and additional generated adapters remain unassessed. This root retains ordinary lowering; it is not runtime-inheritance evidence.".to_string(),
+        message: "Internal text inheritance currently assesses passive Text/View, bounded semantic typography and non-animated Button/Pressable labels. Only label typography can additionally use that control's hover/active/focus/focus-visible conditions and their conjunctions. Other conditional classes, animation, relative CSS metrics, dynamic heading levels, font families/styles/variants and additional generated adapters remain unassessed. This root retains ordinary lowering; it is not runtime-inheritance evidence.".to_string(),
         span: root.span,
     });
     output

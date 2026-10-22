@@ -1052,3 +1052,43 @@ Uncompiled typography, raw third-party/RN label hosts outside the protocol,
 other widget scopes, CSS/Native form-state parity, interrupted transitions,
 portals and native glyph/performance validation remain separate. The bounded
 compiler/static controls and historical device measurements stay unchanged.
+
+## Bounded state-conditioned labels
+
+The subsequent internal compiler slice admits hover, active, focus and
+focus-visible typography, and non-empty conjunctions of those conditions,
+on Button/Pressable's own seven label fields. It uses the existing condition
+codegen and event owner rather than interpreting CSS selectors again. Box
+conditions, conditional View/Text decorations, ambient/relational/negated/form
+conditions, style callbacks and transitions remain explicit refusals. The
+static proof is unchanged; these stateful owners retain the contextual route.
+
+The generated-module test drives ten stages through the actual owner callbacks:
+rest, hover, pointer focus/press, release, hover exit, blur, keyboard focus,
+child override, override removal and pointer modality. An opaque memoized Text
+behind View receives the effective frame in the independent reference,
+runtime-only and proof-selected modes. All seven fields are asserted, alongside
+stable label state, host identity and an unchanged sibling. The first attempt
+exposed a probe defect: the reference was wired to an unrelated interaction
+Context and stayed idle. It now consumes the real owner's singleton, while its
+inheritance model remains independent. The failing observation is not evidence
+of a production inheritance defect.
+
+A separate headless Chromium oracle executes Tailwind's generated CSS with
+real pointer/keyboard events and no Hozo lowering. Its first nine corresponding
+stages agree. The tenth deliberately records an existing modality boundary:
+clicking an already keyboard-focused button retains Chromium's `:focus-visible`,
+whereas the existing Native owner clears its explicit bit on pointer-down.
+This slice changes neither event policy and makes no claim of complete CSS/OS
+event parity. Both original failing probe logs are retained under local
+`artifacts/text-inheritance`, separately from the corrected successful runs.
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='Tailwind browser oracle for stateful' examples/storybook-demo/scripts/caller-composition.test.mjs
+```
+
+These are source-backed mock-host and actual browser observations, not new
+Android/iOS pixels or physical-device performance measurements. Ordinary
+Metro builds and docs capture still use ordinary lowering. Other real widget
+scopes, rendered portal destinations, interrupted transitions and update-cost
+gates remain before default activation.

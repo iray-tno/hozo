@@ -53,7 +53,9 @@ function graph(
     View: 'NativeView' as never,
     HozoPressable: labels ? shipped.HozoPressable! : ('Unused' as never),
     HozoTextSizeContext: legacy,
-    HozoInteractionContext: React.createContext(null),
+    // The independent inheritance model still consumes the real owner's facts.
+    // A fresh Context here would silently pin every reference label to idle.
+    HozoInteractionContext: labels ? shipped.HozoInteractionContext! : React.createContext(null),
     flattenStyle: flatten,
     renderViewStyle(style) {
       const result = flatten(style)
@@ -646,6 +648,99 @@ test('inherited label scope uses one committed owner snapshot and isolates neste
   } finally {
     renderer.act(() => tree?.unmount())
   }
+})
+
+test('generated stateful labels update opaque text from real owner events and preserve child overrides', () => {
+  const classes =
+    'text-[#1355bb] text-[18px] hover:text-[#00aa00] active:text-[#cc0000] focus:font-semibold focus-visible:tracking-[2px] hover:active:text-[22px]'
+  const source = `import {View,Button} from '@hozo/core';import {Label} from 'fixture:label';export const Scene=({frame,own})=> <View style={frame}><Button testID="owner" className="${classes}"><View><Label id="target" own={own}/></View></Button><Button testID="sibling" className="text-[#abcdef] text-[24px]"><Label id="other"/></Button></View>`
+  const label = `import {Text} from '@hozo/core';import {memo,useState} from 'react';let next=0;export const Label=memo(({id,own})=>{const [token]=useState(()=>++next);return <Text testID={id} nativeID={'mount:'+token} style={own}>Label</Text>})`
+  const records = []
+  for (const mode of ['reference', 'runtime', 'optimized']) {
+    const fixture = graph(
+      mode !== 'reference',
+      source,
+      mode === 'optimized',
+      label,
+      undefined,
+      true,
+    )
+    let tree: ReturnType<typeof renderer.create>
+    let own: object | undefined
+    const scene = () => React.createElement(fixture.Scene, { frame: REST, own })
+    const stages = []
+    try {
+      renderer.act(() => {
+        tree = renderer.create(scene())
+      })
+      const button = () =>
+        tree.root.findAll(
+          (node: { type: unknown; props: { testID?: string } }) =>
+            node.type === 'Pressable' && node.props.testID === 'owner',
+        )[0]
+      const text = (id: string) =>
+        tree.root.findAll(
+          (node: { type: unknown; props: { testID?: string } }) =>
+            node.type === 'NativeText' && node.props.testID === id,
+        )[0]
+      const initial = text('target'),
+        sibling = text('other'),
+        owner = button()
+      const marker = initial.props.nativeID
+      const expected = (style: object) => ({
+        ...Object.fromEntries(
+          Object.entries(REST).filter(([name]) =>
+            TEXT_REFERENCE_FIELDS.includes(name as (typeof TEXT_REFERENCE_FIELDS)[number]),
+          ),
+        ),
+        fontSize: 18,
+        color: '#1355bb',
+        ...style,
+      })
+      const check = (style = {}) => {
+        assert.equal(text('target'), initial)
+        assert.equal(text('other'), sibling)
+        assert.equal(button(), owner)
+        assert.equal(initial.props.nativeID, marker)
+        assert.deepEqual(flatten(initial.props.style), expected(style), mode)
+        assert.deepEqual(flatten(sibling.props.style), expected({ color: '#abcdef', fontSize: 24 }))
+        stages.push(flatten(initial.props.style))
+      }
+      check()
+      renderer.act(() => button().props.onHoverIn({}))
+      check({ color: '#00aa00' })
+      renderer.act(() => {
+        button().props.onPointerDown({})
+        button().props.onFocus({})
+        button().props.onPressIn({})
+      })
+      check({ color: '#cc0000', fontSize: 22, fontWeight: '600' })
+      renderer.act(() => button().props.onPressOut({}))
+      check({ color: '#00aa00', fontWeight: '600' })
+      renderer.act(() => button().props.onHoverOut({}))
+      check({ fontWeight: '600' })
+      renderer.act(() => button().props.onBlur({}))
+      check()
+      renderer.act(() => {
+        button().props.onKeyDown({})
+        button().props.onFocus({})
+      })
+      check({ fontWeight: '600', letterSpacing: 2 })
+      own = { color: '#abcdef', fontSize: 10 }
+      renderer.act(() => tree.update(scene()))
+      check({ color: '#abcdef', fontSize: 10, fontWeight: '600', letterSpacing: 2 })
+      own = undefined
+      renderer.act(() => tree.update(scene()))
+      check({ fontWeight: '600', letterSpacing: 2 })
+      renderer.act(() => button().props.onPointerDown({}))
+      check({ fontWeight: '600', letterSpacing: 1 })
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+    records.push(stages)
+  }
+  assert.deepEqual(records[1], records[0])
+  assert.deepEqual(records[2], records[0])
 })
 
 test('label callbacks receive disposable snapshots, not the shared interaction value', () => {

@@ -40,7 +40,10 @@ pub(super) fn passive(node: &Node) -> bool {
         Some(hozo_ir::HeadingLevel::Dynamic(_))
     ) && node.class_name_fallback.is_empty()
         && node.style.iter().all(|style| {
-            style.condition == Condition::Always
+            (style.condition == Condition::Always
+                || matches!(node.primitive, Primitive::Button | Primitive::Pressable)
+                    && super::text::is_text_property(&style.property)
+                    && label_condition(&style.condition))
                 && !matches!(
                     style.property,
                     StyleProperty::TransitionProperty(..)
@@ -71,6 +74,17 @@ pub(super) fn passive(node: &Node) -> bool {
             Child::Verbatim { nested, .. } => nested.iter().all(|nested| passive(&nested.node)),
             Child::Text(_) => true,
         })
+}
+
+// Only the existing control's own event predicates are assessed here. Do
+// not turn this gate into a second condition evaluator or grant decorative
+// descendants an outer control's events. Guards/codegen still own evaluation.
+fn label_condition(condition: &Condition) -> bool {
+    match condition {
+        Condition::Pressed | Condition::Hover | Condition::Focus | Condition::FocusVisible => true,
+        Condition::All(parts) => !parts.is_empty() && parts.iter().all(label_condition),
+        _ => false,
+    }
 }
 
 pub(super) fn prove(root: &Node, theme: &Theme) -> Result<(), &'static str> {

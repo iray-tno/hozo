@@ -403,6 +403,104 @@ after(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
+test('Tailwind browser oracle for stateful label inheritance and focus modality', {
+  skip: !executablePath,
+}, async () => {
+  // Independent CSS/browser oracle for the Native owner-event probe. No Hozo
+  // lowering or private inheritance algorithm participates in these results.
+  const classes =
+    'text-[#1355bb] text-[18px] hover:text-[#00aa00] active:text-[#cc0000] focus:font-semibold focus-visible:tracking-[2px] hover:active:text-[22px]'
+  const css = (await compile('@theme { --font-weight-semibold: 600; } @tailwind utilities;')).build(
+    classes.split(' '),
+  )
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>
+      main { color:#112233; font-size:20px; font-weight:400; line-height:28px;
+        letter-spacing:1px; text-align:left; text-transform:uppercase; }
+      button { font:inherit; color:inherit; letter-spacing:inherit;
+        text-align:inherit; text-transform:inherit; }
+      ${css}
+      </style><main><button id="before">Before</button>
+      <button id="owner" class="${classes}"><span id="target">Label</span></button>
+      <button id="sibling" style="color:#abcdef;font-size:24px"><span id="other">Other</span></button>
+      </main>`)
+    const read = (id) =>
+      page.locator(id).evaluate((node) => {
+        const style = getComputedStyle(node)
+        return Object.fromEntries(
+          [
+            'color',
+            'fontSize',
+            'fontWeight',
+            'lineHeight',
+            'letterSpacing',
+            'textAlign',
+            'textTransform',
+          ].map((name) => [name, style[name]]),
+        )
+      })
+    const base = {
+      color: 'rgb(19, 85, 187)',
+      fontSize: '18px',
+      fontWeight: '400',
+      lineHeight: '28px',
+      letterSpacing: '1px',
+      textAlign: 'left',
+      textTransform: 'uppercase',
+    }
+    const sibling = await read('#other')
+    const check = async (own = {}) => {
+      assert.deepEqual(await read('#target'), { ...base, ...own })
+      assert.deepEqual(await read('#other'), sibling)
+    }
+    await check()
+    await page.locator('#owner').hover()
+    await check({ color: 'rgb(0, 170, 0)' })
+    await page.mouse.down()
+    await check({ color: 'rgb(204, 0, 0)', fontSize: '22px', fontWeight: '600' })
+    await page.mouse.up()
+    await check({ color: 'rgb(0, 170, 0)', fontWeight: '600' })
+    await page.mouse.move(600, 400)
+    await check({ fontWeight: '600' })
+    await page.locator('#owner').evaluate((node) => node.blur())
+    await check()
+    await page.locator('#before').focus()
+    await page.keyboard.press('Tab')
+    assert.equal(
+      await page.locator('#owner').evaluate((node) => document.activeElement === node),
+      true,
+    )
+    await check({ fontWeight: '600', letterSpacing: '2px' })
+    await page.locator('#target').evaluate((node) => {
+      node.style.color = '#abcdef'
+      node.style.fontSize = '10px'
+    })
+    await check({
+      color: 'rgb(171, 205, 239)',
+      fontSize: '10px',
+      fontWeight: '600',
+      letterSpacing: '2px',
+    })
+    await page.locator('#target').evaluate((node) => node.removeAttribute('style'))
+    await check({ fontWeight: '600', letterSpacing: '2px' })
+    await page.locator('#owner').hover()
+    await page.mouse.down()
+    // Chromium retains :focus-visible when clicking an already keyboard-focused
+    // button. Hozo's existing Native owner instead clears its explicit modality
+    // bit on pointer-down. Record that boundary, not a claim of event parity.
+    await check({
+      color: 'rgb(204, 0, 0)',
+      fontSize: '22px',
+      fontWeight: '600',
+      letterSpacing: '2px',
+    })
+    await page.mouse.up()
+  } finally {
+    await page.close()
+  }
+})
+
 test('Skeleton resting corners survive outside a caller breakpoint and lose inside it', {
   skip: !executablePath,
 }, async () => {

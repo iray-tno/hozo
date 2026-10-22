@@ -5,6 +5,7 @@ import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { buildSync } from 'esbuild'
 import type { ComponentType, Context, ElementType } from 'react'
+import type { HozoInteractionContext } from '../../behaviors/src/pressable-interaction.ts'
 import type {
   HozoInheritedTextMetrics,
   HozoInheritedTextPaint,
@@ -24,7 +25,7 @@ type Runtime = {
   HozoInheritedView: ComponentType
   HozoInheritedPressable?: ComponentType
   HozoPressable?: ComponentType
-  HozoInteractionContext?: Context<{ hovered: boolean } | null>
+  HozoInteractionContext?: typeof HozoInteractionContext
   HozoInheritedMetricsContext: Context<HozoInheritedTextMetrics>
   HozoInheritedPaintContext: Context<HozoInheritedTextPaint>
 }
