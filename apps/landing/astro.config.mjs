@@ -36,8 +36,16 @@ export default defineConfig({
           items: [{ autogenerate: { directory: 'docs/getting-started' } }],
         },
         { label: 'Guides', items: [{ autogenerate: { directory: 'docs/guides' } }] },
+        {
+          label: 'Graphics & Media',
+          items: [{ autogenerate: { directory: 'docs/graphics-and-media' } }],
+        },
         { label: 'Components', items: [{ autogenerate: { directory: 'docs/components' } }] },
         { label: 'Reference', items: [{ autogenerate: { directory: 'docs/reference' } }] },
+        {
+          label: 'Migration & Case Studies',
+          items: [{ autogenerate: { directory: 'docs/migration' } }],
+        },
         { label: 'Concepts', items: [{ autogenerate: { directory: 'docs/concepts' } }] },
         { label: 'Troubleshooting', link: '/docs/troubleshooting/' },
         { label: 'What Hozo does not do yet', link: '/docs/status/' },

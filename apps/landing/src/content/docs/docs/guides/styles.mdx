@@ -87,7 +87,10 @@ scan is cached and incremental.
 The theme behind all of this is read from the project's own Tailwind
 entry stylesheet by running Tailwind's resolver, rather than by parsing a
 config file — the same discipline the conformance suite uses when it asks
-Tailwind for its own class list instead of keeping a copy.
+Tailwind for its own class list instead of keeping a copy. See the
+[Tailwind CSS guide](../tailwind/) for how `@theme` tokens, variants and
+React Native layout helpers work, or the [StyleX guide](../stylex/) for
+combining static StyleX sheets with Tailwind in the same compiler pass.
 
 To see it compiled, the [Tailwind page](../../../tailwind/) puts one component
 beside the CSS and the `StyleSheet` the build makes from it, and the

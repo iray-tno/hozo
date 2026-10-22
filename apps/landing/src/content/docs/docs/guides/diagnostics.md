@@ -2,7 +2,7 @@
 title: "Reading what the compiler says"
 description: "Where diagnostics appear, and how to check a whole project in CI."
 sidebar:
-  order: 4
+  order: 6
 ---
 
 Every build prints Hozo's diagnostics: `@hozo/vite` warns per file, and `@hozo/metro` stops on an error. To check a whole project without building it, for an agent's loop or for CI, run the audit:

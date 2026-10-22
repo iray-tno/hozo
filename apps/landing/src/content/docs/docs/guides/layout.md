@@ -2,7 +2,7 @@
 title: "A box is a column"
 description: "Why `flex` alone does not give you a row, and what to write instead."
 sidebar:
-  order: 2
+  order: 4
 ---
 
 The one thing a Web developer trips over. In a browser, `display: flex` on a `<div>` lays its children out in a **row**, because that is CSS's initial value. Hozo's boxes are not `<div>`s — they lower to a React Native `View`, whose direction is **column**, and the Web base follows React Native rather than the other way round. `react-native-web` makes the same choice, and applies it to `<nav>` and `<section>` as well as to `<div>`.
