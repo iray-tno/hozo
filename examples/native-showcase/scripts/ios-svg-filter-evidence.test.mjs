@@ -192,7 +192,10 @@ test('normal iOS workflow includes SVG evidence without a second app launch or l
   )
   assert.equal([...smoke.matchAll(/launch\(app\)/g)].length, 1)
   assert.match(smoke, /captureRegion: \(buffer, node\) =>\s*iosSvgRegion/)
-  assert.match(workflow, /options: \[full, svg-filters, canvas, gl-control, text-inheritance, ui-docs\]/)
+  assert.match(
+    workflow,
+    /options: \[full, svg-filters, canvas, gl-control, text-inheritance, ui-docs\]/,
+  )
   assert.match(workflow, /name: hozo-native-showcase-ios-svg-evidence/)
   assert.match(workflow, /path: artifacts\/native-showcase-ios\/svg-filters/)
 })
