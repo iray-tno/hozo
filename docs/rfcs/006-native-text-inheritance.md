@@ -464,6 +464,14 @@ hover/press, child overrides, stable hosts and unchanged resolver counts. This
 is still internal integration, not default rollout or new device/update-cost
 evidence.
 
+An [independent actual Web Chip/Tailwind comparison](../native-text-inheritance-baseline.md#independent-web-oracle-for-chip-typography-owners)
+now checks those seven-field ownership rules in Chromium across all four
+shapes, with real pointer and keyboard actions, overrides and retained DOM
+identity. It explicitly supplies button inheritance resets and distinguishes
+the browser's single focused control from independent mock-owner facts. This
+adds bounded CSS evidence, not a new Native pixel/AT/update-cost result or a
+default switch.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

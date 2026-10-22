@@ -501,6 +501,197 @@ test('Tailwind browser oracle for stateful label inheritance and focus modality'
   }
 })
 
+test('real Web Chip and Tailwind preserve row and removal typography at their actual owners', {
+  skip: !executablePath,
+}, async (t) => {
+  const classes =
+    'p-4 text-[#1355bb] text-[18px] hover:text-[#00aa00] active:text-[#cc0000] focus:font-semibold'
+  const removalClasses = 'p-2 focus:text-[#eecc00] active:font-bold'
+  const css = (
+    await compile(
+      '@theme { --spacing: .25rem; --font-weight-semibold: 600; --font-weight-bold: 700; } @tailwind utilities;',
+    )
+  ).build(`${classes} ${removalClasses}`.split(' '))
+  // Actual Web pattern plus Tailwind, not Hozo lowering or the inheritance
+  // reference. Browser UA button resets are an explicit preflight assumption.
+  const fixture = await build({
+    stdin: {
+      contents: `import {createElement as h,memo,useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';import {HozoChip} from ${JSON.stringify(fileURLToPath(new URL('../../../packages/patterns/src/chip.tsx', import.meta.url)))};
+      const root=createRoot(document.getElementById('root'));let next=0;
+      const Leaf=memo(({id,own})=>{const [token]=useState(()=>++next);return h('span',{id,style:own,'data-token':token},id)});
+      window.removed=[];window.changed=[];const remove=()=>window.removed.push(true),change=(value)=>window.changed.push(value);
+      window.renderChip=({selectable,removable,host,childOwn,disabled})=>{
+        flushSync(()=>root.render(h('main',{style:{...host,lineHeight:host.lineHeight+'px'}},h('div',{id:'chip'},h(HozoChip,{defaultSelected:selectable?false:undefined,onSelectedChange:selectable?change:undefined,onRemove:removable?remove:undefined,disabled,accessibilityLabel:'Filter',className:${JSON.stringify(classes)},removeClassName:${JSON.stringify(removalClasses)},removeIcon:h(Leaf,{id:'icon',own:childOwn})},h(Leaf,{id:'label'}))))));
+        const owner=document.getElementById('chip').firstElementChild;owner.id='owner';
+        const removal=owner.querySelector('button[aria-label="Remove Filter"]');if(removal)removal.id='remove';
+      };`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    metafile: true,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  assert.ok(
+    Object.keys(fixture.metafile.inputs).some((file) => file.endsWith('patterns/src/chip.tsx')),
+  )
+  const rest = {
+    color: '#112233',
+    fontSize: 20,
+    fontWeight: '400',
+    lineHeight: 28,
+    letterSpacing: 1,
+    textAlign: 'left',
+    textTransform: 'uppercase',
+  }
+  for (const selectable of [false, true]) {
+    for (const removable of [false, true]) {
+      const page = await browser.newPage()
+      let host = rest,
+        rowOwn,
+        removeOwn,
+        childOwn,
+        stages = 0
+      try {
+        await page.setContent(`<!doctype html><style>
+          button { font:inherit; color:inherit; letter-spacing:inherit; text-align:inherit; text-transform:inherit; }
+          ${css}</style><div id="root"></div>`)
+        await page.addScriptTag({ content: fixture.outputFiles[0].text })
+        await page.mouse.move(600, 400)
+        const update = async () => {
+          await page.evaluate(
+            ({ selectable, removable, host, childOwn }) => {
+              window.renderChip({ selectable, removable, host, childOwn })
+            },
+            { selectable, removable, host, childOwn },
+          )
+        }
+        const setOwn = async (selector, style) => {
+          await page.locator(selector).evaluate((node, own) => {
+            node.removeAttribute('style')
+            for (const [key, value] of Object.entries(own ?? {}))
+              node.style[key] = typeof value === 'number' ? `${value}px` : value
+          }, style)
+        }
+        const read = (selector) =>
+          page.locator(selector).evaluate((node) => {
+            const style = getComputedStyle(node)
+            return {
+              color:
+                '#' +
+                style.color
+                  .match(/\d+/g)
+                  .map((part) => Number(part).toString(16).padStart(2, '0'))
+                  .join(''),
+              fontSize: parseFloat(style.fontSize),
+              fontWeight: style.fontWeight,
+              lineHeight: parseFloat(style.lineHeight),
+              letterSpacing: parseFloat(style.letterSpacing),
+              textAlign: style.textAlign,
+              textTransform: style.textTransform,
+            }
+          })
+        const check = async (rowState = {}, removeState = {}) => {
+          const frame = { ...host, color: '#1355bb', fontSize: 18, ...rowState, ...rowOwn }
+          assert.deepEqual(await read('#label'), frame)
+          if (removable) {
+            assert.deepEqual(await read('#icon'), {
+              ...frame,
+              ...removeState,
+              ...removeOwn,
+              ...childOwn,
+            })
+            assert.equal(
+              await page
+                .locator('#icon')
+                .evaluate((node) => node.closest('[aria-hidden]')?.getAttribute('aria-hidden')),
+              'true',
+            )
+          }
+          assert.equal(
+            await page.locator('#chip button').count(),
+            Number(selectable) + Number(removable),
+          )
+          assert.equal(
+            await page.locator('#label').evaluate((node) => node === window.firstLabel),
+            true,
+          )
+          if (removable)
+            assert.equal(
+              await page.locator('#icon').evaluate((node) => node === window.firstIcon),
+              true,
+            )
+          stages++
+        }
+        await update()
+        await page.evaluate(() => {
+          window.firstLabel = document.getElementById('label')
+          window.firstIcon = document.getElementById('icon')
+        })
+        await check()
+        if (removable) {
+          await page.locator('#remove').focus()
+          await check({}, { color: '#eecc00' })
+          await page.locator('#remove').hover()
+          await check({ color: '#00aa00' }, { color: '#eecc00' })
+          await page.mouse.down()
+          await check({ color: '#cc0000' }, { color: '#eecc00', fontWeight: '700' })
+          await page.mouse.up()
+          await check({ color: '#00aa00' }, { color: '#eecc00' })
+          assert.deepEqual(await page.evaluate(() => window.removed), [true])
+          assert.deepEqual(await page.evaluate(() => window.changed), [])
+          await page.mouse.move(600, 400)
+          await page.locator('#remove').evaluate((node) => node.blur())
+          await check()
+        }
+        if (selectable) {
+          const toggle = page.locator('#chip button[aria-pressed]')
+          await toggle.focus()
+          // A composite row is not focused merely because its toggle is.
+          const focused = removable ? {} : { fontWeight: '600' }
+          await check(focused)
+          await page.keyboard.press('Space')
+          assert.deepEqual(await page.evaluate(() => window.changed), [true])
+          assert.equal(await toggle.getAttribute('aria-pressed'), 'true')
+          assert.deepEqual(await page.evaluate(() => window.removed), removable ? [true] : [])
+          await check(focused)
+          await toggle.evaluate((node) => node.blur())
+          await check()
+        }
+        host = { ...rest, color: '#334455', fontSize: 28, lineHeight: 40 }
+        await update()
+        await check()
+        rowOwn = { color: '#abcdef', fontSize: 30 }
+        await setOwn('#owner', rowOwn)
+        if (removable) {
+          removeOwn = { color: '#ff00aa', fontSize: 12 }
+          await setOwn('#remove', removeOwn)
+        }
+        await check()
+        childOwn = { color: '#222222', fontSize: 10 }
+        await update()
+        await check()
+        childOwn = undefined
+        rowOwn = undefined
+        removeOwn = undefined
+        await setOwn('#owner')
+        if (removable) await setOwn('#remove')
+        await update()
+        await check()
+        assert.equal(stages, 5 + Number(selectable) * 3 + Number(removable) * 5)
+        t.diagnostic(
+          `Chip selectable=${selectable}, removable=${removable}: ${stages} browser stages`,
+        )
+      } finally {
+        await page.close()
+      }
+    }
+  }
+})
+
 test('Skeleton resting corners survive outside a caller breakpoint and lose inside it', {
   skip: !executablePath,
 }, async () => {

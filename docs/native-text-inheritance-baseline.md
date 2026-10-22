@@ -1248,3 +1248,39 @@ Native glyph/AT results or physical-device update cost. No normal-build/docs
 switch changes. Other widget/popup owners, interrupted transitions and measured
 cost gates still remain before default activation; historical device evidence
 has not been expanded by regenerating source hashes.
+
+## Independent Web oracle for Chip typography owners
+
+The next comparison bundles the actual Web Chip source with React DOM, and
+generates CSS with Tailwind itself. It does not lower that source with Hozo or
+import either inheritance algorithm. The bundled input graph must include the
+actual pattern source. Chromium reads all seven computed fields in all four
+Chip shapes through 36 stages (5 passive, 10 removable, 8 standalone toggle,
+13 selectable/removable). Button font/color/spacing inheritance resets are
+explicit fixture preflight assumptions, not browser defaults claimed as portable.
+
+Real pointer hover/down/up and keyboard focus/Space demonstrate the same slot
+ownership required by the Native graph: removal focus does not focus the row or
+main label; removal hover/press can activate its ancestor's typography; removal
+owns its focus color and active weight. In a standalone toggle, focus styles
+belong to the root button instead. The actual DOM permits only one focused
+button at a time, unlike deliberately independent mock-owner state probes; this
+comparison does not replay simultaneous focus on two buttons as an OS contract.
+
+Ancestor metric updates, resolved owner overrides and their removal, an opaque
+memo icon's own override, retained DOM identity, the hidden icon wrapper,
+control counts, selection and distinct removal callbacks are asserted. Inline
+owner styles in this oracle are applied to the actual DOM owners: this does not
+add or claim a new Web Chip `style` API. These bounded CSS observations agree
+with the seven-field ownership/precedence expectations in the generated Native
+tests; they are not full event-stream, accessibility-tree or pixel equivalence.
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='real Web Chip and Tailwind' examples/storybook-demo/scripts/caller-composition.test.mjs
+```
+
+The existing raw-source cache guard already covers `patterns/src/chip.tsx` and
+the relevant behavior source, so no extra production dependency is needed.
+Normal-build/docs routing, transition behavior and other widget/popup owners
+are unchanged. Native glyph/AT and physical-device/update-cost gates remain;
+neither this browser result nor the main rebase extends historical device data.
