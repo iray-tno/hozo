@@ -1150,3 +1150,56 @@ screen-reader focus, physical-device performance, arbitrary context replay,
 dynamic destination switching or equivalence for Modal/pattern popup defaults.
 Those popup/widget boundaries, interrupted transitions and measured update cost
 remain before default activation. Historical device evidence is unchanged.
+
+## First real pattern label owner: standalone selectable Chip
+
+The next compiler slice connects a standalone selectable Chip to the same
+seven-field protocol. Chip's existing slot resolver, text/box split and actual
+Pressable continue to own classes and events. At the label position only, an
+internal compiler-supplied component (`HozoInheritedLabel`) consumes the already
+resolved text style. It does not receive class strings or predicates and creates
+no event owner or Native View. On this route scalars get one Native Text; arbitrary
+elements are passed through unchanged below the frame, not cloned or wrapped
+in an extra Text. An opaque participating Text behind memo/View can read it.
+
+The component binding is a generated-code ABI, not a new authoring Provider,
+registration or public setup switch. Ordinary Chip imports no inheritance
+helper and the ordinary compiler output is unchanged. Its source adds a private
+optional label binding and guard; it does not read Context or resolve classes
+again when that binding is absent. The new contextual label itself still has
+runtime costs, so this is not permission for default rollout.
+
+The assessed compiler shape has an explicit `selected`, `defaultSelected` or
+`onSelectedChange` prop, no spreads and no `onRemove`. Only the owner's hover,
+active, focus and focus-visible text predicates/conjunctions are additionally
+admitted. Non-selectable/composite rows, box/form-state predicates, transitions
+and other widgets retain explicit internal refusals. A runtime guard catches
+dynamic props that cease to have the assessed shape. These refusals do not
+remove ordinary Chip support. Raw third-party/RN Text remains outside the
+protocol; only participating descendants are certified by this test.
+
+The source-backed generated graph compares the independent reference,
+runtime-only and proof-selected modes through eleven ancestor/state/override
+stages. It checks all seven fields, sibling isolation, effective local-color
+shielding, stable host/label state, raw zero, unchanged two-control/two-View
+counts, checked-state activation and one authored change callback. A separate
+string-label control has identical slot-callback counts (2, 4, 6 cumulatively)
+with and without inheritance, the same box style, one existing control and no
+extra View/animation timing. A bundled ordinary Chip graph contains no inherited
+helper/protocol module. The independent reference gains its own resolved-label
+scope; it does not import the production label helper.
+
+A before/after ordinary Chip microbundle (esbuild minified CJS, platform/package
+peers external) is 4,722 → 4,904 bytes, gzip 1,995 → 2,087 bytes: +182/+92 for
+the private binding and shape guard. This is a bounded source-graph observation,
+not a Metro bundle budget or device/update-time measurement; zero resolver/host
+growth does not mean zero additional JavaScript or contextual-render cost.
+
+The generated ABI gains one leaf; package exports are regenerated, not edited
+by hand, and no new production dependency is added. Fixture regeneration only
+refreshes the shared reference and three Rust source hashes; historical cases,
+generated comparison outputs and device expectations are unchanged. These are
+mock-host/compiler observations, not new Android/iOS glyph, OS event/AT or
+physical-device performance measurements. Normal builds/docs remain ordinary;
+additional pattern/popup scopes, interrupted transitions and measured update
+cost remain before default activation.

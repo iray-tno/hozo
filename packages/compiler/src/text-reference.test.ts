@@ -224,6 +224,57 @@ test('state-conditioned label typography is driven by its own Button or Pressabl
   }
 })
 
+test('standalone selectable Chip uses its actual resolved label owner, not a widget-wide frame', () => {
+  const compiler = createCompiler()
+  const source = `import {Chip,View} from '@hozo/core';export const Owner=({children,style})=> <Chip defaultSelected={false} className="text-[#1355bb] text-[20px] hover:text-[#00aa00] focus:font-semibold p-4" style={style}><View>{children}</View></Chip>`
+  const ordinary = compiler.compileNativeModule(source)
+  const selected = compiler.compileNativeModule(source, undefined, undefined, {
+    textInheritance: true,
+    textStatic: true,
+  }).components[0]
+  assert.ok(
+    !selected.diagnostics.some((d) => d.severity === 'error'),
+    JSON.stringify(selected.diagnostics),
+  )
+  assert.ok(selected.runtimeImports.includes('HozoChip'))
+  assert.ok(selected.runtimeImports.includes('HozoInheritedLabel'))
+  assert.match(selected.jsx, /hozoInheritedLabel=\{HozoInheritedLabel\}/)
+  assert.match(selected.jsx, /hozoStyle=/)
+  assert.deepEqual(compiler.compileNativeModule(source), ordinary)
+  const ownerImport = source.replace(
+    "import {Chip,View} from '@hozo/core';",
+    "import {Chip} from '@hozo/patterns';import {View} from '@hozo/core';",
+  )
+  const ownerNormal = compiler.compileNativeModule(ownerImport)
+  const ownerSelected = compiler.compileNativeModule(ownerImport, undefined, undefined, {
+    textInheritance: true,
+  }).components[0]
+  assert.ok(!ownerSelected.diagnostics.some((d) => d.severity === 'error'))
+  assert.match(ownerSelected.jsx, /hozoInheritedLabel=\{HozoInheritedLabel\}/)
+  assert.deepEqual(compiler.compileNativeModule(ownerImport), ownerNormal)
+  for (const variant of [
+    '<Chip>Label</Chip>',
+    '<Chip defaultSelected={false} onRemove={remove}>Label</Chip>',
+    '<Chip defaultSelected={false} {...rest}>Label</Chip>',
+    '<Chip defaultSelected={false} className="hover:bg-red-500">Label</Chip>',
+    '<Chip defaultSelected={false} className="aria-pressed:text-red-500">Label</Chip>',
+  ]) {
+    const input = `import {Chip} from '@hozo/core';export const Owner=()=>${variant}`
+    const normal = compiler.compileNativeModule(input)
+    const refused = compiler.compileNativeModule(input, undefined, undefined, {
+      textInheritance: true,
+    }).components[0]
+    assert.ok(
+      refused.diagnostics.some((d) => d.severity === 'error'),
+      variant,
+    )
+    assert.deepEqual(
+      [refused.jsx, refused.styles, refused.runtimeImports],
+      [normal.components[0].jsx, normal.components[0].styles, normal.components[0].runtimeImports],
+    )
+  }
+})
+
 test('internal runtime integration refuses unassessed primitives and conditions, not ordinary support', () => {
   const compiler = createCompiler()
   for (const source of [

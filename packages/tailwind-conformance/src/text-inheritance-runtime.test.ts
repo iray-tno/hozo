@@ -3,7 +3,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
-import { transformSync } from 'esbuild'
+import { fileURLToPath } from 'node:url'
+import { buildSync, transformSync } from 'esbuild'
 import { createCompiler } from '../../compiler/src/index.ts'
 import { transformHozoSource } from '../../metro/src/transform.ts'
 import { loadNativePortal } from './portal-native-host.ts'
@@ -45,9 +46,10 @@ function graph(
   labelSource = sources.label,
   preflight?: boolean,
   labels = false,
+  chips = false,
 ) {
   const legacy = React.createContext(14)
-  const shipped = loadTextInheritanceRuntime(legacy, undefined, labels)
+  const shipped = loadTextInheritanceRuntime(legacy, undefined, labels, chips)
   const reference = createTextReference({
     react: React,
     Text: 'NativeText' as never,
@@ -65,6 +67,11 @@ function graph(
     },
   })
   const compiler = createCompiler(preflight === undefined ? undefined : { colors: [], preflight })
+  const ReferenceChip = (props) =>
+    React.createElement(shipped.HozoChip, {
+      ...props,
+      hozoInheritedLabel: reference.ReferenceLabel,
+    })
   // The independent reference keeps using the pre-existing relative helper,
   // with only its native Text host bound to the private contextual oracle.
   const relativeModule = { exports: {} }
@@ -120,6 +127,10 @@ function graph(
             : { ...shipped.native, Text: reference.ReferenceText, View: reference.ReferenceView }
         if (specifier === '@hozo/core/generated/inherited-text')
           return { HozoInheritedText: shipped.HozoInheritedText }
+        if (specifier === '@hozo/core/generated/inherited-label')
+          return { HozoInheritedLabel: shipped.HozoInheritedLabel }
+        if (specifier === '@hozo/core/generated/chip')
+          return { HozoChip: runtime ? shipped.HozoChip : ReferenceChip }
         if (specifier === '@hozo/core/generated/inherited-pressable')
           return { HozoInheritedPressable: shipped.HozoInheritedPressable }
         if (specifier === '@hozo/core/generated/pressable')
@@ -139,6 +150,204 @@ function graph(
   }
   return { Scene: load('scene').Scene, getLabel: () => load('label').Label, code, shipped }
 }
+
+test('generated standalone Chip publishes only its resolved label through opaque children', () => {
+  const source = `import {View,Chip} from '@hozo/core';import {Label} from 'fixture:label';export const Scene=({host,chipOwn,childOwn,onSelectedChange,note})=> <View style={host}><Chip testID="chip" defaultSelected={false} onSelectedChange={onSelectedChange} accessibilityLabel="Filter" className="p-4 text-[#1355bb] text-[18px] hover:text-[#00aa00] active:text-[#cc0000] focus:font-semibold" style={chipOwn}><View><Label id="target" own={childOwn} note={note}/></View>{0}</Chip><Chip defaultSelected={false} className="text-[#abcdef] text-[24px]"><Label id="sibling" note={note}/></Chip></View>`
+  const label = `import {Text} from '@hozo/core';import {memo,useState} from 'react';let next=0;export const Label=memo(({id,own,note})=>{note(id);const [token]=useState(()=>++next);return <Text testID={id} nativeID={'mount:'+token} style={own}>Label</Text>})`
+  const records = []
+  for (const mode of ['reference', 'runtime', 'optimized']) {
+    const fixture = graph(
+      mode !== 'reference',
+      source,
+      mode === 'optimized',
+      label,
+      undefined,
+      true,
+      true,
+    )
+    let tree: ReturnType<typeof renderer.create>
+    let host = REST,
+      chipOwn: object | undefined,
+      childOwn: object | undefined
+    const changes = []
+    const renders = { target: 0, sibling: 0 }
+    const note = (id) => renders[id]++
+    const onSelectedChange = (value) => changes.push(value)
+    const scene = () =>
+      React.createElement(fixture.Scene, { host, chipOwn, childOwn, onSelectedChange, note })
+    const stages = []
+    try {
+      renderer.act(() => {
+        tree = renderer.create(scene())
+      })
+      const button = () =>
+        tree.root.findAll((node) => node.type === 'Pressable' && node.props.testID === 'chip')[0]
+      const text = (id) =>
+        tree.root.findAll((node) => node.type === 'NativeText' && node.props.testID === id)[0]
+      const first = text('target'),
+        sibling = text('sibling'),
+        control = button(),
+        marker = first.props.nativeID
+      const check = (state = {}) => {
+        const ownerFrame = {
+          ...Object.fromEntries(TEXT_REFERENCE_FIELDS.map((key) => [key, host[key]])),
+          color: '#1355bb',
+          fontSize: 18,
+          ...state,
+          ...chipOwn,
+        }
+        const expected = { ...ownerFrame, ...childOwn }
+        assert.deepEqual(flatten(first.props.style), expected, mode)
+        assert.equal(text('target') === first, true, 'stable target host')
+        assert.equal(text('sibling') === sibling, true, 'stable sibling host')
+        assert.equal(button() === control, true, 'same actual control')
+        assert.equal(first.props.nativeID, marker)
+        assert.deepEqual(flatten(sibling.props.style), {
+          ...Object.fromEntries(TEXT_REFERENCE_FIELDS.map((key) => [key, host[key]])),
+          color: '#abcdef',
+          fontSize: 24,
+        })
+        assert.equal(tree.root.findAllByType('Pressable').length, 2)
+        assert.equal(tree.root.findAllByType('NativeView').length, 2)
+        const zero = tree.root
+          .findAllByType('NativeText')
+          .find((node) => node.children.length === 1 && node.children[0] === '0')
+        assert.ok(zero, 'raw zero is normalized only once at the label')
+        assert.deepEqual(flatten(zero.props.style), ownerFrame)
+        assert.equal(fixture.shipped.native.Animated.__hozoTimings.length, 0)
+        stages.push(expected)
+      }
+      check()
+      assert.equal(button().props.accessibilityRole, 'togglebutton')
+      assert.equal(button().props.accessibilityLabel, 'Filter')
+      assert.equal(button().props.accessibilityState.checked, false)
+      const restingRenders = { ...renders }
+      host = { ...REST, color: '#eecc00' }
+      renderer.act(() => tree.update(scene()))
+      check()
+      assert.deepEqual(
+        renders,
+        restingRenders,
+        'effective local colors shield stable opaque labels',
+      )
+      renderer.act(() => button().props.onHoverIn({}))
+      check({ color: '#00aa00' })
+      renderer.act(() => button().props.onPressIn({}))
+      check({ color: '#cc0000' })
+      renderer.act(() => button().props.onPress({}))
+      assert.deepEqual(changes, [true])
+      assert.equal(button().props.accessibilityState.checked, true)
+      renderer.act(() => button().props.onPressOut({}))
+      check({ color: '#00aa00' })
+      renderer.act(() => button().props.onFocus({}))
+      check({ color: '#00aa00', fontWeight: '600' })
+      chipOwn = OWN
+      renderer.act(() => tree.update(scene()))
+      check({ color: '#00aa00', fontWeight: '600' })
+      childOwn = { color: '#eecc00', fontSize: 10 }
+      renderer.act(() => tree.update(scene()))
+      check({ color: '#00aa00', fontWeight: '600' })
+      host = NEXT
+      renderer.act(() => tree.update(scene()))
+      check({ color: '#00aa00', fontWeight: '600' })
+      childOwn = undefined
+      chipOwn = undefined
+      renderer.act(() => tree.update(scene()))
+      check({ color: '#00aa00', fontWeight: '600' })
+      renderer.act(() => {
+        button().props.onHoverOut({})
+        button().props.onBlur({})
+      })
+      check()
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+    records.push(stages)
+  }
+  assert.deepEqual(records[1], records[0])
+  assert.deepEqual(records[2], records[0])
+})
+
+test('Chip label integration adds no resolver calls or event owners to the existing string path', () => {
+  const api = loadTextInheritanceRuntime(React.createContext(14), undefined, true, true)
+  const counts = []
+  for (const inherit of [false, true]) {
+    const snapshots = []
+    let tree: ReturnType<typeof renderer.create>
+    try {
+      renderer.act(() => {
+        tree = renderer.create(
+          React.createElement(
+            api.HozoChip,
+            {
+              defaultSelected: false,
+              hozoInheritedLabel: inherit ? api.HozoInheritedLabel : undefined,
+              hozoStyle: (state) => {
+                snapshots.push({ ...state })
+                return { color: state.hovered ? '#00aa00' : '#1355bb', padding: 4 }
+              },
+            },
+            'Label',
+          ),
+        )
+      })
+      const host = () => tree.root.findByType('Pressable')
+      const check = (color) => {
+        assert.deepEqual(flatten(host().props.style({ pressed: false })), { padding: 4 })
+        assert.equal(tree.root.findAllByType('Pressable').length, 1)
+        assert.equal(tree.root.findAllByType('NativeView').length, 0)
+        assert.equal(flatten(tree.root.findByType('NativeText').props.style).color, color)
+        counts.push(snapshots.length)
+      }
+      check('#1355bb')
+      renderer.act(() => host().props.onHoverIn({}))
+      check('#00aa00')
+      renderer.act(() => host().props.onHoverOut({}))
+      check('#1355bb')
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+  }
+  assert.deepEqual(counts.slice(0, 3), [2, 4, 6])
+  assert.deepEqual(counts.slice(3), counts.slice(0, 3))
+  for (const props of [{}, { defaultSelected: false, onRemove: () => {} }]) {
+    let tree: ReturnType<typeof renderer.create>
+    try {
+      assert.throws(
+        () =>
+          renderer.act(() => {
+            tree = renderer.create(
+              React.createElement(
+                api.HozoChip,
+                { ...props, hozoInheritedLabel: api.HozoInheritedLabel },
+                'Label',
+              ),
+            )
+          }),
+        /standalone selectable Chip/,
+      )
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+  }
+})
+
+test('the ordinary Native Chip graph imports no inheritance helpers', () => {
+  const result = buildSync({
+    entryPoints: [fileURLToPath(new URL('../../patterns/src/chip.native.tsx', import.meta.url))],
+    bundle: true,
+    write: false,
+    metafile: true,
+    platform: 'node',
+    format: 'cjs',
+    external: ['react', 'react/*', 'react-native', '@hozo/behaviors', '@hozo/engine'],
+  })
+  const files = Object.keys(result.metafile!.inputs)
+  assert.ok(files.some((file) => file.endsWith('patterns/src/pressable.native.tsx')))
+  assert.ok(
+    files.every((file) => !file.includes('inherited-') && !file.includes('text-inheritance')),
+  )
+})
 
 test('generated portal labels inherit the rendered destination, with inline fallback and stable updates', () => {
   const label = `import {Text,Small} from '@hozo/core';import {memo,useState} from 'react';let next=0;export const Label=memo(({own})=>{const [token]=useState(()=>++next);return <Text testID="label" nativeID={'mount:'+token} style={own}>Label<Small testID="small">Small</Small></Text>})`

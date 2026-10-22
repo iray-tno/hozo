@@ -24,6 +24,8 @@ type Runtime = {
   HozoInheritedRelativeText: ComponentType
   HozoInheritedView: ComponentType
   HozoInheritedPressable?: ComponentType
+  HozoInheritedLabel?: ComponentType
+  HozoChip?: ComponentType
   HozoPressable?: ComponentType
   HozoInteractionContext?: typeof HozoInteractionContext
   HozoInheritedMetricsContext: Context<HozoInheritedTextMetrics>
@@ -34,6 +36,7 @@ export function loadTextInheritanceRuntime(
   legacy: Context<number>,
   names: { Text: ElementType; View: ElementType } = { Text: 'NativeText', View: 'NativeView' },
   labels = false,
+  chips = false,
 ) {
   const runtime = buildSync({
     stdin: {
@@ -41,7 +44,8 @@ export function loadTextInheritanceRuntime(
 export {HozoInheritedRelativeText} from '@hozo/core/generated/inherited-relative-text';
 export {HozoInheritedView} from '@hozo/core/generated/inherited-view';
 export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';
-${labels ? "export {HozoInheritedPressable} from '@hozo/core/generated/inherited-pressable';export {HozoPressable} from '@hozo/core/generated/pressable';export {HozoInteractionContext} from '@hozo/behaviors/pressable-interaction';" : ''}`,
+${labels ? "export {HozoInheritedPressable} from '@hozo/core/generated/inherited-pressable';export {HozoPressable} from '@hozo/core/generated/pressable';export {HozoInteractionContext} from '@hozo/behaviors/pressable-interaction';" : ''}
+${chips ? "export {HozoInheritedLabel} from '@hozo/core/generated/inherited-label';export {HozoChip} from '@hozo/core/generated/chip';export {hozoTextChildren} from './packages/behaviors/src/text-child.native.tsx';" : ''}`,
       resolveDir: fileURLToPath(new URL('../../../', import.meta.url)),
       sourcefile: 'runtime-probe.ts',
       loader: 'ts',
@@ -57,9 +61,16 @@ ${labels ? "export {HozoInheritedPressable} from '@hozo/core/generated/inherited
       'react/*',
       'react-native',
       '@hozo/engine/generated/text-size-context',
-      ...(labels ? ['@hozo/engine'] : []),
+      ...(labels || chips ? ['@hozo/engine'] : []),
+      ...(chips ? ['@hozo/behaviors', '@hozo/engine/project'] : []),
     ],
     alias: {
+      '@hozo/core/generated/inherited-label': fileURLToPath(
+        new URL('../../primitives/src/generated/inherited-label.ts', import.meta.url),
+      ),
+      '@hozo/core/generated/chip': fileURLToPath(
+        new URL('../../patterns/src/generated/chip.native.ts', import.meta.url),
+      ),
       '@hozo/core/generated/inherited-pressable': fileURLToPath(
         new URL('../../primitives/src/generated/inherited-pressable.ts', import.meta.url),
       ),
@@ -89,7 +100,7 @@ ${labels ? "export {HozoInheritedPressable} from '@hozo/core/generated/inherited
   assert.ok(files.some((file) => file.endsWith('primitives/src/inherited-view.native.tsx')))
   assert.ok(files.every((file) => !/text-inheritance-reference/.test(file)))
   const native = {
-    ...(labels ? require('./react-native-stub.js') : {}),
+    ...(labels || chips ? require('./react-native-stub.js') : {}),
     ...names,
     StyleSheet: { create: (styles: object) => styles, flatten: flattenRuntimeStyle },
   }
@@ -98,7 +109,19 @@ ${labels ? "export {HozoInheritedPressable} from '@hozo/core/generated/inherited
     (name: string) => {
       if (name === 'react' || name === 'react/jsx-runtime') return require(name)
       if (name === 'react-native') return native
-      if (name === '@hozo/engine') return require('../../engine/src/color-transition.ts')
+      if (name === '@hozo/engine')
+        return {
+          ...require('../../engine/src/color-transition.ts'),
+          ...require('../../engine/src/text-style.ts'),
+        }
+      if (name === '@hozo/engine/project') return require('../../engine/src/project.ts')
+      if (name === '@hozo/behaviors')
+        return {
+          ...require('../../behaviors/src/i18n.ts'),
+          get hozoTextChildren() {
+            return (module.exports as { hozoTextChildren: unknown }).hozoTextChildren
+          },
+        }
       if (name === '@hozo/engine/generated/text-size-context')
         return { HozoTextSizeContext: legacy }
       throw new Error(`Unexpected shipped inheritance dependency: ${name}`)

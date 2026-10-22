@@ -1,6 +1,6 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
-import { type ReactNode, useCallback, useState } from 'react'
+import { type ComponentType, type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { useChipRowInteraction } from './chip-row-interaction.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
@@ -37,10 +37,13 @@ export interface HozoChipProps {
   hozoStyle?: (state: ChipSlotState) => StyleProp<ViewStyle | TextStyle>
   /** @internal The remove button never borrows its ancestor's focus. */
   hozoRemoveStyle?: (state: ChipSlotState) => StyleProp<ViewStyle | TextStyle>
+  /** @internal Compiler-selected label boundary, never the whole widget. */
+  hozoInheritedLabel?: ComponentType<{ style?: StyleProp<TextStyle>; children?: ReactNode }>
   testID?: string
 }
 
-function label(children: ReactNode, style: TextStyle) {
+function label(children: ReactNode, style: TextStyle, Owner?: HozoChipProps['hozoInheritedLabel']) {
+  if (Owner) return <Owner style={style}>{children}</Owner>
   if (Object.keys(style).length === 0) return hozoTextChildren(children)
   return typeof children === 'string' || typeof children === 'number' ? (
     <Text style={style}>{children}</Text>
@@ -75,11 +78,16 @@ export function HozoChip({
   removeStyle,
   hozoStyle,
   hozoRemoveStyle,
+  hozoInheritedLabel,
   testID,
 }: HozoChipProps) {
   const message = useHozoMessage()
   const selectable =
     selected !== undefined || defaultSelected !== undefined || onSelectedChange !== undefined
+  if (hozoInheritedLabel && (!selectable || onRemove))
+    throw new Error(
+      'Native text inheritance currently assesses standalone selectable Chip labels only',
+    )
   const [uncontrolled, setUncontrolled] = useState(defaultSelected ?? false)
   const on = selected ?? uncontrolled
   const toggle = useCallback(() => {
@@ -144,7 +152,7 @@ export function HozoChip({
         onPress={toggle}
       >
         {/* Both controls can activate/hover the ancestor, never focus it. */}
-        {(interaction) => label(children, look(row?.state ?? interaction)[1])}
+        {(interaction) => label(children, look(row?.state ?? interaction)[1], hozoInheritedLabel)}
       </Pressable>
     ) : (
       <Text style={look(row?.state ?? IDLE)[1]}>{children}</Text>

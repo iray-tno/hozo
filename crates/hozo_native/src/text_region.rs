@@ -21,27 +21,43 @@ const FIELDS: [&str; 7] = [
 // bypass an unassessed animation/relative CSS declaration just because ordinary
 // output happens to need no generated adapter for one value of it.
 pub(super) fn passive(node: &Node) -> bool {
-    matches!(
-        node.primitive,
-        Primitive::View
-            | Primitive::Text
-            | Primitive::Paragraph
-            | Primitive::Strong
-            | Primitive::Heading
-            | Primitive::Small
-            | Primitive::Sub
-            | Primitive::Sup
-            | Primitive::Mark
-            | Primitive::NoBreak
-            | Primitive::Button
-            | Primitive::Pressable
-    ) && !matches!(
-        node.props.heading_level,
-        Some(hozo_ir::HeadingLevel::Dynamic(_))
-    ) && node.class_name_fallback.is_empty()
+    let chip_label = node.primitive == Primitive::Chip
+        && node.props.passthrough.iter().any(|prop| {
+            matches!(
+                prop.name.as_deref(),
+                Some("selected" | "defaultSelected" | "onSelectedChange")
+            )
+        })
+        && node
+            .props
+            .passthrough
+            .iter()
+            .all(|prop| prop.name.as_deref().is_some_and(|name| name != "onRemove"));
+    (chip_label
+        || matches!(
+            node.primitive,
+            Primitive::View
+                | Primitive::Text
+                | Primitive::Paragraph
+                | Primitive::Strong
+                | Primitive::Heading
+                | Primitive::Small
+                | Primitive::Sub
+                | Primitive::Sup
+                | Primitive::Mark
+                | Primitive::NoBreak
+                | Primitive::Button
+                | Primitive::Pressable
+        ))
+        && !matches!(
+            node.props.heading_level,
+            Some(hozo_ir::HeadingLevel::Dynamic(_))
+        )
+        && node.class_name_fallback.is_empty()
         && node.style.iter().all(|style| {
             (style.condition == Condition::Always
-                || matches!(node.primitive, Primitive::Button | Primitive::Pressable)
+                || (chip_label
+                    || matches!(node.primitive, Primitive::Button | Primitive::Pressable))
                     && super::text::is_text_property(&style.property)
                     && label_condition(&style.condition))
                 && !matches!(

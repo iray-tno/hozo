@@ -28,6 +28,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   HozoGridItem: '@hozo/core/generated/grid',
   hozoImageDomProps: '@hozo/core/generated/view-dom-props',
   hozoImageSource: '@hozo/core/generated/image-source',
+  HozoInheritedLabel: '@hozo/core/generated/inherited-label',
   HozoInheritedMetricsContext: '@hozo/core/generated/text-inheritance-protocol',
   HozoInheritedPaintContext: '@hozo/core/generated/text-inheritance-protocol',
   HozoInheritedPressable: '@hozo/core/generated/inherited-pressable',
