@@ -50,4 +50,8 @@ runtime. The dependency arrows point down, and the bottom depends on nothing:
 - **`@hozo/behaviors`** is the base every string-showing and focus-handling package builds on, so accessibility and internationalisation are designed in from the start rather than added at the end ([decision 008](https://github.com/iray-tno/hozo/blob/main/docs/decisions/008-i18n-is-a-connection.md)). The compiler statically removes what is knowable at build time (static initial focus, build-time ARIA IDs, static sibling `inert` for portals).
 - **`@hozo/ui`** is a look. Its components are classes over the packages above, shipped as source so your build compiles them with your theme.
 - The RFCs and older comments call these Layer 1 (primitives), Layer 2 (behaviors) and Layer 3 (patterns). The numbering reads as if each layer were built from the one below it. Patterns are built on behaviors, not on primitives, which is what this section used to get wrong (#764).
-- Domain packages (`@hozo/three`, `@hozo/canvas`, `@hozo/svg`, `@hozo/native`) and the migration package (`@hozo/rn-compat`) sit beside this stack as opt-in packages.
+- **Domain, navigation, and migration packages** sit beside this stack as opt-in packages so applications that do not use them carry none of their dependencies:
+  - [`@hozo/svg`](../../graphics-and-media/svg/), [`@hozo/canvas`](../../graphics-and-media/canvas/), [`@hozo/three`](../../graphics-and-media/three/), [`@hozo/media`](../../graphics-and-media/media/), and [`@hozo/webview`](../../graphics-and-media/webview/) for graphics, media, and embedded frames.
+  - [`@hozo/navigation`](../../reference/navigation/) for router-agnostic links, deep links, and `.well-known` verification files.
+  - [`@hozo/native`](../../reference/native/) for Android TalkBack focus restoration.
+  - [`@hozo/rn-compat`](../../reference/rn-compat/) and [`@hozo/migration-audit`](../../migration/migration-audit/) for migrating existing React Native applications.

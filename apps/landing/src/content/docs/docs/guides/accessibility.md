@@ -2,7 +2,7 @@
 title: "Accessibility"
 description: "ARIA as the vocabulary, checked at build time, and what is read by real screen readers."
 sidebar:
-  order: 3
+  order: 5
 ---
 
 ARIA is the vocabulary. React Native has supported the `role` prop since

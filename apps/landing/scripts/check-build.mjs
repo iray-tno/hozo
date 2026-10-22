@@ -206,7 +206,38 @@ function pagesUnder(directory) {
 }
 const sitePages = ['', ...pagesUnder('').filter((page) => page !== 'mdx-example/')]
 const docsPages = sitePages.filter((page) => page.startsWith('docs/'))
-checks.push([docsPages.length >= 10, `only ${docsPages.length} docs pages were found in the build`])
+checks.push([docsPages.length >= 70, `only ${docsPages.length} docs pages were found in the build`])
+
+// The domain, package reference, and migration case-study pages in /docs:
+// each one renders its heading/content and ships no client island.
+for (const [docPath, expectedText] of [
+  ['guides/tailwind', 'loadProjectTheme'],
+  ['guides/stylex', '505/522'],
+  ['graphics-and-media/svg', 'FeGaussianBlur'],
+  ['graphics-and-media/canvas', 'Canvas.TriangleMesh'],
+  ['graphics-and-media/three', '@hozo/three/webgpu'],
+  ['graphics-and-media/media', 'useWebVTTCaptions'],
+  ['graphics-and-media/webview', 'react-native-webview'],
+  ['reference/primitives', 'primitives, each compiled through both backends'],
+  ['reference/patterns-and-form', 'CalendarDate'],
+  ['reference/behaviors', 'FloatingPositioner'],
+  ['reference/navigation', 'createExpoRouterNavigationPrimitives'],
+  ['reference/typography-and-fonts', 'createFontAvailability'],
+  ['reference/native', 'moveAccessibilityFocus'],
+  ['reference/rn-compat', 'TouchableWithoutFeedback'],
+  ['migration/migration-audit', 'reactNativeImportDecisions'],
+  ['migration/bluesky-case-study', 'bluesky-social/social-app'],
+]) {
+  const file = path.join(dist, 'docs', ...docPath.split('/'), 'index.html')
+  const pageHtml = existsSync(file) ? readFileSync(file, 'utf8') : ''
+  checks.push(
+    [
+      pageHtml.includes(expectedText),
+      `docs/${docPath}: missing expected content (${expectedText})`,
+    ],
+    [!/<astro-island/.test(pageHtml), `docs/${docPath}: shipped an unexpected island`],
+  )
+}
 
 // The docs overview renders the README's component, compiled by this
 // build, and says it ships no JavaScript for it. Both are checked: the
