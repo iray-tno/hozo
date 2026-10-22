@@ -6,14 +6,20 @@
 //
 // Under the preview, one line on what React Native makes of the same look.
 // It is the compiler's verdict on the component's classes
-// (`scripts/ui-native-status.mjs`), not a screenshot: the classes it lists
+// (`scripts/ui-native-status.mjs`): the classes it lists
 // have no effect there, the class props it lists are not applied there at
 // all (`scripts/ui-native-unapplied.mjs`), and anything it does not list may
 // still behave
 // differently for reasons classes do not show. The components overview
 // says so to the reader.
+//
+// Below that, when the deploy fetched one, the demo's screenshot from the
+// last Android run on main (`scripts/fetch-native-screenshots.mjs`), which
+// shows what the verdict cannot. A build without it shows neither the image
+// nor a gap.
 import { Code } from '@astrojs/starlight/components'
 import status from '../../data/ui-native-status.json'
+import type { NativeScreenshots } from '../../lib/native-screenshots.ts'
 import { UiStage } from './UiStage.tsx'
 
 interface Props {
@@ -32,6 +38,16 @@ const native = (
 // The compiler writes code in backticks; show it as code.
 const pieces = (reason: string) => reason.split('`').map((text, at) => ({ text, code: at % 2 === 1 }))
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 'es'}`
+// Present only in a build that ran the fetch; a glob, so its absence is not
+// an error.
+const screenshots = Object.values(
+  import.meta.glob<NativeScreenshots>('../../data/native-screenshots.json', {
+    eager: true,
+    import: 'default',
+  }),
+)[0]
+const shot = screenshots?.pages[slug]
+const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 ---
 
 <figure class="not-content hozo-ui-example">
@@ -97,6 +113,29 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
   )
 }
 
+{
+  screenshots && shot && (
+    <details class="hozo-ui-native-shot" data-native-screenshot={shot.status}>
+      <summary>
+        {shot.status === 'failed' ? 'On Android, this demo threw an error' : 'Screenshot on Android'}{' '}
+        (<a href={screenshots.runUrl}>{screenshots.takenAt.slice(0, 10)}</a>,{' '}
+        <a href={`https://github.com/iray-tno/hozo/commit/${screenshots.commit}`}>
+          <code>{screenshots.commit.slice(0, 7)}</code>
+        </a>
+        )
+      </summary>
+      <img
+        src={`${base}/native-screenshots/android/${shot.image}`}
+        alt={shot.status === 'failed' ? 'The error the demo threw on Android' : 'The demo on Android'}
+        width="1080"
+        height="2400"
+        loading="lazy"
+        decoding="async"
+      />
+    </details>
+  )
+}
+
 <Code code={source.trim()} lang="tsx" title={file} />
 
 <style>
@@ -113,5 +152,18 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
   }
   .hozo-ui-native ul {
     margin-block-start: 0.5rem;
+  }
+  .hozo-ui-native-shot {
+    margin-block: 0 1rem;
+    font-size: var(--sl-text-sm);
+    color: var(--sl-color-gray-2);
+  }
+  .hozo-ui-native-shot img {
+    display: block;
+    width: min(100%, 270px);
+    height: auto;
+    margin-block-start: 0.5rem;
+    border: 1px solid var(--sl-color-hairline-light);
+    border-radius: 0.5rem;
   }
 </style>
