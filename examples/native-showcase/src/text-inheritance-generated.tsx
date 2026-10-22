@@ -13,7 +13,7 @@ const NativeText = Native.Text
 export const textFixtureManifest = {
   schemaVersion: 3,
   scope: 'private device-fixture preparation; not a Native correctness or timing result',
-  coreSha256: '46defd7c2515da7e0ed0e9f94f9b40375ad2c222ddd9beb3d7f032504127b073',
+  coreSha256: '201c4af3f4b6bdb07e34775ce202dcaa525b63126e19b0764e7ca46954bec182',
   production: {
     route: 'context-runtime; no static erasure',
     sourceSha256: {
@@ -61,13 +61,13 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        '14a9504c735a8d27bbad17117bfedd35afa3fbfa15dc5a333a4651f356371a25',
+        'b77f421fd68dbd2dfff5cd453a8ab97ddfa4e5b470b132f544ffbd3427767446',
       'crates/hozo_native/src/text_region.rs':
-        '031b74e32e50f007a11230b988d2aed5abc3f9d6ec63898694d708773768394c',
+        'bf4e61aaab89ff4346dfd2c1adeb74ae3577c04bed3efb41cc8fe4f8b05ca689',
       'crates/hozo_native/src/style.rs':
         '366bf2ecafb83f915bf06cd83a6f7938aa81e362ab46a1569c32d2caeb73e4c8',
       'crates/hozo_native/src/render.rs':
-        'a877d50dae3ee42e4a84d447898c0cc7eeb8818ecc8ae2ef6ef6c31c26b67c45',
+        '0aa952f951ef3098416021718a57c0d9495e3d1838fa7cd875b67c67e66748d3',
       'crates/hozo_native/src/text.rs':
         'c800dd60e0dcc18badc1fe2fe998391f43a32cd4d86bdaa89f1328569f719390',
       'crates/hozo_ir/src/lib.rs':

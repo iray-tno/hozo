@@ -445,6 +445,15 @@ are covered, not Modal/pattern popup defaults, arbitrary context replay, new
 Native pixels, destination switching or physical-device update cost. Ordinary
 build/docs activation remains gated by the outstanding widget/transition work.
 
+The first [real pattern label integration](../native-text-inheritance-baseline.md#first-real-pattern-label-owner-standalone-selectable-chip)
+now connects standalone selectable Chip's already resolved label styles to a
+shared generated-code leaf at that label only. It reuses the existing slot
+resolver and Pressable, with no widget-wide frame, new listener or added Native
+box. Ordinary Chip imports no inheritance helper. Compiler/runtime guards keep
+non-selectable/composite shapes and unassessed styles outside this increment;
+mock-host comparisons are not device/performance evidence. Additional widget
+and popup owners, interrupted transitions and update-cost gates remain.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

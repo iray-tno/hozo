@@ -226,6 +226,19 @@ export function createTextReference(hosts: TextReferenceHosts) {
     return createElement(Scope, { frame }, textChildren(children))
   }
 
+  function ReferenceLabel({ style, children }: { style?: unknown; children?: ReactNode }) {
+    const frame = useEffective(flatStyle(style))
+    return createElement(
+      Scope,
+      { frame },
+      Children.map(children, (child) =>
+        typeof child === 'string' || typeof child === 'number'
+          ? createElement(ReferenceText, { style }, child)
+          : child,
+      ),
+    )
+  }
+
   function ReferencePressable({
     children,
     hozoTextStyle,
@@ -265,6 +278,7 @@ export function createTextReference(hosts: TextReferenceHosts) {
     ReferenceText,
     ReferenceView,
     ReferencePressable,
+    ReferenceLabel,
     PaintMaskedText,
     useReferenceMetrics,
     useReferencePaint,
