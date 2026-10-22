@@ -49,6 +49,7 @@ const reads = {
     'packages/form/src/calendar-format.ts',
     'packages/form/src/date-picker.native.tsx',
     'packages/form/src/date-picker-button.native.tsx',
+    'packages/form/src/date-picker-frame.native.ts',
     'packages/form/src/date-picker.tsx',
     'packages/form/src/date-range-picker.tsx',
     'packages/form/src/date-time-picker.tsx',

@@ -396,6 +396,25 @@ provider, global listener or resolver. Root/dialog typography, custom clock
 content and device/AT delivery remain outside this slice; existing runtime
 condition/utility refusals still warn.
 
+All three date-picker wrappers/dialogs now resolve their own classes with
+NonControl facts. They do not borrow trigger disabled/focus/expanded state;
+unobserved event queries keep their missing-fact diagnostics. A pure shared
+partition resolves the dialog only when open, with no extra host or hook.
+Explicit box styles follow classes. Resolved root text reaches the trigger;
+root then dialog text reaches Calendar, Done and the default owned clock.
+Native-only internal inherited-text props keep that tier below the child's
+own class/explicit declarations, rather than disguising inherited text as a
+high-priority style prop. Removing classes removes their inherited effects.
+Custom renderDay elements and custom clock render functions are not cloned
+or rewritten: their layouts/text remain caller-owned, including the UI's
+custom clock and today marker. This is bounded local routing, not a provider
+or default cross-component Text-inheritance rollout. The existing Web
+FloatingPositioner keeps inline CSS ancestry; real browser tests verify
+these inherited/own declaration priorities independently with Tailwind.
+TimePicker's own class consumers, arbitrary-content inheritance, Native
+Modal focus restoration and hardware/AT/pixel/performance proof remain
+separate work.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner

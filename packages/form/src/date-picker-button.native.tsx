@@ -21,6 +21,7 @@ export function DatePickerButton({
   className,
   style,
   textStyle,
+  inheritedTextStyle,
   expanded,
   disabled = false,
   accessibilityLabel,
@@ -31,6 +32,7 @@ export function DatePickerButton({
   className?: string
   style?: StyleProp<ViewStyle>
   textStyle?: StyleProp<TextStyle>
+  inheritedTextStyle?: StyleProp<TextStyle>
   expanded?: boolean
   disabled?: boolean
   accessibilityLabel?: string
@@ -83,7 +85,7 @@ export function DatePickerButton({
       onPointerDown={handlers.pointerDown}
       onKeyDown={handlers.keyDown}
     >
-      <Text style={[text as TextStyle, textStyle]}>{children}</Text>
+      <Text style={[inheritedTextStyle, text as TextStyle, textStyle]}>{children}</Text>
     </Pressable>
   )
 }

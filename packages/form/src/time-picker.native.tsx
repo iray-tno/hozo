@@ -37,6 +37,8 @@ export interface HozoTimePickerProps {
   /** Source-level slot; `stepStyle` supplies the Native runtime appearance. */
   stepClassName?: string
   style?: StyleProp<ViewStyle>
+  /** @internal Resolved picker ancestry, below this control's own text styles. */
+  hozoInheritedTextStyle?: StyleProp<TextStyle>
   fieldStyle?: StyleProp<ViewStyle>
   fieldTextStyle?: StyleProp<TextStyle>
   stepStyle?: StyleProp<ViewStyle>
@@ -115,6 +117,7 @@ const INCREMENT_DECREMENT = [{ name: 'increment' }, { name: 'decrement' }] as co
  * see the comment at that prop for what the device found.
  */
 export function HozoTimePicker({
+  hozoInheritedTextStyle,
   style,
   fieldStyle,
   fieldTextStyle,
@@ -218,7 +221,7 @@ export function HozoTimePicker({
       style={stepStyle}
       onPress={() => stepBy(field, direction)}
     >
-      <Text>{glyph}</Text>
+      <Text style={hozoInheritedTextStyle}>{glyph}</Text>
     </Pressable>
   )
 
@@ -261,7 +264,7 @@ export function HozoTimePicker({
         }}
         accessibilityState={{ disabled }}
       >
-        <Text style={fieldTextStyle}>{textOf(name)}</Text>
+        <Text style={[hozoInheritedTextStyle, fieldTextStyle]}>{textOf(name)}</Text>
       </View>
       {/*
         The steppers stay on the walk rather than being hidden behind the
@@ -288,7 +291,7 @@ export function HozoTimePicker({
           style={fieldStyle}
           onPress={() => stepBy('period', 1)}
         >
-          <Text style={fieldTextStyle}>{periodText()}</Text>
+          <Text style={[hozoInheritedTextStyle, fieldTextStyle]}>{periodText()}</Text>
         </Pressable>
       ) : null}
     </View>

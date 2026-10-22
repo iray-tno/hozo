@@ -17,6 +17,7 @@ import {
   type Weekday,
 } from './calendar-rules.ts'
 import { DatePickerButton } from './date-picker-button.native.tsx'
+import { resolveDatePickerFrame } from './date-picker-frame.native.ts'
 import { dateTimeLabel } from './date-time-format.ts'
 import {
   type CalendarDateTime,
@@ -54,9 +55,9 @@ export interface HozoDateTimePickerProps {
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
-   * Wrapper/dialog classes remain unapplied here. Trigger and Done classes
-   * resolve through the existing project candidate map with each button's facts;
-   * Calendar slots are passed to their own consumers, not resolved here.
+   * Each owner resolves through the existing project candidate map with its
+   * own facts. Wrapper/dialog text reaches owned labels below their own styles;
+   * custom day/clock layouts remain caller-owned. Calendar slots are forwarded.
    */
   className?: string
   triggerClassName?: string
@@ -152,6 +153,8 @@ const MIDNIGHT: CalendarTime = { hour: 0, minute: 0 }
  * back button is not a discoverable way to say "that will do".
  */
 export function HozoDateTimePicker({
+  className,
+  dialogClassName,
   style,
   triggerClassName,
   triggerStyle,
@@ -251,8 +254,9 @@ export function HozoDateTimePicker({
     ? (formatValue?.(value, locale) ?? dateTimeLabel(value, locale, { hour12 }))
     : placeholder
 
+  const frame = resolveDatePickerFrame({ className, style, dialogClassName, dialogStyle, open })
   return (
-    <View style={style}>
+    <View style={frame.box}>
       <DatePickerButton
         accessibilityLabel={accessibilityLabel}
         // The chosen value, so a reader hears it and not only what the field is
@@ -280,6 +284,7 @@ export function HozoDateTimePicker({
         disabled={disabled}
         style={triggerStyle}
         textStyle={triggerTextStyle}
+        inheritedTextStyle={frame.text}
         className={triggerClassName}
         onPress={() => change(true)}
       >
@@ -301,9 +306,10 @@ export function HozoDateTimePicker({
           accessibilityViewIsModal
           accessibilityRole="none"
           accessibilityLabel={dialogLabel}
-          style={dialogStyle}
+          style={frame.dialogBox}
         >
           <HozoCalendar
+            hozoInheritedTextStyle={frame.contentText}
             className={calendarClassName}
             headerClassName={headerClassName}
             gridClassName={gridClassName}
@@ -324,11 +330,16 @@ export function HozoDateTimePicker({
             todayLabel={todayLabel}
             renderDay={renderDay}
           />
-          {children ? children(half) : <HozoTimePicker {...half} />}
+          {children ? (
+            children(half)
+          ) : (
+            <HozoTimePicker {...half} hozoInheritedTextStyle={frame.contentText} />
+          )}
           <DatePickerButton
             className={doneClassName}
             style={doneStyle}
             textStyle={doneTextStyle}
+            inheritedTextStyle={frame.contentText}
             onPress={() => change(false)}
           >
             {doneLabel}
