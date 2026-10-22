@@ -67,9 +67,11 @@ const timeValueClasses =
   'p-5 text-hozo-accent hover:bg-hozo-accent focus:opacity-75 focus-visible:font-bold aria-disabled:border-4 disabled:opacity-25 data-[hozo-disabled]:mt-8'
 const timeActiveUnmeasuredClass = 'active:mt-[37px]'
 const hiddenPeriodClass = 'md:bg-[#8a6b4c]'
+const timeStepClasses =
+  'absolute p-2 text-hozo-accent data-[hozo-step=increase]:top-0 data-[hozo-step=decrease]:bottom-0 data-[hozo-step]:border-2 data-[hozo-step=increase]:hover:opacity-50 data-[hozo-step=decrease]:hover:opacity-75 active:font-bold focus-visible:outline-2 disabled:opacity-25 aria-disabled:mt-8 data-[hozo-disabled]:mb-8'
 cache.scanFile(
   'time-owners.tsx',
-  `<View className="${timeValueClasses} ${timeActiveUnmeasuredClass} ${hiddenPeriodClass}" />`,
+  `<View className="${timeValueClasses} ${timeActiveUnmeasuredClass} ${hiddenPeriodClass} ${timeStepClasses}" />`,
   1,
 )
 cache.scanFile(
@@ -974,6 +976,157 @@ const timeArrows = (tree) =>
   tree.root
     .findAllByType('NativePressable')
     .filter((node) => /^(Increase|Decrease) /.test(node.props.accessibilityLabel))
+
+test('Native TimePicker steps apply direction predicates on their own buttons without moving values', async (t) => {
+  const props = {
+    ...timeProps,
+    fieldClassName: 'text-hozo-text-subtle text-lg',
+    stepClassName: timeStepClasses,
+    stepStyle: { paddingTop: 91, color: '#123456' },
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  for (const arrow of timeArrows(tree)) {
+    const box = flat(arrow.props.style)
+    const increase = arrow.props.accessibilityLabel.startsWith('Increase')
+    assert.equal(box.position, 'absolute')
+    assert.equal(box.top, increase ? 0 : undefined)
+    assert.equal(box.bottom, increase ? undefined : 0)
+    assert.equal(box.paddingTop, 91)
+    assert.equal(box.paddingBottom, 8)
+    assert.equal(box.borderTopWidth, 2)
+    assert.equal(box.color, undefined)
+    assert.equal(flat(arrow.props.children.props.style).color, '#123456')
+    assert.equal(flat(arrow.props.children.props.style).fontSize, 18)
+  }
+  for (const value of timeValues(tree)) {
+    assert.equal(flat(value.props.style).position, undefined)
+    assert.equal(flat(value.props.style).borderTopWidth, undefined)
+    assert.equal(flat(value.props.children.props.style).color, color('hozo-text-subtle'))
+  }
+  assert.equal(flat(timePeriod(tree).props.style).position, undefined)
+  await act(() =>
+    tree.update(React.createElement(HozoTimePicker, { ...props, stepClassName: undefined })),
+  )
+  for (const arrow of timeArrows(tree)) {
+    assert.equal(flat(arrow.props.style).position, undefined)
+    assert.equal(flat(arrow.props.style).paddingTop, 91)
+    assert.equal(flat(arrow.props.style).paddingBottom, undefined)
+  }
+})
+
+test('Native TimePicker step events stay local, use real button facts and retain stepping contracts', async (t) => {
+  const changes = []
+  const props = {
+    ...timeProps,
+    step: 5,
+    stepClassName: timeStepClasses,
+    onChange: (next) => changes.push(next),
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  const arrows = timeArrows(tree)
+  const rootStyle = timeGroup(tree).props.style
+  for (const [index, arrow] of arrows.entries()) {
+    await act(() => arrow.props.onHoverIn())
+    assert.equal(flat(arrow.props.style).opacity, index % 2 === 0 ? 0.5 : 0.75)
+    assert.equal(flat(arrows[(index + 1) % 4].props.style).opacity, undefined)
+    await act(() => arrow.props.onFocus())
+    assert.equal(flat(arrow.props.style).outlineWidth, 2)
+    await act(() => arrow.props.onPointerDown())
+    assert.equal(flat(arrow.props.style).outlineWidth, undefined)
+    await act(() => arrow.props.onKeyDown())
+    assert.equal(flat(arrow.props.style).outlineWidth, 2)
+    await act(() => arrow.props.onPressIn())
+    assert.equal(String(flat(arrow.props.children.props.style).fontWeight), '700')
+    await act(() => {
+      arrow.props.onHoverOut()
+      arrow.props.onPressOut()
+      arrow.props.onBlur()
+    })
+  }
+  assert.equal(timeGroup(tree).props.style, rootStyle, 'step events do not rerender the clock')
+  assert.deepEqual(changes, [])
+  await press(arrows[0])
+  await press(arrows[1])
+  await press(arrows[2])
+  await press(arrows[3])
+  assert.deepEqual(
+    changes.map(({ hour, minute }) => [hour, minute]),
+    [
+      [10, 10],
+      [9, 10],
+      [9, 15],
+      [9, 10],
+    ],
+  )
+  await act(() => {
+    arrows[0].props.onFocus()
+    arrows[0].props.onPressIn()
+  })
+  await act(() => tree.update(React.createElement(HozoTimePicker, { ...props, disabled: true })))
+  for (const arrow of timeArrows(tree)) {
+    assert.equal(arrow.props.disabled, true)
+    assert.equal(arrow.props.accessibilityState.disabled, true)
+    assert.equal(flat(arrow.props.style).opacity, 0.25)
+    assert.equal(
+      flat(arrow.props.style).marginTop,
+      undefined,
+      'no authored aria-disabled on the Web button',
+    )
+    assert.equal(flat(arrow.props.style).marginBottom, 32)
+    assert.equal(flat(arrow.props.style).outlineWidth, undefined)
+    assert.equal(flat(arrow.props.children.props.style).fontWeight, undefined)
+    await press(arrow)
+  }
+  assert.equal(changes.length, 4)
+  await act(() => tree.update(React.createElement(HozoTimePicker, props)))
+  assert.equal(flat(timeArrows(tree)[0].props.style).opacity, undefined)
+})
+
+test('Native UI TimePicker positions four real 24px arrow targets and keeps their labels and disabled look', async (t) => {
+  const tree = await mount(t, UiTimePicker, timeProps)
+  assert.equal(timeArrows(tree).length, 4)
+  for (const arrow of timeArrows(tree)) {
+    const box = flat(arrow.props.style)
+    const increase = arrow.props.accessibilityLabel.startsWith('Increase')
+    assert.equal(box.position, 'absolute')
+    assert.equal(box.end, 0)
+    assert.equal(box.top, increase ? 0 : undefined)
+    assert.equal(box.bottom, increase ? undefined : 0)
+    assert.equal(box.width, 24)
+    assert.equal(box.height, 24)
+    assert.equal(flat(arrow.props.children.props.style).fontSize, 12)
+    assert.equal(flat(arrow.props.children.props.style).color, color('hozo-text-muted'))
+  }
+  await act(() => tree.update(React.createElement(UiTimePicker, { ...timeProps, disabled: true })))
+  for (const arrow of timeArrows(tree))
+    assert.equal(flat(arrow.props.children.props.style).color, color('hozo-text-subtle'))
+})
+
+test('Native TimePicker styled steps retain controlled empty and bounded values', async (t) => {
+  const changes = []
+  const props = {
+    locale: 'en-US',
+    hour12: false,
+    value: null,
+    min: { hour: 8, minute: 15 },
+    max: { hour: 8, minute: 30 },
+    step: 15,
+    stepClassName: timeStepClasses,
+    onChange: (next) => changes.push(next),
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  await press(timeArrows(tree)[2])
+  assert.deepEqual(changes, [{ hour: 8, minute: 15 }])
+  assert.equal(timeValues(tree)[1].props.accessibilityValue.now, undefined)
+  await act(() => tree.update(React.createElement(HozoTimePicker, { ...props, value: changes[0] })))
+  await press(timeArrows(tree)[2])
+  assert.deepEqual(changes[1], { hour: 8, minute: 30, second: 0 })
+  await act(() => tree.update(React.createElement(HozoTimePicker, { ...props, value: changes[1] })))
+  await press(timeArrows(tree)[2])
+  await press(timeArrows(tree)[0])
+  assert.equal(changes.length, 2, 'neither minute nor hour steps cross the upper bound')
+  assert.equal(timePeriod(tree), undefined)
+})
 
 test('Native TimePicker group and fields own different boxes and inherited text tiers', async (t) => {
   const props = {

@@ -34,7 +34,7 @@ export function PickerButton({
   style?: StyleProp<ViewStyle>
   textStyle?: StyleProp<TextStyle>
   inheritedTextStyle?: StyleProp<TextStyle>
-  /** Normalized data-presence facts supplied only by the actual owner. */
+  /** Normalized data presence/equality predicates supplied only by the actual owner. */
   dataFacts?: Readonly<Record<`data-${string}`, boolean>>
   expanded?: boolean
   disabled?: boolean

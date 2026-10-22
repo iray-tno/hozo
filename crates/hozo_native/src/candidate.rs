@@ -32,7 +32,7 @@ use super::*;
 /// is actually used rather than rendering silently wrong.
 ///
 /// The element's own state is different (#886). `hover:`, `active:`,
-/// `focus-visible:`, `disabled:`, `aria-*:` and data-presence conditions need no tracking here: the
+/// `focus-visible:`, `disabled:`, `aria-*:` and simple data conditions need no tracking here: the
 /// pressable rendering the element already tracks them, and the compiler
 /// hands them to `hozoClasses` beside the class string. They go into
 /// `states`, keyed by the state they need. `rtl:` and `ltr:` join them
@@ -252,19 +252,7 @@ fn state_keys(condition: &Condition) -> Option<Vec<String>> {
         Condition::FormState(FormState::ReadOnly) => vec!["readOnly".to_string()],
         Condition::Aria(state) => vec![format!("aria-{state}")],
         Condition::DataAttribute(selector) => {
-            // The parser has already classified this as an attribute query.
-            // Only a plain presence selector becomes a boolean owner fact;
-            // values, CSS escapes/flags and relations still need another route.
-            // There is no selector or raw attribute-value interpreter in JS.
-            let name = selector.strip_prefix("[data-")?.strip_suffix(']')?;
-            if name.is_empty()
-                || !name
-                    .bytes()
-                    .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
-            {
-                return None;
-            }
-            vec![format!("data-{name}")]
+            vec![data_fact_key(selector)?]
         }
         Condition::Environment(Environment::Rtl) => vec!["rtl".to_string()],
         Condition::Environment(Environment::Ltr) => vec!["ltr".to_string()],
@@ -277,6 +265,55 @@ fn state_keys(condition: &Condition) -> Option<Vec<String>> {
         }
         _ => return None,
     })
+}
+
+/// Encode a narrow, case-sensitive attribute predicate once at build time.
+/// The owner supplies its boolean result, not a raw attribute for JS to parse.
+/// Presence and equality have disjoint keys; quoted and unquoted safe tokens
+/// normalize alike. Escapes, whitespace, flags and other CSS operators stay
+/// unsupported rather than receiving an approximate selector interpretation.
+fn data_fact_key(selector: &str) -> Option<String> {
+    let query = selector.strip_prefix("[data-")?.strip_suffix(']')?;
+    let (name, value) = match query.split_once('=') {
+        Some((name, value)) => (name, Some(value)),
+        None => (query, None),
+    };
+    if name.is_empty()
+        || !name
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
+    {
+        return None;
+    }
+    let Some(raw_value) = value else {
+        return Some(format!("data-{name}"));
+    };
+    let quoted = raw_value.starts_with(['\'', '"']);
+    let value = if quoted {
+        let quote = raw_value.chars().next()?;
+        raw_value.strip_prefix(quote)?.strip_suffix(quote)?
+    } else {
+        raw_value
+    };
+    if value.is_empty()
+        || !value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+    {
+        return None;
+    }
+    // CSS's unquoted attribute values are identifiers, not arbitrary strings.
+    // A quoted numeric token is safe, but an unquoted number is not one.
+    let ident = value.strip_prefix('-').unwrap_or(value);
+    if !quoted
+        && !ident
+            .bytes()
+            .next()
+            .is_some_and(|b| b.is_ascii_alphabetic() || b == b'_' || b == b'-')
+    {
+        return None;
+    }
+    Some(format!("data-{name}={value}"))
 }
 
 /// A JS string literal. Class names carry `:` `/` `[` `]` and reasons carry
@@ -378,9 +415,56 @@ mod tests {
     }
 
     #[test]
-    fn data_values_relations_negation_and_unsafe_names_remain_unsupported() {
+    fn data_equality_normalizes_safe_tokens_into_boolean_predicate_keys() {
+        for selector in [
+            "[data-state=Closed]",
+            "[data-state=\"Closed\"]",
+            "[data-state='Closed']",
+        ] {
+            assert_eq!(
+                data_fact_key(selector).as_deref(),
+                Some("data-state=Closed")
+            );
+        }
+        assert_eq!(
+            data_fact_key("[data-state='123']").as_deref(),
+            Some("data-state=123")
+        );
+        let module = render_candidate_module(
+            &[
+                "data-[hozo-step=increase]:top-0",
+                "hover:data-[state=open]:p-4",
+            ]
+            .map(String::from),
+            &Theme::default(),
+        );
+        assert!(
+            module.contains(r#"[[["data-hozo-step=increase"], { top: 0 }]]"#),
+            "{module}"
+        );
+        assert!(
+            module.contains(r#"[[["hovered", "data-state=open"], "#),
+            "{module}"
+        );
+        assert!(!module.contains("is conditional"), "{module}");
+    }
+
+    #[test]
+    fn complex_data_queries_relations_negation_and_unsafe_names_remain_unsupported() {
         for condition in [
-            Condition::DataAttribute("[data-state=\"closed\"]".into()),
+            Condition::DataAttribute("[data-state~=closed]".into()),
+            Condition::DataAttribute("[data-state|=closed]".into()),
+            Condition::DataAttribute("[data-state^=closed]".into()),
+            Condition::DataAttribute("[data-state$=closed]".into()),
+            Condition::DataAttribute("[data-state*=closed]".into()),
+            Condition::DataAttribute("[data-state=\"closed\" i]".into()),
+            Condition::DataAttribute("[data-state=\"two words\"]".into()),
+            Condition::DataAttribute("[data-state=\"two\\77ords\"]".into()),
+            Condition::DataAttribute("[data-state=\"\"]".into()),
+            Condition::DataAttribute("[data-state=1]".into()),
+            Condition::DataAttribute("[data-state=-1]".into()),
+            Condition::DataAttribute("[data-state='open\"]".into()),
+            Condition::DataAttribute("[data-state=open=other]".into()),
             Condition::DataAttribute("[data-]".into()),
             Condition::DataAttribute("[data-foo bar]".into()),
             Condition::DataAttribute("[data-foo][data-bar]".into()),
