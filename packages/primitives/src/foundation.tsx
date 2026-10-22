@@ -250,11 +250,33 @@ export function Image({
 }: ImageProps) {
   const { setRef } = useLayoutRef<HTMLImageElement>(onLayout, ref)
   const [failedSource, setFailedSource] = useState<HozoImageSource>()
-  const webSrc =
-    (failedSource === src ? undefined : webImageSource(src)) ?? webImageSource(defaultSource)
+  const primary = webImageSource(src)
+  const fallback = webImageSource(defaultSource)
+  const webSrc = (failedSource === src ? undefined : primary) ?? fallback
+  // A server-rendered `<img>` starts loading before React hydrates, so its
+  // `error` event may already have fired when `onError` is attached (#1156).
+  const stateRef = useRef({ src, primary, fallback, failedSource })
+  stateRef.current = { src, primary, fallback, failedSource }
+  const imageRef = useCallback(
+    (node: HTMLImageElement | null) => {
+      setRef(node)
+      const current = stateRef.current
+      if (
+        node &&
+        current.primary &&
+        current.fallback &&
+        current.failedSource !== current.src &&
+        node.complete &&
+        node.naturalWidth === 0
+      ) {
+        setFailedSource(current.src)
+      }
+    },
+    [setRef],
+  )
   return (
     <img
-      ref={setRef}
+      ref={imageRef}
       className={className}
       src={webSrc}
       alt={alt ?? accessibilityLabel ?? ''}

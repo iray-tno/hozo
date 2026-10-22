@@ -195,4 +195,59 @@ test('an Image spread falls back to defaultSource when its src fails to load', (
     undefined,
     'an Image with no defaultSource gained an onError',
   )
+  assert.equal(
+    (hozoImageDomProps({ src: 'a.png' }) as Record<string, unknown>).ref,
+    undefined,
+    'an Image with no defaultSource gained a ref',
+  )
+})
+
+test('an Image spread whose src already failed before hydration falls back when its ref attaches', () => {
+  const seen: unknown[] = []
+  const dom = hozoImageDomProps({
+    src: 'https://example.com/missing.png',
+    defaultSource: { uri: '/fallback.png' },
+    ref: (node: unknown) => seen.push(node),
+  }) as Record<string, unknown>
+
+  // Still loading when the ref attaches: left alone.
+  let pendingSrc = 'https://example.com/missing.png'
+  const pendingImg = {
+    complete: false,
+    naturalWidth: 0,
+    getAttribute: () => pendingSrc,
+    set src(value: string) {
+      pendingSrc = value
+    },
+  } as unknown as HTMLElement
+  ;(dom.ref as Ref)(pendingImg)?.()
+  assert.equal(pendingSrc, 'https://example.com/missing.png')
+
+  // Already loaded when the ref attaches: left alone.
+  let loadedSrc = 'https://example.com/ok.png'
+  const loadedImg = {
+    complete: true,
+    naturalWidth: 150,
+    getAttribute: () => loadedSrc,
+    set src(value: string) {
+      loadedSrc = value
+    },
+  } as unknown as HTMLElement
+  ;(dom.ref as Ref)(loadedImg)?.()
+  assert.equal(loadedSrc, 'https://example.com/ok.png')
+
+  // Already failed before hydration (`complete && naturalWidth === 0`): swaps in defaultSource.
+  let failedSrc = 'https://example.com/missing.png'
+  const failedImg = {
+    complete: true,
+    naturalWidth: 0,
+    getAttribute: () => failedSrc,
+    set src(value: string) {
+      failedSrc = value
+    },
+  } as unknown as HTMLElement
+  const cleanup = (dom.ref as Ref)(failedImg)
+  assert.equal(failedSrc, '/fallback.png')
+  cleanup?.()
+  assert.deepEqual(seen, [pendingImg, null, loadedImg, null, failedImg, null])
 })
