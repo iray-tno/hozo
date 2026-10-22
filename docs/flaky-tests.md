@@ -5,7 +5,7 @@ ones so that a red check you did not cause can be recognised, and so that
 anyone looking for something to fix can find one.
 
 Each test has its own issue with the [`flaky`][label] label. The issue holds
-the state: evidence, hypothesis, upstream links, and who has it (`taken: …`).
+the state: evidence, hypothesis, upstream links, and who has it (`taken:<agent>-<n>`).
 This page holds only the pointer, so it does not go stale when an
 investigation moves.
 

@@ -151,17 +151,18 @@ label does, on both issues and PRs.
   it is given by whoever started you. Do not pick a number yourself: two
   agents choosing at the same moment would choose the same one. If you were
   given no name, ask before claiming work.
-- **Reuse your existing label's exact name.** Historical spellings include
-  `taken:codex-1`, `taken: claude-1` and `taken: agy-1`; the space after the
-  colon is not a different identity. Check for both spellings before creating
-  one. Do not create duplicates or rename other agents' labels. If neither
-  exists, create `taken: <your name>` with colour `#5319e7` and description
+- **Label names contain no spaces:** `taken:codex-1`, `taken:claude-1`,
+  `taken:agy-1`. Reuse `taken:<your name>` if it exists; do not create a spaced
+  alternative. If only a legacy spaced spelling exists, report it for
+  normalization rather than creating a duplicate or changing another agent's
+  identity yourself. Otherwise create `taken:<your name>` with colour
+  `#5319e7` and description
   `Being worked on by <your name>` -- the one exception to the label-creation
   rule below.
 
 ### Taking an issue
 
-- **Before starting**, look for a `taken: …` label on the issue. If another
+- **Before starting**, look for any `taken:<agent>-<n>` label on the issue. If another
   agent has it, leave it, or ask the person who started you.
 - **When starting**, add your own label and comment one line: who took it,
   the branch, and the session if you have a link.
