@@ -100,6 +100,9 @@ fingerprints are content hints, not unique identities or baseline matching guara
 
 Web assessment uses the shared module lowering pipeline, including Canvas and import diagnostics.
 Native assessment is a compiler-only component/Canvas probe, **not** full Metro module preparation.
+It includes the module-level `CLASS_NOT_DRAWN_ON_NATIVE` warning. That warning names, per file and
+with the reason, a class React Native cannot draw in a class prop the compiler does not lower, such
+as one handed to a pattern (`handleClassName="before:block"` on a `BottomSheet`).
 The compiler selects syntax from each filename: `.ts`/`.mts` are non-JSX TypeScript,
 `.tsx` is TSX, and `.js`/`.jsx`/`.mjs` accept JavaScript with JSX, not TypeScript or Flow.
 This applies to both authored inventory and imported StyleX definitions. Valid `.ts` generic
