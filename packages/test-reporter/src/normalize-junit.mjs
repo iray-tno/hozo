@@ -10,7 +10,7 @@ const REPORT_TYPES = {
 function moduleFromTypeScriptPath(filePath) {
   return filePath
     .replaceAll('\\', '/')
-    .replace(/^.*?packages\/[^/]+\//, '')
+    .replace(/^.*?(?:packages\/[^/]+|apps\/[^/]+|examples\/[^/]+|scripts)\//, '')
     .replace(/^\.\//, '')
     .replace(/^(src|\.test-build)\//, '')
     .replace(/\.(test|spec)\.[^.]+$/, '')
@@ -109,6 +109,21 @@ export function normalizeJUnit(xml, reportType, suitePackageName) {
       }
       if (reportType === 'rust') {
         testsuite.setAttribute('package', 'Rust')
+      } else if (suitePackageName) {
+        testsuite.setAttribute('name', suitePackageName)
+      }
+    }
+    if (root.tagName.toLowerCase() === 'testsuites') {
+      const directCases = Array.from(root.childNodes).filter(
+        (node) => node.nodeType === 1 && node.tagName.toLowerCase() === 'testcase',
+      )
+      if (directCases.length > 0) {
+        const suiteElem = document.createElement('testsuite')
+        suiteElem.setAttribute('name', suitePackageName || suiteName)
+        suiteElem.setAttribute('package', suiteName)
+        suiteElem.setAttribute('tests', String(directCases.length))
+        for (const c of directCases) suiteElem.appendChild(c)
+        root.appendChild(suiteElem)
       }
     }
   }

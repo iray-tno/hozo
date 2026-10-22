@@ -32,7 +32,7 @@ if (failures === 0) {
 } else {
   for (const m of messages) {
     const span = m.spans[0]
-    cases += `    <testcase name="${esc(span.file_name)}:${span.line_start}" classname="${esc(m.code.code)}">\n`
+    cases += `    <testcase name="${esc(span.file_name)}:${span.line_start}" classname="${esc(m.code.code)}" file="${esc(span.file_name)}">\n`
     cases += `      <failure message="${esc(m.message)}" type="${esc(m.level)}">${esc(m.message)}\n  at ${esc(span.file_name)}:${span.line_start}:${span.column_start}</failure>\n`
     cases += `    </testcase>\n`
   }
@@ -40,7 +40,7 @@ if (failures === 0) {
 
 process.stdout.write(`<?xml version="1.0" encoding="UTF-8"?>
 <testsuites name="Cargo Clippy" tests="${tests}" failures="${failures}" errors="0">
-  <testsuite name="Cargo Clippy" tests="${tests}" failures="${failures}" errors="0">
+  <testsuite name="Cargo Clippy" package="Static Analysis" tests="${tests}" failures="${failures}" errors="0">
 ${cases}  </testsuite>
 </testsuites>
 `)

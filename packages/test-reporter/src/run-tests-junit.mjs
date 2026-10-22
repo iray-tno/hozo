@@ -7,16 +7,35 @@ const reportDir = resolve('junit-reports')
 mkdirSync(reportDir, { recursive: true })
 
 // Read each package's complete test pipeline, not a second maintained test
-// list. Three has two Node test stages and trailing conformance commands.
+// list. Three has two Node test stages and trailing conformance commands;
+// Primitives also has a headless-browser FlatList windowing check.
 const packages = globSync('packages/*/package.json')
   .map((file) => file.replaceAll('\\', '/'))
   .sort()
   .flatMap((file) => {
-    const script = JSON.parse(readFileSync(file, 'utf8')).scripts?.test
+    const scripts = JSON.parse(readFileSync(file, 'utf8')).scripts ?? {}
+    const script = [scripts.test, scripts['test:browser']].filter(Boolean).join(' && ')
     return script
       ? [{ name: dirname(file).slice('packages/'.length), dir: dirname(file), script }]
       : []
   })
+
+// Repository-level publishing, tarball, manifest, and generated-doc checks.
+const rootScripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts ?? {}
+if (rootScripts['test:publishing']) {
+  packages.push({
+    name: 'publishing',
+    dir: '.',
+    script: [
+      rootScripts['test:publishing'],
+      rootScripts['check:packages'],
+      rootScripts['docs:check'],
+      rootScripts['manifests:check'],
+    ]
+      .filter(Boolean)
+      .join(' && '),
+  })
+}
 
 // No test script: including Allure in ordinary package CI would be expensive.
 // The report still measures its own tests, including this runner's fixtures.

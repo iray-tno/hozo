@@ -47,11 +47,33 @@ test('conversion emits a main-branch source link without changing the test ident
     )
     const result = JSON.parse(readFileSync(resultFile, 'utf8'))
     assert.equal(result.fullName, 'gradient.draws')
+    assert.deepEqual(
+      result.labels.filter((label) => label.name === 'subSuite'),
+      [{ name: 'subSuite', value: 'gradient' }],
+    )
     assert.equal(
       result.links[0].url,
       'https://github.com/iray-tno/hozo/blob/main/packages/canvas/src/gradient.test.tsx',
     )
   } finally {
     rmSync(directory, { recursive: true, force: true })
+  }
+})
+
+test('repository script, app, example, and workflow paths resolve to main-branch source links', () => {
+  for (const [raw, expected] of [
+    ['/work/scripts/style-slots.test.mjs', 'scripts/style-slots.test.mjs'],
+    ['apps/landing/scripts/format-jsx.test.ts', 'apps/landing/scripts/format-jsx.test.ts'],
+    [
+      'examples/storybook-demo/scripts/a11y-audit.test.mjs',
+      'examples/storybook-demo/scripts/a11y-audit.test.mjs',
+    ],
+    ['.github/workflows/native.yml', '.github/workflows/native.yml'],
+  ]) {
+    const element = testcase(`
+      <testsuite package="TypeScript">
+        <testcase file="${raw}" />
+      </testsuite>`)
+    assert.equal(sourcePathForCase(element), expected)
   }
 })
