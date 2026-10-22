@@ -47,19 +47,23 @@
         "className": "disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "alert": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "avatar": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "badge": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "bottom-sheet": {
     "missing": [
@@ -121,7 +125,8 @@
         "className": "cursor-grab",
         "reason": "`cursor-grab`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "button": {
     "missing": [],
@@ -130,7 +135,8 @@
         "className": "transition-colors",
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "calendar": {
     "missing": [
@@ -180,11 +186,13 @@
         "className": "transition-colors",
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "card": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "checkbox": {
     "missing": [],
@@ -193,11 +201,13 @@
         "className": "disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "color-picker": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "combobox": {
     "missing": [
@@ -211,7 +221,8 @@
         "className": "aria-disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "command-palette": {
     "missing": [
@@ -228,7 +239,8 @@
         "reason": "`overflow-x-*`/`overflow-y-*`: React Native has one `overflow` for both axes"
       }
     ],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "date-picker": {
     "missing": [
@@ -278,7 +290,8 @@
         "className": "transition-colors",
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
-    ]
+    ],
+    "unapplied": ["dialogClassName"]
   },
   "date-range-picker": {
     "missing": [
@@ -328,7 +341,8 @@
         "className": "transition-colors",
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
-    ]
+    ],
+    "unapplied": ["dialogClassName"]
   },
   "date-time-picker": {
     "missing": [
@@ -378,7 +392,8 @@
         "className": "disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": ["dialogClassName", "doneClassName"]
   },
   "dialog": {
     "missing": [
@@ -395,7 +410,8 @@
         "reason": "`backdrop:` styles a pseudo-element, which React Native does not have"
       }
     ],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "drawer": {
     "missing": [
@@ -429,7 +445,8 @@
         "className": "transition",
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "file-dropzone": {
     "missing": [],
@@ -438,15 +455,18 @@
         "className": "disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": ["className", "activeClassName"]
   },
   "form": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "input": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "listbox": {
     "missing": [
@@ -460,7 +480,8 @@
         "className": "aria-disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "menu": {
     "missing": [],
@@ -473,7 +494,8 @@
         "className": "aria-disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "native-select": {
     "missing": [],
@@ -482,11 +504,13 @@
         "className": "disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "otp-input": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "pagination": {
     "missing": [],
@@ -495,7 +519,8 @@
         "className": "cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "popover": {
     "missing": [],
@@ -520,7 +545,8 @@
         "className": "ease-out",
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "radio-group": {
     "missing": [],
@@ -529,7 +555,8 @@
         "className": "aria-disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "segmented-control": {
     "missing": [],
@@ -538,11 +565,13 @@
         "className": "aria-disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "skeleton": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "slider": {
     "missing": [
@@ -604,15 +633,18 @@
         "className": "aria-disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "stack": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "stepper": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "switch": {
     "missing": [],
@@ -621,7 +653,8 @@
         "className": "disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "tabs": {
     "missing": [],
@@ -634,7 +667,8 @@
         "className": "aria-disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "text-area": {
     "missing": [
@@ -648,7 +682,8 @@
         "className": "disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   },
   "time-picker": {
     "missing": [
@@ -666,15 +701,24 @@
         "className": "disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
+    ],
+    "unapplied": [
+      "className",
+      "fieldClassName",
+      "valueClassName",
+      "stepClassName",
+      "periodClassName"
     ]
   },
   "toolbar": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "tooltip": {
     "missing": [],
-    "cosmetic": []
+    "cosmetic": [],
+    "unapplied": []
   },
   "tree": {
     "missing": [],
@@ -683,6 +727,7 @@
         "className": "aria-disabled:cursor-not-allowed",
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
-    ]
+    ],
+    "unapplied": []
   }
 }

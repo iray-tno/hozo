@@ -309,15 +309,24 @@ for (const [page, element] of [
 // draw; the button's look has nothing Web-only but a transition.
 {
   const line = (page) =>
-    /<div class="hozo-ui-native[^"]*" data-native-missing="(\d+)">([\s\S]*?)<\/div>/.exec(
+    /<div class="hozo-ui-native[^"]*" data-native-missing="(\d+)" data-native-unapplied="(\d+)">([\s\S]*?)<\/div>/.exec(
       readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8'),
     )
   const sheet = line('bottom-sheet')
   const button = line('button')
+  // The time picker's Native half accepts its class props and does not apply
+  // them: a drawable look missing all the same. When it starts applying
+  // them, point this at another page the generated status still lists.
+  const timePicker = line('time-picker')
   checks.push(
+    [
+      Number(timePicker?.[2]) > 0 && /periodClassName/.test(timePicker?.[3] ?? ''),
+      'docs components/time-picker: the unapplied class props are not listed',
+    ],
+    [button?.[2] === '0', 'docs components/button: a class prop is listed as unapplied'],
     [Number(sheet?.[1]) > 0, 'docs components/bottom-sheet: no React Native line listing classes'],
     [
-      /before:block/.test(sheet?.[2] ?? ''),
+      /before:block/.test(sheet?.[3] ?? ''),
       'docs components/bottom-sheet: the grabber is not listed',
     ],
     [
