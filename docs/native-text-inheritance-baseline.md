@@ -1363,3 +1363,48 @@ hashes, not historical device scenarios or expected results; its non-motion host
 mock gains only a component factory, not an animation/timing implementation.
 Fresh Native motion pixels/AT, interrupted wall-clock behavior, update-cost
 measurements and broader widget/popup/transition scope still gate default rollout.
+
+## Class-owned inherited text and background transitions
+
+The next internal slice admits `transition-colors` and explicit lists containing
+`color, background-color` when the owner has a static base text colour and only
+its own text/background paints change. The existing Native transition planner
+still selects timing and flags. Conditional borders, decoration, gradients,
+ambient predicates, `transition-all`, authored root `style`, spreads and carried
+candidates retain ordinary output plus the internal refusal. A broad property
+list does not certify unsupported changing paints merely because the text part
+works. Colour-only explicit `transition-[color]` retains its earlier domain.
+
+Compiler-owned box callbacks now pass through the inherited adapter to the same
+HozoPressable/TransitionPressable owner used by ordinary lowering. Its existing
+box driver runs before caller event callbacks, and Animated receives a resolved
+style array rather than the callback it would drop. The label resolves through
+its separate existing channel and shares the committed text-colour timeline;
+box callbacks cannot publish typography or opaque/unblendable background colours.
+Changing callback ownership or transition presence remains unassessed.
+
+The background driver is reused, not upgraded here. In particular its prop-only
+retargeting is not assessed, which is why authored root styles are excluded from
+the broader compiler gate. Its existing 16-state probes, colour progress node,
+unused opacity Value and render-time temporary Value allocations remain. The
+moving background adds one retained progress listener to the shared label's one;
+this is not a claim that the full motion tree has only two Animated nodes or no
+React work. Non-motion tests still construct zero animation Values/listeners.
+
+Source-backed generated graphs exercise runtime-only and proof-selected routes,
+overlapping hover/press/focus, interrupted background ranges, unchanged-label
+targets, event ordering, raw zero, opaque late-joining Text, retained hosts and
+listener cleanup. Fifty simulated ticks of both progress nodes do not notify
+paint Context readers. The common event owner/control and View counts do not
+increase. Compiler tests check refusals and unchanged ordinary lowering. A
+previously missed generated component-name check now recognizes the inherited
+owner when emitting the existing pressed-style callback; no diagnostic is merely
+suppressed.
+
+Against main `e8fe5064`, the inherited-helper microbundle grows from 11,245 to
+11,988 minified bytes, gzip 3,986 to 4,147 (+743/+161), with engine/platform/React
+peers external. This is not Metro size, a Native pixel result or a wall-clock
+performance measurement. Normal Metro/docs routing and the closed Text-only
+static proof remain unchanged. Regenerated device-fixture hashes describe the
+new source, not new device motion scenarios or evidence. Native motion pixels,
+AT, update-cost and physical-device gates remain before default rollout.

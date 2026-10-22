@@ -21,14 +21,22 @@ const FIELDS: [&str; 7] = [
 // bypass an unassessed animation/relative CSS declaration just because ordinary
 // output happens to need no generated adapter for one value of it.
 pub(super) fn passive(node: &Node) -> bool {
-    // Start with the explicit colour-only CSS property, not transition-colors
-    // (which also promises background/border paint). Reuse the existing Native
-    // transition planner rather than inventing another timing/condition path.
+    // Reuse the existing transition planner and owner. A broad colour list is
+    // assessed only when the changing paints are text/background; a conditional
+    // border/gradient/etc still fails assessed_style below. Authored box styles
+    // could change without an interaction, which the box driver does not track.
+    let background_motion = node.style.iter().any(|style| {
+        matches!(&style.property, StyleProperty::TransitionProperty(value)
+            if inherited_color_properties(value) == Some(true))
+    });
     let label_motion = matches!(node.primitive, Primitive::Button | Primitive::Pressable)
         && node.carried_classes.is_empty()
         && node.props.passthrough.iter().all(|prop| !prop.is_spread)
-        && node.style.iter().any(|style| matches!(&style.property, StyleProperty::TransitionProperty(value) if value.trim() == "color"))
-        && node.style.iter().all(|style| !matches!(&style.property, StyleProperty::TransitionProperty(value) if value.trim() != "color"))
+        && (!background_motion
+            || (node.props.passthrough.iter().all(|prop| prop.name.as_deref() != Some("style"))
+                && node.style.iter().any(|style| matches!(style.property, StyleProperty::TextColor(_)) && style.condition == Condition::Always)))
+        && node.style.iter().any(|style| matches!(&style.property, StyleProperty::TransitionProperty(value) if inherited_color_properties(value) == Some(background_motion)))
+        && node.style.iter().all(|style| !matches!(&style.property, StyleProperty::TransitionProperty(value) if inherited_color_properties(value) != Some(background_motion)))
         && super::transition::native_driver_transition(node, &node.style)
             .is_some_and(|(_, _, _, opacity, transform, colors)| colors && !opacity && !transform);
     let chip_label = node.primitive == Primitive::Chip
@@ -45,7 +53,10 @@ pub(super) fn passive(node: &Node) -> bool {
     let assessed_style = |style: &hozo_ir::StyleDeclaration| {
         (style.condition == Condition::Always
             || (chip_label || matches!(node.primitive, Primitive::Button | Primitive::Pressable))
-                && super::text::is_text_property(&style.property)
+                && (super::text::is_text_property(&style.property)
+                    || label_motion
+                        && background_motion
+                        && matches!(style.property, StyleProperty::BackgroundColor(_)))
                 && label_condition(&style.condition))
             && (label_motion
                 || !matches!(
@@ -111,6 +122,30 @@ pub(super) fn passive(node: &Node) -> bool {
             Child::Verbatim { nested, .. } => nested.iter().all(|nested| passive(&nested.node)),
             Child::Text(_) => true,
         })
+}
+
+// This is an assessment gate, not another CSS transition planner. Extra colour
+// properties are harmless only while constant; assessed_style rejects changes
+// to them. In particular `all` must not certify an unrelated jumping property.
+fn inherited_color_properties(value: &str) -> Option<bool> {
+    let mut color = false;
+    let mut background = false;
+    for property in value.split(',').map(str::trim) {
+        match property {
+            "color" => color = true,
+            "background-color" => background = true,
+            "border-color"
+            | "outline-color"
+            | "text-decoration-color"
+            | "fill"
+            | "stroke"
+            | "--tw-gradient-from"
+            | "--tw-gradient-via"
+            | "--tw-gradient-to" => (),
+            _ => return None,
+        }
+    }
+    color.then_some(background)
 }
 
 // Only the existing control's own event predicates are assessed here. Do

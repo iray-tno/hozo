@@ -21,7 +21,7 @@ import { HozoPressable, type HozoPressableProps } from './pressable.native.tsx'
 import { useHozoTextColorTransition } from './text-color-transition.native.ts'
 
 type Props = Omit<HozoPressableProps, 'style'> & {
-  style?: StyleProp<ViewStyle & TextStyle>
+  style?: StyleProp<ViewStyle & TextStyle> | Exclude<HozoPressableProps['style'], undefined>
   ref?: ComponentPropsWithRef<typeof Pressable>['ref']
 }
 
@@ -99,22 +99,49 @@ export function HozoInheritedPressable({
 }: Props) {
   const motion = Boolean(hozoTransition)
   const initialMotion = useRef(motion)
+  const callback = typeof style === 'function'
+  const initialCallback = useRef(callback)
   if (motion !== initialMotion.current)
     throw new Error('Inherited colour motion does not assess changing transition presence')
+  if (motion && callback !== initialCallback.current)
+    throw new Error('Inherited colour motion does not assess changing box style ownership')
   if (
     hozoTransition &&
     (!hozoTransition.colors || hozoTransition.opacity || hozoTransition.transform)
   )
     throw new Error('Native text inheritance does not assess non-colour label transitions')
-  const flat = flattenInheritedTextStyle(style)
-  const box = { ...flat }
-  const own: Record<string, unknown> = {}
-  for (const field of HOZO_INHERITED_TEXT_FIELDS) {
-    if (Object.hasOwn(flat, field)) own[field] = flat[field]
-    delete box[field]
-  }
+  const { box, own } = useMemo(() => {
+    if (typeof style === 'function') {
+      if (!hozoTransition)
+        throw new Error('Native text inheritance does not assess style callbacks without motion')
+      // Only compiler-owned box callbacks are admitted. Label classes already
+      // have their own resolved channel: do not run or merge them twice here.
+      return {
+        box: (state: Parameters<typeof style>[0]) => {
+          const flat = flattenInheritedTextStyle(style(state))
+          if (HOZO_INHERITED_TEXT_FIELDS.some((field) => Object.hasOwn(flat, field)))
+            throw new Error('Native text inheritance does not assess text in box callbacks')
+          if (
+            flat.backgroundColor != null &&
+            (typeof flat.backgroundColor !== 'string' || !canBlendColor(flat.backgroundColor))
+          )
+            throw new Error('Native text inheritance does not assess unresolved background colours')
+          return flat as ViewStyle
+        },
+        own: {},
+      }
+    }
+    const flat = flattenInheritedTextStyle(style)
+    const box = { ...flat }
+    const own: Record<string, unknown> = {}
+    for (const field of HOZO_INHERITED_TEXT_FIELDS) {
+      if (Object.hasOwn(flat, field)) own[field] = flat[field]
+      delete box[field]
+    }
+    return { box: box as ViewStyle, own }
+  }, [style, hozoTransition])
   return (
-    <HozoPressable {...props} style={box as ViewStyle}>
+    <HozoPressable {...props} style={box} hozoTransition={callback ? hozoTransition : undefined}>
       {(state) => (
         <LabelScope own={own as TextStyle} resolve={hozoTextStyle} transition={hozoTransition}>
           {typeof children === 'function' ? children(state) : children}

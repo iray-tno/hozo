@@ -481,6 +481,14 @@ assessed domain excludes broader transition properties, dynamic transition
 presence and unsupported colour representations; this is mocked node/commit
 evidence, not a new Native pixel/AT/timing result or default activation.
 
+The subsequent [class-owned text/background slice](../native-text-inheritance-baseline.md#class-owned-inherited-text-and-background-transitions)
+admits `transition-colors` only for assessed changing text/background paints,
+with a static base text colour and no authored root style/spread. It reuses the
+existing box driver and shared text timeline under one event owner. Changing
+border/other paints, box prop retargeting and general transition lists remain
+unassessed; mock progress/host checks do not replace Native motion pixels or
+physical-device/update-cost evidence.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

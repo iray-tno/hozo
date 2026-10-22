@@ -346,7 +346,6 @@ test('explicit color-only transitions use the inherited owner without changing o
     assert.deepEqual(compiler.compileNativeModule(source), ordinary)
   }
   for (const classes of [
-    'text-black hover:text-red-500 transition-colors',
     'text-black hover:text-red-500 transition-all',
     'hover:text-red-500 transition-[color]',
     'text-black dark:text-red-500 transition-[color]',
@@ -366,6 +365,59 @@ test('explicit color-only transitions use the inherited owner without changing o
       [selected.jsx, selected.styles, selected.runtimeImports],
       [normal.jsx, normal.styles, normal.runtimeImports],
     )
+  }
+})
+
+test('class-owned text and background transitions reuse the inherited label and box owner', () => {
+  const compiler = createCompiler()
+  for (const component of ['Button', 'Pressable']) {
+    for (const transition of ['transition-colors', 'transition-[color,background-color]']) {
+      const source = `import {${component},Text} from '@hozo/core';export const Scene=()=> <${component} className="text-black hover:text-red-500 bg-white hover:bg-black active:bg-blue-500 ${transition} duration-100"><Text>Label</Text></${component}>`
+      const ordinary = compiler.compileNativeModule(source)
+      for (const textStatic of [false, true]) {
+        const selected = compiler.compileNativeModule(source, undefined, undefined, {
+          textInheritance: true,
+          textStatic,
+        }).components[0]
+        assert.ok(
+          !selected.diagnostics.some((d) => d.severity === 'error'),
+          JSON.stringify(selected),
+        )
+        assert.match(selected.jsx, /HozoInheritedPressable/)
+        assert.match(selected.jsx, /style=\{\(\{/)
+        assert.match(selected.jsx, /hozoTextStyle=/)
+        assert.match(selected.jsx, /opacity: false, transform: false, colors: true/)
+      }
+      assert.deepEqual(compiler.compileNativeModule(source), ordinary)
+    }
+  }
+  for (const props of [
+    'className="text-black bg-white hover:bg-black transition-colors" style={own}',
+    'className="text-black bg-white hover:bg-black transition-colors" {...rest}',
+    'className="bg-white hover:bg-black transition-colors"',
+    'className="text-black hover:text-red-500 hover:border-red-500 transition-colors"',
+    'className="text-black hover:text-red-500 hover:decoration-red-500 transition-colors"',
+    'className="text-black bg-white hover:bg-black transition-[color]"',
+    'className="text-black bg-white dark:bg-black transition-colors"',
+    'className="text-black bg-white hover:bg-black hover:transition-colors"',
+    'className="text-black bg-white hover:bg-black transition-all"',
+  ]) {
+    const source = `import {Button} from '@hozo/core';export const Scene=()=> <Button ${props}>Label</Button>`
+    const ordinary = compiler.compileNativeModule(source).components[0]
+    for (const textStatic of [false, true]) {
+      const selected = compiler.compileNativeModule(source, undefined, undefined, {
+        textInheritance: true,
+        textStatic,
+      }).components[0]
+      assert.ok(
+        selected.diagnostics.some((d) => d.severity === 'error'),
+        props,
+      )
+      assert.deepEqual(
+        [selected.jsx, selected.styles, selected.runtimeImports],
+        [ordinary.jsx, ordinary.styles, ordinary.runtimeImports],
+      )
+    }
   }
 })
 
