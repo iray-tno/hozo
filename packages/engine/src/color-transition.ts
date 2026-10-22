@@ -19,6 +19,11 @@ function rgba(color: string): [number, number, number, number] | null {
   ]
 }
 
+/** @internal Whether interrupted blending can read this colour without a snap fallback. */
+export function canBlendColor(color: string) {
+  return rgba(color) !== null
+}
+
 /** The visible colour at `progress`, used when an interrupted transition restarts. */
 export function blendColor(from: string, to: string, progress: number) {
   const a = rgba(from)

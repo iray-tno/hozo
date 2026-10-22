@@ -1,6 +1,12 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
-import { type ComponentType, type ReactNode, useCallback, useState } from 'react'
+import {
+  type ComponentProps,
+  type ComponentType,
+  type ReactNode,
+  useCallback,
+  useState,
+} from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { useChipRowInteraction } from './chip-row-interaction.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
@@ -37,8 +43,10 @@ export interface HozoChipProps {
   hozoStyle?: (state: ChipSlotState) => StyleProp<ViewStyle | TextStyle>
   /** @internal The remove button never borrows its ancestor's focus. */
   hozoRemoveStyle?: (state: ChipSlotState) => StyleProp<ViewStyle | TextStyle>
-  /** @internal Compiler-selected label boundary, never the whole widget. */
+  /** @internal Resolved text scope at the actual row or selectable label. */
   hozoInheritedLabel?: ComponentType<{ style?: StyleProp<TextStyle>; children?: ReactNode }>
+  /** @internal Preserve the existing Text hosts for passive labels and icons. */
+  hozoInheritedText?: ComponentType<ComponentProps<typeof Text>>
   testID?: string
 }
 
@@ -79,15 +87,15 @@ export function HozoChip({
   hozoStyle,
   hozoRemoveStyle,
   hozoInheritedLabel,
+  hozoInheritedText,
   testID,
 }: HozoChipProps) {
   const message = useHozoMessage()
   const selectable =
     selected !== undefined || defaultSelected !== undefined || onSelectedChange !== undefined
-  if (hozoInheritedLabel && (!selectable || onRemove))
-    throw new Error(
-      'Native text inheritance currently assesses standalone selectable Chip labels only',
-    )
+  if (hozoInheritedLabel && !hozoInheritedText && (!selectable || onRemove))
+    throw new Error('Composite and passive Chip inheritance requires both label and Text bindings')
+  const LabelText = hozoInheritedText ?? Text
   const [uncontrolled, setUncontrolled] = useState(defaultSelected ?? false)
   const on = selected ?? uncontrolled
   const toggle = useCallback(() => {
@@ -128,13 +136,13 @@ export function HozoChip({
         onPress={onRemove}
       >
         {(interaction) => (
-          <Text
+          <LabelText
             accessibilityElementsHidden
             importantForAccessibility="no-hide-descendants"
             style={removeLook(interaction)[1]}
           >
             {removeIcon}
-          </Text>
+          </LabelText>
         )}
       </Pressable>
     ) : null
@@ -155,22 +163,32 @@ export function HozoChip({
         {(interaction) => label(children, look(row?.state ?? interaction)[1], hozoInheritedLabel)}
       </Pressable>
     ) : (
-      <Text style={look(row?.state ?? IDLE)[1]}>{children}</Text>
+      <LabelText style={look(row?.state ?? IDLE)[1]}>{children}</LabelText>
     )
 
   if (!onRemove && selectable) return body()
   return (
     <ChipRow selectable={selectable} disabled={disabled}>
-      {(row) => (
-        <View
-          {...row.events.row}
-          style={[{ flexDirection: 'row', alignItems: 'center' }, look(row.state)[0]]}
-          testID={testID}
-        >
-          {body(row)}
-          {remove(row.events.remove)}
-        </View>
-      )}
+      {(row) => {
+        const [box, text] = look(row.state)
+        const content = (
+          <>
+            {body(row)}
+            {remove(row.events.remove)}
+          </>
+        )
+        const Owner = hozoInheritedLabel
+        return (
+          <View
+            {...row.events.row}
+            style={[{ flexDirection: 'row', alignItems: 'center' }, box]}
+            testID={testID}
+          >
+            {/* Publish resolved row values, never its predicates or box styles. */}
+            {Owner ? <Owner style={text}>{content}</Owner> : content}
+          </View>
+        )
+      }}
     </ChipRow>
   )
 }

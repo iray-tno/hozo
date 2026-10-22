@@ -29,7 +29,7 @@ export {
 } from './backdrop.ts'
 
 export { type ClassResolver, createClassResolver, type StyleObject } from './class-resolver.ts'
-export { blendColor } from './color-transition.ts'
+export { blendColor, canBlendColor } from './color-transition.ts'
 export { type CxValue, cx } from './cx.ts'
 export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.ts'
 export { externalLinkAttributes } from './external-link.ts'

@@ -20,13 +20,20 @@ export type HozoInheritedTextMetrics = Readonly<{
   textAlign?: string
   textTransform?: string
 }>
-export type HozoInheritedTextPaint = Readonly<{ color?: string | number }>
+// Opaque Native-generated paint transport. A null colour masks outer motion
+// while retaining the animated host boundary for an explicit local override.
+export type HozoInheritedTextMotion = Readonly<{ color: unknown }>
+export type HozoInheritedTextPaint = Readonly<{
+  color?: string | number
+  motion?: HozoInheritedTextMotion
+}>
 export type HozoInheritedTextFrame = Readonly<{
   metrics: HozoInheritedTextMetrics
   paint: HozoInheritedTextPaint
 }>
-export type HozoInheritedTextOwn = HozoInheritedTextMetrics & HozoInheritedTextPaint
+export type HozoInheritedTextOwn = HozoInheritedTextMetrics & Pick<HozoInheritedTextPaint, 'color'>
 const EMPTY = Object.freeze({})
+const MASKED_MOTION: HozoInheritedTextMotion = Object.freeze({ color: null })
 export const HozoInheritedMetricsContext = createContext<HozoInheritedTextMetrics>(EMPTY)
 export const HozoInheritedPaintContext = createContext<HozoInheritedTextPaint>(EMPTY)
 
@@ -40,6 +47,8 @@ export function useHozoInheritedTextFrame(own: HozoInheritedTextOwn): HozoInheri
   const textAlign = own.textAlign ?? inherited.textAlign
   const textTransform = own.textTransform ?? inherited.textTransform
   const color = own.color ?? inheritedPaint.color
+  const motion =
+    own.color == null ? inheritedPaint.motion : inheritedPaint.motion ? MASKED_MOTION : undefined
   // Local overrides can keep the effective record stable even when an outer
   // owner changes. Never mutate a record shared with an earlier commit.
   const metrics = useMemo<HozoInheritedTextMetrics>(() => {
@@ -53,6 +62,14 @@ export function useHozoInheritedTextFrame(own: HozoInheritedTextOwn): HozoInheri
     }).filter(([, value]) => value != null)
     return entries.length ? Object.freeze(Object.fromEntries(entries)) : EMPTY
   }, [fontSize, fontWeight, lineHeight, letterSpacing, textAlign, textTransform])
-  const paint = useMemo(() => (color == null ? EMPTY : Object.freeze({ color })), [color])
+  const paint = useMemo(
+    () =>
+      motion
+        ? Object.freeze({ ...(color == null ? {} : { color }), motion })
+        : color == null
+          ? EMPTY
+          : Object.freeze({ color }),
+    [color, motion],
+  )
   return { metrics, paint }
 }

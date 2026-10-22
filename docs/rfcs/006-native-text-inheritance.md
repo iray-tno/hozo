@@ -454,6 +454,33 @@ non-selectable/composite shapes and unassessed styles outside this increment;
 mock-host comparisons are not device/performance evidence. Additional widget
 and popup owners, interrupted transitions and update-cost gates remain.
 
+The subsequent [composite and passive Chip slice](../native-text-inheritance-baseline.md#composite-and-passive-chip-slot-boundaries)
+extends that integration to all four Chip shapes. Already resolved row text
+supplies the actual row scope, and removal/passive labels retain their existing
+Text hosts through the shared inherited Text binding. Root and secondary classes
+share the assessment rules; opaque slot props and mixed residuals both refuse
+internal certification. Generated graphs check isolated focus, inherited row
+hover/press, child overrides, stable hosts and unchanged resolver counts. This
+is still internal integration, not default rollout or new device/update-cost
+evidence.
+
+An [independent actual Web Chip/Tailwind comparison](../native-text-inheritance-baseline.md#independent-web-oracle-for-chip-typography-owners)
+now checks those seven-field ownership rules in Chromium across all four
+shapes, with real pointer and keyboard actions, overrides and retained DOM
+identity. It explicitly supplies button inheritance resets and distinguishes
+the browser's single focused control from independent mock-owner facts. This
+adds bounded CSS evidence, not a new Native pixel/AT/update-cost result or a
+default switch.
+
+The [shared committed colour driver and first inherited motion connection](../native-text-inheritance-baseline.md#first-inherited-colour-transition-connection)
+now admit planned explicit `transition-[color]` Button/Pressable labels internally.
+An opaque Animated interpolation travels through the existing paint channel;
+late readers share its progress, and local colours mask/rejoin it without a new
+timeline or host-kind change. No per-frame Context update is introduced. The
+assessed domain excludes broader transition properties, dynamic transition
+presence and unsupported colour representations; this is mocked node/commit
+evidence, not a new Native pixel/AT/timing result or default activation.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

@@ -1203,3 +1203,163 @@ mock-host/compiler observations, not new Android/iOS glyph, OS event/AT or
 physical-device performance measurements. Normal builds/docs remain ordinary;
 additional pattern/popup scopes, interrupted transitions and measured update
 cost remain before default activation.
+
+## Composite and passive Chip slot boundaries
+
+The following internal compiler slice extends Chip to its other three shapes:
+passive label, removable label and selectable/removable row. The existing row
+resolver's already computed text split now supplies the row scope, while the
+toggle label retains its own label position. The removal icon and passive label
+keep their pre-existing Native Text hosts, using the existing inherited Text
+leaf through a second private compiler binding. There is no new generated leaf,
+dependency, class resolver, listener, control or Native box. Resolved row values
+flow down to removal, not row predicates: removal's own focus/active typography
+overrides inherited values without focusing or changing the main label. Its
+existing hidden-icon accessibility props remain on the same Text host.
+
+The compiler assesses both root and secondary class slots with one shared
+scalar/condition predicate. Opaque secondary classes have two IR forms (a
+passthrough prop or a mixed slot's fallback); both stay explicitly unassessed.
+Font numeric variants also have both typed and keyword IR forms, so both are
+excluded rather than silently treating one as seven-field inheritance evidence.
+Spreads, unassessed fonts, transitions, relative CSS metrics and other condition
+families retain ordinary lowering plus an internal refusal. These boundaries
+are not new restrictions on ordinary Chip support.
+
+Source-backed compiler/Metro graphs compare reference, runtime-only and
+proof-selected modes through 14 removable-only and 16 selectable/removable
+stages each. They assert all seven fields through opaque memo labels/icons,
+ancestor changes, row/removal/child overrides and their removal, independent
+focus, shared ancestor hover/press, checked-state and distinct activation,
+disable-during-touch cleanup, stable hosts and the existing icon's AT props.
+The passive shape separately covers opaque labels and inherited metric updates.
+All four shapes have paired ordinary/contextual scalar controls asserting
+identical resolver-call counts, host topology, box styles and zero normalization.
+The independent reference uses its own Text/label implementation, not the
+production inheritance leaf. The ordinary bundle still imports no protocol.
+
+The same ordinary-path microbundle setup used above measures 4,904 → 5,039
+minified bytes and 2,087 → 2,145 gzip bytes (+135/+58) for this increment.
+Keeping resolver and host counts unchanged does not erase this code-size cost
+or establish the contextual path's runtime cost.
+
+These mock-host observations do not establish fresh Web computed-style parity,
+Native glyph/AT results or physical-device update cost. No normal-build/docs
+switch changes. Other widget/popup owners, interrupted transitions and measured
+cost gates still remain before default activation; historical device evidence
+has not been expanded by regenerating source hashes.
+
+## Independent Web oracle for Chip typography owners
+
+The next comparison bundles the actual Web Chip source with React DOM, and
+generates CSS with Tailwind itself. It does not lower that source with Hozo or
+import either inheritance algorithm. The bundled input graph must include the
+actual pattern source. Chromium reads all seven computed fields in all four
+Chip shapes through 36 stages (5 passive, 10 removable, 8 standalone toggle,
+13 selectable/removable). Button font/color/spacing inheritance resets are
+explicit fixture preflight assumptions, not browser defaults claimed as portable.
+
+Real pointer hover/down/up and keyboard focus/Space demonstrate the same slot
+ownership required by the Native graph: removal focus does not focus the row or
+main label; removal hover/press can activate its ancestor's typography; removal
+owns its focus color and active weight. In a standalone toggle, focus styles
+belong to the root button instead. The actual DOM permits only one focused
+button at a time, unlike deliberately independent mock-owner state probes; this
+comparison does not replay simultaneous focus on two buttons as an OS contract.
+
+Ancestor metric updates, resolved owner overrides and their removal, an opaque
+memo icon's own override, retained DOM identity, the hidden icon wrapper,
+control counts, selection and distinct removal callbacks are asserted. Inline
+owner styles in this oracle are applied to the actual DOM owners: this does not
+add or claim a new Web Chip `style` API. These bounded CSS observations agree
+with the seven-field ownership/precedence expectations in the generated Native
+tests; they are not full event-stream, accessibility-tree or pixel equivalence.
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='real Web Chip and Tailwind' examples/storybook-demo/scripts/caller-composition.test.mjs
+```
+
+The existing raw-source cache guard already covers `patterns/src/chip.tsx` and
+the relevant behavior source, so no extra production dependency is needed.
+Normal-build/docs routing, transition behavior and other widget/popup owners
+are unchanged. Native glyph/AT and physical-device/update-cost gates remain;
+neither this browser result nor the main rebase extends historical device data.
+
+## Shared committed text-colour driver prerequisite
+
+Before connecting animated label inheritance, the existing callback Text colour
+driver is extracted as an internal Native hook. Its progress node/listener can
+then belong to the label owner rather than being duplicated at each inherited
+leaf. This prerequisite does not yet enable inherited transitions.
+
+The old callback Text updated its range ref during render and only noticed
+interaction-key changes. A changed colour prop without a new interaction left
+the old interpolation on top of the new colour. The common driver now retargets
+on either committed target or interaction changes; abandoned/Suspense renders
+cannot replace its range. Retargeting stops the previous animation and starts
+the next interpolation at the observed absolute progress position, without
+resetting the previous live node to zero. It reuses the existing colour blending,
+easing, delay and JavaScript Animated driver; opacity/transform drivers and the
+event machine are unchanged.
+
+One lazy progress node and one listener live for the motion owner's lifetime.
+Sixty simulated progress notifications cause no React render, and unmount removes
+the listener. Target updates do cause a bounded layout-effect/state pass before
+starting the new range; this is not a claim of zero retarget/render cost. Ordinary
+non-transition controls still allocate no animation nodes/listeners. Source-backed
+tests cover prop retargeting, repeated interruption, unchanged target/state,
+StrictMode and superseded Suspense targets, alongside the existing owner tests.
+These are mocked scheduling/node observations, not new Native pixels or timing
+results. The next layer must connect the inherited paint transport and compiler
+gate, including local override shielding and late-joining descendants.
+
+## First inherited colour-transition connection
+
+The internal compiler route now admits an explicit `transition-[color]` on
+Button/Pressable when the existing Native planner produces a colour-only
+transition from its static base and interactive colour declarations. It reuses
+that planner and the shared committed driver, not a second class/event resolver.
+No spreads or carried/unscanned candidates are certified on this motion owner.
+`transition-colors`, `transition-all`, background/border/opacity/transform motion,
+ambient conditions and unplanned colour transitions still retain ordinary output
+plus an explicit internal refusal. Ordinary compilation remains unchanged.
+
+The existing paint channel carries an immutable envelope around an opaque live
+Animated interpolation; its scalar `color` remains the committed target, not a
+sample of the visible colour. The protocol still has no RN import or new Context.
+Participating Text under this motion boundary uses Animated.Text with the same
+shared interpolation. An explicit local colour masks it without changing the
+animated host kind; removing that override rejoins current progress. Static
+proofs still require a closed, complete own-field region before erasing readers.
+
+One label owner allocates one lazy progress Value/listener. Opaque memo/View
+labels, raw zero and late-joining labels share it; they do not start individual
+timelines. Frame notifications update that value, not Context/React state.
+Target/range changes still have bounded committed React passes, and consumers
+that compute an effective override may still render when an outer target changes;
+the stable masked paint prevents notifying their nested paint readers. This is
+not a promise of zero retarget cost. Each animated Text also has the ordinary
+Animated host/binding overhead, not measured by counting progress Values.
+
+Generated runtime-only and proof-selected graphs assert intermediate reversal,
+owner-prop target changes/removal, local overrides during retargeting, late joins,
+stable hosts, one owner/control, unchanged metrics-reader notifications, cleanup,
+and no paint-reader notification from 50 simulated frame ticks. A separate
+non-motion control constructs zero Values, while the extra motion commit pass
+does not resolve label classes again. Unsupported colour representations use
+the same parser as interruption blending and explicitly refuse certification:
+moving owner colours are limited to supported hex, transparent and serialized
+blended RGBA, not arbitrary Native/platform/named colour values. Ordinary static
+local colours are not required to become blendable merely to mask an outer
+timeline. Transition presence
+cannot change within this assessed owner, and inheriting another active motion
+as the new owner's base remains explicitly unassessed.
+
+The helper-graph microbundle, with engine/platform/React peers external, is
+10,370 → 11,245 minified bytes; gzip 3,727 → 3,986 (+875/+259). This excludes the
+engine protocol delta, and is neither a Metro budget nor a device speed result.
+Normal Metro/docs routing stays ordinary. The fixture refresh changes source
+hashes, not historical device scenarios or expected results; its non-motion host
+mock gains only a component factory, not an animation/timing implementation.
+Fresh Native motion pixels/AT, interrupted wall-clock behavior, update-cost
+measurements and broader widget/popup/transition scope still gate default rollout.

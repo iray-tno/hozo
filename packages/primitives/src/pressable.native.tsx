@@ -36,6 +36,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native'
+import { useHozoTextColorTransition } from './text-color-transition.native.ts'
 
 export interface HozoTransition {
   duration: number
@@ -559,47 +560,12 @@ function TransitionText({
   const transition = context.transition!
   const state = context
   const target = StyleSheet.flatten(resolved)?.color
-  const progress = useRef(new Animated.Value(1)).current
-  const animation = useRef<Animated.CompositeAnimation | null>(null)
-  const fraction = useRef(1)
-  const initialColor = typeof target === 'string' ? target : ''
-  const range = useRef<ColorRange>({ from: initialColor, to: initialColor })
   const interaction = `${state.pressed}:${state.hovered}:${state.focused}:${state.focusVisible}`
-  const previousInteraction = useRef(interaction)
-  // Carry the state key, not just true/false. Consecutive interaction
-  // changes can both be pending: a boolean effect dependency would skip
-  // the second transition, even though its colour target changed.
-  const pending =
-    previousInteraction.current !== interaction && typeof target === 'string' ? interaction : null
-  if (pending) {
-    range.current = {
-      from: blendColor(range.current.from, range.current.to, fraction.current),
-      to: target as string,
-    }
-    previousInteraction.current = interaction
-  }
-  useEffect(() => {
-    const listener = progress.addListener(({ value }) => {
-      fraction.current = value
-    })
-    return () => {
-      progress.removeListener(listener)
-      animation.current?.stop()
-    }
-  }, [progress])
-  useLayoutEffect(() => {
-    if (!pending) return
-    progress.setValue(0)
-    fraction.current = 0
-    animation.current = transitionTiming(progress, 1, transition, false)
-    animation.current.start()
-  }, [transition, pending, progress])
-  const animatedColor = range.current.from
-    ? progress.interpolate({
-        inputRange: [0, 1],
-        outputRange: [range.current.from, range.current.to],
-      })
-    : undefined
+  const animatedColor = useHozoTextColorTransition(
+    typeof target === 'string' ? target : undefined,
+    interaction,
+    transition,
+  )
   return (
     <AnimatedText {...props} style={[resolved, animatedColor ? { color: animatedColor } : null]} />
   )

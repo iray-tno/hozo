@@ -21,18 +21,61 @@ const FIELDS: [&str; 7] = [
 // bypass an unassessed animation/relative CSS declaration just because ordinary
 // output happens to need no generated adapter for one value of it.
 pub(super) fn passive(node: &Node) -> bool {
+    // Start with the explicit colour-only CSS property, not transition-colors
+    // (which also promises background/border paint). Reuse the existing Native
+    // transition planner rather than inventing another timing/condition path.
+    let label_motion = matches!(node.primitive, Primitive::Button | Primitive::Pressable)
+        && node.carried_classes.is_empty()
+        && node.props.passthrough.iter().all(|prop| !prop.is_spread)
+        && node.style.iter().any(|style| matches!(&style.property, StyleProperty::TransitionProperty(value) if value.trim() == "color"))
+        && node.style.iter().all(|style| !matches!(&style.property, StyleProperty::TransitionProperty(value) if value.trim() != "color"))
+        && super::transition::native_driver_transition(node, &node.style)
+            .is_some_and(|(_, _, _, opacity, transform, colors)| colors && !opacity && !transform);
     let chip_label = node.primitive == Primitive::Chip
-        && node.props.passthrough.iter().any(|prop| {
-            matches!(
-                prop.name.as_deref(),
-                Some("selected" | "defaultSelected" | "onSelectedChange")
+        && node.props.passthrough.iter().all(|prop| {
+            // Fully opaque slots stay passthrough rather than becoming
+            // SlotStyle fallback leaves. Neither representation is assessed.
+            let opaque_slot = node
+                .primitive
+                .class_slots()
+                .iter()
+                .any(|slot| prop.name.as_deref() == Some(slot.class_prop));
+            !prop.is_spread && prop.name.is_some() && !opaque_slot
+        });
+    let assessed_style = |style: &hozo_ir::StyleDeclaration| {
+        (style.condition == Condition::Always
+            || (chip_label || matches!(node.primitive, Primitive::Button | Primitive::Pressable))
+                && super::text::is_text_property(&style.property)
+                && label_condition(&style.condition))
+            && (label_motion
+                || !matches!(
+                    style.property,
+                    StyleProperty::TransitionProperty(..)
+                        | StyleProperty::TransitionDuration(..)
+                        | StyleProperty::TransitionDelay(..)
+                        | StyleProperty::TransitionTimingFunction(..)
+                ))
+            && !matches!(
+                style.property,
+                StyleProperty::AnimationName(..)
+                    | StyleProperty::Animation(..)
+                    | StyleProperty::ThemeAnimation(..)
+                    | StyleProperty::FontFamily(..)
+                    | StyleProperty::Keyword("font-style" | "font-variant-numeric", _)
+                    | StyleProperty::FontVariant(..)
+                    | StyleProperty::LineHeight(LineHeight::Ratio(..))
+                    | StyleProperty::LetterSpacing(LetterSpacing::Em(..))
+                    | StyleProperty::FontSize(Length::Unit(_, hozo_ir::LengthUnit::Em))
+                    | StyleProperty::LineHeight(LineHeight::Length(Length::Unit(
+                        _,
+                        hozo_ir::LengthUnit::Em
+                    )))
+                    | StyleProperty::LetterSpacing(LetterSpacing::Px(Length::Unit(
+                        _,
+                        hozo_ir::LengthUnit::Em
+                    )))
             )
-        })
-        && node
-            .props
-            .passthrough
-            .iter()
-            .all(|prop| prop.name.as_deref().is_some_and(|name| name != "onRemove"));
+    };
     (chip_label
         || matches!(
             node.primitive,
@@ -54,36 +97,14 @@ pub(super) fn passive(node: &Node) -> bool {
             Some(hozo_ir::HeadingLevel::Dynamic(_))
         )
         && node.class_name_fallback.is_empty()
-        && node.style.iter().all(|style| {
-            (style.condition == Condition::Always
-                || (chip_label
-                    || matches!(node.primitive, Primitive::Button | Primitive::Pressable))
-                    && super::text::is_text_property(&style.property)
-                    && label_condition(&style.condition))
-                && !matches!(
-                    style.property,
-                    StyleProperty::TransitionProperty(..)
-                        | StyleProperty::TransitionDuration(..)
-                        | StyleProperty::TransitionDelay(..)
-                        | StyleProperty::TransitionTimingFunction(..)
-                        | StyleProperty::AnimationName(..)
-                        | StyleProperty::Animation(..)
-                        | StyleProperty::ThemeAnimation(..)
-                        | StyleProperty::FontFamily(..)
-                        | StyleProperty::Keyword("font-style", _)
-                        | StyleProperty::FontVariant(..)
-                        | StyleProperty::LineHeight(LineHeight::Ratio(..))
-                        | StyleProperty::LetterSpacing(LetterSpacing::Em(..))
-                        | StyleProperty::FontSize(Length::Unit(_, hozo_ir::LengthUnit::Em))
-                        | StyleProperty::LineHeight(LineHeight::Length(Length::Unit(
-                            _,
-                            hozo_ir::LengthUnit::Em
-                        )))
-                        | StyleProperty::LetterSpacing(LetterSpacing::Px(Length::Unit(
-                            _,
-                            hozo_ir::LengthUnit::Em
-                        )))
-                )
+        && node.style.iter().all(assessed_style)
+        // A removable Chip owns a second class slot. Assess it by the same
+        // scalar/condition rules as the row; a root-only check misses fonts,
+        // animation and dynamic candidates in the removal label.
+        && node.props.class_slots.iter().all(|slot| {
+            slot.fallback.is_empty()
+                && slot.carried.is_empty()
+                && slot.style.iter().all(assessed_style)
         })
         && node.children.iter().all(|child| match child {
             Child::Node(node) => passive(node),

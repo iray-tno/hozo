@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { blendColor } from './color-transition.ts'
+import { blendColor, canBlendColor } from './color-transition.ts'
+
+test('the bounded inherited motion gate uses the same colour parser as interruption blending', () => {
+  for (const color of [
+    '#000',
+    '#123456',
+    '#12345680',
+    'transparent',
+    blendColor('#000', '#fff', 0.5),
+  ])
+    assert.equal(canBlendColor(color), true, color)
+  for (const color of ['tomato', 'rgb(0,0,0)', '#1234', 'rgba(1, 2, 3, 1e999)'])
+    assert.equal(canBlendColor(color), false, color)
+})
 
 test('blends Tailwind hex colours at an interrupted transition point', () => {
   assert.equal(blendColor('#000', '#ffffff', 0.5), 'rgba(128, 128, 128, 1)')

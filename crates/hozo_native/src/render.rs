@@ -1828,7 +1828,10 @@ pub(super) fn render_node(
         cx.runtime.need_component("HozoChip");
         if cx.text_inheritance {
             cx.runtime.need_component("HozoInheritedLabel");
-            props_text.push_str(" hozoInheritedLabel={HozoInheritedLabel}");
+            cx.runtime.need_component("HozoInheritedText");
+            props_text.push_str(
+                " hozoInheritedLabel={HozoInheritedLabel} hozoInheritedText={HozoInheritedText}",
+            );
         }
     }
     if node.primitive == Primitive::Avatar {

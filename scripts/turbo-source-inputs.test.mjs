@@ -196,6 +196,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/primitives/src/text-color-transition.native.ts',
     'packages/primitives/src/generated/inherited-label.ts',
     'packages/primitives/src/inherited-label.native.tsx',
     'packages/patterns/src/generated/chip.native.ts',

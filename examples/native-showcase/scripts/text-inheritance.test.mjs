@@ -201,6 +201,9 @@ async function loadProbe(viewRenders = []) {
       if (name === 'react-native')
         return {
           Text: 'NativeText',
+          // This non-motion fixture only needs the module's host factory.
+          // No Value/timing API is supplied: it cannot certify animation.
+          Animated: { createAnimatedComponent: (component) => component },
           View: (props) => {
             if (props.testID?.startsWith('text-opaque-boundary-')) viewRenders.push(props.testID)
             return react.createElement('NativeView', props)

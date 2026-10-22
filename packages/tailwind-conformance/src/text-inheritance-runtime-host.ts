@@ -101,6 +101,7 @@ ${chips ? "export {HozoInheritedLabel} from '@hozo/core/generated/inherited-labe
   assert.ok(files.every((file) => !/text-inheritance-reference/.test(file)))
   const native = {
     ...(labels || chips ? require('./react-native-stub.js') : {}),
+    Animated: require('./react-native-stub.js').Animated,
     ...names,
     StyleSheet: { create: (styles: object) => styles, flatten: flattenRuntimeStyle },
   }
