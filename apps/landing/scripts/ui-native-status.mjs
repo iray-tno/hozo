@@ -19,7 +19,7 @@
 // leave main with a stale file once both merged. Generating it from the
 // source being built has nothing to fall behind.
 
-import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { nativeClassReport, nativeClassVerdicts } from '@hozo/compiler'
@@ -118,5 +118,8 @@ for (const page of readdirSync(pages)
   status[page] = { missing: of('missing'), cosmetic: of('cosmetic'), unapplied }
 }
 
+// `src/data/` holds only generated files, so a fresh checkout has no such
+// directory.
+mkdirSync(path.dirname(out), { recursive: true })
 writeFileSync(out, `${JSON.stringify(status, null, 2)}\n`)
 console.log(`UI native status: wrote ${Object.keys(status).length} pages`)
