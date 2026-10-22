@@ -1,4 +1,12 @@
-import React, { createContext, type ReactNode, useContext, useEffect, useId, useState } from 'react'
+import React, {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from 'react'
 import { View } from 'react-native'
 
 export interface PortalProps {
@@ -32,29 +40,30 @@ const PortalContext = createContext<PortalMethods | null>(null)
 export function PortalProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Map<string, ReactNode>>(() => new Map())
 
-  const methods: PortalMethods = {
-    mount: (id, node) => {
+  // Portal effects depend on this API, not the item snapshot. Recreating it
+  // after a registration makes that effect unregister/register forever.
+  const methods = useMemo<PortalMethods>(() => {
+    const put: PortalMethods['mount'] = (id, node) => {
       setItems((prev) => {
+        if (prev.has(id) && prev.get(id) === node) return prev
         const next = new Map(prev)
         next.set(id, node)
         return next
       })
-    },
-    update: (id, node) => {
-      setItems((prev) => {
-        const next = new Map(prev)
-        next.set(id, node)
-        return next
-      })
-    },
-    unmount: (id) => {
-      setItems((prev) => {
-        const next = new Map(prev)
-        next.delete(id)
-        return next
-      })
-    },
-  }
+    }
+    return {
+      mount: put,
+      update: put,
+      unmount: (id) => {
+        setItems((prev) => {
+          if (!prev.has(id)) return prev
+          const next = new Map(prev)
+          next.delete(id)
+          return next
+        })
+      },
+    }
+  }, [])
 
   return (
     <PortalContext.Provider value={methods}>

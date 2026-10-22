@@ -1092,3 +1092,21 @@ Android/iOS pixels or physical-device performance measurements. Ordinary
 Metro builds and docs capture still use ordinary lowering. Other real widget
 scopes, rendered portal destinations, interrupted transitions and update-cost
 gates remain before default activation.
+
+## Native portal lifecycle prerequisite
+
+Exercising the actual registered Native portal before destination-inheritance
+integration exposed a pre-existing registration feedback loop. Item writes
+rerendered the provider, recreated its Context methods, and reran each Portal's
+registration effects. A bounded host-render guard reproduced the loop on the
+preceding source, without spinning indefinitely or relying on a timeout.
+
+The provider now memoizes its methods independently of its item snapshot and
+leaves the Map unchanged for identical writes or absent removals. Registration,
+updates and cleanup still use the same API, keyed fragments and absolute host;
+no typography capture, host boundary or public API is added. Source-backed tests
+cover two items, stable child state/host identity on replacement, individual
+removal, complete cleanup, inline disabled/no-provider cases and StrictMode
+effect replay. This prerequisite fixes lifecycle behavior, not typography or
+Native rendering/performance. Portal destination and widget integration remain
+separate gates; normal builds/docs still do not select the inheritance route.

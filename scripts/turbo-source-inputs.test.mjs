@@ -195,6 +195,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/behaviors/src/portal.native.tsx',
     'crates/hozo_native/src/text.rs',
     'packages/engine/src/text-inheritance.ts',
     'packages/engine/src/generated/text-inheritance-protocol.ts',
