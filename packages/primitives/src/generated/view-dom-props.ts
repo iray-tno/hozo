@@ -96,7 +96,10 @@ type ElementRef =
   | undefined
 
 /** The callback ref that gives a translated spread its element, or none when it needs none. */
-function elementRef(source: Props):
+function elementRef(
+  source: Props,
+  fallback?: string,
+):
   | (((node: HTMLElement | null) => (() => void) | undefined) & {
       responder?: ReturnType<typeof createSpreadResponder>
     })
@@ -108,28 +111,44 @@ function elementRef(source: Props):
   }
   const responder =
     Object.keys(responderProps).length > 0 ? createSpreadResponder(responderProps) : undefined
-  if (!onLayout && !responder) return undefined
+  if (!onLayout && !responder && !fallback) return undefined
   const forwarded = source.ref as ElementRef
   return Object.assign(
     (node: HTMLElement | null) => {
       if (!node) return undefined
-      let state = attached.get(node)
-      if (!state) {
-        state = { previous: '', leaving: false }
-        attached.set(node, state)
+      if (fallback) {
+        const img = node as HTMLImageElement
+        const currentSrc = img.getAttribute('src')
+        if (img.complete && img.naturalWidth === 0 && currentSrc !== fallback) {
+          if (typeof img.decode === 'function') {
+            img.decode().then(undefined, () => {
+              if (img.getAttribute('src') === currentSrc) img.src = fallback
+            })
+          } else {
+            img.src = fallback
+          }
+        }
       }
-      state.leaving = false
-      state.onLayout = onLayout
-      if (onLayout && !state.observer) observe(node, state)
-      responder?.attach(node)
+      let current: Attached | undefined
+      if (onLayout || responder) {
+        current = attached.get(node)
+        if (!current) {
+          current = { previous: '', leaving: false }
+          attached.set(node, current)
+        }
+        current.leaving = false
+        current.onLayout = onLayout
+        if (onLayout && !current.observer) observe(node, current)
+        responder?.attach(node)
+      }
       let release: (() => void) | undefined
       if (typeof forwarded === 'function') release = forwarded(node)
       else if (forwarded) forwarded.current = node
-      const current = state
       return () => {
         if (typeof release === 'function') release()
         else if (typeof forwarded === 'function') forwarded(null)
         else if (forwarded) forwarded.current = null
+        if (!current) return
         // Not yet: a re-render detaches and reattaches the same element.
         current.leaving = true
         queueMicrotask(() => {
@@ -144,7 +163,7 @@ function elementRef(source: Props):
   )
 }
 
-function translate(source: Props, consumed: Set<string>): Props {
+function translate(source: Props, consumed: Set<string>, fallback?: string): Props {
   const has = (name: string) => Object.hasOwn(source, name)
   const out: Props = {}
   for (const name in source) {
@@ -178,7 +197,7 @@ function translate(source: Props, consumed: Set<string>): Props {
   }
   if (has('style')) out.style = hozoDomStyle(source.style as HozoDomStyle)
 
-  const ref = elementRef(source)
+  const ref = elementRef(source, fallback)
   if (ref) {
     out.ref = ref
     delete out.onLayout
@@ -198,7 +217,7 @@ export function hozoViewDomProps<T>(props: T): T {
 const IMAGE = new Set([...UNIVERSAL, 'defaultSource', 'src'])
 
 // The uncompiled Image's resolution. Its fallback to `defaultSource` after a
-// load error is state there; here it is the `onError` below.
+// load error is state there; here it is the `onError` and attach ref below.
 function webSource(source: Source): string | undefined {
   if (typeof source === 'string') return source
   if (!source || typeof source !== 'object') return undefined
@@ -224,9 +243,11 @@ function webSource(source: Source): string | undefined {
 export function hozoImageDomProps<T>(props: T): T {
   if (!props || typeof props !== 'object') return props
   const source = props as Props
-  const out = translate(source, IMAGE)
+  const primary = webSource(source.src as Source)
+  const fallback = webSource(source.defaultSource as Source)
+  const out = translate(source, IMAGE, primary && fallback ? fallback : undefined)
   if (Object.hasOwn(source, 'src') || Object.hasOwn(source, 'defaultSource')) {
-    out.src = webSource(source.src as Source) ?? webSource(source.defaultSource as Source)
+    out.src = primary ?? fallback
   }
   if (Object.hasOwn(source, 'accessibilityLabel')) {
     delete out['aria-label']
@@ -235,8 +256,7 @@ export function hozoImageDomProps<T>(props: T): T {
   // A `src` that fails to load falls back to `defaultSource`, as it does
   // uncompiled (#1126). Set on the element rather than kept in state: the
   // next render writes the same `src` prop, which React leaves alone.
-  const fallback = webSource(source.defaultSource as Source)
-  if (fallback && webSource(source.src as Source)) {
+  if (fallback && primary) {
     const onError = source.onError as ((event: unknown) => void) | undefined
     out.onError = (event: { currentTarget: HTMLImageElement }) => {
       if (event.currentTarget.getAttribute('src') !== fallback) event.currentTarget.src = fallback

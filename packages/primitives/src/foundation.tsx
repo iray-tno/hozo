@@ -250,11 +250,44 @@ export function Image({
 }: ImageProps) {
   const { setRef } = useLayoutRef<HTMLImageElement>(onLayout, ref)
   const [failedSource, setFailedSource] = useState<HozoImageSource>()
-  const webSrc =
-    (failedSource === src ? undefined : webImageSource(src)) ?? webImageSource(defaultSource)
+  const primary = webImageSource(src)
+  const fallback = webImageSource(defaultSource)
+  const webSrc = (failedSource === src ? undefined : primary) ?? fallback
+  // A server-rendered `<img>` starts loading before React hydrates, so its
+  // `error` event may already have fired when `onError` is attached (#1156).
+  // `complete && naturalWidth === 0` spots that, and `decode()` separates a
+  // broken load from a widthless SVG that some browsers report as 0px wide.
+  // The caller's `onError` is not synthesized here because the native error
+  // event has already come and gone before hydration.
+  const stateRef = useRef({ src, primary, fallback, failedSource })
+  stateRef.current = { src, primary, fallback, failedSource }
+  const imageRef = useCallback(
+    (node: HTMLImageElement | null) => {
+      setRef(node)
+      const current = stateRef.current
+      if (
+        node &&
+        current.primary &&
+        current.fallback &&
+        current.failedSource !== current.src &&
+        node.complete &&
+        node.naturalWidth === 0
+      ) {
+        const failed = current.src
+        if (typeof node.decode === 'function') {
+          node.decode().then(undefined, () => {
+            if (stateRef.current.src === failed) setFailedSource(failed)
+          })
+        } else {
+          setFailedSource(failed)
+        }
+      }
+    },
+    [setRef],
+  )
   return (
     <img
-      ref={setRef}
+      ref={imageRef}
       className={className}
       src={webSrc}
       alt={alt ?? accessibilityLabel ?? ''}
