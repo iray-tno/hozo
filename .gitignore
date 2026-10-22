@@ -69,6 +69,10 @@ apps/landing/public/wasm/
 apps/landing/public/native-screenshots/
 apps/landing/src/data/native-screenshots.json
 
+# Generated from the component sources before every landing build
+# (apps/landing/scripts/ui-native-status.mjs).
+apps/landing/src/data/ui-native-status.json
+
 # Android. The project under examples/native-demo is checked in -- it is what
 # CI boots -- but everything Gradle and the SDK write into it is not.
 # `local.properties` in particular holds an absolute SDK path and belongs to

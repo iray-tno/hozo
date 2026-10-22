@@ -76,6 +76,7 @@ try {
   if (!screenshots) throw new Error('the artifact manifest is not one this build understands')
 
   mkdirSync(images, { recursive: true })
+  mkdirSync(path.dirname(data), { recursive: true })
   for (const { image } of Object.values(screenshots.pages))
     copyFileSync(path.join(unpacked, image), path.join(images, image))
   writeFileSync(data, `${JSON.stringify(screenshots, null, 2)}\n`)
