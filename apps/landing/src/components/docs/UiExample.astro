@@ -69,7 +69,7 @@ const plural = (count: number, word: string) => `${count} ${word}${count === 1 ?
             .
           </summary>
           {native.unapplied.length > 0 && (
-            <p>
+            <p data-native-unapplied-props>
               Not applied on React Native yet: the component's Native half accepts{' '}
               {native.unapplied.map((prop, at) => (
                 <>

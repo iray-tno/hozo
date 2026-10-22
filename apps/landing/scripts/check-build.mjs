@@ -14,6 +14,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { uiNativeStatusChecks } from './ui-native-status-checks.mjs'
 
 // Which build to read, because there is more than one.
 //
@@ -314,15 +315,19 @@ for (const [page, element] of [
     )
   const sheet = line('bottom-sheet')
   const button = line('button')
-  // The time picker's Native half accepts its class props and does not apply
-  // them: a drawable look missing all the same. When it starts applying
-  // them, point this at another page the generated status still lists.
-  const timePicker = line('time-picker')
+  const status = JSON.parse(
+    readFileSync(new URL('../src/data/ui-native-status.json', import.meta.url), 'utf8'),
+  )
+  for (const [page, expected] of Object.entries(status)) {
+    checks.push(
+      ...uiNativeStatusChecks(
+        readFileSync(path.join(dist, 'docs', 'components', page, 'index.html'), 'utf8'),
+        expected,
+        page,
+      ),
+    )
+  }
   checks.push(
-    [
-      Number(timePicker?.[2]) > 0 && /periodClassName/.test(timePicker?.[3] ?? ''),
-      'docs components/time-picker: the unapplied class props are not listed',
-    ],
     [button?.[2] === '0', 'docs components/button: a class prop is listed as unapplied'],
     [Number(sheet?.[1]) > 0, 'docs components/bottom-sheet: no React Native line listing classes'],
     [
