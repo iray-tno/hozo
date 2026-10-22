@@ -385,6 +385,17 @@ without adding a Native host, provider, listener or new resolver. Root/dialog
 class consumption and DateTime Done remain separate work; this trigger slice
 does not claim root-to-panel typography or modal focus-restoration parity.
 
+DateTimePicker's Done now uses that same internal button consumer. It has
+its own interaction state and enabled button facts even when the outer field
+is disabled; it supplies neither an authored aria-expanded predicate nor a
+Native expanded announcement. Its classes split between its box and owned
+Text, with explicit doneStyle/doneTextStyle last. Done still only closes the
+dialog, without committing the value again. Its local events do not rerun
+Calendar renderDay. This adds one local tracker, not another Native host,
+provider, global listener or resolver. Root/dialog typography, custom clock
+content and device/AT delivery remain outside this slice; existing runtime
+condition/utility refusals still warn.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner

@@ -1143,6 +1143,116 @@ test('Native UI date-picker triggers draw their shared real look', async (t) => 
   }
 })
 
+const dateTimeDone = (tree) =>
+  panel(tree)
+    .findAllByType('NativePressable')
+    .find((node) => node.props.children?.props?.children === 'Done')
+
+test('Native DateTime Done owns button facts and interaction without reopening or committing', async (t) => {
+  const Picker = withoutClock(HozoDateTimePicker)
+  const opened = [],
+    changed = []
+  let dayCalls = 0
+  const props = {
+    ...calendarProps,
+    defaultOpen: true,
+    disabled: true,
+    doneClassName: `${interactionClasses} disabled:opacity-25 aria-expanded:border-2 aria-disabled:mt-8`,
+    onOpenChange: (next) => opened.push(next),
+    onChange: (next) => changed.push(next),
+    renderDay: (day) => {
+      dayCalls++
+      return day.date.day
+    },
+  }
+  const tree = await mount(t, Picker, props)
+  const done = dateTimeDone(tree)
+  assert.ok(done)
+  assert.equal(
+    Boolean(done.props.disabled),
+    false,
+    'outer disabled does not disable the open dialog exit',
+  )
+  assert.equal(
+    done.props.accessibilityState?.expanded,
+    undefined,
+    'Done is not an expansion trigger',
+  )
+  assert.equal(flat(done.props.style).paddingTop, 16)
+  assert.equal(flat(done.props.style).marginTop, undefined)
+  assert.equal(flat(done.props.style).borderTopWidth, undefined)
+  const before = dayCalls
+  await act(() => done.props.onHoverIn())
+  assert.equal(flat(done.props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(done.props.children.props.style).color, color('hozo-accent-text'))
+  await act(() => done.props.onFocus())
+  assert.equal(flat(done.props.style).opacity, 0.75)
+  assert.equal(String(flat(done.props.children.props.style).fontWeight), '700')
+  await act(() => done.props.onPointerDown())
+  assert.equal(flat(done.props.children.props.style).fontWeight, undefined)
+  await act(() => done.props.onKeyDown())
+  assert.equal(String(flat(done.props.children.props.style).fontWeight), '700')
+  await act(() => done.props.onPressIn())
+  assert.equal(flat(done.props.style).opacity, 0.5)
+  await act(() => {
+    done.props.onPressOut()
+    done.props.onBlur()
+    done.props.onHoverOut()
+  })
+  assert.equal(dayCalls, before, 'Done events stay out of Calendar rendering')
+  const trigger = tree.root.findAllByType('NativePressable')[0]
+  assert.equal(flat(trigger.props.style).backgroundColor, undefined)
+  await press(done)
+  assert.deepEqual(opened, [false])
+  assert.deepEqual(changed, [], 'Done only closes; changes are already committed')
+  assert.equal(tree.root.findAllByType('NativeModal').length, 0)
+  await act(() => tree.update(React.createElement(Picker, { ...props, disabled: false })))
+  await press(tree.root.findAllByType('NativePressable')[0])
+  assert.equal(
+    flat(dateTimeDone(tree).props.style).opacity,
+    undefined,
+    'reopen has no stale press/focus',
+  )
+})
+
+test('Native DateTime Done splits typography and preserves explicit overrides and class removal', async (t) => {
+  const Picker = withoutClock(HozoDateTimePicker)
+  const props = {
+    ...calendarProps,
+    defaultOpen: true,
+    doneClassName: 'p-4 text-hozo-accent font-bold',
+    doneStyle: { paddingTop: 91, color: '#123456' },
+    doneTextStyle: { color: '#abcdef' },
+  }
+  const tree = await mount(t, Picker, props)
+  const done = dateTimeDone(tree)
+  assert.equal(flat(done.props.style).paddingTop, 91)
+  assert.equal(flat(done.props.style).paddingBottom, 16)
+  assert.equal(flat(done.props.style).color, undefined)
+  assert.equal(flat(done.props.children.props.style).paddingTop, undefined)
+  assert.equal(flat(done.props.children.props.style).color, '#abcdef')
+  assert.equal(String(flat(done.props.children.props.style).fontWeight), '700')
+  await act(() => tree.update(React.createElement(Picker, { ...props, doneClassName: undefined })))
+  assert.equal(flat(done.props.style).paddingTop, 91)
+  assert.equal(flat(done.props.style).paddingBottom, undefined)
+  assert.equal(flat(done.props.children.props.style).fontWeight, undefined)
+})
+
+test('Native UI DateTime Done draws its actual accent look', async (t) => {
+  const tree = await mount(t, withoutClock(UiDateTimePicker), {
+    ...calendarProps,
+    defaultOpen: true,
+  })
+  const done = dateTimeDone(tree)
+  assert.equal(flat(done.props.style).paddingTop, 12)
+  assert.equal(flat(done.props.style).paddingStart, 16)
+  assert.equal(flat(done.props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(done.props.children.props.style).fontSize, 14)
+  assert.equal(flat(done.props.children.props.style).color, color('hozo-on-accent'))
+  await act(() => done.props.onHoverIn())
+  assert.equal(flat(done.props.style).backgroundColor, color('hozo-accent-hover'))
+})
+
 test('Native UI Calendar draws selected single days, range caps, interiors and unavailable days', async (t) => {
   const tree = await mount(t, UiCalendar, {
     ...calendarProps,

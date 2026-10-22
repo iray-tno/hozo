@@ -4,7 +4,6 @@ import {
   Modal,
   Pressable,
   type StyleProp,
-  Text,
   type TextStyle,
   View,
   type ViewStyle,
@@ -17,7 +16,7 @@ import {
   todayLocal,
   type Weekday,
 } from './calendar-rules.ts'
-import { DatePickerTrigger } from './date-picker-trigger.native.tsx'
+import { DatePickerButton } from './date-picker-button.native.tsx'
 import { dateTimeLabel } from './date-time-format.ts'
 import {
   type CalendarDateTime,
@@ -55,8 +54,8 @@ export interface HozoDateTimePickerProps {
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
-   * Wrapper/dialog/Done classes remain unapplied here. Trigger classes resolve
-   * through the existing project candidate map with that button's facts;
+   * Wrapper/dialog classes remain unapplied here. Trigger and Done classes
+   * resolve through the existing project candidate map with each button's facts;
    * Calendar slots are passed to their own consumers, not resolved here.
    */
   className?: string
@@ -158,6 +157,7 @@ export function HozoDateTimePicker({
   triggerStyle,
   triggerTextStyle,
   dialogStyle,
+  doneClassName,
   doneStyle,
   doneTextStyle,
   calendarClassName,
@@ -253,7 +253,7 @@ export function HozoDateTimePicker({
 
   return (
     <View style={style}>
-      <DatePickerTrigger
+      <DatePickerButton
         accessibilityLabel={accessibilityLabel}
         // The chosen value, so a reader hears it and not only what the field is
         // for.
@@ -284,7 +284,7 @@ export function HozoDateTimePicker({
         onPress={() => change(true)}
       >
         {text}
-      </DatePickerTrigger>
+      </DatePickerButton>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => change(false)}>
         {/*
           Hidden from the accessibility tree rather than merely transparent.
@@ -325,9 +325,14 @@ export function HozoDateTimePicker({
             renderDay={renderDay}
           />
           {children ? children(half) : <HozoTimePicker {...half} />}
-          <Pressable accessibilityRole="button" style={doneStyle} onPress={() => change(false)}>
-            <Text style={doneTextStyle}>{doneLabel}</Text>
-          </Pressable>
+          <DatePickerButton
+            className={doneClassName}
+            style={doneStyle}
+            textStyle={doneTextStyle}
+            onPress={() => change(false)}
+          >
+            {doneLabel}
+          </DatePickerButton>
         </View>
       </Modal>
     </View>
