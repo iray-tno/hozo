@@ -1010,3 +1010,85 @@ RFC 006; merging this compiler slice does not complete #1207 or authorize
 an accepted ADR. Historical device results above remain pinned to their
 original sources; regenerating the fixture's current source hashes is not
 a new device result.
+
+## Bounded label-owner compiler integration
+
+The next internal slice admits non-animated Button/Pressable roots whose class
+styles are unconditional and whose host styles are resolved records/arrays.
+The compiler emits `HozoInheritedPressable`; ordinary output still selects its
+unchanged existing host. Stateful class conditions, host style callbacks,
+transitions, Link/navigation adapters and other widgets remain outside this
+compiler slice. No default/bundler or normal docs-capture selection changes.
+
+The adapter reuses the actual `HozoPressable` source without modifying its
+event or animation implementation. It partitions resolved own text fields off
+the Native View style and places a label scope inside that existing owner's
+interaction Context. The label class callback runs there once per committed
+scope render, with a disposable snapshot, followed by explicit owner styles.
+The shared seven-field frame reaches participating opaque memo/View labels;
+only direct raw scalar children are normalized, not arbitrary React children.
+No second event machine, added Native box, animation driver or child cloning
+is introduced. A callback-supplied RN press snapshot remains distinct from the
+owner's committed interaction snapshot.
+
+Compiler regression tests fail at the former Button gate and pass with the
+new adapter; actual Metro-generated Button output is compared to the retained
+private reference and proof-selected route through ancestor changes, own
+overrides/removal, label state/host/ref identity, raw strings/zero, accessibility
+props and original press callbacks. The independent reference still delegates
+to the same existing event owner, not the new label adapter.
+
+A separate source-backed test drives that owner, not an imitation state
+machine. Three controls produce three existing owners/Native Pressable hosts
+and zero animation timings. Hover/press changes resolve the first label once,
+leave the sibling Text unchanged and do not lend state to the nested control.
+Local effective colors shield all three stable Text children from an ancestor
+paint update. A mutation regression ensures a label callback cannot alter the
+shared interaction value; transition and style-callback refusals are tested
+without invoking the refused callback. These helper-level state observations
+do not enable compiler state-conditioned classes or prove OS event delivery.
+
+Uncompiled typography, raw third-party/RN label hosts outside the protocol,
+other widget scopes, CSS/Native form-state parity, interrupted transitions,
+portals and native glyph/performance validation remain separate. The bounded
+compiler/static controls and historical device measurements stay unchanged.
+
+## Bounded state-conditioned labels
+
+The subsequent internal compiler slice admits hover, active, focus and
+focus-visible typography, and non-empty conjunctions of those conditions,
+on Button/Pressable's own seven label fields. It uses the existing condition
+codegen and event owner rather than interpreting CSS selectors again. Box
+conditions, conditional View/Text decorations, ambient/relational/negated/form
+conditions, style callbacks and transitions remain explicit refusals. The
+static proof is unchanged; these stateful owners retain the contextual route.
+
+The generated-module test drives ten stages through the actual owner callbacks:
+rest, hover, pointer focus/press, release, hover exit, blur, keyboard focus,
+child override, override removal and pointer modality. An opaque memoized Text
+behind View receives the effective frame in the independent reference,
+runtime-only and proof-selected modes. All seven fields are asserted, alongside
+stable label state, host identity and an unchanged sibling. The first attempt
+exposed a probe defect: the reference was wired to an unrelated interaction
+Context and stayed idle. It now consumes the real owner's singleton, while its
+inheritance model remains independent. The failing observation is not evidence
+of a production inheritance defect.
+
+A separate headless Chromium oracle executes Tailwind's generated CSS with
+real pointer/keyboard events and no Hozo lowering. Its first nine corresponding
+stages agree. The tenth deliberately records an existing modality boundary:
+clicking an already keyboard-focused button retains Chromium's `:focus-visible`,
+whereas the existing Native owner clears its explicit bit on pointer-down.
+This slice changes neither event policy and makes no claim of complete CSS/OS
+event parity. Both original failing probe logs are retained under local
+`artifacts/text-inheritance`, separately from the corrected successful runs.
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='Tailwind browser oracle for stateful' examples/storybook-demo/scripts/caller-composition.test.mjs
+```
+
+These are source-backed mock-host and actual browser observations, not new
+Android/iOS pixels or physical-device performance measurements. Ordinary
+Metro builds and docs capture still use ordinary lowering. Other real widget
+scopes, rendered portal destinations, interrupted transitions and update-cost
+gates remain before default activation.

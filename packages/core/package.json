@@ -112,6 +112,10 @@
       "types": "./dist/generated/image-source.d.ts",
       "default": "./dist/generated/image-source.js"
     },
+    "./generated/inherited-pressable": {
+      "types": "./dist/generated/inherited-pressable.d.ts",
+      "default": "./dist/generated/inherited-pressable.js"
+    },
     "./generated/inherited-relative-text": {
       "types": "./dist/generated/inherited-relative-text.d.ts",
       "default": "./dist/generated/inherited-relative-text.js"

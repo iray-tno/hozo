@@ -179,10 +179,61 @@ test('internal inheritance preserves semantic typography and runtime ratios with
   }
 })
 
+test('bounded label owners select the inherited adapter without changing ordinary output', () => {
+  const compiler = createCompiler()
+  for (const name of ['Button', 'Pressable']) {
+    const source = `import {${name},View,Text} from '@hozo/core';export const Owner=({children,own})=> <${name} className="text-[#1355bb] text-[20px] p-4" style={own}><View><Text>Visible</Text>{children}</View></${name}>`
+    const ordinary = compiler.compileNativeModule(source)
+    const selected = compiler.compileNativeModule(source, undefined, undefined, {
+      textInheritance: true,
+      textStatic: true,
+    })
+    assert.ok(
+      selected.components.every((c) => !c.diagnostics.some((d) => d.severity === 'error')),
+      JSON.stringify(selected.components),
+    )
+    assert.ok(selected.components[0].runtimeImports.includes('HozoInheritedPressable'))
+    assert.ok(!selected.components[0].runtimeImports.includes('HozoPressable'))
+    assert.match(selected.components[0].jsx, /hozoTextStyle=/)
+    assert.deepEqual(compiler.compileNativeModule(source), ordinary)
+  }
+})
+
+test('state-conditioned label typography is driven by its own Button or Pressable only', () => {
+  const compiler = createCompiler()
+  for (const name of ['Button', 'Pressable']) {
+    const source = `import {${name}} from '@hozo/core';export const Owner=({children})=> <${name} className="text-[#1355bb] hover:text-[#00aa00] active:text-[#cc0000] focus:font-semibold focus-visible:tracking-[2px] hover:active:text-[22px]">{children}</${name}>`
+    const ordinary = compiler.compileNativeModule(source)
+    const selected = compiler.compileNativeModule(source, undefined, undefined, {
+      textInheritance: true,
+      textStatic: true,
+    }).components[0]
+    assert.ok(
+      !selected.diagnostics.some((d) => d.severity === 'error'),
+      JSON.stringify(selected.diagnostics),
+    )
+    assert.match(selected.jsx, /HozoInheritedPressable/)
+    assert.match(selected.jsx, /hozoTextStyle=/)
+    assert.match(selected.jsx, /hozoFocusVisible/)
+    assert.doesNotMatch(
+      selected.jsx,
+      /style=\{\(/,
+      'host style callbacks are not implicitly assessed',
+    )
+    assert.deepEqual(compiler.compileNativeModule(source), ordinary)
+  }
+})
+
 test('internal runtime integration refuses unassessed primitives and conditions, not ordinary support', () => {
   const compiler = createCompiler()
   for (const source of [
-    `import {Button} from '@hozo/core'; export const Label=()=> <Button>Label</Button>`,
+    `import {Button} from '@hozo/core'; export const Label=()=> <Button className="active:bg-red-500">Label</Button>`,
+    `import {Button} from '@hozo/core'; export const Label=()=> <Button className="dark:text-red-500">Label</Button>`,
+    `import {Button} from '@hozo/core'; export const Label=()=> <Button className="not-hover:text-red-500">Label</Button>`,
+    `import {Button} from '@hozo/core'; export const Label=()=> <Button className="group-hover:text-red-500">Label</Button>`,
+    `import {Button} from '@hozo/core'; export const Label=()=> <Button className="disabled:text-red-500">Label</Button>`,
+    `import {Button} from '@hozo/core'; export const Label=()=> <Button className="data-[state=open]:text-red-500">Label</Button>`,
+    `import {View} from '@hozo/core'; export const Label=()=> <View className="hover:text-red-500">Label</View>`,
     `import {Text} from '@hozo/core'; export const Label=()=> <Text className="dark:text-red-500">Label</Text>`,
     `import {Code} from '@hozo/core'; export const Label=()=> <Code>Label</Code>`,
     `import {Emphasis} from '@hozo/core'; export const Label=()=> <Emphasis>Label</Emphasis>`,

@@ -4,7 +4,8 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import { buildSync } from 'esbuild'
-import type { ComponentType, Context } from 'react'
+import type { ComponentType, Context, ElementType } from 'react'
+import type { HozoInteractionContext } from '../../behaviors/src/pressable-interaction.ts'
 import type {
   HozoInheritedTextMetrics,
   HozoInheritedTextPaint,
@@ -22,20 +23,25 @@ type Runtime = {
   HozoInheritedText: ComponentType
   HozoInheritedRelativeText: ComponentType
   HozoInheritedView: ComponentType
+  HozoInheritedPressable?: ComponentType
+  HozoPressable?: ComponentType
+  HozoInteractionContext?: typeof HozoInteractionContext
   HozoInheritedMetricsContext: Context<HozoInheritedTextMetrics>
   HozoInheritedPaintContext: Context<HozoInheritedTextPaint>
 }
 
 export function loadTextInheritanceRuntime(
   legacy: Context<number>,
-  names = { Text: 'NativeText', View: 'NativeView' },
+  names: { Text: ElementType; View: ElementType } = { Text: 'NativeText', View: 'NativeView' },
+  labels = false,
 ) {
   const runtime = buildSync({
     stdin: {
       contents: `export {HozoInheritedText} from '@hozo/core/generated/inherited-text';
 export {HozoInheritedRelativeText} from '@hozo/core/generated/inherited-relative-text';
 export {HozoInheritedView} from '@hozo/core/generated/inherited-view';
-export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';`,
+export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';
+${labels ? "export {HozoInheritedPressable} from '@hozo/core/generated/inherited-pressable';export {HozoPressable} from '@hozo/core/generated/pressable';export {HozoInteractionContext} from '@hozo/behaviors/pressable-interaction';" : ''}`,
       resolveDir: fileURLToPath(new URL('../../../', import.meta.url)),
       sourcefile: 'runtime-probe.ts',
       loader: 'ts',
@@ -46,8 +52,23 @@ export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engin
     platform: 'node',
     jsx: 'automatic',
     metafile: true,
-    external: ['react', 'react/*', 'react-native', '@hozo/engine/generated/text-size-context'],
+    external: [
+      'react',
+      'react/*',
+      'react-native',
+      '@hozo/engine/generated/text-size-context',
+      ...(labels ? ['@hozo/engine'] : []),
+    ],
     alias: {
+      '@hozo/core/generated/inherited-pressable': fileURLToPath(
+        new URL('../../primitives/src/generated/inherited-pressable.ts', import.meta.url),
+      ),
+      '@hozo/core/generated/pressable': fileURLToPath(
+        new URL('../../primitives/src/generated/pressable.native.ts', import.meta.url),
+      ),
+      '@hozo/behaviors/pressable-interaction': fileURLToPath(
+        new URL('../../behaviors/src/pressable-interaction.ts', import.meta.url),
+      ),
       '@hozo/core/generated/inherited-relative-text': fileURLToPath(
         new URL('../../primitives/src/generated/inherited-relative-text.ts', import.meta.url),
       ),
@@ -68,6 +89,7 @@ export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engin
   assert.ok(files.some((file) => file.endsWith('primitives/src/inherited-view.native.tsx')))
   assert.ok(files.every((file) => !/text-inheritance-reference/.test(file)))
   const native = {
+    ...(labels ? require('./react-native-stub.js') : {}),
     ...names,
     StyleSheet: { create: (styles: object) => styles, flatten: flattenRuntimeStyle },
   }
@@ -76,6 +98,7 @@ export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engin
     (name: string) => {
       if (name === 'react' || name === 'react/jsx-runtime') return require(name)
       if (name === 'react-native') return native
+      if (name === '@hozo/engine') return require('../../engine/src/color-transition.ts')
       if (name === '@hozo/engine/generated/text-size-context')
         return { HozoTextSizeContext: legacy }
       throw new Error(`Unexpected shipped inheritance dependency: ${name}`)

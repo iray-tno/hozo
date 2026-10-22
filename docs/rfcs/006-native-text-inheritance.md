@@ -414,6 +414,27 @@ not integrated by this compiler slice. See the
 for the measured scope. Normal Metro builds and `ui-docs` screenshots still use
 ordinary lowering; helper integration is not a default rollout.
 
+The next [bounded label-owner slice](../native-text-inheritance-baseline.md#bounded-label-owner-compiler-integration)
+connects non-animated, unconditional Button/Pressable roots to a generated
+adapter over the existing event owner, without changing its ordinary source.
+The label scope publishes effective typography inside that owner, not around
+unrelated widget content. Stateful compiler conditions, transitions, callbacks
+on host styles, other widgets and default rollout remain unassessed. Its
+mock-host observations distinguish committed owner state, RN callback state,
+nested/sibling isolation and effective-frame notification shielding; they do
+not claim native event or performance results.
+
+The subsequent [state-conditioned label slice](../native-text-inheritance-baseline.md#bounded-state-conditioned-labels)
+admits the owner's existing hover/active/focus/focus-visible predicates and
+their conjunctions for its seven label fields only. It preserves the existing
+event machine and static proof. Generated-module comparisons and an independent
+Tailwind/Chromium oracle cover state, opaque descendants and local overrides;
+the evidence explicitly records Chromium's retained focus-visible on an
+already keyboard-focused button versus the Native owner's pointer-cleared bit.
+Neither policy is changed here. Conditional box/ambient/relational/form styles,
+other widget scopes, transitions, portals and ordinary default activation
+remain outside this increment.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.
