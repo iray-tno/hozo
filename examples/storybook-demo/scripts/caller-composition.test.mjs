@@ -1089,6 +1089,8 @@ test('the real Web TimePicker keeps owner form, text and interaction facts disti
     'p-5 hover:bg-[#dd1100] focus:opacity-75 focus-visible:font-bold aria-disabled:border-4 disabled:opacity-25 data-[hozo-disabled]:mt-8'
   const periodClasses =
     'p-4 hover:bg-[#dd1100] focus:opacity-75 disabled:opacity-25 aria-disabled:border-4 data-[hozo-disabled]:mt-8'
+  const stepClasses =
+    'absolute end-0 size-6 data-[hozo-step=increase]:top-0 data-[hozo-step=decrease]:bottom-0 data-[hozo-step=increase]:hover:opacity-50 data-[hozo-step=decrease]:hover:opacity-75 disabled:opacity-25'
   const fixture = await build({
     stdin: {
       contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoTimePicker} from ${JSON.stringify(source('packages/form/src/time-picker.tsx'))};
@@ -1118,7 +1120,11 @@ test('the real Web TimePicker keeps owner form, text and interaction facts disti
     await compile(
       '@theme { --spacing:.25rem; --text-lg:1.125rem; --font-weight-bold:700; } @tailwind utilities;',
     )
-  ).build(`${frame.className} ${frame.fieldClassName} ${valueClasses} ${periodClasses}`.split(' '))
+  ).build(
+    `${frame.className} ${frame.fieldClassName} ${valueClasses} ${periodClasses} ${stepClasses} relative min-h-12 pe-6`.split(
+      ' ',
+    ),
+  )
   const page = await browser.newPage()
   try {
     const preflight = readFileSync(
@@ -1158,8 +1164,48 @@ test('the real Web TimePicker keeps owner form, text and interaction facts disti
     assert.equal(await field.evaluate((e) => getComputedStyle(e).paddingTop), '0px')
     assert.equal(await root.evaluate((e) => getComputedStyle(e).paddingTop), '0px')
     assert.equal(await field.evaluate((e) => getComputedStyle(e).fontWeight), '400')
-    const owned = { valueClassName: valueClasses, periodClassName: periodClasses }
+    const owned = {
+      valueClassName: valueClasses,
+      periodClassName: periodClasses,
+      fieldClassName: 'relative min-h-12 pe-6',
+      stepClassName: stepClasses,
+    }
     await page.evaluate((props) => window.renderTime(props), owned)
+    const up = field.getByRole('button', { name: 'Increase Hour', exact: true })
+    const down = field.getByRole('button', { name: 'Decrease Hour', exact: true })
+    const geometry = () =>
+      field.evaluate((element) => {
+        const field = element.getBoundingClientRect()
+        const buttons = [...element.querySelectorAll('button')].map((button) => {
+          const r = button.getBoundingClientRect()
+          return {
+            top: r.top - field.top,
+            bottom: field.bottom - r.bottom,
+            width: r.width,
+            height: r.height,
+            left: r.left - field.left,
+            right: field.right - r.right,
+          }
+        })
+        return buttons
+      })
+    let arrows = await geometry()
+    assert.equal(arrows[0].top, 0)
+    assert.equal(arrows[1].bottom, 0)
+    for (const arrow of arrows)
+      assert.deepEqual([arrow.width, arrow.height, arrow.right], [24, 24, 0])
+    await page.locator('html').evaluate((element) => {
+      element.dir = 'rtl'
+    })
+    arrows = await geometry()
+    for (const arrow of arrows) assert.equal(arrow.left, 0, 'end follows actual direction')
+    await page.locator('html').evaluate((element) => {
+      element.dir = 'ltr'
+    })
+    await up.hover()
+    assert.equal(await up.evaluate((element) => getComputedStyle(element).opacity), '0.5')
+    await down.hover()
+    assert.equal(await down.evaluate((element) => getComputedStyle(element).opacity), '0.75')
     const value = field.getByRole('spinbutton')
     assert.deepEqual(
       await value.evaluate((e) => [
@@ -1190,6 +1236,10 @@ test('the real Web TimePicker keeps owner form, text and interaction facts disti
     assert.equal(await value.evaluate((e) => getComputedStyle(e).borderTopWidth), '4px')
     assert.equal(await value.evaluate((e) => getComputedStyle(e).marginTop), '32px')
     assert.equal(await period.isDisabled(), true)
+    assert.equal(await up.isDisabled(), true)
+    assert.equal(await down.isDisabled(), true)
+    assert.equal(await up.evaluate((element) => getComputedStyle(element).opacity), '0.25')
+    assert.equal(await down.evaluate((element) => getComputedStyle(element).opacity), '0.25')
     assert.equal(await period.getAttribute('aria-disabled'), null)
     assert.equal(await period.evaluate((e) => getComputedStyle(e).borderTopWidth), '0px')
     assert.equal(await period.evaluate((e) => getComputedStyle(e).opacity), '0.25')
@@ -1210,6 +1260,7 @@ test('the real Web TimePicker keeps owner form, text and interaction facts disti
     await page.evaluate(() => window.renderTime({ hour12: false }))
     assert.equal(await period.count(), 0)
     assert.equal(await value.evaluate((e) => getComputedStyle(e).paddingTop), '0px')
+    assert.equal(await up.evaluate((element) => getComputedStyle(element).position), 'static')
   } finally {
     await page.close()
   }

@@ -702,7 +702,7 @@
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
     ],
-    "unapplied": ["stepClassName"]
+    "unapplied": []
   },
   "toolbar": {
     "missing": [],

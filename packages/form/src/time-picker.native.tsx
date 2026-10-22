@@ -4,7 +4,6 @@ import { hozoSplitTextStyle } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
 import { useCallback, useState } from 'react'
 import {
-  Pressable,
   type StyleProp,
   StyleSheet,
   Text,
@@ -32,7 +31,7 @@ export interface HozoTimePickerProps {
    * Group/field classes resolve through the project candidate map with
    * non-control facts. Their text reaches owned labels below each child's
    * own declarations. Value and period resolve with their own interaction
-   * and form/ARIA facts. Step classes remain a separate consumer.
+   * and form/ARIA facts. Steps also supply their own direction predicates.
    */
   className?: string
   fieldClassName?: string
@@ -46,7 +45,7 @@ export interface HozoTimePickerProps {
    */
   valueClassName?: string
   periodClassName?: string
-  /** Source-level slot; `stepStyle` supplies the Native runtime appearance. */
+  /** On each step button, including its increase/decrease data predicates. */
   stepClassName?: string
   style?: StyleProp<ViewStyle>
   /** @internal Resolved picker ancestry, below this control's own text styles. */
@@ -221,6 +220,7 @@ export function HozoTimePicker({
   fieldClassName,
   valueClassName,
   periodClassName,
+  stepClassName,
   hozoInheritedTextStyle,
   style,
   fieldStyle,
@@ -330,16 +330,22 @@ export function HozoTimePicker({
   const fieldLabelStyle: StyleProp<TextStyle> = [rootLabelStyle, fieldText as TextStyle]
 
   const stepper = (field: 'hour' | 'minute' | 'period', direction: 1 | -1, glyph: string) => (
-    <Pressable
-      accessibilityRole="button"
+    <PickerButton
       accessibilityLabel={`${direction === 1 ? increaseLabel : decreaseLabel} ${fieldName(field)}`}
-      accessibilityState={{ disabled }}
       disabled={disabled}
+      className={stepClassName}
+      dataFacts={{
+        'data-hozo-step': true,
+        'data-hozo-step=increase': direction === 1,
+        'data-hozo-step=decrease': direction === -1,
+        'data-hozo-disabled': disabled,
+      }}
       style={stepStyle}
+      inheritedTextStyle={fieldLabelStyle}
       onPress={() => stepBy(field, direction)}
     >
-      <Text style={fieldLabelStyle}>{glyph}</Text>
-    </Pressable>
+      {glyph}
+    </PickerButton>
   )
 
   const field = (name: 'hour' | 'minute', label: string) => (
