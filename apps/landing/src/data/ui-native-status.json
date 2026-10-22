@@ -291,7 +291,7 @@
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
     ],
-    "unapplied": ["dialogClassName"]
+    "unapplied": []
   },
   "date-range-picker": {
     "missing": [
@@ -342,7 +342,7 @@
         "reason": "CSS transitions: React Native has no declarative transition in its StyleSheet"
       }
     ],
-    "unapplied": ["dialogClassName"]
+    "unapplied": []
   },
   "date-time-picker": {
     "missing": [
@@ -393,7 +393,7 @@
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
     ],
-    "unapplied": ["dialogClassName", "doneClassName"]
+    "unapplied": []
   },
   "dialog": {
     "missing": [
@@ -702,13 +702,7 @@
         "reason": "`cursor-not-allowed`: React Native's cursor accepts only `auto` and `pointer`"
       }
     ],
-    "unapplied": [
-      "className",
-      "fieldClassName",
-      "valueClassName",
-      "stepClassName",
-      "periodClassName"
-    ]
+    "unapplied": ["valueClassName", "stepClassName", "periodClassName"]
   },
   "toolbar": {
     "missing": [],

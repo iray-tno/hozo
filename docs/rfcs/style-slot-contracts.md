@@ -415,6 +415,18 @@ TimePicker's own class consumers, arbitrary-content inheritance, Native
 Modal focus restoration and hardware/AT/pixel/performance proof remain
 separate work.
 
+TimePicker's root className and fieldClassName now resolve on distinct
+NonControl owners, with explicit Native box styles last. Root typography
+follows incoming resolved picker text, then each field's own typography,
+then explicit fieldTextStyle on the values. The arrows inherit their field's
+text; the period is a sibling and does not receive fieldClassName. Its legacy
+Native fieldStyle override is preserved separately. No host, hook or provider
+is added by this chrome slice. The value, period and step class consumers
+remain separate; in particular, consuming the step's absolute positioning
+without its valued data selectors would overlap arrows, not complete support.
+Existing tabular-nums and other runtime utility/condition refusals still
+diagnose rather than being presented as full CSS or device/pixel parity.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner

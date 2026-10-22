@@ -1,7 +1,18 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoClasses } from '@hozo/engine/project'
 import { useCallback, useState } from 'react'
-import { Pressable, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import {
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 
+import { nonControlClassFacts } from './class-facts.native.ts'
 import { hourLabel, minuteLabel, timeLabel, usesTwelveHour } from './time-format.ts'
 import {
   addHours,
@@ -16,16 +27,14 @@ export interface HozoTimePickerProps {
   /**
    * Tailwind classes, the same prop the Web half takes.
    *
-   * On a tag the compiler lowers it is gone by runtime, replaced by a
-   * `StyleSheet` entry. Anywhere else it is carried and ignored here --
-   * this side has no CSS engine to resolve a class list against -- and
-   * the type still has to accept it, because an app is type-checked
-   * against the source the compiler reads rather than its output.
+   * Group/field classes resolve through the project candidate map with
+   * non-control facts. Their text reaches owned labels below each child's
+   * own declarations. Value/period/step classes remain separate consumers.
    */
   className?: string
   fieldClassName?: string
   /**
-   * Carried and ignored here, like every class name on this side.
+   * Still unapplied here; group and field classes have their own consumers.
    *
    * The prop lists stay in step: the Web half needs this one because its
    * `role="spinbutton"` is the element a pointer has to hit and it had no class
@@ -69,10 +78,10 @@ export interface HozoTimePickerProps {
   /**
    * What the stepping controls are called.
    *
-   * They exist only on this side. The Web half has no buttons because it has
-   * arrow keys; here there is neither a keyboard nor a tab order, so each
-   * field gets a pair -- and a pair of unlabelled chevrons is two elements a
-   * screen reader calls "button".
+   * Both halves have arrows. The Web keeps them out of the tab order because
+   * a focused field already owns Up/Down; Native keeps them reachable beside
+   * the accessibility actions. Unlabelled chevrons would be two elements a
+   * screen reader calls only "button".
    */
   increaseLabel?: string
   decreaseLabel?: string
@@ -117,6 +126,8 @@ const INCREMENT_DECREMENT = [{ name: 'increment' }, { name: 'decrement' }] as co
  * see the comment at that prop for what the device found.
  */
 export function HozoTimePicker({
+  className,
+  fieldClassName,
   hozoInheritedTextStyle,
   style,
   fieldStyle,
@@ -212,6 +223,19 @@ export function HozoTimePicker({
     return periodFieldLabel
   }
 
+  const [rootBox, rootText] = hozoSplitTextStyle(
+    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), style]) ?? {},
+  )
+  const [fieldBox, fieldText] = hozoSplitTextStyle(
+    StyleSheet.flatten([hozoClasses(fieldClassName, nonControlClassFacts), fieldStyle]) ?? {},
+  )
+  // The period is a sibling of the two field groups on Web, not another
+  // fieldClassName consumer. Preserve its legacy Native fieldStyle override
+  // without leaking the group's class list onto that different owner.
+  const [periodBox, periodTextStyle] = hozoSplitTextStyle(StyleSheet.flatten(fieldStyle) ?? {})
+  const rootLabelStyle: StyleProp<TextStyle> = [hozoInheritedTextStyle, rootText as TextStyle]
+  const fieldLabelStyle: StyleProp<TextStyle> = [rootLabelStyle, fieldText as TextStyle]
+
   const stepper = (field: 'hour' | 'minute' | 'period', direction: 1 | -1, glyph: string) => (
     <Pressable
       accessibilityRole="button"
@@ -221,12 +245,12 @@ export function HozoTimePicker({
       style={stepStyle}
       onPress={() => stepBy(field, direction)}
     >
-      <Text style={hozoInheritedTextStyle}>{glyph}</Text>
+      <Text style={fieldLabelStyle}>{glyph}</Text>
     </Pressable>
   )
 
   const field = (name: 'hour' | 'minute', label: string) => (
-    <View style={fieldStyle}>
+    <View style={fieldBox as ViewStyle}>
       {stepper(name, 1, '▲')}
       <View
         // The line this whole control turned on, and it was missing.
@@ -264,7 +288,7 @@ export function HozoTimePicker({
         }}
         accessibilityState={{ disabled }}
       >
-        <Text style={[hozoInheritedTextStyle, fieldTextStyle]}>{textOf(name)}</Text>
+        <Text style={[fieldLabelStyle, fieldTextStyle]}>{textOf(name)}</Text>
       </View>
       {/*
         The steppers stay on the walk rather than being hidden behind the
@@ -278,7 +302,11 @@ export function HozoTimePicker({
   )
 
   return (
-    <View accessibilityRole="none" accessibilityLabel={accessibilityLabel} style={style}>
+    <View
+      accessibilityRole="none"
+      accessibilityLabel={accessibilityLabel}
+      style={rootBox as ViewStyle}
+    >
       {field('hour', hourFieldLabel)}
       {field('minute', minuteFieldLabel)}
       {twelve ? (
@@ -288,10 +316,12 @@ export function HozoTimePicker({
           accessibilityValue={{ text: spoken }}
           accessibilityState={{ disabled }}
           disabled={disabled}
-          style={fieldStyle}
+          style={periodBox as ViewStyle}
           onPress={() => stepBy('period', 1)}
         >
-          <Text style={[hozoInheritedTextStyle, fieldTextStyle]}>{periodText()}</Text>
+          <Text style={[rootLabelStyle, periodTextStyle as TextStyle, fieldTextStyle]}>
+            {periodText()}
+          </Text>
         </Pressable>
       ) : null}
     </View>

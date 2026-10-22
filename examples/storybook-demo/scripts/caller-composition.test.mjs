@@ -1076,6 +1076,89 @@ for (const [name, file, value] of [
   })
 }
 
+test('the real Web TimePicker keeps group and field text below the value and sibling period', {
+  skip: !executablePath,
+}, async () => {
+  const source = (relative) =>
+    fileURLToPath(new URL(`../../../${relative}`, import.meta.url)).replaceAll('\\', '/')
+  const frame = {
+    className: 'p-4 text-[#dd1100] font-bold disabled:opacity-25 aria-disabled:mt-8',
+    fieldClassName: 'p-3 text-[#0011dd] text-lg disabled:opacity-25 aria-disabled:mt-8',
+  }
+  const fixture = await build({
+    stdin: {
+      contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoTimePicker} from ${JSON.stringify(source('packages/form/src/time-picker.tsx'))};
+      const root=createRoot(document.getElementById('time')); window.timeChanges=[];
+      window.renderTime = props => flushSync(() => root.render(createElement(HozoTimePicker,{defaultValue:{hour:9,minute:10},hour12:true,locale:'en-US',onChange:next=>window.timeChanges.push(next),...props})));
+      window.renderTime(${JSON.stringify({ ...frame, disabled: true })});`,
+      resolveDir: source('examples/storybook-demo'),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+    plugins: [
+      {
+        name: 'time-i18n',
+        setup(builder) {
+          builder.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
+            path: source('packages/behaviors/src/i18n.ts'),
+          }))
+        },
+      },
+    ],
+  })
+  const css = (
+    await compile(
+      '@theme { --spacing:.25rem; --text-lg:1.125rem; --font-weight-bold:700; } @tailwind utilities;',
+    )
+  ).build(`${frame.className} ${frame.fieldClassName}`.split(' '))
+  const page = await browser.newPage()
+  try {
+    const preflight = readFileSync(
+      fileURLToPath(import.meta.resolve('tailwindcss/preflight.css')),
+      'utf8',
+    )
+    await page.setContent(`<!doctype html><style>${preflight}\n${css}</style><div id="time"></div>`)
+    await page.addScriptTag({ content: fixture.outputFiles[0].text })
+    const root = page.locator('#time > div')
+    const field = page.locator('[data-hozo-field="hour"]')
+    for (const box of [root, field]) {
+      assert.deepEqual(
+        await box.evaluate((e) => [
+          e.matches(':disabled'),
+          e.matches(':enabled'),
+          e.matches(':read-only'),
+        ]),
+        [false, false, true],
+      )
+      assert.equal(await box.evaluate((e) => getComputedStyle(e).opacity), '1')
+      assert.equal(await box.evaluate((e) => getComputedStyle(e).marginTop), '0px')
+    }
+    assert.equal(await root.evaluate((e) => getComputedStyle(e).paddingTop), '16px')
+    assert.equal(await field.evaluate((e) => getComputedStyle(e).paddingTop), '12px')
+    for (const label of [field.getByRole('spinbutton'), field.getByRole('button').first()])
+      assert.deepEqual(
+        await label.evaluate((e) => {
+          const s = getComputedStyle(e)
+          return [s.color, s.fontSize, s.fontWeight]
+        }),
+        ['rgb(0, 17, 221)', '18px', '700'],
+      )
+    const period = page.getByRole('button', { name: 'AM or PM', exact: true })
+    assert.equal(await period.evaluate((e) => getComputedStyle(e).color), 'rgb(221, 17, 0)')
+    assert.equal(await period.evaluate((e) => getComputedStyle(e).fontSize), '16px')
+    await page.evaluate(() => window.renderTime({ disabled: true }))
+    assert.equal(await field.evaluate((e) => getComputedStyle(e).paddingTop), '0px')
+    assert.equal(await root.evaluate((e) => getComputedStyle(e).paddingTop), '0px')
+    assert.equal(await field.evaluate((e) => getComputedStyle(e).fontWeight), '400')
+  } finally {
+    await page.close()
+  }
+})
+
 for (const host of ['View', 'Text', 'Chip root', 'Chip remove']) {
   test(`a mixed ternary keeps own classes below caller classes on ${host}`, {
     skip: !executablePath,
