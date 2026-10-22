@@ -42,7 +42,7 @@ if (failures === 0) {
     const col = d.location?.start?.column ?? 1
     const code = d.category ?? 'lint'
     const msg = d.message?.[0]?.content ?? 'Biome diagnostic'
-    cases += `    <testcase name="${esc(file)}:${line}" classname="${esc(code)}">\n`
+    cases += `    <testcase name="${esc(file)}:${line}" classname="${esc(code)}" file="${esc(file)}">\n`
     cases += `      <failure message="${esc(msg)}" type="${esc(d.severity ?? 'error')}">${esc(msg)}\n  at ${esc(file)}:${line}:${col}</failure>\n`
     cases += `    </testcase>\n`
   }
@@ -50,7 +50,7 @@ if (failures === 0) {
 
 process.stdout.write(`<?xml version="1.0" encoding="UTF-8"?>
 <testsuites name="Biome" tests="${tests}" failures="${failures}" errors="0">
-  <testsuite name="Biome" tests="${tests}" failures="${failures}" errors="0">
+  <testsuite name="Biome" package="Static Analysis" tests="${tests}" failures="${failures}" errors="0">
 ${cases}  </testsuite>
 </testsuites>
 `)

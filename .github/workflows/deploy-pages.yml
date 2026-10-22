@@ -23,7 +23,8 @@ on:
     types: [completed]
 
 permissions:
-  # Reads native-showcase's screenshot artifact for the docs pages.
+  # Reads native-showcase's screenshot artifact for the docs pages and
+  # workflow run history for the Allure verification report.
   actions: read
   contents: read
   pages: write
@@ -85,7 +86,9 @@ jobs:
       - name: Report (Rust nextest)
         run: |
           mkdir -p junit-reports
-          node packages/test-reporter/src/run-command-junit.mjs nextest cargo nextest run --workspace --profile ci || true
+          if node packages/test-reporter/src/run-command-junit.mjs nextest cargo nextest run --workspace --profile ci && [ -f target/nextest/ci/nextest.xml ]; then
+            rm -f junit-reports/slow-nextest.xml
+          fi
           if [ -f target/nextest/ci/nextest.xml ]; then
             cp target/nextest/ci/nextest.xml junit-reports/nextest.xml
             node packages/test-reporter/src/normalize-junit.mjs rust junit-reports/nextest.xml || true
@@ -100,12 +103,16 @@ jobs:
       - name: Report (TypeScript & Unit tests)
         # A discovery/runner crash must also leave a failed suite, even if it
         # happens before the per-package reports can be written.
-        run: node packages/test-reporter/src/run-command-junit.mjs node-tests node packages/test-reporter/src/run-tests-junit.mjs || true
+        run: |
+          node packages/test-reporter/src/run-command-junit.mjs node-tests node packages/test-reporter/src/run-tests-junit.mjs || true
+          if [ -f junit-reports/node-summary.xml ]; then
+            rm -f junit-reports/slow-node-tests.xml
+          fi
 
       - name: Report (real app integration builds)
         # Several app exports/Next builds otherwise compete with Metro's own
         # workers. Keep the same checks/deadlines, with two app tasks at once.
-        run: node packages/test-reporter/src/run-command-junit.mjs integration pnpm test:integration --concurrency=2 || true
+        run: node packages/test-reporter/src/run-command-junit.mjs integration pnpm test:integration --concurrency=2 --continue --summarize || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -120,10 +127,17 @@ jobs:
           if-no-files-found: warn
 
       - name: Report (performance tripwires)
-        run: node packages/test-reporter/src/run-command-junit.mjs performance pnpm test:performance || true
+        run: node packages/test-reporter/src/run-command-junit.mjs performance pnpm test:performance --summarize || true
 
       - name: Report (full differential conformance)
-        run: node packages/test-reporter/src/run-command-junit.mjs conformance pnpm report:conformance || true
+        run: |
+          pnpm --filter @hozo/compiler build:native:release
+          node packages/test-reporter/src/run-command-junit.mjs conformance pnpm turbo run report --summarize -- --check || true
+
+      - name: Report (optional & cross-platform CI workflows)
+        run: node packages/test-reporter/src/workflows-to-junit.mjs || true
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Fetch previous Allure history
         run: |

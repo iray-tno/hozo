@@ -31,13 +31,26 @@ function compiledTypeScriptSource(relativePath, root) {
   return undefined
 }
 
-function typescriptSource(testcase, root) {
-  const raw = testcase.getAttribute('file')?.replaceAll('\\', '/')
+function fileSource(testcase, root) {
+  const raw = (
+    testcase.getAttribute('file') || testcase.parentNode?.getAttribute('file')
+  )?.replaceAll('\\', '/')
   if (!raw) return undefined
 
   const packageIndex = raw.indexOf('packages/')
-  if (packageIndex === -1) return undefined
-  return compiledTypeScriptSource(raw.slice(packageIndex), root)
+  if (packageIndex !== -1) {
+    return compiledTypeScriptSource(raw.slice(packageIndex), root)
+  }
+
+  const repoMatch = raw.match(/(?:^|\/)((?:scripts|apps|examples|crates|\.github)\/.+)$/)
+  if (repoMatch) {
+    const candidate = repoMatch[1]
+    if (existsSync(join(root, ...candidate.split('/')))) return candidate
+    return candidate
+  }
+
+  if (existsSync(join(root, ...raw.split('/')))) return raw
+  return undefined
 }
 
 function rustSource(testcase, root) {
@@ -61,8 +74,26 @@ function rustSource(testcase, root) {
 export function sourcePathForCase(testcase, root = repositoryRoot) {
   const suite = testcase.parentNode
   const language = suite?.getAttribute('package')
-  if (language === 'TypeScript') return typescriptSource(testcase, root)
-  if (language === 'Rust') return rustSource(testcase, root)
+  if (language === 'Rust') return rustSource(testcase, root) ?? fileSource(testcase, root)
+  return fileSource(testcase, root)
+}
+
+function subSuiteFor(parentSuite, suiteName, classname) {
+  if (!classname || classname === 'root' || classname === 'test' || classname === suiteName) {
+    return undefined
+  }
+  if (parentSuite === 'Rust') {
+    const prefix = `${suiteName}::`
+    return classname.startsWith(prefix) ? classname.slice(prefix.length) : classname
+  }
+  if (parentSuite === 'TypeScript') {
+    if (classname === 'package.pipeline') return 'pipeline'
+    return classname
+  }
+  if (parentSuite === 'Integration & Conformance') {
+    const prefix = `${suiteName}::`
+    if (classname.startsWith(prefix)) return classname.slice(prefix.length)
+  }
   return undefined
 }
 
@@ -93,6 +124,61 @@ function attachmentFor(testcase, tagName, name, uuid, outputDirectory) {
   return { name, type: 'text/plain', source }
 }
 
+function stepsFor(testcase, startTime) {
+  const stepElements = Array.from(testcase.getElementsByTagName('step'))
+  let cursor = startTime
+  return stepElements.map((step) => {
+    const duration = Math.max(0, Number(step.getAttribute('time') || 0) * 1000)
+    const item = {
+      name: step.getAttribute('name') || 'Step',
+      status: step.getAttribute('status') || 'passed',
+      stage: 'finished',
+      start: cursor,
+      stop: cursor + duration,
+    }
+    cursor += duration
+    return item
+  })
+}
+
+function parametersFor(testcase) {
+  const pairs = [
+    ['branch', testcase.getAttribute('branch')],
+    ['commit', testcase.getAttribute('sha')],
+    ['event', testcase.getAttribute('event')],
+    ['completed', testcase.getAttribute('completed-at')],
+  ]
+  return pairs.filter(([, value]) => Boolean(value)).map(([name, value]) => ({ name, value }))
+}
+
+function linksFor(testcase, sourcePath) {
+  const links = []
+  if (sourcePath) {
+    links.push({
+      name: sourcePath,
+      type: 'source',
+      url: `${repositoryUrl}/blob/main/${sourcePath}`,
+    })
+  }
+  const jobUrl = testcase.getAttribute('job-url')
+  const runUrl = testcase.getAttribute('run-url')
+  if (jobUrl) {
+    links.push({
+      name: 'GitHub Actions Job',
+      type: 'tms',
+      url: jobUrl,
+    })
+  }
+  if (runUrl && runUrl !== jobUrl) {
+    links.push({
+      name: 'GitHub Actions Run',
+      type: 'issue',
+      url: runUrl,
+    })
+  }
+  return links
+}
+
 function convertCase(testcase, outputDirectory, root) {
   const suite = testcase.parentNode
   const name = testcase.getAttribute('name') || 'Unnamed test'
@@ -102,12 +188,26 @@ function convertCase(testcase, outputDirectory, root) {
   const fullName = `${classname}.${name}`
   const uuid = randomUUID()
   const duration = Math.max(0, Number(testcase.getAttribute('time') || 0) * 1000)
-  const start = Date.now()
+  const completedAt = Date.parse(testcase.getAttribute('completed-at') ?? '')
+  const stop = Number.isFinite(completedAt) ? completedAt : Date.now() + duration
+  const start = Math.max(0, stop - duration)
   const sourcePath = sourcePathForCase(testcase, root)
+  const parentSuite = suite?.getAttribute('package') || 'Tests'
+  const suiteName = suite?.getAttribute('name') || 'Tests'
+  const subSuite = subSuiteFor(parentSuite, suiteName, classname)
   const attachments = [
     attachmentFor(testcase, 'system-out', 'System output', uuid, outputDirectory),
     attachmentFor(testcase, 'system-err', 'System error', uuid, outputDirectory),
   ].filter(Boolean)
+  const steps = stepsFor(testcase, start)
+  const parameters = parametersFor(testcase)
+
+  const labels = [
+    { name: 'parentSuite', value: parentSuite },
+    { name: 'suite', value: suiteName },
+    ...(subSuite ? [{ name: 'subSuite', value: subSuite }] : []),
+    { name: 'testClass', value: classname },
+  ]
 
   return {
     uuid,
@@ -117,21 +217,11 @@ function convertCase(testcase, outputDirectory, root) {
     statusDetails: statusDetailsFor(testcase),
     stage: 'finished',
     start,
-    stop: start + duration,
-    labels: [
-      { name: 'parentSuite', value: suite?.getAttribute('package') || 'Tests' },
-      { name: 'suite', value: suite?.getAttribute('name') || 'Tests' },
-      { name: 'testClass', value: classname },
-    ],
-    links: sourcePath
-      ? [
-          {
-            name: sourcePath,
-            type: 'source',
-            url: `${repositoryUrl}/blob/main/${sourcePath}`,
-          },
-        ]
-      : [],
+    stop,
+    labels,
+    links: linksFor(testcase, sourcePath),
+    ...(steps.length > 0 ? { steps } : {}),
+    ...(parameters.length > 0 ? { parameters } : {}),
     attachments,
   }
 }
