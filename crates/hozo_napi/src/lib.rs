@@ -1106,6 +1106,9 @@ pub fn analyze_react_native_usage(source: String, source_file: Option<String>) -
 pub struct CompiledNativeModule {
     /// Source parser errors, even when no lowerable JSX root was recovered.
     pub syntax_diagnostics: Vec<CompileDiagnostic>,
+    /// About the module rather than one component: a class React Native
+    /// cannot draw in a class prop no component lowered (#1166).
+    pub diagnostics: Vec<CompileDiagnostic>,
     pub components: Vec<CompiledNativeComponent>,
     pub imports: Vec<SourceImport>,
     pub jsx_bindings: Vec<String>,
@@ -1216,12 +1219,19 @@ fn lower_native_module(
     let mut jsx_bindings: Vec<String> = parsed.jsx_bindings.iter().cloned().collect();
     jsx_bindings.sort();
 
+    let class_diagnostics = hozo_native::native_class_diagnostics(&parsed);
     // Valid modules already built their offset table during component lowering.
-    // Do not walk/allocate it a second time just to return an empty error list.
+    // Do not walk/allocate it a second time just to return an empty list.
+    let offsets = (!parsed.syntax_errors.is_empty() || !class_diagnostics.is_empty())
+        .then(|| Utf16Offsets::new(source));
+    let diagnostics = class_diagnostics
+        .into_iter()
+        .map(|diagnostic| to_js_diagnostic(diagnostic, offsets.as_ref().expect("built above")))
+        .collect();
     let syntax_diagnostics = if parsed.syntax_errors.is_empty() {
         Vec::new()
     } else {
-        let offsets = Utf16Offsets::new(source);
+        let offsets = offsets.as_ref().expect("built above");
         parsed
             .syntax_errors
             .iter()
@@ -1240,6 +1250,7 @@ fn lower_native_module(
         jsx_bindings,
         foreign_primitives,
         syntax_diagnostics,
+        diagnostics,
     }
 }
 

@@ -22,7 +22,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { compile, compileNative } from '@hozo/compiler'
+import { compile, compileNative, createCompiler } from '@hozo/compiler'
 
 function repoRoot(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
@@ -173,6 +173,16 @@ const PROVOCATIONS: Record<string, Provocation> = {
   MOTION_IGNORES_REDUCED_MOTION: {
     source: '<View className="transition starting:translate-y-4">x</View>',
   },
+  // A grabber drawn with `before:`, on a pattern the compiler only carries.
+  // Raised about the module, not a component: nothing in it is lowered.
+  CLASS_NOT_DRAWN_ON_NATIVE: {
+    module:
+      `import { BottomSheet } from '@hozo/patterns'
+` +
+      `export function C() { return <BottomSheet handleClassName="before:block" /> }
+`,
+    backend: 'native',
+  },
 }
 
 /**
@@ -229,6 +239,12 @@ export function compareDiagnostic(code: string): DiagnosticResult {
   if (backend !== 'web') {
     try {
       collect(compileNative(source))
+    } catch {
+      // As above.
+    }
+    try {
+      // What the module compile says about the module as a whole.
+      collect([createCompiler().compileNativeModule(source)])
     } catch {
       // As above.
     }

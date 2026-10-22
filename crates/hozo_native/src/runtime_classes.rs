@@ -17,7 +17,12 @@
 //! form validation, an arbitrary selector or at-rule), and a property
 //! React Native has no style for.
 
-use hozo_ir::{Condition, FormState, PseudoElement, StyleProperty};
+use std::collections::HashMap;
+
+use hozo_ir::{
+    Child, Condition, Diagnostic, DiagnosticCode, FormState, Node, PseudoElement, Severity,
+    StyleProperty,
+};
 
 /// How much a class's absence matters on Native.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -122,13 +127,19 @@ pub struct NativeClassFinding {
     pub kind: NativeClassKind,
     pub reason: String,
     pub span: hozo_ir::SourceSpan,
+    /// The element's name; see `RuntimeClassList::element_span`.
+    pub element_span: hozo_ir::SourceSpan,
 }
 
 /// Every class in the module's class props that React Native cannot draw,
 /// once per element, prop and class.
 pub fn native_class_report(source: &str) -> Vec<NativeClassFinding> {
+    native_class_findings(&hozo_parser::runtime_class_lists(source))
+}
+
+fn native_class_findings(lists: &[hozo_parser::RuntimeClassList]) -> Vec<NativeClassFinding> {
     let mut out: Vec<NativeClassFinding> = Vec::new();
-    for list in hozo_parser::runtime_class_lists(source) {
+    for list in lists {
         for literal in &list.literals {
             for class_name in literal.split_whitespace() {
                 let Some(verdict) = native_class_verdict(class_name) else {
@@ -147,12 +158,89 @@ pub fn native_class_report(source: &str) -> Vec<NativeClassFinding> {
                         kind: verdict.kind,
                         reason: verdict.reason,
                         span: list.span,
+                        element_span: list.element_span,
                     });
                 }
             }
         }
     }
     out
+}
+
+/// The build's half of the report (#1166): a warning per class React
+/// Native cannot draw, in a class prop the Native backend did not read.
+///
+/// A prop the compiler read whole is left out: anything Native cannot do
+/// with its classes was already said, as an error where there is no correct
+/// output, and saying it twice would teach a reader to skim. What is left
+/// is a class list that reaches the runtime resolver and is dropped there
+/// without a word -- a pattern's prop, which the compiler only carries, or
+/// a lowered element's `cx(look, className)` it could not take apart.
+pub fn native_class_diagnostics(parsed: &hozo_parser::ParseOutput) -> Vec<Diagnostic> {
+    let mut lowered = HashMap::new();
+    for root in &parsed.roots {
+        lowered_nodes(&root.node, &mut lowered);
+    }
+    // A `Canvas.*` element's classes belong to the Canvas pass, which runs
+    // first and says what it cannot paint (`CANVAS_CLASS_NOT_LOWERED`).
+    let canvas: Vec<&str> = parsed
+        .imports
+        .iter()
+        .filter(|entry| entry.source == "@hozo/canvas")
+        .map(|entry| entry.local.as_str())
+        .collect();
+    native_class_findings(&parsed.runtime_class_lists)
+        .into_iter()
+        .filter(|finding| {
+            finding.kind == NativeClassKind::Missing
+                && !canvas.contains(&finding.element.split('.').next().unwrap_or_default())
+                && !lowered
+                    .get(&finding.element_span.start)
+                    .is_some_and(|node| read_whole(node, &finding.prop))
+        })
+        .map(|finding| Diagnostic {
+            code: DiagnosticCode::ClassNotDrawnOnNative,
+            severity: Severity::Warning,
+            message: format!(
+                "`{}` in {} on <{}> is not drawn on React Native: {}.",
+                finding.class_name,
+                finding.prop,
+                finding.element,
+                finding.reason.trim_end_matches('.')
+            ),
+            span: finding.span,
+        })
+        .collect()
+}
+
+fn lowered_nodes<'n>(node: &'n Node, out: &mut HashMap<u32, &'n Node>) {
+    out.insert(node.opening_tag_span.start, node);
+    for child in &node.children {
+        if let Child::Node(child) = child {
+            lowered_nodes(child, out);
+        }
+    }
+}
+
+/// Whether the static backend read every class `prop` can hold, and so
+/// has already said what Native makes of them.
+fn read_whole(node: &Node, prop: &str) -> bool {
+    if node
+        .props
+        .passthrough
+        .iter()
+        .any(|carried| carried.name.as_deref() == Some(prop))
+    {
+        return false;
+    }
+    if prop == "className" {
+        return node.class_name_fallback.is_empty();
+    }
+    node.props
+        .class_slots
+        .iter()
+        .find(|slot| slot.slot.class_prop == prop)
+        .is_some_and(|slot| slot.fallback.is_empty())
 }
 
 #[cfg(test)]
@@ -226,5 +314,54 @@ mod tests {
             ]
         );
         assert!(report.iter().all(|f| f.element == "BottomSheet"));
+    }
+
+    #[test]
+    fn the_build_warns_only_where_nothing_lowered_the_prop_and_only_about_what_is_missing() {
+        // The View is lowered, and its `before:block` was already refused
+        // by the static backend; the pattern's was not looked at, and its
+        // cursor is cosmetic.
+        let source = r#"import { BottomSheet } from '@hozo/patterns'
+import { View } from '@hozo/core'
+export function Sheet() {
+  return (
+    <View className="before:block">
+      <BottomSheet handleClassName="h-6 before:block cursor-grab" />
+    </View>
+  )
+}"#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let diagnostics = native_class_diagnostics(&parsed);
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert!(!diagnostics[0].message.ends_with(".."));
+        let diagnostic = &diagnostics[0];
+        assert_eq!(diagnostic.code, DiagnosticCode::ClassNotDrawnOnNative);
+        assert_eq!(diagnostic.severity, Severity::Warning);
+        assert!(
+            diagnostic
+                .message
+                .starts_with("`before:block` in handleClassName on <BottomSheet>"),
+            "{}",
+            diagnostic.message
+        );
+        let attribute = &source[diagnostic.span.start as usize..diagnostic.span.end as usize];
+        assert!(attribute.starts_with("handleClassName="), "{attribute}");
+    }
+
+    #[test]
+    fn a_lowered_element_whose_class_list_went_to_the_resolver_is_still_reported() {
+        // `cx(panel, className)` with a prop in it is resolved on device, so
+        // nothing read `backdrop:` at build time.
+        let source = r#"import { cx, View } from '@hozo/core'
+const panel = 'p-4 backdrop:bg-black/50'
+export function Panel({ className }) {
+  return <View className={cx(panel, className)} />
+}"#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let diagnostics = native_class_diagnostics(&parsed);
+        assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+        assert!(diagnostics[0]
+            .message
+            .starts_with("`backdrop:bg-black/50` in className on <View>"));
     }
 }

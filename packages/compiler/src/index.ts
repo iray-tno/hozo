@@ -225,6 +225,8 @@ export interface StylexExternalBinding {
 export interface CompiledNativeModule {
   /** Source parser errors, including modules with no lowerable JSX roots. */
   syntaxDiagnostics: CompileDiagnostic[]
+  /** About the module rather than one component: a class React Native cannot draw in a class prop no component lowered (#1166). */
+  diagnostics: CompileDiagnostic[]
   components: CompiledNativeComponent[]
   imports: SourceImport[]
   /** Local bindings used as real JSX tag roots; comments and type syntax are excluded. */

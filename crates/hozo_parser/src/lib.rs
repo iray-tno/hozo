@@ -134,6 +134,10 @@ pub struct ParseOutput {
     /// Kept because a backend may need to distinguish a carried foreign tag
     /// from one of Hozo's own primitives that unexpectedly survived.
     pub foreign_primitives: std::collections::HashSet<String>,
+    /// Every class prop in the module, on any element, with the class lists
+    /// the file spells out -- what `runtime_class_lists` returns, from this
+    /// same parse (#1166).
+    pub runtime_class_lists: Vec<RuntimeClassList>,
 }
 
 pub struct ParseSyntaxError {
@@ -501,6 +505,11 @@ fn parse(
     }
     let stylex_scan_spans = stylex.scan_spans.clone();
     let bindings_facts = rest::analyze(&ret.program);
+    let runtime_class_lists = class_literals::collect_runtime_class_lists(
+        &ret.program,
+        source_text,
+        &bindings_facts.constants,
+    );
     let scope = jsx::Scope {
         rest_exclusions: &bindings_facts.rest,
         constants: &bindings_facts.constants,
@@ -567,6 +576,7 @@ fn parse(
         non_class_spans,
         imports,
         foreign_primitives: foreign,
+        runtime_class_lists,
     }
 }
 
