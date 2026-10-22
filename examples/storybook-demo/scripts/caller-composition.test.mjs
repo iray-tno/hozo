@@ -1076,7 +1076,7 @@ for (const [name, file, value] of [
   })
 }
 
-test('the real Web TimePicker keeps group and field text below the value and sibling period', {
+test('the real Web TimePicker keeps owner form, text and interaction facts distinct', {
   skip: !executablePath,
 }, async () => {
   const source = (relative) =>
@@ -1085,6 +1085,10 @@ test('the real Web TimePicker keeps group and field text below the value and sib
     className: 'p-4 text-[#dd1100] font-bold disabled:opacity-25 aria-disabled:mt-8',
     fieldClassName: 'p-3 text-[#0011dd] text-lg disabled:opacity-25 aria-disabled:mt-8',
   }
+  const valueClasses =
+    'p-5 hover:bg-[#dd1100] focus:opacity-75 focus-visible:font-bold aria-disabled:border-4 disabled:opacity-25 data-[hozo-disabled]:mt-8'
+  const periodClasses =
+    'p-4 hover:bg-[#dd1100] focus:opacity-75 disabled:opacity-25 aria-disabled:border-4 data-[hozo-disabled]:mt-8'
   const fixture = await build({
     stdin: {
       contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoTimePicker} from ${JSON.stringify(source('packages/form/src/time-picker.tsx'))};
@@ -1114,7 +1118,7 @@ test('the real Web TimePicker keeps group and field text below the value and sib
     await compile(
       '@theme { --spacing:.25rem; --text-lg:1.125rem; --font-weight-bold:700; } @tailwind utilities;',
     )
-  ).build(`${frame.className} ${frame.fieldClassName}`.split(' '))
+  ).build(`${frame.className} ${frame.fieldClassName} ${valueClasses} ${periodClasses}`.split(' '))
   const page = await browser.newPage()
   try {
     const preflight = readFileSync(
@@ -1154,6 +1158,58 @@ test('the real Web TimePicker keeps group and field text below the value and sib
     assert.equal(await field.evaluate((e) => getComputedStyle(e).paddingTop), '0px')
     assert.equal(await root.evaluate((e) => getComputedStyle(e).paddingTop), '0px')
     assert.equal(await field.evaluate((e) => getComputedStyle(e).fontWeight), '400')
+    const owned = { valueClassName: valueClasses, periodClassName: periodClasses }
+    await page.evaluate((props) => window.renderTime(props), owned)
+    const value = field.getByRole('spinbutton')
+    assert.deepEqual(
+      await value.evaluate((e) => [
+        e.matches(':disabled'),
+        e.matches(':enabled'),
+        e.matches(':read-only'),
+      ]),
+      [false, false, true],
+    )
+    assert.equal(await value.evaluate((e) => getComputedStyle(e).paddingTop), '20px')
+    await value.hover()
+    assert.equal(
+      await value.evaluate((e) => getComputedStyle(e).backgroundColor),
+      'rgb(221, 17, 0)',
+    )
+    await page.keyboard.press('Tab')
+    await value.focus()
+    assert.equal(await value.evaluate((e) => e.matches(':focus-visible')), true)
+    assert.equal(await value.evaluate((e) => getComputedStyle(e).opacity), '0.75')
+    assert.equal(await value.evaluate((e) => getComputedStyle(e).fontWeight), '700')
+    await page.evaluate((props) => window.renderTime({ ...props, disabled: true }), owned)
+    assert.equal(
+      await value.evaluate((e) => e.matches(':focus')),
+      true,
+      'aria-disabled div retains focus',
+    )
+    assert.equal(await value.evaluate((e) => getComputedStyle(e).opacity), '0.75')
+    assert.equal(await value.evaluate((e) => getComputedStyle(e).borderTopWidth), '4px')
+    assert.equal(await value.evaluate((e) => getComputedStyle(e).marginTop), '32px')
+    assert.equal(await period.isDisabled(), true)
+    assert.equal(await period.getAttribute('aria-disabled'), null)
+    assert.equal(await period.evaluate((e) => getComputedStyle(e).borderTopWidth), '0px')
+    assert.equal(await period.evaluate((e) => getComputedStyle(e).opacity), '0.25')
+    assert.equal(await period.evaluate((e) => getComputedStyle(e).marginTop), '32px')
+    await value.press('ArrowUp')
+    assert.deepEqual(await page.evaluate(() => window.timeChanges), [])
+    await page.evaluate((props) => window.renderTime(props), owned)
+    await period.hover()
+    assert.equal(
+      await period.evaluate((e) => getComputedStyle(e).backgroundColor),
+      'rgb(221, 17, 0)',
+    )
+    await period.focus()
+    assert.equal(await period.evaluate((e) => getComputedStyle(e).opacity), '0.75')
+    await period.press('Enter')
+    assert.deepEqual(await page.evaluate(() => window.timeChanges), [{ hour: 21, minute: 10 }])
+    assert.equal(await period.innerText(), 'PM')
+    await page.evaluate(() => window.renderTime({ hour12: false }))
+    assert.equal(await period.count(), 0)
+    assert.equal(await value.evaluate((e) => getComputedStyle(e).paddingTop), '0px')
   } finally {
     await page.close()
   }

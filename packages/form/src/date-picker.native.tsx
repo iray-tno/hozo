@@ -12,8 +12,8 @@ import {
 import { HozoCalendar, type HozoCalendarDay } from './calendar.native.tsx'
 import { dayLabel } from './calendar-format.ts'
 import type { CalendarDate, CalendarMonth, Weekday } from './calendar-rules.ts'
-import { DatePickerButton } from './date-picker-button.native.tsx'
 import { resolveDatePickerFrame } from './date-picker-frame.native.ts'
+import { PickerButton } from './picker-button.native.tsx'
 
 export interface HozoDatePickerProps {
   /**
@@ -158,7 +158,7 @@ export function HozoDatePicker({
 
   return (
     <View style={frame.box}>
-      <DatePickerButton
+      <PickerButton
         accessibilityLabel={accessibilityLabel}
         // The chosen value, so a reader hears it and not only what the field is
         // for.
@@ -190,7 +190,7 @@ export function HozoDatePicker({
         onPress={() => change(true)}
       >
         {text}
-      </DatePickerButton>
+      </PickerButton>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => change(false)}>
         {/*
           Hidden from the accessibility tree rather than merely transparent.

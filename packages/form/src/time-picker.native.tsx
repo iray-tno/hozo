@@ -1,4 +1,5 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoSplitTextStyle } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
 import { useCallback, useState } from 'react'
@@ -13,6 +14,7 @@ import {
 } from 'react-native'
 
 import { nonControlClassFacts } from './class-facts.native.ts'
+import { PickerButton } from './picker-button.native.tsx'
 import { hourLabel, minuteLabel, timeLabel, usesTwelveHour } from './time-format.ts'
 import {
   addHours,
@@ -29,17 +31,18 @@ export interface HozoTimePickerProps {
    *
    * Group/field classes resolve through the project candidate map with
    * non-control facts. Their text reaches owned labels below each child's
-   * own declarations. Value/period/step classes remain separate consumers.
+   * own declarations. Value and period resolve with their own interaction
+   * and form/ARIA facts. Step classes remain a separate consumer.
    */
   className?: string
   fieldClassName?: string
   /**
-   * Still unapplied here; group and field classes have their own consumers.
+   * On the adjustable value box, distinct from its containing field group.
    *
    * The prop lists stay in step: the Web half needs this one because its
    * `role="spinbutton"` is the element a pointer has to hit and it had no class
    * of its own, which `check-appearance.mjs` measured at 9 by 20 pixels. Here
-   * the equivalent hook is `fieldTextStyle`, which already exists.
+   * explicit `fieldTextStyle` still takes precedence on its owned label.
    */
   valueClassName?: string
   periodClassName?: string
@@ -102,6 +105,94 @@ const MIDNIGHT: CalendarTime = { hour: 0, minute: 0 }
  */
 const INCREMENT_DECREMENT = [{ name: 'increment' }, { name: 'decrement' }] as const
 
+/** A Web div spinbutton, not a disabled HTML button. Focus can remain when
+ * aria-disabled changes. Track only delivered pointer/focus facts: there is
+ * no press responder here, so active remains unassessed, not silently false.
+ * A leaf keeps these visual updates out of the clock's value/format path. */
+function TimePickerValue({
+  label,
+  text,
+  spoken,
+  range,
+  disabled,
+  className,
+  inheritedTextStyle,
+  textStyle,
+  onAdjust,
+}: {
+  label: string
+  text: string
+  spoken: string
+  range: { min: number; max: number; now?: number }
+  disabled: boolean
+  className?: string
+  inheritedTextStyle?: StyleProp<TextStyle>
+  textStyle?: StyleProp<TextStyle>
+  onAdjust: (direction: 1 | -1) => void
+}) {
+  const { state, handlers } = usePressableInteraction({ focusVisible: true })
+  const [box, ownText] = hozoSplitTextStyle(
+    StyleSheet.flatten(
+      hozoClasses(className, {
+        ...nonControlClassFacts,
+        hovered: state.hovered,
+        focused: state.focused,
+        focusVisible: state.focusVisible,
+        'aria-disabled': disabled,
+        'data-hozo-disabled': disabled,
+      }),
+    ) ?? {},
+  )
+  return (
+    <View
+      // The line this whole control turned on, and it was missing.
+      //
+      // A `View` is not an accessibility element unless it says so: without
+      // `accessible`, the role, the label and the value below it reached
+      // nobody. Measured on an API 36 emulator -- TalkBack's walk of this
+      // screen was seven items, the four steppers, the period and the two
+      // triggers, and the fields were on it nowhere. `android-smoke.sh`
+      // listed "9" and "30" among the nodes that are *drawn and
+      // undescribed*, which is what a `Text` inside an inert `View` is. So a
+      // reader could press Increase Hour and had no way to hear the hour.
+      accessible
+      // `adjustable` rather than `spinbutton`, which was here and is not
+      // what failed. Android has no spinbutton; `adjustable` is the role
+      // that becomes a `SeekBar` in the node info, which is what makes
+      // TalkBack offer swipe up and down -- so the value becomes reachable
+      // *and* adjustable from where it is announced, instead of only from
+      // two buttons beside it. The Web half's `role="spinbutton"` is the
+      // same idea in the vocabulary that has one.
+      accessibilityRole="adjustable"
+      accessibilityLabel={label}
+      // `text` is what TalkBack reads, and it is the whole time rather than
+      // this field's digits -- the Web half's `aria-valuetext`, for its
+      // reason: a reader moving the hour wants to hear where that put the
+      // time. `min`, `max` and `now` are underneath it so the node is a
+      // range rather than a label with a number in it, which is what the
+      // swipe gestures act on.
+      accessibilityValue={{ ...range, text: spoken }}
+      accessibilityActions={INCREMENT_DECREMENT}
+      onAccessibilityAction={({ nativeEvent }) => {
+        if (disabled) return
+        if (nativeEvent.actionName === 'increment') onAdjust(1)
+        else if (nativeEvent.actionName === 'decrement') onAdjust(-1)
+      }}
+      accessibilityState={{ disabled }}
+      focusable={!disabled}
+      onFocus={handlers.focus}
+      onBlur={handlers.blur}
+      onPointerEnter={handlers.hoverIn}
+      onPointerLeave={handlers.hoverOut}
+      onPointerDown={handlers.pointerDown}
+      onKeyDown={handlers.keyDown}
+      style={box as ViewStyle}
+    >
+      <Text style={[inheritedTextStyle, ownText as TextStyle, textStyle]}>{text}</Text>
+    </View>
+  )
+}
+
 /**
  * The same two fields, stepped by buttons rather than by arrow keys.
  *
@@ -128,6 +219,8 @@ const INCREMENT_DECREMENT = [{ name: 'increment' }, { name: 'decrement' }] as co
 export function HozoTimePicker({
   className,
   fieldClassName,
+  valueClassName,
+  periodClassName,
   hozoInheritedTextStyle,
   style,
   fieldStyle,
@@ -141,7 +234,7 @@ export function HozoTimePicker({
   step = 1,
   locale: localeProp,
   hour12,
-  disabled,
+  disabled = false,
   accessibilityLabel,
   hourFieldLabel: hourFieldLabelProp,
   minuteFieldLabel: minuteFieldLabelProp,
@@ -252,44 +345,17 @@ export function HozoTimePicker({
   const field = (name: 'hour' | 'minute', label: string) => (
     <View style={fieldBox as ViewStyle}>
       {stepper(name, 1, '▲')}
-      <View
-        // The line this whole control turned on, and it was missing.
-        //
-        // A `View` is not an accessibility element unless it says so: without
-        // `accessible`, the role, the label and the value below it reached
-        // nobody. Measured on an API 36 emulator -- TalkBack's walk of this
-        // screen was seven items, the four steppers, the period and the two
-        // triggers, and the fields were on it nowhere. `android-smoke.sh`
-        // listed "9" and "30" among the nodes that are *drawn and
-        // undescribed*, which is what a `Text` inside an inert `View` is. So a
-        // reader could press Increase Hour and had no way to hear the hour.
-        accessible
-        // `adjustable` rather than `spinbutton`, which was here and is not
-        // what failed. Android has no spinbutton; `adjustable` is the role
-        // that becomes a `SeekBar` in the node info, which is what makes
-        // TalkBack offer swipe up and down -- so the value becomes reachable
-        // *and* adjustable from where it is announced, instead of only from
-        // two buttons beside it. The Web half's `role="spinbutton"` is the
-        // same idea in the vocabulary that has one.
-        accessibilityRole="adjustable"
-        accessibilityLabel={label}
-        // `text` is what TalkBack reads, and it is the whole time rather than
-        // this field's digits -- the Web half's `aria-valuetext`, for its
-        // reason: a reader moving the hour wants to hear where that put the
-        // time. `min`, `max` and `now` are underneath it so the node is a
-        // range rather than a label with a number in it, which is what the
-        // swipe gestures act on.
-        accessibilityValue={{ ...rangeOf(name), text: spoken }}
-        accessibilityActions={INCREMENT_DECREMENT}
-        onAccessibilityAction={({ nativeEvent }) => {
-          if (disabled) return
-          if (nativeEvent.actionName === 'increment') stepBy(name, 1)
-          else if (nativeEvent.actionName === 'decrement') stepBy(name, -1)
-        }}
-        accessibilityState={{ disabled }}
-      >
-        <Text style={[fieldLabelStyle, fieldTextStyle]}>{textOf(name)}</Text>
-      </View>
+      <TimePickerValue
+        label={label}
+        text={textOf(name)}
+        spoken={spoken}
+        range={rangeOf(name)}
+        disabled={disabled}
+        className={valueClassName}
+        inheritedTextStyle={fieldLabelStyle}
+        textStyle={fieldTextStyle}
+        onAdjust={(direction) => stepBy(name, direction)}
+      />
       {/*
         The steppers stay on the walk rather than being hidden behind the
         gestures they duplicate. Whether `adjustable`'s swipes arrive at all is
@@ -310,19 +376,19 @@ export function HozoTimePicker({
       {field('hour', hourFieldLabel)}
       {field('minute', minuteFieldLabel)}
       {twelve ? (
-        <Pressable
-          accessibilityRole="button"
+        <PickerButton
           accessibilityLabel={periodFieldLabel}
           accessibilityValue={{ text: spoken }}
-          accessibilityState={{ disabled }}
           disabled={disabled}
+          dataFacts={{ 'data-hozo-disabled': disabled }}
+          className={periodClassName}
           style={periodBox as ViewStyle}
+          inheritedTextStyle={rootLabelStyle}
+          textStyle={[periodTextStyle as TextStyle, fieldTextStyle]}
           onPress={() => stepBy('period', 1)}
         >
-          <Text style={[rootLabelStyle, periodTextStyle as TextStyle, fieldTextStyle]}>
-            {periodText()}
-          </Text>
-        </Pressable>
+          {periodText()}
+        </PickerButton>
       ) : null}
     </View>
   )
