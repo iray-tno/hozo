@@ -90,6 +90,38 @@ that showed it. Write it in English.
 `type/short-kebab-slug`, using the same types: `fix/lp-code-showcase-responsive`,
 `feat/theme-dark`. Not checked; just be consistent.
 
+### Stacked pull requests
+
+Use the GitHub CLI extension **`github/gh-stack`** (`gh stack`) for dependent
+PRs, rather than maintaining a chain of base branches by hand. An independent
+single PR does not need an artificial stack.
+
+- Before changing a stack, inspect `git status`, `gh stack view --json` and
+  the affected PRs' heads, bases and CI results. Work only on your own stack;
+  do not adopt another agent's branches or PRs without a handoff.
+- Start with `gh stack init --base main <branch>`. Existing branches can be
+  adopted by listing them **bottom to top**, but inspect their history first.
+  Add the next layer with `gh stack add <branch>` after committing the current
+  layer's scoped changes. Do not use its stage-all flags on a shared/dirty tree.
+- Use `gh stack rebase` for cascading rebases and `gh stack submit` to push
+  and create/update the PRs. Inspect the result with `gh stack view --json`.
+  `gh stack sync` also rebases **and pushes**; it is not a read-only status
+  command. Do not use `--prune` merely to sync: it deletes merged local branches.
+- For non-interactive submission, `gh stack submit --auto --open` makes
+  review-ready PRs, not drafts. Use it only when every affected PR should be
+  ready; do not override an intentional draft. Waiting for CI alone does not
+  require a draft. Check the installed `--help` rather than guessing flags.
+- Auto-generated titles/bodies do not replace this repository's PR contract:
+  set each title and English three-section body with `gh pr edit`, and apply
+  your own `taken` label to **every layer** (see Agent ownership below).
+  After submission/sync, verify each PR's diff, base, labels and current-head
+  checks. Recheck completed parent CI before starting the next layer; fix a
+  known failure instead of propagating it. State dependencies and merge order
+  in the PR bodies even when GitHub shows the stack.
+- Creating/submitting a stack is not permission to merge it. Do not run
+  `gh stack merge`, merge individual PRs, or enable auto-merge without the
+  user's explicit authorization.
+
 ### Commits
 
 Prefer the same `type(scope): summary` form as the title. Only the PR title is
@@ -108,29 +140,51 @@ behavioural change unreviewable.
 - **Area work** — an area prefix is fine where it helps: `Three: evaluate and prove a Native GPU host`.
 - The body says how to reproduce or what was measured, and what would count as done.
 
-### Taking an issue
+## Agent ownership
 
 Several agents work in this repository at once, all through one GitHub
-account, so an assignee cannot say which of them has an issue. A label does.
+account, so an assignee cannot say which of them owns the work. A `taken`
+label does, on both issues and PRs.
 
-- **Your name** is `<agent>-<n>` -- `claude-1`, `claude-2`, `codex-1` -- and
+- **Your name** is `<agent>-<n>` -- for example `codex-1`, `claude-1`,
+  `claude-2`, or `agy-1` -- and
   it is given by whoever started you. Do not pick a number yourself: two
   agents choosing at the same moment would choose the same one. If you were
-  given no name, ask before taking an issue.
+  given no name, ask before claiming work.
+- **Reuse your existing label's exact name.** Historical spellings include
+  `taken:codex-1`, `taken: claude-1` and `taken: agy-1`; the space after the
+  colon is not a different identity. Check for both spellings before creating
+  one. Do not create duplicates or rename other agents' labels. If neither
+  exists, create `taken: <your name>` with colour `#5319e7` and description
+  `Being worked on by <your name>` -- the one exception to the label-creation
+  rule below.
+
+### Taking an issue
+
 - **Before starting**, look for a `taken: …` label on the issue. If another
   agent has it, leave it, or ask the person who started you.
-- **When starting**, add `taken: <your name>` and comment one line: who took
-  it, the branch, and the session if you have a link. Create the label if it
-  does not exist yet, with colour `#5319e7` and the description
-  `Being worked on by <your name>` -- the one exception to the rule below.
+- **When starting**, add your own label and comment one line: who took it,
+  the branch, and the session if you have a link.
 - **When stopping without a fix**, remove the label and say why in a comment,
   so the issue is free again. A PR that says `Fixes #n` closes the issue and
   ends the claim with it; nothing else to undo.
 
+### Owning a pull request
+
+- Put your own `taken` label on **every PR you create**, including standalone
+  fixes/docs with no issue and every PR in a stack. An issue's label is not
+  automatically inherited by its PRs, and `gh stack submit` does not replace
+  this step. Use `gh pr edit <number> --add-label "<your exact label>"` and
+  verify the resulting labels after creation.
+- Keep the PR's label as authorship/ownership history after merge or closure.
+  An issue's label is an active work claim; a closed PR's label is not one.
+  Change another agent's ownership only after an explicit handoff, not merely
+  because you reviewed or rebased their work.
+
 ## Labels
 
 Apply **one kind** label and **any number of nature** labels. Do not create new
-labels, except a `taken: <agent>-<n>` label (see "Taking an issue"); ask in the
+labels, except your own `taken` label (see "Agent ownership"); ask in the
 PR or issue if one seems missing.
 
 | Kind (one) | When |
