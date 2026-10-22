@@ -12,8 +12,12 @@
 // the same verdict for loose class names. In @hozo/ui's sources the string
 // literals are the class lists; a label or a path resolves to no utility.
 //
-//     node scripts/ui-native-status.mjs           write src/data/ui-native-status.json
-//     node scripts/ui-native-status.mjs --check   fail if it is out of date
+// `dev`, `build` and `test:build` run it before Astro and write
+// `src/data/ui-native-status.json`, which git ignores. It used to be
+// committed and checked, and then a change to a component's Native half
+// (in `@hozo/form`, say) and a landing change could each pass CI and still
+// leave main with a stale file once both merged. Generating it from the
+// source being built has nothing to fall behind.
 
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -114,19 +118,5 @@ for (const page of readdirSync(pages)
   status[page] = { missing: of('missing'), cosmetic: of('cosmetic'), unapplied }
 }
 
-const text = `${JSON.stringify(status, null, 2)}\n`
-if (process.argv.includes('--check')) {
-  // Compared as data: `pnpm lint:fix` formats the JSON file its own way.
-  let current = ''
-  try {
-    current = JSON.stringify(JSON.parse(readFileSync(out, 'utf8')))
-  } catch {}
-  if (current !== JSON.stringify(status)) {
-    console.error('ui-native-status.json is out of date: run node scripts/ui-native-status.mjs')
-    process.exit(1)
-  }
-  console.log(`UI native status: current for ${Object.keys(status).length} pages`)
-} else {
-  writeFileSync(out, text)
-  console.log(`UI native status: wrote ${Object.keys(status).length} pages`)
-}
+writeFileSync(out, `${JSON.stringify(status, null, 2)}\n`)
+console.log(`UI native status: wrote ${Object.keys(status).length} pages`)

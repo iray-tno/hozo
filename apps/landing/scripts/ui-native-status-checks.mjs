@@ -1,7 +1,7 @@
 /** Check the built explanation against the source-derived report. Do not
  * require a particular component to keep an unapplied prop forever: adding
  * its Native consumer must update the report, not break an unrelated gate.
- * ui-native-status.mjs --check separately validates that report from source. */
+ * The build generates that report from source (ui-native-status.mjs). */
 export function uiNativeStatusChecks(html, expected, page) {
   const label = `docs components/${page}`
   const lines = [
