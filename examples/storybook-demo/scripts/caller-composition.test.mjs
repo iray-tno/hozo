@@ -501,6 +501,139 @@ test('Tailwind browser oracle for stateful label inheritance and focus modality'
   }
 })
 
+test('Tailwind browser oracle for shared text and background motion targets', {
+  skip: !executablePath,
+}, async (t) => {
+  const classes =
+    'text-[#000000] hover:text-[#ff0000] bg-[#ffffff] hover:bg-[#000000] active:bg-[#0000ff] focus:bg-[#00ff00] focus-visible:bg-[#ffff00] transition-colors duration-100000 delay-20 ease-linear'
+  const css = (await compile('@tailwind utilities;')).build(classes.split(' '))
+  const source = `import {Button} from '@hozo/core';export const Scene=()=> <Button className="${classes}">Label</Button>`
+  const web = compiler.compile(source)[0]
+  const native = compiler.compileNativeModule(source).components[0]
+  assert.deepEqual(web.diagnostics, [])
+  assert.deepEqual(native.diagnostics, [])
+  const control = evaluate(`export const owner = ${native.jsx}`, {
+    h: (_type, props) => props,
+    HozoPressable: 'owner',
+    HozoText: 'label',
+    hozoStyles: runInNewContext(`(${native.styles})`),
+  }).owner
+  for (const mode of ['tailwind', 'hozo']) {
+    const page = await browser.newPage()
+    const stages = []
+    try {
+      await page.setContent(`<!doctype html><style>
+      button { font:inherit; color:inherit; }
+      ${mode === 'tailwind' ? css : web.css}</style><button id="before">Before</button>
+      <button id="owner" class="${mode === 'tailwind' ? classes : 'hozo-0'}"><span><span id="target">Label</span></span></button>
+      <span id="outside" style="color:#123456">Outside</span>`)
+      const read = (finish = true) =>
+        page.evaluate((finish) => {
+          const owner = document.getElementById('owner')
+          if (finish) for (const animation of owner.getAnimations()) animation.finish()
+          const target = document.getElementById('target')
+          return {
+            color: getComputedStyle(target).color,
+            background: getComputedStyle(owner).backgroundColor,
+            late: document.getElementById('late')
+              ? getComputedStyle(document.getElementById('late')).color
+              : undefined,
+            outside: getComputedStyle(document.getElementById('outside')).color,
+            retained: target === window.firstText,
+            state: {
+              pressed: owner.matches(':active'),
+              hovered: owner.matches(':hover'),
+              focused: owner.matches(':focus'),
+              focusVisible: owner.matches(':focus-visible'),
+            },
+          }
+        }, finish)
+      const check = async (color, background) => {
+        const result = await read()
+        assert.equal(result.color, color)
+        assert.equal(result.background, background)
+        assert.equal(result.outside, 'rgb(18, 52, 86)')
+        assert.equal(result.retained, true)
+        if (mode === 'hozo') {
+          // The ordinary compiled callback is the control, not a copy of its
+          // priority rules and not either private inheritance implementation.
+          const nativeStyle = Object.assign({}, ...control.style(result.state).filter(Boolean))
+          const rgb = (hex) =>
+            `rgb(${hex
+              .slice(1)
+              .match(/../g)
+              .map((part) => parseInt(part, 16))
+              .join(', ')})`
+          assert.equal(result.background, rgb(nativeStyle.backgroundColor))
+        }
+        stages.push(result)
+      }
+      await page.mouse.move(600, 400)
+      await page.evaluate(() => {
+        window.firstText = document.getElementById('target')
+      })
+      await check('rgb(0, 0, 0)', 'rgb(255, 255, 255)')
+      await page.locator('#owner').hover()
+      const middle = await page.evaluate(() => {
+        const owner = document.getElementById('owner')
+        const animations = owner.getAnimations()
+        for (const animation of animations) {
+          if (
+            animation.effect.getTiming().duration !== 100000 ||
+            animation.effect.getTiming().delay !== 20
+          )
+            throw new Error('oracle must use the authored transition timing')
+          animation.pause()
+          animation.currentTime = 50020
+        }
+        const target = document.getElementById('target')
+        const late = document.createElement('span')
+        late.id = 'late'
+        late.textContent = 'Late'
+        owner.append(late)
+        return {
+          properties: animations.map((animation) => animation.transitionProperty).sort(),
+          owner: getComputedStyle(owner).color,
+          background: getComputedStyle(owner).backgroundColor,
+          target: getComputedStyle(target).color,
+          late: getComputedStyle(late).color,
+        }
+      })
+      assert.deepEqual(middle.properties, ['background-color', 'color'])
+      assert.equal(middle.owner, 'rgb(128, 0, 0)')
+      assert.equal(middle.background, 'rgb(128, 128, 128)')
+      assert.equal(middle.target, middle.owner)
+      assert.equal(middle.late, middle.owner)
+      await page.locator('#target').evaluate((node) => {
+        node.style.color = '#00ff00'
+      })
+      const masked = await read(false)
+      assert.equal(masked.color, 'rgb(0, 255, 0)')
+      assert.equal(masked.late, middle.owner)
+      await page.locator('#target').evaluate((node) => node.removeAttribute('style'))
+      assert.equal((await read(false)).color, middle.owner)
+      await check('rgb(255, 0, 0)', 'rgb(0, 0, 0)')
+      await page.mouse.down()
+      // Existing Hozo compiled Web/Native keep authored condition order. Tailwind
+      // emits active after focus. Preserve this measured gap, not an equality claim.
+      await check('rgb(255, 0, 0)', mode === 'tailwind' ? 'rgb(0, 0, 255)' : 'rgb(0, 255, 0)')
+      await page.mouse.up()
+      await check('rgb(255, 0, 0)', 'rgb(0, 255, 0)')
+      await page.mouse.move(600, 400)
+      await page.locator('#owner').evaluate((node) => node.blur())
+      await check('rgb(0, 0, 0)', 'rgb(255, 255, 255)')
+      await page.locator('#before').focus()
+      await page.keyboard.press('Tab')
+      await check('rgb(0, 0, 0)', 'rgb(255, 255, 0)')
+      t.diagnostic(
+        `${mode} shared motion: ${stages.length} settled browser stages; midpoint ${JSON.stringify(middle)}`,
+      )
+    } finally {
+      await page.close()
+    }
+  }
+})
+
 test('real Web Chip and Tailwind preserve row and removal typography at their actual owners', {
   skip: !executablePath,
 }, async (t) => {

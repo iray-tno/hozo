@@ -1408,3 +1408,34 @@ performance measurement. Normal Metro/docs routing and the closed Text-only
 static proof remain unchanged. Regenerated device-fixture hashes describe the
 new source, not new device motion scenarios or evidence. Native motion pixels,
 AT, update-cost and physical-device gates remain before default rollout.
+
+## Independent browser oracle for shared colour motion
+
+The browser comparison now renders both real Tailwind CSS and the ordinary
+compiler's Web CSS, separately, for the same text/background class list. Real
+pointer hover/down/up and keyboard Tab cover six settled stages per sheet.
+CSS-created colour and background transitions are paused at a controlled midpoint
+(100,000ms duration, 20ms delay, linear; no wall-clock wait for completion).
+Both sheets produce red text at `rgb(128, 0, 0)` and gray background at
+`rgb(128, 128, 128)` at halfway. Nested and newly inserted Text inherit the owner's
+live colour; a local colour masks it and removal rejoins it without replacing
+the existing DOM node. An outside sibling remains unchanged.
+
+The ordinary Native compiler's actual box callback is evaluated at the browser's
+observed state, not a reimplementation of its priority rules. It agrees with the
+compiled Hozo Web target at each settled stage. This found a **pre-existing
+Tailwind compatibility gap**, tracked in [#1230](https://github.com/iray-tno/hozo/issues/1230):
+with hover/pressed/focus active together, raw Tailwind chooses blue (active), while
+both compiled Hozo Web and Native choose green (later authored focus). The test
+keeps that discrepancy explicit rather than recording full Tailwind equivalence.
+Fixing only the inherited Native helper would create a new platform difference;
+shared class-origin ordering must also preserve StyleX and caller/state tiers.
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='shared text and background motion targets' examples/storybook-demo/scripts/caller-composition.test.mjs
+```
+
+This is browser inheritance/target evidence, not Native motion pixels, an AT
+result, wall-clock synchronization, all colour-space parity or a claim that
+reversal timing matches. No normal compiler/Metro routing or Native expectations
+are changed by this measurement.

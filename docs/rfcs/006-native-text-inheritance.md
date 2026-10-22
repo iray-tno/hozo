@@ -489,6 +489,13 @@ border/other paints, box prop retargeting and general transition lists remain
 unassessed; mock progress/host checks do not replace Native motion pixels or
 physical-device/update-cost evidence.
 
+An [independent shared-motion browser oracle](../native-text-inheritance-baseline.md#independent-browser-oracle-for-shared-colour-motion)
+now checks halfway inherited paint and settled targets in both Tailwind and
+compiled Hozo CSS. It also records [#1230](https://github.com/iray-tno/hozo/issues/1230),
+a pre-existing class-condition ordering difference: compiled Hozo Web/Native
+agree with each other but not Tailwind for a conflicting active/focus combination.
+Neither this oracle nor the internal label transport certifies that gap as fixed.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.
