@@ -6,7 +6,7 @@ import { svgImage } from './svg-filter-evidence.mjs'
 
 export function readIosScenario(value = 'full') {
   assert.ok(
-    ['full', 'canvas', 'gl-control', 'svg-filters', 'text-inheritance'].includes(value),
+    ['full', 'canvas', 'gl-control', 'svg-filters', 'text-inheritance', 'ui-docs'].includes(value),
     'unsupported iOS scenario',
   )
   return value

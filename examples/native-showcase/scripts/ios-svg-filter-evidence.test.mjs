@@ -102,7 +102,14 @@ test('the SVG artifact keeps exact source and binary provenance without inheriti
   assert.equal(svg.sceneSourceSha256, createHash('sha256').update(source).digest('hex'))
   assert.equal(svg.svgPeerVersion, '15.15.4')
   assert.equal(readIosScenario(), 'full')
-  for (const scenario of ['full', 'svg-filters', 'canvas', 'gl-control', 'text-inheritance'])
+  for (const scenario of [
+    'full',
+    'svg-filters',
+    'canvas',
+    'gl-control',
+    'text-inheritance',
+    'ui-docs',
+  ])
     assert.equal(readIosScenario(scenario), scenario)
   assert.throws(() => readIosScenario('typo'))
 })
@@ -185,7 +192,10 @@ test('normal iOS workflow includes SVG evidence without a second app launch or l
   )
   assert.equal([...smoke.matchAll(/launch\(app\)/g)].length, 1)
   assert.match(smoke, /captureRegion: \(buffer, node\) =>\s*iosSvgRegion/)
-  assert.match(workflow, /options: \[full, svg-filters, canvas, gl-control, text-inheritance\]/)
+  assert.match(
+    workflow,
+    /options: \[full, svg-filters, canvas, gl-control, text-inheritance, ui-docs\]/,
+  )
   assert.match(workflow, /name: hozo-native-showcase-ios-svg-evidence/)
   assert.match(workflow, /path: artifacts\/native-showcase-ios\/svg-filters/)
 })

@@ -191,7 +191,10 @@ test('iOS text scenario is isolated and uses the same comparator, fresh fingerpr
     new URL('../../../.github/workflows/native-showcase.yml', import.meta.url),
     'utf8',
   )
-  assert.match(workflow, /options: \[full, svg-filters, canvas, gl-control, text-inheritance\]/)
+  assert.match(
+    workflow,
+    /options: \[full, svg-filters, canvas, gl-control, text-inheritance, ui-docs\]/,
+  )
   assert.match(workflow, /HOZO_IOS_SCENARIO: \$\{\{ inputs.ios-scenario \|\| 'full' \}\}/)
   const source = readFileSync(new URL('./ios-smoke.mjs', import.meta.url), 'utf8')
   assert.match(source, /from '\.\/text-pixels.mjs'/)

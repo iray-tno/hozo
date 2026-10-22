@@ -23,6 +23,10 @@ export const STORYBOOK_FAILURE = 'Something went wrong rendering your story'
  * @param {{
  *   open: (storyId: string) => void,
  *   waitForEither: (labels: string[], timeout: number) => Promise<string>,
+ *     -- once any of `labels` is on screen, the first of them, in the
+ *     order given, that is on screen anywhere. A demo that throws inside
+ *     its surface shows its failure and the surface's marker together, so
+ *     which one a device happens to find first must not decide.
  *   settle: () => Promise<void>,
  *   capture: (name: string) => void,
  *   logs?: () => string,
@@ -31,10 +35,16 @@ export const STORYBOOK_FAILURE = 'Something went wrong rendering your story'
 export async function exerciseUiDocs(
   device,
   output,
-  { pages = UI_DOC_PAGES, timeout = 30_000, now = () => new Date() } = {},
+  {
+    pages = UI_DOC_PAGES,
+    timeout = 30_000,
+    now = () => new Date(),
+    platform = 'android',
+    logFile = 'logcat.txt',
+  } = {},
 ) {
   const manifest = {
-    platform: 'android',
+    platform,
     commit: process.env.GITHUB_SHA ?? null,
     takenAt: now().toISOString(),
     pages: {},
@@ -63,7 +73,7 @@ export async function exerciseUiDocs(
   writeFileSync(resolve(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   // What each failure threw, which the screenshot shows only in part.
   try {
-    writeFileSync(resolve(output, 'logcat.txt'), device.logs?.() ?? '')
+    if (device.logs) writeFileSync(resolve(output, logFile), device.logs())
   } catch {
     /* The manifest stands without it. */
   }

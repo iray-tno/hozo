@@ -79,3 +79,33 @@ test('a walk that reached nothing fails', async () => {
     /No UI docs story could be opened/,
   )
 })
+
+test('an iOS walk says so in its manifest and keeps its logs under their own name', async () => {
+  const output = mkdtempSync(join(tmpdir(), 'ui-docs-'))
+  const manifest = await exerciseUiDocs(
+    {
+      open: () => {},
+      waitForEither: async (labels) => labels[2],
+      settle: async () => {},
+      capture: () => {},
+      logs: () => 'syslog',
+    },
+    output,
+    { pages: ['button'], platform: 'ios', logFile: 'syslog.txt' },
+  )
+  assert.equal(manifest.platform, 'ios')
+  assert.equal(readFileSync(join(output, 'syslog.txt'), 'utf8'), 'syslog')
+})
+
+test('both drivers resolve a marker and a failure seen together to the failure', () => {
+  // The marker sits beside the demo, so a demo that throws inside its
+  // surface leaves both on screen; the walk passes the failure first.
+  for (const driver of ['android-smoke.mjs', 'ios-smoke.mjs']) {
+    const source = readFileSync(join(root, 'scripts', driver), 'utf8')
+    assert.match(
+      source,
+      /return labels\.find\(\(value\) => tree\.some\(/,
+      `${driver} must pick by the walk's order across the whole tree`,
+    )
+  }
+})
