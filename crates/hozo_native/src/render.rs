@@ -1226,9 +1226,14 @@ pub(super) fn render_node(
         // ratio travels to a component that can. Costs a context read, and
         // only here -- everything the compiler *can* resolve stays a plain
         // `Text` with a number in a stylesheet.
-        cx.runtime.need_component("HozoRelativeText");
-        "HozoRelativeText"
-    } else if publishes_size {
+        if cx.text_inheritance {
+            cx.runtime.need_component("HozoInheritedRelativeText");
+            "HozoInheritedRelativeText"
+        } else {
+            cx.runtime.need_component("HozoRelativeText");
+            "HozoRelativeText"
+        }
+    } else if publishes_size && !cx.text_inheritance {
         // The other half. This element holds the size the ratio above
         // needs and holds it in a form only React Native can evaluate, so
         // it says what it resolved to.

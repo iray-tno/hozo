@@ -284,8 +284,9 @@ pub fn lower_text_reference(
     lower_forwarded_impl(root, forwarded, source, theme, true, false)
 }
 
-/// First production-owned ABI slice. Conservative opt-in: no proof-based
-/// elimination or interaction/relative/layout adapter integration yet.
+/// Production-owned ABI for passive roots and bounded semantic typography.
+/// Conservative opt-in: interaction, relative CSS metrics and layout adapters
+/// still need their own integration. The static entry point proves erasure.
 #[doc(hidden)]
 pub fn lower_text_inheritance(
     root: &Node,
@@ -295,11 +296,12 @@ pub fn lower_text_inheritance(
 ) -> LowerOutput {
     if text_region::passive(root) {
         let output = lower_forwarded_impl(root, forwarded, source, theme, true, true);
-        if output
-            .runtime_imports
-            .iter()
-            .all(|name| matches!(*name, "HozoInheritedText" | "HozoInheritedView"))
-        {
+        if output.runtime_imports.iter().all(|name| {
+            matches!(
+                *name,
+                "HozoInheritedText" | "HozoInheritedRelativeText" | "HozoInheritedView"
+            )
+        }) {
             return output;
         }
     }
@@ -309,7 +311,7 @@ pub fn lower_text_inheritance(
     output.diagnostics.push(Diagnostic {
         code: DiagnosticCode::NotWiredOnNative,
         severity: Severity::Error,
-        message: "Internal text inheritance currently assesses passive Text/View roots with resolved seven-field typography only, without conditional classes, animation, relative metrics, font families/variants or additional generated adapters. This root retains ordinary lowering; it is not runtime-inheritance evidence.".to_string(),
+        message: "Internal text inheritance currently assesses passive Text/View and bounded semantic typography, including semantic size ratios, with resolved seven-field styles only. Conditional classes, animation, relative CSS metrics, dynamic heading levels, font families/styles/variants and additional generated adapters remain unassessed. This root retains ordinary lowering; it is not runtime-inheritance evidence.".to_string(),
         span: root.span,
     });
     output

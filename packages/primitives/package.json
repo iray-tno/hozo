@@ -68,6 +68,10 @@
       "types": "./dist/generated/grid.d.ts",
       "default": "./dist/generated/grid.js"
     },
+    "./generated/inherited-relative-text": {
+      "types": "./dist/generated/inherited-relative-text.d.ts",
+      "default": "./dist/generated/inherited-relative-text.js"
+    },
     "./generated/inherited-text": {
       "types": "./dist/generated/inherited-text.d.ts",
       "default": "./dist/generated/inherited-text.js"

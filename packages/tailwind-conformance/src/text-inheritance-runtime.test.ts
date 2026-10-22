@@ -1,5 +1,6 @@
 // Actual compiler + Metro + shipped leaf code, with mock Native hosts only.
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
 import { transformSync } from 'esbuild'
@@ -41,6 +42,7 @@ function graph(
   sceneSource = sources.scene,
   textStatic = false,
   labelSource = sources.label,
+  preflight?: boolean,
 ) {
   const legacy = React.createContext(14)
   const shipped = loadTextInheritanceRuntime(legacy)
@@ -58,7 +60,26 @@ function graph(
       return result
     },
   })
-  const compiler = createCompiler()
+  const compiler = createCompiler(preflight === undefined ? undefined : { colors: [], preflight })
+  // The independent reference keeps using the pre-existing relative helper,
+  // with only its native Text host bound to the private contextual oracle.
+  const relativeModule = { exports: {} }
+  const relativeCode = transformSync(
+    readFileSync(
+      new URL('../../primitives/src/runtime-text-size.native.tsx', import.meta.url),
+      'utf8',
+    ),
+    { loader: 'tsx', jsx: 'automatic', format: 'cjs' },
+  ).code
+  new Function('require', 'module', 'exports', relativeCode)(
+    (name: string) => {
+      if (name === 'react-native') return { ...shipped.native, Text: reference.ReferenceText }
+      if (name === '@hozo/engine') return { HozoTextSizeContext: legacy }
+      return require(name)
+    },
+    relativeModule,
+    relativeModule.exports,
+  )
   const code: Record<string, string> = {}
   const cache = new Map<string, Record<string, unknown>>()
   const load = (name: string): Record<string, unknown> => {
@@ -92,6 +113,9 @@ function graph(
             : { ...shipped.native, Text: reference.ReferenceText, View: reference.ReferenceView }
         if (specifier === '@hozo/core/generated/inherited-text')
           return { HozoInheritedText: shipped.HozoInheritedText }
+        if (specifier === '@hozo/core/generated/inherited-relative-text')
+          return { HozoInheritedRelativeText: shipped.HozoInheritedRelativeText }
+        if (specifier === '@hozo/core/generated/text-size') return relativeModule.exports
         if (specifier === '@hozo/core/generated/inherited-view')
           return { HozoInheritedView: shipped.HozoInheritedView }
         throw new Error(`Unexpected generated dependency ${specifier}`)
@@ -294,6 +318,104 @@ test('proved production memo Text keeps ordinary host output, state and refs wit
     assert.equal(textRef.current, null)
   }
   assert.deepEqual(records[1], records[0])
+})
+
+test('semantic relative owners publish effective typography through opaque memo/View boundaries', () => {
+  const scene = `import {View,Text} from '@hozo/core';import {Heading,Small,Strong} from '@hozo/typography';import {Label} from 'fixture:label';
+export function Scene({frame,own,smallRef}) {return <View testID="outer" style={frame}><Heading level={2} testID="heading"><Small ref={smallRef} testID="small" className="text-[#1355bb]" style={own}><Strong testID="strong"><View testID="inside"><Label/></View></Strong></Small></Heading></View>}`
+  const label = `import {Text} from '@hozo/core';import {memo,useState} from 'react';let next=0;export const Label=memo(function Label(){const [id]=useState(()=>++next);return <Text testID="label" nativeID={'mount:'+id}>Label</Text>})`
+  for (const preflight of [false, true]) {
+    const records = []
+    for (const mode of ['reference', 'runtime', 'optimized']) {
+      const fixture = graph(mode !== 'reference', scene, mode === 'optimized', label, preflight)
+      let tree: ReturnType<typeof renderer.create>
+      const stages = []
+      const smallRef = React.createRef()
+      let smallInstance: unknown
+      let first: unknown
+      try {
+        for (const [frame, own] of [
+          [REST, undefined],
+          [NEXT, undefined],
+          [NEXT, { fontSize: 30, color: '#abcdef' }],
+          [REST, { fontSize: 30, color: '#abcdef' }],
+          [REST, { fontSize: undefined, color: undefined }],
+          [REST, undefined],
+        ] as const) {
+          renderer.act(() => {
+            const element = React.createElement(fixture.Scene, { frame, own, smallRef })
+            if (tree) tree.update(element)
+            else
+              tree = renderer.create(element, {
+                createNodeMock: (node: { props: { testID?: string } }) => ({
+                  id: node.props.testID,
+                }),
+              })
+          })
+          const text = (id: string) =>
+            tree.root.findAll(
+              (node: { type: unknown; props: { testID?: string } }) =>
+                node.type === 'NativeText' && node.props.testID === id,
+            )[0]
+          const heading = text('heading'),
+            small = text('small'),
+            strong = text('strong'),
+            leaf = text('label')
+          first ??= leaf
+          smallInstance ??= smallRef.current
+          assert.deepEqual(smallRef.current, { id: 'small' })
+          assert.equal(smallRef.current, smallInstance, 'relative owner forwards a stable ref')
+          assert.equal(leaf, first, 'ancestor changes and removing an override preserve the host')
+          assert.equal(leaf.props.nativeID, 'mount:1')
+          assert.equal(heading.props.accessibilityRole, 'header')
+          const headingSize = preflight ? frame.fontSize : Math.round(frame.fontSize * 1.5)
+          // RN flatten keeps explicitly present undefined fields, erasing
+          // earlier own declarations. That differs from removing the style
+          // object entirely (the next stage), which restores the class/ratio.
+          const cleared = own !== undefined && own.fontSize === undefined
+          const smallSize = cleared
+            ? headingSize
+            : (own?.fontSize ?? Math.round(headingSize * (preflight ? 0.8 : 1 / 1.2)))
+          const color = cleared ? frame.color : (own?.color ?? '#1355bb')
+          const expected = {
+            ...Object.fromEntries(
+              Object.entries(frame).filter(([name]) =>
+                TEXT_REFERENCE_FIELDS.includes(name as (typeof TEXT_REFERENCE_FIELDS)[number]),
+              ),
+            ),
+            fontSize: smallSize,
+            fontWeight: '700',
+            color,
+          }
+          assert.equal(flatten(heading.props.style).fontSize, headingSize)
+          assert.equal(
+            flatten(heading.props.style).fontWeight,
+            preflight ? frame.fontWeight : '700',
+          )
+          assert.equal(flatten(small.props.style).fontSize, smallSize, `${mode}: small size`)
+          assert.equal(flatten(small.props.style).color, color, `${mode}: small color`)
+          for (const node of [strong, leaf])
+            assert.deepEqual(flatten(node.props.style), expected, `${mode}: ${node.props.testID}`)
+          const views = tree.root.findAll((node: { type: unknown }) => node.type === 'NativeView')
+          assert.equal(views.length, 2, 'no added native layout hosts')
+          assert.deepEqual(views[0].props.style, { width: 240, padding: 12 })
+          assert.deepEqual(views[1].props.style, {})
+          stages.push({
+            heading: flatten(heading.props.style),
+            small: flatten(small.props.style),
+            strong: flatten(strong.props.style),
+            label: flatten(leaf.props.style),
+          })
+        }
+      } finally {
+        renderer.act(() => tree?.unmount())
+      }
+      assert.equal(smallRef.current, null)
+      records.push(stages)
+    }
+    assert.deepEqual(records[1], records[0], 'shipped helper agrees with independent reference')
+    assert.deepEqual(records[2], records[0], 'unproved semantic roots retain runtime correctness')
+  }
 })
 
 test('compiler-inserted raw Text reads effective View overrides rather than copying static owner classes', () => {

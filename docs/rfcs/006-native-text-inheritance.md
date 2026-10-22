@@ -401,6 +401,19 @@ The bounded two-platform rendering gate is complete, not the integration,
 update-cost or rollout requirements below. The next implementation slice is
 real typography/owner integration, not more panels in the same fixture.
 
+Default integration is now tracked in [#1207](https://github.com/iray-tno/hozo/issues/1207).
+Its first bounded semantic compiler slice admits Paragraph, Strong, static-level
+Heading, Small, Sub, Sup, Mark and NoBreak alongside passive Text/View. Semantic
+ratios use a shipped `HozoInheritedRelativeText` leaf: the existing size bridge
+supplies the base and the ordinary inherited Text owner publishes the resolved
+frame. Conditional classes, relative CSS metrics, font families/styles/variants,
+dynamic heading levels and other adapters still produce an explicit internal
+error. Uncompiled typography exports, widget owners, transitions and portals are
+not integrated by this compiler slice. See the
+[semantic integration evidence](../native-text-inheritance-baseline.md#bounded-semantic-compiler-integration)
+for the measured scope. Normal Metro builds and `ui-docs` screenshots still use
+ordinary lowering; helper integration is not a default rollout.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

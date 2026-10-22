@@ -61,15 +61,15 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        'a4f54a0bfe00f68ee2c6bf0b3fe79e1b24532849cbae31d841bc7115142f4e16',
+        '356970c10d93f0ecfb39eb28f8a261d62cee2bf3ff2d4566284c36f38b20b5a4',
       'crates/hozo_native/src/text_region.rs':
-        '0f04801f44d51b47753702ee1bdc645388980fd206b55f6be6bc38a44d8607fe',
+        'e5e1d293fd7f6e5e2de661fd82458d7084bf72d909ed77bfffe9fde710f10d7f',
       'crates/hozo_native/src/style.rs':
         '366bf2ecafb83f915bf06cd83a6f7938aa81e362ab46a1569c32d2caeb73e4c8',
       'crates/hozo_native/src/render.rs':
-        'ae75520dce1ddcd16cf3501e1c2aefb4b9a535afe404ba0dddb222facf956831',
+        '4e0107ffbe5bd1e45b31e2b97e107aa79f9aae52c8b006a7ee4f82189ebccbd4',
       'crates/hozo_native/src/text.rs':
-        'c1f77791cc9fd05dc327e70525cb9baec2ce886a17637375a50d2b19db25b98d',
+        '2c2f51b5ef789240f9cab6ddf4476ce0165151e7fccd0a5c7144e825a014592e',
       'crates/hozo_ir/src/lib.rs':
         'd2fbd84512213f3702c2695e67b525521f77abb85b3e6501969ad2b651add8ed',
     },
