@@ -1102,8 +1102,9 @@ registration effects. A bounded host-render guard reproduced the loop on the
 preceding source, without spinning indefinitely or relying on a timeout.
 
 The provider now memoizes its methods independently of its item snapshot and
-leaves the Map unchanged for identical writes or absent removals. Registration,
-updates and cleanup still use the same API, keyed fragments and absolute host;
+leaves the Map unchanged for identical writes or absent removals. Content
+updates keep the existing key's position relative to unaffected siblings.
+Public API, keyed fragments and the absolute host stay unchanged;
 no typography capture, host boundary or public API is added. Source-backed tests
 cover two items, stable child state/host identity on replacement, individual
 removal, complete cleanup, inline disabled/no-provider cases and StrictMode

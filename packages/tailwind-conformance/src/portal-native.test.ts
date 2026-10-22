@@ -30,17 +30,20 @@ test('Native portal registration settles and preserves item identity through upd
     }, [])
     return React.createElement('Label', { id, token }, text)
   }
+  // Keep the unaffected item identical: replacing only the first item must
+  // not unregister/reappend it after its sibling in the destination Map.
+  const sibling = React.createElement(
+    Portal,
+    null,
+    React.createElement(Label, { id: 'second', text: 'Sibling' }),
+  )
   const scene = (text = 'initial', show = true) =>
     React.createElement(
       PortalProvider,
       null,
       React.createElement('Inline', null, 'Opener'),
       show && React.createElement(Portal, null, React.createElement(Label, { id: 'first', text })),
-      React.createElement(
-        Portal,
-        null,
-        React.createElement(Label, { id: 'second', text: 'Sibling' }),
-      ),
+      sibling,
     )
   let tree: ReturnType<typeof renderer.create>
   try {
@@ -54,6 +57,10 @@ test('Native portal registration settles and preserves item identity through upd
     assert.equal(cleanups, 0)
     assert.equal(tree.root.findAllByType('PortalView').length, 1)
     renderer.act(() => tree.update(scene('updated')))
+    assert.deepEqual(
+      tree.root.findAllByType('Label').map((node) => node.props.id),
+      ['first', 'second'],
+    )
     assert.equal(tree.root.findAllByType('Label')[0], first)
     assert.equal(first.props.token, token)
     assert.deepEqual(first.children, ['updated'])

@@ -26,7 +26,6 @@ export interface PortalProps {
 }
 
 type PortalMethods = {
-  mount: (id: string, children: ReactNode) => void
   update: (id: string, children: ReactNode) => void
   unmount: (id: string) => void
 }
@@ -43,7 +42,7 @@ export function PortalProvider({ children }: { children: ReactNode }) {
   // Portal effects depend on this API, not the item snapshot. Recreating it
   // after a registration makes that effect unregister/register forever.
   const methods = useMemo<PortalMethods>(() => {
-    const put: PortalMethods['mount'] = (id, node) => {
+    const put: PortalMethods['update'] = (id, node) => {
       setItems((prev) => {
         if (prev.has(id) && prev.get(id) === node) return prev
         const next = new Map(prev)
@@ -52,7 +51,6 @@ export function PortalProvider({ children }: { children: ReactNode }) {
       })
     }
     return {
-      mount: put,
       update: put,
       unmount: (id) => {
         setItems((prev) => {
@@ -120,11 +118,12 @@ export function Portal({ children, disabled = false }: PortalProps) {
 
   useEffect(() => {
     if (disabled || !portal) return
-    portal.mount(id, children)
+    // A changed child is an in-place item update, not an unregister/register:
+    // deleting/readding the same key would move it after unaffected siblings.
     return () => {
       portal.unmount(id)
     }
-  }, [disabled, portal, id, children])
+  }, [disabled, portal, id])
 
   useEffect(() => {
     if (disabled || !portal) return
