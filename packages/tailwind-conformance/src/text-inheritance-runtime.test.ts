@@ -120,6 +120,11 @@ function graph(
       (specifier: string) => {
         if (specifier.startsWith('fixture:')) return load(specifier.slice(8))
         if (specifier === 'react' || specifier === 'react/jsx-runtime') return require(specifier)
+        if (specifier === '@hozo/engine/generated/text-inheritance-protocol')
+          return {
+            HozoInheritedMetricsContext: shipped.HozoInheritedMetricsContext,
+            HozoInheritedPaintContext: shipped.HozoInheritedPaintContext,
+          }
         if (specifier === '@hozo/behaviors')
           return (portal ??= loadNativePortal({ View: shipped.native.View }))
         if (specifier === 'react-native')
@@ -1402,6 +1407,143 @@ test('label callbacks receive disposable snapshots, not the shared interaction v
   }
 })
 
+test('a color-only owner shares one timeline through opaque text, overrides and late joins', () => {
+  const source = `import {View,Button,Text} from '@hozo/core';import {Label} from 'fixture:label';export const Scene=({frame,own,late,ownerOwn,note})=><View style={frame}><Button testID="motion-owner" className="text-[#000000] hover:text-[#ff0000] transition-[color] duration-100 delay-20 ease-linear" style={ownerOwn}><View><Label id="target" own={own} note={note}/>{late&&<Label id="late" note={note}/>}</View>{0}</Button><Text testID="outside">Outside</Text></View>`
+  const label = `import {Text} from '@hozo/core';import {memo,useContext,useState} from 'react';import {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';const Metrics=memo(({id,note})=>{note('metrics',id,useContext(HozoInheritedMetricsContext));return null});const Paint=memo(({id,note})=>{note('paint',id,useContext(HozoInheritedPaintContext));return null});export const Label=memo(({id,own,note})=>{const [token]=useState(()=>id);return <Text testID={id} nativeID={token} style={own}>Label<Metrics id={id} note={note}/><Paint id={id} note={note}/></Text>})`
+  for (const textStatic of [false, true]) {
+    const fixture = graph(true, source, textStatic, label, undefined, true)
+    const Animated = fixture.shipped.native.Animated
+    const Original = Animated.Value
+    const nodes = [],
+      notes = []
+    Animated.Value = class extends Original {
+      constructor(value) {
+        super(value)
+        nodes.push(this)
+      }
+    }
+    Animated.__hozoResetTimings()
+    let tree: ReturnType<typeof renderer.create>
+    let own: object | undefined,
+      ownerOwn: object | undefined,
+      late = false
+    const note = (kind, id, value) => notes.push({ kind, id, value })
+    const scene = () =>
+      React.createElement(fixture.Scene, { frame: REST, own, ownerOwn, late, note })
+    const text = (id) =>
+      tree.root.findAll((node) => node.type === 'NativeText' && node.props.testID === id)[0]
+    const owner = () =>
+      tree.root.findAll(
+        (node) => node.type === 'Pressable' && node.props.testID === 'motion-owner',
+      )[0]
+    const color = (id) => flatten(text(id).props.style).color
+    const range = (id) => color(id).__animatedInterpolation
+    const { blendColor } = require('../../engine/src/color-transition.ts')
+    try {
+      renderer.act(() => {
+        tree = renderer.create(scene())
+      })
+      const first = text('target')
+      assert.equal(nodes.length, 1)
+      assert.equal(nodes[0].listeners.size, 1)
+      assert.equal(Animated.__hozoTimings.length, 0)
+      assert.deepEqual(range('target').outputRange, ['#000000', '#000000'])
+      assert.equal(color('outside'), REST.color)
+      renderer.act(() => owner().props.onHoverIn({}))
+      assert.equal(Animated.__hozoTimings.length, 1)
+      assert.equal(Animated.__hozoTimings[0].config.useNativeDriver, false)
+      const count = notes.length
+      renderer.act(() => {
+        for (let i = 1; i <= 50; i++) nodes[0].setValue(i / 100)
+      })
+      assert.equal(notes.length, count, 'frame progress must not notify Context readers')
+      late = true
+      renderer.act(() => tree.update(scene()))
+      assert.equal(
+        color('target') === color('late'),
+        true,
+        'late text joins the existing live node',
+      )
+      assert.equal(nodes.length, 1)
+      assert.equal(Animated.__hozoTimings.length, 1)
+      own = { color: '#00ff00' }
+      renderer.act(() => tree.update(scene()))
+      assert.equal(color('target'), '#00ff00')
+      assert.equal(
+        notes.filter((entry) => entry.kind === 'paint' && entry.id === 'target').at(-1).value.motion
+          .color,
+        null,
+      )
+      const shielded = notes.length
+      renderer.act(() => nodes[0].setValue(0.75))
+      assert.equal(notes.length, shielded)
+      assert.equal(color('target'), '#00ff00')
+      const ownReads = notes.filter(
+        (entry) => entry.kind === 'paint' && entry.id === 'target',
+      ).length
+      renderer.act(() => owner().props.onHoverOut({}))
+      renderer.act(() => owner().props.onHoverIn({}))
+      assert.equal(
+        notes.filter((entry) => entry.kind === 'paint' && entry.id === 'target').length,
+        ownReads,
+        'local colour shields paint notifications during retargets too',
+      )
+      assert.deepEqual(range('late').outputRange, [
+        blendColor('#000000', '#ff0000', 0.75),
+        '#ff0000',
+      ])
+      renderer.act(() => nodes[0].setValue(1))
+      own = undefined
+      renderer.act(() => tree.update(scene()))
+      assert.equal(
+        color('target') === color('late'),
+        true,
+        'override removal rejoins current progress, not a new timeline',
+      )
+      assert.equal(text('target') === first, true)
+      const zero = tree.root.findAll(
+        (node) => node.type === 'NativeText' && node.children[0] === '0',
+      )[0]
+      assert.ok(zero)
+      assert.equal(flatten(zero.props.style).color === color('late'), true)
+      renderer.act(() => owner().props.onHoverOut({}))
+      const current = blendColor(blendColor('#000000', '#ff0000', 0.75), '#ff0000', 0.25)
+      assert.deepEqual(range('target'), {
+        inputRange: [1, 2],
+        outputRange: [current, '#000000'],
+      })
+      assert.equal(color('target') === color('late'), true)
+      renderer.act(() => nodes[0].setValue(1.5))
+      const reversed = blendColor(current, '#000000', 0.5)
+      ownerOwn = { color: '#0000ff' }
+      renderer.act(() => tree.update(scene()))
+      assert.deepEqual(range('target'), {
+        inputRange: [1.5, 2.5],
+        outputRange: [reversed, '#0000ff'],
+      })
+      ownerOwn = undefined
+      renderer.act(() => tree.update(scene()))
+      assert.equal(range('target').outputRange[1], '#000000')
+      assert.equal(nodes.length, 1)
+      assert.equal(tree.root.findAllByType('Pressable').length, 1)
+      assert.equal(tree.root.findAllByType('NativeView').length, 2)
+      assert.equal(text('target') === first, true)
+      for (const id of ['target', 'late']) {
+        assert.equal(notes.filter((entry) => entry.kind === 'metrics' && entry.id === id).length, 1)
+        assert.ok(
+          notes
+            .filter((entry) => entry.kind === 'paint' && entry.id === id)
+            .every((entry) => Object.isFrozen(entry.value)),
+        )
+      }
+    } finally {
+      renderer.act(() => tree?.unmount())
+      assert.equal(nodes[0]?.listeners.size, 0)
+      Animated.Value = Original
+    }
+  }
+})
+
 test('unassessed label transitions and host style callbacks fail without evaluating a callback', () => {
   const runtime = loadTextInheritanceRuntime(React.createContext(14), undefined, true)
   let calls = 0
@@ -1421,6 +1563,26 @@ test('unassessed label transitions and host style callbacks fail without evaluat
         colors: true,
       },
     },
+    {
+      style: { color: '#123456' },
+      hozoTransition: {
+        duration: 100,
+        easing: 'linear',
+        opacity: true,
+        transform: false,
+        colors: true,
+      },
+    },
+    {
+      style: { color: 'tomato' },
+      hozoTransition: {
+        duration: 100,
+        easing: 'linear',
+        opacity: false,
+        transform: false,
+        colors: true,
+      },
+    },
   ]) {
     assert.throws(
       () =>
@@ -1431,6 +1593,54 @@ test('unassessed label transitions and host style callbacks fail without evaluat
     )
   }
   assert.equal(calls, 0)
+})
+
+test('the inherited non-motion path stays allocation-free and motion presence changes refuse explicitly', () => {
+  const api = loadTextInheritanceRuntime(React.createContext(14), undefined, true)
+  const Animated = api.native.Animated
+  const Original = Animated.Value
+  let nodes = 0,
+    resolutions = 0
+  Animated.Value = class extends Original {
+    constructor(value) {
+      super(value)
+      nodes++
+    }
+  }
+  let tree: ReturnType<typeof renderer.create>
+  const motion = { duration: 100, easing: 'linear', opacity: false, transform: false, colors: true }
+  const scene = (transition?) =>
+    React.createElement(
+      api.HozoInheritedPressable,
+      {
+        hozoTransition: transition,
+        hozoTextStyle: (state) => {
+          resolutions++
+          return { color: state.hovered ? '#ff0000' : '#000000' }
+        },
+      },
+      React.createElement(api.HozoInheritedText, null, 'Label'),
+    )
+  try {
+    renderer.act(() => {
+      tree = renderer.create(scene())
+    })
+    renderer.act(() => tree.root.findByType('Pressable').props.onHoverIn({}))
+    assert.equal(nodes, 0)
+    renderer.act(() => tree.unmount())
+    resolutions = 0
+    renderer.act(() => {
+      tree = renderer.create(scene(motion))
+    })
+    assert.equal(nodes, 1)
+    assert.equal(resolutions, 1)
+    renderer.act(() => tree.root.findByType('Pressable').props.onHoverIn({}))
+    assert.equal(resolutions, 2, 'the motion commit pass must not resolve label classes again')
+    assert.throws(() => renderer.act(() => tree.update(scene())), /changing transition presence/)
+  } finally {
+    renderer.act(() => tree?.unmount())
+    Animated.Value = Original
+  }
 })
 
 test('compiler-inserted raw Text reads effective View overrides rather than copying static owner classes', () => {

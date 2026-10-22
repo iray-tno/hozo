@@ -323,6 +323,52 @@ test('Chip row and removal slots share the assessed domain and keep ordinary low
   }
 })
 
+test('explicit color-only transitions use the inherited owner without changing ordinary lowering', () => {
+  const compiler = createCompiler()
+  for (const component of ['Button', 'Pressable']) {
+    const source = `import {${component},View,Text} from '@hozo/core';export const Scene=()=> <${component} className="text-[#000000] hover:text-[#ff0000] transition-[color] duration-100 delay-20 ease-linear"><View><Text>Label</Text></View></${component}>`
+    const ordinary = compiler.compileNativeModule(source)
+    for (const textStatic of [false, true]) {
+      const selected = compiler.compileNativeModule(source, undefined, undefined, {
+        textInheritance: true,
+        textStatic,
+      }).components[0]
+      assert.ok(
+        !selected.diagnostics.some((d) => d.severity === 'error'),
+        JSON.stringify(selected.diagnostics),
+      )
+      assert.match(selected.jsx, /HozoInheritedPressable/)
+      assert.match(selected.jsx, /hozoTransition=/)
+      assert.match(selected.jsx, /colors: true/)
+      assert.match(selected.jsx, /opacity: false, transform: false/)
+      assert.ok(!selected.runtimeImports.includes('HozoAnimated'))
+    }
+    assert.deepEqual(compiler.compileNativeModule(source), ordinary)
+  }
+  for (const classes of [
+    'text-black hover:text-red-500 transition-colors',
+    'text-black hover:text-red-500 transition-all',
+    'hover:text-red-500 transition-[color]',
+    'text-black dark:text-red-500 transition-[color]',
+    'text-black hover:text-red-500 hover:transition-[color]',
+    'text-black hover:text-red-500 transition-[color] unscanned-utility',
+  ]) {
+    const source = `import {Button} from '@hozo/core';export const Scene=()=> <Button className="${classes}">Label</Button>`
+    const selected = compiler.compileNativeModule(source, undefined, undefined, {
+      textInheritance: true,
+    }).components[0]
+    const normal = compiler.compileNativeModule(source).components[0]
+    assert.ok(
+      selected.diagnostics.some((d) => d.severity === 'error'),
+      classes,
+    )
+    assert.deepEqual(
+      [selected.jsx, selected.styles, selected.runtimeImports],
+      [normal.jsx, normal.styles, normal.runtimeImports],
+    )
+  }
+})
+
 test('internal runtime integration refuses unassessed primitives and conditions, not ordinary support', () => {
   const compiler = createCompiler()
   for (const source of [

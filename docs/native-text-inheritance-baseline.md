@@ -1312,3 +1312,54 @@ StrictMode and superseded Suspense targets, alongside the existing owner tests.
 These are mocked scheduling/node observations, not new Native pixels or timing
 results. The next layer must connect the inherited paint transport and compiler
 gate, including local override shielding and late-joining descendants.
+
+## First inherited colour-transition connection
+
+The internal compiler route now admits an explicit `transition-[color]` on
+Button/Pressable when the existing Native planner produces a colour-only
+transition from its static base and interactive colour declarations. It reuses
+that planner and the shared committed driver, not a second class/event resolver.
+No spreads or carried/unscanned candidates are certified on this motion owner.
+`transition-colors`, `transition-all`, background/border/opacity/transform motion,
+ambient conditions and unplanned colour transitions still retain ordinary output
+plus an explicit internal refusal. Ordinary compilation remains unchanged.
+
+The existing paint channel carries an immutable envelope around an opaque live
+Animated interpolation; its scalar `color` remains the committed target, not a
+sample of the visible colour. The protocol still has no RN import or new Context.
+Participating Text under this motion boundary uses Animated.Text with the same
+shared interpolation. An explicit local colour masks it without changing the
+animated host kind; removing that override rejoins current progress. Static
+proofs still require a closed, complete own-field region before erasing readers.
+
+One label owner allocates one lazy progress Value/listener. Opaque memo/View
+labels, raw zero and late-joining labels share it; they do not start individual
+timelines. Frame notifications update that value, not Context/React state.
+Target/range changes still have bounded committed React passes, and consumers
+that compute an effective override may still render when an outer target changes;
+the stable masked paint prevents notifying their nested paint readers. This is
+not a promise of zero retarget cost. Each animated Text also has the ordinary
+Animated host/binding overhead, not measured by counting progress Values.
+
+Generated runtime-only and proof-selected graphs assert intermediate reversal,
+owner-prop target changes/removal, local overrides during retargeting, late joins,
+stable hosts, one owner/control, unchanged metrics-reader notifications, cleanup,
+and no paint-reader notification from 50 simulated frame ticks. A separate
+non-motion control constructs zero Values, while the extra motion commit pass
+does not resolve label classes again. Unsupported colour representations use
+the same parser as interruption blending and explicitly refuse certification:
+moving owner colours are limited to supported hex, transparent and serialized
+blended RGBA, not arbitrary Native/platform/named colour values. Ordinary static
+local colours are not required to become blendable merely to mask an outer
+timeline. Transition presence
+cannot change within this assessed owner, and inheriting another active motion
+as the new owner's base remains explicitly unassessed.
+
+The helper-graph microbundle, with engine/platform/React peers external, is
+10,370 → 11,245 minified bytes; gzip 3,727 → 3,986 (+875/+259). This excludes the
+engine protocol delta, and is neither a Metro budget nor a device speed result.
+Normal Metro/docs routing stays ordinary. The fixture refresh changes source
+hashes, not historical device scenarios or expected results; its non-motion host
+mock gains only a component factory, not an animation/timing implementation.
+Fresh Native motion pixels/AT, interrupted wall-clock behavior, update-cost
+measurements and broader widget/popup/transition scope still gate default rollout.

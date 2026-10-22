@@ -26,7 +26,7 @@ export const textFixtureManifest = {
       'packages/engine/src/generated/text-size-context.ts':
         '2c0e35bf8dc98842b17f5fff73a1a01ffc258eb5ade6b74d703fc460bd54ec42',
       'packages/engine/src/text-inheritance.ts':
-        '5e4a0599626a0e3ac1339f66603b07f5c885e7c7275187ecb1885f3c8085b9e3',
+        '71623f6232ae9e1f07e30628fac3c1ac8d27dae34ae73a90b321d6e61a5d0b20',
       'packages/engine/src/text-size.ts':
         '48c4ab6d5f6617e5cf674ca1224a1987cfc7536e4d87217e676c15c5c3820c14',
       'packages/primitives/src/generated/inherited-text.ts':
@@ -34,7 +34,7 @@ export const textFixtureManifest = {
       'packages/primitives/src/generated/inherited-view.ts':
         'ea17ee15cfa6873527c0c463e170ec29b42795dad52366b37031a29fb712555d',
       'packages/primitives/src/inherited-text.native.tsx':
-        'e54ea576fffbf46f3fcced9fad9fe592c0ee8bbb3daa406ebba70117fb7158d4',
+        '7a0210055d7dea5d37ab6c8367366964c268537acfd37582c35e2c25ef1a462e',
       'packages/primitives/src/inherited-view.native.tsx':
         'fe69925e081457e50df070a073a91169f0ce22440c707ec25bd461150a7364cb',
       'packages/primitives/src/inherited-text-scope.tsx':
@@ -61,9 +61,9 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        'cf460433b3eaf57e548d5c01101f0e34ad703230e206e97a26f76631791a4bb3',
+        'd3ad6b5e2bbad15fbf845f83c25ad5355cca79f83c85e1058335d1f11fa7552b',
       'crates/hozo_native/src/text_region.rs':
-        'ef4921f882601a2efe03213325acb81e8dcfa0c79cb2409ec69686ab30324c0b',
+        'eb863ef113291e96c4f7eb7b0e045a27d109620e6a972bb0e1198907e7fac62a',
       'crates/hozo_native/src/style.rs':
         '366bf2ecafb83f915bf06cd83a6f7938aa81e362ab46a1569c32d2caeb73e4c8',
       'crates/hozo_native/src/render.rs':

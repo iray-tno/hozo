@@ -21,6 +21,16 @@ const FIELDS: [&str; 7] = [
 // bypass an unassessed animation/relative CSS declaration just because ordinary
 // output happens to need no generated adapter for one value of it.
 pub(super) fn passive(node: &Node) -> bool {
+    // Start with the explicit colour-only CSS property, not transition-colors
+    // (which also promises background/border paint). Reuse the existing Native
+    // transition planner rather than inventing another timing/condition path.
+    let label_motion = matches!(node.primitive, Primitive::Button | Primitive::Pressable)
+        && node.carried_classes.is_empty()
+        && node.props.passthrough.iter().all(|prop| !prop.is_spread)
+        && node.style.iter().any(|style| matches!(&style.property, StyleProperty::TransitionProperty(value) if value.trim() == "color"))
+        && node.style.iter().all(|style| !matches!(&style.property, StyleProperty::TransitionProperty(value) if value.trim() != "color"))
+        && super::transition::native_driver_transition(node, &node.style)
+            .is_some_and(|(_, _, _, opacity, transform, colors)| colors && !opacity && !transform);
     let chip_label = node.primitive == Primitive::Chip
         && node.props.passthrough.iter().all(|prop| {
             // Fully opaque slots stay passthrough rather than becoming
@@ -37,13 +47,17 @@ pub(super) fn passive(node: &Node) -> bool {
             || (chip_label || matches!(node.primitive, Primitive::Button | Primitive::Pressable))
                 && super::text::is_text_property(&style.property)
                 && label_condition(&style.condition))
+            && (label_motion
+                || !matches!(
+                    style.property,
+                    StyleProperty::TransitionProperty(..)
+                        | StyleProperty::TransitionDuration(..)
+                        | StyleProperty::TransitionDelay(..)
+                        | StyleProperty::TransitionTimingFunction(..)
+                ))
             && !matches!(
                 style.property,
-                StyleProperty::TransitionProperty(..)
-                    | StyleProperty::TransitionDuration(..)
-                    | StyleProperty::TransitionDelay(..)
-                    | StyleProperty::TransitionTimingFunction(..)
-                    | StyleProperty::AnimationName(..)
+                StyleProperty::AnimationName(..)
                     | StyleProperty::Animation(..)
                     | StyleProperty::ThemeAnimation(..)
                     | StyleProperty::FontFamily(..)

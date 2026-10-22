@@ -472,6 +472,15 @@ the browser's single focused control from independent mock-owner facts. This
 adds bounded CSS evidence, not a new Native pixel/AT/update-cost result or a
 default switch.
 
+The [shared committed colour driver and first inherited motion connection](../native-text-inheritance-baseline.md#first-inherited-colour-transition-connection)
+now admit planned explicit `transition-[color]` Button/Pressable labels internally.
+An opaque Animated interpolation travels through the existing paint channel;
+late readers share its progress, and local colours mask/rejoin it without a new
+timeline or host-kind change. No per-frame Context update is introduced. The
+assessed domain excludes broader transition properties, dynamic transition
+presence and unsupported colour representations; this is mocked node/commit
+evidence, not a new Native pixel/AT/timing result or default activation.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

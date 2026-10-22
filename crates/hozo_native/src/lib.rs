@@ -316,7 +316,7 @@ pub fn lower_text_inheritance(
     output.diagnostics.push(Diagnostic {
         code: DiagnosticCode::NotWiredOnNative,
         severity: Severity::Error,
-        message: "Internal text inheritance currently assesses passive Text/View, bounded semantic typography, non-animated Button/Pressable labels and Chip row/toggle/removal labels without spreads. Chip secondary class slots must satisfy the same assessed scalar and condition rules as its root. Only label typography can additionally use that owner's hover/active/focus/focus-visible conditions and their conjunctions. Other conditional classes, animation, relative CSS metrics, dynamic heading levels, font families/styles/variants and additional generated adapters remain unassessed. This root retains ordinary lowering; it is not runtime-inheritance evidence.".to_string(),
+        message: "Internal text inheritance currently assesses passive Text/View, bounded semantic typography, Button/Pressable labels and Chip row/toggle/removal labels without spreads. Button/Pressable can additionally use explicit transition-[color] with an existing planned colour transition; broader transition properties remain unassessed. Chip secondary class slots must satisfy the same assessed scalar and condition rules as its root. Only label typography can additionally use that owner's hover/active/focus/focus-visible conditions and their conjunctions. Other conditional classes, animation, relative CSS metrics, dynamic heading levels, font families/styles/variants and additional generated adapters remain unassessed. This root retains ordinary lowering; it is not runtime-inheritance evidence.".to_string(),
         span: root.span,
     });
     output
