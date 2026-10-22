@@ -98,6 +98,20 @@ export function transformHozoSource(
   const compiled = hasSemanticCandidate
     ? compiler.compileNativeModule(code, stylexBindings)
     : undefined
+  // A class React Native cannot draw, in a class prop no component lowered
+  // -- one handed to a pattern (#1166). Before the early return: a file that
+  // only wears patterns lowers nothing and is exactly where these live. Not
+  // for a dependency's files, whose classes the app's author cannot change;
+  // a warning on every build that nobody can act on teaches people to stop
+  // reading them.
+  if (compiled && !/[\\/]node_modules[\\/]/.test(filename)) {
+    reportDiagnostics(
+      compiled.diagnostics,
+      filename,
+      // eslint-disable-next-line no-console
+      (message) => console.warn(message),
+    )
+  }
   if (!compiled || compiled.components.length === 0) {
     return canvas.touched ? code : null
   }

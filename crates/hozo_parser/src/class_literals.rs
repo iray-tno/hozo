@@ -103,6 +103,10 @@ pub struct RuntimeClassList {
     /// `className`, or a secondary one such as `sheetClassName`.
     pub prop: String,
     pub span: hozo_ir::SourceSpan,
+    /// The element's name, matching the lowered node's `opening_tag_span`,
+    /// so a caller can tell a primitive the compiler lowered -- and already
+    /// diagnosed -- from a component it carried.
+    pub element_span: hozo_ir::SourceSpan,
     pub literals: Vec<String>,
 }
 
@@ -115,6 +119,20 @@ pub struct RuntimeClassList {
 /// Native backend reads this to say which of those classes React Native
 /// cannot draw (#1165).
 pub fn runtime_class_lists(source_text: &str) -> Vec<RuntimeClassList> {
+    let allocator = oxc_allocator::Allocator::default();
+    let source_type = oxc_span::SourceType::from_extension("tsx").expect("tsx is known");
+    let ret = oxc_parser::Parser::new(&allocator, source_text, source_type).parse();
+    let bindings = crate::rest::analyze(&ret.program);
+    collect_runtime_class_lists(&ret.program, source_text, &bindings.constants)
+}
+
+/// The same walk over a program already parsed, so the module compile can
+/// report on it without parsing the file a second time.
+pub(crate) fn collect_runtime_class_lists(
+    program: &oxc_ast::ast::Program,
+    source_text: &str,
+    constants: &ConstantStrings,
+) -> Vec<RuntimeClassList> {
     use oxc_ast::ast::{JSXAttributeItem, JSXAttributeName, JSXElementName, JSXOpeningElement};
     use oxc_ast_visit::Visit;
 
@@ -133,6 +151,7 @@ pub fn runtime_class_lists(source_text: &str) -> Vec<RuntimeClassList> {
                     self.source[span.start as usize..span.end as usize].to_string()
                 }
             };
+            let name_span = oxc_span::GetSpan::span(&element.name);
             for item in &element.attributes {
                 let JSXAttributeItem::Attribute(attr) = item else {
                     continue;
@@ -154,6 +173,10 @@ pub fn runtime_class_lists(source_text: &str) -> Vec<RuntimeClassList> {
                         start: attr.span.start,
                         end: attr.span.end,
                     },
+                    element_span: hozo_ir::SourceSpan {
+                        start: name_span.start,
+                        end: name_span.end,
+                    },
                     literals,
                 });
             }
@@ -161,15 +184,11 @@ pub fn runtime_class_lists(source_text: &str) -> Vec<RuntimeClassList> {
         }
     }
 
-    let allocator = oxc_allocator::Allocator::default();
-    let source_type = oxc_span::SourceType::from_extension("tsx").expect("tsx is known");
-    let ret = oxc_parser::Parser::new(&allocator, source_text, source_type).parse();
-    let bindings = crate::rest::analyze(&ret.program);
     let mut walk = Walk {
         source: source_text,
-        constants: &bindings.constants,
+        constants,
         out: Vec::new(),
     };
-    walk.visit_program(&ret.program);
+    walk.visit_program(program);
     walk.out
 }

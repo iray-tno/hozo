@@ -369,6 +369,17 @@ pub enum DiagnosticCode {
     /// does; what is missing is a choice only the author can make, and
     /// `motion-safe:` is how they make it.
     MotionIgnoresReducedMotion,
+    /// A class React Native cannot draw, in a class prop the Native backend
+    /// does not lower: one handed to a pattern -- `handleClassName` on a
+    /// `BottomSheet` -- which reaches the runtime resolver and is dropped
+    /// there (#1166). A primitive the compiler lowers says the same thing
+    /// through `WebOnlyPropertyOnNative` and its neighbours.
+    ///
+    /// A warning, not an error: the pattern still works, and the Web half
+    /// of the same file is right to use the class. Only what is missing is
+    /// reported -- a cursor or a transition, which nobody on a touch screen
+    /// would miss, is not.
+    ClassNotDrawnOnNative,
 }
 
 // ---------------------------------------------------------------------------
@@ -5902,6 +5913,7 @@ impl DiagnosticCode {
             DiagnosticCode::StylexNotLowered => "STYLEX_NOT_LOWERED",
             DiagnosticCode::FlexDirectionUnsaid => "FLEX_DIRECTION_UNSAID",
             DiagnosticCode::MotionIgnoresReducedMotion => "MOTION_IGNORES_REDUCED_MOTION",
+            DiagnosticCode::ClassNotDrawnOnNative => "CLASS_NOT_DRAWN_ON_NATIVE",
         }
     }
 }

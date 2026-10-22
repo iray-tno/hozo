@@ -1096,3 +1096,37 @@ test('a module that binds a name the Native output imports is refused, naming it
       error.message.includes('binds `HozoDialog`'),
   )
 })
+
+// #1166. A class list handed to a pattern goes to the runtime resolver,
+// which drops what React Native cannot draw; the build says so, at the prop.
+test('warns about a class React Native cannot draw in a pattern prop, but not in a dependency', (t) => {
+  const source = `import { BottomSheet } from '@hozo/patterns'
+import { View } from '@hozo/core'
+
+export function Sheet() {
+  return (
+    <BottomSheet handleClassName="h-6 before:block cursor-grab">
+      <View className="p-4" />
+    </BottomSheet>
+  )
+}
+`
+  const warn = t.mock.method(console, 'warn', () => {})
+  transformHozoSource(source, 'Sheet.tsx')
+  const warnings = warn.mock.calls.map((call) => String(call.arguments[0]))
+  assert.deepEqual(
+    warnings.filter((message) => message.includes('CLASS_NOT_DRAWN_ON_NATIVE')).length,
+    1,
+    warnings.join('\n'),
+  )
+  const [warning] = warnings.filter((message) => message.includes('CLASS_NOT_DRAWN_ON_NATIVE'))
+  assert.match(warning, /`before:block` in handleClassName on <BottomSheet>/)
+
+  warn.mock.resetCalls()
+  transformHozoSource(source, '/app/node_modules/kit/Sheet.tsx')
+  assert.ok(
+    warn.mock.calls.every(
+      (call) => !String(call.arguments[0]).includes('CLASS_NOT_DRAWN_ON_NATIVE'),
+    ),
+  )
+})

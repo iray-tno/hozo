@@ -440,7 +440,7 @@ export function analyzeModule(source: string, options: AnalyzeModuleOptions): Mo
         collect(
           'native',
           'semantic',
-          module.components.flatMap((entry) => entry.diagnostics),
+          [...module.diagnostics, ...module.components.flatMap((entry) => entry.diagnostics)],
           canvas.code,
         )
         if (options.fontAvailability && module.syntaxDiagnostics.length === 0) {
