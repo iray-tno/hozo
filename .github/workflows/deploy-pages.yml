@@ -23,6 +23,8 @@ on:
     types: [completed]
 
 permissions:
+  # Reads native-showcase's screenshot artifact for the docs pages.
+  actions: read
   contents: read
   pages: write
   id-token: write
@@ -64,6 +66,11 @@ jobs:
           cargo install wasm-bindgen-cli --version "$version" --locked
       - run: node scripts/build-wasm.mjs
       - run: pnpm build
+      # The docs component pages show each demo as the last Android run on
+      # main captured it. Failing to fetch leaves them out, never the deploy.
+      - run: node apps/landing/scripts/fetch-native-screenshots.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - run: pnpm --filter @hozo/landing build
         env:
           HOZO_SHOWCASE_DOWNLOADS: '1'

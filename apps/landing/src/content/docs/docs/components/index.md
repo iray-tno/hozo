@@ -62,3 +62,12 @@ What it does not say:
   `data-[state=open]:` work on React Native when the component's Native half
   hands that state to its styles, which varies by component.
 - **It is not a screenshot.** Nothing here was run on a device to produce it.
+
+## The Android screenshot
+
+Under the line, where one exists, is the demo as it looked in the last
+Android run on `main`, on an emulator, with the date and commit it was taken
+at. It shows what the line cannot: layout, and anything that is wrong for a
+reason other than a class. If the demo threw an error there, the screenshot
+is of that error, and says so. A page with no screenshot had none in that
+run. Either the run did not reach it, or the site was built without one.
