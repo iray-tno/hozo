@@ -64,10 +64,12 @@ A place to add files (#151), which is **a button first**. Dragging has no keyboa
 
 - **Validation:** `accept` (MIME types, `image/*`, or extensions such as `.pdf`), `maxSize`, `minSize`, `multiple` and `maxFiles` sort every pick with one shared function (`sortFiles`). The files kept go to `onFilesSelected`, and each refusal goes to `onRejected` with its reason.
 - **Announced:** after a pick, what was added and what was refused is announced politely in one sentence, for example "photo.png selected, 2.4 MB. anim.gif is not an accepted kind of file". The words go through the i18n connection, and sizes use the locale.
-- **React Native:** a button that opens a picker. Hozo ships no native code, so it uses one the application has, in this order:
+- **React Native:** a button that opens a picker. The form package includes no document-picker module, so it uses one the application has, in this order:
   1. `pickFiles`, the application's own picker;
   2. `expo-document-picker`, if installed;
   3. otherwise nothing. The button is then disabled, a reader hears "No file picker is available", and a warning says what to install. This is the resolved-provider seam from #353.
+
+On Native, `className` resolves through the project's candidate map with the button's own hover, focus, press and effective disabled state, before explicit `style`. Literal string/number labels receive the resolved text styles; arbitrary child components keep their own styles and are not cloned. `activeClassName` still means **Web drag-over**, not press or picker busy: the current Native button has no file-drag event source and does not apply that prop. It remains an explicit unapplied slot in the Native docs report rather than being counted as supported.
 
 ## Why the week data is a table
 

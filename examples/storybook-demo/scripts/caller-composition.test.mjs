@@ -1076,6 +1076,100 @@ for (const [name, file, value] of [
   })
 }
 
+test('the real Web FileDropzone keeps drag-active separate from focus, press and disabled', {
+  skip: !executablePath,
+}, async () => {
+  const source = (relative) =>
+    fileURLToPath(new URL(`../../../${relative}`, import.meta.url)).replaceAll('\\', '/')
+  const props = {
+    accessibilityLabel: 'Upload photo',
+    className: 'p-4 hover:bg-[#dd1100] focus:opacity-75 disabled:opacity-25',
+    activeClassName: 'border-4',
+  }
+  const fixture = await build({
+    stdin: {
+      contents: `import {createElement} from 'react'; import {createRoot} from 'react-dom/client'; import {flushSync} from 'react-dom'; import {HozoFileDropzone} from ${JSON.stringify(source('packages/form/src/file-dropzone.tsx'))};
+      const root=createRoot(document.getElementById('zone')); window.zonePicks=0;
+      window.renderZone=props=>flushSync(()=>root.render(createElement(HozoFileDropzone,props,'Choose a file')));
+      window.renderZone(${JSON.stringify(props)});
+      document.querySelector('input[type=file]').addEventListener('click',event=>{event.preventDefault();window.zonePicks++});`,
+      resolveDir: source('examples/storybook-demo'),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const css = (await compile('@theme {--spacing:.25rem;} @tailwind utilities;')).build(
+    `${props.className} ${props.activeClassName}`.split(' '),
+  )
+  const preflight = readFileSync(
+    fileURLToPath(import.meta.resolve('tailwindcss/preflight.css')),
+    'utf8',
+  )
+  const page = await browser.newPage()
+  try {
+    await page.setContent(`<!doctype html><style>${preflight}\n${css}</style><div id="zone"></div>`)
+    await page.addScriptTag({ content: fixture.outputFiles[0].text })
+    const zone = page.getByRole('button', { name: 'Upload photo', exact: true })
+    const border = () => zone.evaluate((element) => getComputedStyle(element).borderTopWidth)
+    const drag = async (type, expected) => {
+      // Delivery is not the concurrent React root's continuous-event commit.
+      // Dispatch once, cross render turns (including for negative assertions),
+      // then observe the actual marker AND pixels. Never retry the action.
+      await zone.dispatchEvent(type)
+      await page.evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      )
+      await page.waitForFunction(
+        (expected) => {
+          const button = document.querySelector('#zone button')
+          return (
+            button?.getAttribute('data-hozo-drag-active') === expected.active &&
+            getComputedStyle(button).borderTopWidth === expected.border
+          )
+        },
+        expected,
+        { timeout: 5000 },
+      )
+      return zone.evaluate((button) => ({
+        active: button.getAttribute('data-hozo-drag-active'),
+        border: getComputedStyle(button).borderTopWidth,
+      }))
+    }
+    const active = { active: '', border: '4px' }
+    const inactive = { active: null, border: '0px' }
+    assert.equal(await border(), '0px')
+    assert.equal(await zone.evaluate((element) => getComputedStyle(element).paddingTop), '16px')
+    await zone.focus()
+    assert.equal(await zone.evaluate((element) => getComputedStyle(element).opacity), '0.75')
+    assert.equal(await border(), '0px', 'focus is not drag-active')
+    await zone.press('Enter')
+    await zone.press('Space')
+    await zone.click()
+    assert.equal(await page.evaluate(() => window.zonePicks), 3)
+    assert.equal(await border(), '0px', 'activation is not drag-active')
+    assert.deepEqual(await drag('dragenter', active), active)
+    assert.deepEqual(await drag('dragenter', active), active)
+    assert.deepEqual(
+      await drag('dragleave', active),
+      active,
+      'one nested leave is not leaving the zone',
+    )
+    assert.deepEqual(await drag('dragleave', inactive), inactive)
+    await page.evaluate((props) => window.renderZone({ ...props, disabled: true }), props)
+    assert.equal(await zone.isDisabled(), true)
+    assert.equal(await zone.evaluate((element) => getComputedStyle(element).opacity), '0.25')
+    assert.deepEqual(await drag('dragenter', inactive), inactive)
+    await page.evaluate((props) => window.renderZone({ ...props, className: undefined }), props)
+    assert.equal(await zone.evaluate((element) => getComputedStyle(element).paddingTop), '0px')
+  } finally {
+    await page.close()
+  }
+})
+
 test('the real Web TimePicker keeps owner form, text and interaction facts distinct', {
   skip: !executablePath,
 }, async () => {

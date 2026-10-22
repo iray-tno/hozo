@@ -460,6 +460,18 @@ controlled/empty values, labels and accessible buttons remain unchanged.
 This closes TimePicker's unapplied class props, not every utility refusal or
 Native pixel/event/AT certification.
 
+FileDropzone className now belongs to its Native picker button. Its own local
+interaction facts and effective disabled state (authored disabled or no picker)
+resolve before explicit style. Native busy/disabled announcements do not become
+authored aria-busy/aria-disabled selectors. Literal string/number children are
+wrapped in Text with the resolved typography; opaque children are not cloned,
+restyled or placed under a new inheritance provider. One local tracker is
+added, without a wrapper View or global subscription. Selection rules, announcements,
+cancellation and busy guarding keep their existing path. Its activeClassName
+is deliberately still unapplied: Web file-drag state cannot be replaced with
+Native press or picker busy. The report retains this residual; Native file-drag
+delivery requires its own capability, not a cosmetic reclassification to zero.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner
