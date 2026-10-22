@@ -13,13 +13,17 @@
 // differently for reasons classes do not show. The components overview
 // says so to the reader.
 //
-// Below that, when the deploy fetched one, the demo's screenshot from the
-// last Android run on main (`scripts/fetch-native-screenshots.mjs`), which
-// shows what the verdict cannot. A build without it shows neither the image
-// nor a gap.
+// Below that, when the deploy fetched them, the demo's screenshots from the
+// last Android and iOS runs on main (`scripts/fetch-native-screenshots.mjs`),
+// which show what the verdict cannot. A build without them shows neither an
+// image nor a gap, and one platform shows without the other.
 import { Code } from '@astrojs/starlight/components'
 import status from '../../data/ui-native-status.json'
-import type { NativeScreenshots } from '../../lib/native-screenshots.ts'
+import {
+  type NativeScreenshotsByPlatform,
+  platformNames,
+  platforms,
+} from '../../lib/native-screenshots.ts'
 import { UiStage } from './UiStage.tsx'
 
 interface Props {
@@ -40,14 +44,22 @@ const pieces = (reason: string) => reason.split('`').map((text, at) => ({ text, 
 const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 'es'}`
 // Present only in a build that ran the fetch; a glob, so its absence is not
 // an error.
-const screenshots = Object.values(
-  import.meta.glob<NativeScreenshots>('../../data/native-screenshots.json', {
-    eager: true,
-    import: 'default',
-  }),
-)[0]
-const shot = screenshots?.pages[slug]
+const screenshots =
+  Object.values(
+    import.meta.glob<NativeScreenshotsByPlatform>('../../data/native-screenshots.json', {
+      eager: true,
+      import: 'default',
+    }),
+  )[0] ?? {}
+const shots = platforms.flatMap((platform) => {
+  const run = screenshots[platform]
+  const shot = run?.pages[slug]
+  return run && shot ? [{ platform, run, shot }] : []
+})
 const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+// The page's own title ("Date Picker"), so each image says which demo it is
+// of without the page around it.
+const component = Astro.locals.starlightRoute?.entry.data.title ?? slug
 ---
 
 <figure class="not-content hozo-ui-example">
@@ -114,24 +126,41 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '')
 }
 
 {
-  screenshots && shot && (
-    <details class="hozo-ui-native-shot" data-native-screenshot={shot.status}>
+  shots.length > 0 && (
+    <details class="hozo-ui-native-shot">
       <summary>
-        {shot.status === 'failed' ? 'On Android, this demo threw an error' : 'Screenshot on Android'}{' '}
-        (<a href={screenshots.runUrl}>{screenshots.takenAt.slice(0, 10)}</a>,{' '}
-        <a href={`https://github.com/iray-tno/hozo/commit/${screenshots.commit}`}>
-          <code>{screenshots.commit.slice(0, 7)}</code>
-        </a>
-        )
+        {shots.some(({ shot }) => shot.status === 'failed')
+          ? `On ${shots
+              .filter(({ shot }) => shot.status === 'failed')
+              .map(({ platform }) => platformNames[platform])
+              .join(' and ')}, this demo threw an error`
+          : `Screenshot${shots.length > 1 ? 's' : ''} on ${shots.map(({ platform }) => platformNames[platform]).join(' and ')}`}
       </summary>
-      <img
-        src={`${base}/native-screenshots/android/${shot.image}`}
-        alt={shot.status === 'failed' ? 'The error the demo threw on Android' : 'The demo on Android'}
-        width="1080"
-        height="2400"
-        loading="lazy"
-        decoding="async"
-      />
+      <div class="hozo-ui-native-shots">
+        {shots.map(({ platform, run, shot }) => (
+          <figure data-native-screenshot={shot.status} data-platform={platform}>
+            <img
+              src={`${base}/native-screenshots/${platform}/${shot.image}`}
+              alt={
+                shot.status === 'failed'
+                  ? `The error the ${component} demo threw on ${platformNames[platform]}`
+                  : `The ${component} demo on ${platformNames[platform]}`
+              }
+              width={shot.width}
+              height={shot.height}
+              loading="lazy"
+              decoding="async"
+            />
+            <figcaption>
+              {platformNames[platform]} (<a href={run.runUrl}>{run.takenAt.slice(0, 10)}</a>,{' '}
+              <a href={`https://github.com/iray-tno/hozo/commit/${run.commit}`}>
+                <code>{run.commit.slice(0, 7)}</code>
+              </a>
+              )
+            </figcaption>
+          </figure>
+        ))}
+      </div>
     </details>
   )
 }
@@ -158,12 +187,26 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '')
     font-size: var(--sl-text-sm);
     color: var(--sl-color-gray-2);
   }
-  .hozo-ui-native-shot img {
-    display: block;
-    width: min(100%, 270px);
-    height: auto;
+  .hozo-ui-native-shots {
+    display: flex;
+    gap: 1rem;
     margin-block-start: 0.5rem;
+  }
+  /* Side by side even on a phone: two full-width phone screenshots stacked
+     are two screens of scrolling for one comparison. */
+  .hozo-ui-native-shots figure {
+    flex: 0 1 270px;
+    min-width: 0;
+    margin: 0;
+  }
+  .hozo-ui-native-shots img {
+    display: block;
+    width: 100%;
+    height: auto;
     border: 1px solid var(--sl-color-hairline-light);
     border-radius: 0.5rem;
+  }
+  .hozo-ui-native-shots figcaption {
+    margin-block-start: 0.25rem;
   }
 </style>

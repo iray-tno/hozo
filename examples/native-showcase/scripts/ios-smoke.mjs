@@ -30,6 +30,7 @@ import { waitForIosControl } from './ios-ui-wait.mjs'
 import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters } from './svg-filter-evidence.mjs'
 import { exerciseTextInheritance } from './text-pixels.mjs'
+import { exerciseUiDocs } from './ui-docs-evidence.mjs'
 import {
   exerciseVideo,
   exerciseVideoPoster,
@@ -403,6 +404,31 @@ try {
         },
       },
       evidence,
+    )
+  } else if (evidence.scenario === 'ui-docs') {
+    evidence.uiDocs = await exerciseUiDocs(
+      {
+        // A timed-out openurl throws here, inside the walk, which records the
+        // page as unreached and goes on to the next one.
+        open: (id) => simctl('openurl', udid, `hozo-showcase://storybook?STORYBOOK_STORY_ID=${id}`),
+        waitForEither: async (labels, timeout) => {
+          await waitFor(
+            (node) => labels.some((value) => label(value)(node)),
+            labels.join(' or '),
+            timeout,
+            true,
+          )
+          // The tree the wait just matched, searched in the walk's order.
+          const tree = parseIosNodes(latestTree)
+          return labels.find((value) => tree.some(label(value)))
+        },
+        // Fonts, images and the first layout pass, which the marker can
+        // precede by a frame or two.
+        settle: () => new Promise((done) => setTimeout(done, 1500)),
+        capture: (name) => screenshot(name, false),
+      },
+      output,
+      { platform: 'ios' },
     )
   } else if (evidence.scenario === 'svg-filters') {
     await svgFilters()

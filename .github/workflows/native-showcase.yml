@@ -72,9 +72,9 @@ on:
         options: [ax, axbridge]
         default: ax
       ios-scenario:
-        description: 'Full interactions/SVG, isolated SVG/text pixels, or Canvas diagnosis'
+        description: 'Full interactions/SVG, isolated SVG/text pixels, Canvas diagnosis, or the docs previews'
         type: choice
-        options: [full, svg-filters, canvas, gl-control, text-inheritance]
+        options: [full, svg-filters, canvas, gl-control, text-inheritance, ui-docs]
         default: full
       ios-canvas-mode:
         description: 'Controlled frame-loop comparison; demand is the canonical story'
@@ -241,7 +241,8 @@ jobs:
     name: ${{ inputs.reuse-build-run != '' && 'ios (reused binary diagnostic)' || 'ios' }}
     if: github.event_name != 'workflow_dispatch' || inputs.platform != 'android'
     runs-on: macos-26
-    timeout-minutes: 60
+    # The weekly run also walks the 39 docs previews after the full showcase.
+    timeout-minutes: ${{ github.event_name == 'schedule' && 90 || 60 }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -337,6 +338,7 @@ jobs:
           brew install facebook/fb/idb
           idb ui describe-all --help
       - name: Exercise real Native Storybook, SVG filters and Expo GL on iOS
+        if: inputs.ios-scenario != 'ui-docs'
         run: node examples/native-showcase/scripts/ios-smoke.mjs artifacts/native-showcase-ios
         env:
           HOZO_DIAGNOSTICS: ${{ inputs.diagnostics && '1' || '' }}
@@ -344,6 +346,18 @@ jobs:
           HOZO_AX_BACKEND: ${{ inputs.ios-ax-backend || 'ax' }}
           HOZO_IOS_SCENARIO: ${{ inputs.ios-scenario || 'full' }}
           HOZO_IOS_CANVAS_MODE: ${{ inputs.ios-canvas-mode || 'demand' }}
+          HOZO_IOS_BUNDLE_COMMIT: ${{ inputs.rebundle-ios && github.sha || '' }}
+      # The docs component previews (#1204), as Android captures them: on the
+      # weekly run on main, which the docs deploy fetches from, or on request.
+      # Not on every PR: 39 more deep links would push an hour-long job past
+      # its limit, and the screenshots assert nothing the showcase depends on.
+      - name: Capture each docs component preview on iOS
+        if: ${{ !cancelled() && (github.event_name == 'schedule' || inputs.ios-scenario == 'ui-docs') }}
+        run: node examples/native-showcase/scripts/ios-smoke.mjs artifacts/native-showcase-ios-ui-docs
+        env:
+          HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}
+          HOZO_AX_BACKEND: ${{ inputs.ios-ax-backend || 'ax' }}
+          HOZO_IOS_SCENARIO: ui-docs
           HOZO_IOS_BUNDLE_COMMIT: ${{ inputs.rebundle-ios && github.sha || '' }}
       - name: Record host display environment for explicit renderer diagnosis
         if: always() && inputs.ios-canvas-mode == 'profile'
@@ -353,7 +367,7 @@ jobs:
           sysctl hw.model hw.physicalcpu hw.memsize > artifacts/native-showcase-ios/host-hardware.txt
           system_profiler SPDisplaysDataType -json > artifacts/native-showcase-ios/host-displays.json
       - name: Summarize iOS submission and pixel measurements
-        if: always()
+        if: always() && inputs.ios-scenario != 'ui-docs'
         run: node examples/native-showcase/scripts/report-ios-performance.mjs artifacts/native-showcase-ios
       - uses: actions/upload-artifact@v4
         if: always()
@@ -369,3 +383,11 @@ jobs:
           path: artifacts/native-showcase-ios
           if-no-files-found: ignore
           retention-days: 30
+      # Kept as long as Android's, for the same docs deploy (#1160).
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-ios-ui-docs
+          path: artifacts/native-showcase-ios-ui-docs
+          if-no-files-found: ignore
+          retention-days: 90

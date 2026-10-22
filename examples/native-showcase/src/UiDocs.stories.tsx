@@ -60,9 +60,8 @@ function Load({ load }: { load: () => ComponentType }) {
 }
 
 /**
- * The same surface the docs page puts a preview on (`UiStage`). The label
- * is what the driver waits for; it is on a box that does not group its
- * children, so the demo's own accessibility tree is unchanged.
+ * The same surface the docs page puts a preview on (`UiStage`), with the
+ * marker the driver waits for beside the demo rather than around it.
  */
 function Preview({ page, load }: { page: string; load: () => ComponentType }) {
   // Outermost too: a failure in the surface itself must be shown and named,
@@ -78,18 +77,17 @@ function Preview({ page, load }: { page: string; load: () => ComponentType }) {
 function Surface({ page, load }: { page: string; load: () => ComponentType }) {
   return (
     <View className="flex-1 items-start bg-hozo-surface p-6 text-hozo-text">
-      {/* A label alone does not keep a layout-only View from being
-          flattened away, and a flattened View never reaches the UI dump
-          that waits for this marker. */}
-      <View
-        collapsable={false}
-        accessibilityLabel={`UI docs ${page}`}
-        className="w-full items-start"
-      >
+      <View className="w-full items-start">
         <Caught page={page}>
           <Load load={load} />
         </Caught>
       </View>
+      {/* Its own one-point element, accessible so both platforms report it:
+          iOS lists no label on a box that is not an accessibility element,
+          and making the demo's box one would hide the demo's own tree --
+          including the failure the boundary above shows, which the driver
+          has to be able to see together with this marker. */}
+      <View accessible accessibilityLabel={`UI docs ${page}`} className="size-px" />
     </View>
   )
 }

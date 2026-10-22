@@ -467,12 +467,14 @@ try {
             app,
           ),
         waitForEither: async (labels, timeout) => {
-          const node = await waitFor(
+          await waitFor(
             (candidate) => labels.some((value) => matchLabel(candidate, value)),
             labels.join(' or '),
             timeout,
           )
-          return labels.find((value) => matchLabel(node, value))
+          // The tree the wait just matched, searched in the walk's order.
+          const tree = parseNodes(latestXml)
+          return labels.find((value) => tree.some((node) => matchLabel(node, value)))
         },
         // Fonts, images and the first layout pass, which the marker can
         // precede by a frame or two.
