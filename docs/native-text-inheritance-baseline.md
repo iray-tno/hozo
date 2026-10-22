@@ -1284,3 +1284,31 @@ the relevant behavior source, so no extra production dependency is needed.
 Normal-build/docs routing, transition behavior and other widget/popup owners
 are unchanged. Native glyph/AT and physical-device/update-cost gates remain;
 neither this browser result nor the main rebase extends historical device data.
+
+## Shared committed text-colour driver prerequisite
+
+Before connecting animated label inheritance, the existing callback Text colour
+driver is extracted as an internal Native hook. Its progress node/listener can
+then belong to the label owner rather than being duplicated at each inherited
+leaf. This prerequisite does not yet enable inherited transitions.
+
+The old callback Text updated its range ref during render and only noticed
+interaction-key changes. A changed colour prop without a new interaction left
+the old interpolation on top of the new colour. The common driver now retargets
+on either committed target or interaction changes; abandoned/Suspense renders
+cannot replace its range. Retargeting stops the previous animation and starts
+the next interpolation at the observed absolute progress position, without
+resetting the previous live node to zero. It reuses the existing colour blending,
+easing, delay and JavaScript Animated driver; opacity/transform drivers and the
+event machine are unchanged.
+
+One lazy progress node and one listener live for the motion owner's lifetime.
+Sixty simulated progress notifications cause no React render, and unmount removes
+the listener. Target updates do cause a bounded layout-effect/state pass before
+starting the new range; this is not a claim of zero retarget/render cost. Ordinary
+non-transition controls still allocate no animation nodes/listeners. Source-backed
+tests cover prop retargeting, repeated interruption, unchanged target/state,
+StrictMode and superseded Suspense targets, alongside the existing owner tests.
+These are mocked scheduling/node observations, not new Native pixels or timing
+results. The next layer must connect the inherited paint transport and compiler
+gate, including local override shielding and late-joining descendants.
