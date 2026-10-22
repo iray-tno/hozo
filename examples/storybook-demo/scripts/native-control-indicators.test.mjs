@@ -63,6 +63,15 @@ cache.scanFile(
 // ownership probe independent of warnings already emitted by other controls.
 const dialogUnmeasuredClass = 'hover:text-[#13579b]'
 cache.scanFile('picker-dialog-warning.tsx', `<View className="${dialogUnmeasuredClass}" />`, 1)
+const timeValueClasses =
+  'p-5 text-hozo-accent hover:bg-hozo-accent focus:opacity-75 focus-visible:font-bold aria-disabled:border-4 disabled:opacity-25 data-[hozo-disabled]:mt-8'
+const timeActiveUnmeasuredClass = 'active:mt-[37px]'
+const hiddenPeriodClass = 'md:bg-[#8a6b4c]'
+cache.scanFile(
+  'time-owners.tsx',
+  `<View className="${timeValueClasses} ${timeActiveUnmeasuredClass} ${hiddenPeriodClass}" />`,
+  1,
+)
 cache.scanFile(
   'slider-thumb.ts',
   "export const c = 'focus:outline-4 focus-visible:opacity-75 aria-disabled:border-4 disabled:mt-8 enabled:mb-8'",
@@ -952,6 +961,11 @@ const timeProps = { defaultValue: { hour: 9, minute: 10 }, hour12: true, locale:
 const timeValues = (tree) =>
   views(tree).filter((node) => node.props.accessibilityRole === 'adjustable')
 const timeGroup = (tree) => views(tree).find((node) => node.props.accessibilityRole === 'none')
+const timeField = (value) => {
+  let parent = value.parent
+  while (parent && parent.type !== 'NativeView') parent = parent.parent
+  return parent
+}
 const timePeriod = (tree) =>
   tree.root
     .findAllByType('NativePressable')
@@ -978,7 +992,7 @@ test('Native TimePicker group and fields own different boxes and inherited text 
   assert.equal(flat(timeGroup(tree).props.style).opacity, undefined)
   assert.equal(flat(timeGroup(tree).props.style).marginTop, undefined)
   for (const value of timeValues(tree)) {
-    const wrapper = value.parent.parent
+    const wrapper = timeField(value)
     assert.equal(flat(wrapper.props.style).paddingTop, 92)
     assert.equal(flat(wrapper.props.style).paddingBottom, 12)
     assert.equal(flat(wrapper.props.style).fontSize, undefined)
@@ -1024,7 +1038,7 @@ test('Native TimePicker explicit field text wins without turning ancestor text i
   for (const value of timeValues(tree)) {
     assert.equal(flat(value.props.children.props.style).color, '#fedcba')
     assert.equal(flat(value.props.children.props.style).fontSize, 18)
-    assert.equal(flat(value.parent.parent.props.style).color, undefined)
+    assert.equal(flat(timeField(value).props.style).color, undefined)
   }
   assert.equal(flat(timeArrows(tree)[0].props.children.props.style).color, '#654321')
   assert.equal(flat(timePeriod(tree).props.children.props.style).color, '#fedcba')
@@ -1036,12 +1050,228 @@ test('Native UI TimePicker draws its real group and field chrome', async (t) => 
   assert.equal(flat(timeGroup(tree).props.style).flexDirection, 'row')
   assert.equal(flat(timeGroup(tree).props.style).gap, 8)
   for (const value of timeValues(tree)) {
-    const box = flat(value.parent.parent.props.style)
+    const box = flat(timeField(value).props.style)
     assert.equal(box.minHeight, 48)
     assert.equal(box.paddingEnd, 24)
     assert.equal(box.backgroundColor, color('hozo-surface'))
     assert.equal(flat(value.props.children.props.style).fontSize, 14)
     assert.equal(flat(value.props.children.props.style).color, color('hozo-text'))
+  }
+})
+
+test('Native TimePicker values own div form facts, local pointer focus and disabled ARIA', async (t) => {
+  const changes = []
+  const props = {
+    ...timeProps,
+    valueClassName: timeValueClasses,
+    onChange: (value) => changes.push(value),
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  const [hour, minute] = timeValues(tree)
+  assert.equal(flat(hour.props.style).paddingTop, 20)
+  assert.equal(flat(hour.props.style).color, undefined)
+  assert.equal(flat(hour.props.children.props.style).color, color('hozo-accent'))
+  const rootStyle = timeGroup(tree).props.style
+  await act(() => hour.props.onPointerEnter())
+  assert.equal(flat(hour.props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(minute.props.style).backgroundColor, undefined)
+  await act(() => hour.props.onFocus())
+  assert.equal(flat(hour.props.style).opacity, 0.75)
+  assert.equal(String(flat(hour.props.children.props.style).fontWeight), '700')
+  await act(() => hour.props.onPointerDown())
+  assert.equal(flat(hour.props.children.props.style).fontWeight, undefined)
+  await act(() => hour.props.onKeyDown())
+  assert.equal(String(flat(hour.props.children.props.style).fontWeight), '700')
+  assert.equal(timeGroup(tree).props.style, rootStyle, 'value events do not rerender TimePicker')
+  await act(() => tree.update(React.createElement(HozoTimePicker, { ...props, disabled: true })))
+  assert.equal(
+    flat(hour.props.style).opacity,
+    0.75,
+    'aria-disabled is not HTML :disabled and does not forcibly clear focus',
+  )
+  assert.equal(flat(hour.props.style).borderTopWidth, 4)
+  assert.equal(flat(hour.props.style).marginTop, 32)
+  assert.equal(flat(timeField(hour).props.style).borderTopWidth, undefined)
+  await act(() => hour.props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }))
+  assert.deepEqual(changes, [])
+  await act(() => {
+    hour.props.onBlur()
+    hour.props.onPointerLeave()
+  })
+  assert.equal(flat(hour.props.style).opacity, undefined)
+  await act(() =>
+    tree.update(React.createElement(HozoTimePicker, { ...props, valueClassName: undefined })),
+  )
+  assert.equal(flat(hour.props.style).paddingTop, undefined)
+  assert.equal(flat(hour.props.children.props.style).color, undefined)
+})
+
+test('Native TimePicker value declarations stay above inherited field text and below explicit label styles', async (t) => {
+  const props = {
+    ...timeProps,
+    className: 'text-hozo-accent',
+    style: { color: '#123456', fontSize: 31 },
+    fieldClassName: 'text-hozo-text-subtle text-lg',
+    fieldStyle: { paddingTop: 91, color: '#654321', fontSize: 29 },
+    valueClassName: 'p-5 text-hozo-text-body font-bold',
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  const value = timeValues(tree)[0]
+  assert.equal(flat(value.props.children.props.style).color, color('hozo-text-body'))
+  assert.equal(flat(value.props.children.props.style).fontSize, 29)
+  assert.equal(String(flat(value.props.children.props.style).fontWeight), '700')
+  assert.equal(flat(value.props.style).paddingTop, 20)
+  assert.equal(flat(timeField(value).props.style).paddingTop, 91)
+  await act(() =>
+    tree.update(
+      React.createElement(HozoTimePicker, {
+        ...props,
+        fieldTextStyle: { color: '#abcdef', fontSize: 27 },
+      }),
+    ),
+  )
+  assert.equal(flat(value.props.children.props.style).color, '#abcdef')
+  assert.equal(flat(value.props.children.props.style).fontSize, 27)
+  assert.equal(flat(value.props.style).fontSize, undefined)
+  await act(() =>
+    tree.update(React.createElement(HozoTimePicker, { ...props, valueClassName: undefined })),
+  )
+  assert.equal(flat(value.props.children.props.style).color, '#654321')
+  assert.equal(flat(value.props.children.props.style).fontWeight, undefined)
+})
+
+test('Native TimePicker period is an independent button and preserves explicit styles and commits', async (t) => {
+  const changes = []
+  const props = {
+    ...timeProps,
+    periodClassName: `${interactionClasses} disabled:opacity-25 aria-disabled:border-4 data-[hozo-disabled]:mt-8`,
+    onChange: (value) => changes.push(value),
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  const period = timePeriod(tree)
+  const rootStyle = timeGroup(tree).props.style
+  assert.equal(flat(period.props.style).paddingTop, 16)
+  await act(() => period.props.onHoverIn())
+  assert.equal(flat(period.props.style).backgroundColor, color('hozo-accent'))
+  assert.equal(flat(period.props.children.props.style).color, color('hozo-accent-text'))
+  await act(() => period.props.onFocus())
+  assert.equal(flat(period.props.style).opacity, 0.75)
+  await act(() => period.props.onPressIn())
+  assert.equal(flat(period.props.style).opacity, 0.5)
+  await act(() => period.props.onPressOut())
+  assert.equal(timeGroup(tree).props.style, rootStyle, 'period events do not rerender the clock')
+  assert.equal(flat(timeValues(tree)[0].props.style).opacity, undefined)
+  await press(period)
+  assert.deepEqual(changes, [{ hour: 21, minute: 10 }])
+  assert.equal(period.props.children.props.children, 'PM')
+  assert.ok(period.props.accessibilityValue.text.includes('PM'))
+  await act(() => tree.update(React.createElement(HozoTimePicker, { ...props, disabled: true })))
+  assert.equal(flat(period.props.style).opacity, 0.25)
+  assert.equal(
+    flat(period.props.style).borderTopWidth,
+    undefined,
+    'Native accessibility disabled is not an authored aria-disabled on this Web button',
+  )
+  assert.equal(flat(period.props.style).marginTop, 32)
+  await press(period)
+  assert.equal(changes.length, 1)
+  await act(() =>
+    tree.update(
+      React.createElement(HozoTimePicker, {
+        ...props,
+        fieldStyle: { paddingTop: 91, color: '#123456' },
+        fieldTextStyle: { color: '#abcdef' },
+      }),
+    ),
+  )
+  assert.equal(flat(period.props.style).paddingTop, 91)
+  assert.equal(flat(period.props.style).paddingBottom, 16)
+  assert.equal(
+    flat(period.props.style).opacity,
+    undefined,
+    'disabled cleared stale focus and press',
+  )
+  assert.equal(flat(period.props.children.props.style).color, '#abcdef')
+  await act(() =>
+    tree.update(React.createElement(HozoTimePicker, { ...props, periodClassName: undefined })),
+  )
+  assert.equal(flat(period.props.style).paddingBottom, undefined)
+})
+
+test('Native TimePicker local class resolution keeps empty, bounded and controlled accessibility actions', async (t) => {
+  const changes = []
+  const props = {
+    locale: 'en-US',
+    hour12: false,
+    value: null,
+    min: { hour: 8, minute: 15 },
+    max: { hour: 8, minute: 30 },
+    step: 15,
+    valueClassName: 'p-4',
+    onChange: (value) => changes.push(value),
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  const minute = timeValues(tree)[1]
+  assert.equal(minute.props.accessible, true)
+  assert.deepEqual(minute.props.accessibilityActions, [
+    { name: 'increment' },
+    { name: 'decrement' },
+  ])
+  assert.equal(minute.props.accessibilityValue.now, undefined)
+  const action = async (name) =>
+    act(() => minute.props.onAccessibilityAction({ nativeEvent: { actionName: name } }))
+  await action('increment')
+  assert.deepEqual(changes, [{ hour: 8, minute: 15 }])
+  assert.equal(
+    minute.props.accessibilityValue.now,
+    undefined,
+    'controlled empty value does not become internal state',
+  )
+  await act(() => tree.update(React.createElement(HozoTimePicker, { ...props, value: changes[0] })))
+  await action('increment')
+  assert.deepEqual(changes[1], { hour: 8, minute: 30, second: 0 })
+  await act(() => tree.update(React.createElement(HozoTimePicker, { ...props, value: changes[1] })))
+  await action('increment')
+  await action('unknown')
+  assert.equal(changes.length, 2)
+  assert.equal(minute.props.accessibilityValue.now, 30)
+})
+
+test('Native UI TimePicker values and period use the real look; unmeasured active and hidden period stay honest', async (t) => {
+  const ui = await mount(t, UiTimePicker, timeProps)
+  for (const value of timeValues(ui)) {
+    assert.equal(flat(value.props.style).minWidth, 32)
+    assert.equal(flat(value.props.style).paddingStart, 12)
+    assert.equal(flat(value.props.style).paddingEnd, 8)
+    await act(() => value.props.onFocus())
+    assert.equal(flat(value.props.style).outlineWidth, 2)
+  }
+  assert.equal(flat(timePeriod(ui).props.style).minHeight, 48)
+  assert.equal(String(flat(timePeriod(ui).props.children.props.style).fontWeight), '600')
+  const warnings = []
+  const original = console.warn
+  console.warn = (message) => warnings.push(message)
+  try {
+    const tree = await mount(t, HozoTimePicker, {
+      ...timeProps,
+      hour12: false,
+      valueClassName: timeActiveUnmeasuredClass,
+      periodClassName: hiddenPeriodClass,
+    })
+    assert.ok(warnings.some((message) => message.includes('needs state (pressed)')))
+    assert.ok(!warnings.some((message) => message.includes(hiddenPeriodClass)))
+    await act(() =>
+      tree.update(
+        React.createElement(HozoTimePicker, {
+          ...timeProps,
+          hour12: true,
+          periodClassName: hiddenPeriodClass,
+        }),
+      ),
+    )
+    assert.ok(warnings.some((message) => message.includes(hiddenPeriodClass)))
+  } finally {
+    console.warn = original
   }
 })
 

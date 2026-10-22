@@ -16,7 +16,6 @@ import {
   todayLocal,
   type Weekday,
 } from './calendar-rules.ts'
-import { DatePickerButton } from './date-picker-button.native.tsx'
 import { resolveDatePickerFrame } from './date-picker-frame.native.ts'
 import { dateTimeLabel } from './date-time-format.ts'
 import {
@@ -29,6 +28,7 @@ import {
   timeOf,
   withTime,
 } from './date-time-rules.ts'
+import { PickerButton } from './picker-button.native.tsx'
 import { HozoTimePicker } from './time-picker.native.tsx'
 import type { CalendarTime } from './time-rules.ts'
 
@@ -257,7 +257,7 @@ export function HozoDateTimePicker({
   const frame = resolveDatePickerFrame({ className, style, dialogClassName, dialogStyle, open })
   return (
     <View style={frame.box}>
-      <DatePickerButton
+      <PickerButton
         accessibilityLabel={accessibilityLabel}
         // The chosen value, so a reader hears it and not only what the field is
         // for.
@@ -289,7 +289,7 @@ export function HozoDateTimePicker({
         onPress={() => change(true)}
       >
         {text}
-      </DatePickerButton>
+      </PickerButton>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => change(false)}>
         {/*
           Hidden from the accessibility tree rather than merely transparent.
@@ -335,7 +335,7 @@ export function HozoDateTimePicker({
           ) : (
             <HozoTimePicker {...half} hozoInheritedTextStyle={frame.contentText} />
           )}
-          <DatePickerButton
+          <PickerButton
             className={doneClassName}
             style={doneStyle}
             textStyle={doneTextStyle}
@@ -343,7 +343,7 @@ export function HozoDateTimePicker({
             onPress={() => change(false)}
           >
             {doneLabel}
-          </DatePickerButton>
+          </PickerButton>
         </View>
       </Modal>
     </View>

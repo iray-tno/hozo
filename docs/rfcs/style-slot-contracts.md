@@ -427,6 +427,25 @@ without its valued data selectors would overlap arrows, not complete support.
 Existing tabular-nums and other runtime utility/condition refusals still
 diagnose rather than being presented as full CSS or device/pixel parity.
 
+TimePicker valueClassName now belongs to each adjustable value View. Its
+Web owner is a div spinbutton, so :disabled/:enabled remain false even when
+aria-disabled/data-hozo-disabled are true. Local focus and pointer-hover
+facts use the existing tracker; a disabled ARIA update does not force-clear
+the JS focus state. Actual host blur remains authoritative. There is no
+press responder on that View: active is unassessed and still diagnoses.
+The periodClassName belongs to a real button and uses the same internal
+PickerButton consumer as the date triggers and Done, adding only its own
+normalized data-disabled presence fact. Its disabled form state clears
+stale press/focus; it does not invent authored aria-disabled/expanded.
+Each child's own text follows inherited declarations and precedes explicit
+fieldTextStyle. Visual events stay in the leaf, outside the clock's
+value/formatting path. This adds three local trackers, no Native layout host,
+provider, global listener or resolver. Existing accessibility labels, whole
+time value, actions, bounds and controlled/empty behavior are preserved.
+Step classes remain unapplied pending their valued-data positioning route;
+Native typing, hardware event/AT delivery and pixel/performance certification
+are not established by these host tests or Web comparisons.
+
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
 expected a marker the retained component does not supply. Raw-Tailwind owner

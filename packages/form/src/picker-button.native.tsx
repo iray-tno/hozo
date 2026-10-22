@@ -12,16 +12,17 @@ import {
 } from 'react-native'
 import { nonControlClassFacts } from './class-facts.native.ts'
 
-/** The date-picker triggers and Done share the same real Web button owner,
+/** The date/time picker buttons share the same real Web button owner,
  * not subtly different interpretations of interaction and text styles.
  * Only triggers supply expanded: Done has no expansion state to announce.
  * This leaf also keeps pointer/focus updates out of their Calendar render. */
-export function DatePickerButton({
+export function PickerButton({
   children,
   className,
   style,
   textStyle,
   inheritedTextStyle,
+  dataFacts,
   expanded,
   disabled = false,
   accessibilityLabel,
@@ -33,6 +34,8 @@ export function DatePickerButton({
   style?: StyleProp<ViewStyle>
   textStyle?: StyleProp<TextStyle>
   inheritedTextStyle?: StyleProp<TextStyle>
+  /** Normalized data-presence facts supplied only by the actual owner. */
+  dataFacts?: Readonly<Record<`data-${string}`, boolean>>
   expanded?: boolean
   disabled?: boolean
   accessibilityLabel?: string
@@ -50,6 +53,7 @@ export function DatePickerButton({
     StyleSheet.flatten([
       hozoClasses(className, {
         ...nonControlClassFacts,
+        ...dataFacts,
         ...state,
         disabled,
         enabled: !disabled,
