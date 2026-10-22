@@ -1115,6 +1115,32 @@ test('the real Web FileDropzone keeps drag-active separate from focus, press and
     await page.addScriptTag({ content: fixture.outputFiles[0].text })
     const zone = page.getByRole('button', { name: 'Upload photo', exact: true })
     const border = () => zone.evaluate((element) => getComputedStyle(element).borderTopWidth)
+    const drag = async (type, expected) => {
+      // Delivery is not the concurrent React root's continuous-event commit.
+      // Dispatch once, cross render turns (including for negative assertions),
+      // then observe the actual marker AND pixels. Never retry the action.
+      await zone.dispatchEvent(type)
+      await page.evaluate(
+        () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+      )
+      await page.waitForFunction(
+        (expected) => {
+          const button = document.querySelector('#zone button')
+          return (
+            button?.getAttribute('data-hozo-drag-active') === expected.active &&
+            getComputedStyle(button).borderTopWidth === expected.border
+          )
+        },
+        expected,
+        { timeout: 5000 },
+      )
+      return zone.evaluate((button) => ({
+        active: button.getAttribute('data-hozo-drag-active'),
+        border: getComputedStyle(button).borderTopWidth,
+      }))
+    }
+    const active = { active: '', border: '4px' }
+    const inactive = { active: null, border: '0px' }
     assert.equal(await border(), '0px')
     assert.equal(await zone.evaluate((element) => getComputedStyle(element).paddingTop), '16px')
     await zone.focus()
@@ -1125,19 +1151,18 @@ test('the real Web FileDropzone keeps drag-active separate from focus, press and
     await zone.click()
     assert.equal(await page.evaluate(() => window.zonePicks), 3)
     assert.equal(await border(), '0px', 'activation is not drag-active')
-    await zone.dispatchEvent('dragenter')
-    assert.equal(await zone.getAttribute('data-hozo-drag-active'), '')
-    assert.equal(await border(), '4px')
-    await zone.dispatchEvent('dragenter')
-    await zone.dispatchEvent('dragleave')
-    assert.equal(await border(), '4px', 'one nested leave is not leaving the zone')
-    await zone.dispatchEvent('dragleave')
-    assert.equal(await border(), '0px')
+    assert.deepEqual(await drag('dragenter', active), active)
+    assert.deepEqual(await drag('dragenter', active), active)
+    assert.deepEqual(
+      await drag('dragleave', active),
+      active,
+      'one nested leave is not leaving the zone',
+    )
+    assert.deepEqual(await drag('dragleave', inactive), inactive)
     await page.evaluate((props) => window.renderZone({ ...props, disabled: true }), props)
     assert.equal(await zone.isDisabled(), true)
     assert.equal(await zone.evaluate((element) => getComputedStyle(element).opacity), '0.25')
-    await zone.dispatchEvent('dragenter')
-    assert.equal(await border(), '0px')
+    assert.deepEqual(await drag('dragenter', inactive), inactive)
     await page.evaluate((props) => window.renderZone({ ...props, className: undefined }), props)
     assert.equal(await zone.evaluate((element) => getComputedStyle(element).paddingTop), '0px')
   } finally {
