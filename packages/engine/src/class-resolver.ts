@@ -9,6 +9,8 @@ export type StyleObject = Record<string, unknown>
  * the pointer's `pressed`. Plain data-presence conditions use `data-foo`
  * booleans supplied by the actual owner: true means the attribute is present,
  * false means absent, and a missing key is unassessed (and diagnosed).
+ * Simple equality predicates use `data-foo=value` booleans, with case-sensitive
+ * safe token values normalized at build time. Presence cannot satisfy equality.
  * These are normalized facts, not raw HTML attribute values or selectors.
  */
 export type ClassState = Readonly<Record<string, unknown>>

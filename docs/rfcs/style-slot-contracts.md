@@ -466,8 +466,14 @@ the actual component must supply true for present and false for absent.
 Unprovided is not false and retains the resolver's missing-fact warning.
 This adds no runtime selector/attribute-value interpreter, condition registry,
 subscription or new resolver. Conjunctions with supported local/direction
-facts compose normally, including transform slots. Attribute equality,
-negation, relations and environment queries retain their existing refusals;
+facts compose normally, including transform slots. Simple case-sensitive
+attribute equality now encodes `data-name=value` boolean predicate keys at
+build time. Safe ASCII alphanumeric/hyphen/underscore token values may be
+quoted or valid unquoted identifiers; equivalent quoting normalizes to the
+same key. Owners supply both matching and nonmatching results explicitly;
+raw attribute values and presence keys cannot satisfy equality. CSS escapes,
+whitespace/empty values, flags, other attribute operators, negation,
+relations and environment queries retain their existing refusals;
 support in the candidate map alone does not certify any component owner.
 
 - Keep static work AOT, including existing negated and ambient conditions.
