@@ -137,6 +137,19 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // included: 15 modules and 40.8 KB, `responder`, `dom-style`, `interactive`
 // and `scrollable` the largest.
 // With the import rewritten the share is 440,218.
+//
+// Raised to 485 KB after the share crossed 460 at 461,600 with #1187, and
+// the Pages deploy -- the only job that runs this -- stayed red for a day
+// while nothing else noticed. No barrel came back: the share moved in
+// steps of 0.2 to 3.9 KB, each a merge that applied @hozo/ui's classes on
+// Native at their real owners, read from the deploy logs: 459,508 at
+// a6a561bc, the last pass; owner data-presence facts (#1187) 461,600;
+// Calendar day and forwarded classes (#1188, #1190) 465,430; the
+// date-picker frame and DateTime Done button (#1193, #1194) 469,335;
+// TimePicker group and field (#1195) 471,054, value and period (#1196)
+// 473,033; data equality facts (#1199) 473,188; portal typography (#1217)
+// 473,496. That work (#1205) is not finished, so the room is for it; a
+// jump of 15 KB at once is still a barrel, as it was every time before.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -150,8 +163,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 460_000,
-  `Hozo's modules stay below 460 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 485_000,
+  `Hozo's modules stay below 485 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than
