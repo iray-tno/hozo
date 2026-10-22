@@ -839,6 +839,31 @@ export const App = () => <Canvas.Rect className="hover:fill-red-500" />`
   assert.match(JSON.stringify(report), /hover:fill-red-500/)
 })
 
+// #1167. A class list handed to a pattern reaches React Native's resolver,
+// which drops what it cannot draw; the audit lists each such class with its
+// reason, at the prop, beside the other findings. Only the Native side: the
+// same class is right on the Web.
+test('a class React Native cannot draw in a pattern prop is a finding with its reason', async (t) => {
+  const root = fixture(t, {
+    'src/Sheet.tsx': `import { BottomSheet } from '@hozo/patterns'
+export function Sheet() {
+  return <BottomSheet handleClassName="h-6 before:block cursor-grab" />
+}`,
+  })
+  const report = await measureRealApp({ root })
+  const findings = report.findings.filter((item) => item.code === 'CLASS_NOT_DRAWN_ON_NATIVE')
+  assert.equal(findings.length, 1)
+  const [finding] = findings
+  assert.equal(finding.file, 'src/Sheet.tsx')
+  assert.equal(finding.backend, 'native')
+  assert.equal(finding.severity, 'warning')
+  assert.match(finding.message, /`before:block` in handleClassName on <BottomSheet>/)
+  assert.match(finding.message, /pseudo-element/)
+  assert.equal(finding.location.line, 3)
+  assert.equal(finding.subject.snippet, 'handleClassName="h-6 before:block cursor-grab"')
+  assert.equal(report.diagnostics.byCode.CLASS_NOT_DRAWN_ON_NATIVE, 1)
+})
+
 test('provenance records actual binding, stable authored fingerprint and unresolved project facts', async (t) => {
   const root = fixture(t, { 'src/App.tsx': simpleSource })
   const report = await measureRealApp({ root })
