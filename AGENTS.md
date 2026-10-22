@@ -96,31 +96,26 @@ Use the GitHub CLI extension **`github/gh-stack`** (`gh stack`) for dependent
 PRs, rather than maintaining a chain of base branches by hand. An independent
 single PR does not need an artificial stack.
 
-- Before changing a stack, inspect `git status`, `gh stack view --json` and
-  the affected PRs' heads, bases and CI results. Work only on your own stack;
-  do not adopt another agent's branches or PRs without a handoff.
-- Start with `gh stack init --base main <branch>`. Existing branches can be
-  adopted by listing them **bottom to top**, but inspect their history first.
-  Add the next layer with `gh stack add <branch>` after committing the current
-  layer's scoped changes. Do not use its stage-all flags on a shared/dirty tree.
-- Use `gh stack rebase` for cascading rebases and `gh stack submit` to push
-  and create/update the PRs. Inspect the result with `gh stack view --json`.
-  `gh stack sync` also rebases **and pushes**; it is not a read-only status
-  command. Do not use `--prune` merely to sync: it deletes merged local branches.
-- For non-interactive submission, `gh stack submit --auto --open` makes
-  review-ready PRs, not drafts. Use it only when every affected PR should be
-  ready; do not override an intentional draft. Waiting for CI alone does not
-  require a draft. Check the installed `--help` rather than guessing flags.
-- Auto-generated titles/bodies do not replace this repository's PR contract:
-  set each title and English three-section body with `gh pr edit`, and apply
-  your own `taken` label to **every layer** (see Agent ownership below).
-  After submission/sync, verify each PR's diff, base, labels and current-head
-  checks. Recheck completed parent CI before starting the next layer; fix a
-  known failure instead of propagating it. State dependencies and merge order
-  in the PR bodies even when GitHub shows the stack.
-- Creating/submitting a stack is not permission to merge it. Do not run
-  `gh stack merge`, merge individual PRs, or enable auto-merge without the
-  user's explicit authorization.
+Before stack operations, read the bundled official
+[gh-stack skill](.agents/skills/gh-stack/SKILL.md) and the references it selects
+for your task. CLI procedures and recovery belong there, not in this file.
+The installed command's `--help` is authoritative for flags; the pinned source
+and update policy are in [UPSTREAM.md](.agents/skills/gh-stack/UPSTREAM.md).
+
+Hozo's rules still apply alongside the skill:
+
+- Inspect the worktree, stack and affected PRs before mutations. Work only on
+  your own branches/stack; another agent's clean worktree is not permission to
+  rebase it. Do not stage unrelated changes, prune branches or unstack/rebuild
+  existing stacks merely because a recovery example suggests it.
+- Keep the conventional title, English three-section body and your own
+  `taken` label on **every layer**. Verify each submitted PR's diff, base,
+  labels and current-head checks; state dependencies and merge order in its body.
+- Recheck completed parent CI before the next layer; repair known failures
+  rather than propagating them. CI waiting alone does not require a draft,
+  and submission must not clear an intentional draft.
+- Skill merge examples are not authorization: do not merge a stack, merge
+  individual PRs or enable auto-merge without the user's explicit approval.
 
 ### Commits
 
