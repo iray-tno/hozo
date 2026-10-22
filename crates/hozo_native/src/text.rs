@@ -782,7 +782,8 @@ mod tests {
     fn runtime_inheritance_keeps_unassessed_roots_ordinary_and_reports_an_error() {
         for source in [
             "import {Button} from '@hozo/core'; const el=<Button>Label</Button>",
-            "import {View,Small} from '@hozo/core'; const el=<View><Small>Label</Small></View>",
+            "import {Emphasis} from '@hozo/core'; const el=<Emphasis>Label</Emphasis>",
+            "import {Heading} from '@hozo/core'; const el=<Heading level={level}>Label</Heading>",
             "import {Text} from '@hozo/core'; const el=<Text className=\"dark:text-red-500\">Label</Text>",
             "import {View} from '@hozo/core'; const el=<View className=\"transition-colors\"><Opaque/></View>",
             "import {Text} from '@hozo/core'; const el=<Text className={classes}>Label</Text>",

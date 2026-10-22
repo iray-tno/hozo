@@ -960,3 +960,53 @@ substituted for isolated evidence. This completes the bounded two-platform
 rendering gate, not typography/widget/portal integration, measured update
 cost or permission to enable default inheritance/static selection. Next work
 should integrate real owners rather than expand this same comparison again.
+
+## Bounded semantic compiler integration
+
+[#1207](https://github.com/iray-tno/hozo/issues/1207) tracks the remaining work
+through ordinary builds and docs capture. The first compiler slice extends
+the shipped opt-in from Text/View to Paragraph, Strong, static-level Heading,
+Small, Sub, Sup, Mark and NoBreak. It is not integration of the uncompiled
+`@hozo/typography` exports or acceptance of the broader typography inventory.
+
+Semantic relative sizes select a separate generated leaf,
+`HozoInheritedRelativeText`. It reads the existing numeric size bridge,
+calculates the semantic default once, and delegates to `HozoInheritedText`
+with own class/explicit styles after that default. Its descendants receive
+the effective seven-field frame, including the new size. The plain inherited
+Text leaf has no additional hook/import for this relative adapter. Existing
+static proof requirements are unchanged: semantic roots without that proof
+retain the contextual route rather than pretending they are closed static.
+
+The compiler test exercises all eight admitted semantic primitives with and
+without preflight. The runtime graph executes real compiler/Metro output and
+shipped sources across Heading/Small/Strong and an opaque separately compiled
+memoized Text behind a View. It compares the independent private reference,
+runtime-only production selection and proof-selected production route over
+ancestor changes, explicit overrides, explicit undefined fields and complete
+removal of the overriding style object. Independent expectations check the
+heading/Small ratios, bold semantics, nearest color, all seven leaf fields,
+stable label state/host identity and unchanged Native View count. RN's style
+array erasure by explicitly present undefined fields is distinguished from
+removing the final style object; the latter restores the class/semantic
+default. This is resolved RN-style precedence, not CSS inline-style parity.
+
+The new positive compiler test fails on the preceding implementation because
+Paragraph is rejected by the passive-only gate. Both the former refusals and
+the continued refusals are tested. Conditional classes, CSS-relative metrics,
+dynamic heading levels, font families/styles/variants, animated/interactive
+owners and additional adapters remain explicit internal-experiment errors.
+The tests do not assess native glyphs, physical-device performance, transitions,
+portal destinations or arbitrary third-party text owners.
+
+```sh
+node --test --test-concurrency=1 packages/compiler/src/text-reference.test.ts packages/tailwind-conformance/src/text-inheritance-runtime.test.ts packages/tailwind-conformance/src/text-inheritance-concurrent.test.ts packages/tailwind-conformance/src/relative-text.test.ts
+```
+
+Ordinary compilation and normal Metro/Showcase/`ui-docs` capture still select
+the old path. No new public project switch is added. Default rollout must
+complete the remaining real owner/portal/transition and update-cost gates in
+RFC 006; merging this compiler slice does not complete #1207 or authorize
+an accepted ADR. Historical device results above remain pinned to their
+original sources; regenerating the fixture's current source hashes is not
+a new device result.

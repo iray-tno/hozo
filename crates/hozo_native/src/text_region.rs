@@ -18,11 +18,25 @@ const FIELDS: [&str; 7] = [
 ];
 
 // Both routes assess the same protocol domain. A static proof must not
-// bypass an unassessed animation/relative declaration just because ordinary
+// bypass an unassessed animation/relative CSS declaration just because ordinary
 // output happens to need no generated adapter for one value of it.
 pub(super) fn passive(node: &Node) -> bool {
-    matches!(node.primitive, Primitive::View | Primitive::Text)
-        && node.class_name_fallback.is_empty()
+    matches!(
+        node.primitive,
+        Primitive::View
+            | Primitive::Text
+            | Primitive::Paragraph
+            | Primitive::Strong
+            | Primitive::Heading
+            | Primitive::Small
+            | Primitive::Sub
+            | Primitive::Sup
+            | Primitive::Mark
+            | Primitive::NoBreak
+    ) && !matches!(
+        node.props.heading_level,
+        Some(hozo_ir::HeadingLevel::Dynamic(_))
+    ) && node.class_name_fallback.is_empty()
         && node.style.iter().all(|style| {
             style.condition == Condition::Always
                 && !matches!(
@@ -35,6 +49,7 @@ pub(super) fn passive(node: &Node) -> bool {
                         | StyleProperty::Animation(..)
                         | StyleProperty::ThemeAnimation(..)
                         | StyleProperty::FontFamily(..)
+                        | StyleProperty::Keyword("font-style", _)
                         | StyleProperty::FontVariant(..)
                         | StyleProperty::LineHeight(LineHeight::Ratio(..))
                         | StyleProperty::LetterSpacing(LetterSpacing::Em(..))

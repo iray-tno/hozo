@@ -139,12 +139,55 @@ test('internal runtime integration emits shipped passive ABI without changing or
   }
 })
 
+test('internal inheritance preserves semantic typography and runtime ratios without changing ordinary lowering', () => {
+  for (const preflight of [false, true]) {
+    const compiler = createCompiler({ colors: [], preflight })
+    for (const name of [
+      'Paragraph',
+      'Strong',
+      'Heading',
+      'Small',
+      'Sub',
+      'Sup',
+      'Mark',
+      'NoBreak',
+    ]) {
+      const source = `import {${name}} from '@hozo/typography';export const Label=()=> <${name} testID="label">Label</${name}>`
+      const ordinary = compiler.compileNativeModule(source)
+      const runtime = compiler.compileNativeModule(source, undefined, undefined, {
+        textInheritance: true,
+        textStatic: true,
+      })
+      assert.equal(runtime.components.length, 1)
+      const result = runtime.components[0]
+      assert.ok(
+        !result.diagnostics.some((d) => d.severity === 'error'),
+        `${name}: ${JSON.stringify(result.diagnostics)}`,
+      )
+      const relative = ['Small', 'Sub', 'Sup'].includes(name) || (name === 'Heading' && !preflight)
+      assert.ok(
+        result.runtimeImports.includes(
+          relative ? 'HozoInheritedRelativeText' : 'HozoInheritedText',
+        ),
+        name,
+      )
+      assert.ok(!result.runtimeImports.includes('HozoRelativeText'), name)
+      if (relative) assert.match(result.jsx, /hozoRelative=\{/)
+      if (name === 'Heading') assert.match(result.jsx, /accessibilityRole="header"/)
+      assert.deepEqual(compiler.compileNativeModule(source), ordinary)
+    }
+  }
+})
+
 test('internal runtime integration refuses unassessed primitives and conditions, not ordinary support', () => {
   const compiler = createCompiler()
   for (const source of [
     `import {Button} from '@hozo/core'; export const Label=()=> <Button>Label</Button>`,
     `import {Text} from '@hozo/core'; export const Label=()=> <Text className="dark:text-red-500">Label</Text>`,
-    `import {Small} from '@hozo/core'; export const Label=()=> <Small>Label</Small>`,
+    `import {Code} from '@hozo/core'; export const Label=()=> <Code>Label</Code>`,
+    `import {Emphasis} from '@hozo/core'; export const Label=()=> <Emphasis>Label</Emphasis>`,
+    `import {Text} from '@hozo/core'; export const Label=()=> <Text className="italic">Label</Text>`,
+    `import {Heading} from '@hozo/core'; export const Label=()=> <Heading level={level}>Label</Heading>`,
   ]) {
     const normal = compiler.compileNativeModule(source)
     const runtime = compiler.compileNativeModule(source, undefined, undefined, {

@@ -20,6 +20,7 @@ export const flattenRuntimeStyle = (style: unknown): Record<string, unknown> =>
 
 type Runtime = {
   HozoInheritedText: ComponentType
+  HozoInheritedRelativeText: ComponentType
   HozoInheritedView: ComponentType
   HozoInheritedMetricsContext: Context<HozoInheritedTextMetrics>
   HozoInheritedPaintContext: Context<HozoInheritedTextPaint>
@@ -32,6 +33,7 @@ export function loadTextInheritanceRuntime(
   const runtime = buildSync({
     stdin: {
       contents: `export {HozoInheritedText} from '@hozo/core/generated/inherited-text';
+export {HozoInheritedRelativeText} from '@hozo/core/generated/inherited-relative-text';
 export {HozoInheritedView} from '@hozo/core/generated/inherited-view';
 export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';`,
       resolveDir: fileURLToPath(new URL('../../../', import.meta.url)),
@@ -46,6 +48,9 @@ export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engin
     metafile: true,
     external: ['react', 'react/*', 'react-native', '@hozo/engine/generated/text-size-context'],
     alias: {
+      '@hozo/core/generated/inherited-relative-text': fileURLToPath(
+        new URL('../../primitives/src/generated/inherited-relative-text.ts', import.meta.url),
+      ),
       '@hozo/core/generated/inherited-text': fileURLToPath(
         new URL('../../primitives/src/generated/inherited-text.ts', import.meta.url),
       ),
