@@ -422,7 +422,7 @@ then explicit fieldTextStyle on the values. The arrows inherit their field's
 text; the period is a sibling and does not receive fieldClassName. Its legacy
 Native fieldStyle override is preserved separately. No host, hook or provider
 is added by this chrome slice. The value, period and step class consumers
-remain separate; in particular, consuming the step's absolute positioning
+are described below; in particular, consuming the step's absolute positioning
 without its valued data selectors would overlap arrows, not complete support.
 Existing tabular-nums and other runtime utility/condition refusals still
 diagnose rather than being presented as full CSS or device/pixel parity.
@@ -442,9 +442,23 @@ fieldTextStyle. Visual events stay in the leaf, outside the clock's
 value/formatting path. This adds three local trackers, no Native layout host,
 provider, global listener or resolver. Existing accessibility labels, whole
 time value, actions, bounds and controlled/empty behavior are preserved.
-Step classes remain unapplied pending their valued-data positioning route;
+Step positioning uses the valued-data route described below;
 Native typing, hardware event/AT delivery and pixel/performance certification
 are not established by these host tests or Web comparisons.
+
+That positioning route now lets each TimePicker step consume stepClassName
+through the same PickerButton as the period/Done/triggers. Each real Web button
+owns data-hozo-step presence, exactly one increase/decrease equality predicate
+and data-disabled presence, beside its own interaction and button form facts.
+The shared class list therefore sets top only on increase and bottom only on
+decrease, without overlapping both arrows. Step text follows field ancestry,
+then its own declarations and explicit stepStyle; fieldTextStyle remains a
+value/period override rather than being newly applied to arrows. Four local
+trackers, no layout host/provider/subscription or extra resolver are added;
+visual step events do not rerender the clock. Existing stepping bounds,
+controlled/empty values, labels and accessible buttons remain unchanged.
+This closes TimePicker's unapplied class props, not every utility refusal or
+Native pixel/event/AT certification.
 
 The first routing probe exposed a separate existing Web gap,
 [#993](https://github.com/iray-tno/hozo/issues/993): AOT Chip `disabled:`
