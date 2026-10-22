@@ -90,6 +90,33 @@ that showed it. Write it in English.
 `type/short-kebab-slug`, using the same types: `fix/lp-code-showcase-responsive`,
 `feat/theme-dark`. Not checked; just be consistent.
 
+### Stacked pull requests
+
+Use the GitHub CLI extension **`github/gh-stack`** (`gh stack`) for dependent
+PRs, rather than maintaining a chain of base branches by hand. An independent
+single PR does not need an artificial stack.
+
+Before stack operations, read the bundled official
+[gh-stack skill](.agents/skills/gh-stack/SKILL.md) and the references it selects
+for your task. CLI procedures and recovery belong there, not in this file.
+The installed command's `--help` is authoritative for flags; the pinned source
+and update policy are in [UPSTREAM.md](.agents/skills/gh-stack/UPSTREAM.md).
+
+Hozo's rules still apply alongside the skill:
+
+- Inspect the worktree, stack and affected PRs before mutations. Work only on
+  your own branches/stack; another agent's clean worktree is not permission to
+  rebase it. Do not stage unrelated changes, prune branches or unstack/rebuild
+  existing stacks merely because a recovery example suggests it.
+- Keep the conventional title, English three-section body and your own
+  `taken` label on **every layer**. Verify each submitted PR's diff, base,
+  labels and current-head checks; state dependencies and merge order in its body.
+- Recheck completed parent CI before the next layer; repair known failures
+  rather than propagating them. CI waiting alone does not require a draft,
+  and submission must not clear an intentional draft.
+- Skill merge examples are not authorization: do not merge a stack, merge
+  individual PRs or enable auto-merge without the user's explicit approval.
+
 ### Commits
 
 Prefer the same `type(scope): summary` form as the title. Only the PR title is
@@ -108,29 +135,52 @@ behavioural change unreviewable.
 - **Area work** — an area prefix is fine where it helps: `Three: evaluate and prove a Native GPU host`.
 - The body says how to reproduce or what was measured, and what would count as done.
 
-### Taking an issue
+## Agent ownership
 
 Several agents work in this repository at once, all through one GitHub
-account, so an assignee cannot say which of them has an issue. A label does.
+account, so an assignee cannot say which of them owns the work. A `taken`
+label does, on both issues and PRs.
 
-- **Your name** is `<agent>-<n>` -- `claude-1`, `claude-2`, `codex-1` -- and
+- **Your name** is `<agent>-<n>` -- for example `codex-1`, `claude-1`,
+  `claude-2`, or `agy-1` -- and
   it is given by whoever started you. Do not pick a number yourself: two
   agents choosing at the same moment would choose the same one. If you were
-  given no name, ask before taking an issue.
-- **Before starting**, look for a `taken: …` label on the issue. If another
+  given no name, ask before claiming work.
+- **Label names contain no spaces:** `taken:codex-1`, `taken:claude-1`,
+  `taken:agy-1`. Reuse `taken:<your name>` if it exists; do not create a spaced
+  alternative. If only a legacy spaced spelling exists, report it for
+  normalization rather than creating a duplicate or changing another agent's
+  identity yourself. Otherwise create `taken:<your name>` with colour
+  `#5319e7` and description
+  `Being worked on by <your name>` -- the one exception to the label-creation
+  rule below.
+
+### Taking an issue
+
+- **Before starting**, look for any `taken:<agent>-<n>` label on the issue. If another
   agent has it, leave it, or ask the person who started you.
-- **When starting**, add `taken: <your name>` and comment one line: who took
-  it, the branch, and the session if you have a link. Create the label if it
-  does not exist yet, with colour `#5319e7` and the description
-  `Being worked on by <your name>` -- the one exception to the rule below.
+- **When starting**, add your own label and comment one line: who took it,
+  the branch, and the session if you have a link.
 - **When stopping without a fix**, remove the label and say why in a comment,
   so the issue is free again. A PR that says `Fixes #n` closes the issue and
   ends the claim with it; nothing else to undo.
 
+### Owning a pull request
+
+- Put your own `taken` label on **every PR you create**, including standalone
+  fixes/docs with no issue and every PR in a stack. An issue's label is not
+  automatically inherited by its PRs, and `gh stack submit` does not replace
+  this step. Use `gh pr edit <number> --add-label "<your exact label>"` and
+  verify the resulting labels after creation.
+- Keep the PR's label as authorship/ownership history after merge or closure.
+  An issue's label is an active work claim; a closed PR's label is not one.
+  Change another agent's ownership only after an explicit handoff, not merely
+  because you reviewed or rebased their work.
+
 ## Labels
 
 Apply **one kind** label and **any number of nature** labels. Do not create new
-labels, except a `taken: <agent>-<n>` label (see "Taking an issue"); ask in the
+labels, except your own `taken` label (see "Agent ownership"); ask in the
 PR or issue if one seems missing.
 
 | Kind (one) | When |
