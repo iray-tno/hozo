@@ -1439,3 +1439,55 @@ This is browser inheritance/target evidence, not Native motion pixels, an AT
 result, wall-clock synchronization, all colour-space parity or a claim that
 reversal timing matches. No normal compiler/Metro routing or Native expectations
 are changed by this measurement.
+
+## Shared motion topology and update-count comparison
+
+`text-inheritance-motion-cost.test.ts` adds a source-backed counting workload at
+1, 32 and 128 opaque labels. Both sides execute actual compiler-produced box and
+label callbacks through the shipped Native helpers. The ordinary control
+explicitly forwards the compiled label callback through opaque wrappers; ordinary
+lowering does not do that automatically. The control is therefore target/host
+equivalent at the measured mount and hover stages, not a claim that the default
+compiler already solves opaque inheritance or that both graphs have identical
+late-join/override animation semantics. The candidate uses the actual internally
+selected inherited owner. No reference inheritance algorithm participates.
+
+| Labels | Mount Values: forwarded / shared | Retained listeners: forwarded / shared | Listener callbacks over 60 ticks: forwarded / shared |
+| --- | --- | --- | --- |
+| 1 | 3 / 3 | 2 / 2 | 120 / 120 |
+| 32 | 34 / 3 | 33 / 2 | 1,980 / 120 |
+| 128 | 130 / 3 | 129 / 2 | 7,740 / 120 |
+
+The shared moving-background owner retains the existing box progress listener
+and one shared text listener. The third mount Value is the existing unused box
+opacity Value, not an extra text timeline. The old box driver still constructs
+two temporary Values during a hover render: after mount plus hover the totals
+are N+4 for the forwarded control and five for shared motion. These allocations
+are recorded rather than silently described as only live nodes.
+
+The compiled label callback runs N times at mount and another N on hover in the
+forwarded control, versus once plus once at the shared owner. This is a callback
+count, not a claim to remove N dynamic class parses. **Text-host renders are the
+same:** N at mount and 3N cumulative after hover in both motion paths. The new
+committed target/interpolation passes do not eliminate retarget React work.
+The inherited paint probes observe its Context updates (3N cumulative on hover);
+the ordinary probes observe an empty default Context and are not a comparable
+Context-notification baseline.
+
+Sixty simulated ticks allocate no further Values, resolve no label callbacks,
+render no Text hosts and notify no paint probes in either path. Late joining,
+own-colour override/removal, hover reversal, retained first-label identity,
+unchanged control/View counts and complete listener cleanup are asserted.
+The separate 32-label non-motion configuration has zero animation Values and
+listeners on both sides; it uses the already-assessed non-motion text condition
+domain, not unassessed non-motion interactive backgrounds.
+
+```sh
+node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-motion-cost.test.ts
+```
+
+These are mock-host/progress topology counts, not Native frame time, JS/bridge
+throughput, GPU work, total Animated binding-node counts or a zero-overhead result.
+All N Animated.Text host bindings remain. The one-label workload has no node
+savings, and Context preparation still costs work. Native physical-device
+performance and new motion-pixel evidence remain required before rollout.

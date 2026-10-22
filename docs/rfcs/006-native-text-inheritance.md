@@ -496,6 +496,14 @@ a pre-existing class-condition ordering difference: compiled Hozo Web/Native
 agree with each other but not Tailwind for a conflicting active/focus combination.
 Neither this oracle nor the internal label transport certifies that gap as fixed.
 
+The [motion fanout counting workload](../native-text-inheritance-baseline.md#shared-motion-topology-and-update-count-comparison)
+now records 1/32/128 opaque labels against an explicitly forwarded, target/host
+equivalent control. At 128 labels the retained progress listeners are 129 vs 2,
+but both paths still render 3N Text hosts cumulatively through mount plus hover.
+Per-frame mock notifications trigger no React work on either side. This is a
+bounded topology result, not physical-device speed evidence or a blanket win for
+single-label controls, and it changes no default routing.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.
