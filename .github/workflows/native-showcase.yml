@@ -338,6 +338,7 @@ jobs:
           brew install facebook/fb/idb
           idb ui describe-all --help
       - name: Exercise real Native Storybook, SVG filters and Expo GL on iOS
+        id: ios-smoke
         if: inputs.ios-scenario != 'ui-docs'
         run: node examples/native-showcase/scripts/ios-smoke.mjs artifacts/native-showcase-ios
         env:
@@ -352,7 +353,10 @@ jobs:
       # Not on every PR: 39 more deep links would push an hour-long job past
       # its limit, and the screenshots assert nothing the showcase depends on.
       - name: Capture each docs component preview on iOS
-        if: ${{ !cancelled() && (github.event_name == 'schedule' || inputs.ios-scenario == 'ui-docs') }}
+        # After the full showcase even if it failed -- the previews do not
+        # depend on it -- but not after a failed build or simulator boot, when
+        # there is no app or no installed dependencies to run.
+        if: ${{ (success() || steps.ios-smoke.outcome == 'failure') && (github.event_name == 'schedule' || inputs.ios-scenario == 'ui-docs') }}
         run: node examples/native-showcase/scripts/ios-smoke.mjs artifacts/native-showcase-ios-ui-docs
         env:
           HOZO_BINARY_RUN: ${{ inputs.reuse-build-run || github.run_id }}

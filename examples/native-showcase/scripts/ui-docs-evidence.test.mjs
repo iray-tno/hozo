@@ -109,3 +109,12 @@ test('both drivers resolve a marker and a failure seen together to the failure',
     )
   }
 })
+
+test('the iOS walk follows a failed full showcase, not a failed build or boot', () => {
+  const workflow = readFileSync(join(root, '../../.github/workflows/native-showcase.yml'), 'utf8')
+  assert.match(workflow, /id: ios-smoke\n/)
+  assert.match(
+    workflow,
+    /- name: Capture each docs component preview on iOS\n(?:\s+#.*\n)*\s+if: \$\{\{ \(success\(\) \|\| steps\.ios-smoke\.outcome == 'failure'\) &&/,
+  )
+})
