@@ -562,6 +562,123 @@ test('Skeleton resting corners survive outside a caller breakpoint and lose insi
   }
 })
 
+test('the real Web portal inherits destination typography instead of the React opener', {
+  skip: !executablePath,
+}, async () => {
+  const fixture = await build({
+    stdin: {
+      contents: `import {createElement as h,useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';import {Portal,PortalProvider} from ${JSON.stringify(fileURLToPath(new URL('../../../packages/behaviors/src/portal.tsx', import.meta.url)))};
+      const root=createRoot(document.getElementById('root'));let next=0;
+      function Label({own}){const [token]=useState(()=>++next);return h('span',{id:'label',style:own,'data-token':token},'Label',h('span',{id:'small',style:{fontSize:(5/6)+'em'}},'Small'))}
+      window.renderPortal=({opener,own,disabled,custom})=>flushSync(()=>root.render(h('div',{id:'opener',style:{...opener,lineHeight:String(opener.lineHeight)+'px'}},h(PortalProvider,{container:custom?document.getElementById('destination'):null},h(Portal,{disabled},h(Label,{own}))))));`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const rest = {
+    color: '#112233',
+    fontSize: 20,
+    fontWeight: '400',
+    lineHeight: 28,
+    letterSpacing: 1,
+    textAlign: 'left',
+    textTransform: 'uppercase',
+  }
+  const next = { ...rest, color: '#334455', fontSize: 28, lineHeight: 40 }
+  for (const [custom, disabled] of [
+    [true, false],
+    [false, false],
+    [true, true],
+  ]) {
+    const page = await browser.newPage()
+    try {
+      await page.setContent('<!doctype html><div id="root"></div><div id="destination"></div>')
+      await page.addScriptTag({ content: fixture.outputFiles[0].text })
+      let host = rest,
+        opener = { ...rest, color: '#abcdef', fontSize: 30 },
+        own
+      const update = async () => {
+        await page.evaluate(
+          ({ host, opener, own, custom, disabled }) => {
+            for (const element of [document.body, document.getElementById('destination')]) {
+              for (const [key, value] of Object.entries(host))
+                element.style[key] = typeof value === 'number' ? `${value}px` : value
+            }
+            window.renderPortal({ opener, own, custom, disabled })
+          },
+          { host, opener, own, custom, disabled },
+        )
+        await page.locator('#label').waitFor()
+      }
+      const check = async () => {
+        const expected = { ...(disabled ? opener : host), ...own }
+        const actual = await page.locator('#label').evaluate((node) => {
+          const style = getComputedStyle(node)
+          const color =
+            '#' +
+            style.color
+              .match(/\d+/g)
+              .map((part) => Number(part).toString(16).padStart(2, '0'))
+              .join('')
+          return {
+            color,
+            fontSize: parseFloat(style.fontSize),
+            fontWeight: style.fontWeight,
+            lineHeight: parseFloat(style.lineHeight),
+            letterSpacing: parseFloat(style.letterSpacing),
+            textAlign: style.textAlign,
+            textTransform: style.textTransform,
+          }
+        })
+        assert.deepEqual(actual, expected)
+        const identity = await page
+          .locator('#label')
+          .evaluate((node) => [node === window.firstLabel, node.dataset.token])
+        assert.equal(identity[0], true)
+        assert.equal(identity[1], '1')
+        assert.equal(
+          await page
+            .locator('#small')
+            .evaluate((node) => Math.round(parseFloat(getComputedStyle(node).fontSize))),
+          Math.round((expected.fontSize * 5) / 6),
+        )
+        assert.equal(
+          await page.locator('#label').evaluate((node) => Boolean(node.closest('#opener'))),
+          disabled,
+        )
+        assert.equal(
+          await page.locator('#label').evaluate((node) => Boolean(node.closest('#destination'))),
+          custom && !disabled,
+        )
+      }
+      await update()
+      await page.evaluate(() => {
+        window.firstLabel = document.getElementById('label')
+      })
+      await check()
+      opener = { ...opener, color: '#eecc00', fontSize: 42 }
+      await update()
+      await check()
+      host = next
+      await update()
+      await check()
+      own = { color: '#abcdef', fontSize: 30 }
+      await update()
+      await check()
+      own = undefined
+      await update()
+      await check()
+    } finally {
+      await page.close()
+    }
+  }
+})
+
 test('the real Web slider keeps focus when aria-disabled changes, until its host blurs', {
   skip: !executablePath,
 }, async () => {

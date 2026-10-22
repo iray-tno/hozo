@@ -40,6 +40,7 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'packages/behaviors/src/portal.tsx',
     'packages/form/src/form.native.tsx',
     'packages/form/src/text-area.native.tsx',
     'packages/form/src/native-select.native.tsx',

@@ -98,6 +98,7 @@
         "$TURBO_ROOT$/packages/behaviors/src/hover-trigger.native.tsx",
         "$TURBO_ROOT$/packages/behaviors/src/hover-geometry.ts",
         "$TURBO_ROOT$/packages/behaviors/src/portal.native.tsx",
+        "$TURBO_ROOT$/packages/behaviors/src/portal.tsx",
         "$TURBO_ROOT$/packages/behaviors/src/floating-positioner.native.tsx",
         "$TURBO_ROOT$/packages/behaviors/src/floating-positioner.tsx",
         "$TURBO_ROOT$/packages/behaviors/src/dismissable-layer.tsx",
