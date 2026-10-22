@@ -49,7 +49,7 @@ export async function exerciseUiDocs(
     takenAt: now().toISOString(),
     pages: {},
   }
-  for (const page of pages) {
+  const visit = async (page) => {
     const ready = `UI docs ${page}`
     const failed = `UI docs ${page} failed`
     try {
@@ -70,6 +70,11 @@ export async function exerciseUiDocs(
       }
     }
   }
+  for (const page of pages) await visit(page)
+  // Once more for a page that never appeared. The first deep link after a
+  // cold launch can outlast the wait (iOS lost Accordion, the first page,
+  // that way), and a later attempt costs one page, not a run.
+  for (const page of pages) if (manifest.pages[page].status === 'unreached') await visit(page)
   writeFileSync(resolve(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   // What each failure threw, which the screenshot shows only in part.
   try {

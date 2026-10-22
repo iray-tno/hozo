@@ -49,12 +49,16 @@ test('a failed or unreachable demo is recorded and the walk goes on', async () =
       now: () => new Date('2026-10-21T00:00:00Z'),
     },
   )
-  assert.deepEqual(opened, ['button', 'broken', 'gone', 'crashed', 'card'].map(uiDocStoryId))
+  // The page that never appeared is tried once more at the end.
+  assert.deepEqual(
+    opened,
+    ['button', 'broken', 'gone', 'crashed', 'card', 'gone'].map(uiDocStoryId),
+  )
   assert.deepEqual(
     Object.fromEntries(Object.entries(manifest.pages).map(([page, entry]) => [page, entry.status])),
     { button: 'ok', broken: 'failed', gone: 'unreached', crashed: 'failed', card: 'ok' },
   )
-  assert.deepEqual(captured, ['button', 'broken', 'gone', 'crashed', 'card'])
+  assert.deepEqual(captured, ['button', 'broken', 'gone', 'crashed', 'card', 'gone'])
   assert.equal(manifest.takenAt, '2026-10-21T00:00:00.000Z')
   assert.deepEqual(JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8')), manifest)
 })
@@ -117,4 +121,24 @@ test('the iOS walk follows a failed full showcase, not a failed build or boot', 
     workflow,
     /- name: Capture each docs component preview on iOS\n(?:\s+#.*\n)*\s+if: \$\{\{ \(success\(\) \|\| steps\.ios-smoke\.outcome == 'failure'\) &&/,
   )
+})
+
+test('a page that appears on its second attempt counts as reached', async () => {
+  const output = mkdtempSync(join(tmpdir(), 'ui-docs-'))
+  let attempts = 0
+  const manifest = await exerciseUiDocs(
+    {
+      open: () => {},
+      waitForEither: async (labels) => {
+        if (labels[2] === 'UI docs accordion' && ++attempts === 1) throw new Error('cold start')
+        return labels[2]
+      },
+      settle: async () => {},
+      capture: () => {},
+    },
+    output,
+    { pages: ['accordion', 'alert'] },
+  )
+  assert.equal(attempts, 2)
+  assert.deepEqual(manifest.pages.accordion, { status: 'ok', image: 'accordion.png' })
 })
