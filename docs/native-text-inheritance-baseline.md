@@ -1092,3 +1092,61 @@ Android/iOS pixels or physical-device performance measurements. Ordinary
 Metro builds and docs capture still use ordinary lowering. Other real widget
 scopes, rendered portal destinations, interrupted transitions and update-cost
 gates remain before default activation.
+
+## Native portal lifecycle prerequisite
+
+Exercising the actual registered Native portal before destination-inheritance
+integration exposed a pre-existing registration feedback loop. Item writes
+rerendered the provider, recreated its Context methods, and reran each Portal's
+registration effects. A bounded host-render guard reproduced the loop on the
+preceding source, without spinning indefinitely or relying on a timeout.
+
+The provider now memoizes its methods independently of its item snapshot and
+leaves the Map unchanged for identical writes or absent removals. Content
+updates keep the existing key's position relative to unaffected siblings.
+Public API, keyed fragments and the absolute host stay unchanged;
+no typography capture, host boundary or public API is added. Source-backed tests
+cover two items, stable child state/host identity on replacement, individual
+removal, complete cleanup, inline disabled/no-provider cases and StrictMode
+effect replay. This prerequisite fixes lifecycle behavior, not typography or
+Native rendering/performance. Portal destination and widget integration remain
+separate gates; normal builds/docs still do not select the inheritance route.
+
+## Rendered portal destination integration
+
+After the lifecycle prerequisite, actual compiler/Metro output and the actual
+Native Portal/PortalProvider/PortalHost sources now run together with the shipped
+inheritance leaves and the independent reference. Registered children are
+rendered at the host and therefore consume its effective frame, not the opener's
+React ancestry. The existing protocol already provides this behavior: there is
+no portal-specific frame capture, replay, reset or new inheritance adapter.
+
+The Native graph covers provider present/absent and enabled/disabled across
+reference, runtime-only and proof-selected routes. Five stages assert the seven
+fields, opaque memo/View propagation, relative Small's effective size bridge,
+own overrides/removal, stable label state/host identity and the unchanged Native
+box count. Opener updates must not leak into a registered label; host updates
+must reach it. A directly rendered custom PortalHost reads its own compiled
+ancestor, and nested providers use the nearest destination. Removing the inner
+host's own color/size resumes outer-host inheritance, never opener capture.
+
+A separate Chromium test bundles the actual Web Portal implementation with
+React DOM. Custom-container and default-body portals inherit from the rendered
+DOM target; disabled portals stay inline. It checks host/opener updates and own
+override/removal, all seven computed fields, DOM/state identity and Small's
+ratio (with Native integer rounding distinguished from CSS fractional metrics).
+The fixture supplies explicit pixel line-height: React DOM's unitless numeric
+line-height is not a resolved Native pixel value. Native without a provider
+falls back inline, whereas Web has a default body destination; these are recorded
+platform contracts, not identical no-provider routing.
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='real Web portal inherits' examples/storybook-demo/scripts/caller-composition.test.mjs
+```
+
+The raw-source cache guards cover both actual platform portal sources. These
+tests do not move any normal-build/default switch or establish Native pixels,
+screen-reader focus, physical-device performance, arbitrary context replay,
+dynamic destination switching or equivalence for Modal/pattern popup defaults.
+Those popup/widget boundaries, interrupted transitions and measured update cost
+remain before default activation. Historical device evidence is unchanged.

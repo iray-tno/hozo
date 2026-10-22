@@ -6,6 +6,7 @@ import test from 'node:test'
 import { transformSync } from 'esbuild'
 import { createCompiler } from '../../compiler/src/index.ts'
 import { transformHozoSource } from '../../metro/src/transform.ts'
+import { loadNativePortal } from './portal-native-host.ts'
 import { projectNativeText, type TextHostJson } from './text-inheritance-native-projection.ts'
 import { createTextReference, TEXT_REFERENCE_FIELDS } from './text-inheritance-reference-core.ts'
 import {
@@ -85,6 +86,7 @@ function graph(
   )
   const code: Record<string, string> = {}
   const cache = new Map<string, Record<string, unknown>>()
+  let portal: ReturnType<typeof loadNativePortal> | undefined
   const load = (name: string): Record<string, unknown> => {
     if (cache.has(name)) return cache.get(name)!
     const output = transformHozoSource(
@@ -110,6 +112,8 @@ function graph(
       (specifier: string) => {
         if (specifier.startsWith('fixture:')) return load(specifier.slice(8))
         if (specifier === 'react' || specifier === 'react/jsx-runtime') return require(specifier)
+        if (specifier === '@hozo/behaviors')
+          return (portal ??= loadNativePortal({ View: shipped.native.View }))
         if (specifier === 'react-native')
           return runtime
             ? shipped.native
@@ -133,8 +137,141 @@ function graph(
     cache.set(name, module.exports)
     return module.exports
   }
-  return { Scene: load('scene').Scene, code, shipped }
+  return { Scene: load('scene').Scene, getLabel: () => load('label').Label, code, shipped }
 }
+
+test('generated portal labels inherit the rendered destination, with inline fallback and stable updates', () => {
+  const label = `import {Text,Small} from '@hozo/core';import {memo,useState} from 'react';let next=0;export const Label=memo(({own})=>{const [token]=useState(()=>++next);return <Text testID="label" nativeID={'mount:'+token} style={own}>Label<Small testID="small">Small</Small></Text>})`
+  for (const provider of [false, true]) {
+    for (const disabled of [false, true]) {
+      const records = []
+      for (const mode of ['reference', 'runtime', 'optimized']) {
+        const content = `<View testID="opener" style={opener}><Portal disabled={disabled}><View testID="content"><Label own={own}/></View></Portal></View>`
+        const source = `import {View} from '@hozo/core';import {Portal,PortalProvider} from '@hozo/behaviors';import {Label} from 'fixture:label';export const Scene=({host,opener,own,disabled})=> <View testID="destination" style={host}>${provider ? `<PortalProvider>${content}</PortalProvider>` : content}</View>`
+        const fixture = graph(mode !== 'reference', source, mode === 'optimized', label)
+        let tree: ReturnType<typeof renderer.create>
+        let host = REST,
+          opener = { ...REST, ...OWN },
+          own: object | undefined
+        const scene = () => React.createElement(fixture.Scene, { host, opener, own, disabled })
+        const stages = []
+        try {
+          renderer.act(() => {
+            tree = renderer.create(scene())
+          })
+          const text = (id: string) =>
+            tree.root.findAll((node) => node.type === 'NativeText' && node.props.testID === id)[0]
+          const first = text('label'),
+            small = text('small'),
+            marker = first.props.nativeID
+          const registered = provider && !disabled
+          const check = () => {
+            const frame = registered ? host : opener
+            const expected = {
+              ...Object.fromEntries(TEXT_REFERENCE_FIELDS.map((key) => [key, frame[key]])),
+              ...own,
+            }
+            assert.deepEqual(
+              flatten(text('label').props.style),
+              expected,
+              `${mode}, provider=${provider}, disabled=${disabled}`,
+            )
+            const smallStyle = flatten(text('small').props.style)
+            assert.equal(smallStyle.color, expected.color)
+            assert.equal(smallStyle.fontSize, Math.round(Number(expected.fontSize) * (5 / 6)))
+            assert.equal(text('label'), first)
+            assert.equal(text('small'), small)
+            assert.equal(first.props.nativeID, marker)
+            assert.equal(tree.root.findAllByType('NativeView').length, registered ? 4 : 3)
+            stages.push(expected)
+          }
+          check()
+          opener = { ...opener, color: '#eecc00', fontSize: 42 }
+          renderer.act(() => tree.update(scene()))
+          check()
+          host = NEXT
+          renderer.act(() => tree.update(scene()))
+          check()
+          own = OWN
+          renderer.act(() => tree.update(scene()))
+          check()
+          own = undefined
+          renderer.act(() => tree.update(scene()))
+          check()
+        } finally {
+          renderer.act(() => tree?.unmount())
+        }
+        records.push(stages)
+      }
+      assert.deepEqual(records[1], records[0])
+      assert.deepEqual(records[2], records[0])
+    }
+  }
+})
+
+test('an explicitly rendered Native PortalHost uses its own compiled ancestor frame', () => {
+  const source = `import {View} from '@hozo/core';import {PortalHost} from '@hozo/behaviors';export const Scene=({frame,items})=> <View style={frame}><PortalHost items={items}/></View>`
+  const label = `import {Text} from '@hozo/core';import {memo,useState} from 'react';let next=0;export const Label=memo(()=>{const [token]=useState(()=>++next);return <Text testID="custom" nativeID={token}>Custom</Text>})`
+  for (const mode of ['reference', 'runtime', 'optimized']) {
+    const fixture = graph(mode !== 'reference', source, mode === 'optimized', label)
+    const child = React.createElement(fixture.getLabel())
+    const items = new Map([['same-entry', child]])
+    let tree: ReturnType<typeof renderer.create>
+    try {
+      renderer.act(() => {
+        tree = renderer.create(React.createElement(fixture.Scene, { frame: REST, items }))
+      })
+      const first = tree.root.findByType('NativeText'),
+        marker = first.props.nativeID
+      assert.equal(flatten(first.props.style).color, REST.color)
+      renderer.act(() => tree.update(React.createElement(fixture.Scene, { frame: NEXT, items })))
+      assert.equal(tree.root.findByType('NativeText'), first)
+      assert.equal(first.props.nativeID, marker)
+      assert.deepEqual(
+        flatten(first.props.style),
+        Object.fromEntries(TEXT_REFERENCE_FIELDS.map((key) => [key, NEXT[key]])),
+      )
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+  }
+})
+
+test('nested Native portal providers choose the nearest rendered destination without opener capture', () => {
+  const source = `import {View} from '@hozo/core';import {Portal,PortalProvider} from '@hozo/behaviors';import {Label} from 'fixture:label';export const Scene=({outer,inner,opener})=> <View style={outer}><PortalProvider><View style={inner}><PortalProvider><View style={opener}><Portal><Label/></Portal></View></PortalProvider></View></PortalProvider></View>`
+  const label = `import {Text} from '@hozo/core';import {memo,useState} from 'react';let next=0;export const Label=memo(()=>{const [token]=useState(()=>++next);return <Text testID="nearest" nativeID={token}>Nearest</Text>})`
+  for (const mode of ['reference', 'runtime', 'optimized']) {
+    const fixture = graph(mode !== 'reference', source, mode === 'optimized', label)
+    let tree: ReturnType<typeof renderer.create>
+    let outer = REST,
+      inner: object = { ...REST, color: '#1355bb', fontSize: 24 }
+    const scene = () => React.createElement(fixture.Scene, { outer, inner, opener: OWN })
+    try {
+      renderer.act(() => {
+        tree = renderer.create(scene())
+      })
+      const first = tree.root.findByType('NativeText'),
+        marker = first.props.nativeID
+      const check = (frame: object) => {
+        assert.equal(tree.root.findByType('NativeText'), first)
+        assert.equal(first.props.nativeID, marker)
+        assert.deepEqual(
+          flatten(first.props.style),
+          Object.fromEntries(TEXT_REFERENCE_FIELDS.map((key) => [key, frame[key]])),
+        )
+      }
+      check(inner)
+      outer = NEXT
+      renderer.act(() => tree.update(scene()))
+      check(inner)
+      inner = { ...inner, color: undefined, fontSize: undefined }
+      renderer.act(() => tree.update(scene()))
+      check({ ...inner, color: NEXT.color, fontSize: NEXT.fontSize })
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+  }
+})
 
 test('actual cross-file generated ABI matches the private oracle across owner updates, override removal, refs and grouping', () => {
   const records = []

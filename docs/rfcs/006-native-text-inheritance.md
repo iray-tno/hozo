@@ -435,6 +435,16 @@ Neither policy is changed here. Conditional box/ambient/relational/form styles,
 other widget scopes, transitions, portals and ordinary default activation
 remain outside this increment.
 
+The [rendered portal destination integration](../native-text-inheritance-baseline.md#rendered-portal-destination-integration)
+now exercises real compiler output, shipped inheritance leaves and registered
+Native portals after a separately fixed registration lifecycle loop. The
+existing protocol follows the host without a new portal-specific bridge. A
+source-backed React DOM/Chromium check verifies the actual Web Portal's CSS
+destination contract. Native inline fallbacks, direct hosts and nested providers
+are covered, not Modal/pattern popup defaults, arbitrary context replay, new
+Native pixels, destination switching or physical-device update cost. Ordinary
+build/docs activation remains gated by the outstanding widget/transition work.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.
