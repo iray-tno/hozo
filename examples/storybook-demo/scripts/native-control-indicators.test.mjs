@@ -84,6 +84,7 @@ for (const file of [
   'date-picker.tsx',
   'date-range-picker.tsx',
   'date-time-picker.tsx',
+  'time-picker.tsx',
 ]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
@@ -156,6 +157,8 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
 const exportsFrom = (names, relative) =>
   `export { ${names} } from ${JSON.stringify(filename(relative))};`
 const probeSources = [
+  exportsFrom('HozoTimePicker', 'packages/form/src/time-picker.native.tsx'),
+  exportsFrom('HozoTimePicker as UiTimePicker', 'packages/ui/src/time-picker.tsx'),
   exportsFrom('HozoCalendar', 'packages/form/src/calendar.native.tsx'),
   exportsFrom('HozoCalendar as UiCalendar', 'packages/ui/src/calendar.tsx'),
   ...['DatePicker', 'DateRangePicker', 'DateTimePicker'].flatMap((name) => {
@@ -375,6 +378,7 @@ const { usePressableInteraction, HozoInteractionContext, UiTree } = module.expor
 const { HozoForm, HozoTextArea, UiForm, UiTextArea, useFormSubmit } = module.exports
 const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect } = module.exports
 const { HozoCalendar, UiCalendar } = module.exports
+const { HozoTimePicker, UiTimePicker } = module.exports
 const {
   HozoDatePicker,
   HozoDateRangePicker,
@@ -941,6 +945,103 @@ test('NativeSelect row classes diagnose unmeasured focus/hover instead of borrow
   } finally {
     nativePlatform.OS = 'ios'
     console.warn = original
+  }
+})
+
+const timeProps = { defaultValue: { hour: 9, minute: 10 }, hour12: true, locale: 'en-US' }
+const timeValues = (tree) =>
+  views(tree).filter((node) => node.props.accessibilityRole === 'adjustable')
+const timeGroup = (tree) => views(tree).find((node) => node.props.accessibilityRole === 'none')
+const timePeriod = (tree) =>
+  tree.root
+    .findAllByType('NativePressable')
+    .find((node) => node.props.accessibilityLabel === 'AM or PM')
+const timeArrows = (tree) =>
+  tree.root
+    .findAllByType('NativePressable')
+    .filter((node) => /^(Increase|Decrease) /.test(node.props.accessibilityLabel))
+
+test('Native TimePicker group and fields own different boxes and inherited text tiers', async (t) => {
+  const props = {
+    ...timeProps,
+    disabled: true,
+    className: 'p-4 text-hozo-accent font-bold disabled:opacity-25 aria-disabled:mt-8',
+    fieldClassName: 'p-3 text-hozo-text-subtle text-lg disabled:opacity-25 aria-disabled:mt-8',
+    style: { paddingTop: 91 },
+    fieldStyle: { paddingTop: 92 },
+    hozoInheritedTextStyle: { color: '#abcdef', fontSize: 30 },
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  assert.equal(flat(timeGroup(tree).props.style).paddingTop, 91)
+  assert.equal(flat(timeGroup(tree).props.style).paddingBottom, 16)
+  assert.equal(flat(timeGroup(tree).props.style).color, undefined)
+  assert.equal(flat(timeGroup(tree).props.style).opacity, undefined)
+  assert.equal(flat(timeGroup(tree).props.style).marginTop, undefined)
+  for (const value of timeValues(tree)) {
+    const wrapper = value.parent.parent
+    assert.equal(flat(wrapper.props.style).paddingTop, 92)
+    assert.equal(flat(wrapper.props.style).paddingBottom, 12)
+    assert.equal(flat(wrapper.props.style).fontSize, undefined)
+    assert.equal(flat(wrapper.props.style).opacity, undefined)
+    assert.equal(flat(wrapper.props.style).marginTop, undefined)
+    assert.equal(flat(value.props.children.props.style).color, color('hozo-text-subtle'))
+    assert.equal(flat(value.props.children.props.style).fontSize, 18)
+    assert.equal(String(flat(value.props.children.props.style).fontWeight), '700')
+  }
+  for (const arrow of timeArrows(tree))
+    assert.equal(flat(arrow.props.children.props.style).color, color('hozo-text-subtle'))
+  assert.equal(
+    flat(timePeriod(tree).props.style).paddingBottom,
+    undefined,
+    'field class is not on the period button',
+  )
+  assert.equal(flat(timePeriod(tree).props.children.props.style).color, color('hozo-accent'))
+  assert.equal(flat(timePeriod(tree).props.children.props.style).fontSize, 30)
+  await act(() =>
+    tree.update(
+      React.createElement(HozoTimePicker, {
+        ...props,
+        className: undefined,
+        fieldClassName: undefined,
+      }),
+    ),
+  )
+  assert.equal(flat(timeGroup(tree).props.style).paddingBottom, undefined)
+  assert.equal(flat(timeValues(tree)[0].props.children.props.style).color, '#abcdef')
+  assert.equal(flat(timeValues(tree)[0].props.children.props.style).fontWeight, undefined)
+})
+
+test('Native TimePicker explicit field text wins without turning ancestor text into child style', async (t) => {
+  const props = {
+    ...timeProps,
+    className: 'text-hozo-accent',
+    style: { color: '#123456', fontSize: 31 },
+    fieldClassName: 'text-hozo-text-subtle text-lg',
+    fieldStyle: { paddingTop: 91, color: '#654321' },
+    fieldTextStyle: { color: '#fedcba' },
+  }
+  const tree = await mount(t, HozoTimePicker, props)
+  for (const value of timeValues(tree)) {
+    assert.equal(flat(value.props.children.props.style).color, '#fedcba')
+    assert.equal(flat(value.props.children.props.style).fontSize, 18)
+    assert.equal(flat(value.parent.parent.props.style).color, undefined)
+  }
+  assert.equal(flat(timeArrows(tree)[0].props.children.props.style).color, '#654321')
+  assert.equal(flat(timePeriod(tree).props.children.props.style).color, '#fedcba')
+  assert.equal(flat(timePeriod(tree).props.children.props.style).fontSize, 31)
+})
+
+test('Native UI TimePicker draws its real group and field chrome', async (t) => {
+  const tree = await mount(t, UiTimePicker, timeProps)
+  assert.equal(flat(timeGroup(tree).props.style).flexDirection, 'row')
+  assert.equal(flat(timeGroup(tree).props.style).gap, 8)
+  for (const value of timeValues(tree)) {
+    const box = flat(value.parent.parent.props.style)
+    assert.equal(box.minHeight, 48)
+    assert.equal(box.paddingEnd, 24)
+    assert.equal(box.backgroundColor, color('hozo-surface'))
+    assert.equal(flat(value.props.children.props.style).fontSize, 14)
+    assert.equal(flat(value.props.children.props.style).color, color('hozo-text'))
   }
 })
 
