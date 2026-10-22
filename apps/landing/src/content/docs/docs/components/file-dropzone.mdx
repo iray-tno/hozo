@@ -24,3 +24,10 @@ file picker. Drop an image on it, or press it:
   "a.gif is not an accepted kind of file", so a refusal is not only a red line
   a reader cannot see.
 - **`accessibilityLabel`** names the button. **`children`** are what it shows.
+- **On Native**, the zone opens your `pickFiles` adapter or an installed
+  `expo-document-picker`. Its `className` styles the button; literal labels
+  receive its text styles, while custom child components retain their own.
+  **`activeClassName` is Web drag-over styling**: it is not applied while a
+  Native button is pressed or its picker is busy. Native file-drag events
+  remain a separate capability, and the status above continues to list that
+  prop as unapplied.

@@ -1,6 +1,18 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
-import { type ReactNode, useState } from 'react'
-import { AccessibilityInfo, Pressable, type StyleProp, type ViewStyle } from 'react-native'
+import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoClasses } from '@hozo/engine/project'
+import { Children, type ReactNode, useEffect, useState } from 'react'
+import {
+  AccessibilityInfo,
+  Pressable,
+  type StyleProp,
+  StyleSheet,
+  Text,
+  type TextStyle,
+  type ViewStyle,
+} from 'react-native'
+import { nonControlClassFacts } from './class-facts.native.ts'
 import {
   type FileRules,
   type HozoFileRejection,
@@ -28,8 +40,9 @@ export interface HozoFileDropzoneProps extends FileRules {
    * module of its own -- used ahead of `expo-document-picker`.
    */
   pickFiles?: HozoFilePicker
-  /** Web only: classes, which a Native pattern has no list to resolve. */
+  /** Project classes on the picker button, with its own interaction/form facts. */
   className?: string
+  /** Web drag-over only. Not press feedback or the Native picker's busy state. */
   activeClassName?: string
   style?: StyleProp<ViewStyle>
   testID?: string
@@ -49,13 +62,12 @@ interface DocumentPickerModule {
 /**
  * The picker this platform has, resolved once (#353's seam).
  *
- * Hozo ships no native code, and opening the system's document picker needs
- * some. So the zone uses one the application has: `pickFiles` when given,
+ * This package includes no document-picker module. The zone uses one the
+ * application has: `pickFiles` when given,
  * else `expo-document-picker` when installed -- a `require` Metro treats as
  * optional inside `try` -- else none, and it says so once rather than
- * offering a button that does nothing. A future `@hozo/native` would be one
- * more candidate ahead of the third-party one, and no existing user pays for
- * it.
+ * offering a button that does nothing. A future Hozo document-picker adapter
+ * could be another candidate without requiring it in every application.
  */
 function resolveDocumentPicker(): HozoFilePicker | null {
   try {
@@ -89,8 +101,8 @@ let warned = false
 
 /**
  * A place to add files, on React Native: a button that opens the system's
- * picker. Phones have no drag and drop between applications in the sense
- * the Web does, so the Web half's drop target is its button here, and the
+ * picker. This implementation has no native file-drag event source, so the
+ * Web half's drop target is its button here, and the
  * same rules sort what comes back and the same sentence announces it.
  */
 export function HozoFileDropzone({
@@ -105,25 +117,51 @@ export function HozoFileDropzone({
   accessibilityLabel,
   children,
   pickFiles,
+  className,
   style,
   testID,
 }: HozoFileDropzoneProps) {
   const message = useHozoMessage()
   const { locale } = useHozoI18n()
   const [busy, setBusy] = useState(false)
+  const { state, handlers } = usePressableInteraction({ focusVisible: true })
   if (documentPicker === undefined && !pickFiles) documentPicker = resolveDocumentPicker()
   const picker = pickFiles ?? documentPicker ?? null
   if (!picker && !warned) {
     warned = true
     console.warn(
       '[hozo] FileDropzone has no picker: pass `pickFiles`, or install `expo-document-picker`. ' +
-        'Hozo ships no native code, and opening the system picker needs some.',
+        'The form package includes no document-picker module.',
     )
   }
   const unavailable = picker === null
+  const isDisabled = Boolean(disabled) || unavailable
+  useEffect(() => {
+    if (isDisabled) {
+      handlers.blur()
+      handlers.pressOut()
+    }
+  }, [isDisabled, handlers])
+  const [box, text] = hozoSplitTextStyle(
+    StyleSheet.flatten([
+      hozoClasses(className, {
+        ...nonControlClassFacts,
+        ...state,
+        disabled: isDisabled,
+        enabled: !isDisabled,
+        pressed: !isDisabled && state.pressed,
+        focused: !isDisabled && state.focused,
+        focusVisible: !isDisabled && state.focusVisible,
+        // The Web button authors neither attribute. Native's busy/disabled
+        // announcements do not manufacture extra ARIA styling predicates.
+        'aria-busy': false,
+      }),
+      style,
+    ]) ?? {},
+  )
 
   const open = async () => {
-    if (!picker || busy) return
+    if (!picker || disabled || busy) return
     setBusy(true)
     try {
       const picked = await picker({ accept, multiple: Boolean(multiple) })
@@ -150,13 +188,33 @@ export function HozoFileDropzone({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={unavailable ? message('hozo.fileDropzone.unavailable') : undefined}
-      accessibilityState={{ disabled: Boolean(disabled) || unavailable, busy }}
-      disabled={disabled || unavailable}
+      accessibilityState={{ disabled: isDisabled, busy }}
+      disabled={isDisabled}
       onPress={open}
-      style={style}
+      onHoverIn={handlers.hoverIn}
+      onHoverOut={handlers.hoverOut}
+      onFocus={() => {
+        if (!isDisabled) handlers.focus()
+      }}
+      onBlur={handlers.blur}
+      onPressIn={() => {
+        if (!isDisabled) handlers.pressIn()
+      }}
+      onPressOut={handlers.pressOut}
+      onPointerDown={handlers.pointerDown}
+      onKeyDown={handlers.keyDown}
+      style={box as ViewStyle}
       testID={testID}
     >
-      {children}
+      {/* Only literal labels are ours to wrap/style. Opaque content retains
+          its own declarations: no cloning or default context rollout here. */}
+      {Children.map(children, (child) =>
+        typeof child === 'string' || typeof child === 'number' ? (
+          <Text style={text as TextStyle}>{child}</Text>
+        ) : (
+          child
+        ),
+      )}
     </Pressable>
   )
 }

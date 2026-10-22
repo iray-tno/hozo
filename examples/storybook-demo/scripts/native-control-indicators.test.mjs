@@ -67,6 +67,9 @@ const timeValueClasses =
   'p-5 text-hozo-accent hover:bg-hozo-accent focus:opacity-75 focus-visible:font-bold aria-disabled:border-4 disabled:opacity-25 data-[hozo-disabled]:mt-8'
 const timeActiveUnmeasuredClass = 'active:mt-[37px]'
 const hiddenPeriodClass = 'md:bg-[#8a6b4c]'
+const fileZoneClasses =
+  'p-4 text-hozo-accent text-lg hover:bg-hozo-accent focus:opacity-75 focus-visible:font-bold active:opacity-50 disabled:opacity-25 disabled:border-4 aria-disabled:mt-8 aria-busy:mb-8'
+cache.scanFile('file-zone.tsx', `<View className="${fileZoneClasses}" />`, 1)
 const timeStepClasses =
   'absolute p-2 text-hozo-accent data-[hozo-step=increase]:top-0 data-[hozo-step=decrease]:bottom-0 data-[hozo-step]:border-2 data-[hozo-step=increase]:hover:opacity-50 data-[hozo-step=decrease]:hover:opacity-75 active:font-bold focus-visible:outline-2 disabled:opacity-25 aria-disabled:mt-8 data-[hozo-disabled]:mb-8'
 cache.scanFile(
@@ -96,6 +99,7 @@ for (const file of [
   'date-range-picker.tsx',
   'date-time-picker.tsx',
   'time-picker.tsx',
+  'file-dropzone.tsx',
 ]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
@@ -168,6 +172,8 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
 const exportsFrom = (names, relative) =>
   `export { ${names} } from ${JSON.stringify(filename(relative))};`
 const probeSources = [
+  exportsFrom('HozoFileDropzone', 'packages/form/src/file-dropzone.native.tsx'),
+  exportsFrom('HozoFileDropzone as UiFileDropzone', 'packages/ui/src/file-dropzone.tsx'),
   exportsFrom('HozoTimePicker', 'packages/form/src/time-picker.native.tsx'),
   exportsFrom('HozoTimePicker as UiTimePicker', 'packages/ui/src/time-picker.tsx'),
   exportsFrom('HozoCalendar', 'packages/form/src/calendar.native.tsx'),
@@ -327,6 +333,7 @@ const bundled = await build({
             exportsFrom('DateRangePicker', 'packages/form/src/date-range-picker.native.tsx'),
             exportsFrom('DateTimePicker', 'packages/form/src/date-time-picker.native.tsx'),
             exportsFrom('TimePicker', 'packages/form/src/time-picker.native.tsx'),
+            exportsFrom('FileDropzone', 'packages/form/src/file-dropzone.native.tsx'),
           ].join('\n'),
           loader: 'tsx',
           resolveDir: root,
@@ -370,6 +377,7 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
     if (name === '@hozo/core/generated/environment')
       return { useHozoDark: () => nativeDark, useHozoViewport: () => nativeViewport }
     if (name === '@hozo/engine/project') return { hozoClasses }
+    if (name === 'expo-document-picker') throw new Error('No document picker in this host probe')
     return require(name)
   },
   module,
@@ -390,6 +398,7 @@ const { HozoForm, HozoTextArea, UiForm, UiTextArea, useFormSubmit } = module.exp
 const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect } = module.exports
 const { HozoCalendar, UiCalendar } = module.exports
 const { HozoTimePicker, UiTimePicker } = module.exports
+const { HozoFileDropzone, UiFileDropzone } = module.exports
 const {
   HozoDatePicker,
   HozoDateRangePicker,
@@ -957,6 +966,175 @@ test('NativeSelect row classes diagnose unmeasured focus/hover instead of borrow
     nativePlatform.OS = 'ios'
     console.warn = original
   }
+})
+
+const fileZoneHost = (tree) => tree.root.findByType('NativePressable')
+const fileZoneProps = { accessibilityLabel: 'Upload photo', pickFiles: async () => null }
+
+test('Native FileDropzone resolves its own button classes without borrowing drag or busy state', async (t) => {
+  let picks = 0
+  const props = {
+    ...fileZoneProps,
+    className: fileZoneClasses,
+    activeClassName: 'p-12',
+    pickFiles: async () => {
+      picks++
+      return null
+    },
+  }
+  const tree = await mount(t, HozoFileDropzone, props)
+  const host = () => fileZoneHost(tree)
+  const box = () => flat(host().props.style)
+  assert.equal(box().paddingTop, 16)
+  assert.equal(box().borderTopWidth, undefined)
+  assert.equal(box().marginTop, undefined)
+  assert.equal(box().marginBottom, undefined)
+  assert.equal(box().color, undefined)
+  assert.equal(flat(host().findByType('NativeText').props.style).color, color('hozo-accent'))
+  await act(() => host().props.onHoverIn())
+  assert.equal(box().backgroundColor, color('hozo-accent'))
+  await act(() => host().props.onFocus())
+  assert.equal(box().opacity, 0.75)
+  assert.equal(String(flat(host().findByType('NativeText').props.style).fontWeight), '700')
+  await act(() => host().props.onPointerDown())
+  assert.equal(flat(host().findByType('NativeText').props.style).fontWeight, undefined)
+  await act(() => host().props.onKeyDown())
+  assert.equal(String(flat(host().findByType('NativeText').props.style).fontWeight), '700')
+  await act(() => host().props.onPressIn())
+  assert.equal(box().opacity, 0.5)
+  assert.equal(box().paddingTop, 16, 'press is not drag-active')
+  assert.equal(picks, 0)
+  await act(() =>
+    tree.update(React.createElement(HozoFileDropzone, { ...props, disabled: true }, 'Updates')),
+  )
+  assert.equal(box().opacity, 0.25)
+  assert.equal(box().borderTopWidth, 4)
+  await press(host())
+  assert.equal(picks, 0)
+  await act(() => tree.update(React.createElement(HozoFileDropzone, props, 'Updates')))
+  assert.equal(box().opacity, undefined, 'stale focus and press cleared')
+  await act(() =>
+    tree.update(
+      React.createElement(
+        HozoFileDropzone,
+        { ...props, className: undefined, style: { paddingTop: 91 } },
+        'Updates',
+      ),
+    ),
+  )
+  assert.equal(box().paddingTop, 91)
+  assert.equal(box().paddingBottom, undefined)
+})
+
+test('Native FileDropzone styles literal labels without cloning opaque children or injecting a provider', async (t) => {
+  const ownStyle = { color: '#123456' }
+  const Opaque = () => React.createElement(NativeText, { style: ownStyle }, 'Custom')
+  const opaque = React.createElement(Opaque, { key: 'opaque' })
+  const WithChildren = (props) =>
+    React.createElement(HozoFileDropzone, props, ['Raw', 0, false, opaque])
+  const tree = await mount(t, WithChildren, {
+    ...fileZoneProps,
+    className: fileZoneClasses,
+    style: { paddingTop: 91 },
+  })
+  const labels = fileZoneHost(tree).findAllByType('NativeText')
+  assert.equal(labels.length, 3)
+  assert.equal(flat(labels[0].props.style).color, color('hozo-accent'))
+  assert.equal(flat(labels[1].props.style).fontSize, 18)
+  assert.equal(labels[1].props.children, 0)
+  assert.equal(labels[2].props.style, ownStyle)
+  assert.deepEqual(tree.root.findByType(Opaque).props, {})
+  assert.equal(flat(fileZoneHost(tree).props.style).paddingTop, 91)
+  assert.equal(flat(fileZoneHost(tree).props.style).paddingBottom, 16)
+})
+
+test('Native FileDropzone keeps picker busy, cancellation, validation and announcements independent of styling', async (t) => {
+  let finish
+  let calls = 0
+  const selected = [],
+    rejected = []
+  const before = announcements.length
+  const props = {
+    ...fileZoneProps,
+    className: fileZoneClasses,
+    activeClassName: 'p-12',
+    accept: ['image/png'],
+    pickFiles: () => {
+      calls++
+      return new Promise((resolve) => {
+        finish = resolve
+      })
+    },
+    onFilesSelected: (files) => selected.push(files),
+    onRejected: (files) => rejected.push(files),
+  }
+  const tree = await mount(t, HozoFileDropzone, props)
+  let pending
+  await act(() => {
+    pending = fileZoneHost(tree).props.onPress()
+  })
+  assert.equal(fileZoneHost(tree).props.accessibilityState.busy, true)
+  assert.equal(fileZoneHost(tree).props.disabled, false, 'busy is not a disabled button')
+  assert.equal(flat(fileZoneHost(tree).props.style).paddingTop, 16, 'busy is not drag-active')
+  assert.equal(
+    flat(fileZoneHost(tree).props.style).marginBottom,
+    undefined,
+    'Native busy announcement is not an authored aria-busy class fact',
+  )
+  await press(fileZoneHost(tree))
+  assert.equal(calls, 1)
+  const good = { name: 'photo.png', type: 'image/png', size: 100, uri: 'file:///photo.png' }
+  const bad = { name: 'other.txt', type: 'text/plain', size: 20, uri: 'file:///other.txt' }
+  await act(async () => {
+    finish([good, bad])
+    await pending
+  })
+  assert.deepEqual(selected, [[good]])
+  assert.equal(rejected[0][0].reason, 'type')
+  assert.equal(announcements.length, before + 1)
+  assert.equal(fileZoneHost(tree).props.accessibilityState.busy, false)
+  await act(() => {
+    pending = fileZoneHost(tree).props.onPress()
+  })
+  await act(async () => {
+    finish(null)
+    await pending
+  })
+  assert.equal(announcements.length, before + 1, 'cancellation does not invent a selection')
+  assert.equal(fileZoneHost(tree).props.accessibilityState.busy, false)
+})
+
+test('Native UI FileDropzone draws its real dashed box without applying its Web-only drag-active classes', async (t) => {
+  const tree = await mount(t, UiFileDropzone, fileZoneProps)
+  const box = flat(fileZoneHost(tree).props.style)
+  assert.equal(box.borderStyle, 'dashed')
+  assert.equal(box.borderTopWidth, 2)
+  assert.equal(box.borderColor, color('hozo-border-strong'))
+  assert.equal(box.backgroundColor, color('hozo-surface'))
+  assert.equal(box.paddingTop, 32)
+  assert.equal(box.paddingStart, 24)
+  await act(() => fileZoneHost(tree).props.onHoverIn())
+  assert.equal(flat(fileZoneHost(tree).props.style).backgroundColor, color('hozo-surface-hover'))
+  await act(() =>
+    tree.update(
+      React.createElement(UiFileDropzone, { ...fileZoneProps, disabled: true }, 'Updates'),
+    ),
+  )
+  assert.equal(
+    flat(fileZoneHost(tree).findByType('NativeText').props.style).color,
+    color('hozo-text-subtle'),
+  )
+})
+
+test('Native FileDropzone unavailable picker remains disabled and styled without a fabricated drag state', async (t) => {
+  const tree = await mount(t, HozoFileDropzone, {
+    accessibilityLabel: 'Upload photo',
+    className: fileZoneClasses,
+  })
+  assert.equal(fileZoneHost(tree).props.disabled, true)
+  assert.equal(fileZoneHost(tree).props.accessibilityState.disabled, true)
+  assert.equal(flat(fileZoneHost(tree).props.style).opacity, 0.25)
+  assert.equal(fileZoneHost(tree).props.accessibilityHint, 'No file picker is available')
 })
 
 const timeProps = { defaultValue: { hour: 9, minute: 10 }, hour12: true, locale: 'en-US' }
