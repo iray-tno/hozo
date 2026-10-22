@@ -71,6 +71,7 @@ function graph(
     React.createElement(shipped.HozoChip, {
       ...props,
       hozoInheritedLabel: reference.ReferenceLabel,
+      hozoInheritedText: reference.ReferenceText,
     })
   // The independent reference keeps using the pre-existing relative helper,
   // with only its native Text host bound to the private contextual oracle.
@@ -324,8 +325,291 @@ test('Chip label integration adds no resolver calls or event owners to the exist
               ),
             )
           }),
-        /standalone selectable Chip/,
+        /requires both label and Text bindings/,
       )
+    } finally {
+      renderer.act(() => tree?.unmount())
+    }
+  }
+})
+
+test('generated composite Chip scopes resolved row and removal values to their actual owners', () => {
+  const label = `import {Text} from '@hozo/core';import {memo,useState} from 'react';let next=0;export const Label=memo(({id,own})=>{const [token]=useState(()=>++next);return <Text testID={id} nativeID={'mount:'+token} style={own}>Label</Text>})`
+  for (const selectable of [false, true]) {
+    const source = `import {View,Chip} from '@hozo/core';import {Label} from 'fixture:label';export const Scene=({host,rowOwn,removeOwn,childOwn,onRemove,onSelectedChange,disabled})=> <View style={host}><Chip testID="row" ${selectable ? 'defaultSelected={false} onSelectedChange={onSelectedChange}' : ''} onRemove={onRemove} disabled={disabled} accessibilityLabel="Filter" className="p-4 text-[#1355bb] text-[18px] hover:text-[#00aa00] active:text-[#cc0000] focus:font-semibold" style={rowOwn} removeStyle={removeOwn} removeClassName="p-2 focus:text-[#eecc00] active:font-bold" removeIcon={<Label id="icon" own={childOwn}/>}><Label id="label"/></Chip></View>`
+    const records = []
+    for (const mode of ['reference', 'runtime', 'optimized']) {
+      const fixture = graph(
+        mode !== 'reference',
+        source,
+        mode === 'optimized',
+        label,
+        undefined,
+        true,
+        true,
+      )
+      let tree: ReturnType<typeof renderer.create>
+      let host = REST,
+        rowOwn: object | undefined,
+        removeOwn: object | undefined,
+        childOwn: object | undefined,
+        disabled = false
+      const removed = [],
+        changes = [],
+        stages = []
+      const onRemove = () => removed.push(true)
+      const onSelectedChange = (value) => changes.push(value)
+      const scene = () =>
+        React.createElement(fixture.Scene, {
+          host,
+          rowOwn,
+          removeOwn,
+          childOwn,
+          disabled,
+          onRemove,
+          onSelectedChange,
+        })
+      try {
+        renderer.act(() => {
+          tree = renderer.create(scene())
+        })
+        const text = (id) =>
+          tree.root.findAll((node) => node.type === 'NativeText' && node.props.testID === id)[0]
+        const control = (role) =>
+          tree.root.findAll(
+            (node) => node.type === 'Pressable' && node.props.accessibilityRole === role,
+          )[0]
+        const row = () =>
+          tree.root.findAll((node) => node.type === 'NativeView' && node.props.testID === 'row')[0]
+        const firstLabel = text('label'),
+          firstIcon = text('icon'),
+          firstRemove = control('button'),
+          firstRow = row()
+        const check = (rowState = {}, removeState = {}) => {
+          const frame = {
+            ...Object.fromEntries(TEXT_REFERENCE_FIELDS.map((key) => [key, host[key]])),
+            color: '#1355bb',
+            fontSize: 18,
+            ...rowState,
+            ...rowOwn,
+          }
+          assert.deepEqual(flatten(text('label').props.style), frame, `${mode}: label`)
+          const expectedIcon = { ...frame, ...removeState, ...removeOwn, ...childOwn }
+          assert.deepEqual(flatten(text('icon').props.style), expectedIcon, `${mode}: removal icon`)
+          assert.equal(text('label') === firstLabel, true)
+          assert.equal(text('icon') === firstIcon, true)
+          assert.equal(control('button') === firstRemove, true)
+          assert.equal(row() === firstRow, true)
+          assert.equal(tree.root.findAllByType('Pressable').length, selectable ? 2 : 1)
+          assert.equal(tree.root.findAllByType('NativeView').length, 2)
+          assert.equal(
+            tree.root.findAllByType('NativeText').length,
+            selectable ? 3 : 4,
+            'only the existing passive/icon Text wrappers',
+          )
+          const rowBox = flatten(row().props.style)
+          assert.equal(rowBox.padding ?? rowBox.paddingTop, 16)
+          const removeBox = flatten(control('button').props.style({ pressed: false }))
+          assert.equal(removeBox.padding ?? removeBox.paddingTop, 8)
+          assert.equal(removeBox.color, undefined)
+          const hidden = tree.root.findAll(
+            (node) => node.type === 'NativeText' && node.props.accessibilityElementsHidden,
+          )[0]
+          assert.equal(hidden.props.importantForAccessibility, 'no-hide-descendants')
+          assert.equal(control('button').props.accessibilityLabel, 'Remove Filter')
+          assert.deepEqual(control('button').props.accessibilityState, { disabled })
+          assert.equal(fixture.shipped.native.Animated.__hozoTimings.length, 0)
+          stages.push({ label: frame, icon: expectedIcon })
+        }
+        check()
+        renderer.act(() => control('button').props.onFocus({}))
+        check({}, { color: '#eecc00' })
+        renderer.act(() => control('button').props.onHoverIn({}))
+        check({ color: '#00aa00' }, { color: '#eecc00' })
+        renderer.act(() => control('button').props.onPressIn({}))
+        check({ color: '#cc0000' }, { color: '#eecc00', fontWeight: '700' })
+        renderer.act(() => control('button').props.onPress({}))
+        assert.deepEqual(removed, [true])
+        assert.deepEqual(changes, [], 'removing does not toggle')
+        renderer.act(() => control('button').props.onPressOut({}))
+        check({ color: '#00aa00' }, { color: '#eecc00' })
+        if (selectable) {
+          renderer.act(() => control('togglebutton').props.onFocus({}))
+          check({ color: '#00aa00' }, { color: '#eecc00' })
+          renderer.act(() => control('togglebutton').props.onHoverIn({}))
+          renderer.act(() => control('button').props.onHoverOut({}))
+          check({ color: '#00aa00' }, { color: '#eecc00' })
+          renderer.act(() => control('togglebutton').props.onPress({}))
+          assert.deepEqual(changes, [true])
+          assert.equal(control('togglebutton').props.accessibilityState.checked, true)
+          renderer.act(() => control('togglebutton').props.onHoverOut({}))
+        } else {
+          renderer.act(() => control('button').props.onHoverOut({}))
+        }
+        check({}, { color: '#eecc00' })
+        rowOwn = OWN
+        removeOwn = { color: '#ff00aa', fontSize: 12 }
+        renderer.act(() => tree.update(scene()))
+        check({}, { color: '#eecc00' })
+        childOwn = { color: '#222222', fontSize: 10 }
+        host = NEXT
+        renderer.act(() => tree.update(scene()))
+        check({}, { color: '#eecc00' })
+        renderer.act(() => control('button').props.onBlur({}))
+        check()
+        rowOwn = undefined
+        removeOwn = undefined
+        childOwn = undefined
+        renderer.act(() => tree.update(scene()))
+        check()
+        renderer.act(() => row().props.onPointerEnter({}))
+        check({ color: '#00aa00' })
+        const touch = { nativeEvent: { changedTouches: [{ identifier: 1 }] } }
+        renderer.act(() => row().props.onTouchStartCapture(touch))
+        check({ color: '#cc0000' })
+        disabled = true
+        renderer.act(() => tree.update(scene()))
+        check({ color: '#00aa00' })
+        renderer.act(() => row().props.onPointerLeave({}))
+        check()
+      } finally {
+        renderer.act(() => tree?.unmount())
+      }
+      assert.equal(stages.length, selectable ? 16 : 14)
+      records.push(stages)
+    }
+    assert.deepEqual(records[1], records[0])
+    assert.deepEqual(records[2], records[0])
+  }
+})
+
+test('Chip row integration preserves ordinary resolver counts, host topology and scalar normalization', () => {
+  const api = loadTextInheritanceRuntime(React.createContext(14), undefined, true, true)
+  for (const selectable of [false, true]) {
+    for (const removable of [false, true]) {
+      const records = []
+      for (const inherit of [false, true]) {
+        let tree: ReturnType<typeof renderer.create>
+        const counts = { row: 0, remove: 0 },
+          stages = []
+        try {
+          renderer.act(() => {
+            tree = renderer.create(
+              React.createElement(
+                api.HozoChip,
+                {
+                  ...(selectable ? { defaultSelected: false } : {}),
+                  onRemove: removable ? () => {} : undefined,
+                  removeIcon: 0,
+                  hozoInheritedLabel: inherit ? api.HozoInheritedLabel : undefined,
+                  hozoInheritedText: inherit ? api.HozoInheritedText : undefined,
+                  hozoStyle: (state) => {
+                    counts.row++
+                    return { color: state.hovered ? '#00aa00' : '#1355bb', padding: 4 }
+                  },
+                  hozoRemoveStyle: (state) => {
+                    counts.remove++
+                    return { color: state.focused ? '#ff00aa' : '#abcdef', padding: 8 }
+                  },
+                },
+                'Label',
+              ),
+            )
+          })
+          const controls = () => tree.root.findAllByType('Pressable')
+          const check = () => {
+            for (const control of controls()) {
+              const style = flatten(control.props.style({ pressed: false }))
+              assert.deepEqual(
+                style,
+                control.props.accessibilityRole === 'button'
+                  ? { padding: 8 }
+                  : removable
+                    ? {}
+                    : { padding: 4 },
+              )
+            }
+            const hosts = tree.root.findAll((node) => typeof node.type === 'string')
+            assert.equal(controls().length, Number(selectable) + Number(removable))
+            assert.equal(
+              tree.root.findAllByType('NativeView').length,
+              selectable && !removable ? 0 : 1,
+            )
+            assert.equal(tree.root.findAllByType('NativeText').length, removable ? 2 : 1)
+            const text = (value) =>
+              tree.root.findAll(
+                (node) => node.type === 'NativeText' && node.children[0] === value,
+              )[0]
+            assert.ok(text('Label'))
+            if (removable) assert.ok(text('0'))
+            stages.push({
+              counts: { ...counts },
+              hosts: hosts.map((node) => node.type),
+              label: flatten(text('Label').props.style).color,
+              icon: removable ? flatten(text('0').props.style).color : null,
+            })
+          }
+          check()
+          if (removable) {
+            const remove = () =>
+              controls().find((node) => node.props.accessibilityRole === 'button')
+            renderer.act(() => remove().props.onHoverIn({}))
+            check()
+            renderer.act(() => remove().props.onFocus({}))
+            check()
+            renderer.act(() => {
+              remove().props.onHoverOut({})
+              remove().props.onBlur({})
+            })
+            check()
+          }
+        } finally {
+          renderer.act(() => tree?.unmount())
+        }
+        records.push(stages)
+      }
+      assert.deepEqual(
+        records[1],
+        records[0],
+        `${selectable}/${removable}: ordinary versus contextual`,
+      )
+    }
+  }
+})
+
+test('passive Chip retains its existing Text host and inherits across an opaque label', () => {
+  const source = `import {View,Chip} from '@hozo/core';import {Label} from 'fixture:label';export const Scene=({host})=><View style={host}><Chip testID="row" className="text-[#1355bb]"><Label/></Chip></View>`
+  for (const mode of ['reference', 'runtime', 'optimized']) {
+    const fixture = graph(
+      mode !== 'reference',
+      source,
+      mode === 'optimized',
+      sources.label,
+      undefined,
+      true,
+      true,
+    )
+    let tree: ReturnType<typeof renderer.create>
+    try {
+      renderer.act(() => {
+        tree = renderer.create(React.createElement(fixture.Scene, { host: REST }))
+      })
+      const target = () =>
+        tree.root.findAll((node) => node.type === 'NativeText' && node.props.testID === 'label')[0]
+      const first = target()
+      const check = (host) => {
+        assert.equal(target() === first, true)
+        assert.deepEqual(flatten(target().props.style), {
+          ...Object.fromEntries(TEXT_REFERENCE_FIELDS.map((key) => [key, host[key]])),
+          color: '#1355bb',
+        })
+        assert.equal(tree.root.findAllByType('NativeText').length, 3)
+        assert.equal(tree.root.findAllByType('NativeView').length, 2)
+        assert.equal(tree.root.findAllByType('Pressable').length, 0)
+      }
+      check(REST)
+      renderer.act(() => tree.update(React.createElement(fixture.Scene, { host: NEXT })))
+      check(NEXT)
     } finally {
       renderer.act(() => tree?.unmount())
     }

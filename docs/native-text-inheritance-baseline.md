@@ -1203,3 +1203,48 @@ mock-host/compiler observations, not new Android/iOS glyph, OS event/AT or
 physical-device performance measurements. Normal builds/docs remain ordinary;
 additional pattern/popup scopes, interrupted transitions and measured update
 cost remain before default activation.
+
+## Composite and passive Chip slot boundaries
+
+The following internal compiler slice extends Chip to its other three shapes:
+passive label, removable label and selectable/removable row. The existing row
+resolver's already computed text split now supplies the row scope, while the
+toggle label retains its own label position. The removal icon and passive label
+keep their pre-existing Native Text hosts, using the existing inherited Text
+leaf through a second private compiler binding. There is no new generated leaf,
+dependency, class resolver, listener, control or Native box. Resolved row values
+flow down to removal, not row predicates: removal's own focus/active typography
+overrides inherited values without focusing or changing the main label. Its
+existing hidden-icon accessibility props remain on the same Text host.
+
+The compiler assesses both root and secondary class slots with one shared
+scalar/condition predicate. Opaque secondary classes have two IR forms (a
+passthrough prop or a mixed slot's fallback); both stay explicitly unassessed.
+Font numeric variants also have both typed and keyword IR forms, so both are
+excluded rather than silently treating one as seven-field inheritance evidence.
+Spreads, unassessed fonts, transitions, relative CSS metrics and other condition
+families retain ordinary lowering plus an internal refusal. These boundaries
+are not new restrictions on ordinary Chip support.
+
+Source-backed compiler/Metro graphs compare reference, runtime-only and
+proof-selected modes through 14 removable-only and 16 selectable/removable
+stages each. They assert all seven fields through opaque memo labels/icons,
+ancestor changes, row/removal/child overrides and their removal, independent
+focus, shared ancestor hover/press, checked-state and distinct activation,
+disable-during-touch cleanup, stable hosts and the existing icon's AT props.
+The passive shape separately covers opaque labels and inherited metric updates.
+All four shapes have paired ordinary/contextual scalar controls asserting
+identical resolver-call counts, host topology, box styles and zero normalization.
+The independent reference uses its own Text/label implementation, not the
+production inheritance leaf. The ordinary bundle still imports no protocol.
+
+The same ordinary-path microbundle setup used above measures 4,904 → 5,039
+minified bytes and 2,087 → 2,145 gzip bytes (+135/+58) for this increment.
+Keeping resolver and host counts unchanged does not erase this code-size cost
+or establish the contextual path's runtime cost.
+
+These mock-host observations do not establish fresh Web computed-style parity,
+Native glyph/AT results or physical-device update cost. No normal-build/docs
+switch changes. Other widget/popup owners, interrupted transitions and measured
+cost gates still remain before default activation; historical device evidence
+has not been expanded by regenerating source hashes.

@@ -253,8 +253,6 @@ test('standalone selectable Chip uses its actual resolved label owner, not a wid
   assert.match(ownerSelected.jsx, /hozoInheritedLabel=\{HozoInheritedLabel\}/)
   assert.deepEqual(compiler.compileNativeModule(ownerImport), ownerNormal)
   for (const variant of [
-    '<Chip>Label</Chip>',
-    '<Chip defaultSelected={false} onRemove={remove}>Label</Chip>',
     '<Chip defaultSelected={false} {...rest}>Label</Chip>',
     '<Chip defaultSelected={false} className="hover:bg-red-500">Label</Chip>',
     '<Chip defaultSelected={false} className="aria-pressed:text-red-500">Label</Chip>',
@@ -272,6 +270,56 @@ test('standalone selectable Chip uses its actual resolved label owner, not a wid
       [refused.jsx, refused.styles, refused.runtimeImports],
       [normal.components[0].jsx, normal.components[0].styles, normal.components[0].runtimeImports],
     )
+  }
+})
+
+test('Chip row and removal slots share the assessed domain and keep ordinary lowering unchanged', () => {
+  const compiler = createCompiler()
+  for (const attrs of ['', 'onRemove={remove}', 'defaultSelected={false} onRemove={remove}']) {
+    const source = `import {Chip} from '@hozo/core';export const Owner=({children})=><Chip ${attrs} className="text-red-500 hover:text-blue-500 focus:font-semibold p-4" removeClassName="text-green-500 focus:text-red-500 active:font-bold p-2">{children}</Chip>`
+    const normal = compiler.compileNativeModule(source)
+    for (const textStatic of [false, true]) {
+      const selected = compiler.compileNativeModule(source, undefined, undefined, {
+        textInheritance: true,
+        textStatic,
+      }).components[0]
+      assert.ok(!selected.diagnostics.some((d) => d.severity === 'error'), JSON.stringify(selected))
+      assert.match(selected.jsx, /hozoInheritedText=\{HozoInheritedText\}/)
+      assert.match(selected.jsx, /hozoInheritedLabel=\{HozoInheritedLabel\}/)
+      assert.match(selected.jsx, /hozoRemoveStyle=/)
+      assert.ok(selected.runtimeImports.includes('HozoInheritedText'))
+    }
+    assert.deepEqual(compiler.compileNativeModule(source), normal)
+  }
+  for (const slot of [
+    '"italic"',
+    '"font-serif"',
+    '"normal-nums"',
+    '"lining-nums"',
+    '"transition-colors"',
+    '"text-[2em]"',
+    '"dark:text-red-500"',
+    '"hover:bg-red-500"',
+    '"aria-pressed:text-red-500"',
+    '{dynamic}',
+    '{ready ? "text-red-500" : dynamic}',
+  ]) {
+    const source = `import {Chip} from '@hozo/core';export const Owner=()=> <Chip onRemove={remove} removeClassName=${slot}>Label</Chip>`
+    const normal = compiler.compileNativeModule(source).components[0]
+    for (const textStatic of [false, true]) {
+      const refused = compiler.compileNativeModule(source, undefined, undefined, {
+        textInheritance: true,
+        textStatic,
+      }).components[0]
+      assert.ok(
+        refused.diagnostics.some((d) => d.severity === 'error'),
+        slot,
+      )
+      assert.deepEqual(
+        [refused.jsx, refused.styles, refused.runtimeImports],
+        [normal.jsx, normal.styles, normal.runtimeImports],
+      )
+    }
   }
 })
 

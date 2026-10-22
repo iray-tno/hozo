@@ -454,6 +454,16 @@ non-selectable/composite shapes and unassessed styles outside this increment;
 mock-host comparisons are not device/performance evidence. Additional widget
 and popup owners, interrupted transitions and update-cost gates remain.
 
+The subsequent [composite and passive Chip slice](../native-text-inheritance-baseline.md#composite-and-passive-chip-slot-boundaries)
+extends that integration to all four Chip shapes. Already resolved row text
+supplies the actual row scope, and removal/passive labels retain their existing
+Text hosts through the shared inherited Text binding. Root and secondary classes
+share the assessment rules; opaque slot props and mixed residuals both refuse
+internal certification. Generated graphs check isolated focus, inherited row
+hover/press, child overrides, stable hosts and unchanged resolver counts. This
+is still internal integration, not default rollout or new device/update-cost
+evidence.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.
