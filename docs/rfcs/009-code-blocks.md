@@ -1,4 +1,4 @@
-# RFC 007: Code blocks
+# RFC 009: Code blocks
 
 Status: initial portable implementation. Tracking: [#1189](https://github.com/iray-tno/hozo/issues/1189).
 
