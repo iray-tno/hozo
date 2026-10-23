@@ -88,6 +88,7 @@ pub(crate) struct Joiners<'r, 'a> {
     pub helpers: &'r [ClassHelper],
     /// Module-level string constants, by reference offset.
     pub constants: &'r crate::rest::ConstantStrings,
+    pub units: &'r std::cell::RefCell<hozo_ir::TailwindUnitsBuilder>,
 }
 
 pub(crate) fn decompose_class_name(expr: &JSXExpression, module_record: &Joiners) -> Decomposed {
@@ -272,6 +273,7 @@ fn decompose_literal(
     guard: Option<Span>,
     out: &mut Decomposed,
     consume: bool,
+    units: &std::cell::RefCell<hozo_ir::TailwindUnitsBuilder>,
 ) {
     let fallback_span = guard.unwrap_or(span);
     let mut fell_back = false;
@@ -318,9 +320,10 @@ fn decompose_literal(
         }
         if token_condition == Condition::Always {
             let final_condition = to_condition(condition.clone());
+            let source = utility_source(token, units);
             for property in properties {
                 out.declarations.push(StyleDeclaration {
-                    source: Default::default(),
+                    source,
                     property,
                     condition: final_condition.clone(),
                 });
@@ -329,9 +332,10 @@ fn decompose_literal(
             // No surrounding dynamic guard, so the token's own
             // variant-derived condition (hover:/md:/etc.) applies
             // directly -- e.g. `cn('hover:bg-blue-500')`.
+            let source = utility_source(token, units);
             for property in properties {
                 out.declarations.push(StyleDeclaration {
-                    source: Default::default(),
+                    source,
                     property,
                     condition: token_condition.clone(),
                 });
@@ -359,6 +363,16 @@ fn decompose_literal(
     }
 }
 
+fn utility_source(
+    token: &str,
+    units: &std::cell::RefCell<hozo_ir::TailwindUnitsBuilder>,
+) -> hozo_ir::StyleSource {
+    hozo_ir::StyleSource::TailwindUtility {
+        input: 0,
+        utility: units.borrow_mut().intern(token),
+    }
+}
+
 fn decompose(
     target: Target,
     condition: Option<ConditionExpr>,
@@ -377,7 +391,15 @@ fn decompose(
 ) {
     match target {
         Target::StringLiteral(lit) => {
-            decompose_literal(&lit.value, lit.span, condition, guard, out, true);
+            decompose_literal(
+                &lit.value,
+                lit.span,
+                condition,
+                guard,
+                out,
+                true,
+                module_record.units,
+            );
         }
         // A module-level `const` holding a string literal, read as that
         // literal. The declaration's text is not marked consumed: the same
@@ -392,6 +414,7 @@ fn decompose(
                     Some(guard.unwrap_or(span)),
                     out,
                     false,
+                    module_record.units,
                 );
             }
             None => fall_back_to(out, guard.unwrap_or(span)),
@@ -473,9 +496,10 @@ fn decompose(
                     } else {
                         token_condition
                     };
+                    let source = utility_source(token, module_record.units);
                     for property in properties {
                         out.declarations.push(StyleDeclaration {
-                            source: Default::default(),
+                            source,
                             property,
                             condition: token_condition.clone(),
                         });
@@ -606,10 +630,12 @@ mod tests {
                 }
                 if let Some(JSXAttributeValue::ExpressionContainer(container)) = &it.value {
                     let constants = crate::rest::ConstantStrings::new();
+                    let units = Default::default();
                     let joiners = Joiners {
                         module_record: self.module_record,
                         helpers: self.helpers,
                         constants: &constants,
+                        units: &units,
                     };
                     self.result = Some(decompose_class_name(&container.expression, &joiners));
                 }
@@ -792,7 +818,7 @@ const el = <View className={Text('p-4', className)} />";
         assert_eq!(
             out.declarations,
             vec![StyleDeclaration {
-                source: Default::default(),
+                source: out.declarations[0].source,
                 property: StyleProperty::BackgroundColor(Color::Token("blue-500".to_string())),
                 condition: Condition::Always,
             }]

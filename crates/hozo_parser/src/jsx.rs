@@ -166,6 +166,7 @@ pub(crate) struct Scope<'r, 'a> {
     pub constants: &'r crate::rest::ConstantStrings,
     /// Functions the project declares join classes as `clsx` does (#964).
     pub class_helpers: &'r [dynamic_class::ClassHelper],
+    pub tailwind_units: std::cell::RefCell<hozo_ir::TailwindUnitsBuilder>,
     /// Primitive-named locals imported from a module the project does not
     /// trust.
     ///
@@ -194,6 +195,13 @@ pub(crate) struct Scope<'r, 'a> {
 }
 
 impl Scope<'_, '_> {
+    fn utility_source(&self, token: &str, input: u32) -> hozo_ir::StyleSource {
+        hozo_ir::StyleSource::TailwindUtility {
+            input,
+            utility: self.tailwind_units.borrow_mut().intern(token),
+        }
+    }
+
     fn primitive_for_local(&self, local: &str) -> Option<Primitive> {
         if self.foreign.contains(local) {
             return None;
@@ -219,6 +227,7 @@ fn class_expression(
         module_record: scope.module_record,
         helpers: scope.class_helpers,
         constants: scope.constants,
+        units: &scope.tailwind_units,
     };
     let decomposed = if skip_opaque {
         dynamic_class::decompose_class_pieces(expression, &joiners)?
@@ -253,6 +262,7 @@ fn capture_class_expression(
         module_record: scope.module_record,
         helpers: scope.class_helpers,
         constants: scope.constants,
+        units: &scope.tailwind_units,
     };
     let (replacement, evaluation) = dynamic_class::capture_template_parts(expression, &joiners)?;
     *decomposed = replacement;
@@ -1295,11 +1305,15 @@ fn build_node(
                                 });
                             }
                             for (condition, properties) in groups {
+                                if properties.is_empty() {
+                                    continue;
+                                }
+                                let source = scope.utility_source(token, attr.span.start);
                                 for property in properties {
                                     style.push(StyleDeclaration {
                                         property,
                                         condition: condition.clone(),
-                                        source: hozo_ir::StyleSource::Tailwind(attr.span.start),
+                                        source,
                                     });
                                 }
                             }
@@ -1340,7 +1354,8 @@ fn build_node(
                             }
                         }
                         style.extend(decomposed.declarations.into_iter().map(|mut declaration| {
-                            declaration.source = hozo_ir::StyleSource::Tailwind(attr.span.start);
+                            declaration.source =
+                                declaration.source.with_tailwind_input(attr.span.start);
                             declaration
                         }));
                         class_name_fallback.extend(decomposed.fallback);
@@ -1382,10 +1397,14 @@ fn build_node(
                     };
                     let before = style.len();
                     for (condition, properties) in groups {
+                        if properties.is_empty() {
+                            continue;
+                        }
+                        let source = scope.utility_source(token, attr.span.start);
                         style.extend(properties.into_iter().map(|property| StyleDeclaration {
                             property,
                             condition: condition.clone(),
-                            source: hozo_ir::StyleSource::Tailwind(attr.span.start),
+                            source,
                         }));
                     }
                     if style.len() == before {
@@ -2216,7 +2235,7 @@ fn build_node(
     crate::interaction_order::order_tailwind_interactions(&mut style);
     for slot in &mut props.class_slots {
         for declaration in &mut slot.style {
-            declaration.source = hozo_ir::StyleSource::Tailwind(slot.span.start);
+            declaration.source = declaration.source.with_tailwind_input(slot.span.start);
         }
         crate::interaction_order::order_tailwind_interactions(&mut slot.style);
     }
@@ -2409,8 +2428,12 @@ fn validate_semantic_children(
 /// Collects every top-level (i.e. not nested inside another already-visited
 /// JSX element) `Node` tree found while walking a `Program`.
 /// A top-level JSX element, plus where a hook declaration for it could go.
+#[derive(Clone)]
 pub struct Root {
     pub node: Node,
+    /// One compilation-owned table shared by all roots and their nested/slot
+    /// adaptations. Keep it with detached nodes when inspecting utility IDs.
+    pub tailwind_units: Option<std::sync::Arc<hozo_ir::TailwindUnits>>,
     /// Byte offset just inside the enclosing function's opening `{`, where
     /// a generated `const x = useSomething()` can be spliced.
     ///
@@ -2491,6 +2514,7 @@ impl<'r, 'a> Visit<'a> for JsxCollector<'r, 'a> {
             // walker would visit (and re-collect) them a second time.
             self.roots.push(Root {
                 node,
+                tailwind_units: None,
                 hook_slot: self.hook_slot,
                 enclosing: self.enclosing.clone(),
                 forwarded: Vec::new(),
