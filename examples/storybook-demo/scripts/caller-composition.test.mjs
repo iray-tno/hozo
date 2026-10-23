@@ -614,9 +614,9 @@ test('Tailwind browser oracle for shared text and background motion targets', {
       assert.equal((await read(false)).color, middle.owner)
       await check('rgb(255, 0, 0)', 'rgb(0, 0, 0)')
       await page.mouse.down()
-      // Existing Hozo compiled Web/Native keep authored condition order. Tailwind
-      // emits active after focus. Preserve this measured gap, not an equality claim.
-      await check('rgb(255, 0, 0)', mode === 'tailwind' ? 'rgb(0, 0, 255)' : 'rgb(0, 255, 0)')
+      // Static Tailwind input and the Native control now share Tailwind's
+      // owner-state order: active beats focus even when written earlier.
+      await check('rgb(255, 0, 0)', 'rgb(0, 0, 255)')
       await page.mouse.up()
       await check('rgb(255, 0, 0)', 'rgb(0, 255, 0)')
       await page.mouse.move(600, 400)
@@ -627,6 +627,39 @@ test('Tailwind browser oracle for shared text and background motion targets', {
       await check('rgb(0, 0, 0)', 'rgb(255, 255, 0)')
       t.diagnostic(
         `${mode} shared motion: ${stages.length} settled browser stages; midpoint ${JSON.stringify(middle)}`,
+      )
+    } finally {
+      await page.close()
+    }
+  }
+})
+
+test('Tailwind and compiled Web active transform reset outrank hovered transform restoration', {
+  skip: !executablePath,
+}, async () => {
+  const classes = 'rotate-3 rotate-x-30 active:transform-none hover:transform-cpu'
+  const css = (await compile('@tailwind utilities;')).build(classes.split(' '))
+  const compiled = compiler.compile(
+    `import {Button} from '@hozo/core';const el=<Button className="${classes}"/>`,
+  )[0]
+  for (const mode of ['tailwind', 'hozo']) {
+    const page = await browser.newPage()
+    try {
+      await page.setContent(
+        `<style>${mode === 'tailwind' ? css : compiled.css}</style><button class="${mode === 'tailwind' ? classes : 'hozo-0'}">Target</button>`,
+      )
+      await page.locator('button').hover()
+      await page.mouse.down()
+      const active = await page.locator('button').evaluate((node) => ({
+        transform: getComputedStyle(node).transform,
+        rotate: getComputedStyle(node).rotate,
+      }))
+      assert.equal(active.transform, 'none')
+      assert.equal(active.rotate, '3deg')
+      await page.mouse.up()
+      assert.notEqual(
+        await page.locator('button').evaluate((node) => getComputedStyle(node).transform),
+        'none',
       )
     } finally {
       await page.close()

@@ -1024,6 +1024,7 @@ fn build_node(
     let mut carried_classes: Vec<String> = Vec::new();
     let mut props = PropSet::default();
     let mut seen_class_name = false;
+    let mut has_stylex = false;
     // Every named attribute and where it starts, so a spread can know which
     // of them come after it (`PassthroughProp::later_names`).
     let named: Vec<(u32, String)> = el
@@ -1046,6 +1047,7 @@ fn build_node(
             JSXAttributeItem::SpreadAttribute(spread) => {
                 match scope.stylex.resolve_props(&spread.argument) {
                     crate::stylex::Resolution::Ready(declarations) => {
+                        has_stylex = true;
                         // Styling input, not an opaque prop spread. Appending
                         // here preserves order with className and reuses the
                         // IR's normal last-wins behavior.
@@ -1057,6 +1059,7 @@ fn build_node(
                         residual,
                         gaps,
                     } => {
+                        has_stylex = true;
                         style.extend(declarations);
                         props.stylex_residuals.push(residual);
                         diagnostics.extend(gaps.into_iter().map(|gap| Diagnostic {
@@ -1068,6 +1071,7 @@ fn build_node(
                         continue;
                     }
                     crate::stylex::Resolution::Gap { message, span } => {
+                        has_stylex = true;
                         diagnostics.push(Diagnostic {
                             code: DiagnosticCode::StylexNotLowered,
                             severity: Severity::Warning,
@@ -2200,6 +2204,15 @@ fn build_node(
         }
     }
 
+    // A class-only node has known Tailwind provenance here. A mixed StyleX
+    // node does not: preserve its argument/JSX order until IR carries that
+    // provenance rather than globally sorting conditions in either backend.
+    if !has_stylex {
+        crate::interaction_order::order_tailwind_interactions(&mut style);
+    }
+    for slot in &mut props.class_slots {
+        crate::interaction_order::order_tailwind_interactions(&mut slot.style);
+    }
     validate_semantic_children(primitive, &children, diagnostics);
     validate_focusable_disabled(&props, to_span(el.span()), diagnostics);
     validate_flex_direction(primitive, &style, to_span(el.span()), diagnostics);

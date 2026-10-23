@@ -152,7 +152,11 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
                         .iter()
                         .map(|(key, value)| format!("{key}: {value}"))
                         .collect();
-                    format!("[[{}], {{ {} }}]", keys.join(", "), pairs.join(", "))
+                    let order = group
+                        .order
+                        .map(|key| format!(", {key}"))
+                        .unwrap_or_default();
+                    format!("[[{}], {{ {} }}{order}]", keys.join(", "), pairs.join(", "))
                 })
                 .collect();
             out.push_str(&format!("  {}: [{}],\n", quote(name), groups.join(", ")));
@@ -207,6 +211,7 @@ struct StateGroup {
     keys: Vec<String>,
     pairs: Vec<(String, String)>,
     transform: Option<String>,
+    order: Option<u32>,
 }
 
 /// A utility's groups as state groups, if every one is conditioned on the
@@ -234,6 +239,7 @@ fn state_groups(
                 keys,
                 pairs,
                 transform: crate::transforms::metadata(properties, theme),
+                order: hozo_parser::interaction_cascade_key(condition),
             })
         })
         .collect()
@@ -597,7 +603,7 @@ mod tests {
             &Theme::default(),
         );
         assert!(
-            module.contains(r#""active:opacity-80": [[["pressed"], { opacity: 0.8 }]],"#),
+            module.contains(r#""active:opacity-80": [[["pressed"], { opacity: 0.8 }, 264]],"#),
             "{module}"
         );
         assert!(

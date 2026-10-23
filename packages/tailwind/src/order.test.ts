@@ -84,6 +84,18 @@ test('candidates come out in the order Tailwind writes them', async () => {
   assert.deepEqual(ours, await tailwindOrder(candidates))
 })
 
+test('generated owner-state order uses the same Tailwind ordering API as candidate CSS', async () => {
+  const source = readFileSync(
+    new URL('../../../crates/hozo_parser/src/tailwind_variants.rs', import.meta.url),
+    'utf8',
+  )
+  const block = source.match(/OWNER_INTERACTION_ORDER:[^=]+= &\[([^\]]+)\]/)![1]!
+  const names = [...block.matchAll(/"([^"]+)"/g)].map((match) => `${match[1]}:opacity-50`)
+  assert.equal(names.length, 4)
+  assert.deepEqual(names, await loadClassOrder(CSS, tailwindPackageDir(), [...names].reverse()))
+  assert.deepEqual(names, await tailwindOrder([...names].reverse()))
+})
+
 test('the breakpoints end up ascending, which is the case that broke', async () => {
   const ours = await loadClassOrder(CSS, tailwindPackageDir(), [
     '2xl:block',

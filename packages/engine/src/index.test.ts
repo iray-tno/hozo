@@ -1,7 +1,50 @@
 import assert from 'node:assert/strict'
 import { mock, test } from 'node:test'
-
+import type { StateGroup } from './class-resolver.ts'
 import { createClassResolver } from './index.ts'
+
+test('build-time owner-state rank is consumed once per cache entry, with tie and warning provenance intact', () => {
+  let reads = 0
+  const ranked = (keys: string[], color: string, order: number): StateGroup => {
+    const group = [keys, { color }] as unknown as StateGroup
+    Object.defineProperty(group, 2, {
+      get: () => {
+        reads++
+        return order
+      },
+    })
+    return group
+  }
+  const states = {
+    active: [ranked(['pressed'], 'active', 264)],
+    focus: [ranked(['focused'], 'focus', 258)],
+    own: [ranked(['focused'], 'own', 258)],
+    both: [ranked(['hovered', 'focused'], 'both', 515)],
+  }
+  const cx = createClassResolver({}, {}, undefined, states)
+  const value = 'active focus own both'
+  assert.equal(cx(value, { pressed: true, focused: true, hovered: true }).at(-1)?.color, 'both')
+  const initial = reads
+  for (let i = 0; i < 20; i++) {
+    assert.equal(
+      cx(value, { pressed: true, focused: true, hovered: false }).at(-1)?.color,
+      'active',
+    )
+    assert.equal(cx(value, { pressed: false, focused: true, hovered: false }).at(-1)?.color, 'own')
+  }
+  assert.equal(reads, initial, 'state changes do not rescan or sort rank metadata')
+  const warn = mock.method(console, 'warn', () => {})
+  try {
+    cx(value, { pressed: false, hovered: false })
+    assert.ok(
+      warn.mock.calls.some((call) =>
+        String(call.arguments[0]).includes('`focus` needs state (focused)'),
+      ),
+    )
+  } finally {
+    warn.mock.restore()
+  }
+})
 
 const STYLES = {
   'p-4': { paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16 },

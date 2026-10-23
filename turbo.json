@@ -44,6 +44,10 @@
         "$TURBO_ROOT$/packages/typography/src/**"
       ]
     },
+    "@hozo/tailwind#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs"]
+    },
     "@hozo/tailwind-conformance#test": {
       "dependsOn": ["^build"],
       "inputs": [
@@ -128,6 +132,9 @@
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-device-source.ts",
         "$TURBO_ROOT$/crates/hozo_napi/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/lib.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/interaction_order.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/jsx.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/text_regions.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/text_region.rs",

@@ -12,6 +12,7 @@ mod canvas;
 mod class_helpers;
 mod class_literals;
 mod dynamic_class;
+mod interaction_order;
 mod jsx;
 mod rest;
 mod scan;
@@ -30,6 +31,7 @@ pub use canvas::{parse_canvas_paints, CanvasClassPaint};
 pub use class_helpers::{class_helper_candidates, summarize_class_helpers, ClassHelperCandidate};
 pub use class_literals::{runtime_class_lists, RuntimeClassList};
 pub use dynamic_class::ClassHelper;
+pub use interaction_order::interaction_cascade_key;
 pub use jsx::is_primitive_name;
 pub use rn_imports::{
     react_native_imports, ReactNativeImportDeclaration, ReactNativeImportSpecifier,

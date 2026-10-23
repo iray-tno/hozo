@@ -10,6 +10,7 @@ import test from 'node:test'
 
 const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url), 'utf8'))
 const reads = {
+  '@hozo/tailwind#test': ['crates/hozo_parser/src/tailwind_variants.rs'],
   '@hozo/media#test': [
     'packages/patterns/src/slider.tsx',
     'packages/patterns/src/slider.native.tsx',
@@ -165,6 +166,9 @@ const reads = {
     'packages/tailwind-conformance/src/text-inheritance-device-source.ts',
     'crates/hozo_napi/src/lib.rs',
     'crates/hozo_parser/src/lib.rs',
+    'crates/hozo_parser/src/interaction_order.rs',
+    'crates/hozo_parser/src/jsx.rs',
+    'crates/hozo_parser/src/tailwind_variants.rs',
     'crates/hozo_parser/src/text_regions.rs',
     'crates/hozo_native/src/lib.rs',
     'crates/hozo_native/src/text_region.rs',

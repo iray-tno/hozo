@@ -1625,7 +1625,7 @@ test('class-owned background motion keeps one event owner and shares label paint
       assert.equal(Animated.__hozoTimings[3].value === Animated.__hozoTimings[0].value, true)
       assert.deepEqual(paint().outputRange, [blendColor('#ffffff', '#000000', 0.5), '#0000ff'])
       renderer.act(() => owner().props.onFocus({}))
-      assert.equal(paint().outputRange[1], '#00ff00')
+      assert.equal(paint().outputRange[1], '#0000ff')
       renderer.act(() => owner().props.onBlur({}))
       assert.equal(paint().outputRange[1], '#0000ff')
       renderer.act(() => owner().props.onPressOut({}))

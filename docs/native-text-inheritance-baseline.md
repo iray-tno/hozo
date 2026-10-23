@@ -1491,3 +1491,16 @@ throughput, GPU work, total Animated binding-node counts or a zero-overhead resu
 All N Animated.Text host bindings remain. The one-label workload has no node
 savings, and Context preparation still costs work. Native physical-device
 performance and new motion-pixel evidence remain required before rollout.
+
+## First correction of the independently found cascade gap
+
+The [Tailwind owner-state correction](measurements/tailwind-interaction-cascade.md)
+now makes the standalone #1230 sample choose active blue in Tailwind, compiled
+Hozo Web, ordinary Native, inherited Native and generated Native fallback. The
+four positive owner states and their conjunctions share a build-derived rank;
+fallback sorting is cached, not repeated on state changes. Earlier browser
+observations above remain historical, not current expectations for that sample.
+
+This does not close #1230: StyleX-mixed or otherwise unranked conditional domains
+remain unchanged until their provenance can be handled safely. It does not
+activate the inheritance default or add Native motion-pixel evidence.
