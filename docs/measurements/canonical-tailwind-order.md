@@ -17,8 +17,8 @@ explicit. Independent pinned reference descriptors check the complete corpus.
 
 Preparation is async; consumption is synchronous. No adapters or compiler
 emission paths call this service yet. This establishes the snapshot/lookup
-contract, not the unresolved project collect/prepare/emit integration, Rust IR
-unit identity, portable facts or shared comparator. It changes no winners,
+contract, not the unresolved project collect/prepare/emit integration,
+portable facts or shared comparator. It changes no winners,
 candidate refusals, runtime subscriptions or runtime payloads.
 
 For isolated CPU-1/Idle preparation measurements, run:
@@ -48,6 +48,64 @@ candidate-array capture) recorded 30.47/6.18/6.68/16.85 ms medians, 99.81 ms
 first preparation and identical byte sizes. Both captures are retained; the
 host spread is not a speedup claim. The large JSON representation is deliberately
 not the eventual compact IR/runtime ABI.
+
+## Rust candidate identity, before changing winners
+
+The parser now interns original compiled candidate names before utility
+expansion, on literal, decomposed-expression and secondary-slot paths. Each
+expanded declaration carries an inline `TailwindUtilityId`. All module roots
+share one immutable `TailwindUnits` table; cloning/detaching a **root** keeps
+its nested and slot IDs resolvable after the parsed module is dropped. A bare
+detached `Node` must be kept with its root's table when inspecting IDs. IDs
+from separate tables must not be mixed. No Arc/string is added per declaration.
+
+The new source variant retains the existing JSX input offset. `input()`
+explicitly excludes utility identity when existing grouping/interaction/Native
+style naming asks about that boundary. Otherwise two utilities in one input
+would accidentally become two inputs. StyleX and synthetic declarations keep
+their established provenance. Unknown carried classes create no units.
+
+This is **candidate identity**, not a claim that Hozo's expanded groups match
+Tailwind's original rule IDs. For example `container` retains one candidate
+across all its condition groups without inventing an upstream rule-zero
+binding. Prepared project/portable descriptor binding and the shared plan are
+still pending. Existing text adaptation copies the source; inherited frames
+do not acquire a parent's cascade weight. Forwarded external-summary styles
+without an originating unit remain explicitly unbound.
+
+Measured on Windows x64, Node 25.9.0, Rust 1.96.0, debug addon, CPU 1/Idle,
+serial, against main `66abd639618d0fa1c8e99fa4e294bc8e2b3d86f9`:
+
+- Rust workspace tests, repeated addon rebuilds and 30 corpus subjects plus
+  six root/secondary/mixed/nested fixtures checked byte-identical Web/Native
+  output and candidate module. No conformance disagreements are removed here.
+- A first complete clean capture exceeded the review threshold on Web
+  (+5.12%; Native +1.82%). Small one-class cases also showed 5–7% increases.
+  That representation was not submitted unchanged: zero/one-unique-candidate
+  contexts now avoid creating a hash table, including its RandomState.
+- With that fast path, five 600-call corpus samples gave medians
+  **68.73 -> 69.23 ms Web (+0.73%)**, **84.90 -> 82.52 ms Native (-2.80%)**.
+  Seven 1000-call samples per plain/padding/color/text/several-class case
+  showed no >5% median increase in the optimized capture; the several-class
+  case was +2.21% Web / +2.06% Native. All earlier captures remain retained.
+  This is not a speedup or zero-overhead claim, or a representative app build.
+- The layout probe's equivalent prior/current field representations measured
+  `StyleSource` 8 -> 12 bytes and `StyleDeclaration` 192 -> 200 bytes; each
+  root adds one 8-byte optional context pointer. The ID itself is 4 bytes.
+  Unique candidate names/table storage are additional build-time allocations;
+  this is not a peak-memory/allocation-count measurement.
+- Full resolver+candidate-table synthetic bundles remained byte-identical:
+  2862/1167, 11259/2608 and 82464/14567 bytes minified/gzip at 18/130/1026
+  candidates. Neither this table of names nor source IDs are emitted to device
+  code. Production app bundles and Native pixels/AT were not remeasured.
+
+Reproduce the corpus timings using `scripts/tailwind-order-cost.mjs` on each
+revision, rebuilding each addon's source, with `--samples 5 --iterations 20`
+and separate `--output` files, then `--baseline` for comparison. Raw receipts:
+`unit-before-repeat.json` / `unit-optimized.json`; small-case corroboration:
+`unit-small-before.json` / `unit-small-optimized.json`, with its harness hash.
+All are under `artifacts/tailwind-order/`. Provisional pre-commit captures
+are retained but not used as final source-complete receipts.
 
 ## Reviewed reference
 

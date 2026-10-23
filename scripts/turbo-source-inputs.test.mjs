@@ -183,6 +183,7 @@ const reads = {
     'crates/hozo_native/src/render.rs',
     'crates/hozo_native/src/text.rs',
     'crates/hozo_ir/src/lib.rs',
+    'crates/hozo_ir/src/tailwind_units.rs',
     'packages/core/src/generated/inherited-text.ts',
     'packages/core/src/generated/inherited-relative-text.ts',
     'packages/core/src/generated/inherited-view.ts',
@@ -268,6 +269,7 @@ const reads = {
     'packages/engine/src/class-resolver.ts',
     'packages/engine/src/responder.ts',
     'crates/hozo_ir/src/lib.rs',
+    'crates/hozo_ir/src/tailwind_units.rs',
   ],
 }
 

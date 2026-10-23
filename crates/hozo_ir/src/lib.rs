@@ -1628,7 +1628,8 @@ pub struct StyleDeclaration {
 /// A styling input is a cascade boundary, not another predicate. Tailwind
 /// orders utilities within its class list; StyleX resolves atomic priority
 /// within its props call. Neither may reorder the other's declarations.
-/// The ID is the JSX attribute's source offset, never emitted at runtime.
+/// The input ID is the JSX attribute's source offset; optional candidate IDs
+/// belong to its root's unit table. Neither is emitted at runtime.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StyleSource {
     #[default]

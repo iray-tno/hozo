@@ -815,13 +815,17 @@ const el = <View className={Text('p-4', className)} />";
             const el = <View className={cn('bg-blue-500')} />
             "#,
         );
+        assert_eq!(out.declarations.len(), 1);
+        let declaration = &out.declarations[0];
         assert_eq!(
-            out.declarations,
-            vec![StyleDeclaration {
-                source: out.declarations[0].source,
-                property: StyleProperty::BackgroundColor(Color::Token("blue-500".to_string())),
-                condition: Condition::Always,
-            }]
+            declaration.property,
+            StyleProperty::BackgroundColor(Color::Token("blue-500".to_string()))
+        );
+        assert_eq!(declaration.condition, Condition::Always);
+        assert!(declaration.source.utility().is_some());
+        assert_eq!(
+            declaration.source.input(),
+            hozo_ir::StyleSource::Tailwind(0)
         );
     }
 

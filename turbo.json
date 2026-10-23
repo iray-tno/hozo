@@ -66,7 +66,8 @@
         "$TURBO_ROOT$/crates/hozo_native/src/style.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/render.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/text.rs",
-        "$TURBO_ROOT$/crates/hozo_ir/src/lib.rs"
+        "$TURBO_ROOT$/crates/hozo_ir/src/lib.rs",
+        "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_units.rs"
       ]
     },
     "@hozo/migration-audit#test": {
@@ -161,6 +162,7 @@
         "$TURBO_ROOT$/crates/hozo_native/src/render.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/text.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/lib.rs",
+        "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_units.rs",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-closed-proof.ts",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-proof-boundary.ts",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-style-proof.ts",
