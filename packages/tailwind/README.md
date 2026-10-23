@@ -45,6 +45,33 @@ declaration values are not executable directives. Missing, invalid and unsupport
 distinct; imported edits are re-read on the next invocation. This is the service used by migration
 audit, not a replacement for the ordinary build loader above.
 
+## Prepared ordering descriptors (build tooling)
+
+`await prepareTailwindOrder(css, base, candidates, { file? })` prepares one
+immutable, JSON-safe `snapshot` and a synchronous `lookup(candidate)`. It uses
+the same read-only CSS resolver above and rejects incomplete/unsafe inputs
+rather than silently producing a default context. Reuse the prepared object
+across transforms; do not prepare per element or render.
+
+The snapshot preserves every original rule's property signature, declaration
+count, variant mask and nested selector/at-rule structure. Candidate/rule IDs
+are scoped to its fingerprint, which includes schema/policy, Tailwind version,
+entry/imported stylesheet hashes and the full observed candidate universe.
+Candidate enumeration order and duplicates do not change it; imported edits
+or candidate additions do. No entry-text-only persistent cache is used.
+
+`lookup` returns `null` for an uncollected candidate: collect it and prepare a
+new context before emission. A collected token for which Tailwind generated
+no rule instead has `status: 'not-generated'`. Neither is assigned rank zero.
+`firstRuleRank` remains only upstream's first-rule rank, not all rule metadata.
+Snapshot ranks/masks must never be mixed across different fingerprints.
+
+This is the preparation boundary of [RFC 007](../../docs/rfcs/007-canonical-tailwind-order.md),
+not an enabled compiler option. It does not change existing lowering or
+candidate output, assess selector specificity, add custom utility support or
+ship the descriptor tree to the device. Compiler unit identity and the
+shared pass-through plan remain subsequent work.
+
 <!-- generated: package-footer -->
 
 ---

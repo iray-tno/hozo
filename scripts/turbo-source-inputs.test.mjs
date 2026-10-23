@@ -41,6 +41,11 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'packages/tailwind-conformance/src/tailwind-order-corpus.ts',
+    'packages/tailwind-conformance/src/tailwind-order-reference.ts',
+    'packages/tailwind-conformance/src/tailwind-order-baseline.ts',
+    'packages/engine/src/class-resolver.ts',
+    'packages/compiler/src/index.ts',
     'packages/behaviors/src/portal.tsx',
     'packages/form/src/form.native.tsx',
     'packages/form/src/text-area.native.tsx',
@@ -202,6 +207,9 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/tailwind/src/theme.ts',
+    'packages/tailwind/src/ordering.ts',
+    'packages/tailwind/src/static-css.ts',
     'crates/hozo_parser/src/interaction_order.rs',
     'crates/hozo_parser/src/jsx.rs',
     'crates/hozo_parser/src/stylex.rs',

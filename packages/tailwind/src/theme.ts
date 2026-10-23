@@ -18,6 +18,7 @@ import path from 'node:path'
 
 import { converter, formatHex } from 'culori'
 import { __unstable__loadDesignSystem } from 'tailwindcss'
+import { describeTailwindOrder, orderingHash, type PreparedTailwindOrder } from './ordering.ts'
 import { assertStaticStylesheet, ExecutableStylesheetError } from './static-css.ts'
 
 export interface ThemeColor {
@@ -218,6 +219,41 @@ export async function loadClassOrder(
     if (right === null) return -1
     return left < right ? -1 : left > right ? 1 : 0
   })
+}
+
+/**
+ * Collect once, prepare asynchronously, then synchronously look up immutable
+ * rule descriptors. Not connected to production lowering yet (RFC 007).
+ *
+ * Always use the existing read-only loader: imported CSS is re-read and
+ * executable configuration is refused, not silently replaced with defaults.
+ * Callers may cache the result against its full stylesheet/universe receipt;
+ * no entry-text-only persistent cache can safely stand in for that receipt.
+ */
+export async function prepareTailwindOrder(
+  css: string,
+  base: string,
+  candidates: readonly string[],
+  options: Pick<ThemeLoadOptions, 'file' | 'onStylesheet'> = {},
+): Promise<PreparedTailwindOrder> {
+  const observed = [...candidates]
+  const stylesheets = new Map<string, string>()
+  const design = await designSystemFor(css, base, {
+    ...options,
+    staticOnly: true,
+    onStylesheet: (file, content) => {
+      stylesheets.set(path.resolve(file), orderingHash(content))
+      options.onStylesheet?.(file, content)
+    },
+  })
+  const version = JSON.parse(readFileSync(path.join(tailwindPackageDir(), 'package.json'), 'utf8'))
+    .version as string
+  return describeTailwindOrder(
+    design,
+    observed,
+    version,
+    [...stylesheets].map(([file, sha256]) => ({ file, sha256 })),
+  )
 }
 
 /**

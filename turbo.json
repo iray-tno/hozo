@@ -97,6 +97,11 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/tailwind-conformance/src/tailwind-order-corpus.ts",
+        "$TURBO_ROOT$/packages/tailwind-conformance/src/tailwind-order-reference.ts",
+        "$TURBO_ROOT$/packages/tailwind-conformance/src/tailwind-order-baseline.ts",
+        "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",
+        "$TURBO_ROOT$/packages/compiler/src/**",
         "$TURBO_ROOT$/examples/showcase/src/**",
         "$TURBO_ROOT$/examples/showcase/assets/**",
         "$TURBO_ROOT$/packages/patterns/src/**",
