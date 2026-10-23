@@ -24,6 +24,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [003](003-universal-navigation-and-links.md) | Universal Navigation, Links, Pressables & Router Adapters | Layer 1 & 2 (`@hozo/core`, `@hozo/navigation`, `@hozo/canvas`) | **Implemented** | #185 |
 | [004](004-three-renderer-families.md) | Three.js Renderer Families | `@hozo/three` | **Accepted** | #574 |
 | [006](006-native-text-inheritance.md) | Native text inheritance with a measured static fast path | Compiler, primitives, engine, typography and patterns | **Draft** | Not assigned |
+| [007](007-canonical-tailwind-order.md) | One Tailwind ordering plan before platform lowering | Compiler, Tailwind, engine and build integrations | **Draft** | #1230 |
 
 ---
 
