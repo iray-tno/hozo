@@ -3,6 +3,17 @@ import { setTimeout as pause } from 'node:timers/promises'
 
 export const ANDROID_INSTALL_TIMEOUT_MS = 120_000
 
+export const SYSTEM_UI_SERVICE = 'com.android.systemui/.SystemUIService'
+
+// Whether System UI has finished starting its service, from `dumpsys activity
+// services`. Android prints `executeNesting=` on a ServiceRecord only while
+// the service is being created or started, so a record without it is done.
+// No record yet is not done either: the process has not got that far.
+export function systemUiServiceState(dump) {
+  if (!dump.includes('ServiceRecord{') || !dump.includes(SYSTEM_UI_SERVICE)) return 'absent'
+  return /executeNesting=[1-9]/.test(dump) ? 'starting' : 'started'
+}
+
 // A connected adb transport (even sys.boot_completed) can precede the end
 // of the boot animation and a responsive package manager. Only these
 // read-only readiness observations are polled; installation is sent once.
@@ -30,7 +41,18 @@ export async function prepareAndroid(
       // must also be observed. Unknown/non-stopped service states stay unready.
       if (sample.bootCompleted === '1' && ['', 'stopped'].includes(sample.bootAnimation)) {
         sample.packagePath = read(['shell', 'pm', 'path', 'android']).toString().trim()
-        ready = /^package:\//.test(sample.packagePath)
+        // `sys.boot_completed` arrives while System UI is still starting its
+        // service on a cold boot. An install started then -- twenty seconds
+        // of dex2oat on the runner's two cores -- held it past the 20-second
+        // service timeout, and its ANR dialog covered the showcase (#1172:
+        // SystemUIService began at 05:25:49, the install at 05:25:58, the
+        // ANR at 05:26:09). So the install waits for that service to finish.
+        if (/^package:\//.test(sample.packagePath)) {
+          sample.systemUi = systemUiServiceState(
+            read(['shell', 'dumpsys', 'activity', 'services', SYSTEM_UI_SERVICE]).toString(),
+          )
+          ready = sample.systemUi === 'started'
+        }
       }
     } catch (error) {
       sample.error = String(error)

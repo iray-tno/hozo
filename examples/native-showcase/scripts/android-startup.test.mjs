@@ -1,7 +1,23 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { ANDROID_INSTALL_TIMEOUT_MS, prepareAndroid } from './android-startup.mjs'
+import {
+  ANDROID_INSTALL_TIMEOUT_MS,
+  prepareAndroid,
+  SYSTEM_UI_SERVICE,
+  systemUiServiceState,
+} from './android-startup.mjs'
+
+// The shape `dumpsys activity services` prints, trimmed to what is read.
+const serviceDump = (executing) =>
+  `ACTIVITY MANAGER SERVICES (dumpsys activity services)
+  User 0 active services:
+  * ServiceRecord{5a1c3e2 u0 ${SYSTEM_UI_SERVICE} c:com.android.systemui}
+    intent={cmp=${SYSTEM_UI_SERVICE}}
+    createTime=-21s startingBgTimeout=--
+    startRequested=true delayedStop=false stopIfKilled=false callStart=true lastStartId=1
+${executing ? '    executeNesting=1 executeFg=true executingStart=-20s\n' : ''}`
+const isServiceDump = (args) => args.includes('dumpsys')
 
 function clock() {
   let time = 0
@@ -33,6 +49,7 @@ test('waits for boot animation and package service, then installs exactly once',
   const read = (args) => {
     if (args.at(-1) === 'sys.boot_completed') return '1'
     if (args.at(-1) === 'init.svc.bootanim') return timing.now() < 1_000 ? 'running' : 'stopped'
+    if (isServiceDump(args)) return serviceDump(false)
     assert.deepEqual(args, ['shell', 'pm', 'path', 'android'])
     return timing.now() < 2_000 ? '' : 'package:/system/framework/framework-res.apk'
   }
@@ -67,6 +84,7 @@ test('an absent boot animation service still requires boot completion and packag
       read: (args) => {
         if (args.at(-1) === 'sys.boot_completed') return timing.now() ? '1' : '0'
         if (args.at(-1) === 'init.svc.bootanim') return ''
+        if (isServiceDump(args)) return serviceDump(false)
         return 'package:/system/framework/framework-res.apk'
       },
       install: () => {
@@ -119,7 +137,9 @@ test('a timed-out or rejected installation fails immediately without replaying i
               ? '1'
               : args.at(-1) === 'init.svc.bootanim'
                 ? 'stopped'
-                : 'package:/android.apk',
+                : isServiceDump(args)
+                  ? serviceDump(false)
+                  : 'package:/android.apk',
           install: () => {
             installs += 1
             timing.advance(120_000)
@@ -151,7 +171,9 @@ test('late successful reads cannot extend the readiness deadline', async () => {
             ? '1'
             : args.at(-1) === 'init.svc.bootanim'
               ? 'stopped'
-              : 'package:/android.apk'
+              : isServiceDump(args)
+                ? serviceDump(false)
+                : 'package:/android.apk'
         },
         install: () => assert.fail('late-ready device installed'),
       },
@@ -160,5 +182,45 @@ test('late successful reads cannot extend the readiness deadline', async () => {
     /framework readiness timed out/,
   )
   assert.equal(evidence.startup.passed, false)
-  assert.equal(evidence.startup.observations[0].completedMs, 3_000)
+  // Four reads, each a second late: boot, animation, package, System UI.
+  assert.equal(evidence.startup.observations[0].completedMs, 4_000)
+  assert.equal(evidence.startup.observations[0].systemUi, 'started')
+})
+
+test('installation waits for System UI to finish starting its service (#1172)', async () => {
+  const timing = clock()
+  const evidence = {}
+  let installedAt
+  await prepareAndroid(
+    {
+      ...timing,
+      read: (args) => {
+        if (args.at(-1) === 'sys.boot_completed') return '1'
+        if (args.at(-1) === 'init.svc.bootanim') return ''
+        if (isServiceDump(args)) {
+          assert.deepEqual(args, ['shell', 'dumpsys', 'activity', 'services', SYSTEM_UI_SERVICE])
+          if (timing.now() < 1_000) return 'ACTIVITY MANAGER SERVICES (dumpsys activity services)\n'
+          return serviceDump(timing.now() < 3_000)
+        }
+        return 'package:/system/framework/framework-res.apk'
+      },
+      install: () => {
+        installedAt = timing.now()
+        return 'Success'
+      },
+    },
+    evidence,
+  )
+  assert.equal(installedAt, 3_000)
+  assert.deepEqual(
+    evidence.startup.observations.map((sample) => sample.systemUi),
+    ['absent', 'starting', 'starting', 'started'],
+  )
+})
+
+test('the System UI service state is read from the record, not from the dump being nonempty', () => {
+  assert.equal(systemUiServiceState(''), 'absent')
+  assert.equal(systemUiServiceState('ACTIVITY MANAGER SERVICES\n  (nothing)\n'), 'absent')
+  assert.equal(systemUiServiceState(serviceDump(true)), 'starting')
+  assert.equal(systemUiServiceState(serviceDump(false)), 'started')
 })
