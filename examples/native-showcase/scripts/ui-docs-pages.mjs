@@ -11,6 +11,7 @@ export const UI_DOC_PAGES = [
   'calendar',
   'card',
   'checkbox',
+  'code-block',
   'color-picker',
   'combobox',
   'command-palette',

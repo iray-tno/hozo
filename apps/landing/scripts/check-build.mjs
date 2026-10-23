@@ -50,6 +50,12 @@ const stylesheets = [
 ].join('\n')
 
 const checks = [
+  [
+    mdx.includes('const staticCode = true') &&
+      mdx.includes('const wrappedCode = true') &&
+      mdx.includes('Build-time code'),
+    'the static code probe did not render its code lines and wrapped figure',
+  ],
   [html.includes('id="try-hozo"'), 'the home page has no showcase entry section'],
   // @hozo/ui, server-rendered by Hozo: a real <button> and <input>, and a
   // link to each component page that exists.

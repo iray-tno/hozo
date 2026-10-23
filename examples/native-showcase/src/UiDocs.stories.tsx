@@ -170,6 +170,14 @@ export const Checkbox: Story = {
     />
   ),
 }
+export const CodeBlock: Story = {
+  render: () => (
+    <Preview
+      page="code-block"
+      load={() => require('../../../apps/landing/src/examples/ui/CodeBlockDemo.tsx').CodeBlockDemo}
+    />
+  ),
+}
 export const ColorPicker: Story = {
   render: () => (
     <Preview

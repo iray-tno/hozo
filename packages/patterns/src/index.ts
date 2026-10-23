@@ -39,6 +39,8 @@ export {
   type HozoChipProps as ChipProps,
   type HozoChipProps,
 } from './chip.tsx'
+export { CodeBlock, type CodeBlockProps } from './code-block.tsx'
+export { type CodeClipboard, CodeClipboardProvider } from './code-clipboard.tsx'
 export {
   HozoColorPicker as ColorPicker,
   HozoColorPicker,

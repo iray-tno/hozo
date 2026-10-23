@@ -173,14 +173,16 @@ expect(
 // `MODULAR_SOURCES`, a name the export table cannot follow, a compiled leaf
 // importing the facade -- and from then on every component behind it is
 // paid for again. The budget would show that eventually, after enough
-// components; this shows it the first time. `@hozo/semantics` and
-// `@hozo/typography` are not listed: their entries define the components
-// themselves, so loading them is the cost of using them. `@hozo/engine` is
+// components; this shows it the first time. `@hozo/semantics` still defines
+// its components in its entry.
+// `@hozo/typography` now keeps its semantic text definitions in a leaf, so
+// its facade is watched too: otherwise merely adding CodeLines loads it in
+// every app using a heading. `@hozo/engine` is
 // listed: its Native entry re-exports the Web one, DOM helpers and all.
 const barrels = [...bundle.matchAll(/,"([^"]+)"\);/g)]
   .map((match) => match[1])
   .filter((name) =>
-    /(^|[\\/])packages[\\/](core|engine|patterns|primitives|behaviors|form)[\\/]dist[\\/]index(\.native)?\.js$/.test(
+    /(^|[\\/])packages[\\/](core|engine|patterns|primitives|behaviors|form|typography)[\\/]dist[\\/]index(\.native)?\.js$/.test(
       name,
     ),
   )

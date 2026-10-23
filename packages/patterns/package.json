@@ -141,7 +141,8 @@
   },
   "dependencies": {
     "@hozo/behaviors": "workspace:^",
-    "@hozo/engine": "workspace:^"
+    "@hozo/engine": "workspace:^",
+    "@hozo/typography": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",

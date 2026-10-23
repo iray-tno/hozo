@@ -33,6 +33,30 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./code/model": {
+      "types": "./dist/code/model.d.ts",
+      "default": "./dist/code/model.js"
+    },
+    "./code/shiki": {
+      "types": "./dist/code/shiki.d.ts",
+      "default": "./dist/code/shiki.js"
+    },
+    "./code/meta": {
+      "types": "./dist/code/meta.d.ts",
+      "default": "./dist/code/meta.js"
+    },
+    "./code/lines": {
+      "react-native": {
+        "types": "./dist/code-lines.native.d.ts",
+        "default": "./dist/code-lines.native.js"
+      },
+      "types": "./dist/code-lines.d.ts",
+      "default": "./dist/code-lines.js"
+    },
+    "./code/lines/native": {
+      "types": "./dist/code-lines.native.d.ts",
+      "default": "./dist/code-lines.native.js"
+    },
     "./fonts": {
       "types": "./dist/fonts.d.ts",
       "default": "./dist/fonts.js"
@@ -74,7 +98,8 @@
   },
   "dependencies": {
     "@hozo/primitives": "workspace:^",
-    "@hozo/engine": "workspace:^"
+    "@hozo/engine": "workspace:^",
+    "@hozo/behaviors": "workspace:^"
   },
   "peerDependencies": {
     "react": "^19.0.0",
@@ -86,6 +111,7 @@
     }
   },
   "devDependencies": {
+    "shiki": "4.4.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "react-dom": "^19.2.8",

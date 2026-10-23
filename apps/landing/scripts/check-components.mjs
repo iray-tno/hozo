@@ -57,6 +57,66 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const base = `http://127.0.0.1:${server.address().port}/hozo/docs/components`
 
 const pages = {
+  async 'code-block'(page) {
+    const figure = page.getByRole('figure', { name: 'paths.ts', exact: true })
+    await figure.waitFor()
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (text) => {
+            window.codeCopiedText = text
+          },
+        },
+      })
+    })
+    await figure.getByRole('button', { name: 'Copy code' }).click()
+    await page.getByRole('status').filter({ hasText: 'Copied' }).waitFor()
+    assert.equal(
+      await page.evaluate(() => window.codeCopiedText),
+      'const paths = [\n  "old/bin",\n  "tools/bin",\n  "shared/bin",\n]',
+    )
+    for (const colorScheme of ['light', 'dark']) {
+      await page.emulateMedia({ colorScheme })
+      const contrasts = await figure.evaluate((element) => {
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 1
+        const context = canvas.getContext('2d', { willReadFrequently: true })
+        const luminance = (color) => {
+          context.clearRect(0, 0, 1, 1)
+          context.fillStyle = color
+          context.fillRect(0, 0, 1, 1)
+          const rgb = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map((byte) => {
+            const channel = byte / 255
+            return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+          })
+          return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722
+        }
+        return [
+          ...element.querySelectorAll('[data-code-mark], code > span > [aria-hidden=true]'),
+        ].map((line) => {
+          const style = getComputedStyle(line)
+          let backgroundNode = line
+          while (backgroundNode.parentElement) {
+            context.clearRect(0, 0, 1, 1)
+            context.fillStyle = getComputedStyle(backgroundNode).backgroundColor
+            context.fillRect(0, 0, 1, 1)
+            if (context.getImageData(0, 0, 1, 1).data[3] > 0) break
+            backgroundNode = backgroundNode.parentElement
+          }
+          const foreground = luminance(style.color),
+            background = luminance(getComputedStyle(backgroundNode).backgroundColor)
+          return (
+            (Math.max(foreground, background) + 0.05) / (Math.min(foreground, background) + 0.05)
+          )
+        })
+      })
+      assert.equal(contrasts.length, 8)
+      for (const contrast of contrasts)
+        assert.ok(contrast >= 4.5, `code-block ${colorScheme}: ${contrast.toFixed(2)}:1`)
+    }
+    await page.emulateMedia({ colorScheme: 'light' })
+  },
   async 'resizable-pane'(page) {
     const handle = page.getByRole('separator', { name: 'Resize Files' })
     await handle.focus()

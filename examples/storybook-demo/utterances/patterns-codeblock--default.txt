@@ -1,0 +1,28 @@
+region, Files
+paths.ts
+end of region, Files
+separator, Resize Files, orientated vertically, max value 160, min value 72, 1 control, current value 96 pixels
+figure, paths.ts
+caption
+paths.ts
+end of caption
+region, Code contents: paths.ts
+code
+const paths = [
+deletion
+Removed:
+"old/bin",
+end of deletion
+insertion
+Added:
+"tools/bin",
+end of insertion
+mark
+Highlighted:
+"shared/bin",
+end of mark
+]
+end of code
+end of region, Code contents: paths.ts
+button, Copy code
+end of figure, paths.ts

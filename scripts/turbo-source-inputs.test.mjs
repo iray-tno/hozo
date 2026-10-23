@@ -47,6 +47,10 @@ const reads = {
     'packages/engine/src/class-resolver.ts',
     'packages/compiler/src/index.ts',
     'apps/landing/src/examples/ui/ResizablePaneDemo.tsx',
+    'apps/landing/src/examples/ui/CodeBlockDemo.tsx',
+    'packages/typography/src/code-lines.tsx',
+    'packages/typography/src/code-lines.native.tsx',
+    'packages/typography/src/code/model.ts',
     'packages/behaviors/src/drag-1d.ts',
     'packages/behaviors/src/drag-1d.native.ts',
     'packages/behaviors/src/drag-1d-session.ts',
@@ -160,6 +164,7 @@ const reads = {
   ],
   '@hozo/example-native-showcase#test': [
     'apps/landing/src/examples/ui/ResizablePaneDemo.tsx',
+    'apps/landing/src/examples/ui/CodeBlockDemo.tsx',
     '.github/workflows/deploy-pages.yml',
     '.github/workflows/native-showcase.yml',
     'packages/ui/src/theme.css',

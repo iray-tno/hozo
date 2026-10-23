@@ -17,18 +17,26 @@ import path from 'node:path'
 import { createCompiler } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
 
-const file = path.join('src', 'components', 'StaticCard.tsx')
-const lowered = lowerModule(readFileSync(file, 'utf8'), file, file, createCompiler(), process.cwd())
-
-if (!lowered) {
-  throw new Error(`${file} compiled to nothing; the assertion below would prove nothing`)
-}
-if (lowered.needsClientBoundary) {
-  throw new Error(
-    `${file} left the static subset. Astro will render it with no island and drop whatever ` +
-      'needs script -- move the interactive part into its own component and give that one a ' +
-      '`client:` directive.',
+for (const name of ['StaticCard.tsx', 'StaticCodeSample.tsx']) {
+  const file = path.join('src', 'components', name)
+  const lowered = lowerModule(
+    readFileSync(file, 'utf8'),
+    file,
+    file,
+    createCompiler(),
+    process.cwd(),
   )
-}
 
-console.log(`${file} is static: no runtime import, no handler, no carried primitive`)
+  if (!lowered) {
+    throw new Error(`${file} compiled to nothing; the assertion below would prove nothing`)
+  }
+  if (lowered.needsClientBoundary) {
+    throw new Error(
+      `${file} left the static subset. Astro will render it with no island and drop whatever ` +
+        'needs script -- move the interactive part into its own component and give that one a ' +
+        '`client:` directive.',
+    )
+  }
+
+  console.log(`${file} is static: no runtime import, no handler, no carried primitive`)
+}

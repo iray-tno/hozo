@@ -88,6 +88,7 @@ import {
   Footer,
   Header,
   Heading,
+  Ins,
   Legend,
   Link,
   List,
@@ -223,6 +224,7 @@ export default function Gallery() {
           <Underline testID="gallery-Underline">Underline</Underline>
           <Strikethrough testID="gallery-Strikethrough">Strikethrough</Strikethrough>
           <Del testID="gallery-Del">Del</Del>
+          <Ins testID="gallery-Ins">Ins</Ins>
           <Code testID="gallery-Code">Code</Code>
           <Preformatted testID="gallery-Preformatted">{'Preformatted\n  text'}</Preformatted>
           <Mark testID="gallery-Mark">Mark</Mark>

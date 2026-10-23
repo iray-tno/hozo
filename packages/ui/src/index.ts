@@ -1,3 +1,4 @@
+export { type CodeClipboard, CodeClipboardProvider } from '@hozo/patterns'
 export {
   HozoAccordion as Accordion,
   HozoAccordion,
@@ -44,6 +45,7 @@ export {
   type HozoCardProps as CardProps,
   type HozoCardProps,
 } from './card.tsx'
+export { CodeBlock, type CodeBlockProps } from './code-block.tsx'
 export {
   ColorPicker,
   type ColorPickerProps,

@@ -1,0 +1,76 @@
+---
+title: "CodeBlock"
+description: "Portable code lines, token colours and semantic line marks."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { CodeBlockDemo } from '../../../../examples/ui/CodeBlockDemo.tsx'
+import source from '../../../../examples/ui/CodeBlockDemo.tsx?raw'
+
+CodeBlock renders application-supplied text or tokens in a named figure. Line
+marks use insertion, deletion and highlight semantics, a separate glyph column,
+and translated spoken prefixes. Numbers and glyphs stay out of the accessibility
+tree. Hozo supplies neither a highlighter nor a diff algorithm.
+
+<UiExample source={source} file="CodeBlockDemo.tsx">
+  <CodeBlockDemo client:visible />
+</UiExample>
+
+- `lines`: a string, or `{ tokens: string | CodeToken[], mark?: 'ins' | 'del' | 'mark' }[]`.
+- `title`, `language`, `accessibilityLabel`: the caption and accessible name.
+- `lineNumbers`: `true` or `{ start: 10 }`. `wrap` wraps long lines; otherwise the
+  block scrolls horizontally. The overflowing region has its own keyboard stop,
+  with the copy button beside it.
+- `tabSize`: positive integer, default 2. Tab stops cross token boundaries.
+- `copy`: copies every shown line, including removed lines, without numbers,
+  glyphs or spoken prefixes. `{ text: 'replacement' }` overrides the copied text.
+- `className`, `lineClassName`, `gutterClassName`, `insClassName`, `delClassName`,
+  `markClassName`, `captionClassName`, `copyClassName`: theme the corresponding parts.
+
+Web uses the browser clipboard and hides Copy when it is unavailable. Native
+requires an application-owned clipboard connection:
+
+```tsx
+<CodeClipboardProvider value={{ writeText: clipboard.setStringAsync }}>
+  <CodeBlock title="PATH" lines={lines} copy />
+</CodeClipboardProvider>
+```
+
+Import `CodeClipboardProvider` from `@hozo/core` or `@hozo/ui`. Hozo imports no
+Native clipboard module. Copy feedback uses Hozo's i18n and announcement
+connection. Without a provider the Native copy action stays hidden.
+
+For plain rendering, `CodeLines` is available from `@hozo/typography` and
+`@hozo/core`. A token has `text`, optional `color` (a string or a theme map),
+and optional `italic`, `bold`, `underline`. Light/dark token maps follow the
+system scheme; `theme` explicitly selects a key. The application's highlighter
+theme owns token contrast. Hozo's frame, gutter and mark colours use UI tokens.
+Native class props use the existing candidate resolver and its reported variant
+limitations; this component adds no new Native CSS support. Token theme maps
+are selected directly through the shared colour-scheme store.
+
+```ts
+import { fromShiki } from '@hozo/typography/code/shiki'
+import { parseCodeMeta } from '@hozo/typography/code/meta'
+import { markCodeLines } from '@hozo/typography/code/model'
+
+const meta = parseCodeMeta('tsx', 'title="App.tsx" {2} ins={4} wrap')
+const lines = markCodeLines(fromShiki(tokens), meta.marks)
+```
+
+`fromShiki` is structurally typed and imports no Shiki code. For multiple
+themes pass `{ themes: { light: 'light', dark: 'dark' } }`; values name Shiki's
+`--shiki-*` slots. Fence metadata supports `showLineNumbers`,
+`startLineNumber=10`, insertion/deletion ranges and preserves unknown tokens.
+Markdown integration remains application-owned.
+
+Build-time `CodeLines`, or a wrapped copy-free CodeBlock, can render in Astro
+without a client directive. The default scrolling block and Copy need hydration
+for overflow observation and clipboard handling. Static markup alone does not
+install those interactions.
+
+Native renders one accessible Text per line, with nested token text. Real
+VoiceOver/TalkBack speech and a long-block device frame budget remain unmeasured;
+the first implementation does not virtualize. `Ins` and `Del` use underline and
+line-through on Native. On Web they render `<ins>` and `<del>`; `Strikethrough`
+continues to render `<s>`.
