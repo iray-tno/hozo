@@ -45,6 +45,12 @@ const gallerySource = readFileSync(
  * Kept as a list so adding to it is a decision someone writes down.
  */
 const NOT_ON_THE_SCREEN = new Map([
+  ['CodeLines', 'Data-driven code lines covered by their dedicated Native host tests.'],
+  [
+    'CodeBlock',
+    'Data-driven code figure covered by dedicated Native host tests and docs showcase.',
+  ],
+  ['CodeClipboardProvider', 'Clipboard context provider, not a census host.'],
   [
     'Splitter',
     'A size-driven adjustable handle with no testID; covered by the splitter host tests and docs showcase.',

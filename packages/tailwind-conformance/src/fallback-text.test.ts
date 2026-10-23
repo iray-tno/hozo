@@ -53,6 +53,9 @@ const core = require('../../core/src/index.native.ts') as Record<string, unknown
  * `@hozo/core`'s parity test.
  */
 const NEEDS_MORE_THAN_CHILDREN = new Map([
+  ['CodeLines', 'Renders line/token data; covered by code-line and Native host tests.'],
+  ['CodeBlock', 'Renders line/token data; covered by code-block host tests.'],
+  ['CodeClipboardProvider', 'A clipboard context provider, not a text host.'],
   ['Splitter', 'A separator driven by its bounds and size; it takes no children.'],
   [
     'ResizablePane',
@@ -140,6 +143,7 @@ const TAKES_A_LABEL = [
   'Button',
   'Code',
   'Del',
+  'Ins',
   'Description',
   'Details',
   'Emphasis',
@@ -189,15 +193,12 @@ const TAKES_A_LABEL = [
 const NOT_LOWERED = new Map([
   [
     'Del',
-    '`export const Del = Strikethrough` in `@hozo/typography`. The compiler ' +
-      'matches on the tag, so `<Del>` is carried verbatim and the fallback ' +
-      'component renders it. ' +
-      'This note used to end "only the class compilation is lost", which ' +
-      'was wrong: the Native transform then deleted the import that ' +
-      'defined it, so on a device it was not rendered at all but a ' +
-      'ReferenceError saying the property does not exist. An emulator ' +
-      'found that; nothing here could.',
+    'A semantic deletion fallback in `@hozo/typography`. The compiler matches on the tag, ' +
+      'so `<Del>` is carried verbatim. Direct Primitive support is a follow-up. ' +
+      'An earlier Native transform deleted its import and caused a device ReferenceError; ' +
+      'the fallback must remain reachable even while the compiler does not lower it.',
   ],
+  ['Ins', 'A semantic insertion fallback; direct compiler Primitive support is a follow-up.'],
 ])
 
 /** Props a component refuses to render without, beyond its children. */
