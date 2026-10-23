@@ -143,10 +143,12 @@ fn hover_and_focus_still_do_not_merge_into_anything() {
         primitive: hozo_ir::Primitive::View,
         style: vec![
             hozo_ir::StyleDeclaration {
+                source: Default::default(),
                 property: hozo_ir::StyleProperty::Opacity(1.0),
                 condition: hozo_ir::Condition::Always,
             },
             hozo_ir::StyleDeclaration {
+                source: Default::default(),
                 property: hozo_ir::StyleProperty::Opacity(0.5),
                 condition: hozo_ir::Condition::Hover,
             },

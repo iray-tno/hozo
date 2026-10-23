@@ -30,6 +30,14 @@ pub fn interaction_cascade_key(condition: &Condition) -> Option<u32> {
 }
 
 pub(crate) fn order_tailwind_interactions(declarations: &mut [StyleDeclaration]) {
+    for region in declarations.chunk_by_mut(|a, b| a.source == b.source) {
+        if !matches!(region[0].source, hozo_ir::StyleSource::Stylex(_)) {
+            order_region(region);
+        }
+    }
+}
+
+fn order_region(declarations: &mut [StyleDeclaration]) {
     let mut positions = Vec::new();
     for (index, declaration) in declarations.iter().enumerate() {
         if declaration.condition == Condition::Always {
@@ -80,6 +88,7 @@ mod tests {
         ]
         .into_iter()
         .map(|condition| StyleDeclaration {
+            source: Default::default(),
             condition,
             property: StyleProperty::Opacity(0.5),
         })

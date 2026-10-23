@@ -129,7 +129,7 @@ test('constant/helper class expressions and secondary slots retain Tailwind prov
   )
 })
 
-test('StyleX argument precedence and mixed StyleX source order are not globally sorted', () => {
+test('StyleX argument priority survives while unrelated StyleX no longer blocks Tailwind ordering', () => {
   for (const [arguments_, expected] of [
     ['styles.active, styles.focus', '#00ff00'],
     ['styles.focus, styles.active', '#0000ff'],
@@ -143,7 +143,81 @@ test('StyleX argument precedence and mixed StyleX source order are not globally 
   const source = `import * as stylex from '@stylexjs/stylex';import {Button} from '@hozo/core';const styles=stylex.create({x:{padding:1}});export const Scene=({children})=><Button {...stylex.props(styles.x)} className="active:bg-[#0000ff] focus:bg-[#00ff00]">{children}</Button>`
   const web = compiler.compile(source)[0].css
   assert.ok(
-    web.indexOf(':active') < web.indexOf(':focus'),
-    'mixed provenance remains an explicit follow-up, not silently reinterpreted',
+    web.indexOf(':active') > web.indexOf(':focus'),
+    'the unrelated StyleX input cannot change Tailwind interaction precedence',
+  )
+})
+
+test('mixed inputs keep their own state priority and use JSX order for specificity ties', () => {
+  const tailwind = `text-[#000000] bg-[#ffffff] transition-colors ${variants.join(' ')}`
+  const stylex = `const styles=stylex.create({x:{':focus-visible':{backgroundColor:'#555555'},':hover':{backgroundColor:'#666666'},':focus':{backgroundColor:'#777777'},':active':{backgroundColor:'#888888'}}});`
+  for (const stylexLast of [false, true]) {
+    const attributes = [`className="${tailwind}"`, '{...stylex.props(styles.x)}']
+    if (!stylexLast) attributes.reverse()
+    const source = `import * as stylex from '@stylexjs/stylex';import {Button} from '@hozo/core';${stylex}export const Scene=({children})=><Button ${attributes.join(' ')}>{children}</Button>`
+    for (const inherited of [false, true]) {
+      const control = props(source, inherited)
+      for (let bits = 0; bits < 16; bits++) {
+        const state = {
+          hovered: !!(bits & 1),
+          focused: !!(bits & 2),
+          focusVisible: !!(bits & 4),
+          pressed: !!(bits & 8),
+        }
+        const expected =
+          bits === 0
+            ? '#ffffff'
+            : stylexLast
+              ? state.pressed
+                ? '#888888'
+                : state.focused
+                  ? '#777777'
+                  : state.hovered
+                    ? '#666666'
+                    : '#555555'
+              : state.pressed
+                ? '#444444'
+                : state.focusVisible
+                  ? '#333333'
+                  : state.focused
+                    ? '#222222'
+                    : '#111111'
+        assert.equal(
+          flatten(control.style(state)).backgroundColor,
+          expected,
+          `${stylexLast}/${inherited}/${bits}`,
+        )
+      }
+    }
+  }
+})
+
+test('a more specific earlier source still beats a later single-state input', () => {
+  for (const attributes of [
+    'className="hover:focus:bg-[#112233]" {...stylex.props(styles.x)}',
+    '{...stylex.props(styles.x)} className="active:bg-[#445566]"',
+  ]) {
+    const compound = attributes.startsWith('className')
+    const stylex = compound
+      ? "{':active':{backgroundColor:'#445566'}}"
+      : "{':hover':{':focus':{backgroundColor:'#112233'}}}"
+    const source = `import * as stylex from '@stylexjs/stylex';import {Button} from '@hozo/core';const styles=stylex.create({x:${stylex}});export const Scene=({children})=><Button ${attributes}>{children}</Button>`
+    assert.equal(
+      flatten(props(source).style({ hovered: true, focused: true, pressed: true })).backgroundColor,
+      '#112233',
+    )
+  }
+})
+
+test('separate StyleX inputs also preserve specificity before JSX ties', () => {
+  const source = `import * as stylex from '@stylexjs/stylex';import {Button} from '@hozo/core';const styles=stylex.create({first:{':hover':{':focus':{backgroundColor:'#112233'}}},last:{':active':{backgroundColor:'#445566'}}});export const Scene=({children})=><Button {...stylex.props(styles.first)} {...stylex.props(styles.last)}>{children}</Button>`
+  const control = props(source)
+  assert.equal(
+    flatten(control.style({ hovered: true, focused: true, pressed: true })).backgroundColor,
+    '#112233',
+  )
+  assert.equal(
+    flatten(control.style({ hovered: false, focused: true, pressed: true })).backgroundColor,
+    '#445566',
   )
 })

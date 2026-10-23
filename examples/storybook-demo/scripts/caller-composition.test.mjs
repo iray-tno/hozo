@@ -2,6 +2,7 @@
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: Fixtures retain authored TSX interpolation.
 import assert from 'node:assert/strict'
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { after, before, test } from 'node:test'
@@ -401,6 +402,110 @@ after(async () => {
   await browser?.close()
   // Only this test's exact mkdtemp directory is owned here.
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('mixed StyleX/Tailwind inputs match independently ordered source sheets on both targets', {
+  skip: !executablePath,
+}, async () => {
+  // Hozo's defined composition, not a claim about two upstream compilers
+  // overwriting the same JSX className. Each source sheet is independently
+  // generated; specificity wins first, JSX input order breaks equal weights.
+  const compilerRequire = createRequire(
+    new URL('../../../packages/compiler/package.json', import.meta.url),
+  )
+  const babel = compilerRequire('@babel/core')
+  const stylexPlugin = compilerRequire('@stylexjs/babel-plugin')
+  const rules = `const styles=stylex.create({x:{':focus-visible':{backgroundColor:'#555555'},':hover':{backgroundColor:'#666666'},':focus':{backgroundColor:'#777777'},':active':{backgroundColor:'#888888'}}});`
+  const stylexSource = `import * as stylex from '@stylexjs/stylex';${rules}`
+  const official = babel.transformSync(stylexSource, {
+    filename: '/app/MixedCascade.tsx',
+    babelrc: false,
+    configFile: false,
+    plugins: [[stylexPlugin, { runtimeInjection: false }]],
+  }).metadata.stylex
+  assert.equal(official.length, 4)
+  const stylexCss = [...official]
+    .sort((a, b) => a[2] - b[2])
+    .map(([, rule]) => rule.ltr)
+    .join('\n')
+  const stylexClasses = official.map(([name]) => name).join(' ')
+  const classes =
+    'bg-[#ffffff] active:bg-[#444444] focus-visible:bg-[#333333] focus:bg-[#222222] hover:bg-[#111111]'
+  const tailwindCss = (await compile('@tailwind utilities;')).build(classes.split(' '))
+  for (const stylexLast of [false, true]) {
+    const attributes = [`className="${classes}"`, '{...stylex.props(styles.x)}']
+    if (!stylexLast) attributes.reverse()
+    const source = `${stylexSource}import {Button} from '@hozo/core';const el=<Button ${attributes.join(' ')}>Label</Button>`
+    const web = compiler.compile(source)[0]
+    const native = compiler.compileNative(source)[0]
+    const nativeProps = evaluate(
+      `const hozoStyles=${native.styles};module.exports=(${native.jsx})`,
+      {
+        HozoPressable: 'owner',
+        Text: 'text',
+        h: (_type, props) => props,
+      },
+    )
+    const html = renderToStaticMarkup(evaluate(`module.exports=(${web.jsx})`, { h: createElement }))
+    const page = await browser.newPage(),
+      oracle = await browser.newPage()
+    try {
+      const sheets = stylexLast ? [tailwindCss, stylexCss] : [stylexCss, tailwindCss]
+      await oracle.setContent(
+        `${sheets.map((sheet) => `<style>${sheet}</style>`).join('')}<input id="sentinel" aria-label="Before target"><button class="${classes} ${stylexClasses}">Label</button>`,
+      )
+      await page.setContent(
+        `<style>${web.css}</style><input id="sentinel" aria-label="Before target">${html}`,
+      )
+      const stages = [
+        async (p) => p.mouse.move(500, 500),
+        async (p) => p.locator('button').hover(),
+        async (p) => p.mouse.down(),
+        async (p) => p.mouse.up(),
+        async (p) => {
+          await p.mouse.move(500, 500)
+          // A blur does not reset the browser's sequential-navigation
+          // cursor. Tab from a known preceding element, not out of the page.
+          await p.locator('#sentinel').focus()
+          await p.keyboard.press('Tab')
+        },
+        async (p) => p.locator('button').hover(),
+      ]
+      for (const [index, stage] of stages.entries()) {
+        await stage(page)
+        await stage(oracle)
+        const facts = async (p) =>
+          p.locator('button').evaluate((e) => ({
+            color: getComputedStyle(e).backgroundColor,
+            state: {
+              hovered: e.matches('button:hover'),
+              focused: e.matches('button:focus'),
+              focusVisible: e.matches('button:focus-visible'),
+              pressed: e.matches('button:active'),
+            },
+          }))
+        const expected = await facts(oracle),
+          actual = await facts(page)
+        if (index === 1) assert.equal(expected.state.hovered, true)
+        if (index === 2) assert.equal(expected.state.pressed, true)
+        if (index === 4) assert.equal(expected.state.focusVisible, true)
+        assert.deepEqual(actual, expected, `${stylexLast}/${index}: browser source-sheet oracle`)
+        const selected = Object.assign(
+          {},
+          ...nativeProps.style(expected.state).filter(Boolean),
+        ).backgroundColor
+        const rgb = selected.match(/[a-f\d]{2}/gi).map((part) => Number.parseInt(part, 16))
+        assert.equal(
+          `rgb(${rgb.join(', ')})`,
+          expected.color,
+          `${stylexLast}/${index}: Native selected target`,
+        )
+      }
+    } finally {
+      await page.close()
+      await oracle.close()
+    }
+  }
 })
 
 test('Tailwind browser oracle for stateful label inheritance and focus modality', {

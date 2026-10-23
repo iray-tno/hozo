@@ -1620,6 +1620,19 @@ pub enum AccessibilityRole {
 pub struct StyleDeclaration {
     pub property: StyleProperty,
     pub condition: Condition,
+    pub source: StyleSource,
+}
+
+/// A styling input is a cascade boundary, not another predicate. Tailwind
+/// orders utilities within its class list; StyleX resolves atomic priority
+/// within its props call. Neither may reorder the other's declarations.
+/// The ID is the JSX attribute's source offset, never emitted at runtime.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum StyleSource {
+    #[default]
+    Unspecified,
+    Tailwind(u32),
+    Stylex(u32),
 }
 
 /// Universal Style Subset (proposal §6.3), Phase 0 scope only.
@@ -4994,6 +5007,22 @@ impl Environment {
 }
 
 impl Condition {
+    /// Selector weight in the bounded owner-interaction domain. Expression
+    /// guards are emitted with :where, so they add no CSS specificity.
+    /// Unknown is not zero: callers must retain its existing cascade.
+    pub fn owner_interaction_specificity(&self) -> Option<u16> {
+        match self {
+            Self::Always | Self::Expr(_) => Some(0),
+            Self::Hover | Self::Focus | Self::FocusVisible | Self::Pressed => Some(1),
+            Self::All(conditions) if !conditions.is_empty() => {
+                conditions.iter().try_fold(0_u16, |weight, condition| {
+                    weight.checked_add(condition.owner_interaction_specificity()?)
+                })
+            }
+            _ => None,
+        }
+    }
+
     /// Whether this condition is expressed as a *selector* rather than as
     /// a query around one.
     ///
@@ -5245,9 +5274,9 @@ impl Condition {
 // Grouping/flattening (shared by every lowering backend)
 // ---------------------------------------------------------------------------
 
-/// Groups declarations by `Condition`, preserving first-occurrence order
-/// (deterministic output, not hashmap-random) -- a linear scan is fine at
-/// the sizes a single node's style list reaches in practice.
+/// Groups conditions within each source input, not across cascade boundaries.
+/// Source order is stable; a bounded mixed owner-interaction domain also
+/// respects CSS specificity, which Native arrays cannot supply themselves.
 ///
 /// Flattening ("last declaration wins") only applies *within* a group of
 /// declarations sharing the identical `Condition` -- declarations under
@@ -5258,8 +5287,17 @@ pub fn group_by_condition(
     declarations: &[StyleDeclaration],
 ) -> Vec<(Condition, Vec<StyleProperty>)> {
     let mut groups: Vec<(Condition, Vec<StyleProperty>)> = Vec::new();
+    let mut source = None;
+    let mut start = 0;
     for decl in declarations {
-        match groups
+        // A later styling input can revisit a condition after another
+        // condition. Merging it into the earlier rule would move its write
+        // backwards across that rule, losing JSX tie order.
+        if source != Some(decl.source) {
+            source = Some(decl.source);
+            start = groups.len();
+        }
+        match groups[start..]
             .iter_mut()
             .find(|(condition, _)| *condition == decl.condition)
         {
@@ -5267,7 +5305,31 @@ pub fn group_by_condition(
             None => groups.push((decl.condition.clone(), vec![decl.property.clone()])),
         }
     }
-    groups
+    if start == 0 {
+        return groups;
+    }
+    // Only a domain whose selector weight is known can be linearized
+    // this way on Native. Do not guess at structural/arbitrary selectors.
+    // Multiple StyleX inputs need the same rule, not just mixed frontends.
+    if groups
+        .iter()
+        .all(|(condition, _)| condition.owner_interaction_specificity().is_some())
+    {
+        groups.sort_by_key(|(condition, _)| condition.owner_interaction_specificity().unwrap());
+    }
+    // Consecutive equal rules are safe to coalesce, including resting
+    // transforms from two inputs. Never merge across an intervening rule.
+    let mut coalesced: Vec<(Condition, Vec<StyleProperty>)> = Vec::new();
+    for (condition, props) in groups {
+        if let Some((last_condition, last_props)) = coalesced.last_mut() {
+            if *last_condition == condition {
+                last_props.extend(props);
+                continue;
+            }
+        }
+        coalesced.push((condition, props));
+    }
+    coalesced
 }
 
 /// Within one condition group, the last declaration for a given property
@@ -5487,16 +5549,51 @@ mod grouping_tests {
     fn condition_groups_stay_separate() {
         let decls = vec![
             StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::BackgroundColor(Color::Token("red-500".to_string())),
                 condition: Condition::Always,
             },
             StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::BackgroundColor(Color::Token("blue-500".to_string())),
                 condition: Condition::Hover,
             },
         ];
         let groups = group_by_condition(&decls);
         assert_eq!(groups.len(), 2);
+    }
+
+    #[test]
+    fn later_sources_do_not_merge_back_across_intervening_conditions() {
+        let declaration = |condition, source, value| StyleDeclaration {
+            condition,
+            source,
+            property: StyleProperty::Opacity(value),
+        };
+        let styles = [
+            declaration(Condition::Focus, StyleSource::Tailwind(10), 0.1),
+            declaration(Condition::Pressed, StyleSource::Tailwind(10), 0.2),
+            declaration(Condition::Focus, StyleSource::Stylex(30), 0.3),
+        ];
+        let groups = group_by_condition(&styles);
+        assert_eq!(groups.len(), 3);
+        assert_eq!(groups[0].0, Condition::Focus);
+        assert_eq!(groups[1].0, Condition::Pressed);
+        assert_eq!(
+            groups[2],
+            (Condition::Focus, vec![StyleProperty::Opacity(0.3)])
+        );
+        let styles = [
+            declaration(
+                Condition::All(vec![Condition::Hover, Condition::Focus]),
+                StyleSource::Tailwind(10),
+                0.1,
+            ),
+            declaration(Condition::Pressed, StyleSource::Stylex(30), 0.2),
+        ];
+        let groups = group_by_condition(&styles);
+        assert_eq!(groups[0].0, Condition::Pressed);
+        assert!(matches!(groups[1].0, Condition::All(_)));
     }
 }
 

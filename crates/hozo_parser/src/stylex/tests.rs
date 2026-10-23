@@ -2593,7 +2593,17 @@ fn conditions_inside_a_value_are_the_nested_form_written_the_other_way() {
             "{rule}: {:?}",
             parsed.diagnostics
         );
-        parsed.roots[0].node.style.clone()
+        // These equivalent source forms have different attribute offsets.
+        parsed.roots[0]
+            .node
+            .style
+            .iter()
+            .cloned()
+            .map(|mut declaration| {
+                declaration.source = Default::default();
+                declaration
+            })
+            .collect::<Vec<_>>()
     };
     assert_eq!(
         style("opacity: { default: 1, ':hover': 0.5, ':focus-visible': 0.25 }"),

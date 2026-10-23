@@ -16,14 +16,12 @@ Native key includes selector specificity before the variant bitset, since an
 RN style array cannot let a more-specific conjunction win by itself. Equal
 keys preserve authored/caller order; this is not a full utility-order rewrite.
 
-Only the class-only parser region is reordered. Explicit JSX style/spread
-precedence and decision 009's resting/caller/state tiers are unchanged. A node
-that contains StyleX is deliberately left alone: the flattened IR does not
-retain enough origin information to reorder its Tailwind pieces without also
-reinterpreting StyleX argument/atomic priority. A conditional domain containing
-an unranked predicate is likewise kept intact. The backends group equal
-conditions across the whole node, so merely sorting local runs around an unknown
-condition is not a safe provenance boundary.
+The first correction reordered only the class-only parser region. Explicit
+JSX style/spread precedence and decision 009's resting/caller/state tiers were
+unchanged. Nodes containing StyleX were initially left alone because the IR
+had no input provenance. The follow-up below removes that blanket restriction
+by retaining source boundaries, not by sorting arbitrary StyleX conditions.
+Domains with unranked predicates still retain their existing order.
 
 ## Runtime and performance boundary
 
@@ -59,8 +57,15 @@ zero compiler-time overhead or an overall speedup.
 
 ## Still open
 
-This is the first #1230 slice, not grounds to close the entire issue. Mixed
-StyleX/Tailwind origin, expressions or other conditional domains, negation,
+The source-provenance follow-up removes the mixed-StyleX blanket exemption:
+each input now retains its own order, grouping cannot merge a later input
+backwards, and bounded owner conditions compose by specificity then JSX order.
+See [decision 011](../decisions/011-styling-inputs-keep-their-own-cascade.md).
+The first correction and its observations above remain historical evidence;
+mixed nodes are no longer a blanket reason to skip Tailwind ordering.
+
+These corrections are not grounds to close the entire issue. Other conditional
+domains, negation,
 ambient/structural/group/peer predicates, custom variants, and utility tie order
 need separate provenance/order handling. Do not globally sort all `Condition`
 IR or fix only Native to expand that scope. Native event-delivery, motion pixels,

@@ -1024,7 +1024,6 @@ fn build_node(
     let mut carried_classes: Vec<String> = Vec::new();
     let mut props = PropSet::default();
     let mut seen_class_name = false;
-    let mut has_stylex = false;
     // Every named attribute and where it starts, so a spread can know which
     // of them come after it (`PassthroughProp::later_names`).
     let named: Vec<(u32, String)> = el
@@ -1047,11 +1046,13 @@ fn build_node(
             JSXAttributeItem::SpreadAttribute(spread) => {
                 match scope.stylex.resolve_props(&spread.argument) {
                     crate::stylex::Resolution::Ready(declarations) => {
-                        has_stylex = true;
                         // Styling input, not an opaque prop spread. Appending
                         // here preserves order with className and reuses the
                         // IR's normal last-wins behavior.
-                        style.extend(declarations);
+                        style.extend(declarations.into_iter().map(|mut declaration| {
+                            declaration.source = hozo_ir::StyleSource::Stylex(spread.span.start);
+                            declaration
+                        }));
                         continue;
                     }
                     crate::stylex::Resolution::Partial {
@@ -1059,8 +1060,10 @@ fn build_node(
                         residual,
                         gaps,
                     } => {
-                        has_stylex = true;
-                        style.extend(declarations);
+                        style.extend(declarations.into_iter().map(|mut declaration| {
+                            declaration.source = hozo_ir::StyleSource::Stylex(spread.span.start);
+                            declaration
+                        }));
                         props.stylex_residuals.push(residual);
                         diagnostics.extend(gaps.into_iter().map(|gap| Diagnostic {
                             code: DiagnosticCode::StylexNotLowered,
@@ -1071,7 +1074,6 @@ fn build_node(
                         continue;
                     }
                     crate::stylex::Resolution::Gap { message, span } => {
-                        has_stylex = true;
                         diagnostics.push(Diagnostic {
                             code: DiagnosticCode::StylexNotLowered,
                             severity: Severity::Warning,
@@ -1297,6 +1299,7 @@ fn build_node(
                                     style.push(StyleDeclaration {
                                         property,
                                         condition: condition.clone(),
+                                        source: hozo_ir::StyleSource::Tailwind(attr.span.start),
                                     });
                                 }
                             }
@@ -1336,7 +1339,10 @@ fn build_node(
                                 });
                             }
                         }
-                        style.extend(decomposed.declarations);
+                        style.extend(decomposed.declarations.into_iter().map(|mut declaration| {
+                            declaration.source = hozo_ir::StyleSource::Tailwind(attr.span.start);
+                            declaration
+                        }));
                         class_name_fallback.extend(decomposed.fallback);
                         consumed.extend(decomposed.consumed);
                     }
@@ -1379,6 +1385,7 @@ fn build_node(
                         style.extend(properties.into_iter().map(|property| StyleDeclaration {
                             property,
                             condition: condition.clone(),
+                            source: hozo_ir::StyleSource::Tailwind(attr.span.start),
                         }));
                     }
                     if style.len() == before {
@@ -2204,13 +2211,13 @@ fn build_node(
         }
     }
 
-    // A class-only node has known Tailwind provenance here. A mixed StyleX
-    // node does not: preserve its argument/JSX order until IR carries that
-    // provenance rather than globally sorting conditions in either backend.
-    if !has_stylex {
-        crate::interaction_order::order_tailwind_interactions(&mut style);
-    }
+    // Each input keeps its own ordering semantics; grouping must retain
+    // these boundaries rather than merge a later input back into an old rule.
+    crate::interaction_order::order_tailwind_interactions(&mut style);
     for slot in &mut props.class_slots {
+        for declaration in &mut slot.style {
+            declaration.source = hozo_ir::StyleSource::Tailwind(slot.span.start);
+        }
         crate::interaction_order::order_tailwind_interactions(&mut slot.style);
     }
     validate_semantic_children(primitive, &children, diagnostics);
@@ -2251,7 +2258,16 @@ mod class_slot_expression_tests {
             assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
             let node = &parsed.roots[0].node;
             let slot = &node.props.class_slots[0];
-            assert_eq!(slot.style, node.style);
+            assert_eq!(
+                slot.style
+                    .iter()
+                    .map(|d| (&d.property, &d.condition))
+                    .collect::<Vec<_>>(),
+                node.style
+                    .iter()
+                    .map(|d| (&d.property, &d.condition))
+                    .collect::<Vec<_>>()
+            );
             assert_eq!(slot.fallback.len(), node.class_name_fallback.len());
             for (root, secondary) in node.class_name_fallback.iter().zip(&slot.fallback) {
                 assert_eq!(

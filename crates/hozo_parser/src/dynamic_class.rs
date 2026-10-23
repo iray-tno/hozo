@@ -320,6 +320,7 @@ fn decompose_literal(
             let final_condition = to_condition(condition.clone());
             for property in properties {
                 out.declarations.push(StyleDeclaration {
+                    source: Default::default(),
                     property,
                     condition: final_condition.clone(),
                 });
@@ -330,6 +331,7 @@ fn decompose_literal(
             // directly -- e.g. `cn('hover:bg-blue-500')`.
             for property in properties {
                 out.declarations.push(StyleDeclaration {
+                    source: Default::default(),
                     property,
                     condition: token_condition.clone(),
                 });
@@ -473,6 +475,7 @@ fn decompose(
                     };
                     for property in properties {
                         out.declarations.push(StyleDeclaration {
+                            source: Default::default(),
                             property,
                             condition: token_condition.clone(),
                         });
@@ -789,6 +792,7 @@ const el = <View className={Text('p-4', className)} />";
         assert_eq!(
             out.declarations,
             vec![StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::BackgroundColor(Color::Token("blue-500".to_string())),
                 condition: Condition::Always,
             }]

@@ -8612,6 +8612,7 @@ impl Frontend {
                     css_name: entry.css_name.clone(),
                     priority: entry.priority,
                     declaration: StyleDeclaration {
+                        source: Default::default(),
                         property,
                         condition: condition.clone(),
                     },
