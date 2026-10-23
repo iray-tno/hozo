@@ -106,6 +106,16 @@ and separate `--output` files, then `--baseline` for comparison. Raw receipts:
 `unit-small-before.json` / `unit-small-optimized.json`, with its harness hash.
 All are under `artifacts/tailwind-order/`. Provisional pre-commit captures
 are retained but not used as final source-complete receipts.
+A clean-head final repeat (`unit-final.json`, `69a855dd`) gave Web
+68.69 ms (-0.05%) and Native 83.59 ms (-1.54%) against the same rebuilt
+control. Its source/binary hashes and all samples are retained separately.
+
+Rust IR consumers constructing a parser `Root` must supply `tailwind_units`
+(`None` for manually built trees with no utility IDs). Code comparing a
+`StyleSource` for its frontend/input boundary must compare `input()`, not full
+utility identity. Existing `Tailwind(input)`/`Stylex(input)` constructors remain
+available. These are pre-release compiler IR changes, not a generated device
+ABI change.
 
 ## Reviewed reference
 
