@@ -84,6 +84,14 @@ try {
     // cannot see into, and `img` would make whatever is inside presentational.
     const drawing = page.getByRole('group', { name: 'A check mark in a ring', exact: true })
     await drawing.waitFor()
+    // SSR makes the drawing visible before client:visible has bound its controls.
+    await drawing.scrollIntoViewIfNeeded()
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('astro-island[component-export="FilterStudio"]')
+          ?.hasAttribute('ssr') === false,
+    )
     assert.equal(await drawing.evaluate((node) => node.tagName.toLowerCase()), 'svg')
     await page.getByRole('radio', { name: 'Stamp', exact: true }).click()
     await page
