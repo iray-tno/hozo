@@ -104,6 +104,11 @@ export {
   type HozoTreeProps as TreeProps,
   type HozoTreeProps,
   type OtpType,
+  ResizablePane,
+  type ResizablePaneProps,
+  Splitter,
+  type SplitterProps,
+  type SplitterSide,
   type TreeNode,
 } from '@hozo/patterns'
 export * from '@hozo/primitives'

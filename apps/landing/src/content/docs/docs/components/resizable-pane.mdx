@@ -1,0 +1,41 @@
+---
+title: "ResizablePane"
+description: "Resize a named pane by dragging, keyboard or Native accessibility actions."
+---
+
+import UiExample from '../../../../components/docs/UiExample.astro'
+import { ResizablePaneDemo } from '../../../../examples/ui/ResizablePaneDemo.tsx'
+import source from '../../../../examples/ui/ResizablePaneDemo.tsx?raw'
+
+A named pane with a focusable divider. On Web, drag the divider or use its arrow
+keys. Enter collapses the pane and restores its previous size. The divider stays
+reachable while the pane's contents leave the tab order.
+
+<UiExample source={source} file="ResizablePaneDemo.tsx">
+  <ResizablePaneDemo client:visible />
+</UiExample>
+
+- `side`: `start`, `end`, `top` or `bottom`. Start and end follow the writing direction.
+- `label`, `min`, `max`, and `defaultSize` (or controlled `size` with `onSizeChange`).
+- `step` defaults to 8. Shift+Arrow and PageUp/PageDown use `bigStep`, default 32.
+  `largeStep` is an alias; `bigStep` wins if both are supplied. Home/End reach the bounds.
+- `collapsible`, `collapsedSize` (default 0), `collapsed` and `onCollapsedChange`.
+- `onSizeChange` runs during a drag, at most once per animation frame. `onSizeCommit`
+  runs on release, each handled key and collapse/restore. Cancelled drags restore
+  their starting size and call `onSizeCancel`, without committing.
+- `valueText` supplies the spoken size; the default is “144 pixels”, translated
+  through Hozo's i18n connection. Sizes are platform layout units.
+- `paneClassName` styles the pane, `handleClassName` the divider and `className` the wrapper.
+
+The unstyled `@hozo/patterns` versions have the same API. `Splitter` exports the
+divider alone: supply `controls` with the pane's id and manage hiding its content
+when collapsed. It takes `side`, or `orientation` (`vertical` by default).
+
+On Native, dragging and the screen reader's increment/decrement actions resize
+the pane. A custom Collapse/Expand action toggles it. Native hardware keyboard
+commands are not implemented. This layout is primarily useful on tablets,
+foldables and wider screens; a phone sidebar need not be resizable.
+
+Persistence belongs to the application: save in `onSizeCommit` and pass the saved
+value as `defaultSize`. Hozo reads no storage. Physical-device and screen-reader
+speech validation are still pending.

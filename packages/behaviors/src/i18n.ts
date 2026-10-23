@@ -22,6 +22,10 @@ import { createContext, createElement, type ReactNode, useCallback, useContext }
  * library this connects to interpolates by name.
  */
 export const hozoMessages = {
+  'hozo.splitter.label': 'Resize {label}',
+  'hozo.splitter.value': '{size} pixels',
+  'hozo.splitter.expand': 'Expand',
+  'hozo.splitter.collapse': 'Collapse',
   'hozo.avatar.label': '{name}, {status}',
   'hozo.avatar.statusBusy': 'busy',
   'hozo.avatar.statusOffline': 'offline',

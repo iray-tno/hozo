@@ -46,6 +46,10 @@ const reads = {
     'packages/tailwind-conformance/src/tailwind-order-baseline.ts',
     'packages/engine/src/class-resolver.ts',
     'packages/compiler/src/index.ts',
+    'apps/landing/src/examples/ui/ResizablePaneDemo.tsx',
+    'packages/behaviors/src/drag-1d.ts',
+    'packages/behaviors/src/drag-1d.native.ts',
+    'packages/behaviors/src/drag-1d-session.ts',
     'packages/behaviors/src/portal.tsx',
     'packages/form/src/form.native.tsx',
     'packages/form/src/text-area.native.tsx',
@@ -155,6 +159,7 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    'apps/landing/src/examples/ui/ResizablePaneDemo.tsx',
     '.github/workflows/deploy-pages.yml',
     '.github/workflows/native-showcase.yml',
     'packages/ui/src/theme.css',

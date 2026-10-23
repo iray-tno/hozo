@@ -29,6 +29,7 @@ export const UI_DOC_PAGES = [
   'pagination',
   'popover',
   'radio-group',
+  'resizable-pane',
   'segmented-control',
   'skeleton',
   'slider',

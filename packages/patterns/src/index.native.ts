@@ -148,6 +148,13 @@ export {
   valueAt,
 } from './slider-rules.ts'
 export {
+  ResizablePane,
+  type ResizablePaneProps,
+  Splitter,
+  type SplitterProps,
+  type SplitterSide,
+} from './splitter.native.tsx'
+export {
   type HozoStep as Step,
   type HozoStep,
   HozoStepper as Stepper,

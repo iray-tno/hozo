@@ -25,6 +25,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [004](004-three-renderer-families.md) | Three.js Renderer Families | `@hozo/three` | **Accepted** | #574 |
 | [006](006-native-text-inheritance.md) | Native text inheritance with a measured static fast path | Compiler, primitives, engine, typography and patterns | **Draft** | Not assigned |
 | [007](007-canonical-tailwind-order.md) | One Tailwind ordering plan before platform lowering | Compiler, Tailwind, engine and build integrations | **Draft** | #1230 |
+| [008](008-window-splitter.md) | Window splitter | Behaviors, patterns, core and UI | **Implemented (initial slice)** | #1191 |
 
 ---
 

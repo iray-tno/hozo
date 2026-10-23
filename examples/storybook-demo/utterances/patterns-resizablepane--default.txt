@@ -1,0 +1,6 @@
+region, Files
+App.tsx
+theme.css
+end of region, Files
+separator, Resize Files, orientated vertically, max value 240, min value 96, 1 control, current value 144 pixels
+Drag the divider to resize Files.
