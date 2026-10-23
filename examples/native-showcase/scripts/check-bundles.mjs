@@ -28,7 +28,10 @@ for (const platform of ['android', 'ios']) {
         'Primitives/Shared showcase',
         'Diagnostics/Text inheritance',
         'Use runtime fallback',
-        'Show production',
+        // The probe constructs `Show ${mode}` at runtime; Metro retains its
+        // prefix and mode separately rather than materializing every label.
+        'Show ',
+        'production-static',
         'context-runtime; no static erasure',
         'Native text inheritance experiment',
         'Media/Video',
