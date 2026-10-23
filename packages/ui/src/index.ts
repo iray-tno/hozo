@@ -190,6 +190,12 @@ export {
   type HozoSliderProps,
 } from './slider.tsx'
 export {
+  ResizablePane,
+  type ResizablePaneProps,
+  Splitter,
+  type SplitterProps,
+} from './splitter.tsx'
+export {
   HozoStack as Stack,
   HozoStack,
   type HozoStackGap as StackGap,

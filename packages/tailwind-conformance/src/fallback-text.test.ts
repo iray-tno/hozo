@@ -53,6 +53,11 @@ const core = require('../../core/src/index.native.ts') as Record<string, unknown
  * `@hozo/core`'s parity test.
  */
 const NEEDS_MORE_THAN_CHILDREN = new Map([
+  ['Splitter', 'A separator driven by its bounds and size; it takes no children.'],
+  [
+    'ResizablePane',
+    'Requires a label and bounds; Native content is covered by the splitter host tests.',
+  ],
   ['FlatList', 'Renders from `data` and `renderItem`; children are not its API.'],
   ['Image', 'Has no children at all.'],
   ['TextInput', 'A field. Its text is `value`.'],

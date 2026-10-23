@@ -37,6 +37,7 @@ const out = path.join(landing, 'src/data/ui-native-status.json')
 // about; such a file keeps to the report, which knows which element a class
 // is on, where the literals cannot say.
 const SOURCES = {
+  'resizable-pane': [{ file: 'splitter.tsx' }],
   checkbox: [{ file: 'toggle.tsx', element: 'CheckboxPattern' }],
   switch: [{ file: 'toggle.tsx', element: 'SwitchPattern' }],
   'radio-group': [{ file: 'radio.tsx' }],

@@ -165,6 +165,10 @@ const owned = (
 // Root and secondary props share the catalog even though this first slice
 // deliberately preserves their existing, separate code-generation routes.
 export const components = {
+  Splitter: slots('className', { overrides: { className: { lowering: 'component-managed' } } }),
+  ResizablePane: slots('className paneClassName handleClassName', {
+    overrides: { className: { lowering: 'component-managed' } },
+  }),
   Accordion: slots('className sectionClassName headingClassName triggerClassName panelClassName', {
     overrides: {
       headingClassName: {

@@ -5,6 +5,7 @@ export {
   moveAccessibilityFocus,
   setAccessibilityFocusMover,
 } from './accessibility-focus.native.ts'
+export { type Drag1DOptions, useDrag1D } from './drag-1d.native.ts'
 export type { Placement } from './floating-geometry.ts'
 export {
   FloatingPositioner,

@@ -46,6 +46,14 @@ const gallerySource = readFileSync(
  */
 const NOT_ON_THE_SCREEN = new Map([
   [
+    'Splitter',
+    'A size-driven adjustable handle with no testID; covered by the splitter host tests and docs showcase.',
+  ],
+  [
+    'ResizablePane',
+    'A named resize layout covered by the splitter host tests and docs showcase, outside the primitive census.',
+  ],
+  [
     'Combobox',
     'An ARIA pattern driven by `options` rather than children, with its own ' +
       'tests in `@hozo/core`. It also takes no `testID`, so a device could not ' +

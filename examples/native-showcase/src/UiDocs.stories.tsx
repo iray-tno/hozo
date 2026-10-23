@@ -332,6 +332,17 @@ export const RadioGroup: Story = {
     />
   ),
 }
+export const ResizablePane: Story = {
+  render: () => (
+    <Preview
+      page="resizable-pane"
+      load={() =>
+        require('../../../apps/landing/src/examples/ui/ResizablePaneDemo.tsx').ResizablePaneDemo
+      }
+    />
+  ),
+}
+
 export const SegmentedControl: Story = {
   render: () => (
     <Preview

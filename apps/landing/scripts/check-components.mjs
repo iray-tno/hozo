@@ -57,6 +57,19 @@ await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const base = `http://127.0.0.1:${server.address().port}/hozo/docs/components`
 
 const pages = {
+  async 'resizable-pane'(page) {
+    const handle = page.getByRole('separator', { name: 'Resize Files' })
+    await handle.focus()
+    await handle.press('ArrowRight')
+    assert.equal(await handle.getAttribute('aria-valuenow'), '152')
+    const pane = page.locator('section[aria-label="Files"]')
+    assert.equal(await pane.evaluate((element) => element.getBoundingClientRect().width), 152)
+    await handle.press('Enter')
+    assert.equal(await pane.evaluate((element) => element.inert), true)
+    assert.equal(await pane.evaluate((element) => element.getBoundingClientRect().width), 0)
+    await handle.press('Enter')
+    assert.equal(await handle.getAttribute('aria-valuenow'), '152')
+  },
   async button(page) {
     await page.getByRole('button', { name: 'Danger' }).click()
     await page.getByText('Last pressed: Danger').waitFor()
