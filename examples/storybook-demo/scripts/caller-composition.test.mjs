@@ -1,7 +1,7 @@
 // Shared compiler/candidate composition, not Native pixels or event delivery.
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: Fixtures retain authored TSX interpolation.
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -20,6 +20,11 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
+import {
+  prepareOrderSubjects,
+  projectOrderNative,
+  summarizeOrderCells,
+} from '../../../packages/tailwind-conformance/src/tailwind-order-baseline.ts'
 import { orderCases } from '../../../packages/tailwind-conformance/src/tailwind-order-corpus.ts'
 import { prepareOrderReference } from '../../../packages/tailwind-conformance/src/tailwind-order-reference.ts'
 
@@ -429,6 +434,109 @@ test('the canonical-order reference has independent browser winners under revers
         }
   } finally {
     await page.close()
+  }
+})
+
+test('canonical-order baseline records current Hozo divergences without claiming they conform', {
+  skip: !executablePath,
+}, async () => {
+  const baseline = await prepareOrderSubjects()
+  const expectedPage = await browser.newPage(),
+    actualPage = await browser.newPage()
+  const cells = []
+  let measurementValid = false
+  let failure
+  let stage = 'start'
+  const capturedAt = new Date().toISOString()
+  try {
+    for (const subject of baseline.subjects)
+      for (const dir of ['ltr', 'rtl']) {
+        stage = `${subject.id}/${dir}/${subject.classes}`
+        await expectedPage.setContent(
+          `<html dir="${dir}"><style>${baseline.reference.css}</style><button class="${subject.classes}">Label</button></html>`,
+        )
+        const html = renderToStaticMarkup(
+          evaluate(`module.exports=(${subject.web.jsx})`, { h: createElement }),
+        )
+        const variants = [
+          ['staticWeb', subject.web.css, html, '[data-testid="order-probe"]'],
+          [
+            'defaultCandidates',
+            baseline.defaultCss,
+            `<button class="${subject.classes}">Label</button>`,
+            'button',
+          ],
+          [
+            'projectOrderedCandidates',
+            baseline.orderedCss,
+            `<button class="${subject.classes}">Label</button>`,
+            'button',
+          ],
+        ]
+        const keys = Object.keys(subject.expected)
+        for (const [route, css, markup, selector] of variants) {
+          await actualPage.setContent(`<html dir="${dir}"><style>${css}</style>${markup}</html>`)
+          if (subject.state) {
+            await expectedPage.locator('button').hover()
+            await actualPage.locator(selector).hover()
+          }
+          if (subject.state === 'active') {
+            await expectedPage.mouse.down()
+            await actualPage.mouse.down()
+          }
+          const read = (page, target) =>
+            page.locator(target).evaluate((node, keys) => {
+              const style = getComputedStyle(node)
+              return Object.fromEntries(keys.map((key) => [key, style[key]]))
+            }, keys)
+          const expected = await read(expectedPage, 'button')
+          assert.deepEqual(expected, subject.expected, `oracle ${subject.id}`)
+          const actual = await read(actualPage, selector)
+          if (subject.state === 'active') {
+            await expectedPage.mouse.up()
+            await actualPage.mouse.up()
+          }
+          cells.push({
+            id: subject.id,
+            classes: subject.classes,
+            dir,
+            route,
+            expected,
+            actual,
+            diagnostics: subject.web.diagnostics,
+          })
+        }
+        for (const [route, raw] of [
+          ['staticNative', subject.native.selected],
+          ['nativeCandidates', subject.fallback],
+        ])
+          cells.push({
+            id: subject.id,
+            classes: subject.classes,
+            dir,
+            route,
+            expected: subject.expected,
+            actual: projectOrderNative(raw, keys, dir),
+            raw,
+            diagnostics: subject.native.diagnostics,
+          })
+      }
+    assert.equal(cells.length, orderCases.length * 2 * 2 * 5)
+    measurementValid = true
+  } catch (error) {
+    failure = { stage, message: String(error) }
+    throw error
+  } finally {
+    const destination = fileURLToPath(
+      new URL('../../../artifacts/tailwind-order/browser-baseline.json', import.meta.url),
+    )
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(
+      destination,
+      `${JSON.stringify({ schema: 1, capturedAt, provenance: baseline.provenance, reference: baseline.reference.snapshot, measurementValid, failure, note: 'Selected Native scalar projection, not device pixels/AT. Mismatches are observations, not conformance passes.', summary: summarizeOrderCells(cells), cells }, null, 2)}\n`,
+    )
+    await expectedPage.close()
+    await actualPage.close()
   }
 })
 
