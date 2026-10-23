@@ -31,28 +31,41 @@ impl TailwindUnits {
 /// lookup map is discarded at freeze; roots retain only one shared name table.
 #[derive(Default)]
 pub struct TailwindUnitsBuilder {
-    ids: HashMap<Box<str>, TailwindUtilityId>,
+    // Most inputs have zero or one unique utility. Neither needs a hash
+    // table (or its per-parse RandomState), including repeated longhands.
+    first: Option<Box<str>>,
+    others: Option<HashMap<Box<str>, TailwindUtilityId>>,
 }
 
 impl TailwindUnitsBuilder {
     pub fn intern(&mut self, candidate: &str) -> TailwindUtilityId {
-        if let Some(id) = self.ids.get(candidate) {
+        let Some(first) = &self.first else {
+            self.first = Some(candidate.into());
+            return TailwindUtilityId(0);
+        };
+        if first.as_ref() == candidate {
+            return TailwindUtilityId(0);
+        }
+        let ids = self.others.get_or_insert_with(HashMap::new);
+        if let Some(id) = ids.get(candidate) {
             return *id;
         }
-        let id = TailwindUtilityId(u32::try_from(self.ids.len()).expect("utility ID capacity"));
-        self.ids.insert(candidate.into(), id);
+        let id = TailwindUtilityId(u32::try_from(ids.len() + 1).expect("utility ID capacity"));
+        ids.insert(candidate.into(), id);
         id
     }
 
     /// Class-free modules allocate no shared table. A detached/cloned parser
     /// root retains this Arc even after the rest of the parsed module is gone.
     pub fn finish(self) -> Option<Arc<TailwindUnits>> {
-        if self.ids.is_empty() {
-            return None;
-        }
-        let mut candidates = vec![Box::<str>::from(""); self.ids.len()];
-        for (name, id) in self.ids {
-            candidates[id.0 as usize] = name;
+        let first = self.first?;
+        let mut candidates =
+            vec![Box::<str>::from(""); self.others.as_ref().map_or(0, HashMap::len) + 1];
+        candidates[0] = first;
+        if let Some(ids) = self.others {
+            for (name, id) in ids {
+                candidates[id.0 as usize] = name;
+            }
         }
         Some(Arc::new(TailwindUnits {
             candidates: candidates.into_boxed_slice(),
@@ -77,6 +90,16 @@ mod tests {
         assert_eq!(units.candidate(first), Some("p-2"));
         assert_eq!(units.candidate(second), Some("hover:p-2"));
         assert_eq!(units.candidate(TailwindUtilityId(2)), None);
+    }
+
+    #[test]
+    fn empty_and_single_name_paths_never_create_a_hash_table() {
+        let mut builder = TailwindUnitsBuilder::default();
+        assert!(builder.others.is_none());
+        let first = builder.intern("p-2");
+        assert_eq!(builder.intern("p-2"), first);
+        assert!(builder.others.is_none());
+        assert_eq!(builder.finish().unwrap().len(), 1);
     }
 
     #[test]
