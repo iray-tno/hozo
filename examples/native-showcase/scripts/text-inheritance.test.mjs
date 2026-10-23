@@ -1,6 +1,7 @@
 // These are wiring/identity tests with mock hosts, not native layout evidence.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import test from 'node:test'
@@ -84,7 +85,19 @@ test('the device fixture is reproducible and binding decisions come from the exi
   for (const entry of prepared.cases) assert.equal(entry.ordinary, entry.reference)
   assert.equal(prepared.manifest.schemaVersion, 3)
   assert.equal(Object.keys(prepared.manifest.production.sourceSha256).length, 12)
-  assert.equal(Object.keys(prepared.manifest.productionStatic.sourceSha256).length, 16)
+  assert.equal(Object.keys(prepared.manifest.productionStatic.sourceSha256).length, 17)
+  assert.equal(
+    prepared.manifest.productionStatic.sourceSha256['crates/hozo_ir/src/tailwind_units.rs'],
+    createHash('sha256')
+      .update(
+        readFileSync(
+          new URL('../../../crates/hozo_ir/src/tailwind_units.rs', import.meta.url),
+          'utf8',
+        ).replace(/\r\n/g, '\n'),
+      )
+      .digest('hex'),
+    'the new utility identity module belongs to the static compiler receipt',
+  )
   for (const file of ['interaction_order.rs', 'jsx.rs', 'tailwind_variants.rs'])
     assert.equal(
       prepared.manifest.productionStatic.sourceSha256[`crates/hozo_parser/src/${file}`].length,
