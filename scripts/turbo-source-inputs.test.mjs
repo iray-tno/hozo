@@ -41,6 +41,8 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'packages/tailwind-conformance/src/tailwind-order-corpus.ts',
+    'packages/tailwind-conformance/src/tailwind-order-reference.ts',
     'packages/behaviors/src/portal.tsx',
     'packages/form/src/form.native.tsx',
     'packages/form/src/text-area.native.tsx',

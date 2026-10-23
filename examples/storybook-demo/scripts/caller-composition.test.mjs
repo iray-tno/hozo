@@ -20,6 +20,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
+import { orderCases } from '../../../packages/tailwind-conformance/src/tailwind-order-corpus.ts'
+import { prepareOrderReference } from '../../../packages/tailwind-conformance/src/tailwind-order-reference.ts'
 
 const executablePath = [
   process.env.CHROME_PATH,
@@ -402,6 +404,32 @@ after(async () => {
   await browser?.close()
   // Only this test's exact mkdtemp directory is owned here.
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('the canonical-order reference has independent browser winners under reversed classes and RTL', {
+  skip: !executablePath,
+}, async () => {
+  const { css } = await prepareOrderReference()
+  const page = await browser.newPage()
+  try {
+    for (const entry of orderCases)
+      for (const dir of ['ltr', 'rtl'])
+        for (const classes of [entry.classes, entry.classes.split(' ').reverse().join(' ')]) {
+          await page.setContent(
+            `<html dir="${dir}"><style>${css}\nbutton { appearance:none; border:0; padding:0; }</style><button class="${classes}">Label</button></html>`,
+          )
+          if (entry.state) await page.locator('button').hover()
+          if (entry.state === 'active') await page.mouse.down()
+          const actual = await page.locator('button').evaluate((node, keys) => {
+            const style = getComputedStyle(node)
+            return Object.fromEntries(keys.map((key) => [key, style[key]]))
+          }, Object.keys(entry.expected))
+          if (entry.state === 'active') await page.mouse.up()
+          assert.deepEqual(actual, entry.expected, `${entry.id}/${dir}/${classes}`)
+        }
+  } finally {
+    await page.close()
+  }
 })
 
 test('mixed StyleX/Tailwind inputs match independently ordered source sheets on both targets', {
