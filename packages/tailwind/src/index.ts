@@ -4,6 +4,13 @@
 // belongs here is the part only a JavaScript package can do -- asking
 // Tailwind what the project's theme is.
 
+export type {
+  OrderCandidateDescriptor,
+  OrderRuleDescriptor,
+  OrderRuleShape,
+  PreparedTailwindOrder,
+  TailwindOrderSnapshot,
+} from './ordering.ts'
 export { preflightCss } from './preflight.ts'
 export {
   DEFAULT_CSS_FILES,
@@ -15,6 +22,7 @@ export { loadStaticProjectTheme, type StaticProjectTheme } from './static-projec
 export {
   loadClassOrder,
   loadTheme,
+  prepareTailwindOrder,
   type Theme,
   type ThemeColor,
   tailwindPackageDir,

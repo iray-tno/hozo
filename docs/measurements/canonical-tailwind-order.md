@@ -4,6 +4,51 @@ Tracking #1230; design [RFC 007](../rfcs/007-canonical-tailwind-order.md).
 The before source is main `99e9c03a61aaa80c86893fbea72c25df431f86ce`, not #1237.
 No production ordering changes are introduced by this reference layer.
 
+## Preparation boundary
+
+The next opt-in build-tool service, `prepareTailwindOrder` in `@hozo/tailwind`,
+retains original per-rule signatures and nested structure before any Hozo
+longhand expansion. Its immutable snapshot has context-local candidate/rule
+IDs, first-rule ranks explicitly separated from per-rule data, and a receipt
+covering Tailwind version, schema/policy, all stylesheet content and candidate
+universe. The read-only loader is reused without an entry-only persistent cache.
+Uncollected candidates require a new preparation; non-generated tokens remain
+explicit. Independent pinned reference descriptors check the complete corpus.
+
+Preparation is async; consumption is synchronous. No adapters or compiler
+emission paths call this service yet. This establishes the snapshot/lookup
+contract, not the unresolved project collect/prepare/emit integration, Rust IR
+unit identity, portable facts or shared comparator. It changes no winners,
+candidate refusals, runtime subscriptions or runtime payloads.
+
+For isolated CPU-1/Idle preparation measurements, run:
+
+```sh
+node scripts/tailwind-order-context-cost.mjs > artifacts/tailwind-order/context-cost.json
+```
+
+This opt-in probe keeps all seven fresh-design-system samples at 1/16/128/1024
+padding candidates, first preparation separately, source/theme fingerprints
+and JSON/gzip snapshot sizes. It is not a clock gate, a cold-Node benchmark,
+an app payload/IR-memory result or evidence of enabled-path zero overhead.
+The verbose snapshot is build-only; choosing a compact compiler/runtime
+encoding and measuring the enabled paths are still required before rollout.
+
+An initial Windows x64 / Node 25.9.0 / Tailwind 4.3.3 capture, serial on CPU 1
+at Idle, recorded medians of 48.50/15.02/23.83/126.17 ms for 1/16/128/1024
+candidates. First preparation was 81.55 ms after module imports. Samples were
+noisy: the 128-candidate maximum was 1691.60 ms and is retained, not discarded.
+These are isolated preparation observations, not compiler before/after results.
+Build-only snapshot JSON/gzip bytes were 694/445, 5187/714, 39293/2688 and
+316303/18566 respectively (absolute stylesheet paths affect these sizes).
+Raw evidence is `artifacts/tailwind-order/context-cost.json`, with source and
+theme hashes. No payload or performance budget is graduated from this one run.
+A final-source repeat (`context-cost-final.json`, including the defensive
+candidate-array capture) recorded 30.47/6.18/6.68/16.85 ms medians, 99.81 ms
+first preparation and identical byte sizes. Both captures are retained; the
+host spread is not a speedup claim. The large JSON representation is deliberately
+not the eventual compact IR/runtime ABI.
+
 ## Reviewed reference
 
 `packages/tailwind-conformance/src/tailwind-order-corpus.ts` is a small,

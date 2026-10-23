@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import test from 'node:test'
-import { orderCandidates, orderCases } from './tailwind-order-corpus.ts'
+import type { OrderRuleShape } from '../../tailwind/src/ordering.ts'
+import { prepareTailwindOrder, tailwindPackageDir } from '../../tailwind/src/theme.ts'
+import { ORDER_REFERENCE_EXTRA_CSS, orderCandidates, orderCases } from './tailwind-order-corpus.ts'
 import {
   formatOrderReference,
   orderSnapshotFile,
@@ -34,4 +37,39 @@ test('the corpus distinguishes original rule signatures from flattened property 
   const multi = descriptor('order-multi-rule')
   assert.equal(multi.length, 2, 'first-rule class rank must not replace the full descriptor')
   assert.notDeepEqual(multi[0].order, multi[1].order)
+})
+
+test('prepared project descriptors preserve every independently pinned reference rule', async () => {
+  const { snapshot } = await prepareOrderReference()
+  const input = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n${ORDER_REFERENCE_EXTRA_CSS}\n@tailwind utilities;`
+  const prepared = await prepareTailwindOrder(input, tailwindPackageDir(), orderCandidates)
+  assert.equal(prepared.snapshot.tailwindVersion, snapshot.tailwindVersion)
+  for (const expected of snapshot.descriptors) {
+    const actual = prepared.lookup(expected.candidate)!
+    assert.equal(actual.status, 'described')
+    const rules = actual.rules.map((rule) => {
+      const properties: string[] = [],
+        conditions: string[] = []
+      function visit(node: OrderRuleShape) {
+        if (node.kind === 'declaration') properties.push(node.property)
+        if (node.kind === 'at-rule') conditions.push(`${node.name} ${node.params}`)
+        if (node.kind === 'rule') conditions.push(node.selector)
+        if ('nodes' in node) for (const child of node.nodes) visit(child)
+      }
+      visit(rule.shape)
+      return { order: rule.propertyOrder, count: rule.declarationCount, properties, conditions }
+    })
+    assert.deepEqual(rules, expected.rules, expected.candidate)
+  }
+  const ranked = prepared.snapshot.candidates
+    .filter((entry) => entry.firstRuleRank !== null)
+    .toSorted((a, b) =>
+      BigInt(a.firstRuleRank!) < BigInt(b.firstRuleRank!)
+        ? -1
+        : BigInt(a.firstRuleRank!) > BigInt(b.firstRuleRank!)
+          ? 1
+          : 0,
+    )
+    .map((entry) => entry.candidate)
+  assert.deepEqual(ranked, snapshot.firstRuleClassOrder)
 })

@@ -207,6 +207,9 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/tailwind/src/theme.ts',
+    'packages/tailwind/src/ordering.ts',
+    'packages/tailwind/src/static-css.ts',
     'crates/hozo_parser/src/interaction_order.rs',
     'crates/hozo_parser/src/jsx.rs',
     'crates/hozo_parser/src/stylex.rs',
