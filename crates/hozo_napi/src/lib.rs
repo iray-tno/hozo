@@ -852,7 +852,8 @@ impl CandidateCache {
     /// stylesheet in a worse order rather than a missing rule. Omitted --
     /// which `@hozo/next` does while the config is still being evaluated,
     /// for the same reason it passes no theme there -- keeps the
-    /// alphabetical order.
+    /// deterministic default order, with assessed builtin spacing ties
+    /// corrected by the same generated keys as static lowering.
     #[napi]
     pub fn render_css(&self, theme: Option<JsTheme>, order: Option<Vec<String>>) -> String {
         let mut names = self.inner.union();
@@ -866,6 +867,8 @@ impl CandidateCache {
             // and go last, which is where Tailwind puts what it does not
             // recognise.
             names.sort_by_key(|name| rank.get(name.as_str()).copied().unwrap_or(usize::MAX));
+        } else {
+            hozo_parser::utility_order::order_candidates(&mut names);
         }
         hozo_web::render_candidate_stylesheet(&names, &to_theme(theme))
     }

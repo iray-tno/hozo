@@ -30,8 +30,12 @@ pub fn interaction_cascade_key(condition: &Condition) -> Option<u32> {
 }
 
 pub(crate) fn order_tailwind_interactions(declarations: &mut [StyleDeclaration]) {
-    for region in declarations.chunk_by_mut(|a, b| a.source == b.source) {
+    let utilities_assessed = !crate::utility_order::has_logical_barrier(declarations);
+    for region in declarations.chunk_by_mut(|a, b| a.source.same_input(&b.source)) {
         if !matches!(region[0].source, hozo_ir::StyleSource::Stylex(_)) {
+            if utilities_assessed {
+                crate::utility_order::order_region(region);
+            }
             order_region(region);
         }
     }

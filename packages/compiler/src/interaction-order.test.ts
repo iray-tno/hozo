@@ -15,7 +15,7 @@ const variants = [
   'active:bg-[#444444]',
 ]
 const compiler = createCompiler()
-const flatten = (style) => Object.assign({}, ...style.filter(Boolean))
+const flatten = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
 function props(source: string, inherited = false) {
   const component = compiler.compileNativeModule(source, undefined, undefined, {
     textInheritance: inherited,
@@ -35,6 +35,7 @@ function props(source: string, inherited = false) {
       module,
       children: null,
       HozoPressable: 'owner',
+      Pressable: 'owner',
       HozoInheritedPressable: 'owner',
       HozoChip: 'owner',
       remove: () => {},
@@ -45,6 +46,7 @@ function props(source: string, inherited = false) {
   return module.exports as {
     style: (state: object) => object[]
     hozoRemoveStyle: (state: object) => object[]
+    removeStyle: object
   }
 }
 function permutations<T>(values: T[]): T[][] {
@@ -220,4 +222,80 @@ test('separate StyleX inputs also preserve specificity before JSX ties', () => {
     flatten(control.style({ hovered: false, focused: true, pressed: true })).backgroundColor,
     '#445566',
   )
+})
+
+test('builtin spacing utility conflicts agree for literals, composed literals and Native candidate strings', () => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'hozo-utility-order-'))
+  try {
+    const cases = [
+      ['p-2 p-10', { paddingTop: 40, paddingRight: 40, paddingBottom: 40, paddingLeft: 40 }],
+      ['p-8 px-2 pt-1', { paddingTop: 4, paddingRight: 8, paddingBottom: 32, paddingLeft: 8 }],
+      ['px-8 pl-1', { paddingLeft: 4, paddingRight: 32 }],
+      ['m-8 mx-2 mt-1', { marginTop: 4, marginRight: 8, marginBottom: 32, marginLeft: 8 }],
+      ['gap-8 gap-x-2 gap-y-1', { gap: 32, columnGap: 8, rowGap: 4 }],
+      [
+        'p-[8px] p-[12px]',
+        { paddingTop: 12, paddingRight: 12, paddingBottom: 12, paddingLeft: 12 },
+      ],
+    ] as const
+    const cache = openCandidateCache(path.join(directory, 'cache.json'))
+    const stateCases = [
+      ['disabled:p-10 disabled:p-2', 40],
+      ['disabled:p-2 disabled:p-10', 40],
+      ['p-10 p-2 disabled:p-4', 16],
+    ] as const
+    cache.scanFile(
+      'all.ts',
+      JSON.stringify(
+        `${cases.map(([classes]) => classes).join(' ')} hover:p-10 hover:p-2 ${stateCases.map(([classes]) => classes).join(' ')}`,
+      ),
+      1,
+    )
+    const module = { exports: {} }
+    new Function(
+      'require',
+      'module',
+      transformSync(cache.renderNativeModule(), { format: 'cjs' }).code,
+    )(() => ({ createClassResolver }), module)
+    const resolve = (module.exports as { hozoClasses: ReturnType<typeof createClassResolver> })
+      .hozoClasses
+    for (const [classes, expected] of cases)
+      for (const tokens of permutations(classes.split(' '))) {
+        for (const expression of [
+          JSON.stringify(tokens.join(' ')),
+          `cx(${tokens.map((t) => JSON.stringify(t)).join(',')})`,
+        ]) {
+          const source = `import {Button,cx} from '@hozo/core';export const Scene=({children})=><Button className={${expression}}>{children}</Button>`
+          const style = props(source).style
+          const actual = flatten(typeof style === 'function' ? style({}) : [style])
+          for (const [key, value] of Object.entries(expected))
+            assert.equal(actual[key], value, `${tokens}/${key}`)
+        }
+        const actual = flatten(resolve(tokens.join(' ')))
+        for (const [key, value] of Object.entries(expected))
+          assert.equal(actual[key], value, `fallback ${tokens}/${key}`)
+      }
+    const source = `import {Button} from '@hozo/core';export const Scene=({children})=><Button className="hover:p-10 hover:p-2">{children}</Button>`
+    assert.equal(flatten(props(source).style({ hovered: true })).paddingTop, 40)
+    assert.equal(flatten(resolve('hover:p-10 hover:p-2', { hovered: true })).paddingTop, 40)
+    const secondary = props(
+      `import {Chip} from '@hozo/core';export const Scene=({children})=><Chip onRemove={remove} removeClassName="pl-1 px-8">{children}</Chip>`,
+    ).removeStyle
+    const secondaryStyle = flatten(secondary)
+    assert.equal(secondaryStyle.paddingLeft, 4)
+    assert.equal(secondaryStyle.paddingRight, 32)
+    for (const [classes, expected] of stateCases) {
+      const source = `import {Button} from '@hozo/core';export const Scene=({children})=><Button disabled className="${classes}">{children}</Button>`
+      const style = props(source).style
+      const actual = flatten(typeof style === 'function' ? style({ pressed: true }) : style)
+      assert.equal(actual.paddingTop, expected, `static ${classes}`)
+      assert.equal(
+        flatten(resolve(classes, { disabled: true, pressed: true })).paddingTop,
+        expected,
+        `fallback ${classes}`,
+      )
+    }
+  } finally {
+    rmSync(directory, { recursive: true, force: true })
+  }
 })

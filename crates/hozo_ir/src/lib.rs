@@ -1627,12 +1627,51 @@ pub struct StyleDeclaration {
 /// orders utilities within its class list; StyleX resolves atomic priority
 /// within its props call. Neither may reorder the other's declarations.
 /// The ID is the JSX attribute's source offset, never emitted at runtime.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum StyleSource {
     #[default]
     Unspecified,
-    Tailwind(u32),
+    Tailwind {
+        input: u32,
+        utility: Option<std::sync::Arc<UtilityCascade>>,
+    },
     Stylex(u32),
+}
+
+/// Compile-time provenance only. Shared by all longhands expanded from one
+/// utility, so a shorthand is ordered as one authored utility, not four rules.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UtilityCascade {
+    pub property_order: u16,
+    pub candidate: Box<str>,
+    /// Both inline edges receive the same value (px/mx), so Native may
+    /// lower this direction-neutral pair to horizontal physical edges.
+    pub physical_axis: bool,
+}
+
+impl StyleSource {
+    pub fn same_input(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Unspecified, Self::Unspecified) => true,
+            (Self::Tailwind { input: a, .. }, Self::Tailwind { input: b, .. }) => a == b,
+            (Self::Stylex(a), Self::Stylex(b)) => a == b,
+            _ => false,
+        }
+    }
+
+    pub fn set_tailwind_input(&mut self, input: u32) {
+        if let Self::Tailwind {
+            input: original, ..
+        } = self
+        {
+            *original = input;
+        } else {
+            *self = Self::Tailwind {
+                input,
+                utility: None,
+            };
+        }
+    }
 }
 
 /// Universal Style Subset (proposal §6.3), Phase 0 scope only.
@@ -5293,8 +5332,8 @@ pub fn group_by_condition(
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
         // backwards across that rule, losing JSX tie order.
-        if source != Some(decl.source) {
-            source = Some(decl.source);
+        if !source.is_some_and(|source: &StyleSource| source.same_input(&decl.source)) {
+            source = Some(&decl.source);
             start = groups.len();
         }
         match groups[start..]
@@ -5571,8 +5610,22 @@ mod grouping_tests {
             property: StyleProperty::Opacity(value),
         };
         let styles = [
-            declaration(Condition::Focus, StyleSource::Tailwind(10), 0.1),
-            declaration(Condition::Pressed, StyleSource::Tailwind(10), 0.2),
+            declaration(
+                Condition::Focus,
+                StyleSource::Tailwind {
+                    input: 10,
+                    utility: None,
+                },
+                0.1,
+            ),
+            declaration(
+                Condition::Pressed,
+                StyleSource::Tailwind {
+                    input: 10,
+                    utility: None,
+                },
+                0.2,
+            ),
             declaration(Condition::Focus, StyleSource::Stylex(30), 0.3),
         ];
         let groups = group_by_condition(&styles);
@@ -5586,7 +5639,10 @@ mod grouping_tests {
         let styles = [
             declaration(
                 Condition::All(vec![Condition::Hover, Condition::Focus]),
-                StyleSource::Tailwind(10),
+                StyleSource::Tailwind {
+                    input: 10,
+                    utility: None,
+                },
                 0.1,
             ),
             declaration(Condition::Pressed, StyleSource::Stylex(30), 0.2),

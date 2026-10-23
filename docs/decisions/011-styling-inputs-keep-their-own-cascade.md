@@ -69,6 +69,12 @@ runtime provenance/sorting mechanism.
 
 ## Evidence
 
+The [builtin spacing follow-up](../measurements/tailwind-utility-cascade.md)
+adds shared utility keys inside one Tailwind input/condition. Input identity
+does not include the utility key; class-source boundaries and StyleX priority
+therefore remain unchanged. This is a bounded first utility domain, not a
+universal sort across expression guards or logical/physical aliases.
+
 - `crates/hozo_ir/src/lib.rs`: source-aware `group_by_condition` regression
   keeps focus/active/later-focus apart and checks conjunction specificity.
 - `packages/compiler/src/interaction-order.test.ts`: all 16 owner-state

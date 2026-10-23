@@ -13,9 +13,11 @@
 // showing at once.
 
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
+import { fileURLToPath } from 'node:url'
 
 import { compile } from 'tailwindcss'
 
@@ -94,6 +96,13 @@ test('generated owner-state order uses the same Tailwind ordering API as candida
   assert.equal(names.length, 4)
   assert.deepEqual(names, await loadClassOrder(CSS, tailwindPackageDir(), [...names].reverse()))
   assert.deepEqual(names, await tailwindOrder([...names].reverse()))
+})
+
+test('generated builtin spacing signatures stay identical to the installed Tailwind engine', () => {
+  execFileSync(process.execPath, [
+    fileURLToPath(new URL('../../../scripts/generate-tailwind-utility-order.mjs', import.meta.url)),
+    '--check',
+  ])
 })
 
 test('the breakpoints end up ascending, which is the case that broke', async () => {

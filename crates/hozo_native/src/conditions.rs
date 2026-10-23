@@ -220,7 +220,7 @@ fn with_dark_copies(
             continue;
         }
         out.push(StyleDeclaration {
-            source: declaration.source,
+            source: declaration.source.clone(),
             property: declaration.property.clone(),
             condition: declaration.condition.and_dark(),
         });
@@ -276,6 +276,22 @@ pub(super) fn build_style_entries(
 
     // Before anything reads them: a paired token becomes a second
     // declaration, so everything below treats it as an ordinary condition.
+    // Yoga gives logical edges fixed priority over physical ones. A px/mx
+    // pair has equal start/end values, so horizontalizing that pair lets
+    // ordinary RN last-wins represent the CSS shorthand/side cascade in RTL
+    // as well as LTR. Individual ps/ms/pe/me edges remain unmodeled here.
+    let opaque = !node.class_name_fallback.is_empty()
+        || node
+            .props
+            .class_slots
+            .iter()
+            .any(|slot| !slot.fallback.is_empty());
+    let physical = if opaque {
+        std::borrow::Cow::Borrowed(declarations)
+    } else {
+        crate::spacing::declarations(declarations)
+    };
+    let declarations = physical.as_ref();
     let with_dark = with_dark_copies(declarations, theme);
     let declarations: &[StyleDeclaration] = match &with_dark {
         Some(expanded) => expanded,
@@ -302,7 +318,7 @@ pub(super) fn build_style_entries(
     let mut state_parts: Vec<String> = Vec::new();
     let mut used_names = declarations
         .windows(2)
-        .any(|pair| pair[0].source != pair[1].source)
+        .any(|pair| !pair[0].source.same_input(&pair[1].source))
         .then(std::collections::HashSet::new);
 
     for (condition, props) in hozo_ir::group_by_condition(declarations) {

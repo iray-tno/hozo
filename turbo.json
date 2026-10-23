@@ -46,7 +46,12 @@
     },
     "@hozo/tailwind#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_utility_order.rs",
+        "$TURBO_ROOT$/scripts/generate-tailwind-utility-order.mjs"
+      ]
     },
     "@hozo/tailwind-conformance#test": {
       "dependsOn": ["^build"],
@@ -56,12 +61,16 @@
         "$TURBO_ROOT$/crates/hozo_napi/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/interaction_order.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/utility_order.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/utility_order/candidates.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_utility_order.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/jsx.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/stylex.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/text_regions.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/conditions.rs",
+        "$TURBO_ROOT$/crates/hozo_native/src/spacing.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/text_region.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/style.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/render.rs",
@@ -145,12 +154,16 @@
         "$TURBO_ROOT$/crates/hozo_napi/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/interaction_order.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/utility_order.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/utility_order/candidates.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_utility_order.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/jsx.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/stylex.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/text_regions.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/conditions.rs",
+        "$TURBO_ROOT$/crates/hozo_native/src/spacing.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/text_region.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/style.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/render.rs",

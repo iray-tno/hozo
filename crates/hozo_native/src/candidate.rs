@@ -20,9 +20,9 @@ use super::*;
 /// (`@hozo/engine`'s `createClassResolver`). What makes that enough,
 /// where `react-native-css` needs a full reactive engine with specificity
 /// sorting, is that Hozo only ever puts *single utility classes* in here.
-/// They're all the same specificity, so "later in the string wins" is the
-/// whole cascade -- which is exactly what React Native's own style-array
-/// merging already does.
+/// Most unresolved domains retain authored order. For assessed utility ties
+/// and owner-interaction conditions, build-time ranks normalize the cached
+/// array order; React Native still performs the actual style-array merging.
 ///
 /// Conditional utilities under a breakpoint or `dark:` are the price. A
 /// style object can't express them, and making it able to would mean
@@ -49,8 +49,32 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
     let mut states: Vec<(&String, Vec<StateGroup>)> = Vec::new();
     let mut transforms = Vec::new();
     for name in class_names {
-        let Some(utility) = hozo_parser::resolve_class_name(name) else {
+        let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
             continue;
+        };
+        let paired_axis =
+            hozo_parser::utility_order::key(name).is_some_and(|key| key.physical_axis);
+        if paired_axis {
+            for (_, properties) in &mut utility.groups {
+                for property in properties {
+                    if let Some(physical) = crate::spacing::physical_pair(property) {
+                        *property = physical;
+                    }
+                }
+            }
+        }
+        let clear_axis = |pairs: &mut Vec<(String, String)>| {
+            if paired_axis {
+                // Clear logical edges supplied by an earlier class/owner.
+                // RN otherwise gives those fixed priority over physical sides.
+                let family = if pairs.iter().any(|(name, _)| name.starts_with("padding")) {
+                    "padding"
+                } else {
+                    "margin"
+                };
+                pairs.push((format!("{family}Start"), "undefined".to_string()));
+                pairs.push((format!("{family}End"), "undefined".to_string()));
+            }
         };
         // Any conditional group disqualifies the class, which is what
         // makes `container` land here: its max-widths are per-breakpoint.
@@ -62,7 +86,10 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
             // A state of the element itself is the exception (#886): the
             // pressable rendering it already tracks that state and hands it
             // to the resolver, so nothing here has to.
-            if let Some(groups) = state_groups(&utility.groups, theme) {
+            if let Some(mut groups) = state_groups(&utility.groups, theme) {
+                for group in &mut groups {
+                    clear_axis(&mut group.pairs);
+                }
                 states.push((name, groups));
                 continue;
             }
@@ -85,13 +112,14 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
         // iteration -- a style key can now borrow from the property it
         // came from (an arbitrary property's name is the author's text,
         // not a literal in this binary).
-        let pairs: Vec<(String, String)> = style_pairs(&properties, theme)
+        let mut pairs: Vec<(String, String)> = style_pairs(&properties, theme)
             .into_iter()
             .map(|(key, value)| (key.to_string(), value))
             .collect();
         if pairs.is_empty() {
             continue;
         }
+        clear_axis(&mut pairs);
         if let Some(metadata) = crate::transforms::metadata(&properties, theme) {
             transforms.push((name, metadata));
         }
@@ -138,7 +166,7 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
     out.push_str("}\n\n");
     // Only when there are any, so a project without state classes keeps the
     // module it had.
-    let states_argument = if states.is_empty() {
+    let mut states_argument = if states.is_empty() {
         ""
     } else {
         out.push_str("const states = {\n");
@@ -167,7 +195,59 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
         } else {
             ", states"
         }
+    }
+    .to_string();
+    let spacing_pair = |(name, _): &(String, String)| {
+        name.starts_with("padding")
+            || name.starts_with("margin")
+            || matches!(name.as_str(), "gap" | "rowGap" | "columnGap")
     };
+    let mut utility_order = hozo_parser::utility_order::ranks(
+        supported
+            .iter()
+            .filter(|(_, pairs)| pairs.iter().any(spacing_pair))
+            .map(|(name, _)| (name.as_str(), true))
+            .chain(
+                states
+                    .iter()
+                    .filter(|(_, groups)| groups.iter().any(|g| g.pairs.iter().any(spacing_pair)))
+                    .map(|(name, groups)| (name.as_str(), groups.len() == 1)),
+            ),
+    );
+    // No conflict is possible with fewer than two modeled candidates.
+    if utility_order
+        .iter()
+        .filter(|(_, rank)| rank.is_some())
+        .count()
+        < 2
+    {
+        utility_order.clear();
+    }
+    if !utility_order.is_empty() {
+        out.push_str("const utilityOrder = {\n");
+        for (name, rank) in &utility_order {
+            out.push_str(&format!(
+                "  {}: {},\n",
+                quote(name),
+                rank.map(|n| n.to_string())
+                    .unwrap_or_else(|| "null".to_string())
+            ));
+        }
+        out.push_str("}\n\n");
+        states_argument = format!(
+            ", {}, {}, utilityOrder",
+            if states.is_empty() {
+                "undefined"
+            } else {
+                "states"
+            },
+            if ambient {
+                "{ rtl: I18nManager.isRTL, ltr: !I18nManager.isRTL }"
+            } else {
+                "undefined"
+            }
+        );
+    }
     if needs_transform_slots {
         out.push_str("const transforms = new Map([\n");
         for (name, metadata) in transforms {
@@ -190,7 +270,7 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
         // class strings. Skip composition unless this particular list needs
         // it; the resolver continues to cache its unconditional result.
         out.push_str(&format!("])\n\nexport const hozoClasses = createClassResolver(styles, unsupported, resolved => resolved.some(style => transforms.has(style)) ? hozoTransformStyles(resolved, transforms) : resolved{states_argument})\n"));
-    } else if states.is_empty() {
+    } else if states.is_empty() && utility_order.is_empty() {
         out.push_str("export const hozoClasses = createClassResolver(styles, unsupported)\n");
     } else {
         out.push_str(&format!("export const hozoClasses = createClassResolver(styles, unsupported, undefined{states_argument})\n"));
@@ -620,9 +700,11 @@ mod tests {
             "{module}"
         );
         assert!(
-            module.contains("createClassResolver(styles, unsupported, undefined, states)"),
+            module.contains("createClassResolver(styles, unsupported, undefined, states, undefined, utilityOrder)"),
             "{module}"
         );
+        assert!(module.contains(r#""aria-pressed:p-4": 0"#), "{module}");
+        assert!(module.contains(r#""hover:active:p-8": 1"#), "{module}");
     }
 
     /// A direction is fixed for the run, so the module reads it once and the

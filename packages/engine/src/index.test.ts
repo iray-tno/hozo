@@ -3,6 +3,38 @@ import { mock, test } from 'node:test'
 import type { StateGroup } from './class-resolver.ts'
 import { createClassResolver } from './index.ts'
 
+test('utility rank is cache-fill work and unknown overlapping classes retain order', () => {
+  let reads = 0
+  const order = new Proxy(
+    { small: 0, large: 1, axis: 2, unknown: null } as Record<string, number | null>,
+    {
+      get(target, key: string) {
+        reads++
+        return target[key]
+      },
+    },
+  )
+  const resolve = createClassResolver(
+    {
+      small: { paddingLeft: 8 },
+      large: { paddingLeft: 40 },
+      axis: { paddingLeft: 4 },
+      unknown: { paddingLeft: 100 },
+    },
+    {},
+    undefined,
+    {},
+    {},
+    order,
+  )
+  assert.equal(resolve('large small').at(-1)?.paddingLeft, 40)
+  const before = reads
+  for (let i = 0; i < 30; i++) assert.equal(resolve('large small').at(-1)?.paddingLeft, 40)
+  assert.equal(reads, before)
+  assert.equal(resolve('axis large small').at(-1)?.paddingLeft, 4)
+  assert.equal(resolve('large unknown small').at(-1)?.paddingLeft, 8)
+})
+
 test('build-time owner-state rank is consumed once per cache entry, with tie and warning provenance intact', () => {
   let reads = 0
   const ranked = (keys: string[], color: string, order: number): StateGroup => {
@@ -46,6 +78,41 @@ test('build-time owner-state rank is consumed once per cache entry, with tie and
   }
 })
 
+test('utility order separates conditions and base barriers while retaining logical boundaries', () => {
+  const resolve = createClassResolver(
+    { small: { paddingTop: 8 }, large: { paddingTop: 40 } },
+    {},
+    undefined,
+    {
+      disabledLarge: [[['disabled'], { paddingTop: 40 }]],
+      disabledSmall: [[['disabled'], { paddingTop: 8 }]],
+      active: [[['pressed'], { paddingTop: 16 }]],
+      activeOpacity: [[['pressed'], { opacity: 0.5 }]],
+      unknown: [[['hovered'], { paddingTop: 12 }]],
+      logical: [[['hovered'], { paddingStart: 12 }]],
+    },
+    {},
+    {
+      small: 0,
+      large: 1,
+      disabledSmall: 2,
+      disabledLarge: 3,
+      active: 4,
+      unknown: null,
+      logical: null,
+    },
+  )
+  const state = { disabled: true, pressed: true, hovered: false }
+  assert.equal(resolve('disabledLarge disabledSmall', state).at(-1)?.paddingTop, 40)
+  assert.equal(resolve('disabledLarge active disabledSmall', state).at(-1)?.paddingTop, 40)
+  assert.equal(
+    resolve('activeOpacity disabledLarge active disabledSmall', state).at(-1)?.paddingTop,
+    40,
+  )
+  assert.equal(resolve('large small unknown', state).at(-1)?.paddingTop, 40)
+  assert.equal(resolve('large small logical', state).at(-1)?.paddingTop, 8)
+})
+
 const STYLES = {
   'p-4': { paddingTop: 16, paddingRight: 16, paddingBottom: 16, paddingLeft: 16 },
   'bg-blue-500': { backgroundColor: '#3b82f6' },
@@ -57,10 +124,9 @@ test('resolves each class in the string, in order', () => {
   assert.deepEqual(cx('p-4 bg-blue-500'), [STYLES['p-4'], STYLES['bg-blue-500']])
 })
 
-test('keeps source order so React Native resolves conflicts last-wins', () => {
-  // The whole reason this can be a lookup rather than a cascade engine:
-  // every utility has the same specificity, so the array order *is* the
-  // cascade, and RN already merges style arrays last-wins.
+test('legacy candidate maps without ordering metadata retain authored last-wins', () => {
+  // Generated maps can now supply assessed ranks, without changing the ABI
+  // of legacy callers that intentionally pass only a name-to-style lookup.
   const cx = createClassResolver(STYLES)
   assert.deepEqual(cx('p-8 p-4').at(-1), STYLES['p-4'])
   assert.deepEqual(cx('p-4 p-8').at(-1), STYLES['p-8'])

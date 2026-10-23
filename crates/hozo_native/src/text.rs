@@ -382,7 +382,7 @@ pub(super) fn fold_font_relative(
                 _ => return declaration.clone(),
             };
             StyleDeclaration {
-                source: declaration.source,
+                source: declaration.source.clone(),
                 property,
                 condition: declaration.condition.clone(),
             }
@@ -426,7 +426,7 @@ pub(super) fn fold_font_relative(
                 Condition::all(vec![leading.condition.clone(), font.condition.clone()])
             };
             folded.push(StyleDeclaration {
-                source: leading.source,
+                source: leading.source.clone(),
                 property: StyleProperty::LineHeight(hozo_ir::LineHeight::Length(Length::Px(
                     size * ratio,
                 ))),

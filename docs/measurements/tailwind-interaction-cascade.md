@@ -57,6 +57,10 @@ zero compiler-time overhead or an overall speedup.
 
 ## Still open
 
+The [spacing utility correction](tailwind-utility-cascade.md) now assesses
+same-condition builtin padding/margin/gap conflicts across static output and
+candidate resolution. Other utility ties remain, not just variant ordering.
+
 The source-provenance follow-up removes the mixed-StyleX blanket exemption:
 each input now retains its own order, grouping cannot merge a later input
 backwards, and bounded owner conditions compose by specificity then JSX order.

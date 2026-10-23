@@ -128,8 +128,9 @@ pnpm test                                   # from the repository root
 ```
 
 Rust is formatted by rustfmt with its defaults, and CI's `lint` job fails on
-any difference, as it does for Biome. The three generated modules
-(`hozo_ir::class_slots`, `hozo_parser::aria`, `hozo_parser::tailwind_variants`)
+any difference, as it does for Biome. The generated modules
+(`hozo_ir::class_slots`, `hozo_parser::aria`, `hozo_parser::tailwind_variants`,
+`hozo_parser::tailwind_utility_order`)
 are `#[rustfmt::skip]`: regenerating them must not produce a diff (the
 style-slots test compares `class_slots.rs` byte for byte), so the generator
 decides the layout. Change the generator, not the file.

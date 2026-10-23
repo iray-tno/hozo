@@ -1294,12 +1294,13 @@ fn build_node(
                                     span: to_span(literal.span()),
                                 });
                             }
+                            let class_source = crate::utility_order::source(attr.span.start, token);
                             for (condition, properties) in groups {
                                 for property in properties {
                                     style.push(StyleDeclaration {
                                         property,
                                         condition: condition.clone(),
-                                        source: hozo_ir::StyleSource::Tailwind(attr.span.start),
+                                        source: class_source.clone(),
                                     });
                                 }
                             }
@@ -1340,7 +1341,7 @@ fn build_node(
                             }
                         }
                         style.extend(decomposed.declarations.into_iter().map(|mut declaration| {
-                            declaration.source = hozo_ir::StyleSource::Tailwind(attr.span.start);
+                            declaration.source.set_tailwind_input(attr.span.start);
                             declaration
                         }));
                         class_name_fallback.extend(decomposed.fallback);
@@ -1381,11 +1382,12 @@ fn build_node(
                         tailwind::expand_class(token)
                     };
                     let before = style.len();
+                    let class_source = crate::utility_order::source(attr.span.start, token);
                     for (condition, properties) in groups {
                         style.extend(properties.into_iter().map(|property| StyleDeclaration {
                             property,
                             condition: condition.clone(),
-                            source: hozo_ir::StyleSource::Tailwind(attr.span.start),
+                            source: class_source.clone(),
                         }));
                     }
                     if style.len() == before {
@@ -2216,7 +2218,7 @@ fn build_node(
     crate::interaction_order::order_tailwind_interactions(&mut style);
     for slot in &mut props.class_slots {
         for declaration in &mut slot.style {
-            declaration.source = hozo_ir::StyleSource::Tailwind(slot.span.start);
+            declaration.source.set_tailwind_input(slot.span.start);
         }
         crate::interaction_order::order_tailwind_interactions(&mut slot.style);
     }

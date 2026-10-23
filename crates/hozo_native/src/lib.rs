@@ -63,6 +63,7 @@ mod pattern;
 mod pattern_layout;
 mod render;
 mod runtime_classes;
+mod spacing;
 mod spread_style;
 mod style;
 mod text;
@@ -642,7 +643,7 @@ fn subtree_for_children(
         }
         let condition = Condition::all(before.into_iter().chain(after).collect());
         let rewritten = StyleDeclaration {
-            source: declaration.source,
+            source: declaration.source.clone(),
             property: declaration.property.clone(),
             condition,
         };
@@ -681,7 +682,7 @@ fn lower_inline_flex(mut declarations: Vec<StyleDeclaration>) -> Vec<StyleDeclar
             })
         })
         .map(|(_, declaration)| StyleDeclaration {
-            source: declaration.source,
+            source: declaration.source.clone(),
             property: StyleProperty::AlignSelf(AlignSelf::Start),
             condition: declaration.condition.clone(),
         })

@@ -404,6 +404,95 @@ after(async () => {
   rmSync(directory, { recursive: true, force: true })
 })
 
+test('builtin spacing conflicts match Tailwind for both class orders, targets and writing directions', {
+  skip: !executablePath,
+}, async () => {
+  const cases = [
+    ['p-10 p-2', ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']],
+    ['p-8 px-2 pt-1', ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']],
+    ['px-8 pl-1', ['paddingRight', 'paddingLeft']],
+    ['m-8 mx-2 mt-1', ['marginTop', 'marginRight', 'marginBottom', 'marginLeft']],
+    ['gap-8 gap-x-2 gap-y-1', ['rowGap', 'columnGap']],
+    ['p-[12px] p-[8px]', ['paddingTop']],
+    ['p-0 hover:p-10 hover:p-2', ['paddingTop']],
+  ]
+  const classes = cases.map(([names]) => names).join(' ')
+  const css = (await compile('@theme {--spacing:.25rem;} @tailwind utilities;')).build(
+    classes.split(' '),
+  )
+  const cache = openCandidateCache(path.join(directory, 'spacing-cache.json'))
+  cache.scanFile('all.ts', JSON.stringify(classes), 1)
+  const fallbackCss = cache.renderCss()
+  const { hozoClasses } = evaluate(cache.renderNativeModule().replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  })
+  const oracle = await browser.newPage(),
+    actual = await browser.newPage(),
+    fallback = await browser.newPage()
+  try {
+    for (const [original, properties] of cases)
+      for (const dir of ['ltr', 'rtl'])
+        for (const names of [original, original.split(' ').reverse().join(' ')]) {
+          const source = `import {Button} from '@hozo/core'; const el=<Button className="${names}">Label</Button>`
+          const web = compiler.compile(source)[0],
+            native = compiler.compileNative(source)[0]
+          const nativeProps = evaluate(
+            `const hozoStyles=${native.styles};module.exports=(${native.jsx})`,
+            {
+              Pressable: 'owner',
+              HozoPressable: 'owner',
+              Text: 'text',
+              h: (_type, props) => props,
+            },
+          )
+          const html = renderToStaticMarkup(
+            evaluate(`module.exports=(${web.jsx})`, { h: createElement }),
+          )
+          await oracle.setContent(
+            `<html dir="${dir}"><style>${css}</style><button class="${names}">Label</button></html>`,
+          )
+          await actual.setContent(`<html dir="${dir}"><style>${web.css}</style>${html}</html>`)
+          await fallback.setContent(
+            `<html dir="${dir}"><style>${fallbackCss}</style><button class="${names}">Label</button></html>`,
+          )
+          const hovered = names.includes('hover:')
+          if (hovered) for (const p of [oracle, actual, fallback]) await p.locator('button').hover()
+          const read = async (p) =>
+            p
+              .locator('button')
+              .evaluate(
+                (e, keys) =>
+                  Object.fromEntries(
+                    keys.map((key) => [key, Number.parseFloat(getComputedStyle(e)[key])]),
+                  ),
+                properties,
+              )
+          const expected = await read(oracle)
+          assert.deepEqual(await read(actual), expected, `compiled ${dir}/${names}`)
+          assert.deepEqual(await read(fallback), expected, `candidate CSS ${dir}/${names}`)
+          for (const raw of [
+            typeof nativeProps.style === 'function'
+              ? nativeProps.style({ hovered })
+              : nativeProps.style,
+            hozoClasses(names, { hovered }),
+          ]) {
+            const style = Object.assign({}, ...[raw].flat(Infinity).filter(Boolean))
+            const selected = Object.fromEntries(
+              properties.map((key) => [
+                key,
+                style[key] ?? (key === 'rowGap' || key === 'columnGap' ? style.gap : undefined),
+              ]),
+            )
+            assert.deepEqual(selected, expected, `Native target ${dir}/${names}`)
+          }
+        }
+  } finally {
+    await oracle.close()
+    await actual.close()
+    await fallback.close()
+  }
+})
+
 test('mixed StyleX/Tailwind inputs match independently ordered source sheets on both targets', {
   skip: !executablePath,
 }, async () => {

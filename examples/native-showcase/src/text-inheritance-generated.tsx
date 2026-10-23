@@ -55,13 +55,19 @@ export const textFixtureManifest = {
       'packages/metro/src/transform.ts':
         'b6f44821efcbc7c67d020786378e87c9e5f80d8fa867eb21eb9a9939a6a5a2b5',
       'crates/hozo_napi/src/lib.rs':
-        '73cc7ff89e8fdb5396dd57d576506f109a839ce35bdbf49a6c70b57d830c2a14',
+        '9c26895993d5bff0ff10e2e096ecc1764c94b87e5ac92d5b4972f6b20dc7356f',
       'crates/hozo_parser/src/lib.rs':
-        '88381b9419b564f5623c94bcdd9e91337d672940683a1dc0312d5b84691b9605',
+        '5ea984e752fd7ef014c8920e2176483487ee3bbed1bb104952745ada01db5d05',
       'crates/hozo_parser/src/interaction_order.rs':
-        '575a730f2125585f79678ee3e687627727c377c65a0587ca5a759e27c27f90b0',
+        '4387a039076c8761c2e9c9a8356260106f5533272b69a467e67d54ffbbb3e6fb',
+      'crates/hozo_parser/src/utility_order.rs':
+        'd008bb08e6101ffd9c367fd72a8b1376e17dbb0f2468e0179182d70afbb7f039',
+      'crates/hozo_parser/src/utility_order/candidates.rs':
+        '3e31efbec89ed2644278aefa83d2114dffb681198c175ab7b6172b78b9f93b82',
+      'crates/hozo_parser/src/tailwind_utility_order.rs':
+        '4f2d477e82d21aac5814ca4a6c34df7ae3918b5f8259f2206648acabd8ec671f',
       'crates/hozo_parser/src/jsx.rs':
-        '94a55a6d333a47914c2682e2335ca5db966e83e1f1ebee38145a06df493efe44',
+        'a14e01fba0cddf565b273a5dfcaf0f6f0e5e43d89ed7db94c06d0cd90943065d',
       'crates/hozo_parser/src/stylex.rs':
         '834c8bc811199082cbfd219275ccda28a5f72329733c5e86e07d2be9dc16c8be',
       'crates/hozo_parser/src/tailwind_variants.rs':
@@ -69,19 +75,21 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        'cf8044e7384c0828e8d2212c1c6143af1e2759447c28fbb14f29af3ae4688364',
+        '212b7954c58547699afc97961c51b7696dfc1d007ee7a2d8bf39b4c846ca8f87',
       'crates/hozo_native/src/conditions.rs':
-        '77672fa49e6b5da8d84ad8b00c02a41fb54115f565f12f0f4a6ddc9fc450456c',
+        '4c1c9b071e8a2f242c85f161f29072964ac16347790615b99b62412617854f75',
+      'crates/hozo_native/src/spacing.rs':
+        '454a48ee0615d89ea13638a783e4d4615c722e94de5acce0ca261bd042abfa6e',
       'crates/hozo_native/src/text_region.rs':
         'e96164a49b5ff358081a0f222a3739231c30394e2a47ab6573e1220a2381adb4',
       'crates/hozo_native/src/style.rs':
         '366bf2ecafb83f915bf06cd83a6f7938aa81e362ab46a1569c32d2caeb73e4c8',
       'crates/hozo_native/src/render.rs':
-        'b0b23c738884bc4b9021ed148090c7d17261ab47ee01288999bc9b2ad2ecd6b0',
+        'a49e831c2225295ceb0d90d5a52c4bd7be47c62f8ec16d2916f7d59040e5f33e',
       'crates/hozo_native/src/text.rs':
-        '1278fccfe4d6441a6ed9bc6e742fec388a7d2893ec69cb1e3da6f30559d16e99',
+        'd31dcfadd97dbe6d79986995264188f6f363abda6f3f2074cce346438240468c',
       'crates/hozo_ir/src/lib.rs':
-        '713812635d753ea0c25ccae87074af7bc1307687e9692f3bce03514acb9f389d',
+        '1f90f3a7949b9325aa9d0bbadc6029414102e820b0cd99699e7b598a76c86cf5',
     },
   },
   proofSha256: 'bd200723fe8c7f94c7fc318db95e2be6e2db28fc00886420727a45c671cb52db',

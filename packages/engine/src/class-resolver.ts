@@ -74,6 +74,11 @@ interface Resolved {
  * them alone is decided once, when its string is first resolved, and then
  * cached like an unconditional one -- after the unconditional ones, which is
  * where Tailwind puts a variant too.
+ *
+ * `utilityOrder` is optional build-time metadata for assessed spacing ties.
+ * Numeric keys order utilities within an identical condition on cache fill;
+ * null marks an overlapping unassessed utility. It is not a runtime parser,
+ * nor a priority rule for different unranked conditions.
  */
 export function createClassResolver(
   styles: Record<string, StyleObject>,
@@ -81,6 +86,7 @@ export function createClassResolver(
   compose?: (styles: StyleObject[]) => StyleObject[],
   states: Record<string, readonly StateGroup[]> = {},
   ambient: ClassState = {},
+  utilityOrder?: Readonly<Record<string, number | null>>,
 ): ClassResolver {
   const isAmbient = (key: string) => Object.hasOwn(ambient, key)
   // Class strings repeat constantly across renders and list items, and the
@@ -102,7 +108,58 @@ export function createClassResolver(
     const groupClasses: string[] = []
     const stateClasses: string[] = []
     const decided: StyleObject[] = []
-    for (const name of value.split(/\s+/)) {
+    const names = value.split(/\s+/)
+    // Generated utility keys, consumed only on a cache miss. Unmodeled
+    // overlapping spacing is a barrier, not a value to place first or last.
+    if (utilityOrder) {
+      const rank = (name: string) =>
+        Object.hasOwn(utilityOrder, name) ? utilityOrder[name] : undefined
+      const logicalBarrier = names.some((name) => {
+        if (rank(name) !== null) return false
+        const objects = styles[name]
+          ? [styles[name]!]
+          : (states[name]?.map((group) => group[1]) ?? [])
+        return objects.some((style) =>
+          Object.keys(style).some((key) => /^(padding|margin)(Start|End)$/.test(key)),
+        )
+      })
+      if (!logicalBarrier) {
+        // Base and state are already separate composition tiers. Only utility
+        // ties inside an identical condition are ordered; this does not invent
+        // priority for different unranked states.
+        for (const domain of [styles, states]) {
+          const eligible = (name: string) => Object.hasOwn(domain, name)
+          if (
+            domain === states &&
+            names.some((name) => eligible(name) && states[name]!.length !== 1)
+          )
+            continue
+          const regions = new Map<string, number[]>()
+          for (const [index, name] of names.entries()) {
+            if (!eligible(name) || rank(name) === undefined) continue
+            const condition = domain === states ? JSON.stringify(states[name]![0]![0]) : ''
+            if (!regions.has(condition)) regions.set(condition, [])
+            regions.get(condition)!.push(index)
+          }
+          for (const positions of regions.values()) {
+            if (positions.some((index) => rank(names[index]!) === null)) continue
+            if (
+              positions.some(
+                (index, i) => i > 0 && rank(names[positions[i - 1]!]!)! > rank(names[index]!)!,
+              )
+            ) {
+              const sorted = positions
+                .map((index) => names[index]!)
+                .sort((a, b) => rank(a)! - rank(b)!)
+              positions.forEach((index, i) => {
+                names[index] = sorted[i]!
+              })
+            }
+          }
+        }
+      }
+    }
+    for (const name of names) {
       if (name === '') {
         continue
       }
@@ -133,8 +190,9 @@ export function createClassResolver(
       if (reason) warn(name, reason)
     }
     // Build-time Tailwind owner-state rank, sorted once per cached class string,
-    // never on every state update. Mixed/unranked domains are left alone; ties
-    // retain authored/caller order. Keep warning provenance beside each group.
+    // never on every state update. Mixed/unranked domains are left alone;
+    // ties keep the utility-normalized order above, or authored order for
+    // unmodeled utilities. Keep warning provenance beside each group.
     if (groups.length > 1 && groups.every((group) => group[2] !== undefined)) {
       if (groups.some((group, index) => index > 0 && groups[index - 1]![2]! > group[2]!)) {
         const sorted = groups

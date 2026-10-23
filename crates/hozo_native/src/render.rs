@@ -2634,7 +2634,7 @@ fn bound_to_disabled(
         (condition, _) => condition.clone(),
     };
     StyleDeclaration {
-        source: declaration.source,
+        source: declaration.source.clone(),
         property: declaration.property.clone(),
         condition,
     }
