@@ -504,6 +504,12 @@ Per-frame mock notifications trigger no React work on either side. This is a
 bounded topology result, not physical-device speed evidence or a blanket win for
 single-label controls, and it changes no default routing.
 
+The [first owner-cascade correction](../measurements/tailwind-interaction-cascade.md)
+fixes #1230's standalone reproduction consistently across static Web/Native and
+generated Native fallback. Mixed StyleX/other conditional provenance is still
+open; the bounded fix must not be read as a global `Condition` sort or full
+Tailwind cascade equivalence. No default switch or new Native pixel result.
+
 1. Add current-behavior reproductions, a property/owner inventory, and the
    paired render-count/size benchmark fixtures. Record existing failures as
    failures, not newly supported cases. No production routing changes.

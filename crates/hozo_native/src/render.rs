@@ -598,6 +598,7 @@ pub(super) fn render_node(
         bases
             .into_iter()
             .map(|(condition, base)| StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::FontSize(Length::Px((base * ratio).round())),
                 condition,
             })
@@ -606,24 +607,29 @@ pub(super) fn render_node(
 
     let semantic_defaults: Vec<StyleDeclaration> = match node.primitive {
         Primitive::Strong | Primitive::Legend | Primitive::Term => vec![StyleDeclaration {
+            source: Default::default(),
             property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
             condition: Condition::Always,
         }],
         Primitive::Emphasis => vec![StyleDeclaration {
+            source: Default::default(),
             property: StyleProperty::Keyword("font-style", "italic"),
             condition: Condition::Always,
         }],
         Primitive::Underline => vec![StyleDeclaration {
+            source: Default::default(),
             property: StyleProperty::TextDecorationLine("underline"),
             condition: Condition::Always,
         }],
         Primitive::Strikethrough => vec![StyleDeclaration {
+            source: Default::default(),
             property: StyleProperty::TextDecorationLine("line-through"),
             condition: Condition::Always,
         }],
         // The browser gives `<pre>` a monospace face from its own
         // stylesheet; a `Text` has none to give.
         Primitive::Code | Primitive::Preformatted => vec![StyleDeclaration {
+            source: Default::default(),
             property: StyleProperty::FontFamily("monospace".to_string()),
             condition: Condition::Always,
         }],
@@ -663,10 +669,12 @@ pub(super) fn render_node(
         // track colour the same measurement found.
         Primitive::Progress => vec![
             StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::Width(hozo_ir::Dimension::Length(Length::Px(160.0))),
                 condition: Condition::Always,
             },
             StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::Height(hozo_ir::Dimension::Length(Length::Px(16.0))),
                 condition: Condition::Always,
             },
@@ -683,6 +691,7 @@ pub(super) fn render_node(
             // the bare user agent draws a 2px inset border (#315).
             let px = if theme.preflight() { 1.0 } else { 2.0 };
             let thickness = StyleDeclaration {
+                source: Default::default(),
                 property: if vertical {
                     StyleProperty::Width(hozo_ir::Dimension::Length(Length::Px(px)))
                 } else {
@@ -693,6 +702,7 @@ pub(super) fn render_node(
             vec![
                 thickness,
                 StyleDeclaration {
+                    source: Default::default(),
                     property: StyleProperty::AlignSelf(hozo_ir::AlignSelf::Stretch),
                     condition: Condition::Always,
                 },
@@ -728,6 +738,7 @@ pub(super) fn render_node(
         }
         Primitive::Heading => {
             let mut defs = vec![StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
                 condition: Condition::Always,
             }];
@@ -749,12 +760,14 @@ pub(super) fn render_node(
         // readable than no highlight at all.
         Primitive::Mark => vec![
             StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::BackgroundColor(hozo_ir::Color::Css(
                     "#ffff00".to_string(),
                 )),
                 condition: Condition::Always,
             },
             StyleDeclaration {
+                source: Default::default(),
                 property: StyleProperty::TextColor(hozo_ir::Color::Css("#000000".to_string())),
                 condition: Condition::Always,
             },
@@ -2621,6 +2634,7 @@ fn bound_to_disabled(
         (condition, _) => condition.clone(),
     };
     StyleDeclaration {
+        source: declaration.source,
         property: declaration.property.clone(),
         condition,
     }

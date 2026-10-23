@@ -279,13 +279,16 @@ test('composition does not silently admit arbitrary transform lists that remain 
   }
 })
 
-test('conditional transform-cpu restores only function registers after a conditional reset', () => {
+test('hover transform-cpu restores registers but active transform-none outranks that restore', () => {
   const classes = 'rotate-3 rotate-x-30 active:transform-none hover:transform-cpu'
   const { resolve } = candidateResolver(classes.split(' '))
   const resting = resolve(classes, {})
   assert.deepEqual(flatten(resting).transform, [{ rotate: '3deg' }, { rotateX: '30deg' }])
   assert.deepEqual(flatten(resolve(classes, { pressed: true })).transform, [{ rotate: '3deg' }])
   assert.deepEqual(flatten(resolve(classes, { pressed: true, hovered: true })).transform, [
+    { rotate: '3deg' },
+  ])
+  assert.deepEqual(flatten(resolve(classes, { pressed: false, hovered: true })).transform, [
     { rotate: '3deg' },
     { rotateX: '30deg' },
   ])

@@ -57,21 +57,31 @@ export const textFixtureManifest = {
       'crates/hozo_napi/src/lib.rs':
         '73cc7ff89e8fdb5396dd57d576506f109a839ce35bdbf49a6c70b57d830c2a14',
       'crates/hozo_parser/src/lib.rs':
-        'c75d0558538d77acb00bcd3dec1707177c6a1c5d01d5b62d86c474439b509e7a',
+        '88381b9419b564f5623c94bcdd9e91337d672940683a1dc0312d5b84691b9605',
+      'crates/hozo_parser/src/interaction_order.rs':
+        '575a730f2125585f79678ee3e687627727c377c65a0587ca5a759e27c27f90b0',
+      'crates/hozo_parser/src/jsx.rs':
+        '94a55a6d333a47914c2682e2335ca5db966e83e1f1ebee38145a06df493efe44',
+      'crates/hozo_parser/src/stylex.rs':
+        '834c8bc811199082cbfd219275ccda28a5f72329733c5e86e07d2be9dc16c8be',
+      'crates/hozo_parser/src/tailwind_variants.rs':
+        '582cd58c34c68a3f0b6ca705a179b349bd037bb7af680eb1760136cee48c964f',
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        '6fec709df5cf3157aaa13dbb66ef885d6f4a75f687940044987df63ab5980cc7',
+        'cf8044e7384c0828e8d2212c1c6143af1e2759447c28fbb14f29af3ae4688364',
+      'crates/hozo_native/src/conditions.rs':
+        '77672fa49e6b5da8d84ad8b00c02a41fb54115f565f12f0f4a6ddc9fc450456c',
       'crates/hozo_native/src/text_region.rs':
         'e96164a49b5ff358081a0f222a3739231c30394e2a47ab6573e1220a2381adb4',
       'crates/hozo_native/src/style.rs':
         '366bf2ecafb83f915bf06cd83a6f7938aa81e362ab46a1569c32d2caeb73e4c8',
       'crates/hozo_native/src/render.rs':
-        '75e50f1fc3d06db619432236817e1286aa12b81f3e16d8dc8740951d8903f438',
+        'b0b23c738884bc4b9021ed148090c7d17261ab47ee01288999bc9b2ad2ecd6b0',
       'crates/hozo_native/src/text.rs':
-        'c800dd60e0dcc18badc1fe2fe998391f43a32cd4d86bdaa89f1328569f719390',
+        '1278fccfe4d6441a6ed9bc6e742fec388a7d2893ec69cb1e3da6f30559d16e99',
       'crates/hozo_ir/src/lib.rs':
-        'c1b3b17f28240da26b2f4d56e3f4c6fc6dda719317f9cf6490bde97dbeab0f88',
+        '713812635d753ea0c25ccae87074af7bc1307687e9692f3bce03514acb9f389d',
     },
   },
   proofSha256: 'bd200723fe8c7f94c7fc318db95e2be6e2db28fc00886420727a45c671cb52db',

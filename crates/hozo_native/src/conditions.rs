@@ -220,6 +220,7 @@ fn with_dark_copies(
             continue;
         }
         out.push(StyleDeclaration {
+            source: declaration.source,
             property: declaration.property.clone(),
             condition: declaration.condition.and_dark(),
         });
@@ -299,6 +300,10 @@ pub(super) fn build_style_entries(
     // condition, a breakpoint, `dark:`, a className branch -- is (0,1,0) and
     // loses to it.
     let mut state_parts: Vec<String> = Vec::new();
+    let mut used_names = declarations
+        .windows(2)
+        .any(|pair| pair[0].source != pair[1].source)
+        .then(std::collections::HashSet::new);
 
     for (condition, props) in hozo_ir::group_by_condition(declarations) {
         // Read before the match below moves parts of `condition` out.
@@ -421,10 +426,20 @@ pub(super) fn build_style_entries(
         {
             continue;
         }
-        let name = match condition_suffix(&condition) {
+        let mut name = match condition_suffix(&condition) {
             None => base_name.to_string(),
             Some(suffix) => format!("{base_name}_{suffix}"),
         };
+        // Provenance can keep two rules for the same predicate apart. The
+        // later one must not overwrite the earlier StyleSheet entry itself.
+        if let Some(used_names) = &mut used_names {
+            let original_name = name.clone();
+            let mut occurrence = 1;
+            while !used_names.insert(name.clone()) {
+                occurrence += 1;
+                name = format!("{original_name}_cascade{occurrence}");
+            }
+        }
         // The static entry and the inline object are separate array
         // elements rather than one combined string: a single part is emitted
         // as `style={part}` without the brackets, and `styles.a, {…}` there

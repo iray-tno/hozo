@@ -19,8 +19,10 @@ export type ClassState = Readonly<Record<string, unknown>>
  * A class that applies only in a state: the state keys that all have to
  * hold, and the style it applies then. `active:opacity-80` is
  * `[['pressed'], { opacity: 0.8 }]`.
+ * Generated Tailwind owner states may append a cached cascade rank; legacy
+ * two-entry groups and mixed/unranked conditional domains keep their order.
  */
-export type StateGroup = readonly [readonly string[], StyleObject]
+export type StateGroup = readonly [readonly string[], StyleObject, number?]
 
 /**
  * Resolves whitespace-separated class names to React Native style objects.
@@ -129,6 +131,20 @@ export function createClassResolver(
       // ones the compiler recognized and refused are reported.
       const reason = unsupported[name]
       if (reason) warn(name, reason)
+    }
+    // Build-time Tailwind owner-state rank, sorted once per cached class string,
+    // never on every state update. Mixed/unranked domains are left alone; ties
+    // retain authored/caller order. Keep warning provenance beside each group.
+    if (groups.length > 1 && groups.every((group) => group[2] !== undefined)) {
+      if (groups.some((group, index) => index > 0 && groups[index - 1]![2]! > group[2]!)) {
+        const sorted = groups
+          .map((group, index) => ({ group, name: groupClasses[index]! }))
+          .sort((a, b) => a.group[2]! - b.group[2]!)
+        for (const [index, entry] of sorted.entries()) {
+          groups[index] = entry.group
+          groupClasses[index] = entry.name
+        }
+      }
     }
     base.push(...decided)
     return { base: compose ? compose(base) : base, raw: base, groups, groupClasses, stateClasses }

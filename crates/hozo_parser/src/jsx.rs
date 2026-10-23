@@ -1049,7 +1049,10 @@ fn build_node(
                         // Styling input, not an opaque prop spread. Appending
                         // here preserves order with className and reuses the
                         // IR's normal last-wins behavior.
-                        style.extend(declarations);
+                        style.extend(declarations.into_iter().map(|mut declaration| {
+                            declaration.source = hozo_ir::StyleSource::Stylex(spread.span.start);
+                            declaration
+                        }));
                         continue;
                     }
                     crate::stylex::Resolution::Partial {
@@ -1057,7 +1060,10 @@ fn build_node(
                         residual,
                         gaps,
                     } => {
-                        style.extend(declarations);
+                        style.extend(declarations.into_iter().map(|mut declaration| {
+                            declaration.source = hozo_ir::StyleSource::Stylex(spread.span.start);
+                            declaration
+                        }));
                         props.stylex_residuals.push(residual);
                         diagnostics.extend(gaps.into_iter().map(|gap| Diagnostic {
                             code: DiagnosticCode::StylexNotLowered,
@@ -1293,6 +1299,7 @@ fn build_node(
                                     style.push(StyleDeclaration {
                                         property,
                                         condition: condition.clone(),
+                                        source: hozo_ir::StyleSource::Tailwind(attr.span.start),
                                     });
                                 }
                             }
@@ -1332,7 +1339,10 @@ fn build_node(
                                 });
                             }
                         }
-                        style.extend(decomposed.declarations);
+                        style.extend(decomposed.declarations.into_iter().map(|mut declaration| {
+                            declaration.source = hozo_ir::StyleSource::Tailwind(attr.span.start);
+                            declaration
+                        }));
                         class_name_fallback.extend(decomposed.fallback);
                         consumed.extend(decomposed.consumed);
                     }
@@ -1375,6 +1385,7 @@ fn build_node(
                         style.extend(properties.into_iter().map(|property| StyleDeclaration {
                             property,
                             condition: condition.clone(),
+                            source: hozo_ir::StyleSource::Tailwind(attr.span.start),
                         }));
                     }
                     if style.len() == before {
@@ -2200,6 +2211,15 @@ fn build_node(
         }
     }
 
+    // Each input keeps its own ordering semantics; grouping must retain
+    // these boundaries rather than merge a later input back into an old rule.
+    crate::interaction_order::order_tailwind_interactions(&mut style);
+    for slot in &mut props.class_slots {
+        for declaration in &mut slot.style {
+            declaration.source = hozo_ir::StyleSource::Tailwind(slot.span.start);
+        }
+        crate::interaction_order::order_tailwind_interactions(&mut slot.style);
+    }
     validate_semantic_children(primitive, &children, diagnostics);
     validate_focusable_disabled(&props, to_span(el.span()), diagnostics);
     validate_flex_direction(primitive, &style, to_span(el.span()), diagnostics);
@@ -2238,7 +2258,16 @@ mod class_slot_expression_tests {
             assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
             let node = &parsed.roots[0].node;
             let slot = &node.props.class_slots[0];
-            assert_eq!(slot.style, node.style);
+            assert_eq!(
+                slot.style
+                    .iter()
+                    .map(|d| (&d.property, &d.condition))
+                    .collect::<Vec<_>>(),
+                node.style
+                    .iter()
+                    .map(|d| (&d.property, &d.condition))
+                    .collect::<Vec<_>>()
+            );
             assert_eq!(slot.fallback.len(), node.class_name_fallback.len());
             for (root, secondary) in node.class_name_fallback.iter().zip(&slot.fallback) {
                 assert_eq!(

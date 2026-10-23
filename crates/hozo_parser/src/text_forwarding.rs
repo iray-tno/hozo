@@ -1393,6 +1393,7 @@ fn resolve(
         };
         for property in properties {
             out.push(StyleDeclaration {
+                source: Default::default(),
                 property,
                 condition: condition.clone(),
             });

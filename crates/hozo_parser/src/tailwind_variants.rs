@@ -112,6 +112,14 @@ pub const ARIA_VARIANT_STATES: &[&str] = &[
     "selected",
 ];
 
+/// Element-owned interaction variants, in Tailwind's emission order.
+pub const OWNER_INTERACTION_ORDER: &[&str] = &[
+    "hover",
+    "focus",
+    "focus-visible",
+    "active",
+];
+
 /// Whether `name` is a variant Tailwind defines.
 ///
 /// Functional variants (`aria`, `data`, `group`, `peer`, `has`, `not`,

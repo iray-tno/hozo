@@ -28,6 +28,13 @@ const design = await __unstable__loadDesignSystem('@import "tailwindcss";', {
 // the list a Tailwind user's completions offer them.
 const variants = design.getVariants()
 const names = variants.map((variant) => variant.name).sort()
+// The bounded element-owned interaction domain. Ask the same API used by
+// loadClassOrder; do not copy the order from a prose list or CSS intuition.
+const ownerNames = ['hover', 'focus', 'focus-visible', 'active']
+const ownerOrder = design
+  .getClassOrder(ownerNames.map((name) => `${name}:opacity-50`))
+  .sort((a, b) => (a[1] < b[1] ? -1 : a[1] > b[1] ? 1 : 0))
+  .map(([candidate]) => candidate.slice(0, candidate.indexOf(':')))
 
 // `aria` is a functional variant with a named-value shortlist -- Tailwind
 // spells `aria-checked:` and `aria-[sort=ascending]:` from the same one.
@@ -61,6 +68,11 @@ ${names.map((name) => `    ${JSON.stringify(name)},`).join('\n')}
 /// and has no boolean form, so it is written \`aria-[sort=ascending]:\`.
 pub const ARIA_VARIANT_STATES: &[&str] = &[
 ${ariaValues.map((value) => `    ${JSON.stringify(value)},`).join('\n')}
+];
+
+/// Element-owned interaction variants, in Tailwind's emission order.
+pub const OWNER_INTERACTION_ORDER: &[&str] = &[
+${ownerOrder.map((name) => `    ${JSON.stringify(name)},`).join('\n')}
 ];
 
 /// Whether \`name\` is a variant Tailwind defines.
