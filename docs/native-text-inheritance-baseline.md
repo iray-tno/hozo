@@ -1363,3 +1363,131 @@ hashes, not historical device scenarios or expected results; its non-motion host
 mock gains only a component factory, not an animation/timing implementation.
 Fresh Native motion pixels/AT, interrupted wall-clock behavior, update-cost
 measurements and broader widget/popup/transition scope still gate default rollout.
+
+## Class-owned inherited text and background transitions
+
+The next internal slice admits `transition-colors` and explicit lists containing
+`color, background-color` when the owner has a static base text colour and only
+its own text/background paints change. The existing Native transition planner
+still selects timing and flags. Conditional borders, decoration, gradients,
+ambient predicates, `transition-all`, authored root `style`, spreads and carried
+candidates retain ordinary output plus the internal refusal. A broad property
+list does not certify unsupported changing paints merely because the text part
+works. Colour-only explicit `transition-[color]` retains its earlier domain.
+
+Compiler-owned box callbacks now pass through the inherited adapter to the same
+HozoPressable/TransitionPressable owner used by ordinary lowering. Its existing
+box driver runs before caller event callbacks, and Animated receives a resolved
+style array rather than the callback it would drop. The label resolves through
+its separate existing channel and shares the committed text-colour timeline;
+box callbacks cannot publish typography or opaque/unblendable background colours.
+Changing callback ownership or transition presence remains unassessed.
+
+The background driver is reused, not upgraded here. In particular its prop-only
+retargeting is not assessed, which is why authored root styles are excluded from
+the broader compiler gate. Its existing 16-state probes, colour progress node,
+unused opacity Value and render-time temporary Value allocations remain. The
+moving background adds one retained progress listener to the shared label's one;
+this is not a claim that the full motion tree has only two Animated nodes or no
+React work. Non-motion tests still construct zero animation Values/listeners.
+
+Source-backed generated graphs exercise runtime-only and proof-selected routes,
+overlapping hover/press/focus, interrupted background ranges, unchanged-label
+targets, event ordering, raw zero, opaque late-joining Text, retained hosts and
+listener cleanup. Fifty simulated ticks of both progress nodes do not notify
+paint Context readers. The common event owner/control and View counts do not
+increase. Compiler tests check refusals and unchanged ordinary lowering. A
+previously missed generated component-name check now recognizes the inherited
+owner when emitting the existing pressed-style callback; no diagnostic is merely
+suppressed.
+
+Against main `e8fe5064`, the inherited-helper microbundle grows from 11,245 to
+11,988 minified bytes, gzip 3,986 to 4,147 (+743/+161), with engine/platform/React
+peers external. This is not Metro size, a Native pixel result or a wall-clock
+performance measurement. Normal Metro/docs routing and the closed Text-only
+static proof remain unchanged. Regenerated device-fixture hashes describe the
+new source, not new device motion scenarios or evidence. Native motion pixels,
+AT, update-cost and physical-device gates remain before default rollout.
+
+## Independent browser oracle for shared colour motion
+
+The browser comparison now renders both real Tailwind CSS and the ordinary
+compiler's Web CSS, separately, for the same text/background class list. Real
+pointer hover/down/up and keyboard Tab cover six settled stages per sheet.
+CSS-created colour and background transitions are paused at a controlled midpoint
+(100,000ms duration, 20ms delay, linear; no wall-clock wait for completion).
+Both sheets produce red text at `rgb(128, 0, 0)` and gray background at
+`rgb(128, 128, 128)` at halfway. Nested and newly inserted Text inherit the owner's
+live colour; a local colour masks it and removal rejoins it without replacing
+the existing DOM node. An outside sibling remains unchanged.
+
+The ordinary Native compiler's actual box callback is evaluated at the browser's
+observed state, not a reimplementation of its priority rules. It agrees with the
+compiled Hozo Web target at each settled stage. This found a **pre-existing
+Tailwind compatibility gap**, tracked in [#1230](https://github.com/iray-tno/hozo/issues/1230):
+with hover/pressed/focus active together, raw Tailwind chooses blue (active), while
+both compiled Hozo Web and Native choose green (later authored focus). The test
+keeps that discrepancy explicit rather than recording full Tailwind equivalence.
+Fixing only the inherited Native helper would create a new platform difference;
+shared class-origin ordering must also preserve StyleX and caller/state tiers.
+
+```sh
+node --test --test-concurrency=1 --test-name-pattern='shared text and background motion targets' examples/storybook-demo/scripts/caller-composition.test.mjs
+```
+
+This is browser inheritance/target evidence, not Native motion pixels, an AT
+result, wall-clock synchronization, all colour-space parity or a claim that
+reversal timing matches. No normal compiler/Metro routing or Native expectations
+are changed by this measurement.
+
+## Shared motion topology and update-count comparison
+
+`text-inheritance-motion-cost.test.ts` adds a source-backed counting workload at
+1, 32 and 128 opaque labels. Both sides execute actual compiler-produced box and
+label callbacks through the shipped Native helpers. The ordinary control
+explicitly forwards the compiled label callback through opaque wrappers; ordinary
+lowering does not do that automatically. The control is therefore target/host
+equivalent at the measured mount and hover stages, not a claim that the default
+compiler already solves opaque inheritance or that both graphs have identical
+late-join/override animation semantics. The candidate uses the actual internally
+selected inherited owner. No reference inheritance algorithm participates.
+
+| Labels | Mount Values: forwarded / shared | Retained listeners: forwarded / shared | Listener callbacks over 60 ticks: forwarded / shared |
+| --- | --- | --- | --- |
+| 1 | 3 / 3 | 2 / 2 | 120 / 120 |
+| 32 | 34 / 3 | 33 / 2 | 1,980 / 120 |
+| 128 | 130 / 3 | 129 / 2 | 7,740 / 120 |
+
+The shared moving-background owner retains the existing box progress listener
+and one shared text listener. The third mount Value is the existing unused box
+opacity Value, not an extra text timeline. The old box driver still constructs
+two temporary Values during a hover render: after mount plus hover the totals
+are N+4 for the forwarded control and five for shared motion. These allocations
+are recorded rather than silently described as only live nodes.
+
+The compiled label callback runs N times at mount and another N on hover in the
+forwarded control, versus once plus once at the shared owner. This is a callback
+count, not a claim to remove N dynamic class parses. **Text-host renders are the
+same:** N at mount and 3N cumulative after hover in both motion paths. The new
+committed target/interpolation passes do not eliminate retarget React work.
+The inherited paint probes observe its Context updates (3N cumulative on hover);
+the ordinary probes observe an empty default Context and are not a comparable
+Context-notification baseline.
+
+Sixty simulated ticks allocate no further Values, resolve no label callbacks,
+render no Text hosts and notify no paint probes in either path. Late joining,
+own-colour override/removal, hover reversal, retained first-label identity,
+unchanged control/View counts and complete listener cleanup are asserted.
+The separate 32-label non-motion configuration has zero animation Values and
+listeners on both sides; it uses the already-assessed non-motion text condition
+domain, not unassessed non-motion interactive backgrounds.
+
+```sh
+node --test --test-concurrency=1 packages/tailwind-conformance/src/text-inheritance-motion-cost.test.ts
+```
+
+These are mock-host/progress topology counts, not Native frame time, JS/bridge
+throughput, GPU work, total Animated binding-node counts or a zero-overhead result.
+All N Animated.Text host bindings remain. The one-label workload has no node
+savings, and Context preparation still costs work. Native physical-device
+performance and new motion-pixel evidence remain required before rollout.

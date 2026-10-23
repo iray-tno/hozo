@@ -1295,7 +1295,7 @@ pub(super) fn render_node(
             ));
     let needs_pressed_fn = (matches!(
         rendered_component,
-        "Pressable" | "HozoPressable" | "HozoText" | "HozoLink"
+        "Pressable" | "HozoPressable" | "HozoInheritedPressable" | "HozoText" | "HozoLink"
     ) || pattern_style_prop.is_some())
         && (!pressed_parts.is_empty() || runtime_states);
     if needs_pressed_fn {

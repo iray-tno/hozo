@@ -1544,6 +1544,113 @@ test('a color-only owner shares one timeline through opaque text, overrides and 
   }
 })
 
+test('class-owned background motion keeps one event owner and shares label paint through opaque children', () => {
+  const source = `import {View,Button} from '@hozo/core';import {Label} from 'fixture:label';export const Scene=({late,note,onHoverIn,onPressIn})=><Button testID="paint-owner" onHoverIn={onHoverIn} onPressIn={onPressIn} className="text-[#000000] hover:text-[#ff0000] bg-[#ffffff] hover:bg-[#000000] active:bg-[#0000ff] focus:bg-[#00ff00] focus-visible:bg-[#ffff00] transition-colors duration-100 delay-20 ease-linear"><View><Label id="target" note={note}/>{late&&<Label id="late" note={note}/>}</View>{0}</Button>`
+  const label = `import {Text} from '@hozo/core';import {memo,useContext} from 'react';import {HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';export const Label=memo(({id,note})=>{note(useContext(HozoInheritedPaintContext));return <Text testID={id}>Label</Text>})`
+  for (const textStatic of [false, true]) {
+    const fixture = graph(true, source, textStatic, label, undefined, true)
+    const Animated = fixture.shipped.native.Animated
+    const Original = Animated.Value
+    const nodes = [],
+      notes = [],
+      callbacks = []
+    Animated.Value = class extends Original {
+      constructor(value) {
+        super(value)
+        nodes.push(this)
+      }
+    }
+    Animated.__hozoResetTimings()
+    let tree: ReturnType<typeof renderer.create>
+    let late = false
+    const scene = () =>
+      React.createElement(fixture.Scene, {
+        late,
+        note: (paint) => notes.push(paint),
+        onHoverIn: () => callbacks.push(Animated.__hozoTimings.length),
+        onPressIn: () => callbacks.push(Animated.__hozoTimings.length),
+      })
+    const owner = () =>
+      tree.root.findAll(
+        (node) => node.type === 'Pressable' && node.props.testID === 'paint-owner',
+      )[0]
+    const paint = () => flatten(owner().props.style).backgroundColor.__animatedInterpolation
+    const text = (id) =>
+      tree.root.findAll((node) => node.type === 'NativeText' && node.props.testID === id)[0]
+    const color = (id) => flatten(text(id).props.style).color
+    const { blendColor } = require('../../engine/src/color-transition.ts')
+    try {
+      renderer.act(() => {
+        tree = renderer.create(scene())
+      })
+      const first = text('target')
+      assert.notEqual(typeof owner().props.style, 'function', 'Animated receives a resolved array')
+      assert.deepEqual(paint().outputRange, ['#ffffff', '#ffffff'])
+      assert.equal(Animated.__hozoTimings.length, 0)
+      const active = nodes.filter((node) => node.listeners.size > 0)
+      assert.equal(active.length, 2, 'existing box timeline plus one shared text timeline')
+      renderer.act(() => owner().props.onHoverIn({}))
+      assert.deepEqual(callbacks, [1], 'existing box driver runs before the author callback')
+      assert.equal(Animated.__hozoTimings.length, 2)
+      assert.deepEqual(paint().outputRange, [blendColor('#ffffff', '#ffffff', 0), '#000000'])
+      assert.deepEqual(color('target').__animatedInterpolation.outputRange, [
+        blendColor('#000000', '#000000', 0),
+        '#ff0000',
+      ])
+      for (const timing of Animated.__hozoTimings) {
+        assert.equal(timing.config.useNativeDriver, false)
+        assert.equal(timing.config.duration, 100)
+        assert.equal(timing.config.delay, 20)
+      }
+      const reads = notes.length
+      renderer.act(() => {
+        for (let i = 1; i <= 50; i++) for (const node of active) node.setValue(i / 100)
+      })
+      assert.equal(notes.length, reads, 'neither timeline sends per-frame Context updates')
+      late = true
+      renderer.act(() => tree.update(scene()))
+      assert.equal(color('target') === color('late'), true)
+      assert.equal(Animated.__hozoTimings.length, 2)
+      const zero = tree.root.findAll(
+        (node) => node.type === 'NativeText' && node.children[0] === '0',
+      )[0]
+      assert.equal(flatten(zero.props.style).color === color('target'), true)
+      assert.equal(nodes.filter((node) => node.listeners.size > 0).length, 2)
+      renderer.act(() => owner().props.onPressIn({}))
+      // The existing focus-visible owner publishes modality-clear then pressed
+      // facts synchronously. Both invoke its box driver; neither restarts text.
+      assert.deepEqual(callbacks, [1, 4])
+      assert.equal(Animated.__hozoTimings.length, 4)
+      assert.equal(Animated.__hozoTimings[2].value === Animated.__hozoTimings[0].value, true)
+      assert.equal(Animated.__hozoTimings[3].value === Animated.__hozoTimings[0].value, true)
+      assert.deepEqual(paint().outputRange, [blendColor('#ffffff', '#000000', 0.5), '#0000ff'])
+      renderer.act(() => owner().props.onFocus({}))
+      assert.equal(paint().outputRange[1], '#00ff00')
+      renderer.act(() => owner().props.onBlur({}))
+      assert.equal(paint().outputRange[1], '#0000ff')
+      renderer.act(() => owner().props.onPressOut({}))
+      assert.equal(paint().outputRange[1], '#000000')
+      renderer.act(() => owner().props.onHoverOut({}))
+      assert.equal(paint().outputRange[1], '#ffffff')
+      assert.equal(color('target').__animatedInterpolation.outputRange[1], '#000000')
+      renderer.act(() => {
+        owner().props.onKeyDown({})
+        owner().props.onFocus({})
+      })
+      assert.equal(paint().outputRange[1], '#ffff00')
+      renderer.act(() => owner().props.onPointerDown({}))
+      assert.equal(paint().outputRange[1], '#00ff00')
+      assert.equal(text('target') === first, true)
+      assert.equal(tree.root.findAllByType('Pressable').length, 1)
+      assert.equal(tree.root.findAllByType('NativeView').length, 1)
+    } finally {
+      renderer.act(() => tree?.unmount())
+      assert.ok(nodes.every((node) => node.listeners.size === 0))
+      Animated.Value = Original
+    }
+  }
+})
+
 test('unassessed label transitions and host style callbacks fail without evaluating a callback', () => {
   const runtime = loadTextInheritanceRuntime(React.createContext(14), undefined, true)
   let calls = 0
@@ -1593,6 +1700,31 @@ test('unassessed label transitions and host style callbacks fail without evaluat
     )
   }
   assert.equal(calls, 0)
+})
+
+test('motion box callbacks cannot smuggle inherited text or opaque background colours', () => {
+  const runtime = loadTextInheritanceRuntime(React.createContext(14), undefined, true)
+  for (const style of [{ color: '#123456' }, { backgroundColor: 'tomato' }]) {
+    assert.throws(
+      () =>
+        renderer.act(() =>
+          renderer.create(
+            React.createElement(runtime.HozoInheritedPressable, {
+              style: () => style,
+              hozoTextStyle: () => ({ color: '#000000' }),
+              hozoTransition: {
+                duration: 100,
+                easing: 'linear',
+                opacity: false,
+                transform: false,
+                colors: true,
+              },
+            }),
+          ),
+        ),
+      /does not assess/,
+    )
+  }
 })
 
 test('the inherited non-motion path stays allocation-free and motion presence changes refuse explicitly', () => {

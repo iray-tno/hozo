@@ -27,6 +27,7 @@ type Runtime = {
   HozoInheritedLabel?: ComponentType
   HozoChip?: ComponentType
   HozoPressable?: ComponentType
+  HozoText?: ComponentType
   HozoInteractionContext?: typeof HozoInteractionContext
   HozoInheritedMetricsContext: Context<HozoInheritedTextMetrics>
   HozoInheritedPaintContext: Context<HozoInheritedTextPaint>
@@ -44,7 +45,7 @@ export function loadTextInheritanceRuntime(
 export {HozoInheritedRelativeText} from '@hozo/core/generated/inherited-relative-text';
 export {HozoInheritedView} from '@hozo/core/generated/inherited-view';
 export {HozoInheritedMetricsContext,HozoInheritedPaintContext} from '@hozo/engine/generated/text-inheritance-protocol';
-${labels ? "export {HozoInheritedPressable} from '@hozo/core/generated/inherited-pressable';export {HozoPressable} from '@hozo/core/generated/pressable';export {HozoInteractionContext} from '@hozo/behaviors/pressable-interaction';" : ''}
+${labels ? "export {HozoInheritedPressable} from '@hozo/core/generated/inherited-pressable';export {HozoPressable} from '@hozo/core/generated/pressable';export {HozoText} from './packages/primitives/src/pressable.native.tsx';export {HozoInteractionContext} from '@hozo/behaviors/pressable-interaction';" : ''}
 ${chips ? "export {HozoInheritedLabel} from '@hozo/core/generated/inherited-label';export {HozoChip} from '@hozo/core/generated/chip';export {hozoTextChildren} from './packages/behaviors/src/text-child.native.tsx';" : ''}`,
       resolveDir: fileURLToPath(new URL('../../../', import.meta.url)),
       sourcefile: 'runtime-probe.ts',
