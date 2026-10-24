@@ -24,6 +24,7 @@ export {
   type StylexResolutionRequest,
   type StylexResolvedBindings,
 } from './stylex-project.ts'
+export { emitTailwindModules } from './tailwind-project.ts'
 
 /** Extensions the project walk reads from disk. */
 const SCANNABLE = new Set(['.tsx', '.jsx', '.ts', '.js', '.mts', '.mjs'])

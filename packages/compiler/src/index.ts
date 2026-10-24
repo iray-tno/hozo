@@ -358,6 +358,7 @@ interface CandidateCacheConstructor {
  * the one to move to when `pack:native` grows up into its CLI.
  */
 interface NativeBinding {
+  prepareTailwindContext(snapshot: string): PreparedTailwindContext
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
   analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
   compile(source: string): CompiledComponent[]
@@ -379,6 +380,17 @@ interface NativeBinding {
 /// The napi class itself. It knows nothing about `sources` beyond having
 /// been handed them; `createCompiler` is what makes them readable back.
 interface NativeCompiler {
+  prepareWebModule(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    options?: CompileOptions,
+  ): PreparedModule<CompiledComponent[]>
+  prepareNativeModule(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    sourceFile?: string,
+    options?: NativeCompileOptions,
+  ): PreparedModule<CompiledNativeModule>
   setTailwindOrder(snapshot?: string): void
   inspectTailwindOrder(
     source: string,
@@ -551,7 +563,71 @@ export interface CompileOptions extends CompileEvidence {
   tagEvidence?: boolean
 }
 
+declare const preparedContext: unique symbol
+
+/** @internal Immutable validated build-time context, shared across a batch. */
+export interface PreparedTailwindContext {
+  readonly [preparedContext]: true
+  readonly fingerprint: string
+  requireCandidates(candidates: string[]): void
+}
+
+/** @internal One-shot, process-local owned parse. dispose is idempotent. */
+export interface PreparedModule<T> {
+  readonly candidates: readonly string[]
+  emit(context: PreparedTailwindContext): T
+  dispose(): void
+}
+
+/** @internal Validate/decode once; do not install mutable compiler state. */
+export function prepareTailwindContext(snapshot: string): PreparedTailwindContext {
+  return loadNative().prepareTailwindContext(snapshot)
+}
+
+function validateNativeOptions(options: NativeCompileOptions | undefined) {
+  if (options?.textReference && options.textInheritance)
+    throw new Error('Select one internal text experiment per compile call')
+  if (options?.textStatic && !options.textInheritance)
+    throw new Error('Internal textStatic requires textInheritance')
+}
+
+function annotateWeb(results: CompiledComponent[], fonts: FontAvailability | undefined) {
+  return results.map((result) => ({
+    ...result,
+    diagnostics: [
+      ...result.diagnostics,
+      ...diagnoseStaticFonts(result.css, 'web', fonts, result.spanStart, result.spanEnd),
+    ],
+  }))
+}
+
+function annotateNative(results: CompiledNativeComponent[], fonts: FontAvailability | undefined) {
+  return results.map((result) => ({
+    ...result,
+    diagnostics: [
+      ...result.diagnostics,
+      ...diagnoseStaticFonts(result.styles, 'native', fonts, result.spanStart, result.spanEnd),
+    ],
+  }))
+}
+
 export interface Compiler {
+  /** @internal RFC 007: retain one actual parse across async preparation.
+   * Emission consumes the module and requires an explicitly prepared context;
+   * it does not read mutable Compiler configuration at emit time.
+   */
+  prepareWebModule(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    options?: CompileOptions,
+  ): PreparedModule<CompiledComponent[]>
+  /** @internal Same lifecycle for Native, preserving metadata and text ABI selection. */
+  prepareNativeModule(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    sourceFile?: string,
+    options?: NativeCompileOptions,
+  ): PreparedModule<CompiledNativeModule>
   /** @internal RFC 007: JSON of a prepared snapshot; undefined clears it.
    * Preparation validates before replacing. Web/Native consume a shared
    * pass-through plan before lowering; no cascade winners change yet.
@@ -642,66 +718,53 @@ export function createCompiler(
   const allowed = sources ? [...sources] : [...DEFAULT_PRIMITIVE_SOURCES]
   const inner = new (loadNative().Compiler)(theme, allowed)
   return {
+    prepareWebModule: (source, bindings, options) => {
+      const prepared = inner.prepareWebModule(source, bindings, options)
+      const fonts = fontAvailability && structuredClone(fontAvailability)
+      return {
+        candidates: Object.freeze(prepared.candidates),
+        emit: (context) => annotateWeb(prepared.emit(context), fonts),
+        dispose: () => prepared.dispose(),
+      }
+    },
+    prepareNativeModule: (source, bindings, sourceFile, options) => {
+      validateNativeOptions(options)
+      const prepared = inner.prepareNativeModule(source, bindings, sourceFile, options)
+      const fonts = fontAvailability && structuredClone(fontAvailability)
+      return {
+        candidates: Object.freeze(prepared.candidates),
+        emit: (context) => {
+          const output = prepared.emit(context)
+          return { ...output, components: annotateNative(output.components, fonts) }
+        },
+        dispose: () => prepared.dispose(),
+      }
+    },
     setTailwindOrder: (snapshot) => inner.setTailwindOrder(snapshot),
     inspectTailwindOrder: (source, bindings, sourceFile) =>
       inner.inspectTailwindOrder(source, bindings, sourceFile),
     compile: (source, bindings, options) =>
-      inner
-        .compile(
+      annotateWeb(
+        inner.compile(
           source,
           bindings,
           options?.rehomeReactNative ?? false,
           options?.tagEvidence ?? false,
           options?.tailwindPlan ?? false,
-        )
-        .map((result) => ({
-          ...result,
-          diagnostics: [
-            ...result.diagnostics,
-            ...diagnoseStaticFonts(
-              result.css,
-              'web',
-              fontAvailability,
-              result.spanStart,
-              result.spanEnd,
-            ),
-          ],
-        })),
+        ),
+        fontAvailability,
+      ),
     compileNative: (source, bindings, evidence) =>
-      inner.compileNative(source, bindings, evidence?.tailwindPlan ?? false).map((result) => ({
-        ...result,
-        diagnostics: [
-          ...result.diagnostics,
-          ...diagnoseStaticFonts(
-            result.styles,
-            'native',
-            fontAvailability,
-            result.spanStart,
-            result.spanEnd,
-          ),
-        ],
-      })),
+      annotateNative(
+        inner.compileNative(source, bindings, evidence?.tailwindPlan ?? false),
+        fontAvailability,
+      ),
     compileNativeModule: (source, bindings, sourceFile, experiment) => {
-      if (experiment?.textReference && experiment.textInheritance)
-        throw new Error('Select one internal text experiment per compile call')
-      if (experiment?.textStatic && !experiment.textInheritance)
-        throw new Error('Internal textStatic requires textInheritance')
+      validateNativeOptions(experiment)
       const module = inner.compileNativeModule(source, bindings, sourceFile, experiment)
       return {
         ...module,
-        components: module.components.map((result) => ({
-          ...result,
-          diagnostics: [
-            ...result.diagnostics,
-            ...diagnoseStaticFonts(
-              result.styles,
-              'native',
-              fontAvailability,
-              result.spanStart,
-              result.spanEnd,
-            ),
-          ],
-        })),
+        components: annotateNative(module.components, fontAvailability),
       }
     },
     unfoldJsxCalls: (source) => inner.unfoldJsxCalls(source) ?? undefined,

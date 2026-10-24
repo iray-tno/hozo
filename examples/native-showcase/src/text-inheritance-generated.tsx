@@ -51,13 +51,15 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        '594fcf8296690c7034eff3350fada15fe427c65ea15a5aecf8178b37ad1b436c',
+        'da6a952441ef079a263efa1aeea63a831dafca795e082824480b6a42355b0f5f',
       'packages/metro/src/transform.ts':
         'b6f44821efcbc7c67d020786378e87c9e5f80d8fa867eb21eb9a9939a6a5a2b5',
       'crates/hozo_napi/src/lib.rs':
-        '271d9fbbc5ccbf6ae8d68a4c7419063e115466e8781580573e1410609329b8ae',
+        '79d8cbd50473bd0e970191c956e0ec26f81ab1c56a20fe3ff99773e33095c429',
       'crates/hozo_napi/src/tailwind_order.rs':
         'bef9a7f40afbdaf76fcf00622ebde2bd3c8c2f1ae06a7b4d7b873a16c2f859f4',
+      'crates/hozo_napi/src/prepared_module.rs':
+        '7f3fa9c400c391971f9e8f50a762a2085ff8a1005628412e32f2efa860eff529',
       'crates/hozo_parser/src/lib.rs':
         '7a1ff528564e707f84b2ae2a38058a5338b3853a0d09ff8baa2a9d98d60a17b4',
       'crates/hozo_parser/src/tailwind_plan.rs':

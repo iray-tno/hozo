@@ -11,8 +11,14 @@
 
 use hozo_ir::{Color, Diagnostic, StyleProperty, Theme, Utf16Offsets};
 use napi_derive::napi;
+use std::sync::Arc;
 mod tailwind_order;
 use tailwind_order::{TailwindCompilePlan, TailwindOrderInspection};
+mod prepared_module;
+pub use prepared_module::{
+    prepare_tailwind_context, PreparedNativeModule, PreparedTailwindContext, PreparedWebModule,
+    PreparedWebOptions,
+};
 
 #[napi(object)]
 pub struct CompileDiagnostic {
@@ -390,15 +396,37 @@ fn lower_web(
     options: WebModuleOptions<'_>,
     class_helpers: &[hozo_parser::ClassHelper],
 ) -> Vec<CompiledComponent> {
-    let mut parsed = hozo_parser::parse_tsx_for_web_with_helpers(
+    let mut parsed = parse_web(source, sources, stylex, options.compat, class_helpers);
+    emit_web(source, theme, &mut parsed, options)
+}
+
+fn parse_web(
+    source: &str,
+    sources: Option<&[String]>,
+    stylex: Option<(
+        &hozo_parser::StylexModuleRegistry,
+        &[hozo_parser::StylexExternalBinding],
+    )>,
+    compat: hozo_parser::ReactNativeCompat,
+    class_helpers: &[hozo_parser::ClassHelper],
+) -> hozo_parser::ParseOutput {
+    hozo_parser::parse_tsx_for_web_with_helpers(
         source,
         sources,
         stylex.map(|(registry, _)| registry),
         stylex.map_or(&[][..], |(_, bindings)| bindings),
-        options.compat,
+        compat,
         class_helpers,
-    );
-    let mut plans = options.tailwind.apply(&mut parsed).into_iter();
+    )
+}
+
+fn emit_web(
+    source: &str,
+    theme: &hozo_ir::Theme,
+    parsed: &mut hozo_parser::ParseOutput,
+    options: WebModuleOptions<'_>,
+) -> Vec<CompiledComponent> {
+    let mut plans = options.tailwind.apply(parsed).into_iter();
     let evidence = options.evidence;
     let offsets = Utf16Offsets::new(source);
     parsed
@@ -407,7 +435,7 @@ fn lower_web(
         .map(|root| {
             let output = hozo_web::lower_with_evidence(&root.node, source, theme, evidence);
             let emitted_offsets = evidence.then(|| Utf16Offsets::new(&output.jsx));
-            let mut diagnostics = parser_diagnostics_for(&parsed, &root.node, &offsets);
+            let mut diagnostics = parser_diagnostics_for(parsed, &root.node, &offsets);
             diagnostics.extend(
                 output
                     .diagnostics
@@ -487,7 +515,9 @@ pub struct UnfoldedModule {
 
 #[napi]
 pub struct Compiler {
-    theme: hozo_ir::Theme,
+    // Immutable project data can outlive Compiler through a prepared module,
+    // without cloning the entire palette/animation table for every file.
+    theme: Arc<hozo_ir::Theme>,
     /// Modules whose primitive-named exports may be lowered. `None` trusts
     /// every module, which is what a caller with no project configuration
     /// wants; it is per-project, not per-file, which is the other reason it
@@ -624,7 +654,7 @@ impl Compiler {
     #[napi(constructor)]
     pub fn new(theme: Option<JsTheme>, sources: Option<Vec<String>>) -> Self {
         Compiler {
-            theme: to_theme(theme),
+            theme: Arc::new(to_theme(theme)),
             sources,
             stylex: Default::default(),
             text_forwarding: Default::default(),
@@ -1231,19 +1261,15 @@ fn lower_native(
     class_helpers: &[hozo_parser::ClassHelper],
     tailwind: TailwindPlanOptions<'_>,
 ) -> Vec<CompiledNativeComponent> {
-    let (registry, bindings) = match stylex {
-        Some((registry, bindings)) => (Some(registry), bindings),
-        None => (None, &[][..]),
-    };
-    let mut parsed = hozo_parser::parse_module_for_file_with_helpers(
+    let mut parsed = parse_native_module(
         source,
         sources,
-        registry,
-        bindings,
+        stylex,
         None,
+        false,
+        text_forwarding,
         class_helpers,
     );
-    hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
     let plans = tailwind.apply(&mut parsed);
     lower_native_components(source, theme, &parsed, false, false, plans)
 }
@@ -1271,11 +1297,35 @@ fn lower_native_module(
     text_forwarding: &hozo_parser::ForwardingTable,
     class_helpers: &[hozo_parser::ClassHelper],
 ) -> CompiledNativeModule {
+    let mut parsed = parse_native_module(
+        source,
+        sources,
+        stylex,
+        options.source_file,
+        options.text_static,
+        text_forwarding,
+        class_helpers,
+    );
+    emit_native_module(source, theme, &mut parsed, options)
+}
+
+fn parse_native_module(
+    source: &str,
+    sources: Option<&[String]>,
+    stylex: Option<(
+        &hozo_parser::StylexModuleRegistry,
+        &[hozo_parser::StylexExternalBinding],
+    )>,
+    source_file: Option<&str>,
+    text_static: bool,
+    text_forwarding: &hozo_parser::ForwardingTable,
+    class_helpers: &[hozo_parser::ClassHelper],
+) -> hozo_parser::ParseOutput {
     let (registry, bindings) = match stylex {
         Some((registry, bindings)) => (Some(registry), bindings),
         None => (None, &[][..]),
     };
-    let parse = if options.text_static {
+    let parse = if text_static {
         hozo_parser::parse_module_with_text_regions
     } else {
         hozo_parser::parse_module_for_file_with_helpers
@@ -1285,15 +1335,24 @@ fn lower_native_module(
         sources,
         registry,
         bindings,
-        options.source_file,
+        source_file,
         class_helpers,
     );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
-    let plans = options.tailwind.apply(&mut parsed);
+    parsed
+}
+
+fn emit_native_module(
+    source: &str,
+    theme: &hozo_ir::Theme,
+    parsed: &mut hozo_parser::ParseOutput,
+    options: NativeModuleOptions<'_>,
+) -> CompiledNativeModule {
+    let plans = options.tailwind.apply(parsed);
     let components = lower_native_components(
         source,
         theme,
-        &parsed,
+        parsed,
         options.text_reference,
         options.text_inheritance,
         plans,
@@ -1312,7 +1371,7 @@ fn lower_native_module(
     let mut jsx_bindings: Vec<String> = parsed.jsx_bindings.iter().cloned().collect();
     jsx_bindings.sort();
 
-    let class_diagnostics = hozo_native::native_class_diagnostics(&parsed);
+    let class_diagnostics = hozo_native::native_class_diagnostics(parsed);
     // Valid modules already built their offset table during component lowering.
     // Do not walk/allocate it a second time just to return an empty list.
     let offsets = (!parsed.syntax_errors.is_empty() || !class_diagnostics.is_empty())
