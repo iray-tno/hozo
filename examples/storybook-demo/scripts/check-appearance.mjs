@@ -63,6 +63,7 @@ import { execFile } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
+import { waitForAppearanceStory } from './appearance-readiness.mjs'
 
 const STATIC = path.resolve(process.argv[2] ?? 'storybook-static')
 
@@ -128,7 +129,7 @@ writeFileSync(
   `<!doctype html><body><pre id="out"></pre><iframe id="f" style="width:1200px;height:900px;border:0"></iframe>
 <script>
 const IDS = ${JSON.stringify(ids)}
-const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+const waitForStory = ${waitForAppearanceStory.toString()}
 
 // Roles a pointer activates. A container that merely holds them -- a tablist,
 // a toolbar, a group -- is not a target, and neither is text.
@@ -206,10 +207,8 @@ async function run() {
   const found = []
   for (const id of IDS) {
     frame.src = '/iframe.html?id=' + id + '&viewMode=story'
-    await Promise.race([new Promise((r) => (frame.onload = r)), wait(5000)])
-    await wait(500)
     try {
-      const doc = frame.contentDocument
+      const doc = await waitForStory(frame, id)
       const view = frame.contentWindow
       const root = doc.getElementById('storybook-root') || doc.body
       const rings = focusRules(doc)
