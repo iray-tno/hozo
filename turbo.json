@@ -48,7 +48,11 @@
     },
     "@hozo/tailwind#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs",
+        "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_portable.rs"
+      ]
     },
     "@hozo/tailwind-conformance#test": {
       "dependsOn": ["^build"],
@@ -73,6 +77,8 @@
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_order.rs",
         "$TURBO_ROOT$/crates/hozo_napi/src/tailwind_order.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_plan.rs",
+        "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_assessment.rs",
+        "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_portable.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_plan.rs"
       ]
     },
@@ -177,6 +183,8 @@
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_order.rs",
         "$TURBO_ROOT$/crates/hozo_napi/src/tailwind_order.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_plan.rs",
+        "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_assessment.rs",
+        "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_portable.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_plan.rs",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-closed-proof.ts",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/text-inheritance-proof-boundary.ts",

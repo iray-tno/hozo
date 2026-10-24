@@ -2,8 +2,9 @@
 //! loses utility/source boundaries. No source text or AST parser is needed.
 use crate::ParseOutput;
 use hozo_ir::{
-    Child, Condition, Node, SourceSpan, StyleDeclaration, StyleSource, TailwindOrderContext,
-    TailwindRuleBinding, TailwindUnitBindings, TailwindUnits, TailwindWritePlan,
+    assess_tailwind_write, Child, Condition, Node, SourceSpan, StyleDeclaration, StyleSource,
+    TailwindOrderContext, TailwindRuleBinding, TailwindUnitBindings, TailwindUnits,
+    TailwindWriteOwnership, TailwindWritePlan,
 };
 
 pub struct TailwindRootPlan {
@@ -27,6 +28,15 @@ pub struct TailwindPlanBlock {
     pub candidate: Option<String>,
     pub candidate_id: Option<u32>,
     pub rule_ids: Vec<u32>,
+    pub writes: Vec<TailwindPlanWrite>,
+}
+
+pub struct TailwindPlanWrite {
+    pub index: usize,
+    pub rule_id: Option<u32>,
+    pub css_property: Option<String>,
+    pub specificity: Option<[u32; 3]>,
+    pub reason: Option<&'static str>,
 }
 
 /// One shared module binding, not one rebind per root/element/slot. The report
@@ -112,6 +122,39 @@ fn plan_site(
                 rule_ids: descriptor.map_or_else(Vec::new, |candidate| {
                     candidate.rules.iter().map(|rule| rule.id).collect()
                 }),
+                writes: block
+                    .declarations
+                    .iter()
+                    .enumerate()
+                    .map(|(index, declaration)| {
+                        let ownership = descriptor.map(|candidate| {
+                            assess_tailwind_write(candidate, &declaration.property)
+                        });
+                        let mut write = TailwindPlanWrite {
+                            index: block.range.start + index,
+                            rule_id: None,
+                            css_property: None,
+                            specificity: None,
+                            reason: None,
+                        };
+                        match ownership {
+                            Some(TailwindWriteOwnership::Unique {
+                                rule_id,
+                                css_property,
+                                specificity,
+                            }) => {
+                                write.rule_id = Some(rule_id);
+                                write.css_property = Some(css_property.into());
+                                write.specificity = Some(specificity);
+                            }
+                            Some(TailwindWriteOwnership::Unknown(reason)) => {
+                                write.reason = Some(reason)
+                            }
+                            None => write.reason = Some(status),
+                        }
+                        write
+                    })
+                    .collect(),
             }
         })
         .collect();
@@ -172,6 +215,50 @@ fn plan_node(
 mod tests {
     use super::*;
     use hozo_ir::TailwindOrderSnapshot;
+
+    #[test]
+    fn portable_context_plans_existing_ir_without_a_node_callback_or_a_second_parse() {
+        let mut parsed = crate::parse_tsx(
+            r#"import {View,Avatar,cx} from '@hozo/core';
+            const el=<View className={cx('px-2 hover:focus:p-4', ready && 'p-2')}>
+              <Avatar fallbackClassName="text-blue-500"/><View className="p-3"/>
+            </View>;"#,
+        );
+        let before = parsed.roots.clone();
+        let context = TailwindOrderContext::new(hozo_ir::portable_tailwind_snapshot()).unwrap();
+        let report = plan_module_tailwind(&mut parsed, &context, true);
+        assert_eq!(parsed.roots[0].node, before[0].node);
+        let blocks = report
+            .iter()
+            .flat_map(|root| &root.sites)
+            .flat_map(|site| &site.blocks)
+            .collect::<Vec<_>>();
+        assert!(blocks
+            .iter()
+            .any(|block| block.candidate.as_deref() == Some("p-2")
+                && block.guarded
+                && block
+                    .writes
+                    .iter()
+                    .all(|write| write.specificity == Some([0, 1, 0]))));
+        assert!(blocks.iter().any(
+            |block| block.candidate.as_deref() == Some("hover:focus:p-4")
+                && block
+                    .writes
+                    .iter()
+                    .all(|write| write.specificity == Some([0, 3, 0]))
+        ));
+        assert!(blocks.iter().any(
+            |block| block.candidate.as_deref() == Some("p-3") && block.status == "uncollected"
+        ));
+        assert!(blocks
+            .iter()
+            .any(|block| block.candidate.as_deref() == Some("text-blue-500")
+                && block
+                    .writes
+                    .iter()
+                    .all(|write| write.css_property.as_deref() == Some("color"))));
+    }
 
     fn allocations(node: &Node, out: &mut Vec<(*const StyleDeclaration, usize)>) {
         out.push((node.style.as_ptr(), node.style.capacity()));
