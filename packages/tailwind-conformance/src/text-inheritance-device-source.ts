@@ -33,6 +33,7 @@ const productionStaticSources = [
   'packages/metro/src/transform.ts',
   'crates/hozo_napi/src/lib.rs',
   'crates/hozo_napi/src/tailwind_order.rs',
+  'crates/hozo_napi/src/prepared_module.rs',
   'crates/hozo_parser/src/lib.rs',
   'crates/hozo_parser/src/tailwind_plan.rs',
   'crates/hozo_parser/src/interaction_order.rs',
