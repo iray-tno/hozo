@@ -22,7 +22,7 @@ import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import { splitTextStyle } from './text-style.native.ts'
+import { splitTextStyle, textChildren } from './text-style.native.ts'
 
 export interface HozoAccordionItem {
   /** An identity of the caller's own; see the Web half. */
@@ -131,6 +131,10 @@ export function HozoAccordion(props: HozoAccordionProps) {
     [items, open, props],
   )
 
+  // A panel's box and its text, split as a header's are: a `View` drops the
+  // panel's colour and size, so they go to the content's `Text`.
+  const [panelBox, panelText] = splitTextStyle([hozoClasses(panelClassName), panelStyle])
+
   return (
     <View
       accessibilityRole="none"
@@ -172,7 +176,7 @@ export function HozoAccordion(props: HozoAccordionProps) {
               }
             </Pressable>
             {expanded ? (
-              <View style={[hozoClasses(panelClassName), panelStyle]}>{item.content}</View>
+              <View style={panelBox}>{textChildren(item.content, panelText)}</View>
             ) : null}
           </View>
         )
