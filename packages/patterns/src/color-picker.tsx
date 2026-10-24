@@ -1,6 +1,6 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
-import { type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
+import { colorTracks, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
 import { HozoSlider } from './slider.tsx'
 
@@ -144,6 +144,7 @@ export function HozoColorPicker({
 
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
   const invalid = hexToHsla(draft) === null
+  const tracks = colorTracks(hsla)
 
   return (
     <div role="group" aria-label={accessibilityLabel} className={className} data-testid={testID}>
@@ -193,7 +194,7 @@ export function HozoColorPicker({
         disabled={disabled}
         className={sliderClassName}
         thumbClassName={thumbClassName}
-        style={{ background: HUE_SPECTRUM }}
+        style={{ background: tracks.hue }}
       />
       <HozoSlider
         accessibilityLabel={message('hozo.colorPicker.saturation')}
@@ -203,9 +204,7 @@ export function HozoColorPicker({
         disabled={disabled}
         className={sliderClassName}
         thumbClassName={thumbClassName}
-        style={{
-          background: `linear-gradient(to right, ${hslaToHex({ ...hsla, s: 0, a: 1 })}, ${hslaToHex({ ...hsla, s: 100, a: 1 })})`,
-        }}
+        style={{ background: tracks.saturation }}
       />
       <HozoSlider
         accessibilityLabel={message('hozo.colorPicker.lightness')}
@@ -215,9 +214,7 @@ export function HozoColorPicker({
         disabled={disabled}
         className={sliderClassName}
         thumbClassName={thumbClassName}
-        style={{
-          background: `linear-gradient(to right, #000000, ${hslaToHex({ ...hsla, l: 50, a: 1 })}, #ffffff)`,
-        }}
+        style={{ background: tracks.lightness }}
       />
       {alpha ? (
         <HozoSlider
@@ -228,9 +225,7 @@ export function HozoColorPicker({
           disabled={disabled}
           className={sliderClassName}
           thumbClassName={thumbClassName}
-          style={{
-            background: `linear-gradient(to right, transparent, ${hslaToHex({ ...hsla, a: 1 })})`,
-          }}
+          style={{ background: tracks.alpha }}
         />
       ) : null}
       <input
@@ -278,9 +273,5 @@ export function HozoColorPicker({
     </div>
   )
 }
-
-/** The hue track: every hue at full saturation, as the slider moves through them. */
-const HUE_SPECTRUM =
-  'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)'
 
 export { HozoColorPicker as ColorPicker, type HozoColorPickerProps as ColorPickerProps }

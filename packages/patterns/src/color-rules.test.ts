@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { colorName, hexToHsla, hslaToHex, parseHex } from './color-rules.ts'
+import { colorName, colorTracks, hexToHsla, hslaToHex, parseHex } from './color-rules.ts'
 
 test('hex is read in its four lengths, with or without #, and refused otherwise', () => {
   assert.deepEqual(parseHex('#f00'), { r: 255, g: 0, b: 0, a: 1 })
@@ -48,4 +48,20 @@ test('a colour is named by its hue word and how light it is', () => {
   assert.deepEqual(name('#808080'), { hue: 'gray' })
   assert.deepEqual(name('#000000'), { hue: 'black' })
   assert.deepEqual(name('#ffffff'), { hue: 'white' })
+})
+
+test('each track runs through the colours its slider moves through, opaque except alpha', () => {
+  const tracks = colorTracks({ h: 217, s: 91, l: 60, a: 0.5 })
+  assert.match(tracks.hue, /^linear-gradient\(to right, #ff0000, .*, #ff0000\)$/)
+  assert.equal(
+    tracks.saturation,
+    `linear-gradient(to right, ${hslaToHex({ h: 217, s: 0, l: 60, a: 1 })}, ${hslaToHex({ h: 217, s: 100, l: 60, a: 1 })})`,
+  )
+  assert.equal(
+    tracks.lightness,
+    `linear-gradient(to right, #000000, ${hslaToHex({ h: 217, s: 91, l: 50, a: 1 })}, #ffffff)`,
+  )
+  // The colour itself at zero alpha, not `transparent`, so no ramp through grey.
+  const opaque = hslaToHex({ h: 217, s: 91, l: 60, a: 1 })
+  assert.equal(tracks.alpha, `linear-gradient(to right, ${opaque}00, ${opaque})`)
 })
