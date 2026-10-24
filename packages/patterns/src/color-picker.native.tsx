@@ -3,7 +3,7 @@ import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import { type StyleProp, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
-import { type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
+import { colorTracks, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { HozoSlider, type SliderThumbState } from './slider.native.tsx'
@@ -61,9 +61,8 @@ const FALLBACK: Hsla = { h: 0, s: 0, l: 0, a: 1 }
  * A colour on React Native: swatches that are radio buttons, three sliders
  * that say their value in words, and the hex, for the reasons the Web half
  * gives. The sliders are `Slider`'s, so a swipe up or down with a screen
- * reader on moves them. The tracks are plain here -- a gradient needs a
- * drawing library, which is the application's to choose -- so the colour
- * itself is the swatch beside them and the words a reader hears.
+ * reader on moves them. Each track paints the colours its slider moves
+ * through, the same gradients as the Web half (see `colorTracks`).
  */
 export function HozoColorPicker({
   value,
@@ -126,7 +125,15 @@ export function HozoColorPicker({
     if (next) update(alpha ? next : { ...next, a: 1 })
   }
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
-  const slider = [hozoClasses(sliderClassName), sliderStyle] as StyleProp<ViewStyle>
+  const tracks = colorTracks(hsla)
+  // The track paints its gradient under the caller's classes and style, as
+  // the Web half's inline `background` does.
+  const slider = (track: string) =>
+    [
+      { experimental_backgroundImage: track },
+      hozoClasses(sliderClassName),
+      sliderStyle,
+    ] as StyleProp<ViewStyle>
   const thumb = thumbStyle as StyleProp<ViewStyle>
   const inputFacts = {
     focused: !disabled && inputInteraction.focused,
@@ -210,7 +217,7 @@ export function HozoColorPicker({
           })
         }
         disabled={disabled}
-        style={slider}
+        style={slider(tracks.hue)}
         thumbClassName={thumbClassName}
         hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
@@ -221,7 +228,7 @@ export function HozoColorPicker({
         onValueChange={(s) => update({ ...hsla, s })}
         valueText={percent}
         disabled={disabled}
-        style={slider}
+        style={slider(tracks.saturation)}
         thumbClassName={thumbClassName}
         hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
@@ -232,7 +239,7 @@ export function HozoColorPicker({
         onValueChange={(l) => update({ ...hsla, l })}
         valueText={percent}
         disabled={disabled}
-        style={slider}
+        style={slider(tracks.lightness)}
         thumbClassName={thumbClassName}
         hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
@@ -244,7 +251,7 @@ export function HozoColorPicker({
           onValueChange={(a) => update({ ...hsla, a: a / 100 })}
           valueText={(a) => message('hozo.colorPicker.alphaValue', { value: a })}
           disabled={disabled}
-          style={slider}
+          style={slider(tracks.alpha)}
           thumbClassName={thumbClassName}
           hozoThumbStyle={hozoThumbStyle}
           thumbStyle={thumb}
