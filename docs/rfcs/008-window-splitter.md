@@ -8,8 +8,23 @@ unstyled patterns. No new runtime or native dependency is required.
 
 The first implementation covers the drag behavior, both platform patterns,
 class-slot inventory, styled components, docs demo and Storybook story.
-Migrating existing Slider/BottomSheet gestures onto this behavior and adopting
-the pane in Envarly remain follow-ups.
+BottomSheet now shares this behavior on Web and Native. Migrating Slider and
+adopting the pane in Envarly remain follow-ups.
+
+BottomSheet keeps its detent and velocity projection in `sheet-rules.ts`.
+The behavior delivers the final delta and velocity even before a queued frame
+has rendered; cancellation restores the gesture's starting fraction without
+dismissing. Native waits for more than 2px of vertical movement so ordinary
+handle taps still cycle detents. Web ignores the click generated after a drag
+while preserving keyboard activation. Geometry validation can veto a start
+before Web pointer capture is acquired.
+
+BottomSheet regression coverage uses real Chromium capture (including movement
+outside the handle, cancellation and capture loss), frame-controlled final
+release, tap/keyboard activation, raw velocity, closing and unmount cleanup.
+Native mock hosts check responder negotiation, final position and velocity,
+termination, closing and unmounting. These do not verify device responder
+delivery or physical screen-reader behavior.
 
 ## Contract
 
