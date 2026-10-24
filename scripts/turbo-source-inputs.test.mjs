@@ -10,7 +10,10 @@ import test from 'node:test'
 
 const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url), 'utf8'))
 const reads = {
-  '@hozo/tailwind#test': ['crates/hozo_parser/src/tailwind_variants.rs'],
+  '@hozo/tailwind#test': [
+    'crates/hozo_parser/src/tailwind_variants.rs',
+    'crates/hozo_ir/src/tailwind_portable.rs',
+  ],
   '@hozo/media#test': [
     'packages/patterns/src/slider.tsx',
     'packages/patterns/src/slider.native.tsx',
@@ -197,6 +200,8 @@ const reads = {
     'crates/hozo_ir/src/tailwind_order.rs',
     'crates/hozo_napi/src/tailwind_order.rs',
     'crates/hozo_ir/src/tailwind_plan.rs',
+    'crates/hozo_ir/src/tailwind_assessment.rs',
+    'crates/hozo_ir/src/tailwind_portable.rs',
     'crates/hozo_parser/src/tailwind_plan.rs',
     'packages/core/src/generated/inherited-text.ts',
     'packages/core/src/generated/inherited-relative-text.ts',
@@ -287,6 +292,8 @@ const reads = {
     'crates/hozo_ir/src/tailwind_order.rs',
     'crates/hozo_napi/src/tailwind_order.rs',
     'crates/hozo_ir/src/tailwind_plan.rs',
+    'crates/hozo_ir/src/tailwind_assessment.rs',
+    'crates/hozo_ir/src/tailwind_portable.rs',
     'crates/hozo_parser/src/tailwind_plan.rs',
   ],
 }

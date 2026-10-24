@@ -85,11 +85,13 @@ test('the device fixture is reproducible and binding decisions come from the exi
   for (const entry of prepared.cases) assert.equal(entry.ordinary, entry.reference)
   assert.equal(prepared.manifest.schemaVersion, 3)
   assert.equal(Object.keys(prepared.manifest.production.sourceSha256).length, 12)
-  assert.equal(Object.keys(prepared.manifest.productionStatic.sourceSha256).length, 21)
+  assert.equal(Object.keys(prepared.manifest.productionStatic.sourceSha256).length, 23)
   for (const file of [
     'crates/hozo_ir/src/tailwind_units.rs',
     'crates/hozo_ir/src/tailwind_order.rs',
     'crates/hozo_ir/src/tailwind_plan.rs',
+    'crates/hozo_ir/src/tailwind_assessment.rs',
+    'crates/hozo_ir/src/tailwind_portable.rs',
     'crates/hozo_parser/src/tailwind_plan.rs',
     'crates/hozo_napi/src/tailwind_order.rs',
   ])

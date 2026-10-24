@@ -48,6 +48,14 @@ export interface TailwindCompilePlan {
       candidate?: string
       candidateId?: number
       ruleIds: number[]
+      /** Ownership/specificity evidence only, not value/condition equivalence or a new winner. */
+      writes: {
+        index: number
+        ruleId?: number
+        cssProperty?: string
+        specificity?: number[]
+        reason?: string
+      }[]
     }[]
   }[]
 }

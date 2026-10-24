@@ -32,6 +32,16 @@ pub struct TailwindCompileBlock {
     pub candidate: Option<String>,
     pub candidate_id: Option<u32>,
     pub rule_ids: Vec<u32>,
+    pub writes: Vec<TailwindCompileWrite>,
+}
+
+#[napi(object)]
+pub struct TailwindCompileWrite {
+    pub index: u32,
+    pub rule_id: Option<u32>,
+    pub css_property: Option<String>,
+    pub specificity: Option<Vec<u32>>,
+    pub reason: Option<String>,
 }
 
 pub fn compile_plan(
@@ -69,6 +79,17 @@ pub fn compile_plan(
                             candidate: block.candidate,
                             candidate_id: block.candidate_id,
                             rule_ids: block.rule_ids,
+                            writes: block
+                                .writes
+                                .into_iter()
+                                .map(|write| TailwindCompileWrite {
+                                    index: write.index as u32,
+                                    rule_id: write.rule_id,
+                                    css_property: write.css_property,
+                                    specificity: write.specificity.map(|value| value.to_vec()),
+                                    reason: write.reason.map(str::to_owned),
+                                })
+                                .collect(),
                         }
                     })
                     .collect(),

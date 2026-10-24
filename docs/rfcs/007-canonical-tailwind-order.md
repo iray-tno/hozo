@@ -7,6 +7,13 @@
   `@hozo/engine`, and their build-tool adapters.
 - **Baseline inspected**: main `99e9c03a61aaa80c86893fbea72c25df431f86ce`.
 
+Phase 2 now includes a shared pass-through compile plan, bounded original-rule
+ownership/specificity evidence and an opt-in generated **exact-candidate**
+portable bootstrap. These are not value/condition equivalence or enabled
+cascade winners. The 90-entry bootstrap is not a complete portable context;
+collect/prepare/emit and broader extraction remain open. See the
+[measurement and limits](../measurements/canonical-tailwind-order.md#per-rule-ownership-and-a-portable-bootstrap).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be
