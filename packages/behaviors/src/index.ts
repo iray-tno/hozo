@@ -7,7 +7,7 @@ export {
   DismissableLayer,
   type DismissableLayerProps,
 } from './dismissable-layer.tsx'
-export { type Drag1DOptions, useDrag1D } from './drag-1d.ts'
+export { type Drag1DDetails, type Drag1DOptions, useDrag1D } from './drag-1d.ts'
 export {
   type Alignment,
   type BasePlacement,

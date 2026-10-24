@@ -1,7 +1,7 @@
 import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createDrag1DSession, type Drag1DOptions } from './drag-1d-session.ts'
 
-export type { Drag1DOptions } from './drag-1d-session.ts'
+export type { Drag1DDetails, Drag1DOptions } from './drag-1d-session.ts'
 
 export function useDrag1D(options: Drag1DOptions) {
   const live = useRef(options)
@@ -13,6 +13,9 @@ export function useDrag1D(options: Drag1DOptions) {
     sign: number
     axis: 'x' | 'y'
     host: HTMLElement
+    last: number
+    lastAt: number
+    velocity: number
   } | null>(null)
   const session = useMemo(
     () =>
@@ -48,6 +51,16 @@ export function useDrag1D(options: Drag1DOptions) {
     return ((at.axis === 'x' ? event.clientX : event.clientY) - at.start) * at.sign
   }
   const matches = (event: PointerEvent<HTMLElement>) => gesture.current?.id === event.pointerId
+  const sample = (event: PointerEvent<HTMLElement>, retainVelocity = false) => {
+    const at = gesture.current!
+    const position = at.axis === 'x' ? event.clientX : event.clientY
+    if (position !== at.last || !retainVelocity) {
+      at.velocity = ((position - at.last) * at.sign) / Math.max(1, event.timeStamp - at.lastAt)
+    }
+    at.last = position
+    at.lastAt = event.timeStamp
+    return { velocity: at.velocity }
+  }
   return {
     dragging,
     handlers: {
@@ -56,25 +69,31 @@ export function useDrag1D(options: Drag1DOptions) {
         const host = event.currentTarget
         const axis = options.axis
         const sign = axis === 'x' && getComputedStyle(host).direction === 'rtl' ? -1 : 1
-        host.setPointerCapture(event.pointerId)
         gesture.current = {
           id: event.pointerId,
           host,
           axis,
           sign,
           start: axis === 'x' ? event.clientX : event.clientY,
+          last: axis === 'x' ? event.clientX : event.clientY,
+          lastAt: event.timeStamp,
+          velocity: 0,
         }
+        if (!session.start()) {
+          gesture.current = null
+          return
+        }
+        host.setPointerCapture(event.pointerId)
         host.focus()
         event.preventDefault()
-        if (session.start()) setDragging(true)
-        else release()
+        setDragging(true)
       },
       onPointerMove(event: PointerEvent<HTMLElement>) {
-        if (matches(event)) session.move(delta(event))
+        if (matches(event)) session.move(delta(event), sample(event))
       },
       onPointerUp(event: PointerEvent<HTMLElement>) {
         if (!matches(event)) return
-        session.end(delta(event))
+        session.end(delta(event), sample(event, true))
         release()
         setDragging(false)
       },

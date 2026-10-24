@@ -1,13 +1,12 @@
-import { DismissableLayer, FocusScope, Portal, useHozoMessage, usePresence } from '@hozo/behaviors'
 import {
-  type KeyboardEvent,
-  type PointerEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
+  DismissableLayer,
+  FocusScope,
+  Portal,
+  useDrag1D,
+  useHozoMessage,
+  usePresence,
+} from '@hozo/behaviors'
+import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
 import { useScrollLock } from './scroll-lock.ts'
 import {
   clampToDetents,
@@ -65,12 +64,10 @@ export interface HozoBottomSheetProps {
  * A modal sheet that comes up from the bottom edge and can be dragged away.
  *
  * `BottomSheet = Portal + FocusScope + DismissableLayer + a gesture`, which is
- * #142's equation, and the gesture is the part that is not a Behaviour: #156
- * records that press and pan are delegated to React Native's responder system
- * rather than owned as a Layer 2 primitive. So the arithmetic goes in
- * `sheet-rules.ts` where both platforms import it, and each half writes the
- * gesture in the vocabulary its platform has -- pointer events here, a
- * `PanResponder` there. The same split `Slider` already uses.
+ * #142's equation. `useDrag1D` owns capture, frame coalescing and cancellation
+ * on each platform; `sheet-rules.ts` owns which detent a release lands on.
+ * Keeping these separate lets a cancelled gesture restore its starting size
+ * without treating cancellation as a request to dismiss.
  *
  * ## Modal, unlike `Popover`, and not by preference
  *
@@ -139,17 +136,13 @@ export function HozoBottomSheet({
 
   const panelRef = useRef<HTMLDivElement>(null)
   const [fraction, setFraction] = useState(openAt)
-  const [dragging, setDragging] = useState(false)
   // The gesture's own state, in a ref because a pointer move must not wait for
   // a render to know where the last one was.
   const gesture = useRef({
-    startY: 0,
     startFraction: 1,
     height: 0,
-    lastY: 0,
-    lastAt: 0,
-    velocity: 0,
   })
+  const moved = useRef(false)
 
   // Reopening starts where the caller said, not where the last drag left it.
   useEffect(() => {
@@ -158,50 +151,35 @@ export function HozoBottomSheet({
 
   const resizable = stops.length > 1
 
-  const onPointerDown = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
+  const drag = useDrag1D({
+    axis: 'y',
+    disabled: !open,
+    canStart() {
       const height = panelRef.current?.getBoundingClientRect().height ?? 0
-      if (height <= 0) return
-      event.currentTarget.setPointerCapture(event.pointerId)
-      gesture.current = {
-        startY: event.clientY,
-        startFraction: fraction,
-        height,
-        lastY: event.clientY,
-        lastAt: event.timeStamp,
-        velocity: 0,
-      }
-      setDragging(true)
+      if (height <= 0) return false
+      gesture.current = { startFraction: fraction, height }
+      return true
     },
-    [fraction],
-  )
-
-  const onPointerMove = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (!dragging) return
+    onStart() {
+      moved.current = false
+    },
+    onMove(delta) {
       const at = gesture.current
-      const travel = travelFor(at.startFraction, at.height) + (event.clientY - at.startY)
-      // `timeStamp` can repeat for coalesced moves, so the divisor is floored at
-      // one millisecond -- a zero there would make the velocity infinite and the
-      // projection would dismiss on a stationary finger.
-      const elapsed = Math.max(1, event.timeStamp - at.lastAt)
-      at.velocity = (event.clientY - at.lastY) / elapsed
-      at.lastY = event.clientY
-      at.lastAt = event.timeStamp
+      if (Math.abs(delta) > 2) moved.current = true
+      const travel = travelFor(at.startFraction, at.height) + delta
       setFraction(clampToDetents(fractionAfter(travel, at.height), stops))
     },
-    [dragging, stops],
-  )
-
-  const onPointerUp = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      if (!dragging) return
-      setDragging(false)
-      event.currentTarget.releasePointerCapture(event.pointerId)
+    onEnd(delta, { velocity }) {
       const at = gesture.current
+      if (!moved.current && Math.abs(delta) <= 2) {
+        setFraction(at.startFraction)
+        return
+      }
+      moved.current = true
+      const travel = travelFor(at.startFraction, at.height) + delta
       const landed = restingFraction({
-        fraction,
-        velocity: at.velocity,
+        fraction: clampToDetents(fractionAfter(travel, at.height), stops),
+        velocity,
         extent: at.height,
         detents: stops,
         dismissBelow,
@@ -212,8 +190,11 @@ export function HozoBottomSheet({
       }
       setFraction(landed)
     },
-    [dismissBelow, dragging, fraction, onClose, stops],
-  )
+    onCancel() {
+      moved.current = true
+      setFraction(gesture.current.startFraction)
+    },
+  })
 
   const onHandleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     const direction = event.key === 'ArrowUp' ? 1 : event.key === 'ArrowDown' ? -1 : null
@@ -252,25 +233,25 @@ export function HozoBottomSheet({
       // Touch scrolling would otherwise take the gesture before the first move
       // arrives. Inline because it is what makes the drag work, not how it looks.
       style={{ touchAction: 'none' }}
-      onClick={() => {
+      onClick={(event) => {
+        // Captured drags still produce a browser click. It must not cycle the
+        // detent a second time; keyboard activation remains an ordinary click.
+        if (event.detail > 0 && moved.current) {
+          event.preventDefault()
+          return
+        }
         const next = cycleDetent(fraction, stops)
         if (next !== null) setFraction(next)
       }}
       onKeyDown={onHandleKeyDown}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      {...drag.handlers}
     />
   ) : (
     <div
       aria-hidden="true"
       className={handleClassName}
       style={{ touchAction: 'none' }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      {...drag.handlers}
     />
   )
 
@@ -315,7 +296,7 @@ export function HozoBottomSheet({
               aria-label={accessibilityLabelledBy ? undefined : accessibilityLabel}
               aria-labelledby={accessibilityLabelledBy}
               data-hozo-state={presence.state}
-              data-hozo-dragging={dragging ? 'true' : undefined}
+              data-hozo-dragging={drag.dragging ? 'true' : undefined}
               data-testid={testID}
               className={sheetClassName}
               style={{ transform: `translateY(${(1 - fraction) * 100}%)` }}

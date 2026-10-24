@@ -1,14 +1,8 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { useDrag1D } from '@hozo/behaviors/native'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  type LayoutChangeEvent,
-  Modal,
-  PanResponder,
-  type StyleProp,
-  View,
-  type ViewStyle,
-} from 'react-native'
+import { type LayoutChangeEvent, Modal, type StyleProp, View, type ViewStyle } from 'react-native'
 import { Pressable } from './pressable.native.tsx'
 import {
   clampToDetents,
@@ -53,11 +47,10 @@ export interface HozoBottomSheetProps {
  * A modal sheet that comes up from the bottom edge, on React Native.
  *
  * The same equation as the Web half with two of its parts renamed: `Modal` is
- * `Portal` and the trap at once, and the gesture is a `PanResponder` rather than
- * pointer events. The arithmetic is the same module, so the two cannot disagree
- * about which detent a flick lands on -- the split `Slider` already uses, and the
- * reason `gestureState.vy` needs no conversion is that it is already pixels per
- * millisecond, positive downward, which is what `sheet-rules.ts` asks for.
+ * `Portal` and the trap at once. `useDrag1D` owns the responder lifecycle, and
+ * `sheet-rules.ts` decides which detent a flick lands on. Native's `vy` is
+ * already pixels per millisecond, positive downward, so its release projection
+ * needs no conversion.
  *
  * ## This is where a sheet is a first-class citizen, and the back button proves it
  *
@@ -120,50 +113,37 @@ export function HozoBottomSheet({
     if (open) setFraction(openAt)
   }, [open, openAt])
 
-  // What the responder callbacks read. They are created once, so they cannot
-  // close over this render's values -- the same `live` ref `slider.native.tsx`
-  // keeps, and for the same reason.
-  const live = useRef({ fraction, height, stops, dismissBelow, onClose })
-  live.current = { fraction, height, stops, dismissBelow, onClose }
-
   /** Where the sheet was when the finger went down, so a pan is relative to it. */
-  const start = useRef(openAt)
-
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        // False, so a tap reaches the handle's own press. The pan takes over
-        // once the finger has actually moved, which is the negotiation React
-        // Native provides and the reason press and drag can share one node.
-        onStartShouldSetPanResponder: () => false,
-        onMoveShouldSetPanResponder: (_event, state) => Math.abs(state.dy) > 2,
-        onPanResponderGrant: () => {
-          start.current = live.current.fraction
-        },
-        onPanResponderMove: (_event, state) => {
-          const at = live.current
-          if (at.height <= 0) return
-          const travel = travelFor(start.current, at.height) + state.dy
-          setFraction(clampToDetents(fractionAfter(travel, at.height), at.stops))
-        },
-        onPanResponderRelease: (_event, state) => {
-          const at = live.current
-          const landed = restingFraction({
-            fraction: at.fraction,
-            velocity: state.vy,
-            extent: at.height,
-            detents: at.stops,
-            dismissBelow: at.dismissBelow,
-          })
-          if (landed === null) {
-            at.onClose?.()
-            return
-          }
-          setFraction(landed)
-        },
-      }),
-    [],
-  )
+  const start = useRef({ fraction: openAt, height: 0 })
+  const drag = useDrag1D({
+    axis: 'y',
+    disabled: !open || height <= 0,
+    nativeActivationDistance: 2,
+    onStart() {
+      start.current = { fraction, height }
+    },
+    onMove(delta) {
+      const at = start.current
+      const travel = travelFor(at.fraction, at.height) + delta
+      setFraction(clampToDetents(fractionAfter(travel, at.height), stops))
+    },
+    onEnd(delta, { velocity }) {
+      const at = start.current
+      const travel = travelFor(at.fraction, at.height) + delta
+      const landed = restingFraction({
+        fraction: clampToDetents(fractionAfter(travel, at.height), stops),
+        velocity,
+        extent: at.height,
+        detents: stops,
+        dismissBelow,
+      })
+      if (landed === null) onClose?.()
+      else setFraction(landed)
+    },
+    onCancel() {
+      setFraction(start.current.fraction)
+    },
+  })
 
   const onLayout = useCallback((event: LayoutChangeEvent) => {
     setHeight(event.nativeEvent.layout.height)
@@ -218,14 +198,14 @@ export function HozoBottomSheet({
                 const next = cycleDetent(fraction, stops)
                 if (next !== null) setFraction(next)
               }}
-              {...pan.panHandlers}
+              {...drag.handlers}
             />
           ) : (
             <View
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
               style={[hozoClasses(handleClassName), handleStyle]}
-              {...pan.panHandlers}
+              {...drag.handlers}
             />
           )}
           {children}
