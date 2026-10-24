@@ -1,6 +1,10 @@
 // Compiler owns retained IR/context handles. The caller owns asynchronous
 // stylesheet preparation, so compiler/project does not depend on Tailwind JS.
-import { type PreparedModule, prepareTailwindContext } from './index.ts'
+import {
+  type PreparedModule,
+  type PreparedTailwindContext,
+  prepareTailwindContext,
+} from './index.ts'
 
 /** @internal Takes ownership of a bounded, process-local module batch.
  * Include the lexical/cache universe as well for generated dynamic fallback.
@@ -17,19 +21,86 @@ export async function emitTailwindModules(
   prepare: (candidates: readonly string[]) => Promise<string>,
   additionalCandidates: Iterable<string> = [],
 ): Promise<unknown[]> {
-  const owned = [...modules]
+  return emitOwnedModules(
+    [...modules],
+    async (names) => {
+      const context = prepareTailwindContext(await prepare(names))
+      context.requireCandidates([...names])
+      return context
+    },
+    additionalCandidates,
+  )
+}
+
+/** Internal common ownership path for eager batches and session collectors. */
+export async function emitCollectedModules(
+  collectors: readonly (() => PreparedModule<unknown>)[],
+  contextFor: (names: readonly string[]) => Promise<PreparedTailwindContext>,
+  additionalCandidates: Iterable<string>,
+  signal?: AbortSignal,
+): Promise<unknown[]> {
+  const collect = [...collectors]
+  const owned: PreparedModule<unknown>[] = []
+  let additional: string[]
   try {
+    signal?.throwIfAborted()
+    additional = [...additionalCandidates]
+    for (const factory of collect) {
+      signal?.throwIfAborted()
+      owned.push(factory())
+    }
+  } catch (error) {
+    for (const module of owned) module.dispose()
+    throw error
+  }
+  return emitOwnedModules(owned, contextFor, additional, signal)
+}
+
+async function emitOwnedModules(
+  owned: PreparedModule<unknown>[],
+  contextFor: (names: readonly string[]) => Promise<PreparedTailwindContext>,
+  additional: Iterable<string>,
+  signal?: AbortSignal,
+): Promise<unknown[]> {
+  try {
+    signal?.throwIfAborted()
     if (new Set(owned).size !== owned.length)
       throw new Error('Prepared module occurs twice in a batch')
     const candidates = Object.freeze(
-      [
-        ...new Set([...additionalCandidates, ...owned.flatMap((module) => module.candidates)]),
-      ].sort(),
+      [...new Set([...additional, ...owned.flatMap((module) => module.candidates)])].sort(),
     )
-    const context = prepareTailwindContext(await prepare(candidates))
-    context.requireCandidates([...candidates])
-    return owned.map((module) => module.emit(context))
+    const context = await abortableContext(contextFor(candidates), signal)
+    signal?.throwIfAborted()
+    return owned.map((module) => {
+      signal?.throwIfAborted()
+      return module.emit(context)
+    })
   } finally {
     for (const module of owned) module.dispose()
   }
+}
+
+function abortableContext(
+  pending: Promise<PreparedTailwindContext>,
+  signal?: AbortSignal,
+): Promise<PreparedTailwindContext> {
+  if (!signal) return pending
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason)
+    const cleanup = () => signal.removeEventListener('abort', abort)
+    // Always handle pending, even when already aborted. A late upstream
+    // rejection must not become an unhandled rejection after IR is disposed.
+    pending.then(
+      (context) => {
+        cleanup()
+        resolve(context)
+      },
+      (error) => {
+        cleanup()
+        reject(error)
+      },
+    )
+    if (signal.aborted) abort()
+    else signal.addEventListener('abort', abort, { once: true })
+  })
 }

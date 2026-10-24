@@ -16,6 +16,7 @@ execFileSync(process.execPath, ['packages/compiler/scripts/build-native.mjs'], {
 })
 const { createCompiler, prepareTailwindContext } = await import('../packages/compiler/src/index.ts')
 const { emitTailwindModules } = await import('../packages/compiler/src/tailwind-project.ts')
+const { TailwindProjectSession } = await import('../packages/compiler/src/tailwind-session.ts')
 const { loadTheme, prepareTailwindOrder, tailwindPackageDir } = await import(
   '../packages/tailwind/src/theme.ts'
 )
@@ -38,10 +39,10 @@ const results = []
 for (const platform of ['web', 'native']) {
   const ordinary = (source) =>
     platform === 'web' ? compiler.compile(source) : compiler.compileNativeModule(source)
-  const make = () =>
-    sources.map((source) =>
-      platform === 'web' ? compiler.prepareWebModule(source) : compiler.prepareNativeModule(source),
-    )
+  const collect = (owner, source) =>
+    platform === 'web' ? owner.prepareWebModule(source) : owner.prepareNativeModule(source)
+  const make = () => sources.map((source) => collect(compiler, source))
+  const collectors = sources.map((source) => (owner) => collect(owner, source))
   const seed = make()
   const universe = [...new Set(seed.flatMap((module) => module.candidates))].sort()
   for (const name of ['p-1', 'p-16', 'font-bold', 'text-lg', 'hover:text-red-500'])
@@ -60,7 +61,17 @@ for (const platform of ['web', 'native']) {
     emit: [],
     completeBatch: [],
     upstreamPreparation: [],
+    sessionWarmBatch: [],
+    sessionWarmFiles: [],
   }
+  let sessionPreparations = 0
+  const session = new TailwindProjectSession(compiler, async (names) => {
+    sessionPreparations++
+    return JSON.stringify((await prepareTailwindOrder(css, base, names)).snapshot)
+  })
+  const firstSessionStart = performance.now()
+  assert.deepEqual(await session.emit(`batch:${platform}`, collectors, universe), expected)
+  const firstSessionMs = performance.now() - firstSessionStart
   for (let sample = 0; sample < samples; sample++) {
     let start = performance.now()
     const control = sources.map(ordinary)
@@ -87,13 +98,33 @@ for (const platform of ['web', 'native']) {
     })
     stages.completeBatch.push(performance.now() - start)
     assert.deepEqual(batch, expected)
+    start = performance.now()
+    const reused = await session.emit(`batch:${platform}`, collectors, universe)
+    stages.sessionWarmBatch.push(performance.now() - start)
+    assert.deepEqual(reused, expected)
+    start = performance.now()
+    const files = []
+    for (let index = 0; index < sources.length; index++) {
+      const [output] = await session.emit(
+        `file:${platform}:${index}`,
+        [(owner) => collect(owner, sources[index])],
+        universe,
+      )
+      files.push(output)
+    }
+    stages.sessionWarmFiles.push(performance.now() - start)
+    assert.deepEqual(files, expected)
   }
+  assert.equal(sessionPreparations, 1, 'warm requests must not re-run preparation')
+  session.invalidate()
   results.push({
     platform,
     modules: count,
     sourceBytes: sources.reduce((total, source) => total + Buffer.byteLength(source), 0),
     candidates: universe.length,
     firstPreparationMs,
+    firstSessionMs,
+    sessionPreparations,
     fingerprint: snapshot.fingerprint,
     stages: Object.fromEntries(
       Object.entries(stages).map(([stage, values]) => [
@@ -107,7 +138,7 @@ for (const platform of ['web', 'native']) {
 console.log(
   JSON.stringify(
     {
-      schema: 1,
+      schema: 2,
       profile: 'debug',
       node: process.version,
       rust: execFileSync('rustc', ['--version'], { encoding: 'utf8', cwd: root }).trim(),
@@ -122,6 +153,7 @@ console.log(
         'Same-process synthetic bounded 16-module batches; all samples retained. No startup, isolated parser/allocation or peak-memory measurement.',
         'Collect includes parsing/forwarding, retained handles, candidate marshalling and any font snapshot. Context includes one JSON decode/validation and completeness check per batch.',
         'Emit uses a prevalidated context without per-file decoding. Complete batch includes collection, asynchronous upstream preparation, serialization, context setup, emit and cleanup.',
+        'Session first-use includes one preparation; warm batch and 16 sequential single-file calls reuse it with the full known universe. Key normalization, cancellation tickets and collection/emission remain in the clocks. This does not time invalidation or large-universe normalization.',
         'Default adapters are unchanged; no speedup, enabled cascade comparator, application bundle or Native pixels/AT claim.',
       ],
     },
