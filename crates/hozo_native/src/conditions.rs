@@ -302,7 +302,7 @@ pub(super) fn build_style_entries(
     let mut state_parts: Vec<String> = Vec::new();
     let mut used_names = declarations
         .windows(2)
-        .any(|pair| pair[0].source != pair[1].source)
+        .any(|pair| pair[0].source.input() != pair[1].source.input())
         .then(std::collections::HashSet::new);
 
     for (condition, props) in hozo_ir::group_by_condition(declarations) {

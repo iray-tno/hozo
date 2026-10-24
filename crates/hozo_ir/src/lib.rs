@@ -19,6 +19,8 @@ pub use colors::{resolve_color_token, ResolvedColor};
 
 mod theme;
 pub use theme::{Theme, ThemeAnimation, ThemeColor};
+mod tailwind_units;
+pub use tailwind_units::{TailwindUnits, TailwindUnitsBuilder, TailwindUtilityId};
 
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics
@@ -1626,13 +1628,45 @@ pub struct StyleDeclaration {
 /// A styling input is a cascade boundary, not another predicate. Tailwind
 /// orders utilities within its class list; StyleX resolves atomic priority
 /// within its props call. Neither may reorder the other's declarations.
-/// The ID is the JSX attribute's source offset, never emitted at runtime.
+/// The input ID is the JSX attribute's source offset; optional candidate IDs
+/// belong to its root's unit table. Neither is emitted at runtime.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum StyleSource {
     #[default]
     Unspecified,
     Tailwind(u32),
+    /// Candidate identity before expansion. Its upstream rule binding is not
+    /// yet known; the ID is scoped to the parser root's shared unit table.
+    TailwindUtility {
+        input: u32,
+        utility: TailwindUtilityId,
+    },
     Stylex(u32),
+}
+
+impl StyleSource {
+    /// Utility identity must not create another JSX input region. This layer
+    /// retains the existing cascade while a later planner can inspect IDs.
+    pub fn input(self) -> Self {
+        match self {
+            Self::TailwindUtility { input, .. } => Self::Tailwind(input),
+            source => source,
+        }
+    }
+
+    pub fn with_tailwind_input(self, input: u32) -> Self {
+        match self {
+            Self::TailwindUtility { utility, .. } => Self::TailwindUtility { input, utility },
+            _ => Self::Tailwind(input),
+        }
+    }
+
+    pub fn utility(self) -> Option<TailwindUtilityId> {
+        match self {
+            Self::TailwindUtility { utility, .. } => Some(utility),
+            _ => None,
+        }
+    }
 }
 
 /// Universal Style Subset (proposal §6.3), Phase 0 scope only.
@@ -5293,8 +5327,8 @@ pub fn group_by_condition(
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
         // backwards across that rule, losing JSX tie order.
-        if source != Some(decl.source) {
-            source = Some(decl.source);
+        if source != Some(decl.source.input()) {
+            source = Some(decl.source.input());
             start = groups.len();
         }
         match groups[start..]

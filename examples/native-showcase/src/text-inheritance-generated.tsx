@@ -57,11 +57,11 @@ export const textFixtureManifest = {
       'crates/hozo_napi/src/lib.rs':
         '73cc7ff89e8fdb5396dd57d576506f109a839ce35bdbf49a6c70b57d830c2a14',
       'crates/hozo_parser/src/lib.rs':
-        '88381b9419b564f5623c94bcdd9e91337d672940683a1dc0312d5b84691b9605',
+        '34d78fd8f4419425d8fb0739dcfc5428ee4d914e9d3464058f808e16ccda78f0',
       'crates/hozo_parser/src/interaction_order.rs':
-        '575a730f2125585f79678ee3e687627727c377c65a0587ca5a759e27c27f90b0',
+        '7b91f5ba55ac795a003f9c95325dbdb851d8d27b938db4000dbd7addf483428d',
       'crates/hozo_parser/src/jsx.rs':
-        '94a55a6d333a47914c2682e2335ca5db966e83e1f1ebee38145a06df493efe44',
+        '0fe4f98adf5d8efb3ed36f3b04151f5ef04fd1d8642f6e03d63a84904d3b713a',
       'crates/hozo_parser/src/stylex.rs':
         '834c8bc811199082cbfd219275ccda28a5f72329733c5e86e07d2be9dc16c8be',
       'crates/hozo_parser/src/tailwind_variants.rs':
@@ -71,7 +71,7 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/lib.rs':
         'cf8044e7384c0828e8d2212c1c6143af1e2759447c28fbb14f29af3ae4688364',
       'crates/hozo_native/src/conditions.rs':
-        '77672fa49e6b5da8d84ad8b00c02a41fb54115f565f12f0f4a6ddc9fc450456c',
+        'e67561838d7cdbb253ade5300a249ba26f0e5bc0a8b52eb5a60520aeb3782f2a',
       'crates/hozo_native/src/text_region.rs':
         'e96164a49b5ff358081a0f222a3739231c30394e2a47ab6573e1220a2381adb4',
       'crates/hozo_native/src/style.rs':
@@ -81,7 +81,9 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/text.rs':
         '1278fccfe4d6441a6ed9bc6e742fec388a7d2893ec69cb1e3da6f30559d16e99',
       'crates/hozo_ir/src/lib.rs':
-        '713812635d753ea0c25ccae87074af7bc1307687e9692f3bce03514acb9f389d',
+        'ad82a7b588d40e1f70aabced177915e4948776154e6f7f4152c2a7cd7572c2bd',
+      'crates/hozo_ir/src/tailwind_units.rs':
+        '8a0d5e61864689dca5fcf10dac4e3403759dc807e8d95b4fafc891bca7f0e1a8',
     },
   },
   proofSha256: 'bd200723fe8c7f94c7fc318db95e2be6e2db28fc00886420727a45c671cb52db',
