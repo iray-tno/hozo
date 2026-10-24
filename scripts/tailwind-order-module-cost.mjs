@@ -16,7 +16,7 @@ execFileSync(process.execPath, ['packages/compiler/scripts/build-native.mjs'], {
 })
 const { createCompiler, prepareTailwindContext } = await import('../packages/compiler/src/index.ts')
 const { emitTailwindModules } = await import('../packages/compiler/src/tailwind-project.ts')
-const { prepareTailwindOrder, tailwindPackageDir } = await import(
+const { loadTheme, prepareTailwindOrder, tailwindPackageDir } = await import(
   '../packages/tailwind/src/theme.ts'
 )
 const { orderProvenance, summarizeOrderSamples } = await import(
@@ -32,7 +32,8 @@ const sources = Array.from(
   const padding='p-${index + 1}';export const Row=({ready,extra})=><Pressable className={padding}>
   <Avatar fallbackClassName="font-bold"/><Text className="text-lg hover:text-red-500">Row ${index}</Text></Pressable>`,
 )
-const compiler = createCompiler()
+const theme = await loadTheme(css, base)
+const compiler = createCompiler(theme)
 const results = []
 for (const platform of ['web', 'native']) {
   const ordinary = (source) =>
@@ -114,6 +115,7 @@ console.log(
         .update(readFileSync(new URL(import.meta.url)))
         .digest('hex'),
       samples,
+      themeColors: theme.colors.length,
       provenance: orderProvenance(),
       results,
       limitations: [
