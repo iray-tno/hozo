@@ -142,3 +142,30 @@ export function colorName({ h, s, l }: Hsla): ColorName {
                   : 'pink'
   return shade ? { hue: word, shade } : { hue: word }
 }
+
+/**
+ * What each slider's track shows: the colours its value moves through.
+ *
+ * CSS gradient strings, shared by both halves. The Web paints them as
+ * `background`. React Native 0.86 parses the same syntax as
+ * `experimental_backgroundImage`, which the Native half paints. Without a
+ * track the Native sliders were invisible: no fill, and a white thumb on a
+ * white surface (#1205).
+ *
+ * The alpha track ends in the colour at zero alpha rather than
+ * `transparent`, which is black at zero alpha and would draw the ramp
+ * through grey anywhere a renderer does not premultiply.
+ */
+export function colorTracks(hsla: Hsla): {
+  hue: string
+  saturation: string
+  lightness: string
+  alpha: string
+} {
+  return {
+    hue: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
+    saturation: `linear-gradient(to right, ${hslaToHex({ ...hsla, s: 0, a: 1 })}, ${hslaToHex({ ...hsla, s: 100, a: 1 })})`,
+    lightness: `linear-gradient(to right, #000000, ${hslaToHex({ ...hsla, l: 50, a: 1 })}, #ffffff)`,
+    alpha: `linear-gradient(to right, ${hslaToHex({ ...hsla, a: 0 })}, ${hslaToHex({ ...hsla, a: 1 })})`,
+  }
+}
