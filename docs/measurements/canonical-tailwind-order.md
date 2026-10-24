@@ -376,3 +376,96 @@ implementation checkpoint precedes the final evidence-only `unspecified`
 label correction and documentation; it is recorded, not mislabeled as final
 head. Peak memory, application bundles and fresh device pixels/AT are not
 measured. Full source/profile/harness/sample receipts stay in the reports.
+
+## Per-rule ownership and a portable bootstrap
+
+The next layer uses the same prepared rule shapes to assess a bounded owner
+scope, then associates each retained IR write with an original CSS declaration.
+The root must be exactly the escaped candidate class. Assessed nested selectors
+are single `&:hover`, `&:focus`, `&:focus-visible`, `&:active` and `&:disabled`
+wrappers, including chains; `(hover: hover)` is the only assessed media wrapper.
+Their specificity comes from the original selector, not IR guard counts. An
+authored JS guard adds no CSS specificity. Selector lists/functions, relations,
+pseudo-elements, other at-rules, branching scopes, empty bodies and mixed
+importance remain explicitly unassessed; unknown is not `[0, 1, 0]`.
+
+Write ownership currently covers spacing/gaps, foreground/background colors
+and dimensions. This is a mapping to the **original** CSS property, not a
+property-order table or Native normalization. For example expanded left/right
+writes can belong to `padding-inline`; this does not prove Yoga resolves
+logical/physical conflicts like CSS. All rules are inspected: a write must
+have one matching original declaration, not an assumed first-rule owner.
+Repeated owners are ambiguous, and an unassessed sibling rule blocks a claim
+of unique ownership. Typography/default registers remain unmapped.
+
+These facts are available in the actual compile's explicit `tailwindPlan`
+evidence as indexed writes, rule IDs, original property, specificity or an
+unknown reason. Ordinary compilation does not run assessment or allocate the
+new per-write report. This is **not** value or condition equivalence, whole
+candidate support, a new cascade winner, or permission to sort. In particular
+a project utility can add a CSS write absent from Hozo's parsed IR; uniquely
+identifying a retained write does not certify the entire custom utility.
+
+`node scripts/generate-tailwind-order.mjs` generates
+`crates/hozo_ir/src/tailwind_portable.rs`; `--check` reproduces it. It reuses the
+canonical descriptor extractor and pinned Tailwind 4.3.3 builtin theme, not a
+hand-kept property/variant rank list. The bootstrap has **90 exact candidates**,
+89 rules and one explicit not-generated entry. It includes negative/compound
+probes, not just assessed positives. Unknown `p-3` is uncollected even though
+`p-2` and `p-4` exist: no sample-to-family interpolation is implemented.
+
+`portable_tailwind_snapshot()` constructs the existing validated Rust context
+format on explicit request. It has a builtin theme receipt and its own complete
+universe fingerprint, not project-relative ranks mixed with builtin ranks.
+Rust tests feed it to the shared parser plan without Node callbacks, a second
+parse or JSON parsing. Default standalone/WASM exports and build adapters are
+**not** automatically enabled. Broader/parametric portable extraction, actual
+WASM artifact measurements and collect/prepare/emit integration remain open.
+This finite bootstrap is not claimed as the complete portable context.
+
+Local CPU-1/Idle/serial checks: Rust 1,031 passed; Tailwind 56 passed; compiler
+338 passed plus one existing Windows symlink skip; Native Showcase 223 passed
+plus one existing skip; cache guards 9 passed. Rust fixtures cover the rule
+scopes, ambiguous/multi-rule ownership, importance, original longhands and
+unmapped typography. Actual Node compiles verify all indexed writes, identical
+Web/Native reports, JS guards, secondary/nested slots, unknown/uncollected
+facts and multi-rule project additions. Full emitted results remain identical
+with the prepared context, including ordinary calls without report capture.
+The saved 30-subject corpus, six additional fixtures and Native candidate module
+remain byte-identical. The device fixture changes source receipts only; its
+proof/body/route choices do not change. An initial compiler-suite invocation
+from the repository root failed its cwd-dependent resolution fixture; running
+from the compiler package gave the results above without changing that test.
+Both logs are retained. No new browser/device pixels/AT or full conformance
+percentage is claimed.
+
+Fresh paired debug builds of parent `8a45d89f` and implementation checkpoint
+`10ee5f5d`, in this same worktree, recorded five samples per 600 ordinary calls:
+Web 72.8920 -> 74.7790 ms (+2.59%), Native 91.2599 -> 90.7074 ms (-0.61%).
+The checkpoint contains the measured implementation and precedes only this
+documentation. No speedup/zero-overhead claim is made. The existing synthetic
+candidate consumers are still exactly 2,862/1,167, 11,259/2,608 and
+82,464/14,567 bytes minified/gzip; their resolver/data were not changed.
+Unchanged preparation/cache/state tasks also vary in the raw receipts (for
+example reference preparation +15.25%, 130-candidate cold lookup -40.94%);
+these are not attributed to this implementation or reported as improvements.
+
+The separate prepared/capture probe retains seven samples per 20 compiles,
+each using 16 padding utilities regardless of prepared-universe size:
+
+| Universe | Prepared Web before -> after (ms) | Prepared Native (ms) | Evidence Web (ms) | Evidence Native (ms) |
+| ---: | ---: | ---: | ---: | ---: |
+| 16 | 3.600 -> 3.544 | 6.999 -> 6.703 | 4.953 -> 7.821 | 8.145 -> 11.266 |
+| 128 | 3.650 -> 3.607 | 6.994 -> 6.917 | 4.816 -> 7.944 | 8.283 -> 11.779 |
+| 1,024 | 3.481 -> 3.516 | 6.724 -> 6.801 | 4.489 -> 7.729 | 7.706 -> 10.918 |
+
+The new report deliberately costs more: it assesses/serializes each original
+write. Do not run it by default in transforms or mistake it for the future
+enabled planner's cost. The builtin generator's seven full same-process
+samples, retaining the first, had median 28.63 ms and maximum 49.40 ms; this
+includes theme reads, upstream loading/extraction and Rust formatting, not
+module imports/startup or Rust-side construction. Generated Rust is 45,911
+source bytes; the snapshot is 31,041 JSON bytes / 3,092 gzip. Those are build
+data, **not** device bundle or peak-memory numbers. All samples, profile,
+source/addon hashes and provenance are in local `assessment-clean-*`,
+`assessment-prepared-*` and `assessment-portable-cost` receipts.

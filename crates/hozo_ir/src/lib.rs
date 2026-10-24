@@ -29,6 +29,15 @@ pub use tailwind_order::{
 };
 mod tailwind_plan;
 pub use tailwind_plan::{TailwindWriteBlock, TailwindWritePlan};
+mod tailwind_assessment;
+pub use tailwind_assessment::{
+    assess_tailwind_rule, assess_tailwind_write, AssessedTailwindRule, RuleAssessmentError,
+    TailwindWriteOwnership,
+};
+// Generated exact-candidate facts; only constructed by an explicit caller.
+#[rustfmt::skip]
+mod tailwind_portable;
+pub use tailwind_portable::portable_tailwind_snapshot;
 
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics
