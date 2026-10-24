@@ -143,6 +143,25 @@ test('Web sheet flushes release, restores cancellation, keeps taps and retires c
     assert.equal(await page.evaluate(() => closes), 0)
     await handle.press('Enter')
     await transform('translateY(0%)')
+    await handle.press('ArrowDown')
+    await transform('translateY(50%)')
+    await handle.evaluate((node) => {
+      window.dragClicks = 0
+      node.addEventListener('click', (event) => {
+        if (event.detail > 0) window.dragClicks++
+      })
+    })
+    await start()
+    const captured = await handle.boundingBox()
+    await page.mouse.move(captured.x + captured.width / 2, captured.y + captured.height / 2 - 200)
+    await page.mouse.up()
+    assert.equal(
+      await page.evaluate(() => dragClicks),
+      1,
+      'a real captured release produces a click',
+    )
+    await transform('translateY(0%)')
+    assert.equal(await page.evaluate(() => closes), 0)
     for (const cancellation of ['pointercancel', 'lostpointercapture']) {
       await start()
       await page.evaluate(() => {
