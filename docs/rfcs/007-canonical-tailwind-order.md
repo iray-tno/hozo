@@ -21,8 +21,10 @@ primitive-module parse. A process-local project session now reuses an exact
 candidate universe's immutable context and cancels superseded module requests
 or an invalidated project epoch. Default adapter installation, actual watcher
 integration and broader portable extraction are not complete; no new winners
-are enabled. Sequential per-file session costs still need attention before
-default installation; avoiding preparation is not zero transform overhead.
+are enabled. Ready hits now avoid wait-only signal/Promise machinery, while
+retaining cancellation checks before delivery. Sequential per-file session
+costs still need attention before default installation; avoiding preparation
+is not zero transform overhead.
 See [retained-module evidence](../measurements/canonical-tailwind-order.md#retaining-the-actual-module-across-preparation).
 See also [session reuse and cancellation](../measurements/canonical-tailwind-order.md#one-project-epoch-reuse-and-cancellation).
 
