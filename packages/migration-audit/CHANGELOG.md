@@ -1,5 +1,22 @@
 # @hozo/migration-audit
 
+## 0.4.0
+
+### Patch Changes
+
+- [#1055](https://github.com/iray-tno/hozo/pull/1055) [`08dd756`](https://github.com/iray-tno/hozo/commit/08dd756fb0ec9cead28d3f7243412bdd6194525b) Thanks [@iray-tno](https://github.com/iray-tno)! - `hozo-migration-audit --fix` prints, as a diff, the `react-native` imports the Web build moves to `@hozo/rn-compat`, written into source; `--write` applies them. `@hozo/compiler/analysis` exports the pass it uses, `reactNativeImportFix`.
+
+- [#1060](https://github.com/iray-tno/hozo/pull/1060) [`7785037`](https://github.com/iray-tno/hozo/commit/7785037b83cf3e0b7031efd6081b2a1f697f3698) Thanks [@iray-tno](https://github.com/iray-tno)! - Next steps now ends with an optional step pointing at `--fix` when the Web build moved React Native imports to `@hozo/rn-compat`, so the codemod is found from the report rather than only from the README.
+
+- [#1052](https://github.com/iray-tno/hozo/pull/1052) [`4673a5a`](https://github.com/iray-tno/hozo/commit/4673a5aa0ab1178a7804e3803a14e5086d01e10e) Thanks [@iray-tno](https://github.com/iray-tno)! - The Markdown report opens with a Next steps section: what to fix first, in the order one step unblocks the next, read off the findings the report already holds.
+
+- [#1071](https://github.com/iray-tno/hozo/pull/1071) [`e764108`](https://github.com/iray-tno/hozo/commit/e76410840b00860e31b0dad1c41bb06b82ecb421) Thanks [@iray-tno](https://github.com/iray-tno)! - `--fix --write` now also refuses a file Git does not track, including an ignored one selected by `--include`. Before this it checked only `git status`, which does not list ignored files, so such a file could be overwritten with no copy left anywhere. The README states what the audit may write as a contract and no longer calls the tool read-only.
+
+- [#1227](https://github.com/iray-tno/hozo/pull/1227) [`abd83e2`](https://github.com/iray-tno/hozo/commit/abd83e221bb474864c81365c6ae398ca1e810823) Thanks [@iray-tno](https://github.com/iray-tno)! - The audit lists each class React Native cannot draw in a class prop the compiler does not lower, such as one handed to a pattern. Each one is a `CLASS_NOT_DRAWN_ON_NATIVE` finding, with its reason, its file and line, and the attribute it is in.
+- Updated dependencies [[`08dd756`](https://github.com/iray-tno/hozo/commit/08dd756fb0ec9cead28d3f7243412bdd6194525b), [`d7dd5b9`](https://github.com/iray-tno/hozo/commit/d7dd5b9d91a77c6cf647ba2de6fb321f8e558613), [`3e5d88d`](https://github.com/iray-tno/hozo/commit/3e5d88d106e8292c4a01762f445fd97402fce83b), [`cad9081`](https://github.com/iray-tno/hozo/commit/cad908183b81180e2fd8bb7ef31a1bb2f12f8e95), [`6b0c271`](https://github.com/iray-tno/hozo/commit/6b0c271b754c3ba96bf7efe8f241f8784a3e4081), [`f56c33a`](https://github.com/iray-tno/hozo/commit/f56c33a14738c3f71b2dd0690fad5fb6ef817133), [`dec0ba9`](https://github.com/iray-tno/hozo/commit/dec0ba98522749a6c5013f4148c58395a8e5a7f4), [`771b369`](https://github.com/iray-tno/hozo/commit/771b369bd74c6ca67717c67d36bfee3de8ea1654), [`f3da373`](https://github.com/iray-tno/hozo/commit/f3da3738010f3a0f09e1449d8985905993201980), [`4186a98`](https://github.com/iray-tno/hozo/commit/4186a98cfaaec9e23537bf2cc55f391e6b897368), [`60a76ad`](https://github.com/iray-tno/hozo/commit/60a76ad8affe8df7488cff17a85c4836e6c56736), [`9d242c4`](https://github.com/iray-tno/hozo/commit/9d242c474776e81a505b45ef14b80840df51f20f), [`c1ca21a`](https://github.com/iray-tno/hozo/commit/c1ca21afee0e3f4dd92110570f3ff3775b01c4cf), [`b0e68ac`](https://github.com/iray-tno/hozo/commit/b0e68ac2b9afbe7ef3fbece6838392f7bfb82125), [`e88bc55`](https://github.com/iray-tno/hozo/commit/e88bc55c736558b296ac69bef8eb57a50a69c635), [`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb), [`0413a61`](https://github.com/iray-tno/hozo/commit/0413a61d029b3dd5dcdb48ef7f4d268fcb0a3089), [`e7b4592`](https://github.com/iray-tno/hozo/commit/e7b4592a8f9ea6e6a556e860a9202876c62d73c8), [`242253d`](https://github.com/iray-tno/hozo/commit/242253da3910698e0838d74cbc9d51e1ca5995d6), [`e7d97e9`](https://github.com/iray-tno/hozo/commit/e7d97e981615355534d0ea20c4a70410556cbda4)]:
+  - @hozo/compiler@0.4.0
+  - @hozo/tailwind@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes

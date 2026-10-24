@@ -1,5 +1,11 @@
 # @hozo/tailwind
 
+## 0.4.0
+
+### Patch Changes
+
+- [#1111](https://github.com/iray-tno/hozo/pull/1111) [`0413a61`](https://github.com/iray-tno/hozo/commit/0413a61d029b3dd5dcdb48ef7f4d268fcb0a3089) Thanks [@iray-tno](https://github.com/iray-tno)! - The injected base layer no longer ships Tailwind's `--theme()` calls, which browsers drop. `html` gets its sans-serif stack and `code`/`pre` their monospace stack again, instead of the browser's default serif.
+
 ## 0.3.0
 
 ### Minor Changes
