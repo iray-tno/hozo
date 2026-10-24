@@ -15,7 +15,7 @@ import { NativeSelect } from '@hozo/form'
 import { Button as ButtonFallback } from '@hozo/primitives'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
-import { createElement, Fragment } from 'react'
+import { Children, createElement, Fragment } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
 import { chipAncestorFixture } from './chip-ancestor-fixture.mjs'
@@ -4384,6 +4384,9 @@ async function patternHarness(cacheName, look) {
     if (name.startsWith('./')) return load(name.slice(2))
     const resolved = {
       react: {
+        // The real ones: they build elements and touch no renderer state.
+        Children,
+        createElement,
         useState: (value) => [typeof value === 'function' ? value() : value, () => {}],
         useCallback: (fn) => fn,
         useRef: (current) => ({ current }),
