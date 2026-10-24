@@ -1,5 +1,66 @@
 # @hozo/compiler
 
+## 0.4.0
+
+### Patch Changes
+
+- [#1055](https://github.com/iray-tno/hozo/pull/1055) [`08dd756`](https://github.com/iray-tno/hozo/commit/08dd756fb0ec9cead28d3f7243412bdd6194525b) Thanks [@iray-tno](https://github.com/iray-tno)! - `hozo-migration-audit --fix` prints, as a diff, the `react-native` imports the Web build moves to `@hozo/rn-compat`, written into source; `--write` applies them. `@hozo/compiler/analysis` exports the pass it uses, `reactNativeImportFix`.
+
+- [#1099](https://github.com/iray-tno/hozo/pull/1099) [`d7dd5b9`](https://github.com/iray-tno/hozo/commit/d7dd5b9d91a77c6cf647ba2de6fb321f8e558613) Thanks [@iray-tno](https://github.com/iray-tno)! - A `Button` whose props reach it through a rest spread (`function B({ href, ...rest }) { return <Button {...rest} /> }`) works again on the Web. Since the compiler started deciding such a Button's element at build time, the spread reached the `<button>` or `<a>` raw, so `onPress` never became `onClick` and clicking an `@hozo/ui` Button did nothing. The spread now goes through the same translation as the uncompiled `Button`: `onPress`, `accessibilityLabel`, `accessibilityHint`, `testID`, `nativeID`, `disabled` and `data-*`. On an anchor, a press is still suppressed while disabled.
+
+- [#1136](https://github.com/iray-tno/hozo/pull/1136) [`3e5d88d`](https://github.com/iray-tno/hozo/commit/3e5d88d106e8292c4a01762f445fd97402fce83b) Thanks [@iray-tno](https://github.com/iray-tno)! - A `before:` or `after:` class that reaches the page only through the candidate stylesheet now draws its pseudo-element. The rule writes `content: var(--hozo-content)`, and the `@property` that gives it an initial value of `""` was emitted only beside a lowered file that used one. A class list passed to a plain element at runtime, such as a `BottomSheet`'s grabber, had no such file, so the bar was never drawn.
+
+- [#1059](https://github.com/iray-tno/hozo/pull/1059) [`cad9081`](https://github.com/iray-tno/hozo/commit/cad908183b81180e2fd8bb7ef31a1bb2f12f8e95) Thanks [@iray-tno](https://github.com/iray-tno)! - A `<Listbox>` with no `accessibilityLabel` (and no spread that might carry one) now raises `A11Y_MISSING_ACCESSIBLE_NAME`, as `OtpInput` and `ColorPicker` do: on both platforms its options were announced under no name.
+
+- [#1037](https://github.com/iray-tno/hozo/pull/1037) [`6b0c271`](https://github.com/iray-tno/hozo/commit/6b0c271b754c3ba96bf7efe8f241f8784a3e4081) Thanks [@iray-tno](https://github.com/iray-tno)! - A Text nested in `@hozo/ui`'s `Checkbox` or `Switch` now gets its label text styles on Native, as one in `Button` and `Alert` already did. The manifest extractor reads `@hozo/patterns`' Checkbox and Switch as hosts, and takes a `disabled` left in the rest spread as the caller's, so `disabled:` text follows the caller's own `disabled`.
+
+- [#1038](https://github.com/iray-tno/hozo/pull/1038) [`f56c33a`](https://github.com/iray-tno/hozo/commit/f56c33a14738c3f71b2dd0690fad5fb6ef817133) Thanks [@iray-tno](https://github.com/iray-tno)! - A package component whose host is a pressable primitive now hands its `hover:`, `active:` and `focus-visible:` text classes to a Text the caller nests, on Native: the manifest records `hostStates`, and the caller's Text reads the host's state through `HozoText`.
+
+- [#1043](https://github.com/iray-tno/hozo/pull/1043) [`dec0ba9`](https://github.com/iray-tno/hozo/commit/dec0ba98522749a6c5013f4148c58395a8e5a7f4) Thanks [@iray-tno](https://github.com/iray-tno)! - A package component that picks its classes from an object map (`tones[tone]`) now gets a text-forwarding manifest entry, so a Text its caller nests takes the classes it hands down.
+
+- [#1026](https://github.com/iray-tno/hozo/pull/1026) [`771b369`](https://github.com/iray-tno/hozo/commit/771b369bd74c6ca67717c67d36bfee3de8ea1654) Thanks [@iray-tno](https://github.com/iray-tno)! - Warn (`A11Y_NAME_NOT_FORWARDED`) when a `Modal` is given an accessible name. Neither React Native nor the Web runtime passes it on, so it was never announced; use a `Dialog`, or name a `View` inside the modal.
+
+- [#1151](https://github.com/iray-tno/hozo/pull/1151) [`f3da373`](https://github.com/iray-tno/hozo/commit/f3da3738010f3a0f09e1449d8985905993201980) Thanks [@iray-tno](https://github.com/iray-tno)! - On the Web, a prop written after a spread wins over the spread, as it does in JSX and on React Native. In `<View {...props} testID="t">`, the compiled element is now `data-testid="t"`, even when `props` holds a `testID`.
+  
+  The compiler emits the props it models before the spread. Since spreads are translated (`accessibilityLabel` becoming `aria-label`, and so on), a key inside the spread overrode the author's later value. Now the keys written after a spread are taken out of it. This applies to translated spreads and to spreads kept on a component such as `HozoView`. A spread with nothing written after it is unchanged.
+
+- [#1220](https://github.com/iray-tno/hozo/pull/1220) [`4186a98`](https://github.com/iray-tno/hozo/commit/4186a98cfaaec9e23537bf2cc55f391e6b897368) Thanks [@iray-tno](https://github.com/iray-tno)! - Metro now warns, at the prop, about a class React Native cannot draw when the class sits somewhere the build would otherwise say nothing about it. The warning code is `CLASS_NOT_DRAWN_ON_NATIVE`. It fires in two places:
+  
+  - a class prop handed to a pattern, such as `handleClassName="before:block"` on a `BottomSheet`;
+  - a class list on a lowered element that the compiler could not take apart, so it was resolved on device.
+  
+  Only classes Native cannot draw at all are reported. A cursor or a transition is not, and a dependency's files under `node_modules` are not.
+  
+  `compileNativeModule` returns these warnings in a new module-level `diagnostics` field.
+
+- [#1168](https://github.com/iray-tno/hozo/pull/1168) [`60a76ad`](https://github.com/iray-tno/hozo/commit/60a76ad8affe8df7488cff17a85c4836e6c56736) Thanks [@iray-tno](https://github.com/iray-tno)! - `nativeClassReport(source)` lists the classes in a module's `className` and `*ClassName` props that React Native cannot draw, each with a reason. That includes class lists handed to a pattern such as `BottomSheet`, which the compiler does not lower and so never examined.
+  
+  `nativeClassVerdicts(classNames)` gives the same verdict for loose class names.
+  
+  - A verdict of `missing` is something the Web draws and Native does not: a pseudo-element, a scrim, a selector, a fixed position.
+  - A verdict of `cosmetic` is a cursor shape or a CSS transition.
+  - Classes that depend on state a component's Native half may supply (`hover:`, `aria-*:`, `data-*:`) are not reported.
+  
+  These are not yet build warnings.
+
+- [#1061](https://github.com/iray-tno/hozo/pull/1061) [`9d242c4`](https://github.com/iray-tno/hozo/commit/9d242c474776e81a505b45ef14b80840df51f20f) Thanks [@iray-tno](https://github.com/iray-tno)! - On Native, when a prop between two spreads is written in a form Hozo does not take apart (an entity in a string, an element as the value), the element now raises `UNSAFE_PROP_SPREAD_AFTER_STYLE` at that prop. Its compiled `style` could not be composed with the spreads there, so a `style` they carry replaces it; this used to happen silently.
+
+- [#1056](https://github.com/iray-tno/hozo/pull/1056) [`c1ca21a`](https://github.com/iray-tno/hozo/commit/c1ca21afee0e3f4dd92110570f3ff3775b01c4cf) Thanks [@iray-tno](https://github.com/iray-tno)! - On Native, a `style` a caller passes through a component's `{...rest}` no longer replaces the styles compiled from its classes: the two compose, classes first and the caller's style after, as the owner itself composes them. Elements whose spreads cannot carry `style` compile as before.
+
+- [#1184](https://github.com/iray-tno/hozo/pull/1184) [`b0e68ac`](https://github.com/iray-tno/hozo/commit/b0e68ac2b9afbe7ef3fbece6838392f7bfb82125) Thanks [@iray-tno](https://github.com/iray-tno)! - On React Native, a primitive with a class that needs a hook (`dark:`, a breakpoint, a dark-paired token) inside a class component's `render` is refused at build time, with a message that says so.
+  
+  Before this, the compiler hoisted `useHozoDark()` to the top of `render()`, as it does in a function component. In a class that is an invalid hook call, so it threw on every render, on the device. A function component written inside the class still gets its hook.
+
+- [#1028](https://github.com/iray-tno/hozo/pull/1028) [`e88bc55`](https://github.com/iray-tno/hozo/commit/e88bc55c736558b296ac69bef8eb57a50a69c635) Thanks [@iray-tno](https://github.com/iray-tno)! - Warn (`A11Y_MISSING_ACCESSIBLE_NAME`) when an `OtpInput` or a `ColorPicker` has no accessible name. Neither has a default name to fall back on, and a build that strips types without checking them never reported the missing `accessibilityLabel`.
+
+- [#1039](https://github.com/iray-tno/hozo/pull/1039) [`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb) Thanks [@iray-tno](https://github.com/iray-tno)! - A Text nested in `@hozo/ui`'s `Checkbox` or `Switch` label now takes their `hover:`, `active:` and `focus-visible:` text classes on Native. `@hozo/patterns`' pressable provides its state through `HozoInteractionContext`, now in `@hozo/behaviors/pressable-interaction` and shared with `@hozo/primitives`, so the `HozoText` a caller's Text compiles to reads it.
+
+- [#1009](https://github.com/iray-tno/hozo/pull/1009) [`e7b4592`](https://github.com/iray-tno/hozo/commit/e7b4592a8f9ea6e6a556e860a9202876c62d73c8) Thanks [@iray-tno](https://github.com/iray-tno)! - A `ScrollView` given React Native's `refreshControl={<RefreshControl … />}` now pulls to refresh on the Web. It compiled to a plain `div` that took the control as an unknown attribute, so the indicator never appeared and a pull did nothing.
+
+- [#1119](https://github.com/iray-tno/hozo/pull/1119) [`242253d`](https://github.com/iray-tno/hozo/commit/242253da3910698e0838d74cbc9d51e1ca5995d6) Thanks [@iray-tno](https://github.com/iray-tno)! - A `TextInput` whose props reach it through a spread (`function F(props) { return <TextInput {...props} /> }`) works on the Web. The spread reached the `<input>` or `<textarea>` raw, so `onChangeText` was never called and a controlled `@hozo/ui` `Input` could not be typed into. The spread now goes through the same translation as the uncompiled `TextInput`: `onChangeText`, `onSubmitEditing`, `editable`, `keyboardType`, `secureTextEntry`, `returnKeyType`, `autoCorrect`, the `accessibility*` props, `testID` and `nativeID`. A named `onChangeText` that is `undefined` no longer throws when the field is typed into.
+
+- [#1124](https://github.com/iray-tno/hozo/pull/1124) [`e7d97e9`](https://github.com/iray-tno/hozo/commit/e7d97e981615355534d0ea20c4a70410556cbda4) Thanks [@iray-tno](https://github.com/iray-tno)! - A `View`, `Text`, `Image` or document primitive whose props reach it through a spread (`function Box(props) { return <View {...props} /> }`) keeps them on the Web. The spread reached the element raw, so `accessibilityLabel`, `accessibilityHint`, `testID`, `nativeID`, `pointerEvents`, `accessibilityState`, `accessibilityValue` and `accessibilityLiveRegion` became unknown attributes, and the element lost its accessible name. The spread now goes through the same translation as the uncompiled primitive. On an `Image` it also resolves an object or list `src` and uses the accessibility label as `alt`.
+
 ## 0.3.0
 
 ### Minor Changes

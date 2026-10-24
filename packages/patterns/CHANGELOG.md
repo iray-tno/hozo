@@ -1,5 +1,29 @@
 # @hozo/patterns
 
+## 0.4.0
+
+### Minor Changes
+
+- [#1243](https://github.com/iray-tno/hozo/pull/1243) [`480e00a`](https://github.com/iray-tno/hozo/commit/480e00a0d6e165b92beb8dbf9310710fcceb7fd1) Thanks [@iray-tno](https://github.com/iray-tno)! - Add a portable one-axis drag behavior, Splitter and ResizablePane. Panes resize with captured pointer drags, Web keyboard commands and Native accessibility actions, support logical sides and collapse/restore, and expose change/commit callbacks for application-owned persistence.
+
+- [#1245](https://github.com/iray-tno/hozo/pull/1245) [`37a9151`](https://github.com/iray-tno/hozo/commit/37a915152634d8e25dfa9b2958661d4bc8f0a134) Thanks [@iray-tno](https://github.com/iray-tno)! - Add portable CodeLines and CodeBlock with application-supplied tokens, semantic line marks, hidden gutters, line numbers, wrapping, accessible scrolling and copy feedback. Supply Native clipboard access through CodeClipboardProvider. Pure model, Shiki connection and fence metadata helpers have independent subpaths; no highlighter or diff runtime is included.
+  
+  Del now renders a semantic `<del>` on Web instead of `<s>`. Strikethrough retains `<s>`; Ins adds `<ins>` with underline on Native.
+
+### Patch Changes
+
+- [#1039](https://github.com/iray-tno/hozo/pull/1039) [`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb) Thanks [@iray-tno](https://github.com/iray-tno)! - A Text nested in `@hozo/ui`'s `Checkbox` or `Switch` label now takes their `hover:`, `active:` and `focus-visible:` text classes on Native. `@hozo/patterns`' pressable provides its state through `HozoInteractionContext`, now in `@hozo/behaviors/pressable-interaction` and shared with `@hozo/primitives`, so the `HozoText` a caller's Text compiles to reads it.
+
+- [#1142](https://github.com/iray-tno/hozo/pull/1142) [`98c1e65`](https://github.com/iray-tno/hozo/commit/98c1e65e578b885bd8184dd2eee1617b6d01cfbc) Thanks [@iray-tno](https://github.com/iray-tno)! - `Tooltip` on the Web renders in the top layer, so a fixed or positioned neighbour such as a sidebar no longer paints over it. `className` and `style` now apply to a box inside the positioner, around the `role="tooltip"` label, because the top-layer positioner resets its own background and padding.
+
+- [#1145](https://github.com/iray-tno/hozo/pull/1145) [`bc65476`](https://github.com/iray-tno/hozo/commit/bc654769284e1429e00028d8b6176cbdafab59c8) Thanks [@iray-tno](https://github.com/iray-tno)! - A `Tree` branch can be opened and closed with a pointer. By default a press on a branch row now selects it and opens or closes it, on both platforms. Before this, the Web half only selected and the Native half only toggled.
+  
+  `toggleOn="marker"` makes only the marker open and close, for a `+` box or for a tree whose branches are things to choose. On React Native the row then offers expand and collapse as accessibility actions. `renderRow` receives a `toggle` for a marker it draws itself. `@hozo/ui`'s `Tree`, whose marker is a chevron, keeps the row behaviour.
+- Updated dependencies [[`480e00a`](https://github.com/iray-tno/hozo/commit/480e00a0d6e165b92beb8dbf9310710fcceb7fd1), [`c1ca21a`](https://github.com/iray-tno/hozo/commit/c1ca21afee0e3f4dd92110570f3ff3775b01c4cf), [`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb), [`416d627`](https://github.com/iray-tno/hozo/commit/416d627e8afc6a3f321c95dbe1f74b630d173d7b), [`37a9151`](https://github.com/iray-tno/hozo/commit/37a915152634d8e25dfa9b2958661d4bc8f0a134)]:
+  - @hozo/behaviors@0.4.0
+  - @hozo/engine@0.4.0
+  - @hozo/typography@0.4.0
+
 ## 0.3.0
 
 ### Minor Changes
