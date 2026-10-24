@@ -53,17 +53,20 @@ export interface HozoSliderProps extends Partial<SliderRange> {
    * `StyleSheet` entry. Here they arrive as strings and are resolved through
    * the project's candidate map (#886), the thumb with its own focus and
    * aria-disabled state. Like its Web div, it is not a disabled form control.
-   * Each `*Style` prop comes after its class list, and a fill is drawn when
-   * either is given.
+   * Each `*Style` prop comes after its class list, and a fill or a rail is
+   * drawn when either of its pair is given.
    */
   className?: string
   thumbClassName?: string
   fillClassName?: string
+  /** The rail the value runs along; see the Web half. */
+  railClassName?: string
   style?: StyleProp<ViewStyle>
   thumbStyle?: StyleProp<ViewStyle>
   /** @internal Compiled classes, evaluated by the actual adjustable thumb. */
   hozoThumbStyle?: (state: SliderThumbState) => StyleProp<ViewStyle>
   fillStyle?: StyleProp<ViewStyle>
+  railStyle?: StyleProp<ViewStyle>
 }
 
 export function HozoSlider({
@@ -83,10 +86,12 @@ export function HozoSlider({
   className,
   thumbClassName,
   fillClassName,
+  railClassName,
   style,
   thumbStyle,
   hozoThumbStyle,
   fillStyle,
+  railStyle,
 }: HozoSliderProps) {
   // View's non-touch focus events belong to the adjustable thumb, not the
   // track that receives the pan. A non-touch focus ring needs no pointer
@@ -214,6 +219,13 @@ export function HozoSlider({
       onLayout={onLayout}
       {...responder.panHandlers}
     >
+      {railStyle === undefined && railClassName === undefined ? null : (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={[hozoClasses(railClassName), railStyle]}
+        />
+      )}
       {fillStyle === undefined && fillClassName === undefined ? null : (
         <View
           accessibilityElementsHidden
