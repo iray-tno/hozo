@@ -434,7 +434,7 @@ export const components = {
   ),
   Popover: slots('className triggerClassName panelClassName'),
   RadioGroup: slots('className optionClassName'),
-  Slider: slots('className thumbClassName fillClassName'),
+  Slider: slots('className thumbClassName fillClassName railClassName'),
   Stepper: slots(
     'className stepClassName completedStepClassName currentStepClassName errorStepClassName indicatorClassName completedIndicatorClassName currentIndicatorClassName errorIndicatorClassName descriptionClassName',
     {

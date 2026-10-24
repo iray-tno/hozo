@@ -61,6 +61,12 @@ test('the fill is rendered only when it was asked for, and is not announced', ()
   assert.match(html, /width:50%/)
 })
 
+test('the rail is rendered only when asked for, under the fill, at full length and unannounced', () => {
+  const html = render({ defaultValue: 5, railClassName: 'R', fillClassName: 'F' })
+  assert.match(html, /<div aria-hidden="true" class="R"><\/div><div aria-hidden="true" class="F"/)
+  assert.doesNotMatch(render({ defaultValue: 5, fillClassName: 'F' }), /class="R"/)
+})
+
 test('nothing carries a class it was not given', () => {
   assert.doesNotMatch(render(), /class=/)
   const html = render({ className: 'T', thumbClassName: 'H' })

@@ -72,6 +72,13 @@ export interface HozoSliderProps extends Partial<SliderRange> {
    */
   fillClassName?: string
   /**
+   * On the whole length of the track, under the fill: the rail the value
+   * runs along. Rendered only when given and `aria-hidden`, as the fill is.
+   * An element rather than the track's `::before`, because React Native has
+   * no pseudo-elements and its half drew no rail at all (#1205).
+   */
+  railClassName?: string
+  /**
    * On the track, for a style that is the value's meaning rather than a
    * look -- a colour picker's hue spectrum, which changes with the colour.
    * React Native's half has always taken one.
@@ -80,6 +87,7 @@ export interface HozoSliderProps extends Partial<SliderRange> {
   /** Inline presentation for applications composing a portable layout surface. */
   thumbStyle?: CSSProperties
   fillStyle?: CSSProperties
+  railStyle?: CSSProperties
 }
 
 export function HozoSlider({
@@ -99,9 +107,11 @@ export function HozoSlider({
   className,
   thumbClassName,
   fillClassName,
+  railClassName,
   style,
   thumbStyle,
   fillStyle,
+  railStyle,
 }: HozoSliderProps) {
   const range: SliderRange = { min, max, step, bigStep }
   const track = useRef<HTMLDivElement>(null)
@@ -198,6 +208,9 @@ export function HozoSlider({
       onPointerCancel={cancel}
       onLostPointerCapture={cancel}
     >
+      {railClassName === undefined && railStyle === undefined ? null : (
+        <div aria-hidden="true" className={railClassName} style={railStyle} />
+      )}
       {fillClassName === undefined && fillStyle === undefined ? null : (
         <div
           aria-hidden="true"

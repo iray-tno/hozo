@@ -42,9 +42,18 @@
  *
  * The thumb is `size-6` and the track is as tall, because WCAG 2.5.8 asks for
  * 24 by 24 and a slider is the control that most invites a 12px dot. #636 is
- * the same finding about a one-glyph button. The rail is 6px and drawn as
- * `::before`, so the thing a finger has to hit is the full 24 rather than the
+ * the same finding about a one-glyph button. The rail and fill are 8px inside
+ * that 24, so the thing a finger has to hit is the full 24 rather than the
  * part that looks like a slider.
+ *
+ * ## The rail is an element, and centred by insets
+ *
+ * It was the track's `::before`, which React Native does not have, so a
+ * Native slider showed only its fill, at the top of the track (#1205). Now it
+ * is the pattern's `railClassName`. Rail and fill are centred by
+ * `inset-y-2` -- eight pixels each side of eight in twenty-four -- rather
+ * than `inset-y-0 my-auto`, with which the Native fill sat at the top of
+ * the track. Insets alone mean the same thing to a browser and to Yoga.
  */
 
 import { Slider as SliderPattern, type SliderProps } from '@hozo/patterns'
@@ -55,7 +64,10 @@ import { Slider as SliderPattern, type SliderProps } from '@hozo/patterns'
  * `style` and friends are not mentioned: they are the Native half's and this
  * package has no opinion about them.
  */
-export type HozoSliderProps = Omit<SliderProps, 'thumbClassName' | 'fillClassName'>
+export type HozoSliderProps = Omit<
+  SliderProps,
+  'thumbClassName' | 'fillClassName' | 'railClassName'
+>
 
 /**
  * A track, a fill and a thumb, for each orientation.
@@ -65,11 +77,11 @@ export type HozoSliderProps = Omit<SliderProps, 'thumbClassName' | 'fillClassNam
  * without running the code.
  */
 const HORIZONTAL = {
-  track:
-    "relative h-6 w-full touch-none select-none cursor-pointer disabled:cursor-not-allowed before:content-[''] before:absolute before:inset-x-0 before:inset-y-0 before:my-auto before:h-1 before:rounded-full before:bg-hozo-border",
-  fill: 'absolute inset-y-0 my-auto h-1 start-0 rounded-full bg-hozo-accent',
+  track: 'relative h-6 w-full touch-none select-none cursor-pointer disabled:cursor-not-allowed',
+  rail: 'absolute inset-x-0 inset-y-2 rounded-full bg-hozo-border',
+  fill: 'absolute inset-y-2 start-0 rounded-full bg-hozo-accent',
   thumb:
-    'absolute inset-y-0 my-auto -ms-3 size-6 rounded-full border-2 border-hozo-accent bg-hozo-surface shadow-hozo-surface cursor-grab hover:border-hozo-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:cursor-not-allowed aria-disabled:border-hozo-border-strong aria-disabled:bg-hozo-surface-raised',
+    'absolute inset-y-0 -ms-3 size-6 rounded-full border-2 border-hozo-accent bg-hozo-surface shadow-hozo-surface cursor-grab hover:border-hozo-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:cursor-not-allowed aria-disabled:border-hozo-border-strong aria-disabled:bg-hozo-surface-raised',
 } as const
 
 /**
@@ -79,11 +91,11 @@ const HORIZONTAL = {
  * pass `className` to say otherwise.
  */
 const VERTICAL = {
-  track:
-    "relative h-40 w-6 touch-none select-none cursor-pointer disabled:cursor-not-allowed before:content-[''] before:absolute before:inset-y-0 before:inset-x-0 before:mx-auto before:w-1 before:rounded-full before:bg-hozo-border",
-  fill: 'absolute inset-x-0 mx-auto w-1 bottom-0 rounded-full bg-hozo-accent',
+  track: 'relative h-40 w-6 touch-none select-none cursor-pointer disabled:cursor-not-allowed',
+  rail: 'absolute inset-y-0 inset-x-2 rounded-full bg-hozo-border',
+  fill: 'absolute inset-x-2 bottom-0 rounded-full bg-hozo-accent',
   thumb:
-    'absolute inset-x-0 mx-auto -mb-3 size-6 rounded-full border-2 border-hozo-accent bg-hozo-surface shadow-hozo-surface cursor-grab hover:border-hozo-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:cursor-not-allowed aria-disabled:border-hozo-border-strong aria-disabled:bg-hozo-surface-raised',
+    'absolute inset-x-0 -mb-3 size-6 rounded-full border-2 border-hozo-accent bg-hozo-surface shadow-hozo-surface cursor-grab hover:border-hozo-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-disabled:cursor-not-allowed aria-disabled:border-hozo-border-strong aria-disabled:bg-hozo-surface-raised',
 } as const
 
 export function HozoSlider({ className, orientation, ...rest }: HozoSliderProps) {
@@ -93,6 +105,7 @@ export function HozoSlider({ className, orientation, ...rest }: HozoSliderProps)
       {...rest}
       orientation={orientation}
       className={className ? `${own.track} ${className}` : own.track}
+      railClassName={own.rail}
       fillClassName={own.fill}
       thumbClassName={own.thumb}
     />
