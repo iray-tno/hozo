@@ -56,7 +56,7 @@ pub fn compile_plan(
                         let (source, input) = match block.source.input() {
                             hozo_ir::StyleSource::Tailwind(input) => ("tailwind", Some(input)),
                             hozo_ir::StyleSource::Stylex(input) => ("stylex", Some(input)),
-                            _ => ("synthetic", None),
+                            _ => ("unspecified", None),
                         };
                         TailwindCompileBlock {
                             start: block.start as u32,

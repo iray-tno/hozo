@@ -34,7 +34,7 @@ export interface TailwindCompilePlan {
     blocks: {
       start: number
       end: number
-      source: 'tailwind' | 'stylex' | 'synthetic'
+      source: 'tailwind' | 'stylex' | 'unspecified'
       inputStart?: number
       utilityId?: number
       guarded: boolean
@@ -44,7 +44,7 @@ export interface TailwindCompilePlan {
         | 'uncollected'
         | 'missing-identity'
         | 'stylex'
-        | 'synthetic'
+        | 'unspecified'
       candidate?: string
       candidateId?: number
       ruleIds: number[]

@@ -21,7 +21,7 @@ contract, not the unresolved project collect/prepare/emit integration,
 portable facts or shared comparator. It changes no winners,
 candidate refusals, runtime subscriptions or runtime payloads.
 
-## Binding prepared facts to retained utilities
+## Initial binding of prepared facts to retained utilities (#1249)
 
 The next compiler-only slice consumes that snapshot in `hozo_ir` as an
 immutable `TailwindOrderContext`. It validates schema/policy, provenance
@@ -300,3 +300,79 @@ speedups. Parse/planning/lowering attribution, IR allocations/peak memory,
 incremental project work, state rank-read instrumentation and real app payloads
 remain explicitly unassessed. This is the before harness for the common plan,
 not evidence that the proposed replacement has zero overhead.
+
+## Shared pass-through plan in actual compilation
+
+The next slice connects that context to `compile`, `compileNative` and
+`compileNativeModule` in the Node compiler. The parser's
+`plan_module_tailwind(&mut ParseOutput, context, capture)` consumes the existing
+IR after Native forwarding and before platform lowering. It takes no source
+text and runs no parser. The common `hozo_ir::TailwindWritePlan` owns each
+existing style vector and returns that same allocation to the IR consumed by
+the lowerer. It does not reconstruct or evaluate author expressions.
+
+Root and owned-root class slots, secondary slots, carried child/prop nodes and
+forwarded declarations go through the same traversal. Blocks keep contiguous
+input/utility/predicate boundaries; repeated blocks do not merge backwards.
+Rule descriptors bind once to the module table. No new fields are added to
+`Node` or `StyleDeclaration`. The Node compiler's output-result types do gain
+an optional build-time evidence field; this is not a zero-memory-cost claim.
+
+Prepared compilation without evidence produces the exact same complete
+results as unprepared compilation in the regression tests. A per-call internal
+`tailwindPlan: true` requests a report from that actual compile, not the
+separate inspection parser. Only this capture path constructs report strings,
+rule-ID lists and site/block records; they never enter JSX/CSS/StyleSheet
+output. Sites describe IR style collections, not final DOM element counts:
+for example a Pressable can have a separate owned root `className` slot.
+`Unspecified` provenance is reported as `unspecified`, not invented evidence
+that a write is a synthetic default. Missing identity stays unassessed.
+
+The internal NAPI Native-module call now receives one named options object
+for RFC 006 choices and evidence rather than another positional boolean. The
+TypeScript entry keeps the existing call shape, with optional evidence added.
+Raw addon overrides must match this source and be rebuilt. Standalone
+Rust/WASM calls still lack a prepared/portable context; no adapter is enabled
+and the candidate resolver is unchanged. This is pass-through integration,
+not the completed common comparator or a compatibility-coverage increase.
+
+Local CPU-1/Idle/serial verification: Rust 1,025 passed; compiler suites 338
+passed plus 1 existing skip; Tailwind suites 53 passed; Native Showcase 223
+passed plus 1 existing skip; source-input guards 9 passed. Rust tests compare
+every node/capture and style-vector pointer/capacity before and after planning,
+with capture both off and on. Actual compile tests check identical emitted
+results, shared Web/Native evidence, contiguous complete write ranges, UTF-16
+spans, nested/secondary/owned slots, forwarding, StyleX boundaries and unchanged
+text-static ABI choices. The stored 30-subject output corpus, six additional
+fixtures and Native candidate module remain byte-identical. The regenerated
+device fixture changes receipts only, not its generated test bodies.
+
+The updated binding-cost command measures ordinary prepared compilation and
+evidence capture separately. Seven warmed samples, 20 compiles/sample, debug
+addon; each module uses the same 16 padding utilities while the prepared
+universe grows:
+
+| Prepared candidates | Prepared vs no-context Web median | Native median |
+| ---: | ---: | ---: |
+| 16 | +2.05% | +0.44% |
+| 128 | +2.57% | +1.18% |
+| 1,024 | +3.18% | +2.65% |
+
+Capture costs more and is not hidden inside those numbers: Web evidence
+medians were 4.62–4.95 ms per 20 calls vs 3.56–3.65 ms without capture; Native
+7.84–8.14 ms vs 6.74–7.00 ms. These are synthetic build-time measurements,
+not application/device timings or the cost of an enabled ordering comparator.
+
+An ordinary-corpus comparison against the older saved #1249 sample initially
+showed Web +6.04%, Native +4.03%. That observation was retained and investigated,
+not accepted as noise without a control. Fresh clean parent (`da260b00`) and
+implementation (`7e563b13`) addons rebuilt in the same worktree/profile gave
+five-sample medians of 70.1349 -> 70.0202 ms Web (-0.16%) and 83.4297 -> 84.4886 ms
+Native (+1.27%), each per 600 compiles. Both observations remain in the local
+`plan-ordinary-cost` / `plan-clean-parent` / `plan-clean-after` reports. This
+does not prove zero overhead or a speedup. Candidate consumers stayed exactly
+2,862/1,167, 11,259/2,608 and 82,464/14,567 minified/gzip bytes. The measured
+implementation checkpoint precedes the final evidence-only `unspecified`
+label correction and documentation; it is recorded, not mislabeled as final
+head. Peak memory, application bundles and fresh device pixels/AT are not
+measured. Full source/profile/harness/sample receipts stay in the reports.

@@ -40,6 +40,11 @@ test('actual Web and all Native compile routes consume the same module plan befo
     module: compiler.compileNativeModule(source),
   }
   assert.ok(before.web.every((component) => !('tailwindPlan' in component)))
+  assert.deepEqual(compiler.compile(source, undefined, capture), before.web)
+  assert.deepEqual(
+    compiler.compileNativeModule(source, undefined, undefined, capture),
+    before.module,
+  )
   compiler.setTailwindOrder(JSON.stringify(prepared.snapshot))
   compiler.inspectTailwindOrder = () => {
     throw new Error('a transform must not invoke the inspection parser')

@@ -90,7 +90,7 @@ fn plan_site(
                 Some(TailwindRuleBinding::Uncollected) => ("uncollected", None),
                 None => (
                     match block.source {
-                        StyleSource::Unspecified => "synthetic",
+                        StyleSource::Unspecified => "unspecified",
                         StyleSource::Stylex(_) => "stylex",
                         _ => "missing-identity",
                     },
@@ -210,6 +210,9 @@ const el=<Pressable className={cx('p-2 hover:p-4', check() && 'p-4', extra)}>
 const other=<View className="p-2"/>;
 "#,
         );
+        // Direct Rust callers can omit provenance for an authored write.
+        // Absence must not be misreported as proof of a synthetic default.
+        parsed.roots[1].node.style[0].source = StyleSource::Unspecified;
         let before = parsed.roots.clone();
         let mut pointers = Vec::new();
         for root in &parsed.roots {
@@ -227,6 +230,15 @@ const other=<View className="p-2"/>;
         for capture in [false, true] {
             let report = plan_module_tailwind(&mut parsed, &context, capture);
             assert_eq!(report.len(), if capture { parsed.roots.len() } else { 0 });
+            if capture {
+                assert!(report
+                    .iter()
+                    .flat_map(|root| &root.sites)
+                    .flat_map(|site| &site.blocks)
+                    .any(|block| block.status == "unspecified"
+                        && block.candidate.is_none()
+                        && block.candidate_id.is_none()));
+            }
             let mut after = Vec::new();
             for (root, expected) in parsed.roots.iter().zip(&before) {
                 assert_eq!(root.node, expected.node);
