@@ -45,6 +45,14 @@ async function load(native = false, slider = false, rtl = false) {
               new URL('../../behaviors/src/pressable-interaction.ts', import.meta.url),
             ),
           }))
+          builder.onResolve({ filter: /^@hozo\/behaviors(?:\/native)?$/ }, ({ path }) => ({
+            path: fileURLToPath(
+              new URL(
+                `../../behaviors/src/drag-1d${path.endsWith('/native') ? '.native' : ''}.ts`,
+                import.meta.url,
+              ),
+            ),
+          }))
         },
       },
     ],
@@ -56,7 +64,16 @@ async function load(native = false, slider = false, rtl = false) {
         ? {
             View: 'NativeView',
             I18nManager: { isRTL: rtl },
-            PanResponder: { create: (handlers) => ({ panHandlers: handlers }) },
+            PanResponder: {
+              create: (handlers) => ({
+                panHandlers: {
+                  onResponderGrant: handlers.onPanResponderGrant,
+                  onResponderMove: handlers.onPanResponderMove,
+                  onResponderRelease: handlers.onPanResponderRelease,
+                  onResponderTerminate: handlers.onPanResponderTerminate,
+                },
+              }),
+            },
           }
         : // The Slider's class props, resolved through the project's
           // candidate map (#886); this package does not depend on it, and
@@ -70,6 +87,24 @@ async function load(native = false, slider = false, rtl = false) {
   return module.exports
 }
 async function harness(t, props = {}, slider = false, native = false, rtl = false) {
+  if (slider) {
+    const oldFrame = globalThis.requestAnimationFrame
+    const oldCancel = globalThis.cancelAnimationFrame
+    const oldStyle = globalThis.getComputedStyle
+    let serial = 0
+    const frames = new Map()
+    globalThis.requestAnimationFrame = (callback) => {
+      frames.set(++serial, callback)
+      return serial
+    }
+    globalThis.cancelAnimationFrame = (id) => frames.delete(id)
+    globalThis.getComputedStyle = () => ({ direction: rtl ? 'rtl' : 'ltr' })
+    t.after(() => {
+      globalThis.requestAnimationFrame = oldFrame
+      globalThis.cancelAnimationFrame = oldCancel
+      globalThis.getComputedStyle = oldStyle
+    })
+  }
   const api = await load(native, slider, rtl)
   const requests = []
   let observed = status()
@@ -106,6 +141,7 @@ async function harness(t, props = {}, slider = false, native = false, rtl = fals
       {
         createNodeMock: () => ({
           getBoundingClientRect: () => ({ left: 10, top: 20, width: 100, height: 20 }),
+          focus() {},
         }),
       },
     )
@@ -333,11 +369,25 @@ for (const native of [false, true])
         .find((node) =>
           native ? node.props.accessibilityRole === 'adjustable' : node.props.role === 'slider',
         )
-    const target = { setPointerCapture() {}, releasePointerCapture() {} }
+    const target = {
+      setPointerCapture() {},
+      releasePointerCapture() {},
+      hasPointerCapture: () => true,
+      focus() {},
+    }
     const event = (x) =>
       native
         ? { nativeEvent: { locationX: x, locationY: 10 } }
-        : { currentTarget: target, pointerId: 1, clientX: 10 + x, clientY: 30 }
+        : {
+            currentTarget: target,
+            pointerId: 1,
+            clientX: 10 + x,
+            clientY: 30,
+            button: 0,
+            isPrimary: true,
+            timeStamp: x,
+            preventDefault() {},
+          }
     if (native) {
       assert.equal(track().props.pointerEvents, 'box-only')
       assert.equal(thumb().props.accessible, true)
@@ -355,20 +405,20 @@ for (const native of [false, true])
       )
     await act(async () => {
       const handlers = track().props
-      handlers[native ? 'onPanResponderGrant' : 'onPointerDown'](event(25))
-      handlers[native ? 'onPanResponderMove' : 'onPointerMove'](event(75))
-      handlers[native ? 'onPanResponderRelease' : 'onPointerUp'](event(75))
+      handlers[native ? 'onResponderGrant' : 'onPointerDown'](event(25))
+      handlers[native ? 'onResponderMove' : 'onPointerMove'](event(75), { dx: 50, dy: 0 })
+      handlers[native ? 'onResponderRelease' : 'onPointerUp'](event(75), { dx: 50, dy: 0 })
     })
     assert.deepEqual(p.requests, [6], 'release uses the last input, not a stale controlled render')
     await act(async () => {
       const handlers = track().props
-      handlers[native ? 'onPanResponderGrant' : 'onPointerDown'](event(50))
+      handlers[native ? 'onResponderGrant' : 'onPointerDown'](event(50))
     })
     assert.equal(p.last.slider.value, 4, 'Native local coordinates do not include parent offsets')
     await act(async () => {
       const handlers = track().props
-      handlers[native ? 'onPanResponderTerminate' : 'onPointerCancel']()
-      if (!native) handlers.onLostPointerCapture()
+      handlers[native ? 'onResponderTerminate' : 'onPointerCancel'](event(50))
+      if (!native) handlers.onLostPointerCapture(event(50))
     })
     assert.deepEqual(p.requests, [6])
     assert.equal(p.last.previewing, false)
@@ -389,8 +439,8 @@ test('Native RTL touch positions use the platform direction and logical thumb po
     track.props.onLayout({ nativeEvent: { layout: { x: 40, y: 70, width: 100, height: 20 } } }),
   )
   await act(async () => {
-    track.props.onPanResponderGrant({ nativeEvent: { locationX: 25, locationY: 10 } })
-    track.props.onPanResponderRelease()
+    track.props.onResponderGrant({ nativeEvent: { locationX: 25, locationY: 10 } })
+    track.props.onResponderRelease({}, { dx: 0, dy: 0 })
   })
   assert.deepEqual(p.requests, [6], 'the right-hand end is the low end in RTL')
 })

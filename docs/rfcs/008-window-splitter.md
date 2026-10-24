@@ -8,8 +8,8 @@ unstyled patterns. No new runtime or native dependency is required.
 
 The first implementation covers the drag behavior, both platform patterns,
 class-slot inventory, styled components, docs demo and Storybook story.
-BottomSheet now shares this behavior on Web and Native. Migrating Slider and
-adopting the pane in Envarly remain follow-ups.
+BottomSheet and Slider now share this behavior on Web and Native. Adopting
+the pane in Envarly remains a follow-up.
 
 BottomSheet keeps its detent and velocity projection in `sheet-rules.ts`.
 The behavior delivers the final delta and velocity even before a queued frame
@@ -25,6 +25,19 @@ release, tap/keyboard activation, raw velocity, closing and unmount cleanup.
 Native mock hosts check responder negotiation, final position and velocity,
 termination, closing and unmounting. These do not verify device responder
 delivery or physical screen-reader behavior.
+
+Slider keeps track-local positioning and snapping in the pattern and
+`slider-rules.ts`. Pressing the track updates immediately; later moves are
+coalesced, and release applies its final position before one commit. The axis
+and direction are frozen per gesture while the measured track size stays live.
+Cancellation, disabling or unmounting discards queued movement and notifies
+`onValueCancel` without committing. Already delivered previews remain under the
+caller's control; the media seek binding clears them on cancellation.
+
+Slider regression coverage exercises horizontal/vertical and LTR/RTL input,
+real Web capture and capture loss, keyboard/Native adjustable actions, live
+resizing, controlled values, final release before a frame, and ColorPicker's
+final hue on both platforms. Native checks use mock hosts, not device input.
 
 ## Contract
 

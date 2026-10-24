@@ -2727,7 +2727,7 @@ test('Native slider thumbs own focus for runtime and compiled ColorPicker slots'
     assert.equal(track.props.accessible, false)
     await act(() => track.props.onLayout({ nativeEvent: { layout: { width: 100, height: 10 } } }))
     await act(() => track.props.onResponderGrant({ nativeEvent: { locationX: 50, locationY: 5 } }))
-    await act(() => track.props.onResponderRelease())
+    await act(() => track.props.onResponderRelease({}, { dx: 0, dy: 0 }))
     assert.ok(changes.length > 0, 'the track still owns pan/value changes')
     const afterPan = changes.length
     await act(() =>

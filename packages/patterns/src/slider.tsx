@@ -24,6 +24,7 @@
  * two cannot disagree about where a drag lands.
  */
 
+import { useDrag1D } from '@hozo/behaviors'
 import {
   type CSSProperties,
   type KeyboardEvent,
@@ -115,11 +116,12 @@ export function HozoSlider({
 }: HozoSliderProps) {
   const range: SliderRange = { min, max, step, bigStep }
   const track = useRef<HTMLDivElement>(null)
-  const dragging = useRef(false)
-  const gestureValue = useRef<number | null>(null)
+  const thumb = useRef<HTMLDivElement>(null)
+  const pointer = useRef({ x: 0, y: 0 })
   const [uncontrolled, setUncontrolled] = useState(() => snap(defaultValue ?? min, range))
   const current = snap(value ?? uncontrolled, range)
   const vertical = orientation === 'vertical'
+  const gesture = useRef({ x: 0, y: 0, vertical, rtl: false, last: current })
 
   const change = useCallback(
     (next: number) => {
@@ -130,51 +132,52 @@ export function HozoSlider({
     [current, onValueChange, value],
   )
 
-  /** Where the pointer is, as a value. Reads the track's box on every move,
-   * because a track can be resized by anything and a cached box is a drag
-   * that lands somewhere else after a window resize. */
-  const valueUnder = (event: PointerEvent<HTMLDivElement>): number | null => {
+  // Keep geometry live when a layout changes, but freeze the gesture's axis
+  // and direction to match useDrag1D. Its horizontal delta is already logical;
+  // turn it back into a client coordinate before fractionAt mirrors it.
+  const move = (delta: number) => {
+    const at = gesture.current
     const box = track.current?.getBoundingClientRect()
-    if (!box) return null
-    const rtl = readDirection(event.currentTarget) === 'rtl'
-    return valueAt(
-      fractionAt({ x: event.clientX, y: event.clientY }, box, { vertical, rtl }),
+    if (!box || (at.vertical ? box.height : box.width) <= 0) return at.last
+    const next = valueAt(
+      fractionAt({ x: at.x + (at.rtl ? -delta : delta), y: at.y + delta }, box, at),
       range,
     )
+    if (next !== at.last) {
+      at.last = next
+      change(next)
+    }
+    return next
   }
-
+  const drag = useDrag1D({
+    axis: vertical ? 'y' : 'x',
+    disabled,
+    canStart() {
+      const host = track.current
+      const box = host?.getBoundingClientRect()
+      if (!host || !box || (vertical ? box.height : box.width) <= 0) return false
+      gesture.current = {
+        ...pointer.current,
+        vertical,
+        rtl: readDirection(host) === 'rtl',
+        last: current,
+      }
+      return true
+    },
+    onStart() {
+      move(0)
+      thumb.current?.focus()
+    },
+    onMove: move,
+    onEnd(delta) {
+      const next = move(delta)
+      onValueCommit?.(next)
+    },
+    onCancel: onValueCancel,
+  })
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (disabled) return
-    // Captured on the way down, so every move until the release arrives here
-    // whether or not the pointer is still over the track.
-    event.currentTarget.setPointerCapture(event.pointerId)
-    dragging.current = true
-    const next = valueUnder(event)
-    gestureValue.current = next
-    if (next !== null) change(next)
-  }
-
-  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!dragging.current || disabled) return
-    const next = valueUnder(event)
-    gestureValue.current = next
-    if (next !== null) change(next)
-  }
-
-  const onPointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    if (!dragging.current) return
-    dragging.current = false
-    event.currentTarget.releasePointerCapture(event.pointerId)
-    if (disabled) onValueCancel?.()
-    else onValueCommit?.(gestureValue.current ?? current)
-    gestureValue.current = null
-  }
-
-  const cancel = () => {
-    if (!dragging.current) return
-    dragging.current = false
-    gestureValue.current = null
-    onValueCancel?.()
+    pointer.current = { x: event.clientX, y: event.clientY }
+    drag.handlers.onPointerDown(event)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -202,11 +205,8 @@ export function HozoSlider({
       style={style}
       data-hozo-orientation={orientation}
       data-hozo-disabled={disabled ? '' : undefined}
+      {...drag.handlers}
       onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={cancel}
-      onLostPointerCapture={cancel}
     >
       {railClassName === undefined && railStyle === undefined ? null : (
         <div aria-hidden="true" className={railClassName} style={railStyle} />
@@ -219,6 +219,7 @@ export function HozoSlider({
         />
       )}
       <div
+        ref={thumb}
         role="slider"
         aria-label={accessibilityLabel}
         aria-valuemin={min}

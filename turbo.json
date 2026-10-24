@@ -97,6 +97,7 @@
         "$TURBO_ROOT$/examples/showcase/assets/**",
         "$TURBO_ROOT$/packages/patterns/src/slider*.ts",
         "$TURBO_ROOT$/packages/patterns/src/slider*.tsx",
+        "$TURBO_ROOT$/packages/behaviors/src/drag-1d*.ts",
         "$TURBO_ROOT$/packages/behaviors/src/pressable-interaction.ts",
         "$TURBO_ROOT$/examples/native-showcase/src/Audio.stories.tsx",
         "$TURBO_ROOT$/examples/native-showcase/src/Video.stories.tsx",
