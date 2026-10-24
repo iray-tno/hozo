@@ -577,3 +577,84 @@ this fixture's clocks. Every measured output is checked against the ordinary
 compiler. No inference is made about application bundles, retained-memory peaks
 or an enabled comparator. Full samples, Node/Rust/profile/source/addon/harness
 receipts are in `prepared-module-cost.json` at the checkpoint above.
+
+## One project epoch: reuse and cancellation
+
+`TailwindProjectSession` from `@hozo/compiler/project` is an internal owner for
+one immutable stylesheet/theme/config epoch. It collects actual module handles
+synchronously, then shares their exact candidate universe's in-flight or ready
+validated context without calling the global setter. It retains one ready
+context and one last-pending index, not an output/source/IR cache. Distinct
+universes prepare serially; a subset/superset is never a rank namespace hit.
+Additional lexical candidates are normalized and captured before suspension.
+
+The owner supplies stable module IDs (including derived query/platform identity
+where necessary). A newer request for the same ID rejects the older pending
+request and disposes its owned IR promptly, without aborting preparation that
+another request still shares. An obsolete queued universe is skipped before
+preparation. The return boundary checks cancellation again, so a source update
+between synchronous emission and async delivery cannot return that stale result.
+Invalidating the project permanently closes the session, drops ready context
+and compiler references, rejects waiters and releases their IR without waiting
+for a non-cooperative preparation callback. Late results cannot decode/install
+or revive the closed epoch. Failures do not poison the serial queue or replace
+an earlier valid ready context. These operations do not retry old source.
+
+This is **not** a filesystem watcher or default Vite/Metro integration. The
+adapter must observe CSS imports/config and invalidate/recreate a matching
+compiler/theme/session; schema/completeness checks do not authenticate those
+relationships. A real imported stylesheet fixture observes the dependency,
+changes its spacing token, replaces the epoch and verifies both the new 8-to-16
+pixel padding and a different descriptor fingerprint. It uses fresh static-safe
+theme loading, not a claim that existing adapter theme caches are refreshed.
+Callers must bound active batches/requests: pending requests still own source/IR
+and a serial backlog still has per-request metadata. An already-running upstream
+operation may finish after all its source requests are cancelled; only project
+invalidation aborts its cooperative signal. There is no durable/worker cache.
+
+CPU-1/Idle/serial checks: compiler **339 passed plus one existing Windows symlink
+skip**, Tailwind **71 passed** (10 session tests added to the parent's 61),
+cache guards **9 passed**, compiler/Tailwind builds, lint (**1,659 files**) and
+generated docs checks passed. The CLI type fixture checks single/mixed result
+types and rejects asynchronous collectors. Real Web and Native emissions share
+a context while preserving complete outputs. The saved 30-subject, six-fixture
+and generated Native candidate output control remains byte-identical. No Rust,
+device runtime, winner policy or adapter default changed in this layer.
+
+Probe failures are preserved: mixed collector inference needed the whole
+collector type rather than inference through its return type; the positive and
+negative CLI fixture now pass. Partial collector/throwing iterator tests cover
+an ownership trap found during helper refactoring and keep both eager and factory
+batches covered. A deliberately failing delivery-race regression showed a stale
+result resolving after supersession; the final return check fixes it. No test
+was skipped or timeout/expected output weakened to obtain these results.
+
+The extended `node scripts/tailwind-order-module-cost.mjs` rebuilds the addon
+and measures seven samples over the same 16 modules / 19 candidates / 288-color
+theme. At clean implementation checkpoint `246275d6`, medians are milliseconds
+for all 16 modules, not per-file times or sums of independent medians:
+
+| Platform | Preinstalled synchronous control | Fresh async batch | Warm session batch | 16 sequential warm file requests |
+| --- | ---: | ---: | ---: | ---: |
+| Web | 4.9906 | 20.4328 | 5.2787 | 6.8445 |
+| Native | 6.1921 | 11.1280 | 6.2204 | 8.3662 |
+
+Each platform's session preparation callback runs exactly **once**, including
+first-use and all later batch/file samples; every output matches the ordinary
+compiler. First session uses were 47.3934/14.2484 ms, after theme loading and
+compiler construction, **not cold Node startup**. Warm batch maxima were
+5.7376/6.6431 ms; sequential-file maxima 8.3121/9.5695 ms. Normalization,
+collection/emission, cancellation tickets and async boundaries remain measured.
+
+Sequential file requests are visibly costlier than the preinstalled synchronous
+control; this is not a zero-overhead API or permission to install it universally.
+Actual adapter candidate amortization and representative transform costs must
+be resolved/measured before default integration. The initial clean checkpoint
+`2581efe7` capture (before the delivery-race fix) is also retained: synchronous
+5.9472/6.4941, fresh batch 21.8745/11.3731, warm batch 5.6687/6.1721 and warm
+files 8.9600/8.7111 ms. Neither capture establishes an application speedup or
+a causal default-entry regression. Full samples/toolchain/source/addon/harness
+receipts are in `session-module-cost.json` and `session-module-cost-final.json`.
+No invalidation latency, large-universe normalization, startup/peak memory,
+full root JS/packing/application suite, fresh browser/device pixels/AT, WASM
+artifact size or enabled cascade comparator was measured in this layer.
