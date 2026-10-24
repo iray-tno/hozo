@@ -51,15 +51,17 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        '30bcd1d8a6f65e62dc2f66e6a96d63af31c340c9a96942b9249fe7432665dd13',
+        '49f685a5187f98208781cf1b30670d1cf64e245924b54a7a61d76387a014a261',
       'packages/metro/src/transform.ts':
         'b6f44821efcbc7c67d020786378e87c9e5f80d8fa867eb21eb9a9939a6a5a2b5',
       'crates/hozo_napi/src/lib.rs':
-        'a45b96dfe628af771960a454cb5297315f1964700c3aef34ee12dfbb907f428b',
+        '271d9fbbc5ccbf6ae8d68a4c7419063e115466e8781580573e1410609329b8ae',
       'crates/hozo_napi/src/tailwind_order.rs':
-        '6c9930eafd132fa40fd138c6c02014e0b08ab7b4c74a3108b80291b59897dab9',
+        '5995c981bbda035477124619f67dc1d1981f8f0fa3a5810eb6c5a2e118a801da',
       'crates/hozo_parser/src/lib.rs':
-        '34d78fd8f4419425d8fb0739dcfc5428ee4d914e9d3464058f808e16ccda78f0',
+        '81ea66f49c8090a97191a7af92a2ecc3052cbd6d931709af0eb5f28834be1255',
+      'crates/hozo_parser/src/tailwind_plan.rs':
+        '6cd7cd96e8376c27a0d2c3bcc8ded565551e2e94743277c618e7217d8891314d',
       'crates/hozo_parser/src/interaction_order.rs':
         '7b91f5ba55ac795a003f9c95325dbdb851d8d27b938db4000dbd7addf483428d',
       'crates/hozo_parser/src/jsx.rs':
@@ -83,11 +85,13 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/text.rs':
         '1278fccfe4d6441a6ed9bc6e742fec388a7d2893ec69cb1e3da6f30559d16e99',
       'crates/hozo_ir/src/lib.rs':
-        '1453a84cfd211c7186ebe5b7d1104e9eea26c8bcf1d16696d905167a3796740e',
+        '47ca9b0f81e2d9ebafb0e631512933812a25dfd4ff20550e0b1483eaa0d17bd1',
       'crates/hozo_ir/src/tailwind_units.rs':
         '83d256020ea813a4fdfd2274186f09d7f2c78666ffcb4eb3a2c80d8c41679923',
       'crates/hozo_ir/src/tailwind_order.rs':
         '55459d82a7e24ba6329ed7f2829785f561315e0713501537739c2258a049b2ca',
+      'crates/hozo_ir/src/tailwind_plan.rs':
+        '444bfccf9b63fd807dcb26f3c12e3db873b2a8bac0d956fdd982a77e763a3129',
     },
   },
   proofSha256: 'bd200723fe8c7f94c7fc318db95e2be6e2db28fc00886420727a45c671cb52db',

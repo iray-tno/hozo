@@ -1,6 +1,6 @@
 # RFC 007: One Tailwind ordering plan before platform lowering
 
-- **Status**: Draft; design only, no compiler/runtime behavior change.
+- **Status**: Implementation in progress; no new utility-order winners enabled yet.
 - **Authors**: codex-1
 - **Tracking issue**: [#1230](https://github.com/iray-tno/hozo/issues/1230)
 - **Target packages**: compiler/parser/IR/Web/Native, `@hozo/tailwind`,

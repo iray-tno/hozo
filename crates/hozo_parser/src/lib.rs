@@ -18,6 +18,10 @@ mod rest;
 mod scan;
 mod stylex;
 mod tailwind;
+mod tailwind_plan;
+pub use tailwind_plan::{
+    plan_module_tailwind, TailwindPlanBlock, TailwindPlanSite, TailwindRootPlan,
+};
 mod text_forwarding;
 mod text_regions;
 mod unfold;

@@ -12,7 +12,7 @@
 use hozo_ir::{Color, Diagnostic, StyleProperty, Theme, Utf16Offsets};
 use napi_derive::napi;
 mod tailwind_order;
-use tailwind_order::TailwindOrderInspection;
+use tailwind_order::{TailwindCompilePlan, TailwindOrderInspection};
 
 #[napi(object)]
 pub struct CompileDiagnostic {
@@ -155,6 +155,9 @@ pub fn summarize_stylex_module(source: String, source_file: Option<String>) -> S
 
 #[napi(object)]
 pub struct CompiledComponent {
+    /// Internal RFC 007 evidence from the parse actually lowered. Requires
+    /// a prepared context and per-call capture; never application code.
+    pub tailwind_plan: Option<TailwindCompilePlan>,
     /// Compiled JSX to splice into the original source in place of the
     /// text at `[span_start, span_end)` -- callers (the Vite plugin) own
     /// the actual splicing, since this binding doesn't touch source text.
@@ -347,10 +350,33 @@ pub fn compile(source: String) -> Vec<CompiledComponent> {
         &hozo_ir::Theme::default(),
         None,
         None,
-        hozo_parser::ReactNativeCompat::Lower,
-        false,
+        WebModuleOptions {
+            compat: hozo_parser::ReactNativeCompat::Lower,
+            evidence: false,
+            tailwind: TailwindPlanOptions::default(),
+        },
         &[],
     )
+}
+
+struct WebModuleOptions<'a> {
+    compat: hozo_parser::ReactNativeCompat,
+    evidence: bool,
+    tailwind: TailwindPlanOptions<'a>,
+}
+
+#[derive(Default)]
+struct TailwindPlanOptions<'a> {
+    context: Option<&'a hozo_ir::TailwindOrderContext>,
+    capture: bool,
+}
+
+impl TailwindPlanOptions<'_> {
+    fn apply(&self, parsed: &mut hozo_parser::ParseOutput) -> Vec<hozo_parser::TailwindRootPlan> {
+        self.context
+            .map(|context| hozo_parser::plan_module_tailwind(parsed, context, self.capture))
+            .unwrap_or_default()
+    }
 }
 
 fn lower_web(
@@ -361,18 +387,19 @@ fn lower_web(
         &hozo_parser::StylexModuleRegistry,
         &[hozo_parser::StylexExternalBinding],
     )>,
-    compat: hozo_parser::ReactNativeCompat,
-    evidence: bool,
+    options: WebModuleOptions<'_>,
     class_helpers: &[hozo_parser::ClassHelper],
 ) -> Vec<CompiledComponent> {
-    let parsed = hozo_parser::parse_tsx_for_web_with_helpers(
+    let mut parsed = hozo_parser::parse_tsx_for_web_with_helpers(
         source,
         sources,
         stylex.map(|(registry, _)| registry),
         stylex.map_or(&[][..], |(_, bindings)| bindings),
-        compat,
+        options.compat,
         class_helpers,
     );
+    let mut plans = options.tailwind.apply(&mut parsed).into_iter();
+    let evidence = options.evidence;
     let offsets = Utf16Offsets::new(source);
     parsed
         .roots
@@ -388,6 +415,9 @@ fn lower_web(
                     .map(|d| to_js_diagnostic(d, &offsets)),
             );
             CompiledComponent {
+                tailwind_plan: plans
+                    .next()
+                    .map(|plan| tailwind_order::compile_plan(plan, &offsets)),
                 jsx: output.jsx,
                 css: output.css,
                 runtime_imports: output
@@ -470,7 +500,7 @@ pub struct Compiler {
     /// Functions the project's callers import that join classes as `clsx`
     /// does, declared or found (#964).
     class_helpers: Vec<hozo_parser::ClassHelper>,
-    /// RFC 007 build-time binding context. Not consulted by emitters yet.
+    /// RFC 007 build-time context, consumed by the shared pre-lowering plan.
     tailwind_order: Option<Box<hozo_ir::TailwindOrderContext>>,
 }
 
@@ -578,6 +608,17 @@ pub struct TextForwardingModule {
     pub components: Vec<ForwardingComponent>,
 }
 
+/// Named internal NAPI options keep evidence separate from RFC 006 ABI
+/// experiments instead of extending an accumulating positional bool list.
+#[derive(Default)]
+#[napi(object)]
+pub struct NativeCompileOptions {
+    pub text_reference: Option<bool>,
+    pub text_inheritance: Option<bool>,
+    pub text_static: Option<bool>,
+    pub tailwind_plan: Option<bool>,
+}
+
 #[napi]
 impl Compiler {
     #[napi(constructor)]
@@ -627,6 +668,7 @@ impl Compiler {
         bindings: Option<Vec<StylexExternalBinding>>,
         rehome_react_native: Option<bool>,
         tag_evidence: Option<bool>,
+        tailwind_plan: Option<bool>,
     ) -> Vec<CompiledComponent> {
         let bindings = external_bindings(bindings);
         let compat = if rehome_react_native.unwrap_or(false) {
@@ -639,8 +681,14 @@ impl Compiler {
             &self.theme,
             self.sources.as_deref(),
             Some((&self.stylex, &bindings)),
-            compat,
-            tag_evidence.unwrap_or(false),
+            WebModuleOptions {
+                compat,
+                evidence: tag_evidence.unwrap_or(false),
+                tailwind: TailwindPlanOptions {
+                    context: self.tailwind_order.as_deref(),
+                    capture: tailwind_plan.unwrap_or(false),
+                },
+            },
             &self.class_helpers,
         )
     }
@@ -666,6 +714,7 @@ impl Compiler {
         &self,
         source: String,
         bindings: Option<Vec<StylexExternalBinding>>,
+        tailwind_plan: Option<bool>,
     ) -> Vec<CompiledNativeComponent> {
         let bindings = external_bindings(bindings);
         lower_native(
@@ -675,15 +724,19 @@ impl Compiler {
             Some((&self.stylex, &bindings)),
             &self.text_forwarding,
             &self.class_helpers,
+            TailwindPlanOptions {
+                context: self.tailwind_order.as_deref(),
+                capture: tailwind_plan.unwrap_or(false),
+            },
         )
     }
 
     /// Native output plus module metadata collected by the same source parse.
     /// Metro needs both to rewrite imports without reparsing the file. Optional
     /// source_file selects grammar; omitted retains the historical TSX API.
-    /// text_reference is internal RFC 006 test wiring, never a project option;
+    /// options.text_reference is internal RFC 006 test wiring, never a project option;
     /// its output requires private contextual hosts and is not a shipped ABI.
-    /// text_inheritance instead selects the bounded production-owned ABI for
+    /// options.text_inheritance selects the bounded production-owned ABI for
     /// internal evaluation, also per-call and never a project option.
     #[napi]
     pub fn compile_native_module(
@@ -691,11 +744,10 @@ impl Compiler {
         source: String,
         bindings: Option<Vec<StylexExternalBinding>>,
         source_file: Option<String>,
-        text_reference: Option<bool>,
-        text_inheritance: Option<bool>,
-        text_static: Option<bool>,
+        options: Option<NativeCompileOptions>,
     ) -> CompiledNativeModule {
         let bindings = external_bindings(bindings);
+        let options = options.unwrap_or_default();
         lower_native_module(
             &source,
             &self.theme,
@@ -703,9 +755,14 @@ impl Compiler {
             Some((&self.stylex, &bindings)),
             NativeModuleOptions {
                 source_file: source_file.as_deref(),
-                text_reference: text_reference.unwrap_or(false),
-                text_inheritance: text_inheritance.unwrap_or(false),
-                text_static: text_static.unwrap_or(false) && text_inheritance.unwrap_or(false),
+                text_reference: options.text_reference.unwrap_or(false),
+                text_inheritance: options.text_inheritance.unwrap_or(false),
+                text_static: options.text_static.unwrap_or(false)
+                    && options.text_inheritance.unwrap_or(false),
+                tailwind: TailwindPlanOptions {
+                    context: self.tailwind_order.as_deref(),
+                    capture: options.tailwind_plan.unwrap_or(false),
+                },
             },
             &self.text_forwarding,
             &self.class_helpers,
@@ -945,6 +1002,7 @@ impl CandidateCache {
 
 #[napi(object)]
 pub struct CompiledNativeComponent {
+    pub tailwind_plan: Option<TailwindCompilePlan>,
     /// Compiled JSX to splice into the original source, same convention as
     /// `CompiledComponent.jsx`.
     pub jsx: String,
@@ -1157,6 +1215,7 @@ pub fn compile_native(source: String) -> Vec<CompiledNativeComponent> {
         None,
         &Default::default(),
         &[],
+        TailwindPlanOptions::default(),
     )
 }
 
@@ -1170,6 +1229,7 @@ fn lower_native(
     )>,
     text_forwarding: &hozo_parser::ForwardingTable,
     class_helpers: &[hozo_parser::ClassHelper],
+    tailwind: TailwindPlanOptions<'_>,
 ) -> Vec<CompiledNativeComponent> {
     let (registry, bindings) = match stylex {
         Some((registry, bindings)) => (Some(registry), bindings),
@@ -1184,7 +1244,8 @@ fn lower_native(
         class_helpers,
     );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
-    lower_native_components(source, theme, &parsed, false, false)
+    let plans = tailwind.apply(&mut parsed);
+    lower_native_components(source, theme, &parsed, false, false, plans)
 }
 
 /// Module-only choices stay together; the reference experiment must not
@@ -1195,6 +1256,7 @@ struct NativeModuleOptions<'a> {
     text_reference: bool,
     text_inheritance: bool,
     text_static: bool,
+    tailwind: TailwindPlanOptions<'a>,
 }
 
 fn lower_native_module(
@@ -1227,12 +1289,14 @@ fn lower_native_module(
         class_helpers,
     );
     hozo_parser::apply_text_forwarding(&mut parsed, text_forwarding);
+    let plans = options.tailwind.apply(&mut parsed);
     let components = lower_native_components(
         source,
         theme,
         &parsed,
         options.text_reference,
         options.text_inheritance,
+        plans,
     );
     let imports = parsed
         .imports
@@ -1289,8 +1353,10 @@ fn lower_native_components(
     parsed: &hozo_parser::ParseOutput,
     text_reference: bool,
     text_inheritance: bool,
+    plans: Vec<hozo_parser::TailwindRootPlan>,
 ) -> Vec<CompiledNativeComponent> {
     let offsets = Utf16Offsets::new(source);
+    let mut plans = plans.into_iter();
     parsed
         .roots
         .iter()
@@ -1318,6 +1384,9 @@ fn lower_native_components(
                     .map(|d| to_js_diagnostic(d, &offsets)),
             );
             CompiledNativeComponent {
+                tailwind_plan: plans
+                    .next()
+                    .map(|plan| tailwind_order::compile_plan(plan, &offsets)),
                 jsx: output.jsx,
                 styles: output.styles,
                 prelude: output.prelude,

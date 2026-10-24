@@ -42,6 +42,8 @@ for (const count of [16, 128, 1024]) {
   const compiler = createCompiler()
   const source = `import {View} from '@hozo/core';const el=<View className="${names.slice(0, 16).join(' ')}"/>`
   const before = { web: compiler.compile(source), native: compiler.compileNativeModule(source) }
+  const noContextWeb = measure(() => compiler.compile(source))
+  const noContextNative = measure(() => compiler.compileNativeModule(source))
   const noContextInspection = measure(() => compiler.inspectTailwindOrder(source))
   const replaceContext = measure(() => compiler.setTailwindOrder(serialized))
   const binding = compiler.inspectTailwindOrder(source)
@@ -49,8 +51,16 @@ for (const count of [16, 128, 1024]) {
   assert.equal(binding.candidates.length, Math.min(count, 16))
   assert.equal(binding.fingerprint, prepared.snapshot.fingerprint)
   const boundInspection = measure(() => compiler.inspectTailwindOrder(source))
-  assert.deepEqual(compiler.compile(source), before.web)
-  assert.deepEqual(compiler.compileNativeModule(source), before.native)
+  const web = compiler.compile(source)
+  const native = compiler.compileNativeModule(source)
+  assert.deepEqual(web, before.web)
+  assert.deepEqual(native, before.native)
+  const preparedWeb = measure(() => compiler.compile(source))
+  const preparedNative = measure(() => compiler.compileNativeModule(source))
+  const evidenceWeb = measure(() => compiler.compile(source, undefined, { tailwindPlan: true }))
+  const evidenceNative = measure(() =>
+    compiler.compileNativeModule(source, undefined, undefined, { tailwindPlan: true }),
+  )
   results.push({
     count,
     snapshotBytes: Buffer.byteLength(serialized),
@@ -58,6 +68,12 @@ for (const count of [16, 128, 1024]) {
     noContextInspection,
     replaceContext,
     boundInspection,
+    noContextWeb,
+    noContextNative,
+    preparedWeb,
+    preparedNative,
+    evidenceWeb,
+    evidenceNative,
     outputUnchangedWithContext: true,
   })
 }
@@ -77,6 +93,7 @@ process.stdout.write(
       limitations: [
         'Context replacement includes JSON decoding, validation, indexing and destruction of the previous context; input serialization/preparation excluded.',
         'Inspection includes the evidence-only parse plus binding/serialization, not isolated bind time or production lowering overhead.',
+        'Prepared compilation uses the shared pass-through plan; evidence compilation additionally captures/serializes the report. Neither is the cost of an enabled cascade comparator.',
         'Same-process warmed samples on synthetic universes, not application bundles, peak memory, cold Node startup or Native pixels.',
       ],
     },

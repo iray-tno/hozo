@@ -1,8 +1,81 @@
-//! Opt-in RFC 007 binding evidence. Ordinary emitters do not consume this
-//! context yet; inspection must not become an adapter's extra parser pass.
+//! RFC 007 binding/compile-plan evidence. Compilation plans its existing IR;
+//! separate inspection must not become an adapter's extra parser pass.
 use super::{external_bindings, CompileDiagnostic, Compiler, StylexExternalBinding};
 use hozo_ir::{TailwindOrderContext, TailwindOrderSnapshot, TailwindRuleBinding, Utf16Offsets};
 use napi_derive::napi;
+
+#[napi(object)]
+pub struct TailwindCompilePlan {
+    pub fingerprint: String,
+    pub mode: String,
+    pub sites: Vec<TailwindCompileSite>,
+}
+
+#[napi(object)]
+pub struct TailwindCompileSite {
+    pub span_start: u32,
+    pub span_end: u32,
+    pub class_prop: String,
+    pub write_count: u32,
+    pub blocks: Vec<TailwindCompileBlock>,
+}
+
+#[napi(object)]
+pub struct TailwindCompileBlock {
+    pub start: u32,
+    pub end: u32,
+    pub source: String,
+    pub input_start: Option<u32>,
+    pub utility_id: Option<u32>,
+    pub guarded: bool,
+    pub status: String,
+    pub candidate: Option<String>,
+    pub candidate_id: Option<u32>,
+    pub rule_ids: Vec<u32>,
+}
+
+pub fn compile_plan(
+    plan: hozo_parser::TailwindRootPlan,
+    offsets: &Utf16Offsets,
+) -> TailwindCompilePlan {
+    TailwindCompilePlan {
+        fingerprint: plan.fingerprint,
+        mode: "passthrough".into(),
+        sites: plan
+            .sites
+            .into_iter()
+            .map(|site| TailwindCompileSite {
+                span_start: offsets.at(site.span.start),
+                span_end: offsets.at(site.span.end),
+                class_prop: site.class_prop.into(),
+                write_count: site.write_count as u32,
+                blocks: site
+                    .blocks
+                    .into_iter()
+                    .map(|block| {
+                        let (source, input) = match block.source.input() {
+                            hozo_ir::StyleSource::Tailwind(input) => ("tailwind", Some(input)),
+                            hozo_ir::StyleSource::Stylex(input) => ("stylex", Some(input)),
+                            _ => ("unspecified", None),
+                        };
+                        TailwindCompileBlock {
+                            start: block.start as u32,
+                            end: block.end as u32,
+                            source: source.into(),
+                            input_start: input.map(|input| offsets.at(input)),
+                            utility_id: block.source.utility().map(|id| id.index() as u32),
+                            guarded: block.guarded,
+                            status: block.status.into(),
+                            candidate: block.candidate,
+                            candidate_id: block.candidate_id,
+                            rule_ids: block.rule_ids,
+                        }
+                    })
+                    .collect(),
+            })
+            .collect(),
+    }
+}
 
 #[napi(object)]
 pub struct TailwindOrderCandidateBinding {

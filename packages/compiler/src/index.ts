@@ -22,6 +22,36 @@ export interface CompileDiagnostic {
   spanEnd: number
 }
 
+/** @internal A pass-through plan consumed before lowering, not a cascade support verdict. */
+export interface TailwindCompilePlan {
+  fingerprint: string
+  mode: 'passthrough'
+  sites: {
+    spanStart: number
+    spanEnd: number
+    classProp: string
+    writeCount: number
+    blocks: {
+      start: number
+      end: number
+      source: 'tailwind' | 'stylex' | 'unspecified'
+      inputStart?: number
+      utilityId?: number
+      guarded: boolean
+      status:
+        | 'described'
+        | 'not-generated'
+        | 'uncollected'
+        | 'missing-identity'
+        | 'stylex'
+        | 'unspecified'
+      candidate?: string
+      candidateId?: number
+      ruleIds: number[]
+    }[]
+  }[]
+}
+
 /** @internal RFC 007 evidence; described does not mean supported or ordered. */
 export interface TailwindOrderInspection {
   fingerprint?: string
@@ -39,6 +69,8 @@ export interface TailwindOrderInspection {
 }
 
 export interface CompiledComponent {
+  /** @internal Evidence from this compile's existing parse, when requested with a context. */
+  tailwindPlan?: TailwindCompilePlan
   jsx: string
   css: string
   /// Named imports `jsx` needs from `@hozo/engine`. Empty for most
@@ -70,6 +102,8 @@ export interface CompiledTagDecision {
 }
 
 export interface CompiledNativeComponent {
+  /** @internal Build-time only; never included in emitted JSX/styles. */
+  tailwindPlan?: TailwindCompilePlan
   jsx: string
   styles: string
   /// Statements to splice at `hookSlot` for `jsx` to work. Empty unless a
@@ -348,15 +382,18 @@ interface NativeCompiler {
     bindings?: StylexExternalBinding[],
     rehomeReactNative?: boolean,
     tagEvidence?: boolean,
+    tailwindPlan?: boolean,
   ): CompiledComponent[]
-  compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
+  compileNative(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    tailwindPlan?: boolean,
+  ): CompiledNativeComponent[]
   compileNativeModule(
     source: string,
     bindings?: StylexExternalBinding[],
     sourceFile?: string,
-    textReference?: boolean,
-    textInheritance?: boolean,
-    textStatic?: boolean,
+    options?: NativeCompileOptions,
   ): CompiledNativeModule
   unfoldJsxCalls(source: string): UnfoldedModule | undefined
   setStylexModules(modules: StylexModuleSource[]): void
@@ -480,8 +517,20 @@ export interface UnfoldedModule {
   importSource?: string
 }
 
+/** Per-call build-time evidence, separate from the plan's normal work. */
+export interface CompileEvidence {
+  /** @internal Capture the shared plan from this compile; requires a prepared context. */
+  tailwindPlan?: boolean
+}
+
+export interface NativeCompileOptions extends CompileEvidence {
+  textReference?: boolean
+  textInheritance?: boolean
+  textStatic?: boolean
+}
+
 /** Per-call Web compile options. */
-export interface CompileOptions {
+export interface CompileOptions extends CompileEvidence {
   /**
    * Lower React Native's compatibility components (`TouchableOpacity`,
    * `Modal`, ...) to `@hozo/rn-compat` stand-ins even when they were
@@ -496,13 +545,14 @@ export interface CompileOptions {
 
 export interface Compiler {
   /** @internal RFC 007: JSON of a prepared snapshot; undefined clears it.
-   * Preparation validates before replacing. Ordinary emitters do not consume
-   * this context yet. No app provider or runtime sorting is introduced.
+   * Preparation validates before replacing. Web/Native consume a shared
+   * pass-through plan before lowering; no cascade winners change yet.
+   * No app provider or runtime sorting is introduced.
    */
   setTailwindOrder(snapshot?: string): void
   /** @internal Evidence-only parse using the existing project helper/StyleX registry.
-   * Do not call before compile in an adapter: the eventual planner must reuse
-   * the transform's existing parse, not introduce a second one.
+   * Do not call before compile in an adapter: compile's tailwindPlan evidence
+   * uses the transform's actual parse instead of introducing a second one.
    */
   inspectTailwindOrder(
     source: string,
@@ -514,7 +564,11 @@ export interface Compiler {
     bindings?: StylexExternalBinding[],
     options?: CompileOptions,
   ): CompiledComponent[]
-  compileNative(source: string, bindings?: StylexExternalBinding[]): CompiledNativeComponent[]
+  compileNative(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    evidence?: CompileEvidence,
+  ): CompiledNativeComponent[]
   /**
    * Native lowering plus source imports and foreign primitive bindings from
    * that same parse. Bundler integrations should prefer this over reparsing
@@ -531,7 +585,7 @@ export interface Compiler {
      * passive Text/View ABI helpers. textStatic additionally proves bounded
      * memo Text regions; failed proofs keep the same runtime ABI.
      */
-    experiment?: { textReference?: boolean; textInheritance?: boolean; textStatic?: boolean },
+    experiment?: NativeCompileOptions,
   ): CompiledNativeModule
   /**
    * A machine-folded module with its primitives written back as JSX,
@@ -590,6 +644,7 @@ export function createCompiler(
           bindings,
           options?.rehomeReactNative ?? false,
           options?.tagEvidence ?? false,
+          options?.tailwindPlan ?? false,
         )
         .map((result) => ({
           ...result,
@@ -604,8 +659,8 @@ export function createCompiler(
             ),
           ],
         })),
-    compileNative: (source, bindings) =>
-      inner.compileNative(source, bindings).map((result) => ({
+    compileNative: (source, bindings, evidence) =>
+      inner.compileNative(source, bindings, evidence?.tailwindPlan ?? false).map((result) => ({
         ...result,
         diagnostics: [
           ...result.diagnostics,
@@ -623,14 +678,7 @@ export function createCompiler(
         throw new Error('Select one internal text experiment per compile call')
       if (experiment?.textStatic && !experiment.textInheritance)
         throw new Error('Internal textStatic requires textInheritance')
-      const module = inner.compileNativeModule(
-        source,
-        bindings,
-        sourceFile,
-        experiment?.textReference,
-        experiment?.textInheritance,
-        experiment?.textStatic,
-      )
+      const module = inner.compileNativeModule(source, bindings, sourceFile, experiment)
       return {
         ...module,
         components: module.components.map((result) => ({
