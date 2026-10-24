@@ -179,6 +179,30 @@ test('obsolete queued universes are skipped and old cleanup cannot erase a newer
   session.invalidate()
 })
 
+test('supersession after synchronous emission still rejects an undelivered result', async () => {
+  const session = new TailwindProjectSession(createCompiler(), order)
+  let latest: Promise<unknown[]>
+  const first = session.emit('file', [
+    (compiler) => {
+      const prepared = compiler.prepareWebModule(source('p-2', 'old'))
+      return {
+        ...prepared,
+        emit(context) {
+          const output = prepared.emit(context)
+          // A watcher can run between emission and the async API returning.
+          queueMicrotask(() => {
+            latest = session.emit('file', [collected('p-4', 'new')])
+          })
+          return output
+        },
+      }
+    },
+  ])
+  await assert.rejects(first, code('TAILWIND_MODULE_SUPERSEDED'))
+  assert.match(JSON.stringify(await latest!), /new/)
+  session.invalidate()
+})
+
 test('project invalidation releases pending IR immediately and late invalid data cannot revive it', async () => {
   const gate = Promise.withResolvers<void>(),
     started = Promise.withResolvers<void>(),

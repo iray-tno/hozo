@@ -71,12 +71,16 @@ export class TailwindProjectSession {
     this.#requests.set(id, request)
     const signal = AbortSignal.any([this.#epoch.signal, request.signal])
     try {
-      return await emitCollectedModules(
+      const outputs = await emitCollectedModules(
         collectors.map((collect) => () => collect(compiler)),
         (names) => this.#contextFor(names, signal),
         additionalCandidates,
         signal,
       )
+      // Synchronous emission can finish before this async boundary resumes.
+      // Do not deliver that result if a watcher superseded it in between.
+      signal.throwIfAborted()
+      return outputs
     } finally {
       // A superseded request finishing must not erase its replacement ticket.
       if (this.#requests.get(id) === request) this.#requests.delete(id)
