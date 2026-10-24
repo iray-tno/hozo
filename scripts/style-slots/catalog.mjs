@@ -165,6 +165,12 @@ const owned = (
 // Root and secondary props share the catalog even though this first slice
 // deliberately preserves their existing, separate code-generation routes.
 export const components = {
+  CodeBlock: slots(
+    'className lineClassName gutterClassName insClassName delClassName markClassName copyClassName captionClassName',
+    {
+      overrides: { className: { lowering: 'component-managed' } },
+    },
+  ),
   Splitter: slots('className', { overrides: { className: { lowering: 'component-managed' } } }),
   ResizablePane: slots('className paneClassName handleClassName', {
     overrides: { className: { lowering: 'component-managed' } },

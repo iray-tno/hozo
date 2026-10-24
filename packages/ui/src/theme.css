@@ -139,6 +139,20 @@
   --color-hozo-presence: var(--color-emerald-600);
   --color-hozo-presence--dark: var(--color-emerald-400);
 
+  /* Line marks retain glyphs and spoken prefixes when colour is unavailable. */
+  --color-hozo-code-insert: var(--color-emerald-800);
+  --color-hozo-code-insert--dark: var(--color-emerald-200);
+  --color-hozo-code-insert-bg: var(--color-emerald-50);
+  --color-hozo-code-insert-bg--dark: var(--color-emerald-950);
+  --color-hozo-code-delete: var(--color-red-800);
+  --color-hozo-code-delete--dark: var(--color-red-200);
+  --color-hozo-code-delete-bg: var(--color-red-50);
+  --color-hozo-code-delete-bg--dark: var(--color-red-950);
+  --color-hozo-code-highlight: var(--color-amber-900);
+  --color-hozo-code-highlight--dark: var(--color-amber-200);
+  --color-hozo-code-highlight-bg: var(--color-amber-50);
+  --color-hozo-code-highlight-bg--dark: var(--color-amber-950);
+
   /* Radii: a control, a surface, a page-level card. */
   --radius-hozo-control: var(--radius-lg);
   --radius-hozo-surface: var(--radius-xl);

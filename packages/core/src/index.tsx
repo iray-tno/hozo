@@ -23,6 +23,10 @@ export { type CxValue, cx } from '@hozo/engine'
 export {
   type Autocomplete,
   avatarInitials,
+  CodeBlock,
+  type CodeBlockProps,
+  type CodeClipboard,
+  CodeClipboardProvider,
   Dialog,
   type DialogProps,
   HozoAvatar as Avatar,

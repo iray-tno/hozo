@@ -7,6 +7,7 @@ import {
   Del,
   Emphasis,
   Heading,
+  Ins,
   Mark,
   NoBreak,
   Paragraph,
@@ -34,6 +35,7 @@ test('typography primitives render semantic HTML tags', () => {
         <Underline>Underlined</Underline>
         <Strikethrough>Strikethrough</Strikethrough>
         <Del>Deleted</Del>
+        <Ins>Inserted</Ins>
         <Sub>Subscript</Sub>
         <Sup>Superscript</Sup>
         <Code>const x = 1;</Code>
@@ -58,7 +60,8 @@ test('typography primitives render semantic HTML tags', () => {
   assert.ok(html.includes('<em>Italic</em>'), 'Emphasis rendered as em')
   assert.ok(html.includes('<u>Underlined</u>'), 'Underline rendered as u')
   assert.ok(html.includes('<s>Strikethrough</s>'), 'Strikethrough rendered as s')
-  assert.ok(html.includes('<s>Deleted</s>'), 'Del rendered as s')
+  assert.ok(html.includes('<del>Deleted</del>'), 'Del rendered as del')
+  assert.ok(html.includes('<ins>Inserted</ins>'), 'Ins rendered as ins')
   assert.ok(html.includes('<sub>Subscript</sub>'), 'Sub rendered as sub')
   assert.ok(html.includes('<sup>Superscript</sup>'), 'Sup rendered as sup')
   assert.ok(html.includes('<code>const x = 1;</code>'), 'Code rendered as code')

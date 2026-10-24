@@ -4,6 +4,7 @@ title: Hozo components in Astro MDX
 ---
 
 import { View, Text } from '@hozo/core'
+import { StaticCodeSample } from '../components/StaticCodeSample.tsx'
 import { StaticCard } from '../components/StaticCard.tsx'
 
 # Hozo components in Astro MDX
@@ -16,6 +17,8 @@ no island, no hydration, no React in the bundle. Hozo compiled the
 primitives to plain HTML and a stylesheet before Astro ever saw them.
 
 <StaticCard />
+
+<StaticCodeSample />
 
 A primitive written inline in this file compiles too. `@astrojs/mdx` exposes
 no `jsx: true` (#137), so Hozo is handed `_jsx()` calls rather than the JSX it
