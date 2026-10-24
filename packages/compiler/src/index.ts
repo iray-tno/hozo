@@ -22,6 +22,22 @@ export interface CompileDiagnostic {
   spanEnd: number
 }
 
+/** @internal RFC 007 evidence; described does not mean supported or ordered. */
+export interface TailwindOrderInspection {
+  fingerprint?: string
+  syntaxDiagnostics: CompileDiagnostic[]
+  /** Only utilities retained by the parser, not a complete lexical/project inventory. */
+  candidates: {
+    /** Local to this parsed module, not an upstream candidate/rule rank. */
+    utilityId: number
+    candidate: string
+    status: 'described' | 'not-generated' | 'uncollected' | 'no-context'
+    candidateId?: number
+    /** Every upstream rule, not only the first. Scoped by `fingerprint`. */
+    ruleIds: number[]
+  }[]
+}
+
 export interface CompiledComponent {
   jsx: string
   css: string
@@ -321,6 +337,12 @@ interface NativeBinding {
 /// The napi class itself. It knows nothing about `sources` beyond having
 /// been handed them; `createCompiler` is what makes them readable back.
 interface NativeCompiler {
+  setTailwindOrder(snapshot?: string): void
+  inspectTailwindOrder(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    sourceFile?: string,
+  ): TailwindOrderInspection
   compile(
     source: string,
     bindings?: StylexExternalBinding[],
@@ -473,6 +495,20 @@ export interface CompileOptions {
 }
 
 export interface Compiler {
+  /** @internal RFC 007: JSON of a prepared snapshot; undefined clears it.
+   * Preparation validates before replacing. Ordinary emitters do not consume
+   * this context yet. No app provider or runtime sorting is introduced.
+   */
+  setTailwindOrder(snapshot?: string): void
+  /** @internal Evidence-only parse using the existing project helper/StyleX registry.
+   * Do not call before compile in an adapter: the eventual planner must reuse
+   * the transform's existing parse, not introduce a second one.
+   */
+  inspectTailwindOrder(
+    source: string,
+    bindings?: StylexExternalBinding[],
+    sourceFile?: string,
+  ): TailwindOrderInspection
   compile(
     source: string,
     bindings?: StylexExternalBinding[],
@@ -544,6 +580,9 @@ export function createCompiler(
   const allowed = sources ? [...sources] : [...DEFAULT_PRIMITIVE_SOURCES]
   const inner = new (loadNative().Compiler)(theme, allowed)
   return {
+    setTailwindOrder: (snapshot) => inner.setTailwindOrder(snapshot),
+    inspectTailwindOrder: (source, bindings, sourceFile) =>
+      inner.inspectTailwindOrder(source, bindings, sourceFile),
     compile: (source, bindings, options) =>
       inner
         .compile(

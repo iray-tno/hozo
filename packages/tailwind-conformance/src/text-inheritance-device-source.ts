@@ -32,6 +32,7 @@ const productionStaticSources = [
   'packages/compiler/src/index.ts',
   'packages/metro/src/transform.ts',
   'crates/hozo_napi/src/lib.rs',
+  'crates/hozo_napi/src/tailwind_order.rs',
   'crates/hozo_parser/src/lib.rs',
   'crates/hozo_parser/src/interaction_order.rs',
   'crates/hozo_parser/src/jsx.rs',
@@ -46,6 +47,7 @@ const productionStaticSources = [
   'crates/hozo_native/src/text.rs',
   'crates/hozo_ir/src/lib.rs',
   'crates/hozo_ir/src/tailwind_units.rs',
+  'crates/hozo_ir/src/tailwind_order.rs',
 ]
 
 export function prepareTextDeviceFixture(staticSource = deviceLabelSource()) {

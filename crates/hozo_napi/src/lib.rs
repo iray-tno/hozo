@@ -11,6 +11,8 @@
 
 use hozo_ir::{Color, Diagnostic, StyleProperty, Theme, Utf16Offsets};
 use napi_derive::napi;
+mod tailwind_order;
+use tailwind_order::TailwindOrderInspection;
 
 #[napi(object)]
 pub struct CompileDiagnostic {
@@ -468,6 +470,8 @@ pub struct Compiler {
     /// Functions the project's callers import that join classes as `clsx`
     /// does, declared or found (#964).
     class_helpers: Vec<hozo_parser::ClassHelper>,
+    /// RFC 007 build-time binding context. Not consulted by emitters yet.
+    tailwind_order: Option<Box<hozo_ir::TailwindOrderContext>>,
 }
 
 /// A class-joining function, by the specifier callers import it from and
@@ -584,7 +588,32 @@ impl Compiler {
             stylex: Default::default(),
             text_forwarding: Default::default(),
             class_helpers: Vec::new(),
+            tailwind_order: None,
         }
+    }
+
+    /// Replace once after project preparation, not once per component.
+    /// Failed validation leaves the previous context intact.
+    #[napi]
+    pub fn set_tailwind_order(&mut self, snapshot: Option<String>) -> napi::Result<()> {
+        let prepared = snapshot
+            .as_deref()
+            .map(tailwind_order::prepare)
+            .transpose()?;
+        self.tailwind_order = prepared;
+        Ok(())
+    }
+
+    /// Internal binding evidence, not a support/cascade verdict. A build
+    /// must eventually bind its existing parse, not call this before compile.
+    #[napi]
+    pub fn inspect_tailwind_order(
+        &self,
+        source: String,
+        bindings: Option<Vec<StylexExternalBinding>>,
+        source_file: Option<String>,
+    ) -> TailwindOrderInspection {
+        tailwind_order::inspect(self, &source, bindings, source_file.as_deref())
     }
 
     /// `rehome_react_native` is the project's `unloweredReactNativeJsx`

@@ -9,7 +9,7 @@
 
 ## 1. Restart, not another family-specific patch
 
-PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is paused and must not be
+PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be
 an implementation dependency. Its current-head CI test job failed. This RFC
 does not diagnose or repair that failure, retry it, or treat its successful
 focused probes as release acceptance. Preserve its branch and evidence.
