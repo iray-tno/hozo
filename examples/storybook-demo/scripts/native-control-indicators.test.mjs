@@ -300,6 +300,7 @@ const bundled = await build({
             ),
             exportsFrom('Portal', 'packages/behaviors/src/portal.native.tsx'),
             exportsFrom('usePresence', 'packages/behaviors/src/presence.native.ts'),
+            exportsFrom('useDrag1D', 'packages/behaviors/src/drag-1d.native.ts'),
             exportsFrom('useHoverTrigger', 'packages/behaviors/src/hover-trigger.native.tsx'),
             exportsFrom(
               'moveAccessibilityFocus',
@@ -4096,6 +4097,19 @@ test('Native BottomSheet handle keeps detent and responder callbacks while deliv
     tree.root.findAllByType('NativeView').find((node) => node.props.accessibilityViewIsModal)
   await act(() => panel().props.onLayout({ nativeEvent: { layout: { height: 400 } } }))
   const travel = () => flat(panel().props.style).transform[0].translateY
+  const frames = new Map()
+  let frame = 0
+  const oldFrame = globalThis.requestAnimationFrame
+  const oldCancel = globalThis.cancelAnimationFrame
+  globalThis.requestAnimationFrame = (callback) => {
+    frames.set(++frame, callback)
+    return frame
+  }
+  globalThis.cancelAnimationFrame = (id) => frames.delete(id)
+  t.after(() => {
+    globalThis.requestAnimationFrame = oldFrame
+    globalThis.cancelAnimationFrame = oldCancel
+  })
   assert.equal(travel(), 200)
   await checkBoxInteraction(handle)
   assert.equal(travel(), 200, 'interaction alone does not change the detent')
@@ -4106,7 +4120,16 @@ test('Native BottomSheet handle keeps detent and responder callbacks while deliv
   assert.equal(handle().props.onMoveShouldSetResponder({}, { dy: 3 }), true)
   await act(() => handle().props.onResponderGrant({}))
   await act(() => handle().props.onResponderMove({}, { dy: -200 }))
+  assert.equal(travel(), 200, 'drag movement waits for the animation frame')
+  await act(() => {
+    const callbacks = [...frames.values()]
+    frames.clear()
+    for (const callback of callbacks) callback()
+  })
   assert.equal(travel(), 0, 'shared pressable forwards the existing responder handlers')
+  await act(() => handle().props.onResponderRelease({}, { dy: -200, vy: 0 }))
+  assert.equal(travel(), 0, 'release keeps the final detent')
+  assert.equal(frames.size, 0)
 })
 
 test('Native ColorPicker swatches deliver interaction to both slots without changing the sample colour', async (t) => {
