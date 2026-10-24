@@ -11,8 +11,15 @@ Phase 2 now includes a shared pass-through compile plan, bounded original-rule
 ownership/specificity evidence and an opt-in generated **exact-candidate**
 portable bootstrap. These are not value/condition equivalence or enabled
 cascade winners. The 90-entry bootstrap is not a complete portable context;
-collect/prepare/emit and broader extraction remain open. See the
+adapter collect/prepare/emit integration and broader extraction remain open. See the
 [measurement and limits](../measurements/canonical-tailwind-order.md#per-rule-ownership-and-a-portable-bootstrap).
+
+An exercised internal Node compiler/project boundary can now retain the actual
+module across async preparation and consume it once at emission. It validates
+one complete context per bounded batch without a global setter or another
+primitive-module parse. Default adapter installation, watch invalidation and
+broader portable extraction are not complete; no new winners are enabled.
+See [retained-module evidence](../measurements/canonical-tailwind-order.md#retaining-the-actual-module-across-preparation).
 
 ## 1. Restart, not another family-specific patch
 

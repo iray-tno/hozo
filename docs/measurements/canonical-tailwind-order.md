@@ -469,3 +469,111 @@ source bytes; the snapshot is 31,041 JSON bytes / 3,092 gzip. Those are build
 data, **not** device bundle or peak-memory numbers. All samples, profile,
 source/addon hashes and provenance are in local `assessment-clean-*`,
 `assessment-prepared-*` and `assessment-portable-cost` receipts.
+
+## Retaining the actual module across preparation
+
+The next RFC 007 boundary is an internal, process-local staged path. A compiler
+can `prepareWebModule` or `prepareNativeModule`, obtain the actual retained
+utility names, await upstream ordering preparation, and `emit` that same owned
+IR with an explicitly validated `PreparedTailwindContext`. The normal parse
+and emit entry points use the same extracted functions. Suspension introduces
+no inspection parse, no source reconstruction, and no second primitive-module
+parse. Existing independent domains such as Canvas paints are not combined
+into this handle, nor are additional passes inside existing experiments removed.
+
+Handles retain source, owned IR and emission choices, not an allocator-backed
+AST or an ID in a global map. The immutable theme is shared with `Arc`, not a
+palette clone per file. Font diagnostic facts are snapshotted for staged calls;
+helpers, forwarding, external StyleX facts and grammar have already been applied
+to the retained parse. Compiler mutation during an await cannot reinterpret it.
+Ordinary synchronous compilation does not create retained-module handles.
+
+`emitTailwindModules` from `@hozo/compiler/project` takes ownership of an
+explicit bounded batch and unions retained units with the caller's additional
+lexical/cache candidates **before** awaiting its preparation callback. The
+callback returns serialized descriptors; the helper validates/decodes once per
+batch and requires an entry for every collected name before consuming any
+module. `not-generated` is a collected fact; a missing candidate fails the
+batch, not a rank-zero fallback. It never calls the mutable context setter.
+Two batches on one compiler can therefore await different contexts safely.
+
+Emission consumes the IR once. Explicit disposal is idempotent; the batch's
+`finally` also disposes modules on preparation/validation/emission failure.
+Disposing during a pending preparation makes later emission fail rather than
+revive stale IR. This is not a built-in AbortSignal/timeout controller: callers
+own cancellation and must reject preparation or dispose their pending handles.
+Returned handles/context instances cannot be serialized to Metro workers or
+persisted in a project cache. Bound batch size matters because source/IR are
+retained while awaiting; peak memory is not measured here.
+
+The callback must prepare the compatible project's stylesheet/theme and epoch.
+Completeness/schema validation is not authentication of that relationship.
+Watch invalidation, project-wide candidate caching, broader portable extraction,
+and Vite/Metro/other adapter installation are still open. Forwarded summaries
+without retained utility identity are not reconstructed by guessing strings.
+No adapter default or cascade winner changes in this layer; it is an exercised
+compiler/project boundary, not a claim that project integration is complete.
+
+Local CPU-1/Idle/serial verification: Rust **1,033 passed**, compiler **339 passed
+plus one existing Windows symlink skip**, Tailwind **61 passed**, Native Showcase
+**223 passed plus one existing skip**, and cache guards **9 passed**. The addon
+was rebuilt before JS checks; compiler build, workspace all-target Clippy,
+format, generation/check, lint (1,657 files) and docs checks passed. A Rust test
+mutates the retained IR, drops its originating compiler and verifies that exact
+IR is emitted; state is empty afterwards. It also verifies shared theme identity.
+Actual JS tests cover complete universes, secondary/nested slots, helper/option
+mutation across await, overlapping batches, incomplete/invalid preparation,
+executable CSS rejection, duplicate ownership, disposal, wrong context classes,
+UTF-16/tag evidence, Native syntax diagnostics/metadata, forwarding/text ABI
+choices and font snapshots. CLI TypeScript checks preserve Web/Native/mixed
+result types and reject fake context objects/JSON strings.
+
+Initial probes are retained: the first new fixture incorrectly assumed object
+member classes were statically retained, and was corrected to the existing
+constant-alias domain rather than expanding parsing in this PR. A mixed-batch
+type probe found an inference gap; the overload and positive/negative type
+fixture fix it. The type harness initially used the wrong relative root and
+then needed TypeScript 7's explicit `--ignoreConfig`; both failures were fixed,
+not skipped. The complete saved 30-subject/six-fixture/candidate-module output
+control remains byte-identical. Native text fixture changes are receipts only.
+Full root JS/packing/application suites, fresh browser/device pixels/AT, actual
+WASM artifact sizes and peak memory were not run/measured locally.
+
+Fresh clean debug builds compared parent `82653113` with implementation
+checkpoint `dd52df3e` (later changes are documentation only). Five samples per
+600 ordinary compiles: Web **70.5176 -> 69.3235 ms (-1.69%)**, Native
+**83.2325 -> 83.9538 ms (+0.87%)**. A same-source implementation repeat was
+68.9580/82.5241 ms (-2.21%/-0.85% relative to the original parent sample).
+These observations are not proof of speedup or zero overhead. Resolver/data
+consumer bundles remain 2,862/1,167, 11,259/2,608 and 82,464/14,567 bytes
+minified/gzip; the runtime resolver and generated data are not changed.
+
+The existing ledger's 1,026-candidate cold lookup initially rose from 1.2408 to
+2.9522 ms (+137.93%), then 2.0945 ms in the implementation repeat. That was not
+discarded as noise without a control: another fresh **parent-to-parent** capture
+of identical source gave **3.2308 ms (+160.38%)**. This small mixed-workload
+clock does not isolate a causal regression or certify a cold-runtime budget;
+unchanged source/output bytes are the structural evidence, not a latency claim.
+All `prepared-clean-*` and `prepared-parent-repeat` receipts remain available,
+including other preparation/cache/state variation. No timer gate was weakened.
+
+`node scripts/tailwind-order-module-cost.mjs` separately rebuilds and measures
+seven samples over 16-module batches, 19 retained candidates and a real
+288-color project theme. Medians below are **milliseconds per batch**, not
+per-module times or sums of independent medians:
+
+| Platform | Synchronous prepared control | Retain/collect | Decode/validate context | Emit retained IR | Complete async batch |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Web | 4.6172 | 3.0385 | 0.2484 | 1.0822 | 16.4673 |
+| Native | 5.5830 | 3.0496 | 0.2561 | 1.9842 | 11.1215 |
+
+The complete batch includes collection, asynchronous upstream preparation,
+serialization, context setup, emission and cleanup. Upstream preparation
+medians in those full batches were 11.8871/5.3788 ms, with first preparation
+in each platform loop 11.4699/19.7197 ms; neither loop is a cold Node startup.
+Standalone collect/context/emit clocks exclude upstream preparation. Compiler
+construction/theme loading and nonempty font-availability snapshots are outside
+this fixture's clocks. Every measured output is checked against the ordinary
+compiler. No inference is made about application bundles, retained-memory peaks
+or an enabled comparator. Full samples, Node/Rust/profile/source/addon/harness
+receipts are in `prepared-module-cost.json` at the checkpoint above.
