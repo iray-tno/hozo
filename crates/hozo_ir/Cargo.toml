@@ -11,3 +11,4 @@ keywords = ["react-native", "compiler", "ui", "accessibility", "ir"]
 categories = ["compilers", "development-tools"]
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }

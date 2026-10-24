@@ -21,6 +21,81 @@ contract, not the unresolved project collect/prepare/emit integration,
 portable facts or shared comparator. It changes no winners,
 candidate refusals, runtime subscriptions or runtime payloads.
 
+## Binding prepared facts to retained utilities
+
+The next compiler-only slice consumes that snapshot in `hozo_ir` as an
+immutable `TailwindOrderContext`. It validates schema/policy, provenance
+format, unique contiguous identities, candidate/rule ownership, status and
+ordered property signatures. It retains the complete rule list, nesting,
+importance and arbitrary-width decimal variant bitset. The loader fingerprint
+is a namespace receipt, not authentication of a caller-created JSON object.
+No context cache trusts that string as a substitute for receiving the data.
+
+`context.bind(root.tailwind_units)` borrows descriptors once for the module's
+retained utility table; every root/secondary slot shares the same IDs. Lookup
+by utility ID thereafter is indexed. It does not copy strings, signatures or
+rule trees per declaration. A multi-rule candidate stays a multi-rule
+candidate: this layer does **not** guess which expanded Hozo write belongs to
+which upstream rule, or claim custom utility support because its name binds.
+The public Rust declaration/root layout is unchanged by this binding layer.
+
+The internal Node inspection methods `setTailwindOrder(JSON.stringify(snapshot))`
+and `inspectTailwindOrder(source)` exercise the real parser with its configured
+helper and StyleX registry. Report statuses distinguish `described`,
+`not-generated`, `uncollected` and `no-context`. Inspection inventories only
+parser-retained utilities, not all lexical strings or unresolved dynamic
+candidates. Syntax recovery is reported separately. Invalid replacement
+preserves the old context; clearing removes it. Full per-rule facts live in
+the shared Rust model, not a second JavaScript ordering engine.
+
+This inspection parse is evidence tooling, **not** an adapter hook to run
+before compilation. The eventual planner must bind the transform's existing
+parse once, collect any newly resolved candidates before preparation and
+provide portable descriptors for the standalone path. No emitter, project
+adapter or device resolver consumes the context in this slice. Existing
+priority differences remain; #1230 stays open.
+
+Local checks on Windows x64, CPU 1 / Idle / serial: Rust workspace 1,023 passed;
+Tailwind suites 50 passed; compiler suites 338 passed with 1 existing Windows
+symlink skip; Native Showcase 220 passed with 1 existing skip. The real-loader
+binding tests cover multiple upstream rules for a builtin name, secondary
+slots, nested/multiple roots, source constants, authored guards, helper
+configuration, unknown facts, replacement/clearing, malformed descriptors and
+UTF-16 syntax diagnostics. Setting and clearing context leaves actual Web and
+Native compile results unchanged. The saved 30-case corpus, six additional
+root/slot/mixed/nested fixtures and generated Native candidate module are also
+byte-identical. These are compiler/style facts, not fresh device pixels/AT.
+
+```sh
+node scripts/tailwind-order-binding-cost.mjs > artifacts/tailwind-order/binding-cost.json
+```
+
+This opt-in command rebuilds the addon before loading it. Seven same-process
+samples, 20 replacements/sample, debug Rust, Node 25.9.0: median time **per
+replacement**, including JSON decode, validation, indexing and destruction of
+the previous context, but excluding upstream preparation/input serialization:
+
+| Prepared candidates | Snapshot JSON bytes | Replacement ms |
+| ---: | ---: | ---: |
+| 16 | 5,187 | 0.132 |
+| 128 | 39,293 | 0.982 |
+| 1,024 | 316,303 | 7.904 |
+
+These are build-time input bytes, not a new application/runtime payload.
+Inspection of the same 16 retained utilities was about 0.12–0.13 ms per call
+with/without context, but includes parsing and result transport; it is not an
+isolated binding benchmark or evidence that the future planner is free.
+
+A separate five-sample, 20-corpus-sweep capture using the unchanged cost
+harness/profile against the saved #1244 control observed ordinary Web +0.33%
+and Native +0.09% median compilation time. Candidate consumers stayed exactly
+2,862/1,167, 11,259/2,608 and 82,464/14,567 minified/gzip bytes. These descriptive
+samples do not establish zero overhead, a speedup, app startup, peak memory or
+the eventual enabled planner's cost. The initial comparison request with
+three samples was rejected for incompatibility with the five-sample baseline;
+its log was retained and the baseline was not overwritten. Full raw evidence
+is in `artifacts/tailwind-order/binding-*` locally. No timing gate was loosened.
+
 For isolated CPU-1/Idle preparation measurements, run:
 
 ```sh

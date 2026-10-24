@@ -8,6 +8,12 @@ use std::sync::Arc;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TailwindUtilityId(u32);
 
+impl TailwindUtilityId {
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct TailwindUnits {
     candidates: Box<[Box<str>]>,
@@ -24,6 +30,13 @@ impl TailwindUnits {
 
     pub fn is_empty(&self) -> bool {
         self.candidates.is_empty()
+    }
+
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = (TailwindUtilityId, &str)> {
+        self.candidates
+            .iter()
+            .enumerate()
+            .map(|(index, name)| (TailwindUtilityId(index as u32), name.as_ref()))
     }
 }
 

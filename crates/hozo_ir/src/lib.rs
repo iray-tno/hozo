@@ -21,6 +21,12 @@ mod theme;
 pub use theme::{Theme, ThemeAnimation, ThemeColor};
 mod tailwind_units;
 pub use tailwind_units::{TailwindUnits, TailwindUnitsBuilder, TailwindUtilityId};
+mod tailwind_order;
+pub use tailwind_order::{
+    OrderCandidateDescriptor, OrderCandidateStatus, OrderContextValue, OrderRuleDescriptor,
+    OrderRuleShape, OrderStylesheet, TailwindOrderContext, TailwindOrderSnapshot,
+    TailwindRuleBinding, TailwindUnitBindings,
+};
 
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics
