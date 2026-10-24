@@ -37,15 +37,15 @@
     "@hozo/tailwind": "workspace:*",
     "@guidepup/virtual-screen-reader": "0.32.1",
     "@hozo/storybook": "workspace:*",
-    "@storybook/addon-a11y": "10.5.9",
-    "@storybook/react-vite": "^10.5.9",
+    "@storybook/addon-a11y": "10.6.3",
+    "@storybook/react-vite": "10.6.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/three": "^0.180.0",
     "axe-core": "4.13.0",
     "playwright-core": "^1.63.0",
     "react-test-renderer": "^19.2.8",
-    "storybook": "^10.5.9",
+    "storybook": "10.6.3",
     "typescript": "7.0.2",
     "vite": "^8.2.1"
   }

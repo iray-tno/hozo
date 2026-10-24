@@ -36,9 +36,9 @@
     "@react-native-community/datetimepicker": "9.1.0",
     "@react-native-community/slider": "5.2.0",
     "@react-three/fiber": "^9.8.1",
-    "@storybook/addon-ondevice-actions": "10.6.0",
-    "@storybook/addon-ondevice-controls": "10.6.0",
-    "@storybook/react-native": "10.6.0",
+    "@storybook/addon-ondevice-actions": "10.6.2",
+    "@storybook/addon-ondevice-controls": "10.6.2",
+    "@storybook/react-native": "10.6.2",
     "expo": "~57.0.25",
     "expo-asset": "~57.0.18",
     "expo-audio": "~57.0.5",
@@ -54,7 +54,7 @@
     "react-native-safe-area-context": "5.8.0",
     "react-native-svg": "15.15.4",
     "react-native-worklets": "0.10.1",
-    "storybook": "10.6.0",
+    "storybook": "10.6.3",
     "three": "^0.180.0"
   },
   "devDependencies": {
