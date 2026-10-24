@@ -27,6 +27,8 @@ pub use tailwind_order::{
     OrderRuleShape, OrderStylesheet, TailwindOrderContext, TailwindOrderSnapshot,
     TailwindRuleBinding, TailwindUnitBindings,
 };
+mod tailwind_plan;
+pub use tailwind_plan::{TailwindWriteBlock, TailwindWritePlan};
 
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics
