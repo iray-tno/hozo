@@ -4,6 +4,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { CODE_SNIPPETS } from '../src/lib/code-snippets.ts'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.resolve(root, process.argv[2] ?? 'dist')
@@ -160,8 +161,53 @@ try {
     }
     await page.close()
   }
+  // These examples promise build-time rendering: exercise the pages with
+  // scripting disabled, so a successful hydration cannot hide missing text.
+  for (const [name, snippet] of Object.entries(CODE_SNIPPETS)) {
+    for (const width of [320, 768, 1280]) {
+      const page = await browser.newPage({
+        viewport: { width, height: 900 },
+        javaScriptEnabled: false,
+        reducedMotion: 'reduce',
+      })
+      await page.route('**/*', (route) =>
+        route.request().url().startsWith(origin) ? route.continue() : route.abort(),
+      )
+      const route = name === 'philosophy' ? '' : `${name}/`
+      await page.goto(`${origin}/hozo/${route}index.html`)
+      const figure = page.getByRole('figure', { name: snippet.title, exact: true })
+      assert.equal(await figure.count(), 1)
+      assert.equal(
+        (await figure.locator('pre code > span').allTextContents()).join('\n'),
+        snippet.code,
+        `${name}: code text changed with scripting disabled`,
+      )
+      assert.equal(await figure.locator('button, [tabindex]').count(), 0)
+      assert.equal(
+        await figure.locator('pre').evaluate((pre) => getComputedStyle(pre).whiteSpace),
+        'pre-wrap',
+      )
+      assert.ok(
+        await figure.evaluate((element) => element.scrollWidth <= element.clientWidth),
+        `${name} code overflow at ${width}px`,
+      )
+      assert.ok(
+        await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+        `${name} page overflow at ${width}px`,
+      )
+      if (process.env.LANDING_SCREENSHOT_DIR) {
+        await figure.screenshot({
+          path: path.join(process.env.LANDING_SCREENSHOT_DIR, `${name}-code-${width}.png`),
+        })
+      }
+      await page.close()
+    }
+  }
   console.log(
     'Landing: wrapped code figures, install, showcase actions, anchors, keyboard focus and reduced motion pass at 320/390/640/768/1280px',
+  )
+  console.log(
+    'Landing: Philosophy/Canvas/SVG/Three code figures retain source text and wrap without JavaScript at 320/768/1280px',
   )
 } finally {
   await browser?.close()

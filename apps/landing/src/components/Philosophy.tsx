@@ -1,10 +1,13 @@
 import { Code, Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
+import type { CodeSnippet } from '../lib/code-snippets.ts'
+import { StaticCodeSnippet } from './StaticCodeSnippet.tsx'
 
 export interface PhilosophyProps {
+  snippet: CodeSnippet
   baseUrl?: string
 }
 
-export function Philosophy({ baseUrl = '' }: PhilosophyProps) {
+export function Philosophy({ baseUrl = '', snippet }: PhilosophyProps) {
   const cleanBase = baseUrl.replace(/\/$/, '')
   return (
     <Section
@@ -45,13 +48,7 @@ export function Philosophy({ baseUrl = '' }: PhilosophyProps) {
               proprietary DSL, no framework rewrites. Adopt it file by file, and run the migration
               audit first to see what changes before anything does.
             </Paragraph>
-            <View className="p-3 rounded-lg bg-yakisugi-950 border border-hinoki/18 text-xs text-shikkui-muted font-mono">
-              <Text>
-                <Text className="text-hinoki">import</Text> {'{ View, Text }'}{' '}
-                <Text className="text-hinoki">from</Text>{' '}
-                <Text className="text-tatami-light">'react-native'</Text>
-              </Text>
-            </View>
+            <StaticCodeSnippet snippet={snippet} compact />
             <Link
               href="#integrations"
               className="mt-4 inline-flex text-sm font-semibold text-hinoki-light underline hover:text-shikkui"

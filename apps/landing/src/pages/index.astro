@@ -11,6 +11,7 @@ import SiteHead from '../components/SiteHead.astro'
 import { TryShowcase } from '../components/TryShowcase.tsx'
 import { UiShowcase } from '../components/UiShowcase.tsx'
 import { loadShowcaseRelease } from '../lib/showcase-release'
+import { buildCodeSnippet } from '../lib/code-snippets'
 import { buildCodeShowcase } from '../lib/code-showcase'
 import codeThemeSource from '../styles/global.css?raw'
 import '../styles/global.css'
@@ -21,6 +22,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 // structured data named a different URL from the page it described.
 const homeUrl = new URL(`${baseUrl}/`, Astro.site).href
 const showcaseRelease = await loadShowcaseRelease()
+const philosophySnippet = await buildCodeSnippet('philosophy', codeThemeSource)
 const codeSamples = await buildCodeShowcase(codeThemeSource)
 ---
 
@@ -82,7 +84,7 @@ const codeSamples = await buildCodeShowcase(codeThemeSource)
            Each section links to the /docs page that goes deeper, rather than
            carrying that depth here. -->
       <CodeShowcase samples={codeSamples} />
-      <Philosophy baseUrl={baseUrl} />
+      <Philosophy baseUrl={baseUrl} snippet={philosophySnippet} />
       <Integrations baseUrl={baseUrl} />
       <UiShowcase baseUrl={baseUrl} />
       <TryShowcase baseUrl={baseUrl} release={showcaseRelease} />

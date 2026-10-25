@@ -1,21 +1,9 @@
-import {
-  Code,
-  Heading,
-  List,
-  ListItem,
-  Paragraph,
-  Preformatted,
-  Section,
-  Strong,
-  Text,
-  View,
-} from '@hozo/core'
+import { Code, Heading, List, ListItem, Paragraph, Section, Strong, Text, View } from '@hozo/core'
 import type { ReactNode } from 'react'
-import { Kumimono } from '../Kumimono.tsx'
+import type { CodeSnippet } from '../../lib/code-snippets.ts'
+import { StaticCodeSnippet } from '../StaticCodeSnippet.tsx'
 
-// The /three/ page, in Hozo primitives. The Kumimono frame is its own island
-// because the demo inside it is interactive; Astro hydrates a component, not a
-// child of one rendered on the server.
+// The static sections around the /three/ demo, in Hozo primitives.
 
 export function ThreeIntro() {
   return (
@@ -37,29 +25,6 @@ export function ThreeIntro() {
         lowers to WebGL / WebGPU on the Web and native OpenGL ES / Metal on React Native.
       </Paragraph>
     </Section>
-  )
-}
-
-export function KumimonoProof({ baseUrl = '' }: { baseUrl?: string }) {
-  return (
-    <View className="mb-20 rounded-2xl border border-hinoki/18 bg-yakisugi-900/60 p-4 sm:p-8 backdrop-blur-sm shadow-xl">
-      <View className="mb-6 border-b border-hinoki/10 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <View className="shrink">
-          <Heading level={2} className="text-xl sm:text-2xl font-bold text-shikkui">
-            Interactive Proof: Kumimono (組物)
-          </Heading>
-          <Paragraph className="text-xs sm:text-sm text-stone-400 mt-1">
-            Live WebGL rendering of a traditional Japanese timber joinery bracket system using
-            portable bounded shaders.
-          </Paragraph>
-        </View>
-        <View className="flex flex-row items-center gap-2 text-xs font-mono text-hinoki">
-          <View className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-          <Text>Zero idle frame draw</Text>
-        </View>
-      </View>
-      <Kumimono baseUrl={baseUrl} />
-    </View>
   )
 }
 
@@ -159,7 +124,7 @@ export function ThreeCapabilities() {
   )
 }
 
-export function ThreeAuthoring() {
+export function ThreeAuthoring({ snippet }: { snippet: CodeSnippet }) {
   return (
     <Section className="mb-16">
       <Heading
@@ -172,47 +137,7 @@ export function ThreeAuthoring() {
         Author scenes with standard React patterns. Hozo compiles the scene to WebGL on the browser
         and maps directly to the Native GPU runtime on iOS/Android.
       </Paragraph>
-      <Preformatted className="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
-        <Code>
-          <Text className="text-hinoki">import</Text>
-          {' { ThreeCanvas } '}
-          <Text className="text-hinoki">from</Text>{' '}
-          <Text className="text-tatami-light">'@hozo/three'</Text>
-          {'\n'}
-          <Text className="text-hinoki">import</Text>
-          {' { useRef } '}
-          <Text className="text-hinoki">from</Text>{' '}
-          <Text className="text-tatami-light">'react'</Text>
-          {'\n\n'}
-          <Text className="text-hinoki">export function</Text>{' '}
-          <Text className="text-shikkui">ProductViewer</Text>
-          {'() {\n  '}
-          <Text className="text-hinoki">return</Text>
-          {' (\n    <'}
-          <Text className="text-bengara">ThreeCanvas</Text>
-          {'\n      '}
-          <Text className="text-hinoki-light">camera</Text>
-          {'={{ position: [0, 2, 5], fov: 45 }}\n      '}
-          <Text className="text-hinoki-light">frameloop</Text>=
-          <Text className="text-tatami-light">"demand"</Text>
-          {'\n      '}
-          <Text className="text-hinoki-light">accessibilityLabel</Text>=
-          <Text className="text-tatami-light">"Interactive 3D Kumimono Bracket"</Text>
-          {'\n    >\n      <'}
-          <Text className="text-bengara">ambientLight</Text>{' '}
-          <Text className="text-hinoki-light">intensity</Text>
-          {'={0.6} />\n      <'}
-          <Text className="text-bengara">directionalLight</Text>{' '}
-          <Text className="text-hinoki-light">position</Text>
-          {'={[10, 10, 5]} '}
-          <Text className="text-hinoki-light">intensity</Text>
-          {'={1.2} />\n      <'}
-          <Text className="text-bengara">KumimonoMesh</Text>
-          {' />\n    </'}
-          <Text className="text-bengara">ThreeCanvas</Text>
-          {'>\n  )\n}'}
-        </Code>
-      </Preformatted>
+      <StaticCodeSnippet snippet={snippet} />
     </Section>
   )
 }

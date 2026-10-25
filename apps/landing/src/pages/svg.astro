@@ -11,9 +11,12 @@ import {
   SvgPoints,
   SvgSpecimens,
 } from '../components/svg/SvgPage.tsx'
+import { buildCodeSnippet } from '../lib/code-snippets'
+import codeThemeSource from '../styles/global.css?raw'
 import '../styles/global.css'
 import snapshot from '../../../../packages/tailwind-conformance/snapshot.json'
 
+const codeSnippet = await buildCodeSnippet('svg', codeThemeSource)
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 ---
 
@@ -42,7 +45,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
       <SvgSpecimens />
       <SvgPoints />
       <SvgFilterCoverage web={snapshot.svgFilterWeb} native={snapshot.svgFilterNative} />
-      <SvgAuthoring />
+      <SvgAuthoring snippet={codeSnippet} />
     </main>
 
     <Footer baseUrl={baseUrl} />

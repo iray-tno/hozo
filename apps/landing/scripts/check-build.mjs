@@ -14,6 +14,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
+import { CODE_SNIPPETS } from '../src/lib/code-snippets.ts'
 import { uiNativeStatusChecks } from './ui-native-status-checks.mjs'
 
 // Which build to read, because there is more than one.
@@ -537,6 +538,32 @@ checks.push(
       sample.trim().split('\n').length >= 8,
       `side-by-side sample ${labelOf(sample)} is not broken into lines`,
     ])
+  }
+
+  // Compare rendered text, so neither JSX escaping nor the page compiler can
+  // quietly change an example while the highlighter's unit tests still pass.
+  for (const [name, snippet] of Object.entries(CODE_SNIPPETS)) {
+    const page =
+      name === 'philosophy' ? html : readFileSync(path.join(dist, name, 'index.html'), 'utf8')
+    const figure =
+      [...page.matchAll(/<figure\b[^>]*>[\s\S]*?<\/figure>/g)]
+        .map(([markup]) => markup)
+        .find((markup) => markup.includes(`>${snippet.title}</figcaption>`)) ?? ''
+    const rendered = samplesIn(
+      figure.replaceAll('<span style="display:flex;min-width:100%">', '\n'),
+    )[0]
+    checks.push(
+      [Boolean(figure), `${name}: the named code figure is missing`],
+      [rendered?.slice(1) === snippet.code, `${name}: the built example differs from its source`],
+      [
+        !/<button\b|tabindex=|<astro-island\b/.test(figure),
+        `${name}: the static example became interactive`,
+      ],
+      [
+        (page.match(/<astro-island\b/g) ?? []).length === 1,
+        `${name}: expected only its existing demo island`,
+      ],
+    )
   }
 }
 

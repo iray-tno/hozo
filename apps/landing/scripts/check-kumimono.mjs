@@ -52,11 +52,11 @@ const args = ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swifts
 // its 30 seconds (#1140), on requests this check asserts nothing about --
 // and every run sent a page view. Same origin only, as check-landing does,
 // and wait for the section rather than for the whole page.
-const open = async (page) => {
+const open = async (page, target = url) => {
   await page.route('**/*', (route) =>
     route.request().url().startsWith(url) ? route.continue() : route.abort(),
   )
-  await page.goto(url, { waitUntil: 'domcontentloaded' })
+  await page.goto(target, { waitUntil: 'domcontentloaded' })
   const section = page.locator('#kumimono')
   await section.waitFor()
   await section.scrollIntoViewIfNeeded()
@@ -168,6 +168,18 @@ try {
     assert.deepEqual(errors, [])
     await page.close()
   }
+  const proofPage = await browser.newPage({ reducedMotion: 'reduce' })
+  const proof = await open(proofPage, `${url}three/index.html`)
+  await proof.getByRole('button', { name: 'Disassemble', exact: true }).waitFor()
+  await proofPage.waitForFunction(() => !document.querySelector('#kumimono button').disabled)
+  const assembly = proof.getByRole('slider', { name: 'Assembly', exact: true })
+  await assembly.focus()
+  await assembly.press('Home')
+  assert.equal(await assembly.getAttribute('aria-valuetext'), '0% assembled')
+  await assembly.press('End')
+  assert.equal(await assembly.getAttribute('aria-valuetext'), '100% assembled')
+  assert.equal(await proof.locator('canvas').count(), 1)
+  await proofPage.close()
   await browser.close()
   browser = await chromium.launch({ executablePath, args: [...args, '--disable-webgl'] })
   const page = await browser.newPage()
@@ -175,7 +187,7 @@ try {
   await page.getByText('The 3D study needs WebGL.', { exact: false }).waitFor()
   assert.equal(await page.locator('#kumimono button').isDisabled(), true)
   console.log(
-    'Kumimono: real WebGL, mobile/desktop, keyboard, reversal, reduced motion, offscreen pause, and fallback passed',
+    'Kumimono: real WebGL, mobile/desktop, keyboard, reversal, reduced motion, offscreen pause, separate Three page island, and fallback passed',
   )
 } finally {
   await browser?.close()
