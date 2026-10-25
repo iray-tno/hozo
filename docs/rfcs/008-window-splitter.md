@@ -8,8 +8,8 @@ unstyled patterns. No new runtime or native dependency is required.
 
 The first implementation covers the drag behavior, both platform patterns,
 class-slot inventory, styled components, docs demo and Storybook story.
-BottomSheet and Slider now share this behavior on Web and Native. Adopting
-the pane in Envarly remains a follow-up.
+BottomSheet and Slider now share this behavior on Web and Native. Envarly
+adoption is deferred until release and belongs in that application's repository.
 
 BottomSheet keeps its detent and velocity projection in `sheet-rules.ts`.
 The behavior delivers the final delta and velocity even before a queued frame
@@ -78,3 +78,19 @@ Native mock-host tests; package tests exercise coalescing, cancellation and
 server markup. These are not device pixels, timing or screen-reader speech
 measurements. The `patterns-resizablepane--default` story is discovered by
 the existing real-reader suite; its speech baselines need a reader run.
+
+## Remaining completion evidence
+
+- [#1276](https://github.com/iray-tno/hozo/issues/1276): actual NVDA/Chrome and
+  VoiceOver/Safari speech for the named separator, size changes, bounds,
+  collapse and restoration. `examples/screen-readers/code-and-splitter.spec.ts`
+  records the keys, corresponding DOM facts and speech; captures without
+  human-approved phrases are explicitly unapproved.
+- [#1277](https://github.com/iray-tno/hozo/issues/1277): Android/iOS layout,
+  responder delivery and TalkBack/VoiceOver actions on real devices. Mock-host
+  tests do not satisfy this check.
+
+The parent issue remains open until these measurements are reviewed, or a
+maintainer explicitly agrees to a different completion boundary. Creating the
+follow-up issues does not supply the missing evidence. Native hardware
+keyboards, double-click reset and pane groups remain outside the first slice.
