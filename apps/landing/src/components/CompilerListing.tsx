@@ -1,4 +1,5 @@
-import { Code, Heading, Paragraph, Preformatted, View } from '@hozo/core'
+import { Heading, Paragraph, View } from '@hozo/core'
+import { CodeBlock } from '@hozo/patterns'
 import type { ReactNode } from 'react'
 
 // A titled box of compiler input or output, for the pages that show the
@@ -7,11 +8,11 @@ import type { ReactNode } from 'react'
 export function CompilerPanel({
   title,
   detail,
-  children,
+  code,
 }: {
   title: string
   detail?: ReactNode
-  children: ReactNode
+  code: string
 }) {
   return (
     <View className="min-w-0 rounded-xl border border-hinoki/18 bg-yakisugi-950 overflow-hidden">
@@ -21,15 +22,29 @@ export function CompilerPanel({
         </Heading>
         {detail ? <Paragraph className="text-[11px] text-stone-400">{detail}</Paragraph> : null}
       </View>
-      {children}
+      <CompilerListing title={title}>{code}</CompilerListing>
     </View>
   )
 }
 
-export function CompilerListing({ children }: { children: string }) {
+export function CompilerListing({ title, children }: { title: string; children: string }) {
   return (
-    <Preformatted className="p-4 max-h-96 overflow-auto text-[11px] sm:text-xs font-mono text-stone-300 leading-relaxed whitespace-pre-wrap break-words">
-      <Code>{children}</Code>
-    </Preformatted>
+    <View
+      role="region"
+      accessibilityLabel={`${title} code`}
+      className="p-4 max-h-96 overflow-auto min-w-0 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-hinoki"
+    >
+      <CodeBlock
+        lines={children}
+        title={title}
+        wrap
+        captionClassName="sr-only"
+        className="text-[11px] sm:text-xs text-stone-300 min-w-0"
+        lineStyle={{
+          fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+          lineHeight: 1.625,
+        }}
+      />
+    </View>
   )
 }

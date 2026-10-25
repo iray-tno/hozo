@@ -13,6 +13,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { checkCompilerListing, compilerListingText } from './compiler-listing-checks.mjs'
 
 const dist = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -91,13 +92,7 @@ try {
       .locator('astro-island[component-export="StylexSamples"]:not([ssr])')
       .waitFor({ state: 'attached' })
     assert.equal(await tabs.getByRole('tab').count(), 6)
-    const listing = (title) =>
-      page
-        .getByRole('tabpanel')
-        .getByRole('heading', { name: title, exact: true, level: 3 })
-        .locator('xpath=../..')
-        .locator('pre')
-        .innerText()
+    const listing = (title) => compilerListingText(page, title)
 
     // First tab: StyleX beside Tailwind, one class, the guard kept.
     assert.equal(
@@ -112,6 +107,8 @@ try {
     assert.match(web, /hozo-cond-/)
     assert.match(await listing('iOS and Android'), /\(active\) && hozoStyles\.hozo0_cond_/)
     await page.getByText('No diagnostics.').waitFor()
+    for (const title of ['Source', 'Web', 'iOS and Android'])
+      await checkCompilerListing(page, title)
 
     // Pointer: the Web-only property is named on Native.
     await tabs.getByRole('tab', { name: 'Web-only property' }).click()
@@ -129,6 +126,7 @@ try {
     )
     await page.getByText('Web and Native · warning · STYLEX_NOT_LOWERED').waitFor()
     assert.match(await listing('iOS and Android'), /stylex\.props\(styles\.bar\(width\)\)/)
+    await checkCompilerListing(page, 'iOS and Android', false)
 
     // firstThatWorks: Native takes the first candidate it can represent.
     await tabs.getByRole('tab', { name: 'firstThatWorks' }).click()

@@ -68,9 +68,15 @@ browser checks run at mobile/tablet/desktop widths with JavaScript disabled.
 Three's interactive proof has a separate module so its island cannot pull the
 static examples or CodeBlock implementation into the browser bundle.
 
-No virtualized renderer or long-block device frame budget is claimed. Remaining
-interactive landing listings, Markdown integration and Envarly adoption remain follow-ups;
-this adoption does not close the whole tracking issue.
+CompilerListing and the SVG filter studio also use CodeBlock, taking plain
+strings without a browser highlighter. Compiler output wraps within its bounded
+vertical region; SVG source scrolls horizontally. Overflow observers supply a
+keyboard stop only when needed. Tailwind hydrates its three code panels as one
+small island; StyleX and SVG reuse their existing interactive boundaries.
+
+No virtualized renderer or long-block device frame budget is claimed. Markdown
+integration and Envarly adoption remain follow-ups; this adoption does not close
+the whole tracking issue.
 
 ## Native bundle cost
 
