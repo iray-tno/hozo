@@ -70,6 +70,7 @@ const collectors = sources.map(
 if (typeof lowering.prepareLowerModule === 'function') {
   stages.sessionReadyBatch = []
   stages.sessionReadyFiles = []
+  if (typeof lowering.lowerModuleOrPrepare === 'function') stages.sessionReadyDirect = []
   session = new TailwindProjectSession(compiler, async (names) => {
     sessionPreparations++
     return JSON.stringify((await prepareTailwindOrder(css, base, names)).snapshot)
@@ -96,6 +97,26 @@ for (let sample = 0; sample < samples; sample++) {
   }
   stages.sessionReadyFiles.push(performance.now() - start)
   assert.deepEqual(files, expected)
+  if (stages.sessionReadyDirect) {
+    start = performance.now()
+    const direct = []
+    for (let index = 0; index < sources.length; index++) {
+      direct.push(
+        await session.runModule(idFor(index), universe, (owner, context) =>
+          lowering.lowerModuleOrPrepare(
+            sources[index],
+            idFor(index),
+            fileFor(index),
+            owner,
+            root,
+            context,
+          ),
+        ),
+      )
+    }
+    stages.sessionReadyDirect.push(performance.now() - start)
+    assert.deepEqual(direct, expected)
+  }
 }
 if (session) {
   assert.equal(sessionPreparations, 1)
