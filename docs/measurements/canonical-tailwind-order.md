@@ -755,6 +755,8 @@ an application benchmark. Theme/compiler construction and project discovery
 are outside synchronous/warm clocks. Before revision `9b5b9a59` adds only the
 harness over #1260; implementation checkpoint `6012b125` adds the staged
 boundary. Subsequent rebase onto merged #1260 changed no file content.
+Post-checkpoint lifecycle refinements change tests/docs only, not the measured
+production code or harness.
 
 | Capture (ms per 16 modules) | Ordinary synchronous | Warm staged batch | 16 warm staged files |
 | --- | ---: | ---: | ---: |
