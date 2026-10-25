@@ -1,9 +1,7 @@
 import { createCompiler } from '@hozo/compiler'
 import { loadTheme } from '@hozo/tailwind'
-import type { CodeLine } from '@hozo/typography/code/model'
-import { fromShiki } from '@hozo/typography/code/shiki'
-import { createHighlighter, type ThemeRegistration } from 'shiki'
 import { formatJsx } from '../scripts/format-jsx.ts'
+import { type HighlightedListing, highlightCodeListings } from './code-highlighting.ts'
 
 // Keep the three panes connected: a compiler change must reach the displayed
 // output, rather than leaving a hand-written example claiming to be current.
@@ -20,11 +18,6 @@ export function NotificationCard({ title, message, onDismiss }) {
     </View>
   )
 }`
-
-export interface HighlightedListing {
-  code: string
-  lines: CodeLine[]
-}
 
 export interface CodeShowcaseSamples {
   source: HighlightedListing
@@ -49,53 +42,12 @@ export async function buildCodeShowcase(
       `CodeShowcase compiler diagnostics: ${diagnostics.map((item) => `${item.code}: ${item.message}`).join('; ')}`,
     )
 
-  const color = (name: string) => {
-    const value = theme.colors.find((entry) => entry.token === name)?.hex
-    if (!value) throw new Error(`CodeShowcase theme is missing ${name}`)
-    return value
-  }
-  const codeTheme: ThemeRegistration = {
-    name: 'hozo-landing-code-theme',
-    type: 'dark',
-    colors: {
-      'editor.background': color('yakisugi-950'),
-      'editor.foreground': color('shikkui-muted'),
+  return highlightCodeListings(
+    {
+      source: CODE_SHOWCASE_SOURCE,
+      web: `// Compiled JSX; CSS and imports are emitted separately.\n${formatJsx(web[0]!.jsx)}`,
+      native: `// Compiled JSX; StyleSheet and imports are emitted separately.\n${formatJsx(native[0]!.jsx)}`,
     },
-    tokenColors: [
-      {
-        scope: ['comment', 'punctuation.definition.comment'],
-        settings: { foreground: color('stone-400') },
-      },
-      { scope: ['keyword', 'storage'], settings: { foreground: color('hinoki') } },
-      {
-        scope: ['entity.name.function', 'entity.name.type', 'entity.name.tag'],
-        settings: { foreground: color('hinoki-light') },
-      },
-      { scope: ['string'], settings: { foreground: color('tatami-code') } },
-      {
-        scope: ['constant.numeric', 'constant.language'],
-        settings: { foreground: color('hinoki-light') },
-      },
-    ],
-  }
-  const highlighter = await createHighlighter({ themes: [codeTheme], langs: ['tsx'] })
-  try {
-    const highlight = (code: string): HighlightedListing => ({
-      code,
-      lines: fromShiki(
-        highlighter.codeToTokens(code, { lang: 'tsx', theme: codeTheme.name! }).tokens,
-      ),
-    })
-    return {
-      source: highlight(CODE_SHOWCASE_SOURCE),
-      web: highlight(
-        `// Compiled JSX; CSS and imports are emitted separately.\n${formatJsx(web[0]!.jsx)}`,
-      ),
-      native: highlight(
-        `// Compiled JSX; StyleSheet and imports are emitted separately.\n${formatJsx(native[0]!.jsx)}`,
-      ),
-    }
-  } finally {
-    highlighter.dispose()
-  }
+    theme,
+  )
 }

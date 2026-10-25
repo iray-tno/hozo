@@ -62,8 +62,14 @@ Shiki with the landing palette at build time, and the Web/Native panes show
 compiler output from the same source. Token contrast is checked on both code
 backgrounds; the homepage retains its single Kumimono island.
 
+Philosophy and the Canvas/SVG/Three authoring examples use the same build-time
+palette and wrapped figures. Built text is compared with each source, and
+browser checks run at mobile/tablet/desktop widths with JavaScript disabled.
+Three's interactive proof has a separate module so its island cannot pull the
+static examples or CodeBlock implementation into the browser bundle.
+
 No virtualized renderer or long-block device frame budget is claimed. Remaining
-landing snippets, Markdown integration and Envarly adoption remain follow-ups;
+interactive landing listings, Markdown integration and Envarly adoption remain follow-ups;
 this adoption does not close the whole tracking issue.
 
 ## Native bundle cost

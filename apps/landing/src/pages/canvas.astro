@@ -10,8 +10,11 @@ import { DomainNav } from '../components/DomainNav.tsx'
 import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import SiteHead from '../components/SiteHead.astro'
+import { buildCodeSnippet } from '../lib/code-snippets'
+import codeThemeSource from '../styles/global.css?raw'
 import '../styles/global.css'
 
+const codeSnippet = await buildCodeSnippet('canvas', codeThemeSource)
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 ---
 
@@ -39,7 +42,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
       <CandleChart client:visible />
       <CanvasAccessibility />
       <CanvasOrSvg />
-      <CanvasAuthoring />
+      <CanvasAuthoring snippet={codeSnippet} />
     </main>
 
     <Footer baseUrl={baseUrl} />

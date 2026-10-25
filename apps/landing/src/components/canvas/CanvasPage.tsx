@@ -1,16 +1,7 @@
-import {
-  Code,
-  Heading,
-  List,
-  ListItem,
-  Paragraph,
-  Preformatted,
-  Section,
-  Strong,
-  Text,
-  View,
-} from '@hozo/core'
+import { Code, Heading, List, ListItem, Paragraph, Section, Strong, Text, View } from '@hozo/core'
 import type { ReactNode } from 'react'
+import type { CodeSnippet } from '../../lib/code-snippets.ts'
+import { StaticCodeSnippet } from '../StaticCodeSnippet.tsx'
 
 // The /canvas/ page around its demo, in Hozo primitives. What it says is
 // what `@hozo/canvas` does today, checked against the package README: the
@@ -173,7 +164,7 @@ export function CanvasOrSvg() {
   )
 }
 
-export function CanvasAuthoring() {
+export function CanvasAuthoring({ snippet }: { snippet: CodeSnippet }) {
   return (
     <Section className="mb-16">
       <Heading
@@ -186,53 +177,7 @@ export function CanvasAuthoring() {
         The shapes are properties of <Code className="text-hinoki">Canvas</Code>. The fallback is
         built from the same rows as the bars, so the two cannot drift apart.
       </Paragraph>
-      <Preformatted className="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
-        <Code>
-          <Text className="text-hinoki">import</Text>
-          {' { Canvas } '}
-          <Text className="text-hinoki">from</Text>{' '}
-          <Text className="text-tatami-light">'@hozo/canvas'</Text>
-          {'\n\n'}
-          <Text className="text-hinoki">export function</Text>{' '}
-          <Text className="text-shikkui">Revenue</Text>
-          {'({ quarters }) {\n  '}
-          <Text className="text-hinoki">return</Text>
-          {' (\n    <'}
-          <Text className="text-bengara">Canvas</Text>
-          {'\n      '}
-          <Text className="text-hinoki-light">viewBox</Text>
-          {'={[0, 0, 400, 200]}\n      '}
-          <Text className="text-hinoki-light">accessibilityLabel</Text>=
-          <Text className="text-tatami-light">"Revenue by quarter"</Text>
-          {'\n      '}
-          <Text className="text-hinoki-light">accessibleFallback</Text>
-          {'={<'}
-          <Text className="text-bengara">RevenueTable</Text>{' '}
-          <Text className="text-hinoki-light">quarters</Text>
-          {'={quarters} />}\n    >\n      {quarters.map((q, i) => (\n        <'}
-          <Text className="text-bengara">Canvas.Rect</Text>
-          {'\n          '}
-          <Text className="text-hinoki-light">key</Text>
-          {'={q.name}\n          '}
-          <Text className="text-hinoki-light">x</Text>
-          {'={i * 100 + 20} '}
-          <Text className="text-hinoki-light">y</Text>
-          {'={200 - q.value} '}
-          <Text className="text-hinoki-light">width</Text>
-          {'={60} '}
-          <Text className="text-hinoki-light">height</Text>
-          {'={q.value}\n          '}
-          <Text className="text-hinoki-light">fill</Text>=
-          <Text className="text-tatami-light">"#c8a882"</Text>
-          {'\n          '}
-          <Text className="text-hinoki-light">accessibilityLabel</Text>
-          {'={q.name}\n          '}
-          <Text className="text-hinoki-light">onPress</Text>
-          {'={() => select(q)}\n        />\n      ))}\n    </'}
-          <Text className="text-bengara">Canvas</Text>
-          {'>\n  )\n}'}
-        </Code>
-      </Preformatted>
+      <StaticCodeSnippet snippet={snippet} />
     </Section>
   )
 }

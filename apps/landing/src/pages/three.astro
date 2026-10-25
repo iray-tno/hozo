@@ -3,14 +3,17 @@ import { DomainNav } from '../components/DomainNav.tsx'
 import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import SiteHead from '../components/SiteHead.astro'
+import { KumimonoProof } from '../components/three/KumimonoProof.tsx'
 import {
-  KumimonoProof,
   ThreeAuthoring,
   ThreeCapabilities,
   ThreeIntro,
 } from '../components/three/ThreePage.tsx'
+import { buildCodeSnippet } from '../lib/code-snippets'
+import codeThemeSource from '../styles/global.css?raw'
 import '../styles/global.css'
 
+const codeSnippet = await buildCodeSnippet('three', codeThemeSource)
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 ---
 
@@ -37,7 +40,7 @@ const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
       <ThreeIntro />
       <KumimonoProof client:visible baseUrl={baseUrl} />
       <ThreeCapabilities />
-      <ThreeAuthoring />
+      <ThreeAuthoring snippet={codeSnippet} />
     </main>
 
     <Footer baseUrl={baseUrl} />

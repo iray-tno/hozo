@@ -1,6 +1,8 @@
-import { Code, Heading, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
+import { Code, Heading, Paragraph, Section, Text, View } from '@hozo/core'
 import { Svg } from '@hozo/svg'
 import type { ReactNode } from 'react'
+import type { CodeSnippet } from '../../lib/code-snippets.ts'
+import { StaticCodeSnippet } from '../StaticCodeSnippet.tsx'
 
 // The /svg/ page around its studio, in Hozo primitives. Checked against the
 // package README and the conformance snapshot: the old page called both the
@@ -252,7 +254,7 @@ export function SvgFilterCoverage({
   )
 }
 
-export function SvgAuthoring() {
+export function SvgAuthoring({ snippet }: { snippet: CodeSnippet }) {
   return (
     <Section className="mb-16">
       <Heading
@@ -265,64 +267,7 @@ export function SvgAuthoring() {
         Effects live in <Code className="text-hinoki">Svg.Defs</Code> and are referenced by id,
         exactly as in SVG itself.
       </Paragraph>
-      <Preformatted className="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 sm:p-6 overflow-x-auto text-xs sm:text-sm font-mono text-stone-300 leading-relaxed">
-        <Code>
-          <Text className="text-hinoki">import</Text>
-          {' { Svg } '}
-          <Text className="text-hinoki">from</Text>{' '}
-          <Text className="text-tatami-light">'@hozo/svg'</Text>
-          {'\n\n'}
-          <Text className="text-hinoki">export function</Text>{' '}
-          <Text className="text-shikkui">Verified</Text>
-          {'() {\n  '}
-          <Text className="text-hinoki">return</Text>
-          {' (\n    <'}
-          <Text className="text-bengara">Svg</Text>{' '}
-          <Text className="text-hinoki-light">viewBox</Text>=
-          <Text className="text-tatami-light">"0 0 80 80"</Text>{' '}
-          <Text className="text-hinoki-light">accessibilityLabel</Text>=
-          <Text className="text-tatami-light">"Verified"</Text>
-          {'>\n      <'}
-          <Text className="text-bengara">Svg.Defs</Text>
-          {'>\n        <'}
-          <Text className="text-bengara">Svg.Filter</Text>{' '}
-          <Text className="text-hinoki-light">id</Text>=
-          <Text className="text-tatami-light">"shadow"</Text>
-          {'>\n          <'}
-          <Text className="text-bengara">Svg.FeDropShadow</Text>{' '}
-          <Text className="text-hinoki-light">dy</Text>
-          {'={3} '}
-          <Text className="text-hinoki-light">stdDeviation</Text>
-          {'={2} '}
-          <Text className="text-hinoki-light">floodOpacity</Text>
-          {'={0.4} />\n        </'}
-          <Text className="text-bengara">Svg.Filter</Text>
-          {'>\n      </'}
-          <Text className="text-bengara">Svg.Defs</Text>
-          {'>\n      <'}
-          <Text className="text-bengara">Svg.Circle</Text>{' '}
-          <Text className="text-hinoki-light">cx</Text>
-          {'={40} '}
-          <Text className="text-hinoki-light">cy</Text>
-          {'={40} '}
-          <Text className="text-hinoki-light">r</Text>
-          {'={24} '}
-          <Text className="text-hinoki-light">fill</Text>=
-          <Text className="text-tatami-light">"#c8a882"</Text>{' '}
-          <Text className="text-hinoki-light">filter</Text>=
-          <Text className="text-tatami-light">"url(#shadow)"</Text>
-          {' />\n      <'}
-          <Text className="text-bengara">Svg.Path</Text>{' '}
-          <Text className="text-hinoki-light">d</Text>=
-          <Text className="text-tatami-light">"M32 40 L38 46 L50 34"</Text>{' '}
-          <Text className="text-hinoki-light">stroke</Text>=
-          <Text className="text-tatami-light">"#100f0e"</Text>{' '}
-          <Text className="text-hinoki-light">strokeWidth</Text>
-          {'={3} />\n    </'}
-          <Text className="text-bengara">Svg</Text>
-          {'>\n  )\n}'}
-        </Code>
-      </Preformatted>
+      <StaticCodeSnippet snippet={snippet} />
     </Section>
   )
 }
