@@ -105,6 +105,42 @@ test('a validated context is shared across actual Native and Web emissions witho
   session.invalidate()
 })
 
+test('ready contexts need no pending-wait signals and still check supersession before delivery', async (t) => {
+  const session = new TailwindProjectSession(createCompiler(), order)
+  const universe = ['p-2', 'p-4']
+  await session.emit('prime', [collected('p-2')], universe)
+  const combine = t.mock.method(AbortSignal, 'any', () => {
+    throw new Error('a ready context must not build a pending-wait signal')
+  })
+  const expected = createCompiler().compile(source('p-2'))
+  const [warm] = await session.emit('warm', [collected('p-2')], universe)
+  assert.deepEqual(strip(warm), expected)
+  let latest: Promise<unknown[]>
+  const old = session.emit(
+    'file',
+    [
+      (compiler) => {
+        const prepared = compiler.prepareWebModule(source('p-2', 'old'))
+        return {
+          ...prepared,
+          emit(context) {
+            const output = prepared.emit(context)
+            queueMicrotask(() => {
+              latest = session.emit('file', [collected('p-4', 'new')], universe)
+            })
+            return output
+          },
+        }
+      },
+    ],
+    universe,
+  )
+  await assert.rejects(old, code('TAILWIND_MODULE_SUPERSEDED'))
+  assert.match(JSON.stringify(await latest!), /new/)
+  assert.equal(combine.mock.callCount(), 0)
+  session.invalidate()
+})
+
 test('superseding the same module releases old IR but can keep a shared preparation alive', async () => {
   const gate = Promise.withResolvers<void>(),
     started = Promise.withResolvers<void>()
@@ -141,6 +177,25 @@ test('superseding the same module releases old IR but can keep a shared preparat
   assert.match(output[0].jsx, /new/)
   assert.doesNotMatch(output[0].jsx, /old/)
   session.invalidate()
+})
+
+test('a ready result is still rejected when its project closes before delivery', async () => {
+  const session = new TailwindProjectSession(createCompiler(), order)
+  await session.emit('prime', [collected('p-2')])
+  const pending = session.emit('file', [
+    (compiler) => {
+      const prepared = compiler.prepareWebModule(source('p-2'))
+      return {
+        ...prepared,
+        emit(context) {
+          const output = prepared.emit(context)
+          queueMicrotask(() => session.invalidate())
+          return output
+        },
+      }
+    },
+  ])
+  await assert.rejects(pending, code('TAILWIND_PROJECT_INVALIDATED'))
 })
 
 test('obsolete queued universes are skipped and old cleanup cannot erase a newer request ticket', async () => {

@@ -658,3 +658,47 @@ receipts are in `session-module-cost.json` and `session-module-cost-final.json`.
 No invalidation latency, large-universe normalization, startup/peak memory,
 full root JS/packing/application suite, fresh browser/device pixels/AT, WASM
 artifact size or enabled cascade comparator was measured in this layer.
+
+### Ready-context path: remove machinery for a wait that does not happen
+
+The next change keeps a lightweight request ticket for supersession/epoch
+checks but creates its AbortController/combined signal only on a context miss.
+Ready contexts return directly to the shared emission path, without a resolved
+context Promise or abort-wait listener. The public session API still returns a
+Promise and checks cancellation before delivery; synchronous emission is not
+permission to deliver a result invalidated in the intervening microtask.
+Cold/in-flight paths retain cooperative cancellation and immediate IR disposal.
+No ordinary compiler entry, resolver, default adapter or ordering winner changes.
+
+A structural regression traps `AbortSignal.any` after priming a context:
+ready emissions must not call it, even while a newer same-ID request supersedes
+the old result before delivery. A separate test invalidates a ready result's
+project between emission and delivery. The original ten session tests remain.
+Compiler **339 passed plus one existing skip**, Tailwind **73 passed** (two
+added), and the saved 30-subject/six-fixture/candidate output is byte-identical.
+The structural test failed on the parent as intended. Its initial output
+equality assertion accidentally compared an opt-in plan report to a normal
+compile; it now excludes only that diagnostic report, as existing tests do.
+
+The unchanged seven-sample module-cost harness rebuilt each clean revision,
+CPU 1 / Idle / serial. Parent `86b52203` versus implementation `4abb164a` and a
+same-implementation repeat, in milliseconds per **16 modules**:
+
+| Capture | Web warm batch | Web 16 warm files | Native warm batch | Native 16 warm files |
+| --- | ---: | ---: | ---: | ---: |
+| Parent | 5.3931 | 7.3786 | 6.3429 | 8.9454 |
+| Implementation | 5.3190 | 7.3451 | 6.8020 | 8.5569 |
+| Implementation repeat | 5.1903 | 7.0766 | 6.3943 | 8.1713 |
+
+Preparation still runs once per platform session, every emitted output matches
+ordinary compilation, and all samples are retained (`ready-parent-cost.json`,
+`ready-after-cost.json`, `ready-repeat-cost.json`). This removes identified
+allocations, not all per-file cost: the observed file medians remain above each
+capture's preinstalled synchronous control. Those synchronous Web/Native
+controls were 5.1631/6.4857, 5.2424/7.1387 and 5.6914/6.4166 ms respectively;
+the unchanged ordinary path's variation is also reported, not selected away.
+These captures do not prove application speedup, zero overhead or a causal
+default-entry regression. The first-use/upstream costs remain in the receipts.
+Actual adapter integration/amortization, large universes, startup/peak memory,
+full root/pack/app suites, fresh browser/device/AT and enabled cascade winners
+remain outside this measurement.

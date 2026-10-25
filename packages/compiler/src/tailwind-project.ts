@@ -6,6 +6,14 @@ import {
   prepareTailwindContext,
 } from './index.ts'
 
+type ContextResult = PreparedTailwindContext | Promise<PreparedTailwindContext>
+
+interface Cancellation {
+  check(): void
+  /** Allocate wait signals only if preparation actually suspends. */
+  signal(): AbortSignal
+}
+
 /** @internal Takes ownership of a bounded, process-local module batch.
  * Include the lexical/cache universe as well for generated dynamic fallback.
  * All candidates are captured before awaiting; prepare must describe the whole
@@ -35,44 +43,46 @@ export async function emitTailwindModules(
 /** Internal common ownership path for eager batches and session collectors. */
 export async function emitCollectedModules(
   collectors: readonly (() => PreparedModule<unknown>)[],
-  contextFor: (names: readonly string[]) => Promise<PreparedTailwindContext>,
+  contextFor: (names: readonly string[]) => ContextResult,
   additionalCandidates: Iterable<string>,
-  signal?: AbortSignal,
+  cancellation?: Cancellation,
 ): Promise<unknown[]> {
   const collect = [...collectors]
   const owned: PreparedModule<unknown>[] = []
   let additional: string[]
   try {
-    signal?.throwIfAborted()
+    cancellation?.check()
     additional = [...additionalCandidates]
     for (const factory of collect) {
-      signal?.throwIfAborted()
+      cancellation?.check()
       owned.push(factory())
     }
   } catch (error) {
     for (const module of owned) module.dispose()
     throw error
   }
-  return emitOwnedModules(owned, contextFor, additional, signal)
+  return emitOwnedModules(owned, contextFor, additional, cancellation)
 }
 
 async function emitOwnedModules(
   owned: PreparedModule<unknown>[],
-  contextFor: (names: readonly string[]) => Promise<PreparedTailwindContext>,
+  contextFor: (names: readonly string[]) => ContextResult,
   additional: Iterable<string>,
-  signal?: AbortSignal,
+  cancellation?: Cancellation,
 ): Promise<unknown[]> {
   try {
-    signal?.throwIfAborted()
+    cancellation?.check()
     if (new Set(owned).size !== owned.length)
       throw new Error('Prepared module occurs twice in a batch')
     const candidates = Object.freeze(
       [...new Set([...additional, ...owned.flatMap((module) => module.candidates)])].sort(),
     )
-    const context = await abortableContext(contextFor(candidates), signal)
-    signal?.throwIfAborted()
+    const pending = contextFor(candidates)
+    const context =
+      pending instanceof Promise ? await abortableContext(pending, cancellation?.signal()) : pending
+    cancellation?.check()
     return owned.map((module) => {
-      signal?.throwIfAborted()
+      cancellation?.check()
       return module.emit(context)
     })
   } finally {

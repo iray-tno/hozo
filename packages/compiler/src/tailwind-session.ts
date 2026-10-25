@@ -32,6 +32,12 @@ type PendingContext = {
 type Collector = (compiler: Compiler) => PreparedModule<unknown>
 type CollectedResult<C extends Collector> = ReturnType<ReturnType<C>['emit']>
 
+type ModuleRequest = {
+  reason?: TailwindPreparationCancelled
+  controller?: AbortController
+  signal?: AbortSignal
+}
+
 /** @internal Bounded context cache, not a source/IR/output cache.
  * A fresh session is required for a new project stylesheet/theme/config epoch.
  * Use a full lexical universe when outputs share a candidate namespace.
@@ -43,7 +49,7 @@ export class TailwindProjectSession {
   #ready: CachedContext | undefined
   #pending: PendingContext | undefined
   #serial: Promise<void> = Promise.resolve()
-  #requests = new Map<string, AbortController>()
+  #requests = new Map<string, ModuleRequest>()
 
   constructor(compiler: Compiler, prepare: Preparation) {
     this.#compiler = compiler
@@ -66,20 +72,37 @@ export class TailwindProjectSession {
   ): Promise<unknown[]> {
     this.#epoch.signal.throwIfAborted()
     const compiler = this.#compiler!
-    const request = new AbortController()
-    this.#requests.get(id)?.abort(new TailwindPreparationCancelled('TAILWIND_MODULE_SUPERSEDED'))
+    const previous = this.#requests.get(id)
+    if (previous) {
+      previous.reason = new TailwindPreparationCancelled('TAILWIND_MODULE_SUPERSEDED')
+      previous.controller?.abort(previous.reason)
+    }
+    const request: ModuleRequest = {}
     this.#requests.set(id, request)
-    const signal = AbortSignal.any([this.#epoch.signal, request.signal])
+    const cancellation = {
+      check: () => {
+        if (request.reason) throw request.reason
+        this.#epoch.signal.throwIfAborted()
+      },
+      signal: () => {
+        if (!request.signal) {
+          request.controller = new AbortController()
+          request.signal = AbortSignal.any([this.#epoch.signal, request.controller.signal])
+          if (request.reason) request.controller.abort(request.reason)
+        }
+        return request.signal
+      },
+    }
     try {
       const outputs = await emitCollectedModules(
         collectors.map((collect) => () => collect(compiler)),
-        (names) => this.#contextFor(names, signal),
+        (names) => this.#contextFor(names, cancellation.signal),
         additionalCandidates,
-        signal,
+        cancellation,
       )
       // Synchronous emission can finish before this async boundary resumes.
       // Do not deliver that result if a watcher superseded it in between.
-      signal.throwIfAborted()
+      cancellation.check()
       return outputs
     } finally {
       // A superseded request finishing must not erase its replacement ticket.
@@ -99,12 +122,18 @@ export class TailwindProjectSession {
     this.#prepare = undefined
   }
 
-  #contextFor(names: readonly string[], signal: AbortSignal): Promise<PreparedTailwindContext> {
+  #contextFor(
+    names: readonly string[],
+    signalFor: () => AbortSignal,
+  ): PreparedTailwindContext | Promise<PreparedTailwindContext> {
     this.#epoch.signal.throwIfAborted()
     // Exact universes only. A rank from a subset/superset is a different
     // namespace even when it happens to contain all of this file's names.
     const key = JSON.stringify(names)
-    if (this.#ready?.key === key) return Promise.resolve(this.#ready.context)
+    // A ready namespace does not wait: keep cancellation checks, but avoid
+    // a per-file controller, combined signal, wait listener and resolved Promise.
+    if (this.#ready?.key === key) return this.#ready.context
+    const signal = signalFor()
     if (this.#pending?.key === key) {
       for (const waiter of this.#pending.waiters)
         if (waiter.aborted) this.#pending.waiters.delete(waiter)
