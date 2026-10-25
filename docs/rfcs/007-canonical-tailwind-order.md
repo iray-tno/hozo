@@ -32,24 +32,39 @@ The staged boundary now also reaches the real Web `lowerModule` pipeline:
 Canvas rewrites precede the retained primitive parse, and synchronous/staged
 emission share the same namespace/edit/import/diagnostic finalization. This
 remains internal, not installed in adapters. Full-pipeline warm measurements
-still exceed the synchronous control by more than 5%; **default installation
-is stopped for performance review**, not exempted from section 7. A ready
-context should not require cold-path retention/suspension machinery forever.
+exceed the synchronous control by more than 5%, which triggered performance
+review rather than a timer-based CI failure. The later small-example review
+below accepts the measured absolute costs; actual project integration still
+needs its own correctness and cumulative-cost evidence. A ready context should
+not require cold-path retention/suspension machinery forever.
 See [full-pipeline evidence](../measurements/canonical-tailwind-order.md#staging-the-real-web-lowering-pipeline).
 
 A single-module ready attempt now checks actual parsed candidates in Rust,
 emits directly on completeness, or returns that exact retained parse on a miss.
 An immutable lexical-universe revision amortizes key normalization without
 substituting for this check. Balanced full-pipeline measurements reduce the
-retained-file cost, but do not graduate adapter defaults or the performance
-gate; see [ready-attempt evidence](../measurements/canonical-tailwind-order.md#ready-attempts-check-the-actual-parse-before-emitting).
+retained-file cost, but do not themselves graduate adapter defaults; see
+[ready-attempt evidence](../measurements/canonical-tailwind-order.md#ready-attempts-check-the-actual-parse-before-emitting).
 
 Native now has the same actual-parse ready/miss contract, preserving its full
 module metadata and text ABI. A 20/256/1,026-candidate matrix measures revision
 construction/context setup separately from both backends' warm module calls.
 It confirms the benefit of sharing a revision, not universal performance
-acceptance: repeated >5% cells keep the default-integration review stop open.
+acceptance. Following review on 2026-10-25, the measured Native small-example
+increment of about **17–26 microseconds per module** is accepted as a build-time
+tradeoff. A small fixture crossing 5% alone no longer blocks progress. Retain
+all observations and judge actual integration by absolute and cumulative
+project cost, separately from device render/cache-hit performance.
 See [Native/matrix evidence](../measurements/canonical-tailwind-order.md#native-ready-attempts-and-larger-candidate-universes).
+
+The read-only project snapshot now captures one entry/import graph and derives
+both theme and ordering contexts from those same bytes. Its dependency paths
+include absent discovery entries; a future watcher must replace the matching
+compiler/session and invalidate dependent outputs when they change. Candidate
+preparation rebuilds Tailwind's mutable analysis state from captured CSS, rather
+than sharing a registry whose variant keys depend on preparation history.
+Existing adapters are not switched in this layer. See
+[snapshot evidence and limits](../measurements/canonical-tailwind-order.md#one-captured-project-stylesheet-epoch).
 
 ## 1. Restart, not another family-specific patch
 
@@ -265,8 +280,11 @@ Hot-path acceptance is structural: no new ordering sort/key reconstruction or
 rank-table reads on cache hits/state-only updates; static output has no new
 ordering runtime dependency. Cold/build costs must be reported with repeated
 samples and spread. A repeatable >5% median slowdown in a representative
-compile/cold-resolution workload is a review stop, not an automatic permission
-to weaken correctness or a flaky single-run CI threshold. Set actual payload
+compile/cold-resolution workload triggers review of absolute time, affected
+call count and cumulative project cost. It is not an automatic rejection of
+tiny build-time differences, permission to weaken correctness, or a flaky
+single-run CI threshold. The small-example acceptance above does not accept
+arbitrary startup, project-wide or device-runtime regressions. Set actual payload
 budgets from the first complete before/after bundle measurements; no unmeasured
 zero-overhead or blanket speedup claim.
 

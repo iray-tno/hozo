@@ -928,13 +928,20 @@ implementation capture / same-source repeat, not best/worst selections:
 At 1,026 names, sharing a ready revision instead of the retained per-file path
 reduces these Native clocks by about **32.4% / 29.1%**, Web by 29.0% / 28.0%.
 Reconstructing from an iterable inside every file visibly loses that benefit.
-This does **not** waive the synchronous-control budget: Native's 20-name ready
+Against the synchronous control, Native's 20-name ready
 cells are **+7.68% / +5.21%**, Web's 1,026-name cells **+5.91% / +5.17%**.
-They repeatedly exceed 5%; the RFC 007 **default-installation review stop stays
-open**. Do not assume a larger real file will remove the difference or select
-another matrix row as blanket acceptance. Actual project/adapter evidence is
-still required. The ordinary parent controls also differ between captures;
-no ordinary-path speedup is attributed to this change.
+These triggered review. On **2026-10-25**, the user accepted the small-example
+absolute cost: Native's 20-name difference is about **0.0261 / 0.0173 ms per
+module (26 / 17 microseconds)**, on top of about 0.34/0.33 ms of synchronous
+compilation. This is host build-time overhead, not a 5% app rendering slowdown.
+The percentage and both samples remain; another matrix row is not selected to
+erase them. This resolves the tiny-example-only performance stop, not actual
+project/adapter correctness, cumulative time, setup/memory or device-runtime
+acceptance. Do not assume real files remove the difference. The ordinary parent
+controls also differ between captures; no ordinary-path speedup is attributed
+to this change. Earlier checkpoint review stops in this document record the
+decision at those checkpoints; RFC 007 now requires absolute/cumulative review
+rather than repeatedly blocking on tiny relative compiler costs alone.
 
 The shared per-size setup was measured separately (same samples reported in
 both backend rows, not independent platform setup timings). Initial capture
@@ -952,3 +959,64 @@ No actual adapter/watch/theme-epoch installation, representative app/full Metro
 timing, fresh browser/device pixels/AT, full root/pack/app suite, WASM/production
 bundle size or startup/peak-memory claim. The new host compiler entry does not
 change generated app imports or introduce a device-side context subscription.
+
+## One captured project stylesheet epoch
+
+`loadProjectTailwindSnapshot` adds an internal, opt-in read-only boundary for
+the pending adapter integration. It shares existing CSS discovery, import
+resolution, theme extraction and static-only safety checks. It captures entry
+and transitive stylesheet bytes once, records immutable SHA-256 receipts and
+Tailwind version, and exposes a frozen theme plus candidate-order preparation
+against those **same captured bytes**. No process-wide entry-text cache is
+consulted. Changing or deleting the original files cannot silently give an old
+theme new ordering facts; callers explicitly acquire a new snapshot.
+
+The fingerprint identifies the selected entry, Tailwind version and stylesheet
+receipts, not all compiler options or emitted-code validity. A conventional
+default entry is synthetic, not a physical file that was read. `watchFiles`
+contains the actual imports and possible discovery paths, including absent
+higher-priority entries. Creating `global.css` while `src/global.css` is selected
+must trigger rediscovery; an explicit missing/broken entry, unsafe directive or
+unresolved import fails, rather than silently preparing default/partial facts.
+No arbitrary application JS/config is executed. Existing build-loader fallback
+behavior and migration-audit fact reporting remain unchanged.
+
+Captured CSS is shared; mutable Tailwind **analysis state is not**. A deliberate
+mutation replacing the fresh per-universe design system with the first one
+makes the history-independence test fail: after preparing another arbitrary
+variant universe, the same `data-[x=b]:p-4` and `min-[40rem]:p-2` have variant
+keys 2/8 instead of 1/2, and the context fingerprint changes. Restoring isolated
+analysis passes. This is a concrete namespace-history failure, not speculation
+that sharing every possible loader object is always faster or safe. The session
+still amortizes preparation over warm files; no stylesheet recapture is added
+to an existing transform/render path.
+
+Eight new tests cover independent-loader/full Web-and-Native output parity,
+immutable facts, nested/bare imports and edits/deletion, selector-only edits
+with an unchanged theme, history independence and candidate mutation,
+cancellation, default/explicit discovery, unsafe/missing/malformed CSS, and old
+pending IR cancellation across explicit compiler/session replacement. An
+initial test incorrectly expected Tailwind's package import to read a separate
+`theme.css`; the installed package reads `index.css`, so the receipt assertion
+was corrected to the observed file. Both the initial failure and intentional
+history-mutation failure remain in the local logs.
+
+CPU 1 / Idle / serial: Tailwind **102 passed**, including all eight new tests;
+package build, lint (**1,672 files**), docs and source-cache guards (**9 passed**)
+passed. Turbo dry-run includes the new source/tests and the real compiler-build
+dependency, without unrelated cache broadening. This slice deliberately runs no repeat microbenchmark:
+the small-example absolute cost has already been reviewed above. It claims
+neither a startup/memory improvement nor an app speedup. Follow-up adapter
+measurements must include snapshot acquisition and candidate-revision churn,
+not only warm-file calls.
+
+This is **not** installed Vite/Metro watching, atomic filesystem acquisition,
+automatic output invalidation or a change of cascade winners. Watchers must
+reject stale in-flight acquisition, retire the old session and matching
+compiler, reconcile the complete candidate universe and invalidate dependent
+transforms/generated candidate modules. Snapshot acquisition can observe edits
+between file reads; its guarantee is that subsequent theme/order operations
+use the captured set, not that the OS provided a transactional filesystem view.
+Active project snapshots must be bounded and obsolete ones released. No new
+device runtime, default adapter, coverage/refusal, root packing/app suite,
+fresh pixels/AT, full Metro clock or production/memory-size claim.

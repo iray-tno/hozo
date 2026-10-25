@@ -142,7 +142,20 @@ function designSystemFor(css: string, base: string, options: ThemeLoadOptions = 
   return pending
 }
 
-async function staticDesignSystem(css: string, base: string, options: ThemeLoadOptions) {
+type StylesheetReader = (
+  id: string,
+  from: string,
+) => { path: string; base: string; content: string }
+
+async function staticDesignSystem(
+  css: string,
+  base: string,
+  options: ThemeLoadOptions,
+  read: StylesheetReader = (id, from) => {
+    const file = stylesheetPath(id, from)
+    return { path: file, base: path.dirname(file), content: readFileSync(file, 'utf8') }
+  },
+) {
   const inspect = (file: string, content: string) => {
     options.onStylesheet?.(file, content)
     assertStaticStylesheet(content, file)
@@ -157,10 +170,9 @@ async function staticDesignSystem(css: string, base: string, options: ThemeLoadO
         // Bound cyclic/excessive import expansion without writing a cache.
         if (++reads > 256)
           throw new ExecutableStylesheetError('CSS import limit exceeded; not assessed')
-        const file = stylesheetPath(id, from)
-        const content = readFileSync(file, 'utf8')
-        inspect(file, content)
-        return { path: file, base: path.dirname(file), content }
+        const stylesheet = read(id, from)
+        inspect(stylesheet.path, stylesheet.content)
+        return stylesheet
       } catch (error) {
         failure ??= error
         throw error
@@ -271,6 +283,10 @@ export async function loadTheme(
 ): Promise<Theme> {
   const design = await designSystemFor(css, base, options)
 
+  return themeFromDesign(design)
+}
+
+function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesignSystem>>): Theme {
   const declared = new Map<string, string>()
   for (const [name, value] of design.theme.entries()) {
     declared.set(name, String(value.value).trim())
@@ -311,6 +327,62 @@ export async function loadTheme(
     animations: readAnimations(design, declared),
     radii: readRadii(declared),
   }
+}
+
+/** @internal Captured CSS, not the process-wide entry-text cache. A new
+ * design system per universe prevents Tailwind's mutable variant registry
+ * from making a result depend on candidates prepared earlier in the epoch.
+ */
+export async function captureTailwindStylesheet(css: string, base: string, file: string) {
+  const contents = new Map<string, string>([[path.resolve(file), css]])
+  const imports = new Map<string, ReturnType<StylesheetReader>>()
+  let capturing = true
+  const read: StylesheetReader = (id, from) => {
+    const key = JSON.stringify([from, id])
+    const captured = imports.get(key)
+    if (captured) return captured
+    if (!capturing) throw new Error(`Stylesheet was not captured: ${id} from ${from}`)
+    const resolved = path.resolve(stylesheetPath(id, from))
+    let content = contents.get(resolved)
+    if (content === undefined) {
+      content = readFileSync(resolved, 'utf8')
+      contents.set(resolved, content)
+    }
+    const stylesheet = { path: resolved, base: path.dirname(resolved), content }
+    imports.set(key, stylesheet)
+    return stylesheet
+  }
+  const options = { file, staticOnly: true }
+  const design = await staticDesignSystem(css, base, options, read)
+  capturing = false
+  const version = JSON.parse(readFileSync(path.join(tailwindPackageDir(), 'package.json'), 'utf8'))
+    .version as string
+  const stylesheets = immutable(
+    [...contents]
+      .map(([file, content]) => ({ file, sha256: orderingHash(content) }))
+      .sort((a, b) => (a.file < b.file ? -1 : a.file > b.file ? 1 : 0)),
+  )
+  const theme = immutable(themeFromDesign(design))
+  return Object.freeze({
+    theme,
+    tailwindVersion: version,
+    stylesheets,
+    async prepareOrder(candidates: readonly string[], signal?: AbortSignal) {
+      signal?.throwIfAborted()
+      const observed = [...candidates]
+      const fresh = await staticDesignSystem(css, base, options, read)
+      signal?.throwIfAborted()
+      return describeTailwindOrder(fresh, observed, version, [...stylesheets])
+    },
+  })
+}
+
+function immutable<T>(value: T): T {
+  if (value && typeof value === 'object') {
+    for (const child of Object.values(value)) immutable(child)
+    Object.freeze(value)
+  }
+  return value
 }
 
 /**
