@@ -565,6 +565,22 @@ checks.push(
       ],
     )
   }
+  for (const [route, titles, islands] of [
+    ['tailwind', ['Chip.tsx', 'Web', 'iOS and Android'], 2],
+    ['stylex', ['Source', 'Web', 'iOS and Android'], 1],
+    ['svg', ['SVG filter source'], 1],
+  ]) {
+    const page = readFileSync(path.join(dist, route, 'index.html'), 'utf8')
+    checks.push([
+      (page.match(/<astro-island\b/g) ?? []).length === islands,
+      `${route}: unexpected island count for live listings`,
+    ])
+    for (const title of titles)
+      checks.push([
+        page.includes(`>${title}</figcaption>`),
+        `${route}: missing named code figure ${title}`,
+      ])
+  }
 }
 
 for (const [ok, message] of checks) {

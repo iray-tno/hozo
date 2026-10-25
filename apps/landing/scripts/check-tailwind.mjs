@@ -14,6 +14,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { checkCompilerListing, compilerListingText } from './compiler-listing-checks.mjs'
 
 const dist = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -115,12 +116,13 @@ try {
 
     // The output shown is the compiler's, including the Native fix that gave
     // the two branches two style keys.
-    const listing = (title) =>
-      page
-        .getByRole('heading', { name: title, exact: true, level: 3 })
-        .locator('xpath=../..')
-        .locator('pre')
-        .innerText()
+    await page.getByRole('figure', { name: 'Chip.tsx', exact: true }).scrollIntoViewIfNeeded()
+    await page
+      .locator('astro-island[component-export="TailwindListings"]:not([ssr])')
+      .waitFor({ state: 'attached' })
+    const listing = (title) => compilerListingText(page, title)
+    for (const title of ['Chip.tsx', 'Web', 'iOS and Android'])
+      await checkCompilerListing(page, title, true)
     const source = await listing('Chip.tsx')
     assert.match(source, /export function Chip/)
     const web = await listing('Web')

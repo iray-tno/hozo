@@ -15,8 +15,7 @@ import {
   View,
 } from '@hozo/core'
 import type { ReactNode } from 'react'
-import { CompilerListing as Listing, CompilerPanel as Panel } from '../CompilerListing.tsx'
-import type { CompiledSample, NativeGap, Outcome, VariantRow } from './compiled.ts'
+import type { NativeGap, Outcome, VariantRow } from './compiled.ts'
 
 // The /tailwind/ page around its demo, in Hozo primitives.
 //
@@ -66,30 +65,9 @@ export function TailwindSampleIntro() {
   )
 }
 
-export function TailwindSample({ source, compiled }: { source: string; compiled: CompiledSample }) {
-  // The component body as the Native backend leaves it: its hooks, the JSX,
-  // and the style object the JSX refers to.
-  const native = [
-    ...compiled.native.prelude,
-    '',
-    `return ${compiled.native.jsx}`,
-    '',
-    '// hozoStyles',
-    compiled.native.styles,
-  ].join('\n')
+export function TailwindSample() {
   return (
     <Section className="mb-16 gap-6">
-      <Panel title="Chip.tsx" detail="As written.">
-        <Listing>{source.trim()}</Listing>
-      </Panel>
-      <View className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Panel title="Web" detail="A button with a scoped class, and the CSS for it.">
-          <Listing>{`${compiled.web.jsx}\n\n${compiled.web.css}`}</Listing>
-        </Panel>
-        <Panel title="iOS and Android" detail="A Pressable and a StyleSheet object.">
-          <Listing>{native}</Listing>
-        </Panel>
-      </View>
       <View className="grid grid-cols-1 md:grid-cols-3 gap-5">
         <Tier name="A literal" title="Text">
           <Code className="text-hinoki">text-sm font-semibold md:text-base</Code> becomes one class

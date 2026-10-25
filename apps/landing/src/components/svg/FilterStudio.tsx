@@ -1,5 +1,5 @@
-import { Button, Code, Heading, Paragraph, Preformatted, Text, View } from '@hozo/core'
-import { RadioGroup, Slider } from '@hozo/patterns'
+import { Button, Code, Heading, Paragraph, Text, View } from '@hozo/core'
+import { CodeBlock, RadioGroup, Slider } from '@hozo/patterns'
 import { Svg } from '@hozo/svg'
 import { useId, useState } from 'react'
 
@@ -256,9 +256,16 @@ export function FilterStudio() {
           The source for what is drawn above. To see what the compiler makes of it on the Web, paste
           it into the REPL.
         </Paragraph>
-        <Preformatted className="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 overflow-x-auto text-xs font-mono text-stone-300 leading-relaxed">
-          <Code>{source}</Code>
-        </Preformatted>
+        <CodeBlock
+          lines={source}
+          title="SVG filter source"
+          captionClassName="sr-only"
+          className="rounded-xl border border-hinoki/18 bg-yakisugi-900 p-4 text-xs text-stone-300 min-w-0"
+          lineStyle={{
+            fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+            lineHeight: 1.625,
+          }}
+        />
       </View>
     </View>
   )

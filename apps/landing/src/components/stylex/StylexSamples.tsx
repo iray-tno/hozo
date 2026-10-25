@@ -1,6 +1,6 @@
 import { Paragraph, Text, View } from '@hozo/core'
 import { Tabs } from '@hozo/patterns'
-import { CompilerListing, CompilerPanel } from '../CompilerListing.tsx'
+import { CompilerPanel } from '../CompilerListing.tsx'
 import type { StylexSample } from './compiled.ts'
 
 // The /stylex/ samples, one tab each. The outputs are compiled when the site
@@ -27,16 +27,10 @@ function Sample({ sample }: { sample: StylexSample }) {
       <Paragraph className="text-sm text-stone-300 leading-relaxed max-w-3xl">
         {sample.summary}
       </Paragraph>
-      <CompilerPanel title="Source">
-        <CompilerListing>{sample.source}</CompilerListing>
-      </CompilerPanel>
+      <CompilerPanel title="Source" code={sample.source} />
       <View className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <CompilerPanel title="Web">
-          <CompilerListing>{sample.web}</CompilerListing>
-        </CompilerPanel>
-        <CompilerPanel title="iOS and Android">
-          <CompilerListing>{sample.native}</CompilerListing>
-        </CompilerPanel>
+        <CompilerPanel title="Web" code={sample.web} />
+        <CompilerPanel title="iOS and Android" code={sample.native} />
       </View>
       {sample.diagnostics.length ? (
         <View className="gap-2">

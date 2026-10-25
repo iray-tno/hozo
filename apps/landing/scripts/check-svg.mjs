@@ -105,9 +105,41 @@ try {
     await slider.focus()
     await slider.press('End')
     assert.equal(await shadow.getAttribute('stdDeviation'), '20')
-    assert.match(await page.locator('pre code').first().innerText(), /stdDeviation=\{20\}/)
+    const source = page.getByRole('figure', { name: 'SVG filter source', exact: true })
+    const sourceText = async () =>
+      (await source.locator('pre code > span').allTextContents()).join('\n')
+    assert.match(await sourceText(), /stdDeviation=\{20\}/)
+    assert.match(await sourceText(), /the stamp/)
     await page.getByRole('radio', { name: 'Bengara', exact: true }).click()
     assert.equal(await shadow.getAttribute('flood-color'), '#9e3d31')
+    assert.match(await sourceText(), /floodColor="#9e3d31"/)
+    assert.equal(await source.locator('button').count(), 0)
+    const scroll = source.getByRole('region', {
+      name: 'Code contents: SVG filter source',
+      exact: true,
+    })
+    if (width === 320) {
+      await scroll.scrollIntoViewIfNeeded()
+      await page.waitForFunction(
+        (node) => node.getAttribute('tabindex') === '0',
+        await scroll.elementHandle(),
+      )
+      await scroll.focus()
+      await page.keyboard.press('ArrowRight')
+      await page.waitForFunction((node) => node.scrollLeft > 0, await scroll.elementHandle())
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.waitForFunction(
+        (node) => !node.hasAttribute('tabindex'),
+        await scroll.elementHandle(),
+      )
+      await page.setViewportSize({ width, height: 900 })
+      await page.waitForFunction(
+        (node) => node.getAttribute('tabindex') === '0',
+        await scroll.elementHandle(),
+      )
+    } else {
+      assert.equal(await scroll.getAttribute('tabindex'), null)
+    }
 
     // The specimens are compiled markup and decoration: hidden, and not images.
     const specimens = page.locator('section', {

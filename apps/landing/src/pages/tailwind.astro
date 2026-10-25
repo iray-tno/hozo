@@ -4,6 +4,7 @@ import { Footer } from '../components/Footer.tsx'
 import { Navbar } from '../components/Navbar.tsx'
 import SiteHead from '../components/SiteHead.astro'
 import chipSource from '../components/tailwind/Chip.tsx?raw'
+import { TailwindListings } from '../components/tailwind/TailwindListings.tsx'
 import { ChipDemo } from '../components/tailwind/ChipDemo.tsx'
 import { compileSample, nativeGaps, probeVariants } from '../components/tailwind/compiled.ts'
 import {
@@ -21,6 +22,16 @@ import snapshot from '../../../../packages/tailwind-conformance/snapshot.json'
 
 const baseUrl = import.meta.env.BASE_URL.replace(/\/$/, '')
 const compiled = compileSample(chipSource)
+// The component body as the Native backend leaves it: its hooks, the JSX,
+// and the style object the JSX refers to.
+const nativeListing = [
+  ...compiled.native.prelude,
+  '',
+  `return ${compiled.native.jsx}`,
+  '',
+  '// hozoStyles',
+  compiled.native.styles,
+].join('\n')
 const variants = probeVariants()
 const gaps = nativeGaps(snapshot.native)
 ---
@@ -48,7 +59,13 @@ const gaps = nativeGaps(snapshot.native)
       <TailwindIntro tailwind={snapshot.versions.tailwind} />
       <TailwindSampleIntro />
       <ChipDemo client:visible />
-      <TailwindSample source={chipSource} compiled={compiled} />
+      <TailwindListings
+        client:visible
+        source={chipSource.trim()}
+        web={`${compiled.web.jsx}\n\n${compiled.web.css}`}
+        native={nativeListing}
+      />
+      <TailwindSample />
       <TailwindVariants rows={variants} />
       <TailwindMeasured numbers={snapshot} />
       <TailwindNativeGaps gaps={gaps} />
