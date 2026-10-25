@@ -18,9 +18,14 @@ The two scenarios record the `patterns-resizablepane--default` and
 separate, then pair each measured key with its resulting size, value text,
 focus and collapsed-subtree facts. CodeBlock captures include the figure's
 reading and an actual Copy activation; the clipboard is not replaced by a mock.
-The Chromium scenario grants clipboard-write permission to its local origin;
-the Safari scenario uses the reader's real key activation. Neither changes the
-application's clipboard connection.
+The Chromium scenario grants clipboard-write permission to its local origin.
+Copy uses a trusted browser Enter key inside Guidepup's
+[`capture` action API](https://www.guidepup.dev/docs/api/class-nvda#nvdacaptureaction-options),
+kept open through the clipboard promise's completion with full capture enabled.
+An initial key-command capture may stop listening before asynchronous feedback;
+polling its completed log cannot recover that speech. Both readers keep the
+application's actual clipboard connection. Splitter keys still go through the
+reader's keyboard API.
 
 The workflow uploads `screen-readers-nvda` and `screen-readers-voiceover`
 artifacts, retained for 14 days. Inspect `phrases/<reader>/<scenario>.json`

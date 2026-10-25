@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { screenReaderTest as test } from '@guidepup/playwright'
-import type { TestInfo } from '@playwright/test'
+import { expect, type TestInfo } from '@playwright/test'
 import {
   approvedPhrases,
   enterFocusMode,
@@ -179,12 +179,26 @@ test('code block reads named marked lines and announces a real copy', async ({
     })
     const copy = figure.getByRole('button', { name: 'Copy code', exact: true })
     await copy.focus()
-    const said = await spokenAfter(screenReader, () => screenReader.press('Enter'))
+    // NVDA only listens while a captured action runs. A command's initial
+    // capture can end before the clipboard promise settles; polling its log
+    // afterwards cannot recover speech emitted outside that capture.
+    // Keep capture around the trusted browser key and its async completion.
+    // Do not enqueue another reader command inside capture: it would deadlock.
+    const said = await spokenAfter(screenReader, async () => {
+      await screenReader.capture(
+        async () => {
+          await page.keyboard.press('Enter')
+          await expect(copy).toHaveText('Copied', { timeout: 3000 })
+        },
+        { capture: true },
+      )
+    })
     const facts = {
       buttonText: await copy.textContent(),
       clipboardAvailable: await page.evaluate(() => Boolean(navigator.clipboard?.writeText)),
       clipboardWritePermissionGranted: onWindows,
       secureContext: await page.evaluate(() => isSecureContext),
+      capture: 'full-through-copy-completion',
     }
     observed.push({ action: 'Enter: copy and completion announcement', said, facts })
     assert.equal(facts.buttonText, 'Copied')
