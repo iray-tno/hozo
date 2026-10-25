@@ -36,7 +36,10 @@ test('withHozo preserves Metro settings and records the existing transformer', a
       result.transformer.babelTransformerPath,
       /packages[\\/]metro[\\/]src[\\/]index\.ts$/,
     )
-    assert.deepEqual(JSON.parse(readFileSync(metroStatePath(root), 'utf8')), {
+    const { tailwind, epoch, ...recorded } = JSON.parse(readFileSync(metroStatePath(root), 'utf8'))
+    assert.match(tailwind.sha256, /^[a-f0-9]{64}$/)
+    assert.match(epoch, /^[a-f0-9]{64}$/)
+    assert.deepEqual(recorded, {
       upstreamTransformer: upstream,
       // Resolved here and not in the worker: this project's `p-4` is what
       // makes `'auto'` true, and only the config layer scans (#315).
@@ -176,7 +179,10 @@ test('withHozo accepts a promised config and an explicit project root', async ()
     })
 
     assert.match(result.transformer.babelTransformerPath, /index\.ts$/)
-    assert.deepEqual(JSON.parse(readFileSync(metroStatePath(root), 'utf8')), {
+    const { tailwind, epoch, ...recorded } = JSON.parse(readFileSync(metroStatePath(root), 'utf8'))
+    assert.match(tailwind.sha256, /^[a-f0-9]{64}$/)
+    assert.match(epoch, /^[a-f0-9]{64}$/)
+    assert.deepEqual(recorded, {
       css: 'styles/tailwind.css',
       // Nothing was scanned, so nothing uses Tailwind, so no reset.
       preflight: false,

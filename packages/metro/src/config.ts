@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,7 +15,11 @@ import {
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 
-import { candidateModulePath, generateCandidateModule } from './project.ts'
+import {
+  candidateModulePath,
+  generateCandidateModule,
+  type MetroTailwindReference,
+} from './project.ts'
 
 const PROJECT_RUNTIME_MODULE = '@hozo/engine/project'
 
@@ -94,6 +99,11 @@ export interface HozoMetroState {
   fontAvailability?: HozoProjectOptions['fontAvailability']
   /** Resolver-verified StyleX edges, isolated because Metro resolution is platform-aware. */
   stylexBindings?: Record<string, StylexResolvedBindings[]>
+  /** Startup CSS graph and full lexical ordering seed, shared with workers. */
+  tailwind?: MetroTailwindReference
+  /** Config-only identity; resolver updates for another platform cannot retire it. */
+  epoch?: string
+  stylexRevisions?: Record<string, string>
 }
 
 export const METRO_STATE_FILE = 'metro.json'
@@ -105,8 +115,10 @@ export function metroStatePath(projectRoot: string): string {
 export function readMetroState(projectRoot: string): HozoMetroState | undefined {
   try {
     return JSON.parse(readFileSync(metroStatePath(projectRoot), 'utf8')) as HozoMetroState
-  } catch {
-    return undefined
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code
+    if (code === 'ENOENT' || code === 'ENOTDIR') return undefined
+    throw new Error('[hozo] Cannot read Metro project state; restart Metro', { cause: error })
   }
 }
 
@@ -196,7 +208,7 @@ export async function withHozo<T extends MetroConfigShape>(
       ? configuredUpstream
       : undefined
 
-  const { preflight, files } = await generateCandidateModule(projectRoot, {
+  const { preflight, files, tailwind } = await generateCandidateModule(projectRoot, {
     css: options.css,
     content: options.content,
     preflight: options.preflight,
@@ -218,9 +230,11 @@ export async function withHozo<T extends MetroConfigShape>(
     classHelpers: options.classHelpers,
     ...(Object.keys(foundClassHelpers).length > 0 ? { foundClassHelpers } : {}),
     preflight,
+    tailwind,
     fontFaceCssPath,
     fontAvailability: options.fontAvailability,
   }
+  state.epoch = createHash('sha256').update(JSON.stringify(state)).digest('hex')
   const statePath = metroStatePath(projectRoot)
   const writeState = () => writeMetroState(statePath, state)
   writeState()
@@ -261,6 +275,10 @@ export async function withHozo<T extends MetroConfigShape>(
       )
       state.stylexBindings ??= {}
       state.stylexBindings[key] = bindings
+      state.stylexRevisions ??= {}
+      state.stylexRevisions[key] = createHash('sha256')
+        .update(JSON.stringify(bindings))
+        .digest('hex')
       writeState()
     }
     return delegate(context, moduleName, platform)

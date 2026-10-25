@@ -45,6 +45,21 @@ A `className` Hozo can't read statically — `<View className={getVariant()} />`
 
 It runs at config load rather than inside the transformer because Metro transforms in `jest-worker` subprocesses. Scanning there would mean several processes writing one cache file; the config layer is ordinary main-process code, so there's exactly one writer.
 
+At the same time, the config captures the Tailwind entry and imported CSS once.
+Workers restore those bytes rather than independently reading newer project CSS;
+the generated fallback map and compiled styles therefore share the same theme.
+An internal content-addressed snapshot under `node_modules/.hozo/` also carries
+the full ordering seed, including static classes without adding those classes
+to the runtime map. Each worker keeps separate iOS/Android/Web compiler sessions.
+The startup transform-cache key includes this snapshot and Hozo's config facts.
+Malformed transferred state is an error; an unassessed stylesheet retains the
+existing warned lowering path, without claiming a canonical ordering context.
+
+CSS imports, theme changes and class-helper configuration also require a Metro
+restart. This is a startup snapshot, not a stylesheet watcher. Old
+content-addressed snapshots are left intact for workers still using that epoch;
+they are internal cache files, not application imports or shipped bundle data.
+
 **Limitation:** the module is generated once, at config load. A class that only becomes a candidate *after* Metro started — a new string literal in a helper module — needs a Metro restart to appear. (`react-native-css` documents the same restriction for its transformer.)
 
 **Limitation:** only unconditional utilities survive *this* path (the runtime-resolved one). A style object can't express `hover:`, `md:`, or `pressed:`, and making it able to would mean per-component state tracking — a runtime CSS engine, which Hozo deliberately doesn't ship. Those classes are recorded with the reason and warned about *when they're actually used*, not at build time: appearing in the scan doesn't prove any expression ever produces one. Write them as a static `className` and they compile to a real style variant with no runtime involved.

@@ -358,8 +358,84 @@ export async function captureTailwindStylesheet(css: string, base: string, file:
   const options = { file, staticOnly: true }
   const design = await staticDesignSystem(css, base, options, read)
   capturing = false
-  const version = JSON.parse(readFileSync(path.join(tailwindPackageDir(), 'package.json'), 'utf8'))
-    .version as string
+  return capturedStylesheet(css, base, file, contents, imports, design)
+}
+
+/** @internal Transport captured bytes across build-tool worker processes.
+ * Import edges, not a new resolver: restoration must never consult project
+ * files, even if they were edited or removed after the config was evaluated.
+ */
+export async function restoreTailwindStylesheet(serialized: string) {
+  const data = JSON.parse(serialized) as {
+    schema: number
+    base: string
+    file: string
+    tailwindVersion: string
+    contents: [string, string][]
+    imports: [string, string][]
+  }
+  if (
+    data?.schema !== 1 ||
+    typeof data.base !== 'string' ||
+    typeof data.file !== 'string' ||
+    data.tailwindVersion !== tailwindVersion() ||
+    !Array.isArray(data.contents) ||
+    !Array.isArray(data.imports)
+  ) {
+    throw new Error('Invalid or incompatible captured Tailwind stylesheet')
+  }
+  const pairs = (entries: [string, string][]) => {
+    const values = new Map<string, string>()
+    for (const pair of entries) {
+      if (
+        !Array.isArray(pair) ||
+        pair.length !== 2 ||
+        pair.some((value) => typeof value !== 'string') ||
+        values.has(pair[0])
+      ) {
+        throw new Error('Invalid captured Tailwind stylesheet entries')
+      }
+      values.set(pair[0], pair[1])
+    }
+    return values
+  }
+  const contents = pairs(data.contents)
+  const css = contents.get(data.file)
+  if (css === undefined) throw new Error('Captured Tailwind entry is missing')
+  const imports = new Map<string, ReturnType<StylesheetReader>>()
+  for (const [key, file] of pairs(data.imports)) {
+    const content = contents.get(file)
+    if (content === undefined) throw new Error(`Captured Tailwind import is missing: ${file}`)
+    imports.set(key, { path: file, base: path.dirname(file), content })
+  }
+  const read: StylesheetReader = (id, from) => {
+    const captured = imports.get(JSON.stringify([from, id]))
+    if (!captured) throw new Error(`Stylesheet was not captured: ${id} from ${from}`)
+    return captured
+  }
+  const design = await staticDesignSystem(css, data.base, { file: data.file }, read)
+  return capturedStylesheet(css, data.base, data.file, contents, imports, design)
+}
+
+function tailwindVersion(): string {
+  return JSON.parse(readFileSync(path.join(tailwindPackageDir(), 'package.json'), 'utf8')).version
+}
+
+function capturedStylesheet(
+  css: string,
+  base: string,
+  file: string,
+  contents: Map<string, string>,
+  imports: Map<string, ReturnType<StylesheetReader>>,
+  design: Awaited<ReturnType<typeof staticDesignSystem>>,
+) {
+  const version = tailwindVersion()
+  let serialized: string | undefined
+  const read: StylesheetReader = (id, from) => {
+    const captured = imports.get(JSON.stringify([from, id]))
+    if (!captured) throw new Error(`Stylesheet was not captured: ${id} from ${from}`)
+    return captured
+  }
   const stylesheets = immutable(
     [...contents]
       .map(([file, content]) => ({ file, sha256: orderingHash(content) }))
@@ -370,10 +446,19 @@ export async function captureTailwindStylesheet(css: string, base: string, file:
     theme,
     tailwindVersion: version,
     stylesheets,
+    serialize: () =>
+      (serialized ??= JSON.stringify({
+        schema: 1,
+        base,
+        file: path.resolve(file),
+        tailwindVersion: version,
+        contents: [...contents],
+        imports: [...imports].map(([key, value]) => [key, value.path]),
+      })),
     async prepareOrder(candidates: readonly string[], signal?: AbortSignal) {
       signal?.throwIfAborted()
       const observed = [...candidates]
-      const fresh = await staticDesignSystem(css, base, options, read)
+      const fresh = await staticDesignSystem(css, base, { file }, read)
       signal?.throwIfAborted()
       return describeTailwindOrder(fresh, observed, version, [...stylesheets])
     },

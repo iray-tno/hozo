@@ -14,7 +14,11 @@
 // transformer. The generated module is deliberately written under
 // `node_modules/.hozo/`, so a restart with a cleared cache regenerates it.
 
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
+
+import { scanTailwindOrderCandidates } from '@hozo/compiler'
 
 import {
   type HozoProjectOptions,
@@ -23,7 +27,13 @@ import {
   scanSummary,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
-import { loadProjectTheme } from '@hozo/tailwind'
+import { loadProjectTailwindSnapshot, loadProjectTheme, type Theme } from '@hozo/tailwind'
+
+/** Config owns these immutable bytes; workers read them once, not per file. */
+export interface MetroTailwindReference {
+  file: string
+  sha256: string
+}
 
 /// File name of the generated resolver module. Also read by the
 /// transformer, which imports it into every file it lowers.
@@ -57,6 +67,7 @@ export interface GeneratedCandidateModule {
   preflight: boolean
   /** The files the walk found, for anything else that needs the same list. */
   files: string[]
+  tailwind?: MetroTailwindReference
 }
 
 /**
@@ -74,10 +85,23 @@ export async function generateCandidateModule(
   projectRoot: string,
   options: HozoProjectOptions = {},
 ): Promise<GeneratedCandidateModule> {
-  const theme = await loadProjectTheme(projectRoot, {
-    css: options.css,
-    warn: (message) => console.warn(message),
-  })
+  let snapshot: Awaited<ReturnType<typeof loadProjectTailwindSnapshot>> | undefined
+  let theme: Theme | undefined
+  try {
+    snapshot = await loadProjectTailwindSnapshot(projectRoot, { css: options.css })
+    theme = snapshot.theme
+  } catch (error) {
+    // Preserve existing warned lowering for unassessed CSS, never label a
+    // default-palette fallback as this project's canonical order context.
+    console.warn(
+      `[hozo] ordering snapshot unavailable; using existing lowering: ${(error as Error).message}`,
+    )
+    theme = await loadProjectTheme(projectRoot, {
+      css: options.css,
+      fresh: true,
+      warn: (message) => console.warn(message),
+    })
+  }
   const { cache, stats, files } = scanProject(projectRoot, options.content, options.sources)
   if (options.debug) {
     // eslint-disable-next-line no-console
@@ -86,5 +110,23 @@ export async function generateCandidateModule(
   const preflight = preflightEnabled(options.preflight, cache.usesTailwind)
   const modulePath = candidateModulePath(projectRoot)
   writeFileIfChanged(modulePath, cache.renderNativeModule({ colors: [], ...theme, preflight }))
-  return { modulePath, usesTailwind: cache.usesTailwind, preflight, files }
+  let tailwind: MetroTailwindReference | undefined
+  if (snapshot) {
+    // Runtime candidates deliberately subtract static classes. The ordering
+    // seed must include them, without putting them back into runtime CSS.
+    const names = new Set(cache.candidates())
+    for (const file of files) {
+      for (const name of scanTailwindOrderCandidates(readFileSync(file, 'utf8'))) names.add(name)
+    }
+    const content = JSON.stringify({
+      schema: 1,
+      stylesheet: snapshot.serialize(),
+      candidates: [...names].sort(),
+    })
+    const sha256 = createHash('sha256').update(content).digest('hex')
+    const file = path.join(projectRoot, 'node_modules', '.hozo', `tailwind-${sha256}.json`)
+    writeFileIfChanged(file, content)
+    tailwind = { file, sha256 }
+  }
+  return { modulePath, usesTailwind: cache.usesTailwind, preflight, files, tailwind }
 }

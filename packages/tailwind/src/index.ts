@@ -24,6 +24,7 @@ export {
   loadClassOrder,
   loadTheme,
   prepareTailwindOrder,
+  restoreTailwindStylesheet,
   type Theme,
   type ThemeColor,
   tailwindPackageDir,
