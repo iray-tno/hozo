@@ -29,7 +29,9 @@ const css = readFileSync(path.join(base, 'theme.css'), 'utf8')
 const theme = await loadTheme(css, base)
 const compiler = createCompiler(theme)
 const count = 16,
-  samples = 7
+  // LCM(three old paths, four with the direct path): every path occupies
+  // each clock position equally. All first observations remain included.
+  samples = 12
 const sources = Array.from({ length: count }, (_, index) => {
   const canvas = index % 4 === 0,
     stylex = index % 4 === 1
