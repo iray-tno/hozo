@@ -305,7 +305,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::WebOnly(..)
         | StyleProperty::AnimationName(..)
         | StyleProperty::ThemeAnimation(..) => Vec::new(),
-        // Composed into one `backgroundImage` by `background_image_entry`,
+        // Composed into one background image by `background_image_entry`,
         // the same way the transform axes are.
         StyleProperty::BackgroundImageNone
         | StyleProperty::BackgroundImage(..)
@@ -984,7 +984,7 @@ mod tests {
         assert_eq!(
             background_image_entry(&image, &Theme::default()),
             Some((
-                "backgroundImage",
+                "experimental_backgroundImage",
                 "'linear-gradient(90deg,#123456,#abcdef)'".to_string()
             ))
         );

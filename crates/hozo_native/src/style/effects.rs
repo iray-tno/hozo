@@ -330,7 +330,17 @@ fn scale_z(prop: &StyleProperty) -> Option<f64> {
     }
 }
 
-/// A gradient as React Native's `backgroundImage`, which takes CSS
+/// The style key a gradient goes under.
+///
+/// React Native 0.86 reads only the prefixed spelling: `backgroundImage` is
+/// not in its `ReactNativeStyleAttributes`, and Android's `ViewProps` maps
+/// the prefixed name, so an unprefixed gradient is dropped without a word
+/// (#1267). 0.87 reads both. Hozo supports `>=0.86`, so the prefixed one is
+/// the only key every supported version draws; it can lose the prefix when
+/// the floor reaches 0.87.
+const BACKGROUND_IMAGE: &str = "experimental_backgroundImage";
+
+/// A gradient as React Native's background image, which takes CSS
 /// gradient syntax as a string.
 ///
 /// One approximation, and it is visible rather than structural: the
@@ -362,8 +372,8 @@ pub(crate) fn background_image_entry(
         _ => None,
     })?;
     let (kind, prelude) = match latest {
-        Image::None => return Some(("backgroundImage", "'none'".to_string())),
-        Image::Raw(value) => return Some(("backgroundImage", js_string(value))),
+        Image::None => return Some((BACKGROUND_IMAGE, "'none'".to_string())),
+        Image::Raw(value) => return Some((BACKGROUND_IMAGE, js_string(value))),
         Image::Gradient(kind, prelude) => (kind, prelude),
     };
     if kind == GradientKind::Conic {
@@ -415,7 +425,7 @@ pub(crate) fn background_image_entry(
         format!("{direction}, {}", stops.join(", "))
     };
     Some((
-        "backgroundImage",
+        BACKGROUND_IMAGE,
         js_string(&format!("{}({args})", kind.css())),
     ))
 }
