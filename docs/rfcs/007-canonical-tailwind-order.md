@@ -44,6 +44,13 @@ substituting for this check. Balanced full-pipeline measurements reduce the
 retained-file cost, but do not graduate adapter defaults or the performance
 gate; see [ready-attempt evidence](../measurements/canonical-tailwind-order.md#ready-attempts-check-the-actual-parse-before-emitting).
 
+Native now has the same actual-parse ready/miss contract, preserving its full
+module metadata and text ABI. A 20/256/1,026-candidate matrix measures revision
+construction/context setup separately from both backends' warm module calls.
+It confirms the benefit of sharing a revision, not universal performance
+acceptance: repeated >5% cells keep the default-integration review stop open.
+See [Native/matrix evidence](../measurements/canonical-tailwind-order.md#native-ready-attempts-and-larger-candidate-universes).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

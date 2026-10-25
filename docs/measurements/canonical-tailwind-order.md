@@ -871,3 +871,84 @@ runs once per session, and all fixture/output hashes match the prior full-pipeli
 control. No whole app, Native full lowering, actual Vite/Metro watcher integration,
 new cascade winners, fresh browser/device pixels/AT, full root/pack/app suite,
 actual WASM/production bundle sizes, startup/peak-memory or broad coverage claim.
+
+## Native ready attempts and larger candidate universes
+
+`compileNativeOrPrepare` uses the **same** Rust candidate-completeness helper
+as Web: a hit returns the full `CompiledNativeModule`; a miss retains the
+exact parse, options and theme for later emission. Source-file/binding metadata,
+syntax diagnostics, forwarding, font diagnostics and each supported text ABI
+option are preserved. A ready result means ordering preparation is complete,
+not that the source has no syntax errors, all utilities are supported or Native
+pixels/AT have passed. Module diagnostics remain part of the result.
+
+Two new Rust tests cover Native direct output, option validation and retained
+pointer/mutated-IR identity on a miss. Six Tailwind tests compare complete Native
+modules across metadata/grammar/ABI cases; prove forwarding/options/font facts
+are captured on a miss; reject invalid ABI combinations; prohibit a second JS
+prepare/ordinary parse/global setter/wait signal on a ready session; and preserve
+pre-delivery cancellation. A 1,026-name test puts `p-2048` in a **later separate
+root**: both Web/Native must return retained handles, then emit the old parse
+under the expanded context with unchanged output. The Metro test substitutes a
+known-complete ready compiler **only in the test**, verifying exactly one call
+from post-Canvas source and identical full transformed code. It does not install
+an adapter route or make the synchronous transformer await preparation.
+
+CPU-1/Idle/serial: Rust **1,037 passed**, compiler **339 passed plus one existing
+Windows skip**, Tailwind **94 passed**, Metro **76 passed**, Native Showcase
+unit/driver-policy **223 passed plus one existing skip**, cache guards **9 passed**.
+Addon/Compiler build, all-target Clippy, formatting, lint (**1,670 files**) and
+docs/fixture checks passed. Only two compiler-source hash receipts changed in
+the generated Native fixture. The saved 30-subject/six-fixture/Native candidate
+output remains byte-identical. Turbo dry-run includes both new tests and their
+actual package build dependencies; no raw-source probe or unrelated cache input
+was added. No runtime, adapter default, conformance denominator or winner changes.
+
+`node scripts/tailwind-order-ready-matrix.mjs` is a new opt-in **module-entry**
+benchmark, not the earlier full Web pipeline clock or a full Metro/app benchmark.
+It uses the same 16 source modules / real 288-color theme on both backends and
+20, 256, 1,026 actual Tailwind candidates: retained source names plus padding
+utilities, **not** a broad utility-coverage corpus. The identical harness ran on
+clean parent `bacca7b2` (harness only over main `379e66d0`) and clean implementation
+`507ba223`, with rebuilt debug addons, 12 samples and balanced clock positions.
+Every output matches its normal module control; preparation runs once per session.
+
+Medians below are **milliseconds per 16 modules**; paired values are first
+implementation capture / same-source repeat, not best/worst selections:
+
+| Backend | Candidates | Synchronous | Retained files | Ready, shared revision | Ready, mutable iterable |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Web | 20 | 4.3827 / 4.3739 | 5.3099 / 5.3428 | 4.5677 / 4.5926 | 4.7943 / 4.7508 |
+| Web | 256 | 4.3534 / 4.2573 | 6.0418 / 5.9674 | 4.5138 / 4.4824 | 4.9890 / 4.8735 |
+| Web | 1,026 | 4.3365 / 4.2686 | 6.4643 / 6.2341 | 4.5928 / 4.4893 | 5.7972 / 5.6618 |
+| Native | 20 | 5.4333 / 5.3021 | 6.5386 / 6.4044 | 5.8505 / 5.5782 | 5.8123 / 5.5918 |
+| Native | 256 | 5.4825 / 5.3480 | 6.6713 / 6.4581 | 5.5064 / 5.3703 | 5.9889 / 5.8212 |
+| Native | 1,026 | 5.3535 / 5.2676 | 8.0381 / 7.7941 | 5.4370 / 5.5223 | 6.8979 / 7.0074 |
+
+At 1,026 names, sharing a ready revision instead of the retained per-file path
+reduces these Native clocks by about **32.4% / 29.1%**, Web by 29.0% / 28.0%.
+Reconstructing from an iterable inside every file visibly loses that benefit.
+This does **not** waive the synchronous-control budget: Native's 20-name ready
+cells are **+7.68% / +5.21%**, Web's 1,026-name cells **+5.91% / +5.17%**.
+They repeatedly exceed 5%; the RFC 007 **default-installation review stop stays
+open**. Do not assume a larger real file will remove the difference or select
+another matrix row as blanket acceptance. Actual project/adapter evidence is
+still required. The ordinary parent controls also differ between captures;
+no ordinary-path speedup is attributed to this change.
+
+The shared per-size setup was measured separately (same samples reported in
+both backend rows, not independent platform setup timings). Initial capture
+universe-construction medians at 20/256/1,026 names were **0.0063 / 0.0213 /
+0.0810 ms**, decode-plus-completeness **0.2099 / 2.0982 / 8.1498 ms**.
+Repeat values were 0.0041/0.0234/0.0799 and 0.1795/2.0975/8.2238 ms. Upstream
+preparation/serialization was 24.3073/33.7094/20.8468 ms, repeat
+11.9086/17.8759/19.2664 ms; these are sequential warm-process observations,
+not cold Node/project startup. All first-session values and raw samples remain.
+
+Receipts: `native-ready-parent.json`, `native-ready-after.json`,
+`native-ready-repeat.json`; the earlier dirty-tree pilot is separately retained.
+No selected-pass filtering, forced GC, discarded warm-ups or CI timer threshold.
+No actual adapter/watch/theme-epoch installation, representative app/full Metro
+timing, fresh browser/device pixels/AT, full root/pack/app suite, WASM/production
+bundle size or startup/peak-memory claim. The new host compiler entry does not
+change generated app imports or introduce a device-side context subscription.

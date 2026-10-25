@@ -1,4 +1,9 @@
-import { type CompiledComponent, type CompiledNativeModule, createCompiler } from '../src/index.ts'
+import {
+  type CompiledComponent,
+  type CompiledNativeModule,
+  createCompiler,
+  type PreparedTailwindContext,
+} from '../src/index.ts'
 import { type LoweredModule, lowerModuleOrPrepare, prepareLowerModule } from '../src/lower.ts'
 import { emitTailwindModules } from '../src/tailwind-project.ts'
 import { TailwindCandidateUniverse, TailwindProjectSession } from '../src/tailwind-session.ts'
@@ -47,3 +52,14 @@ session.runModule('bad', [], async () => ({ kind: 'complete', output: undefined 
 // @ts-expect-error A single full module is not a list of primitive components.
 const notPrimitives: Promise<CompiledComponent[]> = ready
 void notPrimitives
+declare const nativeContext: PreparedTailwindContext
+const nativeAttempt = compiler.compileNativeOrPrepare('', nativeContext)
+if ('components' in nativeAttempt) {
+  const module: CompiledNativeModule = nativeAttempt
+  void module
+} else {
+  const candidates: readonly string[] = nativeAttempt.candidates
+  void candidates
+}
+// @ts-expect-error A ready context is a validated native handle, not JSON.
+compiler.compileNativeOrPrepare('', '{}')
