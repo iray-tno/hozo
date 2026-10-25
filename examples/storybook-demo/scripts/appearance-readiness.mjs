@@ -27,7 +27,18 @@ export async function waitForAppearanceStory(
     }
     await wait(25)
   }
+  const doc = frame.contentDocument
+  const state = doc && {
+    url: doc.URL,
+    readyState: doc.readyState,
+    main: doc.body?.classList.contains('sb-show-main'),
+    children: doc.getElementById('storybook-root')?.childElementCount,
+    fonts: doc.fonts?.status,
+    pendingStylesheets: [...doc.querySelectorAll('link[rel~="stylesheet"]')].filter(
+      (link) => !link.disabled && link.sheet === null,
+    ).length,
+  }
   throw new Error(
-    `Story ${id} did not finish rendering and loading stylesheets before the appearance audit`,
+    `Story ${id} did not finish rendering and loading stylesheets before the appearance audit: ${JSON.stringify(state)}`,
   )
 }
