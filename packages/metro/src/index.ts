@@ -19,11 +19,13 @@ import {
   importSpecifier,
   resolveClassHelpers,
   StylexModuleCache,
+  TailwindPreparationCancelled,
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { loadProjectTheme } from '@hozo/tailwind'
-import { readMetroState } from './config.ts'
+import { type HozoMetroState, readMetroState } from './config.ts'
 import { modularizeHozoImports } from './modular-imports.ts'
+import { MetroTailwindWorker, readTailwindTransfer } from './tailwind-worker.ts'
 import { transformHozoSource } from './transform.ts'
 
 const require = createRequire(import.meta.url)
@@ -115,14 +117,14 @@ function loadUpstream(projectRoot?: string): UpstreamTransformer {
 ///
 /// Metro hands transformers one file at a time with no build-start hook to
 /// hang project state on, so this is where "once" has to be arranged.
-/// `loadProjectTheme` already memoizes, so the theme itself was cheap after
-/// the first file -- what was not is handing 288 colours to the addon
-/// again for each one, which costs more than compiling a small file does.
+/// Configured projects now restore captured epochs below; this compiler
+/// cache remains for callers without that context and legacy warned fallback.
 ///
 /// Keyed by root, because a monorepo can transform files from more than one.
 interface CompilerState {
   compiler: Compiler
   stylexModules?: StylexModuleCache
+  worker?: MetroTailwindWorker
 }
 
 /**
@@ -152,19 +154,76 @@ function compilerFor(
   const key = `${projectRoot ?? ''}\u0000${sources.join(',')}:${theme?.preflight ?? false}:${JSON.stringify(fontAvailability)}`
   let state = compilers.get(key)
   if (!state) {
-    const compiler = createCompiler(theme, sources, fontAvailability)
-    const stylexModules = projectRoot
-      ? new StylexModuleCache(path.join(projectRoot, CACHE_DIR, 'stylex-modules.json'))
-      : undefined
-    if (stylexModules) compiler.setStylexModules(stylexModules.moduleSources())
-    // What the project's dependencies' components hand a nested Text
-    // (#950). Read by each worker from the installed packages, which is
-    // also what `getCacheKey` hashes.
-    if (projectRoot) compiler.setTextForwarding(dependencyTextForwarding(projectRoot).modules)
-    state = { compiler, stylexModules }
+    state = createCompilerState(projectRoot, theme, sources, fontAvailability)
     compilers.set(key, state)
   }
   return state
+}
+
+function createCompilerState(
+  projectRoot: string | undefined,
+  theme: Theme | undefined,
+  sources: readonly string[],
+  fontAvailability: FontAvailability | undefined,
+): CompilerState {
+  const compiler = createCompiler(theme, sources, fontAvailability)
+  const stylexModules = projectRoot
+    ? new StylexModuleCache(path.join(projectRoot, CACHE_DIR, 'stylex-modules.json'))
+    : undefined
+  if (stylexModules) compiler.setStylexModules(stylexModules.moduleSources())
+  if (projectRoot) compiler.setTextForwarding(dependencyTextForwarding(projectRoot).modules)
+  return { compiler, stylexModules }
+}
+
+// Bounded to one active epoch per root/platform, including in-flight loads.
+// Metro's startup cache key fixes this graph until a server restart. Re-running
+// withHozo in an embedding/test still retires late work instead of delivering it.
+type WorkerEpoch = {
+  key: string
+  closed: boolean
+  value?: CompilerState
+  work: Promise<CompilerState>
+}
+const workerEpochs = new Map<string, WorkerEpoch>()
+function workerKey(state: HozoMetroState, platform?: string): string {
+  return JSON.stringify([
+    state.epoch ?? [state.tailwind, state.preflight, state.sources, state.fontAvailability],
+    platform === undefined ? undefined : state.stylexRevisions?.[platform],
+  ])
+}
+
+function preparedCompilerFor(root: string, platform: string, state: HozoMetroState) {
+  const slot = `${root}\u0000${platform}`
+  const key = workerKey(state, platform)
+  const existing = workerEpochs.get(slot)
+  if (existing?.key === key && !existing.closed) return existing.work
+  if (existing) {
+    existing.closed = true
+    existing.value?.worker?.invalidate()
+  }
+  const entry: WorkerEpoch = {
+    key,
+    closed: false,
+    work: Promise.resolve().then(async () => {
+      const transfer = await readTailwindTransfer(state.tailwind!)
+      if (entry.closed) throw new TailwindPreparationCancelled('TAILWIND_PROJECT_INVALIDATED')
+      const value = createCompilerState(
+        root,
+        themeWithPreflight(transfer.snapshot.theme, state.preflight ?? false),
+        state.sources ?? DEFAULT_PRIMITIVE_SOURCES,
+        state.fontAvailability,
+      )
+      value.worker = new MetroTailwindWorker(value.compiler, transfer)
+      entry.value = value
+      return value
+    }),
+  }
+  workerEpochs.set(slot, entry)
+  // A failed read is not permanently memoized; report the error to this call.
+  void entry.work.catch(() => {
+    if (workerEpochs.get(slot) === entry) workerEpochs.delete(slot)
+  })
+  return entry.work
 }
 
 // Async because the theme comes from Tailwind's own resolver, which is
@@ -174,13 +233,15 @@ function compilerFor(
 /**
  * Metro folds this into every transform's cache key.
  *
- * A transform's output depends on two things Metro cannot see: the upstream
+ * A transform's output depends on things Metro cannot see: the upstream
  * transformer's own key, which it would have used without Hozo in front,
  * and the manifests of the project's dependencies, which decide what a
  * component from one of them hands a nested Text (#950). Metro has no way
  * to re-transform a file when something it read from elsewhere changes, so
  * a changed manifest has to change the key. Computed when Metro starts, so
  * upgrading a package takes a restart, as it does for Metro's own caches.
+ * The captured CSS graph, full lexical ordering seed, preflight, trusted
+ * sources and font facts are included too, not just the entry CSS filename.
  */
 export function getCacheKey(options: CacheKeyOptions = {}): string {
   let upstreamKey = ''
@@ -196,25 +257,29 @@ export function getCacheKey(options: CacheKeyOptions = {}): string {
   const helpers = createHash('sha256')
     .update(JSON.stringify([state?.classHelpers ?? [], state?.foundClassHelpers ?? {}]))
     .digest('hex')
-  return [upstreamKey, manifests, helpers].join('$')
+  return [upstreamKey, manifests, helpers, state ? workerKey(state) : ''].join('$')
 }
 
 export async function transform(params: TransformParams): Promise<unknown> {
   const projectRoot = params.options?.projectRoot
   const state = projectRoot ? readMetroState(projectRoot) : undefined
-  const theme = projectRoot
-    ? await loadProjectTheme(projectRoot, {
-        css: state?.css,
-        warn: (message) => console.warn(message),
-      })
-    : undefined
-  const compilerState = compilerFor(
-    projectRoot,
-    themeWithPreflight(theme, state?.preflight ?? false),
-    state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
-    state?.fontAvailability,
-  )
+  const theme =
+    projectRoot && !state?.tailwind
+      ? await loadProjectTheme(projectRoot, {
+          css: state?.css,
+          warn: (message) => console.warn(message),
+        })
+      : undefined
   const platform = params.options?.platform ?? 'default'
+  const compilerState =
+    projectRoot && state?.tailwind
+      ? await preparedCompilerFor(projectRoot, platform, state)
+      : compilerFor(
+          projectRoot,
+          themeWithPreflight(theme, state?.preflight ?? false),
+          state?.sources ?? DEFAULT_PRIMITIVE_SOURCES,
+          state?.fontAvailability,
+        )
   if (
     compilerState.stylexModules?.replaceResolvedBindings(state?.stylexBindings?.[platform] ?? [])
   ) {
@@ -226,13 +291,34 @@ export async function transform(params: TransformParams): Promise<unknown> {
   compilerState.compiler.setClassHelpers(
     resolveClassHelpers(state?.classHelpers, state?.foundClassHelpers?.[absoluteFile]),
   )
-  const rewritten = transformHozoSource(
-    params.src,
-    params.filename,
-    projectRoot,
-    compilerState.compiler,
-    compilerState.stylexModules,
-  )
+  const rewritten = compilerState.worker
+    ? await compilerState.worker.transform(
+        params.src,
+        params.filename,
+        projectRoot!,
+        compilerState.stylexModules,
+      )
+    : transformHozoSource(
+        params.src,
+        params.filename,
+        projectRoot,
+        compilerState.compiler,
+        compilerState.stylexModules,
+      )
+  if (
+    rewritten !== null &&
+    compilerState.worker &&
+    workerKey(readMetroState(projectRoot!) ?? {}, platform) !== workerKey(state!, platform)
+  ) {
+    compilerState.worker.invalidate()
+    const slot = `${projectRoot}\u0000${platform}`
+    const pending = workerEpochs.get(slot)
+    if (pending?.key === workerKey(state!, platform)) {
+      pending.closed = true
+      workerEpochs.delete(slot)
+    }
+    throw new TailwindPreparationCancelled('TAILWIND_PROJECT_INVALIDATED')
+  }
   const withFonts =
     rewritten === null
       ? null

@@ -61,8 +61,9 @@ See [Native/matrix evidence](../measurements/canonical-tailwind-order.md#native-
 Metro now also has an internal full-transform ready/retained boundary after
 Canvas rewriting, sharing ordinary Native finalization rather than injecting
 a partial compiler in a test. Complete module metadata, diagnostics, hook slots,
-namespaces and imports survive async preparation. Its worker/config lifecycle
-is not switched yet; no Native-only cascade changes are enabled. See
+namespaces and imports survive async preparation. The subsequent default
+worker/config installation is described below; no Native-only cascade changes
+are enabled. See
 [Native staging evidence](../measurements/metro-tailwind-stage.md).
 
 The read-only project snapshot now captures one entry/import graph and derives
@@ -81,10 +82,22 @@ code delivery and invalidate already transformed dev modules. An approximate,
 no-AST ordering seed includes static classes **without** adding them to runtime
 candidate CSS. Actual parsed units still expand an incomplete seed; warm files
 use the ready path. Unassessed/broken configuration preserves the existing warned
-lowering path, never a fabricated canonical context. Metro/Next installation,
+lowering path, never a fabricated canonical context. Next installation,
 production-wide reconciliation of transformed-only additions, new common cascade
 winners and broader portable extraction remain open. See
 [Vite integration evidence](../measurements/canonical-tailwind-order.md#default-vite-epoch-and-session-integration).
+
+Metro's configured default now transports the config process's captured CSS
+bytes/import edges and full lexical seed to per-worker/per-platform sessions.
+The runtime candidate module and primitive compiler consume the same theme.
+Actual post-Canvas parsed candidates remain authoritative on a miss; no global
+context setter or ordinary reparse is installed. Startup cache keys include the
+captured graph and config facts. CSS/helper changes still require Metro restart,
+as the candidate map already did; this is not a live whole-graph invalidator.
+Unknown/broken CSS keeps warned legacy lowering, not a fabricated context.
+Production-wide reconciliation across worker namespaces remains necessary
+**before enabling shared winners**, along with broader portable facts and the
+common comparator. See [Metro worker evidence](../measurements/metro-tailwind-workers.md).
 
 ## 1. Restart, not another family-specific patch
 
