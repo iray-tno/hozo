@@ -1,7 +1,7 @@
 import { type CompiledComponent, type CompiledNativeModule, createCompiler } from '../src/index.ts'
-import { type LoweredModule, prepareLowerModule } from '../src/lower.ts'
+import { type LoweredModule, lowerModuleOrPrepare, prepareLowerModule } from '../src/lower.ts'
 import { emitTailwindModules } from '../src/tailwind-project.ts'
-import { TailwindProjectSession } from '../src/tailwind-session.ts'
+import { TailwindCandidateUniverse, TailwindProjectSession } from '../src/tailwind-session.ts'
 
 const compiler = createCompiler()
 const web = compiler.prepareWebModule('')
@@ -37,3 +37,13 @@ const lowered: Promise<(LoweredModule | undefined)[]> = session.emit('module', [
 // @ts-expect-error A full lowering result is not a primitive component array.
 const notComponents: Promise<CompiledComponent[][]> = lowered
 void notComponents
+const ready: Promise<LoweredModule | undefined> = session.runModule(
+  'one',
+  new TailwindCandidateUniverse([]),
+  (owner, context) => lowerModuleOrPrepare('', 'empty.tsx', 'empty.tsx', owner, '', context),
+)
+// @ts-expect-error Attempts are synchronous; only preparation may await.
+session.runModule('bad', [], async () => ({ kind: 'complete', output: undefined }))
+// @ts-expect-error A single full module is not a list of primitive components.
+const notPrimitives: Promise<CompiledComponent[]> = ready
+void notPrimitives

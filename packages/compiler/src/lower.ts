@@ -31,6 +31,7 @@ import { reactNativeImports, topLevelBindings } from './index.ts'
 import { semanticModuleEligible, type UnloweredReactNativeJsxPolicy } from './project.ts'
 import { type SourceCopy, type SourceEdit, SourceProvenance } from './source-provenance.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
+import type { TailwindModuleAttempt } from './tailwind-session.ts'
 
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
@@ -764,6 +765,38 @@ export function prepareLowerModule(
   stylexModules?: StylexModuleCache,
   options: LowerModuleOptions = {},
 ): PreparedModule<LoweredModule | undefined> {
+  const result = lowerModuleOrPrepare(
+    code,
+    id,
+    file,
+    compiler,
+    root,
+    undefined,
+    stylexModules,
+    options,
+  )
+  return result.kind === 'prepared'
+    ? result.module
+    : ownedLowering(
+        Object.freeze([]),
+        () => result.output,
+        () => {},
+      )
+}
+
+/** @internal One actual parse, direct emission on a complete ready context,
+ * or that same owned parse for the session's preparation path on a miss.
+ */
+export function lowerModuleOrPrepare(
+  code: string,
+  id: string,
+  file: string,
+  compiler: Compiler,
+  root: string,
+  ready?: PreparedTailwindContext,
+  stylexModules?: StylexModuleCache,
+  options: LowerModuleOptions = {},
+): TailwindModuleAttempt<LoweredModule | undefined> {
   // The caller may reuse/mutate its options while preparation awaits. Capture
   // observer identity and policy just as the native handle captures parse facts.
   const captured = { ...options }
@@ -776,22 +809,29 @@ export function prepareLowerModule(
     stylexModules,
     captured,
     (source, bindings, compileOptions, finish) => {
-      const prepared = compiler.prepareWebModule(source, bindings, compileOptions)
-      return ownedLowering(
-        prepared.candidates,
-        (context) => completeModuleResolution(finish(prepared.emit(context)), root, file, captured),
-        () => prepared.dispose(),
-      )
+      const prepared = ready
+        ? compiler.compileWebOrPrepare(source, ready, bindings, compileOptions)
+        : compiler.prepareWebModule(source, bindings, compileOptions)
+      if (Array.isArray(prepared)) {
+        return {
+          kind: 'complete' as const,
+          output: completeModuleResolution(finish(prepared), root, file, captured),
+        }
+      }
+      return {
+        kind: 'prepared' as const,
+        module: ownedLowering(
+          prepared.candidates,
+          (context) =>
+            completeModuleResolution(finish(prepared.emit(context)), root, file, captured),
+          () => prepared.dispose(),
+        ),
+      }
     },
   )
-  if (lowered && 'emit' in lowered) return lowered
-  // Ineligible/import-only/Canvas-only input can complete without a primitive
-  // parse, but still obeys the session's one-shot ownership/cancellation API.
-  return ownedLowering(
-    Object.freeze([]),
-    () => completeModuleResolution(lowered, root, file, captured),
-    () => {},
-  )
+  if (lowered && 'kind' in lowered) return lowered
+  // No primitive parse or context is needed for these independent domains.
+  return { kind: 'complete', output: completeModuleResolution(lowered, root, file, captured) }
 }
 
 function ownedLowering(
