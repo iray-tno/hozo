@@ -13,17 +13,20 @@ repository root:
 pnpm --filter @hozo/example-screen-readers read code-and-splitter.spec.ts
 ```
 
-The two scenarios record the `patterns-resizablepane--default` and
+The scenarios record the `patterns-resizablepane--default` and
 `patterns-codeblock--default` stories. Splitter captures keep warm-up speech
 separate, then pair each measured key with its resulting size, value text,
 focus and collapsed-subtree facts. CodeBlock captures include the figure's
 reading and an actual Copy activation; the clipboard is not replaced by a mock.
 The Chromium scenario grants clipboard-write permission to its local origin.
-Copy uses a trusted browser Enter key inside Guidepup's
+Copy is measured twice: the reader's own Enter command with full capture, and
+a trusted browser Enter key inside Guidepup's
 [`capture` action API](https://www.guidepup.dev/docs/api/class-nvda#nvdacaptureaction-options),
 kept open through the clipboard promise's completion with full capture enabled.
-An initial key-command capture may stop listening before asynchronous feedback;
-polling its completed log cannot recover that speech. Both readers keep the
+An initial key-command capture stops on the first speech event, including an
+empty phrase; polling its completed log cannot recover subsequent output.
+Both activation scenarios must pass, so browser-only success cannot hide a
+failure of the reader's own Enter command. Both readers keep the
 application's actual clipboard connection. Splitter keys still go through the
 reader's keyboard API.
 

@@ -126,86 +126,97 @@ test('splitter announces resize, bounds, collapse and restoration', async ({
   verify()
 })
 
-test('code block reads named marked lines and announces a real copy', async ({
-  page,
-  screenReader,
-}, testInfo) => {
-  const name = 'code-block-lines-and-copy'
-  const story = 'patterns-codeblock--default'
-  const stop = startRecording(name)
-  const observed: Observation[] = []
-  let verify: (() => void) | undefined
-  try {
-    await page.goto(`/iframe.html?id=${story}&viewMode=story`, { waitUntil: 'load' })
-    // Chromium's automated context otherwise prompts for clipboard access.
-    // Grant the actual browser permission; keep writeText and feedback real.
-    if (onWindows)
-      await page
-        .context()
-        .grantPermissions(['clipboard-write'], { origin: new URL(page.url()).origin })
-    await page.locator('#storybook-root > *').first().waitFor()
-    await enterPage(page, screenReader)
-    const reading = await walk(screenReader, { page })
-    const figure = page.getByRole('figure', { name: 'paths.ts', exact: true })
-    const markup = {
-      caption: await figure.locator('figcaption').textContent(),
-      insertions: await figure.locator('ins').count(),
-      deletions: await figure.locator('del').count(),
-      highlights: await figure.locator('mark').count(),
-      hiddenGutters: await figure.locator('code > span > [aria-hidden="true"]').count(),
-    }
-    observed.push({
-      action: 'Read named figure, line marks and hidden gutter',
-      said: reading.phrases,
-      facts: {
-        ...markup,
-        ended: reading.ended,
-        steps: reading.steps,
-        truncated: reading.truncated,
-      },
-    })
-    assert.ok(reading.phrases.length >= MIN_SPOKEN)
-    assert.ok(
-      reading.steps < MAX_STEPS,
-      'the reader exhausted its budget before finishing the story',
-    )
-    assert.deepEqual(reading.truncated, [], 'the reader left code content unmeasured')
-    assert.deepEqual(markup, {
-      caption: 'paths.ts',
-      insertions: 1,
-      deletions: 1,
-      highlights: 1,
-      hiddenGutters: 5,
-    })
-    const copy = figure.getByRole('button', { name: 'Copy code', exact: true })
-    await copy.focus()
-    // NVDA only listens while a captured action runs. A command's initial
-    // capture can end before the clipboard promise settles; polling its log
-    // afterwards cannot recover speech emitted outside that capture.
-    // Keep capture around the trusted browser key and its async completion.
-    // Do not enqueue another reader command inside capture: it would deadlock.
-    const said = await spokenAfter(screenReader, async () => {
-      await screenReader.capture(
-        async () => {
-          await page.keyboard.press('Enter')
-          await expect(copy).toHaveText('Copied', { timeout: 3000 })
+for (const activation of ['reader', 'browser'] as const) {
+  test(`code block reads marked lines and announces ${activation} Enter copy`, async ({
+    page,
+    screenReader,
+  }, testInfo) => {
+    const name = activation === 'reader' ? 'code-block-lines-and-copy' : 'code-block-browser-copy'
+    const story = 'patterns-codeblock--default'
+    const stop = startRecording(name)
+    const observed: Observation[] = []
+    let verify: (() => void) | undefined
+    try {
+      await page.goto(`/iframe.html?id=${story}&viewMode=story`, { waitUntil: 'load' })
+      // Chromium's automated context otherwise prompts for clipboard access.
+      // Grant the actual browser permission; keep writeText and feedback real.
+      if (onWindows)
+        await page
+          .context()
+          .grantPermissions(['clipboard-write'], { origin: new URL(page.url()).origin })
+      await page.locator('#storybook-root > *').first().waitFor()
+      await enterPage(page, screenReader)
+      const reading = await walk(screenReader, { page })
+      const figure = page.getByRole('figure', { name: 'paths.ts', exact: true })
+      const markup = {
+        caption: await figure.locator('figcaption').textContent(),
+        insertions: await figure.locator('ins').count(),
+        deletions: await figure.locator('del').count(),
+        highlights: await figure.locator('mark').count(),
+        hiddenGutters: await figure.locator('code > span > [aria-hidden="true"]').count(),
+      }
+      observed.push({
+        action: 'Read named figure, line marks and hidden gutter',
+        said: reading.phrases,
+        facts: {
+          ...markup,
+          ended: reading.ended,
+          steps: reading.steps,
+          truncated: reading.truncated,
         },
-        { capture: true },
+      })
+      assert.ok(reading.phrases.length >= MIN_SPOKEN)
+      assert.ok(
+        reading.steps < MAX_STEPS,
+        'the reader exhausted its budget before finishing the story',
       )
-    })
-    const facts = {
-      buttonText: await copy.textContent(),
-      clipboardAvailable: await page.evaluate(() => Boolean(navigator.clipboard?.writeText)),
-      clipboardWritePermissionGranted: onWindows,
-      secureContext: await page.evaluate(() => isSecureContext),
-      capture: 'full-through-copy-completion',
+      assert.deepEqual(reading.truncated, [], 'the reader left code content unmeasured')
+      assert.deepEqual(markup, {
+        caption: 'paths.ts',
+        insertions: 1,
+        deletions: 1,
+        highlights: 1,
+        hiddenGutters: 5,
+      })
+      const copy = figure.getByRole('button', { name: 'Copy code', exact: true })
+      await copy.focus()
+      // Initial command capture ends on the first event, even an empty phrase.
+      // Require full speech from the reader's own key as well as from the
+      // external-action capture; browser-only success must not hide a reader
+      // activation failure. Never nest a reader command inside capture's queue.
+      const said = await spokenAfter(screenReader, async () => {
+        if (activation === 'reader') {
+          await screenReader.press('Enter', { capture: true })
+          await expect(copy).toHaveText('Copied', { timeout: 3000 })
+        } else {
+          await screenReader.capture(
+            async () => {
+              await page.keyboard.press('Enter')
+              await expect(copy).toHaveText('Copied', { timeout: 3000 })
+            },
+            { capture: true },
+          )
+        }
+      })
+      const facts = {
+        buttonText: await copy.textContent(),
+        clipboardAvailable: await page.evaluate(() => Boolean(navigator.clipboard?.writeText)),
+        clipboardWritePermissionGranted: onWindows,
+        secureContext: await page.evaluate(() => isSecureContext),
+        capture: activation === 'reader' ? 'full-reader-command' : 'full-through-copy-completion',
+        rawSpeech: await screenReader.spokenPhraseLog(),
+      }
+      observed.push({
+        action: `${activation} Enter: copy and completion announcement`,
+        said,
+        facts,
+      })
+      assert.equal(facts.buttonText, 'Copied')
+    } finally {
+      stop()
+      verify = finish(name, story, observed, testInfo)
     }
-    observed.push({ action: 'Enter: copy and completion announcement', said, facts })
-    assert.equal(facts.buttonText, 'Copied')
-  } finally {
-    stop()
-    verify = finish(name, story, observed, testInfo)
-  }
-  assert.ok(verify)
-  verify()
-})
+    assert.ok(verify)
+    verify()
+  })
+}
