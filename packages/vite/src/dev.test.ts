@@ -215,6 +215,52 @@ test('the dev server lowers a module on request', async () => {
   assert.match(companion, /padding-top: 16px/)
 })
 
+test('editing an imported Tailwind stylesheet refreshes static and candidate CSS without a source edit or restart', async () => {
+  const root = project({
+    'global.css': '@import "tailwindcss"; @import "./tokens.css";',
+    'tokens.css': '@theme { --spacing: 0.25rem; }',
+    'classes.ts': `export const look = 'p-6'`,
+    'App.tsx': `import {View} from '@hozo/core'; import {look} from './classes';
+      export const App=()=> <View className={look}><View className="p-4" /></View>`,
+  })
+  const server = await serve(root)
+  await server.transformRequest('/App.tsx')
+  const companion = path.join(root, 'App.tsx.hozo.css')
+  assert.match(readFileSync(companion, 'utf8'), /padding-top: 16px/)
+  assert.match(candidates(root), /padding-top: 24px/)
+  const plugin = server.config.plugins.find((entry) => entry.name === 'hozo')!
+  const imported = path.join(root, 'tokens.css')
+  writeFileSync(imported, '@theme { --spacing: 0.5rem; }')
+  await plugin.watchChange.call({ warn: () => {}, addWatchFile: () => {} }, imported, {
+    event: 'update',
+  })
+  await server.transformRequest('/App.tsx')
+  assert.match(readFileSync(companion, 'utf8'), /padding-top: 32px/)
+  assert.match(candidates(root), /padding-top: 48px/)
+})
+
+test('creating and deleting a higher-priority theme entry rediscover the default Vite epoch', async () => {
+  const root = project({
+    'src/global.css': '@import "tailwindcss"; @theme { --spacing: 0.25rem; }',
+    'App.tsx': `import {View} from '@hozo/core'; export const App=()=> <View className="p-4"/>`,
+  })
+  const server = await serve(root)
+  const companion = path.join(root, 'App.tsx.hozo.css')
+  await server.transformRequest('/App.tsx')
+  assert.match(readFileSync(companion, 'utf8'), /padding-top: 16px/)
+  const plugin = server.config.plugins.find((entry) => entry.name === 'hozo')!
+  const context = { warn: () => {}, addWatchFile: () => {} }
+  const entry = path.join(root, 'global.css')
+  writeFileSync(entry, '@import "tailwindcss"; @theme { --spacing: 0.5rem; }')
+  await plugin.watchChange.call(context, entry, { event: 'create' })
+  await server.transformRequest('/App.tsx')
+  assert.match(readFileSync(companion, 'utf8'), /padding-top: 32px/)
+  rmSync(entry)
+  await plugin.watchChange.call(context, entry, { event: 'delete' })
+  await server.transformRequest('/App.tsx')
+  assert.match(readFileSync(companion, 'utf8'), /padding-top: 16px/)
+})
+
 test('the dev server lowers a static StyleX sheet imported from another file', async () => {
   const root = project({
     'styles.ts': `import * as stylex from '@stylexjs/stylex'

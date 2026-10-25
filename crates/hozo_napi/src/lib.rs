@@ -876,6 +876,13 @@ impl Compiler {
     }
 }
 
+/// An approximate ordering seed, not a runtime CSS candidate set or a
+/// replacement for checking the actual module's parsed units.
+#[napi]
+pub fn scan_tailwind_order_candidates(source: String) -> Vec<String> {
+    hozo_parser::scan_tailwind_order_candidates(&source)
+}
+
 /// The build-side half of proposal §7's third tier.
 ///
 /// A `className` the compiler couldn't read is passed through to runtime,

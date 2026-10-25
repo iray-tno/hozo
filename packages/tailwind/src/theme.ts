@@ -112,6 +112,8 @@ const designSystems = new Map<
 >()
 
 export interface ThemeLoadOptions {
+  /** Project watch epochs must re-read imports, not reuse an entry-text cache. */
+  fresh?: boolean
   /** Refuse executable directives before Tailwind sees entry or imported CSS. */
   staticOnly?: boolean
   /** Read evidence, including the entry, for this invocation (no cache). */
@@ -122,7 +124,7 @@ export interface ThemeLoadOptions {
 function designSystemFor(css: string, base: string, options: ThemeLoadOptions = {}) {
   if (options.staticOnly) return staticDesignSystem(css, base, options)
   const key = `${base}\u0000${css}`
-  let pending = designSystems.get(key)
+  let pending = options.fresh ? undefined : designSystems.get(key)
   if (!pending) {
     pending = __unstable__loadDesignSystem(css, {
       base,
@@ -137,7 +139,7 @@ function designSystemFor(css: string, base: string, options: ThemeLoadOptions = 
         return { path: file, base: path.dirname(file), content: readFileSync(file, 'utf8') }
       },
     })
-    designSystems.set(key, pending)
+    if (!options.fresh) designSystems.set(key, pending)
   }
   return pending
 }
@@ -216,8 +218,9 @@ export async function loadClassOrder(
   css: string,
   base: string,
   candidates: readonly string[],
+  options: Pick<ThemeLoadOptions, 'fresh'> = {},
 ): Promise<string[]> {
-  const design = await designSystemFor(css, base)
+  const design = await designSystemFor(css, base, options)
   const order = new Map(design.getClassOrder([...candidates]))
   // `bigint`, which is Tailwind's own key and wider than a `number` can
   // hold: the variant chain is packed into the high bits. Subtracting them

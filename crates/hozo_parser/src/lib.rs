@@ -47,8 +47,8 @@ pub use rn_usage::{
     analyze_react_native_usage, ReactNativeBindingUsage, ReactNativeReference, ReactNativeUsage,
 };
 pub use scan::{
-    resolve_class_name, scan_class_candidates, scan_class_candidates_with, source_uses_tailwind,
-    ScannedUtility,
+    resolve_class_name, scan_class_candidates, scan_class_candidates_with,
+    scan_tailwind_order_candidates, source_uses_tailwind, ScannedUtility,
 };
 pub use stylex::{
     css_declaration, ExternalBinding as StylexExternalBinding,
