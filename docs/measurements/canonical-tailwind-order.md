@@ -702,3 +702,84 @@ default-entry regression. The first-use/upstream costs remain in the receipts.
 Actual adapter integration/amortization, large universes, startup/peak memory,
 full root/pack/app suites, fresh browser/device/AT and enabled cascade winners
 remain outside this measurement.
+
+## Staging the real Web lowering pipeline
+
+`prepareLowerModule` from `@hozo/compiler/lower` now reaches the actual module
+pipeline, not a separate primitive-only probe. React Native runtime import
+rewrites and Canvas paint edits run before `prepareWebModule`, whose retained
+source and spans therefore describe the **post-Canvas** text. The same finish
+function serves ordinary `lowerModule` and staged emission: component CSS/JSX
+namespaces and source copies, import cleanup/runtime imports, client-boundary
+facts, residue policy and dependency-resolution diagnostics are not copied
+into a second adapter implementation. Ordinary lowering remains synchronous
+and does not allocate a prepared-module handle.
+
+The staged wrapper snapshots policy/observer identity before suspension. The
+primitive handle captures StyleX/helper/parse facts then, not at later emission.
+Owned continuations clear on emit/dispose, including exceptions; a collision
+or observer error cannot leave a retryable half-consumed lowering. Ineligible,
+empty, runtime-import-only and Canvas-only cases retain their early-result
+contracts without a primitive parse, through a one-shot zero-candidate wrapper.
+A session may still prepare the supplied project universe for these wrappers;
+this is not an optimized adapter-level bypass. No bundler filesystem writes
+occur here. Analysis observers can already have seen pre-suspension stages;
+callers must not publish those as a completed transform after cancellation.
+
+Seven integration tests cover full output **and every observed stage**, plain
+and derived module IDs, UTF-16 text, nested Canvas edits/diagnostics, secondary
+slots, foreign JSX, local/imported StyleX, graph/registry mutation during await,
+captured warn-policy/observer identity, one-shot/error/dispose behavior and
+source supersession before old semantic edits are observed. A structural test
+requires exactly one Canvas pass and one primitive preparation of rewritten
+source, and makes ordinary primitive compilation/default residue parsing throw
+if invoked. A valid context is constructed outside the disposal assertion so
+schema failure cannot make that ownership test pass accidentally. The existing
+extra residue parse remains only for explicit warn/error policy; this layer
+does not remove independent domain parsers or claim a single whole-file parse.
+
+CPU-1/Idle/serial: compiler **339 passed plus one existing Windows symlink
+skip**, Tailwind **80 passed**, source-cache guards **9 passed**, compiler
+build, lint (**1,661 files**) and generated docs checks passed. The CLI fixture
+checks full-lowering result inference and rejects a primitive-array result
+claim. The saved 30-subject/six-fixture/Native candidate output stays
+byte-identical. No Rust/device resolver, default adapter, cascade winner or
+conformance denominator changes. Full root JS/pack/application suites, fresh
+browser/Native pixels/AT, actual WASM sizes and peak memory were not measured.
+
+`node scripts/tailwind-order-lower-cost.mjs` rebuilds the debug addon and times
+seven samples over 16 synthetic modules (20 lexical candidates, 288-color
+theme), including nested Canvas, local StyleX, secondary slots, UTF-16 and
+derived IDs. These are full Web pipeline clocks, not Native full lowering or
+an application benchmark. Theme/compiler construction and project discovery
+are outside synchronous/warm clocks. Before revision `9b5b9a59` adds only the
+harness over #1260; implementation checkpoint `6012b125` adds the staged
+boundary. Subsequent rebase onto merged #1260 changed no file content.
+Post-checkpoint lifecycle refinements change tests/docs only, not the measured
+production code or harness.
+
+| Capture (ms per 16 modules) | Ordinary synchronous | Warm staged batch | 16 warm staged files |
+| --- | ---: | ---: | ---: |
+| Before | 9.7950 | not available | not available |
+| Implementation | 10.1484 | 10.8177 | 11.2338 |
+| Implementation repeat | 9.8508 | 10.5532 | 10.9261 |
+
+Ordinary-path differences against the before median were +3.61% and +0.57%,
+not a repeatable >5% default regression or proof of zero overhead. Staged
+batch/file costs remain above their synchronous controls: approximately
+6.6–7.1% / 10.7–10.9% respectively. **That is a performance-review stop for
+default installation under RFC 007, not a waived budget.** This internal
+boundary provides correct retained work and honest full-pipeline evidence;
+next, a ready-context path must avoid unnecessary cold-path retention/
+suspension costs without reparsing primitives, guessing completeness or
+dropping unassessed classes. Actual adapter amortization/watch integration and
+matching compiler/theme epochs still remain, as do broader portable evidence
+and the shared comparator/candidate fallback. Nothing enables new winners.
+
+Each staged capture prepares once; first uses were 40.5638/31.9283 ms, not cold
+Node startup. All output/fixture/harness hashes match across before and after;
+the full output digest is `70282f0fb2e859eeb37e4bb16010cdbe2d0b9c234f866fdfc8ea370cbdc94ea0`.
+All samples/provenance are retained in `lower-parent-cost.json`,
+`lower-after-cost.json` and `lower-repeat-cost.json`. The earlier dirty-tree
+pilot is separately retained, not substituted for clean comparisons. No
+startup/large-universe/invalidation latency, memory peak or app-speedup claim.

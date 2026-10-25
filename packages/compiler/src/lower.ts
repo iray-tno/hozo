@@ -20,7 +20,10 @@ import type {
   CompileDiagnostic,
   CompiledComponent,
   CompiledNativeModule,
+  CompileOptions,
   Compiler,
+  PreparedModule,
+  PreparedTailwindContext,
   ReactNativeImportSpecifier,
   StylexExternalBinding,
 } from './index.ts'
@@ -745,6 +748,84 @@ export function lowerModule(
   options: LowerModuleOptions = {},
 ): LoweredModule | undefined {
   const lowered = lowerModuleUnchecked(code, id, file, compiler, root, stylexModules, options)
+  return completeModuleResolution(lowered, root, file, options)
+}
+
+/** @internal Retain the actual post-Canvas primitive parse across preparation.
+ * Uses the same edits/import/diagnostic finalization as synchronous lowering.
+ * Owns captured source until emit/dispose; no bundler writes happen here.
+ */
+export function prepareLowerModule(
+  code: string,
+  id: string,
+  file: string,
+  compiler: Compiler,
+  root: string,
+  stylexModules?: StylexModuleCache,
+  options: LowerModuleOptions = {},
+): PreparedModule<LoweredModule | undefined> {
+  // The caller may reuse/mutate its options while preparation awaits. Capture
+  // observer identity and policy just as the native handle captures parse facts.
+  const captured = { ...options }
+  const lowered = lowerModuleUnchecked(
+    code,
+    id,
+    file,
+    compiler,
+    root,
+    stylexModules,
+    captured,
+    (source, bindings, compileOptions, finish) => {
+      const prepared = compiler.prepareWebModule(source, bindings, compileOptions)
+      return ownedLowering(
+        prepared.candidates,
+        (context) => completeModuleResolution(finish(prepared.emit(context)), root, file, captured),
+        () => prepared.dispose(),
+      )
+    },
+  )
+  if (lowered && 'emit' in lowered) return lowered
+  // Ineligible/import-only/Canvas-only input can complete without a primitive
+  // parse, but still obeys the session's one-shot ownership/cancellation API.
+  return ownedLowering(
+    Object.freeze([]),
+    () => completeModuleResolution(lowered, root, file, captured),
+    () => {},
+  )
+}
+
+function ownedLowering(
+  candidates: readonly string[],
+  emit: (context: PreparedTailwindContext) => LoweredModule | undefined,
+  dispose: () => void,
+): PreparedModule<LoweredModule | undefined> {
+  let work: { emit: typeof emit; dispose: typeof dispose } | undefined = { emit, dispose }
+  return {
+    candidates,
+    emit(context) {
+      const current = work
+      if (!current) throw new Error('Prepared lowering has already been emitted or disposed')
+      work = undefined
+      try {
+        return current.emit(context)
+      } finally {
+        current.dispose()
+      }
+    },
+    dispose() {
+      const current = work
+      work = undefined
+      current?.dispose()
+    },
+  }
+}
+
+function completeModuleResolution(
+  lowered: LoweredModule | undefined,
+  root: string,
+  file: string,
+  options: LowerModuleOptions,
+): LoweredModule | undefined {
   const policy = options.unloweredReactNativeJsx
   if (lowered && (policy === 'warn' || policy === 'error')) {
     const missing = missingReactNativeCompat(lowered.code, root, file)
@@ -795,7 +876,14 @@ function missingReactNativeCompat(
   }
 }
 
-function lowerModuleUnchecked(
+type SemanticStage<T> = (
+  source: string,
+  bindings: StylexExternalBinding[] | undefined,
+  options: CompileOptions,
+  finish: (components: CompiledComponent[]) => LoweredModule | undefined,
+) => T
+
+function lowerModuleUnchecked<T = never>(
   code: string,
   id: string,
   file: string,
@@ -803,7 +891,8 @@ function lowerModuleUnchecked(
   root: string,
   stylexModules: StylexModuleCache | undefined,
   options: LowerModuleOptions,
-): LoweredModule | undefined {
+  stage?: SemanticStage<T>,
+): LoweredModule | undefined | T {
   // `.mdx` alongside `.tsx` because by the time this runs the MDX
   // transform has already turned the file into JSX; the extension is all
   // that still says where it came from. See `TRANSFORMABLE`.
@@ -875,160 +964,161 @@ function lowerModuleUnchecked(
   const stylexBindings = canvas.code.includes('@stylexjs/stylex')
     ? stylexModules?.bindingsFor(path.resolve(file))
     : undefined
-  const components = hasSemanticCandidate
-    ? compiler.compile(canvas.code, stylexBindings, {
-        rehomeReactNative: shouldRehome,
-        tagEvidence: !!options.observe,
+  const finish = (components: CompiledComponent[]): LoweredModule | undefined => {
+    options.observe?.({
+      stage: 'semantic',
+      source: canvas.code,
+      diagnostics: components.flatMap((component) => component.diagnostics),
+      components,
+    })
+    if (components.length === 0 && !canvas.touched) {
+      const componentLowered = rehome(canvas.code, true)
+      const diagnostic = checkUnloweredReactNativeJsx(
+        componentLowered,
+        file,
+        compiler,
+        policy,
+        stylexBindings,
+      )
+      options.observe?.({ stage: 'residue', diagnostics: diagnostic ? [diagnostic] : [] })
+      if (componentLowered !== canvas.code || loweredApiImport || diagnostic) {
+        const mod = runtimeImportOnlyModule(componentLowered, id, file)
+        if (diagnostic) mod.diagnostics.push(diagnostic)
+        return mod
+      }
+      return undefined
+    }
+
+    let next = canvas.code
+    let css = ''
+    // Splice from the last span to the first so earlier offsets stay valid as
+    // later (in the string, not necessarily in array order) edits are applied.
+    const bySpanDescending = components
+      .map((component, index) => ({ component, index }))
+      .sort((a, b) => b.component.spanStart - a.component.spanStart)
+    const scope = moduleScope(root, file, id)
+    const semanticEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
+    for (const { component, index } of bySpanDescending) {
+      const namespaceEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
+      const jsx = namespaceHozoClasses(component.jsx, index, scope, namespaceEdits)
+      const componentCss = namespaceHozoClasses(component.css, index, scope)
+      next = next.slice(0, component.spanStart) + jsx + next.slice(component.spanEnd)
+      semanticEdits?.push({
+        spanStart: component.spanStart,
+        spanEnd: component.spanEnd,
+        replacement: jsx,
+        ...(component.sourceCopies && namespaceEdits
+          ? {
+              copies: namespaceSourceCopies(
+                canvas.code,
+                component,
+                component.jsx,
+                jsx,
+                component.sourceCopies,
+                namespaceEdits,
+              ),
+            }
+          : {}),
       })
-    : []
-  options.observe?.({
-    stage: 'semantic',
-    source: canvas.code,
-    diagnostics: components.flatMap((component) => component.diagnostics),
-    components,
-  })
-  if (components.length === 0 && !canvas.touched) {
-    const componentLowered = rehome(canvas.code, true)
-    const diagnostic = checkUnloweredReactNativeJsx(
-      componentLowered,
+      css = componentCss + css
+    }
+    if (semanticEdits)
+      options.observe?.({
+        stage: 'edits',
+        source: canvas.code,
+        diagnostics: [],
+        edits: semanticEdits,
+      })
+
+    // Only when nothing needs it. A primitive that survived lowering (carried
+    // through `Child::Verbatim`) still has to resolve, and `@hozo/core`
+    // exports real working React components for exactly this -- proposal
+    // §2.3's "fall back gracefully".
+    //
+    // For a transformed source the question is asked of the text with the
+    // import statement itself removed, because for those files nobody else
+    // will ask it. `referencesHozoPrimitive` searches text that includes the
+    // import, so it always finds a name and the import always survives --
+    // deliberately, since every bundler elides an unused specifier
+    // afterwards. Every bundler elides it *for a file whose extension says
+    // TypeScript*: SWC and oxc both decide that from the name, and `.mdx`
+    // is not one. The import then reaches the graph, `@hozo/core` is pulled
+    // in, and Next's App Router rejects the page for calling `useState` in a
+    // server component -- naming neither MDX nor the import.
+    //
+    // And never a statement that binds a name the module still uses. The
+    // question above is asked about primitives, but the same statement can
+    // import a pattern (`Alert as AlertPattern` from `@hozo/patterns`) that no
+    // primitive name covers; removing it left the JSX naming a binding that
+    // no longer existed, and the page failed with a ReferenceError (#983).
+    const authoringEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
+    const withoutImport = next.replace(HOZO_AUTHORING_IMPORT_RE, (match, offset) => {
+      if (bindsUsedName(match, next.slice(0, offset) + next.slice(offset + match.length))) {
+        return match
+      }
+      authoringEdits?.push({ spanStart: offset, spanEnd: offset + match.length, replacement: '' })
+      return ''
+    })
+    if (!referencesHozoPrimitive(isTransformed ? withoutImport : next)) {
+      if (authoringEdits)
+        options.observe?.({ stage: 'edits', source: next, diagnostics: [], edits: authoringEdits })
+      next = withoutImport
+    }
+
+    // One import for the whole module, after the splicing so it lands at
+    // the top of the file rather than inside a span. Metro does the same for
+    // the Native backend's hooks; this is the Web half of that contract.
+    const runtimeImports = [...new Set(components.flatMap((component) => component.runtimeImports))]
+    if (runtimeImports.length > 0) {
+      assertRuntimeImportsUnbound(next, runtimeImports, file)
+      const replacement = generatedRuntimeImports(runtimeImports.sort())
+      options.observe?.({
+        stage: 'edits',
+        source: next,
+        diagnostics: [],
+        edits: [{ spanStart: 0, spanEnd: 0, replacement }],
+      })
+      next = `${replacement}${next}`
+    }
+
+    next = rehome(next, true)
+    const unloweredDiagnostic = checkUnloweredReactNativeJsx(
+      next,
       file,
       compiler,
       policy,
       stylexBindings,
     )
-    options.observe?.({ stage: 'residue', diagnostics: diagnostic ? [diagnostic] : [] })
-    if (componentLowered !== canvas.code || loweredApiImport || diagnostic) {
-      const mod = runtimeImportOnlyModule(componentLowered, id, file)
-      if (diagnostic) mod.diagnostics.push(diagnostic)
-      return mod
-    }
-    return undefined
-  }
-
-  let next = canvas.code
-  let css = ''
-  // Splice from the last span to the first so earlier offsets stay valid as
-  // later (in the string, not necessarily in array order) edits are applied.
-  const bySpanDescending = components
-    .map((component, index) => ({ component, index }))
-    .sort((a, b) => b.component.spanStart - a.component.spanStart)
-  const scope = moduleScope(root, file, id)
-  const semanticEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
-  for (const { component, index } of bySpanDescending) {
-    const namespaceEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
-    const jsx = namespaceHozoClasses(component.jsx, index, scope, namespaceEdits)
-    const componentCss = namespaceHozoClasses(component.css, index, scope)
-    next = next.slice(0, component.spanStart) + jsx + next.slice(component.spanEnd)
-    semanticEdits?.push({
-      spanStart: component.spanStart,
-      spanEnd: component.spanEnd,
-      replacement: jsx,
-      ...(component.sourceCopies && namespaceEdits
-        ? {
-            copies: namespaceSourceCopies(
-              canvas.code,
-              component,
-              component.jsx,
-              jsx,
-              component.sourceCopies,
-              namespaceEdits,
-            ),
-          }
-        : {}),
-    })
-    css = componentCss + css
-  }
-  if (semanticEdits)
     options.observe?.({
-      stage: 'edits',
-      source: canvas.code,
-      diagnostics: [],
-      edits: semanticEdits,
+      stage: 'residue',
+      diagnostics: unloweredDiagnostic ? [unloweredDiagnostic] : [],
     })
 
-  // Only when nothing needs it. A primitive that survived lowering (carried
-  // through `Child::Verbatim`) still has to resolve, and `@hozo/core`
-  // exports real working React components for exactly this -- proposal
-  // §2.3's "fall back gracefully".
-  //
-  // For a transformed source the question is asked of the text with the
-  // import statement itself removed, because for those files nobody else
-  // will ask it. `referencesHozoPrimitive` searches text that includes the
-  // import, so it always finds a name and the import always survives --
-  // deliberately, since every bundler elides an unused specifier
-  // afterwards. Every bundler elides it *for a file whose extension says
-  // TypeScript*: SWC and oxc both decide that from the name, and `.mdx`
-  // is not one. The import then reaches the graph, `@hozo/core` is pulled
-  // in, and Next's App Router rejects the page for calling `useState` in a
-  // server component -- naming neither MDX nor the import.
-  //
-  // And never a statement that binds a name the module still uses. The
-  // question above is asked about primitives, but the same statement can
-  // import a pattern (`Alert as AlertPattern` from `@hozo/patterns`) that no
-  // primitive name covers; removing it left the JSX naming a binding that
-  // no longer existed, and the page failed with a ReferenceError (#983).
-  const authoringEdits: SourceEdit[] | undefined = options.observe ? [] : undefined
-  const withoutImport = next.replace(HOZO_AUTHORING_IMPORT_RE, (match, offset) => {
-    if (bindsUsedName(match, next.slice(0, offset) + next.slice(offset + match.length))) {
-      return match
+    const isDerivedModule = id.includes('?')
+    const cssFileName = isDerivedModule
+      ? `${path.basename(file)}.${moduleIdHash(id)}.hozo.css`
+      : cssFileNameFor(file)
+
+    const diagnostics = [
+      ...canvas.diagnostics,
+      ...components.flatMap((component) => component.diagnostics),
+    ]
+    if (unloweredDiagnostic) {
+      diagnostics.push(unloweredDiagnostic)
     }
-    authoringEdits?.push({ spanStart: offset, spanEnd: offset + match.length, replacement: '' })
-    return ''
-  })
-  if (!referencesHozoPrimitive(isTransformed ? withoutImport : next)) {
-    if (authoringEdits)
-      options.observe?.({ stage: 'edits', source: next, diagnostics: [], edits: authoringEdits })
-    next = withoutImport
+
+    return {
+      code: next,
+      css,
+      cssFileName,
+      cssPath: path.join(path.dirname(file), cssFileName),
+      needsClientBoundary: outputNeedsClientBoundary(components),
+      diagnostics,
+    }
   }
-
-  // One import for the whole module, after the splicing so it lands at
-  // the top of the file rather than inside a span. Metro does the same for
-  // the Native backend's hooks; this is the Web half of that contract.
-  const runtimeImports = [...new Set(components.flatMap((component) => component.runtimeImports))]
-  if (runtimeImports.length > 0) {
-    assertRuntimeImportsUnbound(next, runtimeImports, file)
-    const replacement = generatedRuntimeImports(runtimeImports.sort())
-    options.observe?.({
-      stage: 'edits',
-      source: next,
-      diagnostics: [],
-      edits: [{ spanStart: 0, spanEnd: 0, replacement }],
-    })
-    next = `${replacement}${next}`
-  }
-
-  next = rehome(next, true)
-  const unloweredDiagnostic = checkUnloweredReactNativeJsx(
-    next,
-    file,
-    compiler,
-    policy,
-    stylexBindings,
-  )
-  options.observe?.({
-    stage: 'residue',
-    diagnostics: unloweredDiagnostic ? [unloweredDiagnostic] : [],
-  })
-
-  const isDerivedModule = id.includes('?')
-  const cssFileName = isDerivedModule
-    ? `${path.basename(file)}.${moduleIdHash(id)}.hozo.css`
-    : cssFileNameFor(file)
-
-  const diagnostics = [
-    ...canvas.diagnostics,
-    ...components.flatMap((component) => component.diagnostics),
-  ]
-  if (unloweredDiagnostic) {
-    diagnostics.push(unloweredDiagnostic)
-  }
-
-  return {
-    code: next,
-    css,
-    cssFileName,
-    cssPath: path.join(path.dirname(file), cssFileName),
-    needsClientBoundary: outputNeedsClientBoundary(components),
-    diagnostics,
-  }
+  if (!hasSemanticCandidate) return finish([])
+  const compileOptions = { rehomeReactNative: shouldRehome, tagEvidence: !!options.observe }
+  return stage
+    ? stage(canvas.code, stylexBindings, compileOptions, finish)
+    : finish(compiler.compile(canvas.code, stylexBindings, compileOptions))
 }

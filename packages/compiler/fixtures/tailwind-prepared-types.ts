@@ -1,4 +1,5 @@
 import { type CompiledComponent, type CompiledNativeModule, createCompiler } from '../src/index.ts'
+import { type LoweredModule, prepareLowerModule } from '../src/lower.ts'
 import { emitTailwindModules } from '../src/tailwind-project.ts'
 import { TailwindProjectSession } from '../src/tailwind-session.ts'
 
@@ -30,3 +31,9 @@ session.emit('bad', [async (compiler) => compiler.prepareWebModule('')])
 // @ts-expect-error Mixed platform results are not a Native-only result.
 const invalidSession: Promise<CompiledNativeModule[]> = mixedSession
 void invalidSession
+const lowered: Promise<(LoweredModule | undefined)[]> = session.emit('module', [
+  (owner) => prepareLowerModule('', 'empty.tsx', 'empty.tsx', owner, ''),
+])
+// @ts-expect-error A full lowering result is not a primitive component array.
+const notComponents: Promise<CompiledComponent[][]> = lowered
+void notComponents
