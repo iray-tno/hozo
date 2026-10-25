@@ -64,6 +64,28 @@ themes pass `{ themes: { light: 'light', dark: 'dark' } }`; values name Shiki's
 `startLineNumber=10`, insertion/deletion ranges and preserves unknown tokens.
 Markdown integration remains application-owned.
 
+The landing's MDX connection uses the standard Sätteri processor's `mdastPlugins`
+extension in `apps/landing/astro.config.mjs`. Import `MdxCodeBlock` into the MDX
+file and add `hozo` to a fence's metadata to select it:
+
+````mdx
+import { MdxCodeBlock } from '../components/MdxCodeBlock.tsx'
+
+```tsx hozo title="App.tsx" showLineNumbers startLineNumber=7 {2} ins={3} del={4} wrap
+const stable = true
+const highlighted = true
+const added = 'new'
+const removed = 'old'
+```
+````
+
+This application connection highlights at build time with the landing palette.
+Its fences always wrap without Copy, so no client directive is needed. Unknown
+languages become plain text; unknown metadata is retained without executing it.
+Line ranges refer to physical source lines; `startLineNumber` changes only the
+displayed numbers. Other fences keep their existing renderer. The no-script
+MDX probe also exercises a fence nested inside a blockquote.
+
 Build-time `CodeLines`, or a wrapped copy-free CodeBlock, can render in Astro
 without a client directive. The default scrolling block and Copy need hydration
 for overflow observation and clipboard handling. Static markup alone does not

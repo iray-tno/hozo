@@ -206,6 +206,98 @@ try {
   console.log(
     'Landing: wrapped code figures, install, showcase actions, anchors, keyboard focus and reduced motion pass at 320/390/640/768/1280px',
   )
+  for (const width of [320, 768, 1280]) {
+    const page = await browser.newPage({
+      viewport: { width, height: 900 },
+      javaScriptEnabled: false,
+    })
+    await page.route('**/*', (route) =>
+      route.request().url().startsWith(origin) ? route.continue() : route.abort(),
+    )
+    await page.goto(`${origin}/hozo/mdx-example/index.html`)
+    const figure = page.getByRole('figure', { name: 'Migration.tsx', exact: true })
+    assert.equal(await figure.count(), 1)
+    const text = await figure.locator('code > span > :last-child').evaluateAll((lines) =>
+      lines
+        .map((line) => {
+          const copy = line.cloneNode(true)
+          copy.querySelectorAll('[style*="clip-path"]').forEach((prefix) => {
+            prefix.remove()
+          })
+          return copy.textContent
+        })
+        .join('\n'),
+    )
+    assert.equal(
+      text,
+      `const stable = '<View title="&" />'\nconst highlighted = true\nconst added = 'tools/bin'\nconst removed = '</script><script>alert(1)</script>'`,
+    )
+    assert.deepEqual(
+      await figure
+        .locator('code > span > [aria-hidden="true"]')
+        .allTextContents()
+        .then((values) => values.map((value) => value.trim())),
+      ['7', '• 8', '+ 9', '− 10'],
+    )
+    for (const [tag, prefix] of [
+      ['ins', 'Added: '],
+      ['del', 'Removed: '],
+      ['mark', 'Highlighted: '],
+    ]) {
+      assert.equal(await figure.locator(tag).count(), 1)
+      assert.equal(await figure.locator(`${tag} > span[style*="clip-path"]`).textContent(), prefix)
+    }
+    assert.equal(await page.locator('script, astro-island').count(), 0)
+    assert.equal(await figure.locator('button, [tabindex], [role="region"]').count(), 0)
+    const fallback = page.getByRole('figure', { name: 'Plain <fallback> & metadata', exact: true })
+    assert.equal(await fallback.locator('ins').count(), 1)
+    assert.ok((await fallback.textContent()).includes('literal {braces} and `backticks`'))
+    for (const scheme of ['light', 'dark']) {
+      await page.emulateMedia({ colorScheme: scheme })
+      const contrasts = await figure.evaluate((element) => {
+        const canvas = document.createElement('canvas')
+        canvas.width = canvas.height = 1
+        const context = canvas.getContext('2d', { willReadFrequently: true })
+        const luminance = (color) => {
+          context.clearRect(0, 0, 1, 1)
+          context.fillStyle = color
+          context.fillRect(0, 0, 1, 1)
+          const rgb = [...context.getImageData(0, 0, 1, 1).data].slice(0, 3).map((v) => {
+            const c = v / 255
+            return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+          })
+          return rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722
+        }
+        return [...element.querySelectorAll('code span')]
+          .filter((token) => token.childElementCount === 0 && token.textContent.trim())
+          .map((token) => {
+            let background = token
+            while (
+              background.parentElement &&
+              getComputedStyle(background).backgroundColor === 'rgba(0, 0, 0, 0)'
+            )
+              background = background.parentElement
+            const a = luminance(getComputedStyle(token).color),
+              b = luminance(getComputedStyle(background).backgroundColor)
+            return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+          })
+      })
+      assert.ok(
+        contrasts.length > 10 && contrasts.every((ratio) => ratio >= 4.5),
+        `MDX token/gutter contrast at ${width}px in ${scheme}`,
+      )
+    }
+    assert.ok(await figure.evaluate((node) => node.scrollWidth <= node.clientWidth))
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    if (process.env.LANDING_SCREENSHOT_DIR)
+      await figure.locator('..').screenshot({
+        path: path.join(process.env.LANDING_SCREENSHOT_DIR, `mdx-fence-${width}.png`),
+      })
+    await page.close()
+  }
+  console.log(
+    'Landing: MDX opt-in fences preserve literal text, names, numbered semantic marks and contrast without JavaScript at 320/768/1280px',
+  )
   console.log(
     'Landing: Philosophy/Canvas/SVG/Three code figures retain source text and wrap without JavaScript at 320/768/1280px',
   )
