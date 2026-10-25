@@ -40,6 +40,9 @@ After review, put the necessary phrases in
 `expected/<reader>/scenarios/<scenario>.txt`, one per line in reading order.
 Use `#` comments to explain the approval and link its run/revision. Do not
 invent expected phrases from ARIA attributes or an agent's prediction.
+The catalogue's `stories.spec.ts` also captures each story's reading order;
+approve its named-separator reading in `expected/<reader>/<story>.txt`.
+Keyboard scenario approvals exclude the separately recorded warm-up phrases.
 
 Without this file, the new scenarios record `approved: false`, add an
 `unapproved-speech` annotation and print `[unapproved]`. They still fail on

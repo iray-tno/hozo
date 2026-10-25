@@ -8,6 +8,7 @@ import {
   enterFocusMode,
   enterPage,
   here,
+  MAX_STEPS,
   MIN_SPOKEN,
   missingInOrder,
   onWindows,
@@ -164,6 +165,10 @@ test('code block reads named marked lines and announces a real copy', async ({
       },
     })
     assert.ok(reading.phrases.length >= MIN_SPOKEN)
+    assert.ok(
+      reading.steps < MAX_STEPS,
+      'the reader exhausted its budget before finishing the story',
+    )
     assert.deepEqual(reading.truncated, [], 'the reader left code content unmeasured')
     assert.deepEqual(markup, {
       caption: 'paths.ts',
