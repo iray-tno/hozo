@@ -28,6 +28,15 @@ is not zero transform overhead.
 See [retained-module evidence](../measurements/canonical-tailwind-order.md#retaining-the-actual-module-across-preparation).
 See also [session reuse and cancellation](../measurements/canonical-tailwind-order.md#one-project-epoch-reuse-and-cancellation).
 
+The staged boundary now also reaches the real Web `lowerModule` pipeline:
+Canvas rewrites precede the retained primitive parse, and synchronous/staged
+emission share the same namespace/edit/import/diagnostic finalization. This
+remains internal, not installed in adapters. Full-pipeline warm measurements
+still exceed the synchronous control by more than 5%; **default installation
+is stopped for performance review**, not exempted from section 7. A ready
+context should not require cold-path retention/suspension machinery forever.
+See [full-pipeline evidence](../measurements/canonical-tailwind-order.md#staging-the-real-web-lowering-pipeline).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

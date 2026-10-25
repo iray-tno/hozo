@@ -185,6 +185,17 @@ test('one-shot lowering owns finalization and disposes on failure or explicit ca
   const failed = prepareLowerModule(nested, file, file, compiler, root)
   assert.throws(() => failed.emit('{}' as never), /PreparedTailwindContext|context/)
   assert.throws(() => failed.emit(context), /already been emitted or disposed/)
+  const observed = prepareLowerModule(nested, file, file, compiler, root, undefined, {
+    observe: (stage) => {
+      if (stage.stage === 'semantic') throw new Error('observer failed')
+    },
+  })
+  const fullContext = prepareTailwindContext(await order(observed.candidates))
+  assert.throws(() => observed.emit(fullContext), /observer failed/)
+  assert.throws(() => observed.emit(fullContext), /already been emitted or disposed/)
+  const successful = prepareLowerModule(nested, file, file, compiler, root)
+  assert.deepEqual(successful.emit(fullContext), lowerModule(nested, file, file, compiler, root))
+  assert.throws(() => successful.emit(fullContext), /already been emitted or disposed/)
 })
 
 test('empty, ineligible and Canvas-only modules keep their original early-return contracts', async () => {
