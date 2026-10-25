@@ -58,6 +58,13 @@ all observations and judge actual integration by absolute and cumulative
 project cost, separately from device render/cache-hit performance.
 See [Native/matrix evidence](../measurements/canonical-tailwind-order.md#native-ready-attempts-and-larger-candidate-universes).
 
+Metro now also has an internal full-transform ready/retained boundary after
+Canvas rewriting, sharing ordinary Native finalization rather than injecting
+a partial compiler in a test. Complete module metadata, diagnostics, hook slots,
+namespaces and imports survive async preparation. Its worker/config lifecycle
+is not switched yet; no Native-only cascade changes are enabled. See
+[Native staging evidence](../measurements/metro-tailwind-stage.md).
+
 The read-only project snapshot now captures one entry/import graph and derives
 both theme and ordering contexts from those same bytes. Its dependency paths
 include absent discovery entries; a future watcher must replace the matching

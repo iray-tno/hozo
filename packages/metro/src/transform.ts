@@ -16,11 +16,19 @@
 
 import path from 'node:path'
 
-import { type CompiledNativeComponent, type Compiler, createCompiler } from '@hozo/compiler'
+import {
+  type CompiledNativeComponent,
+  type CompiledNativeModule,
+  type Compiler,
+  createCompiler,
+  type PreparedModule,
+  type PreparedTailwindContext,
+  type StylexExternalBinding,
+} from '@hozo/compiler'
 import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
 import { assertRuntimeImportsUnbound, generatedRuntimeImports } from '@hozo/compiler/lower'
-import type { StylexModuleCache } from '@hozo/compiler/project'
+import type { StylexModuleCache, TailwindModuleAttempt } from '@hozo/compiler/project'
 import { importSpecifier, semanticModuleEligible } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
@@ -66,6 +74,84 @@ export function transformHozoSource(
   compiler: Compiler = defaultCompiler(),
   stylexModules?: StylexModuleCache,
 ): string | null {
+  return transformWithModule(
+    code,
+    filename,
+    projectRoot,
+    compiler,
+    stylexModules,
+    (source, bindings, finish) => finish(compiler.compileNativeModule(source, bindings)),
+  )
+}
+
+/** @internal Stage at the real post-Canvas boundary, not an inspection parse
+ * of the authored source. The ordinary/staged paths share all finalization.
+ * Installing project sessions/watchers in Metro remains the adapter's job.
+ */
+export function transformHozoSourceOrPrepare(
+  code: string,
+  filename: string,
+  projectRoot: string | undefined,
+  compiler: Compiler,
+  context?: PreparedTailwindContext,
+  stylexModules?: StylexModuleCache,
+): TailwindModuleAttempt<string | null> {
+  const result = transformWithModule(
+    code,
+    filename,
+    projectRoot,
+    compiler,
+    stylexModules,
+    (source, bindings, finish): TailwindModuleAttempt<string | null> => {
+      const parsed = context
+        ? compiler.compileNativeOrPrepare(source, context, bindings)
+        : compiler.prepareNativeModule(source, bindings)
+      if ('components' in parsed) return { kind: 'complete', output: finish(parsed) }
+      return { kind: 'prepared', module: ownNativeTransform(parsed, finish) }
+    },
+  )
+  return typeof result === 'object' && result !== null
+    ? result
+    : { kind: 'complete', output: result }
+}
+
+function ownNativeTransform(
+  module: PreparedModule<CompiledNativeModule>,
+  finish: (module: CompiledNativeModule) => string | null,
+): PreparedModule<string | null> {
+  let owned: { module: typeof module; finish: typeof finish } | undefined = { module, finish }
+  return {
+    candidates: module.candidates,
+    emit(context) {
+      const current = owned
+      if (!current) throw new Error('Native transform has already been emitted or disposed')
+      owned = undefined
+      try {
+        return current.finish(current.module.emit(context))
+      } finally {
+        current.module.dispose()
+      }
+    },
+    dispose() {
+      const current = owned
+      owned = undefined
+      current?.module.dispose()
+    },
+  }
+}
+
+function transformWithModule<T>(
+  code: string,
+  filename: string,
+  projectRoot: string | undefined,
+  compiler: Compiler,
+  stylexModules: StylexModuleCache | undefined,
+  compile: (
+    source: string,
+    bindings: StylexExternalBinding[] | undefined,
+    finish: (module: CompiledNativeModule) => string | null,
+  ) => T,
+): T | string | null {
   if (!semanticModuleEligible(filename, 'native')) {
     return null
   }
@@ -95,9 +181,20 @@ export function transformHozoSource(
   const stylexBindings = code.includes('@stylexjs/stylex')
     ? stylexModules?.bindingsFor(path.resolve(filename))
     : undefined
-  const compiled = hasSemanticCandidate
-    ? compiler.compileNativeModule(code, stylexBindings)
-    : undefined
+  if (!hasSemanticCandidate)
+    return finishNativeTransform(code, filename, projectRoot, undefined, canvas.touched)
+  return compile(code, stylexBindings, (compiled) =>
+    finishNativeTransform(code, filename, projectRoot, compiled, canvas.touched),
+  )
+}
+
+function finishNativeTransform(
+  code: string,
+  filename: string,
+  projectRoot: string | undefined,
+  compiled: CompiledNativeModule | undefined,
+  canvasTouched: boolean,
+): string | null {
   // A class React Native cannot draw, in a class prop no component lowered
   // -- one handed to a pattern (#1166). Before the early return: a file that
   // only wears patterns lowers nothing and is exactly where these live. Not
@@ -113,7 +210,7 @@ export function transformHozoSource(
     )
   }
   if (!compiled || compiled.components.length === 0) {
-    return canvas.touched ? code : null
+    return canvasTouched ? code : null
   }
   const components = compiled.components
 
