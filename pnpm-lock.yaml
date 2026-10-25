@@ -118,6 +118,12 @@ importers:
       '@hozo/compiler':
         specifier: workspace:*
         version: link:../../packages/compiler
+      '@hozo/tailwind':
+        specifier: workspace:*
+        version: link:../../packages/tailwind
+      '@hozo/typography':
+        specifier: workspace:*
+        version: link:../../packages/typography
       '@hozo/vite':
         specifier: workspace:*
         version: link:../../packages/vite
@@ -136,6 +142,9 @@ importers:
       playwright-core:
         specifier: ^1.63.0
         version: 1.63.0
+      shiki:
+        specifier: 4.4.3
+        version: 4.4.3
       typescript:
         specifier: ^5.8.2
         version: 5.9.3

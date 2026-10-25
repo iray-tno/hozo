@@ -524,12 +524,13 @@ checks.push(
     ])
   }
 
-  // The side-by-side section's three samples are whole components, so each
-  // has to be broken into lines. The integration snippets further down are
+  // CodeLines renders each logical line as a flex row, without adding a
+  // newline text node. Count those rows as well as the older plain snippets.
+  // The integration snippets further down are
   // two or three lines by design and are not held to this.
   const start = html.indexOf('id="code-showcase"')
   const showcase = start === -1 ? '' : html.slice(start, html.indexOf('</section>', start))
-  const samples = samplesIn(showcase)
+  const samples = samplesIn(showcase.replaceAll('<span style="display:flex;min-width:100%">', '\n'))
   checks.push([samples.length === 3, `expected 3 side-by-side samples, found ${samples.length}`])
   for (const sample of samples) {
     checks.push([

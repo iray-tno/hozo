@@ -17,7 +17,7 @@ import path from 'node:path'
 import { createCompiler } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
 
-for (const name of ['StaticCard.tsx', 'StaticCodeSample.tsx']) {
+for (const name of ['StaticCard.tsx', 'StaticCodeSample.tsx', 'CodeShowcase.tsx']) {
   const file = path.join('src', 'components', name)
   const lowered = lowerModule(
     readFileSync(file, 'utf8'),

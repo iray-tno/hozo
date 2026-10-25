@@ -77,6 +77,32 @@ try {
       true,
       `install overflow at ${width}px`,
     )
+    const comparison = page.locator('#code-showcase')
+    for (const title of [
+      'Universal Source: NotificationCard.tsx',
+      'Web Lowering (DOM + CSS + W3C ARIA)',
+      'Native Lowering (Fabric / StyleSheet)',
+    ]) {
+      const figure = comparison.getByRole('figure', { name: title, exact: true })
+      assert.equal(await figure.count(), 1)
+      assert.equal(
+        await figure.locator('pre').evaluate((pre) => getComputedStyle(pre).whiteSpace),
+        'pre-wrap',
+      )
+      assert.ok(
+        await figure.evaluate((element) => element.scrollWidth <= element.clientWidth),
+        `${title} overflow at ${width}px`,
+      )
+      assert.ok((await figure.locator('pre code > span').count()) >= 8)
+    }
+    assert.equal(await comparison.locator('button, [tabindex]').count(), 0)
+    const source = (
+      await comparison.locator('pre code').first().locator(':scope > span').allTextContents()
+    ).join('\n')
+    assert.ok(
+      source.includes('className="p-6 rounded-2xl bg-yakisugi-800 border border-hinoki/20"'),
+    )
+    assert.ok(source.includes('<Button onPress={onDismiss}'))
     const trigger = page.getByRole('link', { name: 'Try the showcase', exact: true })
     await trigger.click()
     const section = page.locator('#try-hozo')
@@ -121,6 +147,9 @@ try {
     )
     if (process.env.LANDING_SCREENSHOT_DIR) {
       mkdirSync(process.env.LANDING_SCREENSHOT_DIR, { recursive: true })
+      await comparison.screenshot({
+        path: path.join(process.env.LANDING_SCREENSHOT_DIR, `code-showcase-${width}.png`),
+      })
       await section.screenshot({
         path: path.join(process.env.LANDING_SCREENSHOT_DIR, `try-hozo-${width}.png`),
       })
@@ -132,7 +161,7 @@ try {
     await page.close()
   }
   console.log(
-    'Landing: install, showcase actions, anchors, keyboard focus and reduced motion pass at 320/390/640/768/1280px',
+    'Landing: wrapped code figures, install, showcase actions, anchors, keyboard focus and reduced motion pass at 320/390/640/768/1280px',
   )
 } finally {
   await browser?.close()
