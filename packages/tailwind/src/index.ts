@@ -18,6 +18,7 @@ export {
   loadProjectTheme,
   type ProjectThemeOptions,
 } from './project.ts'
+export { loadProjectTailwindSnapshot, type ProjectTailwindSnapshot } from './project-snapshot.ts'
 export { loadStaticProjectTheme, type StaticProjectTheme } from './static-project.ts'
 export {
   loadClassOrder,
