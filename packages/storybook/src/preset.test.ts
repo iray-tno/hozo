@@ -41,15 +41,34 @@ test('forwards every option, not the ones it happens to name', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-sb-'))
   try {
     writeFileSync(path.join(root, 'app.tsx'), "export const c = 'bg-emerald-500'\n")
+    const watched: string[] = []
     const [plugin] = flatten(viteFinal({ root: '/elsewhere' }, { root }).plugins) as {
       configResolved: (config: { root: string }) => void
-      buildStart: (this: { warn: () => void; info: () => void }) => Promise<void>
+      buildStart: (this: {
+        warn: () => void
+        info: () => void
+        addWatchFile: (file: string) => void
+      }) => Promise<void>
+      closeBundle: () => void
     }[]
     plugin.configResolved({ root: '/elsewhere' })
-    await plugin.buildStart.call({ warn: () => {}, info: () => {} })
+    try {
+      await plugin.buildStart.call({
+        warn: () => {},
+        info: () => {},
+        addWatchFile: (file) => watched.push(file),
+      })
 
-    const css = readFileSync(path.join(root, 'node_modules', '.hozo', 'candidates.css'), 'utf8')
-    assert.match(css, /\.bg-emerald-500/)
+      const css = readFileSync(path.join(root, 'node_modules', '.hozo', 'candidates.css'), 'utf8')
+      assert.match(css, /\.bg-emerald-500/)
+      assert.ok(
+        watched.includes(path.join(root, 'global.css')),
+        'forwards the project root to stylesheet discovery watches',
+      )
+      assert.ok(watched.every((file) => !file.startsWith('/elsewhere/')))
+    } finally {
+      plugin.closeBundle()
+    }
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

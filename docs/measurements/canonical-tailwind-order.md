@@ -1020,3 +1020,86 @@ use the captured set, not that the OS provided a transactional filesystem view.
 Active project snapshots must be bounded and obsolete ones released. No new
 device runtime, default adapter, coverage/refusal, root packing/app suite,
 fresh pixels/AT, full Metro clock or production/memory-size claim.
+
+## Default Vite epoch and session integration
+
+The actual Vite build/dev hooks now consume the captured project snapshot,
+`TailwindProjectSession.runModule` and `lowerModuleOrPrepare`, not a test-only
+compiler injection. Ready contexts take the actual-parse route; misses retain
+the same post-Canvas primitive parse across preparation. Static/module imports,
+diagnostics, StyleX resolution, helpers, MDX unfolding/refolding and the existing
+CSS finalizer remain shared. StyleX registries are refreshed on graph/epoch
+changes, not rebuilt per warm file. Metro/Next and new cascade winners are not
+enabled by this change.
+
+The runtime candidate cache intentionally subtracts statically compiled class
+spans. Initially reusing that cache as the ordering universe made a regression
+test fail: its only seed was `fill-red-500`, while the actual primitive parse
+needed `p-4`, so every file took the cold path. The fix does **not** put static
+classes back into the distributed candidate stylesheet. Instead,
+`scanTailwindOrderCandidates` exposes the existing byte scanner without an AST
+parse or consumed-span subtraction. An in-memory project ordering seed includes
+static and dynamic names, while the unchanged runtime cache alone owns emitted
+candidate CSS. This is an approximation, not a new support/completeness claim;
+false positives describe unused names and actual parsed units remain decisive.
+
+At project start, the ordering seed reads discovered sources, including sources
+that the persistent runtime cache can skip. This extra initial byte scan/read is
+not free or a warm-start speedup. Unchanged warm files reuse a revision rather
+than sorting the whole project universe again. Tests with **24 distinct static
+source files** observe one retained first parse and **23 actual ready hits**, no
+ordinary primitive compile/global setter and an empty runtime candidate sheet.
+An additional code-only edit stays ready and does not request ordering again.
+An escaped class missed by the lexical seed expands from the actual retained
+parse, then becomes ready on the next call. No class is assigned a guessed rank.
+
+Candidate-sheet writes now await the order and guard the candidate revision;
+the previous provisional write/fire-and-forget ordering callback is removed.
+Source requests are keyed by environment plus the full derived module ID. A
+newer request/deletion rejects old delivery before companion-file writes. An
+epoch edit closes the old session; even a non-cooperative result that finished
+just before invalidation cannot write or return old output afterward. Import
+receipts and discovery selection are checked once before epoch adoption, not by
+polling on warm transforms. CSS dependency/discovery changes replace the matching
+compiler, session and stylesheet facts and invalidate client/SSR dev graphs,
+with a full reload. Candidate/source facts remain separate from theme epochs.
+
+Concurrent parsed-name expansion retries a result whose namespace became
+obsolete before delivery; this exceptional retry can reparse an affected module.
+Ordinary warm calls do not. On dev namespace changes, previously transformed
+modules are invalidated. Production-wide collect/rebuild of transformed-only or
+otherwise unscannable additions is still needed **before** enabling new common
+winners or cross-module rank data; current prepared output remains pass-through.
+This is not a claim that every production module already shares a final emitted
+rank namespace. Keep #1230 open for that work.
+
+Unassessed/broken stylesheets keep the existing warning/fallback behavior,
+without preparing a false default canonical context. A `fresh` option bypasses
+both project-theme and entry-text design-system caches when replacing such an
+epoch. Existing callers keep their memoization contract. A test changes only an
+imported spacing/breakpoint definition and verifies fresh theme and order facts.
+Static-only audit safety and its provenance reporting are unchanged.
+
+New hook/unit and real dev-server tests cover default cold/ready routing,
+post-Canvas source, static CSS non-duplication, actual-name expansion, shared
+preparation/invalidation, stale delivery, same-source supersession, distinct
+environment/query IDs, deletion and acquisition validation. Real Vite requests
+verify that imported CSS changes update both static and candidate spacing
+without a source edit/restart, and that creating/deleting a higher-priority
+entry switches themes. These are host/build/dev-server checks, not fresh device
+pixels, AT or browser-paint evidence.
+
+CPU 1 / Idle / serial validation: Rust **1,040 passed**, formatting/all-target
+Clippy passed; addon rebuilt before JS; compiler **339 passed plus one existing
+Windows symlink skip**; Tailwind **103 passed**; Vite **39 passed**, including
+ten lifecycle/hook tests and two new real-server tests. A separate complete-code
+and companion-CSS comparison matches ordinary synchronous lowering. Package
+builds, lint (**1,680 files**), docs, fixture generation/check and source-cache
+guards (**9 passed**) passed. The generated Native fixture changes only three
+source hashes, not its compiled component. Turbo dry-run includes the new Vite
+files, normal package builds and the compiler's Rust-dependent native build.
+
+No repeated microbenchmark, Metro/GPU/app
+build or full root packing/application suite is run locally; CI supplies those
+integration checks. No startup/peak-memory or production/WASM bundle-size gain
+is claimed. The new seed has no WASM API and adds no device resolver/subscription.

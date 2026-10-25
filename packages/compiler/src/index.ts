@@ -370,6 +370,7 @@ interface NativeBinding {
   summarizeStylexModule(source: string, sourceFile?: string): StylexModuleSummary
   summarizeTextForwarding(source: string): TextForwardingSummary
   classHelperCandidates(source: string): { specifier: string; imported: string }[]
+  scanTailwindOrderCandidates(source: string): string[]
   nativeClassReport(source: string): NativeClassFinding[]
   nativeClassVerdicts(classNames: string[]): (NativeClassVerdict | null)[]
   summarizeClassHelpers(source: string): string[]
@@ -960,6 +961,14 @@ export function nativeClassVerdicts(classNames: readonly string[]): (NativeClass
 
 export function classHelperCandidates(source: string): { specifier: string; imported: string }[] {
   return loadNative().classHelperCandidates(source)
+}
+
+/** @internal Byte-scan an ordering seed without removing static classes.
+ * Never feed this set to runtime candidate CSS generation. False positives
+ * are allowed; actual parsed completeness still decides ready emission.
+ */
+export function scanTailwindOrderCandidates(source: string): string[] {
+  return loadNative().scanTailwindOrderCandidates(source)
 }
 
 /**

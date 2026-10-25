@@ -31,7 +31,8 @@ See also [session reuse and cancellation](../measurements/canonical-tailwind-ord
 The staged boundary now also reaches the real Web `lowerModule` pipeline:
 Canvas rewrites precede the retained primitive parse, and synchronous/staged
 emission share the same namespace/edit/import/diagnostic finalization. This
-remains internal, not installed in adapters. Full-pipeline warm measurements
+now reaches the default Vite integration described below; other adapters remain
+pending. Full-pipeline warm measurements
 exceed the synchronous control by more than 5%, which triggered performance
 review rather than a timer-based CI failure. The later small-example review
 below accepts the measured absolute costs; actual project integration still
@@ -63,8 +64,20 @@ include absent discovery entries; a future watcher must replace the matching
 compiler/session and invalidate dependent outputs when they change. Candidate
 preparation rebuilds Tailwind's mutable analysis state from captured CSS, rather
 than sharing a registry whose variant keys depend on preparation history.
-Existing adapters are not switched in this layer. See
+That snapshot layer did not itself switch adapters. See
 [snapshot evidence and limits](../measurements/canonical-tailwind-order.md#one-captured-project-stylesheet-epoch).
+
+Vite build/dev now use that captured epoch and `runModule`/`lowerModuleOrPrepare`
+by default when the snapshot is available. Candidate CSS uses the same snapshot;
+CSS dependency/discovery edits retire the matching compiler/session, reject late
+code delivery and invalidate already transformed dev modules. An approximate,
+no-AST ordering seed includes static classes **without** adding them to runtime
+candidate CSS. Actual parsed units still expand an incomplete seed; warm files
+use the ready path. Unassessed/broken configuration preserves the existing warned
+lowering path, never a fabricated canonical context. Metro/Next installation,
+production-wide reconciliation of transformed-only additions, new common cascade
+winners and broader portable extraction remain open. See
+[Vite integration evidence](../measurements/canonical-tailwind-order.md#default-vite-epoch-and-session-integration).
 
 ## 1. Restart, not another family-specific patch
 

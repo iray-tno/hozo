@@ -14,6 +14,8 @@ export const DEFAULT_CSS_FILES = [
 ] as const
 
 export interface ProjectThemeOptions {
+  /** Bypass entry-text caches when replacing a live project epoch. */
+  fresh?: boolean
   /** Tailwind entry stylesheet, relative to the project root. */
   css?: string
   /** Receives actionable theme discovery and parsing diagnostics. */
@@ -28,6 +30,7 @@ export function loadProjectTheme(
   options: ProjectThemeOptions = {},
 ): Promise<Theme | undefined> {
   const root = path.resolve(projectRoot)
+  if (options.fresh) return load(root, options.css, options.warn, true)
   const key = `${root}\u0000${options.css ?? ''}`
   let pending = cache.get(key)
   if (!pending) {
@@ -58,7 +61,12 @@ export async function loadProjectClassOrder(
     const file = path.resolve(root, relative)
     if (!existsSync(file)) continue
     try {
-      return await loadClassOrder(readFileSync(file, 'utf8'), path.dirname(file), candidates)
+      return await loadClassOrder(
+        readFileSync(file, 'utf8'),
+        path.dirname(file),
+        candidates,
+        options,
+      )
     } catch {
       // Reported already by `loadProjectTheme`, which reads the same file
       // and runs first. Falling through to the defaults keeps one warning
@@ -67,20 +75,21 @@ export async function loadProjectClassOrder(
     }
   }
   const dir = tailwindPackageDir()
-  return loadClassOrder('@import "tailwindcss";', dir, candidates)
+  return loadClassOrder('@import "tailwindcss";', dir, candidates, options)
 }
 
 async function load(
   projectRoot: string,
   configured: string | undefined,
   warn: ((message: string) => void) | undefined,
+  fresh = false,
 ): Promise<Theme | undefined> {
   const candidates = configured ? [configured] : DEFAULT_CSS_FILES
   for (const relative of candidates) {
     const file = path.resolve(projectRoot, relative)
     if (!existsSync(file)) continue
     try {
-      return await loadTheme(readFileSync(file, 'utf8'), path.dirname(file))
+      return await loadTheme(readFileSync(file, 'utf8'), path.dirname(file), { fresh })
     } catch (error) {
       warn?.(
         `[hozo] couldn't read the theme from ${relative}, so utilities resolve against ` +

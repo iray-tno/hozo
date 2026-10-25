@@ -142,6 +142,14 @@ pub fn source_uses_tailwind(source: &str) -> bool {
     !scan_outside(source, &[]).is_empty()
 }
 
+/// Build-time ordering seed, including statically compiled utilities.
+/// No AST parse or consumed-span subtraction; false positives describe an
+/// extra name, never add rules to the runtime candidate stylesheet. Actual
+/// parsed units must still check completeness before emitting.
+pub fn scan_tailwind_order_candidates(source: &str) -> Vec<String> {
+    scan_outside(source, &[])
+}
+
 pub fn scan_class_candidates(source: &str) -> Vec<String> {
     scan_class_candidates_with(source, None)
 }
@@ -258,6 +266,26 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ordering_seed_keeps_static_classes_without_growing_runtime_candidates() {
+        let source = r#"import { View } from '@hozo/core';
+            const el = <View className="p-4 hover:p-2" />;"#;
+        assert!(scan_class_candidates(source).is_empty());
+        assert_eq!(
+            scan_tailwind_order_candidates(source),
+            vec!["p-4", "hover:p-2"]
+        );
+    }
+
+    #[test]
+    fn ordering_seed_is_lexical_not_a_completeness_or_expression_verdict() {
+        assert_eq!(
+            scan_tailwind_order_candidates("function ( 'p-4'"),
+            vec!["p-4"]
+        );
+        assert!(scan_tailwind_order_candidates("const c = 'p-' + '4'").is_empty());
+    }
 
     #[test]
     fn a_component_named_like_a_primitive_keeps_its_classes() {
