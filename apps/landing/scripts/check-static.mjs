@@ -23,6 +23,7 @@ for (const name of [
   'CodeShowcase.tsx',
   'StaticCodeSnippet.tsx',
   'Philosophy.tsx',
+  'MdxCodeBlock.tsx',
 ]) {
   const file = path.join('src', 'components', name)
   const lowered = lowerModule(

@@ -6,6 +6,7 @@ title: Hozo components in Astro MDX
 import { View, Text } from '@hozo/core'
 import { StaticCodeSample } from '../components/StaticCodeSample.tsx'
 import { StaticCard } from '../components/StaticCard.tsx'
+import { MdxCodeBlock } from '../components/MdxCodeBlock.tsx'
 
 # Hozo components in Astro MDX
 
@@ -28,3 +29,23 @@ again afterwards, which it was already doing to its own output.
 <View className="p-4 gap-2 rounded-lg">
   <Text className="text-xl">inline in Astro MDX</Text>
 </View>
+
+## Build-time code fences
+
+The `hozo` flag selects this application's CodeBlock connection. Titles, line
+numbers and line marks come from the fence metadata; these examples wrap and
+render without JavaScript.
+
+```tsx hozo title="Migration.tsx" showLineNumbers startLineNumber=7 {2} ins={3} del={4} wrap
+const stable = '<View title="&" />'
+const highlighted = true
+const added = 'tools/bin'
+const removed = '</script><script>alert(1)</script>'
+```
+
+An unsupported language stays readable as plain text, with the same marks.
+
+> ```hozo-unknown hozo title="Plain <fallback> & metadata" ins={2}
+> <custom>keep & escape</custom>
+> literal {braces} and `backticks`
+> ```

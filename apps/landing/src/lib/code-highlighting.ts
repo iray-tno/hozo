@@ -1,7 +1,12 @@
 import type { Theme } from '@hozo/tailwind'
 import type { CodeLine } from '@hozo/typography/code/model'
 import { fromShiki } from '@hozo/typography/code/shiki'
-import { createHighlighter, type ThemeRegistration } from 'shiki'
+import {
+  type BundledLanguage,
+  bundledLanguages,
+  createHighlighter,
+  type ThemeRegistration,
+} from 'shiki'
 
 export interface HighlightedListing {
   code: string
@@ -12,6 +17,7 @@ export interface HighlightedListing {
 export async function highlightCodeListings<T extends Record<string, string>>(
   sources: T,
   theme: Theme,
+  language = 'tsx',
 ): Promise<{ [K in keyof T]: HighlightedListing }> {
   const color = (name: string) => {
     const value = theme.colors.find((entry) => entry.token === name)?.hex
@@ -42,16 +48,19 @@ export async function highlightCodeListings<T extends Record<string, string>>(
       },
     ],
   }
-  const highlighter = await createHighlighter({ themes: [codeTheme], langs: ['tsx'] })
+  const requested = language.toLowerCase()
+  const lang = Object.hasOwn(bundledLanguages, requested) ? (requested as BundledLanguage) : 'text'
+  const highlighter = await createHighlighter({
+    themes: [codeTheme],
+    langs: lang === 'text' ? [] : [lang],
+  })
   try {
     return Object.fromEntries(
       Object.entries(sources).map(([name, code]) => [
         name,
         {
           code,
-          lines: fromShiki(
-            highlighter.codeToTokens(code, { lang: 'tsx', theme: codeTheme.name! }).tokens,
-          ),
+          lines: fromShiki(highlighter.codeToTokens(code, { lang, theme: codeTheme.name! }).tokens),
         },
       ]),
     ) as { [K in keyof T]: HighlightedListing }

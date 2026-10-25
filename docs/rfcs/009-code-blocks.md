@@ -74,9 +74,16 @@ vertical region; SVG source scrolls horizontally. Overflow observers supply a
 keyboard stop only when needed. Tailwind hydrates its three code panels as one
 small island; StyleX and SVG reuse their existing interactive boundaries.
 
-No virtualized renderer or long-block device frame budget is claimed. Markdown
-integration and Envarly adoption remain follow-ups; this adoption does not close
-the whole tracking issue.
+The landing has an opt-in MDX connection through Sätteri's mdast plugin API.
+Fences marked `hozo` use the imported MdxCodeBlock renderer with build-time
+tokens, literal metadata, line numbers and semantic marks. They always wrap
+without Copy. Unsupported languages fall back to text; ordinary fences retain
+the existing renderer. The no-script MDX probe covers nested fences and escaped
+markup. This is an application connection, not a published Markdown plugin.
+
+No virtualized renderer or long-block device frame budget is claimed. Envarly
+adoption is deferred until release and is outside the current Hozo work. Real
+device/reader checks and broader Markdown adoption remain follow-ups.
 
 ## Native bundle cost
 

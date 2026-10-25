@@ -107,6 +107,26 @@ const checks = [
   [/component-url="[^"]*Kumimono\./.test(html), 'the interactive island is not Kumimono'],
   [/client="visible"/.test(html), 'the 3D island must hydrate only when visible'],
   [!/<astro-island/.test(mdx) && !/<script/.test(mdx), 'the static MDX probe shipped JavaScript'],
+  [mdx.includes('>Migration.tsx</figcaption>'), 'the opted-in MDX fence has no named figure'],
+  [
+    mdx.includes('>Plain &lt;fallback&gt; &amp; metadata</figcaption>'),
+    'the nested fallback fence lost its literal metadata',
+  ],
+  [
+    (mdx.match(/<ins\b/g) ?? []).length === 2 &&
+      (mdx.match(/<del\b/g) ?? []).length === 1 &&
+      (mdx.match(/<mark\b/g) ?? []).length === 1,
+    'MDX fence line marks did not reach semantic elements',
+  ],
+  [mdx.includes('&lt;/script&gt;&lt;script&gt;'), 'MDX source was not preserved as escaped text'],
+  [!mdx.includes('class="expressive-code"'), 'the opted-in fence reached the default highlighter'],
+  [
+    readFileSync(
+      path.join(dist, 'docs', 'getting-started', 'astro', 'index.html'),
+      'utf8',
+    ).includes('class="expressive-code"'),
+    'ordinary documentation fences lost their existing renderer',
+  ],
 ]
 
 // The same component reached from MDX rather than from `.astro`, which
