@@ -380,6 +380,12 @@ interface NativeBinding {
 /// The napi class itself. It knows nothing about `sources` beyond having
 /// been handed them; `createCompiler` is what makes them readable back.
 interface NativeCompiler {
+  compileWebOrPrepare(
+    source: string,
+    context: PreparedTailwindContext,
+    bindings?: StylexExternalBinding[],
+    options?: CompileOptions,
+  ): CompiledComponent[] | PreparedModule<CompiledComponent[]>
   prepareWebModule(
     source: string,
     bindings?: StylexExternalBinding[],
@@ -601,6 +607,18 @@ function annotateWeb(results: CompiledComponent[], fonts: FontAvailability | und
   }))
 }
 
+function annotatePreparedWeb(
+  prepared: PreparedModule<CompiledComponent[]>,
+  availability: FontAvailability | undefined,
+): PreparedModule<CompiledComponent[]> {
+  const fonts = availability && structuredClone(availability)
+  return {
+    candidates: Object.freeze(prepared.candidates),
+    emit: (context) => annotateWeb(prepared.emit(context), fonts),
+    dispose: () => prepared.dispose(),
+  }
+}
+
 function annotateNative(results: CompiledNativeComponent[], fonts: FontAvailability | undefined) {
   return results.map((result) => ({
     ...result,
@@ -612,6 +630,15 @@ function annotateNative(results: CompiledNativeComponent[], fonts: FontAvailabil
 }
 
 export interface Compiler {
+  /** @internal Emit directly only when the actual parse is complete in context.
+   * A miss returns that same parse, never a second parsing attempt.
+   */
+  compileWebOrPrepare(
+    source: string,
+    context: PreparedTailwindContext,
+    bindings?: StylexExternalBinding[],
+    options?: CompileOptions,
+  ): CompiledComponent[] | PreparedModule<CompiledComponent[]>
   /** @internal RFC 007: retain one actual parse across async preparation.
    * Emission consumes the module and requires an explicitly prepared context;
    * it does not read mutable Compiler configuration at emit time.
@@ -718,14 +745,15 @@ export function createCompiler(
   const allowed = sources ? [...sources] : [...DEFAULT_PRIMITIVE_SOURCES]
   const inner = new (loadNative().Compiler)(theme, allowed)
   return {
+    compileWebOrPrepare: (source, context, bindings, options) => {
+      const result = inner.compileWebOrPrepare(source, context, bindings, options)
+      return Array.isArray(result)
+        ? annotateWeb(result, fontAvailability)
+        : annotatePreparedWeb(result, fontAvailability)
+    },
     prepareWebModule: (source, bindings, options) => {
       const prepared = inner.prepareWebModule(source, bindings, options)
-      const fonts = fontAvailability && structuredClone(fontAvailability)
-      return {
-        candidates: Object.freeze(prepared.candidates),
-        emit: (context) => annotateWeb(prepared.emit(context), fonts),
-        dispose: () => prepared.dispose(),
-      }
+      return annotatePreparedWeb(prepared, fontAvailability)
     },
     prepareNativeModule: (source, bindings, sourceFile, options) => {
       validateNativeOptions(options)

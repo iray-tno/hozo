@@ -25,7 +25,12 @@ export {
   type StylexResolvedBindings,
 } from './stylex-project.ts'
 export { emitTailwindModules } from './tailwind-project.ts'
-export { TailwindPreparationCancelled, TailwindProjectSession } from './tailwind-session.ts'
+export {
+  TailwindCandidateUniverse,
+  type TailwindModuleAttempt,
+  TailwindPreparationCancelled,
+  TailwindProjectSession,
+} from './tailwind-session.ts'
 
 /** Extensions the project walk reads from disk. */
 const SCANNABLE = new Set(['.tsx', '.jsx', '.ts', '.js', '.mts', '.mjs'])

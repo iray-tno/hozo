@@ -15,7 +15,9 @@ execFileSync(process.execPath, ['packages/compiler/scripts/build-native.mjs'], {
 })
 const { createCompiler } = await import('../packages/compiler/src/index.ts')
 const lowering = await import('../packages/compiler/src/lower.ts')
-const { TailwindProjectSession } = await import('../packages/compiler/src/tailwind-session.ts')
+const { TailwindProjectSession, TailwindCandidateUniverse } = await import(
+  '../packages/compiler/src/tailwind-session.ts'
+)
 const { loadTheme, prepareTailwindOrder, tailwindPackageDir } = await import(
   '../packages/tailwind/src/theme.ts'
 )
@@ -27,7 +29,9 @@ const css = readFileSync(path.join(base, 'theme.css'), 'utf8')
 const theme = await loadTheme(css, base)
 const compiler = createCompiler(theme)
 const count = 16,
-  samples = 7
+  // LCM(three old paths, four with the direct path): every path occupies
+  // each clock position equally. All first observations remain included.
+  samples = 12
 const sources = Array.from({ length: count }, (_, index) => {
   const canvas = index % 4 === 0,
     stylex = index % 4 === 1
@@ -51,9 +55,13 @@ compiler.setTailwindOrder(
 )
 const fileFor = (index) => path.join(root, `artifacts/lower-cost/Row${index}.tsx`)
 const idFor = (index) => `${fileFor(index)}${index % 3 === 0 ? '?fixture=derived' : ''}`
+// Inputs an adapter already has; do not generate an extra id/path only for
+// the per-file session calls inside their measurement clock.
+const files = sources.map((_, index) => fileFor(index))
+const ids = sources.map((_, index) => idFor(index))
 const ordinary = () =>
   sources.map((source, index) =>
-    lowering.lowerModule(source, idFor(index), fileFor(index), compiler, root),
+    lowering.lowerModule(source, ids[index], files[index], compiler, root),
   )
 const expected = ordinary()
 for (const output of expected) assert.ok(output?.code && output.css)
@@ -65,11 +73,15 @@ let session,
   firstSessionMs
 const collectors = sources.map(
   (source, index) => (owner) =>
-    lowering.prepareLowerModule(source, idFor(index), fileFor(index), owner, root),
+    lowering.prepareLowerModule(source, ids[index], files[index], owner, root),
 )
+const candidateUniverse = TailwindCandidateUniverse
+  ? new TailwindCandidateUniverse(universe)
+  : undefined
 if (typeof lowering.prepareLowerModule === 'function') {
   stages.sessionReadyBatch = []
   stages.sessionReadyFiles = []
+  if (typeof lowering.lowerModuleOrPrepare === 'function') stages.sessionReadyDirect = []
   session = new TailwindProjectSession(compiler, async (names) => {
     sessionPreparations++
     return JSON.stringify((await prepareTailwindOrder(css, base, names)).snapshot)
@@ -78,24 +90,43 @@ if (typeof lowering.prepareLowerModule === 'function') {
   assert.deepEqual(await session.emit('batch', collectors, universe), expected)
   firstSessionMs = performance.now() - start
 }
-for (let sample = 0; sample < samples; sample++) {
-  let start = performance.now()
-  const control = ordinary()
-  stages.synchronous.push(performance.now() - start)
-  assert.deepEqual(control, expected)
-  if (!session) continue
-  start = performance.now()
-  const batch = await session.emit('batch', collectors, universe)
-  stages.sessionReadyBatch.push(performance.now() - start)
-  assert.deepEqual(batch, expected)
-  start = performance.now()
-  const files = []
-  for (let index = 0; index < sources.length; index++) {
-    const [output] = await session.emit(idFor(index), [collectors[index]], universe)
-    files.push(output)
+const stageOrder = []
+const measure = async (stage) => {
+  const start = performance.now()
+  let output
+  if (stage === 'synchronous') output = ordinary()
+  else if (stage === 'sessionReadyBatch') output = await session.emit('batch', collectors, universe)
+  else {
+    output = []
+    for (let index = 0; index < sources.length; index++) {
+      if (stage === 'sessionReadyFiles') {
+        const [value] = await session.emit(ids[index], [collectors[index]], universe)
+        output.push(value)
+      } else {
+        output.push(
+          await session.runModule(ids[index], candidateUniverse, (owner, context) =>
+            lowering.lowerModuleOrPrepare(
+              sources[index],
+              ids[index],
+              files[index],
+              owner,
+              root,
+              context,
+            ),
+          ),
+        )
+      }
+    }
   }
-  stages.sessionReadyFiles.push(performance.now() - start)
-  assert.deepEqual(files, expected)
+  stages[stage].push(performance.now() - start)
+  assert.deepEqual(output, expected)
+}
+for (let sample = 0; sample < samples; sample++) {
+  const keys = Object.keys(stages),
+    offset = sample % keys.length
+  const order = [...keys.slice(offset), ...keys.slice(0, offset)]
+  stageOrder.push(order)
+  for (const stage of order) await measure(stage)
 }
 if (session) {
   assert.equal(sessionPreparations, 1)
@@ -104,7 +135,7 @@ if (session) {
 console.log(
   JSON.stringify(
     {
-      schema: 1,
+      schema: 2,
       profile: 'debug',
       node: process.version,
       rust: execFileSync('rustc', ['--version'], { cwd: root, encoding: 'utf8' }).trim(),
@@ -121,6 +152,7 @@ console.log(
       provenance: orderProvenance(),
       firstSessionMs,
       sessionPreparations,
+      stageOrder,
       outputUnchanged: true,
       stages: Object.fromEntries(
         Object.entries(stages).map(([stage, values]) => [
@@ -132,6 +164,7 @@ console.log(
         'Real Web lowerModule, 16 synthetic modules with nested Canvas, local StyleX, secondary slots, UTF-16 and derived IDs; not a whole app or Native module pipeline.',
         'Includes Canvas edits, primitive parsing/emission, namespaces, imports, diagnostics and cleanup. Theme/compiler construction and project preparation are outside synchronous/warm clocks.',
         'The staged path uses one full known lexical universe, not actual Vite/Metro watchers or project discovery. No new ordering winners.',
+        'Stage order rotates per sample, with every sample retained. File IDs/paths and an immutable ready candidate universe are prepared outside clocks; no forced GC or discarded warm-up rounds.',
         'No startup/peak-memory, large-universe normalization, browser/device pixels/AT or production bundle measurement; all clock samples retained, no CI threshold or blanket speedup claim.',
       ],
     },

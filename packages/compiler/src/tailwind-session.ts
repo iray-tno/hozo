@@ -32,6 +32,31 @@ type PendingContext = {
 type Collector = (compiler: Compiler) => PreparedModule<unknown>
 type CollectedResult<C extends Collector> = ReturnType<ReturnType<C>['emit']>
 
+/** @internal Single-module result; do not mix early results from different namespaces in a batch. */
+export type TailwindModuleAttempt<T> =
+  | { kind: 'complete'; output: T }
+  | { kind: 'prepared'; module: PreparedModule<T> }
+
+/** @internal Snapshot a known project universe once per candidate revision.
+ * Immutable identity avoids sorting/stringifying a project-sized set per file;
+ * it never substitutes for checking the actual parse against the context.
+ */
+export class TailwindCandidateUniverse {
+  #names: readonly string[]
+  #key: string
+  constructor(candidates: Iterable<string>) {
+    this.#names = Object.freeze([...new Set(candidates)].sort())
+    this.#key = JSON.stringify(this.#names)
+    Object.freeze(this)
+  }
+  get candidates(): readonly string[] {
+    return this.#names
+  }
+  get key(): string {
+    return this.#key
+  }
+}
+
 type ModuleRequest = {
   reason?: TailwindPreparationCancelled
   controller?: AbortController
@@ -70,29 +95,8 @@ export class TailwindProjectSession {
     collectors: readonly Collector[],
     additionalCandidates: Iterable<string> = [],
   ): Promise<unknown[]> {
-    this.#epoch.signal.throwIfAborted()
+    const cancellation = this.#begin(id)
     const compiler = this.#compiler!
-    const previous = this.#requests.get(id)
-    if (previous) {
-      previous.reason = new TailwindPreparationCancelled('TAILWIND_MODULE_SUPERSEDED')
-      previous.controller?.abort(previous.reason)
-    }
-    const request: ModuleRequest = {}
-    this.#requests.set(id, request)
-    const cancellation = {
-      check: () => {
-        if (request.reason) throw request.reason
-        this.#epoch.signal.throwIfAborted()
-      },
-      signal: () => {
-        if (!request.signal) {
-          request.controller = new AbortController()
-          request.signal = AbortSignal.any([this.#epoch.signal, request.controller.signal])
-          if (request.reason) request.controller.abort(request.reason)
-        }
-        return request.signal
-      },
-    }
     try {
       const outputs = await emitCollectedModules(
         collectors.map((collect) => () => collect(compiler)),
@@ -105,8 +109,80 @@ export class TailwindProjectSession {
       cancellation.check()
       return outputs
     } finally {
-      // A superseded request finishing must not erase its replacement ticket.
-      if (this.#requests.get(id) === request) this.#requests.delete(id)
+      cancellation.finish()
+    }
+  }
+
+  /** Attempt one module with an exact ready namespace. The attempt must check
+   * the real parse's completeness, retaining it on a miss. Single-module only:
+   * otherwise an early result could use ranks from a smaller batch universe.
+   */
+  async runModule<T>(
+    id: string,
+    candidates: Iterable<string> | TailwindCandidateUniverse,
+    attempt: (compiler: Compiler, context?: PreparedTailwindContext) => TailwindModuleAttempt<T>,
+  ): Promise<T> {
+    const cancellation = this.#begin(id)
+    let retained: PreparedModule<T> | undefined
+    try {
+      const universe =
+        candidates instanceof TailwindCandidateUniverse
+          ? candidates
+          : new TailwindCandidateUniverse(candidates)
+      const names = universe.candidates
+      cancellation.check()
+      const ready = this.#ready?.key === universe.key ? this.#ready.context : undefined
+      const result = attempt(this.#compiler!, ready)
+      let output: T
+      if (result.kind === 'complete') {
+        // Yield even on a hit: keep the pre-delivery supersession contract.
+        output = await result.output
+      } else {
+        retained = result.module
+        const outputs = await emitCollectedModules(
+          [() => result.module],
+          (actual) => this.#contextFor(actual, cancellation.signal),
+          names,
+          cancellation,
+        )
+        output = outputs[0] as T
+      }
+      cancellation.check()
+      return output
+    } finally {
+      // The attempt has already created this owner, even if cancellation
+      // occurs before the shared collector is entered.
+      retained?.dispose()
+      cancellation.finish()
+    }
+  }
+
+  #begin(id: string) {
+    this.#epoch.signal.throwIfAborted()
+    const previous = this.#requests.get(id)
+    if (previous) {
+      previous.reason = new TailwindPreparationCancelled('TAILWIND_MODULE_SUPERSEDED')
+      previous.controller?.abort(previous.reason)
+    }
+    const request: ModuleRequest = {}
+    this.#requests.set(id, request)
+    return {
+      check: () => {
+        if (request.reason) throw request.reason
+        this.#epoch.signal.throwIfAborted()
+      },
+      signal: () => {
+        if (!request.signal) {
+          request.controller = new AbortController()
+          request.signal = AbortSignal.any([this.#epoch.signal, request.controller.signal])
+          if (request.reason) request.controller.abort(request.reason)
+        }
+        return request.signal
+      },
+      finish: () => {
+        // A superseded request finishing must not erase its replacement.
+        if (this.#requests.get(id) === request) this.#requests.delete(id)
+      },
     }
   }
 

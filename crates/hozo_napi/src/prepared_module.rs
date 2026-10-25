@@ -1,6 +1,7 @@
 //! An opt-in collect/prepare/emit boundary. Retain owned IR, never an AST
 //! allocator or a token into a global compiler cache. Emit consumes it once.
 use super::*;
+use napi::bindgen_prelude::Either;
 
 #[napi]
 pub struct PreparedTailwindContext {
@@ -44,15 +45,34 @@ struct ParsedModule {
 
 fn candidates(state: &Option<ParsedModule>) -> napi::Result<Vec<String>> {
     let state = state.as_ref().ok_or_else(consumed)?;
-    Ok(state
-        .parsed
+    Ok(parsed_candidates(&state.parsed)
+        .map(str::to_owned)
+        .collect())
+}
+
+fn parsed_candidates(parsed: &hozo_parser::ParseOutput) -> impl Iterator<Item = &str> {
+    parsed
         .roots
         .iter()
         .find_map(|root| root.tailwind_units.as_deref())
         .into_iter()
         .flat_map(|units| units.iter())
-        .map(|(_, name)| name.to_owned())
-        .collect())
+        .map(|(_, name)| name)
+}
+
+fn finish_web_attempt(
+    mut prepared: PreparedWebModule,
+    context: &PreparedTailwindContext,
+) -> napi::Result<Either<Vec<CompiledComponent>, PreparedWebModule>> {
+    let state = prepared.state.as_ref().ok_or_else(consumed)?;
+    // Inspect the real parse, not the lexical universe supplied by an adapter.
+    // A miss returns this very IR; emitting an incomplete context or parsing
+    // again would respectively lose correctness or the intended fast path.
+    if parsed_candidates(&state.parsed).all(|name| context.context.lookup(name).is_some()) {
+        Ok(Either::A(prepared.emit(context)?))
+    } else {
+        Ok(Either::B(prepared))
+    }
 }
 
 fn consumed() -> napi::Error {
@@ -154,6 +174,19 @@ pub struct PreparedWebOptions {
 #[napi]
 impl Compiler {
     #[napi]
+    pub fn compile_web_or_prepare(
+        &self,
+        source: String,
+        context: &PreparedTailwindContext,
+        bindings: Option<Vec<StylexExternalBinding>>,
+        options: Option<PreparedWebOptions>,
+    ) -> napi::Result<Either<Vec<CompiledComponent>, PreparedWebModule>> {
+        // A local Rust owner is cheap; only a completeness miss crosses NAPI
+        // as a retained handle with candidate marshalling and later emission.
+        finish_web_attempt(self.prepare_web_module(source, bindings, options), context)
+    }
+
+    #[napi]
     pub fn prepare_web_module(
         &self,
         source: String,
@@ -235,6 +268,47 @@ mod tests {
                 hozo_ir::TailwindOrderContext::new(hozo_ir::portable_tailwind_snapshot()).unwrap(),
             ),
         }
+    }
+
+    #[test]
+    fn ready_web_context_emits_without_returning_a_retained_handle() {
+        let compiler = Compiler::new(None, None);
+        let result = compiler
+            .compile_web_or_prepare(
+                "const el=<View className=\"p-2\"/>".into(),
+                &context(),
+                None,
+                None,
+            )
+            .unwrap();
+        let Either::A(output) = result else {
+            panic!("a complete context must return emitted components");
+        };
+        assert!(output[0].css.contains("8px"));
+    }
+
+    #[test]
+    fn incomplete_ready_context_returns_the_exact_owned_parse() {
+        let compiler = Compiler::new(None, None);
+        let mut prepared =
+            compiler.prepare_web_module("const el=<View className=\"p-3\"/>".into(), None, None);
+        let state = prepared.state.as_mut().unwrap();
+        let roots = state.parsed.roots.as_ptr();
+        state.parsed.roots[0].node.style[0].property =
+            StyleProperty::PaddingTop(hozo_ir::Length::Px(123.0));
+        let Either::B(mut retained) = finish_web_attempt(prepared, &context()).unwrap() else {
+            panic!("a missing candidate must preserve the parse, not emit or reparse");
+        };
+        assert_eq!(
+            retained.state.as_ref().unwrap().parsed.roots.as_ptr(),
+            roots
+        );
+        assert!(matches!(
+            retained.state.as_ref().unwrap().parsed.roots[0].node.style[0].property,
+            StyleProperty::PaddingTop(hozo_ir::Length::Px(123.0))
+        ));
+        assert_eq!(retained.candidates().unwrap(), ["p-3"]);
+        retained.dispose();
     }
 
     #[test]

@@ -37,6 +37,13 @@ is stopped for performance review**, not exempted from section 7. A ready
 context should not require cold-path retention/suspension machinery forever.
 See [full-pipeline evidence](../measurements/canonical-tailwind-order.md#staging-the-real-web-lowering-pipeline).
 
+A single-module ready attempt now checks actual parsed candidates in Rust,
+emits directly on completeness, or returns that exact retained parse on a miss.
+An immutable lexical-universe revision amortizes key normalization without
+substituting for this check. Balanced full-pipeline measurements reduce the
+retained-file cost, but do not graduate adapter defaults or the performance
+gate; see [ready-attempt evidence](../measurements/canonical-tailwind-order.md#ready-attempts-check-the-actual-parse-before-emitting).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be
