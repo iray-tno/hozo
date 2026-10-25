@@ -180,38 +180,40 @@ for (const activation of ['reader', 'browser'] as const) {
       })
       const copy = figure.getByRole('button', { name: 'Copy code', exact: true })
       await copy.focus()
-      // Initial command capture ends on the first event, even an empty phrase.
-      // Require full speech from the reader's own key as well as from the
-      // external-action capture; browser-only success must not hide a reader
-      // activation failure. Never nest a reader command inside capture's queue.
-      const said = await spokenAfter(screenReader, async () => {
-        if (activation === 'reader') {
-          await screenReader.press('Enter', { capture: true })
-          await expect(copy).toHaveText('Copied', { timeout: 3000 })
-        } else {
-          await screenReader.capture(
-            async () => {
-              await page.keyboard.press('Enter')
-              await expect(copy).toHaveText('Copied', { timeout: 3000 })
-            },
-            { capture: true },
-          )
+      for (const copyNumber of [1, 2]) {
+        // Initial command capture ends on the first event, even an empty phrase.
+        // Require full speech from the reader's own key as well as from the
+        // external-action capture; browser-only success must not hide a reader
+        // activation failure. Never nest a reader command inside capture's queue.
+        const said = await spokenAfter(screenReader, async () => {
+          if (activation === 'reader') {
+            await screenReader.press('Enter', { capture: true })
+            await expect(copy).toHaveText('Copied', { timeout: 3000 })
+          } else {
+            await screenReader.capture(
+              async () => {
+                await page.keyboard.press('Enter')
+                await expect(copy).toHaveText('Copied', { timeout: 3000 })
+              },
+              { capture: true },
+            )
+          }
+        })
+        const facts = {
+          buttonText: await copy.textContent(),
+          clipboardAvailable: await page.evaluate(() => Boolean(navigator.clipboard?.writeText)),
+          clipboardWritePermissionGranted: onWindows,
+          secureContext: await page.evaluate(() => isSecureContext),
+          capture: activation === 'reader' ? 'full-reader-command' : 'full-through-copy-completion',
+          rawSpeech: await screenReader.spokenPhraseLog(),
         }
-      })
-      const facts = {
-        buttonText: await copy.textContent(),
-        clipboardAvailable: await page.evaluate(() => Boolean(navigator.clipboard?.writeText)),
-        clipboardWritePermissionGranted: onWindows,
-        secureContext: await page.evaluate(() => isSecureContext),
-        capture: activation === 'reader' ? 'full-reader-command' : 'full-through-copy-completion',
-        rawSpeech: await screenReader.spokenPhraseLog(),
+        observed.push({
+          action: `${activation} Enter: copy ${copyNumber} and completion announcement`,
+          said,
+          facts,
+        })
+        assert.equal(facts.buttonText, 'Copied')
       }
-      observed.push({
-        action: `${activation} Enter: copy and completion announcement`,
-        said,
-        facts,
-      })
-      assert.equal(facts.buttonText, 'Copied')
     } finally {
       stop()
       verify = finish(name, story, observed, testInfo)
