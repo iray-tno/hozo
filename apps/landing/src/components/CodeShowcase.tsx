@@ -1,6 +1,8 @@
-import { Code, Heading, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
+import { Heading, Paragraph, Section, Text, View } from '@hozo/core'
+import { CodeBlock } from '@hozo/patterns'
+import type { CodeShowcaseSamples } from '../lib/code-showcase.ts'
 
-export function CodeShowcase() {
+export function CodeShowcase({ samples }: { samples: CodeShowcaseSamples }) {
   return (
     <Section
       nativeID="code-showcase"
@@ -23,7 +25,7 @@ export function CodeShowcase() {
           </Paragraph>
         </View>
 
-        {/* Code Comparison Box */}
+        {/* Source comparison box */}
         <View className="rounded-2xl border border-hinoki/18 bg-yakisugi-950 overflow-hidden shadow-2xl max-w-6xl mx-auto w-full min-w-0">
           {/* Top Bar: Source Input (Architectural Wooden Lintel / Nageshi) */}
           <View className="border-b border-hinoki/18 p-4 sm:p-6 bg-yakisugi-900 timber-grain timber-plank min-w-0">
@@ -40,57 +42,17 @@ export function CodeShowcase() {
                 React Native / @hozo/core
               </Text>
             </View>
-            <Preformatted className="font-mono text-xs sm:text-sm text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
-              <Code>
-                <Text className="text-hinoki">import</Text> {'{ '}
-                <Text className="text-shikkui">View</Text>,{' '}
-                <Text className="text-shikkui">Heading</Text>,{' '}
-                <Text className="text-shikkui">Paragraph</Text>,{' '}
-                <Text className="text-shikkui">Button</Text>
-                {' }'} <Text className="text-hinoki">from</Text>{' '}
-                <Text className="text-tatami-light">'@hozo/core'</Text>
-                {'\n\n'}
-                <Text className="text-hinoki">export function</Text>{' '}
-                <Text className="text-hinoki-light">NotificationCard</Text>
-                {'({ '}
-                <Text className="text-shikkui-muted">title</Text>,{' '}
-                <Text className="text-shikkui-muted">message</Text>,{' '}
-                <Text className="text-shikkui-muted">onDismiss</Text>
-                {' }) {\n'}
-                {'  '}
-                <Text className="text-hinoki">return</Text> ({'\n'}
-                {'    '}&lt;<Text className="text-shikkui">View</Text>{' '}
-                <Text className="text-stone-400">role</Text>=
-                <Text className="text-tatami-light">"alert"</Text>{' '}
-                <Text className="text-stone-400">className</Text>=
-                <Text className="text-tatami-light">
-                  "p-6 rounded-2xl bg-yakisugi-800 border border-hinoki/20"
-                </Text>
-                &gt;{'\n'}
-                {'      '}&lt;<Text className="text-shikkui">Heading</Text>{' '}
-                <Text className="text-stone-400">level</Text>={'{'}
-                <Text className="text-bengara">2</Text>
-                {'}'} <Text className="text-stone-400">className</Text>=
-                <Text className="text-tatami-light">"text-xl font-bold text-shikkui mb-2"</Text>
-                &gt;{'{title}'}&lt;/<Text className="text-shikkui">Heading</Text>&gt;{'\n'}
-                {'      '}&lt;<Text className="text-shikkui">Paragraph</Text>{' '}
-                <Text className="text-stone-400">className</Text>=
-                <Text className="text-tatami-light">"text-stone-400 text-sm mb-4"</Text>
-                &gt;{'{message}'}&lt;/<Text className="text-shikkui">Paragraph</Text>&gt;{'\n'}
-                {'      '}&lt;<Text className="text-shikkui">Button</Text>{' '}
-                <Text className="text-stone-400">onPress</Text>={'{onDismiss}'}{' '}
-                <Text className="text-stone-400">className</Text>=
-                <Text className="text-tatami-light">
-                  "bg-bengara px-4 py-2 rounded-lg text-shikkui font-medium"
-                </Text>
-                &gt;{'\n'}
-                {'        '}Dismiss{'\n'}
-                {'      '}&lt;/<Text className="text-shikkui">Button</Text>&gt;{'\n'}
-                {'    '}&lt;/<Text className="text-shikkui">View</Text>&gt;{'\n'}
-                {'  '}){'\n'}
-                {'}'}
-              </Code>
-            </Preformatted>
+            <CodeBlock
+              lines={samples.source.lines}
+              title="Universal Source: NotificationCard.tsx"
+              wrap
+              captionClassName="sr-only"
+              className="text-xs sm:text-sm text-shikkui-muted min-w-0"
+              lineStyle={{
+                fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                lineHeight: 1.625,
+              }}
+            />
           </View>
 
           {/* Split Bottom: Web vs Native Output */}
@@ -119,46 +81,17 @@ export function CodeShowcase() {
                   No RNW Wrapper
                 </Text>
               </View>
-              <Preformatted className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
-                <Code>
-                  <Text className="text-stone-500">
-                    {'// Real compiler output: semantic DOM & scoped atomic CSS\n'}
-                  </Text>
-                  <Text className="text-hinoki">export function</Text>{' '}
-                  <Text className="text-hinoki-light">NotificationCard</Text>
-                  {'({ '}
-                  <Text className="text-shikkui-muted">title</Text>,{' '}
-                  <Text className="text-shikkui-muted">message</Text>,{' '}
-                  <Text className="text-shikkui-muted">onDismiss</Text>
-                  {' }) {\n'}
-                  {'  '}
-                  <Text className="text-hinoki">return</Text> ({'\n'}
-                  {'    '}&lt;<Text className="text-tatami-light">div</Text>{' '}
-                  <Text className="text-hinoki-light">className</Text>=
-                  <Text className="text-tatami-light">"hozo-view hozo-0"</Text>{' '}
-                  <Text className="text-hinoki-light">role</Text>=
-                  <Text className="text-tatami-light">"alert"</Text>&gt;{'\n'}
-                  {'      '}&lt;<Text className="text-tatami-light">h2</Text>{' '}
-                  <Text className="text-hinoki-light">className</Text>=
-                  <Text className="text-tatami-light">"hozo-1"</Text>&gt;{'{title}'}&lt;/
-                  <Text className="text-tatami-light">h2</Text>&gt;{'\n'}
-                  {'      '}&lt;<Text className="text-tatami-light">p</Text>{' '}
-                  <Text className="text-hinoki-light">className</Text>=
-                  <Text className="text-tatami-light">"hozo-2"</Text>&gt;{'{message}'}&lt;/
-                  <Text className="text-tatami-light">p</Text>&gt;{'\n'}
-                  {'      '}&lt;<Text className="text-tatami-light">button</Text>{' '}
-                  <Text className="text-hinoki-light">className</Text>=
-                  <Text className="text-tatami-light">"hozo-3"</Text>{' '}
-                  <Text className="text-hinoki-light">type</Text>=
-                  <Text className="text-tatami-light">"button"</Text>{' '}
-                  <Text className="text-hinoki-light">onClick</Text>={'{onDismiss}'}&gt;{'\n'}
-                  {'        '}Dismiss{'\n'}
-                  {'      '}&lt;/<Text className="text-tatami-light">button</Text>&gt;{'\n'}
-                  {'    '}&lt;/<Text className="text-tatami-light">div</Text>&gt;{'\n'}
-                  {'  '}){'\n'}
-                  {'}'}
-                </Code>
-              </Preformatted>
+              <CodeBlock
+                lines={samples.web.lines}
+                title="Web Lowering (DOM + CSS + W3C ARIA)"
+                wrap
+                captionClassName="sr-only"
+                className="text-xs text-shikkui-muted min-w-0"
+                lineStyle={{
+                  fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                  lineHeight: 1.625,
+                }}
+              />
             </View>
 
             {/* Right: Native Output */}
@@ -185,47 +118,17 @@ export function CodeShowcase() {
                   React Native / Fabric
                 </Text>
               </View>
-              <Preformatted className="font-mono text-xs text-shikkui-muted overflow-x-auto leading-relaxed max-w-full">
-                <Code>
-                  <Text className="text-stone-500">
-                    {'// Real compiler output: StyleSheet & native primitives\n'}
-                  </Text>
-                  <Text className="text-hinoki">export function</Text>{' '}
-                  <Text className="text-hinoki-light">NotificationCard</Text>
-                  {'({ '}
-                  <Text className="text-shikkui-muted">title</Text>,{' '}
-                  <Text className="text-shikkui-muted">message</Text>,{' '}
-                  <Text className="text-shikkui-muted">onDismiss</Text>
-                  {' }) {\n'}
-                  {'  '}
-                  <Text className="text-hinoki">return</Text> ({'\n'}
-                  {'    '}&lt;<Text className="text-shikkui">View</Text>{' '}
-                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo0}'}{' '}
-                  <Text className="text-stone-400">role</Text>=
-                  <Text className="text-tatami-light">"alert"</Text>&gt;{'\n'}
-                  {'      '}&lt;<Text className="text-shikkui">Text</Text>{' '}
-                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo1}'}{' '}
-                  <Text className="text-stone-400">accessibilityRole</Text>=
-                  <Text className="text-tatami-light">"header"</Text>&gt;{'{title}'}&lt;/
-                  <Text className="text-shikkui">Text</Text>&gt;{'\n'}
-                  {'      '}&lt;<Text className="text-shikkui">Text</Text>{' '}
-                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo2}'}&gt;
-                  {'{message}'}&lt;/<Text className="text-shikkui">Text</Text>&gt;{'\n'}
-                  {'      '}&lt;<Text className="text-shikkui">Pressable</Text>{' '}
-                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo3}'}{' '}
-                  <Text className="text-stone-400">accessibilityRole</Text>=
-                  <Text className="text-tatami-light">"button"</Text>{' '}
-                  <Text className="text-stone-400">onPress</Text>={'{onDismiss}'}&gt;{'\n'}
-                  {'        '}&lt;<Text className="text-shikkui">Text</Text>{' '}
-                  <Text className="text-stone-400">style</Text>={'{hozoStyles.hozo3_text}'}
-                  &gt;Dismiss&lt;/
-                  <Text className="text-shikkui">Text</Text>&gt;{'\n'}
-                  {'      '}&lt;/<Text className="text-shikkui">Pressable</Text>&gt;{'\n'}
-                  {'    '}&lt;/<Text className="text-shikkui">View</Text>&gt;{'\n'}
-                  {'  '}){'\n'}
-                  {'}'}
-                </Code>
-              </Preformatted>
+              <CodeBlock
+                lines={samples.native.lines}
+                title="Native Lowering (Fabric / StyleSheet)"
+                wrap
+                captionClassName="sr-only"
+                className="text-xs text-shikkui-muted min-w-0"
+                lineStyle={{
+                  fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+                  lineHeight: 1.625,
+                }}
+              />
             </View>
           </View>
         </View>

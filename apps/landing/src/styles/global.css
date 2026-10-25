@@ -54,6 +54,8 @@ html {
   --color-bengara-hover: #b54738;
   --color-tatami: #556348;
   --color-tatami-light: #708260;
+  /* Small code text needs 4.5:1 on yakisugi-900; tatami-light reaches 4.46:1. */
+  --color-tatami-code: #91a380;
   --color-ainezumi: #222831;
   --color-ainezumi-light: #2d3748;
 }
@@ -80,6 +82,7 @@ html {
     --hozo-color-bengara-hover: #b54738;
     --hozo-color-tatami: #556348;
     --hozo-color-tatami-light: #708260;
+    --hozo-color-tatami-code: #91a380;
     --hozo-color-yakisugi-950: #100f0e;
     --hozo-color-yakisugi-900: #141312;
     --hozo-color-yakisugi-800: #1c1a18;

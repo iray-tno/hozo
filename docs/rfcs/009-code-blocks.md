@@ -57,9 +57,14 @@ default-theme shapes. Font-style bits 1/2/4 map to portable styles; bit 8 is
 intentionally omitted. Fence ranges use intervals rather than allocating an
 array proportional to the largest line number; unknown syntax is preserved.
 
-No virtualized renderer or long-block device frame budget is claimed. Broader
-landing snippet migration, Markdown integration and Envarly adoption remain
-follow-ups; this initial slice does not close the whole tracking issue.
+The landing CodeShowcase uses wrapped, copy-free CodeBlock figures. Astro runs
+Shiki with the landing palette at build time, and the Web/Native panes show
+compiler output from the same source. Token contrast is checked on both code
+backgrounds; the homepage retains its single Kumimono island.
+
+No virtualized renderer or long-block device frame budget is claimed. Remaining
+landing snippets, Markdown integration and Envarly adoption remain follow-ups;
+this adoption does not close the whole tracking issue.
 
 ## Native bundle cost
 
