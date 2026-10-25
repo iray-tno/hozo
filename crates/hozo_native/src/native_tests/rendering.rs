@@ -534,6 +534,30 @@ fn shadow_and_filter_carry_across_as_strings() {
 }
 
 #[test]
+fn a_gradient_goes_under_the_key_react_native_0_86_reads() {
+    // 0.86 has no `backgroundImage` and drops it silently (#1267).
+    let source = r#"
+            import { View } from '@hozo/core'
+            const el = <View className="bg-linear-to-r from-red-500 to-blue-500" />
+            "#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(output.diagnostics.is_empty(), "{:?}", output.diagnostics);
+    assert!(
+        output
+            .styles
+            .contains("experimental_backgroundImage: 'linear-gradient(to right, "),
+        "{}",
+        output.styles
+    );
+    assert!(
+        !output.styles.contains(" backgroundImage:"),
+        "{}",
+        output.styles
+    );
+}
+
+#[test]
 fn inline_flex_lowers_to_a_shrink_wrapped_flex_container() {
     let source = r#"
             import { View } from '@hozo/core'

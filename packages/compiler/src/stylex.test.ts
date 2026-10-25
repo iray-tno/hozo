@@ -875,7 +875,7 @@ export const Card = () => <View {...stylex.props(styles.root)} />
     if (property === 'backgroundImage') {
       assert.match(
         native.styles,
-        /backgroundImage: 'linear-gradient\(90deg,#123456,#abcdef\)'/,
+        /experimental_backgroundImage: 'linear-gradient\(90deg,#123456,#abcdef\)'/,
         property,
       )
     }
