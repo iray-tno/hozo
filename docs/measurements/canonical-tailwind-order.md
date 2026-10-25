@@ -783,3 +783,91 @@ All samples/provenance are retained in `lower-parent-cost.json`,
 `lower-after-cost.json` and `lower-repeat-cost.json`. The earlier dirty-tree
 pilot is separately retained, not substituted for clean comparisons. No
 startup/large-universe/invalidation latency, memory peak or app-speedup claim.
+
+## Ready attempts check the actual parse before emitting
+
+The internal Node `compileWebOrPrepare` parses once and checks every retained
+utility name against a validated `PreparedTailwindContext`. A complete parse
+emits within the Rust call: no JS retained-module handle, candidate-name
+marshalling, font snapshot or later handle-emission call is required. There is
+still a local Rust IR owner during the call; this is not a zero-allocation claim.
+A missing candidate returns **that exact owned IR**, not partial output or a
+second parse. A Rust pointer/mutated-IR test proves this identity; `not-generated`
+is a complete collected entry, not a reason to erase an unknown utility.
+
+`lowerModuleOrPrepare` uses the same post-Canvas pipeline and finalizer as
+ordinary/staged Web lowering. `TailwindProjectSession.runModule` shares the
+existing request tickets, cold/in-flight preparation and pre-delivery guards.
+Only an **exact** lexical-universe key can offer the ready context; Rust still
+checks actual parsed names, including names absent from that lexical snapshot.
+Misses extend preparation from the returned handle. A stale subset cannot reuse
+a superset's ranks on the next call. The API deliberately attempts **one** module,
+not mixed early-emitted batches whose later module could expand the namespace.
+The internal attempt callback is trusted compiler orchestration, not a security
+boundary certifying arbitrary caller-supplied `complete` results.
+
+`TailwindCandidateUniverse` freezes/copies/deduplicates names and computes the
+key once per caller-owned candidate revision. Warm calls avoid repeated
+project-set sorting/stringification; mutable iterables can still be supplied
+but are snapshotted per call. This is not a mutable identity cache. It does not
+replace project stylesheet/theme epoch invalidation, source discovery or actual
+IR completeness. Owners must reconcile candidates outside the lexical revision
+before expecting future ready hits. Existing batch emission remains available.
+Independent early-return/Canvas-only domains can complete without any ordering
+preparation; their pre-suspension observer facts are not a completed transform
+receipt. No app provider, device resolver or default adapter change is introduced.
+
+CPU-1/Idle/serial verification: Rust **1,035 passed**; rebuilt addon before JS;
+compiler **339 passed plus one existing Windows skip**; Tailwind **88 passed**
+(eight new ready-attempt tests); Native Showcase unit/driver-policy tests
+**223 passed plus one existing skip**; source-cache guards **9 passed**.
+Compiler build, all-target workspace Clippy, formatting, lint (**1,662 files**),
+generated fixture/check and docs checks passed. Native text fixture changes are
+two compiler-source hash receipts only. The saved 30-subject/six-fixture/Native
+candidate output remains byte-identical. Type fixtures reject async attempts
+and incorrect primitive-result claims. Tests cover direct output/observed-stage
+parity, missing actual candidates with no reparse, exact namespaces, unknown
+classes, immutable revisions, warm cancellation, already-created owner disposal,
+cross-API request supersession, and invalidation during candidate iteration.
+
+Initial seven-sample fixed-order captures (`direct-parent-cost`, `direct-pilot`,
+`direct-universe-pilot`) are retained. Their clocks did not establish a reliable
+whole-pipeline gain: the new path always ran last, and built an extra file ID
+inside its clock. A separate nine-round/100-call primitive probe showed smaller
+direct-call than retained-call costs, but did not prove whole-pipeline speedup.
+The harness was therefore corrected rather than choosing the favorable cells:
+all paths use preconstructed input IDs; stage order rotates; **12 samples**
+balance the old three and new four paths (LCM 3/4). First observations remain,
+with no forced GC, discarded warm-up rounds or timer gate changes. Immutable
+candidate-revision construction is outside warm clocks, just as theme/compiler
+and project preparation are; its setup/large-universe cost is not measured.
+
+The identical final harness was run on parent `a40f5466` and implementation
+`9cadf36c`, each with a fresh debug addon, 16 full Web modules, 20 candidates and
+the same 288-color theme. Parent receipt has `dirty=true` **only because that
+measurement script was temporarily replaced**; its production-source hash is
+unchanged from the earlier clean parent. The script was restored, the working
+branch returned clean, and its addon rebuilt before further checks.
+
+| Balanced capture (ms per 16 modules) | Synchronous | Retained batch | 16 retained files | 16 direct-ready files |
+| --- | ---: | ---: | ---: | ---: |
+| Parent | 8.9557 | 9.4129 | 10.2062 | unavailable |
+| Implementation | 8.8170 | 9.3180 | 10.4591 | 9.2987 |
+| Implementation repeat | 9.0357 | 9.4893 | 10.2511 | 9.1801 |
+
+Direct-ready medians are about **11.1% / 10.4% below** retained files in their
+capture, but **5.46% / 1.60% above** the synchronous controls. The ordinary
+control versus parent is -1.55%/+0.89%; none of these small clocks proves an app
+speedup or zero overhead. The first comparison remains over 5%, so this is not
+blanket default-performance acceptance. Keep broader/large-universe/actual
+adapter measurements and RFC 007's gate open, rather than selecting the better
+repeat. Older retained-file costs do not disappear by adding this new route.
+
+Full samples, stage orders and provenance are in `direct-balanced-parent.json`,
+`direct-balanced-after.json`, `direct-balanced-repeat.json`; earlier clean
+seven-sample rotating captures (`direct-final-cost`, `direct-repeat-cost`) are
+also retained. Every emitted result matches the ordinary pipeline, preparation
+runs once per session, and all fixture/output hashes match the prior full-pipeline
+control. No whole app, Native full lowering, actual Vite/Metro watcher integration,
+new cascade winners, fresh browser/device pixels/AT, full root/pack/app suite,
+actual WASM/production bundle sizes, startup/peak-memory or broad coverage claim.
