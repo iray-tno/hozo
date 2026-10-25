@@ -111,19 +111,18 @@ export interface SliderMove extends SliderRange {
  */
 export function movedBy(key: SliderKey | string, move: SliderMove): number | null {
   const { value, min, max, step, bigStep = step * 10, rtl = false } = move
-  const range: SliderRange = { min, max, step }
-
   if (key === 'Home') return min
   if (key === 'End') return max
-  if (key === 'PageUp') return snap(value + bigStep, range)
-  if (key === 'PageDown') return snap(value - bigStep, range)
-  if (key === 'ArrowUp') return snap(value + step, range)
-  if (key === 'ArrowDown') return snap(value - step, range)
+  let delta = step
+  if (key === 'PageUp') delta = bigStep
+  else if (key === 'PageDown') delta = -bigStep
+  else if (key === 'ArrowDown') delta = -step
   // The only two that mirror. In a right-to-left track the right-hand end is
   // the low end, so the key that points at it lowers the value.
-  if (key === 'ArrowRight') return snap(value + (rtl ? -step : step), range)
-  if (key === 'ArrowLeft') return snap(value - (rtl ? -step : step), range)
-  return null
+  else if (key === 'ArrowRight') delta = rtl ? -step : step
+  else if (key === 'ArrowLeft') delta = rtl ? step : -step
+  else if (key !== 'ArrowUp') return null
+  return snap(value + delta, move)
 }
 
 /**
@@ -141,11 +140,9 @@ export function fractionAt(
   options: { vertical?: boolean; rtl?: boolean } = {},
 ): number {
   const { vertical = false, rtl = false } = options
-  if (vertical) {
-    if (box.height === 0) return 0
-    return clamp((box.top + box.height - position.y) / box.height, 0, 1)
-  }
-  if (box.width === 0) return 0
-  const fraction = (position.x - box.left) / box.width
-  return clamp(rtl ? 1 - fraction : fraction, 0, 1)
+  const extent = vertical ? box.height : box.width
+  if (extent === 0) return 0
+  const offset = vertical ? box.top + extent - position.y : position.x - box.left
+  const fraction = offset / extent
+  return clamp(!vertical && rtl ? 1 - fraction : fraction, 0, 1)
 }

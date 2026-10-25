@@ -1,14 +1,13 @@
 import { hozoClasses } from '@hozo/engine/project'
+
 /**
  * A slider on React Native. See `slider.tsx` for the shape and the arithmetic,
  * which is shared: both halves import `slider-rules.ts`, so a drag lands in
  * the same place on both platforms.
  *
- * The gesture is a `PanResponder` rather than pointer events, because that is
- * what this platform has. It does the job `setPointerCapture` does on the Web
- * -- once the responder is granted, every move goes to it until the touch
- * ends, wherever the finger has got to -- so the two are the same guarantee
- * written twice rather than two different behaviours.
+ * `useDrag1D` owns the responder lifecycle, coalesces moves and flushes the
+ * release before committing. Slider owns the initial track-local position
+ * and converts each logical delta back into that coordinate space.
  *
  * The track measures itself with `onLayout` instead of reading a box on each
  * move. There is no synchronous way to ask a view for its size here, and the
@@ -21,17 +20,17 @@ import { hozoClasses } from '@hozo/engine/project'
  * cannot move at all.
  */
 
+import { useDrag1D } from '@hozo/behaviors/native'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import {
   I18nManager,
   type LayoutChangeEvent,
-  PanResponder,
   type StyleProp,
   View,
   type ViewStyle,
 } from 'react-native'
-import { fractionAt, fractionOf, movedBy, type SliderRange, snap, valueAt } from './slider-rules.ts'
+import { fractionAt, fractionOf, type SliderRange, snap, valueAt } from './slider-rules.ts'
 import type { SliderThumbSlotFacts } from './slot-facts.native.ts'
 
 export type SliderThumbState = SliderThumbSlotFacts & { focused: boolean; focusVisible: boolean }
@@ -116,96 +115,51 @@ export function HozoSlider({
   const [uncontrolled, setUncontrolled] = useState(() => snap(defaultValue ?? min, range))
   const current = snap(value ?? uncontrolled, range)
 
-  // Read inside the responder, which is created once and would otherwise
-  // close over the first render's value forever.
-  const live = useRef({
-    current,
-    range,
-    vertical,
-    disabled,
-    value,
-    onValueChange,
-    onValueCommit,
-    onValueCancel,
-  })
-  live.current = {
-    current,
-    range,
-    vertical,
-    disabled,
-    value,
-    onValueChange,
-    onValueCommit,
-    onValueCancel,
-  }
-
   const box = useRef({ left: 0, top: 0, width: 0, height: 0 })
-  const gesture = useRef<number | null>(null)
-  const onLayout = useCallback((event: LayoutChangeEvent) => {
+  const gesture = useRef({ x: 0, y: 0, vertical, rtl: false, last: current })
+  const onLayout = (event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout
     // locationX/Y are relative to this track, not its parent. Parent offsets
     // from onLayout would shift every touch target inside a padded container.
     box.current = { left: 0, top: 0, width, height }
-  }, [])
+  }
 
-  const change = useCallback((next: number) => {
-    const at = live.current
-    if (next === at.current) return
-    if (at.value === undefined) setUncontrolled(next)
-    at.onValueChange?.(next)
-  }, [])
-
-  const responder = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => live.current.disabled !== true,
-        onMoveShouldSetPanResponder: () => live.current.disabled !== true,
-        onPanResponderGrant: (event) => {
-          const { locationX, locationY } = event.nativeEvent
-          const at = live.current
-          if (at.disabled) return
-          gesture.current = valueAt(
-            fractionAt({ x: locationX, y: locationY }, box.current, {
-              vertical: at.vertical,
-              rtl: I18nManager.isRTL,
-            }),
-            at.range,
-          )
-          change(gesture.current)
-        },
-        onPanResponderMove: (event) => {
-          const { locationX, locationY } = event.nativeEvent
-          const at = live.current
-          if (gesture.current === null || at.disabled) return
-          gesture.current = valueAt(
-            fractionAt({ x: locationX, y: locationY }, box.current, {
-              vertical: at.vertical,
-              rtl: I18nManager.isRTL,
-            }),
-            at.range,
-          )
-          change(gesture.current)
-        },
-        onPanResponderRelease: () => {
-          if (gesture.current === null) return
-          const target = gesture.current
-          gesture.current = null
-          if (live.current.disabled) live.current.onValueCancel?.()
-          else live.current.onValueCommit?.(target)
-        },
-        onPanResponderTerminate: () => {
-          if (gesture.current === null) return
-          gesture.current = null
-          live.current.onValueCancel?.()
-        },
-      }),
-    [change],
-  )
+  const change = (next: number) => {
+    if (next === current) return
+    if (value === undefined) setUncontrolled(next)
+    onValueChange?.(next)
+  }
+  const move = (delta: number) => {
+    const at = gesture.current
+    if (box.current[at.vertical ? 'height' : 'width'] <= 0) return at.last
+    const next = valueAt(
+      fractionAt({ x: at.x + (at.rtl ? -delta : delta), y: at.y + delta }, box.current, at),
+      range,
+    )
+    if (next !== at.last) {
+      at.last = next
+      change(next)
+    }
+    return next
+  }
+  const drag = useDrag1D({
+    axis: vertical ? 'y' : 'x',
+    disabled,
+    canStart: () => box.current[vertical ? 'height' : 'width'] > 0,
+    onStart() {
+      move(0)
+    },
+    onMove: move,
+    onEnd(delta) {
+      const next = move(delta)
+      onValueCommit?.(next)
+    },
+    onCancel: onValueCancel,
+  })
 
   const fraction = fractionOf(current, range)
-  const step1 = (key: 'ArrowUp' | 'ArrowDown') => {
-    const next = movedBy(key, { ...range, value: current, vertical })
-    if (next === null) return
+  const step1 = (direction: 1 | -1) => {
+    const next = snap(current + direction * step, range)
     change(next)
     onValueCommit?.(next)
   }
@@ -217,7 +171,18 @@ export function HozoSlider({
       pointerEvents="box-only"
       style={[hozoClasses(className), style]}
       onLayout={onLayout}
-      {...responder.panHandlers}
+      {...drag.handlers}
+      onResponderGrant={(event) => {
+        const { locationX, locationY } = event.nativeEvent
+        gesture.current = {
+          x: locationX,
+          y: locationY,
+          vertical,
+          rtl: I18nManager.isRTL,
+          last: current,
+        }
+        return drag.handlers.onResponderGrant?.(event)
+      }}
     >
       {railStyle === undefined && railClassName === undefined ? null : (
         <View
@@ -252,8 +217,8 @@ export function HozoSlider({
         accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
         onAccessibilityAction={(event) => {
           if (disabled) return
-          if (event.nativeEvent.actionName === 'increment') step1('ArrowUp')
-          if (event.nativeEvent.actionName === 'decrement') step1('ArrowDown')
+          if (event.nativeEvent.actionName === 'increment') step1(1)
+          if (event.nativeEvent.actionName === 'decrement') step1(-1)
         }}
         style={[
           hozoClasses(thumbClassName, thumbFacts),

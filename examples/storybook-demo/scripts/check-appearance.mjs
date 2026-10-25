@@ -59,10 +59,11 @@
 // `focus-visible:outline-hozo-focus` and still emit nothing, which is exactly
 // what #679 was.
 
-import { execFile } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
+import { chromium } from 'playwright-core'
+import { waitForAppearanceStory } from './appearance-readiness.mjs'
 
 const STATIC = path.resolve(process.argv[2] ?? 'storybook-static')
 
@@ -128,7 +129,7 @@ writeFileSync(
   `<!doctype html><body><pre id="out"></pre><iframe id="f" style="width:1200px;height:900px;border:0"></iframe>
 <script>
 const IDS = ${JSON.stringify(ids)}
-const wait = (ms) => new Promise((r) => setTimeout(r, ms))
+const waitForStory = ${waitForAppearanceStory.toString()}
 
 // Roles a pointer activates. A container that merely holds them -- a tablist,
 // a toolbar, a group -- is not a target, and neither is text.
@@ -206,10 +207,8 @@ async function run() {
   const found = []
   for (const id of IDS) {
     frame.src = '/iframe.html?id=' + id + '&viewMode=story'
-    await Promise.race([new Promise((r) => (frame.onload = r)), wait(5000)])
-    await wait(500)
     try {
-      const doc = frame.contentDocument
+      const doc = await waitForStory(frame, id)
       const view = frame.contentWindow
       const root = doc.getElementById('storybook-root') || doc.body
       const rings = focusRules(doc)
@@ -289,67 +288,60 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
   })
 }
 
-server.listen(0, () => {
-  const port = server.address().port
-  execFile(
-    browser,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-sandbox',
-      // Light, because geometry does not change with the scheme and a focus
-      // *rule* exists in both. `check-a11y.mjs` is the one that has to ask
-      // twice, because contrast does change.
-      '--blink-settings=preferredColorScheme=1',
-      '--virtual-time-budget=120000',
-      '--dump-dom',
-      `http://localhost:${port}/__appearance.html`,
-    ],
-    {
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-      timeout: 4 * 60 * 1000,
-      killSignal: 'SIGKILL',
-    },
-    (error, dom) => {
-      cleanup()
-      if (error) {
-        console.error(`[appearance] the browser failed to run: ${error.message}`)
-        process.exit(1)
-      }
-      const match = /HOZO_APPEARANCE (\{[\s\S]*?\})<\/pre>/.exec(dom)
-      if (!match) {
-        console.error('[appearance] the run produced no result; the page did not finish')
-        process.exit(1)
-      }
-      const { stories, found } = JSON.parse(match[1])
-      const key = (finding) => `${finding.id}/${finding.rule}`
-      const fresh = found.filter((finding) => !(key(finding) in KNOWN))
-      const seen = new Set(found.map(key))
-
-      const stale = Object.entries(KNOWN).filter(([entry]) => !seen.has(entry))
-      if (stale.length > 0) {
-        console.error('[appearance] these no longer fire and should leave KNOWN:\n')
-        for (const [entry, why] of stale) console.error(`  ${entry}  (${why})`)
-        process.exit(1)
-      }
-
-      if (fresh.length === 0) {
-        const held = found.length
-        console.log(
-          `[appearance] ${stories} stories, every target 24px and every focusable element has a ring` +
-            (held > 0 ? ` (${held} held in KNOWN)` : ''),
-        )
-        return
-      }
-      console.error(`[appearance] ${fresh.length} finding(s) across ${stories} stories:\n`)
-      for (const finding of fresh) {
-        console.error(
-          `  ${finding.id}\n    ${finding.rule} on ${finding.where} "${finding.name}"` +
-            `\n    ${finding.detail}`,
-        )
-      }
-      process.exit(1)
-    },
+await new Promise((resolve) => server.listen(0, resolve))
+let browserProcess
+try {
+  // Virtual timers can exhaust the loading deadline while the renderer is
+  // still processing a frame. Readiness and measurement use the same real
+  // clock here, as they do in the axe audit.
+  browserProcess = await chromium.launch({
+    executablePath: browser,
+    args: ['--no-sandbox', '--disable-gpu'],
+  })
+  // Light, because geometry does not change with the scheme and a focus
+  // *rule* exists in both. `check-a11y.mjs` is the one that has to ask
+  // twice, because contrast does change.
+  const page = await browserProcess.newPage({ colorScheme: 'light' })
+  await page.goto(`http://localhost:${server.address().port}/__appearance.html`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 5000,
+  })
+  await page.waitForFunction(
+    () => document.getElementById('out')?.textContent.startsWith('HOZO_APPEARANCE '),
+    null,
+    { timeout: 120000 },
   )
-})
+  const result = await page.locator('#out').textContent()
+  const { stories, found } = JSON.parse(result.slice('HOZO_APPEARANCE '.length))
+  const key = (finding) => `${finding.id}/${finding.rule}`
+  const fresh = found.filter((finding) => !(key(finding) in KNOWN))
+  const seen = new Set(found.map(key))
+
+  const stale = Object.entries(KNOWN).filter(([entry]) => !seen.has(entry))
+  if (stale.length > 0) {
+    console.error('[appearance] these no longer fire and should leave KNOWN:\n')
+    for (const [entry, why] of stale) console.error(`  ${entry}  (${why})`)
+    process.exitCode = 1
+  } else if (fresh.length === 0) {
+    const held = found.length
+    console.log(
+      `[appearance] ${stories} stories, every target 24px and every focusable element has a ring` +
+        (held > 0 ? ` (${held} held in KNOWN)` : ''),
+    )
+  } else {
+    console.error(`[appearance] ${fresh.length} finding(s) across ${stories} stories:\n`)
+    for (const finding of fresh) {
+      console.error(
+        `  ${finding.id}\n    ${finding.rule} on ${finding.where} "${finding.name}"` +
+          `\n    ${finding.detail}`,
+      )
+    }
+    process.exitCode = 1
+  }
+} catch (error) {
+  console.error(`[appearance] the browser failed to run: ${error.message}`)
+  process.exitCode = 1
+} finally {
+  await browserProcess?.close()
+  cleanup()
+}

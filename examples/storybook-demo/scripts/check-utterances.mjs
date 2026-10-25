@@ -328,6 +328,11 @@ server.listen(0, async () => {
       '--headless=new',
       '--disable-gpu',
       '--no-sandbox',
+      // Match Playwright's active-renderer defaults: the frame's bounded
+      // requestAnimationFrame readiness must not be background-throttled.
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
       '--remote-debugging-port=0',
       `--user-data-dir=${profile}`,
       pageUrl,
