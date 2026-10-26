@@ -52,14 +52,17 @@ export type HozoDialogProps = DialogProps
 /**
  * A panel, and a scrim behind it.
  *
- * The width is `max-w-md` against a `w-full`, so it is 28rem on a desktop and
- * the viewport less its margin on a phone. `max-h-[85vh]` with
+ * The width is `max-w-md` against `w-[calc(100vw-2rem)]`, so it is 28rem on a
+ * desktop and the window less a 1rem gutter each side on a phone. `w-full` ran
+ * it edge to edge there. A modal is laid out against the window on both
+ * platforms, so `100vw` is the right base, and Native reads it at runtime
+ * like `w-[50vw]` (#1312). `max-h-[85vh]` with
  * `overflow-y-auto` because the one thing a modal cannot do is put its content
  * somewhere a person cannot scroll to -- a dialog taller than the viewport
  * clips, and the part that goes missing is the bottom, where the buttons are.
  */
 const panel =
-  'm-auto w-full max-w-md max-h-[85vh] overflow-y-auto rounded-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text shadow-hozo-surface backdrop:bg-hozo-scrim/50 backdrop:backdrop-blur-xs'
+  'm-auto w-[calc(100vw-2rem)] max-w-md max-h-[85vh] overflow-y-auto rounded-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text shadow-hozo-surface backdrop:bg-hozo-scrim/50 backdrop:backdrop-blur-xs'
 
 /**
  * Declared as `StyledDialog` and exported under the package's names, which is

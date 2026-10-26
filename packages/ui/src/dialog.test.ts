@@ -56,6 +56,14 @@ test('the scrim blurs the page behind it as well as dimming it', () => {
   assert.match(render(), /backdrop:backdrop-blur-xs/)
 })
 
+test('on a phone it keeps a gutter rather than running edge to edge', () => {
+  // `w-full` filled the window; the gutter is the window less 1rem a side,
+  // which Native reads at runtime too (#1312).
+  const html = render()
+  assert.match(html, /w-\[calc\(100vw-2rem\)\]/)
+  assert.doesNotMatch(html, /class="[^"]*\bw-full\b/)
+})
+
 test('it can scroll, because the part a dialog clips is the part with the buttons', () => {
   const html = render()
   assert.match(html, /overflow-y-auto/)

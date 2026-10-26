@@ -139,6 +139,41 @@ mod tests {
     }
 
     #[test]
+    fn a_calc_of_viewport_and_fixed_lengths_is_a_runtime_value_too() {
+        // #1312: the Dialog gutter, `calc(100vw - 2rem)`, needs no
+        // measurement -- only the window `w-[50vw]` already reads.
+        let out = compile(
+            r#"import { View } from '@hozo/core'; function C() { return <View className="w-[calc(100vw-2rem)] max-h-[calc(100vh-4rem)] min-w-[calc(150vw+1px)]" /> }"#,
+        );
+        assert!(
+            !out.diagnostics
+                .iter()
+                .any(|d| d.severity == Severity::Error),
+            "{:?}",
+            out.diagnostics
+        );
+        for expression in [
+            "width: __hozoViewport.width - 32",
+            "maxHeight: __hozoViewport.height - 64",
+            "minWidth: __hozoViewport.width * 1.5 + 1",
+        ] {
+            assert!(out.jsx.contains(expression), "{}", out.jsx);
+        }
+        // A percentage needs the parent's size, which nothing here has.
+        let out = compile(
+            r#"import { View } from '@hozo/core'; function C() { return <View className="w-[calc(100%-2rem)]" /> }"#,
+        );
+        assert!(
+            out.diagnostics
+                .iter()
+                .any(|d| d.code == hozo_ir::DiagnosticCode::WebOnlyPropertyOnNative),
+            "{:?}",
+            out.diagnostics
+        );
+        assert!(!out.jsx.contains("__hozoViewport"), "{}", out.jsx);
+    }
+
+    #[test]
     fn viewport_units_are_runtime_values_not_zeroes_in_a_sheet() {
         let out = compile(
             r#"import { View } from '@hozo/core'; function C() { return <View className="max-h-[85vh] w-[50vw] pt-[12vh]" /> }"#,
