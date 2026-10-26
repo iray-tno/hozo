@@ -22,6 +22,13 @@ description: "The honest list: what is partial, manual or untested."
   that validation on 2026-10-26; it does not block completion of RFCs 008/009.
   Their Web NVDA/VoiceOver recordings and Android emulator performance
   measurements are separate evidence, not physical-device certification.
+- **Long Native code blocks have no established smooth frame budget.** The
+  [pinned Android emulator measurement](https://github.com/iray-tno/hozo/blob/main/docs/measurements/code-block-android.md)
+  completed the 10–1000-line matrix, but no tested long-block count established
+  a 60Hz rendering/update/scroll envelope. A 1000-line, 8000-token block took
+  about 1.19s to reach its initial layout callback in that environment. Keep
+  Native snippets small and measure the application's update workload;
+  optimization is tracked in [#1289](https://github.com/iray-tno/hozo/issues/1289).
 - **The Grid subset is partial**, and the Tailwind surface is wide but not
   complete — `@hozo/tailwind-conformance` reports exactly which utilities
   match the real engine. Its current numbers are committed at

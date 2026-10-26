@@ -112,7 +112,8 @@ example, a rendering/virtualization design) establishes an acceptable limit.
 These results do not establish a universal line cap for physical devices or
 prove that CodeBlock alone causes the software-GPU scrolling limit.
 
-This completes the bounded measurement requested by
+Performance improvement is tracked separately in
+[#1289](https://github.com/iray-tno/hozo/issues/1289). This completes the bounded measurement requested by
 [#1278](https://github.com/iray-tno/hozo/issues/1278), including the cases that
 miss the budget. It does not complete performance optimization.
 

@@ -81,7 +81,15 @@ without Copy. Unsupported languages fall back to text; ordinary fences retain
 the existing renderer. The no-script MDX probe covers nested fences and escaped
 markup. This is an application connection, not a published Markdown plugin.
 
-No virtualized renderer or long-block device frame budget is claimed. Envarly
+No virtualized renderer or physical-device frame budget is claimed. The
+[bounded Android emulator measurement](../measurements/code-block-android.md)
+completed all 84 windows through 1000 lines. No tested long-block count
+established a smooth 60Hz envelope: the 1000-line mount/update medians were
+1189.840/939.431ms and long-block scroll frame p95 was about 119ms on the
+identified software-GPU emulator. Applications should keep Native snippets
+small and avoid frame-rate whole-block updates. Rendering optimization is
+tracked separately in [#1289](https://github.com/iray-tno/hozo/issues/1289).
+The measurement includes missed budgets rather than claiming a pass. Envarly
 adoption is deferred until release and is outside the current Hozo work. Real
 device/reader checks and broader Markdown adoption remain follow-ups.
 
@@ -93,8 +101,9 @@ device/reader checks and broader Markdown adoption remain follow-ups.
   records reading and real keyboard activation; captures without human-approved
   phrases are explicitly unapproved.
 - [#1278](https://github.com/iray-tno/hozo/issues/1278): the Android long-block
-  frame budget promised by the original proposal, with a measured line/token
-  envelope and separate initial-render, scroll and update results.
+  frame-budget measurement promised by the original proposal, now recorded
+  with the tested line/token counts and separate initial-render, scroll and
+  update results, including the failed smooth-frame envelope.
 
 On 2026-10-26 the maintainer deferred physical-device validation in line with
 the rest of the repository. Android/iOS reading granularity, hidden gutters,
