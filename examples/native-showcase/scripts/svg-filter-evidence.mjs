@@ -13,6 +13,7 @@ export function readAndroidScenario(value = 'full') {
       'audio-settings',
       'text-inheritance',
       'ui-docs',
+      'code-block-performance',
     ].includes(value),
     `Unknown Android scenario: ${value}`,
   )

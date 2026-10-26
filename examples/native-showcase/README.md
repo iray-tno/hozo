@@ -62,6 +62,46 @@ On macOS, with the release Simulator app built as described below and the input
 driver installed, use `HOZO_IOS_SCENARIO=svg-filters pnpm --filter
 @hozo/example-native-showcase smoke:ios` for the isolated iOS measurement.
 
+## CodeBlock frame measurement
+
+Dispatch `native-showcase` with `platform=android` and
+`android-scenario=code-block-performance`, using a fresh build (leave
+`reuse-build-run` empty). An explicit `diagnostics=true` comparison may reuse
+an APK only after its producer run, source and SHA256 match its signing manifest
+and a Git comparison rejects different application/build inputs. Documentation,
+the collector and speech-expectation files are allowed to differ; runtime,
+fixture, dependency and workflow changes require a fresh build. Both source
+revisions and the changed paths are retained. This isolated diagnostic never runs the full GPU
+showcase. `Diagnostics/CodeBlock performance/Matrix` mounts 10, 100, 300 and
+1000 lines, each with eight precomputed tokens, line numbers and fixed marks.
+Three rounds record a fresh mount, three updates, and four 800ms alternating
+swipes per overflowing block. The 10-line baseline fits and has no scroll
+frame claim. This is a wrapped, copy-free, non-virtualized fixture, not a
+bound for every token density or horizontal-scrolling configuration.
+
+`hozo-native-showcase-android-code-block-evidence` retains the exact APK hash,
+source hashes/revision, build run, emulator properties, display dump, per-window
+`gfxinfo framestats`, raw JS rAF samples, screenshots and failures for 30 days.
+The report compares ordinary completed frames with the observed display
+period. Flagged/pending rows are retained separately; the all-window Android
+jank aggregate accompanies the bounded recent-frame ring. Empty frames fail
+measurement rather than count as zero cost. Exceeding the period is reported,
+not hidden by an increased threshold or a retry.
+Completion is observed within the original 60s operation window, retaining
+every pending frame dump. The native layout callback can precede GPU completion;
+one fixed-delay dump is not proof that its timestamps are ready. Inputs are
+sent once; completion polling never repeats a mount, update or swipe.
+
+Mount latency is handler-to-native-layout-callback; update latency ends at
+React commit plus two rAFs. Neither boundary is a GPU presentation fence.
+rAF gaps measure JS responsiveness with probe overhead, not JS execution
+self-time. Android frame duration includes scheduling/rendering; it does not
+separate the main thread and RenderThread or count exact displayed frame
+drops. Controls are located before measurement; no XML-tree polling runs
+inside a window. Host-driven input, screenshots, emulator scheduling and
+software GPU limit any inference about physical hardware. Report the
+observed envelope or failures honestly; do not certify a phone from this run.
+
 ## Export-check evidence
 
 `pnpm --filter @hozo/example-native-showcase test` runs the unit probes, then

@@ -1,6 +1,6 @@
 # RFC 008: Window splitter
 
-Status: initial implementation. Tracking: [#1191](https://github.com/iray-tno/hozo/issues/1191).
+Status: implemented (initial slice, reviewed Web speech wording). Tracking: [#1191](https://github.com/iray-tno/hozo/issues/1191).
 
 `@hozo/behaviors` owns `useDrag1D`; `@hozo/patterns` owns `Splitter` and
 `ResizablePane`; `@hozo/ui` supplies their look. `@hozo/core` re-exports the
@@ -68,7 +68,7 @@ compatibility report; an inventory entry does not claim device validation.
 
 | Surface | Automated evidence | Still needed |
 | --- | --- | --- |
-| Web DOM | Named region; separator value, controls and orientation; hidden/inert collapse | NVDA and VoiceOver speech review |
+| Web DOM | Named region; separator value, controls and orientation; hidden/inert collapse; maintainer-approved NVDA/VoiceOver event wording | Audible speech quality is outside the captured evidence |
 | Chromium input | Real pointer capture, all four sides and RTL, release/cancel; keys and Tab out of a collapsed pane | Physical touch and pen |
 | Native mock hosts | Real React state, responder release, size actions, collapsed facts and hidden descendants | Android/iOS layout and responder delivery |
 | Native screen readers | Story available in the docs showcase | TalkBack/VoiceOver actions and announcements |
@@ -77,20 +77,28 @@ compatibility report; an inventory entry does not claim device validation.
 Native mock-host tests; package tests exercise coalescing, cancellation and
 server markup. These are not device pixels, timing or screen-reader speech
 measurements. The `patterns-resizablepane--default` story is discovered by
-the existing real-reader suite; its speech baselines need a reader run.
+the real-reader suite. [The captured speech review](../measurements/code-block-splitter-readers.md)
+links the successful NVDA/VoiceOver run and separates transcript inspection
+from human approval.
 
-## Remaining completion evidence
+## Completion evidence
 
 - [#1276](https://github.com/iray-tno/hozo/issues/1276): actual NVDA/Chrome and
   VoiceOver/Safari speech for the named separator, size changes, bounds,
   collapse and restoration. `examples/screen-readers/code-and-splitter.spec.ts`
-  records the keys, corresponding DOM facts and speech; captures without
-  human-approved phrases are explicitly unapproved.
-- [#1277](https://github.com/iray-tno/hozo/issues/1277): Android/iOS layout,
-  responder delivery and TalkBack/VoiceOver actions on real devices. Mock-host
-  tests do not satisfy this check.
+  records the keys, corresponding DOM facts and speech. The maintainer
+  approved the recorded wording on 2026-10-26; the committed expectations
+  passed on both readers in [run 40274993354](https://github.com/iray-tno/hozo/actions/runs/40274993354),
+  40/40 cases each. Audible pronunciation/prosody remains outside that approval.
 
-The parent issue remains open until these measurements are reviewed, or a
-maintainer explicitly agrees to a different completion boundary. Creating the
-follow-up issues does not supply the missing evidence. Native hardware
-keyboards, double-click reset and pane groups remain outside the first slice.
+On 2026-10-26 the maintainer deferred physical-device validation in line with
+the rest of the repository. Android/iOS layout, responder delivery and
+TalkBack/VoiceOver actions remain unverified in
+[#1277](https://github.com/iray-tno/hozo/issues/1277) and the public
+[known limitations](../../apps/landing/src/content/docs/docs/status.md).
+They no longer block this RFC's initial implementation; no device pass is
+inferred from mock-host tests or Web recordings.
+
+The implementation and agreed completion evidence are complete. Native
+hardware keyboards, double-click reset and pane groups remain outside the
+first slice; Envarly adoption remains post-release application work.

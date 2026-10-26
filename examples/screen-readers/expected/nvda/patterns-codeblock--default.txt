@@ -1,0 +1,8 @@
+# Approved by the maintainer in chat on 2026-10-26 after recording/action and reader-event review.
+# Source: 1713f401; https://github.com/iray-tno/hozo/actions/runs/40262274045
+# These are captured speech-event phrases; audible pronunciation/prosody is not certified.
+figure, caption, paths dot ts
+Removed: old slash bin ,
+Added: tools slash bin ,
+Highlighted: shared slash bin ,
+button, Copy code

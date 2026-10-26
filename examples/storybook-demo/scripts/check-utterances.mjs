@@ -172,6 +172,9 @@ async function run() {
       // audit. Neither longer goldens nor the reader's 400-step rule changes.
       const deadline = Date.now() + 5500
       const readiness = (${createReadiness.toString()})(frame, {deadline})
+      // A virtual cursor can scroll the parent as well as its own document.
+      // The next story must start with its complete frame on screen.
+      window.scrollTo(0, 0)
       frame.src = '/iframe.html?id=' + id + '&viewMode=story'
       let timer
       try {
@@ -190,7 +193,18 @@ async function run() {
       }
       results[id] = await read(frame)
     } catch (error) {
-      results[id] = { error: String(error && error.message || error) }
+      results[id] = {
+        error: String(error && error.message || error),
+        preparation: {
+          url: frame.contentDocument?.URL,
+          readyState: frame.contentDocument?.readyState,
+          rootChildren: frame.contentDocument?.getElementById('storybook-root')?.childElementCount,
+          visibility: frame.contentDocument?.visibilityState,
+          parentScrollY: window.scrollY,
+          frameBounds: frame.getBoundingClientRect().toJSON(),
+          viewport: { width: window.innerWidth, height: window.innerHeight },
+        },
+      }
     }
   }
   return results
@@ -328,6 +342,10 @@ server.listen(0, async () => {
       '--headless=new',
       '--disable-gpu',
       '--no-sandbox',
+      // The unchanged 1200x900 story frame must fit the parent's viewport.
+      // Chrome's default 800x600 window clips it and virtual focus can leave
+      // subsequent navigation/animation readiness outside the visible area.
+      '--window-size=1280,1024',
       // Match Playwright's active-renderer defaults: the frame's bounded
       // requestAnimationFrame readiness must not be background-throttled.
       '--disable-background-timer-throttling',

@@ -91,8 +91,14 @@ without a client directive. The default scrolling block and Copy need hydration
 for overflow observation and clipboard handling. Static markup alone does not
 install those interactions.
 
-Native renders one accessible Text per line, with nested token text. Real
-VoiceOver/TalkBack speech and a long-block device frame budget remain unmeasured;
-the first implementation does not virtualize. `Ins` and `Del` use underline and
+Native renders one accessible Text per line, with nested token text. Physical-device
+VoiceOver/TalkBack and frame performance remain unverified, as listed in
+[known limitations](../../status/). The pinned
+[Android emulator measurement and reproduction procedure](https://github.com/iray-tno/hozo/blob/main/docs/measurements/code-block-android.md)
+records initial display, whole-block updates and scrolling separately, including
+failed observations. Keep Native blocks small and avoid assuming that hundreds
+of tokenized lines can update within one display frame; measure the actual
+application's token density and update rate. The first implementation does not
+virtualize. `Ins` and `Del` use underline and
 line-through on Native. On Web they render `<ins>` and `<del>`; `Strikethrough`
 continues to render `<s>`.

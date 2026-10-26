@@ -1,0 +1,8 @@
+# Approved by the maintainer in chat on 2026-10-26 after recording/action and reader-event review.
+# Source: 1713f401; https://github.com/iray-tno/hozo/actions/runs/40262274045
+# These are captured speech-event phrases; audible pronunciation/prosody is not certified.
+152 pixels
+96 pixels
+240 pixels
+0 pixels
+240 pixels

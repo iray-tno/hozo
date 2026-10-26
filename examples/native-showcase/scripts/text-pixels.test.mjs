@@ -203,7 +203,7 @@ test('Android text rendering is opt-in, source-bound and retained separately wit
   )
   assert.match(
     workflow,
-    /options: \[full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs\]/,
+    /options: \[full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs, code-block-performance\]/,
   )
   assert.match(workflow, /name: hozo-native-showcase-android-text-evidence/)
   assert.match(workflow, /path: artifacts\/native-showcase-text/)
