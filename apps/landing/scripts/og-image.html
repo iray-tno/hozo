@@ -36,6 +36,15 @@
         background-size: 40px 40px;
         -webkit-font-smoothing: antialiased;
       }
+      /* HeroJoint.tsx: the four-way dovetail behind the hero, sliced to fill the card.
+         og-image.mjs fills in its faces from src/components/hero-joint-faces.ts. */
+      .joint {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0.1;
+      }
       /* Hero.tsx's two ambient glows: hinoki behind the headline, bengara to its left */
       .glow {
         position: absolute;
@@ -129,6 +138,7 @@
     </style>
   </head>
   <body>
+    <svg class="joint" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
     <div class="glow glow-hinoki"></div>
     <div class="glow glow-bengara"></div>
     <main>

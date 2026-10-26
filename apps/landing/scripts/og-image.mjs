@@ -15,7 +15,7 @@
 // the failure worth refusing.
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -26,6 +26,25 @@ const HEIGHT = 630
 const here = path.dirname(fileURLToPath(import.meta.url))
 const template = pathToFileURL(path.join(here, 'og-image.html')).href
 const output = path.join(here, '..', 'public', 'og-image.png')
+
+// The hero's joint, from the faces HeroJoint.tsx draws, so the card and the
+// page cannot drift apart. Read as text: the module is TypeScript.
+const jointFaces = [
+  ...readFileSync(
+    path.join(here, '..', 'src', 'components', 'hero-joint-faces.ts'),
+    'utf8',
+  ).matchAll(/d: '([^']+)', fill: '([^']+)'/g),
+]
+if (jointFaces.length === 0) {
+  console.error('og-image: no faces in hero-joint-faces.ts; run scripts/hero-joint.mjs')
+  process.exit(1)
+}
+const jointMarkup = jointFaces
+  .map(
+    ([, d, fill]) =>
+      `<path d="${d}" fill="${fill}" stroke="${fill}" stroke-width="0.3" stroke-linejoin="round"/>`,
+  )
+  .join('')
 
 const browser = [
   process.env.CHROME_PATH,
@@ -106,6 +125,15 @@ try {
   })
   await send('Page.enable')
   await send('Page.navigate', { url: template })
+  await send('Runtime.evaluate', {
+    expression: `(async () => {
+      for (const start = Date.now(); !document.querySelector('svg.joint') && Date.now() - start < 15000; ) {
+        await new Promise((resolve) => setTimeout(resolve, 50))
+      }
+      document.querySelector('svg.joint').innerHTML = ${JSON.stringify(jointMarkup)}
+    })()`,
+    awaitPromise: true,
+  })
 
   const { result } = await send('Runtime.evaluate', {
     expression: `(async () => {

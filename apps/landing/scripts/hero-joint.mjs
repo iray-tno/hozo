@@ -3,6 +3,9 @@
 //
 //   node scripts/hero-joint.mjs
 //
+// scripts/og-image.mjs draws the same faces behind the Open Graph card, so
+// rerun it afterwards.
+//
 // The joint is seen corner-on and drawn flat, one colour per piece and side.
 // The two dovetails seen are the two ends of one tongue that runs straight
 // across behind the near corner; the part of the lower piece between them
