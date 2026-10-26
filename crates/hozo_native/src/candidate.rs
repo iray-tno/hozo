@@ -376,6 +376,7 @@ pub(crate) fn style_pairs<'a>(props: &'a [StyleProperty], theme: &Theme) -> Vec<
             }
         }
     }
+    uniform_border_width(&mut emitted);
     if let Some(transform) = style::transform_entry(props, theme) {
         emitted.push(transform);
     }
@@ -391,9 +392,71 @@ pub(crate) fn style_pairs<'a>(props: &'a [StyleProperty], theme: &Theme) -> Vec<
     emitted
 }
 
+/// Adds `borderWidth` beside four equal side widths.
+///
+/// Android draws a rounded border dashed or dotted only when the view has
+/// one `borderWidth` for all sides; four side widths, even equal ones, take
+/// its per-side path, which fills each side solid. So `rounded-xl border-2
+/// border-dashed` came out solid there (#1205). The side widths stay, so
+/// what overrides what is unchanged: React Native lets a side width beat
+/// `borderWidth` wherever either is written, and every style that sets this
+/// one also sets all four sides.
+fn uniform_border_width(emitted: &mut Vec<(&str, String)>) {
+    const SIDES: [&str; 4] = [
+        "borderTopWidth",
+        "borderRightWidth",
+        "borderBottomWidth",
+        "borderLeftWidth",
+    ];
+    let width = |side: &str| {
+        emitted
+            .iter()
+            .find(|(key, _)| *key == side)
+            .map(|(_, value)| value)
+    };
+    let Some(top) = width(SIDES[0]) else { return };
+    if SIDES[1..].iter().all(|side| width(side) == Some(top))
+        && !emitted.iter().any(|(key, _)| *key == "borderWidth")
+    {
+        let top = top.clone();
+        emitted.push(("borderWidth", top));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn four_equal_side_widths_also_say_border_width_for_android_dashes() {
+        let theme = Theme::default();
+        let props = [
+            StyleProperty::BorderTopWidth(Length::Px(2.0)),
+            StyleProperty::BorderRightWidth(Length::Px(2.0)),
+            StyleProperty::BorderBottomWidth(Length::Px(2.0)),
+            StyleProperty::BorderLeftWidth(Length::Px(2.0)),
+        ];
+        let pairs = style_pairs(&props, &theme);
+        assert!(
+            pairs.contains(&("borderWidth", "2".to_string())),
+            "{pairs:?}"
+        );
+        assert!(
+            pairs.contains(&("borderTopWidth", "2".to_string())),
+            "{pairs:?}"
+        );
+
+        // One side apart: no claim that the border is uniform.
+        let uneven = [
+            StyleProperty::BorderTopWidth(Length::Px(4.0)),
+            StyleProperty::BorderRightWidth(Length::Px(2.0)),
+            StyleProperty::BorderBottomWidth(Length::Px(2.0)),
+            StyleProperty::BorderLeftWidth(Length::Px(2.0)),
+        ];
+        assert!(!style_pairs(&uneven, &theme)
+            .iter()
+            .any(|(key, _)| *key == "borderWidth"));
+    }
 
     #[test]
     fn data_presence_candidates_use_boolean_owner_facts_not_a_selector_interpreter() {
