@@ -30,6 +30,13 @@ export {
   type StylexResolutionRequest,
   type StylexResolvedBindings,
 } from './stylex-project.ts'
+export {
+  type CollectedTailwindModule,
+  emitFinalTailwindBatch,
+  type FinalTailwindBatch,
+  type FinalTailwindBatchRequest,
+  TailwindBatchIncomplete,
+} from './tailwind-final-batch.ts'
 export { emitTailwindModules } from './tailwind-project.ts'
 export {
   TailwindCandidateUniverse,

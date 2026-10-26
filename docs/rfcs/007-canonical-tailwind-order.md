@@ -195,6 +195,13 @@ be switched together. The explicit planner's nonzero build-time costs and its
 predicate/platform barriers are recorded in
 [static scalar-plan evidence](../measurements/tailwind-static-scalar-plan.md).
 
+A bounded publisher now reconciles current runtime facts with actual retained
+module units, prepares once and emits every module plus the Native candidate
+plan through that exact context object. Missing/stale inputs and late failures
+expose no partial publisher cache/output. This finite owned batch is not a
+whole-worker graph protocol, adapter default switch or theme-equivalence proof;
+see [batch publication and measured limits](../measurements/tailwind-final-batch.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

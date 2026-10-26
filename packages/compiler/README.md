@@ -87,6 +87,16 @@ This API does not discover the build graph, authenticate revision tokens,
 synchronize worker processes or enable new cascade winners. Adapter graph and
 cached-transform lifecycle integration remains separate.
 
+`emitFinalTailwindBatch` joins those runtime facts with a caller-declared finite
+set of current retained compiler modules. It prepares one complete context and
+returns module outputs and the Native candidate plan only after all succeed in
+that exact context. Static units do not become runtime candidates. It owns and
+disposes accepted/ignored handles, supports epoch cancellation, and returns no
+partial cache on failure. Callers still own authoritative IDs/revisions, matching
+compiler/theme/source policy and graph invalidation; ordinary adapter output and
+winner policy are unchanged. This is not whole-worker reconciliation or final
+Web candidate CSS. See [evidence and cost](../../docs/measurements/tailwind-final-batch.md).
+
 ## Read-only module analysis
 
 `@hozo/compiler/analysis` exposes `analyzeModule(source, { compiler, file, root, targets })`.
