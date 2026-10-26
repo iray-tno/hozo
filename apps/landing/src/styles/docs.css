@@ -81,11 +81,3 @@
     background-color: transparent;
   }
 }
-
-/* A dialog in a preview dims the page and blurs it a little, as Storybook's
- * does. The blur is the page's to add: @hozo/ui cannot carry
- * `backdrop:backdrop-blur-*`, which React Native has no counterpart for and
- * which stops the component compiling there. */
-.hozo-ui-example dialog::backdrop {
-  backdrop-filter: blur(4px);
-}

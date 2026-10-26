@@ -1343,6 +1343,9 @@ pub(super) fn render_node(
             .expect("a backdrop style must have a catalogued owner");
         props_text.push_str(&format!(" {prop}={{[{}]}}", backdrop_parts.join(", ")));
     }
+    if let Some(radius) = &layout.backdrop_blur {
+        props_text.push_str(&format!(" hozoBackdropBlur={{{radius}}}"));
+    }
     if link_interaction {
         props_text.push_str(" hozoLinkComponent={HozoPressable}");
     }

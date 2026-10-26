@@ -51,6 +51,11 @@ test('it centres itself, because a margin reset takes the browser’s centring a
   assert.match(render(), /class="[^"]*\bm-auto\b/)
 })
 
+test('the scrim blurs the page behind it as well as dimming it', () => {
+  // On Native through the app's backdrop-filter adapter, when it has one (#1310).
+  assert.match(render(), /backdrop:backdrop-blur-xs/)
+})
+
 test('it can scroll, because the part a dialog clips is the part with the buttons', () => {
   const html = render()
   assert.match(html, /overflow-y-auto/)

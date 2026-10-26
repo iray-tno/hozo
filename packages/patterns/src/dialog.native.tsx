@@ -1,13 +1,22 @@
 import { hozoTextChildren, shouldRestoreFocus } from '@hozo/behaviors'
 import { moveAccessibilityFocus } from '@hozo/behaviors/native'
+import { hozoBackdropFilterAdapter } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
-import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
+import {
+  type ComponentRef,
+  createElement,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useRef,
+} from 'react'
 import {
   AppState,
   findNodeHandle,
   Modal,
   Platform,
   type StyleProp,
+  StyleSheet,
   View,
   type ViewStyle,
 } from 'react-native'
@@ -74,6 +83,16 @@ export interface DialogProps {
   /** @internal Dialog's backdrop is a sibling of its content, never the panel's colour. */
   hozoBackdropStyle?: StyleProp<ViewStyle>
   /**
+   * @internal `backdrop:backdrop-blur-*`'s radius in px (#1310).
+   *
+   * Drawn through the app's backdrop-filter adapter
+   * (`configureHozoBackdropFilter`), as a layer behind the panel. Without one
+   * the blur is left out and the scrim keeps its colour: a shared component
+   * cannot make every app install a blur library, and a dialog that still
+   * dims the page is the right fallback, where throwing is not.
+   */
+  hozoBackdropBlur?: number
+  /**
    * Dropped until a device said so.
    *
    * The Web half carries `testID` into `data-testid` like every other
@@ -96,6 +115,7 @@ export function Dialog({
   style,
   hozoScrollY,
   hozoBackdropStyle,
+  hozoBackdropBlur,
   testID,
   children,
 }: DialogProps) {
@@ -188,18 +208,39 @@ export function Dialog({
   )
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      {hozoScrollY || hozoBackdropStyle ? (
+      {hozoScrollY || hozoBackdropStyle || hozoBackdropBlur ? (
         <View
           accessible={false}
           style={[{ flex: 1, justifyContent: 'center', alignItems: 'center' }, hozoBackdropStyle]}
         >
-          {panel}
+          {/* Without a blur the scrim holds the panel alone, as before. */}
+          {hozoBackdropBlur ? (
+            <>
+              {backdropBlur(hozoBackdropBlur)}
+              {panel}
+            </>
+          ) : (
+            panel
+          )}
         </View>
       ) : (
         panel
       )}
     </Modal>
   )
+}
+
+/** The blur layer behind the panel, or nothing when the app installed no adapter. */
+function backdropBlur(radius: number) {
+  const Adapter = hozoBackdropFilterAdapter()
+  if (!Adapter) return null
+  return createElement(Adapter, {
+    blurRadius: radius,
+    pointerEvents: 'none',
+    accessibilityElementsHidden: true,
+    importantForAccessibility: 'no-hide-descendants',
+    style: StyleSheet.absoluteFill,
+  })
 }
 
 export { Dialog as HozoDialog, type DialogProps as HozoDialogProps }
