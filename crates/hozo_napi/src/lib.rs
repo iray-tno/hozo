@@ -1068,6 +1068,23 @@ impl CandidateCache {
         hozo_native::render_candidate_module(&self.inner.union(), &to_theme(theme))
     }
 
+    /// Internal build-time sidecar from this actual generation. Device code
+    /// is byte-identical to render_native_module, not a new fallback mode.
+    #[napi]
+    pub fn render_native_module_plan(
+        &self,
+        context: &PreparedTailwindContext,
+        theme: Option<JsTheme>,
+    ) -> napi::Result<tailwind_order::NativeCandidatePlan> {
+        hozo_native::render_candidate_module_plan(
+            &self.inner.union(),
+            &to_theme(theme),
+            &context.context,
+        )
+        .map(Into::into)
+        .map_err(napi::Error::from_reason)
+    }
+
     /// Whether any scanned file names a Tailwind utility.
     ///
     /// Not the same as the candidate stylesheet being non-empty: that

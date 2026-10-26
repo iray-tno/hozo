@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 
 mod comparison;
 mod priority;
-pub use priority::TailwindRulePriority;
+pub use priority::{TailwindRulePriority, TailwindWriteEvidence};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]

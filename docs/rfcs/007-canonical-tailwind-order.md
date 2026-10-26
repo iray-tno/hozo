@@ -159,6 +159,15 @@ fallback metadata and final namespace publication must use this same source
 before output winners switch together. See
 [write-priority evidence and limits](../measurements/tailwind-write-priority.md).
 
+Candidate generation now has a build-time-only sidecar from its actual pass,
+using the same IR write evidence as static plans. It records emitted object
+locations, real predicate keys and per-write priorities. Nonuniform/unknown
+groups do not borrow a first-rule rank. The ordinary generated module is
+byte-identical, so this is not yet a runtime ABI or winner switch. A remaining
+`p-2!` extraction/lowering gap was observed during comparison; upstream priority
+facts alone do not solve it. See
+[candidate generation evidence](../measurements/tailwind-candidate-priority.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

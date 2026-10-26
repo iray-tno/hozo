@@ -67,6 +67,18 @@ test('the host addon exposes shared rule order and priorities on every platform 
         important === false && JSON.stringify(specificity) === '[0,1,0]',
     ),
   )
+  const cache = openCandidateCache()
+  cache.scanFile('entry', `export const classes='p-10 p-2'`, 1)
+  const generated = cache.renderNativeModulePlan(context)
+  assert.equal(generated.schema, 1)
+  assert.equal(generated.fingerprint, snapshot.fingerprint)
+  assert.equal(generated.code, cache.renderNativeModule())
+  assert.equal(generated.entries.length, 2)
+  assert.ok(generated.entries.every((entry) => entry.kind === 'style'))
+  assert.deepEqual(
+    generated.entries.map((entry) => entry.groups[0]!.priorityRank),
+    [1, 0],
+  )
 })
 
 test('maps supported Node platforms to optional native packages', () => {

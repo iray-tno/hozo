@@ -334,6 +334,11 @@ export interface CandidateCache {
   /// The Native equivalent: a JS module exporting `hozoClasses`, a
   /// resolver bound to this project's class-name -> style-object map.
   renderNativeModule(theme?: Theme): string
+  /** @internal One actual generation pass with a build-time-only sidecar.
+   * Requires a complete context; returned code is unchanged. Not installed
+   * by adapters yet. Group ranks are original-rule facts, not platform proof.
+   */
+  renderNativeModulePlan(context: PreparedTailwindContext, theme?: Theme): NativeCandidatePlan
   persist(): void
   readonly size: number
   /// Whether any scanned file names a Tailwind utility.
@@ -608,6 +613,29 @@ export interface TailwindRulePriorities {
     important?: boolean
     specificity?: number[]
     reason?: string
+  }[]
+}
+
+/** @internal Versioned build-time sidecar, not device resolver arguments. */
+export interface NativeCandidatePlan {
+  code: string
+  schema: 1
+  fingerprint: string
+  entries: {
+    candidate: string
+    candidateId: number
+    kind: 'style' | 'state' | 'refused'
+    reason?: string
+    groups: {
+      /** Index of the generated state object, or zero for styles[candidate]. */
+      index: number
+      stateKeys: string[]
+      /** Original IR write indices before Native expansion/deduplication. */
+      writes: TailwindCompilePlan['sites'][number]['blocks'][number]['writes']
+      /** Only uniform assessed writes receive a whole-object fact. */
+      priorityRank?: number
+      reason?: string
+    }[]
   }[]
 }
 

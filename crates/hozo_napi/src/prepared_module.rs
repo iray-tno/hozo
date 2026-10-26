@@ -5,7 +5,7 @@ use napi::bindgen_prelude::Either;
 
 #[napi]
 pub struct PreparedTailwindContext {
-    context: Box<hozo_ir::TailwindOrderContext>,
+    pub(super) context: Box<hozo_ir::TailwindOrderContext>,
 }
 
 #[napi(object)]

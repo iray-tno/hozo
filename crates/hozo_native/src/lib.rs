@@ -86,7 +86,10 @@ use conditions::{build_style_entries, unwired_variant, RuntimeHook};
 /// produced a `hozo0_dark` holding the light colour: structurally correct,
 /// guarded correctly, and the same colour twice.
 pub(crate) type StyleEntry = (String, Vec<StyleProperty>, bool);
-pub use candidate::render_candidate_module;
+pub use candidate::{
+    render_candidate_module, render_candidate_module_plan, CandidateModulePlan,
+    CandidatePriorityEntry, CandidatePriorityGroup,
+};
 use grid::{grid_absorbs, native_grid, native_grid_item};
 use hozo_ir::{
     AlignSelf, Axis, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display,

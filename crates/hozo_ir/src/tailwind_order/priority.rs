@@ -1,7 +1,10 @@
 //! A bounded author-rule priority in one utility input tier, not a complete
 //! CSS cascade or permission to reorder authored expressions/unknown writes.
 use super::TailwindOrderContext;
-use crate::{assess_tailwind_rule, RuleAssessmentError};
+use crate::{
+    assess_tailwind_rule, assess_tailwind_write, RuleAssessmentError, StyleProperty,
+    TailwindWriteOwnership,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TailwindRulePriority {
@@ -9,6 +12,76 @@ pub struct TailwindRulePriority {
     pub rank: usize,
     pub important: bool,
     pub specificity: [u32; 3],
+}
+
+/// Shared evidence for an original IR write, before either backend expands
+/// it. The index belongs to its containing write group, not an RN style key.
+#[derive(Debug)]
+pub struct TailwindWriteEvidence {
+    pub index: usize,
+    pub rule_id: Option<u32>,
+    pub css_property: Option<String>,
+    pub specificity: Option<[u32; 3]>,
+    pub priority_rank: Option<usize>,
+    pub important: Option<bool>,
+    pub reason: Option<&'static str>,
+}
+
+impl TailwindWriteEvidence {
+    pub fn unknown(index: usize, reason: &'static str) -> Self {
+        Self {
+            index,
+            rule_id: None,
+            css_property: None,
+            specificity: None,
+            priority_rank: None,
+            important: None,
+            reason: Some(reason),
+        }
+    }
+}
+
+impl TailwindOrderContext {
+    /// Both actual static plans and candidate generation ask this same
+    /// boundary. Neither reconstructs selector ownership or priority policy.
+    pub fn write_evidence(
+        &self,
+        name: &str,
+        index: usize,
+        property: &StyleProperty,
+    ) -> TailwindWriteEvidence {
+        let Some(candidate) = self.lookup(name) else {
+            return TailwindWriteEvidence::unknown(index, "uncollected");
+        };
+        if candidate.rules.is_empty() {
+            return TailwindWriteEvidence::unknown(index, "not-generated");
+        }
+        match assess_tailwind_write(candidate, property) {
+            TailwindWriteOwnership::Unique {
+                rule_id,
+                css_property,
+                specificity,
+            } => {
+                let mut result = TailwindWriteEvidence::unknown(index, "uncollected-rule-priority");
+                result.rule_id = Some(rule_id);
+                result.css_property = Some(css_property.into());
+                result.specificity = Some(specificity);
+                match self.rule_priority(candidate, rule_id) {
+                    Some(Ok(priority)) => {
+                        result.priority_rank = Some(priority.rank);
+                        result.important = Some(priority.important);
+                        result.reason = None;
+                    }
+                    Some(Err(reason)) => result.reason = Some(reason.reason()),
+                    None => {}
+                }
+                result
+            }
+            TailwindWriteOwnership::Unknown(reason) => {
+                TailwindWriteEvidence::unknown(index, reason)
+            }
+        }
+    }
 }
 
 pub(super) fn prepare(

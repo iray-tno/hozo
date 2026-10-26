@@ -46,6 +46,81 @@ pub struct TailwindCompileWrite {
     pub reason: Option<String>,
 }
 
+impl From<hozo_ir::TailwindWriteEvidence> for TailwindCompileWrite {
+    fn from(write: hozo_ir::TailwindWriteEvidence) -> Self {
+        Self {
+            index: write.index as u32,
+            rule_id: write.rule_id,
+            css_property: write.css_property,
+            specificity: write.specificity.map(|value| value.to_vec()),
+            priority_rank: write.priority_rank.map(|rank| rank as u32),
+            important: write.important,
+            reason: write.reason.map(str::to_owned),
+        }
+    }
+}
+
+#[napi(object)]
+pub struct NativeCandidatePlan {
+    pub code: String,
+    pub schema: u32,
+    pub fingerprint: String,
+    pub entries: Vec<NativeCandidatePriorityEntry>,
+}
+
+#[napi(object)]
+pub struct NativeCandidatePriorityEntry {
+    pub candidate: String,
+    pub candidate_id: u32,
+    pub kind: String,
+    pub reason: Option<String>,
+    pub groups: Vec<NativeCandidatePriorityGroup>,
+}
+
+#[napi(object)]
+pub struct NativeCandidatePriorityGroup {
+    pub index: u32,
+    pub state_keys: Vec<String>,
+    pub writes: Vec<TailwindCompileWrite>,
+    pub priority_rank: Option<u32>,
+    pub reason: Option<String>,
+}
+
+impl From<hozo_native::CandidateModulePlan> for NativeCandidatePlan {
+    fn from(plan: hozo_native::CandidateModulePlan) -> Self {
+        Self {
+            code: plan.code,
+            schema: plan.schema,
+            fingerprint: plan.fingerprint,
+            entries: plan
+                .entries
+                .into_iter()
+                .map(|entry| NativeCandidatePriorityEntry {
+                    candidate: entry.candidate,
+                    candidate_id: entry.candidate_id,
+                    kind: entry.kind.into(),
+                    reason: entry.reason.map(str::to_owned),
+                    groups: entry
+                        .groups
+                        .into_iter()
+                        .map(|group| NativeCandidatePriorityGroup {
+                            index: group.index as u32,
+                            state_keys: group.state_keys,
+                            writes: group
+                                .writes
+                                .into_iter()
+                                .map(TailwindCompileWrite::from)
+                                .collect(),
+                            priority_rank: group.priority_rank.map(|rank| rank as u32),
+                            reason: group.reason.map(str::to_owned),
+                        })
+                        .collect(),
+                })
+                .collect(),
+        }
+    }
+}
+
 pub fn compile_plan(
     plan: hozo_parser::TailwindRootPlan,
     offsets: &Utf16Offsets,
@@ -84,15 +159,7 @@ pub fn compile_plan(
                             writes: block
                                 .writes
                                 .into_iter()
-                                .map(|write| TailwindCompileWrite {
-                                    index: write.index as u32,
-                                    rule_id: write.rule_id,
-                                    css_property: write.css_property,
-                                    specificity: write.specificity.map(|value| value.to_vec()),
-                                    priority_rank: write.priority_rank.map(|rank| rank as u32),
-                                    important: write.important,
-                                    reason: write.reason.map(str::to_owned),
-                                })
+                                .map(TailwindCompileWrite::from)
                                 .collect(),
                         }
                     })
