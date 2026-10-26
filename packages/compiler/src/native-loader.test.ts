@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { openCandidateCache } from './index.ts'
+import { openCandidateCache, prepareTailwindContext } from './index.ts'
 import { loadNativeBinding, nativePackageName } from './native-loader.ts'
 
 test('the host addon exposes compatible candidate replay on every platform smoke path', () => {
@@ -13,6 +13,45 @@ test('the host addon exposes compatible candidate replay on every platform smoke
   assert.equal(restored.renderCss(), cache.renderCss())
   assert.equal(restored.renderNativeModule(), cache.renderNativeModule())
   assert.equal(restored.isCurrent('entry', 2), true)
+})
+
+test('the host addon exposes the full-rule comparator on every platform smoke path', () => {
+  const snapshot = {
+    schema: 1,
+    policy: 'tailwind-rule-signatures-v1',
+    tailwindVersion: 'host-smoke',
+    fingerprint: 'a'.repeat(64),
+    stylesheets: [],
+    candidates: ['p-10', 'p-2'].map((candidate, id) => ({
+      id,
+      candidate,
+      status: 'described',
+      firstRuleRank: null,
+      rules: [
+        {
+          id,
+          candidateId: id,
+          variantOrder: '0',
+          important: false,
+          propertyOrder: [270],
+          declarationCount: 1,
+          shape: {
+            kind: 'rule',
+            selector: `.${candidate}`,
+            nodes: [{ kind: 'declaration', property: 'padding', important: false }],
+          },
+        },
+      ],
+    })),
+  }
+  const context = prepareTailwindContext(JSON.stringify(snapshot))
+  assert.deepEqual(context.ruleOrder(), {
+    fingerprint: snapshot.fingerprint,
+    rules: [
+      { candidateId: 1, ruleId: 1 },
+      { candidateId: 0, ruleId: 0 },
+    ],
+  })
 })
 
 test('maps supported Node platforms to optional native packages', () => {

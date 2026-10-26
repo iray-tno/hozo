@@ -8,6 +8,18 @@ pub struct PreparedTailwindContext {
     context: Box<hozo_ir::TailwindOrderContext>,
 }
 
+#[napi(object)]
+pub struct TailwindRuleOrderEntry {
+    pub candidate_id: u32,
+    pub rule_id: u32,
+}
+
+#[napi(object)]
+pub struct TailwindRuleOrder {
+    pub fingerprint: String,
+    pub rules: Vec<TailwindRuleOrderEntry>,
+}
+
 #[napi]
 pub fn prepare_tailwind_context(snapshot: String) -> napi::Result<PreparedTailwindContext> {
     Ok(PreparedTailwindContext {
@@ -20,6 +32,23 @@ impl PreparedTailwindContext {
     #[napi(getter)]
     pub fn fingerprint(&self) -> String {
         self.context.snapshot().fingerprint.clone()
+    }
+
+    /// Build-time namespace data, not a device sort or an assessment of which
+    /// rules Hozo can lower. The native index is reused; JS receives a copy.
+    #[napi]
+    pub fn rule_order(&self) -> TailwindRuleOrder {
+        TailwindRuleOrder {
+            fingerprint: self.context.snapshot().fingerprint.clone(),
+            rules: self
+                .context
+                .rules_in_emission_order()
+                .map(|(candidate, rule)| TailwindRuleOrderEntry {
+                    candidate_id: candidate.id,
+                    rule_id: rule.id,
+                })
+                .collect(),
+        }
     }
 
     /// Completeness is checked once before any module is consumed. A

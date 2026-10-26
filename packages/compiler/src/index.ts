@@ -583,11 +583,22 @@ export interface CompileOptions extends CompileEvidence {
 
 declare const preparedContext: unique symbol
 
+/** @internal Rule IDs and their ordinal positions belong to this fingerprint.
+ * Emission order does not incorporate CSS cascade importance/specificity or
+ * assert Hozo supports a rule. Keep every rule, not a candidate's first rank.
+ */
+export interface TailwindRuleOrder {
+  fingerprint: string
+  rules: { candidateId: number; ruleId: number }[]
+}
+
 /** @internal Immutable validated build-time context, shared across a batch. */
 export interface PreparedTailwindContext {
   readonly [preparedContext]: true
   readonly fingerprint: string
   requireCandidates(candidates: string[]): void
+  /** Build-time only; lazily prepare one native index and return a JS copy. */
+  ruleOrder(): TailwindRuleOrder
 }
 
 /** @internal One-shot, process-local owned parse. dispose is idempotent. */

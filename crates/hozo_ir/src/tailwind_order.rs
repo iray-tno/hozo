@@ -4,6 +4,9 @@
 use crate::{TailwindUnits, TailwindUtilityId};
 use serde::Deserialize;
 use std::collections::{BTreeMap, HashMap};
+use std::sync::OnceLock;
+
+mod comparison;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -94,6 +97,7 @@ pub enum OrderContextValue {
 pub struct TailwindOrderContext {
     snapshot: TailwindOrderSnapshot,
     by_name: HashMap<String, usize>,
+    rule_order: OnceLock<Vec<(usize, usize)>>,
 }
 
 fn decimal(value: &str) -> bool {
@@ -156,7 +160,11 @@ impl TailwindOrderContext {
                 next_rule += 1;
             }
         }
-        Ok(Self { snapshot, by_name })
+        Ok(Self {
+            snapshot,
+            by_name,
+            rule_order: OnceLock::new(),
+        })
     }
 
     pub fn snapshot(&self) -> &TailwindOrderSnapshot {
@@ -167,6 +175,23 @@ impl TailwindOrderContext {
         self.by_name
             .get(candidate)
             .map(|index| &self.snapshot.candidates[*index])
+    }
+
+    /// One complete rule sequence in this snapshot's namespace. The index is
+    /// prepared lazily once, never by a module/state update. Unlike first-rule
+    /// candidate ranks this preserves every rule of a multi-rule utility.
+    /// This is emission order, not cascade precedence or a support verdict:
+    /// importance, specificity and condition/write ownership are separate.
+    pub fn rules_in_emission_order(
+        &self,
+    ) -> impl Iterator<Item = (&OrderCandidateDescriptor, &OrderRuleDescriptor)> {
+        self.rule_order
+            .get_or_init(|| comparison::ordered_indices(&self.snapshot))
+            .iter()
+            .map(move |&(candidate, rule)| {
+                let candidate = &self.snapshot.candidates[candidate];
+                (candidate, &candidate.rules[rule])
+            })
     }
 
     /// Pass-through binding only. No sort, selector assessment, declaration

@@ -137,6 +137,16 @@ Real small Vite builds exercise these hooks; JSON receipt replay is covered,
 but real cached-transform reuse is not yet proven. See
 [Vite graph inventory evidence](../measurements/vite-candidate-inventory.md).
 
+Prepared contexts now also expose one lazily cached Rust rule-emission index.
+It compares full signatures and preserves every rule, rather than sorting by
+an individual candidate's first-rule rank. The build-time `ruleOrder()` result
+includes its namespace fingerprint; there is no per-family comparator or
+device ordering helper. Independent Tailwind CSS positions validate builtins,
+owner variants, duplicate custom utilities and stable equal-key rule order.
+This does not yet change cascade winners: assessed write ownership,
+importance/specificity and final static/candidate publication remain necessary.
+See [the common comparator and limits](../measurements/tailwind-rule-comparator.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be
