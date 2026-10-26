@@ -86,7 +86,7 @@ tab, Shipping, not selected, 1 control, position 2, set size 3
 tab, Returns, not selected, 1 control, disabled, position 3, set size 3
 end of tablist, Product, orientated horizontally
 tabpanel, Details
-A universal UI compiler, written in Rust.
+A universal UI framework, compiled by Rust.
 end of tabpanel, Details
 button, Hover or focus me
 button, Delete the project
