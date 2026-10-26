@@ -330,6 +330,18 @@ For example, Keyboard listeners are no-op subscriptions and Platform.Version is 
 neither is described as an unrestricted API match. Partial/failed/policy-disabled journals do not
 acquire member reviews. Evidence paths name this tool's Hozo source, not files resolved in the app.
 
+## Internal Tailwind rule ordering
+
+`prepareTailwindContext(snapshot).ruleOrder()` returns all generated rule IDs
+in Tailwind emission order, plus the snapshot fingerprint that owns them.
+The Rust index is constructed lazily once per immutable prepared context;
+each explicit Node call returns a copy, not mutable access to the native cache.
+This build-time boundary is for preparing the common ordering plan, not a
+runtime sort or utility support verdict. It neither collapses multi-rule
+candidates to their first rank nor decides CSS importance/specificity. Existing
+lowering still preserves its previous winners until static and dynamic paths
+can change together. See [the measured scope](../../docs/measurements/tailwind-rule-comparator.md).
+
 <!-- generated: package-footer -->
 
 ---
