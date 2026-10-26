@@ -123,6 +123,20 @@ test('on Native, one image element; each part gets its own style; the initials g
   renderer.act(() => root.unmount())
 })
 
+test('on Native the avatar does not clip its status dot; the picture rounds itself instead', () => {
+  const { C } = loadNativeModule(SOURCE)
+  let root: ReturnType<typeof renderer.create> | undefined
+  renderer.act(() => {
+    root = renderer.create(react.createElement(C, { src: 'a.png', name: 'Ada', status: 'busy' }))
+  })
+  const [outer] = root.root.findAll((node: Tree) => node.type === 'View')
+  // A dot on the edge of a clipping circle was cut to a sliver (#1205).
+  assert.notEqual(flat(outer).overflow, 'hidden')
+  const [picture] = root.root.findAll((node: Tree) => node.type === 'Image')
+  assert.equal(flat(picture).borderRadius, 9999, 'the picture missed the avatar corners')
+  renderer.act(() => root.unmount())
+})
+
 test('a picture that fails shows the initials, and a new picture tries again', () => {
   const { C } = loadNativeModule(SOURCE)
   let root: ReturnType<typeof renderer.create> | undefined

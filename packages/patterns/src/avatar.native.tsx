@@ -45,10 +45,13 @@ export interface HozoAvatarProps {
  * Native: one `image` element named for the person, its parts hidden, for
  * the reason the Web half gives.
  *
- * The picture fills the avatar and is clipped to it, so a `rounded-full` on
- * the avatar is a round photograph. The text half of `style` -- a colour, a
- * size -- goes to the initials, which is where the Web's inheritance would
- * have put it.
+ * The picture fills the avatar and takes its corners, so a `rounded-full` on
+ * the avatar is a round photograph. The avatar itself does not clip: the
+ * status dot sits on its edge, and a clipping circle cut it to a sliver
+ * (#1205). The Web half does not clip either.
+ *
+ * The text half of `style` -- a colour, a size -- goes to the initials,
+ * which is where the Web's inheritance would have put it.
  */
 export function HozoAvatar({
   src,
@@ -95,7 +98,12 @@ export function HozoAvatar({
       {showImage ? (
         <Image
           source={{ uri: src }}
-          style={[FILL, hozoClasses(imageClassName, nonControlSlotFacts), imageStyle]}
+          style={[
+            FILL,
+            cornersOf(box),
+            hozoClasses(imageClassName, nonControlSlotFacts),
+            imageStyle,
+          ]}
           onError={() => setFailed(src)}
           {...hidden}
         />
@@ -114,8 +122,15 @@ export function HozoAvatar({
   )
 }
 
-const AVATAR: ViewStyle = { overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }
+const AVATAR: ViewStyle = { alignItems: 'center', justifyContent: 'center' }
 const FILL: ImageStyle = { width: '100%', height: '100%' }
 const CENTRED: ViewStyle = { alignItems: 'center', justifyContent: 'center' }
+
+/** The avatar's corner radii, for the picture to round itself to. */
+function cornersOf(box: ViewStyle): ImageStyle {
+  const corners: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(box)) if (key.endsWith('Radius')) corners[key] = value
+  return corners as ImageStyle
+}
 
 export { HozoAvatar as Avatar, type HozoAvatarProps as AvatarProps }

@@ -35,7 +35,9 @@ const md =
 const lg =
   'relative flex items-center justify-center rounded-full size-14 text-lg font-medium bg-hozo-surface-raised text-hozo-text-body'
 
-const image = 'size-full object-cover'
+// Rounded itself, because the avatar does not clip: the status dot sits on
+// its edge and would be cut by a clipping circle.
+const image = 'size-full rounded-full object-cover'
 
 const online =
   'absolute bottom-0 end-0 size-3 rounded-full border-2 border-hozo-surface bg-hozo-presence'
