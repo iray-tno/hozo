@@ -784,6 +784,96 @@ export function prepareLowerModule(
       )
 }
 
+export interface WebStyleContinuation {
+  /** Import/JS structure for graph discovery; its CSS is not the final sheet. */
+  initial: LoweredModule | undefined
+  module: PreparedModule<LoweredModule | undefined>
+}
+
+/** @internal Discover Web imports now, emit final CSS from the same owned IR
+ * after the bundler graph closes. Never patch already-parsed JavaScript: a
+ * structural difference is an explicit failure, not permission to publish it.
+ * Ordinary/ready transforms do not preview or retain a second output.
+ */
+export function prepareLowerModuleStyles(
+  code: string,
+  id: string,
+  file: string,
+  compiler: Compiler,
+  root: string,
+  stylexModules?: StylexModuleCache,
+  options: LowerModuleOptions = {},
+): WebStyleContinuation {
+  const captured = { ...options }
+  const result = lowerModuleUnchecked(
+    code,
+    id,
+    file,
+    compiler,
+    root,
+    stylexModules,
+    captured,
+    (source, bindings, compileOptions, finish): WebStyleContinuation => {
+      const prepared = compiler.prepareWebModule(source, bindings, compileOptions)
+      const observe = captured.observe
+      try {
+        // Analysis observes final semantic edits once, not a speculative run.
+        captured.observe = undefined
+        const initial = completeModuleResolution(finish(prepared.preview()), root, file, captured)
+        const structure = initial && {
+          code: initial.code,
+          cssPath: initial.cssPath,
+          cssFileName: initial.cssFileName,
+          needsClientBoundary: initial.needsClientBoundary,
+        }
+        return {
+          initial,
+          module: ownedLowering(
+            prepared.candidates,
+            (context) => {
+              const output = completeModuleResolution(
+                finish(prepared.emit(context)),
+                root,
+                file,
+                captured,
+              )
+              if (
+                Boolean(output) !== Boolean(structure) ||
+                (output &&
+                  structure &&
+                  (output.code !== structure.code ||
+                    output.cssPath !== structure.cssPath ||
+                    output.cssFileName !== structure.cssFileName ||
+                    output.needsClientBoundary !== structure.needsClientBoundary))
+              )
+                throw new Error(
+                  `[hozo] ${id}: TAILWIND_WEB_STRUCTURE_CHANGED: final styles changed the JavaScript already used for import discovery`,
+                )
+              return output
+            },
+            () => prepared.dispose(),
+          ),
+        }
+      } catch (error) {
+        prepared.dispose()
+        throw error
+      } finally {
+        captured.observe = observe
+      }
+    },
+  )
+  if (result && 'initial' in result) return result
+  const output = completeModuleResolution(result, root, file, captured)
+  return {
+    initial: output,
+    module: ownedLowering(
+      Object.freeze([]),
+      () => output,
+      () => {},
+    ),
+  }
+}
+
 /** @internal One actual parse, direct emission on a complete ready context,
  * or that same owned parse for the session's preparation path on a miss.
  */

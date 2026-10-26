@@ -212,6 +212,14 @@ also exercises that actual final publisher and generated call. This is bounded
 coordination, not default adapter graduation or final Web candidate stylesheet
 publication; see [output evidence and limits](../measurements/tailwind-final-output.md).
 
+Web import discovery can now borrow the actual owned post-Canvas parse, return
+its initial module structure and consume it later for final CSS. The final
+continuation rejects any changed JS/import/client-boundary structure rather
+than patching already parsed code. This avoids waiting for the whole graph
+inside a transform, but does not itself deliver late CSS or switch an adapter.
+The additional preview render has measured build-time cost; see
+[the Web continuation boundary](../measurements/tailwind-web-style-continuation.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

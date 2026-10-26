@@ -407,12 +407,12 @@ interface NativeCompiler {
     context: PreparedTailwindContext,
     bindings?: StylexExternalBinding[],
     options?: CompileOptions,
-  ): CompiledComponent[] | PreparedModule<CompiledComponent[]>
+  ): CompiledComponent[] | PreviewableWebModule
   prepareWebModule(
     source: string,
     bindings?: StylexExternalBinding[],
     options?: CompileOptions,
-  ): PreparedModule<CompiledComponent[]>
+  ): PreviewableWebModule
   prepareNativeModule(
     source: string,
     bindings?: StylexExternalBinding[],
@@ -666,6 +666,12 @@ export interface PreparedModule<T> {
   dispose(): void
 }
 
+/** @internal Web import discovery may borrow the parse before final CSS.
+ * Native output is not granted this capability: ordering can change its JSX. */
+export interface PreviewableWebModule extends PreparedModule<CompiledComponent[]> {
+  preview(): CompiledComponent[]
+}
+
 /** @internal Validate/decode once; do not install mutable compiler state. */
 export function prepareTailwindContext(snapshot: string): PreparedTailwindContext {
   return loadNative().prepareTailwindContext(snapshot)
@@ -695,12 +701,13 @@ function annotateWeb(results: CompiledComponent[], fonts: FontAvailability | und
 }
 
 function annotatePreparedWeb(
-  prepared: PreparedModule<CompiledComponent[]>,
+  prepared: PreviewableWebModule,
   availability: FontAvailability | undefined,
-): PreparedModule<CompiledComponent[]> {
+): PreviewableWebModule {
   const fonts = availability && structuredClone(availability)
   return {
     candidates: Object.freeze(prepared.candidates),
+    preview: () => annotateWeb(prepared.preview(), fonts),
     emit: (context) => annotateWeb(prepared.emit(context), fonts),
     dispose: () => prepared.dispose(),
   }
@@ -757,7 +764,7 @@ export interface Compiler {
     source: string,
     bindings?: StylexExternalBinding[],
     options?: CompileOptions,
-  ): PreparedModule<CompiledComponent[]>
+  ): PreviewableWebModule
   /** @internal Same lifecycle for Native, preserving metadata and text ABI selection. */
   prepareNativeModule(
     source: string,
