@@ -3,12 +3,20 @@
 //! properties before Native expansion/deduplication/transform composition.
 use super::StateGroup;
 use hozo_ir::{Condition, StyleProperty, TailwindOrderContext, TailwindWriteEvidence};
+use std::collections::{BTreeMap, HashMap};
 
 pub struct CandidateModulePlan {
     pub code: String,
     pub schema: u32,
     pub fingerprint: String,
     pub entries: Vec<CandidatePriorityEntry>,
+    pub ordering: Option<CandidateOrdering>,
+}
+
+/// Compact trusted build output. Missing classes are barriers, never rank0.
+pub struct CandidateOrdering {
+    pub schema: u32,
+    pub ranks: BTreeMap<String, Vec<u32>>,
 }
 
 pub struct CandidatePriorityEntry {
@@ -26,6 +34,8 @@ pub struct CandidatePriorityGroup {
     pub index: usize,
     /// Exact predicate keys emitted by state_groups, not reinterpreted CSS.
     pub state_keys: Vec<String>,
+    pub native_keys: Vec<String>,
+    pub orderable: bool,
     pub writes: Vec<TailwindWriteEvidence>,
     /// Only uniform assessed writes acquire a whole-object priority. A
     /// multi-rule object is not assigned the first/max rule's rank.
@@ -52,6 +62,7 @@ impl<'a> CandidatePlanBuilder<'a> {
         index: usize,
         keys: Vec<String>,
         props: &[StyleProperty],
+        pairs: &[(String, String)],
     ) -> CandidatePriorityGroup {
         let writes: Vec<_> = props
             .iter()
@@ -67,6 +78,10 @@ impl<'a> CandidatePlanBuilder<'a> {
         CandidatePriorityGroup {
             index,
             state_keys: keys,
+            native_keys: pairs.iter().map(|(key, _)| key.clone()).collect(),
+            // Scalar physical keys need no logical-edge, shorthand-gap or
+            // register normalization. This is eligibility, not an order table.
+            orderable: uniform.is_some() && props.iter().all(scalar),
             writes,
             priority_rank: uniform,
             reason: uniform
@@ -96,12 +111,12 @@ impl<'a> CandidatePlanBuilder<'a> {
         self.entry(name, "refused", Some(reason), Vec::new());
     }
 
-    pub fn style(&mut self, name: &str, props: &[StyleProperty]) {
+    pub fn style(&mut self, name: &str, props: &[StyleProperty], pairs: &[(String, String)]) {
         self.entry(
             name,
             "style",
             None,
-            vec![self.group(name, 0, Vec::new(), props)],
+            vec![self.group(name, 0, Vec::new(), props, pairs)],
         );
     }
 
@@ -116,26 +131,119 @@ impl<'a> CandidatePlanBuilder<'a> {
             .zip(groups)
             .enumerate()
             .map(|(index, ((_, properties), group))| {
-                self.group(name, index, group.keys.clone(), properties)
+                self.group(name, index, group.keys.clone(), properties, &group.pairs)
             })
             .collect();
         self.entry(name, "state", None, groups);
     }
 
     pub fn finish(self, code: String) -> CandidateModulePlan {
+        let ordering = ordering(&self.entries);
         CandidateModulePlan {
             code,
             schema: 1,
             fingerprint: self.context.snapshot().fingerprint.clone(),
             entries: self.entries,
+            ordering,
         }
     }
+}
+
+fn scalar(property: &StyleProperty) -> bool {
+    use StyleProperty::*;
+    matches!(
+        property,
+        PaddingTop(_)
+            | PaddingRight(_)
+            | PaddingBottom(_)
+            | PaddingLeft(_)
+            | MarginTop(_)
+            | MarginRight(_)
+            | MarginBottom(_)
+            | MarginLeft(_)
+            | BackgroundColor(_)
+            | TextColor(_)
+            | Width(_)
+            | Height(_)
+            | MinWidth(_)
+            | MaxWidth(_)
+            | MinHeight(_)
+            | MaxHeight(_)
+    )
+}
+
+fn ordering(entries: &[CandidatePriorityEntry]) -> Option<CandidateOrdering> {
+    let eligible: Vec<_> = entries
+        .iter()
+        .filter(|entry| {
+            !entry.groups.is_empty() && entry.groups.iter().all(|group| group.orderable)
+        })
+        .collect();
+    let mut owners = HashMap::new();
+    let mut conflict = false;
+    for entry in &eligible {
+        for key in entry.groups.iter().flat_map(|group| &group.native_keys) {
+            if let Some(previous) = owners.insert(key.as_str(), entry.candidate.as_str()) {
+                conflict |= previous != entry.candidate;
+            }
+        }
+    }
+    // A project with no participating scalar conflict keeps its old tiny ABI.
+    if !conflict {
+        return None;
+    }
+    Some(CandidateOrdering {
+        schema: 1,
+        ranks: eligible
+            .into_iter()
+            .map(|entry| {
+                (
+                    entry.candidate.clone(),
+                    entry
+                        .groups
+                        .iter()
+                        .map(|group| group.priority_rank.unwrap() as u32)
+                        .collect(),
+                )
+            })
+            .collect(),
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{render_candidate_module, render_candidate_module_plan};
     use hozo_ir::{portable_tailwind_snapshot, TailwindOrderContext, Theme};
+
+    #[test]
+    fn compact_order_is_absent_without_a_real_scalar_key_conflict() {
+        let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
+        for names in [
+            vec![],
+            vec!["p-2".into()],
+            vec!["p-2".into(), "bg-red-500".into()],
+        ] {
+            let plan = render_candidate_module_plan(&names, &Theme::default(), &context).unwrap();
+            assert!(plan.ordering.is_none());
+        }
+    }
+
+    #[test]
+    fn compact_order_uses_actual_keys_and_omits_unassessed_native_normalization() {
+        let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
+        let names = ["p-2", "p-4", "ps-2", "gap-2"].map(String::from);
+        let plan = render_candidate_module_plan(&names, &Theme::default(), &context).unwrap();
+        let order = plan.ordering.unwrap();
+        assert_eq!(order.schema, 1);
+        assert!(order.ranks["p-2"][0] < order.ranks["p-4"][0]);
+        assert!(!order.ranks.contains_key("ps-2"));
+        assert!(!order.ranks.contains_key("gap-2"));
+        assert!(plan.entries[0].groups[0]
+            .native_keys
+            .iter()
+            .any(|key| key == "paddingTop"));
+        assert!(!plan.entries[2].groups[0].orderable);
+    }
 
     #[test]
     fn sidecar_names_actual_objects_without_changing_the_generated_module() {

@@ -37,6 +37,24 @@ export type StateGroup = readonly [readonly string[], StyleObject, number?]
  */
 export type ClassResolver = (value: unknown, state?: ClassState) => StyleObject[]
 
+/** @internal Generated-data ABI, not a utility parser or a public cascade API. */
+export interface ClassResolverPlan {
+  schema: 1
+  styles: Record<string, StyleObject>
+  unsupported?: Record<string, string>
+  states?: Record<string, readonly StateGroup[]>
+  ambient?: ClassState
+  compose?: (styles: StyleObject[]) => StyleObject[]
+  /** Ordinals from one complete compiler namespace. Missing means barrier. */
+  ordering: { schema: 1; ranks: Readonly<Record<string, readonly number[]>> }
+}
+
+interface TemplateEntry {
+  keys: readonly string[]
+  style: StyleObject
+  name: string
+}
+
 interface Resolved {
   /** The unconditional styles, composed: what a string with no state classes returns. */
   base: StyleObject[]
@@ -47,6 +65,8 @@ interface Resolved {
   groupClasses: string[]
   /** State classes in this string, named if it is resolved without a state. */
   stateClasses: string[]
+  /** Rank-free cached template: state updates only select applicable entries. */
+  ordered?: TemplateEntry[]
 }
 
 /**
@@ -75,13 +95,39 @@ interface Resolved {
  * cached like an unconditional one -- after the unconditional ones, which is
  * where Tailwind puts a variant too.
  */
+export function createClassResolver(plan: ClassResolverPlan): ClassResolver
 export function createClassResolver(
   styles: Record<string, StyleObject>,
+  unsupported?: Record<string, string>,
+  compose?: (styles: StyleObject[]) => StyleObject[],
+  states?: Record<string, readonly StateGroup[]>,
+  ambient?: ClassState,
+): ClassResolver
+export function createClassResolver(
+  stylesOrPlan: Record<string, StyleObject> | ClassResolverPlan,
   unsupported: Record<string, string> = {},
   compose?: (styles: StyleObject[]) => StyleObject[],
   states: Record<string, readonly StateGroup[]> = {},
   ambient: ClassState = {},
 ): ClassResolver {
+  let styles: Record<string, StyleObject>
+  let ranks: ClassResolverPlan['ordering']['ranks'] | undefined
+  if (typeof stylesOrPlan.schema === 'number') {
+    const plan = stylesOrPlan as ClassResolverPlan
+    if (
+      plan.schema !== 1 ||
+      plan.ordering?.schema !== 1 ||
+      !plan.ordering.ranks ||
+      typeof plan.ordering.ranks !== 'object'
+    )
+      throw new Error('Unsupported Hozo class plan schema')
+    styles = plan.styles
+    unsupported = plan.unsupported ?? {}
+    compose = plan.compose
+    states = plan.states ?? {}
+    ambient = plan.ambient ?? {}
+    ranks = plan.ordering.ranks
+  } else styles = stylesOrPlan as Record<string, StyleObject>
   const isAmbient = (key: string) => Object.hasOwn(ambient, key)
   // Class strings repeat constantly across renders and list items, and the
   // result is immutable, so each distinct string is resolved once.
@@ -95,6 +141,16 @@ export function createClassResolver(
     // eslint-disable-next-line no-console
     console.warn(`[hozo] ${reason}`)
   }
+  const matches = (keys: readonly string[], name: string, facts: ClassState) => {
+    if (!keys.every((key) => Object.hasOwn(facts, key))) {
+      if (!warned.has(name)) {
+        const missing = keys.filter((key) => !Object.hasOwn(facts, key))
+        warn(name, `\`${name}\` needs state (${missing.join(', ')}) this element does not supply.`)
+      }
+      return false
+    }
+    return keys.every((key) => Boolean(facts[key]))
+  }
 
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
@@ -102,6 +158,22 @@ export function createClassResolver(
     const groupClasses: string[] = []
     const stateClasses: string[] = []
     const decided: StyleObject[] = []
+    // Build transient ranked entries only for the generated-plan ABI. A
+    // single unassessed object makes this whole string use the old path.
+    let ranked: { rank: number; entry: TemplateEntry }[] | undefined = ranks ? [] : undefined
+    const take = ranks
+      ? (name: string, index: number, style: StyleObject, keys: readonly string[]) => {
+          if (!ranked) return
+          const rank = ranks![name]?.[index]
+          if (rank === undefined) {
+            ranked = undefined
+            return
+          }
+          if (!Number.isSafeInteger(rank) || rank < 0)
+            throw new Error('Invalid Hozo class plan rank')
+          ranked.push({ rank, entry: { name, style, keys } })
+        }
+      : undefined
     for (const name of value.split(/\s+/)) {
       if (name === '') {
         continue
@@ -109,12 +181,15 @@ export function createClassResolver(
       const style = styles[name]
       if (style) {
         base.push(style)
+        take?.(name, 0, style, [])
         continue
       }
       const conditional = states[name]
       if (conditional) {
         let needsState = false
-        for (const group of conditional) {
+        for (let index = 0; index < conditional.length; index++) {
+          const group = conditional[index]!
+          take?.(name, index, group[1], group[0])
           if (group[0].every(isAmbient)) {
             if (group[0].every((key) => Boolean(ambient[key]))) decided.push(group[1])
             continue
@@ -131,6 +206,26 @@ export function createClassResolver(
       // ones the compiler recognized and refused are reported.
       const reason = unsupported[name]
       if (reason) warn(name, reason)
+    }
+    if (ranked) {
+      // Stable ties keep input order. Strip rank objects before caching, so
+      // neither cache hits nor state-only changes can read/sort priorities.
+      ranked.sort((a, b) => a.rank - b.rank)
+      const ordered: TemplateEntry[] = []
+      for (const { entry } of ranked) {
+        if (entry.keys.every(isAmbient)) {
+          if (entry.keys.every((key) => Boolean(ambient[key]))) ordered.push({ ...entry, keys: [] })
+        } else ordered.push(entry)
+      }
+      const raw = ordered.filter((entry) => !entry.keys.length).map((entry) => entry.style)
+      return {
+        base: compose ? compose(raw) : raw,
+        raw,
+        groups,
+        groupClasses,
+        stateClasses,
+        ordered,
+      }
     }
     // Build-time Tailwind owner-state rank, sorted once per cached class string,
     // never on every state update. Mixed/unranked domains are left alone; ties
@@ -177,6 +272,19 @@ export function createClassResolver(
     // A group can name an ambient fact beside the element's own, as
     // `rtl:hover:` does; the element supplies only its part.
     const facts = { ...ambient, ...state }
+    if (resolved.ordered) {
+      const all: StyleObject[] = []
+      let active = false
+      for (const entry of resolved.ordered) {
+        if (!entry.keys.length) all.push(entry.style)
+        else if (matches(entry.keys, entry.name, facts)) {
+          all.push(entry.style)
+          active = true
+        }
+      }
+      if (!active) return resolved.base
+      return compose ? compose(all) : all
+    }
     const active = resolved.groups.filter(([keys], index) => {
       // Absent is not false. A focused field must not silently claim that it
       // measured hover/press, or that a spread supplied a disabled driver.

@@ -540,6 +540,108 @@ test('shared assessed rule priorities predict independent Tailwind browser winne
   }
 })
 
+test('the generated common-plan resolver agrees with real Tailwind across state changes and reversed classes', {
+  skip: !executablePath,
+}, async () => {
+  const names = [
+    'p-2',
+    'p-4',
+    'bg-[#112233]',
+    'focus:bg-[#223344]',
+    'active:bg-[#334455]',
+    'hover:focus:bg-[#445566]',
+  ]
+  const css = '@theme { --spacing: .25rem; } @tailwind utilities;'
+  const candidates = openCandidateCache()
+  candidates.scanFile('probe.ts', `export const classes=${JSON.stringify(names.join(' '))}`, 1)
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), candidates.candidates())
+  const plan = candidates.renderNativeModulePlan(
+    prepareTailwindContext(JSON.stringify(prepared.snapshot)),
+  )
+  assert.ok(plan.ordering)
+  const generated = evaluate(plan.code.replace(/^import .*$/gm, ''), {
+    createClassResolver: (styles, unsupported, compose, states, ambient) => ({
+      styles,
+      unsupported,
+      compose,
+      states,
+      ambient,
+    }),
+  }).hozoClasses
+  const legacy = createClassResolver(
+    generated.styles,
+    generated.unsupported,
+    generated.compose,
+    generated.states,
+    generated.ambient,
+  )
+  const resolve = createClassResolver({ schema: 1, ...generated, ordering: plan.ordering })
+  const sheet = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  let legacyMismatches = 0
+  try {
+    for (const classes of [
+      'p-4 p-2 bg-[#112233] focus:bg-[#223344] active:bg-[#334455] hover:focus:bg-[#445566]',
+      'hover:focus:bg-[#445566] active:bg-[#334455] focus:bg-[#223344] bg-[#112233] p-2 p-4',
+    ]) {
+      await page.setContent(
+        `<!doctype html><style>${sheet}</style><button id="subject" style="width:80px;height:40px" class="${classes}">Target</button>`,
+      )
+      assert.equal(await page.evaluate(() => document.compatMode), 'CSS1Compat')
+      await page.mouse.move(200, 200)
+      const target = page.locator('#subject')
+      const check = async (expected) => {
+        const actual = await target.evaluate((element) => ({
+          state: {
+            focused: element.matches(':focus'),
+            hovered: element.matches(':hover'),
+            pressed: element.matches(':active'),
+          },
+          color: getComputedStyle(element).backgroundColor,
+          padding: Number.parseFloat(getComputedStyle(element).paddingTop),
+        }))
+        assert.deepEqual(actual.state, expected)
+        const read = (resolver) => {
+          const value = Object.assign({}, ...resolver(classes, actual.state))
+          assert.match(value.backgroundColor, /^#[\da-f]{6}$/i)
+          return {
+            color: `rgb(${[1, 3, 5].map((start) => Number.parseInt(value.backgroundColor.slice(start, start + 2), 16)).join(', ')})`,
+            padding: value.paddingTop,
+          }
+        }
+        const oracle = { color: actual.color, padding: actual.padding }
+        assert.deepEqual(read(resolve), oracle)
+        if (JSON.stringify(read(legacy)) !== JSON.stringify(oracle)) legacyMismatches++
+      }
+      await check({ focused: false, hovered: false, pressed: false })
+      await target.focus()
+      await check({ focused: true, hovered: false, pressed: false })
+      await target.hover()
+      await page.waitForFunction(() => document.querySelector('#subject').matches(':hover'), null, {
+        timeout: 2000,
+      })
+      await check({ focused: true, hovered: true, pressed: false })
+      await page.mouse.down()
+      try {
+        await page.waitForFunction(
+          () => document.querySelector('#subject').matches(':active'),
+          null,
+          { timeout: 2000 },
+        )
+        await check({ focused: true, hovered: true, pressed: true })
+      } finally {
+        await page.mouse.up()
+      }
+    }
+    assert.ok(
+      legacyMismatches > 0,
+      'the same oracle must expose the old string-order padding winner',
+    )
+  } finally {
+    await page.close()
+  }
+})
+
 test('the canonical-order reference has independent browser winners under reversed classes and RTL', {
   skip: !executablePath,
 }, async () => {

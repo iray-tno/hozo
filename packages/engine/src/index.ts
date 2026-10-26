@@ -28,7 +28,12 @@ export {
   hozoBackdropFilterAdapter,
 } from './backdrop.ts'
 
-export { type ClassResolver, createClassResolver, type StyleObject } from './class-resolver.ts'
+export {
+  type ClassResolver,
+  type ClassResolverPlan,
+  createClassResolver,
+  type StyleObject,
+} from './class-resolver.ts'
 export { blendColor, canBlendColor } from './color-transition.ts'
 export { type CxValue, cx } from './cx.ts'
 export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.ts'

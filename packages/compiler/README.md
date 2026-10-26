@@ -363,6 +363,14 @@ are not proof of condition/value/platform equivalence. The context must cover
 the entire candidate union. Adapters do not install this sidecar on device.
 See [candidate evidence and the remaining important-syntax gap](../../docs/measurements/tailwind-candidate-priority.md).
 
+The plan's optional `ordering` contains deterministic compact ranks only for
+uniformly assessed physical-scalar objects. It is absent when their emitted
+keys do not conflict. Missing entries remain barriers, not rank zero. This
+can feed the engine's schema-1 generated-object ABI, whose cache stores a
+rank-free ordered template. Normal generated code/adapters are not switched;
+the full sidecar must not become a device table. See
+[the executable template and cost evidence](../../docs/measurements/tailwind-resolver-template.md).
+
 <!-- generated: package-footer -->
 
 ---

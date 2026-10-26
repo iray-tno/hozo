@@ -11,6 +11,7 @@ import test from 'node:test'
 const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url), 'utf8'))
 const reads = {
   '@hozo/tailwind#test': [
+    'packages/engine/src/class-resolver.ts',
     'crates/hozo_parser/src/tailwind_variants.rs',
     'crates/hozo_ir/src/tailwind_portable.rs',
   ],

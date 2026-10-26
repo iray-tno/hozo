@@ -66,6 +66,13 @@ pub struct NativeCandidatePlan {
     pub schema: u32,
     pub fingerprint: String,
     pub entries: Vec<NativeCandidatePriorityEntry>,
+    pub ordering: Option<NativeCandidateOrdering>,
+}
+
+#[napi(object)]
+pub struct NativeCandidateOrdering {
+    pub schema: u32,
+    pub ranks: std::collections::BTreeMap<String, Vec<u32>>,
 }
 
 #[napi(object)]
@@ -81,6 +88,8 @@ pub struct NativeCandidatePriorityEntry {
 pub struct NativeCandidatePriorityGroup {
     pub index: u32,
     pub state_keys: Vec<String>,
+    pub native_keys: Vec<String>,
+    pub orderable: bool,
     pub writes: Vec<TailwindCompileWrite>,
     pub priority_rank: Option<u32>,
     pub reason: Option<String>,
@@ -92,6 +101,10 @@ impl From<hozo_native::CandidateModulePlan> for NativeCandidatePlan {
             code: plan.code,
             schema: plan.schema,
             fingerprint: plan.fingerprint,
+            ordering: plan.ordering.map(|order| NativeCandidateOrdering {
+                schema: order.schema,
+                ranks: order.ranks,
+            }),
             entries: plan
                 .entries
                 .into_iter()
@@ -106,6 +119,8 @@ impl From<hozo_native::CandidateModulePlan> for NativeCandidatePlan {
                         .map(|group| NativeCandidatePriorityGroup {
                             index: group.index as u32,
                             state_keys: group.state_keys,
+                            native_keys: group.native_keys,
+                            orderable: group.orderable,
                             writes: group
                                 .writes
                                 .into_iter()

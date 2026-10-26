@@ -74,6 +74,9 @@ test('the host addon exposes shared rule order and priorities on every platform 
   assert.equal(generated.fingerprint, snapshot.fingerprint)
   assert.equal(generated.code, cache.renderNativeModule())
   assert.equal(generated.entries.length, 2)
+  assert.equal(generated.ordering!.schema, 1)
+  assert.deepEqual(generated.ordering!.ranks['p-2'], [0])
+  assert.deepEqual(generated.ordering!.ranks['p-10'], [1])
   assert.ok(generated.entries.every((entry) => entry.kind === 'style'))
   assert.deepEqual(
     generated.entries.map((entry) => entry.groups[0]!.priorityRank),
