@@ -8,11 +8,11 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
-import { createCompiler, openCandidateCache } from '@hozo/compiler'
+import { createCompiler, openCandidateCache, prepareTailwindContext } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
 import { createClassResolver, cx } from '@hozo/engine'
 import { Chip } from '@hozo/patterns'
-import { loadTheme } from '@hozo/tailwind'
+import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
 import { build, transformSync } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { createElement } from 'react'
@@ -409,6 +409,135 @@ after(async () => {
   await browser?.close()
   // Only this test's exact mkdtemp directory is owned here.
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('shared assessed rule priorities predict independent Tailwind browser winners', {
+  skip: !executablePath,
+}, async () => {
+  const definitions = [
+    ['', '#112233'],
+    ['focus:', '#223344'],
+    ['active:', '#334455'],
+    ['hover:focus:', '#445566'],
+    ['', '#556677', '!'],
+    ['hover:', '#667788', '!'],
+  ].map(([prefix, color, suffix = '']) => ({ candidate: `${prefix}bg-[${color}]${suffix}`, color }))
+  const css = '@tailwind utilities;'
+  const names = definitions.map(({ candidate }) => candidate)
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const priorities = prepareTailwindContext(JSON.stringify(prepared.snapshot)).rulePriorities()
+  const entries = definitions.map((entry) => {
+    const priority = priorities.rules.find(
+      ({ candidateId }) => candidateId === prepared.lookup(entry.candidate).id,
+    )
+    assert.equal(typeof priority?.rank, 'number', entry.candidate)
+    return { ...entry, rank: priority.rank }
+  })
+  const sheet = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  try {
+    // Measurement control: bare :hover is deliberately different in quirks
+    // mode. Do not mistake that selector quirk for absent pointer delivery.
+    await page.setContent('<button id="subject" style="width:80px;height:40px">Probe</button>')
+    await page.mouse.move(200, 200)
+    await page.locator('#subject').hover()
+    await page.waitForFunction(
+      () => document.querySelector('#subject').matches('button:hover'),
+      null,
+      { timeout: 2000 },
+    )
+    assert.deepEqual(
+      await page.locator('#subject').evaluate((element) => ({
+        mode: document.compatMode,
+        bare: element.matches(':hover'),
+        qualified: element.matches('button:hover'),
+      })),
+      { mode: 'BackCompat', bare: false, qualified: true },
+    )
+    for (const indices of [
+      [0, 1, 2],
+      [0, 2, 3],
+      [2, 3, 4],
+      [3, 4, 5],
+    ]) {
+      const members = indices.map((index) => entries[index])
+      const predicted = members.reduce((a, b) => (a.rank > b.rank ? a : b))
+      const expectedColor = [1, 3, 5].map((start) =>
+        Number.parseInt(predicted.color.slice(start, start + 2), 16),
+      )
+      for (const ordered of [members, [...members].reverse()]) {
+        await page.setContent(
+          `<!doctype html><style>${sheet}</style><button id="subject" style="width:80px;height:40px" class="${ordered.map(({ candidate }) => candidate).join(' ')}">Target</button>`,
+        )
+        assert.equal(await page.evaluate(() => document.compatMode), 'CSS1Compat')
+        // Enter each fresh document with a real pointer movement and verify
+        // state before comparing its color. No pseudo-class is forced in JS.
+        await page.mouse.move(200, 200)
+        const target = page.locator('#subject')
+        await target.focus()
+        await target.hover()
+        await page
+          .waitForFunction(
+            () => {
+              const target = document.querySelector('#subject')
+              return target.matches(':focus') && target.matches(':hover')
+            },
+            null,
+            { timeout: 2000 },
+          )
+          .catch(async (error) => {
+            console.error(
+              JSON.stringify({
+                stage: 'priority-oracle-hover',
+                classes: ordered.map(({ candidate }) => candidate),
+                document: await target.evaluate((element) => {
+                  const rect = element.getBoundingClientRect()
+                  const x = rect.x + rect.width / 2,
+                    y = rect.y + rect.height / 2
+                  return {
+                    focus: element.matches(':focus'),
+                    mode: document.compatMode,
+                    qualifiedHover: element.matches('button:hover'),
+                    hover: element.matches(':hover'),
+                    active: element.matches(':active'),
+                    rect: rect.toJSON(),
+                    hit: document.elementFromPoint(x, y)?.outerHTML,
+                    hovered: [...document.querySelectorAll(':hover')].map((entry) =>
+                      entry.outerHTML.slice(0, 200),
+                    ),
+                    viewport: [innerWidth, innerHeight],
+                    hoverMedia: matchMedia('(hover: hover)').matches,
+                  }
+                }),
+              }),
+            )
+            throw error
+          })
+        await page.mouse.down()
+        try {
+          await page.waitForFunction(
+            () => document.querySelector('#subject').matches(':active'),
+            null,
+            { timeout: 2000 },
+          )
+          const actual = await target.evaluate((element) => ({
+            states: [':focus', ':hover', ':active'].map((selector) => element.matches(selector)),
+            color: getComputedStyle(element).backgroundColor,
+          }))
+          assert.deepEqual(actual.states, [true, true, true])
+          assert.equal(
+            actual.color,
+            `rgb(${expectedColor.join(', ')})`,
+            ordered.map(({ candidate }) => candidate).join(' '),
+          )
+        } finally {
+          await page.mouse.up()
+        }
+      }
+    }
+  } finally {
+    await page.close()
+  }
 })
 
 test('the canonical-order reference has independent browser winners under reversed classes and RTL', {

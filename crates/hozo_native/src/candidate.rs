@@ -4,6 +4,26 @@
 //! for class strings the compiler cannot resolve ahead of time.
 
 use super::*;
+mod plan;
+use plan::CandidatePlanBuilder;
+pub use plan::{CandidateModulePlan, CandidatePriorityEntry, CandidatePriorityGroup};
+
+/// Build-time sidecar from the actual generation pass. No keys are embedded
+/// in device output until the static and fallback winners can switch together.
+pub fn render_candidate_module_plan(
+    class_names: &[String],
+    theme: &Theme,
+    context: &hozo_ir::TailwindOrderContext,
+) -> Result<CandidateModulePlan, String> {
+    for name in class_names {
+        if context.lookup(name).is_none() {
+            return Err(format!("Tailwind ordering context did not collect {name}"));
+        }
+    }
+    let mut plan = CandidatePlanBuilder::new(context);
+    let code = render_candidate_module_impl(class_names, theme, Some(&mut plan));
+    Ok(plan.finish(code))
+}
 
 /// The Native counterpart of `hozo_web::render_candidate_stylesheet`:
 /// the module that lets a `className` the compiler couldn't read still
@@ -44,12 +64,23 @@ use super::*;
 /// static `className` that compiled fine), which is why this is a runtime
 /// warning and not a build error.
 pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String {
+    render_candidate_module_impl(class_names, theme, None)
+}
+
+fn render_candidate_module_impl(
+    class_names: &[String],
+    theme: &Theme,
+    mut plan: Option<&mut CandidatePlanBuilder<'_>>,
+) -> String {
     let mut supported: Vec<(&String, Vec<(String, String)>)> = Vec::new();
     let mut unsupported: Vec<(&String, String)> = Vec::new();
     let mut states: Vec<(&String, Vec<StateGroup>)> = Vec::new();
     let mut transforms = Vec::new();
     for name in class_names {
         let Some(utility) = hozo_parser::resolve_class_name(name) else {
+            if let Some(plan) = plan.as_deref_mut() {
+                plan.refused(name, "unrecognized");
+            }
             continue;
         };
         // Any conditional group disqualifies the class, which is what
@@ -63,8 +94,14 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
             // pressable rendering it already tracks that state and hands it
             // to the resolver, so nothing here has to.
             if let Some(groups) = state_groups(&utility.groups, theme) {
+                if let Some(plan) = plan.as_deref_mut() {
+                    plan.states(name, &utility.groups, &groups);
+                }
                 states.push((name, groups));
                 continue;
+            }
+            if let Some(plan) = plan.as_deref_mut() {
+                plan.refused(name, "unsupported-condition-or-property");
             }
             unsupported.push((name, format!("`{name}` is conditional, and a runtime-resolved class can only carry unconditional styles on React Native. Write it as a static className so it compiles to a real style variant.")));
             continue;
@@ -78,6 +115,9 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
             .iter()
             .find_map(StyleProperty::unsupported_on_native)
         {
+            if let Some(plan) = plan.as_deref_mut() {
+                plan.refused(name, "unsupported-property");
+            }
             unsupported.push((name, format!("{reason} -- this utility is Web-only.")));
             continue;
         }
@@ -90,7 +130,13 @@ pub fn render_candidate_module(class_names: &[String], theme: &Theme) -> String 
             .map(|(key, value)| (key.to_string(), value))
             .collect();
         if pairs.is_empty() {
+            if let Some(plan) = plan.as_deref_mut() {
+                plan.refused(name, "no-native-output");
+            }
             continue;
+        }
+        if let Some(plan) = plan.as_deref_mut() {
+            plan.style(name, &properties);
         }
         if let Some(metadata) = crate::transforms::metadata(&properties, theme) {
             transforms.push((name, metadata));

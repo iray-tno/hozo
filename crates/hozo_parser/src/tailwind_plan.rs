@@ -1,10 +1,10 @@
 //! Planning consumes the existing parse, after forwarding, before a backend
 //! loses utility/source boundaries. No source text or AST parser is needed.
 use crate::ParseOutput;
+pub use hozo_ir::TailwindWriteEvidence as TailwindPlanWrite;
 use hozo_ir::{
-    assess_tailwind_write, Child, Condition, Node, SourceSpan, StyleDeclaration, StyleSource,
-    TailwindOrderContext, TailwindRuleBinding, TailwindUnitBindings, TailwindUnits,
-    TailwindWriteOwnership, TailwindWritePlan,
+    Child, Condition, Node, SourceSpan, StyleDeclaration, StyleSource, TailwindOrderContext,
+    TailwindRuleBinding, TailwindUnitBindings, TailwindUnits, TailwindWritePlan,
 };
 
 pub struct TailwindRootPlan {
@@ -29,14 +29,6 @@ pub struct TailwindPlanBlock {
     pub candidate_id: Option<u32>,
     pub rule_ids: Vec<u32>,
     pub writes: Vec<TailwindPlanWrite>,
-}
-
-pub struct TailwindPlanWrite {
-    pub index: usize,
-    pub rule_id: Option<u32>,
-    pub css_property: Option<String>,
-    pub specificity: Option<[u32; 3]>,
-    pub reason: Option<&'static str>,
 }
 
 /// One shared module binding, not one rebind per root/element/slot. The report
@@ -127,32 +119,15 @@ fn plan_site(
                     .iter()
                     .enumerate()
                     .map(|(index, declaration)| {
-                        let ownership = descriptor.map(|candidate| {
-                            assess_tailwind_write(candidate, &declaration.property)
-                        });
-                        let mut write = TailwindPlanWrite {
-                            index: block.range.start + index,
-                            rule_id: None,
-                            css_property: None,
-                            specificity: None,
-                            reason: None,
-                        };
-                        match ownership {
-                            Some(TailwindWriteOwnership::Unique {
-                                rule_id,
-                                css_property,
-                                specificity,
-                            }) => {
-                                write.rule_id = Some(rule_id);
-                                write.css_property = Some(css_property.into());
-                                write.specificity = Some(specificity);
-                            }
-                            Some(TailwindWriteOwnership::Unknown(reason)) => {
-                                write.reason = Some(reason)
-                            }
-                            None => write.reason = Some(status),
+                        let index = block.range.start + index;
+                        match descriptor {
+                            Some(candidate) => bindings.context().write_evidence(
+                                &candidate.candidate,
+                                index,
+                                &declaration.property,
+                            ),
+                            None => TailwindPlanWrite::unknown(index, status),
                         }
-                        write
                     })
                     .collect(),
             }

@@ -143,9 +143,30 @@ an individual candidate's first-rule rank. The build-time `ruleOrder()` result
 includes its namespace fingerprint; there is no per-family comparator or
 device ordering helper. Independent Tailwind CSS positions validate builtins,
 owner variants, duplicate custom utilities and stable equal-key rule order.
-This does not yet change cascade winners: assessed write ownership,
-importance/specificity and final static/candidate publication remain necessary.
+This does not by itself change cascade winners; see the subsequent priority
+integration below. Final static/candidate publication remains necessary.
 See [the common comparator and limits](../measurements/tailwind-rule-comparator.md).
+
+Actual captured Web/Native write plans now consume shared assessed priority
+keys: importance, original selector specificity, then the common emission
+sequence. Root and secondary slots use the same immutable context. Unknown
+rules and ambiguous ownership retain reasons without fabricated ranks; the
+plan still emits its original pass-through declarations. An independent
+Tailwind browser oracle agrees on eight overlapping-state/importance cases.
+These are bounded same-tier matched-rule facts, not permission to cross
+authored evaluation, input, predicate or platform boundaries. Generated
+fallback metadata and final namespace publication must use this same source
+before output winners switch together. See
+[write-priority evidence and limits](../measurements/tailwind-write-priority.md).
+
+Candidate generation now has a build-time-only sidecar from its actual pass,
+using the same IR write evidence as static plans. It records emitted object
+locations, real predicate keys and per-write priorities. Nonuniform/unknown
+groups do not borrow a first-rule rank. The ordinary generated module is
+byte-identical, so this is not yet a runtime ABI or winner switch. A remaining
+`p-2!` extraction/lowering gap was observed during comparison; upstream priority
+facts alone do not solve it. See
+[candidate generation evidence](../measurements/tailwind-candidate-priority.md).
 
 ## 1. Restart, not another family-specific patch
 

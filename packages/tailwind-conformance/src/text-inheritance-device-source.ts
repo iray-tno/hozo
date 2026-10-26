@@ -51,6 +51,7 @@ const productionStaticSources = [
   'crates/hozo_ir/src/tailwind_units.rs',
   'crates/hozo_ir/src/tailwind_order.rs',
   'crates/hozo_ir/src/tailwind_order/comparison.rs',
+  'crates/hozo_ir/src/tailwind_order/priority.rs',
   'crates/hozo_ir/src/tailwind_plan.rs',
   'crates/hozo_ir/src/tailwind_assessment.rs',
   'crates/hozo_ir/src/tailwind_portable.rs',

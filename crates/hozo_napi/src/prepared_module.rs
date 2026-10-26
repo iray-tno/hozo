@@ -5,7 +5,7 @@ use napi::bindgen_prelude::Either;
 
 #[napi]
 pub struct PreparedTailwindContext {
-    context: Box<hozo_ir::TailwindOrderContext>,
+    pub(super) context: Box<hozo_ir::TailwindOrderContext>,
 }
 
 #[napi(object)]
@@ -18,6 +18,22 @@ pub struct TailwindRuleOrderEntry {
 pub struct TailwindRuleOrder {
     pub fingerprint: String,
     pub rules: Vec<TailwindRuleOrderEntry>,
+}
+
+#[napi(object)]
+pub struct TailwindRulePriorityEntry {
+    pub candidate_id: u32,
+    pub rule_id: u32,
+    pub rank: Option<u32>,
+    pub important: Option<bool>,
+    pub specificity: Option<Vec<u32>>,
+    pub reason: Option<String>,
+}
+
+#[napi(object)]
+pub struct TailwindRulePriorities {
+    pub fingerprint: String,
+    pub rules: Vec<TailwindRulePriorityEntry>,
 }
 
 #[napi]
@@ -46,6 +62,39 @@ impl PreparedTailwindContext {
                 .map(|(candidate, rule)| TailwindRuleOrderEntry {
                     candidate_id: candidate.id,
                     rule_id: rule.id,
+                })
+                .collect(),
+        }
+    }
+
+    /// The same assessed priorities the actual module plan consumes. Unknown
+    /// shapes stay explicit; these IDs/ranks cannot cross context namespaces.
+    #[napi]
+    pub fn rule_priorities(&self) -> TailwindRulePriorities {
+        TailwindRulePriorities {
+            fingerprint: self.context.snapshot().fingerprint.clone(),
+            rules: self
+                .context
+                .rules_in_emission_order()
+                .map(|(candidate, rule)| {
+                    let mut entry = TailwindRulePriorityEntry {
+                        candidate_id: candidate.id,
+                        rule_id: rule.id,
+                        rank: None,
+                        important: None,
+                        specificity: None,
+                        reason: None,
+                    };
+                    match self.context.rule_priority(candidate, rule.id) {
+                        Some(Ok(priority)) => {
+                            entry.rank = Some(priority.rank as u32);
+                            entry.important = Some(priority.important);
+                            entry.specificity = Some(priority.specificity.to_vec());
+                        }
+                        Some(Err(reason)) => entry.reason = Some(reason.reason().into()),
+                        None => entry.reason = Some("uncollected-rule-priority".into()),
+                    }
+                    entry
                 })
                 .collect(),
         }

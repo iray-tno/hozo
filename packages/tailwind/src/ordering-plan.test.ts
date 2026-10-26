@@ -139,6 +139,10 @@ test('StyleX boundaries and opaque guard evaluation stay outside Tailwind rule i
     .flatMap((site) => site.blocks)
     .filter((block) => block.source === 'stylex')
   assert.ok(stylex.length > 0)
+  for (const write of stylex.flatMap((block) => block.writes)) {
+    assert.equal(write.priorityRank, undefined)
+    assert.equal(write.important, undefined)
+  }
   assert.ok(
     stylex.every(
       (block) =>

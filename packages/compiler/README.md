@@ -342,6 +342,27 @@ candidates to their first rank nor decides CSS importance/specificity. Existing
 lowering still preserves its previous winners until static and dynamic paths
 can change together. See [the measured scope](../../docs/measurements/tailwind-rule-comparator.md).
 
+`rulePriorities()` adds assessed importance/specificity/emission keys under the
+same fingerprint. It returns a whole-table JS copy for project preparation,
+not a per-file/device API; actual captured compile plans query the native
+cache directly. Their writes expose `priorityRank` and `important` only when
+original-rule ownership and selector assessment are known. Missing ranks
+retain reasons, not zero. These matched-rule keys apply within a compatible
+utility input tier; they do not authorize reordering independent inputs or
+changing predicate/value/platform semantics. Declarations remain pass-through.
+See [the integration evidence](../../docs/measurements/tailwind-write-priority.md).
+
+`CandidateCache.renderNativeModulePlan(context, theme?)` captures a versioned
+build-time sidecar during actual candidate generation. Its `code` is exactly
+the ordinary `renderNativeModule(theme)` output. Entry kinds identify emitted
+style/state objects or refusals; predicate keys come from that same emission.
+Write indices refer to pre-expansion IR properties, not flattened RN keys.
+Static and candidate plans use one IR ownership/priority method. Whole-object
+rank facts exist only when all writes share an assessed rule priority; they
+are not proof of condition/value/platform equivalence. The context must cover
+the entire candidate union. Adapters do not install this sidecar on device.
+See [candidate evidence and the remaining important-syntax gap](../../docs/measurements/tailwind-candidate-priority.md).
+
 <!-- generated: package-footer -->
 
 ---
