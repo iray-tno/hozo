@@ -142,7 +142,12 @@ pub fn compile_plan(
 ) -> TailwindCompilePlan {
     TailwindCompilePlan {
         fingerprint: plan.fingerprint,
-        mode: "passthrough".into(),
+        mode: if plan.ordered {
+            "scalar-order-v1"
+        } else {
+            "passthrough"
+        }
+        .into(),
         sites: plan
             .sites
             .into_iter()

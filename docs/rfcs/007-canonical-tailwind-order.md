@@ -1,6 +1,7 @@
 # RFC 007: One Tailwind ordering plan before platform lowering
 
-- **Status**: Implementation in progress; no new utility-order winners enabled yet.
+- **Status**: Implementation in progress; bounded completed batches use shared
+  scalar winners. Ordinary adapter winners have not switched.
 - **Authors**: codex-1
 - **Tracking issue**: [#1230](https://github.com/iray-tno/hozo/issues/1230)
 - **Target packages**: compiler/parser/IR/Web/Native, `@hozo/tailwind`,
@@ -201,6 +202,15 @@ plan through that exact context object. Missing/stale inputs and late failures
 expose no partial publisher cache/output. This finite owned batch is not a
 whole-worker graph protocol, adapter default switch or theme-equivalence proof;
 see [batch publication and measured limits](../measurements/tailwind-final-batch.md).
+
+Completed finite batches now use an immutable scalar-output context for both
+actual static lowerers and the emitted Native resolver factory call. Its
+policy-qualified fingerprint separates these outputs from pass-through cache
+entries. Static and candidate eligibility share actual-owner/single-rule
+assessment, not just matching rank numbers. The independent browser probe now
+also exercises that actual final publisher and generated call. This is bounded
+coordination, not default adapter graduation or final Web candidate stylesheet
+publication; see [output evidence and limits](../measurements/tailwind-final-output.md).
 
 ## 1. Restart, not another family-specific patch
 

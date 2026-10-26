@@ -359,12 +359,12 @@ cache directly. Their writes expose `priorityRank` and `important` only when
 original-rule ownership and selector assessment are known. Missing ranks
 retain reasons, not zero. These matched-rule keys apply within a compatible
 utility input tier; they do not authorize reordering independent inputs or
-changing predicate/value/platform semantics. Declarations remain pass-through.
+changing predicate/value/platform semantics. Ordinary contexts remain pass-through.
 See [the integration evidence](../../docs/measurements/tailwind-write-priority.md).
 
 `CandidateCache.renderNativeModulePlan(context, theme?)` captures a versioned
-build-time sidecar during actual candidate generation. Its `code` is exactly
-the ordinary `renderNativeModule(theme)` output. Entry kinds identify emitted
+build-time sidecar during actual candidate generation. With an ordinary context,
+its `code` is exactly the `renderNativeModule(theme)` output. Entry kinds identify emitted
 style/state objects or refusals; predicate keys come from that same emission.
 Write indices refer to pre-expansion IR properties, not flattened RN keys.
 Static and candidate plans use one IR ownership/priority method. Whole-object
@@ -374,12 +374,32 @@ the entire candidate union. Adapters do not install this sidecar on device.
 See [candidate evidence and the remaining important-syntax gap](../../docs/measurements/tailwind-candidate-priority.md).
 
 The plan's optional `ordering` contains deterministic compact ranks only for
-uniformly assessed physical-scalar objects. It is absent when their emitted
+uniformly assessed physical-scalar objects whose actual owner predicate matches
+the single assessed rule. It is absent when their emitted
 keys do not conflict. Missing entries remain barriers, not rank zero. This
 can feed the engine's schema-1 generated-object ABI, whose cache stores a
 rank-free ordered template. Normal generated code/adapters are not switched;
 the full sidecar must not become a device table. See
 [the executable template and cost evidence](../../docs/measurements/tailwind-resolver-template.md).
+
+The finite `emitFinalTailwindBatch` publisher now creates an immutable completed
+output context after reconciliation. It applies the common scalar IR operation
+before both static lowerers and emits the generated resolver's object ABI from
+that same context. This changes bounded batch winners **together**, not just
+Native fallback. `prepareFinalTailwindContext` is the internal output capability,
+not an app option or mutable compiler setter. Its fingerprint is
+`scalar-order-v1:<descriptor fingerprint>` so output caches cannot confuse it
+with the unchanged pass-through `prepareTailwindContext` namespace. Captured
+plans report the same fingerprint and `mode: 'scalar-order-v1'`.
+
+Unassessed emitted objects/predicates retain the whole input's old path; ranks
+are never borrowed from a different owner or the first rule of a multi-rule
+candidate. A generated map with no assessed scalar-key conflict keeps the
+positional call. Full descriptors remain build-time data, and state updates
+still select cached templates without reading/sorting ranks. Ordinary adapter
+sessions remain pass-through: authoritative final graph/worker integration and
+Web candidate CSS publication are the next boundary. See
+[coordinated output evidence and limits](../../docs/measurements/tailwind-final-output.md).
 
 <!-- generated: package-footer -->
 

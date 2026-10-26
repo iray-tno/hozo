@@ -46,6 +46,8 @@ pub struct CandidatePriorityGroup {
 pub(super) struct CandidatePlanBuilder<'a> {
     context: &'a TailwindOrderContext,
     entries: Vec<CandidatePriorityEntry>,
+    pub finalized: bool,
+    ordering: Option<Option<CandidateOrdering>>,
 }
 
 impl<'a> CandidatePlanBuilder<'a> {
@@ -53,6 +55,8 @@ impl<'a> CandidatePlanBuilder<'a> {
         Self {
             context,
             entries: Vec::new(),
+            finalized: false,
+            ordering: None,
         }
     }
 
@@ -60,6 +64,7 @@ impl<'a> CandidatePlanBuilder<'a> {
         &self,
         name: &str,
         index: usize,
+        condition: &Condition,
         keys: Vec<String>,
         props: &[StyleProperty],
         pairs: &[(String, String)],
@@ -75,18 +80,29 @@ impl<'a> CandidatePlanBuilder<'a> {
                 .iter()
                 .all(|write| write.priority_rank == Some(*rank))
         });
+        let orderable = uniform.is_some()
+            && !props.is_empty()
+            && props.iter().all(|property| {
+                self.context
+                    .scalar_write_priority(name, condition, property)
+                    .is_some_and(|priority| Some(priority.rank) == uniform)
+            });
         CandidatePriorityGroup {
             index,
             state_keys: keys,
             native_keys: pairs.iter().map(|(key, _)| key.clone()).collect(),
             // Scalar physical keys need no logical-edge, shorthand-gap or
             // register normalization. This is eligibility, not an order table.
-            orderable: uniform.is_some() && props.iter().all(hozo_ir::scalar_tailwind_property),
+            orderable,
             writes,
             priority_rank: uniform,
-            reason: uniform
-                .is_none()
-                .then_some("nonuniform-or-unassessed-writes"),
+            reason: if uniform.is_none() {
+                Some("nonuniform-or-unassessed-writes")
+            } else if !orderable {
+                Some("unassessed-scalar-owner")
+            } else {
+                None
+            },
         }
     }
 
@@ -116,7 +132,7 @@ impl<'a> CandidatePlanBuilder<'a> {
             name,
             "style",
             None,
-            vec![self.group(name, 0, Vec::new(), props, pairs)],
+            vec![self.group(name, 0, &Condition::Always, Vec::new(), props, pairs)],
         );
     }
 
@@ -130,15 +146,28 @@ impl<'a> CandidatePlanBuilder<'a> {
             .iter()
             .zip(groups)
             .enumerate()
-            .map(|(index, ((_, properties), group))| {
-                self.group(name, index, group.keys.clone(), properties, &group.pairs)
+            .map(|(index, ((condition, properties), group))| {
+                self.group(
+                    name,
+                    index,
+                    condition,
+                    group.keys.clone(),
+                    properties,
+                    &group.pairs,
+                )
             })
             .collect();
         self.entry(name, "state", None, groups);
     }
 
+    pub fn prepare_ordering(&mut self) -> Option<&CandidateOrdering> {
+        self.ordering
+            .get_or_insert_with(|| ordering(&self.entries))
+            .as_ref()
+    }
+
     pub fn finish(self, code: String) -> CandidateModulePlan {
-        let ordering = ordering(&self.entries);
+        let ordering = self.ordering.unwrap_or_else(|| ordering(&self.entries));
         CandidateModulePlan {
             code,
             schema: 1,
@@ -203,6 +232,71 @@ mod tests {
             let plan = render_candidate_module_plan(&names, &Theme::default(), &context).unwrap();
             assert!(plan.ordering.is_none());
         }
+    }
+
+    #[test]
+    fn final_factory_uses_compact_order_only_for_a_real_assessed_conflict() {
+        let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
+        for names in [vec!["p-2".into()], vec!["p-2".into(), "bg-red-500".into()]] {
+            let final_plan =
+                crate::render_final_candidate_module_plan(&names, &Theme::default(), &context)
+                    .unwrap();
+            assert_eq!(
+                final_plan.code,
+                render_candidate_module(&names, &Theme::default())
+            );
+        }
+        let names = ["p-2", "p-4", "active:p-4", "hover:focus:p-4"].map(String::from);
+        let final_plan =
+            crate::render_final_candidate_module_plan(&names, &Theme::default(), &context).unwrap();
+        assert!(final_plan
+            .code
+            .contains("createClassResolver({ schema: 1, styles, unsupported,"));
+        assert!(final_plan.code.contains(" states,"));
+        assert!(final_plan
+            .ordering
+            .unwrap()
+            .ranks
+            .contains_key("hover:focus:p-4"));
+    }
+
+    #[test]
+    fn a_candidate_rule_with_the_wrong_actual_owner_never_gets_an_object_rank() {
+        let mut snapshot = portable_tailwind_snapshot();
+        let candidate = snapshot
+            .candidates
+            .iter_mut()
+            .find(|row| row.candidate == "active:p-4")
+            .unwrap();
+        fn replace(shape: &mut hozo_ir::OrderRuleShape) {
+            if let hozo_ir::OrderRuleShape::Rule { selector, nodes } = shape {
+                *selector = selector.replace(":active", ":focus");
+                for node in nodes {
+                    replace(node);
+                }
+            }
+        }
+        for rule in &mut candidate.rules {
+            replace(&mut rule.shape);
+        }
+        let context = TailwindOrderContext::new(snapshot).unwrap();
+        let plan = crate::render_final_candidate_module_plan(
+            &["p-2".into(), "p-4".into(), "active:p-4".into()],
+            &Theme::default(),
+            &context,
+        )
+        .unwrap();
+        let entry = plan
+            .entries
+            .iter()
+            .find(|entry| entry.candidate == "active:p-4")
+            .unwrap();
+        assert!(
+            entry.groups[0].priority_rank.is_some(),
+            "a rule rank alone is insufficient"
+        );
+        assert!(!entry.groups[0].orderable);
+        assert!(!plan.ordering.unwrap().ranks.contains_key("active:p-4"));
     }
 
     #[test]

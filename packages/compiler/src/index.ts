@@ -22,10 +22,10 @@ export interface CompileDiagnostic {
   spanEnd: number
 }
 
-/** @internal A pass-through plan consumed before lowering, not a cascade support verdict. */
+/** @internal Captured output policy and write evidence, not a full cascade support verdict. */
 export interface TailwindCompilePlan {
   fingerprint: string
-  mode: 'passthrough'
+  mode: 'passthrough' | 'scalar-order-v1'
   sites: {
     spanStart: number
     spanEnd: number
@@ -371,6 +371,7 @@ interface CandidateCacheConstructor {
  */
 interface NativeBinding {
   prepareTailwindContext(snapshot: string): PreparedTailwindContext
+  prepareFinalTailwindContext(snapshot: string): PreparedTailwindContext
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
   analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
   compile(source: string): CompiledComponent[]
@@ -668,6 +669,12 @@ export interface PreparedModule<T> {
 /** @internal Validate/decode once; do not install mutable compiler state. */
 export function prepareTailwindContext(snapshot: string): PreparedTailwindContext {
   return loadNative().prepareTailwindContext(snapshot)
+}
+
+/** @internal Completed finite-batch output capability; not an adapter flag.
+ * Its fingerprint includes the output policy, unlike pass-through contexts. */
+export function prepareFinalTailwindContext(snapshot: string): PreparedTailwindContext {
+  return loadNative().prepareFinalTailwindContext(snapshot)
 }
 
 function validateNativeOptions(options: NativeCompileOptions | undefined) {

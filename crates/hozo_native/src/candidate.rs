@@ -17,12 +17,32 @@ pub fn render_candidate_module_plan(
     theme: &Theme,
     context: &hozo_ir::TailwindOrderContext,
 ) -> Result<CandidateModulePlan, String> {
+    candidate_plan(class_names, theme, context, false)
+}
+
+/// A completed context uses the exact scalar eligibility of static planning.
+/// Only compact ranks enter the factory call; descriptors stay at build time.
+pub fn render_final_candidate_module_plan(
+    class_names: &[String],
+    theme: &Theme,
+    context: &hozo_ir::TailwindOrderContext,
+) -> Result<CandidateModulePlan, String> {
+    candidate_plan(class_names, theme, context, true)
+}
+
+fn candidate_plan(
+    class_names: &[String],
+    theme: &Theme,
+    context: &hozo_ir::TailwindOrderContext,
+    finalized: bool,
+) -> Result<CandidateModulePlan, String> {
     for name in class_names {
         if context.lookup(name).is_none() {
             return Err(format!("Tailwind ordering context did not collect {name}"));
         }
     }
     let mut plan = CandidatePlanBuilder::new(context);
+    plan.finalized = finalized;
     let code = render_candidate_module_impl(class_names, theme, Some(&mut plan));
     Ok(plan.finish(code))
 }
@@ -42,9 +62,9 @@ pub fn render_candidate_module_plan(
 /// (`@hozo/engine`'s `createClassResolver`). What makes that enough,
 /// where `react-native-css` needs a full reactive engine with specificity
 /// sorting, is that Hozo only ever puts *single utility classes* in here.
-/// They're all the same specificity, so "later in the string wins" is the
-/// whole cascade -- which is exactly what React Native's own style-array
-/// merging already does.
+/// The legacy positional call follows authored-string order. A completed
+/// shared context instead emits the bounded common scalar ordering ABI; it
+/// does not infer Tailwind precedence from that string order or from this map.
 ///
 /// Conditional utilities under a breakpoint or `dark:` are the price. A
 /// style object can't express them, and making it able to would mean
@@ -244,7 +264,36 @@ fn render_candidate_module_impl(
         // A transform-bearing project can still resolve thousands of plain
         // class strings. Skip composition unless this particular list needs
         // it; the resolver continues to cache its unconditional result.
-        out.push_str(&format!("])\n\nexport const hozoClasses = createClassResolver(styles, unsupported, resolved => resolved.some(style => transforms.has(style)) ? hozoTransformStyles(resolved, transforms) : resolved{states_argument})\n"));
+        out.push_str("])\n\n");
+    }
+    let ordering = plan.and_then(|plan| {
+        if plan.finalized {
+            plan.prepare_ordering()
+        } else {
+            None
+        }
+    });
+    if let Some(ordering) = ordering {
+        out.push_str(
+            "export const hozoClasses = createClassResolver({ schema: 1, styles, unsupported,",
+        );
+        if !states.is_empty() {
+            out.push_str(" states,");
+        }
+        if ambient {
+            out.push_str(" ambient: { rtl: I18nManager.isRTL, ltr: !I18nManager.isRTL },");
+        }
+        if needs_transform_slots {
+            out.push_str(" compose: resolved => resolved.some(style => transforms.has(style)) ? hozoTransformStyles(resolved, transforms) : resolved,");
+        }
+        out.push_str(" ordering: { schema: 1, ranks: {");
+        for (name, ranks) in &ordering.ranks {
+            let ranks: Vec<_> = ranks.iter().map(u32::to_string).collect();
+            out.push_str(&format!(" {}: [{}],", quote(name), ranks.join(",")));
+        }
+        out.push_str(" } } })\n");
+    } else if needs_transform_slots {
+        out.push_str(&format!("export const hozoClasses = createClassResolver(styles, unsupported, resolved => resolved.some(style => transforms.has(style)) ? hozoTransformStyles(resolved, transforms) : resolved{states_argument})\n"));
     } else if states.is_empty() {
         out.push_str("export const hozoClasses = createClassResolver(styles, unsupported)\n");
     } else {

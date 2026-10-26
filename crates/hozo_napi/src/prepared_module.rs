@@ -6,6 +6,12 @@ use napi::bindgen_prelude::Either;
 #[napi]
 pub struct PreparedTailwindContext {
     pub(super) context: Box<hozo_ir::TailwindOrderContext>,
+    // An immutable output capability, never a mutable compiler default.
+    pub(super) ordered: bool,
+}
+
+pub(super) fn final_fingerprint(fingerprint: &str) -> String {
+    format!("scalar-order-v1:{fingerprint}")
 }
 
 #[napi(object)]
@@ -40,6 +46,17 @@ pub struct TailwindRulePriorities {
 pub fn prepare_tailwind_context(snapshot: String) -> napi::Result<PreparedTailwindContext> {
     Ok(PreparedTailwindContext {
         context: tailwind_order::prepare(&snapshot)?,
+        ordered: false,
+    })
+}
+
+/// The finite publisher creates this only after collecting all its inputs.
+/// Ordinary per-file sessions retain their pass-through output policy.
+#[napi]
+pub fn prepare_final_tailwind_context(snapshot: String) -> napi::Result<PreparedTailwindContext> {
+    Ok(PreparedTailwindContext {
+        context: tailwind_order::prepare(&snapshot)?,
+        ordered: true,
     })
 }
 
@@ -47,7 +64,11 @@ pub fn prepare_tailwind_context(snapshot: String) -> napi::Result<PreparedTailwi
 impl PreparedTailwindContext {
     #[napi(getter)]
     pub fn fingerprint(&self) -> String {
-        self.context.snapshot().fingerprint.clone()
+        if self.ordered {
+            final_fingerprint(&self.context.snapshot().fingerprint)
+        } else {
+            self.context.snapshot().fingerprint.clone()
+        }
     }
 
     /// Build-time namespace data, not a device sort or an assessment of which
@@ -55,7 +76,7 @@ impl PreparedTailwindContext {
     #[napi]
     pub fn rule_order(&self) -> TailwindRuleOrder {
         TailwindRuleOrder {
-            fingerprint: self.context.snapshot().fingerprint.clone(),
+            fingerprint: self.fingerprint(),
             rules: self
                 .context
                 .rules_in_emission_order()
@@ -72,7 +93,7 @@ impl PreparedTailwindContext {
     #[napi]
     pub fn rule_priorities(&self) -> TailwindRulePriorities {
         TailwindRulePriorities {
-            fingerprint: self.context.snapshot().fingerprint.clone(),
+            fingerprint: self.fingerprint(),
             rules: self
                 .context
                 .rules_in_emission_order()
@@ -204,6 +225,7 @@ impl PreparedWebModule {
                 tailwind: TailwindPlanOptions {
                     context: Some(&context.context),
                     capture: self.capture,
+                    ordered: context.ordered,
                 },
             },
         ))
@@ -245,6 +267,7 @@ impl PreparedNativeModule {
                 tailwind: TailwindPlanOptions {
                     context: Some(&context.context),
                     capture: self.options.tailwind_plan.unwrap_or(false),
+                    ordered: context.ordered,
                 },
                 ..Default::default()
             },
@@ -376,6 +399,7 @@ mod tests {
             context: Box::new(
                 hozo_ir::TailwindOrderContext::new(hozo_ir::portable_tailwind_snapshot()).unwrap(),
             ),
+            ordered: false,
         }
     }
 

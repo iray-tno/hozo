@@ -2,9 +2,17 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
-import { createCompiler, openCandidateCache, type PreparedModule } from '@hozo/compiler'
+import { runInNewContext } from 'node:vm'
+import {
+  createCompiler,
+  openCandidateCache,
+  type PreparedModule,
+  prepareTailwindContext,
+} from '@hozo/compiler'
 import { lowerModule, prepareLowerModule } from '@hozo/compiler/lower'
 import { emitFinalTailwindBatch } from '@hozo/compiler/project'
+import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
 import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 const base = tailwindPackageDir()
@@ -90,6 +98,7 @@ test('one exact final context contains actual static units and reconciled runtim
   })
   assert.equal(preparations, 1)
   assert.equal(result.fingerprint, result.native.fingerprint)
+  assert.match(result.fingerprint, /^scalar-order-v1:[a-f0-9]{64}$/)
   assert.equal(web.context, native.context)
   assert.equal(
     renderContext,
@@ -104,12 +113,64 @@ test('one exact final context contains actual static units and reconciled runtim
   for (const { output } of result.modules) {
     const components = Array.isArray(output) ? output : output.components
     assert.equal(components[0].tailwindPlan?.fingerprint, result.fingerprint)
+    assert.equal(components[0].tailwindPlan?.mode, 'scalar-order-v1')
   }
   assert.deepEqual(result.ignoredModules, [{ id: 'deleted', revision: 'old' }])
   assert.deepEqual(result.ignoredRuntimeSources, ['deleted'])
   assert.equal(deleted.emissions, 0)
   for (const tracked of [web, native, deleted]) assert.equal(tracked.disposals, 1)
   assert.equal(compiler.inspectTailwindOrder(source('p-2')).fingerprint, undefined)
+})
+
+test('a completed batch changes both static targets and the actual generated factory call, not ordinary sessions', async () => {
+  const compiler = createCompiler()
+  const classes = 'p-4 p-2 w-8 w-4 bg-[#112233] bg-[#223344]'
+  const row = runtime('runtime', 'one', classes)
+  const snapshot = await order(classes.split(' '))
+  const ordinary = prepareTailwindContext(snapshot)
+  const oldWeb = compiler.prepareWebModule(source(classes)).emit(ordinary)[0]!
+  const oldNative = compiler.prepareNativeModule(source(classes)).emit(ordinary).components[0]!
+  const result = await emitFinalTailwindBatch({
+    expected: [
+      { id: 'w', revision: 'one' },
+      { id: 'n', revision: 'one' },
+    ],
+    collected: [
+      { id: 'w', revision: 'one', module: compiler.prepareWebModule(source(classes)) },
+      { id: 'n', revision: 'one', module: compiler.prepareNativeModule(source(classes)) },
+    ],
+    runtime: { expected: [row], contributions: [row] },
+    prepare: async () => snapshot,
+  })
+  const web = result.modules.find(({ id }) => id === 'w')!.output
+  const native = result.modules.find(({ id }) => id === 'n')!.output
+  assert.ok(Array.isArray(web) && !Array.isArray(native))
+  assert.notEqual(
+    result.fingerprint,
+    ordinary.fingerprint,
+    'output policy is part of cache identity',
+  )
+  assert.notEqual(web[0]!.css, oldWeb.css)
+  assert.notEqual(native.components[0]!.styles, oldNative.styles)
+  assert.match(native.components[0]!.styles, /paddingTop: 16/)
+  assert.match(native.components[0]!.styles, /width: 32/)
+  const resolver = runInNewContext(
+    result.native.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ') +
+      '\nhozoClasses',
+    { createClassResolver },
+  )
+  const resolved = Object.assign({}, ...resolver(classes))
+  assert.equal(resolved.paddingTop, 16)
+  assert.equal(resolved.width, 32)
+  const legacy = openCandidateCache()
+  legacy.importFile(row.id, row.record, 0)
+  assert.match(
+    legacy.renderNativeModulePlan(ordinary).code,
+    /createClassResolver\(styles, unsupported\)/,
+  )
+  assert.match(result.native.code, /createClassResolver\(\{ schema: 1/)
+  assert.doesNotMatch(result.native.code, /scalar-order-v1:|candidateId|specificity|propertyOrder/)
+  assert.equal(compiler.prepareWebModule(source(classes)).emit(ordinary)[0]!.css, oldWeb.css)
 })
 
 test('empty/static-only/runtime-only batches still prepare once and keep fallback membership exact', async () => {
@@ -135,6 +196,80 @@ test('empty/static-only/runtime-only batches still prepare once and keep fallbac
     assert.deepEqual(result.candidates, hasStatic ? ['p-3'] : hasRuntime ? ['p-2'] : [])
     assert.equal(result.native.entries.length, hasRuntime ? 1 : 0)
   }
+})
+
+test('unassessed emitted objects keep the whole string on its old path, including ambient and transform composition', async () => {
+  for (const classes of ['p-4 p-2 ps-2', 'p-4 p-2 rotate-45 rtl:p-4']) {
+    const row = runtime('runtime', 'one', classes)
+    const compiler = createCompiler()
+    const oldWeb = compiler.compile(source(classes))[0]!
+    const oldNative = compiler.compileNativeModule(source(classes)).components[0]!
+    const result = await emitFinalTailwindBatch({
+      expected: [
+        { id: 'w', revision: 'one' },
+        { id: 'n', revision: 'one' },
+      ],
+      collected: [
+        { id: 'w', revision: 'one', module: compiler.prepareWebModule(source(classes)) },
+        { id: 'n', revision: 'one', module: compiler.prepareNativeModule(source(classes)) },
+      ],
+      runtime: { expected: [row], contributions: [row] },
+      prepare: order,
+    })
+    const web = result.modules.find(({ id }) => id === 'w')!.output
+    const native = result.modules.find(({ id }) => id === 'n')!.output
+    assert.ok(Array.isArray(web) && !Array.isArray(native))
+    assert.equal(web[0]!.css, oldWeb.css)
+    assert.equal(native.components[0]!.styles, oldNative.styles)
+    for (const isRTL of [false, true]) {
+      const resolve = runInNewContext(
+        result.native.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ') +
+          '\nhozoClasses',
+        { createClassResolver, hozoTransformStyles, I18nManager: { isRTL } },
+      )
+      const resolved = Object.assign({}, ...resolve(classes))
+      assert.equal(resolved.paddingTop, isRTL && classes.includes('rtl:') ? 16 : 8)
+      if (classes.includes('rotate')) assert.equal(resolved.transform[0].rotate, '45deg')
+    }
+  }
+})
+
+test('a ranked rule with a mismatched actual owner is a barrier in both static and generated output', async () => {
+  const classes = 'p-4 p-2 active:p-4'
+  const row = runtime('runtime', 'one', classes)
+  const compiler = createCompiler()
+  const oldWeb = compiler.compile(source(classes))[0]!
+  const oldNative = compiler.compileNativeModule(source(classes)).components[0]!
+  const result = await emitFinalTailwindBatch({
+    expected: [
+      { id: 'w', revision: 'one' },
+      { id: 'n', revision: 'one' },
+    ],
+    collected: [
+      { id: 'w', revision: 'one', module: compiler.prepareWebModule(source(classes)) },
+      { id: 'n', revision: 'one', module: compiler.prepareNativeModule(source(classes)) },
+    ],
+    runtime: { expected: [row], contributions: [row] },
+    async prepare(names) {
+      const snapshot = JSON.parse(await order(names))
+      const active = snapshot.candidates.find((entry) => entry.candidate === 'active:p-4')
+      active.rules = JSON.parse(JSON.stringify(active.rules).replaceAll('&:active', '&:focus'))
+      return JSON.stringify(snapshot)
+    },
+  })
+  const web = result.modules.find(({ id }) => id === 'w')!.output
+  const native = result.modules.find(({ id }) => id === 'n')!.output
+  assert.ok(Array.isArray(web) && !Array.isArray(native))
+  assert.equal(web[0]!.css, oldWeb.css)
+  assert.equal(native.components[0]!.styles, oldNative.styles)
+  assert.equal(result.native.ordering?.ranks['active:p-4'], undefined)
+  const resolve = runInNewContext(
+    result.native.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ') +
+      '\nhozoClasses',
+    { createClassResolver },
+  )
+  assert.equal(Object.assign({}, ...resolve(classes, { pressed: false })).paddingTop, 8)
+  assert.equal(Object.assign({}, ...resolve(classes, { pressed: true })).paddingTop, 16)
 })
 
 test('the same publication accepts the real post-Canvas full lowering handle, not only primitive output arrays', async () => {

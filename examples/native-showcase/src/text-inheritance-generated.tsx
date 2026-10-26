@@ -51,15 +51,15 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        'a289750e8665d596cbd7e308b3d1438660f5e67232f294a9469fd06d078149d7',
+        'e0df8a2cb741c838468e07094236b53ab0331b8516cd508a4ee7d5da57323b4e',
       'packages/metro/src/transform.ts':
         '0a9af13765cc92deb0d85a0344fa4cbdf8753841de5ed3ddfac0199d4ea81332',
       'crates/hozo_napi/src/lib.rs':
-        'e6e474360b2d7647f85c5e8c70250b39e81a1750c4269173d7ed984dd7006343',
+        'd7eef2ecadd8fc8ed3d593b09cf2ec6b92ee23b20c6051bffbb019a55c554b3a',
       'crates/hozo_napi/src/tailwind_order.rs':
-        'cc7f80ff7d3ae2770da64d9484b7e37fd7ea812877231da91334c01eb358746c',
+        '194a6b225a049f717d46cabb2126d93adb57873f80ffed3abe0a4f5535e201b8',
       'crates/hozo_napi/src/prepared_module.rs':
-        '1cc02fc262d6c39059f41c9c15a79a0531a4213687031ba4f4dc04ca3f65501b',
+        '9eec6c912ed2e47227b718808348132640ca2fe58b1856b3b561d436035f8b3a',
       'crates/hozo_parser/src/lib.rs':
         '015bb40ba801c25f7af2b17f9706d4d9f5541d9d5aaf938dd5abf8eadcdd7edb',
       'crates/hozo_parser/src/important.rs':
@@ -69,7 +69,7 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/class_literals.rs':
         '8a3f777d7564e4ce6377287f7555c0d2aec8bcdd87163b72984afbf1d3efb4ad',
       'crates/hozo_parser/src/tailwind_plan.rs':
-        '151a9f9c368a3978c183592698f91d03bd348614cd36e83c945dab380f99d374',
+        'd817f11c273c5f469c31da4a17315d0391a14d6c815d295f2e71f9b25789c221',
       'crates/hozo_parser/src/interaction_order.rs':
         '7b91f5ba55ac795a003f9c95325dbdb851d8d27b938db4000dbd7addf483428d',
       'crates/hozo_parser/src/jsx.rs':
@@ -81,7 +81,7 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        '5acba00fc7080d9abeb3d8fe6fc84f6a6ae75b4993f947534cb0a3e64057f955',
+        'b8e8aa0842b4b558ff915fc82897357e9c9674aaa20dbfdc821bfcb38db9a408',
       'crates/hozo_native/src/runtime_classes.rs':
         'd47e472c5042734c1b386ea4e712fe0dffba832a88a6882e75e2759c16d62bae',
       'crates/hozo_native/src/conditions.rs':
