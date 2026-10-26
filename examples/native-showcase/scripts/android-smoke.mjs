@@ -16,7 +16,7 @@ import { waitForImage } from './image-ready.mjs'
 import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters, readAndroidScenario } from './svg-filter-evidence.mjs'
 import { exerciseTextInheritance, textFrame, textImage } from './text-pixels.mjs'
-import { exerciseUiDocs } from './ui-docs-evidence.mjs'
+import { exerciseUiDocs, UI_STATE_SCENES } from './ui-docs-evidence.mjs'
 import {
   exerciseVideo,
   exerciseVideoPoster,
@@ -484,6 +484,7 @@ try {
           writeFileSync(resolve(output, `${name}.png`), adb('exec-out', 'screencap', '-p')),
       },
       output,
+      { states: UI_STATE_SCENES },
     )
   } else {
     await fullShowcase()
