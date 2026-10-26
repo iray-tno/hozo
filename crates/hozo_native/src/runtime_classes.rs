@@ -92,6 +92,12 @@ fn cosmetic(property: &StyleProperty) -> bool {
 /// when it may, given state its owner supplies.
 pub fn native_class_verdict(class_name: &str) -> Option<NativeClassVerdict> {
     let utility = hozo_parser::resolve_class_name(class_name)?;
+    if utility.important {
+        return Some(NativeClassVerdict {
+            kind: NativeClassKind::Missing,
+            reason: hozo_parser::IMPORTANT_NOT_LOWERED.into(),
+        });
+    }
     let mut found: Option<NativeClassVerdict> = None;
     for (condition, properties) in &utility.groups {
         if let Some(reason) = never_on_native(condition) {
@@ -192,7 +198,13 @@ pub fn native_class_diagnostics(parsed: &hozo_parser::ParseOutput) -> Vec<Diagno
     native_class_findings(&parsed.runtime_class_lists)
         .into_iter()
         .filter(|finding| {
+            let important_reported = finding.reason == hozo_parser::IMPORTANT_NOT_LOWERED
+                && parsed.diagnostics.iter().any(|diagnostic| {
+                    diagnostic.code == DiagnosticCode::TailwindImportantNotLowered
+                        && diagnostic.span == finding.span
+                });
             finding.kind == NativeClassKind::Missing
+                && !important_reported
                 && !canvas.contains(&finding.element.split('.').next().unwrap_or_default())
                 && !lowered
                     .get(&finding.element_span.start)

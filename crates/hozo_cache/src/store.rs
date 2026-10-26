@@ -22,7 +22,9 @@ use serde::{Deserialize, Serialize};
 /// unchanged file must be rescanned rather than retaining a version-3 miss.
 /// 5: source-policy identity is part of the scan receipt; unchanged mtimes
 /// cannot validate facts collected under a different trusted-source list.
-pub const SNAPSHOT_VERSION: u32 = 5;
+/// 6: important syntax is retained as a recognized-but-unlowered candidate,
+/// rather than missed or confused with a normal color value.
+pub const SNAPSHOT_VERSION: u32 = 6;
 
 /// What one source file contributed.
 ///

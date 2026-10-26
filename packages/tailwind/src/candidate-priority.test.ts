@@ -109,10 +109,8 @@ test('actual candidate objects share original write priorities with static Web a
     entries.get('active:p-4')!.groups[0]!.priorityRank! <
       entries.get('hover:focus:p-4')!.groups[0]!.priorityRank!,
   )
-  assert.ok(
-    entries.get('hover:focus:p-4')!.groups[0]!.priorityRank! <
-      entries.get('hover:bg-red-500!')!.groups[0]!.priorityRank!,
-  )
+  assert.equal(entries.get('hover:bg-red-500!')!.kind, 'refused')
+  assert.equal(entries.get('hover:bg-red-500!')!.reason, 'important-not-lowered')
   plan.entries[0]!.groups[0]!.priorityRank = 999999
   assert.notEqual(cache.renderNativeModulePlan(context).entries[0]!.groups[0]!.priorityRank, 999999)
 })
@@ -182,4 +180,31 @@ test('empty, small and 256-candidate maps keep all priority sidecar bytes off th
       }),
     )
   }
+})
+
+test('upstream important rules stay recognized facts but never acquire a drawable candidate object', async () => {
+  const names = ['p-2!', '!p-2', 'hover:p-2!', 'hover:!p-2', 'bg-red-500!', 'w-[32px]!']
+  const cache = cacheFor(names)
+  assert.deepEqual(cache.candidates(), [...names].sort())
+  const prepared = await prepareTailwindOrder(css, base, [...names, '!hover:p-2'])
+  assert.equal(prepared.lookup('!hover:p-2')!.status, 'not-generated')
+  for (const name of names) {
+    const descriptor = prepared.lookup(name)!
+    assert.equal(descriptor.status, 'described')
+    assert.ok(descriptor.rules.length > 0)
+    assert.ok(descriptor.rules.every((rule) => rule.important))
+  }
+  const plan = cache.renderNativeModulePlan(
+    prepareTailwindContext(JSON.stringify(prepared.snapshot)),
+  )
+  assert.equal(plan.code, cache.renderNativeModule())
+  assert.equal(plan.entries.length, names.length)
+  assert.ok(
+    plan.entries.every(
+      (entry) =>
+        entry.kind === 'refused' &&
+        entry.reason === 'important-not-lowered' &&
+        entry.groups.length === 0,
+    ),
+  )
 })

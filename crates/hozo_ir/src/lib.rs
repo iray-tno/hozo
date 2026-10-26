@@ -135,6 +135,8 @@ pub enum DiagnosticCode {
     /// Named against Tailwind's own variant list rather than a set of
     /// prefixes somebody remembered.
     TailwindVariantNotSupported,
+    /// Recognized important utility whose cascade semantics are not enabled.
+    TailwindImportantNotLowered,
     /// A `Dialog` that can't be dismissed (proposal §10.3).
     ///
     /// Escape on Web and the hardware back button on Android both arrive
@@ -6036,6 +6038,7 @@ impl DiagnosticCode {
             DiagnosticCode::A11yNameNotForwarded => "A11Y_NAME_NOT_FORWARDED",
             DiagnosticCode::FocusableDisabledUnsupported => "FOCUSABLE_DISABLED_UNSUPPORTED",
             DiagnosticCode::TailwindVariantNotSupported => "TAILWIND_VARIANT_NOT_SUPPORTED",
+            DiagnosticCode::TailwindImportantNotLowered => "TAILWIND_IMPORTANT_NOT_LOWERED",
             DiagnosticCode::A11yMissingAccessibleName => "A11Y_MISSING_ACCESSIBLE_NAME",
             DiagnosticCode::A11yDialogWithoutDismiss => "A11Y_DIALOG_WITHOUT_DISMISS",
             DiagnosticCode::InvalidSemanticNesting => "INVALID_SEMANTIC_NESTING",

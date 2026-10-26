@@ -83,6 +83,13 @@ fn render_candidate_module_impl(
             }
             continue;
         };
+        if utility.important {
+            if let Some(plan) = plan.as_deref_mut() {
+                plan.refused(name, "important-not-lowered");
+            }
+            unsupported.push((name, hozo_parser::IMPORTANT_NOT_LOWERED.into()));
+            continue;
+        }
         // Any conditional group disqualifies the class, which is what
         // makes `container` land here: its max-widths are per-breakpoint.
         if utility

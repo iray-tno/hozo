@@ -48,7 +48,7 @@ test('upgrading invalidates missed array candidates even when the source mtime d
   cache.scanFile('Array.tsx', 'const c = ["p-4","hover:opacity-50"]', 1)
   assert.match(cache.renderCss(), /\.p-4\b/)
   cache.persist()
-  assert.equal(JSON.parse(readFileSync(file, 'utf8')).version, 5)
+  assert.equal(JSON.parse(readFileSync(file, 'utf8')).version, 6)
   const reopened = openCandidateCache(file)
   assert.equal(reopened.isCurrent('Array.tsx', 1), true)
   assert.equal(
