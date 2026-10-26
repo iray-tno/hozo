@@ -186,14 +186,16 @@ export function HozoStepper({
               <View style={[CENTRED, markBox]}>
                 <Text style={[listText, stepText, markText]}>{stepMark(index, status)}</Text>
               </View>
-              <View>
-                <Text style={[listText, stepText]}>{step.label}</Text>
-                {step.description ? (
-                  <View style={descriptionBox}>
-                    <Text style={[listText, stepText, descriptionText]}>{step.description}</Text>
-                  </View>
-                ) : null}
-              </View>
+              {/* Siblings of the mark, as on the Web, so the step's gap puts the
+                  description beside the label rather than under it (#1205).
+                  Each may shrink, as a Web flex item does, so a narrow
+                  screen wraps their words instead of pushing past the edge. */}
+              <Text style={[SHRINK, listText, stepText]}>{step.label}</Text>
+              {step.description ? (
+                <View style={[SHRINK, descriptionBox]}>
+                  <Text style={[listText, stepText, descriptionText]}>{step.description}</Text>
+                </View>
+              ) : null}
             </>
           )
         }
@@ -234,5 +236,6 @@ export function HozoStepper({
 
 const ROW: ViewStyle = { flexDirection: 'row', alignItems: 'center' }
 const CENTRED: ViewStyle = { alignItems: 'center', justifyContent: 'center' }
+const SHRINK: ViewStyle = { flexShrink: 1 }
 
 export { HozoStepper as Stepper, type HozoStepperProps as StepperProps }

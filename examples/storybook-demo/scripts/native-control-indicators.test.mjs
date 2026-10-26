@@ -4474,9 +4474,11 @@ test('Native Stepper decorative status slots retain base and explicit styles wit
     const decorations = () => {
       const views = host().findAllByType('NativeView')
       const texts = host().findAllByType('NativeText')
+      // The mark, then the description box: the label and description are the
+      // step row's own children, with no column between them (#1205).
       return [
         [views[0], texts[0]],
-        [views[2], texts[2]],
+        [views[1], texts[2]],
       ]
     }
     const check = () => {
@@ -4599,7 +4601,8 @@ test('Native Stepper runtime semantics follow the class owner, not selected or d
   assert.equal(flat(hosts()[1].props.style).opacity, 0.8)
   assert.equal(flat(hosts()[3].props.style).opacity, 0.9)
   assert.equal(flat(hosts()[1].findAllByType('NativeView')[0].props.style).opacity, 0.7)
-  assert.equal(flat(hosts()[1].findAllByType('NativeView')[2].props.style).opacity, 0.6)
+  // The description box follows the mark directly in the step row (#1205).
+  assert.equal(flat(hosts()[1].findAllByType('NativeView')[1].props.style).opacity, 0.6)
 })
 
 test('Native Chip standalone toggle delivers interaction without changing selection and preserves controlled state', async (t) => {

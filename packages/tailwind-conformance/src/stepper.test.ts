@@ -115,6 +115,29 @@ test('on Native: each step is one element named with its position and status, st
   renderer.act(() => root.unmount())
 })
 
+test('on Native the description sits beside the label in the step row, as on the Web', () => {
+  const root = mount({})
+  const [first] = root.root.findAll(
+    (node: Tree) => node.type === 'View' && node.props.accessible === true,
+  )
+  // The label and the description box are the step's own children, after
+  // the mark: the row's gap separates them, and neither is stacked under
+  // the other in a column of its own (#1205).
+  const children = first.children as Tree[]
+  const label = children.find(
+    (child) => child.type === 'Text' && child.props.children === 'Account',
+  )
+  const description = children.find(
+    (child) =>
+      child.type === 'View' &&
+      child.findAll((node: Tree) => node.props.children === 'Email and password').length > 0,
+  )
+  assert.ok(label, 'the label is not a child of the step row')
+  assert.ok(description, 'the description is not a child of the step row')
+  assert.equal(flat(label).flexShrink, 1, 'a long label could not wrap')
+  renderer.act(() => root.unmount())
+})
+
 test('on Native with onStepPress: buttons, and a press says which step', () => {
   const pressed: number[] = []
   const root = mount({ onStepPress: (index: number) => pressed.push(index) })
