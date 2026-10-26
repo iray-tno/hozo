@@ -10,6 +10,13 @@ inspects the captured JSON; **human recording/phrase approval is still pending**
 in [#1276](https://github.com/iray-tno/hozo/issues/1276). No expected-speech
 file is approved by this report.
 
+The Copy-recording media was inspected separately: NVDA's MP4 has no audio
+stream; VoiceOver's MOV has an AAC stream but the sampled Copy recording is
+digital silence (FFmpeg `volumedetect`: mean/max -91 dB). Thus the speech
+wording below comes from actual reader-event JSON, not listening to those
+videos. Use the video to review actions and the JSON to review wording;
+audible pronunciation, prosody and speech clarity are not verified here.
+
 Download `screen-readers-nvda` and `screen-readers-voiceover` from that run.
 Each contains `phrases/<reader>/` and `recordings/<reader>/`. Recordings use
 `.mp4` for NVDA and `.mov` for VoiceOver. Artifacts expire after 14 days;
@@ -69,10 +76,10 @@ a DOM-semantics baseline, not actual NVDA speech.
 
 ## Review checklist
 
-A person should compare each recording with its action JSON, assess the
-intelligibility of names and line prefixes, decide whether the duplicate NVDA
+A person should compare each recording's actions with its actual reader-event
+JSON, assess the wording of names and line prefixes, decide whether the duplicate NVDA
 mark wording and size-only collapse feedback are acceptable, and approve only
-the phrases actually heard. Follow
+the phrases actually captured. Follow
 [the reader approval procedure](../../examples/screen-readers/README.md#approving-speech)
 to commit the minimal necessary phrases and link the reviewed run/revision.
 
