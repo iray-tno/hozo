@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { assertReusableCodeInputs, frameSummary, timingRecords } from './code-block-frames.mjs'
+import {
+  assertReusableCodeInputs,
+  frameSummary,
+  timingRecords,
+  waitForCompletedFrames,
+} from './code-block-frames.mjs'
 
 test('a reused timing APK permits docs/collector changes but rejects different app or build inputs', () => {
   assertReusableCodeInputs([
@@ -77,4 +82,39 @@ I/ReactNativeJS( 2518): '[Hozo CodeBlock timing]', '{"name":"mount-10","boundary
   assert.equal(record.count, 10)
   assert.equal(record.elapsedMs, 54.20073300000513)
   assert.deepEqual(record.rafGapsMs, [43.306798000005074, 10.56211600000097])
+})
+
+test('frame completion polls only observations, retains pending data and keeps the original deadline', async () => {
+  let clock = 0
+  const retained = []
+  const pending = dump([frame(0, 90000000)])
+  const complete = dump([frame(0, 125000000)])
+  const result = await waitForCompletedFrames({
+    read: () => (clock < 200 ? pending : complete),
+    retain: (_, value) => retained.push(value),
+    deadline: 300,
+    refreshHz: 60,
+    now: () => clock,
+    sleep: async (ms) => {
+      clock += ms
+    },
+  })
+  assert.equal(result.summary.p95Ms, 25)
+  assert.deepEqual(retained, [pending, pending, complete])
+  clock = 0
+  await assert.rejects(
+    () =>
+      waitForCompletedFrames({
+        read: () => pending,
+        retain: () => {},
+        deadline: 250,
+        refreshHz: 60,
+        now: () => clock,
+        sleep: async (ms) => {
+          clock += ms
+        },
+      }),
+    /original measurement window/,
+  )
+  assert.equal(clock, 250)
 })

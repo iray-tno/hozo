@@ -36,7 +36,11 @@ export function frameSummary(dump, refreshHz) {
     .filter((row) => !row.pending && row.flags === 0)
     .map((row) => row.durationMs)
     .sort((a, b) => a - b)
-  assert.ok(durations.length > 0, 'no ordinary completed frames')
+  if (!durations.length) {
+    const error = new Error('no ordinary completed frames')
+    error.pendingFrames = rows.filter((row) => row.pending).length
+    throw error
+  }
   const percentile = (fraction) => durations[Math.ceil(durations.length * fraction) - 1]
   const total = dump.match(/Total frames rendered:\s*(\d+)/)
   const janky = dump.match(/Janky frames:\s*(\d+)\s*\(([\d.]+)%\)/)
@@ -59,6 +63,30 @@ export function frameSummary(dump, refreshHz) {
     // must accompany the raw rows; a saturated ring cannot stand for all frames.
     recentWindowOnly: !total || Number(total[1]) > rows.length,
   }
+}
+
+export async function waitForCompletedFrames({
+  read,
+  retain,
+  deadline,
+  refreshHz,
+  now = Date.now,
+  sleep,
+}) {
+  let observation = 0
+  while (now() < deadline) {
+    const dump = read()
+    observation++
+    retain(observation, dump)
+    try {
+      const summary = frameSummary(dump, refreshHz)
+      if (!summary.pendingFrames) return { summary, observations: observation }
+    } catch (error) {
+      if (!error.pendingFrames) throw error
+    }
+    await sleep(Math.min(100, Math.max(0, deadline - now())))
+  }
+  throw new Error('submitted frames did not complete within the original measurement window')
 }
 
 export function timingRecords(log) {

@@ -9,7 +9,11 @@ import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { prepareAndroid } from './android-startup.mjs'
 import { waitForAndroidControl } from './android-ui-wait.mjs'
-import { assertReusableCodeInputs, frameSummary, timingRecords } from './code-block-frames.mjs'
+import {
+  assertReusableCodeInputs,
+  timingRecords,
+  waitForCompletedFrames,
+} from './code-block-frames.mjs'
 import { centre, matchLabel, parseNodes } from './device-evidence.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -48,9 +52,8 @@ async function control(name) {
     timeout: 60_000,
   })
 }
-async function waitForTiming(name) {
-  const started = Date.now()
-  while (Date.now() - started < 60_000) {
+async function waitForTiming(name, deadline = Date.now() + 60_000) {
+  while (Date.now() < deadline) {
     const samples = timingRecords(logs()).filter((sample) => sample.name === name)
     if (samples.length) return samples.at(-1)
     await pause(100)
@@ -65,12 +68,21 @@ async function measure(name, action, timingName) {
   const started = Date.now()
   try {
     await action()
-    if (timingName) sample.js = await waitForTiming(timingName)
+    if (timingName) sample.js = await waitForTiming(timingName, started + 60_000)
     await pause(150)
+    const complete = await waitForCompletedFrames({
+      read: () => adb('shell', 'dumpsys', 'gfxinfo', app, 'framestats'),
+      retain: (number, dump) => {
+        save(`${name}-gfxinfo-observation-${number}.txt`, dump)
+        save(`${name}-gfxinfo.txt`, dump)
+      },
+      deadline: started + 60_000,
+      refreshHz: evidence.refreshHz,
+      sleep: pause,
+    })
+    sample.frames = complete.summary
+    sample.frameObservations = complete.observations
     sample.driverWindowMs = Date.now() - started
-    const dump = adb('shell', 'dumpsys', 'gfxinfo', app, 'framestats')
-    save(`${name}-gfxinfo.txt`, dump)
-    sample.frames = frameSummary(dump, evidence.refreshHz)
     sample.passed = true
     console.log(
       `${name}: ${sample.frames.ordinaryFrames} frames, p95 ${sample.frames.p95Ms.toFixed(2)}ms, ${sample.frames.overBudgetFrames} over ${sample.frames.budgetMs.toFixed(2)}ms`,
