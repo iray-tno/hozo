@@ -44,6 +44,13 @@ export interface HozoNativeSelectProps {
    * label; explicit Native styles follow classes.
    */
   className?: string
+  /**
+   * A decorative node after the value, for a chevron that says the field opens
+   * a list. The Web `<select>` draws its own, so this is the Native field's
+   * only one (#1205); it is hidden from assistive technology, which already
+   * hears a combobox.
+   */
+  indicatorClassName?: string
   /** Native-owned fallback chrome only; neither the system picker nor the Web select uses these. */
   sheetClassName?: string
   scrimClassName?: string
@@ -81,6 +88,11 @@ export interface NativeSelectPresenter {
 }
 
 const PresenterContext = createContext<NativeSelectPresenter | null>(null)
+
+// The value and its chevron side by side, the value taking the room and
+// shrinking first, as the Web `<select>` lays out its own arrow.
+const WITH_INDICATOR: ViewStyle = { flexDirection: 'row', alignItems: 'center', gap: 8 }
+const VALUE: TextStyle = { flexGrow: 1, flexShrink: 1 }
 
 /**
  * Where a real platform picker gets plugged in.
@@ -162,6 +174,7 @@ export function HozoNativeSelect({
   'aria-required': required,
   disabled,
   className,
+  indicatorClassName,
   sheetClassName,
   scrimClassName,
   optionClassName,
@@ -292,7 +305,9 @@ export function HozoNativeSelect({
         accessibilityState={{ disabled: Boolean(disabled), expanded: open }}
         disabled={disabled}
         testID={testID}
-        style={controlBox as ViewStyle}
+        style={
+          indicatorClassName ? [WITH_INDICATOR, controlBox as ViewStyle] : (controlBox as ViewStyle)
+        }
         onPress={openPicker}
         onHoverIn={handlers.hoverIn}
         onHoverOut={handlers.hoverOut}
@@ -311,7 +326,18 @@ export function HozoNativeSelect({
           onFocus?.()
         }}
       >
-        <Text style={[controlText as TextStyle, textStyle]}>{shown}</Text>
+        <Text style={[indicatorClassName ? VALUE : null, controlText as TextStyle, textStyle]}>
+          {shown}
+        </Text>
+        {indicatorClassName ? (
+          <View
+            accessible={false}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            pointerEvents="none"
+            style={hozoClasses(indicatorClassName, facts)}
+          />
+        ) : null}
       </Pressable>
       <Modal
         visible={open}

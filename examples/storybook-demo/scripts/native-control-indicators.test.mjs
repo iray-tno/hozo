@@ -100,6 +100,7 @@ for (const file of [
   'date-time-picker.tsx',
   'time-picker.tsx',
   'file-dropzone.tsx',
+  'accordion.tsx',
 ]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
@@ -186,6 +187,7 @@ const probeSources = [
     ]
   }),
   exportsFrom('HozoNativeSelect as UiNativeSelect', 'packages/ui/src/native-select.tsx'),
+  exportsFrom('HozoAccordion as UiAccordion', 'packages/ui/src/accordion.tsx'),
   exportsFrom(
     'HozoNativeSelect, NativeSelectProvider',
     'packages/form/src/native-select.native.tsx',
@@ -340,7 +342,7 @@ const bundled = await build({
           resolveDir: root,
         }))
         builder.onLoad({ filter: /.*/, namespace: 'probe' }, () => ({
-          contents: `export { HozoCheckbox as Checkbox, HozoSwitch as Switch } from ${JSON.stringify(filename('packages/patterns/src/toggle.native.tsx'))}; export { HozoRadioGroup as RadioGroup } from ${JSON.stringify(filename('packages/patterns/src/radio.native.tsx'))}; export { HozoTree as Tree } from ${JSON.stringify(filename('packages/patterns/src/tree.native.tsx'))};`,
+          contents: `export { HozoCheckbox as Checkbox, HozoSwitch as Switch } from ${JSON.stringify(filename('packages/patterns/src/toggle.native.tsx'))}; export { HozoRadioGroup as RadioGroup } from ${JSON.stringify(filename('packages/patterns/src/radio.native.tsx'))}; export { HozoTree as Tree } from ${JSON.stringify(filename('packages/patterns/src/tree.native.tsx'))}; export { HozoAccordion as Accordion } from ${JSON.stringify(filename('packages/patterns/src/accordion.native.tsx'))};`,
           loader: 'ts',
           resolveDir: root,
         }))
@@ -396,7 +398,7 @@ const { HozoChip, HozoOtpInput } = module.exports
 const { UiCombobox, UiListbox, UiCommandPalette, UiDialog } = module.exports
 const { usePressableInteraction, HozoInteractionContext, UiTree } = module.exports
 const { HozoForm, HozoTextArea, UiForm, UiTextArea, useFormSubmit } = module.exports
-const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect } = module.exports
+const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect, UiAccordion } = module.exports
 const { HozoCalendar, UiCalendar } = module.exports
 const { HozoTimePicker, UiTimePicker } = module.exports
 const { HozoFileDropzone, UiFileDropzone } = module.exports
@@ -658,6 +660,47 @@ test('NativeSelect applies closed-control classes to the box and its owned value
   assert.equal(flat(selectControl(custom).props.style).paddingTop, 99)
   assert.equal(flat(selectControl(custom).props.style).paddingBottom, 16)
   assert.equal(flat(selectControl(custom).findByType('NativeText').props.style).color, '#abcdef')
+})
+
+// React Native has no `::after`, so a chevron drawn with one showed on the Web
+// only (#1205). Both are now real nodes the patterns own and hide.
+const chevronOf = (node) =>
+  node
+    .findAllByType('NativeView')
+    .find(
+      (view) =>
+        view.props.accessibilityElementsHidden && flat(view.props.style).borderRightWidth === 2,
+    )
+const turn = (view) => flat(view.props.style).transform?.find((step) => 'rotate' in step)?.rotate
+
+test('NativeSelect draws its chevron as a hidden node after the value', async (t) => {
+  const ui = await mount(t, UiNativeSelect, {
+    options: selectOptions,
+    accessibilityLabel: 'Courier',
+  })
+  const chevron = chevronOf(selectControl(ui))
+  assert.ok(chevron, 'the closed field has no chevron')
+  assert.equal(flat(chevron.props.style).borderBottomWidth, 2)
+  assert.equal(turn(chevron), '45deg')
+  assert.equal(flat(selectControl(ui).props.style).flexDirection, 'row')
+  const bare = await mount(t, HozoNativeSelect, { options: selectOptions })
+  assert.equal(chevronOf(selectControl(bare)), undefined, 'no indicatorClassName, no chevron')
+})
+
+test('Accordion draws a chevron per header that turns when the section opens', async (t) => {
+  const items = [
+    { id: 'a', header: 'First', content: 'One' },
+    { id: 'b', header: 'Second', content: 'Two' },
+  ]
+  const ui = await mount(t, UiAccordion, { items, defaultExpanded: 'a' })
+  const headers = ui.root
+    .findAllByType('NativePressable')
+    .filter((node) => node.props.accessibilityRole === 'header')
+  assert.equal(headers.length, 2)
+  assert.deepEqual(
+    headers.map((header) => turn(chevronOf(header))),
+    ['-135deg', '45deg'],
+  )
 })
 
 test('NativeSelect owns focus, pointer and form facts without changing its choice', async (t) => {

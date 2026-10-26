@@ -52,7 +52,7 @@ const rotations = (name: string): string[] =>
 test('a chevron is always two borders and a size, never a glyph', () => {
   // A `▾` in the text is in the accessible name: the demo's tree announces
   // "treeitem, ▾ crates, expanded" -- the glyph, and then the same fact again.
-  for (const name of ['accordion.tsx', 'tree.tsx']) {
+  for (const name of ['accordion.tsx', 'tree.tsx', 'native-select.tsx']) {
     const source = code(name)
     assert.match(source, /border-b-2/, `${name} draws no border-bottom`)
     assert.match(source, /border-[re]-2/, `${name} draws no border-right`)
@@ -61,10 +61,19 @@ test('a chevron is always two borders and a size, never a glyph', () => {
 })
 
 test('the accordion points down when closed and up when open', () => {
-  const trigger = /const trigger =\s*\n?\s*"([^"]*)"/.exec(code('accordion.tsx'))?.[1] ?? ''
-  assert.ok(trigger.length > 0, 'the trigger class list was not found')
-  assert.match(trigger, /(^|\s)after:rotate-45(\s|$)/, 'closed is south')
-  assert.match(trigger, /data-\[hozo-state=open\]:after:-rotate-135/, 'open is north')
+  // Two lists for the pattern's indicator slot, not `after:` on the trigger,
+  // which React Native cannot draw (#1205).
+  const source = code('accordion.tsx')
+  const closed = /const chevron =\s*\n?\s*'([^']*)'/.exec(source)?.[1] ?? ''
+  const open = /const chevronOpen =\s*\n?\s*'([^']*)'/.exec(source)?.[1] ?? ''
+  assert.ok(closed.length > 0 && open.length > 0, 'the chevron class lists were not found')
+  assert.match(closed, /(^|\s)rotate-45(\s|$)/, 'closed is south')
+  assert.match(open, /(^|\s)-rotate-135(\s|$)/, 'open is north')
+})
+
+test('the select points down, as a closed accordion row does', () => {
+  const chevron = /const chevron =\s*\n?\s*'([^']*)'/.exec(code('native-select.tsx'))?.[1] ?? ''
+  assert.match(chevron, /(^|\s)rotate-45(\s|$)/, 'south')
 })
 
 test('the tree points along the text when closed and down when open', () => {
@@ -102,7 +111,7 @@ test('a leaf reserves the marker’s width and draws nothing in it', () => {
 })
 
 test('every rotation in the package is one the table names', () => {
-  for (const name of ['accordion.tsx', 'tree.tsx']) {
+  for (const name of ['accordion.tsx', 'tree.tsx', 'native-select.tsx']) {
     for (const angle of rotations(name)) {
       assert.ok(
         ['rotate-45', '-rotate-45', '-rotate-135'].includes(angle),

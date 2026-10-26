@@ -17,7 +17,9 @@
  *
  * The chevron is the user agent's too, for the same reason. Drawing one would mean
  * `appearance-none`, and `appearance-none` on a `<select>` takes the platform
- * rendering away on the mobile browsers this exists for.
+ * rendering away on the mobile browsers this exists for. On React Native the
+ * field is ours, with no chevron unless we draw one, so `indicatorClassName`
+ * draws the same angle `Accordion` does (#1205); the Web half ignores it.
  *
  * ## The same list as `Input`'s, which is the point
  *
@@ -35,14 +37,17 @@ import { NativeSelect as NativeSelectBase, type NativeSelectProps } from '@hozo/
 
 export type HozoNativeSelectProps = Omit<
   NativeSelectProps,
-  'className' | 'sheetClassName' | 'scrimClassName' | 'optionClassName'
+  'className' | 'indicatorClassName' | 'sheetClassName' | 'scrimClassName' | 'optionClassName'
 >
 
 const field =
   'w-full rounded-hozo-control border bg-hozo-surface px-3 py-2 text-sm leading-6 text-hozo-text border-hozo-border-strong focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-[invalid=true]:border-hozo-danger disabled:bg-hozo-surface-raised disabled:text-hozo-text-subtle disabled:cursor-not-allowed'
 
+// Pointing down: see `accordion.tsx` for why `rotate-45` on these two borders does.
+const chevron = 'size-2 shrink-0 rotate-45 border-b-2 border-r-2 border-hozo-text-muted'
+
 export function HozoNativeSelect(props: HozoNativeSelectProps) {
-  return <NativeSelectBase {...props} className={field} />
+  return <NativeSelectBase {...props} className={field} indicatorClassName={chevron} />
 }
 
 export { HozoNativeSelect as NativeSelect, type HozoNativeSelectProps as NativeSelectProps }

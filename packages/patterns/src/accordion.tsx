@@ -34,6 +34,8 @@
 
 import { nextIndex, type RovingKey } from '@hozo/behaviors'
 import { type KeyboardEvent, type ReactNode, useCallback, useId, useRef, useState } from 'react'
+import { controlIndicator } from './control-indicator.tsx'
+import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 
 export interface HozoAccordionItem {
   /**
@@ -68,6 +70,16 @@ interface Shared {
   triggerClassName?: string
   /** On the panel, which is a labelled region whether it is open or not. */
   panelClassName?: string
+  /**
+   * What marks a header open or closed, as classes for a decorative node
+   * after the header: `className` for it, and `markClassName` for an
+   * optional node inside. It gets the state the header announces.
+   *
+   * A real node rather than an `after:` class, because React Native has no
+   * pseudo-elements: a chevron drawn with `::after` showed on the Web only
+   * (#1205). Left out, the header has no marker, as before.
+   */
+  indicator?: (state: { expanded: boolean; disabled: boolean }) => HozoControlIndicatorClasses
 }
 
 /** One at a time: opening a section closes whichever was open. */
@@ -100,6 +112,7 @@ export function HozoAccordion(props: HozoAccordionProps) {
     sectionClassName,
     headingClassName,
     triggerClassName,
+    indicator,
     panelClassName,
   } = props
   const multiple = props.multiple === true
@@ -192,6 +205,7 @@ export function HozoAccordion(props: HozoAccordionProps) {
                 onKeyDown={(event) => onKeyDown(event, at)}
               >
                 {item.header}
+                {controlIndicator(indicator?.({ expanded, disabled: Boolean(item.disabled) }))}
               </button>
             </Heading>
             {/*
