@@ -69,11 +69,26 @@
         justify-content: center;
         text-align: center;
       }
+      /* src/components/BrandMark.tsx as the dark header shows it: a shikkui tile, the H cut in yakisugi */
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 40px;
+        color: #f7f5f0; /* shikkui */
+        font-size: 44px;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+      }
+      .brand svg {
+        width: 60px;
+        height: 60px;
+      }
       .eyebrow {
         display: flex;
         align-items: center;
         gap: 14px;
-        margin-bottom: 36px;
+        margin-bottom: 30px;
         color: #c8a882; /* hinoki */
         font-size: 22px;
         font-weight: 700;
@@ -117,6 +132,13 @@
     <div class="glow glow-hinoki"></div>
     <div class="glow glow-bengara"></div>
     <main>
+      <div class="brand">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7" fill="#f7f5f0" />
+          <path d="M6 6H13.4L11.4 13H20.6L18.6 6H26V26H18.6L20.6 19H11.4L13.4 26H6Z" fill="#100f0e" />
+        </svg>
+        Hozo
+      </div>
       <div class="eyebrow"><span class="dot"></span>Rust-powered Universal UI Compiler</div>
       <h1>
         Write React Native.<br />
