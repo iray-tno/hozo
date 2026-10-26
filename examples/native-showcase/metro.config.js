@@ -36,6 +36,12 @@ module.exports = withHozo(config, {
   root: projectRoot,
   css: './src/index.css',
   sources: ['@hozo/core', '@hozo/primitives', '@hozo/typography', '@hozo/patterns'],
+  // The ui-docs stories render the /docs demos from apps/landing, outside
+  // this root. A class a demo hands a component as a string, such as the
+  // Skeleton demo's bar size, is resolved on device from the candidate map,
+  // so the scan has to read those files too, or the class draws nothing
+  // (#1205). `**/*` keeps the walk this root had without `include`.
+  content: { include: ['**/*', '../../apps/landing/src/examples/**/*'] },
 }).then((hozoConfig) =>
   withStorybook(hozoConfig, {
     enabled: true,

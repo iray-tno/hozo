@@ -603,6 +603,18 @@ test('Storybook composes with the Hozo transformer and host singleton resolver',
     theme.colors.find((entry) => entry.token === 'hozo-accent').hex,
     'Metro must scan the UI package and resolve its actual themed candidates',
   )
+  // The docs demos live in apps/landing; a class one hands a component as a
+  // string resolves only if the scan read the demo (#1205). The classes are
+  // read from the demo, not written here: this file is scanned too, and a
+  // literal here would put them in the map whether or not the demo was read.
+  const demo = readFileSync(
+    path.join(root, '../../apps/landing/src/examples/ui/SkeletonDemo.tsx'),
+    'utf8',
+  )
+  const bar = [...demo.matchAll(/<Skeleton className="([^"]+)"/g)].at(-1)?.[1]
+  assert.ok(bar, 'the Skeleton demo must still pass its bar a string className')
+  const drawn = Object.assign({}, ...module.exports.hozoClasses(bar))
+  assert.ok(drawn.width > 0 && drawn.height > 0, `${bar} resolved to ${JSON.stringify(drawn)}`)
 })
 
 test('shared patterns keep platform-neutral bodies and lower their primitive children', () => {
