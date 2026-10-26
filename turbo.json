@@ -46,6 +46,9 @@
         "$TURBO_ROOT$/packages/typography/src/**"
       ]
     },
+    "@hozo/next#test": {
+      "dependsOn": ["build", "^build"]
+    },
     "@hozo/tailwind#test": {
       "dependsOn": ["^build"],
       "inputs": [

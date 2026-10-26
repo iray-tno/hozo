@@ -337,3 +337,20 @@ test('media does not hash unrelated controls just to cover the Slider probe', ()
     ),
   )
 })
+
+test('Next loader tests build the helper the real plain-JS loader imports from dist', () => {
+  const dependencies = config.tasks['@hozo/next#test'].dependsOn
+  assert.ok(dependencies.includes('build'), 'a fresh checkout has no compiled loader epoch helper')
+  assert.ok(dependencies.includes('^build'), 'keep compiler/Tailwind dependency checks')
+})
+
+test('Next-specific changes have a bounded real-bundler gate, not an ignored full-repository rerun', () => {
+  const workflow = readFileSync(
+    new URL('../.github/workflows/next-integration.yml', import.meta.url),
+    'utf8',
+  )
+  assert.match(workflow, /'packages\/next\/\*\*'/)
+  assert.match(workflow, /pnpm --filter @hozo\/example-next test/)
+  assert.match(workflow, /--concurrency=2/)
+  assert.doesNotMatch(workflow, /continue-on-error|\|\| true|pnpm test:integration/)
+})

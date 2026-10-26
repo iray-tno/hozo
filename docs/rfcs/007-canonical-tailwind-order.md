@@ -82,7 +82,7 @@ code delivery and invalidate already transformed dev modules. An approximate,
 no-AST ordering seed includes static classes **without** adding them to runtime
 candidate CSS. Actual parsed units still expand an incomplete seed; warm files
 use the ready path. Unassessed/broken configuration preserves the existing warned
-lowering path, never a fabricated canonical context. Next installation,
+lowering path, never a fabricated canonical context. Complete
 production-wide reconciliation of transformed-only additions, new common cascade
 winners and broader portable extraction remain open. See
 [Vite integration evidence](../measurements/canonical-tailwind-order.md#default-vite-epoch-and-session-integration).
@@ -98,6 +98,16 @@ Unknown/broken CSS keeps warned legacy lowering, not a fabricated context.
 Production-wide reconciliation across worker namespaces remains necessary
 **before enabling shared winners**, along with broader portable facts and the
 common comparator. See [Metro worker evidence](../measurements/metro-tailwind-workers.md).
+
+Next now installs the same actual post-Canvas ready/retained lowering by
+default while keeping `withHozo` synchronous. Each loader worker owns its
+captured theme/compiler/session. Loader-declared stylesheet dependencies and
+warm metadata checks retire changed epochs; stale source/config deliveries
+cannot publish module CSS. Candidate CSS order is awaited under that same
+snapshot. Full resource/query IDs isolate pending requests and candidate rows.
+This does not synchronize final namespaces across workers, make filesystem
+capture atomic, or enable new winners. See
+[Next loader evidence](../measurements/next-tailwind-session.md).
 
 ## 1. Restart, not another family-specific patch
 

@@ -14,9 +14,11 @@
 // it is handed so a class written during `next dev` reaches the candidate
 // stylesheet without a restart.
 
-import { existsSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
+import { scanTailwindOrderCandidates } from '@hozo/compiler'
 
 import { cssFileNameFor } from '@hozo/compiler/lower'
 import {
@@ -43,6 +45,9 @@ export interface HozoLoaderOptions extends HozoNextOptions {
   root: string
   candidateCssPath: string
   preflightPath: string
+  /** Full ordering seed, separate from the runtime-only candidate cache. */
+  orderingCandidates: readonly string[]
+  orderingKey: string
 }
 
 /**
@@ -261,5 +266,21 @@ function prepareProject(root: string, options: HozoNextOptions): HozoLoaderOptio
   if (options.debug) {
     console.info(scanSummary(project.stats))
   }
-  return { ...options, root, candidateCssPath, preflightPath }
+  const orderingCandidates = new Set(project.cache.candidates())
+  for (const file of project.files) {
+    for (const candidate of scanTailwindOrderCandidates(readFileSync(file, 'utf8'))) {
+      orderingCandidates.add(candidate)
+    }
+  }
+  const loaderOptions = {
+    ...options,
+    root,
+    candidateCssPath,
+    preflightPath,
+    orderingCandidates: [...orderingCandidates].sort(),
+  }
+  return {
+    ...loaderOptions,
+    orderingKey: createHash('sha256').update(JSON.stringify(loaderOptions)).digest('hex'),
+  }
 }

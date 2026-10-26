@@ -1,0 +1,49 @@
+# Exercise loader changes on both real bundlers without rebuilding every app
+# on every PR. Full app integration remains in main's scheduled report.
+name: next-integration
+on:
+  pull_request:
+    paths:
+      - 'packages/next/**'
+      - 'examples/next-demo/**'
+      - '.github/workflows/next-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: next-integration-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  both-bundlers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      CARGO_BUILD_JOBS: '2'
+      RAYON_NUM_THREADS: '2'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - name: Build only the fixture's workspace dependencies
+        run: pnpm exec turbo run build --filter='@hozo/example-next^...' --concurrency=2
+      - name: Fresh Turbopack and webpack builds with output assertions, sequentially
+        run: |
+          mkdir -p artifacts
+          pnpm --filter @hozo/example-next test 2>&1 | tee artifacts/next-integration.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: next-integration-evidence
+          path: |
+            artifacts/next-integration.log
+            examples/next-demo/.next-check-*/build-manifest.json
+            examples/next-demo/.next-check-*/routes-manifest.json
+          if-no-files-found: warn

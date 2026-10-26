@@ -5,80 +5,23 @@
 // imported by a tool that understands TypeScript. `@hozo/storybook`'s
 // `preset.js` exists for the same reason.
 //
-// Asynchronous because the theme is: `loadProjectTheme` reads and runs the
-// project's Tailwind entry stylesheet. It caches by root, so the cost is
-// paid once per process no matter how many modules pass through here.
+// Asynchronous because project CSS preparation is. Snapshot, compiler and
+// session are owned together; a changed stylesheet retires all three.
 
 import { statSync } from 'node:fs'
 import path from 'node:path'
 
-import { createCompiler, openCandidateCache } from '@hozo/compiler'
-import { lowerModule, sideEffectImport } from '@hozo/compiler/lower'
+import { lowerModule, lowerModuleOrPrepare, sideEffectImport } from '@hozo/compiler/lower'
 import {
-  CACHE_DIR,
   importSpecifier,
   resolveStylexRequests,
-  StylexModuleCache,
   scannableFile,
+  TailwindCandidateUniverse,
   webBaseCssFor,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
-import { loadProjectClassOrder, loadProjectTheme, preflightCss } from '@hozo/tailwind'
-
-/** One cache and one theme per worker process, keyed by project root. */
-const projects = new Map()
-
-function projectState(options) {
-  let state = projects.get(options.root)
-  if (!state) {
-    const cache = openCandidateCache(
-      path.join(options.root, CACHE_DIR, 'candidates.json'),
-      options.sources,
-    )
-    const stylexModules = new StylexModuleCache(
-      path.join(options.root, CACHE_DIR, 'stylex-modules.json'),
-    )
-    const theme = loadProjectTheme(options.root, {
-      css: options.css,
-      warn: (message) => console.warn(`[hozo] ${message}`),
-    })
-    state = {
-      cache,
-      stylexModules,
-      // Filled in once the design system is available, which is the same
-      // await the theme needs. Empty until then means alphabetical, which
-      // is what `withHozo` writes synchronously anyway.
-      classOrder: [],
-      stylexGraphResolved: false,
-      // Rewritten once the theme resolves, unconditionally.
-      //
-      // `withHozo` writes this file synchronously while `next.config.ts`
-      // is evaluated -- it has to exist before the first module imports
-      // it -- and a theme cannot be read synchronously, so that first
-      // write has none. The per-file rescan below then only rewrites when
-      // the candidate set *changed*, which on a warm cache is never. So
-      // the theme-less version survived, and a project token in a dynamic
-      // className compiled to `var(--hozo-color-brand)` with nothing
-      // defining it: no error, no warning, just no colour. Found by
-      // reading what `next dev` actually served.
-      theme: theme.then(async (resolved) => {
-        state.classOrder = await loadProjectClassOrder(options.root, cache.candidates(), {
-          css: options.css,
-        })
-        writeFileIfChanged(options.candidateCssPath, cache.renderCss(resolved, state.classOrder))
-        writePreflight(options, cache)
-        // The compiler is built here rather than per module, which is the
-        // only place it can be: the theme is what it needs and the theme is
-        // a promise. See `createCompiler`.
-        state.compiler = createCompiler(resolved, options.sources, options.fontAvailability)
-        state.compiler.setStylexModules(stylexModules.moduleSources())
-        return resolved
-      }),
-    }
-    projects.set(options.root, state)
-  }
-  return state
-}
+import { preflightCss } from '@hozo/tailwind'
+import { nextTailwindProject } from './dist/tailwind-epoch.js'
 
 export default function hozoLoader(source) {
   const callback = this.async()
@@ -88,35 +31,27 @@ export default function hozoLoader(source) {
     callback(null, source)
     return
   }
-  const state = projectState(options)
-
-  state.theme.then(
-    async (theme) => {
+  nextTailwindProject(options).then(
+    async (state) => {
+      const requestId = JSON.stringify([this.resourcePath, this.resourceQuery ?? ''])
+      const request = state.start(requestId)
       try {
+        registerStylesheetDependencies(this, state.watchFiles, state.missingFiles)
+        request.check()
         // Every module that reaches this loader is rescanned, which is how
         // a class only a runtime expression produces stays covered while
         // `next dev` is running. The cache decides whether anything
         // actually changed.
         const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0
-        if (state.cache.scanFile(path.resolve(file), source, modifiedMs)) {
-          // With the order as it stands. A class discovered by this rescan
-          // has no position yet and is written last; the refresh below
-          // puts it where Tailwind would.
-          writeFileIfChanged(
-            options.candidateCssPath,
-            state.cache.renderCss(theme, state.classOrder),
-          )
+        const cacheId = `${path.resolve(file)}${this.resourceQuery ?? ''}`
+        const cacheChanged = state.cache.scanFile(cacheId, source, modifiedMs)
+        if (cacheChanged) {
+          state.candidateDirty = true
           // A project's first Tailwind class can arrive in a file compiled
           // long after `withHozo` ran, and the base layer is decided by
           // whether there are any.
-          writePreflight(options, state.cache)
           state.cache.persist()
-          void loadProjectClassOrder(options.root, state.cache.candidates(), {
-            css: options.css,
-          }).then((next) => {
-            state.classOrder = next
-            writeFileIfChanged(options.candidateCssPath, state.cache.renderCss(theme, next))
-          })
+          state.observe(state.cache.candidates())
         }
 
         const absoluteFile = path.resolve(file)
@@ -135,6 +70,7 @@ export default function hozoLoader(source) {
             )) || registryChanged
           state.stylexGraphResolved = true
         }
+        request.check()
         const reexportSpecifiers = state.stylexModules.reexportSpecifiers(absoluteFile)
         const importRequests = source.includes('@stylexjs/stylex')
           ? state.stylexModules
@@ -153,19 +89,63 @@ export default function hozoLoader(source) {
           ],
           (specifier, importer) => resolveFromLoader(this, specifier, importer),
         )
+        request.check()
         if (registryChanged || (resolvedCurrent && reexportSpecifiers.length > 0)) {
           state.compiler.setStylexModules(state.stylexModules.moduleSources())
         }
 
-        const lowered = lowerModule(
-          source,
-          this.resourcePath,
-          file,
-          state.compiler,
-          options.root,
-          state.stylexModules,
-          { unloweredReactNativeJsx: options.unloweredReactNativeJsx },
-        )
+        const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx }
+        let lowered
+        for (;;) {
+          const universe = state.universe
+          let emittedKey = universe.key
+          lowered = state.session
+            ? await state.session.runModule(requestId, universe, (compiler, context) => {
+                const result = lowerModuleOrPrepare(
+                  source,
+                  this.resourcePath,
+                  file,
+                  compiler,
+                  options.root,
+                  context,
+                  state.stylexModules,
+                  policy,
+                )
+                if (result.kind === 'prepared') {
+                  emittedKey = new TailwindCandidateUniverse([
+                    ...universe.candidates,
+                    ...result.module.candidates,
+                  ]).key
+                  state.observe(result.module.candidates)
+                }
+                return result
+              })
+            : lowerModule(
+                source,
+                this.resourcePath,
+                file,
+                state.compiler,
+                options.root,
+                state.stylexModules,
+                policy,
+              )
+          request.check()
+          if (state.session && emittedKey !== state.universe.key) continue
+          // No provisional sheet/fire-and-forget reorder: publish only after
+          // preparation for the final observed universe has completed.
+          await state.refreshOrder(options)
+          request.check()
+          state.checkDependencies()
+          if (!state.session || emittedKey === state.universe.key) break
+        }
+        if (state.candidateDirty) {
+          writeFileIfChanged(
+            options.candidateCssPath,
+            state.cache.renderCss(state.theme, state.classOrder),
+          )
+          writePreflight(options, state.cache)
+          state.candidateDirty = false
+        }
         if (!lowered) {
           callback(null, source)
           return
@@ -192,10 +172,20 @@ export default function hozoLoader(source) {
         callback(null, code)
       } catch (error) {
         callback(error)
+      } finally {
+        request.finish()
       }
     },
     (error) => callback(error),
   )
+}
+
+function registerStylesheetDependencies(loader, files, missing) {
+  for (const file of files) {
+    if (!missing.has(file)) loader.addDependency?.(file)
+    else if (typeof loader.addMissingDependency === 'function') loader.addMissingDependency(file)
+    else loader.addDependency?.(file)
+  }
 }
 
 function resolveFromLoader(loader, specifier, importer) {
