@@ -44,6 +44,13 @@ test('the panel does not position itself', () => {
   assert.doesNotMatch(render(), /class="[^"]*\b(fixed|absolute|sticky|inset-0|top-1\/2)\b/)
 })
 
+test('it centres itself, because a margin reset takes the browser’s centring away', () => {
+  // The top layer centres a modal `<dialog>` with `margin: auto`, which
+  // Tailwind's preflight and the /docs preview both zero: there it opened in
+  // the top-left corner.
+  assert.match(render(), /class="[^"]*\bm-auto\b/)
+})
+
 test('it can scroll, because the part a dialog clips is the part with the buttons', () => {
   const html = render()
   assert.match(html, /overflow-y-auto/)

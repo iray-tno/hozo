@@ -21,6 +21,20 @@
  * schemes, which is what a scrim is for -- it is not a surface seen from the
  * other side.
  *
+ * It does not blur the page behind it. `backdrop:backdrop-blur-xs` would, on
+ * the Web, but React Native has no backdrop filter and the class stops this
+ * file compiling for Native. A page that wants the blur adds it to
+ * `dialog::backdrop` in its own stylesheet, as Storybook and /docs do.
+ *
+ * ## Centred by its own class, not by the browser's
+ *
+ * A modal `<dialog>` is centred by the user agent's `margin: auto`, and any
+ * reset that zeroes margins takes that away: Tailwind's preflight does, and so
+ * does the /docs preview's, where the dialog opened in the top-left corner.
+ * Storybook only centred it because its own stylesheet put `margin: auto`
+ * back. `m-auto` here makes the centring the component's, whatever page it
+ * opens on.
+ *
  * ## No close button, and that is the constraint working
  *
  * A dismiss control is a control: it needs a name, a place in the reading
@@ -45,7 +59,7 @@ export type HozoDialogProps = DialogProps
  * clips, and the part that goes missing is the bottom, where the buttons are.
  */
 const panel =
-  'w-full max-w-md max-h-[85vh] overflow-y-auto rounded-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text shadow-hozo-surface backdrop:bg-hozo-scrim/50'
+  'm-auto w-full max-w-md max-h-[85vh] overflow-y-auto rounded-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text shadow-hozo-surface backdrop:bg-hozo-scrim/50'
 
 /**
  * Declared as `StyledDialog` and exported under the package's names, which is
