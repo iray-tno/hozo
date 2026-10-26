@@ -38,6 +38,27 @@ instead. That is once per build, before anything is compiled, which is what
 class written during `next dev` reaches the candidate stylesheet without a
 restart.
 
+The synchronous config API is unchanged. It also seeds ordering with static
+class names, without adding those names to runtime candidate CSS. The async
+loader owns a captured CSS/theme snapshot, compiler and preparation session
+together in each worker. A ready module reuses that session; an incomplete
+context retains the actual post-Canvas parse while its missing facts are
+prepared. There is no second ordinary parse on that path.
+
+The loader registers the stylesheet/import dependencies and absent discovery
+entries with the bundler. On a subsequent invocation, changed dependency
+metadata retires the matching compiler/session; completed old work cannot
+overwrite replacement module CSS. Candidate reordering is awaited before
+publishing, rather than a provisional write followed by an untracked Promise.
+CSS bytes are validated once at snapshot adoption; warm checks use file
+metadata, not a per-module CSS reload. Unassessed CSS keeps the existing warned
+lowering path, not a fabricated ordering context.
+
+These are worker-local preparation guarantees, not a global final candidate
+namespace across every Next worker or a proof of filesystem-watcher event
+delivery. Full production reconciliation remains separate from preparation;
+this change does not enable new cascade winners.
+
 ## Tailwind's own pipeline is not needed
 
 Hozo compiles the utilities. The Tailwind entry stylesheet is read for its
