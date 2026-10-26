@@ -37,7 +37,7 @@ export const GET: APIRoute = ({ site }) => {
 
   const body = `# Hozo
 
-> A Rust-powered universal UI compiler and accessibility-first layer for React Native. It compiles React Native and Hozo components to semantic HTML and CSS on the Web, and to React Native primitives with precomputed StyleSheets on device, reporting accessibility problems at build time.
+> A universal UI framework for React Native, compiled by Rust: native semantics on every platform, first-class accessibility, and diagnostics and guardrails for humans and AI agents alike. It compiles React Native and Hozo components, including the \`@hozo/ui\` component library, to semantic HTML and CSS on the Web, and to React Native primitives with precomputed StyleSheets on device, and reports accessibility and lowering problems at build time; \`@hozo/migration-audit\` reports the same for a whole project, for CI or an agent loop.
 
 Applications install \`@hozo/core\` and one build integration (\`@hozo/vite\`, \`@hozo/next\` or \`@hozo/metro\`). Existing React Native source compiles as written; \`className\` is Tailwind.
 

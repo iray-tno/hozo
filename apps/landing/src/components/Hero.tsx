@@ -22,7 +22,7 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           <View className="inline-flex flex-row items-center gap-2 mb-8">
             <View className="h-2 w-2 rounded-full bg-tatami-light animate-pulse" />
             <Text className="text-xs sm:text-sm font-bold uppercase tracking-widest text-hinoki">
-              Rust-powered Universal UI Compiler
+              Universal UI Framework, Rust-Compiled
             </Text>
           </View>
 
@@ -42,11 +42,12 @@ export function Hero({ baseUrl = '' }: HeroProps) {
           {/* Subtitle */}
           <View className="max-w-3xl mx-auto mb-6 sm:mb-10 text-center flex flex-col gap-3">
             <Paragraph className="text-base sm:text-xl text-shikkui-muted leading-relaxed">
-              Compile React Native components and styles to semantic HTML and CSS on the Web, and
-              native primitives on iOS and Android.
+              React Native and Hozo's own components compile to semantic HTML and CSS on the Web,
+              and to native primitives on iOS and Android.
             </Paragraph>
             <Paragraph className="text-base sm:text-lg text-hinoki font-medium leading-relaxed">
-              Static paths compile away. Only truly dynamic behavior remains at runtime.
+              Native semantics on every platform. First-class accessibility. Diagnostics and
+              guardrails for humans and AI alike.
             </Paragraph>
           </View>
 
