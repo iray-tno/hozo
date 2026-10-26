@@ -68,7 +68,7 @@ compatibility report; an inventory entry does not claim device validation.
 
 | Surface | Automated evidence | Still needed |
 | --- | --- | --- |
-| Web DOM | Named region; separator value, controls and orientation; hidden/inert collapse | NVDA and VoiceOver speech review |
+| Web DOM | Named region; separator value, controls and orientation; hidden/inert collapse; maintainer-approved NVDA/VoiceOver event wording | Audible speech quality is outside the captured evidence |
 | Chromium input | Real pointer capture, all four sides and RTL, release/cancel; keys and Tab out of a collapsed pane | Physical touch and pen |
 | Native mock hosts | Real React state, responder release, size actions, collapsed facts and hidden descendants | Android/iOS layout and responder delivery |
 | Native screen readers | Story available in the docs showcase | TalkBack/VoiceOver actions and announcements |

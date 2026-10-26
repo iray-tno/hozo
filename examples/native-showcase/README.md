@@ -66,7 +66,12 @@ driver installed, use `HOZO_IOS_SCENARIO=svg-filters pnpm --filter
 
 Dispatch `native-showcase` with `platform=android` and
 `android-scenario=code-block-performance`, using a fresh build (leave
-`reuse-build-run` empty). This isolated diagnostic never runs the full GPU
+`reuse-build-run` empty). An explicit `diagnostics=true` comparison may reuse
+an APK only after its producer run, source and SHA256 match its signing manifest
+and a Git comparison rejects different application/build inputs. Documentation,
+the collector and speech-expectation files are allowed to differ; runtime,
+fixture, dependency and workflow changes require a fresh build. Both source
+revisions and the changed paths are retained. This isolated diagnostic never runs the full GPU
 showcase. `Diagnostics/CodeBlock performance/Matrix` mounts 10, 100, 300 and
 1000 lines, each with eight precomputed tokens, line numbers and fixed marks.
 Three rounds record a fresh mount, three updates, and four 800ms alternating
@@ -82,6 +87,10 @@ period. Flagged/pending rows are retained separately; the all-window Android
 jank aggregate accompanies the bounded recent-frame ring. Empty frames fail
 measurement rather than count as zero cost. Exceeding the period is reported,
 not hidden by an increased threshold or a retry.
+Completion is observed within the original 60s operation window, retaining
+every pending frame dump. The native layout callback can precede GPU completion;
+one fixed-delay dump is not proof that its timestamps are ready. Inputs are
+sent once; completion polling never repeats a mount, update or swipe.
 
 Mount latency is handler-to-native-layout-callback; update latency ends at
 React commit plus two rAFs. Neither boundary is a GPU presentation fence.

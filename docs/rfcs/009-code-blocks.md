@@ -46,7 +46,7 @@ The class-slot inventory does not claim new Native CSS or interaction support.
 
 | Surface | Automated coverage | Still needed |
 | --- | --- | --- |
-| Web markup | Caption/name; semantic marks and one prefix; escaped tokens; hidden gutters; raw/override copy | NVDA and VoiceOver speech |
+| Web markup | Caption/name; semantic marks and one prefix; escaped tokens; hidden gutters; raw/override copy; maintainer-approved NVDA/VoiceOver event wording | Audible speech quality is outside the captured evidence |
 | Chromium | Actual keyboard scrolling with/without Copy, conditional Tab stop, wrapping, both token themes and retired async copy feedback | Physical keyboard and screen-reader review |
 | Native mock hosts | Grouped line labels, hidden gutter, text/box style partition, scheme selection, provider copy and button focus facts | Native layout and responder delivery |
 | Shared docs story | Same demo on Web and Native; Web automated accessibility catalogue | VoiceOver/TalkBack reading granularity and device captures |
