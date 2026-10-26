@@ -18,13 +18,14 @@
  * what makes a reader say "collapsed" or "expanded" on the header.
  */
 
+import { hozoTextChildren } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { controlIndicator } from './control-indicator.native.tsx'
 import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import { splitTextStyle, textChildren } from './text-style.native.ts'
+import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoAccordionItem {
   /** An identity of the caller's own; see the Web half. */
@@ -202,7 +203,7 @@ export function HozoAccordion(props: HozoAccordionProps) {
               }}
             </Pressable>
             {expanded ? (
-              <View style={panelBox}>{textChildren(item.content, panelText)}</View>
+              <View style={panelBox}>{hozoTextChildren(item.content, panelText)}</View>
             ) : null}
           </View>
         )

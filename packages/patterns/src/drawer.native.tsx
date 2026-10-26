@@ -1,3 +1,4 @@
+import { hozoTextChildren } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -12,6 +13,7 @@ import type { HozoDrawerSide } from './drawer-side.ts'
 import { useHozoDrawerSide } from './drawer-side-hook.native.ts'
 import { Pressable } from './pressable.native.tsx'
 import { clampToDetents, fractionAfter, restingFraction, travelFor } from './sheet-rules.ts'
+import { splitTextStyle } from './text-style.native.ts'
 
 export type { HozoDrawerSide }
 
@@ -185,7 +187,7 @@ export function HozoDrawer({
           ]}
           {...pan.panHandlers}
         >
-          {children}
+          {hozoTextChildren(children, splitTextStyle([hozoClasses(panelClassName), panelStyle])[1])}
         </View>
       </View>
     </Modal>

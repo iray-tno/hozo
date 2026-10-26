@@ -1,4 +1,4 @@
-import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { hozoTextChildren, useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
 import {
@@ -109,7 +109,11 @@ export function HozoAvatar({
         />
       ) : (
         <View style={[CENTRED, fallbackBox]} {...hidden}>
-          {letters ? <Text style={[text, fallbackText]}>{letters}</Text> : fallback}
+          {letters ? (
+            <Text style={[text, fallbackText]}>{letters}</Text>
+          ) : (
+            hozoTextChildren(fallback, [text, fallbackText])
+          )}
         </View>
       )}
       {status ? (

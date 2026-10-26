@@ -14,6 +14,6 @@
 import type { ReactNode } from 'react'
 
 /** Identity. See above, and `text-child.native.tsx` for the real one. */
-export function hozoTextChildren(children: ReactNode): ReactNode {
+export function hozoTextChildren(children: ReactNode, _style?: unknown): ReactNode {
   return children
 }

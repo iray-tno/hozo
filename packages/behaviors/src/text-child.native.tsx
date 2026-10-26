@@ -24,7 +24,7 @@
 // to leave is not a divergence worth removing.
 
 import { Children, type ReactNode } from 'react'
-import { Text } from 'react-native'
+import { type StyleProp, Text, type TextStyle } from 'react-native'
 
 /**
  * Children with every text one inside a `Text`, and nothing else touched.
@@ -36,9 +36,18 @@ import { Text } from 'react-native'
  *
  * Numbers as well as strings. React renders both as text nodes, and React
  * Native rejects both for the same reason.
+ *
+ * `style` is for a component whose box carries text classes -- a panel's
+ * colour, a tooltip's size -- which a `View` drops and the Web would have
+ * let its text inherit. A pattern that puts a caller's `ReactNode` into a
+ * `View` passes it through here, with the box's text half (#1205).
  */
-export function hozoTextChildren(children: ReactNode): ReactNode {
+export function hozoTextChildren(children: ReactNode, style?: StyleProp<TextStyle>): ReactNode {
   return Children.map(children, (child) =>
-    typeof child === 'string' || typeof child === 'number' ? <Text>{child}</Text> : child,
+    typeof child === 'string' || typeof child === 'number' ? (
+      <Text style={style}>{child}</Text>
+    ) : (
+      child
+    ),
   )
 }

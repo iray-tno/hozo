@@ -1,3 +1,4 @@
+import { hozoTextChildren } from '@hozo/behaviors'
 import { FloatingPositioner, type Placement, Portal, usePresence } from '@hozo/behaviors/native'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
@@ -179,7 +180,10 @@ export function HozoPopover({
               importantForAccessibility={leaving ? 'no-hide-descendants' : 'auto'}
               style={[hozoClasses(panelClassName), panelStyle, { opacity }]}
             >
-              {children}
+              {hozoTextChildren(
+                children,
+                splitTextStyle([hozoClasses(panelClassName), panelStyle])[1],
+              )}
             </Animated.View>
           </FloatingPositioner>
         </Portal>

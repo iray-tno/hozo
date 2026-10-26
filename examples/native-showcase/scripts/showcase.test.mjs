@@ -511,7 +511,11 @@ test('Native Dialog isolates its modal without combining descendant controls', (
       new Function('require', 'module', code)(load, helper)
       return helper.exports
     }
-    if (name === '@hozo/behaviors') return { shouldRestoreFocus: () => false }
+    // A caller's string goes through the text wrapper with the dialog's text
+    // classes (#1205); identity is enough for what this probe inspects.
+    if (name === './text-style.native.ts') return { splitTextStyle: () => [{}, {}] }
+    if (name === '@hozo/behaviors')
+      return { shouldRestoreFocus: () => false, hozoTextChildren: (children) => children }
     if (name === '@hozo/behaviors/native') return { moveAccessibilityFocus: () => {} }
     // Its `className`, resolved through the project's candidate map (#886).
     if (name === '@hozo/engine/project') return { hozoClasses: () => [] }

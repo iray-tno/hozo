@@ -1,4 +1,4 @@
-import { useHozoMessage } from '@hozo/behaviors'
+import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { useDrag1D } from '@hozo/behaviors/native'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -12,6 +12,7 @@ import {
   restingFraction,
   travelFor,
 } from './sheet-rules.ts'
+import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoBottomSheetProps {
   open?: boolean
@@ -208,7 +209,7 @@ export function HozoBottomSheet({
               {...drag.handlers}
             />
           )}
-          {children}
+          {hozoTextChildren(children, splitTextStyle([hozoClasses(sheetClassName), sheetStyle])[1])}
         </View>
       </View>
     </Modal>
