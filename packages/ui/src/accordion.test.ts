@@ -47,14 +47,16 @@ test('a closed panel keeps the hidden attribute and no class list overrides it',
 })
 
 test('the chevron is drawn from the state the pattern writes, not from a prop', () => {
-  // `data-hozo-state` is on the trigger on every render, and the class list
-  // selects on it. Nothing here is passed a boolean it could disagree with --
-  // the arrangement `Checkbox` and `Switch` use for the same reason.
+  // The pattern hands its indicator the state the header announces, so
+  // nothing here is passed a boolean it could disagree with. The chevron is a
+  // hidden node in the header rather than `::after` (#1205).
   const html = render()
-  const open = /<button[^>]*data-hozo-state="open"[^>]*>/.exec(html)
-  assert.ok(open, 'the pattern no longer writes data-hozo-state')
-  assert.match(open[0], /data-\[hozo-state=open\]:after:-rotate-135/)
-  assert.match(open[0], /aria-expanded="true"/)
+  const open = /<button[^>]*aria-expanded="true"[^>]*>.*?<\/button>/.exec(html)
+  assert.ok(open, 'no open header')
+  assert.match(open[0], /<span aria-hidden="true" class="[^"]*-rotate-135/)
+  const shut = /<button[^>]*aria-expanded="false"[^>]*>.*?<\/button>/.exec(html)
+  assert.ok(shut, 'no closed header')
+  assert.match(shut[0], /<span aria-hidden="true" class="[^"]* rotate-45/)
 })
 
 test('the heading carries no size, because its level is the caller’s', () => {

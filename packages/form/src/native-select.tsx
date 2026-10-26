@@ -55,6 +55,11 @@ export interface HozoNativeSelectProps {
   sheetClassName?: string
   scrimClassName?: string
   optionClassName?: string
+  /**
+   * The Native field's chevron, carried and unused here: the `<select>` draws
+   * its own, and drawing ours would mean `appearance-none`.
+   */
+  indicatorClassName?: string
   /** What the Native fallback's dismiss says. Unused here. */
   cancelLabel?: string
   testID?: string

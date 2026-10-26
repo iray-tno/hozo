@@ -121,3 +121,23 @@ test('open and closed are on the elements a stylesheet can reach', () => {
   assert.equal(count(html, 'data-hozo-state="open"'), 2, 'the trigger and its panel')
   assert.equal(count(html, 'data-hozo-state="closed"'), 4)
 })
+
+test('an indicator is a hidden node inside each header, given what the header announces', () => {
+  const seen: { expanded: boolean; disabled: boolean }[] = []
+  const html = render({
+    expanded: 'shipping',
+    indicator: (state) => {
+      seen.push(state)
+      return { className: state.expanded ? 'open' : 'shut' }
+    },
+  } as Partial<AccordionProps>)
+  // A real node rather than `::after`, which React Native does not have (#1205).
+  assert.equal(count(html, '<span aria-hidden="true" class="open"'), 1)
+  assert.equal(count(html, '<span aria-hidden="true" class="shut"'), 2)
+  assert.match(html, /aria-expanded="true"[^>]*>Shipping<span aria-hidden="true" class="open"/)
+  assert.deepEqual(seen, [
+    { expanded: true, disabled: false },
+    { expanded: false, disabled: false },
+    { expanded: false, disabled: true },
+  ])
+})

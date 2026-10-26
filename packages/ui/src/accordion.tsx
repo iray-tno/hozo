@@ -8,15 +8,16 @@
  *
  * ## The chevron is drawn, and is never told which way to point
  *
- * `::after` with two borders, rotated. It reads `data-hozo-state` off the
- * trigger, which the pattern writes on every render, so nothing here is passed
- * a boolean it could disagree with -- the same arrangement as `Checkbox` and
- * `Switch` next door. A chevron driven by an `open` prop is a chevron that is
- * eventually wrong.
+ * A box with two borders, rotated, in the pattern's `indicator` slot. The
+ * pattern hands it the state the header announces, so nothing here is passed
+ * a boolean it could disagree with -- the same arrangement as `Radio` and
+ * `Toggle` (#901). A chevron driven by an `open` prop of ours is a chevron
+ * that is eventually wrong.
  *
- * It is `aria-hidden` by construction: a pseudo-element is not in the
- * accessibility tree, and the state it draws is already on the trigger as
- * `aria-expanded`. An inline SVG here would have had to be told to shut up.
+ * It was `::after` until React Native showed no chevron at all, having no
+ * pseudo-elements (#1205). The slot is a real node on both platforms, hidden
+ * from assistive technology by the pattern: the state it draws is already on
+ * the trigger as `aria-expanded`.
  *
  * ## A border per section rather than `divide-y`
  *
@@ -73,7 +74,11 @@ const heading = 'm-0'
  * rather than between a value and nothing.
  */
 const trigger =
-  "flex w-full flex-row items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-hozo-text cursor-pointer transition-colors hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-not-allowed disabled:text-hozo-text-subtle disabled:hover:bg-transparent after:content-[''] after:size-2 after:shrink-0 after:rotate-45 after:border-b-2 after:border-r-2 after:border-hozo-text-muted after:transition-transform data-[hozo-state=open]:after:-rotate-135"
+  'flex w-full flex-row items-center justify-between gap-3 px-4 py-3 text-left text-sm font-semibold text-hozo-text cursor-pointer transition-colors hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus disabled:cursor-not-allowed disabled:text-hozo-text-subtle disabled:hover:bg-transparent'
+const chevron =
+  'size-2 shrink-0 rotate-45 border-b-2 border-r-2 border-hozo-text-muted transition-transform'
+const chevronOpen =
+  'size-2 shrink-0 -rotate-135 border-b-2 border-r-2 border-hozo-text-muted transition-transform'
 
 const panel = 'px-4 pb-4 text-sm text-hozo-text-body'
 
@@ -90,6 +95,7 @@ export function HozoAccordion({ className, ...rest }: HozoAccordionProps) {
       headingClassName={heading}
       triggerClassName={trigger}
       panelClassName={panel}
+      indicator={({ expanded }) => ({ className: expanded ? chevronOpen : chevron })}
     />
   )
 }

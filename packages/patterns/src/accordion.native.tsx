@@ -21,6 +21,8 @@
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import { controlIndicator } from './control-indicator.native.tsx'
+import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle, textChildren } from './text-style.native.ts'
 
@@ -61,6 +63,16 @@ interface Shared {
   triggerStyle?: StyleProp<ViewStyle>
   triggerTextStyle?: StyleProp<TextStyle>
   panelStyle?: StyleProp<ViewStyle>
+  /**
+   * What marks a header open or closed, as classes for a decorative node
+   * after the header: `className` for it, and `markClassName` for an
+   * optional node inside. It gets the state the header announces.
+   *
+   * A real node rather than an `after:` class, because React Native has no
+   * pseudo-elements: a chevron drawn with `::after` showed on the Web only
+   * (#1205). Left out, the header has no marker, as before.
+   */
+  indicator?: (state: { expanded: boolean; disabled: boolean }) => HozoControlIndicatorClasses
 }
 
 export interface HozoAccordionSingleProps extends Shared {
@@ -89,6 +101,7 @@ export function HozoAccordion(props: HozoAccordionProps) {
     sectionClassName,
     headingClassName,
     triggerClassName,
+    indicator,
     panelClassName,
     style,
     sectionStyle,
@@ -146,13 +159,14 @@ export function HozoAccordion(props: HozoAccordionProps) {
         const expanded = open.includes(key)
         // Box and label: a Pressable is a View and drops a label's colour
         // and weight, so those go to the Text (see `splitTextStyle`).
+        const triggerState = (interaction: InteractionState) => ({
+          ...interaction,
+          disabled: Boolean(item.disabled),
+          'aria-expanded': expanded,
+          'aria-disabled': Boolean(item.disabled),
+        })
         const trigger = (interaction: InteractionState) => {
-          const state = {
-            ...interaction,
-            disabled: Boolean(item.disabled),
-            'aria-expanded': expanded,
-            'aria-disabled': Boolean(item.disabled),
-          }
+          const state = triggerState(interaction)
           return splitTextStyle([
             hozoClasses(headingClassName, state),
             hozoClasses(triggerClassName, state),
@@ -167,13 +181,25 @@ export function HozoAccordion(props: HozoAccordionProps) {
               style={(interaction) => [trigger(interaction)[0], triggerStyle]}
               onPress={() => toggle(at)}
             >
-              {(interaction) =>
-                typeof item.header === 'string' ? (
-                  <Text style={[trigger(interaction)[1], triggerTextStyle]}>{item.header}</Text>
-                ) : (
-                  item.header
+              {(interaction) => {
+                const header =
+                  typeof item.header === 'string' ? (
+                    <Text style={[trigger(interaction)[1], triggerTextStyle]}>{item.header}</Text>
+                  ) : (
+                    item.header
+                  )
+                // Without an indicator the header is what it was before one existed.
+                if (!indicator) return header
+                return (
+                  <>
+                    {header}
+                    {controlIndicator(
+                      indicator({ expanded, disabled: Boolean(item.disabled) }),
+                      triggerState(interaction),
+                    )}
+                  </>
                 )
-              }
+              }}
             </Pressable>
             {expanded ? (
               <View style={panelBox}>{textChildren(item.content, panelText)}</View>
