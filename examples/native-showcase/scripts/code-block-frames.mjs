@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 
 export function assertReusableCodeInputs(changed) {
   const allowed =
-    /^(docs\/|apps\/landing\/src\/content\/docs\/|examples\/native-showcase\/README\.md$|examples\/native-showcase\/scripts\/code-block-(performance|frames|frames\.test)\.mjs$)/
+    /^(docs\/|apps\/landing\/src\/content\/docs\/|examples\/screen-readers\/expected\/|examples\/native-showcase\/README\.md$|examples\/native-showcase\/scripts\/code-block-(performance|frames|frames\.test)\.mjs$)/
   assert.deepEqual(
     changed.filter((name) => !allowed.test(name)),
     [],

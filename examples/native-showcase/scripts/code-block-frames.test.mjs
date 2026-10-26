@@ -10,6 +10,7 @@ import {
 test('a reused timing APK permits docs/collector changes but rejects different app or build inputs', () => {
   assertReusableCodeInputs([
     'docs/measurements/report.md',
+    'examples/screen-readers/expected/nvda/patterns-codeblock--default.txt',
     'examples/native-showcase/scripts/code-block-performance.mjs',
   ])
   for (const name of [

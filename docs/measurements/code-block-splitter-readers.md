@@ -5,10 +5,13 @@
 Source: `1713f4016e2f88557f65070c665469089b276782`,
 [screen-readers run 40262274045](https://github.com/iray-tno/hozo/actions/runs/40262274045),
 merged through [#1281](https://github.com/iray-tno/hozo/pull/1281).
-NVDA/Chrome and VoiceOver/Safari each passed all 40 captures. This document
-inspects the captured JSON; **human recording/phrase approval is still pending**
-in [#1276](https://github.com/iray-tno/hozo/issues/1276). No expected-speech
-file is approved by this report.
+NVDA/Chrome and VoiceOver/Safari each passed all 40 captures. The maintainer
+reviewed the recording/action and actual reader-event evidence and explicitly
+approved the wording in chat on 2026-10-26, including NVDA's duplicated role/
+prefix wording and the size-only collapse feedback. Ten minimal expected-phrase
+files now cover both catalogue stories and all three scenarios for each reader.
+[#1276](https://github.com/iray-tno/hozo/issues/1276) tracks their automated
+confirmation; the approval came from the maintainer, not from this report.
 
 The Copy-recording media was inspected separately: NVDA's MP4 has no audio
 stream; VoiceOver's MOV has an AAC stream but the sampled Copy recording is
@@ -74,14 +77,14 @@ The two pre-mounted empty Web status regions are not spoken as extra items
 in NVDA's walk; their two `status` entries in the virtual-reader snapshot are
 a DOM-semantics baseline, not actual NVDA speech.
 
-## Review checklist
+## Approval and limits
 
-A person should compare each recording's actions with its actual reader-event
-JSON, assess the wording of names and line prefixes, decide whether the duplicate NVDA
-mark wording and size-only collapse feedback are acceptable, and approve only
-the phrases actually captured. Follow
+The maintainer approved these captured phrases after review. They are committed
+with their run/revision and human approval date under `examples/screen-readers/expected/`;
+warm-up phrases and optional navigation hints are excluded. Follow
 [the reader approval procedure](../../examples/screen-readers/README.md#approving-speech)
-to commit the minimal necessary phrases and link the reviewed run/revision.
+for future changes. Audible pronunciation/prosody and Native AT remain outside
+this approval.
 
 Native input and AT remain unverified, as documented in
 [known limitations](../../apps/landing/src/content/docs/docs/status.md).
