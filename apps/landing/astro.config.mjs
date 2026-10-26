@@ -21,7 +21,7 @@ export default defineConfig({
     starlight({
       title: 'Hozo',
       description:
-        'A Rust-powered universal UI compiler and accessibility-first layer for React Native.',
+        'A universal UI framework for React Native, compiled by Rust: native semantics on every platform, first-class accessibility, and diagnostics and guardrails for humans and AI agents alike.',
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/iray-tno/hozo' }],
       editLink: { baseUrl: 'https://github.com/iray-tno/hozo/edit/main/apps/landing/' },
       // The landing owns the site's 404 and its home page; Starlight owns /docs.

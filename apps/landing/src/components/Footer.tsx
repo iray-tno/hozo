@@ -23,7 +23,7 @@ export function Footer({ baseUrl = '' }: FooterProps) {
                 </View>
               </View>
               <Text className="font-bold text-shikkui tracking-tight">Hozo</Text>
-              <Text className="text-xs text-stone-500">| Universal UI Compiler</Text>
+              <Text className="text-xs text-stone-500">| Universal UI Framework</Text>
             </View>
 
             <View className="flex flex-col items-center sm:items-end gap-1.5 shrink min-w-0">
