@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { enterIosText } from './ios-form-input.mjs'
+import { enterIosText, inputObstruction } from './ios-form-input.mjs'
 
 test('input sends each character once and confirms every exact prefix before continuing', async () => {
   const events = []
   const observation = {}
+  let clock = 0
   await enterIosText('Hozo', {
     send: (character) => events.push(['key', character]),
     waitForValue: (value) => events.push(['value', value]),
     observation,
+    now: () => (clock += 5),
   })
   assert.deepEqual(events, [
     ['key', 'H'],
@@ -24,6 +26,13 @@ test('input sends each character once and confirms every exact prefix before con
     strategy: 'confirmed-prefixes',
     requested: 'Hozo',
     confirmed: ['H', 'Ho', 'Hoz', 'Hozo'],
+    // Each send timed, so a held key shows as a long send (#1279).
+    sends: [
+      { character: 'H', startedAt: 5, sendMs: 5 },
+      { character: 'o', startedAt: 15, sendMs: 5 },
+      { character: 'z', startedAt: 25, sendMs: 5 },
+      { character: 'o', startedAt: 35, sendMs: 5 },
+    ],
   })
 })
 
@@ -90,4 +99,47 @@ test('ambiguous HID delivery fails without retrying or pretending the value was 
   assert.equal(sends, 1)
   assert.deepEqual(observation.confirmed, [])
   assert.equal(observation.pendingPrefix, 'H')
+})
+
+test('a value that never appears records what covered the field, then fails as before', async () => {
+  const observation = {}
+  const timeout = new Error('Timed out: name input contains "H"')
+  let inspected = 0
+  await assert.rejects(
+    enterIosText('Hozo', {
+      send: () => {},
+      waitForValue: () => {
+        throw timeout
+      },
+      observation,
+      inspect: () => {
+        inspected++
+        return { kind: 'os-character-popup', candidates: ['Ħ'], fieldVisible: false }
+      },
+    }),
+    (error) => error === timeout,
+  )
+  assert.equal(inspected, 1)
+  assert.deepEqual(observation.confirmed, [])
+  assert.equal(observation.pendingPrefix, 'H')
+  assert.equal(observation.obstruction.kind, 'os-character-popup')
+})
+
+test('the AX tree tells a character popup from a field that is simply not there', () => {
+  const field = { AXLabel: 'Display name', type: 'TextField', AXValue: 'H' }
+  const isField = (node) => node.AXLabel === 'Display name' && /TextField/.test(node.type)
+  // The tree #1279's failure saved: the popup, its keys, no field.
+  assert.deepEqual(
+    inputObstruction(
+      [
+        { AXUniqueId: 'PopoverDismissRegion', AXLabel: 'dismiss popup' },
+        { AXLabel: 'Ħ' },
+        { AXLabel: '1' },
+      ],
+      isField,
+    ),
+    { kind: 'os-character-popup', candidates: ['Ħ', '1'], fieldVisible: false },
+  )
+  assert.deepEqual(inputObstruction([field], isField), { kind: 'field-visible', value: 'H' })
+  assert.deepEqual(inputObstruction([], isField), { kind: 'field-not-visible' })
 })

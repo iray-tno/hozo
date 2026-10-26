@@ -18,7 +18,7 @@ import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
 import { observeLateImage, PresentedImageTimeout, waitForImage } from './image-ready.mjs'
 import { parseIosNodes, pixelBounds } from './ios-evidence.mjs'
-import { enterIosText } from './ios-form-input.mjs'
+import { enterIosText, inputObstruction } from './ios-form-input.mjs'
 import { IOS_SCENE_IMAGE_TIMEOUT, waitForIosSceneImage } from './ios-image-ready.mjs'
 import { connectIosInput, discoverIosDevices } from './ios-input-connection.mjs'
 import { launchIosApp } from './ios-launch.mjs'
@@ -560,6 +560,8 @@ try {
             `name input contains ${JSON.stringify(value)}`,
           ),
         observation: evidence.formInput,
+        // On a timeout, what the last AX tree showed instead of the field (#1279).
+        inspect: () => inputObstruction(parseIosNodes(latestTree), nameField),
       })
       await tap(label('Save profile'), 'save profile')
       await waitFor(label('Saved: Hozo'), 'saved form value')
