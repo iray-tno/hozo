@@ -1,20 +1,14 @@
-import { Code, Heading, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
+import { Code, Heading, Paragraph, Section, Text, View } from '@hozo/core'
+import { ReplOutput } from './ReplOutput.tsx'
 
 // The /repl/ page, in Hozo primitives. It is static HTML: `scripts/repl.ts`
 // finds the editor, the panes and the status by id, loads the WebAssembly
-// compiler, and fills them in. Nothing here hydrates.
+// compiler, and fills them in. One client root owns the output figures.
 //
 // The editor is a plain View until the script runs. CodeJar makes it
 // editable, and the script gives it its textbox role at the same moment, so
 // a page whose script never ran does not announce a textbox that cannot be
 // typed in.
-
-const PANES = [
-  { id: 'repl-web-jsx', title: 'Web', note: 'JSX' },
-  { id: 'repl-web-css', title: 'Web', note: 'CSS' },
-  { id: 'repl-native-jsx', title: 'React Native', note: 'JSX' },
-  { id: 'repl-native-styles', title: 'React Native', note: 'StyleSheet' },
-]
 
 export function ReplIntro() {
   return (
@@ -65,22 +59,8 @@ export function Repl({ example }: { example: string }) {
         </View>
       </Section>
 
-      <Section className="min-w-0 gap-4">
-        {PANES.map((pane) => (
-          <View
-            key={pane.id}
-            className="rounded-xl bg-yakisugi-950/80 border border-hinoki/18 overflow-hidden"
-          >
-            <View className="flex-row items-baseline gap-2 px-4 py-2 border-b border-hinoki/18 bg-hinoki/5">
-              <Text className="text-sm font-semibold text-stone-200">{pane.title}</Text>
-              <Text className="font-mono text-xs text-stone-500">{pane.note}</Text>
-            </View>
-            <Preformatted
-              nativeID={pane.id}
-              className="p-4 overflow-x-auto font-mono text-xs text-stone-300 leading-relaxed max-h-64"
-            />
-          </View>
-        ))}
+      <Section nativeID="repl-results" className="min-w-0 gap-4">
+        <ReplOutput />
       </Section>
     </View>
   )

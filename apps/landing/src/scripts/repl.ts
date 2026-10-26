@@ -11,7 +11,9 @@ import 'prismjs/components/prism-jsx'
 import 'prismjs/components/prism-typescript'
 import 'prismjs/components/prism-tsx'
 
+import { prismCodeLines } from '../lib/prism-code-lines.ts'
 import { formatJsx } from './format-jsx.ts'
+import { createReplOutput } from './repl-output.tsx'
 
 interface ReplDiagnostic {
   code: string
@@ -89,12 +91,7 @@ const element = <T extends HTMLElement>(id: string): T => {
 
 const source = element<HTMLElement>('repl-source')
 const status = element('repl-status')
-const panes = {
-  webJsx: element('repl-web-jsx'),
-  webCss: element('repl-web-css'),
-  nativeJsx: element('repl-native-jsx'),
-  nativeStyles: element('repl-native-styles'),
-}
+const renderOutput = createReplOutput(element('repl-results'))
 const diagnosticList = element('repl-diagnostics')
 
 const highlightTsx = (editor: HTMLElement) => {
@@ -113,7 +110,7 @@ source.setAttribute('aria-multiline', 'true')
 // Highlight initial source
 highlightTsx(source)
 
-/** `<`, `&` and the rest, since every pane writes compiled source. */
+/** Diagnostics are HTML; compiled output instead passes literal tokens to React. */
 function escaped(text: string): string {
   return text.replace(
     /[&<>]/g,
@@ -184,22 +181,16 @@ async function compile() {
       native.map((one) => (one.styles.trim() === '' ? '' : `StyleSheet.create(${one.styles})`)),
     )
 
-    panes.webJsx.innerHTML = Prism.highlight(
-      webJsxCode,
-      Prism.languages.tsx ?? Prism.languages.javascript,
-      'tsx',
-    )
-    panes.webCss.innerHTML = Prism.highlight(webCssCode, Prism.languages.css, 'css')
-    panes.nativeJsx.innerHTML = Prism.highlight(
-      nativeJsxCode,
-      Prism.languages.tsx ?? Prism.languages.javascript,
-      'tsx',
-    )
-    panes.nativeStyles.innerHTML = Prism.highlight(
-      nativeStylesCode,
-      Prism.languages.tsx ?? Prism.languages.javascript,
-      'tsx',
-    )
+    renderOutput([
+      prismCodeLines(Prism.tokenize(webJsxCode, Prism.languages.tsx ?? Prism.languages.javascript)),
+      prismCodeLines(Prism.tokenize(webCssCode, Prism.languages.css)),
+      prismCodeLines(
+        Prism.tokenize(nativeJsxCode, Prism.languages.tsx ?? Prism.languages.javascript),
+      ),
+      prismCodeLines(
+        Prism.tokenize(nativeStylesCode, Prism.languages.tsx ?? Prism.languages.javascript),
+      ),
+    ])
 
     // Both backends see the same source and mostly the same diagnostics;
     // showing each once is what a build would have told you.

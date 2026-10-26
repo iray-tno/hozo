@@ -1,4 +1,5 @@
-import { Code, Heading, Link, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
+import { Heading, Link, Paragraph, Section, Text, View } from '@hozo/core'
+import { CodeBlock } from '@hozo/patterns'
 import { HeroJoint } from './HeroJoint.tsx'
 
 export interface HeroProps {
@@ -81,9 +82,14 @@ export function Hero({ baseUrl = '' }: HeroProps) {
             nativeID="quick-install"
             className="w-full max-w-xl min-w-0 p-4 rounded-xl bg-yakisugi-950 border border-hinoki/18 text-xs text-shikkui-muted shadow-2xl text-left"
           >
-            <Preformatted className="whitespace-pre-wrap break-words text-shikkui">
-              <Code>{'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'}</Code>
-            </Preformatted>
+            <CodeBlock
+              title="Install Hozo"
+              lines={'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'}
+              wrap
+              captionClassName="sr-only"
+              className="text-shikkui min-w-0"
+              lineStyle={{ fontFamily: '"JetBrains Mono", ui-monospace, monospace' }}
+            />
             <Link
               href={`${cleanBase}/docs/getting-started/`}
               className="inline-flex mt-3 text-hinoki-light underline hover:text-shikkui"
