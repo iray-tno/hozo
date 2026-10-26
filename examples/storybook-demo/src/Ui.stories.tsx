@@ -737,6 +737,24 @@ export const DrawerOpen: StoryObj<typeof meta> = {
   render: () => <UiDrawer initiallyOpen />,
 }
 
+/**
+ * The tooltip open on mount, so axe reads the bubble itself -- its contrast in
+ * both schemes and the `role="tooltip"` the trigger's description points at --
+ * rather than only the button, which is all the gallery shows until a pointer
+ * or focus arrives.
+ */
+export const TooltipOpen: StoryObj<typeof meta> = {
+  render: () => (
+    <View className={page}>
+      <Tooltip content="Saves without leaving the page" defaultOpen>
+        <Button tone="neutral" onPress={() => {}}>
+          Save
+        </Button>
+      </Tooltip>
+    </View>
+  ),
+}
+
 export const PopoverOpen: StoryObj<typeof meta> = {
   render: () => (
     <View className={page}>
