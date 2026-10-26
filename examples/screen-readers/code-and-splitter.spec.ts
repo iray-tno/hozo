@@ -180,7 +180,7 @@ for (const activation of ['reader', 'browser'] as const) {
       })
       const copy = figure.getByRole('button', { name: 'Copy code', exact: true })
       await copy.focus()
-      for (const copyNumber of [1, 2]) {
+      for (const copyNumber of [1, 2, 3]) {
         // Initial command capture ends on the first event, even an empty phrase.
         // Require full speech from the reader's own key as well as from the
         // external-action capture; browser-only success must not hide a reader

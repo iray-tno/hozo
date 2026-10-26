@@ -26,8 +26,8 @@ kept open through the clipboard promise's completion with full capture enabled.
 An initial key-command capture stops on the first speech event, including an
 empty phrase; polling its completed log cannot recover subsequent output.
 Both activation scenarios must pass, so browser-only success cannot hide a
-failure of the reader's own Enter command. Each copies twice to measure repeated
-completion feedback as well as the first message. Both readers keep the
+failure of the reader's own Enter command. Each copies three times to measure
+both the first message and repeated feedback when a notification region is reused. Both readers keep the
 application's actual clipboard connection. Splitter keys still go through the
 reader's keyboard API.
 

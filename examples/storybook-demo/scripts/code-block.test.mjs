@@ -89,26 +89,31 @@ test('overflow has a separate keyboard stop; wrapping, themes, raw copy and reti
     )
     const copy = page.getByRole('button', { name: 'Copy code' })
     const feedback = page.getByRole('status')
-    await feedback.waitFor({ state: 'attached' })
-    assert.equal(await feedback.textContent(), '')
-    await feedback.evaluate((node) => {
-      window.copyFeedbackRegion = node
+    await feedback.nth(1).waitFor({ state: 'attached' })
+    assert.deepEqual(await feedback.allTextContents(), ['', ''])
+    await feedback.evaluateAll((nodes) => {
+      window.copyFeedbackRegions = nodes
     })
     await copy.click()
     await page.getByRole('status').filter({ hasText: 'Copied' }).waitFor()
     assert.deepEqual(await page.evaluate(() => writes), [`old\nnew\n${'long '.repeat(100)}`])
-    assert.equal(await feedback.evaluate((node) => node === window.copyFeedbackRegion), true)
-    await feedback.evaluate((node) => {
-      window.firstCopyFeedback = node.firstElementChild
-    })
-    await copy.click()
-    await page.waitForFunction(
-      () =>
-        window.copyFeedbackRegion.firstElementChild !== window.firstCopyFeedback &&
-        window.copyFeedbackRegion.textContent === 'Copied',
+    assert.deepEqual(await feedback.allTextContents(), ['Copied', ''])
+    for (const channel of [1, 0]) {
+      await copy.click()
+      await page.waitForFunction(
+        (active) =>
+          window.copyFeedbackRegions[active].textContent === 'Copied' &&
+          window.copyFeedbackRegions[1 - active].textContent === '',
+        channel,
+      )
+    }
+    assert.equal(
+      await feedback.evaluateAll((nodes) =>
+        nodes.every((node, index) => node === window.copyFeedbackRegions[index]),
+      ),
+      true,
     )
-    assert.equal(await feedback.evaluate((node) => node === window.copyFeedbackRegion), true)
-    assert.equal(await feedback.count(), 1)
+    assert.equal(await feedback.count(), 2)
     for (const scheme of ['light', 'dark']) {
       await page.emulateMedia({ colorScheme: scheme })
       assert.equal(
@@ -151,16 +156,21 @@ test('overflow has a separate keyboard stop; wrapping, themes, raw copy and reti
     await copy.click()
     await page.getByRole('status').filter({ hasText: 'Copied' }).waitFor()
     assert.deepEqual(await page.evaluate(() => writes.slice(-2)), ['short', 'override'])
-    assert.equal(await page.getByRole('status').count(), 1)
-    await feedback.evaluate((node) => {
-      window.copyFailureRegion = node
+    assert.equal(await page.getByRole('status').count(), 2)
+    await feedback.evaluateAll((nodes) => {
+      window.copyFailureRegions = nodes
     })
     await page.evaluate(() => {
       window.failCopy = true
     })
     await copy.click()
     await feedback.filter({ hasText: 'Could not copy code' }).waitFor()
-    assert.equal(await feedback.evaluate((node) => node === window.copyFailureRegion), true)
+    assert.equal(
+      await feedback.evaluateAll((nodes) =>
+        nodes.every((node, index) => node === window.copyFailureRegions[index]),
+      ),
+      true,
+    )
     await page.evaluate(() => {
       delete navigator.clipboard
       fixtureRoot.unmount()
