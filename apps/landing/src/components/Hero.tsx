@@ -1,4 +1,5 @@
 import { Code, Heading, Link, Paragraph, Preformatted, Section, Text, View } from '@hozo/core'
+import { HeroJoint } from './HeroJoint.tsx'
 
 export interface HeroProps {
   baseUrl?: string
@@ -9,6 +10,8 @@ export function Hero({ baseUrl = '' }: HeroProps) {
 
   return (
     <Section className="relative pt-24 pb-12 sm:pt-32 sm:pb-20 md:pt-40 md:pb-28 overflow-hidden">
+      {/* The joint the project is named after, faint behind everything */}
+      <HeroJoint />
       {/* Timber & plaster architectural ambient lighting */}
       <View className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[640px] h-[360px] bg-hinoki/8 rounded-full blur-[140px] pointer-events-none -z-10" />
       <View className="absolute top-1/3 left-1/3 w-[420px] h-[320px] bg-bengara/8 rounded-full blur-[120px] pointer-events-none -z-10" />
