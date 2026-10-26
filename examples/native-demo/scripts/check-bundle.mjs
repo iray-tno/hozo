@@ -150,6 +150,13 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // 473,033; data equality facts (#1199) 473,188; portal typography (#1217)
 // 473,496. That work (#1205) is not finished, so the room is for it; a
 // jump of 15 KB at once is still a barrel, as it was every time before.
+//
+// Raised to 500 KB after the share crossed 485 and the deploy's last step
+// stayed red for a week (the Pages deploy itself still went out). Again no
+// barrel, the check below green throughout: 485,414 at 30367124, the first
+// run over; 485,370 to 485,325 through #1309, #1314 and #1316; a Dialog scrim blur
+// layer and the patterns' Native backdrop adapter (#1320) 488,035; shared
+// Tailwind ordering templates in engine (#1324) 489,687.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -163,8 +170,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 485_000,
-  `Hozo's modules stay below 485 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 500_000,
+  `Hozo's modules stay below 500 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than
