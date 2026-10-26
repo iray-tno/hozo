@@ -68,3 +68,13 @@ test('only actual probe JSON is read; malformed timing evidence fails', () => {
   assert.throws(() => timingRecords(summary), /chunks missing/)
   assert.throws(() => timingRecords(chunk.replace('[20,30]', '[20]') + summary), /samples missing/)
 })
+
+test('release Android console quoting preserves the actual first-mount observation', () => {
+  // Retained from run 40273502178, before the collector format fix.
+  const log = `I/ReactNativeJS( 2518): '[Hozo CodeBlock raf]', '{"name":"mount-10","chunk":0,"gaps":[43.306798000005074,10.56211600000097]}'
+I/ReactNativeJS( 2518): '[Hozo CodeBlock timing]', '{"name":"mount-10","boundary":"native-layout-callback","elapsedMs":54.20073300000513,"rafCount":2,"rafChunks":1,"offset":0,"maxOffset":0,"count":10,"tick":0}'`
+  const [record] = timingRecords(log)
+  assert.equal(record.count, 10)
+  assert.equal(record.elapsedMs, 54.20073300000513)
+  assert.deepEqual(record.rafGapsMs, [43.306798000005074, 10.56211600000097])
+})

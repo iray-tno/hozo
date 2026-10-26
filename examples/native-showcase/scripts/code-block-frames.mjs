@@ -62,15 +62,22 @@ export function frameSummary(dump, refreshHz) {
 }
 
 export function timingRecords(log) {
+  // Release React Native quotes console arguments in logcat. Parse the JSON
+  // argument itself, not those surrounding display quotes/separators.
+  const payload = (line, at) => {
+    const start = line.indexOf('{', at)
+    const end = line.lastIndexOf('}')
+    assert.ok(start >= at && end >= start, 'timing record has no JSON payload')
+    return JSON.parse(line.slice(start, end + 1))
+  }
   const chunks = log.split(/\r?\n/).flatMap((line) => {
     const at = line.indexOf('[Hozo CodeBlock raf]')
-    return at < 0 ? [] : [JSON.parse(line.slice(at + '[Hozo CodeBlock raf]'.length).trim())]
+    return at < 0 ? [] : [payload(line, at)]
   })
   return log.split(/\r?\n/).flatMap((line) => {
     const at = line.indexOf('[Hozo CodeBlock timing]')
     if (at < 0) return []
-    const payload = line.slice(at + '[Hozo CodeBlock timing]'.length).trim()
-    const result = JSON.parse(payload)
+    const result = payload(line, at)
     if (result.rafChunks !== undefined) {
       const parts = chunks
         .filter((chunk) => chunk.name === result.name)
