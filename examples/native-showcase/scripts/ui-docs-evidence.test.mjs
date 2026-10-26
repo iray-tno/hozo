@@ -6,6 +6,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import {
   exerciseUiDocs,
+  UI_OVERLAY_SCENES,
   UI_STATE_SCENES,
   uiDocStoryId,
   uiStateStoryId,
@@ -177,4 +178,15 @@ test('state screens follow the pages, under their own key, so the docs manifest 
   assert.deepEqual(Object.keys(manifest.pages), ['button'])
   assert.deepEqual(manifest.states.Tabs, { status: 'ok', image: 'state-tabs.png' })
   assert.equal(manifest.states.Menu.status, 'unreached')
+})
+
+test('the open overlays the walk captures are the stories UiOverlays exports, waiting for their bodies', () => {
+  const stories = readFileSync(join(root, 'src/UiOverlays.stories.tsx'), 'utf8')
+  const exported = [...stories.matchAll(/^export const (\w+): Story/gm)].map((m) => m[1])
+  assert.deepEqual(
+    exported,
+    UI_OVERLAY_SCENES.map((scene) => scene.name),
+  )
+  assert.match(stories, /title: 'UI\/Open overlays'/, 'the story ids assume this title')
+  for (const { ready } of UI_OVERLAY_SCENES) assert.ok(stories.includes(`'${ready}'`), ready)
 })
