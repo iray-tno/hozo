@@ -597,6 +597,13 @@ pub fn native_class_report(source: String) -> Vec<NativeClassFinding> {
         .collect()
 }
 
+/// The classes the verdict calls missing that the static backend draws on
+/// the element they are written on, which `native_class_report` leaves out.
+#[napi]
+pub fn native_classes_drawn_statically(source: String) -> Vec<String> {
+    hozo_native::native_classes_drawn_statically(&source)
+}
+
 /// The same verdict for loose class names, such as a look module's
 /// constants, in order; `null` for a class React Native can draw.
 #[napi]
@@ -1452,7 +1459,7 @@ fn emit_native_module(
     let mut jsx_bindings: Vec<String> = parsed.jsx_bindings.iter().cloned().collect();
     jsx_bindings.sort();
 
-    let class_diagnostics = hozo_native::native_class_diagnostics(parsed);
+    let class_diagnostics = hozo_native::native_class_diagnostics(parsed, source);
     // Valid modules already built their offset table during component lowering.
     // Do not walk/allocate it a second time just to return an empty list.
     let offsets = (!parsed.syntax_errors.is_empty() || !class_diagnostics.is_empty())

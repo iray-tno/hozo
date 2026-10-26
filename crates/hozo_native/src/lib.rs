@@ -98,8 +98,8 @@ use hozo_ir::{
 };
 use render::render_node;
 pub use runtime_classes::{
-    native_class_diagnostics, native_class_report, native_class_verdict, NativeClassFinding,
-    NativeClassKind, NativeClassVerdict,
+    native_class_diagnostics, native_class_report, native_class_verdict,
+    native_classes_drawn_statically, NativeClassFinding, NativeClassKind, NativeClassVerdict,
 };
 use transition::{ambient_transition, native_driver_transition};
 

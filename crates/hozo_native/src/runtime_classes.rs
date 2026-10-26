@@ -21,7 +21,7 @@ use std::collections::HashMap;
 
 use hozo_ir::{
     Child, Condition, Diagnostic, DiagnosticCode, FormState, Node, PseudoElement, Severity,
-    StyleProperty,
+    StyleDeclaration, StyleProperty,
 };
 
 /// How much a class's absence matters on Native.
@@ -139,8 +139,135 @@ pub struct NativeClassFinding {
 
 /// Every class in the module's class props that React Native cannot draw,
 /// once per element, prop and class.
+///
+/// A class the verdict calls missing is left out when the element is one the
+/// static backend lowers and the backend draws it there: `max-h-[85vh]` on a
+/// Dialog becomes a runtime viewport size, `backdrop:bg-*` its scrim. The
+/// verdict cannot know that; it answers for a class string resolved on
+/// device, where neither works (#1313).
 pub fn native_class_report(source: &str) -> Vec<NativeClassFinding> {
-    native_class_findings(&hozo_parser::runtime_class_lists(source))
+    let parsed = hozo_parser::parse_tsx(source);
+    let lowered = lowered_by_span(&parsed);
+    native_class_findings(&parsed.runtime_class_lists)
+        .into_iter()
+        .filter(|finding| !drawn_where_written(&lowered, finding, source))
+        .collect()
+}
+
+/// The classes the verdict calls missing that the static backend draws on
+/// the element they are written on: what `native_class_report` leaves out.
+///
+/// For a reader that also checks loose string literals with the verdict,
+/// such as the /docs Native status, so a class the report cleared is not
+/// reported again from the literal it came from.
+pub fn native_classes_drawn_statically(source: &str) -> Vec<String> {
+    let parsed = hozo_parser::parse_tsx(source);
+    let lowered = lowered_by_span(&parsed);
+    let mut out: Vec<String> = native_class_findings(&parsed.runtime_class_lists)
+        .into_iter()
+        .filter(|finding| drawn_where_written(&lowered, finding, source))
+        .map(|finding| finding.class_name)
+        .collect();
+    out.sort();
+    out.dedup();
+    out
+}
+
+fn lowered_by_span(parsed: &hozo_parser::ParseOutput) -> HashMap<u32, &Node> {
+    let mut lowered = HashMap::new();
+    for root in &parsed.roots {
+        lowered_nodes(&root.node, &mut lowered);
+    }
+    lowered
+}
+
+/// Whether the static backend draws `finding`'s class on the element it is
+/// written on.
+///
+/// Answered by the backend itself rather than a second list of exceptions:
+/// the element is lowered again with that one class in the prop, and the
+/// class is drawn unless the backend refuses it. It only ever clears a
+/// finding the verdict made: a class alone on an element can draw an
+/// unrelated warning, such as text styles on a box with no text yet.
+fn drawn_where_written(
+    lowered: &HashMap<u32, &Node>,
+    finding: &NativeClassFinding,
+    source: &str,
+) -> bool {
+    let Some(node) = lowered.get(&finding.element_span.start) else {
+        return false;
+    };
+    let Some(utility) = hozo_parser::resolve_class_name(&finding.class_name) else {
+        return false;
+    };
+    let declarations: Vec<StyleDeclaration> = utility
+        .groups
+        .iter()
+        .flat_map(|(condition, properties)| {
+            properties.iter().map(|property| StyleDeclaration {
+                property: property.clone(),
+                condition: condition.clone(),
+                source: Default::default(),
+            })
+        })
+        .collect();
+    if declarations.is_empty() {
+        return false;
+    }
+    // Read at build time at all: a class that only reaches the runtime
+    // resolver -- `cx(panel, className)` left whole -- is dropped there even
+    // on a Dialog, whatever the backend would have made of it.
+    let compiled = if finding.prop == "className" {
+        Some(&node.style)
+    } else {
+        node.props
+            .class_slots
+            .iter()
+            .find(|slot| slot.slot.class_prop == finding.prop)
+            .map(|slot| &slot.style)
+    };
+    let read_statically = compiled.is_some_and(|compiled| {
+        declarations.iter().all(|declaration| {
+            compiled.iter().any(|written| {
+                written.property == declaration.property
+                    && written.condition == declaration.condition
+            })
+        })
+    });
+    if !read_statically {
+        return false;
+    }
+    let mut probe = (*node).clone();
+    probe.children.clear();
+    probe.class_name_fallback.clear();
+    probe.carried_classes.clear();
+    if finding.prop == "className" {
+        probe.style = declarations;
+    } else {
+        probe.style.clear();
+        let Some(slot) = probe
+            .props
+            .class_slots
+            .iter_mut()
+            .find(|slot| slot.slot.class_prop == finding.prop)
+        else {
+            return false;
+        };
+        slot.style = declarations;
+        slot.fallback.clear();
+        slot.carried.clear();
+    }
+    let out = crate::lower(&probe, source, &hozo_ir::Theme::default());
+    !out.diagnostics.iter().any(|diagnostic| {
+        matches!(
+            diagnostic.code,
+            DiagnosticCode::NotWiredOnNative
+                | DiagnosticCode::WebOnlyPropertyOnNative
+                | DiagnosticCode::TailwindVariantNotSupported
+                | DiagnosticCode::TailwindVariantCannotMatch
+                | DiagnosticCode::UnreadableArbitraryValue
+        )
+    })
 }
 
 fn native_class_findings(lists: &[hozo_parser::RuntimeClassList]) -> Vec<NativeClassFinding> {
@@ -182,11 +309,11 @@ fn native_class_findings(lists: &[hozo_parser::RuntimeClassList]) -> Vec<NativeC
 /// is a class list that reaches the runtime resolver and is dropped there
 /// without a word -- a pattern's prop, which the compiler only carries, or
 /// a lowered element's `cx(look, className)` it could not take apart.
-pub fn native_class_diagnostics(parsed: &hozo_parser::ParseOutput) -> Vec<Diagnostic> {
-    let mut lowered = HashMap::new();
-    for root in &parsed.roots {
-        lowered_nodes(&root.node, &mut lowered);
-    }
+pub fn native_class_diagnostics(
+    parsed: &hozo_parser::ParseOutput,
+    source: &str,
+) -> Vec<Diagnostic> {
+    let lowered = lowered_by_span(parsed);
     // A `Canvas.*` element's classes belong to the Canvas pass, which runs
     // first and says what it cannot paint (`CANVAS_CLASS_NOT_LOWERED`).
     let canvas: Vec<&str> = parsed
@@ -209,6 +336,7 @@ pub fn native_class_diagnostics(parsed: &hozo_parser::ParseOutput) -> Vec<Diagno
                 && !lowered
                     .get(&finding.element_span.start)
                     .is_some_and(|node| read_whole(node, &finding.prop))
+                && !drawn_where_written(&lowered, finding, source)
         })
         .map(|finding| Diagnostic {
             code: DiagnosticCode::ClassNotDrawnOnNative,
@@ -343,7 +471,7 @@ export function Sheet() {
   )
 }"#;
         let parsed = hozo_parser::parse_tsx(source);
-        let diagnostics = native_class_diagnostics(&parsed);
+        let diagnostics = native_class_diagnostics(&parsed, source);
         assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
         assert!(!diagnostics[0].message.ends_with(".."));
         let diagnostic = &diagnostics[0];
@@ -370,10 +498,45 @@ export function Panel({ className }) {
   return <View className={cx(panel, className)} />
 }"#;
         let parsed = hozo_parser::parse_tsx(source);
-        let diagnostics = native_class_diagnostics(&parsed);
+        let diagnostics = native_class_diagnostics(&parsed, source);
         assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
         assert!(diagnostics[0]
             .message
             .starts_with("`backdrop:bg-black/50` in className on <View>"));
+    }
+
+    #[test]
+    fn a_class_the_backend_draws_where_it_is_written_is_not_reported() {
+        // @hozo/ui's Dialog: a static panel plus the caller's class. The
+        // backend draws `max-h-[85vh]` as a runtime viewport size and
+        // `backdrop:` as the scrim, so neither is "not drawn" (#1313).
+        let source = r#"import { cx, Dialog } from '@hozo/core'
+const panel = 'p-4 max-h-[85vh] backdrop:bg-black/50 before:block'
+export function Panel({ className, open, onClose }) {
+  return <Dialog open={open} onClose={onClose} accessibilityLabel="x" className={cx(panel, className)} />
+}"#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let reported: Vec<String> = native_class_diagnostics(&parsed, source)
+            .into_iter()
+            .map(|diagnostic| diagnostic.message)
+            .collect();
+        assert!(
+            reported
+                .iter()
+                .all(|message| !message.contains("max-h-[85vh]")
+                    && !message.contains("backdrop:bg-black/50")),
+            "{reported:?}"
+        );
+        assert_eq!(
+            native_classes_drawn_statically(source),
+            vec!["backdrop:bg-black/50", "max-h-[85vh]"]
+        );
+        // What it really cannot draw is still said, by the report as well.
+        let report: Vec<String> = native_class_report(source)
+            .into_iter()
+            .map(|finding| finding.class_name)
+            .collect();
+        assert!(report.contains(&"before:block".to_string()), "{report:?}");
+        assert!(!report.contains(&"max-h-[85vh]".to_string()), "{report:?}");
     }
 }

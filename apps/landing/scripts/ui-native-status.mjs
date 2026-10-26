@@ -22,7 +22,11 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { nativeClassReport, nativeClassVerdicts } from '@hozo/compiler'
+import {
+  nativeClassesDrawnStatically,
+  nativeClassReport,
+  nativeClassVerdicts,
+} from '@hozo/compiler'
 import ts from 'typescript'
 import { unappliedOnNative } from './ui-native-unapplied.mjs'
 
@@ -83,7 +87,11 @@ function findings(file, element) {
   const found = nativeClassReport(source)
     .filter((finding) => !element || finding.element === element)
     .map(({ prop, className, kind, reason }) => ({ prop, className, kind, reason }))
-  if (!element) found.push(...verdicts(file, source))
+  // The report already left out what the compiler draws where it is written
+  // (`max-h-[85vh]`, `backdrop:` on a Dialog, #1313); the loose literals
+  // carry the same classes and must not put them back.
+  const drawn = new Set(nativeClassesDrawnStatically(source))
+  if (!element) found.push(...verdicts(file, source).filter((entry) => !drawn.has(entry.className)))
   for (const [, local] of source.matchAll(/from '\.\/([^']+\.ts)'/g)) {
     found.push(...verdicts(local, readFileSync(path.join(ui, local), 'utf8')))
   }

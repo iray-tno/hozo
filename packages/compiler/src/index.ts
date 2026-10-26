@@ -385,6 +385,7 @@ interface NativeBinding {
   scanTailwindOrderCandidates(source: string): string[]
   nativeClassReport(source: string): NativeClassFinding[]
   nativeClassVerdicts(classNames: string[]): (NativeClassVerdict | null)[]
+  nativeClassesDrawnStatically(source: string): string[]
   summarizeClassHelpers(source: string): string[]
   CandidateCache: CandidateCacheConstructor
   Compiler: CompilerConstructor
@@ -1016,6 +1017,16 @@ export interface NativeClassFinding extends NativeClassVerdict {
  */
 export function nativeClassReport(source: string): NativeClassFinding[] {
   return loadNative().nativeClassReport(source) as NativeClassFinding[]
+}
+
+/**
+ * The classes the verdict calls missing that the static backend draws on the
+ * element they are written on -- `max-h-[85vh]` or `backdrop:bg-*` on a
+ * Dialog -- which `nativeClassReport` leaves out. For a reader that also runs
+ * loose literals through `nativeClassVerdicts`, so it can leave them out too.
+ */
+export function nativeClassesDrawnStatically(source: string): string[] {
+  return loadNative().nativeClassesDrawnStatically(source)
 }
 
 /** The same verdict for loose class names, in order; `null` where Native can draw it. */
