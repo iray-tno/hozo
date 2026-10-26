@@ -45,7 +45,7 @@ function receipt(value: unknown): ModuleReceipt | undefined {
   return row as ModuleReceipt
 }
 
-function moduleId(environment: string, id: string): string {
+export function candidateModuleId(environment: string, id: string): string {
   return JSON.stringify(['module', environment, id])
 }
 
@@ -119,7 +119,9 @@ export class ViteCandidateInventory {
     this.fresh.delete(module.id)
   }
 
-  reconcile(
+  /** Same sealed source facts for the final compiler publisher; never scan
+   * compiled JavaScript or infer an authored row for a missing query receipt. */
+  publicationInputs(
     authored: readonly ExpectedCandidateSource[],
     modules: readonly CandidateGraphModule[],
   ) {
@@ -127,7 +129,7 @@ export class ViteCandidateInventory {
     const observations = [...this.authored]
     const proofIssues: { id: string; kind: string }[] = []
     for (const module of modules) {
-      const id = moduleId(this.environment, module.id)
+      const id = candidateModuleId(this.environment, module.id)
       const row = receipt(module.meta[candidateMetaKey])
       if (
         !row ||
@@ -143,7 +145,19 @@ export class ViteCandidateInventory {
       expected.push({ id, revision: row.inputRevision })
       observations.push({ id, revision: row.inputRevision, record: row.record })
     }
-    const result = reconcileRuntimeCandidateContributions(expected, observations, this.sources)
+    return { expected, contributions: observations, sources: this.sources, issues: proofIssues }
+  }
+
+  reconcile(
+    authored: readonly ExpectedCandidateSource[],
+    modules: readonly CandidateGraphModule[],
+  ) {
+    const {
+      expected,
+      contributions,
+      issues: proofIssues,
+    } = this.publicationInputs(authored, modules)
+    const result = reconcileRuntimeCandidateContributions(expected, contributions, this.sources)
     const issues = [...(result.status === 'incomplete' ? result.issues : []), ...proofIssues].sort(
       (a, b) => a.id.localeCompare(b.id),
     )

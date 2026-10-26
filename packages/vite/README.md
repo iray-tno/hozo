@@ -58,6 +58,21 @@ empty candidate set. This is build evidence, not a public API or a shipped
 asset; it does not yet replace candidate CSS or enable new ordering winners.
 See [the measurement and remaining limits](../../docs/measurements/vite-candidate-inventory.md).
 
+When a project snapshot is available, production transforms now also retain a
+Web style continuation from their actual post-Canvas parse. At the final graph,
+one common context emits final static CSS into the internal
+`final-styles-<environment>.json` cache artifact. Deleted/stale/missing live
+continuations and invalid receipts cannot produce partial styles. An unavailable
+snapshot keeps the existing warned lowering; dev keeps the ready/session path.
+
+This **does not activate that CSS in bundle assets**: companion imports have
+already been processed by `buildEnd`. The record explicitly says
+`bundleOutputPolicy: 'passthrough'`, `bundleValidation: 'not-assessed'` and
+`finalOrderingReady: false`. Its `complete` status concerns only static graph
+finalization, not later output hooks or successful deployment. Cached metadata
+alone is not a live IR continuation. See
+[real-build evidence, cost and activation gates](../../docs/measurements/vite-final-style-graph.md).
+
 ## Dev mode
 
 A style-only edit reaches the browser in two rounds: the `.tsx` change triggers the first, that transform writes the CSS, and the watcher seeing the new CSS triggers the second. It converges because identical bytes are never rewritten — without that, each transform would invalidate the stylesheet it had just written and the two would take turns forever.
