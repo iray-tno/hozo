@@ -84,6 +84,15 @@ test('the focus ring is drawn inward, because the strip clips its corners', () =
   assert(render().includes('overflow-hidden'))
 })
 
+test('a segment starts from its label width, so a strip with no width of its own still fits them', () => {
+  const [first] = segments(render())
+  assert(first)
+  // A zero basis (`flex-1`, `basis-0`) is what React Native's Yoga sums a
+  // content-sized strip from, which left each label one letter wide (#1205).
+  assert.match(first, /\bflex-auto\b/)
+  assert.doesNotMatch(first, /\b(flex-1|basis-0)\b/)
+})
+
 test('a disabled segment keeps its place and says so', () => {
   // `aria-disabled` rather than a real attribute, for the reason `Tabs` records:
   // a disabled element leaves the tab order, and a roving strip needs it to stay.

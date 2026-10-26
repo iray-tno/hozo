@@ -58,8 +58,14 @@ const strip =
   'inline-flex flex-row gap-px overflow-hidden rounded-hozo-control border border-hozo-border-strong bg-hozo-border-strong p-px'
 
 /**
- * `flex-1` with `min-w-0`, so three segments share the strip evenly and a long
- * label shrinks rather than pushing the strip past its container.
+ * `flex-auto` with `min-w-0`: each segment is as wide as its label, any width
+ * the strip is given beyond that is shared out, and a long label shrinks rather
+ * than pushing the strip past its container.
+ *
+ * Not `flex-1`, whose zero basis the strip's own width is then summed from. A
+ * browser sizes an `inline-flex` box from its items' content anyway; React
+ * Native's Yoga sums the zero bases, so a strip with no width of its own came
+ * out as wide as the padding and each label showed one letter (#1205).
  *
  * `aria-checked:` draws the chosen one, for the reason `radio.tsx` gives: these
  * are `<div role="radio">` with no `:checked` to select, and the attribute a
@@ -70,7 +76,7 @@ const strip =
  * grid.
  */
 const segment =
-  'min-w-0 flex-1 cursor-pointer px-4 py-2 text-center text-sm leading-6 whitespace-nowrap bg-hozo-surface text-hozo-text-body hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-hozo-focus aria-checked:bg-hozo-accent aria-checked:text-hozo-on-accent aria-checked:font-semibold aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-hozo-surface'
+  'min-w-0 flex-auto cursor-pointer px-4 py-2 text-center text-sm leading-6 whitespace-nowrap bg-hozo-surface text-hozo-text-body hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-hozo-focus aria-checked:bg-hozo-accent aria-checked:text-hozo-on-accent aria-checked:font-semibold aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-hozo-surface'
 
 export function HozoSegmentedControl<T>(props: HozoSegmentedControlProps<T>) {
   return (
