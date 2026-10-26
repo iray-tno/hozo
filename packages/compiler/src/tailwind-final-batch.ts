@@ -7,7 +7,7 @@ import {
 import {
   type NativeCandidatePlan,
   type PreparedModule,
-  prepareTailwindContext,
+  prepareFinalTailwindContext,
   type Theme,
 } from './index.ts'
 import { emitTailwindContextBatch } from './tailwind-project.ts'
@@ -69,7 +69,8 @@ export interface FinalTailwindBatch<T> {
  *
  * Completeness is for this caller-declared finite batch, not proof that an
  * adapter supplied its whole graph, matching theme or final Web candidate CSS.
- * Current emitters/adapters keep their existing pass-through winner policy.
+ * Completed batches apply the same assessed scalar policy to static modules
+ * and generated Native candidate calls. Ordinary adapter sessions are unchanged.
  */
 export async function emitFinalTailwindBatch<M extends CollectedModules>(
   request: FinalTailwindBatchRequest<M>,
@@ -143,7 +144,7 @@ export async function emitFinalTailwindBatch<M extends CollectedModules>(
         candidates = names
         const snapshot = await prepare(names, signal)
         signal?.throwIfAborted()
-        const context = prepareTailwindContext(snapshot)
+        const context = prepareFinalTailwindContext(snapshot)
         context.requireCandidates([...names])
         return context
       },

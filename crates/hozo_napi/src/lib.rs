@@ -16,8 +16,8 @@ mod tailwind_order;
 use tailwind_order::{TailwindCompilePlan, TailwindOrderInspection};
 mod prepared_module;
 pub use prepared_module::{
-    prepare_tailwind_context, PreparedNativeModule, PreparedTailwindContext, PreparedWebModule,
-    PreparedWebOptions,
+    prepare_final_tailwind_context, prepare_tailwind_context, PreparedNativeModule,
+    PreparedTailwindContext, PreparedWebModule, PreparedWebOptions,
 };
 
 #[napi(object)]
@@ -375,12 +375,28 @@ struct WebModuleOptions<'a> {
 struct TailwindPlanOptions<'a> {
     context: Option<&'a hozo_ir::TailwindOrderContext>,
     capture: bool,
+    ordered: bool,
 }
 
 impl TailwindPlanOptions<'_> {
     fn apply(&self, parsed: &mut hozo_parser::ParseOutput) -> Vec<hozo_parser::TailwindRootPlan> {
         self.context
-            .map(|context| hozo_parser::plan_module_tailwind(parsed, context, self.capture))
+            .map(|context| {
+                if self.ordered {
+                    hozo_parser::order_module_tailwind(parsed, context);
+                    if !self.capture {
+                        return Vec::new();
+                    }
+                }
+                let mut plans = hozo_parser::plan_module_tailwind(parsed, context, self.capture);
+                if self.ordered {
+                    for plan in &mut plans {
+                        plan.ordered = true;
+                        plan.fingerprint = prepared_module::final_fingerprint(&plan.fingerprint);
+                    }
+                }
+                plans
+            })
             .unwrap_or_default()
     }
 }
@@ -724,6 +740,7 @@ impl Compiler {
                 tailwind: TailwindPlanOptions {
                     context: self.tailwind_order.as_deref(),
                     capture: tailwind_plan.unwrap_or(false),
+                    ..Default::default()
                 },
             },
             &self.class_helpers,
@@ -764,6 +781,7 @@ impl Compiler {
             TailwindPlanOptions {
                 context: self.tailwind_order.as_deref(),
                 capture: tailwind_plan.unwrap_or(false),
+                ..Default::default()
             },
         )
     }
@@ -799,6 +817,7 @@ impl Compiler {
                 tailwind: TailwindPlanOptions {
                     context: self.tailwind_order.as_deref(),
                     capture: options.tailwind_plan.unwrap_or(false),
+                    ..Default::default()
                 },
             },
             &self.text_forwarding,
@@ -1075,21 +1094,23 @@ impl CandidateCache {
         hozo_native::render_candidate_module(&self.inner.union(), &to_theme(theme))
     }
 
-    /// Internal build-time sidecar from this actual generation. Device code
-    /// is byte-identical to render_native_module, not a new fallback mode.
+    /// One context selects static and candidate output policy together.
+    /// Per-file contexts keep the old sidecar-only/positional output.
     #[napi]
     pub fn render_native_module_plan(
         &self,
         context: &PreparedTailwindContext,
         theme: Option<JsTheme>,
     ) -> napi::Result<tailwind_order::NativeCandidatePlan> {
-        hozo_native::render_candidate_module_plan(
-            &self.inner.union(),
-            &to_theme(theme),
-            &context.context,
-        )
-        .map(Into::into)
-        .map_err(napi::Error::from_reason)
+        let render = if context.ordered {
+            hozo_native::render_final_candidate_module_plan
+        } else {
+            hozo_native::render_candidate_module_plan
+        };
+        let mut plan = render(&self.inner.union(), &to_theme(theme), &context.context)
+            .map_err(napi::Error::from_reason)?;
+        plan.fingerprint = context.fingerprint();
+        Ok(plan.into())
     }
 
     /// Whether any scanned file names a Tailwind utility.

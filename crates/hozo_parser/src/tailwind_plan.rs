@@ -9,6 +9,7 @@ use hozo_ir::{
 
 pub struct TailwindRootPlan {
     pub fingerprint: String,
+    pub ordered: bool,
     pub sites: Vec<TailwindPlanSite>,
 }
 
@@ -87,6 +88,7 @@ fn plan_module(
         if mode.capture() {
             reports.push(TailwindRootPlan {
                 fingerprint: context.snapshot().fingerprint.clone(),
+                ordered: false,
                 sites,
             });
         }

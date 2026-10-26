@@ -12,6 +12,7 @@ const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url)
 const reads = {
   '@hozo/tailwind#test': [
     'packages/engine/src/class-resolver.ts',
+    'packages/engine/src/transform-slots.ts',
     'crates/hozo_parser/src/tailwind_variants.rs',
     'crates/hozo_ir/src/tailwind_portable.rs',
   ],
@@ -55,6 +56,9 @@ const reads = {
     'crates/hozo_web/src/lib.rs',
     'crates/hozo_native/src/conditions.rs',
     'crates/hozo_napi/Cargo.toml',
+    'crates/hozo_napi/src/lib.rs',
+    'crates/hozo_napi/src/prepared_module.rs',
+    'crates/hozo_napi/src/tailwind_order.rs',
     'crates/hozo_napi/examples/tailwind-scalar-plan.rs',
     'packages/tailwind-conformance/src/tailwind-order-corpus.ts',
     'packages/tailwind-conformance/src/tailwind-order-reference.ts',

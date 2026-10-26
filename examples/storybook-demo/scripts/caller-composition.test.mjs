@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { createCompiler, openCandidateCache, prepareTailwindContext } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
+import { emitFinalTailwindBatch } from '@hozo/compiler/project'
 import { createClassResolver, cx } from '@hozo/engine'
 import { Chip } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
@@ -661,16 +662,45 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
     generated.ambient,
   )
   const resolve = createClassResolver({ schema: 1, ...generated, ordering: plan.ordering })
+  const lists = [
+    'p-4 p-2 bg-[#112233] focus:bg-[#223344] active:bg-[#334455] hover:focus:bg-[#445566]',
+    'hover:focus:bg-[#445566] active:bg-[#334455] focus:bg-[#223344] bg-[#112233] p-2 p-4',
+  ]
+  const collected = lists.flatMap((classes, index) => {
+    const source = `import {Pressable} from '@hozo/core';export const Target=()=> <Pressable className="${classes}"/>`
+    return [
+      { id: `w${index}`, revision: 'one', module: compiler.prepareWebModule(source) },
+      { id: `n${index}`, revision: 'one', module: compiler.prepareNativeModule(source) },
+    ]
+  })
+  const receipt = { id: 'probe.ts', revision: 'one', record: candidates.exportFile('probe.ts') }
+  const final = await emitFinalTailwindBatch({
+    expected: collected,
+    collected,
+    runtime: { expected: [receipt], contributions: [receipt] },
+    prepare: async () => JSON.stringify(prepared.snapshot),
+  })
+  assert.notEqual(final.fingerprint, plan.fingerprint)
+  const emittedResolve = evaluate(final.native.code.replace(/^import .*$/gm, ''), {
+    createClassResolver,
+  }).hozoClasses
   const sheet = (await compile(css)).build(names)
   const page = await browser.newPage()
   let legacyMismatches = 0
   try {
-    for (const classes of [
-      'p-4 p-2 bg-[#112233] focus:bg-[#223344] active:bg-[#334455] hover:focus:bg-[#445566]',
-      'hover:focus:bg-[#445566] active:bg-[#334455] focus:bg-[#223344] bg-[#112233] p-2 p-4',
-    ]) {
+    for (const [index, classes] of lists.entries()) {
+      const web = final.modules.find(({ id }) => id === `w${index}`).output[0]
+      const native = final.modules.find(({ id }) => id === `n${index}`).output.components[0]
+      const nativeProps = evaluate(
+        `const hozoStyles=${native.styles};module.exports=(${native.jsx})`,
+        {
+          Pressable: 'owner',
+          HozoPressable: 'owner',
+          h: (_type, props) => props,
+        },
+      )
       await page.setContent(
-        `<!doctype html><style>${sheet}</style><button id="subject" style="width:80px;height:40px" class="${classes}">Target</button>`,
+        `<!doctype html><style>${sheet}\n${web.css}</style><button id="subject" style="width:80px;height:40px" class="${classes}">Target</button><button id="planned" style="width:80px;height:40px" class="hozo-0">Target</button>`,
       )
       assert.equal(await page.evaluate(() => document.compatMode), 'CSS1Compat')
       await page.mouse.move(200, 200)
@@ -696,6 +726,17 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
         }
         const oracle = { color: actual.color, padding: actual.padding }
         assert.deepEqual(read(resolve), oracle)
+        assert.deepEqual(read(emittedResolve), oracle, 'the actual generated object factory call')
+        const selected =
+          typeof nativeProps.style === 'function'
+            ? nativeProps.style(actual.state)
+            : nativeProps.style
+        const staticStyle = Object.assign({}, ...[selected].flat(Infinity).filter(Boolean))
+        assert.deepEqual(
+          read(() => [staticStyle]),
+          oracle,
+          'actual final Native module',
+        )
         if (JSON.stringify(read(legacy)) !== JSON.stringify(oracle)) legacyMismatches++
       }
       await check({ focused: false, hovered: false, pressed: false })
@@ -716,6 +757,40 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
         await check({ focused: true, hovered: true, pressed: true })
       } finally {
         await page.mouse.up()
+      }
+      // Exercise the other owner separately: its real predicates must match,
+      // not a synthetic dispatchEvent that never sets CSS :hover/:active.
+      for (let stage = 0; stage < 4; stage++) {
+        await page.mouse.move(600, 600)
+        await page.evaluate(() => document.activeElement?.blur())
+        const planned = page.locator('#planned')
+        if (stage > 0) await planned.focus()
+        if (stage > 1) await planned.hover()
+        if (stage > 2) await page.mouse.down()
+        try {
+          const value = await planned.evaluate((element) => ({
+            state: {
+              focused: element.matches(':focus'),
+              hovered: element.matches(':hover'),
+              pressed: element.matches(':active'),
+            },
+            color: getComputedStyle(element).backgroundColor,
+            padding: Number.parseFloat(getComputedStyle(element).paddingTop),
+          }))
+          assert.deepEqual(value.state, {
+            focused: stage > 0,
+            hovered: stage > 1,
+            pressed: stage > 2,
+          })
+          const resolved = Object.assign({}, ...emittedResolve(classes, value.state))
+          assert.equal(value.padding, resolved.paddingTop)
+          assert.equal(
+            value.color,
+            `rgb(${[1, 3, 5].map((start) => Number.parseInt(resolved.backgroundColor.slice(start, start + 2), 16)).join(', ')})`,
+          )
+        } finally {
+          if (stage > 2) await page.mouse.up()
+        }
       }
     }
     assert.ok(

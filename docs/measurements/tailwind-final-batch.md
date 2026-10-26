@@ -97,6 +97,11 @@ against a previously correct equivalent publisher or a project-wide budget.
 
 ## Next
 
+The subsequent [coordinated output layer](tailwind-final-output.md) now uses this
+publisher's completed context to change assessed scalar winners together.
+The measurements above describe the original pass-through implementation;
+they are retained history, not timings for the new output policy.
+
 Use the completed namespace at the coordinated static/fallback output boundary,
 then connect authoritative adapter graphs and worker lifecycles before default
 adoption. Important/multi-rule/platform barriers and cumulative build/runtime
