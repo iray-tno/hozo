@@ -1,17 +1,22 @@
 import { CodeBlock } from '@hozo/patterns'
 import type { Meta, StoryObj } from '@storybook/react-native'
-import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, View } from 'react-native'
 import { CODE_BLOCK_COUNTS, codeBlockFixture } from './code-block-fixture'
 
-const fixtures = new Map(
-  CODE_BLOCK_COUNTS.map((count) => [
-    count,
-    [0, 1, 2, 3].map((tick) => codeBlockFixture(count, tick)),
-  ]),
-)
-
 function CodeBlockPerformance() {
+  // Story modules are imported by the ordinary showcase too. Allocate this
+  // matrix only when the diagnostic is opened, before any measured input.
+  const fixtures = useMemo(
+    () =>
+      new Map(
+        CODE_BLOCK_COUNTS.map((count) => [
+          count,
+          [0, 1, 2, 3].map((tick) => codeBlockFixture(count, tick)),
+        ]),
+      ),
+    [],
+  )
   const [selection, setSelection] = useState<{
     count: (typeof CODE_BLOCK_COUNTS)[number]
     tick: number
