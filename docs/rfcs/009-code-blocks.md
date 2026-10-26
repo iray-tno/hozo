@@ -85,6 +85,25 @@ No virtualized renderer or long-block device frame budget is claimed. Envarly
 adoption is deferred until release and is outside the current Hozo work. Real
 device/reader checks and broader Markdown adoption remain follow-ups.
 
+## Remaining completion evidence
+
+- [#1276](https://github.com/iray-tno/hozo/issues/1276): actual NVDA/Chrome and
+  VoiceOver/Safari speech for the named figure, marked lines, hidden gutters
+  and Copy completion. `examples/screen-readers/code-and-splitter.spec.ts`
+  records reading and real keyboard activation; captures without human-approved
+  phrases are explicitly unapproved.
+- [#1277](https://github.com/iray-tno/hozo/issues/1277): Android/iOS reading
+  granularity, hidden gutters, provider-backed Copy and layout on real devices.
+- [#1278](https://github.com/iray-tno/hozo/issues/1278): the Android long-block
+  frame budget promised by the original proposal, with a measured line/token
+  envelope and separate initial-render, scroll and update results.
+
+The parent issue remains open until these measurements are reviewed, or a
+maintainer explicitly agrees to a different completion boundary. Creating the
+follow-up issues does not supply the missing evidence. Direct Ins/Del IR,
+broader Markdown replacement and virtualization remain separate design work;
+none is necessary to measure the existing implementation.
+
 ## Native bundle cost
 
 The census app's development bundle contains 482,994 bytes of Hozo modules,

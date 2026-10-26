@@ -10,6 +10,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { type IScreenReader, WindowsKeyCodes, WindowsModifiers } from '@guidepup/guidepup'
+import type { ScreenReaderPlaywright } from '@guidepup/playwright'
 import { macOSRecord, windowsRecord } from '@guidepup/record'
 import type { Page } from '@playwright/test'
 
@@ -187,7 +188,7 @@ async function layerState(page: Page): Promise<string> {
  * Anything a failed attempt produced is dropped. Those phrases came from
  * outside the page, and the comparison must not see them.
  */
-export async function enterPage(page: Page, screenReader: IScreenReader): Promise<void> {
+export async function enterPage(page: Page, screenReader: ScreenReaderPlaywright): Promise<void> {
   console.log(`[enter] before        ${await layerState(page)}`)
   for (let attempt = 1; attempt <= ENTRY_ATTEMPTS; attempt++) {
     await page.bringToFront()
