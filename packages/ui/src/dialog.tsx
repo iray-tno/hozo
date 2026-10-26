@@ -21,10 +21,10 @@
  * schemes, which is what a scrim is for -- it is not a surface seen from the
  * other side.
  *
- * It does not blur the page behind it. `backdrop:backdrop-blur-xs` would, on
- * the Web, but React Native has no backdrop filter and the class stops this
- * file compiling for Native. A page that wants the blur adds it to
- * `dialog::backdrop` in its own stylesheet, as Storybook and /docs do.
+ * It also blurs the page a little (`backdrop:backdrop-blur-xs`, 4px), so the
+ * dialog reads as the one thing in front. On React Native the blur is drawn
+ * through the app's backdrop-filter adapter when one is configured, and left
+ * out otherwise, with the scrim's colour kept (#1310).
  *
  * ## Centred by its own class, not by the browser's
  *
@@ -59,7 +59,7 @@ export type HozoDialogProps = DialogProps
  * clips, and the part that goes missing is the bottom, where the buttons are.
  */
 const panel =
-  'm-auto w-full max-w-md max-h-[85vh] overflow-y-auto rounded-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text shadow-hozo-surface backdrop:bg-hozo-scrim/50'
+  'm-auto w-full max-w-md max-h-[85vh] overflow-y-auto rounded-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text shadow-hozo-surface backdrop:bg-hozo-scrim/50 backdrop:backdrop-blur-xs'
 
 /**
  * Declared as `StyledDialog` and exported under the package's names, which is

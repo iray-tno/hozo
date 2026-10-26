@@ -519,6 +519,8 @@ test('Native Dialog isolates its modal without combining descendant controls', (
     if (name === '@hozo/behaviors/native') return { moveAccessibilityFocus: () => {} }
     // Its `className`, resolved through the project's candidate map (#886).
     if (name === '@hozo/engine/project') return { hozoClasses: () => [] }
+    // The scrim blur's adapter (#1310); none is configured in this probe.
+    if (name === '@hozo/engine') return { hozoBackdropFilterAdapter: () => undefined }
     throw new Error(`Unexpected Native Dialog dependency: ${name}`)
   }
   new Function('require', 'module', code)(load, module)

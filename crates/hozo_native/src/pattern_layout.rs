@@ -8,6 +8,9 @@ pub(super) struct Layout {
     pub style: Vec<StyleDeclaration>,
     pub scroll_prop: Option<&'static str>,
     pub backdrop: Vec<StyleDeclaration>,
+    /// `backdrop:backdrop-blur-*`'s radius in px, which the Dialog draws
+    /// through the backdrop-filter adapter behind its panel (#1310).
+    pub backdrop_blur: Option<String>,
 }
 
 pub(super) fn applies(primitive: Primitive, slot: &str) -> bool {
@@ -26,12 +29,14 @@ pub(super) fn adapt(
             style: declarations,
             scroll_prop: None,
             backdrop: Vec::new(),
+            backdrop_blur: None,
         };
     }
     let mut out = Layout {
         style: Vec::new(),
         scroll_prop: None,
         backdrop: Vec::new(),
+        backdrop_blur: None,
     };
     for declaration in declarations {
         if declaration.condition == Condition::Always {
@@ -67,7 +72,24 @@ pub(super) fn adapt(
         // `background-color` went before, so `backdrop:px-4` stayed on the
         // panel, was reported as not wired, and wrote a StyleSheet entry under
         // the scrim's own key, overwriting it (#1311). A backdrop filter is not
-        // a style the scrim can take; it stays behind (#1310).
+        // a style the scrim can take: an unconditional blur is handed over as
+        // its radius, for the Dialog to draw through the backdrop-filter
+        // adapter (#1310); any other stays behind and is refused.
+        if crate::pattern::backdrop_style_prop(primitive, slot).is_some() {
+            if let StyleProperty::BackdropFilter(hozo_ir::FilterFunction::Blur, value) =
+                &declaration.property
+            {
+                let radius = value
+                    .strip_prefix("blur(")
+                    .and_then(|rest| rest.strip_suffix("px)"));
+                if let (Some(radius), Some(Condition::Always)) =
+                    (radius, backdrop_condition(&declaration.condition))
+                {
+                    out.backdrop_blur = Some(radius.to_string());
+                    continue;
+                }
+            }
+        }
         if crate::pattern::backdrop_style_prop(primitive, slot).is_some()
             && !matches!(declaration.property, StyleProperty::BackdropFilter(..))
         {
@@ -269,5 +291,29 @@ mod backdrop_keys {
             "an applied backdrop: class is not reported as unwired: {:?}",
             out.diagnostics
         );
+    }
+
+    #[test]
+    fn a_backdrop_blur_reaches_the_dialog_as_a_radius() {
+        // #1310: the scrim takes styles, a blur needs the adapter component,
+        // so the radius travels as its own prop and the Dialog draws it.
+        let source = r#"import { Dialog } from '@hozo/core'; function C() { return <Dialog className="backdrop:bg-black/50 backdrop:backdrop-blur-xs" open onClose={close} accessibilityLabel="Test" /> }"#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let out = crate::lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(out.jsx.contains("hozoBackdropBlur={4}"), "{}", out.jsx);
+        assert!(out.jsx.contains("hozoBackdropStyle="), "{}", out.jsx);
+        assert!(
+            !out.diagnostics
+                .iter()
+                .any(|d| d.severity == hozo_ir::Severity::Error),
+            "{:?}",
+            out.diagnostics
+        );
+        // On an ordinary View it is still not a scrim, and still refused.
+        let source = r#"import { View } from '@hozo/core'; function C() { return <View className="backdrop:backdrop-blur-xs" /> }"#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let out = crate::lower(&parsed.roots[0].node, source, &Theme::default());
+        assert!(!out.jsx.contains("hozoBackdropBlur"), "{}", out.jsx);
+        assert!(!out.diagnostics.is_empty());
     }
 }
