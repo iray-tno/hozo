@@ -1,5 +1,15 @@
 import assert from 'node:assert/strict'
 
+export function assertReusableCodeInputs(changed) {
+  const allowed =
+    /^(docs\/|apps\/landing\/src\/content\/docs\/|examples\/native-showcase\/README\.md$|examples\/native-showcase\/scripts\/code-block-(performance|frames|frames\.test)\.mjs$)/
+  assert.deepEqual(
+    changed.filter((name) => !allowed.test(name)),
+    [],
+    'reused APK has different application/build inputs',
+  )
+}
+
 export function frameSummary(dump, refreshHz) {
   assert.ok(Number.isFinite(refreshHz) && refreshHz > 0, 'missing display refresh rate')
   const budgetMs = 1000 / refreshHz

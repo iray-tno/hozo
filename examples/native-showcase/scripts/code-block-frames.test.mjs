@@ -1,6 +1,22 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { frameSummary, timingRecords } from './code-block-frames.mjs'
+import { assertReusableCodeInputs, frameSummary, timingRecords } from './code-block-frames.mjs'
+
+test('a reused timing APK permits docs/collector changes but rejects different app or build inputs', () => {
+  assertReusableCodeInputs([
+    'docs/measurements/report.md',
+    'examples/native-showcase/scripts/code-block-performance.mjs',
+  ])
+  for (const name of [
+    'examples/native-showcase/src/CodeBlockPerformance.stories.tsx',
+    'examples/native-showcase/src/code-block-fixture.ts',
+    'packages/patterns/src/code-block.native.tsx',
+    'pnpm-lock.yaml',
+    '.github/workflows/native-showcase.yml',
+    'examples/native-showcase/app.json',
+  ])
+    assert.throws(() => assertReusableCodeInputs([name]), /different application/)
+})
 
 const frame = (flags, completed) => `${flags},1,100000000,100000000,${completed},`
 const dump = (rows, total = rows.length) =>

@@ -9,7 +9,7 @@ import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { prepareAndroid } from './android-startup.mjs'
 import { waitForAndroidControl } from './android-ui-wait.mjs'
-import { frameSummary, timingRecords } from './code-block-frames.mjs'
+import { assertReusableCodeInputs, frameSummary, timingRecords } from './code-block-frames.mjs'
 import { centre, matchLabel, parseNodes } from './device-evidence.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
@@ -91,13 +91,32 @@ async function measure(name, action, timingName) {
 }
 
 try {
-  assert.equal(
-    process.env.HOZO_BINARY_RUN,
-    process.env.GITHUB_RUN_ID,
-    'probe needs a fresh same-revision build',
-  )
   assert.match(evidence.source ?? '', /^[a-f0-9]{40}$/)
   evidence.apkSha256 = createHash('sha256').update(readFileSync(apk)).digest('hex')
+  const signing = JSON.parse(
+    readFileSync(resolve(root, 'android/app/build/outputs/apk/release/signing.json'), 'utf8'),
+  )
+  assert.equal(signing.apkSha256, evidence.apkSha256, 'APK differs from its build manifest')
+  assert.equal(signing.run, evidence.binaryRun, 'APK build run differs from requested producer')
+  assert.match(signing.commit ?? '', /^[a-f0-9]{40}$/)
+  evidence.binarySource = signing.commit
+  evidence.reusedBinary = evidence.binaryRun !== process.env.GITHUB_RUN_ID
+  if (evidence.reusedBinary) {
+    assert.equal(process.env.HOZO_DIAGNOSTICS, '1', 'binary reuse must be an explicit diagnostic')
+    execFileSync('git', ['fetch', '--no-tags', '--depth=1', 'origin', signing.commit], {
+      cwd: root,
+      timeout: 60_000,
+    })
+    evidence.changedFromBinary = execFileSync(
+      'git',
+      ['diff', '--name-only', signing.commit, evidence.source, '--'],
+      { cwd: root, encoding: 'utf8' },
+    )
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+    assertReusableCodeInputs(evidence.changedFromBinary)
+  } else assert.equal(signing.commit, evidence.source, 'fresh build source differs from driver')
   evidence.sources = Object.fromEntries(
     [
       'src/CodeBlockPerformance.stories.tsx',
@@ -113,7 +132,11 @@ try {
   )
   await prepareAndroid(
     {
-      read: (args) => adb(...args),
+      read: (args) => {
+        const value = adb(...args)
+        if (args.includes('services')) save('startup-system-ui.txt', value)
+        return value
+      },
       install: (timeout) => execFileSync('adb', ['install', '-r', apk], { timeout }),
     },
     evidence,
@@ -210,6 +233,22 @@ try {
   throw error
 } finally {
   json('evidence.json', evidence)
+  for (const [name, args] of Object.entries({
+    'system-logcat.txt': ['logcat', '-b', 'all', '-d'],
+    'system-services.txt': [
+      'shell',
+      'dumpsys',
+      'activity',
+      'services',
+      'com.android.systemui/.SystemUIService',
+    ],
+  })) {
+    try {
+      save(name, adb(...args))
+    } catch (error) {
+      save(`${name}.error`, String(error))
+    }
+  }
   try {
     save('logcat-final.txt', logs())
   } catch (error) {
