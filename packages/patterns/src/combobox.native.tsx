@@ -1,3 +1,4 @@
+import { hozoTextChildren } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
@@ -181,7 +182,7 @@ export function HozoCombobox<T>({
           style={listBox}
         >
           {visible.length === 0
-            ? emptyMessage
+            ? hozoTextChildren(emptyMessage, listText)
             : visible.map((index, at) => {
                 const option = options[index]
                 if (!option) return null

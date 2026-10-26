@@ -1,3 +1,4 @@
+import { hozoTextChildren } from '@hozo/behaviors'
 import {
   FloatingPositioner,
   type NativeTriggerProps,
@@ -18,6 +19,7 @@ import {
   useRef,
 } from 'react'
 import type { StyleProp, View, ViewStyle } from 'react-native'
+import { splitTextStyle } from './text-style.native.ts'
 
 /**
  * What React Native hands back for a `<View>`.
@@ -136,7 +138,9 @@ export function Tooltip({
       shift={shift}
       style={[hozoClasses(className), style]}
     >
-      {content}
+      {/* Usually a string (the docs demo passes one), which a bare View
+          would reject on a device (#1205). */}
+      {hozoTextChildren(content, splitTextStyle([hozoClasses(className), style])[1])}
     </FloatingPositioner>
   ) : null
 

@@ -267,8 +267,19 @@ test('Native sheet preserves tap negotiation and velocity while cancelling pendi
       {
         name: 'native-behavior-leaves',
         setup(build) {
+          // The two leaves the sheet takes from the package root: its
+          // messages, and the text wrapper for a caller's string (#1205).
           build.onResolve({ filter: /^@hozo\/behaviors$/ }, () => ({
-            path: path.join(root, 'packages/behaviors/src/i18n.ts'),
+            path: 'behaviors-root',
+            namespace: 'behaviors-root',
+          }))
+          build.onLoad({ filter: /.*/, namespace: 'behaviors-root' }, () => ({
+            contents: [
+              `export * from ${JSON.stringify(path.join(root, 'packages/behaviors/src/i18n.ts'))}`,
+              `export { hozoTextChildren } from ${JSON.stringify(path.join(root, 'packages/behaviors/src/text-child.native.tsx'))}`,
+            ].join('\n'),
+            loader: 'ts',
+            resolveDir: root,
           }))
           build.onResolve({ filter: /^@hozo\/behaviors\/native$/ }, () => ({
             path: path.join(root, 'packages/behaviors/src/drag-1d.native.ts'),
@@ -283,6 +294,11 @@ test('Native sheet preserves tap negotiation and velocity while cancelling pendi
     Pressable: 'NativePressable',
     I18nManager: { isRTL: false },
     PanResponder: { create: (handlers) => ({ panHandlers: handlers }) },
+    // For the sheet's text half, which a caller's string is drawn with (#1205).
+    Text: 'NativeText',
+    StyleSheet: {
+      flatten: (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean)),
+    },
   }
   const module = { exports: {} }
   new Function('require', 'module', 'exports', bundle.outputFiles[0].text)(

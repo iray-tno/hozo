@@ -1,4 +1,4 @@
-import { shouldRestoreFocus } from '@hozo/behaviors'
+import { hozoTextChildren, shouldRestoreFocus } from '@hozo/behaviors'
 import { moveAccessibilityFocus } from '@hozo/behaviors/native'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, type ReactNode, type RefObject, useEffect, useRef } from 'react'
@@ -12,6 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { PatternScrollContainer } from './scroll-container.native.tsx'
+import { splitTextStyle } from './text-style.native.ts'
 
 // TalkBack acceptance sweeps on the reference emulator failed through 175ms
 // after Android's window-focus signal and succeeded from 200ms. This is an
@@ -177,7 +178,12 @@ export function Dialog({
       accessibilityHint={accessibilityHint}
       testID={testID}
     >
-      {children}
+      {/* A caller's string here would be bare in a View, which React Native
+          rejects; it takes the dialog's text classes instead (#1205). */}
+      {hozoTextChildren(
+        children,
+        splitTextStyle([hozoClasses(className), style] as StyleProp<ViewStyle>)[1],
+      )}
     </PatternScrollContainer>
   )
   return (

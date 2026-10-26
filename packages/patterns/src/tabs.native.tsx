@@ -1,8 +1,9 @@
+import { hozoTextChildren } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import { splitTextStyle, textChildren } from './text-style.native.ts'
+import { splitTextStyle } from './text-style.native.ts'
 
 export interface HozoTab {
   label: ReactNode
@@ -113,7 +114,7 @@ export function HozoTabs({
           </Pressable>
         ))}
       </View>
-      <View style={panelBox}>{textChildren(tabs[selected]?.content ?? null, panelText)}</View>
+      <View style={panelBox}>{hozoTextChildren(tabs[selected]?.content ?? null, panelText)}</View>
     </View>
   )
 }
