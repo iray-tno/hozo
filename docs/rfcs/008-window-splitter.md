@@ -1,6 +1,6 @@
 # RFC 008: Window splitter
 
-Status: initial implementation. Tracking: [#1191](https://github.com/iray-tno/hozo/issues/1191).
+Status: implemented (initial slice, reviewed Web speech wording). Tracking: [#1191](https://github.com/iray-tno/hozo/issues/1191).
 
 `@hozo/behaviors` owns `useDrag1D`; `@hozo/patterns` owns `Splitter` and
 `ResizablePane`; `@hozo/ui` supplies their look. `@hozo/core` re-exports the
@@ -81,13 +81,15 @@ the real-reader suite. [The captured speech review](../measurements/code-block-s
 links the successful NVDA/VoiceOver run and separates transcript inspection
 from human approval.
 
-## Remaining completion evidence
+## Completion evidence
 
 - [#1276](https://github.com/iray-tno/hozo/issues/1276): actual NVDA/Chrome and
   VoiceOver/Safari speech for the named separator, size changes, bounds,
   collapse and restoration. `examples/screen-readers/code-and-splitter.spec.ts`
-  records the keys, corresponding DOM facts and speech; captures without
-  human-approved phrases are explicitly unapproved.
+  records the keys, corresponding DOM facts and speech. The maintainer
+  approved the recorded wording on 2026-10-26; the committed expectations
+  passed on both readers in [run 40274993354](https://github.com/iray-tno/hozo/actions/runs/40274993354),
+  40/40 cases each. Audible pronunciation/prosody remains outside that approval.
 
 On 2026-10-26 the maintainer deferred physical-device validation in line with
 the rest of the repository. Android/iOS layout, responder delivery and
@@ -97,6 +99,6 @@ TalkBack/VoiceOver actions remain unverified in
 They no longer block this RFC's initial implementation; no device pass is
 inferred from mock-host tests or Web recordings.
 
-The parent issue can close after the Web speech review in #1276. Native
+The implementation and agreed completion evidence are complete. Native
 hardware keyboards, double-click reset and pane groups remain outside the
 first slice; Envarly adoption remains post-release application work.

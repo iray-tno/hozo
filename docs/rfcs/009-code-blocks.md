@@ -1,6 +1,6 @@
 # RFC 009: Code blocks
 
-Status: initial portable implementation. Tracking: [#1189](https://github.com/iray-tno/hozo/issues/1189).
+Status: implemented (initial slice, reviewed Web speech and measured Android limits). Tracking: [#1189](https://github.com/iray-tno/hozo/issues/1189).
 
 Typography owns the line/token model, CodeLines, semantic Ins/Del and pure
 Shiki/fence metadata connections. Patterns owns CodeBlock's named figure,
@@ -93,13 +93,15 @@ The measurement includes missed budgets rather than claiming a pass. Envarly
 adoption is deferred until release and is outside the current Hozo work. Real
 device/reader checks and broader Markdown adoption remain follow-ups.
 
-## Remaining completion evidence
+## Completion evidence
 
 - [#1276](https://github.com/iray-tno/hozo/issues/1276): actual NVDA/Chrome and
   VoiceOver/Safari speech for the named figure, marked lines, hidden gutters
   and Copy completion. `examples/screen-readers/code-and-splitter.spec.ts`
-  records reading and real keyboard activation; captures without human-approved
-  phrases are explicitly unapproved.
+  records reading and real keyboard activation. The maintainer approved the
+  recorded wording on 2026-10-26; the committed expectations passed on both
+  readers in [run 40274993354](https://github.com/iray-tno/hozo/actions/runs/40274993354),
+  40/40 cases each. Audible pronunciation/prosody remains outside that approval.
 - [#1278](https://github.com/iray-tno/hozo/issues/1278): the Android long-block
   frame-budget measurement promised by the original proposal, now recorded
   with the tested line/token counts and separate initial-render, scroll and
@@ -114,9 +116,8 @@ They no longer block this RFC's initial implementation. #1278 may use an
 explicitly identified emulator; its results must not claim physical-device
 performance.
 
-The parent issue can close after #1276's human speech review and #1278's
-bounded Android performance measurement, including an honest report of cases
-that miss the frame budget. Direct Ins/Del IR, broader Markdown replacement
+The implementation and agreed completion evidence are complete, including the
+honest report of cases that miss the frame budget. Direct Ins/Del IR, broader Markdown replacement
 and virtualization remain separate design work.
 
 ## Native bundle cost

@@ -12,6 +12,10 @@ prefix wording and the size-only collapse feedback. Ten minimal expected-phrase
 files now cover both catalogue stories and all three scenarios for each reader.
 [#1276](https://github.com/iray-tno/hozo/issues/1276) tracks their automated
 confirmation; the approval came from the maintainer, not from this report.
+[Confirmation run 40274993354](https://github.com/iray-tno/hozo/actions/runs/40274993354)
+at `5aee810d` passed **40/40 on each reader** with these expected files. All
+three owned scenarios per reader record `approved: true`; each activation
+path retained all three Copy completions and Splitter retained all five values.
 
 The Copy-recording media was inspected separately: NVDA's MP4 has no audio
 stream; VoiceOver's MOV has an AAC stream but the sampled Copy recording is
