@@ -3207,6 +3207,11 @@ fn expand_utility_uncached(token: &str) -> (Condition, Vec<StyleProperty>) {
 /// prefix rides along and `Condition::All` nests the two width queries the
 /// way Tailwind does.
 pub fn expand_class(token: &str) -> Vec<(Condition, Vec<StyleProperty>)> {
+    // Parsing a value is not implementing !important. Preserve the original
+    // token for the common diagnostic; never turn it into a normal write.
+    if crate::important::normalized(token).is_some() {
+        return Vec::new();
+    }
     match expand_shorthand(token) {
         Some(tokens) => tokens.iter().map(|token| expand_utility(token)).collect(),
         None => vec![expand_utility(token)],

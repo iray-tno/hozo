@@ -168,6 +168,14 @@ byte-identical, so this is not yet a runtime ABI or winner switch. A remaining
 facts alone do not solve it. See
 [candidate generation evidence](../measurements/tailwind-candidate-priority.md).
 
+Important syntax is now recognized for an explicit cross-platform refusal,
+not silently omitted from scans or parsed as a malformed color. Static owners,
+Native fallback and audit name the unsupported behavior; scan cache version6
+invalidates the old missed names. No normal declaration is substituted for
+an important one. Full important-aware output remains part of the shared
+switch, not a coverage win from diagnosis. See
+[the safety correction and remaining work](../measurements/tailwind-important-diagnostics.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

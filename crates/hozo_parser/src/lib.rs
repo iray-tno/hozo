@@ -12,6 +12,7 @@ mod canvas;
 mod class_helpers;
 mod class_literals;
 mod dynamic_class;
+mod important;
 mod interaction_order;
 mod jsx;
 mod rest;
@@ -37,6 +38,7 @@ pub use canvas::{parse_canvas_paints, CanvasClassPaint};
 pub use class_helpers::{class_helper_candidates, summarize_class_helpers, ClassHelperCandidate};
 pub use class_literals::{runtime_class_lists, RuntimeClassList};
 pub use dynamic_class::ClassHelper;
+pub use important::IMPORTANT_NOT_LOWERED;
 pub use interaction_order::interaction_cascade_key;
 pub use jsx::is_primitive_name;
 pub use rn_imports::{
@@ -545,6 +547,11 @@ fn parse(
     for root in &collector.roots {
         aria_check::check(&root.node, &mut collector.diagnostics);
     }
+    important::diagnose(
+        &collector.roots,
+        &runtime_class_lists,
+        &mut collector.diagnostics,
+    );
 
     let mut non_class_spans: Vec<hozo_ir::SourceSpan> = ret
         .program

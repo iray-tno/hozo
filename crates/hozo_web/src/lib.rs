@@ -504,6 +504,11 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
         let Some(utility) = hozo_parser::resolve_class_name(name) else {
             continue;
         };
+        if utility.important {
+            // Emitting the normalized value without its importance would be
+            // a different utility. Static owners diagnose the original token.
+            continue;
+        }
         let selector = css::escape_class_selector(&utility.class_name);
         // The owner class adds nothing (`:where`), so this never reaches
         // ordinary HTML or a target's descendants. `:not(hozo-none)` -- an

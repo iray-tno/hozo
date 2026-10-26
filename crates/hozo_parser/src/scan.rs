@@ -33,6 +33,8 @@ pub struct ScannedUtility {
     /// The class exactly as written, e.g. `hover:bg-blue-500`. Emitted as
     /// the CSS selector so a runtime-produced string matches it.
     pub class_name: String,
+    /// Recognized syntax/value facts, NOT permission to emit a normal style.
+    pub important: bool,
     /// The condition/properties groups the class produces.
     ///
     /// A list rather than one pair because `container` is six of them --
@@ -102,7 +104,8 @@ pub fn resolve_class_name(class_name: &str) -> Option<ScannedUtility> {
     if tailwind::has_unstripped_variant(class_name) {
         return None;
     }
-    let groups: Vec<_> = tailwind::expand_class(class_name)
+    let normalized = crate::important::normalized(class_name);
+    let groups: Vec<_> = tailwind::expand_class(normalized.as_deref().unwrap_or(class_name))
         .into_iter()
         .filter(|(_, properties)| !properties.is_empty())
         .collect();
@@ -111,6 +114,7 @@ pub fn resolve_class_name(class_name: &str) -> Option<ScannedUtility> {
     }
     Some(ScannedUtility {
         class_name: class_name.to_string(),
+        important: normalized.is_some(),
         groups,
     })
 }

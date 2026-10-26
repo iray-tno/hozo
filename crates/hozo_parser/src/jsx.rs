@@ -1291,6 +1291,8 @@ fn build_node(
                             if unsupported.is_none()
                                 && properties.is_empty()
                                 && tailwind::is_arbitrary(token)
+                                && !crate::resolve_class_name(token)
+                                    .is_some_and(|utility| utility.important)
                             {
                                 diagnostics.push(Diagnostic {
                                     code: DiagnosticCode::UnreadableArbitraryValue,
