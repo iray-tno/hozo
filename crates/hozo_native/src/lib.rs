@@ -87,7 +87,7 @@ use conditions::{build_style_entries, unwired_variant, RuntimeHook};
 /// guarded correctly, and the same colour twice.
 pub(crate) type StyleEntry = (String, Vec<StyleProperty>, bool);
 pub use candidate::{
-    render_candidate_module, render_candidate_module_plan, CandidateModulePlan,
+    render_candidate_module, render_candidate_module_plan, CandidateModulePlan, CandidateOrdering,
     CandidatePriorityEntry, CandidatePriorityGroup,
 };
 use grid::{grid_absorbs, native_grid, native_grid_item};

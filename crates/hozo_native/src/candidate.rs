@@ -6,7 +6,9 @@
 use super::*;
 mod plan;
 use plan::CandidatePlanBuilder;
-pub use plan::{CandidateModulePlan, CandidatePriorityEntry, CandidatePriorityGroup};
+pub use plan::{
+    CandidateModulePlan, CandidateOrdering, CandidatePriorityEntry, CandidatePriorityGroup,
+};
 
 /// Build-time sidecar from the actual generation pass. No keys are embedded
 /// in device output until the static and fallback winners can switch together.
@@ -143,7 +145,7 @@ fn render_candidate_module_impl(
             continue;
         }
         if let Some(plan) = plan.as_deref_mut() {
-            plan.style(name, &properties);
+            plan.style(name, &properties, &pairs);
         }
         if let Some(metadata) = crate::transforms::metadata(&properties, theme) {
             transforms.push((name, metadata));

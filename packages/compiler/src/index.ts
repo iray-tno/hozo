@@ -622,6 +622,11 @@ export interface NativeCandidatePlan {
   code: string
   schema: 1
   fingerprint: string
+  /** @internal Only for the assessed physical-scalar conflict domain.
+   * Missing entries are barriers; no ordering payload for conflict-free maps.
+   * The enclosing fingerprint owns every ordinal; not yet installed by adapters.
+   */
+  ordering?: { schema: 1; ranks: Record<string, number[]> }
   entries: {
     candidate: string
     candidateId: number
@@ -631,6 +636,8 @@ export interface NativeCandidatePlan {
       /** Index of the generated state object, or zero for styles[candidate]. */
       index: number
       stateKeys: string[]
+      nativeKeys: string[]
+      orderable: boolean
       /** Original IR write indices before Native expansion/deduplication. */
       writes: TailwindCompilePlan['sites'][number]['blocks'][number]['writes']
       /** Only uniform assessed writes receive a whole-object fact. */

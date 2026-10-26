@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { createCompiler, openCandidateCache, prepareTailwindContext } from '@hozo/compiler'
+import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 const base = tailwindPackageDir()
@@ -207,4 +208,115 @@ test('upstream important rules stay recognized facts but never acquire a drawabl
         entry.groups.length === 0,
     ),
   )
+})
+
+test('the compact Rust contract drives a rank-free cached template over the actual generated scalar maps', async () => {
+  const names = [
+    'p-2',
+    'p-4',
+    'bg-[#110000]',
+    'focus:bg-[#220000]',
+    'active:bg-[#330000]',
+    'hover:focus:bg-[#440000]',
+    'gap-2',
+  ]
+  const cache = cacheFor(names)
+  const prepared = await prepareTailwindOrder(css, base, cache.candidates())
+  const plan = cache.renderNativeModulePlan(
+    prepareTailwindContext(JSON.stringify(prepared.snapshot)),
+  )
+  assert.ok(plan.ordering)
+  assert.equal(plan.ordering.schema, 1)
+  assert.equal(plan.ordering.ranks['gap-2'], undefined)
+  const code = `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`
+  const generated = runInNewContext(code, {
+    createClassResolver: (styles, unsupported, compose, states, ambient) => ({
+      styles,
+      unsupported,
+      compose,
+      states,
+      ambient,
+    }),
+  })
+  const legacy = createClassResolver(
+    generated.styles,
+    generated.unsupported,
+    generated.compose,
+    generated.states,
+    generated.ambient,
+  )
+  // Exercise the future factory call with real Rust metadata and the exact
+  // emitted objects. The production generator/adapters are NOT switched yet.
+  const resolve = createClassResolver({ schema: 1, ...generated, ordering: plan.ordering! })
+  const flatten = (styles: object[]) => Object.assign({}, ...styles)
+  for (const list of [
+    'active:bg-[#330000] p-4 focus:bg-[#220000] bg-[#110000] p-2 hover:focus:bg-[#440000]',
+    'hover:focus:bg-[#440000] p-2 bg-[#110000] focus:bg-[#220000] p-4 active:bg-[#330000]',
+  ]) {
+    for (let bits = 0; bits < 8; bits++) {
+      const state = { focused: !!(bits & 1), pressed: !!(bits & 2), hovered: !!(bits & 4) }
+      const style = flatten(resolve(list, state))
+      assert.equal(style.paddingTop, 16)
+      assert.equal(
+        style.backgroundColor,
+        state.focused && state.hovered
+          ? '#440000'
+          : state.pressed
+            ? '#330000'
+            : state.focused
+              ? '#220000'
+              : '#110000',
+      )
+      assert.deepEqual(
+        resolve(`${list} gap-2`, state),
+        legacy(`${list} gap-2`, state),
+        'unranked Native shorthand freezes this string, not just the unknown group',
+      )
+    }
+  }
+  assert.notDeepEqual(
+    flatten(resolve('p-4 p-2')),
+    flatten(legacy('p-4 p-2')),
+    'control must expose the old string-order winner',
+  )
+})
+
+test('conflict-free maps carry no order payload and compact conflicting maps omit descriptor provenance', async (t) => {
+  for (const names of [
+    [],
+    ['p-2'],
+    ['p-2', 'bg-red-500'],
+    Array.from({ length: 256 }, (_, index) => `p-${index + 1}`),
+  ]) {
+    const cache = cacheFor(names)
+    const prepared = await prepareTailwindOrder(css, base, cache.candidates())
+    const plan = cache.renderNativeModulePlan(
+      prepareTailwindContext(JSON.stringify(prepared.snapshot)),
+    )
+    assert.equal(plan.code, cache.renderNativeModule())
+    if (names.length < 3) assert.equal(plan.ordering, undefined)
+    else {
+      const compact = JSON.stringify(plan.ordering)
+      assert.equal(
+        compact,
+        JSON.stringify(
+          cache.renderNativeModulePlan(prepareTailwindContext(JSON.stringify(prepared.snapshot)))
+            .ordering,
+        ),
+        'compact publication is deterministic, not hash-map insertion order',
+      )
+      assert.equal(Object.keys(plan.ordering!.ranks).length, 256)
+      assert.doesNotMatch(
+        compact,
+        /fingerprint|candidateId|ruleId|cssProperty|specificity|nativeKeys/,
+      )
+      t.diagnostic(
+        JSON.stringify({
+          candidates: 256,
+          compactJsonBytes: Buffer.byteLength(compact),
+          descriptorJsonBytes: Buffer.byteLength(JSON.stringify(plan.entries)),
+        }),
+      )
+    }
+  }
 })

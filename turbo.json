@@ -52,6 +52,7 @@
     "@hozo/tailwind#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind_variants.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/tailwind_portable.rs"

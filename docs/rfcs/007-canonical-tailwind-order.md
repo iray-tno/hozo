@@ -176,6 +176,16 @@ an important one. Full important-aware output remains part of the shared
 switch, not a coverage win from diagnosis. See
 [the safety correction and remaining work](../measurements/tailwind-important-diagnostics.md).
 
+The generated candidate sidecar now supplies a compact physical-scalar order
+contract when actual emitted keys conflict. The engine can consume that
+versioned object ABI, sort once at cache fill and cache a rank-free template;
+state updates only select entries. Unknown objects keep the entire string on
+its legacy path. Actual generated maps agree with upstream browser winners
+in an explicit new-ABI probe, including a negative old-winner control. No
+adapter/default output switch is made yet. Cold allocation/sort costs are
+measured and remain part of adoption review; see
+[template correctness, payload and cost](../measurements/tailwind-resolver-template.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

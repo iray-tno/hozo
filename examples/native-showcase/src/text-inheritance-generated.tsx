@@ -51,13 +51,13 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        'ae6ae9a7fe726f6989da892e0ee2691d823a3f43aaff56284b667381170e105f',
+        'a289750e8665d596cbd7e308b3d1438660f5e67232f294a9469fd06d078149d7',
       'packages/metro/src/transform.ts':
         '0a9af13765cc92deb0d85a0344fa4cbdf8753841de5ed3ddfac0199d4ea81332',
       'crates/hozo_napi/src/lib.rs':
         'e6e474360b2d7647f85c5e8c70250b39e81a1750c4269173d7ed984dd7006343',
       'crates/hozo_napi/src/tailwind_order.rs':
-        '139a575475d26a1a468a73e929c153c5eb867e5688f14fcc2b2e4ade8a6f057f',
+        'cc7f80ff7d3ae2770da64d9484b7e37fd7ea812877231da91334c01eb358746c',
       'crates/hozo_napi/src/prepared_module.rs':
         '2b370f9049c58c1f25e5089a771981095bb90fc8725e8d02538b90828f13a428',
       'crates/hozo_parser/src/lib.rs':
@@ -81,7 +81,7 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        '5567c1e15594be901e97fe8ac2cfe4d388d4fef921c114a3f60ca2aaa0f1386c',
+        '51337a39bb86e30e18f423ac4fd336f3ffac17a7aa672776ba72d3d0f4ac1916',
       'crates/hozo_native/src/runtime_classes.rs':
         'd47e472c5042734c1b386ea4e712fe0dffba832a88a6882e75e2759c16d62bae',
       'crates/hozo_native/src/conditions.rs':
