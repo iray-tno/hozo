@@ -62,9 +62,9 @@ on:
         type: string
         default: '1'
       android-scenario:
-        description: 'Full showcase or isolated SVG, audio output/settings, text inheritance, or the docs previews'
+        description: 'Full showcase or isolated SVG, audio, text, docs previews, or CodeBlock timing'
         type: choice
-        options: [full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs]
+        options: [full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs, code-block-performance]
         default: full
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'
@@ -196,6 +196,13 @@ jobs:
         with:
           name: hozo-native-showcase-android-audio-evidence
           path: artifacts/native-showcase-audio
+          if-no-files-found: ignore
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hozo-native-showcase-android-code-block-evidence
+          path: artifacts/native-showcase-code-block
           if-no-files-found: ignore
           retention-days: 30
       - uses: actions/upload-artifact@v4

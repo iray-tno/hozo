@@ -92,17 +92,23 @@ device/reader checks and broader Markdown adoption remain follow-ups.
   and Copy completion. `examples/screen-readers/code-and-splitter.spec.ts`
   records reading and real keyboard activation; captures without human-approved
   phrases are explicitly unapproved.
-- [#1277](https://github.com/iray-tno/hozo/issues/1277): Android/iOS reading
-  granularity, hidden gutters, provider-backed Copy and layout on real devices.
 - [#1278](https://github.com/iray-tno/hozo/issues/1278): the Android long-block
   frame budget promised by the original proposal, with a measured line/token
   envelope and separate initial-render, scroll and update results.
 
-The parent issue remains open until these measurements are reviewed, or a
-maintainer explicitly agrees to a different completion boundary. Creating the
-follow-up issues does not supply the missing evidence. Direct Ins/Del IR,
-broader Markdown replacement and virtualization remain separate design work;
-none is necessary to measure the existing implementation.
+On 2026-10-26 the maintainer deferred physical-device validation in line with
+the rest of the repository. Android/iOS reading granularity, hidden gutters,
+provider-backed Copy and layout remain unverified in
+[#1277](https://github.com/iray-tno/hozo/issues/1277) and the public
+[known limitations](../../apps/landing/src/content/docs/docs/status.md).
+They no longer block this RFC's initial implementation. #1278 may use an
+explicitly identified emulator; its results must not claim physical-device
+performance.
+
+The parent issue can close after #1276's human speech review and #1278's
+bounded Android performance measurement, including an honest report of cases
+that miss the frame budget. Direct Ins/Del IR, broader Markdown replacement
+and virtualization remain separate design work.
 
 ## Native bundle cost
 

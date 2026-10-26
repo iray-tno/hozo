@@ -77,7 +77,9 @@ compatibility report; an inventory entry does not claim device validation.
 Native mock-host tests; package tests exercise coalescing, cancellation and
 server markup. These are not device pixels, timing or screen-reader speech
 measurements. The `patterns-resizablepane--default` story is discovered by
-the existing real-reader suite; its speech baselines need a reader run.
+the real-reader suite. [The captured speech review](../measurements/code-block-splitter-readers.md)
+links the successful NVDA/VoiceOver run and separates transcript inspection
+from human approval.
 
 ## Remaining completion evidence
 
@@ -86,11 +88,15 @@ the existing real-reader suite; its speech baselines need a reader run.
   collapse and restoration. `examples/screen-readers/code-and-splitter.spec.ts`
   records the keys, corresponding DOM facts and speech; captures without
   human-approved phrases are explicitly unapproved.
-- [#1277](https://github.com/iray-tno/hozo/issues/1277): Android/iOS layout,
-  responder delivery and TalkBack/VoiceOver actions on real devices. Mock-host
-  tests do not satisfy this check.
 
-The parent issue remains open until these measurements are reviewed, or a
-maintainer explicitly agrees to a different completion boundary. Creating the
-follow-up issues does not supply the missing evidence. Native hardware
-keyboards, double-click reset and pane groups remain outside the first slice.
+On 2026-10-26 the maintainer deferred physical-device validation in line with
+the rest of the repository. Android/iOS layout, responder delivery and
+TalkBack/VoiceOver actions remain unverified in
+[#1277](https://github.com/iray-tno/hozo/issues/1277) and the public
+[known limitations](../../apps/landing/src/content/docs/docs/status.md).
+They no longer block this RFC's initial implementation; no device pass is
+inferred from mock-host tests or Web recordings.
+
+The parent issue can close after the Web speech review in #1276. Native
+hardware keyboards, double-click reset and pane groups remain outside the
+first slice; Envarly adoption remains post-release application work.

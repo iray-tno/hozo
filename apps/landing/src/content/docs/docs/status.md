@@ -15,6 +15,13 @@ description: "The honest list: what is partial, manual or untested."
   automated: NVDA and VoiceOver on the Web patterns and TalkBack on the
   demo app's controls, weekly. iOS VoiceOver, and anything those runs do
   not reach, is still read by hand.
+  CodeBlock and Splitter share this limitation: Native layout, touch/responder
+  delivery, CodeBlock's application-provided clipboard, and TalkBack/iOS
+  VoiceOver interactions have not been checked on physical devices
+  ([#1277](https://github.com/iray-tno/hozo/issues/1277)). The maintainer deferred
+  that validation on 2026-10-26; it does not block completion of RFCs 008/009.
+  Their Web NVDA/VoiceOver recordings and Android emulator performance
+  measurements are separate evidence, not physical-device certification.
 - **The Grid subset is partial**, and the Tailwind surface is wide but not
   complete — `@hozo/tailwind-conformance` reports exactly which utilities
   match the real engine. Its current numbers are committed at

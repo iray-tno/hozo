@@ -26,6 +26,10 @@ test('normal Android evidence runs SVG, full, then the docs previews; explicit i
     ['audio-settings', [['audio-settings', 'artifacts/native-showcase-audio-settings']]],
     ['text-inheritance', [['text-inheritance', 'artifacts/native-showcase-text']]],
     ['ui-docs', [['ui-docs', 'artifacts/native-showcase-ui-docs']]],
+    [
+      'code-block-performance',
+      [['code-block-performance', 'artifacts/native-showcase-code-block']],
+    ],
   ]) {
     const calls = []
     runAndroidScenarios(scenario, (...args) => calls.push(args))
@@ -41,6 +45,7 @@ test('a failed driver aborts without retrying or running the next scenario; unkn
     'audio-settings',
     'text-inheritance',
     'ui-docs',
+    'code-block-performance',
   ]) {
     const calls = []
     const failure = new Error('driver failed')

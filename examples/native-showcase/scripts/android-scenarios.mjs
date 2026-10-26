@@ -5,15 +5,28 @@ import { readAndroidScenario } from './svg-filter-evidence.mjs'
 
 const driver = fileURLToPath(new URL('./android-smoke.mjs', import.meta.url))
 const execute = (scenario, output) =>
-  execFileSync(process.execPath, [driver, output], {
-    stdio: 'inherit',
-    env: { ...process.env, HOZO_ANDROID_SCENARIO: scenario },
-  })
+  execFileSync(
+    process.execPath,
+    [
+      scenario === 'code-block-performance'
+        ? fileURLToPath(new URL('./code-block-performance.mjs', import.meta.url))
+        : driver,
+      output,
+    ],
+    {
+      stdio: 'inherit',
+      env: { ...process.env, HOZO_ANDROID_SCENARIO: scenario },
+    },
+  )
 
 // The emulator action splits its script on newlines and runs each line in a
 // fresh shell. Keep branching here so one failed driver aborts the sequence.
 export function runAndroidScenarios(value, run = execute) {
   const scenario = readAndroidScenario(value)
+  if (scenario === 'code-block-performance') {
+    run(scenario, 'artifacts/native-showcase-code-block')
+    return
+  }
   if (scenario === 'text-inheritance') {
     run(scenario, 'artifacts/native-showcase-text')
     return
