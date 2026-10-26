@@ -33,6 +33,17 @@ export const UI_STATE_SCENES = [
 ]
 export const uiStateStoryId = (scene) => `ui-shared-state-checks--${scene.toLowerCase()}`
 
+// The `UI/Open overlays` stories (`src/UiOverlays.stories.tsx`): a dialog,
+// a tooltip and a popover held open, whose bodies the docs demos and state
+// screens never show. Each waits for its body, a string the pattern has to
+// put in a Text itself (#1306).
+export const UI_OVERLAY_SCENES = [
+  { name: 'Dialog', ready: 'Dialog body, passed as a string' },
+  { name: 'Tooltip', ready: 'Tooltip content, passed as a string' },
+  { name: 'Popover', ready: 'Popover body, passed as a string' },
+]
+export const uiOverlayStoryId = (name) => `ui-open-overlays--${name.toLowerCase()}`
+
 /** What Storybook's own boundary shows when a story throws past ours. */
 export const STORYBOOK_FAILURE = 'Something went wrong rendering your story'
 
@@ -59,6 +70,7 @@ export async function exerciseUiDocs(
     platform = 'android',
     logFile = 'logcat.txt',
     states = [],
+    overlays = [],
   } = {},
 ) {
   const manifest = {
@@ -67,6 +79,7 @@ export async function exerciseUiDocs(
     takenAt: now().toISOString(),
     pages: {},
     states: {},
+    overlays: {},
   }
   const visit = async (page) => {
     const ready = `UI docs ${page}`
@@ -109,6 +122,27 @@ export async function exerciseUiDocs(
     }
   }
   for (const scene of states) await visitState(scene)
+  // The open overlays, last and under their own key. Images are
+  // `overlay-<name>.png`.
+  const visitOverlay = async ({ name, ready }) => {
+    const image = `overlay-${name.toLowerCase()}`
+    try {
+      device.open(uiOverlayStoryId(name))
+      const seen = await device.waitForEither([STORYBOOK_FAILURE, ready], timeout)
+      await device.settle()
+      device.capture(image)
+      manifest.overlays[name] = { status: seen === ready ? 'ok' : 'failed', image: `${image}.png` }
+    } catch (error) {
+      manifest.overlays[name] = { status: 'unreached', reason: String(error?.message ?? error) }
+      try {
+        device.capture(image)
+        manifest.overlays[name].image = `${image}.png`
+      } catch {
+        /* Nothing to show; the reason stands. */
+      }
+    }
+  }
+  for (const overlay of overlays) await visitOverlay(overlay)
   writeFileSync(resolve(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   // What each failure threw, which the screenshot shows only in part.
   try {
