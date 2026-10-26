@@ -62,6 +62,31 @@ The browser regression in
 checks real Tailwind output, both import orders, multiple viewport widths, and
 compiled dynamic styles against the actual Native resolver's style-array result.
 
+## Replaying candidate source facts
+
+Build integrations can keep `CandidateCache.exportFile(id)` beside a cached
+transform's exact input revision. The opaque record carries the native scan
+version, trusted-source policy, runtime class names and `usesTailwind` fact.
+It contains no theme, resolved styles, IR handle or mtime. `importFile` validates
+the contract before changing a cache and does not scan the source again.
+The persistent cache now validates the trusted-source policy too: changing
+`sources` invalidates old mtime hits. Internal snapshot format 5 discards older
+cache files once; reopening under the same policy still reuses unchanged facts.
+
+`reconcileRuntimeCandidateContributions` from `@hozo/compiler/project` assembles
+records for an adapter-supplied authoritative input set. Include configured
+authored content as well as active derived modules, keeping full environment/
+query IDs and validated revisions. Duplicate equal observations are harmless;
+missing, stale, conflicting or incompatible observations return `incomplete`
+**without a partial publisher cache**. Inputs absent from that set contribute
+nothing. The function uses a new in-memory cache, never a shared disk writer.
+
+Here `complete` means complete **runtime source facts for the declared set**.
+Static/actual compiler units must still join the final ordering universe.
+This API does not discover the build graph, authenticate revision tokens,
+synchronize worker processes or enable new cascade winners. Adapter graph and
+cached-transform lifecycle integration remains separate.
+
 ## Read-only module analysis
 
 `@hozo/compiler/analysis` exposes `analyzeModule(source, { compiler, file, root, targets })`.

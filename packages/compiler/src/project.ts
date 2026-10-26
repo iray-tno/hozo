@@ -19,6 +19,12 @@ import { StylexModuleCache, type StylexResolutionRequest } from './stylex-projec
 import { gitIgnoredSync, walkFiles } from './walk.ts'
 
 export {
+  type CandidateContribution,
+  type ExpectedCandidateSource,
+  type RuntimeCandidateReconciliation,
+  reconcileRuntimeCandidateContributions,
+} from './candidate-reconciliation.ts'
+export {
   type CachedStylexModule,
   StylexModuleCache,
   type StylexResolutionRequest,

@@ -1,7 +1,19 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { openCandidateCache } from './index.ts'
 import { loadNativeBinding, nativePackageName } from './native-loader.ts'
+
+test('the host addon exposes compatible candidate replay on every platform smoke path', () => {
+  const cache = openCandidateCache()
+  cache.scanFile('entry', `export const tone=()=> 'p-4 bg-red-500'`, 1)
+  const record = cache.exportFile('entry')!
+  const restored = openCandidateCache()
+  restored.importFile('entry', record, 2)
+  assert.equal(restored.renderCss(), cache.renderCss())
+  assert.equal(restored.renderNativeModule(), cache.renderNativeModule())
+  assert.equal(restored.isCurrent('entry', 2), true)
+})
 
 test('maps supported Node platforms to optional native packages', () => {
   assert.equal(nativePackageName('win32', 'x64'), '@hozo/compiler-win32-x64-msvc')

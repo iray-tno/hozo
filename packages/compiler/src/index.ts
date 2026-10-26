@@ -310,6 +310,10 @@ export interface CandidateCache {
   /// Records a scan of `source`. Returns whether the candidate set changed,
   /// so an unchanged one doesn't cause a stylesheet rewrite.
   scanFile(path: string, source: string, modifiedMs: number): boolean
+  /** Opaque native scan facts; source/transform revision validation is the adapter's job. */
+  exportFile(path: string): string | null
+  /** Replay matching schema/source-policy facts without reading/parsing source. */
+  importFile(path: string, record: string, modifiedMs: number): boolean
   forget(path: string): boolean
   /// Drops cached contributions from files absent from a complete walk.
   retainFiles(paths: string[]): number

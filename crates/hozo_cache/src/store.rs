@@ -20,7 +20,9 @@ use serde::{Deserialize, Serialize};
 /// snapshot from 2 is missing classes passed to same-named components.
 /// 4: quoted source arrays no longer hide their literal candidates. An
 /// unchanged file must be rescanned rather than retaining a version-3 miss.
-pub const SNAPSHOT_VERSION: u32 = 4;
+/// 5: source-policy identity is part of the scan receipt; unchanged mtimes
+/// cannot validate facts collected under a different trusted-source list.
+pub const SNAPSHOT_VERSION: u32 = 5;
 
 /// What one source file contributed.
 ///
@@ -51,6 +53,9 @@ pub struct FileEntry {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct Snapshot {
     pub version: u32,
+    /// Opaque caller-owned scan policy, not theme/resolved style data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_policy: Option<String>,
     /// Keyed by source path. `BTreeMap` rather than `HashMap` so iteration
     /// order is stable -- generated CSS is written in this order, and it
     /// shouldn't churn between builds.
@@ -61,6 +66,7 @@ impl Snapshot {
     pub fn current() -> Self {
         Snapshot {
             version: SNAPSHOT_VERSION,
+            source_policy: None,
             files: BTreeMap::new(),
         }
     }
