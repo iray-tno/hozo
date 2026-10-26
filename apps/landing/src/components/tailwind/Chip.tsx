@@ -1,4 +1,4 @@
-import { Button, Text, View } from '@hozo/core'
+import { Pressable, Text, View } from '@hozo/core'
 
 export function Chip({
   label,
@@ -13,7 +13,7 @@ export function Chip({
 }) {
   return (
     <View className={className}>
-      <Button
+      <Pressable
         onPress={onPress}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: selected }}
@@ -24,7 +24,7 @@ export function Chip({
         }
       >
         <Text className="text-sm font-semibold text-stone-100 md:text-base">{label}</Text>
-      </Button>
+      </Pressable>
     </View>
   )
 }
