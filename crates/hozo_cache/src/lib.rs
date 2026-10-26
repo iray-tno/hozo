@@ -64,6 +64,26 @@ impl CandidateCache {
             .is_some_and(|e| e.modified_ms == modified_ms)
     }
 
+    /// Borrow one scan's source facts without re-reading or re-parsing it.
+    /// Adapters can retain these alongside a bundler's cached transform;
+    /// the adapter, not an mtime, must validate that transform's identity.
+    pub fn file_entry(&self, path: &str) -> Option<&FileEntry> {
+        self.snapshot.files.get(path)
+    }
+
+    /// Establish scan meaning before accepting any persisted file facts.
+    /// Native's trusted primitive sources change which classes a scan subtracts;
+    /// an equal mtime alone is therefore insufficient after config changes.
+    pub fn set_source_policy(&mut self, policy: String) {
+        if self.snapshot.source_policy.as_deref() == Some(&policy) {
+            return;
+        }
+        self.snapshot.files.clear();
+        self.references.clear();
+        self.snapshot.source_policy = Some(policy);
+        self.dirty = true;
+    }
+
     /// Records what a scan of `path` found, replacing any earlier entry.
     ///
     /// Returns whether the file's *candidates* changed -- not whether
@@ -390,5 +410,38 @@ mod tests {
         let mut cache = in_memory();
         cache.record("a.tsx", 1, vec![], true);
         assert!(cache.record("a.tsx", 2, vec![], false));
+    }
+
+    #[test]
+    fn file_facts_preserve_static_tailwind_and_do_not_invent_missing_scans() {
+        let mut cache = in_memory();
+        assert!(cache.file_entry("missing.tsx").is_none());
+        cache.record("static.tsx", 1, vec![], true);
+        let entry = cache.file_entry("static.tsx").unwrap();
+        assert!(entry.class_names.is_empty());
+        assert!(entry.uses_tailwind);
+        assert_eq!(entry.modified_ms, 1);
+        cache.record("static.tsx", 2, vec!["bg-red-500".into()], true);
+        assert_eq!(
+            cache.file_entry("static.tsx").unwrap().class_names,
+            ["bg-red-500"]
+        );
+        cache.forget("static.tsx");
+        assert!(cache.file_entry("static.tsx").is_none());
+    }
+
+    #[test]
+    fn unchanged_policy_preserves_facts_but_replacement_clears_every_derived_answer() {
+        let mut cache = in_memory();
+        cache.set_source_policy("one".into());
+        cache.record("a", 1, vec!["p-4".into()], true);
+        cache.set_source_policy("one".into());
+        assert!(cache.is_current("a", 1));
+        assert_eq!(cache.union(), ["p-4"]);
+        cache.set_source_policy("two".into());
+        assert!(!cache.is_current("a", 1));
+        assert!(cache.file_entry("a").is_none());
+        assert!(cache.union().is_empty());
+        assert!(!cache.uses_tailwind());
     }
 }

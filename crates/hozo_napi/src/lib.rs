@@ -915,10 +915,9 @@ impl CandidateCache {
             Some(path) => Box::new(hozo_cache::JsonFileStore::new(path)),
             None => Box::new(hozo_cache::MemoryStore::new()),
         };
-        CandidateCache {
-            inner: hozo_cache::CandidateCache::open(store),
-            sources,
-        }
+        let mut inner = hozo_cache::CandidateCache::open(store);
+        inner.set_source_policy(serde_json::json!(&sources).to_string());
+        CandidateCache { inner, sources }
     }
 
     /// Whether `path` was already scanned at this exact `modifiedMs`, i.e.
@@ -940,6 +939,64 @@ impl CandidateCache {
         let uses_tailwind = hozo_parser::source_uses_tailwind(&source);
         self.inner
             .record(&path, modified_ms as u64, class_names, uses_tailwind)
+    }
+
+    /// An opaque, versioned contribution for a bundler to keep with its
+    /// transform metadata. Mtime is deliberately excluded: source revision
+    /// validation belongs to the adapter, and a timestamp-only save must not
+    /// turn equal worker observations into a conflict.
+    #[napi]
+    pub fn export_file(&self, path: String) -> Option<String> {
+        self.inner.file_entry(&path).map(|entry| {
+            serde_json::json!({
+                "schema": 1,
+                "scanVersion": hozo_cache::SNAPSHOT_VERSION,
+                "sources": self.sources,
+                "entry": {
+                    "classNames": entry.class_names,
+                    "usesTailwind": entry.uses_tailwind,
+                },
+            })
+            .to_string()
+        })
+    }
+
+    /// Restore only facts produced by the same scan contract. Validate all
+    /// fields before changing the cache; this neither scans source nor claims
+    /// the caller has validated the associated bundler/source revision.
+    #[napi]
+    pub fn import_file(
+        &mut self,
+        path: String,
+        record: String,
+        modified_ms: f64,
+    ) -> napi::Result<bool> {
+        let invalid = || napi::Error::from_reason("Invalid cached candidate contribution");
+        let value: serde_json::Value = serde_json::from_str(&record).map_err(|_| invalid())?;
+        if value.as_object().map(|fields| fields.len()) != Some(4)
+            || value.get("sources").is_none()
+            || value["schema"].as_u64() != Some(1)
+            || value["scanVersion"].as_u64() != Some(hozo_cache::SNAPSHOT_VERSION as u64)
+        {
+            return Err(invalid());
+        }
+        if value["sources"] != serde_json::json!(self.sources) {
+            return Err(napi::Error::from_reason(
+                "Cached candidate contribution has incompatible source policy",
+            ));
+        }
+        let entry = &value["entry"];
+        if entry.as_object().map(|fields| fields.len()) != Some(2) {
+            return Err(invalid());
+        }
+        let mut names: Vec<String> =
+            serde_json::from_value(entry["classNames"].clone()).map_err(|_| invalid())?;
+        let uses_tailwind = entry["usesTailwind"].as_bool().ok_or_else(invalid)?;
+        names.sort();
+        names.dedup();
+        Ok(self
+            .inner
+            .record(&path, modified_ms as u64, names, uses_tailwind))
     }
 
     /// Drops a deleted file's contribution. Returns whether it was tracked.
