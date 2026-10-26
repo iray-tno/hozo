@@ -1,6 +1,7 @@
 // Build-only source facts. This inventory is not a stylesheet, a rule-order
 // namespace, or permission to publish a partial candidate union.
 import { createHash, randomUUID } from 'node:crypto'
+import { type CandidateCache, openCandidateCache } from '@hozo/compiler'
 import {
   type CandidateContribution,
   type ExpectedCandidateSource,
@@ -57,6 +58,7 @@ export class ViteCandidateInventory {
   private readonly producer = randomUUID()
   private readonly fresh = new Map<string, ModuleReceipt>()
   private readonly authored: CandidateContribution[] = []
+  private derived: CandidateCache | undefined
   private readonly environment: string
   private readonly sources?: readonly string[]
 
@@ -80,6 +82,21 @@ export class ViteCandidateInventory {
     }
     this.fresh.set(id, { ...row })
     return { [candidateMetaKey]: row }
+  }
+
+  transformDerivedMeta(id: string, input: string) {
+    // Query modules are not the physical authored file. Use the same native
+    // scanner/policy, but never overwrite or persist that file's cache entry.
+    // Only the opaque receipt survives; the scratch scan has no project-sized
+    // lifetime candidate union and is shared only across synchronous calls.
+    const cache = (this.derived ??= openCandidateCache(undefined, this.sources))
+    try {
+      cache.scanFile(id, input, 0)
+      const record = cache.exportFile(id)
+      return record === null ? undefined : this.transformMeta(id, input, record)
+    } finally {
+      cache.forget(id)
+    }
   }
 
   moduleParsed(module: CandidateGraphModule) {

@@ -130,6 +130,9 @@ files; absent derived modules do not survive merely because a physical cache
 entry exists. An internal inventory records complete/incomplete source facts,
 never final ordering readiness, and does not change candidate CSS or winners.
 Query modules without their own observation remain explicitly incomplete.
+Eligible query inputs now acquire independent native scan receipts, without
+overwriting their physical authored cache entry; see
+[query-source evidence](../measurements/vite-derived-candidate-facts.md).
 Real small Vite builds exercise these hooks; JSON receipt replay is covered,
 but real cached-transform reuse is not yet proven. See
 [Vite graph inventory evidence](../measurements/vite-candidate-inventory.md).

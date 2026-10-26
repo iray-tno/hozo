@@ -31,8 +31,10 @@ This is recorded in `authoredValidation`, not described as a cryptographic cache
 
 Only observations whose full IDs remain in the final graph contribute derived
 facts. An absent MDX module cannot survive through an old physical cache entry.
-A query module not currently scanned by the adapter has no receipt and records
-incomplete status; the physical file's facts are not copied to it. Virtual or
+A query module without an observation has no receipt and records incomplete
+status; the physical file's facts are not copied to it. The initial layer left
+query inputs unobserved; the subsequent [query-fact layer](vite-derived-candidate-facts.md)
+collects them independently from the actual transform input. Virtual or
 otherwise ineligible modules are outside the existing Hozo transform boundary,
 not newly supported by this inventory.
 
@@ -43,7 +45,7 @@ evidence with `collecting`; graph failure writes `failed`. A complete graph
 inventory is not a successful bundle/render certificate. No inventory is emitted
 as an application asset and no public option was added. Dev mode remains unchanged.
 
-## Measured
+## Measured (initial inventory layer)
 
 Local Windows, CPU affinity 1, Idle priority, serial test execution:
 
@@ -80,8 +82,9 @@ Multi-environment/SSR cache lifecycle, plugins producing new Hozo input after ou
 pass, and unsupported virtual modules require their own evidence.
 
 The reconciled union does not yet drive candidate CSS. Existing cache/CSS
-publication is not pruned or replaced by this file. Query-module observations,
-static/actual compiler units, one final ordering namespace, re-emission and
+publication is not pruned or replaced by this file. Query-module observations
+now have their own follow-up measurement above; static/actual compiler units,
+one final ordering namespace, re-emission and
 cross-worker publishing coordination remain before shared winners can turn on.
 Next and Metro do not acquire a final graph contract through this Vite change.
 

@@ -226,7 +226,9 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       }
       try {
         const isDerivedModule = id.includes('?')
-        let candidateMeta: Record<string, unknown> | undefined
+        let candidateMeta: Record<string, unknown> | undefined = isDerivedModule
+          ? inventory?.transformDerivedMeta(id, code)
+          : undefined
         let stylexGraphChanged = false
         // A transformed source is not in the project walk -- see
         // `TRANSFORMABLE` -- so it has to be admitted here or its classes

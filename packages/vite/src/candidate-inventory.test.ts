@@ -136,6 +136,70 @@ test('a producer cannot seal facts mutated by a downstream metadata writer', () 
   assert.equal(inventory.reconcile([], [module]).status, 'incomplete')
 })
 
+test('query observations use isolated native scans and retain no scratch entries or persistent writes', (t) => {
+  const inventory = new ViteCandidateInventory('client')
+  const prototype = Object.getPrototypeOf(openCandidateCache())
+  const scan = prototype.scanFile
+  const seen: { cache: ReturnType<typeof openCandidateCache>; id: string }[] = []
+  t.mock.method(prototype, 'scanFile', function (id, input, stamp) {
+    seen.push({ cache: this, id })
+    return scan.call(this, id, input, stamp)
+  })
+  t.mock.method(prototype, 'persist', () => {
+    throw new Error('derived observations must not persist')
+  })
+  const modules = [
+    { id: '/same.tsx?red', code: source('bg-red-500') },
+    { id: '/same.tsx?blue', code: source('bg-blue-500') },
+  ].map((entry) => {
+    const module = { ...entry, meta: inventory.transformDerivedMeta(entry.id, entry.code)! }
+    inventory.moduleParsed(module)
+    return module
+  })
+  assert.deepEqual(
+    seen.map(({ id }) => id),
+    modules.map(({ id }) => id),
+  )
+  assert.ok(seen.every(({ cache }) => cache.size === 0))
+  assert.equal(
+    seen[0]!.cache,
+    seen[1]!.cache,
+    'one reusable scratch scanner, not a native cache per query',
+  )
+  assert.deepEqual(inventory.reconcile([], modules).candidates, ['bg-blue-500', 'bg-red-500'])
+  assert.deepEqual(inventory.reconcile([], [modules[1]!]).candidates, ['bg-blue-500'])
+})
+
+test('query facts preserve trusted-source static subtraction and usesTailwind truth', () => {
+  const input = `import {View} from 'foreign-ui';export const App=()=> <View className="p-4"/>`
+  for (const [sources, expected] of [
+    [undefined, ['p-4']],
+    [['foreign-ui'], []],
+  ] as const) {
+    const inventory = new ViteCandidateInventory('client', sources)
+    const id = '/same.tsx?static'
+    const module = { id, code: input, meta: inventory.transformDerivedMeta(id, input)! }
+    inventory.moduleParsed(module)
+    const result = inventory.reconcile([], [module])
+    assert.equal(result.status, 'complete')
+    assert.deepEqual(result.candidates, expected)
+    assert.equal(result.usesTailwind, true)
+  }
+})
+
+test('an older query observation cannot be sealed after a replacement input was observed', () => {
+  const inventory = new ViteCandidateInventory('client')
+  const id = '/same.tsx?variant'
+  const oldInput = source('p-4')
+  const newInput = source('p-8')
+  const oldModule = { id, code: oldInput, meta: inventory.transformDerivedMeta(id, oldInput)! }
+  const newModule = { id, code: newInput, meta: inventory.transformDerivedMeta(id, newInput)! }
+  inventory.moduleParsed(oldModule)
+  assert.equal(inventory.reconcile([], [oldModule]).status, 'incomplete')
+  inventory.moduleParsed(newModule)
+  assert.deepEqual(inventory.reconcile([], [newModule]).candidates, ['p-8'])
+})
+
 function fixture(t) {
   const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'hozo-inventory-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))
@@ -197,16 +261,86 @@ test('real Vite build preserves final code receipts, MDX and unimported authored
   assert.equal(inventory.modules.length, 2)
 })
 
-test('real Vite build records an unobserved query module as incomplete, never the physical source facts', async (t) => {
+test('real Vite build collects query MDX from its transformed input, not physical Markdown', async (t) => {
   const { root, transformed } = fixture(t)
   writeFileSync(path.join(root, 'entry.tsx'), `${source('p-4')};import './post.mdx?variant'`)
   transformed.transform = (_code, id) =>
     id.includes('.mdx') ? `globalThis.fixtureTone = 'bg-blue-500'` : undefined
   await tinyBuild(root, transformed)
   const inventory = readInventory(root)
-  assert.equal(inventory.status, 'incomplete')
-  assert.equal('candidates' in inventory, false)
-  assert.ok(inventory.issues.some((issue) => issue.id.includes('post.mdx?variant')))
+  assert.equal(inventory.status, 'complete')
+  assert.deepEqual(inventory.candidates, ['bg-blue-500', 'p-4', 'text-green-500'])
+  assert.ok(inventory.modules.some((id) => id.includes('post.mdx?variant')))
+})
+
+test('real Vite query variants preserve the physical authored cache and stay distinct', async (t) => {
+  const { root, transformed } = fixture(t)
+  const shared = path.join(root, 'shared.tsx')
+  const authored = source('p-2')
+  writeFileSync(shared, authored)
+  writeFileSync(
+    path.join(root, 'entry.tsx'),
+    `
+    import {tone as red} from './shared.tsx?red';
+    import {tone as blue} from './shared.tsx?blue';
+    export const tones = [red, blue];
+  `,
+  )
+  await tinyBuild(root, transformed, [
+    {
+      name: 'produce-query-input',
+      load(id) {
+        if (id.includes('shared.tsx?'))
+          return source(id.endsWith('?red') ? 'bg-red-500' : 'bg-blue-500')
+      },
+    },
+  ])
+  const result = readInventory(root)
+  assert.equal(result.status, 'complete')
+  assert.deepEqual(result.candidates, ['bg-blue-500', 'bg-red-500', 'p-2', 'text-green-500'])
+  assert.equal(result.modules.filter((id) => id.includes('shared.tsx?')).length, 2)
+  const physical = openCandidateCache(path.join(root, 'node_modules/.hozo/candidates.json'))
+  assert.equal(physical.exportFile(shared), record(authored))
+  assert.equal(physical.candidates().includes('bg-red-500'), false)
+  assert.equal(physical.candidates().includes('bg-blue-500'), false)
+  assert.doesNotMatch(
+    readFileSync(path.join(root, 'node_modules/.hozo/candidates.css'), 'utf8'),
+    /\.bg-(red|blue)-500/,
+    'this fact-collection layer does not change the active stylesheet publisher',
+  )
+})
+
+test('a real query whose metadata was lost is still incomplete, not replaced with authored facts', async (t) => {
+  const { root, transformed } = fixture(t)
+  writeFileSync(path.join(root, 'entry.tsx'), `import './post.mdx?variant'`)
+  transformed.transform = (_code, id) => (id.includes('.mdx') ? source('bg-red-500') : undefined)
+  await tinyBuild(root, transformed, [
+    {
+      name: 'drop-query-receipt',
+      moduleParsed(module) {
+        if (module.id.includes('?variant')) delete module.meta[candidateMetaKey]
+      },
+    },
+  ])
+  const result = readInventory(root)
+  assert.equal(result.status, 'incomplete')
+  assert.equal('candidates' in result, false)
+  assert.ok(result.issues.some(({ id }) => id.includes('?variant')))
+})
+
+test('real derived facts follow changed transform input even when the physical source is unchanged', async (t) => {
+  const { root, transformed } = fixture(t)
+  writeFileSync(path.join(root, 'entry.tsx'), `import './post.mdx?variant'`)
+  let tone = 'bg-red-500'
+  transformed.transform = (_code, id) => (id.includes('.mdx') ? source(tone) : undefined)
+  await tinyBuild(root, transformed)
+  assert.ok(readInventory(root).candidates.includes('bg-red-500'))
+  tone = 'bg-blue-500'
+  await tinyBuild(root, transformed)
+  const result = readInventory(root)
+  assert.equal(result.status, 'complete')
+  assert.ok(result.candidates.includes('bg-blue-500'))
+  assert.equal(result.candidates.includes('bg-red-500'), false)
 })
 
 test('real lowered JSX is sealed after OXC without adding static classes to runtime candidates', async (t) => {
