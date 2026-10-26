@@ -342,6 +342,16 @@ candidates to their first rank nor decides CSS importance/specificity. Existing
 lowering still preserves its previous winners until static and dynamic paths
 can change together. See [the measured scope](../../docs/measurements/tailwind-rule-comparator.md).
 
+`rulePriorities()` adds assessed importance/specificity/emission keys under the
+same fingerprint. It returns a whole-table JS copy for project preparation,
+not a per-file/device API; actual captured compile plans query the native
+cache directly. Their writes expose `priorityRank` and `important` only when
+original-rule ownership and selector assessment are known. Missing ranks
+retain reasons, not zero. These matched-rule keys apply within a compatible
+utility input tier; they do not authorize reordering independent inputs or
+changing predicate/value/platform semantics. Declarations remain pass-through.
+See [the integration evidence](../../docs/measurements/tailwind-write-priority.md).
+
 <!-- generated: package-footer -->
 
 ---

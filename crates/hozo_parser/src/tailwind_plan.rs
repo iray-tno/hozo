@@ -36,6 +36,8 @@ pub struct TailwindPlanWrite {
     pub rule_id: Option<u32>,
     pub css_property: Option<String>,
     pub specificity: Option<[u32; 3]>,
+    pub priority_rank: Option<usize>,
+    pub important: Option<bool>,
     pub reason: Option<&'static str>,
 }
 
@@ -135,6 +137,8 @@ fn plan_site(
                             rule_id: None,
                             css_property: None,
                             specificity: None,
+                            priority_rank: None,
+                            important: None,
                             reason: None,
                         };
                         match ownership {
@@ -146,6 +150,16 @@ fn plan_site(
                                 write.rule_id = Some(rule_id);
                                 write.css_property = Some(css_property.into());
                                 write.specificity = Some(specificity);
+                                if let Some(candidate) = descriptor {
+                                    match bindings.context().rule_priority(candidate, rule_id) {
+                                        Some(Ok(priority)) => {
+                                            write.priority_rank = Some(priority.rank);
+                                            write.important = Some(priority.important);
+                                        }
+                                        Some(Err(reason)) => write.reason = Some(reason.reason()),
+                                        None => write.reason = Some("uncollected-rule-priority"),
+                                    }
+                                }
                             }
                             Some(TailwindWriteOwnership::Unknown(reason)) => {
                                 write.reason = Some(reason)

@@ -15,7 +15,7 @@ test('the host addon exposes compatible candidate replay on every platform smoke
   assert.equal(restored.isCurrent('entry', 2), true)
 })
 
-test('the host addon exposes the full-rule comparator on every platform smoke path', () => {
+test('the host addon exposes shared rule order and priorities on every platform smoke path', () => {
   const snapshot = {
     schema: 1,
     policy: 'tailwind-rule-signatures-v1',
@@ -52,6 +52,21 @@ test('the host addon exposes the full-rule comparator on every platform smoke pa
       { candidateId: 0, ruleId: 0 },
     ],
   })
+  const priorities = context.rulePriorities()
+  assert.equal(priorities.fingerprint, snapshot.fingerprint)
+  assert.deepEqual(
+    priorities.rules.map(({ ruleId, rank }) => [ruleId, rank]),
+    [
+      [1, 0],
+      [0, 1],
+    ],
+  )
+  assert.ok(
+    priorities.rules.every(
+      ({ important, specificity }) =>
+        important === false && JSON.stringify(specificity) === '[0,1,0]',
+    ),
+  )
 })
 
 test('maps supported Node platforms to optional native packages', () => {

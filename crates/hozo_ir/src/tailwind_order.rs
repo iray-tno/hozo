@@ -7,6 +7,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;
 
 mod comparison;
+mod priority;
+pub use priority::TailwindRulePriority;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
@@ -98,6 +100,7 @@ pub struct TailwindOrderContext {
     snapshot: TailwindOrderSnapshot,
     by_name: HashMap<String, usize>,
     rule_order: OnceLock<Vec<(usize, usize)>>,
+    rule_priorities: OnceLock<Vec<Result<TailwindRulePriority, crate::RuleAssessmentError>>>,
 }
 
 fn decimal(value: &str) -> bool {
@@ -164,6 +167,7 @@ impl TailwindOrderContext {
             snapshot,
             by_name,
             rule_order: OnceLock::new(),
+            rule_priorities: OnceLock::new(),
         })
     }
 
@@ -192,6 +196,31 @@ impl TailwindOrderContext {
                 let candidate = &self.snapshot.candidates[candidate];
                 (candidate, &candidate.rules[rule])
             })
+    }
+
+    /// Only a descriptor borrowed from this context can acquire its priority.
+    /// Even coincident IDs/fingerprints from another context do not authorize
+    /// cross-namespace reuse. Unsupported rule shapes remain explicit errors.
+    pub fn rule_priority(
+        &self,
+        candidate: &OrderCandidateDescriptor,
+        rule_id: u32,
+    ) -> Option<Result<TailwindRulePriority, crate::RuleAssessmentError>> {
+        let own = self.snapshot.candidates.get(candidate.id as usize)?;
+        if !std::ptr::eq(own, candidate) {
+            return None;
+        }
+        // Validation guarantees contiguous IDs in candidate/rule order.
+        // Membership is O(1), not a fresh scan of all sibling rules for each
+        // write/table entry (quadratic for heavily overloaded utilities).
+        let offset = rule_id.checked_sub(own.rules.first()?.id)? as usize;
+        if own.rules.get(offset)?.id != rule_id {
+            return None;
+        }
+        self.rule_priorities
+            .get_or_init(|| priority::prepare(self))
+            .get(rule_id as usize)
+            .copied()
     }
 
     /// Pass-through binding only. No sort, selector assessment, declaration

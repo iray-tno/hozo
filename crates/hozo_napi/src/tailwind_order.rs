@@ -41,6 +41,8 @@ pub struct TailwindCompileWrite {
     pub rule_id: Option<u32>,
     pub css_property: Option<String>,
     pub specificity: Option<Vec<u32>>,
+    pub priority_rank: Option<u32>,
+    pub important: Option<bool>,
     pub reason: Option<String>,
 }
 
@@ -87,6 +89,8 @@ pub fn compile_plan(
                                     rule_id: write.rule_id,
                                     css_property: write.css_property,
                                     specificity: write.specificity.map(|value| value.to_vec()),
+                                    priority_rank: write.priority_rank.map(|rank| rank as u32),
+                                    important: write.important,
                                     reason: write.reason.map(str::to_owned),
                                 })
                                 .collect(),

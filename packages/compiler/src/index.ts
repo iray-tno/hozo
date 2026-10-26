@@ -48,12 +48,15 @@ export interface TailwindCompilePlan {
       candidate?: string
       candidateId?: number
       ruleIds: number[]
-      /** Ownership/specificity evidence only, not value/condition equivalence or a new winner. */
+      /** Shared priority facts only, not value/condition equivalence or a new winner. */
       writes: {
         index: number
         ruleId?: number
         cssProperty?: string
         specificity?: number[]
+        /** Assessed priority in this plan's fingerprint, not an emission rank. */
+        priorityRank?: number
+        important?: boolean
         reason?: string
       }[]
     }[]
@@ -592,6 +595,22 @@ export interface TailwindRuleOrder {
   rules: { candidateId: number; ruleId: number }[]
 }
 
+/** @internal Assessed rule priorities within one Tailwind utility input tier.
+ * Missing ranks retain a reason, not zero. Application/input/condition/value
+ * compatibility and platform normalization remain the planner's responsibility.
+ */
+export interface TailwindRulePriorities {
+  fingerprint: string
+  rules: {
+    candidateId: number
+    ruleId: number
+    rank?: number
+    important?: boolean
+    specificity?: number[]
+    reason?: string
+  }[]
+}
+
 /** @internal Immutable validated build-time context, shared across a batch. */
 export interface PreparedTailwindContext {
   readonly [preparedContext]: true
@@ -599,6 +618,8 @@ export interface PreparedTailwindContext {
   requireCandidates(candidates: string[]): void
   /** Build-time only; lazily prepare one native index and return a JS copy. */
   ruleOrder(): TailwindRuleOrder
+  /** Whole-table JS copy for project preparation, not a per-file or runtime call. */
+  rulePriorities(): TailwindRulePriorities
 }
 
 /** @internal One-shot, process-local owned parse. dispose is idempotent. */

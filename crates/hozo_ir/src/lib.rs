@@ -25,7 +25,7 @@ mod tailwind_order;
 pub use tailwind_order::{
     OrderCandidateDescriptor, OrderCandidateStatus, OrderContextValue, OrderRuleDescriptor,
     OrderRuleShape, OrderStylesheet, TailwindOrderContext, TailwindOrderSnapshot,
-    TailwindRuleBinding, TailwindUnitBindings,
+    TailwindRuleBinding, TailwindRulePriority, TailwindUnitBindings,
 };
 mod tailwind_plan;
 pub use tailwind_plan::{TailwindWriteBlock, TailwindWritePlan};
