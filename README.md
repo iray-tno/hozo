@@ -10,12 +10,15 @@
 
 > Write React Native. Ship semantic HTML on the Web and native UI on iOS and Android.
 
-Hozo is a compiler written in Rust. You write components with React Native's
-vocabulary (`View`, `Text`, `Pressable`, and semantic primitives such as
-`Heading` and `Section`) and Tailwind classes. The build turns them into
-semantic HTML, CSS and ARIA on the Web, and into React Native components and
-`StyleSheet` values on iOS and Android. What the build can read is compiled;
-only what it cannot read is left to a small runtime.
+Hozo is a universal UI framework for React Native, compiled by a compiler
+written in Rust. You write components with React Native's vocabulary (`View`,
+`Text`, `Pressable`, and semantic primitives such as `Heading` and `Section`)
+and Tailwind classes, or take them ready-made from `@hozo/ui`. The build turns
+them into semantic HTML, CSS and ARIA on the Web, and into React Native
+components and `StyleSheet` values on iOS and Android. What the build can read
+is compiled; only what it cannot read is left to a small runtime. Along the way
+it checks semantics and accessibility, and tells whoever runs it, a person or
+an agent, what to change.
 
 **[Documentation](https://iray-tno.github.io/hozo/docs/)** · [Website](https://iray-tno.github.io/hozo/) · [REPL](https://iray-tno.github.io/hozo/repl/) · [Storybook](https://iray-tno.github.io/hozo/storybook/) · [Conformance](https://iray-tno.github.io/hozo/conformance/) · [Releases](https://github.com/iray-tno/hozo/releases)
 

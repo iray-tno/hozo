@@ -2,7 +2,7 @@
 
 TSX analysis for the Hozo compiler, built on [oxc](https://oxc.rs). It reads components written against Hozo's primitives or React Native, resolves `className` to style properties, and builds the `hozo_ir` tree that the Web and Native backends lower.
 
-Part of [Hozo](https://iray-tno.github.io/hozo/) ([source](https://github.com/iray-tno/hozo)), a Rust-powered universal UI compiler and accessibility-first layer for React Native.
+Part of [Hozo](https://iray-tno.github.io/hozo/) ([source](https://github.com/iray-tno/hozo)), a universal UI framework for React Native, compiled by Rust, with native semantics on every platform, first-class accessibility, and diagnostics for humans and AI agents alike.
 
 ## Stability
 
