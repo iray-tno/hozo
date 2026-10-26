@@ -2,8 +2,8 @@
 //! CSS cascade or permission to reorder authored expressions/unknown writes.
 use super::TailwindOrderContext;
 use crate::{
-    assess_tailwind_rule, assess_tailwind_write, RuleAssessmentError, StyleProperty,
-    TailwindWriteOwnership,
+    assess_tailwind_rule, assess_tailwind_write, scalar_tailwind_property, Condition,
+    RuleAssessmentError, StyleProperty, TailwindWriteOwnership,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -12,6 +12,8 @@ pub struct TailwindRulePriority {
     pub rank: usize,
     pub important: bool,
     pub specificity: [u32; 3],
+    /// Cached assessment, not a second per-write selector parse or sort key.
+    owner: [u16; 5],
 }
 
 /// Shared evidence for an original IR write, before either backend expands
@@ -42,6 +44,73 @@ impl TailwindWriteEvidence {
 }
 
 impl TailwindOrderContext {
+    /// A scalar IR write can participate only when its actual predicate is
+    /// the assessed rule's predicate. Captured JS/media/foreign guards are
+    /// not silently treated as the candidate's owner state.
+    pub fn scalar_write_priority(
+        &self,
+        name: &str,
+        condition: &Condition,
+        property: &StyleProperty,
+    ) -> Option<TailwindRulePriority> {
+        if !scalar_tailwind_property(property) {
+            return None;
+        }
+        let candidate = self.lookup(name)?;
+        let [rule] = candidate.rules.as_slice() else {
+            return None;
+        };
+        let priority = self.rule_priority(candidate, rule.id)?.ok()?;
+        if priority.important {
+            return None;
+        }
+        let mut actual = [0_u16; 5];
+        fn collect(condition: &Condition, actual: &mut [u16; 5]) -> Option<()> {
+            let index = match condition {
+                Condition::Always => return Some(()),
+                Condition::Hover => 0,
+                Condition::Focus => 1,
+                Condition::FocusVisible => 2,
+                Condition::Pressed => 3,
+                Condition::Disabled => 4,
+                Condition::All(parts) if !parts.is_empty() => {
+                    for part in parts {
+                        collect(part, actual)?;
+                    }
+                    return Some(());
+                }
+                _ => return None,
+            };
+            actual[index] = actual[index].checked_add(1)?;
+            Some(())
+        }
+        collect(condition, &mut actual)?;
+        if priority.owner != actual {
+            return None;
+        }
+        // The cached assessment already validated this single rule's shape.
+        // Count the actual owning declarations without allocating property or
+        // selector vectors for every expanded side of a shorthand.
+        fn owners(shape: &crate::OrderRuleShape, write: &StyleProperty) -> Option<usize> {
+            match shape {
+                crate::OrderRuleShape::Declaration { property, .. } => Some(usize::from(
+                    crate::tailwind_assessment::covers(property, write),
+                )),
+                crate::OrderRuleShape::Rule { nodes, .. }
+                | crate::OrderRuleShape::AtRule { nodes, .. } => {
+                    nodes.iter().try_fold(0_usize, |count, node| {
+                        count.checked_add(owners(node, write)?)
+                    })
+                }
+                crate::OrderRuleShape::Comment => Some(0),
+                crate::OrderRuleShape::Context { .. } | crate::OrderRuleShape::AtRoot { .. } => {
+                    None
+                }
+            }
+        }
+        (owners(&rule.shape, property)? == 1).then_some(priority)
+    }
+
     /// Both actual static plans and candidate generation ask this same
     /// boundary. Neither reconstructs selector ownership or priority policy.
     pub fn write_evidence(
@@ -61,6 +130,7 @@ impl TailwindOrderContext {
                 rule_id,
                 css_property,
                 specificity,
+                ..
             } => {
                 let mut result = TailwindWriteEvidence::unknown(index, "uncollected-rule-priority");
                 result.rule_id = Some(rule_id);
@@ -102,6 +172,7 @@ pub(super) fn prepare(
                         rank: 0,
                         important: rule.important,
                         specificity: assessed.specificity,
+                        owner: assessed.owner,
                     }
                 })
             })
@@ -172,6 +243,42 @@ mod tests {
         let foreign = other.lookup("p-2").unwrap();
         assert!(context
             .rule_priority(foreign, foreign.rules[0].id)
+            .is_none());
+    }
+
+    #[test]
+    fn scalar_priority_requires_exact_owner_guard_multiplicity_and_nonimportant_scalar_writes() {
+        let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
+        let write = StyleProperty::PaddingTop(crate::Length::Px(8.0));
+        let both = Condition::All(vec![Condition::Focus, Condition::Hover]);
+        assert!(context
+            .scalar_write_priority("hover:focus:p-4", &both, &write)
+            .is_some());
+        for (name, condition) in [
+            ("p-2", Condition::Focus),
+            ("focus:p-4", Condition::Always),
+            ("hover:focus:p-4", Condition::Hover),
+            (
+                "hover:focus:p-4",
+                Condition::All(vec![Condition::Focus, Condition::Hover, Condition::Hover]),
+            ),
+            ("p-2", Condition::All(vec![])),
+            ("p-2!", Condition::Always),
+            ("sm:p-2", Condition::Always),
+        ] {
+            assert!(
+                context
+                    .scalar_write_priority(name, &condition, &write)
+                    .is_none(),
+                "{name}: {condition:?}"
+            );
+        }
+        assert!(context
+            .scalar_write_priority(
+                "gap-2",
+                &Condition::Always,
+                &StyleProperty::Gap(crate::Length::Px(8.0))
+            )
             .is_none());
     }
 }

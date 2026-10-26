@@ -1,6 +1,7 @@
 // Shared compiler/candidate composition, not Native pixels or event delivery.
 // biome-ignore-all lint/suspicious/noTemplateCurlyInString: Fixtures retain authored TSX interpolation.
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { tmpdir } from 'node:os'
@@ -535,6 +536,90 @@ test('shared assessed rule priorities predict independent Tailwind browser winne
         }
       }
     }
+  } finally {
+    await page.close()
+  }
+})
+
+test('the common scalar IR plan reaches both actual lowerers and matches independent browser winners', {
+  skip: !executablePath,
+}, async () => {
+  const result = JSON.parse(
+    execFileSync(
+      'cargo',
+      ['run', '--quiet', '-p', 'hozo_napi', '--example', 'tailwind-scalar-plan'],
+      {
+        cwd: fileURLToPath(new URL('../../../', import.meta.url)),
+        encoding: 'utf8',
+        env: { ...process.env, CARGO_BUILD_JOBS: '1' },
+        timeout: 120_000,
+      },
+    ),
+  )
+  assert.equal(result.rows.length, 8)
+  const names = [...new Set(result.rows.flatMap((row) => row.classes.split(' ')))]
+  const theme = readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')
+  const sheet = (await compile(`${theme}\n@tailwind utilities;`)).build(names)
+  const page = await browser.newPage()
+  let legacyMismatches = 0
+  try {
+    for (const row of result.rows) {
+      assert.deepEqual(row.native.prelude, [])
+      const props = evaluate(
+        `const hozoStyles=${row.native.styles};module.exports=(${row.native.jsx})`,
+        {
+          Pressable: 'owner',
+          HozoPressable: 'owner',
+          h: (_type, props) => props,
+        },
+      )
+      await page.setContent(
+        `<!doctype html><style>${sheet}\n${row.webCss}\n${row.legacyCss.replaceAll('.hozo-0', '.legacy-0')}</style><button id="oracle" class="${row.classes}">Target</button><button id="planned" class="hozo-0">Target</button><button id="legacy" class="legacy-0">Target</button>`,
+      )
+      const read = async (id, stage) => {
+        await page.mouse.move(600, 600)
+        await page.evaluate(() => document.activeElement?.blur())
+        const target = page.locator(`#${id}`)
+        if (stage > 0) await target.focus()
+        if (stage > 1) await target.hover()
+        if (stage > 2) await page.mouse.down()
+        try {
+          return await target.evaluate(
+            (element, keys) => ({
+              facts: {
+                focused: element.matches(':focus'),
+                hovered: element.matches(':hover'),
+                pressed: element.matches(':active'),
+              },
+              values: Object.fromEntries(
+                ['backgroundColor', ...keys].map((key) => [key, getComputedStyle(element)[key]]),
+              ),
+            }),
+            row.keys,
+          )
+        } finally {
+          if (stage > 2) await page.mouse.up()
+        }
+      }
+      for (let stage = 0; stage < 4; stage++) {
+        const oracle = await read('oracle', stage)
+        const planned = await read('planned', stage)
+        assert.deepEqual(planned.facts, {
+          focused: stage > 0,
+          hovered: stage > 1,
+          pressed: stage > 2,
+        })
+        assert.deepEqual(planned, oracle, row.classes)
+        const selected =
+          typeof props.style === 'function' ? props.style(planned.facts) : props.style
+        const native = Object.assign({}, ...[selected].flat(Infinity).filter(Boolean))
+        for (const key of row.keys)
+          assert.equal(`${native[key]}px`, oracle.values[key], `${row.classes}: ${key}`)
+        const legacy = await read('legacy', stage)
+        if (JSON.stringify(legacy.values) !== JSON.stringify(oracle.values)) legacyMismatches++
+      }
+    }
+    assert.ok(legacyMismatches > 0, 'the independent oracle must detect old static winners')
   } finally {
     await page.close()
   }

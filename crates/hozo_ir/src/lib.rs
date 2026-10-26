@@ -28,7 +28,7 @@ pub use tailwind_order::{
     TailwindRuleBinding, TailwindRulePriority, TailwindUnitBindings, TailwindWriteEvidence,
 };
 mod tailwind_plan;
-pub use tailwind_plan::{TailwindWriteBlock, TailwindWritePlan};
+pub use tailwind_plan::{scalar_tailwind_property, TailwindWriteBlock, TailwindWritePlan};
 mod tailwind_assessment;
 pub use tailwind_assessment::{
     assess_tailwind_rule, assess_tailwind_write, AssessedTailwindRule, RuleAssessmentError,
@@ -1660,6 +1660,12 @@ pub enum StyleSource {
         input: u32,
         utility: TailwindUtilityId,
     },
+    /// The common planner has ordered these writes. Downstream grouping may
+    /// coalesce adjacent equal guards, never reach back across another guard.
+    TailwindOrdered {
+        input: u32,
+        utility: TailwindUtilityId,
+    },
     Stylex(u32),
 }
 
@@ -1668,7 +1674,9 @@ impl StyleSource {
     /// retains the existing cascade while a later planner can inspect IDs.
     pub fn input(self) -> Self {
         match self {
-            Self::TailwindUtility { input, .. } => Self::Tailwind(input),
+            Self::TailwindUtility { input, .. } | Self::TailwindOrdered { input, .. } => {
+                Self::Tailwind(input)
+            }
             source => source,
         }
     }
@@ -1676,13 +1684,16 @@ impl StyleSource {
     pub fn with_tailwind_input(self, input: u32) -> Self {
         match self {
             Self::TailwindUtility { utility, .. } => Self::TailwindUtility { input, utility },
+            Self::TailwindOrdered { utility, .. } => Self::TailwindOrdered { input, utility },
             _ => Self::Tailwind(input),
         }
     }
 
     pub fn utility(self) -> Option<TailwindUtilityId> {
         match self {
-            Self::TailwindUtility { utility, .. } => Some(utility),
+            Self::TailwindUtility { utility, .. } | Self::TailwindOrdered { utility, .. } => {
+                Some(utility)
+            }
             _ => None,
         }
     }
@@ -5342,14 +5353,23 @@ pub fn group_by_condition(
     let mut groups: Vec<(Condition, Vec<StyleProperty>)> = Vec::new();
     let mut source = None;
     let mut start = 0;
+    let mut ordered = false;
     for decl in declarations {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
         // backwards across that rule, losing JSX tie order.
-        if source != Some(decl.source.input()) {
+        let next_ordered = matches!(decl.source, StyleSource::TailwindOrdered { .. });
+        if source != Some(decl.source.input())
+            || ordered != next_ordered
+            || (next_ordered
+                && groups
+                    .last()
+                    .is_some_and(|(condition, _)| *condition != decl.condition))
+        {
             source = Some(decl.source.input());
             start = groups.len();
         }
+        ordered = next_ordered;
         match groups[start..]
             .iter_mut()
             .find(|(condition, _)| *condition == decl.condition)

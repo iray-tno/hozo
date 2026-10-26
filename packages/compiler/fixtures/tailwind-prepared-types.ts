@@ -5,6 +5,7 @@ import {
   type PreparedTailwindContext,
 } from '../src/index.ts'
 import { type LoweredModule, lowerModuleOrPrepare, prepareLowerModule } from '../src/lower.ts'
+import { emitFinalTailwindBatch, type FinalTailwindBatch } from '../src/tailwind-final-batch.ts'
 import { emitTailwindModules } from '../src/tailwind-project.ts'
 import { TailwindCandidateUniverse, TailwindProjectSession } from '../src/tailwind-session.ts'
 
@@ -63,3 +64,27 @@ if ('components' in nativeAttempt) {
 }
 // @ts-expect-error A ready context is a validated native handle, not JSON.
 compiler.compileNativeOrPrepare('', '{}')
+
+const finalWeb: Promise<FinalTailwindBatch<CompiledComponent[]>> = emitFinalTailwindBatch({
+  expected: [{ id: 'web', revision: 'one' }],
+  collected: [{ id: 'web', revision: 'one', module: web }],
+  runtime: { expected: [], contributions: [] },
+  prepare,
+})
+const finalMixed = emitFinalTailwindBatch({
+  expected: [
+    { id: 'web', revision: 'one' },
+    { id: 'native', revision: 'one' },
+  ],
+  collected: [
+    { id: 'web', revision: 'one', module: web },
+    { id: 'native', revision: 'one', module: native },
+  ],
+  runtime: { expected: [], contributions: [] },
+  prepare,
+})
+const finalUnion: Promise<FinalTailwindBatch<CompiledComponent[] | CompiledNativeModule>> =
+  finalMixed
+// @ts-expect-error A mixed final publication is not a Web-only result.
+const invalidFinal: Promise<FinalTailwindBatch<CompiledComponent[]>> = finalMixed
+void [finalWeb, finalUnion, invalidFinal]

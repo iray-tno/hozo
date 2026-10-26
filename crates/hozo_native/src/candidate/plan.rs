@@ -81,7 +81,7 @@ impl<'a> CandidatePlanBuilder<'a> {
             native_keys: pairs.iter().map(|(key, _)| key.clone()).collect(),
             // Scalar physical keys need no logical-edge, shorthand-gap or
             // register normalization. This is eligibility, not an order table.
-            orderable: uniform.is_some() && props.iter().all(scalar),
+            orderable: uniform.is_some() && props.iter().all(hozo_ir::scalar_tailwind_property),
             writes,
             priority_rank: uniform,
             reason: uniform
@@ -147,29 +147,6 @@ impl<'a> CandidatePlanBuilder<'a> {
             ordering,
         }
     }
-}
-
-fn scalar(property: &StyleProperty) -> bool {
-    use StyleProperty::*;
-    matches!(
-        property,
-        PaddingTop(_)
-            | PaddingRight(_)
-            | PaddingBottom(_)
-            | PaddingLeft(_)
-            | MarginTop(_)
-            | MarginRight(_)
-            | MarginBottom(_)
-            | MarginLeft(_)
-            | BackgroundColor(_)
-            | TextColor(_)
-            | Width(_)
-            | Height(_)
-            | MinWidth(_)
-            | MaxWidth(_)
-            | MinHeight(_)
-            | MaxHeight(_)
-    )
 }
 
 fn ordering(entries: &[CandidatePriorityEntry]) -> Option<CandidateOrdering> {

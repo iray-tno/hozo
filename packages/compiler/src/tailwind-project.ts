@@ -90,6 +90,35 @@ async function emitOwnedModules(
   }
 }
 
+/** Same one-shot ownership path, with the exact context retained for a
+ * bounded publication. Ordinary/session callers keep their existing path;
+ * this capture adds no callback/allocation to their per-file fast path.
+ */
+export async function emitTailwindContextBatch(
+  modules: readonly PreparedModule<unknown>[],
+  contextFor: (names: readonly string[]) => ContextResult,
+  additional: Iterable<string>,
+  cancellation?: Cancellation,
+): Promise<{ context: PreparedTailwindContext; outputs: unknown[] }> {
+  let context: PreparedTailwindContext | undefined
+  const outputs = await emitOwnedModules(
+    [...modules],
+    (names) => {
+      const save = (prepared: PreparedTailwindContext) => {
+        context = prepared
+        return prepared
+      }
+      const pending = contextFor(names)
+      return pending instanceof Promise ? pending.then(save) : save(pending)
+    },
+    additional,
+    cancellation,
+  )
+  cancellation?.check()
+  if (!context) throw new Error('Tailwind batch did not prepare its context')
+  return { context, outputs }
+}
+
 function abortableContext(
   pending: Promise<PreparedTailwindContext>,
   signal?: AbortSignal,

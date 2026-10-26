@@ -21,7 +21,8 @@ mod stylex;
 mod tailwind;
 mod tailwind_plan;
 pub use tailwind_plan::{
-    plan_module_tailwind, TailwindPlanBlock, TailwindPlanSite, TailwindPlanWrite, TailwindRootPlan,
+    order_module_tailwind, plan_module_tailwind, TailwindPlanBlock, TailwindPlanSite,
+    TailwindPlanWrite, TailwindRootPlan,
 };
 mod text_forwarding;
 mod text_regions;

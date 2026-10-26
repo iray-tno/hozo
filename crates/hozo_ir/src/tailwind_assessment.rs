@@ -32,6 +32,9 @@ pub struct AssessedTailwindRule<'a> {
     pub specificity: [u32; 3],
     pub properties: Vec<&'a str>,
     pub media: Vec<&'a str>,
+    /// Multiplicity of hover/focus/focus-visible/active/disabled predicates.
+    /// Guard equivalence only; precedence still comes from the rule.
+    pub owner: [u16; 5],
 }
 
 /// Match Tailwind's escaped root literally, not a substring of another
@@ -76,6 +79,7 @@ pub fn assess_tailwind_rule<'a>(
         specificity: [0, 1, 0],
         properties: Vec::new(),
         media: Vec::new(),
+        owner: [0; 5],
     };
     assess_body(nodes, &mut result)?;
     if result.properties.is_empty() {
@@ -115,12 +119,17 @@ fn assess_body<'a>(
             OrderRuleShape::Rule { selector, nodes } => {
                 // Functional/list/relational/pseudo-element selectors require
                 // real assessment, never a colon count or boolean count.
-                if !matches!(
-                    selector.as_str(),
-                    "&:hover" | "&:focus" | "&:focus-visible" | "&:active" | "&:disabled"
-                ) {
-                    return Err(RuleAssessmentError::Selector);
-                }
+                let owner = match selector.as_str() {
+                    "&:hover" => 0,
+                    "&:focus" => 1,
+                    "&:focus-visible" => 2,
+                    "&:active" => 3,
+                    "&:disabled" => 4,
+                    _ => return Err(RuleAssessmentError::Selector),
+                };
+                result.owner[owner] = result.owner[owner]
+                    .checked_add(1)
+                    .ok_or(RuleAssessmentError::Selector)?;
                 result.specificity[1] += 1;
                 assess_body(nodes, result)?;
             }
@@ -152,7 +161,7 @@ pub enum TailwindWriteOwnership<'a> {
 /// This bounded mapping names the CSS write *before* platform expansion.
 /// It is not a property-order table. Shorthand/axis ownership does not prove
 /// that Yoga and CSS resolve logical/physical conflicts in the same way.
-fn covers(property: &str, write: &StyleProperty) -> bool {
+pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
     use StyleProperty::*;
     match write {
         PaddingTop(_) => matches!(property, "padding" | "padding-block" | "padding-top"),

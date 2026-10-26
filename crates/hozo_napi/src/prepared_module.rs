@@ -524,4 +524,56 @@ mod tests {
             .require_candidates(vec!["notautility".into()])
             .is_ok());
     }
+
+    #[test]
+    fn common_scalar_ir_reaches_the_real_web_and_native_emitters_without_a_new_compile_flag() {
+        let context = context();
+        let compiler = Compiler::new(None, None);
+        let outputs = |classes: &str, ordered: bool| {
+            let source = format!("import {{Pressable}} from '@hozo/core'; const el=<Pressable className=\"{classes}\"/>;");
+            let mut web = compiler.prepare_web_module(source.clone(), None, None);
+            let mut native = compiler
+                .prepare_native_module(source, None, None, None)
+                .unwrap();
+            if ordered {
+                for parsed in [
+                    &mut web.state.as_mut().unwrap().parsed,
+                    &mut native.state.as_mut().unwrap().parsed,
+                ] {
+                    hozo_parser::order_module_tailwind(parsed, &context.context);
+                    assert!(
+                        parsed.roots[0].node.style.iter().any(|decl| matches!(
+                            decl.source,
+                            hozo_ir::StyleSource::TailwindOrdered { .. }
+                        )),
+                        "{:?}",
+                        parsed.roots[0].node.style
+                    );
+                }
+            }
+            (web.emit(&context).unwrap(), native.emit(&context).unwrap())
+        };
+        let ascending = "p-2 p-4 focus:bg-blue-500 active:p-4";
+        let reversed = "active:p-4 focus:bg-blue-500 p-4 p-2";
+        let (expected_web, expected_native) = outputs(ascending, false);
+        for classes in [ascending, reversed] {
+            let (web, native) = outputs(classes, true);
+            assert_eq!(web[0].css, expected_web[0].css, "{classes}");
+            assert_eq!(
+                native.components[0].styles, expected_native.components[0].styles,
+                "{classes}"
+            );
+            assert!(web[0].diagnostics.is_empty());
+            assert!(native.components[0].diagnostics.is_empty());
+        }
+        let (old_web, old_native) = outputs(reversed, false);
+        assert_ne!(
+            old_web[0].css, expected_web[0].css,
+            "ordinary adapter output remains the control"
+        );
+        assert_ne!(
+            old_native.components[0].styles,
+            expected_native.components[0].styles
+        );
+    }
 }
