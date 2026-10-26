@@ -48,6 +48,16 @@ Each lowered module gets a `<file>.hozo.css` companion written next to it and im
 
 Alongside it, one project-wide stylesheet under `node_modules/.hozo/` covers the classes the compiler *couldn't* read — a `className` that only a runtime expression produces. Those come from a byte scan of every source file rather than from the AST, so this plugin owns the project walk and the file-deletion signal while the cache in Rust owns scanning, staleness and persistence.
 
+## Production graph evidence
+
+Production builds also write an internal
+`node_modules/.hozo/candidate-inventory-<environment>.json`. It checks native
+runtime-candidate observations against configured content and the final Vite
+module graph. Missing/mismatched receipts are recorded as incomplete, not an
+empty candidate set. This is build evidence, not a public API or a shipped
+asset; it does not yet replace candidate CSS or enable new ordering winners.
+See [the measurement and remaining limits](../../docs/measurements/vite-candidate-inventory.md).
+
 ## Dev mode
 
 A style-only edit reaches the browser in two rounds: the `.tsx` change triggers the first, that transform writes the CSS, and the watcher seeing the new CSS triggers the second. It converges because identical bytes are never rewritten — without that, each transform would invalidate the stylesheet it had just written and the two would take turns forever.

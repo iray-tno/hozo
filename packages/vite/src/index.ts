@@ -56,6 +56,7 @@ import {
 } from '@hozo/compiler/project'
 import { preflightCss } from '@hozo/tailwind'
 import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer } from 'vite'
+import { contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
 import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from './tailwind-epoch.ts'
 
 /**
@@ -96,6 +97,8 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
   const orderingSources = new Map<string, { file: string; names: readonly string[] }>()
   const transformedIds = new Set<string>()
   const requests = new Map<string, { token: symbol; file: string }>()
+  let inventory: ViteCandidateInventory | undefined
+  let inventoryPath = ''
 
   function updateUniverse() {
     const next = new TailwindCandidateUniverse([
@@ -223,6 +226,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       }
       try {
         const isDerivedModule = id.includes('?')
+        let candidateMeta: Record<string, unknown> | undefined
         let stylexGraphChanged = false
         // A transformed source is not in the project walk -- see
         // `TRANSFORMABLE` -- so it has to be admitted here or its classes
@@ -240,6 +244,12 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           // recorded twice under two spellings.
           const modifiedMs = statSync(file, { throwIfNoEntry: false })?.mtimeMs ?? 0
           const cacheChanged = cache.scanFile(path.resolve(file), code, modifiedMs)
+          // Capture the facts belonging to this exact input before any await
+          // can let another module revise the shared physical-file entry.
+          if (inventory) {
+            const record = cache.exportFile(path.resolve(file))
+            if (record) candidateMeta = inventory.transformMeta(id, code, record)
+          }
           const sourceChanged = rememberCandidates(
             JSON.stringify(['lexical', file]),
             file,
@@ -402,7 +412,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           await refreshCandidates((message) => this.warn(message))
         current.check()
         checkRequest()
-        if (!lowered) return
+        if (!lowered) return candidateMeta ? { meta: candidateMeta } : undefined
 
         // Shared with Metro and Next, which is new: this warned on
         // everything including error-severity diagnostics, and Metro threw.
@@ -461,11 +471,11 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           current.check()
           checkRequest()
           transformedIds.add(id)
-          return { code: compiled.code, map: compiled.map ?? null }
+          return { code: compiled.code, map: compiled.map ?? null, meta: candidateMeta }
         }
 
         transformedIds.add(id)
-        return { code: next, map: null }
+        return { code: next, map: null, meta: candidateMeta }
       } finally {
         if (requests.get(requestId)?.token === request) requests.delete(requestId)
       }
@@ -540,12 +550,35 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         const project = scanProject(root, options.content, options.sources)
         cache = project.cache
         stylexModules = project.stylexModules
+        const environment = this.environment?.name ?? 'default'
+        inventory =
+          resolvedConfig?.command === 'build'
+            ? new ViteCandidateInventory(environment, options.sources)
+            : undefined
+        inventoryPath = path.join(
+          project.dir,
+          `candidate-inventory-${encodeURIComponent(environment)}.json`,
+        )
+        // Failed/in-progress builds must not leave a previous "complete"
+        // inventory looking like evidence for this graph. Nothing here is
+        // copied to output assets or used to change candidate CSS yet.
+        if (inventory)
+          writeFileIfChanged(
+            inventoryPath,
+            JSON.stringify({ schema: 1, status: 'collecting', finalOrderingReady: false }),
+          )
         orderingSources.clear()
         for (const file of project.files) {
+          const source = readFileSync(file, 'utf8')
+          inventory?.observeAuthored(
+            JSON.stringify(['authored', file]),
+            source,
+            cache.exportFile(file),
+          )
           rememberCandidates(
             JSON.stringify(['lexical', file]),
             file,
-            scanTailwindOrderCandidates(readFileSync(file, 'utf8')),
+            scanTailwindOrderCandidates(source),
           )
         }
         updateUniverse()
@@ -644,9 +677,38 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       // it. `enforce: 'pre'` is what makes `code` the source as written.
       ...pass((file) => !isTransformedSource(file)),
 
-      buildEnd() {
+      moduleParsed(module) {
+        inventory?.moduleParsed(module)
+      },
+
+      buildEnd(error) {
         cache?.persist()
         stylexModules?.persist()
+        if (!inventory) return
+        if (error) {
+          writeFileIfChanged(
+            inventoryPath,
+            JSON.stringify({ schema: 1, status: 'failed', finalOrderingReady: false }),
+          )
+          return
+        }
+        // The source walk and the bundler graph are different authorities:
+        // configured authored content remains even when not imported, while
+        // derived-module observations survive only if their full IDs do.
+        const authored = discoverSources(root, options.content).map((file) => ({
+          id: JSON.stringify(['authored', file]),
+          revision: contentRevision(readFileSync(file, 'utf8')),
+        }))
+        const modules = [...this.getModuleIds()]
+          .filter((id) => scannableFile(id, (file) => includedFiles.has(file)))
+          .map((id) => {
+            const module = this.getModuleInfo(id)
+            return { id, code: module?.code ?? null, meta: module?.meta ?? {} }
+          })
+        writeFileIfChanged(
+          inventoryPath,
+          `${JSON.stringify(inventory.reconcile(authored, modules), null, 2)}\n`,
+        )
       },
       closeBundle() {
         epochGeneration++
@@ -656,6 +718,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         requests.clear()
         transformedIds.clear()
         orderingSources.clear()
+        inventory = undefined
       },
     },
     transformed,

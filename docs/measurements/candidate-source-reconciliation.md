@@ -34,8 +34,10 @@ export/import methods, applies to existing default adapters immediately.
 
 Import checks every field/schema and source policy before mutating the cache,
 normalizes the name set, and records an adapter-supplied mtime. It never reads
-or scans source. The existing scan/compile/default-adapter paths do not call
-the new methods; no new utility winner or supported/refused domain is enabled.
+or scans source. The boundary-only slice did not install replay in default
+adapter paths. The subsequent [Vite graph inventory](vite-candidate-inventory.md)
+consumes these methods for internal build evidence, not candidate CSS publication.
+No new utility winner or supported/refused domain is enabled.
 
 `reconcileRuntimeCandidateContributions` belongs to compiler/project, not a
 second scanner in each adapter. The caller supplies the authoritative input

@@ -123,6 +123,17 @@ receipts before final context/emission; no unsupported cached-module hook may
 stand in for that lifecycle. See
 [contribution replay evidence](../measurements/candidate-source-reconciliation.md).
 
+Vite production builds now attach those native facts to transform metadata and
+check them against final `moduleParsed` code and `getModuleIds`/`getModuleInfo`.
+Configured content remains independently authoritative, including unimported
+files; absent derived modules do not survive merely because a physical cache
+entry exists. An internal inventory records complete/incomplete source facts,
+never final ordering readiness, and does not change candidate CSS or winners.
+Query modules without their own observation remain explicitly incomplete.
+Real small Vite builds exercise these hooks; JSON receipt replay is covered,
+but real cached-transform reuse is not yet proven. See
+[Vite graph inventory evidence](../measurements/vite-candidate-inventory.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be
