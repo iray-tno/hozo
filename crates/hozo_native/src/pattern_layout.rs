@@ -62,8 +62,14 @@ pub(super) fn adapt(
                 continue;
             }
         }
+        // Every `backdrop:` declaration goes to the scrim, which is a real
+        // View: its padding and the rest mean what they mean on any box. Only
+        // `background-color` went before, so `backdrop:px-4` stayed on the
+        // panel, was reported as not wired, and wrote a StyleSheet entry under
+        // the scrim's own key, overwriting it (#1311). A backdrop filter is not
+        // a style the scrim can take; it stays behind (#1310).
         if crate::pattern::backdrop_style_prop(primitive, slot).is_some()
-            && matches!(declaration.property, StyleProperty::BackgroundColor(_))
+            && !matches!(declaration.property, StyleProperty::BackdropFilter(..))
         {
             if let Some(condition) = backdrop_condition(&declaration.condition) {
                 out.backdrop.push(StyleDeclaration {
@@ -213,6 +219,55 @@ mod tests {
                 .contains("_backdrop"),
             "{}",
             out.jsx
+        );
+    }
+}
+
+#[cfg(test)]
+mod backdrop_keys {
+    use hozo_ir::Theme;
+
+    #[test]
+    fn every_backdrop_class_reaches_the_scrim_under_one_key() {
+        let source = r#"import { Dialog } from '@hozo/core'; function C() { return <Dialog className="bg-white backdrop:bg-black/50 backdrop:px-4" open onClose={close} accessibilityLabel="Test" /> }"#;
+        let parsed = hozo_parser::parse_tsx(source);
+        let out = crate::lower(&parsed.roots[0].node, source, &Theme::default());
+        // Two entries under one key: the object literal keeps the last one,
+        // and the scrim lost its padding (#1311).
+        let keys: Vec<&str> = out
+            .styles
+            .lines()
+            .map(str::trim)
+            .filter(|line| line.ends_with(": {"))
+            .collect();
+        let mut unique = keys.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_eq!(
+            keys.len(),
+            unique.len(),
+            "duplicate StyleSheet keys: {keys:?}"
+        );
+        let scrim = out
+            .styles
+            .split("hozo0_backdrop: {")
+            .nth(1)
+            .and_then(|rest| rest.split('}').next())
+            .unwrap_or_default();
+        assert!(scrim.contains("paddingStart: 16"), "{}", out.styles);
+        assert!(scrim.contains("backgroundColor"), "{}", out.styles);
+        assert!(
+            out.jsx
+                .contains("hozoBackdropStyle={[hozoStyles.hozo0_backdrop]}"),
+            "{}",
+            out.jsx
+        );
+        assert!(
+            !out.diagnostics
+                .iter()
+                .any(|d| d.message.contains("styles a pseudo-element")),
+            "an applied backdrop: class is not reported as unwired: {:?}",
+            out.diagnostics
         );
     }
 }
