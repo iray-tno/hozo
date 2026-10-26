@@ -4,7 +4,12 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
-import { exerciseUiDocs, uiDocStoryId } from './ui-docs-evidence.mjs'
+import {
+  exerciseUiDocs,
+  UI_STATE_SCENES,
+  uiDocStoryId,
+  uiStateStoryId,
+} from './ui-docs-evidence.mjs'
 import { UI_DOC_PAGES } from './ui-docs-pages.mjs'
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)))
@@ -141,4 +146,35 @@ test('a page that appears on its second attempt counts as reached', async () => 
   )
   assert.equal(attempts, 2)
   assert.deepEqual(manifest.pages.accordion, { status: 'ok', image: 'accordion.png' })
+})
+
+test('the state screens the walk captures are the stories UiStates exports', () => {
+  const stories = readFileSync(join(root, 'src/UiStates.stories.tsx'), 'utf8')
+  const exported = [...stories.matchAll(/^export const (\w+): Story/gm)].map((m) => m[1])
+  assert.deepEqual(exported, UI_STATE_SCENES)
+  assert.match(stories, /title: 'UI\/Shared state checks'/, 'the story ids assume this title')
+})
+
+test('state screens follow the pages, under their own key, so the docs manifest is unchanged', async () => {
+  const output = mkdtempSync(join(tmpdir(), 'ui-docs-'))
+  const opened = []
+  const captured = []
+  const manifest = await exerciseUiDocs(
+    {
+      open: (id) => opened.push(id),
+      waitForEither: async (labels) => {
+        if (labels.includes('Menu')) throw new Error('never appeared')
+        return labels.at(-1)
+      },
+      settle: async () => {},
+      capture: (name) => captured.push(name),
+    },
+    output,
+    { pages: ['button'], states: ['Tabs', 'Menu'] },
+  )
+  assert.deepEqual(opened, [uiDocStoryId('button'), uiStateStoryId('Tabs'), uiStateStoryId('Menu')])
+  assert.deepEqual(captured, ['button', 'state-tabs'])
+  assert.deepEqual(Object.keys(manifest.pages), ['button'])
+  assert.deepEqual(manifest.states.Tabs, { status: 'ok', image: 'state-tabs.png' })
+  assert.equal(manifest.states.Menu.status, 'unreached')
 })

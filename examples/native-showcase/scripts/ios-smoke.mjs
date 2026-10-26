@@ -30,7 +30,7 @@ import { waitForIosControl } from './ios-ui-wait.mjs'
 import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters } from './svg-filter-evidence.mjs'
 import { exerciseTextInheritance } from './text-pixels.mjs'
-import { exerciseUiDocs } from './ui-docs-evidence.mjs'
+import { exerciseUiDocs, UI_STATE_SCENES } from './ui-docs-evidence.mjs'
 import {
   exerciseVideo,
   exerciseVideoPoster,
@@ -428,7 +428,7 @@ try {
         capture: (name) => screenshot(name, false),
       },
       output,
-      { platform: 'ios' },
+      { platform: 'ios', states: UI_STATE_SCENES },
     )
   } else if (evidence.scenario === 'svg-filters') {
     await svgFilters()

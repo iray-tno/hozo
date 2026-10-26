@@ -16,6 +16,23 @@ import { UI_DOC_PAGES } from './ui-docs-pages.mjs'
 
 export const uiDocStoryId = (page) => `ui-docs--${page}`
 
+// The `UI/Shared state checks` stories (`src/UiStates.stories.tsx`): each
+// control held in a known selected, expanded or disabled state, which #898
+// asks to see on a device. Each screen's heading is its name.
+export const UI_STATE_SCENES = [
+  'Tabs',
+  'Accordion',
+  'Radio',
+  'Listbox',
+  'Menu',
+  'Chip',
+  'Pagination',
+  'Tree',
+  'Checkbox',
+  'Switch',
+]
+export const uiStateStoryId = (scene) => `ui-shared-state-checks--${scene.toLowerCase()}`
+
 /** What Storybook's own boundary shows when a story throws past ours. */
 export const STORYBOOK_FAILURE = 'Something went wrong rendering your story'
 
@@ -41,6 +58,7 @@ export async function exerciseUiDocs(
     now = () => new Date(),
     platform = 'android',
     logFile = 'logcat.txt',
+    states = [],
   } = {},
 ) {
   const manifest = {
@@ -48,6 +66,7 @@ export async function exerciseUiDocs(
     commit: process.env.GITHUB_SHA ?? null,
     takenAt: now().toISOString(),
     pages: {},
+    states: {},
   }
   const visit = async (page) => {
     const ready = `UI docs ${page}`
@@ -75,6 +94,21 @@ export async function exerciseUiDocs(
   // cold launch can outlast the wait (iOS lost Accordion, the first page,
   // that way), and a later attempt costs one page, not a run.
   for (const page of pages) if (manifest.pages[page].status === 'unreached') await visit(page)
+  // The state screens, after the pages and under their own key, so the docs,
+  // which read `pages`, are unaffected. Images are `state-<name>.png`.
+  const visitState = async (scene) => {
+    const image = `state-${scene.toLowerCase()}`
+    try {
+      device.open(uiStateStoryId(scene))
+      const seen = await device.waitForEither([STORYBOOK_FAILURE, scene], timeout)
+      await device.settle()
+      device.capture(image)
+      manifest.states[scene] = { status: seen === scene ? 'ok' : 'failed', image: `${image}.png` }
+    } catch (error) {
+      manifest.states[scene] = { status: 'unreached', reason: String(error?.message ?? error) }
+    }
+  }
+  for (const scene of states) await visitState(scene)
   writeFileSync(resolve(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   // What each failure threw, which the screenshot shows only in part.
   try {
