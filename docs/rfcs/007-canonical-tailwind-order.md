@@ -1,12 +1,16 @@
 # RFC 007: One Tailwind ordering plan before platform lowering
 
-- **Status**: Implementation in progress; bounded completed batches use shared
-  scalar winners. Ordinary adapter winners have not switched.
+- **Status**: Captured Vite/Metro/Next project sessions and Metro dynamic maps
+  default to shared assessed scalar winners. Broader domains remain open.
 - **Authors**: codex-1
 - **Tracking issue**: [#1230](https://github.com/iray-tno/hozo/issues/1230)
 - **Target packages**: compiler/parser/IR/Web/Native, `@hozo/tailwind`,
   `@hozo/engine`, and their build-tool adapters.
 - **Baseline inspected**: main `99e9c03a61aaa80c86893fbea72c25df431f86ce`.
+
+The implementation history below records staged measurements; statements
+about earlier unswitched adapters describe those stages, not the current
+default. The latest boundary is summarized immediately before section 1.
 
 Phase 2 now includes a shared pass-through compile plan, bounded original-rule
 ownership/specificity evidence and an opt-in generated **exact-candidate**
@@ -220,14 +224,18 @@ inside a transform, but does not itself deliver late CSS or switch an adapter.
 The additional preview render has measured build-time cost; see
 [the Web continuation boundary](../measurements/tailwind-web-style-continuation.md).
 
-Actual Vite production transforms now retain those continuations and consume
-them at the final environment/query graph with sealed source receipts. The
-result is static final CSS in an internal cache artifact, not CSS Vite already
-processed or a default winner switch. It explicitly leaves bundle validation
-not assessed and final ordering readiness false; cached receipts without live
-IR remain incomplete. Late asset delivery, final Web candidate CSS and cached
-transform handling remain activation gates. See
-[the final Vite graph boundary and build costs](../measurements/vite-final-style-graph.md).
+The Vite final-graph shadow route was measured and has now been removed. It
+retained every live IR and emitted styles a second time without delivering
+them to assets. For the assessed scalar domain, local-rank invariance makes
+that global numeric namespace unnecessary. Ordinary transforms now emit the
+shared winner directly before companion imports are consumed. Vite, Metro and
+Next captured sessions switch together with Metro's generated dynamic map;
+unassessed inputs and explicit pass-through contexts retain their old behavior.
+Generic finite-batch/preview APIs remain internal and tested for bounded
+offline callers, not as a production graph dependency. Runtime candidate
+inventory remains independent evidence, not a claim that its final union is
+the active Web stylesheet. See
+[default activation and scope](../measurements/tailwind-default-order.md).
 
 ## 1. Restart, not another family-specific patch
 

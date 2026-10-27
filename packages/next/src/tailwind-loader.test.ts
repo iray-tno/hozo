@@ -55,6 +55,21 @@ function invoke(options: HozoLoaderOptions, source: string, file: string, query 
   return { work, dependencies, missing, warnings }
 }
 
+test('the actual default loader emits common scalar winners for both orders and replaces its CSS epoch', async (t) => {
+  const { file, palette, options } = fixture(t)
+  for (const spacing of [7, 11]) {
+    writeFileSync(palette, `@theme {--spacing:${spacing}px;}`)
+    for (const classes of ['p-4 p-2', 'p-2 p-4']) {
+      const input = `import {View} from '@hozo/core';export const A=()=> <View className="${classes}"/>`
+      await invoke(options, input, file).work
+      const css = readFileSync(`${file}.hozo.css`, 'utf8')
+      assert.match(css, new RegExp(`padding-top: ${spacing * 4}px`))
+      assert.doesNotMatch(css, new RegExp(`padding-top: ${spacing * 2}px`))
+    }
+  }
+  ;(await nextTailwindProject(options)).invalidate()
+})
+
 test('the actual default loader preserves full Web output and shares its theme with candidate CSS', async (t) => {
   const { root, file, entry, palette, source, options } = fixture(t)
   const snapshot = await loadProjectTailwindSnapshot(root)

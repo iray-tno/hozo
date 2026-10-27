@@ -22,6 +22,7 @@ export async function readTailwindTransfer(reference: MetroTailwindReference) {
   const data = JSON.parse(content)
   if (
     data?.schema !== 1 ||
+    data.orderingPolicy !== 'scalar-order-v1' ||
     typeof data.stylesheet !== 'string' ||
     !Array.isArray(data.candidates) ||
     data.candidates.some((name: unknown) => typeof name !== 'string')

@@ -58,20 +58,14 @@ empty candidate set. This is build evidence, not a public API or a shipped
 asset; it does not yet replace candidate CSS or enable new ordering winners.
 See [the measurement and remaining limits](../../docs/measurements/vite-candidate-inventory.md).
 
-When a project snapshot is available, production transforms now also retain a
-Web style continuation from their actual post-Canvas parse. At the final graph,
-one common context emits final static CSS into the internal
-`final-styles-<environment>.json` cache artifact. Deleted/stale/missing live
-continuations and invalid receipts cannot produce partial styles. An unavailable
-snapshot keeps the existing warned lowering; dev keeps the ready/session path.
-
-This **does not activate that CSS in bundle assets**: companion imports have
-already been processed by `buildEnd`. The record explicitly says
-`bundleOutputPolicy: 'passthrough'`, `bundleValidation: 'not-assessed'` and
-`finalOrderingReady: false`. Its `complete` status concerns only static graph
-finalization, not later output hooks or successful deployment. Cached metadata
-alone is not a live IR continuation. See
-[real-build evidence, cost and activation gates](../../docs/measurements/vite-final-style-graph.md).
+With a captured project snapshot, production and dev use the common assessed
+scalar order during the ordinary transform. Ordered companion CSS is written
+before Vite processes its import, so the same winner reaches the actual CSS
+asset. The former whole-graph shadow continuation, second style emission and
+`final-styles-<environment>.json` artifact have been removed. No graph-wide
+native IR retention or late asset rewrite is needed for this bounded domain.
+An unavailable snapshot retains the existing warned lowering. See
+[default-output evidence and remaining limits](../../docs/measurements/tailwind-default-order.md).
 
 ## Dev mode
 

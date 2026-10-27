@@ -47,7 +47,9 @@ It runs at config load rather than inside the transformer because Metro transfor
 
 At the same time, the config captures the Tailwind entry and imported CSS once.
 Workers restore those bytes rather than independently reading newer project CSS;
-the generated fallback map and compiled styles therefore share the same theme.
+the generated fallback map and compiled styles therefore share the same theme
+and common assessed scalar-order policy. Each complete map compares its own
+local ranks; compiled output does not carry ordinals across worker boundaries.
 An internal content-addressed snapshot under `node_modules/.hozo/` also carries
 the full ordering seed, including static classes without adding those classes
 to the runtime map. Each worker keeps separate iOS/Android/Web compiler sessions.
@@ -62,7 +64,12 @@ they are internal cache files, not application imports or shipped bundle data.
 
 **Limitation:** the module is generated once, at config load. A class that only becomes a candidate *after* Metro started — a new string literal in a helper module — needs a Metro restart to appear. (`react-native-css` documents the same restriction for its transformer.)
 
-**Limitation:** only unconditional utilities survive *this* path (the runtime-resolved one). A style object can't express `hover:`, `md:`, or `pressed:`, and making it able to would mean per-component state tracking — a runtime CSS engine, which Hozo deliberately doesn't ship. Those classes are recorded with the reason and warned about *when they're actually used*, not at build time: appearing in the scan doesn't prove any expression ever produces one. Write them as a static `className` and they compile to a real style variant with no runtime involved.
+**Limitation:** conditional runtime utilities require supported facts from their
+actual owner. Assessed hover/focus/pressed/disabled scalar conditions use the
+generated resolver's cached template when the owner supplies those facts;
+unassessed conditions keep their existing diagnostics. In particular, do not
+infer responsive/media support from scalar ordering. No runtime CSS parser,
+provider or per-state rank sort is added by this policy.
 
 ## `dark:` and breakpoints need a component function
 

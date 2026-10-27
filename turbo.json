@@ -100,7 +100,12 @@
     },
     "@hozo/metro#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/**"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/packages/ui/src/**",
+        "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",
+        "$TURBO_ROOT$/packages/engine/src/transform-slots.ts"
+      ]
     },
     "@hozo/media#test": {
       "dependsOn": ["^build"],

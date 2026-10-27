@@ -4,7 +4,7 @@ import {
   type Compiler,
   type PreparedModule,
   type PreparedTailwindContext,
-  prepareTailwindContext,
+  prepareFinalTailwindContext,
 } from './index.ts'
 import { emitCollectedModules } from './tailwind-project.ts'
 
@@ -32,7 +32,7 @@ type PendingContext = {
 type Collector = (compiler: Compiler) => PreparedModule<unknown>
 type CollectedResult<C extends Collector> = ReturnType<ReturnType<C>['emit']>
 
-/** @internal Single-module result; do not mix early results from different namespaces in a batch. */
+/** @internal Single-module result. Rank ordinals never cross context boundaries. */
 export type TailwindModuleAttempt<T> =
   | { kind: 'complete'; output: T }
   | { kind: 'prepared'; module: PreparedModule<T> }
@@ -65,7 +65,8 @@ type ModuleRequest = {
 
 /** @internal Bounded context cache, not a source/IR/output cache.
  * A fresh session is required for a new project stylesheet/theme/config epoch.
- * Use a full lexical universe when outputs share a candidate namespace.
+ * Each actual parse needs complete descriptors. Independent rank-free outputs
+ * may use different candidate universes under this same captured CSS epoch.
  */
 export class TailwindProjectSession {
   #compiler: Compiler | undefined
@@ -226,7 +227,7 @@ export class TailwindProjectSession {
       // Cooperative cancellation is optional upstream, but a late result
       // cannot be decoded, installed or used after this epoch has closed.
       this.#epoch.signal.throwIfAborted()
-      const context = prepareTailwindContext(snapshot)
+      const context = prepareFinalTailwindContext(snapshot)
       context.requireCandidates([...names])
       this.#ready = { key, context }
       return context

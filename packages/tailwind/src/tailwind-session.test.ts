@@ -19,6 +19,27 @@ const collected = (classes: string, id?: string) => (compiler) =>
   compiler.prepareWebModule(source(classes, id), undefined, options)
 const code = (value: string) => (error) => error?.code === value
 
+test('ordinary project sessions enable shared scalar winners without changing standalone pass-through calls', async () => {
+  const compiler = createCompiler()
+  const session = new TailwindProjectSession(compiler, order)
+  try {
+    for (const classes of ['p-4 p-2', 'p-2 p-4']) {
+      const [web] = await session.emit(`web-${classes}`, [collected(classes)])
+      assert.match(web[0].css, /padding-top: 16px/)
+      assert.equal(web[0].tailwindPlan.mode, 'scalar-order-v1')
+      assert.match(web[0].tailwindPlan.fingerprint, /^scalar-order-v1:/)
+      const [native] = await session.emit(`native-${classes}`, [
+        (compiler) => compiler.prepareNativeModule(source(classes)),
+      ])
+      assert.match(native.components[0].styles, /paddingTop: 16/)
+      assert.doesNotMatch(native.components[0].styles, /paddingTop: 8/)
+    }
+    assert.match(compiler.compile(source('p-4 p-2'))[0].css, /padding-top: 8px/)
+  } finally {
+    session.invalidate()
+  }
+})
+
 test('same exact universe shares in-flight and ready contexts without re-installing compiler state', async () => {
   const compiler = createCompiler()
   const gate = Promise.withResolvers<void>(),

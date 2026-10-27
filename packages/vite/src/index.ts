@@ -34,7 +34,6 @@ import {
   foldedPrimitiveCalls,
   lowerModule,
   lowerModuleOrPrepare,
-  prepareLowerModuleStyles,
   sideEffectImport,
 } from '@hozo/compiler/lower'
 import {
@@ -59,7 +58,6 @@ import {
 import { preflightCss } from '@hozo/tailwind'
 import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer } from 'vite'
 import { contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
-import { finalStylesState, ViteFinalStyleGraph } from './final-style-graph.ts'
 import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from './tailwind-epoch.ts'
 
 /**
@@ -102,8 +100,6 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
   const requests = new Map<string, { token: symbol; file: string }>()
   let inventory: ViteCandidateInventory | undefined
   let inventoryPath = ''
-  let finalStylesGraph: ViteFinalStyleGraph | undefined
-  let finalStylesPath = ''
 
   function updateUniverse() {
     const next = new TailwindCandidateUniverse([
@@ -370,76 +366,54 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         current.check()
         // Helpers are installed immediately before the actual parse. StyleX
         // registry changes are installed only when its graph/epoch changes,
-        // not rebuilt for every warm file. The continuation captures both.
+        // not rebuilt for every warm file. Actual parsed candidates, rather
+        // than an early lexical scan alone, decide context completeness.
         const policy = { unloweredReactNativeJsx: options.unloweredReactNativeJsx }
         let lowered: ReturnType<typeof lowerModule>
-        if (finalStylesGraph && current.snapshot) {
-          const continuation = prepareLowerModuleStyles(
-            source,
-            id,
-            file,
-            compiler,
-            root,
-            stylexModules,
-            policy,
-          )
-          finalStylesGraph.observe(id, code, continuation)
-          if (
-            rememberCandidates(
-              JSON.stringify(['actual', requestId]),
-              file,
-              continuation.module.candidates,
-            )
-          )
-            updateUniverse()
-          lowered = continuation.initial
-        } else
-          for (;;) {
-            const requestedUniverse = universe
-            let emittedKey = requestedUniverse.key
-            lowered = current.session
-              ? await current.session.runModule(
-                  requestId,
-                  requestedUniverse,
-                  (compiler, context) => {
-                    const result = lowerModuleOrPrepare(
-                      source,
-                      id,
-                      file,
-                      compiler,
-                      root,
-                      context,
-                      stylexModules,
-                      policy,
-                    )
-                    if (result.kind === 'prepared') {
-                      emittedKey = new TailwindCandidateUniverse([
-                        ...requestedUniverse.candidates,
-                        ...result.module.candidates,
-                      ]).key
-                      if (
-                        rememberCandidates(
-                          JSON.stringify(['actual', requestId]),
-                          file,
-                          result.module.candidates,
-                        ) &&
-                        updateUniverse()
-                      )
-                        invalidateTransforms()
-                    }
-                    return result
-                  },
+        // Emit once during transform, before Vite consumes the companion
+        // stylesheet. Rank-free module output does not need a final graph.
+        for (;;) {
+          const requestedUniverse = universe
+          let emittedKey = requestedUniverse.key
+          lowered = current.session
+            ? await current.session.runModule(requestId, requestedUniverse, (compiler, context) => {
+                const result = lowerModuleOrPrepare(
+                  source,
+                  id,
+                  file,
+                  compiler,
+                  root,
+                  context,
+                  stylexModules,
+                  policy,
                 )
-              : lowerModule(source, id, file, compiler, root, stylexModules, policy)
-            current.check()
-            checkRequest()
-            // Only exceptional namespace expansion retries; ordinary warm
-            // transforms keep the direct actual-parse path. Never deliver a
-            // result from a different candidate namespace after an await.
-            if (!current.session || emittedKey === universe.key) break
-            compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))
-            compiler.setStylexModules(stylexModules.moduleSources())
-          }
+                if (result.kind === 'prepared') {
+                  emittedKey = new TailwindCandidateUniverse([
+                    ...requestedUniverse.candidates,
+                    ...result.module.candidates,
+                  ]).key
+                  if (
+                    rememberCandidates(
+                      JSON.stringify(['actual', requestId]),
+                      file,
+                      result.module.candidates,
+                    ) &&
+                    updateUniverse()
+                  )
+                    invalidateTransforms()
+                }
+                return result
+              })
+            : lowerModule(source, id, file, compiler, root, stylexModules, policy)
+          current.check()
+          checkRequest()
+          // Only exceptional namespace expansion retries; ordinary warm
+          // transforms keep the direct actual-parse path. Never deliver a
+          // result from a different candidate namespace after an await.
+          if (!current.session || emittedKey === universe.key) break
+          compiler.setClassHelpers(resolveClassHelpers(options.classHelpers, helpers))
+          compiler.setStylexModules(stylexModules.moduleSources())
+        }
         if (sheetUniverseKey !== universe.key)
           await refreshCandidates((message) => this.warn(message))
         current.check()
@@ -569,8 +543,6 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       },
 
       async buildStart() {
-        finalStylesGraph?.dispose()
-        finalStylesGraph = undefined
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined
@@ -589,15 +561,10 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
             directory,
             `candidate-inventory-${encodeURIComponent(environment)}.json`,
           )
-          finalStylesPath = path.join(
-            directory,
-            `final-styles-${encodeURIComponent(environment)}.json`,
-          )
           writeFileIfChanged(
             inventoryPath,
             JSON.stringify({ schema: 1, status: 'collecting', finalOrderingReady: false }),
           )
-          writeFileIfChanged(finalStylesPath, JSON.stringify(finalStylesState('collecting')))
         }
         const current = await currentEpoch((message) => this.warn(message))
         for (const dependency of current.watchFiles) this.addWatchFile(dependency)
@@ -608,11 +575,6 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         const project = scanProject(root, options.content, options.sources)
         cache = project.cache
         stylexModules = project.stylexModules
-        if (inventory) {
-          finalStylesGraph = current.snapshot ? new ViteFinalStyleGraph(environment) : undefined
-          if (!finalStylesGraph)
-            writeFileIfChanged(finalStylesPath, JSON.stringify(finalStylesState('unavailable')))
-        }
         orderingSources.clear()
         for (const file of project.files) {
           const source = readFileSync(file, 'utf8')
@@ -732,8 +694,6 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         stylexModules?.persist()
         if (!inventory) return
         if (error) {
-          finalStylesGraph?.dispose()
-          writeFileIfChanged(finalStylesPath, JSON.stringify(finalStylesState('failed')))
           writeFileIfChanged(
             inventoryPath,
             JSON.stringify({ schema: 1, status: 'failed', finalOrderingReady: false }),
@@ -757,42 +717,8 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           inventoryPath,
           `${JSON.stringify(inventory.reconcile(authored, modules), null, 2)}\n`,
         )
-        const graph = finalStylesGraph
-        const current = epoch
-        const generation = epochGeneration
-        if (!graph || !current?.snapshot) return
-        const ownsPublication = () =>
-          generation === epochGeneration && epoch === current && finalStylesGraph === graph
-        try {
-          const result = await graph.publish(
-            modules,
-            inventory.publicationInputs(authored, modules),
-            async (names, signal) => {
-              const order = await current.snapshot!.prepareOrder(names)
-              current.check()
-              signal?.throwIfAborted()
-              return JSON.stringify(order.snapshot)
-            },
-            current.theme,
-            () => ownsPublication() && current.isCurrent(),
-          )
-          // Vite has already processed the companion imports. These final
-          // styles are a sealed build artifact, not a silent rewrite of files
-          // whose older contents are already inside a CSS asset. Late asset
-          // delivery and coordinated activation are the next boundary.
-          if (ownsPublication())
-            writeFileIfChanged(finalStylesPath, `${JSON.stringify(result, null, 2)}\n`)
-        } catch (failure) {
-          if (ownsPublication())
-            writeFileIfChanged(finalStylesPath, JSON.stringify(finalStylesState('failed')))
-          throw failure
-        }
       },
-      closeBundle(error) {
-        if (error && inventory)
-          writeFileIfChanged(finalStylesPath, JSON.stringify(finalStylesState('failed')))
-        finalStylesGraph?.dispose()
-        finalStylesGraph = undefined
+      closeBundle() {
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined
@@ -801,13 +727,6 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         transformedIds.clear()
         orderingSources.clear()
         inventory = undefined
-      },
-      renderError() {
-        // Retire observed render errors too, but this is not a whole-bundle
-        // certificate: later hooks can fail without this callback firing.
-        finalStylesGraph?.dispose()
-        if (inventory)
-          writeFileIfChanged(finalStylesPath, JSON.stringify(finalStylesState('failed')))
       },
     },
     transformed,
