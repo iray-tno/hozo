@@ -10,7 +10,7 @@
 // `{ type: 'View', props: { style } }`, so an assertion can be about what
 // Hozo put there rather than about what React Native did with it.
 
-import { createElement } from 'react'
+import { createElement, useSyncExternalStore } from 'react'
 
 export const View = 'View'
 export const Text = 'Text'
@@ -120,6 +120,13 @@ export const Dimensions = {
     window = { ...window, ...next }
     for (const listener of dimensionListeners) listener({ window, screen: window })
   },
+}
+
+// The hook React Native builds on the same store, so a component reading it
+// re-renders when `__hozoSetWindow` moves the window, as it would on a device.
+const subscribeWindow = (onChange) => Dimensions.addEventListener('change', onChange).remove
+export function useWindowDimensions() {
+  return useSyncExternalStore(subscribeWindow, () => window)
 }
 
 let colorScheme = 'light'
