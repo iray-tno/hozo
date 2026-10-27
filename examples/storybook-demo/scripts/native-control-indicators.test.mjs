@@ -8,12 +8,12 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
-import { createClassResolver } from '@hozo/engine'
 import { loadTheme } from '@hozo/tailwind'
-import { build } from 'esbuild'
+import { build, transformSync } from 'esbuild'
 import React, { act } from 'react'
 import { create } from 'react-test-renderer'
-import { hozoTransformStyles } from '../../../packages/engine/src/transform-slots.ts'
+import * as classResolverRuntime from '../../../packages/engine/src/generated/class-resolver.ts'
+import * as transformRuntime from '../../../packages/engine/src/generated/transform-slots.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true
@@ -106,21 +106,39 @@ for (const file of [
 ]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
-const moduleSource = cache
-  .renderNativeModule(theme)
-  .replace(/^import .*$/gm, '')
-  .replace(/\bexport /g, '')
+cache.scanFile('metric-import-guard.ts', '"text-lg text-xl leading-6"', 1)
+const moduleSource = transformSync(cache.renderNativeModule(theme), { format: 'cjs' }).code
 // The module reads the direction from React Native once, so a resolver is
 // per direction, as it is per app run on a device.
-const resolverFor = (isRTL) =>
-  new Function(
-    'createClassResolver',
-    'hozoTransformStyles',
-    'I18nManager',
-    `${moduleSource}\nreturn hozoClasses`,
-  )(createClassResolver, hozoTransformStyles, { isRTL })
+const resolverFor = (isRTL) => {
+  const module = { exports: {} }
+  // Keep real generated imports. Stripping them and listing individual
+  // helper names made this host harness drift from the factory's public ABI.
+  const generatedRequire = (id) => {
+    if (id === '@hozo/core/generated/class-resolver') return classResolverRuntime
+    if (id === '@hozo/core/generated/transform-slots') return transformRuntime
+    if (id === 'react-native') return { I18nManager: { isRTL } }
+    throw new Error(`Unexpected generated candidate import: ${id}`)
+  }
+  new Function('require', 'module', 'exports', moduleSource)(
+    generatedRequire,
+    module,
+    module.exports,
+  )
+  return module.exports.hozoClasses
+}
 const hozoClasses = resolverFor(false)
 const flat = (value) => Object.assign({}, ...[value].flat(Infinity).filter(Boolean))
+
+test('the Native host harness links real generated helpers in both directions', () => {
+  assert.match(moduleSource, /@hozo\/core\/generated\/class-resolver/)
+  assert.match(moduleSource, /hozoTextMetricStyles/)
+  for (const isRTL of [false, true]) {
+    const style = flat(resolverFor(isRTL)('leading-6 text-lg'))
+    assert.equal(style.fontSize, 18)
+    assert.equal(style.lineHeight, 24)
+  }
+})
 const NativeView = (props) => React.createElement('NativeView', props, props.children)
 const NativeText = (props) => React.createElement('NativeText', props, props.children)
 const NativeTextInput = (props) => React.createElement('NativeTextInput', props)

@@ -98,6 +98,15 @@ StyleX numeric line-height is a multiplier, not pixels. The absolute fixture
 now writes explicit `px` strings using the accepted static API.
 
 Native source receipts are regenerated normally; this is not a fresh device
+run. CI subsequently found the same import-stripping assumption in the separate
+Native host/control harness (`native-control-indicators.test.mjs`). That harness
+now links real generated leaf namespaces instead of hard-coding helper names,
+with a both-directions metric regression and raw-leaf cache inputs. Its full
+suite plus cache guards passed 136 tests locally; the original CI failure is
+retained as run 40574492818, not classified as flaky. This changes the harness,
+not the production composition algorithm.
+
+Source receipts are not evidence of a fresh device
 run. Full root/packed-consumer/application integration and reports belong to
 CI. No new Native pixels/AT result or overall conformance percentage follows
 from selected-style/browser comparisons.
