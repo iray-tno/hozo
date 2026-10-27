@@ -2983,6 +2983,20 @@ impl StyleProperty {
         }
     }
 
+    /// Theme-dependent validation belongs at emission, where named values
+    /// are resolved. The theme-free API remains useful for lexical audits.
+    pub fn unsupported_on_native_with_theme(&self, theme: &Theme) -> Option<String> {
+        if let StyleProperty::FontWeight(weight) = self {
+            if weight.native(theme).is_none() {
+                return Some(format!(
+                    "font-weight `{}` is not a stock React Native font weight (100 through 900 in steps of 100)",
+                    weight.css(theme)
+                ));
+            }
+        }
+        self.unsupported_on_native()
+    }
+
     pub fn unsupported_on_native(&self) -> Option<String> {
         if let StyleProperty::FirstThatWorks(candidates) = self {
             if candidates.iter().any(|candidate| {
@@ -3884,7 +3898,50 @@ impl Color {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FontWeight(pub u16);
+pub enum FontWeight {
+    /// Authored numeric/StyleX weight or a semantic default, not a theme alias.
+    Absolute(u16),
+    /// A named Tailwind utility retains its token until backend theme resolution.
+    Theme { name: &'static str, fallback: u16 },
+}
+
+impl FontWeight {
+    pub fn css(self, theme: &Theme) -> String {
+        match self {
+            Self::Absolute(weight) => weight.to_string(),
+            Self::Theme { name, fallback } => theme
+                .font_weight(name)
+                .map(str::to_owned)
+                .unwrap_or_else(|| fallback.to_string()),
+        }
+    }
+
+    /// Stock RN's font-weight parser accepts the nine 100-step weights.
+    /// Do not silently round a CSS variable-font weight such as 650.
+    pub fn native(self, theme: &Theme) -> Option<u16> {
+        let value = match self {
+            Self::Absolute(weight) => {
+                return ((100..=900).contains(&weight) && weight.is_multiple_of(100))
+                    .then_some(weight)
+            }
+            Self::Theme { name, fallback } => match theme.font_weight(name) {
+                Some(value) => value,
+                None => return Self::Absolute(fallback).native(theme),
+            },
+        };
+        match value.trim() {
+            "normal" => Some(400),
+            "bold" => Some(700),
+            value => value
+                .parse::<f64>()
+                .ok()
+                .filter(|weight| {
+                    weight.is_finite() && (100.0..=900.0).contains(weight) && weight % 100.0 == 0.0
+                })
+                .map(|weight| weight as u16),
+        }
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextAlign {

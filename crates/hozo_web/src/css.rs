@@ -1335,7 +1335,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> (&'a st
         StyleProperty::BorderEndStartRadius(r) => radius_pair("border-end-start-radius", r, theme),
         StyleProperty::BorderEndEndRadius(r) => radius_pair("border-end-end-radius", r, theme),
         StyleProperty::FontSize(l) => ("font-size", length_px(l, theme)),
-        StyleProperty::FontWeight(w) => ("font-weight", format!("{}", w.0)),
+        StyleProperty::FontWeight(w) => ("font-weight", w.css(theme)),
         StyleProperty::LineHeight(lh) => (
             "line-height",
             match lh {

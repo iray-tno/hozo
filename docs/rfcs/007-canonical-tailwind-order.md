@@ -246,6 +246,15 @@ compound text metrics, gap/logical aliases and transform registers remain
 explicit next boundaries rather than assumed scalar projections; see
 [evidence and remaining scope](../measurements/tailwind-simple-projections.md).
 
+Policy v3 adds named font-weight ordering and actual project-value resolution.
+Hoisted `@property` definitions are assessed as non-owner metadata only for
+their closed registration shape; arbitrary hoisted selectors/directives are
+still barriers. The parser retains named tokens separately from authored
+absolute weights, preventing project overrides from changing StyleX/semantic
+constants. Invalid Native theme values are diagnosed on use, not rounded or
+replaced. Compound font metrics remain open; see
+[font-weight evidence](../measurements/tailwind-font-weight-order.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

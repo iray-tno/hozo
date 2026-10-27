@@ -90,6 +90,8 @@ export interface Theme {
    * keep their defaults.
    */
   radii?: ThemeRadius[]
+  /** Values remain visible even when a Native font cannot represent them. */
+  fontWeights?: { name: string; value: string }[]
 }
 
 export interface ThemeRadius {
@@ -329,6 +331,12 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
     spacingPx: readSpacing(design),
     animations: readAnimations(design, declared),
     radii: readRadii(declared),
+    fontWeights: [...declared]
+      .filter(([name]) => name.startsWith('--font-weight-'))
+      .map(([name, value]) => ({
+        name: name.slice('--font-weight-'.length),
+        value: dereference(value, declared),
+      })),
   }
 }
 

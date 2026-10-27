@@ -142,7 +142,7 @@ fn render_candidate_module_impl(
             .collect();
         if let Some(reason) = properties
             .iter()
-            .find_map(StyleProperty::unsupported_on_native)
+            .find_map(|property| property.unsupported_on_native_with_theme(theme))
         {
             if let Some(plan) = plan.as_deref_mut() {
                 plan.refused(name, "unsupported-property");
@@ -331,7 +331,7 @@ fn state_groups(
             let keys = state_keys(condition)?;
             if properties
                 .iter()
-                .any(|property| property.unsupported_on_native().is_some())
+                .any(|property| property.unsupported_on_native_with_theme(theme).is_some())
             {
                 return None;
             }

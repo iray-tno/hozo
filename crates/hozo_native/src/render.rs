@@ -438,7 +438,7 @@ pub(super) fn render_node(
         // Refused rather than dropped: silently ignoring a `block`/`grid`
         // would leave a layout that looks right on Web and is wrong on
         // device with nothing pointing at the cause.
-        if let Some(reason) = declaration.property.unsupported_on_native() {
+        if let Some(reason) = declaration.property.unsupported_on_native_with_theme(theme) {
             cx.diagnostics.push(Diagnostic {
                 code: DiagnosticCode::WebOnlyPropertyOnNative,
                 severity: Severity::Error,
@@ -608,7 +608,7 @@ pub(super) fn render_node(
     let semantic_defaults: Vec<StyleDeclaration> = match node.primitive {
         Primitive::Strong | Primitive::Legend | Primitive::Term => vec![StyleDeclaration {
             source: Default::default(),
-            property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
+            property: StyleProperty::FontWeight(hozo_ir::FontWeight::Absolute(700)),
             condition: Condition::Always,
         }],
         Primitive::Emphasis => vec![StyleDeclaration {
@@ -739,7 +739,7 @@ pub(super) fn render_node(
         Primitive::Heading => {
             let mut defs = vec![StyleDeclaration {
                 source: Default::default(),
-                property: StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
+                property: StyleProperty::FontWeight(hozo_ir::FontWeight::Absolute(700)),
                 condition: Condition::Always,
             }];
             // The weight holds for every level, so it is above rather than
@@ -2062,6 +2062,19 @@ pub(super) fn render_node(
                     .collect()
             });
             for declaration in field_style.as_deref().unwrap_or(slot_style) {
+                if matches!(declaration.property, StyleProperty::FontWeight(_)) {
+                    if let Some(reason) = declaration
+                        .property
+                        .unsupported_on_native_with_theme(cx.theme)
+                    {
+                        cx.diagnostics.push(Diagnostic {
+                            code: DiagnosticCode::WebOnlyPropertyOnNative,
+                            severity: Severity::Error,
+                            message: reason,
+                            span: written.span,
+                        });
+                    }
+                }
                 // A rejected layout cannot become an empty secondary style.
                 // Keep this owner adaptation scoped: other property families
                 // retain their existing validation/adapter policy.

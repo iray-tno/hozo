@@ -103,6 +103,11 @@ impl TailwindOrderContext {
                     })
                 }
                 crate::OrderRuleShape::Comment => Some(0),
+                crate::OrderRuleShape::AtRoot { .. }
+                    if crate::tailwind_assessment::property_registration(shape) =>
+                {
+                    Some(0)
+                }
                 crate::OrderRuleShape::Context { .. } | crate::OrderRuleShape::AtRoot { .. } => {
                     None
                 }

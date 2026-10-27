@@ -628,7 +628,9 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         StyleProperty::FontSize(l) => vec![("fontSize", number(l, theme))],
         // RN's `fontWeight` type is a *string* ('100'..'900'/'normal'/
         // 'bold'), not a number -- unlike CSS's numeric font-weight.
-        StyleProperty::FontWeight(w) => vec![("fontWeight", format!("'{}'", w.0))],
+        StyleProperty::FontWeight(w) => w.native(theme)
+            .map(|weight| vec![("fontWeight", format!("'{weight}'"))])
+            .unwrap_or_default(),
         // Both of these are absolute in React Native. A font-relative form
         // reaching here means `fold_font_relative` found no font size on the
         // element to resolve it against, and it was refused by name there --
@@ -912,7 +914,7 @@ mod tests {
     fn font_weight_is_a_string() {
         assert_eq!(
             property_and_value(
-                &StyleProperty::FontWeight(hozo_ir::FontWeight(700)),
+                &StyleProperty::FontWeight(hozo_ir::FontWeight::Absolute(700)),
                 &Theme::default()
             ),
             vec![("fontWeight", "'700'".to_string())]

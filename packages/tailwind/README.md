@@ -20,6 +20,16 @@ retain their defaults when no project value is available. Bare `rounded`,
 `rounded-none`, `rounded-full` and explicit values such as `rounded-[8px]` are
 not changed by scale overrides.
 
+The nine built-in named font-weight utilities retain their theme token too:
+`@theme { --font-weight-bold: 900; }` makes `font-bold` use 900 in static Web,
+Native and generated fallback styles. Token references are resolved from the
+same captured stylesheet. Explicit numeric StyleX weights and semantic defaults
+are not aliases for `font-bold`. Stock Native supports the 100-step weights
+from 100 to 900; unsupported CSS values such as 650 remain visible in the theme
+and valid Web CSS, but Native compilation/fallback reports them rather than
+silently rounding or reverting to a built-in value. This does not add custom
+font-weight class names, font-size metrics or arbitrary CSS expression evaluation.
+
 The theme is read once per build. It is a project-wide fact, and re-reading it per module would run Tailwind's resolver hundreds of times for one answer.
 
 ## API

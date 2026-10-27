@@ -529,7 +529,7 @@ fn practical_text_values_become_typed_ir() {
             .flat_map(|entry| entry.properties.clone())
             .collect::<Vec<_>>(),
         vec![
-            StyleProperty::FontWeight(FontWeight(700)),
+            StyleProperty::FontWeight(FontWeight::Absolute(700)),
             StyleProperty::WhiteSpace(WhiteSpace::NoWrap),
             StyleProperty::TextOverflow(TextOverflow::Ellipsis),
         ]

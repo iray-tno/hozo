@@ -99,6 +99,7 @@ pub struct Theme {
     /// `--radius-control`. Read for names outside Tailwind's built-in scale,
     /// which the parser resolves itself.
     radii: HashMap<String, f64>,
+    font_weights: HashMap<String, String>,
 }
 
 /// Tailwind's own default, and what every caller got before a theme could
@@ -117,6 +118,7 @@ impl Default for Theme {
             preflight: false,
             animations: HashMap::new(),
             radii: HashMap::new(),
+            font_weights: HashMap::new(),
         }
     }
 }
@@ -143,6 +145,7 @@ impl Theme {
             preflight,
             animations: HashMap::new(),
             radii: HashMap::new(),
+            font_weights: HashMap::new(),
         }
     }
 
@@ -162,6 +165,15 @@ impl Theme {
     /// `rounded-<name>` uses.
     pub fn radius(&self, name: &str) -> Option<f64> {
         self.radii.get(name).copied()
+    }
+
+    pub fn with_font_weights(mut self, weights: HashMap<String, String>) -> Self {
+        self.font_weights = weights;
+        self
+    }
+
+    pub fn font_weight(&self, name: &str) -> Option<&str> {
+        self.font_weights.get(name).map(String::as_str)
     }
 
     /// Resolve a built-in scale against the project, keeping the theme-free
@@ -239,6 +251,60 @@ impl Theme {
             preflight: self.preflight,
             animations: self.animations.clone(),
             radii: self.radii.clone(),
+            font_weights: self.font_weights.clone(),
         })
+    }
+}
+
+#[cfg(test)]
+mod font_weight_tests {
+    use super::*;
+    use crate::{FontWeight, StyleProperty};
+
+    #[test]
+    fn named_weights_follow_theme_but_authored_absolute_values_do_not() {
+        let weight = FontWeight::Theme {
+            name: "bold",
+            fallback: 700,
+        };
+        assert_eq!(weight.native(&Theme::default()), Some(700));
+        let mut theme =
+            Theme::default().with_font_weights(HashMap::from([("bold".into(), "900".into())]));
+        assert_eq!(weight.css(&theme), "900");
+        assert_eq!(weight.native(&theme), Some(900));
+        assert_eq!(FontWeight::Absolute(700).native(&theme), Some(700));
+        theme.dark_colors.insert(
+            "brand".into(),
+            ThemeColor {
+                oklch: "red".into(),
+                hex: "#f00".into(),
+            },
+        );
+        assert_eq!(weight.native(&theme.dark().unwrap()), Some(900));
+    }
+
+    #[test]
+    fn stock_native_limits_never_round_or_replace_an_unresolved_project_weight() {
+        assert_eq!(
+            FontWeight::Theme {
+                name: "missing",
+                fallback: 650
+            }
+            .native(&Theme::default()),
+            None
+        );
+        for value in ["650", "var(--missing)", "inherit", "1000"] {
+            let theme =
+                Theme::default().with_font_weights(HashMap::from([("bold".into(), value.into())]));
+            let weight = FontWeight::Theme {
+                name: "bold",
+                fallback: 700,
+            };
+            assert_eq!(weight.css(&theme), value);
+            assert_eq!(weight.native(&theme), None);
+            assert!(StyleProperty::FontWeight(weight)
+                .unsupported_on_native_with_theme(&theme)
+                .is_some());
+        }
     }
 }

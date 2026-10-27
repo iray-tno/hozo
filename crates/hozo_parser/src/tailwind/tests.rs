@@ -102,7 +102,10 @@ fn expands_login_example_utilities() {
         expand_utility("font-bold"),
         (
             Condition::Always,
-            vec![StyleProperty::FontWeight(FontWeight(700))]
+            vec![StyleProperty::FontWeight(FontWeight::Theme {
+                name: "bold",
+                fallback: 700
+            })]
         )
     );
     assert_eq!(
@@ -135,7 +138,10 @@ fn recognizes_variant_prefixes() {
         expand_utility("focus:font-bold"),
         (
             Condition::Focus,
-            vec![StyleProperty::FontWeight(FontWeight(700))]
+            vec![StyleProperty::FontWeight(FontWeight::Theme {
+                name: "bold",
+                fallback: 700
+            })]
         )
     );
     assert_eq!(
