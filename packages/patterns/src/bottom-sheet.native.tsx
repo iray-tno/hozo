@@ -152,9 +152,14 @@ export function HozoBottomSheet({
 
   const resizable = stops.length > 1
 
+  // The root is the layer over the window: `fixed inset-0` on the Web. React
+  // Native has no `fixed` and drops it, which left `inset-0` on a relative
+  // box -- a root as tall as its content, the sheet at the top of the screen
+  // and the scrim behind it only (#1349). Inside a `Modal` the window is the
+  // Modal, so filling it is the same layer.
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[hozoClasses(className), style]}>
+      <View style={[{ flex: 1 }, hozoClasses(className), style]}>
         {/*
           The scrim is the tap that dismisses, which is the single-pointer
           alternative to dragging the sheet away. Hidden from the accessibility

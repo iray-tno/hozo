@@ -34,7 +34,13 @@ export type HozoBottomSheetProps = Omit<
   'className' | 'scrimClassName' | 'sheetClassName' | 'handleClassName'
 >
 
-const root = 'fixed inset-0 z-50 flex items-end justify-center sm:items-center'
+/**
+ * `flex-row` says nothing new on the Web, where a flex box is a row already.
+ * React Native's is a column, which turned `items-end` sideways and
+ * `justify-center` into the vertical middle; written out, the same two names
+ * put the sheet at the bottom and in the middle on both (#1349).
+ */
+const root = 'fixed inset-0 z-50 flex flex-row items-end justify-center sm:items-center'
 
 /** Dark in both schemes, because a scrim is not a surface seen from behind. */
 const scrim =

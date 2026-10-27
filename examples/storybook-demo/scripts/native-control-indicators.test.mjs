@@ -90,6 +90,7 @@ cache.scanFile(
   1,
 )
 for (const file of [
+  'bottom-sheet.tsx',
   'toggle.tsx',
   'radio.tsx',
   'tree.tsx',
@@ -2629,6 +2630,23 @@ for (const [name, Component, ownClass, ownStyle] of [
     assert.equal(tree.root.findAllByType('NativeModal').length, 0, 'closed modal removes its hosts')
   })
 }
+
+test('Native BottomSheet root fills its Modal and pins the sheet to the bottom with the UI root class', async (t) => {
+  // @hozo/ui's root list, read from its source so the two cannot drift.
+  const rootClass = readFileSync(path.join(uiRoot, 'src/bottom-sheet.tsx'), 'utf8').match(
+    /^const root = '([^']+)'/m,
+  )[1]
+  const tree = await mount(t, HozoBottomSheet, { open: true, className: rootClass })
+  const root = flat(views(tree)[0].props.style)
+  assert.equal(
+    root.flex,
+    1,
+    'the Web layer is fixed inset-0; RN drops fixed, so the root fills the Modal',
+  )
+  assert.equal(root.flexDirection, 'row', 'items-end is the bottom edge only in a row')
+  assert.equal(root.alignItems, 'flex-end')
+  assert.equal(root.justifyContent, 'center')
+})
 
 test('Native overlay BottomSheet resolves both the plain and pressable handle owners', async (t) => {
   for (const detents of [[1], [0.5, 1]]) {
