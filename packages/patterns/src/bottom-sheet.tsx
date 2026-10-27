@@ -56,6 +56,14 @@ export interface HozoBottomSheetProps {
   scrimClassName?: string
   sheetClassName?: string
   handleClassName?: string
+  /**
+   * The bar drawn inside the handle, which is what a person sees of it.
+   *
+   * A box of its own rather than a `before:` on the handle, because React
+   * Native has no pseudo-elements: a bar drawn that way exists only on the Web.
+   * Nothing is rendered without it.
+   */
+  handleBarClassName?: string
   testID?: string
   children?: ReactNode
 }
@@ -109,6 +117,7 @@ export function HozoBottomSheet({
   scrimClassName,
   sheetClassName,
   handleClassName,
+  handleBarClassName,
   testID,
   children,
 }: HozoBottomSheetProps) {
@@ -224,6 +233,7 @@ export function HozoBottomSheet({
    * this is the one control here whose effect is visual only, and it is offered
    * rather than hidden because 2.5.7 is about the pointer.
    */
+  const bar = handleBarClassName ? <span aria-hidden="true" className={handleBarClassName} /> : null
   const handle = resizable ? (
     <button
       data-hozo-pressable=""
@@ -245,14 +255,18 @@ export function HozoBottomSheet({
       }}
       onKeyDown={onHandleKeyDown}
       {...drag.handlers}
-    />
+    >
+      {bar}
+    </button>
   ) : (
     <div
       aria-hidden="true"
       className={handleClassName}
       style={{ touchAction: 'none' }}
       {...drag.handlers}
-    />
+    >
+      {bar}
+    </div>
   )
 
   return (

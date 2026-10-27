@@ -2674,6 +2674,40 @@ test('Native Drawer and BottomSheet add the safe area to the padding of the edge
   assert.deepEqual(await padding(HozoDrawer, 'panelClassName', none), [24, 24], 'no provider')
 })
 
+test('Native BottomSheet draws the handle bar as a box inside the handle, with or without detents', async (t) => {
+  for (const detents of [[1], [0.5, 1]]) {
+    const tree = await mount(t, HozoBottomSheet, {
+      open: true,
+      detents,
+      handleClassName: 'p-2',
+      handleBarClassName: 'p-3',
+      handleBarStyle: { opacity: 0.5 },
+    })
+    const handle = tree.root
+      .findAll((node) => typeof node.props.onMoveShouldSetResponder === 'function')
+      .at(0)
+    const bars = handle.findAll(
+      (node) =>
+        node.type === 'NativeView' &&
+        !node.props.onMoveShouldSetResponder &&
+        node.props.style !== undefined,
+    )
+    assert.equal(bars.length, 1, `one bar for detents ${detents}`)
+    assert.equal(flat(bars[0].props.style).paddingTop, 12)
+    assert.equal(flat(bars[0].props.style).opacity, 0.5, 'its style comes after its classes')
+  }
+  const bare = await mount(t, HozoBottomSheet, { open: true, handleClassName: 'p-2' })
+  const handle = bare.root.findAll(
+    (node) => typeof node.props.onMoveShouldSetResponder === 'function',
+  )[0]
+  assert.equal(
+    handle.findAll((node) => node.type === 'NativeView' && !node.props.onMoveShouldSetResponder)
+      .length,
+    0,
+    'nothing is drawn without a bar class',
+  )
+})
+
 test('Native overlay BottomSheet resolves both the plain and pressable handle owners', async (t) => {
   for (const detents of [[1], [0.5, 1]]) {
     const resizable = detents.length > 1
