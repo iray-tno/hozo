@@ -1,8 +1,8 @@
-// Overlays held open, for the device walk to see (#1306, #1319, #1320).
+// Overlays held open, for the device walk to see (#1306, #1319, #1320, #1326).
 //
 // The /docs demos and the shared state screens are captured closed, so a
-// dialog's body, a tooltip's content and a popover's panel were never on a
-// device screen. Each story here opens one, and the `ui-docs` walk captures
+// dialog's body, a tooltip's content, a popover's panel, a menu's items and a
+// combobox's list were never on a device screen. Each story here opens one, and the `ui-docs` walk captures
 // it as `overlay-<name>.png` (`UI_OVERLAY_SCENES` in
 // `scripts/ui-docs-evidence.mjs`, which waits for the same text).
 //
@@ -14,7 +14,14 @@
 // it is the pattern, at runtime, that has to put it in a `Text` (#1306).
 
 import { View } from '@hozo/core'
-import { Button, Dialog as UiDialog, Popover as UiPopover, Tooltip as UiTooltip } from '@hozo/ui'
+import {
+  Button,
+  Combobox as UiCombobox,
+  Dialog as UiDialog,
+  Menu as UiMenu,
+  Popover as UiPopover,
+  Tooltip as UiTooltip,
+} from '@hozo/ui'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { useState } from 'react'
 
@@ -49,6 +56,37 @@ function OpenPopover() {
   )
 }
 
+// Menu and Combobox open through `defaultOpen`; their items are labels the
+// pattern draws, so the walk waits for one that only the open popup shows.
+function OpenMenu() {
+  return (
+    <View className="items-start p-8">
+      <UiMenu
+        trigger="Actions"
+        accessibilityLabel="Actions"
+        defaultOpen
+        items={[{ label: 'Menu item, shown open' }, { label: 'Delete', disabled: true }]}
+      />
+    </View>
+  )
+}
+
+function OpenCombobox() {
+  return (
+    <View className="items-stretch p-8">
+      <UiCombobox
+        accessibilityLabel="Language"
+        placeholder="Search…"
+        defaultOpen
+        options={[
+          { value: 'shown', label: 'Combobox option, shown open' },
+          { value: 'cobol', label: 'COBOL', disabled: true },
+        ]}
+      />
+    </View>
+  )
+}
+
 const meta = {
   title: 'UI/Open overlays',
   component: OpenDialog,
@@ -59,3 +97,5 @@ type Story = StoryObj<typeof meta>
 export const Dialog: Story = { render: () => <OpenDialog /> }
 export const Tooltip: Story = { render: () => <OpenTooltip /> }
 export const Popover: Story = { render: () => <OpenPopover /> }
+export const Menu: Story = { render: () => <OpenMenu /> }
+export const Combobox: Story = { render: () => <OpenCombobox /> }
