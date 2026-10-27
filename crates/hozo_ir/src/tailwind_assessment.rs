@@ -253,11 +253,25 @@ pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
 /// utility precedence table: priority still comes from the captured CSS rule.
 /// Keep this definition shared by static planning and candidate generation.
 pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str> {
+    fn absolute(length: &crate::Length) -> bool {
+        match length {
+            crate::Length::Px(_) | crate::Length::Spacing(_) => true,
+            crate::Length::Unit(_, unit) => unit.px().is_some(),
+            crate::Length::Css(_) => false,
+        }
+    }
     use StyleProperty::*;
     Some(match write {
         BackgroundColor(_) => "background-color",
         TextColor(_) => "color",
         FontWeight(_) => "font-weight",
+        FontSize(length) if absolute(length) => "font-size",
+        LineHeight(crate::LineHeight::Length(length) | crate::LineHeight::FontDefault(length))
+            if absolute(length) =>
+        {
+            "line-height"
+        }
+        LetterSpacing(crate::LetterSpacing::Px(length)) if absolute(length) => "letter-spacing",
         Width(_) => "width",
         Height(_) => "height",
         MinWidth(_) => "min-width",
@@ -386,7 +400,12 @@ mod tests {
             assert!(!covers("unrelated", &write));
         }
         for write in [
-            StyleProperty::FontSize(Length::Px(18.0)),
+            StyleProperty::LineHeight(crate::LineHeight::Ratio(1.25)),
+            StyleProperty::LetterSpacing(crate::LetterSpacing::Px(Length::Unit(
+                1.0,
+                crate::LengthUnit::Em,
+            ))),
+            StyleProperty::LineHeight(crate::LineHeight::Length(Length::Css("var(--line)".into()))),
             StyleProperty::Gap(Length::Px(8.0)),
             StyleProperty::ZIndex(None),
             StyleProperty::Keyword("font-style", "oblique"),
@@ -517,7 +536,7 @@ mod tests {
     }
 
     #[test]
-    fn ownership_survives_longhand_expansion_but_does_not_certify_compound_defaults() {
+    fn ownership_survives_longhand_expansion_and_names_absolute_text_writes() {
         for (name, write, expected) in [
             (
                 "p-2",
@@ -550,7 +569,10 @@ mod tests {
         let text = fixture("text-lg");
         assert!(matches!(
             assess_tailwind_write(&text, &StyleProperty::FontSize(Length::Px(18.0))),
-            TailwindWriteOwnership::Unknown("unmapped-property")
+            TailwindWriteOwnership::Unique {
+                css_property: "font-size",
+                ..
+            }
         ));
     }
 

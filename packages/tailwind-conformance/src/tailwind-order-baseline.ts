@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { transformSync } from 'esbuild'
 import { createCompiler, openCandidateCache } from '../../compiler/src/index.ts'
-import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { createClassResolver, hozoTextMetricStyles } from '../../engine/src/class-resolver.ts'
 import { orderCandidates, orderCases } from './tailwind-order-corpus.ts'
 import { prepareOrderReference } from './tailwind-order-reference.ts'
 
@@ -38,7 +38,7 @@ export function orderCandidateFactory(code: string) {
   const js = transformSync(code, { format: 'cjs' }).code
   return () => {
     const module = { exports: {} }
-    runInNewContext(js, { module, require: () => ({ createClassResolver }) })
+    runInNewContext(js, { module, require: () => ({ createClassResolver, hozoTextMetricStyles }) })
     return (module.exports as { hozoClasses: ReturnType<typeof createClassResolver> }).hozoClasses
   }
 }

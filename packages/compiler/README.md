@@ -389,9 +389,9 @@ before both static lowerers and emits the generated resolver's object ABI from
 that same context. This changes bounded batch winners **together**, not just
 Native fallback. `prepareFinalTailwindContext` is the internal output capability,
 not an app option or mutable compiler setter. Its fingerprint is
-`scalar-order-v3:<descriptor fingerprint>` so output caches cannot confuse it
+`scalar-order-v4:<descriptor fingerprint>` so output caches cannot confuse it
 with the unchanged pass-through `prepareTailwindContext` namespace. Captured
-plans report the same fingerprint and `mode: 'scalar-order-v3'`. The policy
+plans report the same fingerprint and `mode: 'scalar-order-v4'`. The policy
 revision also changes when the eligible projection domain expands, not only
 when the comparator changes; Metro transports it in its startup cache identity.
 
@@ -415,13 +415,23 @@ assessment. Font registration, compound text metrics, gap/logical aliases and
 transform composition are not included by this expansion; see
 [the measured scope](../../docs/measurements/tailwind-simple-projections.md).
 
-The current v3 policy also orders named font weights. Hoisted, structurally
+The v3 expansion also orders named font weights. Hoisted, structurally
 validated `@property` definitions are metadata, not selector-owned writes;
 unknown hoisted CSS remains a barrier. Named weights resolve against the
 captured `fontWeights` theme entries, while StyleX numeric and semantic default
 weights remain absolute. Values that stock Native cannot represent are
 diagnosed at their actual owners and in generated candidate maps, not replaced
 with 700. See [font-weight evidence](../../docs/measurements/tailwind-font-weight-order.md).
+
+The v4 expansion admits existing absolute font-size/line-height and absolute
+letter-spacing writes, including font-size's fallback line height. Native
+projects containing font defaults and explicit leading preserve the latter
+through the generated map's existing composition hook, with prepared objects
+and no state-time rank reads/sorts or style cloning. A single canonical input
+does not pass through the legacy condition-weight sorter again; mixed inputs
+retain ADR011. Relative `em`/ratio folding, slash parsing and custom text-size
+theme values are not added by this ordering slice. See
+[absolute metric evidence](../../docs/measurements/tailwind-absolute-text-order.md).
 
 For Web graph discovery, `prepareLowerModuleStyles` from compiler/lower returns
 initial full-module code plus a one-shot final stylesheet continuation from the

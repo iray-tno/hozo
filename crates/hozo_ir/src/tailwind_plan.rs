@@ -6,7 +6,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v3";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v4";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; physical padding/margin also
@@ -285,6 +285,47 @@ mod tests {
                 (&Condition::Focus, 2)
             ]
         );
+    }
+
+    #[test]
+    fn grouping_never_reweights_a_projected_canonical_guard_sequence() {
+        let conjunction = Condition::all(vec![Condition::Hover, Condition::Focus]);
+        let (mut declarations, _) = fixture(&[
+            ("hover:focus:text-lg", 10, conjunction.clone()),
+            ("focus:leading-6", 10, Condition::Focus),
+            ("hover:focus:text-lg", 10, conjunction.clone()),
+        ]);
+        for declaration in &mut declarations {
+            let StyleSource::TailwindUtility { input, utility } = declaration.source else {
+                panic!()
+            };
+            declaration.source = StyleSource::TailwindOrdered { input, utility };
+        }
+        let groups = crate::group_by_condition(&declarations);
+        assert_eq!(
+            groups
+                .iter()
+                .map(|(condition, _)| condition.clone())
+                .collect::<Vec<_>>(),
+            [conjunction.clone(), Condition::Focus, conjunction]
+        );
+        // Across authored inputs ADR011 still requires selector specificity.
+        let mut semantic = declarations.clone();
+        semantic.insert(
+            0,
+            StyleDeclaration {
+                source: StyleSource::Unspecified,
+                condition: Condition::Always,
+                property: crate::StyleProperty::FontWeight(crate::FontWeight::Absolute(700)),
+            },
+        );
+        let with_default = crate::group_by_condition(&semantic);
+        assert_eq!(with_default[1].0, groups[0].0);
+        assert_eq!(with_default[2].0, Condition::Focus);
+        assert_eq!(with_default[3].0, groups[2].0);
+        declarations[1].source = declarations[1].source.with_tailwind_input(20);
+        let mixed = crate::group_by_condition(&declarations);
+        assert_eq!(mixed[0].0, Condition::Focus);
     }
 
     #[test]

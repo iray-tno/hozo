@@ -25,6 +25,7 @@ import { chromium } from 'playwright-core'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
+import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 import {
@@ -159,7 +160,7 @@ uiCache.scanFile('radius-callers.ts', JSON.stringify(radiusCandidates.join(' '))
 const uiCandidates = uiCache.renderCss(uiTheme)
 const { hozoClasses: resolveUiClasses } = evaluate(
   uiCache.renderNativeModule(uiTheme).replace(/^import .*$/gm, ''),
-  { createClassResolver },
+  { createClassResolver, hozoTextMetricStyles },
 )
 
 for (const { file, name, slots, source, variants, classes } of uiCases) {
@@ -1074,6 +1075,110 @@ test('font-weight registration and custom theme values agree in actual Web, Nati
       }
     }
     assert.equal(observations, 32)
+  } finally {
+    await page.close()
+  }
+})
+
+test('absolute text metrics preserve upstream defaults and explicit leading across all owner-state combinations', {
+  skip: !executablePath,
+}, async () => {
+  const cases = [
+    'text-xl text-lg',
+    'text-lg leading-6',
+    'text-lg hover:text-xl focus:leading-6 active:text-2xl',
+    'text-lg focus:leading-6 active:leading-8 hover:focus:text-3xl',
+    'text-lg tracking-[2px] tracking-[1px]',
+  ]
+  const names = [...new Set([...cases.flatMap((value) => value.split(' ')), 'p-4', 'p-2'])]
+  const css = `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`
+  const theme = await loadTheme(css, tailwindPackageDir())
+  const compiler = createCompiler(theme)
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const context = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('metrics.ts', JSON.stringify(names.join(' ')), 0)
+  const resolve = evaluate(
+    cache.renderNativeModulePlan(context, theme).code.replace(/^import .*$/gm, ''),
+    { createClassResolver, hozoTextMetricStyles },
+  ).hozoClasses
+  const sheet = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  let observations = 0
+  try {
+    for (const value of cases)
+      for (const classes of [
+        `${value} p-4 p-2`,
+        `p-2 p-4 ${value.split(' ').reverse().join(' ')}`,
+      ]) {
+        const source = `import {Pressable} from '@hozo/core';export const A=()=> <Pressable className="${classes}"/>`
+        const web = compiler.prepareWebModule(source).emit(context)[0]
+        const native = compiler.prepareNativeModule(source).emit(context).components[0]
+        const props = evaluate(`const hozoStyles=${native.styles};module.exports=(${native.jsx})`, {
+          Pressable: 'owner',
+          HozoPressable: 'owner',
+          Text: 'label',
+          HozoText: 'label',
+          h: (_type, props) => props,
+        })
+        await page.setContent(
+          `<!doctype html><style>${sheet}\n${web.css}</style><button id="upstream" class="${classes}">Label</button><button id="compiled" class="hozo-0">Label</button>`,
+        )
+        for (const id of ['upstream', 'compiled']) {
+          const owner = page.locator(`#${id}`)
+          for (const focused of [false, true])
+            for (const hovered of [false, true])
+              for (const pressed of [false, true]) {
+                await page.mouse.up()
+                await page.evaluate(() => document.activeElement?.blur())
+                if (focused) await owner.focus()
+                if (hovered || pressed) await owner.hover()
+                else await page.mouse.move(600, 600)
+                if (pressed) await page.mouse.down()
+                try {
+                  const actual = await owner.evaluate((element) => ({
+                    size: parseFloat(getComputedStyle(element).fontSize),
+                    line: parseFloat(getComputedStyle(element).lineHeight),
+                    tracking: getComputedStyle(element).letterSpacing,
+                    state: {
+                      focused: element.matches(':focus'),
+                      hovered: element.matches(':hover'),
+                      pressed: element.matches(':active'),
+                    },
+                  }))
+                  const label =
+                    typeof props.hozoTextStyle === 'function'
+                      ? props.hozoTextStyle(actual.state)
+                      : props.hozoTextStyle
+                  const selected = Object.assign({}, ...[label].flat(Infinity).filter(Boolean))
+                  const dynamic = Object.assign({}, ...resolve(classes, actual.state))
+                  for (const [key, expected] of [
+                    ['fontSize', actual.size],
+                    ['lineHeight', actual.line],
+                  ]) {
+                    assert.equal(
+                      selected[key],
+                      expected,
+                      `${id}/${classes}/${JSON.stringify(actual.state)}/static/${key}`,
+                    )
+                    assert.equal(
+                      dynamic[key],
+                      expected,
+                      `${id}/${classes}/${JSON.stringify(actual.state)}/dynamic/${key}`,
+                    )
+                  }
+                  if (actual.tracking !== 'normal') {
+                    assert.equal(selected.letterSpacing, parseFloat(actual.tracking))
+                    assert.equal(dynamic.letterSpacing, parseFloat(actual.tracking))
+                  }
+                  observations++
+                } finally {
+                  await page.mouse.up()
+                }
+              }
+        }
+      }
+    assert.equal(observations, 160)
   } finally {
     await page.close()
   }

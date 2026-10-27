@@ -255,6 +255,14 @@ constants. Invalid Native theme values are diagnosed on use, not rounded or
 replaced. Compound font metrics remain open; see
 [font-weight evidence](../measurements/tailwind-font-weight-order.md).
 
+Policy v4 adds existing absolute font-size/line-height/letter-spacing writes.
+Font-size fallback line-height retains its register semantics on Native and in
+the generated map. The legacy condition-weight sorter is bypassed for a
+single entirely canonical input; mixed-input ADR011 composition is unchanged.
+Ratio/`em` recomputation, slash parsing and text-size theme values are not
+newly supported by this slice. See
+[absolute text metric evidence](../measurements/tailwind-absolute-text-order.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

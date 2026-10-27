@@ -84,10 +84,16 @@ test('simple projections acquire actual ownership and common static/fallback win
   }
 })
 
-test('compound text metrics, gap aliases and transform neighbors still preserve their whole old input rather than receive guessed scalar priorities', async () => {
+test('relative text metrics, gap aliases and transform neighbors still preserve their whole old input rather than receive guessed scalar priorities', async () => {
   const theme = await loadTheme(css, base)
   const compiler = createCompiler(theme)
-  for (const neighbor of ['text-lg', 'gap-2', 'rotate-45']) {
+  for (const neighbor of [
+    'tracking-wide',
+    'tracking-[1em]',
+    'leading-[1em]',
+    'gap-2',
+    'rotate-45',
+  ]) {
     const classes = `p-4 p-2 ${neighbor}`
     const names = classes.split(' ')
     const prepared = await prepareTailwindOrder(css, base, names)
