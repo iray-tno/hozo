@@ -901,6 +901,26 @@ test('simple projected properties use upstream winners in actual static and gene
     ['text-left text-right', 'text-align', 'textAlign'],
     ['uppercase lowercase', 'text-transform', 'textTransform'],
     ['italic not-italic', 'font-style', 'fontStyle'],
+    ['flex hidden', 'display', 'display'],
+    ['absolute relative', 'position', 'position'],
+    ['overflow-hidden overflow-visible', 'overflow', 'overflow'],
+    ['basis-8 basis-4', 'flex-basis', 'flexBasis', 'px'],
+    ['flex-wrap flex-nowrap', 'flex-wrap', 'flexWrap'],
+    ['backface-hidden backface-visible', 'backface-visibility', 'backfaceVisibility'],
+    ['box-border box-content', 'box-sizing', 'boxSizing'],
+    ['isolate isolation-auto', 'isolation', 'isolation'],
+    ['pointer-events-none pointer-events-auto', 'pointer-events', 'pointerEvents'],
+    ['static relative', 'position', 'position'],
+    ['select-none select-text', 'user-select', 'userSelect'],
+    ['align-top align-middle', 'vertical-align', 'verticalAlign'],
+    ['underline no-underline', 'text-decoration-line', 'textDecorationLine'],
+    ['decoration-solid decoration-dashed', 'text-decoration-style', 'textDecorationStyle'],
+    [
+      'decoration-[#ff0000] decoration-[#0000ff]',
+      'text-decoration-color',
+      'textDecorationColor',
+      'color',
+    ],
     [
       'focus:opacity-50 active:opacity-75 hover:focus:opacity-25 opacity-100',
       'opacity',
@@ -926,7 +946,12 @@ test('simple projected properties use upstream winners in actual static and gene
       for (const classes of [`p-4 p-2 ${pair}`, `${pair.split(' ').reverse().join(' ')} p-2 p-4`]) {
         // Observe font style on a real Text owner, not an empty layout host.
         // This ordering probe does not certify parent text inheritance.
-        const primitive = nativeKey === 'fontStyle' ? 'Text' : 'Pressable'
+        const primitive =
+          nativeKey === 'fontStyle' ||
+          nativeKey === 'verticalAlign' ||
+          nativeKey.startsWith('textDecoration')
+            ? 'Text'
+            : 'Pressable'
         const input = `import {${primitive}} from '@hozo/core';export const Target=()=> <${primitive} className="${classes}"/>`
         const web = compiler.prepareWebModule(input).emit(context)[0]
         const native = compiler.prepareNativeModule(input).emit(context).components[0]
@@ -975,7 +1000,17 @@ test('simple projected properties use upstream winners in actual static and gene
                   ? Object.assign({}, ...[label].flat(Infinity).filter(Boolean))
                   : hostStyle
               const dynamic = Object.assign({}, ...resolve(classes, actual.state))
-              const expected = numeric ? Number(actual.value) : actual.value
+              const expected =
+                numeric === 'px'
+                  ? Number.parseFloat(actual.value)
+                  : numeric === 'color'
+                    ? `#${actual.value
+                        .match(/\d+/g)
+                        .map((n) => Number(n).toString(16).padStart(2, '0'))
+                        .join('')}`
+                    : numeric
+                      ? Number(actual.value)
+                      : actual.value
               assert.equal(staticStyle[nativeKey], expected, `${id}/${classes}/${stage}/static`)
               assert.equal(dynamic[nativeKey], expected, `${id}/${classes}/${stage}/dynamic`)
               assert.equal(actual.padding, '16px')
@@ -989,7 +1024,7 @@ test('simple projected properties use upstream winners in actual static and gene
         }
       }
     }
-    assert.equal(observations, 64)
+    assert.equal(observations, 124)
   } finally {
     await page.close()
   }

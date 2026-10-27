@@ -389,9 +389,9 @@ before both static lowerers and emits the generated resolver's object ABI from
 that same context. This changes bounded batch winners **together**, not just
 Native fallback. `prepareFinalTailwindContext` is the internal output capability,
 not an app option or mutable compiler setter. Its fingerprint is
-`scalar-order-v4:<descriptor fingerprint>` so output caches cannot confuse it
+`scalar-order-v5:<descriptor fingerprint>` so output caches cannot confuse it
 with the unchanged pass-through `prepareTailwindContext` namespace. Captured
-plans report the same fingerprint and `mode: 'scalar-order-v4'`. The policy
+plans report the same fingerprint and `mode: 'scalar-order-v5'`. The policy
 revision also changes when the eligible projection domain expands, not only
 when the comparator changes; Metro transports it in its startup cache identity.
 
@@ -432,6 +432,14 @@ does not pass through the legacy condition-weight sorter again; mixed inputs
 retain ADR011. Relative `em`/ratio folding, slash parsing and custom text-size
 theme values are not added by this ordering slice. See
 [absolute metric evidence](../../docs/measurements/tailwind-absolute-text-order.md).
+
+The v5 expansion orders further existing direct-key writes: bounded display,
+position, overflow, flex basis/wrapping, box sizing, isolation, pointer events,
+backface visibility, user selection and supported text decoration/alignment.
+It changes only the shared ownership assessment, not runtime sorting or style
+composition. Contextual display, relative text, gap/logical aliases and shared
+transform registers remain barriers. See
+[direct property evidence](../../docs/measurements/tailwind-direct-properties.md).
 
 For Web graph discovery, `prepareLowerModuleStyles` from compiler/lower returns
 initial full-module code plus a one-shot final stylesheet continuation from the

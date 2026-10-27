@@ -28,6 +28,21 @@ const pairs = [
   'text-left text-right',
   'uppercase lowercase',
   'italic not-italic',
+  'flex hidden',
+  'absolute relative',
+  'overflow-hidden overflow-visible',
+  'basis-8 basis-4',
+  'flex-wrap flex-nowrap',
+  'backface-hidden backface-visible',
+  'box-border box-content',
+  'isolate isolation-auto',
+  'pointer-events-none pointer-events-auto',
+  'static relative',
+  'select-none select-text',
+  'align-top align-middle',
+  'underline no-underline',
+  'decoration-solid decoration-dashed',
+  'decoration-[#ff0000] decoration-[#0000ff]',
 ]
 const source = (classes: string) =>
   `import {Pressable} from '@hozo/core';export const A=()=> <Pressable className="${classes}"/>`
@@ -93,6 +108,11 @@ test('relative text metrics, gap aliases and transform neighbors still preserve 
     'leading-[1em]',
     'gap-2',
     'rotate-45',
+    'overline',
+    'align-baseline',
+    'fixed',
+    'overflow-clip',
+    'inline-flex',
   ]) {
     const classes = `p-4 p-2 ${neighbor}`
     const names = classes.split(' ')

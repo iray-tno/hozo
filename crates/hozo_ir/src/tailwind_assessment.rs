@@ -283,6 +283,22 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         FlexDirection(_) => "flex-direction",
         FlexGrow(_) => "flex-grow",
         FlexShrink(_) => "flex-shrink",
+        FlexBasis(_) => "flex-basis",
+        Display(crate::Display::Flex | crate::Display::None | crate::Display::Contents) => {
+            "display"
+        }
+        Position(
+            crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
+        ) => "position",
+        Overflow(crate::Overflow::Visible | crate::Overflow::Hidden | crate::Overflow::Scroll) => {
+            "overflow"
+        }
+        TextDecorationLine("none" | "underline" | "line-through" | "underline line-through") => {
+            "text-decoration-line"
+        }
+        TextDecorationColor(_) => "text-decoration-color",
+        TextDecorationStyle(_) => "text-decoration-style",
+        UserSelect("auto" | "text" | "none" | "all") => "user-select",
         AlignItems(
             crate::Align::Start
             | crate::Align::Center
@@ -320,6 +336,13 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         }
         TextTransform(_) => "text-transform",
         Keyword("font-style", "normal" | "italic") => "font-style",
+        Keyword("flex-wrap", "nowrap" | "wrap" | "wrap-reverse") => "flex-wrap",
+        Keyword("backface-visibility", "visible" | "hidden") => "backface-visibility",
+        Keyword("box-sizing", "border-box" | "content-box") => "box-sizing",
+        Keyword("isolation", "auto" | "isolate") => "isolation",
+        Keyword("pointer-events", "auto" | "none") => "pointer-events",
+        Keyword("user-select", "auto" | "text" | "none" | "all") => "user-select",
+        Keyword("vertical-align", "auto" | "top" | "bottom" | "middle") => "vertical-align",
         _ => return None,
     })
 }
@@ -393,6 +416,47 @@ mod tests {
                 "text-transform",
             ),
             (StyleProperty::Keyword("font-style", "italic"), "font-style"),
+            (StyleProperty::Display(crate::Display::None), "display"),
+            (
+                StyleProperty::Position(crate::Position::Absolute),
+                "position",
+            ),
+            (StyleProperty::Overflow(crate::Overflow::Hidden), "overflow"),
+            (
+                StyleProperty::FlexBasis(crate::Dimension::Auto),
+                "flex-basis",
+            ),
+            (
+                StyleProperty::TextDecorationLine("underline"),
+                "text-decoration-line",
+            ),
+            (
+                StyleProperty::TextDecorationColor(crate::Color::Token("red-500".into())),
+                "text-decoration-color",
+            ),
+            (
+                StyleProperty::TextDecorationStyle(crate::DecorationStyle::Wavy),
+                "text-decoration-style",
+            ),
+            (StyleProperty::UserSelect("none"), "user-select"),
+            (StyleProperty::Keyword("flex-wrap", "wrap"), "flex-wrap"),
+            (
+                StyleProperty::Keyword("backface-visibility", "hidden"),
+                "backface-visibility",
+            ),
+            (
+                StyleProperty::Keyword("box-sizing", "border-box"),
+                "box-sizing",
+            ),
+            (StyleProperty::Keyword("isolation", "isolate"), "isolation"),
+            (
+                StyleProperty::Keyword("pointer-events", "none"),
+                "pointer-events",
+            ),
+            (
+                StyleProperty::Keyword("vertical-align", "middle"),
+                "vertical-align",
+            ),
         ] {
             assert_eq!(scalar_css_property(&write), Some(property));
             assert!(crate::scalar_tailwind_property(&write));
@@ -411,6 +475,14 @@ mod tests {
             StyleProperty::Keyword("font-style", "oblique"),
             StyleProperty::AlignContent(crate::Justify::Baseline),
             StyleProperty::JustifyContent(crate::Justify::Stretch),
+            StyleProperty::Display(crate::Display::Grid),
+            StyleProperty::Display(crate::Display::InlineFlex),
+            StyleProperty::Position(crate::Position::Css("fixed")),
+            StyleProperty::Overflow(crate::Overflow::Css("clip")),
+            StyleProperty::TextDecorationLine("overline"),
+            StyleProperty::UserSelect("contain"),
+            StyleProperty::Keyword("vertical-align", "baseline"),
+            StyleProperty::Keyword("pointer-events", "visiblePainted"),
         ] {
             assert_eq!(scalar_css_property(&write), None);
             assert!(!crate::scalar_tailwind_property(&write));

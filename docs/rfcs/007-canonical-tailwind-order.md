@@ -263,6 +263,13 @@ Ratio/`em` recomputation, slash parsing and text-size theme values are not
 newly supported by this slice. See
 [absolute text metric evidence](../measurements/tailwind-absolute-text-order.md).
 
+Policy v5 extends the same shared mapping to further supported direct-key
+projections, without a new utility-family sorter or runtime machinery. Relative
+text needs joint static/dynamic/inherited-size register handling; gap/logical
+aliases need actual Yoga/explicit-style precedence, not just expanded keys.
+Those boundaries are deliberately not "fixed" by widening eligibility alone.
+See [direct property evidence](../measurements/tailwind-direct-properties.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be
