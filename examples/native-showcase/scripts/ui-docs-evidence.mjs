@@ -34,13 +34,16 @@ export const UI_STATE_SCENES = [
 export const uiStateStoryId = (scene) => `ui-shared-state-checks--${scene.toLowerCase()}`
 
 // The `UI/Open overlays` stories (`src/UiOverlays.stories.tsx`): a dialog,
-// a tooltip and a popover held open, whose bodies the docs demos and state
-// screens never show. Each waits for its body, a string the pattern has to
-// put in a Text itself (#1306).
+// a tooltip, a popover, a menu and a combobox held open, whose contents the
+// docs demos and state screens never show. Each waits for text only the open
+// overlay draws: a body the pattern has to put in a Text itself (#1306), or a
+// menu item or option label.
 export const UI_OVERLAY_SCENES = [
   { name: 'Dialog', ready: 'Dialog body, passed as a string' },
   { name: 'Tooltip', ready: 'Tooltip content, passed as a string' },
   { name: 'Popover', ready: 'Popover body, passed as a string' },
+  { name: 'Menu', ready: 'Menu item, shown open' },
+  { name: 'Combobox', ready: 'Combobox option, shown open' },
 ]
 export const uiOverlayStoryId = (name) => `ui-open-overlays--${name.toLowerCase()}`
 

@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { type StyleProp, View, type ViewStyle } from 'react-native'
+import { type StyleProp, useWindowDimensions, View, type ViewStyle } from 'react-native'
 import {
   type ComputePositionOptions,
   computePosition,
@@ -54,6 +54,11 @@ export function useFloatingPosition({
   arrowPadding = 4,
 }: UseFloatingPositionOptions): PositionResult | null {
   const [position, setPosition] = useState<PositionResult | null>(null)
+  // The window the anchor was measured in, so flip and shift know where its
+  // edges are. A fixed 400x800 flipped panels on a tall phone that had room
+  // below, and let them run off a narrower one. Read as a hook so a rotation
+  // or a resized window positions the panel again.
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions()
   // Where the floating element was last placed, in its parent's coordinates:
   // what turns its window measurement back into the parent's origin.
   const placed = useRef({ x: OFFSCREEN, y: OFFSCREEN })
@@ -67,8 +72,7 @@ export function useFloatingPosition({
       const floating = floatingRef.current
       if (floating?.measureInWindow) {
         floating.measureInWindow((fx, fy, fw, fh) => {
-          // Assume standard device screen dimensions fallback
-          const viewport = { width: 400, height: 800 }
+          const viewport = { width: windowWidth, height: windowHeight }
           const result = computePosition(
             { x: ax, y: ay, width: aw, height: ah },
             { x: 0, y: 0, width: fw, height: fh },
@@ -100,6 +104,8 @@ export function useFloatingPosition({
     shift,
     viewportPadding,
     arrowPadding,
+    windowWidth,
+    windowHeight,
   ])
 
   useEffect(() => {
