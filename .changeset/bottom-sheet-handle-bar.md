@@ -1,5 +1,5 @@
 ---
-'@hozo/patterns': minor
+'@hozo/patterns': patch
 '@hozo/ui': patch
 ---
 
