@@ -145,6 +145,9 @@ importers:
       playwright-core:
         specifier: ^1.63.0
         version: 1.63.0
+      satteri:
+        specifier: ^0.10.5
+        version: 0.10.5
       shiki:
         specifier: 4.4.3
         version: 4.4.3

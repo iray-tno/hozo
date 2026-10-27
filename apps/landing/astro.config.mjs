@@ -1,11 +1,10 @@
-import { satteri } from '@astrojs/markdown-satteri'
 import mdx from '@astrojs/mdx'
 import react from '@astrojs/react'
 import starlight from '@astrojs/starlight'
 import { hozo } from '@hozo/vite'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'astro/config'
-import { mdxCodeBlocks } from './src/lib/mdx-code-blocks.ts'
+import { docsMarkdown } from './src/lib/docs-markdown.ts'
 
 // https://astro.build/config
 export default defineConfig({
@@ -14,11 +13,12 @@ export default defineConfig({
   // Starlight turns on prefetch for every page unless told otherwise, which
   // puts a script on pages whose point is that they ship none (check-build).
   prefetch: false,
-  markdown: { processor: satteri({ mdastPlugins: [mdxCodeBlocks()] }) },
+  markdown: { processor: docsMarkdown() },
   integrations: [
     // Before mdx(): Starlight adds its own only when none is listed, and
     // the landing's pages need the one configured here either way.
     starlight({
+      expressiveCode: false,
       title: 'Hozo',
       description:
         'A universal UI framework for React Native, compiled by Rust: native semantics on every platform, first-class accessibility, and diagnostics and guardrails for humans and AI agents alike.',

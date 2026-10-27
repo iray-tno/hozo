@@ -224,13 +224,15 @@ const pages = {
       .waitFor({ state: 'attached' })
   },
   async alert(page) {
+    // The source listing also owns empty Copy announcement regions.
+    const preview = page.locator('.hozo-ui-example')
     assert.equal(
-      await page.getByRole('status').count(),
+      await preview.getByRole('status').count(),
       0,
       'alert: announced before anything happened',
     )
-    await page.getByRole('button', { name: 'Save draft' }).click()
-    await page.getByRole('status').filter({ hasText: 'Draft saved.' }).waitFor()
+    await preview.getByRole('button', { name: 'Save draft' }).click()
+    await preview.getByRole('status').filter({ hasText: 'Draft saved.' }).waitFor()
   },
   async avatar(page) {
     await page.getByRole('img', { name: 'Grace Hopper, busy' }).waitFor()

@@ -120,8 +120,8 @@ const checks = [
     readFileSync(
       path.join(dist, 'docs', 'getting-started', 'astro', 'index.html'),
       'utf8',
-    ).includes('class="expressive-code"'),
-    'ordinary documentation fences lost their existing renderer',
+    ).includes('data-hozo-docs-code='),
+    'ordinary documentation fences did not reach the shared CodeBlock renderer',
   ],
 ]
 

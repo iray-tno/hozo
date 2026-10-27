@@ -1,0 +1,21 @@
+---
+import { docsCodeData } from '../../lib/docs-code-data.ts'
+import { docsExamplePrefix, renderDocsCode } from '../../lib/docs-code-render.ts'
+
+interface Props {
+  code: string
+  lang?: string
+  title: string
+}
+const { code, lang = '', title } = Astro.props
+const data = await docsCodeData(code, lang, `title=${JSON.stringify(title)}`)
+const prefix = docsExamplePrefix(Astro.locals)
+---
+
+<div
+  class="not-content hozo-docs-code"
+  data-hozo-docs-code={JSON.stringify(data)}
+  data-code-prefix={prefix}
+>
+  <Fragment set:html={renderDocsCode(data, prefix)} />
+</div>
