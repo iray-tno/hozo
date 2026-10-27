@@ -44,6 +44,87 @@
   --sl-color-accent-high: #543f2e;
 }
 
+/* Code follows this site's explicit theme selector, including when it differs
+ * from the OS. Token colours stay readable on every semantic line background. */
+:root {
+  --docs-code-foreground: #dcd7cc;
+  --docs-code-comment: #a39b8e;
+  --docs-code-keyword: #c8a882;
+  --docs-code-name: #dfc8ab;
+  --docs-code-string: #a8c47f;
+  --docs-code-number: #b8aadf;
+  --docs-code-ins-bg: #14251b;
+  --docs-code-del-bg: #2c1918;
+  --docs-code-mark-bg: #292413;
+}
+:root[data-theme="light"] {
+  --docs-code-foreground: #33302b;
+  --docs-code-comment: #5c554c;
+  --docs-code-keyword: #7a4e22;
+  --docs-code-name: #355979;
+  --docs-code-string: #315c28;
+  --docs-code-number: #6b437c;
+  --docs-code-ins-bg: #e6f1e2;
+  --docs-code-del-bg: #f8e6e2;
+  --docs-code-mark-bg: #f6eed7;
+}
+.hozo-docs-code {
+  min-width: 0;
+  margin-block: 1.5rem;
+  overflow: hidden;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  background: var(--sl-color-black);
+  color: var(--docs-code-foreground);
+  font-size: var(--sl-text-code);
+}
+.hozo-docs-code-caption {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--sl-color-gray-5);
+  font-family: var(--sl-font-mono), monospace;
+  font-weight: 600;
+}
+.hozo-docs-code-figure > [role="region"] {
+  max-width: 100%;
+  padding-block: 0.75rem;
+}
+.hozo-docs-code-figure > [role="region"]:focus-visible,
+.hozo-docs-code-copy:focus-visible {
+  outline: 2px solid var(--sl-color-accent);
+  outline-offset: -3px;
+}
+.hozo-docs-code-line {
+  box-sizing: border-box;
+  padding-inline: 1rem;
+}
+.hozo-docs-code-gutter {
+  padding-inline: 0.5rem;
+  color: var(--docs-code-comment);
+}
+.hozo-docs-code-ins {
+  background: var(--docs-code-ins-bg);
+  text-decoration: none;
+}
+.hozo-docs-code-del {
+  background: var(--docs-code-del-bg);
+  text-decoration: none;
+}
+.hozo-docs-code-mark {
+  background: var(--docs-code-mark-bg);
+}
+.hozo-docs-code-copy {
+  display: block;
+  min-height: 44px;
+  margin: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--sl-color-gray-3);
+  border-radius: 0.25rem;
+  background: var(--sl-color-black);
+  color: var(--docs-code-foreground);
+  font: inherit;
+  cursor: pointer;
+}
+
 /* The landing's components, written against its tokens, rendered here by
  * the header and footer (BrandMark, SiteLinks). Bound to Starlight's
  * colours, they follow its theme switch rather than staying dark. */

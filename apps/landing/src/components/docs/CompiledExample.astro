@@ -8,7 +8,7 @@
 // the same Vite plugin as the rest of the site; it ships no JavaScript. Its
 // colours are the example's own classes (Tailwind's default palette), not
 // this site's theme.
-import { Code } from '@astrojs/starlight/components'
+import DocsCodeBlock from './DocsCodeBlock.astro'
 import { compile, compileNative } from '@hozo/compiler'
 import { formatJsx } from '../../scripts/format-jsx.ts'
 
@@ -39,20 +39,20 @@ const nativeCode = [...native.prelude, formatJsx(native.jsx)].join('\n')
   </figcaption>
 </figure>
 
-<Code code={source.trim()} lang="tsx" title={file} />
+<DocsCodeBlock code={source.trim()} lang="tsx" title={file} />
 
 {/* Disclosures rather than Starlight's <Tabs>: Tabs processes its panels
     with satteri, a native module the prerender bundle cannot load from
     where it lands, and a disclosure needs no script either. */}
 <details class="hozo-example-output">
   <summary>What the Web build writes</summary>
-  <Code code={formatJsx(web.jsx)} lang="tsx" title="Markup" />
-  <Code code={webCss} lang="css" title="CSS" />
+  <DocsCodeBlock code={formatJsx(web.jsx)} lang="tsx" title="Markup" />
+  <DocsCodeBlock code={webCss} lang="css" title="CSS" />
 </details>
 <details class="hozo-example-output">
   <summary>What the React Native build writes</summary>
-  <Code code={nativeCode} lang="tsx" title="Components" />
-  <Code code={native.styles} lang="js" title="StyleSheet" />
+  <DocsCodeBlock code={nativeCode} lang="tsx" title="Components" />
+  <DocsCodeBlock code={native.styles} lang="js" title="StyleSheet" />
 </details>
 
 <style>

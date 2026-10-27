@@ -17,7 +17,7 @@
 // last Android and iOS runs on main (`scripts/fetch-native-screenshots.mjs`),
 // which show what the verdict cannot. A build without them shows neither an
 // image nor a gap, and one platform shows without the other.
-import { Code } from '@astrojs/starlight/components'
+import DocsCodeBlock from './DocsCodeBlock.astro'
 import status from '../../data/ui-native-status.json'
 import {
   type NativeScreenshotsByPlatform,
@@ -165,7 +165,7 @@ const component = Astro.locals.starlightRoute?.entry.data.title ?? slug
   )
 }
 
-<Code code={source.trim()} lang="tsx" title={file} />
+<DocsCodeBlock code={source.trim()} lang="tsx" title={file} />
 
 <style>
   .hozo-ui-example {

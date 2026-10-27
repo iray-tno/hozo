@@ -16,6 +16,15 @@ const image = new URL(`${base}/og-image.png`, Astro.site).href
 <meta property="og:image" content={image} />
 <meta name="twitter:image" content={image} />
 <Analytics />
+<script>
+  // Pages without listings need neither the React renderer nor clipboard code.
+  const enhanceCode = () => {
+    if (document.querySelector('[data-hozo-docs-code]'))
+      void import('../scripts/docs-code.ts').then(({ hydrateDocsCode }) => hydrateDocsCode())
+  }
+  enhanceCode()
+  document.addEventListener('astro:page-load', enhanceCode)
+</script>
 <!-- The landing's type, which src/styles/docs.css names. -->
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
