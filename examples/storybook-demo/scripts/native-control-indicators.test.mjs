@@ -376,6 +376,9 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         I18nManager: { isRTL: false },
         Pressable: NativePressable,
         StyleSheet: { flatten: flat, create: (styles) => styles },
+        // The floating positioner's flip/shift bounds; a phone-sized window,
+        // large enough that no fixture here flips or shifts.
+        useWindowDimensions: () => ({ width: 400, height: 800, scale: 1, fontScale: 1 }),
       }
     if (name === '@hozo/core/generated/environment')
       return { useHozoDark: () => nativeDark, useHozoViewport: () => nativeViewport }
