@@ -348,6 +348,16 @@ not reinterpret precedence.
   fingerprint. Compare keys only in a compatible context; a project rank is
   relative to its snapshot, not an immutable global number. Do not intermingle
   ranks from independently prepared candidate sets or versions.
+- This does not require retaining every transform until the bundler graph is
+  complete. Within one captured CSS/theme/version epoch, the assessed scalar
+  comparator preserves existing rules' relative order when unrelated candidates
+  are inserted. Complete module contexts may therefore emit rank-free static
+  output independently; each generated resolver must compare only ranks from
+  its own complete map. A finite batch still shares one exact context. Never
+  merge rank tables or reuse output across stylesheet epochs. The
+  [namespace-invariance evidence](../measurements/tailwind-namespace-invariance.md)
+  supersedes final-global-namespace gating for this bounded default domain;
+  actual adapter activation still needs delivered-output and cache checks.
 - A statically resolved utility missing from the project's lexical scan must
   not receive a guessed rank. Its resolved descriptor must join preparation
   before emission, or use a complete compatible portable context for that
