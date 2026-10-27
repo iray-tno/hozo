@@ -212,6 +212,23 @@ also exercises that actual final publisher and generated call. This is bounded
 coordination, not default adapter graduation or final Web candidate stylesheet
 publication; see [output evidence and limits](../measurements/tailwind-final-output.md).
 
+Web import discovery can now borrow the actual owned post-Canvas parse, return
+its initial module structure and consume it later for final CSS. The final
+continuation rejects any changed JS/import/client-boundary structure rather
+than patching already parsed code. This avoids waiting for the whole graph
+inside a transform, but does not itself deliver late CSS or switch an adapter.
+The additional preview render has measured build-time cost; see
+[the Web continuation boundary](../measurements/tailwind-web-style-continuation.md).
+
+Actual Vite production transforms now retain those continuations and consume
+them at the final environment/query graph with sealed source receipts. The
+result is static final CSS in an internal cache artifact, not CSS Vite already
+processed or a default winner switch. It explicitly leaves bundle validation
+not assessed and final ordering readiness false; cached receipts without live
+IR remain incomplete. Late asset delivery, final Web candidate CSS and cached
+transform handling remain activation gates. See
+[the final Vite graph boundary and build costs](../measurements/vite-final-style-graph.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

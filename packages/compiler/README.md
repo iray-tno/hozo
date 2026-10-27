@@ -401,6 +401,15 @@ sessions remain pass-through: authoritative final graph/worker integration and
 Web candidate CSS publication are the next boundary. See
 [coordinated output evidence and limits](../../docs/measurements/tailwind-final-output.md).
 
+For Web graph discovery, `prepareLowerModuleStyles` from compiler/lower returns
+initial full-module code plus a one-shot final stylesheet continuation from the
+same post-Canvas parse. The primitive handle's borrowed `preview()` does not
+consume/clone/reparse that IR. Final CSS can change; changed JavaScript, CSS
+identity or client-boundary structure is rejected rather than patched after
+the bundler parsed it. Ordinary ready/adapter calls do not preview. This is a
+staging capability, not default activation or a late-CSS loader; see
+[continuation correctness and nonzero cost](../../docs/measurements/tailwind-web-style-continuation.md).
+
 <!-- generated: package-footer -->
 
 ---

@@ -208,6 +208,24 @@ impl PreparedWebModule {
         candidates(&self.state)
     }
 
+    /// Bundlers must discover imports before their graph is complete. Borrow
+    /// the owned parse for the existing output; keep the final emit one-shot.
+    /// No allocator/AST clone or second source parse is retained here.
+    #[napi]
+    pub fn preview(&mut self) -> napi::Result<Vec<CompiledComponent>> {
+        let state = self.state.as_mut().ok_or_else(consumed)?;
+        Ok(emit_web(
+            &state.source,
+            &state.theme,
+            &mut state.parsed,
+            WebModuleOptions {
+                compat: hozo_parser::ReactNativeCompat::OnlyFromOwner,
+                evidence: self.evidence,
+                tailwind: TailwindPlanOptions::default(),
+            },
+        ))
+    }
+
     #[napi]
     pub fn emit(
         &mut self,
@@ -401,6 +419,40 @@ mod tests {
             ),
             ordered: false,
         }
+    }
+
+    #[test]
+    fn web_preview_borrows_the_same_ir_until_final_emit_or_disposal() {
+        let compiler = Compiler::new(None, None);
+        let source = "import {Pressable} from '@hozo/core';const A=()=> <Pressable className=\"p-4 p-2 focus:bg-blue-500\"/>";
+        let mut module = compiler.prepare_web_module(source.into(), None, None);
+        let before = module.state.as_ref().unwrap().parsed.roots[0]
+            .node
+            .style
+            .as_ptr();
+        let first = module.preview().unwrap();
+        let second = module.preview().unwrap();
+        assert_eq!(first[0].jsx, second[0].jsx);
+        assert_eq!(first[0].css, second[0].css);
+        assert_eq!(
+            module.state.as_ref().unwrap().parsed.roots[0]
+                .node
+                .style
+                .as_ptr(),
+            before
+        );
+        let mut final_context = context();
+        final_context.ordered = true;
+        let output = module.emit(&final_context).unwrap();
+        assert_eq!(first[0].jsx, output[0].jsx);
+        assert_ne!(first[0].css, output[0].css);
+        assert!(module.preview().is_err());
+        assert!(module.emit(&final_context).is_err());
+        module.dispose();
+        let mut discarded = compiler.prepare_web_module(source.into(), None, None);
+        discarded.preview().unwrap();
+        discarded.dispose();
+        assert!(discarded.preview().is_err());
     }
 
     #[test]
