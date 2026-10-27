@@ -1,3 +1,4 @@
+import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
 import { Modal, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
@@ -68,6 +69,7 @@ export function HozoMenu({
   hozoItemStyle,
 }: HozoMenuProps) {
   const [open, setOpen] = useState(defaultOpen)
+  const insets = useHozoProvidedSafeArea()
 
   const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
   const [menuBox, menuText] = splitTextStyle([
@@ -162,6 +164,17 @@ export function HozoMenu({
               }
             </Pressable>
           ))}
+          {/*
+            The sheet is pinned to the bottom edge by this component, not by a
+            class, so clearing the home indicator and the gesture handle is
+            this component's job too. A spacer rather than padding, so the
+            inset adds to whatever padding the menu's class list gives it.
+          */}
+          <View
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+            style={{ height: insets.bottom }}
+          />
         </View>
       </Modal>
     </View>
