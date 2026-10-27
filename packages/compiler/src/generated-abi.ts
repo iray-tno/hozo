@@ -76,6 +76,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   useHozoEnvironment: '@hozo/core/generated/environment',
   useHozoInheritedTextFrame: '@hozo/core/generated/text-inheritance-protocol',
   useHozoKeyframes: '@hozo/core/generated/animation',
+  useHozoProvidedSafeArea: '@hozo/core/generated/safe-area',
   useHozoSafeArea: '@hozo/core/generated/safe-area',
   useHozoViewport: '@hozo/core/generated/environment',
   useHozoWidthAtLeast: '@hozo/core/generated/environment',

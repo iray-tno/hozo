@@ -9,6 +9,7 @@ import {
   UI_OVERLAY_SCENES,
   UI_STATE_SCENES,
   uiDocStoryId,
+  uiOverlayStoryId,
   uiStateStoryId,
 } from './ui-docs-evidence.mjs'
 import { UI_DOC_PAGES } from './ui-docs-pages.mjs'
@@ -189,4 +190,5 @@ test('the open overlays the walk captures are the stories UiOverlays exports, wa
   )
   assert.match(stories, /title: 'UI\/Open overlays'/, 'the story ids assume this title')
   for (const { ready } of UI_OVERLAY_SCENES) assert.ok(stories.includes(`'${ready}'`), ready)
+  assert.equal(uiOverlayStoryId('BottomSheet'), 'ui-open-overlays--bottom-sheet')
 })

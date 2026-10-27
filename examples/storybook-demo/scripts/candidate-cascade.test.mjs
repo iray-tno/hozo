@@ -4428,6 +4428,10 @@ async function patternHarness(cacheName, look) {
         activateHozoNavigation: () => {},
         useHozoNavigation: () => ({}),
       },
+      // An app without a `<SafeAreaProvider>`: Menu's sheet adds no inset.
+      '@hozo/engine/generated/safe-area': {
+        useHozoProvidedSafeArea: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+      },
     }[name]
     assert.ok(resolved, `Native pattern fixture has no module binding for ${name}`)
     return resolved

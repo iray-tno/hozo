@@ -29,6 +29,8 @@ let nativeDark = false
 const nativePlatform = { OS: 'ios' }
 const actionSheets = []
 let nativeViewport = { width: 400, height: 800 }
+// What an app's `<SafeAreaProvider>` reports; zeros are an app without one.
+let nativeInsets = { top: 0, right: 0, bottom: 0, left: 0 }
 const cache = openCandidateCache()
 const interactionClasses =
   'p-4 hover:bg-hozo-accent hover:text-hozo-accent-text focus:opacity-75 focus-visible:outline-2 focus-visible:outline-hozo-focus focus-visible:font-bold active:opacity-50'
@@ -383,6 +385,8 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
     if (name === '@hozo/core/generated/environment')
       return { useHozoDark: () => nativeDark, useHozoViewport: () => nativeViewport }
     if (name === '@hozo/engine/project') return { hozoClasses }
+    if (name === '@hozo/engine/generated/safe-area')
+      return { useHozoProvidedSafeArea: () => nativeInsets }
     if (name === 'expo-document-picker') throw new Error('No document picker in this host probe')
     return require(name)
   },
@@ -3302,6 +3306,31 @@ test('Native Menu trigger and items deliver interaction facts independently of o
   await press(hosts()[2])
   assert.deepEqual(selected, ['run'])
   assert.equal(hosts().length, 1)
+})
+
+test('Native Menu sheet clears the bottom safe area its provider reports, after its own padding', async (t) => {
+  const sheet = async (insets) => {
+    nativeInsets = insets
+    t.after(() => {
+      nativeInsets = { top: 0, right: 0, bottom: 0, left: 0 }
+    })
+    const tree = await mount(t, HozoMenu, {
+      trigger: 'Actions',
+      menuClassName: 'p-2',
+      defaultOpen: true,
+      items: [{ label: 'Run' }, { label: 'Delete' }],
+    })
+    const menu = tree.root.find((node) => node.props.accessibilityRole === 'menu')
+    const spacer = menu
+      .findAll((node) => node.props.importantForAccessibility === 'no-hide-descendants')
+      .at(-1)
+    return { padding: flat(menu.props.style).paddingBottom, spacer }
+  }
+  const inset = await sheet({ top: 47, right: 0, bottom: 34, left: 0 })
+  assert.equal(inset.padding, 8, "the class's padding is kept")
+  assert.equal(flat(inset.spacer.props.style).height, 34, 'and the inset is added below it')
+  const none = await sheet({ top: 0, right: 0, bottom: 0, left: 0 })
+  assert.equal(flat(none.spacer.props.style).height, 0, 'no provider, no inset')
 })
 
 test('Native Listbox keeps single, multiple and controlled selection separate from interaction', async (t) => {

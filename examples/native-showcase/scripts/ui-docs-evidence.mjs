@@ -44,8 +44,13 @@ export const UI_OVERLAY_SCENES = [
   { name: 'Popover', ready: 'Popover body, passed as a string' },
   { name: 'Menu', ready: 'Menu item, shown open' },
   { name: 'Combobox', ready: 'Combobox option, shown open' },
+  { name: 'BottomSheet', ready: 'Bottom sheet body, shown open' },
+  { name: 'Drawer', ready: 'Drawer body, shown open' },
 ]
-export const uiOverlayStoryId = (name) => `ui-open-overlays--${name.toLowerCase()}`
+// Storybook splits an export name at its capitals: `BottomSheet` is
+// `bottom-sheet`, and a story id that only lowercases it opens nothing.
+const kebab = (name) => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
+export const uiOverlayStoryId = (name) => `ui-open-overlays--${kebab(name)}`
 
 /** What Storybook's own boundary shows when a story throws past ours. */
 export const STORYBOOK_FAILURE = 'Something went wrong rendering your story'
@@ -128,7 +133,7 @@ export async function exerciseUiDocs(
   // The open overlays, last and under their own key. Images are
   // `overlay-<name>.png`.
   const visitOverlay = async ({ name, ready }) => {
-    const image = `overlay-${name.toLowerCase()}`
+    const image = `overlay-${kebab(name)}`
     try {
       device.open(uiOverlayStoryId(name))
       const seen = await device.waitForEither([STORYBOOK_FAILURE, ready], timeout)
