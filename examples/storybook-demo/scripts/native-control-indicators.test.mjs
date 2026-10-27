@@ -2648,6 +2648,32 @@ test('Native BottomSheet root fills its Modal and pins the sheet to the bottom w
   assert.equal(root.justifyContent, 'center')
 })
 
+test('Native Drawer and BottomSheet add the safe area to the padding of the edges they reach', async (t) => {
+  t.after(() => {
+    nativeInsets = { top: 0, right: 0, bottom: 0, left: 0 }
+  })
+  const padding = async (Component, ownClass, insets) => {
+    nativeInsets = insets
+    const tree = await mount(t, Component, { open: true, [ownClass]: 'p-6' })
+    const style = flat(panel(tree).props.style)
+    return [style.paddingTop, style.paddingBottom]
+  }
+  const notch = { top: 47, right: 0, bottom: 34, left: 0 }
+  assert.deepEqual(await padding(HozoDrawer, 'panelClassName', notch), [71, 58], 'top and bottom')
+  assert.equal(
+    (await padding(HozoBottomSheet, 'sheetClassName', notch))[1],
+    58,
+    'the sheet stands on the bottom edge only',
+  )
+  assert.equal(
+    (await padding(HozoBottomSheet, 'sheetClassName', notch))[0],
+    24,
+    'its top is not against the window',
+  )
+  const none = { top: 0, right: 0, bottom: 0, left: 0 }
+  assert.deepEqual(await padding(HozoDrawer, 'panelClassName', none), [24, 24], 'no provider')
+})
+
 test('Native overlay BottomSheet resolves both the plain and pressable handle owners', async (t) => {
   for (const detents of [[1], [0.5, 1]]) {
     const resizable = detents.length > 1

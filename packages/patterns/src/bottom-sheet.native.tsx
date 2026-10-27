@@ -1,9 +1,11 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { useDrag1D } from '@hozo/behaviors/native'
+import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type LayoutChangeEvent, Modal, type StyleProp, View, type ViewStyle } from 'react-native'
 import { Pressable } from './pressable.native.tsx'
+import { insetPadding } from './safe-area-padding.native.ts'
 import {
   clampToDetents,
   cycleDetent,
@@ -109,6 +111,9 @@ export function HozoBottomSheet({
 
   const [fraction, setFraction] = useState(openAt)
   const [height, setHeight] = useState(0)
+  // The sheet stands on the bottom edge, so its last line has to clear the
+  // home indicator and the gesture handle (#1346).
+  const insets = useHozoProvidedSafeArea()
 
   useEffect(() => {
     if (open) setFraction(openAt)
@@ -189,6 +194,7 @@ export function HozoBottomSheet({
           style={[
             hozoClasses(sheetClassName),
             sheetStyle,
+            insetPadding([hozoClasses(sheetClassName), sheetStyle], insets, ['bottom']),
             { transform: [{ translateY: travelFor(fraction, height) }] },
           ]}
         >
