@@ -1,0 +1,1 @@
+button, Save, Saves without leaving the page
