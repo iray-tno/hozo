@@ -51,6 +51,8 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'crates/hozo_ir/src/theme.rs',
+    'crates/hozo_parser/src/tailwind.rs',
     'Cargo.toml',
     'Cargo.lock',
     'crates/hozo_ir/src/tailwind_plan.rs',
@@ -187,6 +189,8 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    'crates/hozo_ir/src/theme.rs',
+    'crates/hozo_parser/src/tailwind.rs',
     'apps/landing/src/examples/ui/ResizablePaneDemo.tsx',
     'apps/landing/src/examples/ui/CodeBlockDemo.tsx',
     '.github/workflows/deploy-pages.yml',

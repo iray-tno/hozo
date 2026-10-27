@@ -5376,7 +5376,7 @@ fn stylex_font_weight(value: &StaticValue) -> Option<FontWeight> {
         _ => return None,
     };
     ((100.0..=900.0).contains(&weight) && (weight as u16).is_multiple_of(100))
-        .then_some(FontWeight(weight as u16))
+        .then_some(FontWeight::Absolute(weight as u16))
 }
 
 fn stylex_white_space(value: &StaticValue) -> Option<WhiteSpace> {

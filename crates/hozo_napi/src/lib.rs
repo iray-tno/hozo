@@ -1612,6 +1612,13 @@ pub struct JsTheme {
     /// The project's own radius tokens: `--radius-<name>`, resolved to
     /// pixels by `@hozo/tailwind`.
     pub radii: Option<Vec<JsThemeRadius>>,
+    pub font_weights: Option<Vec<JsThemeFontWeight>>,
+}
+
+#[napi(object)]
+pub struct JsThemeFontWeight {
+    pub name: String,
+    pub value: String,
 }
 
 #[napi(object)]
@@ -1735,9 +1742,16 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
         .into_iter()
         .map(|radius| (radius.name, radius.px))
         .collect();
+    let font_weights = theme
+        .font_weights
+        .unwrap_or_default()
+        .into_iter()
+        .map(|weight| (weight.name, weight.value))
+        .collect();
     hozo_ir::Theme::with_dark(colors, dark_colors, spacing_px, preflight)
         .with_animations(animations)
         .with_radii(radii)
+        .with_font_weights(font_weights)
 }
 
 /// Every binding a source file imports from one module, by local name.

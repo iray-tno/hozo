@@ -88,6 +88,60 @@ pub fn assess_tailwind_rule<'a>(
     Ok(result)
 }
 
+/// A hoisted CSS property definition has no selector-owned style writes.
+/// Only the closed registration shape is ignored, never arbitrary @root CSS.
+pub(crate) fn property_registration(node: &OrderRuleShape) -> bool {
+    let OrderRuleShape::AtRoot { nodes } = node else {
+        return false;
+    };
+    !nodes.is_empty()
+        && nodes.iter().all(|node| {
+            let OrderRuleShape::AtRule {
+                name,
+                params,
+                nodes,
+            } = node
+            else {
+                return false;
+            };
+            if name != "@property"
+                || !params.starts_with("--")
+                || params.len() <= 2
+                || !params
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+            {
+                return false;
+            }
+            let mut syntax = false;
+            let mut inherits = false;
+            let mut initial = false;
+            for node in nodes {
+                let OrderRuleShape::Declaration {
+                    property,
+                    important: false,
+                } = node
+                else {
+                    if matches!(node, OrderRuleShape::Comment) {
+                        continue;
+                    }
+                    return false;
+                };
+                let seen = match property.as_str() {
+                    "syntax" => &mut syntax,
+                    "inherits" => &mut inherits,
+                    "initial-value" => &mut initial,
+                    _ => return false,
+                };
+                if *seen {
+                    return false;
+                }
+                *seen = true;
+            }
+            syntax && inherits
+        })
+}
+
 fn assess_body<'a>(
     nodes: &'a [OrderRuleShape],
     result: &mut AssessedTailwindRule<'a>,
@@ -96,7 +150,7 @@ fn assess_body<'a>(
     // Sibling nested rules, or declarations beside a wrapper, do not.
     let branches = nodes
         .iter()
-        .filter(|node| !matches!(node, OrderRuleShape::Comment))
+        .filter(|node| !matches!(node, OrderRuleShape::Comment) && !property_registration(node))
         .collect::<Vec<_>>();
     if branches
         .iter()
@@ -203,6 +257,7 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
     Some(match write {
         BackgroundColor(_) => "background-color",
         TextColor(_) => "color",
+        FontWeight(_) => "font-weight",
         Width(_) => "width",
         Height(_) => "height",
         MinWidth(_) => "min-width",
@@ -332,7 +387,6 @@ mod tests {
         }
         for write in [
             StyleProperty::FontSize(Length::Px(18.0)),
-            StyleProperty::FontWeight(crate::FontWeight(700)),
             StyleProperty::Gap(Length::Px(8.0)),
             StyleProperty::ZIndex(None),
             StyleProperty::Keyword("font-style", "oblique"),
@@ -350,6 +404,60 @@ mod tests {
             .into_iter()
             .find(|entry| entry.candidate == name)
             .unwrap()
+    }
+
+    #[test]
+    fn hoisted_property_definitions_do_not_become_owner_writes_or_selector_weight() {
+        let candidate = fixture("font-bold");
+        let assessment = assess_tailwind_rule("font-bold", &candidate.rules[0]).unwrap();
+        assert_eq!(assessment.properties, ["--tw-font-weight", "font-weight"]);
+        assert_eq!(assessment.specificity, [0, 1, 0]);
+        assert_eq!(assessment.owner, [0; 5]);
+        let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
+        assert!(context
+            .scalar_write_priority(
+                "font-bold",
+                &crate::Condition::Always,
+                &StyleProperty::FontWeight(crate::FontWeight::Theme {
+                    name: "bold",
+                    fallback: 700
+                })
+            )
+            .is_some());
+    }
+
+    #[test]
+    fn registration_normalization_never_discards_arbitrary_hoisted_css() {
+        let base = fixture("font-bold");
+        let OrderRuleShape::Rule { nodes, .. } = &base.rules[0].shape else {
+            panic!()
+        };
+        let registration = nodes
+            .iter()
+            .find(|node| matches!(node, OrderRuleShape::AtRoot { .. }))
+            .unwrap();
+        assert!(property_registration(registration));
+        for (name, fields) in [
+            ("@media", vec!["syntax", "inherits"]),
+            ("@property", vec!["syntax"]),
+            ("@property", vec!["syntax", "inherits", "color"]),
+            ("@property", vec!["syntax", "inherits", "inherits"]),
+        ] {
+            let bad = OrderRuleShape::AtRoot {
+                nodes: vec![OrderRuleShape::AtRule {
+                    name: name.into(),
+                    params: "--tw-font-weight".into(),
+                    nodes: fields
+                        .into_iter()
+                        .map(|property| OrderRuleShape::Declaration {
+                            property: property.into(),
+                            important: false,
+                        })
+                        .collect(),
+                }],
+            };
+            assert!(!property_registration(&bad));
+        }
     }
 
     #[test]

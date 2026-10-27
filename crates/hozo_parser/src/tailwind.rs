@@ -2772,19 +2772,19 @@ fn parse_dimension_suffix(suffix: &str) -> Option<Dimension> {
 }
 
 fn parse_font_weight(token: &str) -> Option<FontWeight> {
-    let value = match token {
-        "font-thin" => 100,
-        "font-extralight" => 200,
-        "font-light" => 300,
-        "font-normal" => 400,
-        "font-medium" => 500,
-        "font-semibold" => 600,
-        "font-bold" => 700,
-        "font-extrabold" => 800,
-        "font-black" => 900,
+    let (name, fallback) = match token {
+        "font-thin" => ("thin", 100),
+        "font-extralight" => ("extralight", 200),
+        "font-light" => ("light", 300),
+        "font-normal" => ("normal", 400),
+        "font-medium" => ("medium", 500),
+        "font-semibold" => ("semibold", 600),
+        "font-bold" => ("bold", 700),
+        "font-extrabold" => ("extrabold", 800),
+        "font-black" => ("black", 900),
         _ => return None,
     };
-    Some(FontWeight(value))
+    Some(FontWeight::Theme { name, fallback })
 }
 
 /// `(font-size, line-height)` in px. Tailwind's `text-*` utilities set

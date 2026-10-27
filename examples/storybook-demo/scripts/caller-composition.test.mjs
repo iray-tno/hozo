@@ -994,6 +994,91 @@ test('simple projected properties use upstream winners in actual static and gene
   }
 })
 
+test('font-weight registration and custom theme values agree in actual Web, Native and generated outputs', {
+  skip: !executablePath,
+}, async () => {
+  const names = [
+    'font-bold',
+    'font-normal',
+    'p-4',
+    'p-2',
+    'focus:font-normal',
+    'active:font-bold',
+    'hover:focus:font-normal',
+  ]
+  const page = await browser.newPage()
+  let observations = 0
+  try {
+    for (const [bold, normal] of [
+      [700, 400],
+      [900, 300],
+    ]) {
+      const css = `@theme {--spacing:.25rem;--app-bold:${bold};--font-weight-bold:var(--app-bold);--font-weight-normal:${normal};} @tailwind utilities;`
+      const theme = await loadTheme(css, tailwindPackageDir())
+      const themedCompiler = createCompiler(theme)
+      const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+      const context = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
+      const cache = openCandidateCache()
+      cache.scanFile('fonts.ts', JSON.stringify(names.join(' ')), 0)
+      const resolver = evaluate(
+        cache.renderNativeModulePlan(context, theme).code.replace(/^import .*$/gm, ''),
+        { createClassResolver },
+      ).hozoClasses
+      const sheet = (await compile(css)).build(names)
+      for (const classes of [names.join(' '), [...names].reverse().join(' ')]) {
+        const input = `import {Pressable} from '@hozo/core';export const Target=()=> <Pressable className="${classes}"/>`
+        const web = themedCompiler.prepareWebModule(input).emit(context)[0]
+        const native = themedCompiler.prepareNativeModule(input).emit(context).components[0]
+        const props = evaluate(`const hozoStyles=${native.styles};module.exports=(${native.jsx})`, {
+          HozoPressable: 'owner',
+          Pressable: 'owner',
+          h: (_type, props) => props,
+        })
+        assert.equal(typeof props.hozoTextStyle, 'function')
+        await page.setContent(
+          `<!doctype html><style>${sheet}\n${web.css}</style><button id="upstream" class="${classes}">Label</button><button id="compiled" class="hozo-0">Label</button>`,
+        )
+        for (const id of ['upstream', 'compiled']) {
+          await page.mouse.move(600, 600)
+          await page.evaluate(() => document.activeElement?.blur())
+          const owner = page.locator(`#${id}`)
+          for (let stage = 0; stage < 4; stage++) {
+            if (stage === 1) await owner.focus()
+            if (stage === 2) await owner.hover()
+            if (stage === 3) await page.mouse.down()
+            try {
+              const actual = await owner.evaluate((element) => ({
+                weight: getComputedStyle(element).fontWeight,
+                padding: getComputedStyle(element).paddingTop,
+                state: {
+                  focused: element.matches(':focus'),
+                  hovered: element.matches(':hover'),
+                  pressed: element.matches(':active'),
+                },
+              }))
+              const label = Object.assign(
+                {},
+                ...[props.hozoTextStyle(actual.state)].flat(Infinity).filter(Boolean),
+              )
+              const dynamic = Object.assign({}, ...resolver(classes, actual.state))
+              assert.equal(label.fontWeight, actual.weight, `${bold}/${id}/${stage}/static`)
+              assert.equal(dynamic.fontWeight, actual.weight, `${bold}/${id}/${stage}/dynamic`)
+              assert.equal(actual.padding, '16px')
+              assert.equal(dynamic.paddingTop, 16)
+              observations++
+            } finally {
+              if (stage === 3) await page.mouse.up()
+            }
+          }
+        }
+      }
+    }
+    assert.equal(observations, 32)
+  } finally {
+    await page.close()
+  }
+})
+
 test('the canonical-order reference has independent browser winners under reversed classes and RTL', {
   skip: !executablePath,
 }, async () => {

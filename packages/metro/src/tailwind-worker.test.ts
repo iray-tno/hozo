@@ -132,6 +132,35 @@ test('the default Metro transform uses the config snapshot after CSS mutation/de
   assert.notEqual(getCacheKey({ projectRoot: root }), nextKey)
 })
 
+test('font-weight tokens use the same captured values in static workers and the generated map until restart', async (t) => {
+  const { root, config, tokens, file } = fixture(t)
+  const input = `import {Text} from '@hozo/core';export const A=()=> <Text className="font-bold"/>`
+  writeFileSync(file, input)
+  writeFileSync(path.join(root, 'src', 'weight.ts'), `export const weight=()=> 'font-bold'`)
+  writeFileSync(tokens, '@theme {--font-weight-bold:900;}')
+  await withHozo(config)
+  const firstKey = getCacheKey({ projectRoot: root })
+  const run = () =>
+    transform({ src: input, filename: file, options: { projectRoot: root, platform: 'android' } })
+  const dynamic = () => {
+    const code = readFileSync(path.join(root, CACHE_DIR, 'candidates.native.js'), 'utf8')
+    const resolver = runInNewContext(
+      `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
+      { createClassResolver },
+    )
+    return Object.assign({}, ...resolver('font-bold')).fontWeight
+  }
+  assert.match(await run(), /fontWeight: '900'/)
+  assert.equal(dynamic(), '900')
+  writeFileSync(tokens, '@theme {--font-weight-bold:300;}')
+  assert.match(await run(), /fontWeight: '900'/)
+  assert.equal(dynamic(), '900')
+  await withHozo(config)
+  assert.notEqual(getCacheKey({ projectRoot: root }), firstKey)
+  assert.match(await run(), /fontWeight: '300'/)
+  assert.equal(dynamic(), '300')
+})
+
 test('full lexical startup names give one retained parse followed by ready hits without ordinary lowering', async (t) => {
   const { root, source, config } = fixture(t)
   await withHozo(config)
@@ -284,7 +313,7 @@ test('a validly hashed old projection policy is rejected, not mixed with current
   const reference = readMetroState(root)!.tailwind!
   const data = JSON.parse(readFileSync(reference.file, 'utf8'))
   assert.equal(data.orderingPolicy, TAILWIND_SCALAR_ORDER_POLICY)
-  data.orderingPolicy = 'scalar-order-v1'
+  data.orderingPolicy = 'scalar-order-v2'
   const content = JSON.stringify(data)
   writeFileSync(reference.file, content)
   await assert.rejects(

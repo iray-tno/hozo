@@ -127,6 +127,8 @@
     "@hozo/example-storybook#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/crates/hozo_ir/src/theme.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/tailwind.rs",
         "$TURBO_ROOT$/apps/landing/src/examples/ui/ResizablePaneDemo.tsx",
         "$TURBO_ROOT$/apps/landing/src/examples/ui/CodeBlockDemo.tsx",
         "$TURBO_DEFAULT$",
@@ -175,6 +177,8 @@
     "@hozo/example-native-showcase#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/crates/hozo_ir/src/theme.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/tailwind.rs",
         "$TURBO_ROOT$/apps/landing/src/examples/ui/**",
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/.github/workflows/deploy-pages.yml",
