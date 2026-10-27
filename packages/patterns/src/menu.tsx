@@ -31,6 +31,12 @@ export interface HozoMenuProps {
   items: readonly HozoMenuItem[]
   /** The menu's accessible name. Defaults to the button's own. */
   accessibilityLabel?: string
+  /**
+   * Open on mount, as `Popover`'s and `Tooltip`'s are, with the first item
+   * that can be chosen active. For a screen that starts with the menu showing,
+   * and for an audit that has to read the menu rather than its button.
+   */
+  defaultOpen?: boolean
   className?: string
   triggerClassName?: string
   menuClassName?: string
@@ -41,14 +47,20 @@ export function HozoMenu({
   trigger,
   items,
   accessibilityLabel,
+  defaultOpen = false,
   className,
   triggerClassName,
   menuClassName,
   itemClassName,
 }: HozoMenuProps) {
   const base = useId()
-  const [open, setOpen] = useState(false)
-  const [active, setActive] = useState(0)
+  const [open, setOpen] = useState(defaultOpen)
+  const [active, setActive] = useState(() =>
+    Math.max(
+      0,
+      items.findIndex((item) => !item.disabled),
+    ),
+  )
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const itemRefs = useRef<(HTMLDivElement | null)[]>([])
   const search = useRef({ text: '', at: 0 })

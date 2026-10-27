@@ -61,3 +61,12 @@ test('a disabled item is aria-disabled, which is what the dimming hangs off', ()
   assert.match(item, /aria-disabled:text-hozo-text-subtle/)
   assert.doesNotMatch(item, /(^|\s)disabled:/)
 })
+
+test('defaultOpen mounts the menu expanded, so an audit can read it', () => {
+  const html = renderToStaticMarkup(
+    createElement(Menu, { trigger: 'Actions', items: ITEMS, defaultOpen: true }),
+  )
+  assert.match(html, /aria-expanded="true"/)
+  assert.match(html, /aria-controls="[^"]+-menu"/)
+  assert.match(render(), /aria-expanded="false"/)
+})

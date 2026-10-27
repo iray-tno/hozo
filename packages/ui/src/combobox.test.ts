@@ -80,3 +80,16 @@ test('the field is a combobox before it is opened, and says so', () => {
   assert.match(html, /class="[^"]*border-hozo-border-strong/)
   assert.doesNotMatch(html, /role="listbox"/)
 })
+
+test('defaultOpen mounts the list expanded, so an audit can read the listbox', () => {
+  const html = (defaultOpen: boolean) =>
+    renderToStaticMarkup(
+      createElement(Combobox<string>, {
+        options: OPTIONS,
+        accessibilityLabel: 'Language',
+        defaultOpen,
+      }),
+    )
+  assert.match(html(true), /aria-expanded="true"/)
+  assert.match(html(false), /aria-expanded="false"/)
+})

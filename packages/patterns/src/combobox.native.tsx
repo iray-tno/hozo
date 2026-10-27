@@ -49,6 +49,11 @@ export interface HozoComboboxProps<T> {
   match?: 'starts' | 'contains'
   accessibilityLabel?: string
   placeholder?: string
+  /**
+   * The list open on mount, nothing active, as `Menu`'s and `Popover`'s
+   * can be. For an audit that has to read the listbox rather than the field.
+   */
+  defaultOpen?: boolean
   /** Application validation state belongs to the editable field. */
   'aria-invalid'?: boolean | 'false' | 'true' | 'grammar' | 'spelling'
   style?: Style
@@ -77,6 +82,7 @@ export function HozoCombobox<T>({
   match = 'starts',
   accessibilityLabel,
   placeholder,
+  defaultOpen = false,
   'aria-invalid': invalid,
   style,
   inputStyle,
@@ -90,7 +96,7 @@ export function HozoCombobox<T>({
 }: HozoComboboxProps<T>) {
   const chosen = options.find((option) => option.value === value)
   const [query, setQuery] = useState(chosen?.label ?? '')
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const [active, setActive] = useState<number | null>(null)
   const { state: inputInteraction, handlers: inputHandlers } = usePressableInteraction({
     focusVisible: 'keyboard-input',

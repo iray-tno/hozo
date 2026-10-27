@@ -1,0 +1,6 @@
+combobox, Language, has popup listbox, expanded, autocomplete in list, 1 control
+listbox, Language, orientated vertically
+option, Rust, not selected, position 1, set size 3
+option, TypeScript, not selected, position 2, set size 3
+option, COBOL, not selected, disabled, position 3, set size 3
+end of listbox, Language, orientated vertically
