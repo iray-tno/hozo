@@ -76,10 +76,6 @@ const checks = [
     'the keyboard skip link has no focusable destination',
   ],
   [
-    html.includes('pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler'),
-    'the quick install mixes runtime and development dependencies',
-  ],
-  [
     !html.includes('/releases/latest/download/'),
     'the page advertises unverified latest-release files',
   ],
@@ -536,6 +532,17 @@ checks.push(
   const samplesIn = (markup) =>
     [...markup.matchAll(/<pre\b[^>]*>([\s\S]*?)<\/pre>/g)].map((match) => decode(match[1]))
   const labelOf = (sample) => JSON.stringify(sample.trim().split('\n')[0].slice(0, 40))
+  const install =
+    [...html.matchAll(/<figure\b[^>]*>[\s\S]*?<\/figure>/g)]
+      .map(([markup]) => markup)
+      .find((markup) => markup.includes('>Install Hozo</figcaption>')) ?? ''
+  const installCode = samplesIn(
+    install.replaceAll('<span style="display:flex;min-width:100%">', '\n'),
+  )[0]?.slice(1)
+  checks.push([
+    installCode === 'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler',
+    'the quick install mixes runtime and development dependencies',
+  ])
 
   // Every code block on the page: none may show a typed "\n".
   for (const sample of samplesIn(html)) {

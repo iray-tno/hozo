@@ -70,6 +70,11 @@ try {
 
     const install = page.locator('#quick-install')
     assert.equal(
+      await install.getByRole('figure', { name: 'Install Hozo', exact: true }).count(),
+      1,
+    )
+    assert.equal(await install.locator('button, [tabindex]').count(), 0)
+    assert.equal(
       await install.locator('code').innerText(),
       'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler',
     )

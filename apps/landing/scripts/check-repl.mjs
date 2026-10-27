@@ -1,171 +1,178 @@
-// Whether the REPL compiles anything, asked of a browser.
-//
-// Everything else about this page is checkable from the built HTML, and
-// none of it is the thing that matters: the page ships an empty textarea
-// and four empty panes, and every one of them is filled by a WebAssembly
-// module that has to load, instantiate and answer. A check that reads the
-// HTML would pass with the compiler missing entirely.
-//
-// So the page is served, driven with headless Chrome, and asked what is
-// in the panes afterwards. The same arrangement `examples/storybook-demo`
-// uses for axe, and for the same reason: a real browser is the only thing
-// that can say whether a thing a browser has to do works.
-
-import { execFile } from 'node:child_process'
+// Exercise the actual WASM binding and output updates: static HTML cannot
+// distinguish a named empty figure from a compiler that never loaded.
+import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { chromium } from 'playwright-core'
 
-// The build to serve, named by the caller: `build` and `test` run
-// concurrently and no longer share one directory (#322).
 const dist = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
   process.argv[2] ?? 'dist',
 )
-
-if (!existsSync(path.join(dist, 'wasm', 'hozo_wasm_bg.wasm'))) {
+if (!existsSync(path.join(dist, 'wasm/hozo_wasm_bg.wasm'))) {
   console.log(
-    'repl: no browser binding in dist/wasm -- skipped.\n' +
-      '  node scripts/build-wasm.mjs, then build again.',
+    'repl: no browser binding in dist/wasm -- skipped.\n  node scripts/build-wasm.mjs, then build again.',
   )
   process.exit(0)
 }
-
-/** Where a browser might be, per platform. Nothing is installed for this. */
-const BROWSERS = [
+const executablePath = [
   process.env.CHROME_PATH,
   process.env.PUPPETEER_EXECUTABLE_PATH,
   '/usr/bin/google-chrome',
-  '/usr/bin/chromium-browser',
   '/usr/bin/chromium',
+  '/usr/bin/chromium-browser',
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-].filter(Boolean)
-
-const browser = BROWSERS.find((candidate) => existsSync(candidate))
-if (!browser) {
-  // Skipped without one and not skipped in CI, for the reason
-  // `check-a11y.mjs` gives: a check that quietly does nothing where it
-  // matters is not a check.
-  if (process.env.CI) {
-    console.error('repl: no browser found, and CI is set. Install one or unset CI.')
-    process.exit(1)
-  }
+].find((candidate) => candidate && existsSync(candidate))
+if (!executablePath) {
+  if (process.env.CI) throw new Error('repl: browser required in CI')
   console.log('repl: no browser found -- skipped.')
   process.exit(0)
 }
-
-const TYPES = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  // The one that matters: `WebAssembly.instantiateStreaming` refuses
-  // anything else, and the failure is a console message the page swallows.
+const types = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
   '.wasm': 'application/wasm',
   '.svg': 'image/svg+xml',
   '.json': 'application/json',
 }
-
 const requested = []
-const server = createServer((request, response) => {
-  // The site is built with `base: /hozo`, so that prefix is what the page
-  // asks for and what this has to answer to.
-  const url = new URL(request.url ?? '/', 'http://localhost')
-  const relative = url.pathname.replace(/^\/hozo/, '').replace(/^\//, '') || 'index.html'
-  const file = path.join(dist, relative.endsWith('/') ? `${relative}index.html` : relative)
-  requested.push(`${request.url} ${existsSync(file) ? 200 : 404}`)
-  if (!existsSync(file) || !file.startsWith(dist)) {
-    response.writeHead(404).end('not found')
-    return
-  }
-  response.writeHead(200, {
-    'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream',
-  })
-  response.end(readFileSync(file))
+const server = createServer((req, res) => {
+  const relative = new URL(req.url, 'http://localhost').pathname.replace(/^\/hozo\/?/, '')
+  const file = path.resolve(dist, relative.endsWith('/') ? `${relative}index.html` : relative)
+  requested.push(req.url)
+  if (!file.startsWith(`${dist}${path.sep}`) || !existsSync(file)) return res.writeHead(404).end()
+  res.writeHead(200, { 'content-type': types[path.extname(file)] ?? 'application/octet-stream' })
+  res.end(readFileSync(file))
 })
+await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+const origin = `http://127.0.0.1:${server.address().port}`
+const overall = setTimeout(() => {
+  console.error('repl: timed out after 3 minutes')
+  process.exit(1)
+}, 180_000)
+let browser
+try {
+  browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] })
+  for (const width of [320, 1280]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } })
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    await page.route('**/*', (route) =>
+      route.request().url().startsWith(origin) ? route.continue() : route.abort(),
+    )
+    await page.goto(`${origin}/hozo/repl/`)
+    await page.waitForFunction(
+      () => /^\d+ components?$/.test(document.getElementById('repl-status')?.textContent ?? ''),
+      undefined,
+      { timeout: 60_000 },
+    )
+    const editor = page.getByRole('textbox', { name: 'TSX to compile' })
+    assert.equal(await editor.evaluate((node) => node.isContentEditable), true)
+    const output = async (id) =>
+      (await page.locator(`#${id} pre code > span`).allTextContents()).join('\n')
+    assert.ok((await output('repl-web-jsx')).includes('<div'))
+    assert.ok((await output('repl-web-css')).includes('padding'))
+    assert.ok((await output('repl-native-jsx')).includes('<View'))
+    assert.ok((await output('repl-native-styles')).includes('StyleSheet.create'))
+    const colors = await page.evaluate(() =>
+      ['stone-400', 'hinoki', 'hinoki-light', 'tatami-code', 'shikkui-muted'].map((name) => [
+        name,
+        getComputedStyle(document.documentElement).getPropertyValue(`--color-${name}`).trim(),
+      ]),
+    )
+    assert.ok(
+      colors.every(([, value]) => value),
+      `REPL token palette missing: ${JSON.stringify(colors)}`,
+    )
+    assert.ok(
+      (await page.locator('#repl-diagnostics').innerText()).includes(
+        'A11Y_INTERACTIVE_WITHOUT_ROLE',
+      ),
+    )
+    for (const name of ['Web JSX', 'Web CSS', 'React Native JSX', 'React Native StyleSheet'])
+      assert.equal(await page.getByRole('figure', { name, exact: true }).count(), 1)
 
-const cleanup = () => server.close()
-
-server.listen(0, () => {
-  const { port } = server.address()
-  execFile(
-    browser,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-sandbox',
-      // Long enough for a 1.5MB module to be fetched and instantiated.
-      '--virtual-time-budget=60000',
-      '--dump-dom',
-      `http://localhost:${port}/hozo/repl/`,
-    ],
-    {
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-      timeout: 3 * 60 * 1000,
-      killSignal: 'SIGKILL',
-    },
-    (error, dom) => {
-      cleanup()
-      if (error && !dom) {
-        console.error(`repl: the browser failed: ${error.message}`)
-        process.exit(1)
-      }
-
-      const paneText = (id) => {
-        const match = new RegExp(`id="${id}"[^>]*>([\\s\\S]*?)</pre>`).exec(dom)
-        // Strip syntax highlighting spans so assertions check decoded text content
-        return match ? match[1].replace(/<[^>]+>/g, '').trim() : ''
-      }
-
-      const failures = []
-
-      // The example in the page is a `View` with a `Pressable` in it, so
-      // each of these is something only the compiler could have written.
-      const web = paneText('repl-web-jsx')
-      if (!web.includes('&lt;div')) failures.push('the Web pane has no lowered element')
-      const css = paneText('repl-web-css')
-      if (!css.includes('padding')) failures.push('the CSS pane has no rule from a class')
-      const native = paneText('repl-native-jsx')
-      if (!native.includes('&lt;View')) failures.push('the Native pane has no lowered element')
-      const styles = paneText('repl-native-styles')
-      if (!styles.includes('StyleSheet.create')) failures.push('the StyleSheet pane is empty')
-
-      // And the diagnostics, which are the reason to have this page at
-      // all: the example presses without a role, which is a warning.
-      const diagnostics = /id="repl-diagnostics"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/.exec(dom)
-      if (!diagnostics?.[1].includes('A11Y_INTERACTIVE_WITHOUT_ROLE')) {
-        failures.push('the diagnostic the example produces was not reported')
-      }
-
-      // The editor is a textbox once the script has made it editable, and
-      // not before: the built HTML has no role on it.
-      const editor = /<div[^>]*id="repl-source"[^>]*>/.exec(dom)?.[0] ?? ''
-      if (!editor.includes('role="textbox"') || !editor.includes('contenteditable')) {
-        failures.push('the editor is not an editable textbox after the script ran')
-      }
-      const built = readFileSync(path.join(dist, 'repl', 'index.html'), 'utf8')
-      if (/<div[^>]*id="repl-source"[^>]*role="textbox"/.test(built)) {
-        failures.push('the built HTML calls the editor a textbox before it can be typed in')
-      }
-
-      if (failures.length > 0) {
-        console.error(`repl: ${failures.length} problem(s)`)
-        for (const failure of failures) console.error(`  - ${failure}`)
-        // What the page itself said, and what it asked for. Without these
-        // a failure here is indistinguishable from a page that never ran.
-        const said = /id="repl-status"[^>]*>([^<]*)</.exec(dom)
-        console.error(`  page status: ${said ? said[1] : '(no status element)'}`)
-        for (const line of requested) console.error(`  requested: ${line}`)
-        process.exit(1)
-      }
-      console.log(
-        'repl: compiles in a browser, four panes and the diagnostic, editor a textbox once editable',
+    const literal = `<script>window.__replInjected = 1</script>&日😀${'x'.repeat(240)}`
+    await editor.fill(
+      `import { View, Text } from '@hozo/core'; export function Literal() { return <View className="p-2"><Text>{${JSON.stringify(literal)}}</Text></View> }`,
+    )
+    // CodeJar 4 notifies from keyup/paste, not a bare synthetic input event.
+    await editor.press('End')
+    await page
+      .waitForFunction(() =>
+        document.querySelector('#repl-web-jsx code')?.textContent?.includes('__replInjected'),
       )
-    },
+      .catch(async (error) => {
+        console.error(
+          JSON.stringify(
+            {
+              width,
+              status: await page.locator('#repl-status').textContent(),
+              source: await editor.textContent(),
+              diagnostics: await page.locator('#repl-diagnostics').textContent(),
+              web: await output('repl-web-jsx'),
+              errors,
+            },
+            null,
+            2,
+          ),
+        )
+        throw error
+      })
+    assert.equal(await page.evaluate(() => window.__replInjected), undefined)
+    assert.equal(await page.locator('#repl-results script').count(), 0)
+    assert.ok((await output('repl-web-jsx')).includes('日😀'))
+    assert.equal(await editor.evaluate((node) => document.activeElement === node), true)
+    const scroller = page
+      .getByRole('figure', { name: 'Web JSX', exact: true })
+      .getByRole('region', { name: 'Code contents: Web JSX' })
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[aria-label="Code contents: Web JSX"]')
+          ?.getAttribute('tabindex') === '0',
+    )
+    await scroller.focus()
+    await scroller.press('ArrowRight')
+    await page.waitForFunction(
+      () => document.querySelector('[aria-label="Code contents: Web JSX"]')?.scrollLeft > 0,
+    )
+    const identity = await scroller.elementHandle()
+    await editor.fill('')
+    await editor.press('Backspace')
+    await page.waitForFunction(() =>
+      document.getElementById('repl-status')?.textContent?.startsWith('Nothing to compile:'),
+    )
+    assert.equal(await output('repl-web-jsx'), '')
+    assert.equal(await output('repl-web-css'), '')
+    assert.equal(await output('repl-native-jsx'), '')
+    assert.equal(await output('repl-native-styles'), '')
+    assert.equal(await identity.evaluate((node) => node.isConnected), true)
+    await page.waitForFunction(
+      () =>
+        document
+          .querySelector('[aria-label="Code contents: Web JSX"]')
+          ?.getAttribute('tabindex') === null,
+    )
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth))
+    assert.deepEqual(errors, [])
+    await page.close()
+  }
+  assert.ok(requested.some((url) => url.endsWith('/hozo_wasm_bg.wasm')))
+  const built = readFileSync(path.join(dist, 'repl/index.html'), 'utf8')
+  assert.doesNotMatch(built, /<div[^>]*id="repl-source"[^>]*role="textbox"/)
+  console.log(
+    'repl: real WASM compile, four named CodeBlock outputs, edits/literal escaping/clearing, editor focus and keyboard scrolling pass at 320/1280px',
   )
-})
+} finally {
+  clearTimeout(overall)
+  await browser?.close()
+  await new Promise((resolve) => server.close(resolve))
+}
