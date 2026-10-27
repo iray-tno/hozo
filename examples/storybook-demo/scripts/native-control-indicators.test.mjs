@@ -484,12 +484,15 @@ async function checkClassSlots(t, Component, initial, slots, options) {
 
 // Measurements here are supplied host fixtures, not simulator geometry. The
 // real FloatingPositioner still computes and installs its position style.
+// The floating view measures where it is parked (`-9999`) under a parent at
+// the window's origin, as a real view would: the positioner reads its parent's
+// origin back from that (#1326), so window and parent coordinates agree here.
 const measuredHosts = {
   createNodeMock: (node) => ({
     measureInWindow: (done) =>
       node.type === 'NativePressable' || node.props.testID === 'tooltip-anchor'
         ? done(100, 200, 40, 20)
-        : done(0, 0, 80, 30),
+        : done(-9999, -9999, 80, 30),
   }),
 }
 
