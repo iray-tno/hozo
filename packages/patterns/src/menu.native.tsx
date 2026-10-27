@@ -35,6 +35,12 @@ export interface HozoMenuProps {
   trigger: ReactNode
   items: readonly HozoMenuItem[]
   accessibilityLabel?: string
+  /**
+   * Open on mount, as `Popover`'s and `Tooltip`'s are, with the first item
+   * that can be chosen active. For a screen that starts with the menu showing,
+   * and for an audit that has to read the menu rather than its button.
+   */
+  defaultOpen?: boolean
   style?: Style
   triggerStyle?: Style
   menuStyle?: Style
@@ -53,6 +59,7 @@ export function HozoMenu({
   trigger,
   items,
   accessibilityLabel,
+  defaultOpen = false,
   style,
   triggerStyle,
   menuStyle,
@@ -60,7 +67,7 @@ export function HozoMenu({
   hozoTriggerStyle,
   hozoItemStyle,
 }: HozoMenuProps) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
 
   const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
   const [menuBox, menuText] = splitTextStyle([

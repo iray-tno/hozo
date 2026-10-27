@@ -1,0 +1,22 @@
+dialog, Command palette, modal
+dialog, Command palette, modal
+combobox, Type a command, has popup listbox, expanded, active descendant New file, autocomplete in list, 1 control
+listbox, Command palette, orientated vertically
+group, File
+File
+option, New file, selected, position 1, set size 2
+New file
+end of option, New file, selected, position 1, set size 2
+option, Save, not selected, position 2, set size 2
+Save
+end of option, Save, not selected, position 2, set size 2
+end of group, File
+group, View
+View
+option, Toggle theme, not selected, position 1, set size 2
+option, Archive, not selected, disabled, position 2, set size 2
+end of group, View
+end of listbox, Command palette, orientated vertically
+status
+end of dialog, Command palette, modal
+dialog, Command palette, modal

@@ -35,6 +35,7 @@ import {
   Card,
   Checkbox,
   Combobox,
+  CommandPalette,
   DatePicker,
   DateRangePicker,
   DateTimePicker,
@@ -754,6 +755,76 @@ export const TooltipOpen: StoryObj<typeof meta> = {
     </View>
   ),
 }
+
+/**
+ * The menu open on mount, so axe reads the `role="menu"` and its items --
+ * the disabled one included, whose contrast is the one most likely to fail --
+ * rather than stopping at the button. Its own story because opening moves focus
+ * to the first item, which would change where every other check starts.
+ */
+export const MenuOpen: StoryObj<typeof meta> = {
+  render: () => (
+    <View className={page}>
+      <Menu
+        trigger="Actions"
+        accessibilityLabel="Actions"
+        defaultOpen
+        items={[{ label: 'Rename' }, { label: 'Duplicate' }, { label: 'Delete', disabled: true }]}
+      />
+    </View>
+  ),
+}
+
+/**
+ * The combobox with its list open on mount, so the `listbox` the field
+ * controls is audited, options and the disabled one with them, and not only
+ * the field.
+ */
+export const ComboboxOpen: StoryObj<typeof meta> = {
+  render: () => (
+    <View className={page}>
+      <Combobox
+        options={LANGUAGES}
+        accessibilityLabel="Language"
+        placeholder="Search…"
+        defaultOpen
+      />
+    </View>
+  ),
+}
+
+const COMMANDS = [
+  { id: 'new', label: 'New file', group: 'File', shortcut: '⌘N', onSelect: () => {} },
+  { id: 'save', label: 'Save', group: 'File', shortcut: '⌘S', onSelect: () => {} },
+  { id: 'theme', label: 'Toggle theme', group: 'View', onSelect: () => {} },
+  { id: 'archive', label: 'Archive', group: 'View', disabled: true, onSelect: () => {} },
+]
+
+/**
+ * @hozo/ui's command palette, open. `Patterns/CommandPalette` audits the
+ * unstyled pattern; this is the one with the package's tokens on it, scrim,
+ * panel, group headings and the subtle shortcut text, in both schemes.
+ */
+function UiCommandPaletteOpen() {
+  // A host inside the story, as the drawer's: the walk and axe read from
+  // `#storybook-root`, and a palette portalled to `body` left it empty.
+  const [host, setHost] = useState<HTMLDivElement | null>(null)
+  return (
+    <>
+      <div ref={setHost} />
+      <PortalProvider container={host}>
+        <CommandPalette
+          open
+          onOpenChange={() => {}}
+          commands={COMMANDS}
+          placeholder="Type a command"
+        />
+      </PortalProvider>
+    </>
+  )
+}
+
+export const CommandPaletteOpen: StoryObj<typeof meta> = { render: () => <UiCommandPaletteOpen /> }
 
 export const PopoverOpen: StoryObj<typeof meta> = {
   render: () => (

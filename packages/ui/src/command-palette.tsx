@@ -19,14 +19,18 @@ const root = 'fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4'
 const scrim = 'absolute inset-0 bg-hozo-scrim/50'
 const panel =
   'relative w-full max-w-xl overflow-hidden rounded-hozo-panel border border-hozo-border bg-hozo-surface text-sm text-hozo-text-body shadow-hozo-surface'
+// The ring is inset: the panel clips its overflow for the rounded corners, so
+// an outline outside the field would be cut off at the panel's edge.
 const input =
-  'w-full border-b border-hozo-border bg-transparent px-4 py-3 text-base text-hozo-text placeholder:text-hozo-text-subtle'
+  'w-full border-b border-hozo-border bg-transparent px-4 py-3 text-base text-hozo-text placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-hozo-focus'
 const list = 'max-h-80 overflow-y-auto p-2'
 const heading = 'px-2 pt-3 pb-1 text-xs font-medium text-hozo-text-subtle'
 const item =
   'flex flex-row items-center justify-between rounded-hozo-control px-2 py-2 cursor-pointer'
 const active = 'bg-hozo-accent-subtle text-hozo-accent-text'
-const shortcut = 'text-xs text-hozo-text-subtle'
+// Muted, not subtle: the shortcut also sits on the active row's accent-subtle
+// fill, where subtle measured 4.26:1 at 12px in light.
+const shortcut = 'text-xs text-hozo-text-muted'
 const empty = 'px-4 py-6 text-center text-hozo-text-subtle'
 
 // Not named `HozoCommandPalette` here: compiled output imports a runtime
