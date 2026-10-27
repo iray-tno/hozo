@@ -884,6 +884,116 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
   }
 })
 
+test('simple projected properties use upstream winners in actual static and generated Native output', {
+  skip: !executablePath,
+}, async () => {
+  const fixtures = [
+    ['opacity-75 opacity-50', 'opacity', 'opacity', true],
+    ['z-20 z-10', 'z-index', 'zIndex', true],
+    ['flex-row flex-col', 'flex-direction', 'flexDirection'],
+    ['grow grow-0', 'flex-grow', 'flexGrow', true],
+    ['shrink shrink-0', 'flex-shrink', 'flexShrink', true],
+    ['items-center items-start', 'align-items', 'alignItems'],
+    ['self-center self-start', 'align-self', 'alignSelf'],
+    ['content-center content-end', 'align-content', 'alignContent'],
+    ['justify-center justify-end', 'justify-content', 'justifyContent'],
+    ['text-left text-right', 'text-align', 'textAlign'],
+    ['uppercase lowercase', 'text-transform', 'textTransform'],
+    ['italic not-italic', 'font-style', 'fontStyle'],
+    [
+      'focus:opacity-50 active:opacity-75 hover:focus:opacity-25 opacity-100',
+      'opacity',
+      'opacity',
+      true,
+    ],
+  ]
+  const names = [...new Set(['p-2', 'p-4', ...fixtures.flatMap(([classes]) => classes.split(' '))])]
+  const css = '@theme {--spacing:.25rem;} @tailwind utilities;'
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const context = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('simple.ts', JSON.stringify(names.join(' ')), 0)
+  const resolve = evaluate(
+    cache.renderNativeModulePlan(context).code.replace(/^import .*$/gm, ''),
+    { createClassResolver },
+  ).hozoClasses
+  const sheet = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  let observations = 0
+  try {
+    for (const [pair, property, nativeKey, numeric] of fixtures) {
+      for (const classes of [`p-4 p-2 ${pair}`, `${pair.split(' ').reverse().join(' ')} p-2 p-4`]) {
+        // Observe font style on a real Text owner, not an empty layout host.
+        // This ordering probe does not certify parent text inheritance.
+        const primitive = nativeKey === 'fontStyle' ? 'Text' : 'Pressable'
+        const input = `import {${primitive}} from '@hozo/core';export const Target=()=> <${primitive} className="${classes}"/>`
+        const web = compiler.prepareWebModule(input).emit(context)[0]
+        const native = compiler.prepareNativeModule(input).emit(context).components[0]
+        const props = evaluate(`const hozoStyles=${native.styles};module.exports=(${native.jsx})`, {
+          Pressable: 'owner',
+          Text: 'text',
+          HozoPressable: 'owner',
+          h: (_type, props) => props,
+        })
+        await page.setContent(
+          `<!doctype html><style>${sheet}\n${web.css}</style><button id="upstream" class="${classes}">Upstream</button><button id="compiled" class="hozo-0">Compiled</button>`,
+        )
+        for (const id of ['upstream', 'compiled']) {
+          await page.mouse.move(600, 600)
+          await page.evaluate(() => document.activeElement?.blur())
+          const owner = page.locator(`#${id}`)
+          const stages = pair.includes(':') ? 4 : 1
+          for (let stage = 0; stage < stages; stage++) {
+            if (stage === 1) await owner.focus()
+            if (stage === 2) await owner.hover()
+            if (stage === 3) await page.mouse.down()
+            try {
+              const actual = await owner.evaluate(
+                (element, property) => ({
+                  value: getComputedStyle(element).getPropertyValue(property),
+                  padding: getComputedStyle(element).paddingTop,
+                  state: {
+                    focused: element.matches(':focus'),
+                    hovered: element.matches(':hover'),
+                    pressed: element.matches(':active'),
+                  },
+                }),
+                property,
+              )
+              const selected =
+                typeof props.style === 'function' ? props.style(actual.state) : props.style
+              // Text properties belong to the generated label frame, not
+              // the Pressable host. Read the prop actually wired to it.
+              const label =
+                typeof props.hozoTextStyle === 'function'
+                  ? props.hozoTextStyle(actual.state)
+                  : props.hozoTextStyle
+              const hostStyle = Object.assign({}, ...[selected].flat(Infinity).filter(Boolean))
+              const staticStyle =
+                nativeKey === 'textAlign' || nativeKey === 'textTransform'
+                  ? Object.assign({}, ...[label].flat(Infinity).filter(Boolean))
+                  : hostStyle
+              const dynamic = Object.assign({}, ...resolve(classes, actual.state))
+              const expected = numeric ? Number(actual.value) : actual.value
+              assert.equal(staticStyle[nativeKey], expected, `${id}/${classes}/${stage}/static`)
+              assert.equal(dynamic[nativeKey], expected, `${id}/${classes}/${stage}/dynamic`)
+              assert.equal(actual.padding, '16px')
+              assert.equal(hostStyle.paddingTop, 16)
+              assert.equal(dynamic.paddingTop, 16)
+              observations++
+            } finally {
+              if (stage === 3) await page.mouse.up()
+            }
+          }
+        }
+      }
+    }
+    assert.equal(observations, 64)
+  } finally {
+    await page.close()
+  }
+})
+
 test('the canonical-order reference has independent browser winners under reversed classes and RTL', {
   skip: !executablePath,
 }, async () => {

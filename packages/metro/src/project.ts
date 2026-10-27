@@ -18,7 +18,11 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { prepareFinalTailwindContext, scanTailwindOrderCandidates } from '@hozo/compiler'
+import {
+  prepareFinalTailwindContext,
+  scanTailwindOrderCandidates,
+  TAILWIND_SCALAR_ORDER_POLICY,
+} from '@hozo/compiler'
 
 import {
   type HozoProjectOptions,
@@ -133,7 +137,7 @@ export async function generateCandidateModule(
     }
     const content = JSON.stringify({
       schema: 1,
-      orderingPolicy: 'scalar-order-v1',
+      orderingPolicy: TAILWIND_SCALAR_ORDER_POLICY,
       stylesheet: snapshot.serialize(),
       candidates: [...names].sort(),
     })

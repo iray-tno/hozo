@@ -389,9 +389,11 @@ before both static lowerers and emits the generated resolver's object ABI from
 that same context. This changes bounded batch winners **together**, not just
 Native fallback. `prepareFinalTailwindContext` is the internal output capability,
 not an app option or mutable compiler setter. Its fingerprint is
-`scalar-order-v1:<descriptor fingerprint>` so output caches cannot confuse it
+`scalar-order-v2:<descriptor fingerprint>` so output caches cannot confuse it
 with the unchanged pass-through `prepareTailwindContext` namespace. Captured
-plans report the same fingerprint and `mode: 'scalar-order-v1'`.
+plans report the same fingerprint and `mode: 'scalar-order-v2'`. The policy
+revision also changes when the eligible projection domain expands, not only
+when the comparator changes; Metro transports it in its startup cache identity.
 
 Unassessed emitted objects/predicates retain the whole input's old path; ranks
 are never borrowed from a different owner or the first rule of a multi-rule
@@ -405,6 +407,13 @@ captured CSS/theme epoch matches and ordinals never cross context boundaries.
 Direct standalone compiler calls without a project session and explicit
 `prepareTailwindContext` remain unchanged. See
 [default-output evidence and limits](../../docs/measurements/tailwind-default-order.md).
+
+The current v2 domain also admits direct-key opacity, numeric z-index, flex
+direction/grow/shrink and alignment, text alignment/transformation and
+normal/italic font style. Static and candidate paths use one shared projection
+assessment. Font registration, compound text metrics, gap/logical aliases and
+transform composition are not included by this expansion; see
+[the measured scope](../../docs/measurements/tailwind-simple-projections.md).
 
 For Web graph discovery, `prepareLowerModuleStyles` from compiler/lower returns
 initial full-module code plus a one-shot final stylesheet continuation from the

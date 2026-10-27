@@ -1,32 +1,31 @@
-//! A write plan owns the declaration allocation. The pass-through remains the
-//! installed control; explicit scalar ordering moves IR writes, never source
-//! expressions, and is shared by both platform emitters.
+//! A write plan owns the declaration allocation. Scalar ordering moves IR
+//! writes, never source expressions, and is shared by both platform emitters.
+//! Explicit pass-through remains available as an unassessed-domain control.
 use crate::{Condition, StyleDeclaration, StyleSource, TailwindRuleBinding, TailwindUnitBindings};
 use std::ops::Range;
 
-/// Shared platform-projection boundary, not a utility order table. Registers,
-/// logical aliases, gap expansion and compound text need separate evidence.
+/// Output-cache identity changes when the eligible projection domain changes,
+/// even if the underlying CSS descriptors and comparator are unchanged.
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v2";
+
+/// Shared platform-projection boundary, not a utility order table. Single-key
+/// projections share their ownership definition; physical padding/margin also
+/// admit their already-assessed shorthand expansion. Registers, logical
+/// aliases, gap expansion and compound text still need separate evidence.
 pub fn scalar_tailwind_property(property: &crate::StyleProperty) -> bool {
     use crate::StyleProperty::*;
-    matches!(
-        property,
-        PaddingTop(_)
-            | PaddingRight(_)
-            | PaddingBottom(_)
-            | PaddingLeft(_)
-            | MarginTop(_)
-            | MarginRight(_)
-            | MarginBottom(_)
-            | MarginLeft(_)
-            | BackgroundColor(_)
-            | TextColor(_)
-            | Width(_)
-            | Height(_)
-            | MinWidth(_)
-            | MaxWidth(_)
-            | MinHeight(_)
-            | MaxHeight(_)
-    )
+    crate::tailwind_assessment::scalar_css_property(property).is_some()
+        || matches!(
+            property,
+            PaddingTop(_)
+                | PaddingRight(_)
+                | PaddingBottom(_)
+                | PaddingLeft(_)
+                | MarginTop(_)
+                | MarginRight(_)
+                | MarginBottom(_)
+                | MarginLeft(_)
+        )
 }
 
 pub struct TailwindWritePlan<'a> {

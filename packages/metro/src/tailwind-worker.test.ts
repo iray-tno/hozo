@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test, { type TestContext } from 'node:test'
 import { runInNewContext } from 'node:vm'
-import { createCompiler } from '@hozo/compiler'
+import { createCompiler, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
 import { CACHE_DIR, StylexModuleCache, TailwindProjectSession } from '@hozo/compiler/project'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
@@ -274,6 +275,24 @@ test('a damaged transferred snapshot fails loudly rather than mixing a fresh the
   await assert.rejects(
     transform({ src: source, filename: file, options: { projectRoot: root } }),
     /Cannot read Metro project state/,
+  )
+})
+
+test('a validly hashed old projection policy is rejected, not mixed with current generated output', async (t) => {
+  const { root, config } = fixture(t)
+  await withHozo(config)
+  const reference = readMetroState(root)!.tailwind!
+  const data = JSON.parse(readFileSync(reference.file, 'utf8'))
+  assert.equal(data.orderingPolicy, TAILWIND_SCALAR_ORDER_POLICY)
+  data.orderingPolicy = 'scalar-order-v1'
+  const content = JSON.stringify(data)
+  writeFileSync(reference.file, content)
+  await assert.rejects(
+    readTailwindTransfer({
+      file: reference.file,
+      sha256: createHash('sha256').update(content).digest('hex'),
+    }),
+    /Invalid Metro Tailwind snapshot/,
   )
 })
 

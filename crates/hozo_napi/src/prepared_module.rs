@@ -11,7 +11,7 @@ pub struct PreparedTailwindContext {
 }
 
 pub(super) fn final_fingerprint(fingerprint: &str) -> String {
-    format!("scalar-order-v1:{fingerprint}")
+    format!("{}:{fingerprint}", hozo_ir::TAILWIND_SCALAR_ORDER_POLICY)
 }
 
 #[napi(object)]

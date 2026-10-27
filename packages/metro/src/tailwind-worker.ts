@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import type { Compiler } from '@hozo/compiler'
+import { type Compiler, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
 import {
   type StylexModuleCache,
   TailwindCandidateUniverse,
@@ -22,7 +22,7 @@ export async function readTailwindTransfer(reference: MetroTailwindReference) {
   const data = JSON.parse(content)
   if (
     data?.schema !== 1 ||
-    data.orderingPolicy !== 'scalar-order-v1' ||
+    data.orderingPolicy !== TAILWIND_SCALAR_ORDER_POLICY ||
     typeof data.stylesheet !== 'string' ||
     !Array.isArray(data.candidates) ||
     data.candidates.some((name: unknown) => typeof name !== 'string')

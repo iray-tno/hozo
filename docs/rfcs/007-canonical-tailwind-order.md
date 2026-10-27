@@ -237,6 +237,15 @@ inventory remains independent evidence, not a claim that its final union is
 the active Web stylesheet. See
 [default activation and scope](../measurements/tailwind-default-order.md).
 
+The default domain now also includes twelve direct-key projection types
+(opacity, numeric z-index, flex direction/grow/shrink and alignment, text
+alignment/transformation and normal/italic font style). Static and candidate
+eligibility share one ownership mapping, not new family order tables. Output
+policy v2 invalidates caches from the smaller v1 domain. Font registrations,
+compound text metrics, gap/logical aliases and transform registers remain
+explicit next boundaries rather than assumed scalar projections; see
+[evidence and remaining scope](../measurements/tailwind-simple-projections.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be
