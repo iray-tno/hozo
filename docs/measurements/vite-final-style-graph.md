@@ -1,5 +1,11 @@
 # Final static styles from Vite's real production graph
 
+Historical measurement of the shadow route introduced in #1334. That default
+route has since been removed: bounded scalar ordering does not require one
+global numeric namespace. Its second emission and graph retention were
+unnecessary. Measurements below are retained, not claims about current
+shipping output. See [the replacement](tailwind-default-order.md).
+
 Built above #1333 (`f67606bc`). Production transforms now borrow the actual
 post-Canvas parse for initial JS, then transfer its continuation to a graph
 owner. After Vite/OXC and downstream transforms have produced the final module

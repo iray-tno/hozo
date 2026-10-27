@@ -54,10 +54,12 @@ CSS bytes are validated once at snapshot adoption; warm checks use file
 metadata, not a per-module CSS reload. Unassessed CSS keeps the existing warned
 lowering path, not a fabricated ordering context.
 
-These are worker-local preparation guarantees, not a global final candidate
-namespace across every Next worker or a proof of filesystem-watcher event
-delivery. Full production reconciliation remains separate from preparation;
-this change does not enable new cascade winners.
+These are worker-local preparation guarantees, not a proof of filesystem-watcher
+event delivery. Captured project sessions now enable the shared assessed scalar
+winners, as Vite and Metro do. Under one stylesheet epoch, complete module
+contexts preserve relative priority without sharing numeric ranks across workers.
+Full runtime-candidate reconciliation remains a separate concern; see
+[default-output evidence and limits](../../docs/measurements/tailwind-default-order.md).
 
 ## Tailwind's own pipeline is not needed
 

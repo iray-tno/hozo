@@ -349,8 +349,9 @@ each explicit Node call returns a copy, not mutable access to the native cache.
 This build-time boundary is for preparing the common ordering plan, not a
 runtime sort or utility support verdict. It neither collapses multi-rule
 candidates to their first rank nor decides CSS importance/specificity. Existing
-lowering still preserves its previous winners until static and dynamic paths
-can change together. See [the measured scope](../../docs/measurements/tailwind-rule-comparator.md).
+explicit pass-through lowering preserves its previous winners. Project adapter
+sessions use the bounded scalar policy described below. See
+[the comparator's measured scope](../../docs/measurements/tailwind-rule-comparator.md).
 
 `rulePriorities()` adds assessed importance/specificity/emission keys under the
 same fingerprint. It returns a whole-table JS copy for project preparation,
@@ -378,7 +379,7 @@ uniformly assessed physical-scalar objects whose actual owner predicate matches
 the single assessed rule. It is absent when their emitted
 keys do not conflict. Missing entries remain barriers, not rank zero. This
 can feed the engine's schema-1 generated-object ABI, whose cache stores a
-rank-free ordered template. Normal generated code/adapters are not switched;
+rank-free ordered template. Metro's generated project map now uses this policy;
 the full sidecar must not become a device table. See
 [the executable template and cost evidence](../../docs/measurements/tailwind-resolver-template.md).
 
@@ -396,10 +397,14 @@ Unassessed emitted objects/predicates retain the whole input's old path; ranks
 are never borrowed from a different owner or the first rule of a multi-rule
 candidate. A generated map with no assessed scalar-key conflict keeps the
 positional call. Full descriptors remain build-time data, and state updates
-still select cached templates without reading/sorting ranks. Ordinary adapter
-sessions remain pass-through: authoritative final graph/worker integration and
-Web candidate CSS publication are the next boundary. See
-[coordinated output evidence and limits](../../docs/measurements/tailwind-final-output.md).
+still select cached templates without reading/sorting ranks. Ordinary Vite,
+Metro and Next project sessions now use the same scalar-output context; Metro's
+generated dynamic map switches with them. Different complete candidate sets
+may have different rank ordinals without different winners, provided their
+captured CSS/theme epoch matches and ordinals never cross context boundaries.
+Direct standalone compiler calls without a project session and explicit
+`prepareTailwindContext` remain unchanged. See
+[default-output evidence and limits](../../docs/measurements/tailwind-default-order.md).
 
 For Web graph discovery, `prepareLowerModuleStyles` from compiler/lower returns
 initial full-module code plus a one-shot final stylesheet continuation from the

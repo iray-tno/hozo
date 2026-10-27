@@ -9,9 +9,14 @@ import path from 'node:path'
 import { after, before, test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
-import { createCompiler, openCandidateCache, prepareTailwindContext } from '@hozo/compiler'
+import {
+  createCompiler,
+  openCandidateCache,
+  prepareFinalTailwindContext,
+  prepareTailwindContext,
+} from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
-import { emitFinalTailwindBatch } from '@hozo/compiler/project'
+import { emitFinalTailwindBatch, TailwindProjectSession } from '@hozo/compiler/project'
 import { createClassResolver, cx } from '@hozo/engine'
 import { Chip } from '@hozo/patterns'
 import { loadTheme, prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
@@ -644,6 +649,18 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
   const plan = candidates.renderNativeModulePlan(
     prepareTailwindContext(JSON.stringify(prepared.snapshot)),
   )
+  const localContext = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
+  const expanded = await prepareTailwindOrder(css, tailwindPackageDir(), [
+    ...names,
+    ...Array.from({ length: 128 }, (_, index) => `m-${index + 1}`),
+    'sm:p-8',
+    'first:m-4',
+    'aria-selected:w-8',
+  ])
+  const localResolve = evaluate(
+    candidates.renderNativeModulePlan(localContext).code.replace(/^import .*$/gm, ''),
+    { createClassResolver },
+  ).hozoClasses
   assert.ok(plan.ordering)
   const generated = evaluate(plan.code.replace(/^import .*$/gm, ''), {
     createClassResolver: (styles, unsupported, compose, states, ambient) => ({
@@ -678,19 +695,36 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
     expected: collected,
     collected,
     runtime: { expected: [receipt], contributions: [receipt] },
-    prepare: async () => JSON.stringify(prepared.snapshot),
+    prepare: async () => JSON.stringify(expanded.snapshot),
   })
   assert.notEqual(final.fingerprint, plan.fingerprint)
+  assert.notEqual(final.fingerprint, localContext.fingerprint)
+  assert.notEqual(final.native.ordering.ranks['p-4'][0], plan.ordering.ranks['p-4'][0])
   const emittedResolve = evaluate(final.native.code.replace(/^import .*$/gm, ''), {
     createClassResolver,
   }).hozoClasses
   const sheet = (await compile(css)).build(names)
+  const session = new TailwindProjectSession(compiler, async (observed) =>
+    JSON.stringify((await prepareTailwindOrder(css, tailwindPackageDir(), observed)).snapshot),
+  )
   const page = await browser.newPage()
   let legacyMismatches = 0
   try {
     for (const [index, classes] of lists.entries()) {
       const web = final.modules.find(({ id }) => id === `w${index}`).output[0]
       const native = final.modules.find(({ id }) => id === `n${index}`).output.components[0]
+      const localSource = `import {Pressable} from '@hozo/core';export const Target=()=> <Pressable className="${classes}"/>`
+      const [defaultWeb, defaultNative] = await session.emit(`default-${index}`, [
+        (compiler) => compiler.prepareWebModule(localSource),
+        (compiler) => compiler.prepareNativeModule(localSource),
+      ])
+      assert.deepEqual(defaultWeb[0], web, 'the default adapter session uses the common winner')
+      assert.deepEqual(defaultNative.components[0], native)
+      assert.deepEqual(compiler.prepareWebModule(localSource).emit(localContext)[0], web)
+      assert.deepEqual(
+        compiler.prepareNativeModule(localSource).emit(localContext).components[0],
+        native,
+      )
       const nativeProps = evaluate(
         `const hozoStyles=${native.styles};module.exports=(${native.jsx})`,
         {
@@ -699,6 +733,32 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
           h: (_type, props) => props,
         },
       )
+      const runtimeSource = `import {Pressable} from '@hozo/core';export const Target=({classes})=> <Pressable className={classes}/>`
+      const [runtimeOutput] = await session.emit(`dynamic-${index}`, [
+        (compiler) => compiler.prepareNativeModule(runtimeSource),
+      ])
+      const runtimeComponent = runtimeOutput.components[0]
+      const runtimeProps = evaluate(`module.exports=(${runtimeComponent.jsx})`, {
+        classes,
+        hozoClasses: localResolve,
+        HozoPressable: 'owner',
+        h: (_type, props) => props,
+      })
+      const [mixedOutput] = await session.emit(`mixed-${index}`, [
+        (compiler) =>
+          compiler.prepareNativeModule(
+            runtimeSource.replace(
+              'className={classes}',
+              'className={classes} style={{paddingTop:99}}',
+            ),
+          ),
+      ])
+      const mixedProps = evaluate(`module.exports=(${mixedOutput.components[0].jsx})`, {
+        classes,
+        hozoClasses: localResolve,
+        HozoPressable: 'owner',
+        h: (_type, props) => props,
+      })
       await page.setContent(
         `<!doctype html><style>${sheet}\n${web.css}</style><button id="subject" style="width:80px;height:40px" class="${classes}">Target</button><button id="planned" style="width:80px;height:40px" class="hozo-0">Target</button>`,
       )
@@ -725,8 +785,29 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
           }
         }
         const oracle = { color: actual.color, padding: actual.padding }
+        const dynamicSelected = runtimeProps.style(actual.state)
+        const dynamicStyle = Object.assign({}, ...[dynamicSelected].flat(Infinity).filter(Boolean))
+        assert.deepEqual(
+          read(() => [dynamicStyle]),
+          oracle,
+          'actual dynamically compiled Native owner',
+        )
+        const mixedStyle = Object.assign(
+          {},
+          ...[mixedProps.style(actual.state)].flat(Infinity).filter(Boolean),
+        )
+        assert.deepEqual(
+          read(() => [mixedStyle]),
+          { ...oracle, padding: 99 },
+          'authored styles retain their input tier above the generated dynamic plan',
+        )
         assert.deepEqual(read(resolve), oracle)
         assert.deepEqual(read(emittedResolve), oracle, 'the actual generated object factory call')
+        assert.deepEqual(
+          read(localResolve),
+          oracle,
+          'the actual factory in the smaller, separately numbered namespace',
+        )
         const selected =
           typeof nativeProps.style === 'function'
             ? nativeProps.style(actual.state)
@@ -798,6 +879,7 @@ test('the generated common-plan resolver agrees with real Tailwind across state 
       'the same oracle must expose the old string-order padding winner',
     )
   } finally {
+    session.invalidate()
     await page.close()
   }
 })

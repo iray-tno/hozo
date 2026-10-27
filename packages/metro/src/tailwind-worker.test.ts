@@ -4,8 +4,11 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test, { type TestContext } from 'node:test'
+import { runInNewContext } from 'node:vm'
 import { createCompiler } from '@hozo/compiler'
 import { CACHE_DIR, StylexModuleCache, TailwindProjectSession } from '@hozo/compiler/project'
+import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
 import { metroStatePath, readMetroState, withHozo } from './config.ts'
 import { getCacheKey, transform } from './index.ts'
 import { MetroTailwindWorker, readTailwindTransfer } from './tailwind-worker.ts'
@@ -27,6 +30,40 @@ function fixture(t: TestContext) {
   const config = { projectRoot: root, transformer: { babelTransformerPath: upstream } }
   return { root, entry, tokens, file, source, config }
 }
+
+test('default static workers and generated dynamic maps share winners across restarts and class orders', async (t) => {
+  const { root, tokens, file, config } = fixture(t)
+  // A genuine runtime source, separate from static subtraction.
+  writeFileSync(
+    path.join(root, 'src', 'tones.ts'),
+    `export const tone=()=> 'p-4 p-2 focus:p-2 active:p-4'`,
+  )
+  for (const spacing of [7, 11]) {
+    writeFileSync(tokens, `@theme {--spacing:${spacing}px;}`)
+    await withHozo(config)
+    const code = readFileSync(path.join(root, CACHE_DIR, 'candidates.native.js'), 'utf8')
+    const resolve = runInNewContext(
+      `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}\nhozoClasses`,
+      { createClassResolver, hozoTransformStyles, I18nManager: { isRTL: false } },
+    )
+    for (const classes of ['p-4 p-2', 'p-2 p-4']) {
+      const input = `import {View} from '@hozo/core';export const A=()=> <View className="${classes}"/>`
+      const compiled = await transform({
+        src: input,
+        filename: file,
+        options: { projectRoot: root, platform: 'android' },
+      })
+      assert.match(compiled, new RegExp(`paddingTop: ${spacing * 4}\\b`))
+      assert.doesNotMatch(compiled, new RegExp(`paddingTop: ${spacing * 2}\\b`))
+      assert.equal(Object.assign({}, ...resolve(classes)).paddingTop, spacing * 4)
+    }
+    const states = Object.assign(
+      {},
+      ...resolve('active:p-4 focus:p-2', { focused: true, pressed: true }),
+    )
+    assert.equal(states.paddingTop, spacing * 4)
+  }
+})
 
 test('the default Metro transform uses the config snapshot after CSS mutation/deletion and on restart', async (t) => {
   const { root, entry, tokens, source, file, config } = fixture(t)

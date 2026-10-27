@@ -42,6 +42,8 @@ const reads = {
   ],
   '@hozo/migration-audit#test': ['packages/typography/src/fonts.ts'],
   '@hozo/metro#test': [
+    'packages/engine/src/class-resolver.ts',
+    'packages/engine/src/transform-slots.ts',
     'packages/ui/src/combobox.tsx',
     'packages/ui/src/listbox.tsx',
     'packages/ui/src/command-palette.tsx',

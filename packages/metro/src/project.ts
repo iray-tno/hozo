@@ -18,7 +18,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
-import { scanTailwindOrderCandidates } from '@hozo/compiler'
+import { prepareFinalTailwindContext, scanTailwindOrderCandidates } from '@hozo/compiler'
 
 import {
   type HozoProjectOptions,
@@ -109,7 +109,20 @@ export async function generateCandidateModule(
   }
   const preflight = preflightEnabled(options.preflight, cache.usesTailwind)
   const modulePath = candidateModulePath(projectRoot)
-  writeFileIfChanged(modulePath, cache.renderNativeModule({ colors: [], ...theme, preflight }))
+  const resolvedTheme = { colors: [], ...theme, preflight }
+  // Static workers and this complete runtime map share the same ordering
+  // policy and captured CSS bytes, not numeric rank ordinals. Static seed
+  // names must not be reintroduced as runtime candidates.
+  const runtimeOrder = snapshot ? await snapshot.prepareOrder(cache.candidates()) : undefined
+  writeFileIfChanged(
+    modulePath,
+    runtimeOrder
+      ? cache.renderNativeModulePlan(
+          prepareFinalTailwindContext(JSON.stringify(runtimeOrder.snapshot)),
+          resolvedTheme,
+        ).code
+      : cache.renderNativeModule(resolvedTheme),
+  )
   let tailwind: MetroTailwindReference | undefined
   if (snapshot) {
     // Runtime candidates deliberately subtract static classes. The ordering
@@ -120,6 +133,7 @@ export async function generateCandidateModule(
     }
     const content = JSON.stringify({
       schema: 1,
+      orderingPolicy: 'scalar-order-v1',
       stylesheet: snapshot.serialize(),
       candidates: [...names].sort(),
     })
