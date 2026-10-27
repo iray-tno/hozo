@@ -309,14 +309,20 @@ const pages = {
     await page.getByRole('button', { name: 'Filters' }).click()
     const sheet = page.getByRole('dialog', { name: 'Filters' })
     await sheet.waitFor()
-    // The grabber is a `before:` box on a class list passed at runtime, so
-    // only the candidate stylesheet draws it; without its `content` the bar
-    // was missing (#1136).
-    assert.equal(
-      await sheet
-        .getByRole('button', { name: 'Resize' })
-        .evaluate((el) => getComputedStyle(el, '::before').content),
-      '""',
+    // The grabber is a box inside the handle on a class list passed at
+    // runtime, so only the candidate stylesheet draws it; it went missing once
+    // as a `before:` box without its `content` (#1136), and is its own box
+    // now so that Native draws it too (#1356).
+    const bar = await sheet
+      .getByRole('button', { name: 'Resize' })
+      .locator('span')
+      .evaluate((el) => {
+        const box = el.getBoundingClientRect()
+        return { width: box.width, height: box.height, fill: getComputedStyle(el).backgroundColor }
+      })
+    assert.deepEqual(
+      [bar.width, bar.height, bar.fill === 'rgba(0, 0, 0, 0)'],
+      [32, 4, false],
       'bottom-sheet: the grabber bar is not drawn',
     )
     await page.keyboard.press('Escape')
