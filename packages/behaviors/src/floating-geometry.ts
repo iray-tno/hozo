@@ -304,3 +304,27 @@ export function computePosition(
     arrow,
   }
 }
+
+/**
+ * A position computed in window coordinates, moved into the coordinates of the
+ * box the floating element is laid out in.
+ *
+ * React Native measures in the window but places `position: absolute` against
+ * the parent, so the two agree only when the parent sits at the window's
+ * origin. Without a `PortalProvider` the panel renders where it was written,
+ * inside its own pattern's padding, and landed that far from its anchor
+ * (#1326). The parent's origin is not measurable from the floating element
+ * directly, but it is where the element is in the window less where it was
+ * placed: `floatingInWindow - placed`.
+ */
+export function toContainingBlock(
+  position: PositionResult,
+  floatingInWindow: { x: number; y: number },
+  placed: { x: number; y: number },
+): PositionResult {
+  return {
+    ...position,
+    x: position.x - (floatingInWindow.x - placed.x),
+    y: position.y - (floatingInWindow.y - placed.y),
+  }
+}

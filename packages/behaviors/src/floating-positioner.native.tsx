@@ -12,7 +12,11 @@ import {
   type ComputePositionOptions,
   computePosition,
   type PositionResult,
+  toContainingBlock,
 } from './floating-geometry.ts'
+
+/** Where the positioner parks the panel until it has been measured once. */
+const OFFSCREEN = -9999
 
 /**
  * What React Native hands back for a `<View>`, rather than a shape of our
@@ -31,6 +35,11 @@ export interface UseFloatingPositionOptions extends ComputePositionOptions {
 
 /**
  * Universal React hook for floating element positioning on React Native.
+ *
+ * The result is in the coordinates of the floating element's parent, for its
+ * `left`/`top`. That assumes the element sits at `left: -9999, top: -9999`
+ * until the first result and at each result after, as `FloatingPositioner`
+ * places it: the parent's origin is read back from where that put it.
  */
 export function useFloatingPosition({
   anchorRef,
@@ -45,6 +54,9 @@ export function useFloatingPosition({
   arrowPadding = 4,
 }: UseFloatingPositionOptions): PositionResult | null {
   const [position, setPosition] = useState<PositionResult | null>(null)
+  // Where the floating element was last placed, in its parent's coordinates:
+  // what turns its window measurement back into the parent's origin.
+  const placed = useRef({ x: OFFSCREEN, y: OFFSCREEN })
 
   const update = useCallback(() => {
     if (!enabled) return
@@ -54,7 +66,7 @@ export function useFloatingPosition({
     anchor.measureInWindow((ax, ay, aw, ah) => {
       const floating = floatingRef.current
       if (floating?.measureInWindow) {
-        floating.measureInWindow((_fx, _fy, fw, fh) => {
+        floating.measureInWindow((fx, fy, fw, fh) => {
           // Assume standard device screen dimensions fallback
           const viewport = { width: 400, height: 800 }
           const result = computePosition(
@@ -71,7 +83,9 @@ export function useFloatingPosition({
               arrowPadding,
             },
           )
-          setPosition(result)
+          const local = toContainingBlock(result, { x: fx, y: fy }, placed.current)
+          placed.current = { x: local.x, y: local.y }
+          setPosition(local)
         })
       }
     })
@@ -139,8 +153,8 @@ export function FloatingPositioner({
       }
     : {
         position: 'absolute' as const,
-        left: -9999,
-        top: -9999,
+        left: OFFSCREEN,
+        top: OFFSCREEN,
         opacity: 0,
       }
 

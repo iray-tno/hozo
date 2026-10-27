@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { computePosition, parsePlacement, type Rect, type Viewport } from './floating-geometry.ts'
+import {
+  computePosition,
+  parsePlacement,
+  type Rect,
+  toContainingBlock,
+  type Viewport,
+} from './floating-geometry.ts'
 
 const viewport: Viewport = { width: 1000, height: 800 }
 // Default anchor: 100x40 at (400, 300)
@@ -296,4 +302,29 @@ test('computePosition: referenceHidden detects when anchor scrolled outside view
   const scrolledBelow: Rect = { x: 400, y: 850, width: 100, height: 40 }
   const hiddenBottom = computePosition(scrolledBelow, defaultFloating, viewport)
   assert.equal(hiddenBottom.referenceHidden, true)
+})
+
+test('toContainingBlock: a panel laid out inside padding lands on its anchor, not that far past it', () => {
+  // #1326: the anchor at window (52, 140); the panel's parent at window
+  // (52, 140) too, a pattern wrapper inside a `p-8` story at (20, 108). The
+  // panel was parked offscreen, so it measured at the parent's origin - 9999.
+  const anchor: Rect = { x: 52, y: 140, width: 90, height: 40 }
+  const inWindow = computePosition(anchor, { x: 0, y: 0, width: 200, height: 60 }, viewport, {
+    placement: 'bottom-start',
+    offset: 4,
+  })
+  assert.deepEqual([inWindow.x, inWindow.y], [52, 184])
+  const local = toContainingBlock(inWindow, { x: 52 - 9999, y: 140 - 9999 }, { x: -9999, y: -9999 })
+  // Relative to its parent: directly under the trigger, which is at the
+  // parent's origin.
+  assert.deepEqual([local.x, local.y], [0, 44])
+  // Re-measured once placed there, the parent's origin is still recovered.
+  const again = toContainingBlock(inWindow, { x: 52, y: 184 }, { x: 0, y: 44 })
+  assert.deepEqual([again.x, again.y], [0, 44])
+})
+
+test('toContainingBlock: a parent at the window origin leaves the position unchanged', () => {
+  const position = computePosition(defaultAnchor, defaultFloating, viewport, { placement: 'top' })
+  const local = toContainingBlock(position, { x: -9999, y: -9999 }, { x: -9999, y: -9999 })
+  assert.deepEqual([local.x, local.y], [position.x, position.y])
 })
