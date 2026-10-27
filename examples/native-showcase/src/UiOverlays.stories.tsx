@@ -1,4 +1,5 @@
-// Overlays held open, for the device walk to see (#1306, #1319, #1320, #1326).
+// Overlays held open, for the device walk to see (#1306, #1319, #1320, #1326,
+// #1346).
 //
 // The /docs demos and the shared state screens are captured closed, so a
 // dialog's body, a tooltip's content, a popover's panel, a menu's items and a
@@ -16,8 +17,10 @@
 import { View } from '@hozo/core'
 import {
   Button,
+  BottomSheet as UiBottomSheet,
   Combobox as UiCombobox,
   Dialog as UiDialog,
+  Drawer as UiDrawer,
   Menu as UiMenu,
   Popover as UiPopover,
   Tooltip as UiTooltip,
@@ -87,6 +90,26 @@ function OpenCombobox() {
   )
 }
 
+// The surfaces that reach the screen's bottom edge, for the safe area (#1346):
+// whether the last line clears the home indicator and the gesture handle.
+function OpenBottomSheet() {
+  const [body] = useState('Bottom sheet body, shown open')
+  return (
+    <UiBottomSheet open onClose={() => {}} accessibilityLabel="Open bottom sheet">
+      {body}
+    </UiBottomSheet>
+  )
+}
+
+function OpenDrawer() {
+  const [body] = useState('Drawer body, shown open')
+  return (
+    <UiDrawer open onClose={() => {}} accessibilityLabel="Open drawer">
+      {body}
+    </UiDrawer>
+  )
+}
+
 const meta = {
   title: 'UI/Open overlays',
   component: OpenDialog,
@@ -99,3 +122,5 @@ export const Tooltip: Story = { render: () => <OpenTooltip /> }
 export const Popover: Story = { render: () => <OpenPopover /> }
 export const Menu: Story = { render: () => <OpenMenu /> }
 export const Combobox: Story = { render: () => <OpenCombobox /> }
+export const BottomSheet: Story = { render: () => <OpenBottomSheet /> }
+export const Drawer: Story = { render: () => <OpenDrawer /> }
