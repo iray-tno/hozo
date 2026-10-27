@@ -143,7 +143,7 @@ pub fn compile_plan(
     TailwindCompilePlan {
         fingerprint: plan.fingerprint,
         mode: if plan.ordered {
-            "scalar-order-v1"
+            hozo_ir::TAILWIND_SCALAR_ORDER_POLICY
         } else {
             "passthrough"
         }

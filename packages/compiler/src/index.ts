@@ -12,6 +12,9 @@ import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 
 export type { FontAvailability } from './font-diagnostics.ts'
 
+/** @internal Must match the native scalar output policy; integration tests verify it. */
+export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v2' as const
+
 const require = createRequire(import.meta.url)
 
 export interface CompileDiagnostic {
@@ -25,7 +28,7 @@ export interface CompileDiagnostic {
 /** @internal Captured output policy and write evidence, not a full cascade support verdict. */
 export interface TailwindCompilePlan {
   fingerprint: string
-  mode: 'passthrough' | 'scalar-order-v1'
+  mode: 'passthrough' | typeof TAILWIND_SCALAR_ORDER_POLICY
   sites: {
     spanStart: number
     spanEnd: number

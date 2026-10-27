@@ -28,7 +28,9 @@ pub use tailwind_order::{
     TailwindRuleBinding, TailwindRulePriority, TailwindUnitBindings, TailwindWriteEvidence,
 };
 mod tailwind_plan;
-pub use tailwind_plan::{scalar_tailwind_property, TailwindWriteBlock, TailwindWritePlan};
+pub use tailwind_plan::{
+    scalar_tailwind_property, TailwindWriteBlock, TailwindWritePlan, TAILWIND_SCALAR_ORDER_POLICY,
+};
 mod tailwind_assessment;
 pub use tailwind_assessment::{
     assess_tailwind_rule, assess_tailwind_write, AssessedTailwindRule, RuleAssessmentError,

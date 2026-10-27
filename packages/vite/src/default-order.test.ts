@@ -45,7 +45,7 @@ test('default production assets contain the shared scalar winner in both class o
     assert.match(assetCss(output), /padding(?:-top)?:16px/)
     assert.doesNotMatch(assetCss(output), /padding(?:-top)?:8px/)
     assert.equal(existsSync(path.join(root, 'node_modules/.hozo/final-styles-client.json')), false)
-    assert.doesNotMatch(JSON.stringify(output), /scalar-order-v1:|nativePlanFingerprint/)
+    assert.doesNotMatch(JSON.stringify(output), /scalar-order-v\d+:|nativePlanFingerprint/)
   }
 })
 

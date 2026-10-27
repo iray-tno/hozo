@@ -162,6 +162,9 @@ pub enum TailwindWriteOwnership<'a> {
 /// It is not a property-order table. Shorthand/axis ownership does not prove
 /// that Yoga and CSS resolve logical/physical conflicts in the same way.
 pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
+    if let Some(expected) = scalar_css_property(write) {
+        return property == expected;
+    }
     use StyleProperty::*;
     match write {
         PaddingTop(_) => matches!(property, "padding" | "padding-block" | "padding-top"),
@@ -187,16 +190,69 @@ pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
         Gap(_) => property == "gap",
         RowGap(_) => matches!(property, "gap" | "row-gap"),
         ColumnGap(_) => matches!(property, "gap" | "column-gap"),
-        BackgroundColor(_) => property == "background-color",
-        TextColor(_) => property == "color",
-        Width(_) => property == "width",
-        Height(_) => property == "height",
-        MinWidth(_) => property == "min-width",
-        MaxWidth(_) => property == "max-width",
-        MinHeight(_) => property == "min-height",
-        MaxHeight(_) => property == "max-height",
         _ => false,
     }
+}
+
+/// Single-key projections with no shorthand/longhand alias, font-relative
+/// folding or shared register composition. This is write ownership, never a
+/// utility precedence table: priority still comes from the captured CSS rule.
+/// Keep this definition shared by static planning and candidate generation.
+pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str> {
+    use StyleProperty::*;
+    Some(match write {
+        BackgroundColor(_) => "background-color",
+        TextColor(_) => "color",
+        Width(_) => "width",
+        Height(_) => "height",
+        MinWidth(_) => "min-width",
+        MaxWidth(_) => "max-width",
+        MinHeight(_) => "min-height",
+        MaxHeight(_) => "max-height",
+        Opacity(_) => "opacity",
+        ZIndex(Some(_)) => "z-index",
+        FlexDirection(_) => "flex-direction",
+        FlexGrow(_) => "flex-grow",
+        FlexShrink(_) => "flex-shrink",
+        AlignItems(
+            crate::Align::Start
+            | crate::Align::Center
+            | crate::Align::End
+            | crate::Align::Stretch
+            | crate::Align::Baseline,
+        ) => "align-items",
+        AlignSelf(
+            crate::AlignSelf::Auto
+            | crate::AlignSelf::Start
+            | crate::AlignSelf::Center
+            | crate::AlignSelf::End
+            | crate::AlignSelf::Stretch
+            | crate::AlignSelf::Baseline,
+        ) => "align-self",
+        AlignContent(
+            crate::Justify::Start
+            | crate::Justify::Center
+            | crate::Justify::End
+            | crate::Justify::Between
+            | crate::Justify::Around
+            | crate::Justify::Evenly
+            | crate::Justify::Stretch,
+        ) => "align-content",
+        JustifyContent(
+            crate::Justify::Start
+            | crate::Justify::Center
+            | crate::Justify::End
+            | crate::Justify::Between
+            | crate::Justify::Around
+            | crate::Justify::Evenly,
+        ) => "justify-content",
+        TextAlign(crate::TextAlign::Left | crate::TextAlign::Center | crate::TextAlign::Right) => {
+            "text-align"
+        }
+        TextTransform(_) => "text-transform",
+        Keyword("font-style", "normal" | "italic") => "font-style",
+        _ => return None,
+    })
 }
 
 pub fn assess_tailwind_write<'a>(
@@ -231,6 +287,62 @@ pub fn assess_tailwind_write<'a>(
 mod tests {
     use super::*;
     use crate::{portable_tailwind_snapshot, Length, TailwindOrderContext};
+
+    #[test]
+    fn simple_projections_share_exact_css_ownership_with_scalar_eligibility() {
+        for (write, property) in [
+            (StyleProperty::Opacity(0.5), "opacity"),
+            (StyleProperty::ZIndex(Some(10)), "z-index"),
+            (
+                StyleProperty::FlexDirection(crate::FlexDirection::Row),
+                "flex-direction",
+            ),
+            (StyleProperty::FlexGrow(1.0), "flex-grow"),
+            (StyleProperty::FlexShrink(0.0), "flex-shrink"),
+            (
+                StyleProperty::AlignItems(crate::Align::Center),
+                "align-items",
+            ),
+            (
+                StyleProperty::AlignSelf(crate::AlignSelf::Center),
+                "align-self",
+            ),
+            (
+                StyleProperty::AlignContent(crate::Justify::Center),
+                "align-content",
+            ),
+            (
+                StyleProperty::JustifyContent(crate::Justify::Center),
+                "justify-content",
+            ),
+            (
+                StyleProperty::TextAlign(crate::TextAlign::Center),
+                "text-align",
+            ),
+            (
+                StyleProperty::TextTransform(crate::TextTransform::Uppercase),
+                "text-transform",
+            ),
+            (StyleProperty::Keyword("font-style", "italic"), "font-style"),
+        ] {
+            assert_eq!(scalar_css_property(&write), Some(property));
+            assert!(crate::scalar_tailwind_property(&write));
+            assert!(covers(property, &write));
+            assert!(!covers("unrelated", &write));
+        }
+        for write in [
+            StyleProperty::FontSize(Length::Px(18.0)),
+            StyleProperty::FontWeight(crate::FontWeight(700)),
+            StyleProperty::Gap(Length::Px(8.0)),
+            StyleProperty::ZIndex(None),
+            StyleProperty::Keyword("font-style", "oblique"),
+            StyleProperty::AlignContent(crate::Justify::Baseline),
+            StyleProperty::JustifyContent(crate::Justify::Stretch),
+        ] {
+            assert_eq!(scalar_css_property(&write), None);
+            assert!(!crate::scalar_tailwind_property(&write));
+        }
+    }
 
     fn fixture(name: &str) -> OrderCandidateDescriptor {
         portable_tailwind_snapshot()
