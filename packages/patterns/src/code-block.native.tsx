@@ -1,8 +1,8 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { HozoTextSizeContext } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
-import { type NormalizedCodeLine, useCodeLineRows } from '@hozo/typography/code/lines/native'
-import { codeText, normalizeCodeLines } from '@hozo/typography/code/model'
+import { useCodeLineRows } from '@hozo/typography/code/lines/native'
+import { codeText, normalizeCodeLines, widestCodeLine } from '@hozo/typography/code/model'
 import { useContext } from 'react'
 import {
   FlatList,
@@ -121,7 +121,7 @@ export function CodeBlock(props: CodeBlockProps) {
   // A windowed list cannot be as wide as a line it has not mounted, so the
   // widest line is drawn once more, at no height and out of the reading
   // order, to hold the scrolling width open for the ones that come later.
-  const widest = !windowed || props.wrap ? undefined : widestLine(rows.lines)
+  const widest = !windowed || props.wrap ? undefined : widestCodeLine(rows.lines)
   return (
     <View role="figure" accessibilityLabel={name} style={box}>
       <Text
@@ -158,21 +158,4 @@ export function CodeBlock(props: CodeBlockProps) {
       ) : null}
     </View>
   )
-}
-
-/**
- * The line that needs the most columns. The text is monospaced, so columns
- * are the width; a wide character (CJK, full-width forms, most emoji) takes
- * two, which is approximated by code point rather than read from Unicode's
- * East Asian Width table.
- */
-function widestLine(lines: readonly NormalizedCodeLine[]) {
-  let widest: { line: NormalizedCodeLine; index: number; columns: number } | undefined
-  lines.forEach((line, index) => {
-    let columns = 0
-    for (const token of line.tokens)
-      for (const char of token.text) columns += (char.codePointAt(0) ?? 0) >= 0x2e80 ? 2 : 1
-    if (!widest || columns > widest.columns) widest = { line, index, columns }
-  })
-  return widest
 }

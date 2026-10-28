@@ -31,6 +31,12 @@ import {
 
 export * from './foundation.tsx'
 export { Presence, type PresenceProps } from './presence.tsx'
+/**
+ * @internal The list's window arithmetic, for a Web component that is its
+ * own scroller and cannot be a `FlatList` -- `@hozo/typography`'s code
+ * lines, which have to stay one `<pre>` (#1380).
+ */
+export { initialRange, ListMetrics, type WindowRange, windowRange } from './windowing.ts'
 
 export interface HozoScrollEvent {
   nativeEvent: {

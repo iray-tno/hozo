@@ -28,8 +28,7 @@ tree. Hozo supplies neither a highlighter nor a diff algorithm.
   windowed block mounts only the lines near the visible ones, which keeps a long
   block's mount cost bounded. In exchange, find-in-page, select-all and a screen
   reader's own reading reach only the mounted lines; the copy button still copies
-  everything. `'auto'` windows past 100 lines. React Native only for now; the
-  Web keeps every line.
+  everything. `'auto'` windows past 100 lines.
 - `copy`: copies every shown line, including removed lines, without numbers,
   glyphs or spoken prefixes. `{ text: 'replacement' }` overrides the copied text.
 - `className`, `lineClassName`, `gutterClassName`, `insClassName`, `delClassName`,

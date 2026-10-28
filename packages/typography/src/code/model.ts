@@ -72,6 +72,28 @@ export function normalizeCodeLines(
   })
 }
 
+/**
+ * The line that needs the most columns, for a windowed block to hold its
+ * scrolling width open with before the line itself is mounted.
+ *
+ * The text is monospaced, so columns are the width; a wide character (CJK,
+ * full-width forms, most emoji) takes two, which is approximated by code
+ * point rather than read from Unicode's East Asian Width table.
+ */
+export function widestCodeLine<T extends Pick<CodeLine, 'tokens'>>(
+  lines: readonly T[],
+): { line: T; index: number } | undefined {
+  let widest: { line: T; index: number; columns: number } | undefined
+  lines.forEach((line, index) => {
+    let columns = 0
+    const tokens = typeof line.tokens === 'string' ? [{ text: line.tokens }] : line.tokens
+    for (const token of tokens)
+      for (const char of token.text) columns += (char.codePointAt(0) ?? 0) >= 0x2e80 ? 2 : 1
+    if (!widest || columns > widest.columns) widest = { line, index, columns }
+  })
+  return widest
+}
+
 export function markCodeLines(
   lines: readonly CodeLine[] | string,
   ranges: readonly CodeRange[],

@@ -29,8 +29,6 @@ export interface CodeBlockOptions {
    * reach only the mounted lines (the copy button still copies all of
    * them). `'auto'`, the default, windows only past 100 lines, where the
    * mount cost has been measured to matter; `'on'` and `'off'` decide regardless of length.
-   *
-   * React Native only, for now; the Web keeps every line (#1380).
    */
   windowing?: 'auto' | 'on' | 'off'
 }
