@@ -121,7 +121,7 @@ test('frame completion polls only observations, retains pending data and keeps t
   assert.equal(clock, 250)
 })
 
-test('only an inverted row frozen for STALE_AFTER_MS before the deadline is stale (#1381)', async () => {
+test('only a row frozen for STALE_AFTER_MS before the deadline is stale (#1381)', async () => {
   // As in run 40695244453: one row whose completion predates its vsync,
   // unchanged for the whole window, beside frames that did complete.
   const frozen = frame(0, 90000000)
@@ -145,13 +145,16 @@ test('only an inverted row frozen for STALE_AFTER_MS before the deadline is stal
   assert.equal(result.summary.rows[1].durationMs, null)
   // Still waits out the whole window first: a row is not stale on sight.
   assert.ok(result.observations > STALE_AFTER_MS / 100)
+  // As in runs 40775619982 and 40776721324: no completion at all, frozen.
+  const unfinished = await run(() => dump([frame(0, 110000000), frame(0, 0)]), STALE_AFTER_MS + 100)
+  assert.equal(unfinished.summary.stalePendingFrames, 1)
 
   // Frozen, but not for long enough.
   await assert.rejects(
     () => run(() => dump([frame(0, 110000000), frozen]), STALE_AFTER_MS - 100),
     /original measurement window/,
   )
-  // Never completed at all is not the inverted case, however long it sits.
+  // A frame still drawing is not stale, however long it sits.
   await assert.rejects(
     () =>
       run(() => dump([frame(0, 110000000), frame(0, '9223372036854775807')]), STALE_AFTER_MS + 100),

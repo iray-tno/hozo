@@ -32,8 +32,8 @@ export function frameSummary(dump, refreshHz, stale = new Set()) {
         flags,
         pending,
         // Only a row `waitForCompletedFrames` has watched stay frozen, and
-        // only one whose completion predates its vsync, is stale; see there.
-        stale: completed > 0n && completed < intended && stale.has(line),
+        // only of the two shapes seen frozen, is stale; see there.
+        stale: completed !== 9223372036854775807n && completed <= intended && stale.has(line),
         durationMs: pending ? null : Number(completed - intended) / 1e6,
         ...(pending ? { raw: line } : {}),
       })
@@ -89,15 +89,16 @@ export async function waitForCompletedFrames({
   // Every pending row, by its exact text: when it first appeared, or
   // `undefined` once an observation came without it.
   //
-  // A row whose completion predates its vsync is usually in flight: its slot
-  // still holds an older frame's time and is rewritten a few observations
-  // later, so it is waited for like any other. One such row has also been
-  // seen frozen for all 485 observations of a 60s window (#1381), failing
-  // the run on main and windowed alike. So only at the original deadline,
-  // and only for a row that sat unchanged for STALE_AFTER_MS -- far longer
-  // than any in-flight row has taken -- is it called stale. Stale rows are reported,
-  // left out of the durations, and not allowed to stop the run. Anything
-  // else still pending fails as before.
+  // A row with no completion yet, or one that predates its vsync (its slot
+  // still holds an older frame's time), is usually in flight and is rewritten
+  // within an observation, so it is waited for like any other. Rows of both
+  // shapes have also been seen frozen for a whole 60s window -- 477 to 485
+  // observations, in runs on main and windowed alike (#1381) -- failing the
+  // run. So only at the original deadline, and only for a row that sat
+  // unchanged for STALE_AFTER_MS, far longer than any in-flight row has
+  // taken, is it called stale. Stale rows are reported, left out of the
+  // durations, and not allowed to stop the run. Anything else still pending,
+  // including a frame still drawing (`INT64_MAX`), fails as before.
   const watched = new Map()
   let last
   while (now() < deadline) {
