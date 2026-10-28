@@ -1262,6 +1262,115 @@ test('OTP semantic classes separate real input mutability from decorative spans'
   }
 })
 
+test('OTP cells and gaps forward mouse and touch input to the single field', {
+  skip: !executablePath,
+}, async () => {
+  const cases = [
+    { name: 'empty' },
+    { name: 'filled', defaultValue: '12' },
+    { name: 'masked', defaultValue: '12', mask: true },
+    { name: 'disabled', defaultValue: '12', disabled: true },
+    { name: 'readonly', defaultValue: '12', readOnly: true },
+  ]
+  const bundle = await build({
+    stdin: {
+      contents: `import React from 'react'; import {createRoot} from 'react-dom/client';
+        import {OtpInput} from '../../packages/patterns/src/otp-input.tsx';
+        createRoot(document.getElementById('root')).render(<>
+          <button id="before">Before</button>
+          {${JSON.stringify(cases)}.map(({name,...props}) => <section key={name}>
+            <OtpInput {...props} testID={name} accessibilityLabel={name}
+              className="otp-row" cellClassName="otp-cell"/>
+          </section>)}
+          <button id="after">After</button>
+        </>);`,
+      loader: 'tsx',
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+    },
+    bundle: true,
+    write: false,
+    platform: 'browser',
+    format: 'iife',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+  const page = await browser.newPage({ hasTouch: true, viewport: { width: 1200, height: 900 } })
+  const errors = []
+  page.on('pageerror', (error) => errors.push(error.message))
+  try {
+    await page.setContent(`<style>
+      .otp-row { gap: 8px; margin: 4px; }
+      .otp-cell { display: flex; width: 44px; height: 44px; align-items: center;
+        justify-content: center; background: white; border: 1px solid black; }
+      </style><div id="root"></div>`)
+    await page.addScriptTag({ content: bundle.outputFiles[0].text })
+    await page.getByTestId('empty').waitFor()
+    for (const method of ['mouse', 'touch']) {
+      for (const { name, defaultValue = '', disabled, readOnly } of cases) {
+        const row = page.getByTestId(name)
+        const field = row.locator('input')
+        const cells = row.locator(':scope > span[aria-hidden]')
+        assert.equal(await field.count(), 1)
+        assert.equal(await cells.count(), 6)
+        const boxes = await cells.evaluateAll((nodes) =>
+          nodes.map((node) => {
+            const { x, y, width, height } = node.getBoundingClientRect()
+            return { x, y, width, height }
+          }),
+        )
+        const points = [
+          {
+            label: 'gap',
+            x: (boxes[0].x + boxes[0].width + boxes[1].x) / 2,
+            y: boxes[0].y + boxes[0].height / 2,
+          },
+          ...boxes.map((box, index) => ({
+            label: `cell ${index}`,
+            x: box.x + box.width / 2,
+            y: box.y + box.height / 2,
+          })),
+        ]
+        for (const { label, x, y } of points) {
+          await page.locator('#before').click()
+          if (method === 'mouse') await page.mouse.click(x, y)
+          else await page.touchscreen.tap(x, y)
+          assert.equal(
+            await field.evaluate((node) => node === document.activeElement),
+            !disabled,
+            `${method} ${name} ${label}: focus reaches only an enabled field`,
+          )
+          await page.keyboard.press('End')
+          await page.keyboard.type('7')
+          assert.equal(
+            await field.inputValue(),
+            disabled || readOnly ? defaultValue : `${defaultValue}7`,
+            `${method} ${name} ${label}: typing respects field mutability`,
+          )
+          if (!disabled && !readOnly) await field.fill(defaultValue)
+        }
+      }
+    }
+    await page.locator('#before').focus()
+    for (const { name, disabled } of cases) {
+      if (disabled) continue
+      await page.keyboard.press('Tab')
+      assert.equal(
+        await page
+          .getByTestId(name)
+          .locator('input')
+          .evaluate((node) => node === document.activeElement),
+        true,
+        `${name}: decorative cells add no tab stops`,
+      )
+    }
+    await page.keyboard.press('Tab')
+    assert.equal(await page.evaluate(() => document.activeElement.id), 'after')
+    assert.deepEqual(errors, [])
+  } finally {
+    await page.close()
+  }
+})
+
 test('OTP focus belongs to the one input, not active or filled decorative cells', {
   skip: !executablePath,
 }, async () => {
