@@ -30,6 +30,12 @@ import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 import { nativeDisabledProps } from '../../../packages/primitives/src/native-disabled.ts'
 import {
+  gapGeometry,
+  gapLayouts,
+  prepareGapAliasSubjects,
+  yogaGapGeometry,
+} from '../../../packages/tailwind-conformance/src/gap-alias-reference.ts'
+import {
   prepareOrderSubjects,
   projectOrderNative,
   summarizeOrderCells,
@@ -419,6 +425,75 @@ after(async () => {
   await browser?.close()
   // Only this test's exact mkdtemp directory is owned here.
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('gap alias boundary compares actual Tailwind and compiled browser geometry with real Yoga', {
+  skip: !executablePath,
+}, async () => {
+  const subjects = await prepareGapAliasSubjects()
+  const names = [...new Set(subjects.flatMap((subject) => subject.classes.split(' ')))]
+  const sheet = (await compile('@tailwind utilities;')).build(names)
+  const page = await browser.newPage()
+  let browserObservations = 0
+  let knownMismatches = 0
+  try {
+    for (const subject of subjects) {
+      for (const layout of gapLayouts) {
+        const element = (id, className, style) =>
+          renderToStaticMarkup(
+            createElement(
+              'div',
+              {
+                id,
+                className,
+                style: {
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignContent: 'flex-start',
+                  alignItems: 'flex-start',
+                  width: 140,
+                  height: 140,
+                  ...layout,
+                  ...style,
+                },
+              },
+              ...[0, 1, 2].map((key) =>
+                createElement('div', {
+                  key,
+                  style: { flex: 'none', width: 50, height: 50 },
+                }),
+              ),
+            ),
+          )
+        await page.setContent(
+          `<!doctype html><style>${sheet}\n${subject.css}</style>${element('reference', subject.classes, subject.inline)}${element('compiled', subject.webProps.className, subject.webProps.style)}`,
+        )
+        for (const id of ['reference', 'compiled']) {
+          const positions = await page.locator(`#${id}`).evaluate((owner) => {
+            const box = owner.getBoundingClientRect()
+            return [...owner.children].map((child) => {
+              const childBox = child.getBoundingClientRect()
+              return [childBox.left - box.left, childBox.top - box.top]
+            })
+          })
+          const measured = gapGeometry(positions, layout.flexDirection)
+          assert.deepEqual(measured, subject.web, `${subject.id}/${id}/${JSON.stringify(layout)}`)
+          browserObservations++
+          if (id === 'reference') {
+            for (const style of [subject.selected, subject.dynamic]) {
+              const native = yogaGapGeometry(style, layout)
+              assert.deepEqual(native, subject.native)
+              if (JSON.stringify(native) !== JSON.stringify(measured)) knownMismatches++
+            }
+          }
+        }
+      }
+    }
+    assert.equal(browserObservations, 320)
+    assert.equal(knownMismatches, 128, 'boundary evidence, not a passing parity claim')
+  } finally {
+    await page.close()
+  }
 })
 
 test('shared assessed rule priorities predict independent Tailwind browser winners', {

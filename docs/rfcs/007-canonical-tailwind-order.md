@@ -269,6 +269,10 @@ text needs joint static/dynamic/inherited-size register handling; gap/logical
 aliases need actual Yoga/explicit-style precedence, not just expanded keys.
 Those boundaries are deliberately not "fixed" by widening eligibility alone.
 See [direct property evidence](../measurements/tailwind-direct-properties.md).
+The [gap alias measurement](../measurements/tailwind-gap-alias-boundary.md)
+now reproduces inline/class and within-inline divergence in actual Yoga and
+browser layouts. Keeping the gap barrier is not a fix; paired projection and
+explicit-style composition must land before eligibility expands.
 
 Policy v6 assesses five exact positive ARIA owner facts and their conjunctions
 with already-supported interactions. One canonical input's order survives
