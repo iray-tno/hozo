@@ -270,6 +270,15 @@ aliases need actual Yoga/explicit-style precedence, not just expanded keys.
 Those boundaries are deliberately not "fixed" by widening eligibility alone.
 See [direct property evidence](../measurements/tailwind-direct-properties.md).
 
+Policy v6 assesses five exact positive ARIA owner facts and their conjunctions
+with already-supported interactions. One canonical input's order survives
+Native's prop/interactive guard delivery buckets; mixed inputs stay separate.
+The experiment also found pre-existing duplicate disabled/accessibilityState
+props and divergent effective disabled facts, recorded in
+[#1359](https://github.com/iray-tno/hozo/issues/1359). `aria-disabled` deliberately
+does not graduate while that boundary is inconsistent. See
+[ARIA scope and failures](../measurements/tailwind-aria-owner-order.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

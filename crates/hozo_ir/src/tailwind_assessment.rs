@@ -3,6 +3,21 @@
 //! normalization still have to be proved by the caller of a future planner.
 use crate::{OrderCandidateDescriptor, OrderRuleDescriptor, OrderRuleShape, StyleProperty};
 
+/// Interaction facts and the boolean ARIA facts already delivered by Native
+/// owners. This is predicate equivalence, not a variant precedence table.
+pub(crate) const OWNER_PREDICATE_COUNT: usize = 10;
+
+pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
+    Some(match state {
+        "busy" => 5,
+        "checked" => 6,
+        "expanded" => 7,
+        "selected" => 8,
+        "invalid" => 9,
+        _ => return None,
+    })
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuleAssessmentError {
     Selector,
@@ -32,9 +47,9 @@ pub struct AssessedTailwindRule<'a> {
     pub specificity: [u32; 3],
     pub properties: Vec<&'a str>,
     pub media: Vec<&'a str>,
-    /// Multiplicity of hover/focus/focus-visible/active/disabled predicates.
+    /// Multiplicity of independently delivered interaction/ARIA predicates.
     /// Guard equivalence only; precedence still comes from the rule.
-    pub owner: [u16; 5],
+    pub owner: [u16; OWNER_PREDICATE_COUNT],
 }
 
 /// Match Tailwind's escaped root literally, not a substring of another
@@ -79,7 +94,7 @@ pub fn assess_tailwind_rule<'a>(
         specificity: [0, 1, 0],
         properties: Vec::new(),
         media: Vec::new(),
-        owner: [0; 5],
+        owner: [0; OWNER_PREDICATE_COUNT],
     };
     assess_body(nodes, &mut result)?;
     if result.properties.is_empty() {
@@ -179,7 +194,11 @@ fn assess_body<'a>(
                     "&:focus-visible" => 2,
                     "&:active" => 3,
                     "&:disabled" => 4,
-                    _ => return Err(RuleAssessmentError::Selector),
+                    _ => selector
+                        .strip_prefix("&[aria-")
+                        .and_then(|tail| tail.strip_suffix("=\"true\"]"))
+                        .and_then(aria_owner_index)
+                        .ok_or(RuleAssessmentError::Selector)?,
                 };
                 result.owner[owner] = result.owner[owner]
                     .checked_add(1)
@@ -498,12 +517,83 @@ mod tests {
     }
 
     #[test]
+    fn boolean_aria_assessment_matches_actual_independent_owner_facts_not_class_names() {
+        for state in ["busy", "checked", "expanded", "selected", "invalid"] {
+            let mut snapshot = portable_tailwind_snapshot();
+            let candidate = snapshot
+                .candidates
+                .iter_mut()
+                .find(|c| c.candidate == "p-2")
+                .unwrap();
+            let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {
+                panic!()
+            };
+            *nodes = vec![OrderRuleShape::Rule {
+                selector: format!("&[aria-{state}=\"true\"]"),
+                nodes: std::mem::take(nodes),
+            }];
+            let assessment = assess_tailwind_rule("p-2", &candidate.rules[0]).unwrap();
+            assert_eq!(assessment.specificity, [0, 2, 0]);
+            assert_eq!(assessment.owner[aria_owner_index(state).unwrap()], 1);
+            assert_eq!(assessment.owner[4], 0, "aria-disabled is not :disabled");
+            let context = TailwindOrderContext::new(snapshot).unwrap();
+            let write = StyleProperty::PaddingTop(Length::Px(8.0));
+            assert!(context
+                .scalar_write_priority("p-2", &crate::Condition::Aria(state.into()), &write)
+                .is_some());
+            for wrong in [
+                crate::Condition::Always,
+                crate::Condition::Disabled,
+                crate::Condition::Aria("unsupported".into()),
+                crate::Condition::All(vec![
+                    crate::Condition::Aria(state.into()),
+                    crate::Condition::Aria(state.into()),
+                ]),
+            ] {
+                assert!(context
+                    .scalar_write_priority("p-2", &wrong, &write)
+                    .is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn aria_assessment_does_not_guess_false_mixed_presence_flags_or_relational_selectors() {
+        for selector in [
+            "&[aria-checked=\"false\"]",
+            "&[aria-checked=\"mixed\"]",
+            "&[aria-selected]",
+            "&[aria-selected=\"TRUE\"]",
+            "&[aria-selected=\"true\" i]",
+            "&:not([aria-selected=\"true\"])",
+            "&[aria-selected=\"true\"] > *",
+            "&[aria-pressed=\"true\"]",
+            "&[aria-hidden=\"true\"]",
+            "&[aria-disabled=\"true\"]",
+        ] {
+            let mut candidate = fixture("p-2");
+            let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {
+                panic!()
+            };
+            *nodes = vec![OrderRuleShape::Rule {
+                selector: selector.into(),
+                nodes: std::mem::take(nodes),
+            }];
+            assert_eq!(
+                assess_tailwind_rule("p-2", &candidate.rules[0]).unwrap_err(),
+                RuleAssessmentError::Selector,
+                "{selector}"
+            );
+        }
+    }
+
+    #[test]
     fn hoisted_property_definitions_do_not_become_owner_writes_or_selector_weight() {
         let candidate = fixture("font-bold");
         let assessment = assess_tailwind_rule("font-bold", &candidate.rules[0]).unwrap();
         assert_eq!(assessment.properties, ["--tw-font-weight", "font-weight"]);
         assert_eq!(assessment.specificity, [0, 1, 0]);
-        assert_eq!(assessment.owner, [0; 5]);
+        assert_eq!(assessment.owner, [0; OWNER_PREDICATE_COUNT]);
         let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
         assert!(context
             .scalar_write_priority(

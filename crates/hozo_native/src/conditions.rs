@@ -300,6 +300,9 @@ pub(super) fn build_style_entries(
     // condition, a breakpoint, `dark:`, a className branch -- is (0,1,0) and
     // loses to it.
     let mut state_parts: Vec<String> = Vec::new();
+    let canonical_input = hozo_ir::has_canonical_tailwind_input(declarations);
+    let mut ordered_states = Vec::new();
+    let mut has_interactive = false;
     let mut groups = hozo_ir::group_by_condition(declarations);
     for (_, props) in &mut groups {
         *props = hozo_ir::dedupe_last_wins(std::mem::take(props));
@@ -345,6 +348,8 @@ pub(super) fn build_style_entries(
     .then(std::collections::HashSet::new);
 
     for (condition, props) in groups {
+        let state_start = state_parts.len();
+        let interactive_start = pressed_parts.len();
         // Read before the match below moves parts of `condition` out.
         let is_dark_only = condition.mentions_dark();
         let conditional = if is_element_state(&condition) {
@@ -845,6 +850,16 @@ pub(super) fn build_style_entries(
                 span: node.span,
             }),
         }
+        if canonical_input {
+            // These two buckets describe where a guard gets its value, not
+            // its CSS priority. Keep the common order when props-only ARIA
+            // and interaction guards overlap. Only use a callback if an
+            // actually resolved guard already requires one; unavailable
+            // events must not move otherwise valid ARIA styles into it.
+            ordered_states.extend(state_parts.drain(state_start..));
+            has_interactive |= pressed_parts.len() > interactive_start;
+            ordered_states.extend(pressed_parts.drain(interactive_start..));
+        }
         // No catch-all arm above, deliberately: a new `Condition` variant
         // must fail to compile here rather than quietly joining the set
         // that gets computed and dropped. That is exactly how the eight
@@ -858,12 +873,18 @@ pub(super) fn build_style_entries(
         }
     }
 
+    if has_interactive {
+        pressed_parts.append(&mut ordered_states);
+    } else {
+        state_parts.append(&mut ordered_states);
+    }
     style_array_parts.append(&mut base_parts);
     style_array_parts.append(&mut conditional_parts);
     let state_start = style_array_parts.len();
     style_array_parts.append(&mut state_parts);
-    // `pressed_parts` is appended by the caller, after these, because only
-    // there is it known whether the element can carry press state at all.
+    // For legacy/mixed inputs, `pressed_parts` is appended by the caller,
+    // after these, because only there is it known whether the element can
+    // carry press state at all.
     // That puts `pressed:` last among the conditions rather than in source
     // order relative to them -- a divergence from Web only when a
     // `pressed:` utility and another conditional set the same property.

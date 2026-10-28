@@ -1,6 +1,7 @@
 //! A bounded author-rule priority in one utility input tier, not a complete
 //! CSS cascade or permission to reorder authored expressions/unknown writes.
 use super::TailwindOrderContext;
+use crate::tailwind_assessment::{aria_owner_index, OWNER_PREDICATE_COUNT};
 use crate::{
     assess_tailwind_rule, assess_tailwind_write, scalar_tailwind_property, Condition,
     RuleAssessmentError, StyleProperty, TailwindWriteOwnership,
@@ -13,7 +14,7 @@ pub struct TailwindRulePriority {
     pub important: bool,
     pub specificity: [u32; 3],
     /// Cached assessment, not a second per-write selector parse or sort key.
-    owner: [u16; 5],
+    owner: [u16; OWNER_PREDICATE_COUNT],
 }
 
 /// Shared evidence for an original IR write, before either backend expands
@@ -64,8 +65,8 @@ impl TailwindOrderContext {
         if priority.important {
             return None;
         }
-        let mut actual = [0_u16; 5];
-        fn collect(condition: &Condition, actual: &mut [u16; 5]) -> Option<()> {
+        let mut actual = [0_u16; OWNER_PREDICATE_COUNT];
+        fn collect(condition: &Condition, actual: &mut [u16; OWNER_PREDICATE_COUNT]) -> Option<()> {
             let index = match condition {
                 Condition::Always => return Some(()),
                 Condition::Hover => 0,
@@ -73,6 +74,7 @@ impl TailwindOrderContext {
                 Condition::FocusVisible => 2,
                 Condition::Pressed => 3,
                 Condition::Disabled => 4,
+                Condition::Aria(state) => aria_owner_index(state)?,
                 Condition::All(parts) if !parts.is_empty() => {
                     for part in parts {
                         collect(part, actual)?;

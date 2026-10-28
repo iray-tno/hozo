@@ -5413,18 +5413,11 @@ pub fn group_by_condition(
     let mut source = None;
     let mut start = 0;
     let mut ordered = false;
-    let input = declarations
-        .iter()
-        .find(|d| d.source != StyleSource::Unspecified)
-        .map(|d| d.source.input());
-    let mut canonical_input = true;
     for decl in declarations {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
         // backwards across that rule, losing JSX tie order.
         let next_ordered = matches!(decl.source, StyleSource::TailwindOrdered { .. });
-        canonical_input &= (next_ordered && Some(decl.source.input()) == input)
-            || (decl.source == StyleSource::Unspecified && decl.condition == Condition::Always);
         if source != Some(decl.source.input())
             || ordered != next_ordered
             || (next_ordered
@@ -5455,7 +5448,7 @@ pub fn group_by_condition(
     // changing their guards. Re-sorting those by the legacy condition weight
     // would undo that projection. Unconditional semantic defaults add no
     // selector weight; mixed/unassessed/unknown guarded inputs keep the old path.
-    if !canonical_input
+    if !has_canonical_tailwind_input(declarations)
         && groups
             .iter()
             .all(|(condition, _)| condition.owner_interaction_specificity().is_some())
@@ -5475,6 +5468,26 @@ pub fn group_by_condition(
         coalesced.push((condition, props));
     }
     coalesced
+}
+
+/// Backend projections may preserve one assessed input's established order,
+/// but cannot borrow that permission across authored inputs or foreign guards.
+/// Unconditional semantic defaults add no selector weight.
+pub fn has_canonical_tailwind_input(declarations: &[StyleDeclaration]) -> bool {
+    let mut input = None;
+    for declaration in declarations {
+        match declaration.source {
+            StyleSource::TailwindOrdered { input: next, .. } => {
+                if input.is_some_and(|previous| previous != next) {
+                    return false;
+                }
+                input = Some(next);
+            }
+            StyleSource::Unspecified if declaration.condition == Condition::Always => {}
+            _ => return false,
+        }
+    }
+    input.is_some()
 }
 
 /// Within one condition group, the last declaration for a given property
