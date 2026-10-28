@@ -48,6 +48,11 @@ export const UI_OVERLAY_SCENES = [
   { name: 'Drawer', ready: 'Drawer body, shown open' },
   { name: 'RightDrawer', ready: 'Right drawer body, shown open' },
 ]
+// The overlays pinned to an edge of the window, shot again in landscape, where
+// a notch or a camera cut-out is on the left or the right.
+export const UI_LANDSCAPE_OVERLAY_SCENES = UI_OVERLAY_SCENES.filter(({ name }) =>
+  ['Menu', 'BottomSheet', 'Drawer', 'RightDrawer'].includes(name),
+)
 // Storybook splits an export name at its capitals: `BottomSheet` is
 // `bottom-sheet`, and a story id that only lowercases it opens nothing.
 const kebab = (name) => name.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase()
@@ -67,6 +72,8 @@ export const STORYBOOK_FAILURE = 'Something went wrong rendering your story'
  *   settle: () => Promise<void>,
  *   capture: (name: string) => void,
  *   logs?: () => string,
+ *   rotate?: (landscape: boolean) => Promise<void>,
+ *     -- without it, `landscape` scenes are skipped and say so.
  * }} device
  */
 export async function exerciseUiDocs(
@@ -80,6 +87,7 @@ export async function exerciseUiDocs(
     logFile = 'logcat.txt',
     states = [],
     overlays = [],
+    landscape = [],
   } = {},
 ) {
   const manifest = {
@@ -89,6 +97,7 @@ export async function exerciseUiDocs(
     pages: {},
     states: {},
     overlays: {},
+    landscape: {},
   }
   const visit = async (page) => {
     const ready = `UI docs ${page}`
@@ -133,25 +142,40 @@ export async function exerciseUiDocs(
   for (const scene of states) await visitState(scene)
   // The open overlays, last and under their own key. Images are
   // `overlay-<name>.png`.
-  const visitOverlay = async ({ name, ready }) => {
-    const image = `overlay-${kebab(name)}`
+  const visitOverlay = async ({ name, ready }, key = 'overlays', prefix = 'overlay') => {
+    const image = `${prefix}-${kebab(name)}`
     try {
       device.open(uiOverlayStoryId(name))
       const seen = await device.waitForEither([STORYBOOK_FAILURE, ready], timeout)
       await device.settle()
       device.capture(image)
-      manifest.overlays[name] = { status: seen === ready ? 'ok' : 'failed', image: `${image}.png` }
+      manifest[key][name] = { status: seen === ready ? 'ok' : 'failed', image: `${image}.png` }
     } catch (error) {
-      manifest.overlays[name] = { status: 'unreached', reason: String(error?.message ?? error) }
+      manifest[key][name] = { status: 'unreached', reason: String(error?.message ?? error) }
       try {
         device.capture(image)
-        manifest.overlays[name].image = `${image}.png`
+        manifest[key][name].image = `${image}.png`
       } catch {
         /* Nothing to show; the reason stands. */
       }
     }
   }
   for (const overlay of overlays) await visitOverlay(overlay)
+  // The same overlays turned sideways, under their own key. Images are
+  // `landscape-<name>.png`. Turned back afterwards whatever happened, so a
+  // walk that goes on is upright.
+  if (landscape.length > 0 && !device.rotate) {
+    for (const { name } of landscape) {
+      manifest.landscape[name] = { status: 'skipped', reason: 'this device cannot be rotated' }
+    }
+  } else if (landscape.length > 0) {
+    try {
+      await device.rotate(true)
+      for (const overlay of landscape) await visitOverlay(overlay, 'landscape', 'landscape')
+    } finally {
+      await device.rotate(false)
+    }
+  }
   writeFileSync(resolve(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   // What each failure threw, which the screenshot shows only in part.
   try {

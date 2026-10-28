@@ -16,7 +16,12 @@ import { waitForImage } from './image-ready.mjs'
 import { observeStoryRoute } from './story-route-evidence.mjs'
 import { exerciseSvgFilters, readAndroidScenario } from './svg-filter-evidence.mjs'
 import { exerciseTextInheritance, textFrame, textImage } from './text-pixels.mjs'
-import { exerciseUiDocs, UI_OVERLAY_SCENES, UI_STATE_SCENES } from './ui-docs-evidence.mjs'
+import {
+  exerciseUiDocs,
+  UI_LANDSCAPE_OVERLAY_SCENES,
+  UI_OVERLAY_SCENES,
+  UI_STATE_SCENES,
+} from './ui-docs-evidence.mjs'
 import {
   exerciseVideo,
   exerciseVideoPoster,
@@ -482,9 +487,21 @@ try {
         logs: () => adb('logcat', '-d', '-s', 'ReactNativeJS:*').toString(),
         capture: (name) =>
           writeFileSync(resolve(output, `${name}.png`), adb('exec-out', 'screencap', '-p')),
+        // Locked rather than left to the accelerometer, which an emulator does
+        // not have in any useful sense. Pixel 6's camera cut-out is then on
+        // the left.
+        rotate: async (landscape) => {
+          adb('shell', 'settings', 'put', 'system', 'accelerometer_rotation', '0')
+          adb('shell', 'settings', 'put', 'system', 'user_rotation', landscape ? '1' : '0')
+          await pause(2000)
+        },
       },
       output,
-      { states: UI_STATE_SCENES, overlays: UI_OVERLAY_SCENES },
+      {
+        states: UI_STATE_SCENES,
+        overlays: UI_OVERLAY_SCENES,
+        landscape: UI_LANDSCAPE_OVERLAY_SCENES,
+      },
     )
   } else {
     await fullShowcase()
