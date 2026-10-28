@@ -1,4 +1,5 @@
 import { hozoTextChildren } from '@hozo/behaviors'
+import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
@@ -12,6 +13,7 @@ import {
 import type { HozoDrawerSide } from './drawer-side.ts'
 import { useHozoDrawerSide } from './drawer-side-hook.native.ts'
 import { Pressable } from './pressable.native.tsx'
+import { insetPadding } from './safe-area-padding.native.ts'
 import { clampToDetents, fractionAfter, restingFraction, travelFor } from './sheet-rules.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -94,6 +96,9 @@ export function HozoDrawer({
 }: HozoDrawerProps) {
   const [fraction, setFraction] = useState(1)
   const [width, setWidth] = useState(0)
+  // The panel runs the window's height, under the status bar and the notch
+  // at the top and the home indicator at the bottom (#1350).
+  const insets = useHozoProvidedSafeArea()
 
   useEffect(() => {
     if (open) setFraction(1)
@@ -183,6 +188,7 @@ export function HozoDrawer({
           style={[
             hozoClasses(panelClassName),
             panelStyle,
+            insetPadding([hozoClasses(panelClassName), panelStyle], insets, ['top', 'bottom']),
             { transform: [{ translateX: away * travelFor(fraction, width) }] },
           ]}
           {...pan.panHandlers}

@@ -211,7 +211,7 @@ export const components = {
       },
     },
   }),
-  BottomSheet: slots('className scrimClassName sheetClassName handleClassName'),
+  BottomSheet: slots('className scrimClassName sheetClassName handleClassName handleBarClassName'),
   Checkbox: slots('className'),
   Chip: slots('className removeClassName', {
     secondary: true,

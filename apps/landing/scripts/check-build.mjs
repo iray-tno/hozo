@@ -360,8 +360,9 @@ for (const [page, element] of [
   )
 }
 // The React Native line under each preview, from the compiler's verdict
-// (#1165). The bottom sheet's grabber is a `before:` box React Native cannot
-// draw; the button's look has nothing Web-only but a transition.
+// (#1165). The bottom sheet still lists classes Native drops, but no longer
+// its grabber: that was a `before:` box until it became a box of its own
+// (#1356). The button's look has nothing Web-only but a transition.
 {
   const line = (page) =>
     /<div class="hozo-ui-native[^"]*" data-native-missing="(\d+)" data-native-unapplied="(\d+)">([\s\S]*?)<\/div>/.exec(
@@ -385,8 +386,8 @@ for (const [page, element] of [
     [button?.[2] === '0', 'docs components/button: a class prop is listed as unapplied'],
     [Number(sheet?.[1]) > 0, 'docs components/bottom-sheet: no React Native line listing classes'],
     [
-      /before:block/.test(sheet?.[3] ?? ''),
-      'docs components/bottom-sheet: the grabber is not listed',
+      sheet !== null && !/before:/.test(sheet[3]),
+      'docs components/bottom-sheet: the grabber is listed as a box Native cannot draw',
     ],
     [
       button?.[1] === '0',

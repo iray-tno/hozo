@@ -69,6 +69,22 @@ test('one detent makes the handle decoration, and several make it a button', () 
   assert(several.includes('aria-label="Resize"'))
 })
 
+test('the handle bar is a hidden box inside the handle, and only when it has a class', () => {
+  for (const detents of [[1], [0.5, 1]]) {
+    const html = render({
+      open: true,
+      detents,
+      handleClassName: 'handle',
+      handleBarClassName: 'bar',
+    })
+    assert.match(
+      html,
+      /class="handle"[^>]*><span aria-hidden="true" class="bar"><\/span><\/(div|button)>/,
+    )
+  }
+  assert(!render({ open: true, handleClassName: 'handle' }).includes('<span'))
+})
+
 test('the handle can be renamed, because "Resize" is English', () => {
   const html = render({ open: true, detents: [0.5, 1], handleAccessibilityLabel: 'サイズ変更' })
   assert(html.includes('aria-label="サイズ変更"'))

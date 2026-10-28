@@ -1,9 +1,11 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { useDrag1D } from '@hozo/behaviors/native'
+import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type LayoutChangeEvent, Modal, type StyleProp, View, type ViewStyle } from 'react-native'
 import { Pressable } from './pressable.native.tsx'
+import { insetPadding } from './safe-area-padding.native.ts'
 import {
   clampToDetents,
   cycleDetent,
@@ -36,10 +38,13 @@ export interface HozoBottomSheetProps {
   scrimClassName?: string
   sheetClassName?: string
   handleClassName?: string
+  /** The bar inside the handle; see the Web half. */
+  handleBarClassName?: string
   style?: StyleProp<ViewStyle>
   scrimStyle?: StyleProp<ViewStyle>
   sheetStyle?: StyleProp<ViewStyle>
   handleStyle?: StyleProp<ViewStyle>
+  handleBarStyle?: StyleProp<ViewStyle>
   testID?: string
   children?: ReactNode
 }
@@ -88,10 +93,12 @@ export function HozoBottomSheet({
   scrimClassName,
   sheetClassName,
   handleClassName,
+  handleBarClassName,
   style,
   scrimStyle,
   sheetStyle,
   handleStyle,
+  handleBarStyle,
   testID,
   children,
 }: HozoBottomSheetProps) {
@@ -109,6 +116,9 @@ export function HozoBottomSheet({
 
   const [fraction, setFraction] = useState(openAt)
   const [height, setHeight] = useState(0)
+  // The sheet stands on the bottom edge, so its last line has to clear the
+  // home indicator and the gesture handle (#1346).
+  const insets = useHozoProvidedSafeArea()
 
   useEffect(() => {
     if (open) setFraction(openAt)
@@ -151,6 +161,10 @@ export function HozoBottomSheet({
   }, [])
 
   const resizable = stops.length > 1
+  const bar =
+    handleBarClassName || handleBarStyle ? (
+      <View style={[hozoClasses(handleBarClassName), handleBarStyle]} />
+    ) : null
 
   // The root is the layer over the window: `fixed inset-0` on the Web. React
   // Native has no `fixed` and drops it, which left `inset-0` on a relative
@@ -189,6 +203,7 @@ export function HozoBottomSheet({
           style={[
             hozoClasses(sheetClassName),
             sheetStyle,
+            insetPadding([hozoClasses(sheetClassName), sheetStyle], insets, ['bottom']),
             { transform: [{ translateY: travelFor(fraction, height) }] },
           ]}
         >
@@ -205,14 +220,18 @@ export function HozoBottomSheet({
                 if (next !== null) setFraction(next)
               }}
               {...drag.handlers}
-            />
+            >
+              {bar}
+            </Pressable>
           ) : (
             <View
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
               style={[hozoClasses(handleClassName), handleStyle]}
               {...drag.handlers}
-            />
+            >
+              {bar}
+            </View>
           )}
           {hozoTextChildren(children, splitTextStyle([hozoClasses(sheetClassName), sheetStyle])[1])}
         </View>

@@ -31,7 +31,7 @@ import { BottomSheet as BottomSheetPattern, type BottomSheetProps } from '@hozo/
 
 export type HozoBottomSheetProps = Omit<
   BottomSheetProps,
-  'className' | 'scrimClassName' | 'sheetClassName' | 'handleClassName'
+  'className' | 'scrimClassName' | 'sheetClassName' | 'handleClassName' | 'handleBarClassName'
 >
 
 /**
@@ -66,7 +66,13 @@ const sheet =
  * is a `<button>` or the decoration it becomes with a single detent.
  */
 const handle =
-  'flex h-6 w-12 shrink-0 items-center justify-center self-center rounded-full cursor-grab focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus before:block before:h-1 before:w-8 before:rounded-full before:bg-hozo-border-strong'
+  'flex h-6 w-12 shrink-0 items-center justify-center self-center rounded-full cursor-grab focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
+
+/**
+ * The bar itself, a box of its own: it was `before:` on the handle, which React
+ * Native has no host for, so a Native sheet had a 24px gap and no grabber.
+ */
+const handleBar = 'h-1 w-8 rounded-full bg-hozo-border-strong'
 
 export function HozoBottomSheet(props: HozoBottomSheetProps) {
   return (
@@ -76,6 +82,7 @@ export function HozoBottomSheet(props: HozoBottomSheetProps) {
       scrimClassName={scrim}
       sheetClassName={sheet}
       handleClassName={handle}
+      handleBarClassName={handleBar}
     />
   )
 }
