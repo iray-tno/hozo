@@ -258,6 +258,20 @@ try {
   evidence.passed = true
 } catch (error) {
   evidence.error = String(error.stack)
+  // What the screen showed when it stopped, which the log alone cannot say:
+  // a story that never rendered and one that rendered something else look the
+  // same in logcat.
+  try {
+    writeFileSync(
+      resolve(output, 'failure.png'),
+      execFileSync('adb', ['exec-out', 'screencap', '-p'], {
+        timeout: 30_000,
+        maxBuffer: 32 * 1024 * 1024,
+      }),
+    )
+  } catch (capture) {
+    save('failure-screenshot-error.txt', String(capture))
+  }
   throw error
 } finally {
   json('evidence.json', evidence)
