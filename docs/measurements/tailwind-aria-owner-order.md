@@ -64,7 +64,22 @@ rebuilt addon and compiler/Tailwind/Metro packages; Tailwind **153**, compiler
 Native source-receipt/cache guards **16** passed. The two new Rust tests reject
 unproven selectors/guards, and the three new Tailwind tests include the
 availability/callback/inline-style regressions. Post-rebase checks are recorded
-in the PR. CPU 1/Idle/serial;
+in the PR. After `gh stack sync` skipped the merged parents and rebased onto
+main `4afd9ce8`, no Rust/addon input had changed. Full browser **36**,
+Native-host/cache **139**, Vite **62**, Next **21**, generated ABI **56 leaves /
+78 names**, fixture freshness, lint **1,738 files** and generated docs passed.
+The three extra host cases come from the intervening main changes, not this
+layer. Turbo dry-run confirmed both probes include priority/conditions sources
+(Native hash `9e0bde0139085a8c`, Storybook `7a735b7bb39009bd`).
+
+Post-rebase local builds first found stale typography/form declaration outputs.
+Their packages and affected dependents were rebuilt; four critical browser
+comparisons passed again with the refreshed outputs. A local script-shim
+lookup also reported a missing build script despite listing it; explicit
+package-directory build commands were used without changing source/manifests.
+These setup failures are retained, not labeled as product/CI flakes.
+
+CPU 1/Idle with test/build concurrency limited;
 fresh addon required after Rust edits. Source receipt regeneration is not a
 new device test. No new conformance percentage, AT/event-delivery equivalence,
 whole-app performance result or completed six-group migration is claimed.
