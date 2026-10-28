@@ -64,7 +64,7 @@ on:
       android-scenario:
         description: 'Full showcase or isolated SVG, audio, text, docs previews, or CodeBlock timing'
         type: choice
-        options: [full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs, code-block-performance]
+        options: [full, svg-filters, audio-output, audio-settings, text-inheritance, ui-docs, code-block-performance, code-block-windowed]
         default: full
       ios-ax-backend:
         description: 'Accessibility reader for an explicit diagnostic comparison'

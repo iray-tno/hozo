@@ -33,6 +33,8 @@ export function CodeBlock(props: CodeBlockProps) {
   const start = codeLineStart(props.lineNumbers)
   const hasMarks = lines.some((line) => line.mark)
   const gutter = Boolean(props.lineNumbers || hasMarks)
+  // Either axis makes the lines a region a keyboard has to be able to scroll.
+  const scrolls = !props.wrap || props.maxHeight !== undefined
   const width = `${(props.lineNumbers ? String(start + lines.length - 1).length : 0) + (hasMarks ? 2 : 0) + 1}ch`
   return (
     <figure
@@ -45,10 +47,15 @@ export function CodeBlock(props: CodeBlockProps) {
         {title}
       </figcaption>
       <div
-        role={props.wrap ? undefined : 'region'}
-        aria-label={props.wrap ? undefined : message('hozo.code.contents', { title: name })}
-        style={{ overflowX: props.wrap ? undefined : 'auto', minWidth: 0 }}
-        {...(props.wrap ? {} : hozoScrollable())}
+        role={scrolls ? 'region' : undefined}
+        aria-label={scrolls ? message('hozo.code.contents', { title: name }) : undefined}
+        style={{
+          overflowX: props.wrap ? undefined : 'auto',
+          overflowY: props.maxHeight === undefined ? undefined : 'auto',
+          maxHeight: props.maxHeight,
+          minWidth: 0,
+        }}
+        {...(scrolls ? hozoScrollable() : {})}
       >
         <CodeLines
           {...props}

@@ -39,3 +39,13 @@ test('wrapped copy-free rendering needs no scroll ref and unnamed figures have a
     RangeError,
   )
 })
+
+test('maxHeight scrolls the lines inside the block on the Web and keeps every line in the page', () => {
+  const lines = Array.from({ length: 50 }, (_, at) => `line ${at}`).join('\n')
+  for (const wrap of [false, true]) {
+    const html = renderToStaticMarkup(createElement(CodeBlock, { lines, wrap, maxHeight: 200 }))
+    // Scrolling either way makes the lines a region a keyboard can reach.
+    assert.match(html, /role="region"[^>]*style="[^"]*overflow-y:auto;max-height:200px/)
+    assert.ok(html.includes('line 49'), 'find-in-page still reaches the last line')
+  }
+})

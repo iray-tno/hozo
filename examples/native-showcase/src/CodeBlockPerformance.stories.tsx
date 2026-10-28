@@ -1,10 +1,10 @@
 import { CodeBlock } from '@hozo/patterns'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { CODE_BLOCK_COUNTS, codeBlockFixture } from './code-block-fixture'
 
-function CodeBlockPerformance() {
+function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
   // Story modules are imported by the ordinary showcase too. Allocate this
   // matrix only when the diagnostic is opened, before any measured input.
   const fixtures = useMemo(
@@ -28,6 +28,7 @@ function CodeBlockPerformance() {
   const frame = useRef<number | null>(null)
   const offset = useRef(0)
   const maxOffset = useRef(0)
+  const { height } = useWindowDimensions()
 
   const stop = useCallback(() => {
     if (frame.current !== null) cancelAnimationFrame(frame.current)
@@ -149,34 +150,71 @@ function CodeBlockPerformance() {
           <Text>Finish scroll</Text>
         </Pressable>
       </View>
-      <ScrollView
-        ref={scroll}
-        style={{ flex: 1 }}
-        scrollEventThrottle={16}
-        onScroll={(event) => {
-          offset.current = event.nativeEvent.contentOffset.y
-          maxOffset.current = Math.max(maxOffset.current, offset.current)
-        }}
-      >
-        {selection ? (
-          <View
-            key={selection.count}
-            onLayout={() => {
-              if (operation.current?.name.startsWith('mount-')) finish('native-layout-callback')
-            }}
-          >
-            <CodeBlock
-              title={`${selection.count} lines, revision ${selection.tick}`}
-              lines={fixtures.get(selection.count)?.[selection.tick] ?? []}
-              lineNumbers
-              wrap
-              style={{ backgroundColor: '#f8fafc', color: '#0f172a', fontSize: 12, lineHeight: 18 }}
-            />
-          </View>
-        ) : (
-          <Text>Block cleared</Text>
-        )}
-      </ScrollView>
+      {windowed ? (
+        // The block is the scroller here, so the outer ScrollView would only
+        // be a second one around it. Its offset is not visible from outside;
+        // the collector checks the screen instead.
+        <View style={{ flex: 1 }}>
+          {selection ? (
+            <View
+              key={selection.count}
+              onLayout={() => {
+                if (operation.current?.name.startsWith('mount-')) finish('native-layout-callback')
+              }}
+            >
+              <CodeBlock
+                title={`${selection.count} lines, revision ${selection.tick}`}
+                lines={fixtures.get(selection.count)?.[selection.tick] ?? []}
+                lineNumbers
+                wrap
+                maxHeight={height * 0.6}
+                style={{
+                  backgroundColor: '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: 12,
+                  lineHeight: 18,
+                }}
+              />
+            </View>
+          ) : (
+            <Text>Block cleared</Text>
+          )}
+        </View>
+      ) : (
+        <ScrollView
+          ref={scroll}
+          style={{ flex: 1 }}
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            offset.current = event.nativeEvent.contentOffset.y
+            maxOffset.current = Math.max(maxOffset.current, offset.current)
+          }}
+        >
+          {selection ? (
+            <View
+              key={selection.count}
+              onLayout={() => {
+                if (operation.current?.name.startsWith('mount-')) finish('native-layout-callback')
+              }}
+            >
+              <CodeBlock
+                title={`${selection.count} lines, revision ${selection.tick}`}
+                lines={fixtures.get(selection.count)?.[selection.tick] ?? []}
+                lineNumbers
+                wrap
+                style={{
+                  backgroundColor: '#f8fafc',
+                  color: '#0f172a',
+                  fontSize: 12,
+                  lineHeight: 18,
+                }}
+              />
+            </View>
+          ) : (
+            <Text>Block cleared</Text>
+          )}
+        </ScrollView>
+      )}
     </View>
   )
 }
@@ -186,3 +224,4 @@ const meta = {
 } satisfies Meta<typeof CodeBlockPerformance>
 export default meta
 export const Matrix: StoryObj<typeof meta> = {}
+export const Windowed: StoryObj<typeof meta> = { args: { windowed: true } }
