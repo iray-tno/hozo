@@ -1,3 +1,18 @@
+export async function withAppearanceStory(container, id, audit, options) {
+  // A ready DOM can still have Storybook completion work pending. A new
+  // browsing context prevents its late navigation from replacing the next story.
+  const frame = container.ownerDocument.createElement('iframe')
+  frame.style.cssText = 'width:1200px;height:900px;border:0'
+  frame.src = `/iframe.html?id=${encodeURIComponent(id)}&viewMode=story`
+  container.append(frame)
+  try {
+    const doc = await waitForAppearanceStory(frame, id, options)
+    return await audit(doc, frame.contentWindow)
+  } finally {
+    frame.remove()
+  }
+}
+
 // Reading CSS before the requested story renders can report an empty sheet
 // from a loading frame. This waits for resources, never for a passing audit.
 export async function waitForAppearanceStory(
@@ -37,6 +52,9 @@ export async function waitForAppearanceStory(
     pendingStylesheets: [...doc.querySelectorAll('link[rel~="stylesheet"]')].filter(
       (link) => !link.disabled && link.sheet === null,
     ).length,
+    renderPhase: frame.contentWindow?.__STORYBOOK_PREVIEW__?.currentRender?.phase,
+    renderedStory: frame.contentWindow?.__STORYBOOK_PREVIEW__?.currentRender?.story?.id,
+    visibility: doc.visibilityState,
   }
   throw new Error(
     `Story ${id} did not finish rendering and loading stylesheets before the appearance audit: ${JSON.stringify(state)}`,

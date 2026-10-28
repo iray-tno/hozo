@@ -63,7 +63,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { chromium } from 'playwright-core'
-import { waitForAppearanceStory } from './appearance-readiness.mjs'
+import { waitForAppearanceStory, withAppearanceStory } from './appearance-readiness.mjs'
 
 const STATIC = path.resolve(process.argv[2] ?? 'storybook-static')
 
@@ -126,10 +126,11 @@ const ids = Object.values(index.entries)
 const runner = path.join(STATIC, '__appearance.html')
 writeFileSync(
   runner,
-  `<!doctype html><body><pre id="out"></pre><iframe id="f" style="width:1200px;height:900px;border:0"></iframe>
+  `<!doctype html><body><pre id="out"></pre><div id="stories"></div>
 <script>
 const IDS = ${JSON.stringify(ids)}
-const waitForStory = ${waitForAppearanceStory.toString()}
+const waitForAppearanceStory = ${waitForAppearanceStory.toString()}
+const withAppearanceStory = ${withAppearanceStory.toString()}
 
 // Roles a pointer activates. A container that merely holds them -- a tablist,
 // a toolbar, a group -- is not a target, and neither is text.
@@ -203,48 +204,47 @@ function inline(el, view) {
 }
 
 async function run() {
-  const frame = document.getElementById('f')
+  const container = document.getElementById('stories')
   const found = []
   for (const id of IDS) {
-    frame.src = '/iframe.html?id=' + id + '&viewMode=story'
     try {
-      const doc = await waitForStory(frame, id)
-      const view = frame.contentWindow
-      const root = doc.getElementById('storybook-root') || doc.body
-      const rings = focusRules(doc)
-      // The check's own premise, asserted per story. A page with no
-      // \`:focus-visible\` rule at all is a check that has stopped reading the
-      // stylesheets -- which is how the first version of this failed, silently
-      // and in the direction of reporting 151 problems that were not there.
-      if (rings.length === 0) {
-        found.push({ id, rule: 'no-rules-read', where: '', name: '',
-          detail: 'the page has no :focus-visible rule; the check cannot be trusted here' })
-        continue
-      }
-      for (const el of root.querySelectorAll(TARGETS)) {
-        const box = el.getBoundingClientRect()
-        // Hidden is not undersized: a closed dialog's buttons are 0x0 and are
-        // nobody's target until it opens.
-        if (box.width === 0 && box.height === 0) continue
-        const name = (el.getAttribute('aria-label') || el.textContent || el.tagName)
-          .trim().slice(0, 40)
-        const where = el.tagName.toLowerCase() + (el.getAttribute('role') ? '[role=' + el.getAttribute('role') + ']' : '')
-        if ((box.width < 24 || box.height < 24) && !inline(el, view)) {
-          found.push({ id, rule: 'target-size', where, name,
-            detail: Math.round(box.width) + 'x' + Math.round(box.height) })
+      await withAppearanceStory(container, id, (doc, view) => {
+        const root = doc.getElementById('storybook-root') || doc.body
+        const rings = focusRules(doc)
+        // The check's own premise, asserted per story. A page with no
+        // \`:focus-visible\` rule at all is a check that has stopped reading the
+        // stylesheets -- which is how the first version of this failed, silently
+        // and in the direction of reporting 151 problems that were not there.
+        if (rings.length === 0) {
+          found.push({ id, rule: 'no-rules-read', where: '', name: '',
+            detail: 'the page has no :focus-visible rule; the check cannot be trusted here' })
+          return
         }
-        // Focus: only elements that can take it.
-        const focusable = el.tabIndex >= 0 && !el.disabled
-        const ringed = rings.some((ring) => {
-          try {
-            if (el.matches(ring.selector)) return true
-            return ring.ancestor && el.closest(ring.selector) !== null
-          } catch { return false }
-        })
-        if (focusable && !ringed) {
-          found.push({ id, rule: 'focus-visible', where, name, detail: 'no rule draws one' })
+        for (const el of root.querySelectorAll(TARGETS)) {
+          const box = el.getBoundingClientRect()
+          // Hidden is not undersized: a closed dialog's buttons are 0x0 and are
+          // nobody's target until it opens.
+          if (box.width === 0 && box.height === 0) continue
+          const name = (el.getAttribute('aria-label') || el.textContent || el.tagName)
+            .trim().slice(0, 40)
+          const where = el.tagName.toLowerCase() + (el.getAttribute('role') ? '[role=' + el.getAttribute('role') + ']' : '')
+          if ((box.width < 24 || box.height < 24) && !inline(el, view)) {
+            found.push({ id, rule: 'target-size', where, name,
+              detail: Math.round(box.width) + 'x' + Math.round(box.height) })
+          }
+          // Focus: only elements that can take it.
+          const focusable = el.tabIndex >= 0 && !el.disabled
+          const ringed = rings.some((ring) => {
+            try {
+              if (el.matches(ring.selector)) return true
+              return ring.ancestor && el.closest(ring.selector) !== null
+            } catch { return false }
+          })
+          if (focusable && !ringed) {
+            found.push({ id, rule: 'focus-visible', where, name, detail: 'no rule draws one' })
+          }
         }
-      }
+      })
     } catch (error) {
       found.push({ id, rule: 'error', where: '', name: '', detail: error.message })
     }
@@ -301,7 +301,11 @@ try {
   // Light, because geometry does not change with the scheme and a focus
   // *rule* exists in both. `check-a11y.mjs` is the one that has to ask
   // twice, because contrast does change.
-  const page = await browserProcess.newPage({ colorScheme: 'light' })
+  const page = await browserProcess.newPage({
+    colorScheme: 'light',
+    // Fit the unchanged 1200x900 frame, as the utterance driver does.
+    viewport: { width: 1280, height: 1024 },
+  })
   await page.goto(`http://localhost:${server.address().port}/__appearance.html`, {
     waitUntil: 'domcontentloaded',
     timeout: 5000,
@@ -313,6 +317,10 @@ try {
   )
   const result = await page.locator('#out').textContent()
   const { stories, found } = JSON.parse(result.slice('HOZO_APPEARANCE '.length))
+  writeFileSync(
+    path.join(STATIC, '_appearance-result.json'),
+    `${JSON.stringify({ stories, found, browser: browserProcess.version() }, null, 2)}\n`,
+  )
   const key = (finding) => `${finding.id}/${finding.rule}`
   const fresh = found.filter((finding) => !(key(finding) in KNOWN))
   const seen = new Set(found.map(key))

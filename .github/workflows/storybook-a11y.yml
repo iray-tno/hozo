@@ -36,5 +36,7 @@ jobs:
         if: always()
         with:
           name: storybook-a11y-evidence
-          path: examples/storybook-demo/storybook-static-check/_a11y-result.json
+          path: |
+            examples/storybook-demo/storybook-static-check/_a11y-result.json
+            examples/storybook-demo/storybook-static-check/_appearance-result.json
           if-no-files-found: warn
