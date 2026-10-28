@@ -404,7 +404,6 @@ test('Native windowing mounts only some lines and holds the scrolling width open
   const windowed = await mount({ maxHeight: 200, windowing: 'on' })
   const list = windowed.root.findByType('NativeFlatList')
   assert.equal(flatten(list.props.style).maxHeight, 200)
-  assert.equal(list.props.windowSize, 5, "not React Native's 21 viewports (#1382)")
   assert.equal(windowed.root.findAllByType('NativeScrollView').length, 1, 'still scrolls sideways')
   const [sizer] = hidden(windowed)
   assert.deepEqual(flatten(sizer.props.style), { height: 0, overflow: 'hidden' })

@@ -106,11 +106,9 @@ export function CodeBlock(props: CodeBlockProps) {
       renderItem={({ item, index }) => rows.renderLine(item, index)}
       style={{ maxHeight: props.maxHeight }}
       contentContainerStyle={rows.style}
-      // Two viewports either side rather than React Native's ten: at its
-      // default of 21 a phone-sized block has some 550 lines of overscan,
-      // and a few hundred lines were all mounted soon after the first
-      // paint anyway (#1382).
-      windowSize={5}
+      // React Native's default window of 21 viewports. A window of 5 was
+      // measured against it on the Android emulator and scrolled worse
+      // (frame p50 85-98ms against 54-67ms) without mounting faster (#1382).
       nestedScrollEnabled
     />
   ) : props.maxHeight === undefined ? (
