@@ -160,9 +160,13 @@ export function HozoDrawer({
     setWidth(event.nativeEvent.layout.width)
   }, [])
 
+  // The Web root is a `fixed inset-0` layer, and React Native drops `fixed`:
+  // once the root became a row, a right-hand panel was only as tall as its
+  // content. Inside a `Modal` the window is the Modal, so filling it is the
+  // same layer.
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[hozoClasses(className), style]}>
+      <View style={[{ flex: 1 }, hozoClasses(className), style]}>
         {/*
           The scrim is the tap that dismisses, which is the alternative for anyone
           who cannot swipe the panel away. Hidden from the accessibility tree

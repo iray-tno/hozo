@@ -2677,6 +2677,7 @@ test('Native Drawer root puts the panel against the edge its UI root class names
     const rootClass = source.match(new RegExp(`^  ${side}: '([^']+)'`, 'm'))[1]
     const tree = await mount(t, HozoDrawer, { open: true, side, className: rootClass })
     const root = flat(views(tree)[0].props.style)
+    assert.equal(root.flex, 1, `${side}: RN drops fixed, so the root fills the Modal`)
     assert.equal(root.flexDirection, 'row', `${side}: justify-* is across only in a row`)
     assert.equal(root.justifyContent, justify, side)
   }
