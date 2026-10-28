@@ -85,6 +85,16 @@ are source revisions, not retries of a failing result to select a fast run.
 
 ## Next
 
+The first CI run40667453388 failed one ScrollView assertion that matched the
+old serialized `gap:8px;padding-left:12px` text. The revised test compares the
+viewport and content style maps separately, including both8px gap axes and
+12px content padding, without depending on CSS declaration order. All85
+primitives tests passed serially from their package directory. A prior local
+invocation from the repository root passed the repaired ScrollView test but
+failed an unrelated Link bundling probe because that probe requires package
+cwd; both outputs are retained. No production code, timeout or expected style
+value changed for this CI repair.
+
 Keep the author contribution separate when composing it above compiled and
 candidate class styles on Native. Reuse this projection after resolving that
 contribution, not after flattening it together with class axes. Generated
