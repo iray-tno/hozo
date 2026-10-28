@@ -67,7 +67,9 @@ export const gapAliasCases = [
     classes: 'gap-[16px]',
     inline: { rowGap: 8, gap: 24 },
     native: [8, 24],
-    web: [24, 24],
+    web: [8, 24],
+    rawWeb: [24, 24],
+    referenceInline: { gap: 24, rowGap: 8 },
   },
   {
     id: 'inline-object-generic-before-axis',
@@ -188,6 +190,8 @@ export async function prepareGapAliasSubjects() {
         dynamic: execute(dynamic),
         css: web.css,
         webProps,
+        rawWeb: 'rawWeb' in entry ? entry.rawWeb : entry.web,
+        referenceInline: 'referenceInline' in entry ? entry.referenceInline : entry.inline,
       }
     }),
   )

@@ -21,8 +21,13 @@ test('ScrollView keeps its viewport and content styles separate', () => {
 
   assert.match(html, /data-hozo-horizontal=""/)
   assert.match(html, /data-hozo-hide-scrollbar=""/)
-  assert.match(html, /height:80px;width:240px/)
-  assert.match(html, /gap:8px;padding-left:12px/)
+  const boxes = [...html.matchAll(/<div\b[^>]*style="([^"]*)"/g)].map((match) =>
+    Object.fromEntries(match[1]!.split(';').map((declaration) => declaration.split(':'))),
+  )
+  assert.deepEqual(boxes, [
+    { 'overflow-x': 'auto', 'overflow-y': 'hidden', height: '80px', width: '240px' },
+    { 'row-gap': '8px', 'column-gap': '8px', 'padding-left': '12px' },
+  ])
 })
 
 test('FlatList renders data, stable keys, columns, and nested refresh intent', () => {

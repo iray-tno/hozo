@@ -40,7 +40,7 @@ test('static and opaque-class outputs retain the measured gap alias boundary, no
   assert.equal(observations, 320)
   assert.equal(
     mismatches,
-    128,
+    96,
     'known divergence must remain visible until a paired fix replaces this boundary test',
   )
 })

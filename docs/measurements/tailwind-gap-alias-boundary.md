@@ -1,5 +1,10 @@
 # Gap aliases: ordering is not yet platform equivalence
 
+This records the original #1369 observation. The current probe also retains a
+raw CSS-inline control and now covers the first paired authored-inline fix;
+see [authored gap normalization](./authored-gap-normalization.md). The original
+128 mismatches below are historical, not the current probe's expected count.
+
 This is boundary evidence for #1230, not new support or a passing gap-parity
 claim. It does not admit `Gap`, `RowGap` or `ColumnGap` to the shared scalar
 plan, change output, or remove a legacy barrier. The existing paths already
