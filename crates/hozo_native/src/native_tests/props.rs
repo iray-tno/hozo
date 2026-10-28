@@ -30,6 +30,32 @@ fn authored_gap_projection_is_bounded_to_known_or_opaque_class_gap_owners() {
 }
 
 #[test]
+fn secondary_gap_owners_project_authors_before_composing_class_axes() {
+    for classes in [r#""gap-y-2""#, "{classes}"] {
+        for style in [" optionStyle={own}", " {...rest}"] {
+            let source = format!("import {{Listbox}} from '@hozo/core';const el=<Listbox optionClassName={classes}{style}/>");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+            let helper = if classes == "{classes}" {
+                // The owner resolves opaque classes separately; no compiled
+                // axes have been mixed into the public authored style.
+                "optionClassName={classes}"
+            } else if style.contains("own") {
+                "hozoAuthoredStyle(own)"
+            } else {
+                "hozoGapSpreadStyles"
+            };
+            assert!(output.jsx.contains(helper), "{}", output.jsx);
+        }
+    }
+    let source = r#"import {Listbox} from '@hozo/core';const el=<Listbox optionClassName="opacity-50" optionStyle={own} {...rest}/>"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(!output.runtime_imports.contains(&"hozoAuthoredStyle"));
+    assert!(!output.runtime_imports.contains(&"hozoGapSpreadStyles"));
+}
+
+#[test]
 fn unmodeled_props_and_spreads_reach_the_output() {
     let source = r#"
             import { View } from '@hozo/core'

@@ -116,7 +116,7 @@ export function C() { return <Avatar ${name}ClassName={chooseClasses()} ${name}S
     assert.ok(output)
     assert.ok(
       output.includes(
-        `${name}Style={[hozoClasses(chooseClasses(), { disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }), extra]}`,
+        `${name}Style={[hozoClasses(chooseClasses(), { disabled: false, enabled: false, readOnly: true, 'aria-disabled': false, 'aria-selected': false, 'aria-checked': false }), hozoAuthoredStyle(extra)]}`,
       ),
       output,
     )

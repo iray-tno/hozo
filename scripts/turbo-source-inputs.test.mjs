@@ -275,6 +275,8 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/engine/src/authored-gap.ts',
+    'packages/engine/src/gap-styles.ts',
     'crates/hozo_native/src/conditions/guards.rs',
     'packages/tailwind/src/theme.ts',
     'packages/tailwind/src/ordering.ts',

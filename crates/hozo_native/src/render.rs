@@ -11,6 +11,15 @@ enum NativeBackdropFilter {
     Blur(String),
 }
 
+fn has_gap(style: &[StyleDeclaration]) -> bool {
+    style.iter().any(|declaration| {
+        matches!(
+            declaration.property,
+            StyleProperty::Gap(_) | StyleProperty::RowGap(_) | StyleProperty::ColumnGap(_)
+        )
+    })
+}
+
 fn native_backdrop_filter(declaration: &StyleDeclaration) -> Option<NativeBackdropFilter> {
     if declaration.condition != Condition::Always {
         return None;
@@ -1448,13 +1457,8 @@ pub(super) fn render_node(
     // Resolve the author's own contribution before composing it with those
     // class styles. Known unrelated static classes keep their direct path;
     // an opaque class may carry gap, so it needs the same bounded boundary.
-    let project_authored_gap = !node.class_name_fallback.is_empty()
-        || node.style.iter().any(|declaration| {
-            matches!(
-                declaration.property,
-                StyleProperty::Gap(_) | StyleProperty::RowGap(_) | StyleProperty::ColumnGap(_)
-            )
-        });
+    let project_authored_gap = !node.class_name_fallback.is_empty() || has_gap(&node.style);
+    let mut project_spread_gap = project_authored_gap;
     let authored_style: Vec<String> = node
         .props
         .passthrough
@@ -2071,6 +2075,15 @@ pub(super) fn render_node(
     };
     for slot in node.primitive.class_slots() {
         let mut parts: Vec<String> = Vec::new();
+        // Project the author while it is still separate from compiled axes.
+        // Once both are in a slot array the owner cannot tell whose axis it is.
+        let project_slot_gap = node.props.class_slots.iter().any(|written| {
+            written.slot == *slot && (has_gap(&written.style) || !written.fallback.is_empty())
+        }) || node
+            .props
+            .passthrough
+            .iter()
+            .any(|prop| prop.name.as_deref() == Some(slot.class_prop));
         if let Some(written) = node
             .props
             .class_slots
@@ -2279,12 +2292,24 @@ pub(super) fn render_node(
                 ));
             }
         }
+        // A private owner callback keeps classes separate already. Only a
+        // plain slot style array needs a compiler-side authored boundary.
+        let project_slot_gap = project_slot_gap && !parts.is_empty();
+        project_spread_gap |= project_slot_gap;
         parts.extend(
             node.props
                 .passthrough
                 .iter()
                 .filter(|prop| prop.name.as_deref() == Some(slot.style_prop))
-                .filter_map(prop_expr),
+                .filter_map(prop_expr)
+                .map(|expr| {
+                    if project_slot_gap {
+                        cx.runtime.need_component("hozoAuthoredStyle");
+                        format!("hozoAuthoredStyle({expr})")
+                    } else {
+                        expr
+                    }
+                }),
         );
         match parts.len() {
             0 => {}
@@ -2453,7 +2478,7 @@ pub(super) fn render_node(
                     })
                 })
                 .collect();
-            let helper = if project_authored_gap {
+            let helper = if project_spread_gap {
                 "hozoGapSpreadStyles"
             } else {
                 "hozoSpreadStyles"

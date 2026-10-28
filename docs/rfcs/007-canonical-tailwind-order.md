@@ -275,7 +275,9 @@ browser layouts. Keeping the gap barrier is not a fix; paired projection and
 explicit-style composition must land before eligibility expands.
 The [Native author-composition slice](../measurements/native-authored-gap-composition.md)
 now closes the bounded compiled-root/spread cases with one shared projection.
-Fallback/secondary-slot owners and the full gap ordering assessment remain open;
+The [pattern follow-up](../measurements/pattern-authored-gap-composition.md)
+also covers four fallback owners and twelve root/secondary authored props.
+Other owners and the full gap ordering assessment remain open;
 the gap barrier is not removed by that fix.
 
 Policy v6 assesses five exact positive ARIA owner facts and their conjunctions
