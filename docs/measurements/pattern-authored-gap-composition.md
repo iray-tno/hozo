@@ -67,6 +67,11 @@ Local verification uses CPU 1/Idle, serial execution, no subagents:
 - Compiler: **360 passed, one existing Windows skip**; Metro: **93 passed**.
   Gap/Yoga, Chip, uncompiled fallback and raw-source/native-host guards:
   **35 passed**. Metadata and generated ABI checks passed (58 leaves/81 names).
+- Real Native-source control/indicator harness: **131 passed**, no skips.
+  Two old scroller tests expected the generic `gap` key itself; they now
+  require its absence and both equivalent 4px axes. The caller override case
+  also requires both 16px axes while viewport/content separation, padding,
+  margin and scroll disabling stay intact.
 
 One compiler run from the repository root failed a cwd-dependent RN-compat
 resolution fixture; running the unchanged suite from its package directory

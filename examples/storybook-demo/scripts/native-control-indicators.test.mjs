@@ -3680,7 +3680,9 @@ test('compiled UI Listbox bounds the real scroller and puts child layout on its 
   assert.equal(flat(scroll().props.style).gap, undefined)
   assert.equal(flat(scroll().props.contentContainerStyle).paddingTop, 12)
   assert.equal(flat(scroll().props.contentContainerStyle).paddingRight, 12)
-  assert.equal(flat(scroll().props.contentContainerStyle).gap, 4)
+  assert.equal(flat(scroll().props.contentContainerStyle).gap, undefined)
+  assert.equal(flat(scroll().props.contentContainerStyle).rowGap, 4)
+  assert.equal(flat(scroll().props.contentContainerStyle).columnGap, 4)
   assert.equal(scroll().props.horizontal, false)
   assert.equal(scroll().props.keyboardShouldPersistTaps, 'handled')
   assert.equal(tree.root.findAllByType('NativePressable').length, 2)
@@ -3688,14 +3690,16 @@ test('compiled UI Listbox bounds the real scroller and puts child layout on its 
   // Keep the bounded scroller when only one content property is overridden.
   const styled = await mount(t, UiListbox, {
     ...props,
-    style: { paddingTop: 19, marginTop: 7, overflow: 'hidden' },
+    style: { paddingTop: 19, marginTop: 7, overflow: 'hidden', gap: 16 },
   })
   const styledOwner = styled.root.findByType('NativeScrollView')
   assert.equal(flat(styledOwner.props.style).maxHeight, 240)
   assert.equal(flat(styledOwner.props.style).marginTop, 7)
   assert.equal(flat(styledOwner.props.contentContainerStyle).paddingTop, 19)
   assert.equal(flat(styledOwner.props.contentContainerStyle).paddingRight, 12)
-  assert.equal(flat(styledOwner.props.contentContainerStyle).gap, 4)
+  assert.equal(flat(styledOwner.props.contentContainerStyle).gap, undefined)
+  assert.equal(flat(styledOwner.props.contentContainerStyle).rowGap, 16)
+  assert.equal(flat(styledOwner.props.contentContainerStyle).columnGap, 16)
   assert.equal(styledOwner.props.scrollEnabled, false)
   const explicit = await mount(t, HozoListbox, {
     options: props.options,
@@ -3726,7 +3730,9 @@ test('compiled UI Combobox scrolls only the popup list, not the editable field',
   const list = tree.root.findByType('NativeScrollView')
   assert.equal(list.props.accessibilityRole, 'list')
   assert.equal(flat(list.props.style).maxHeight, 240)
-  assert.equal(flat(list.props.contentContainerStyle).gap, 4)
+  assert.equal(flat(list.props.contentContainerStyle).gap, undefined)
+  assert.equal(flat(list.props.contentContainerStyle).rowGap, 4)
+  assert.equal(flat(list.props.contentContainerStyle).columnGap, 4)
   assert.equal(
     tree.root.findByType('NativeTextInput').props.placeholderTextColor,
     color('hozo-text-subtle'),
