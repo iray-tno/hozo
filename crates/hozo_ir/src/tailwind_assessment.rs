@@ -5,7 +5,8 @@ use crate::{OrderCandidateDescriptor, OrderRuleDescriptor, OrderRuleShape, Style
 
 /// Interaction facts and the boolean ARIA facts already delivered by Native
 /// owners. This is predicate equivalence, not a variant precedence table.
-pub(crate) const OWNER_PREDICATE_COUNT: usize = 10;
+const ARIA_FACT_COUNT: usize = 6;
+pub(crate) const OWNER_PREDICATE_COUNT: usize = 5 + 2 * ARIA_FACT_COUNT;
 
 pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
     Some(match state {
@@ -14,8 +15,14 @@ pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
         "expanded" => 7,
         "selected" => 8,
         "invalid" => 9,
+        "disabled" => 10,
         _ => return None,
     })
+}
+
+pub(crate) fn negated_aria_owner_index(state: &str) -> Option<usize> {
+    // Negation is a distinct original-selector atom, not a different rank.
+    aria_owner_index(state).map(|index| index + ARIA_FACT_COUNT)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -198,6 +205,12 @@ fn assess_body<'a>(
                         .strip_prefix("&[aria-")
                         .and_then(|tail| tail.strip_suffix("=\"true\"]"))
                         .and_then(aria_owner_index)
+                        .or_else(|| {
+                            selector
+                                .strip_prefix("&:not(*[aria-")
+                                .and_then(|tail| tail.strip_suffix("=\"true\"])"))
+                                .and_then(negated_aria_owner_index)
+                        })
                         .ok_or(RuleAssessmentError::Selector)?,
                 };
                 result.owner[owner] = result.owner[owner]
@@ -518,7 +531,9 @@ mod tests {
 
     #[test]
     fn boolean_aria_assessment_matches_actual_independent_owner_facts_not_class_names() {
-        for state in ["busy", "checked", "expanded", "selected", "invalid"] {
+        for state in [
+            "busy", "checked", "expanded", "selected", "invalid", "disabled",
+        ] {
             let mut snapshot = portable_tailwind_snapshot();
             let candidate = snapshot
                 .candidates
@@ -558,6 +573,73 @@ mod tests {
     }
 
     #[test]
+    fn negated_aria_requires_exact_original_polarity_and_multiplicity() {
+        for state in [
+            "busy", "checked", "expanded", "selected", "invalid", "disabled",
+        ] {
+            let mut snapshot = portable_tailwind_snapshot();
+            let candidate = snapshot
+                .candidates
+                .iter_mut()
+                .find(|c| c.candidate == "p-2")
+                .unwrap();
+            let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {
+                panic!()
+            };
+            *nodes = vec![OrderRuleShape::Rule {
+                selector: format!("&:not(*[aria-{state}=\"true\"])"),
+                nodes: std::mem::take(nodes),
+            }];
+            let assessed = assess_tailwind_rule("p-2", &candidate.rules[0]).unwrap();
+            assert_eq!(assessed.specificity, [0, 2, 0]);
+            assert_eq!(assessed.owner[negated_aria_owner_index(state).unwrap()], 1);
+            assert_eq!(assessed.owner[aria_owner_index(state).unwrap()], 0);
+            let context = TailwindOrderContext::new(snapshot).unwrap();
+            let write = StyleProperty::PaddingTop(Length::Px(8.0));
+            let negative = crate::Condition::Not(Box::new(crate::Condition::Aria(state.into())));
+            assert!(context
+                .scalar_write_priority("p-2", &negative, &write)
+                .is_some());
+            for wrong in [
+                crate::Condition::Always,
+                crate::Condition::Aria(state.into()),
+                crate::Condition::Not(Box::new(negative.clone())),
+                crate::Condition::Not(Box::new(crate::Condition::All(vec![
+                    crate::Condition::Aria(state.into()),
+                ]))),
+                crate::Condition::All(vec![negative.clone(), negative.clone()]),
+            ] {
+                assert!(context
+                    .scalar_write_priority("p-2", &wrong, &write)
+                    .is_none());
+            }
+        }
+        for selector in [
+            "&:not(*[aria-selected=\"false\"])",
+            "&:not(*[aria-selected])",
+            "&:not(*[aria-checked=\"mixed\"])",
+            "&:not(*[aria-selected=\"true\" i])",
+            "&:not(*[aria-selected=\"true\"]) > *",
+            "&:not(*[aria-selected=\"true\"], *[aria-checked=\"true\"])",
+            "&:not(*[aria-hidden=\"true\"])",
+        ] {
+            let mut candidate = fixture("p-2");
+            let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {
+                panic!()
+            };
+            *nodes = vec![OrderRuleShape::Rule {
+                selector: selector.into(),
+                nodes: std::mem::take(nodes),
+            }];
+            assert_eq!(
+                assess_tailwind_rule("p-2", &candidate.rules[0]).unwrap_err(),
+                RuleAssessmentError::Selector,
+                "{selector}"
+            );
+        }
+    }
+
+    #[test]
     fn aria_assessment_does_not_guess_false_mixed_presence_flags_or_relational_selectors() {
         for selector in [
             "&[aria-checked=\"false\"]",
@@ -569,7 +651,7 @@ mod tests {
             "&[aria-selected=\"true\"] > *",
             "&[aria-pressed=\"true\"]",
             "&[aria-hidden=\"true\"]",
-            "&[aria-disabled=\"true\"]",
+            "&[aria-disabled=\"false\"]",
         ] {
             let mut candidate = fixture("p-2");
             let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {

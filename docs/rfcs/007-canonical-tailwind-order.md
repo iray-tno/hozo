@@ -269,15 +269,32 @@ text needs joint static/dynamic/inherited-size register handling; gap/logical
 aliases need actual Yoga/explicit-style precedence, not just expanded keys.
 Those boundaries are deliberately not "fixed" by widening eligibility alone.
 See [direct property evidence](../measurements/tailwind-direct-properties.md).
+The [gap alias measurement](../measurements/tailwind-gap-alias-boundary.md)
+now reproduces inline/class and within-inline divergence in actual Yoga and
+browser layouts. Keeping the gap barrier is not a fix; paired projection and
+explicit-style composition must land before eligibility expands.
 
 Policy v6 assesses five exact positive ARIA owner facts and their conjunctions
 with already-supported interactions. One canonical input's order survives
 Native's prop/interactive guard delivery buckets; mixed inputs stay separate.
 The experiment also found pre-existing duplicate disabled/accessibilityState
 props and divergent effective disabled facts, recorded in
-[#1359](https://github.com/iray-tno/hozo/issues/1359). `aria-disabled` deliberately
-does not graduate while that boundary is inconsistent. See
+[#1359](https://github.com/iray-tno/hozo/issues/1359). That stage deliberately did
+not graduate `aria-disabled` while the boundary was inconsistent. See
 [ARIA scope and failures](../measurements/tailwind-aria-owner-order.md).
+
+Policy v7 admits exact positive `aria-disabled` after the shared owner-fact
+repair in [#1362](https://github.com/iray-tno/hozo/pull/1362). The original ARIA
+predicate remains distinct from `:disabled` in selector/guard evidence even
+though normalized action-owner delivery makes their boolean values agree.
+No runtime sorting, provider or new state key is needed for this graduation.
+
+Policy v8 adds exact upstream negations of the same six boolean ARIA facts.
+Positive/negative multiplicities are separate evidence, not a class-family
+priority table. The dynamic candidate path needed missing negated-ARIA support;
+its encoded predicate is prepared once against the existing owner fact, keeping
+unknown distinct from false and sharing legacy/ordered missing-fact handling.
+See [negation evidence and isolated cost](../measurements/tailwind-negated-aria-order.md).
 
 ## 1. Restart, not another family-specific patch
 

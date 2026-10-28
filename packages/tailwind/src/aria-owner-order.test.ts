@@ -22,6 +22,9 @@ const classes = [
   'aria-selected:p-8',
   'aria-[invalid=true]:p-9',
   'disabled:p-10',
+  'aria-disabled:p-11',
+  'hover:aria-disabled:p-13',
+  'disabled:aria-disabled:p-15',
   'hover:aria-selected:p-12',
   'aria-checked:aria-selected:p-14',
 ]
@@ -66,17 +69,19 @@ test('positive ARIA facts share original-rule priority in static and generated N
         h: (_type: unknown, props: unknown) => props,
       },
     )
-    for (let mask = 0; mask < 32; mask++) {
+    for (let mask = 0; mask < 64; mask++) {
       const owner = Object.fromEntries(
         states.map((name, bit) => [name, Boolean(mask & (1 << bit))]),
       )
+      owner.disabled = Boolean(mask & 32)
       const invalid = Boolean(mask & 16)
       for (const blocked of [false, true])
         for (const hovered of [false, true]) {
           const facts = {
             ...Object.fromEntries(states.map((name) => [`aria-${name}`, owner[name] === true])),
             'aria-invalid': invalid,
-            disabled: blocked,
+            disabled: blocked || owner.disabled,
+            'aria-disabled': blocked || owner.disabled,
             hovered,
             pressed: true,
           }
@@ -92,8 +97,8 @@ test('positive ARIA facts share original-rule priority in static and generated N
           observations++
         }
     }
-    // The literal true selector is not truthiness, and aria-disabled cannot
-    // satisfy the separate native :disabled fact.
+    // Canonical unavailable delivery uses only a literal true state member,
+    // not truthy strings. Selector identity remains distinct in assessment.
     for (const owner of [undefined, null, { checked: 'mixed', disabled: 'false' }]) {
       const props = render(owner, 'grammar', false)
       const style =
@@ -101,16 +106,94 @@ test('positive ARIA facts share original-rule priority in static and generated N
       assert.equal(Object.assign({}, ...[style].flat(Infinity).filter(Boolean)).paddingTop, 16)
     }
   }
-  assert.equal(observations, 256)
+  assert.equal(observations, 512)
+})
+
+test('canonical disabled ordering survives actual static/dynamic action and destination owner delivery', async () => {
+  const names = [
+    'p-4',
+    'p-2',
+    'disabled:p-10',
+    'aria-disabled:p-11',
+    'hover:aria-disabled:p-13',
+    'disabled:aria-disabled:p-15',
+  ]
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const context = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('disabled-order.ts', JSON.stringify(names.join(' ')), 0)
+  const plan = cache.renderNativeModulePlan(context)
+  assert.match(plan.fingerprint!, /^scalar-order-v8:/)
+  assert.ok(plan.entries.every((entry) => entry.groups.every((group) => group.orderable)))
+  const resolve = runInNewContext(
+    `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
+    { createClassResolver },
+  )
+  const compiler = createCompiler()
+  let observations = 0
+  for (const primitive of ['Button', 'Pressable', 'Link'])
+    for (const ordered of [names, names.toReversed()])
+      for (const dynamic of [false, true]) {
+        const className = ordered.join(' ')
+        const source = `import {${primitive}} from '@hozo/core';export const A=({state,blocked,names})=><${primitive} ${primitive === 'Link' ? 'href="/docs"' : ''} accessibilityState={state} disabled={blocked} className=${dynamic ? '{names}' : JSON.stringify(className)}/>`
+        const output = compiler.prepareNativeModule(source).emit(context).components[0]!
+        assert.ok(
+          output.diagnostics.every((d) => dynamic && d.code === 'DYNAMIC_CLASS_NAME_NOT_RESOLVED'),
+          JSON.stringify(output.diagnostics),
+        )
+        const render = runInNewContext(
+          transformSync(
+            `const hozoStyles=${output.styles};((state,blocked,names)=>(${output.jsx}))`,
+            { loader: 'tsx', jsxFactory: 'h' },
+          ).code,
+          {
+            h: (_type: unknown, props: unknown) => props,
+            Pressable: 'owner',
+            HozoPressable: 'owner',
+            HozoLink: 'owner',
+            nativeDisabledProps,
+            hozoClasses: resolve,
+          },
+        )
+        for (const blocked of [undefined, false, true])
+          for (const state of [
+            undefined,
+            null,
+            { disabled: false, selected: true },
+            { disabled: true, selected: true },
+          ])
+            for (const hovered of [false, true]) {
+              const disabled = Boolean(blocked || state?.disabled === true)
+              const props = render(state, blocked, className)
+              assert.equal(Boolean(props.disabled), disabled)
+              assert.equal(Boolean(props.accessibilityState?.disabled), disabled)
+              assert.equal(props.accessibilityState?.selected, state?.selected)
+              const facts = { disabled, 'aria-disabled': disabled, hovered, pressed: true }
+              const actual = Object.assign(
+                {},
+                ...[typeof props.style === 'function' ? props.style(facts) : props.style]
+                  .flat(Infinity)
+                  .filter(Boolean),
+              )
+              const expected = Object.assign({}, ...resolve(className, facts))
+              assert.deepEqual(
+                JSON.parse(JSON.stringify(actual)),
+                JSON.parse(JSON.stringify(expected)),
+                `${primitive}/${dynamic}/${blocked}/${state?.disabled}/${hovered}`,
+              )
+              observations++
+            }
+      }
+  assert.equal(observations, 288)
 })
 
 test('unassessed ARIA selectors preserve the complete old input, not guessed priorities', async () => {
   const compiler = createCompiler()
   for (const neighbor of [
-    'not-aria-selected:p-8',
+    'not-hover:p-8',
     'aria-hidden:p-8',
     'aria-pressed:p-8',
-    'aria-disabled:p-8',
+    'not-aria-pressed:p-8',
   ]) {
     const names = ['p-4', 'p-2', neighbor]
     const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)

@@ -145,6 +145,7 @@
         "$TURBO_ROOT$/packages/tailwind-conformance/src/tailwind-order-corpus.ts",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/tailwind-order-reference.ts",
         "$TURBO_ROOT$/packages/tailwind-conformance/src/tailwind-order-baseline.ts",
+        "$TURBO_ROOT$/packages/tailwind-conformance/src/gap-alias-reference.ts",
         "$TURBO_ROOT$/packages/engine/src/generated/class-resolver.ts",
         "$TURBO_ROOT$/packages/engine/src/generated/transform-slots.ts",
         "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",

@@ -50,6 +50,7 @@
     "esbuild": "0.28.2",
     "tailwindcss": "^4.3.3",
     "turbo": "^2.3.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "yoga-layout": "3.2.1"
   }
 }

@@ -30,6 +30,12 @@ import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 import { nativeDisabledProps } from '../../../packages/primitives/src/native-disabled.ts'
 import {
+  gapGeometry,
+  gapLayouts,
+  prepareGapAliasSubjects,
+  yogaGapGeometry,
+} from '../../../packages/tailwind-conformance/src/gap-alias-reference.ts'
+import {
   prepareOrderSubjects,
   projectOrderNative,
   summarizeOrderCells,
@@ -419,6 +425,75 @@ after(async () => {
   await browser?.close()
   // Only this test's exact mkdtemp directory is owned here.
   rmSync(directory, { recursive: true, force: true })
+})
+
+test('gap alias boundary compares actual Tailwind and compiled browser geometry with real Yoga', {
+  skip: !executablePath,
+}, async () => {
+  const subjects = await prepareGapAliasSubjects()
+  const names = [...new Set(subjects.flatMap((subject) => subject.classes.split(' ')))]
+  const sheet = (await compile('@tailwind utilities;')).build(names)
+  const page = await browser.newPage()
+  let browserObservations = 0
+  let knownMismatches = 0
+  try {
+    for (const subject of subjects) {
+      for (const layout of gapLayouts) {
+        const element = (id, className, style) =>
+          renderToStaticMarkup(
+            createElement(
+              'div',
+              {
+                id,
+                className,
+                style: {
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignContent: 'flex-start',
+                  alignItems: 'flex-start',
+                  width: 140,
+                  height: 140,
+                  ...layout,
+                  ...style,
+                },
+              },
+              ...[0, 1, 2].map((key) =>
+                createElement('div', {
+                  key,
+                  style: { flex: 'none', width: 50, height: 50 },
+                }),
+              ),
+            ),
+          )
+        await page.setContent(
+          `<!doctype html><style>${sheet}\n${subject.css}</style>${element('reference', subject.classes, subject.inline)}${element('compiled', subject.webProps.className, subject.webProps.style)}`,
+        )
+        for (const id of ['reference', 'compiled']) {
+          const positions = await page.locator(`#${id}`).evaluate((owner) => {
+            const box = owner.getBoundingClientRect()
+            return [...owner.children].map((child) => {
+              const childBox = child.getBoundingClientRect()
+              return [childBox.left - box.left, childBox.top - box.top]
+            })
+          })
+          const measured = gapGeometry(positions, layout.flexDirection)
+          assert.deepEqual(measured, subject.web, `${subject.id}/${id}/${JSON.stringify(layout)}`)
+          browserObservations++
+          if (id === 'reference') {
+            for (const style of [subject.selected, subject.dynamic]) {
+              const native = yogaGapGeometry(style, layout)
+              assert.deepEqual(native, subject.native)
+              if (JSON.stringify(native) !== JSON.stringify(measured)) knownMismatches++
+            }
+          }
+        }
+      }
+    }
+    assert.equal(browserObservations, 320)
+    assert.equal(knownMismatches, 128, 'boundary evidence, not a passing parity claim')
+  } finally {
+    await page.close()
+  }
 })
 
 test('shared assessed rule priorities predict independent Tailwind browser winners', {
@@ -1032,9 +1107,23 @@ test('simple projected properties use upstream winners in actual static and gene
   }
 })
 
-test('positive ARIA owner ordering matches real Tailwind with independent disabled and hover facts', {
-  skip: !executablePath,
-}, async () => {
+test(
+  'positive ARIA owner ordering matches real Tailwind with independent disabled sources and hover facts',
+  {
+    skip: !executablePath,
+  },
+  () => checkAriaOwnerOrdering(false),
+)
+
+test(
+  'negated ARIA owner ordering matches real Tailwind without replacing missing drivers with false',
+  {
+    skip: !executablePath,
+  },
+  () => checkAriaOwnerOrdering(true),
+)
+
+async function checkAriaOwnerOrdering(includeNegated) {
   const names = [
     'p-4',
     'p-2',
@@ -1044,9 +1133,25 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
     'aria-selected:p-8',
     'aria-[invalid=true]:p-9',
     'disabled:p-10',
+    'aria-disabled:p-11',
+    'hover:aria-disabled:p-13',
+    'disabled:aria-disabled:p-15',
     'hover:aria-selected:p-12',
     'aria-checked:aria-selected:p-14',
   ]
+  if (includeNegated)
+    names.push(
+      'not-aria-busy:p-3',
+      'not-aria-checked:p-5',
+      'not-aria-expanded:p-7',
+      'not-aria-selected:p-8',
+      'not-aria-[invalid=true]:p-9',
+      'not-aria-disabled:p-11',
+      'hover:not-aria-selected:p-12',
+      'aria-checked:not-aria-selected:p-14',
+      'not-aria-checked:not-aria-selected:p-16',
+      'disabled:not-aria-selected:p-17',
+    )
   const css = '@theme {--spacing:.25rem;} @tailwind utilities;'
   const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const context = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
@@ -1065,10 +1170,22 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
   let oldMismatches = 0
   try {
     for (const classes of [names.join(' '), names.toReversed().join(' ')]) {
-      const source = `import {Pressable} from '@hozo/core';export const A=({state,invalid,blocked})=><Pressable accessibilityState={state} aria-invalid={invalid} disabled={blocked} className="${classes}"/>`
+      const source = `import {Button} from '@hozo/core';export const A=({state,invalid,blocked})=><Button accessibilityState={state} aria-invalid={invalid} disabled={blocked} className="${classes}"/>`
       const web = compiler.prepareWebModule(source).emit(context)[0]
       const old = compiler.prepareWebModule(source).emit(legacy)[0]
       const native = compiler.prepareNativeModule(source).emit(context).components[0]
+      const dynamicSource = source
+        .replace('({state,invalid,blocked})', '({state,invalid,blocked,runtimeNames})')
+        .replace(`className="${classes}"`, 'className={runtimeNames}')
+      const dynamicNative = compiler.prepareNativeModule(dynamicSource).emit(context).components[0]
+      assert.ok(
+        dynamicNative.diagnostics.every((d) => d.code === 'DYNAMIC_CLASS_NAME_NOT_RESOLVED'),
+      )
+      assert.match(
+        web.jsx,
+        /^<button(?:\s|>)/,
+        'probe the actual compiled host, not a fabricated tag',
+      )
       assert.equal(native.diagnostics.length, 0)
       const webOwners = [web, old].map((output) =>
         evaluate(`module.exports=(state,invalid,blocked)=>(${output.jsx})`, {
@@ -1083,29 +1200,53 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
           h: (_type, props) => props,
         },
       )
+      const renderDynamic = evaluate(
+        `const hozoStyles=${dynamicNative.styles};module.exports=(state,invalid,blocked,runtimeNames)=>(${dynamicNative.jsx})`,
+        {
+          Pressable: 'owner',
+          HozoPressable: 'owner',
+          hozoClasses: resolve,
+          h: (_type, props) => props,
+        },
+      )
       await page.setContent(
         `<!doctype html><style>${sheet}\n${web.css}\n${old.css.replaceAll('hozo-0', 'legacy')}</style><button id="reference" class="${classes}">Reference</button><button id="compiled" class="hozo-0">Compiled</button><button id="old" class="legacy">Legacy</button>`,
       )
-      for (let mask = 0; mask < 32; mask++) {
-        const state = Object.fromEntries(
-          ['busy', 'checked', 'expanded', 'selected'].map((key, bit) => [
-            key,
-            Boolean(mask & (1 << bit)),
-          ]),
-        )
-        const invalid = Boolean(mask & 16)
-        const blocked = mask % 3 === 0
+      for (let mask = 0; mask < (includeNegated ? 67 : 64); mask++) {
+        const state =
+          mask === 64
+            ? undefined
+            : mask === 65
+              ? null
+              : mask === 66
+                ? { checked: 'mixed', selected: false, disabled: false }
+                : Object.fromEntries(
+                    ['busy', 'checked', 'expanded', 'selected', 'disabled'].map((key, bit) => [
+                      key,
+                      Boolean(mask & (1 << (key === 'disabled' ? 5 : bit))),
+                    ]),
+                  )
+        const invalid = mask < 64 ? Boolean(mask & 16) : 'grammar'
+        const blocked = mask < 64 && mask % 3 === 0
+        const unavailable = blocked || state?.disabled === true
         const props = render(state, invalid, blocked)
+        const dynamicProps = renderDynamic(state, invalid, blocked, classes)
+        const projected = webOwners.map((render) => render(state, invalid, blocked))
+        assert.equal(Boolean(projected[0]['aria-disabled']), unavailable)
+        assert.equal(Boolean(projected[0].disabled), unavailable)
+        assert.equal(Boolean(props.disabled), unavailable)
         await page.evaluate(
-          ({ state, invalid, blocked, projected }) => {
+          ({ state, invalid, unavailable, projected }) => {
             for (const element of document.querySelectorAll('button')) {
               const attributes =
                 element.id === 'reference'
                   ? {
                       ...Object.fromEntries(
-                        Object.entries(state).map(([key, value]) => [`aria-${key}`, value]),
+                        Object.entries(state ?? {}).map(([key, value]) => [`aria-${key}`, value]),
                       ),
                       'aria-invalid': invalid,
+                      'aria-disabled': unavailable,
+                      disabled: unavailable,
                     }
                   : projected[element.id === 'compiled' ? 0 : 1]
               for (const name of [
@@ -1121,14 +1262,14 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
                 if (value == null) element.removeAttribute(name)
                 else element.setAttribute(name, String(value))
               }
-              element.disabled = blocked
+              element.disabled = Boolean(attributes.disabled)
             }
           },
           {
             state,
             invalid,
-            blocked,
-            projected: webOwners.map((render) => render(state, invalid, blocked)),
+            unavailable,
+            projected,
           },
         )
         await page.mouse.move(700, 500)
@@ -1143,15 +1284,25 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
           }))
           const facts = {
             ...Object.fromEntries(
-              Object.entries(state).map(([key, value]) => [`aria-${key}`, value]),
+              Object.entries(state ?? {}).map(([key, value]) => [`aria-${key}`, value === true]),
             ),
-            'aria-invalid': invalid,
-            disabled: blocked,
+            'aria-invalid': String(invalid) === 'true',
+            disabled: unavailable,
+            'aria-disabled': unavailable,
             hovered: observed.hovered,
           }
           const style = typeof props.style === 'function' ? props.style(facts) : props.style
           const selected = Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
-          const dynamic = Object.assign({}, ...resolve(classes, facts))
+          const dynamic = Object.assign(
+            {},
+            ...[
+              typeof dynamicProps.style === 'function'
+                ? dynamicProps.style(facts)
+                : dynamicProps.style,
+            ]
+              .flat(Infinity)
+              .filter(Boolean),
+          )
           if (id === 'old') oldMismatches += Number(observed.padding !== selected.paddingTop)
           else {
             assert.equal(selected.paddingTop, observed.padding, `${id}/${mask}/static`)
@@ -1162,12 +1313,12 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
         }
       }
     }
-    assert.equal(observations, 128)
+    assert.equal(observations, includeNegated ? 268 : 256)
     assert.ok(oldMismatches > 0, 'the independent oracle detects legacy whole-input string order')
   } finally {
     await page.close()
   }
-})
+}
 
 test('font-weight registration and custom theme values agree in actual Web, Native and generated outputs', {
   skip: !executablePath,

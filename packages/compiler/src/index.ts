@@ -13,7 +13,7 @@ import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 export type { FontAvailability } from './font-diagnostics.ts'
 
 /** @internal Must match the native scalar output policy; integration tests verify it. */
-export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v6' as const
+export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v8' as const
 
 const require = createRequire(import.meta.url)
 

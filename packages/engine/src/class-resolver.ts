@@ -41,6 +41,8 @@ export type ClassState = Readonly<Record<string, unknown>>
  * `[['pressed'], { opacity: 0.8 }]`.
  * Generated Tailwind owner states may append a cached cascade rank; legacy
  * two-entry groups and mixed/unranked conditional domains keep their order.
+ * `!aria-…` is compiler-owned negative-predicate data. It still requires the
+ * underlying owner fact; an absent fact is not a measured false value.
  */
 export type StateGroup = readonly [readonly string[], StyleObject, number?]
 
@@ -161,7 +163,9 @@ export function createClassResolver(
     // eslint-disable-next-line no-console
     console.warn(`[hozo] ${reason}`)
   }
-  const matches = (keys: readonly string[], name: string, facts: ClassState) => {
+  // Absent is not false. A focused field must not silently claim that it
+  // measured hover/press, or that a spread supplied a disabled driver.
+  const supplied = (keys: readonly string[], name: string, facts: ClassState) => {
     if (!keys.every((key) => Object.hasOwn(facts, key))) {
       if (!warned.has(name)) {
         const missing = keys.filter((key) => !Object.hasOwn(facts, key))
@@ -169,8 +173,33 @@ export function createClassResolver(
       }
       return false
     }
-    return keys.every((key) => Boolean(facts[key]))
+    return true
   }
+  const positive = (keys: readonly string[], name: string, facts: ClassState) =>
+    supplied(keys, name, facts) && keys.every((key) => Boolean(facts[key]))
+  // Prepare only negative maps' exceptional groups once, not during state
+  // updates or for every authored class lookup. Positive-only maps retain
+  // their existing boolean matcher and allocate no predicate side table.
+  let negative: Map<readonly string[], { keys: string[]; expected: boolean[] }> | undefined
+  for (const groups of Object.values(states))
+    for (const [keys] of groups)
+      if (keys.some((key) => key.startsWith('!aria-')))
+        (negative ??= new Map()).set(keys, {
+          keys: keys.map((key) => (key.startsWith('!aria-') ? key.slice(1) : key)),
+          expected: keys.map((key) => !key.startsWith('!aria-')),
+        })
+  const negativePredicates = negative
+  const matches = negativePredicates
+    ? (keys: readonly string[], name: string, facts: ClassState) => {
+        const predicate = negativePredicates.get(keys)
+        return predicate
+          ? supplied(predicate.keys, name, facts) &&
+              predicate.keys.every(
+                (key, index) => Boolean(facts[key]) === predicate.expected[index],
+              )
+          : positive(keys, name, facts)
+      }
+    : positive
 
   function resolve(value: string): Resolved {
     const base: StyleObject[] = []
@@ -210,8 +239,8 @@ export function createClassResolver(
         for (let index = 0; index < conditional.length; index++) {
           const group = conditional[index]!
           take?.(name, index, group[1], group[0])
-          if (group[0].every(isAmbient)) {
-            if (group[0].every((key) => Boolean(ambient[key]))) decided.push(group[1])
+          if ((negativePredicates?.get(group[0])?.keys ?? group[0]).every(isAmbient)) {
+            if (matches(group[0], name, ambient)) decided.push(group[1])
             continue
           }
           groups.push(group)
@@ -233,8 +262,8 @@ export function createClassResolver(
       ranked.sort((a, b) => a.rank - b.rank)
       const ordered: TemplateEntry[] = []
       for (const { entry } of ranked) {
-        if (entry.keys.every(isAmbient)) {
-          if (entry.keys.every((key) => Boolean(ambient[key]))) ordered.push({ ...entry, keys: [] })
+        if ((negativePredicates?.get(entry.keys)?.keys ?? entry.keys).every(isAmbient)) {
+          if (matches(entry.keys, entry.name, ambient)) ordered.push({ ...entry, keys: [] })
         } else ordered.push(entry)
       }
       const raw = ordered.filter((entry) => !entry.keys.length).map((entry) => entry.style)
@@ -305,22 +334,9 @@ export function createClassResolver(
       if (!active) return resolved.base
       return compose ? compose(all) : all
     }
-    const active = resolved.groups.filter(([keys], index) => {
-      // Absent is not false. A focused field must not silently claim that it
-      // measured hover/press, or that a spread supplied a disabled driver.
-      if (!keys.every((key) => Object.hasOwn(facts, key))) {
-        const name = resolved.groupClasses[index]!
-        if (!warned.has(name)) {
-          const missing = keys.filter((key) => !Object.hasOwn(facts, key))
-          warn(
-            name,
-            `\`${name}\` needs state (${missing.join(', ')}) this element does not supply.`,
-          )
-        }
-        return false
-      }
-      return keys.every((key) => Boolean(facts[key]))
-    })
+    const active = resolved.groups.filter(([keys], index) =>
+      matches(keys, resolved.groupClasses[index]!, facts),
+    )
     if (active.length === 0) return resolved.base
     const all = [...resolved.raw, ...active.map(([, style]) => style)]
     // A state style can carry a transform, which `compose` folds into one;

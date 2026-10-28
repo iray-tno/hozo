@@ -389,9 +389,9 @@ before both static lowerers and emits the generated resolver's object ABI from
 that same context. This changes bounded batch winners **together**, not just
 Native fallback. `prepareFinalTailwindContext` is the internal output capability,
 not an app option or mutable compiler setter. Its fingerprint is
-`scalar-order-v6:<descriptor fingerprint>` so output caches cannot confuse it
+`scalar-order-v8:<descriptor fingerprint>` so output caches cannot confuse it
 with the unchanged pass-through `prepareTailwindContext` namespace. Captured
-plans report the same fingerprint and `mode: 'scalar-order-v6'`. The policy
+plans report the same fingerprint and `mode: 'scalar-order-v8'`. The policy
 revision also changes when the eligible projection domain expands, not only
 when the comparator changes; Metro transports it in its startup cache identity.
 
@@ -447,10 +447,24 @@ original CSS specificity and emission order are shared with static and dynamic
 Native output, including conjunctions with existing interaction facts. Native
 does not re-bucket one canonical input by the source of its guards; a callback
 is still emitted only if a resolved guard already needs interaction state.
-`aria-disabled` remains a barrier pending owner-prop normalization in
-[#1359](https://github.com/iray-tno/hozo/issues/1359); negated and other ARIA
-selectors are not approximated. See
+The v7 expansion also admits exact positive `aria-disabled`, after the shared
+owner-prop repair in [#1362](https://github.com/iray-tno/hozo/pull/1362). Explicit
+and state-derived disabled facts now agree in props, activation and styles.
+The original ARIA selector still has its own atom, not a guessed `:disabled`
+substitution; conjunction multiplicity must match. Other ARIA selectors are
+not approximated. See
 [ARIA ordering evidence](../../docs/measurements/tailwind-aria-owner-order.md).
+The additional normalized-owner comparisons are in
+[disabled ordering evidence](../../docs/measurements/tailwind-aria-disabled-order.md).
+
+The v8 expansion admits the exact upstream negations of these six boolean
+ARIA predicates and proved conjunctions. Static and generated Native output
+share original polarity/multiplicity assessment. Dynamic maps now encode those
+negations too; the resolver prepares their underlying key/expected value once,
+with no additional owner-state fields, subscription or per-render selector
+parser. Missing owner facts still warn and do not apply. Non-ARIA/complex
+negations remain barriers. See
+[negated ARIA evidence](../../docs/measurements/tailwind-negated-aria-order.md).
 
 For Web graph discovery, `prepareLowerModuleStyles` from compiler/lower returns
 initial full-module code plus a one-shot final stylesheet continuation from the
