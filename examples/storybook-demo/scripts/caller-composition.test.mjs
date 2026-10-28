@@ -1032,7 +1032,7 @@ test('simple projected properties use upstream winners in actual static and gene
   }
 })
 
-test('positive ARIA owner ordering matches real Tailwind with independent disabled and hover facts', {
+test('positive ARIA owner ordering matches real Tailwind with independent disabled sources and hover facts', {
   skip: !executablePath,
 }, async () => {
   const names = [
@@ -1044,6 +1044,9 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
     'aria-selected:p-8',
     'aria-[invalid=true]:p-9',
     'disabled:p-10',
+    'aria-disabled:p-11',
+    'hover:aria-disabled:p-13',
+    'disabled:aria-disabled:p-15',
     'hover:aria-selected:p-12',
     'aria-checked:aria-selected:p-14',
   ]
@@ -1065,10 +1068,15 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
   let oldMismatches = 0
   try {
     for (const classes of [names.join(' '), names.toReversed().join(' ')]) {
-      const source = `import {Pressable} from '@hozo/core';export const A=({state,invalid,blocked})=><Pressable accessibilityState={state} aria-invalid={invalid} disabled={blocked} className="${classes}"/>`
+      const source = `import {Button} from '@hozo/core';export const A=({state,invalid,blocked})=><Button accessibilityState={state} aria-invalid={invalid} disabled={blocked} className="${classes}"/>`
       const web = compiler.prepareWebModule(source).emit(context)[0]
       const old = compiler.prepareWebModule(source).emit(legacy)[0]
       const native = compiler.prepareNativeModule(source).emit(context).components[0]
+      assert.match(
+        web.jsx,
+        /^<button(?:\s|>)/,
+        'probe the actual compiled host, not a fabricated tag',
+      )
       assert.equal(native.diagnostics.length, 0)
       const webOwners = [web, old].map((output) =>
         evaluate(`module.exports=(state,invalid,blocked)=>(${output.jsx})`, {
@@ -1086,18 +1094,24 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
       await page.setContent(
         `<!doctype html><style>${sheet}\n${web.css}\n${old.css.replaceAll('hozo-0', 'legacy')}</style><button id="reference" class="${classes}">Reference</button><button id="compiled" class="hozo-0">Compiled</button><button id="old" class="legacy">Legacy</button>`,
       )
-      for (let mask = 0; mask < 32; mask++) {
+      for (let mask = 0; mask < 64; mask++) {
         const state = Object.fromEntries(
           ['busy', 'checked', 'expanded', 'selected'].map((key, bit) => [
             key,
             Boolean(mask & (1 << bit)),
           ]),
         )
+        state.disabled = Boolean(mask & 32)
         const invalid = Boolean(mask & 16)
         const blocked = mask % 3 === 0
+        const unavailable = blocked || state.disabled
         const props = render(state, invalid, blocked)
+        const projected = webOwners.map((render) => render(state, invalid, blocked))
+        assert.equal(Boolean(projected[0]['aria-disabled']), unavailable)
+        assert.equal(Boolean(projected[0].disabled), unavailable)
+        assert.equal(Boolean(props.disabled), unavailable)
         await page.evaluate(
-          ({ state, invalid, blocked, projected }) => {
+          ({ state, invalid, unavailable, projected }) => {
             for (const element of document.querySelectorAll('button')) {
               const attributes =
                 element.id === 'reference'
@@ -1106,6 +1120,8 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
                         Object.entries(state).map(([key, value]) => [`aria-${key}`, value]),
                       ),
                       'aria-invalid': invalid,
+                      'aria-disabled': unavailable,
+                      disabled: unavailable,
                     }
                   : projected[element.id === 'compiled' ? 0 : 1]
               for (const name of [
@@ -1121,14 +1137,14 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
                 if (value == null) element.removeAttribute(name)
                 else element.setAttribute(name, String(value))
               }
-              element.disabled = blocked
+              element.disabled = Boolean(attributes.disabled)
             }
           },
           {
             state,
             invalid,
-            blocked,
-            projected: webOwners.map((render) => render(state, invalid, blocked)),
+            unavailable,
+            projected,
           },
         )
         await page.mouse.move(700, 500)
@@ -1146,7 +1162,8 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
               Object.entries(state).map(([key, value]) => [`aria-${key}`, value]),
             ),
             'aria-invalid': invalid,
-            disabled: blocked,
+            disabled: unavailable,
+            'aria-disabled': unavailable,
             hovered: observed.hovered,
           }
           const style = typeof props.style === 'function' ? props.style(facts) : props.style
@@ -1162,7 +1179,7 @@ test('positive ARIA owner ordering matches real Tailwind with independent disabl
         }
       }
     }
-    assert.equal(observations, 128)
+    assert.equal(observations, 256)
     assert.ok(oldMismatches > 0, 'the independent oracle detects legacy whole-input string order')
   } finally {
     await page.close()

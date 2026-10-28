@@ -5,7 +5,7 @@ use crate::{OrderCandidateDescriptor, OrderRuleDescriptor, OrderRuleShape, Style
 
 /// Interaction facts and the boolean ARIA facts already delivered by Native
 /// owners. This is predicate equivalence, not a variant precedence table.
-pub(crate) const OWNER_PREDICATE_COUNT: usize = 10;
+pub(crate) const OWNER_PREDICATE_COUNT: usize = 11;
 
 pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
     Some(match state {
@@ -14,6 +14,7 @@ pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
         "expanded" => 7,
         "selected" => 8,
         "invalid" => 9,
+        "disabled" => 10,
         _ => return None,
     })
 }
@@ -518,7 +519,9 @@ mod tests {
 
     #[test]
     fn boolean_aria_assessment_matches_actual_independent_owner_facts_not_class_names() {
-        for state in ["busy", "checked", "expanded", "selected", "invalid"] {
+        for state in [
+            "busy", "checked", "expanded", "selected", "invalid", "disabled",
+        ] {
             let mut snapshot = portable_tailwind_snapshot();
             let candidate = snapshot
                 .candidates
@@ -569,7 +572,7 @@ mod tests {
             "&[aria-selected=\"true\"] > *",
             "&[aria-pressed=\"true\"]",
             "&[aria-hidden=\"true\"]",
-            "&[aria-disabled=\"true\"]",
+            "&[aria-disabled=\"false\"]",
         ] {
             let mut candidate = fixture("p-2");
             let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {

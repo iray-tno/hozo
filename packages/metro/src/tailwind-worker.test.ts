@@ -344,7 +344,7 @@ test('a validly hashed old projection policy is rejected, not mixed with current
   const reference = readMetroState(root)!.tailwind!
   const data = JSON.parse(readFileSync(reference.file, 'utf8'))
   assert.equal(data.orderingPolicy, TAILWIND_SCALAR_ORDER_POLICY)
-  data.orderingPolicy = 'scalar-order-v5'
+  data.orderingPolicy = 'scalar-order-v6'
   const content = JSON.stringify(data)
   writeFileSync(reference.file, content)
   await assert.rejects(

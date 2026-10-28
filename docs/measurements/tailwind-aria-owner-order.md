@@ -52,10 +52,14 @@ Initial probes exposed two additional assumptions, retained as failures:
   then exposed a separate real normalization defect: duplicate disabled/state
   props and divergent effective facts. See [#1359](https://github.com/iray-tno/hozo/issues/1359).
 
-`aria-disabled` consequently remains unassessed, together with negations,
+In this v6 measurement, `aria-disabled` consequently remained unassessed, together with negations,
 hidden/pressed/readonly/required and arbitrary values/flags/operators. We do
 not report those owner facts as equivalent. Responsive/dark/data/relational
 conditions still need their own original-rule and delivery proof.
+
+The later owner-fact repair and v7 graduation are recorded separately in
+[normalized disabled ordering](tailwind-aria-disabled-order.md); they do not
+retroactively change this stage's scope or observations.
 
 Final local checks before rebasing: workspace Rust **1,078 passed / one
 intentional ignored**, fmt and all-target Clippy with warnings denied; freshly

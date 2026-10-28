@@ -98,7 +98,7 @@ test('one exact final context contains actual static units and reconciled runtim
   })
   assert.equal(preparations, 1)
   assert.equal(result.fingerprint, result.native.fingerprint)
-  assert.match(result.fingerprint, /^scalar-order-v6:[a-f0-9]{64}$/)
+  assert.match(result.fingerprint, /^scalar-order-v7:[a-f0-9]{64}$/)
   assert.equal(web.context, native.context)
   assert.equal(
     renderContext,
@@ -113,7 +113,7 @@ test('one exact final context contains actual static units and reconciled runtim
   for (const { output } of result.modules) {
     const components = Array.isArray(output) ? output : output.components
     assert.equal(components[0].tailwindPlan?.fingerprint, result.fingerprint)
-    assert.equal(components[0].tailwindPlan?.mode, 'scalar-order-v6')
+    assert.equal(components[0].tailwindPlan?.mode, 'scalar-order-v7')
   }
   assert.deepEqual(result.ignoredModules, [{ id: 'deleted', revision: 'old' }])
   assert.deepEqual(result.ignoredRuntimeSources, ['deleted'])

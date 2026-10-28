@@ -275,9 +275,15 @@ with already-supported interactions. One canonical input's order survives
 Native's prop/interactive guard delivery buckets; mixed inputs stay separate.
 The experiment also found pre-existing duplicate disabled/accessibilityState
 props and divergent effective disabled facts, recorded in
-[#1359](https://github.com/iray-tno/hozo/issues/1359). `aria-disabled` deliberately
-does not graduate while that boundary is inconsistent. See
+[#1359](https://github.com/iray-tno/hozo/issues/1359). That stage deliberately did
+not graduate `aria-disabled` while the boundary was inconsistent. See
 [ARIA scope and failures](../measurements/tailwind-aria-owner-order.md).
+
+Policy v7 admits exact positive `aria-disabled` after the shared owner-fact
+repair in [#1362](https://github.com/iray-tno/hozo/pull/1362). The original ARIA
+predicate remains distinct from `:disabled` in selector/guard evidence even
+though normalized action-owner delivery makes their boolean values agree.
+No runtime sorting, provider or new state key is needed for this graduation.
 
 ## 1. Restart, not another family-specific patch
 

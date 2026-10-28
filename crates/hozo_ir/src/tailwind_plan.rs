@@ -6,7 +6,7 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v6";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v7";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; physical padding/margin also
