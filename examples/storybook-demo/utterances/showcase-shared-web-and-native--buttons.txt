@@ -2,5 +2,5 @@ heading, Buttons, level 2
 Pressed
 0
 times
-button, Add one
+button, Add one, not disabled
 button, Reset

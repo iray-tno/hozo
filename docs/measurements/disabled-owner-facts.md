@@ -95,3 +95,23 @@ Storybook's CI test entry passed **268 tests, zero failures or skips** (up from
 265 because the old single assertion becomes four compiled/fallback SSR and
 browser tests). This includes all its existing browser and Native-host probes;
 it is not a fresh Storybook production build or device/AT run.
+
+## CI follow-up: explicit enabled-state transcripts
+
+The repaired Node phase passed in CI `40642591896` and `40642591429`, as did
+the real Storybook build and all **204 light/dark accessibility cases**. Both
+then failed the virtual-reader golden comparison for two stories. Native
+Button's explicit `disabled={false}` now reflects `aria-disabled="false"`, so
+the virtual reader includes "not disabled" for Play/Pause/Restart video and
+Add one. The source supplies a false unavailable flag in these initial states;
+the emitted metadata is intentional, not a lost label, role or activation.
+
+Only these **four phrases in two golden files** are updated. The other reading
+order and text are unchanged. Downloaded `_utterances-result.json` evidence
+from both failed runs contains all **102 stories**, finished without reader
+errors. Replaying the unchanged catalogue comparator reproduces exactly those
+two failures before the update; afterwards all **102 transcripts in each run**
+match the reviewed goldens. There is no local Storybook rebuild, fabricated
+transcript, reader-rule change or blanket snapshot approval. The same captured
+evidence is not a fresh post-change browser run, and this virtual reader is
+not NVDA, VoiceOver or TalkBack. Full post-change Storybook gates remain CI work.
