@@ -104,8 +104,60 @@ test('an authored tabIndex cannot put an unavailable destination back in the tab
   assert.match(enabled, /tabindex="0"/i, enabled)
 })
 
-test('a Button without a destination keeps its native disabled', () => {
-  const html = compiled('<Button disabled={true}>Save</Button>')
-  assert.match(html, /<button[^>]* disabled=""/, html)
-  assert.doesNotMatch(html, /aria-disabled/, html)
-})
+for (const [name, render] of Object.entries({
+  compiled: (disabled) => compiled('<Button disabled={off}>Save</Button>', { off: disabled }),
+  fallback: (disabled) => renderToStaticMarkup(createElement(FallbackButton, { disabled }, 'Save')),
+})) {
+  test(`${name} Button without a destination keeps native disabled and reflects the same ARIA fact`, () => {
+    for (const disabled of [true, false, undefined]) {
+      const html = render(disabled)
+      // The fallback includes its base stylesheet; inspect the actual host,
+      // not selector text that happens to mention aria-disabled in that CSS.
+      const button = html.match(/<button\b[^>]*>/)?.[0]
+      assert.ok(button, html)
+      assert.equal(/ disabled=""/.test(button), disabled === true, html)
+      assert.equal(/ aria-disabled="true"/.test(button), disabled === true, html)
+      assert.equal(/ data-hozo-disabled=""/.test(button), disabled === true, html)
+    }
+  })
+
+  test(`${name} Button ARIA reflection never replaces native disabling or keyboard exclusion`, {
+    skip: !executablePath,
+  }, async () => {
+    const page = await browser.newPage()
+    try {
+      for (const disabled of [true, false, undefined]) {
+        await page.setContent(
+          `<button id="before">before</button><div id="subject">${render(disabled)}</div><button id="after">after</button>`,
+        )
+        const button = page.locator('#subject button')
+        assert.equal(
+          await button.evaluate((element) => element.matches(':disabled')),
+          disabled === true,
+        )
+        assert.equal((await button.getAttribute('aria-disabled')) === 'true', disabled === true)
+        await button.evaluate((element) => {
+          window.buttonActivations = 0
+          element.addEventListener('click', () => window.buttonActivations++)
+          element.click()
+        })
+        assert.equal(await page.evaluate(() => window.buttonActivations), disabled ? 0 : 1)
+        await page.focus('#before')
+        await page.keyboard.press('Tab')
+        assert.equal(
+          await page.evaluate(
+            (disabled) =>
+              document.activeElement ===
+              document.querySelector(disabled ? '#after' : '#subject button'),
+            disabled === true,
+          ),
+          true,
+        )
+        await page.keyboard.press('Enter')
+        assert.equal(await page.evaluate(() => window.buttonActivations), disabled ? 0 : 2)
+      }
+    } finally {
+      await page.close()
+    }
+  })
+}

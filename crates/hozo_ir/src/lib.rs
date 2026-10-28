@@ -1203,6 +1203,10 @@ fn render_stylex_condition(source: &str, condition: &ConditionExpr) -> String {
             .get(reference.0.start as usize..reference.0.end as usize)
             .unwrap_or("false")
             .to_string(),
+        ConditionExpr::StateDisabled(reference) => format!(
+            "({})?.disabled === true",
+            &source[reference.0.start as usize..reference.0.end as usize]
+        ),
         ConditionExpr::Captured(capture) => {
             format!(
                 "{}[{}]",
@@ -1502,6 +1506,23 @@ const NAMING_PROPS: &[&str] = &[
 ];
 
 impl PropSet {
+    /// One canonical disabled fact for behavior, announcement and styles.
+    /// A false explicit flag cannot enable a state-disabled control. Keep
+    /// literal key knowledge so partial state objects remain type-correct.
+    pub fn effective_disabled(&self) -> Option<ConditionExpr> {
+        let state = self
+            .accessibility_state
+            .filter(|_| {
+                self.accessibility_state_keys
+                    .as_ref()
+                    .is_none_or(|keys| keys.iter().any(|key| key == "disabled"))
+            })
+            .map(ConditionExpr::StateDisabled);
+        match (self.disabled.clone(), state) {
+            (Some(flag), Some(state)) => Some(ConditionExpr::Or(Box::new(flag), Box::new(state))),
+            (flag, state) => flag.or(state),
+        }
+    }
     /// Whether this element has an accessible name.
     ///
     /// `None` means "cannot tell": a `{...spread}` may carry any of these,
@@ -4684,6 +4705,9 @@ pub enum ConditionExpr {
     /// expression span to preserve, but is still a real constant guard.
     Static(bool),
     Ref(ExprRef),
+    /// A compiler-owned boolean fact, not an authored class expression.
+    /// Opaque optional state is absent unless its disabled member is true.
+    StateDisabled(ExprRef),
     /// An authored class predicate evaluated once in its original branch.
     /// `reference` still keys Web's guard class; the value is closure-bound.
     Captured(Box<ClassPredicateCapture>),

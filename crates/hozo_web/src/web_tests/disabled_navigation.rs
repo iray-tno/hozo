@@ -36,7 +36,11 @@ fn unavailable_destinations_use_the_anchor_contract_not_the_source_component_nam
     }
     let action = compile("<Button disabled={blocked}>Save</Button>");
     assert!(action.jsx.contains(" disabled={blocked}"), "{}", action.jsx);
-    assert!(!action.jsx.contains("aria-disabled"), "{}", action.jsx);
+    assert!(
+        action.jsx.contains("aria-disabled={blocked}"),
+        "{}",
+        action.jsx
+    );
 }
 
 #[test]
@@ -98,7 +102,7 @@ fn unavailable_state_and_disabled_prop_share_one_anchor_guard() {
     assert!(
         output
             .jsx
-            .contains("aria-disabled={(blocked) || ({disabled: busy}).disabled}"),
+            .contains("aria-disabled={(blocked) || (({disabled: busy})?.disabled === true)}"),
         "{}",
         output.jsx
     );

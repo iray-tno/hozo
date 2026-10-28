@@ -4,9 +4,9 @@ Moving square, silent video
 Video: ready; paused
 Requested video speed: 1x; pitch correction on
 button, Set video speed to 2x
-button, Play video
-button, Pause video
-button, Restart video
+button, Play video, not disabled
+button, Pause video, not disabled
+button, Restart video, not disabled
 button, Unmute video
 button, Enable video loop
 button, Remove video

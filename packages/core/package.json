@@ -152,6 +152,10 @@
       "types": "./dist/generated/meter.d.ts",
       "default": "./dist/generated/meter.js"
     },
+    "./generated/native-disabled": {
+      "types": "./dist/generated/native-disabled.d.ts",
+      "default": "./dist/generated/native-disabled.js"
+    },
     "./generated/otp-input": {
       "types": "./dist/generated/otp-input.d.ts",
       "default": "./dist/generated/otp-input.js"

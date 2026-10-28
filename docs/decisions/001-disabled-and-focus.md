@@ -146,6 +146,21 @@ to disagree, and the shape of most of what this document came out of.
 
 `universalDomProps` emits it now, and a test walks every primitive.
 
+## One effective owner fact in compiled and fallback controls
+
+`disabled || accessibilityState?.disabled === true` is the existing Hozo
+unavailable policy. An explicit false flag does not enable a control announced
+as disabled. Both compiler backends, Native static/dynamic style guards and
+fallback controls must agree, including when an optional state is null.
+Merging the disabled member must preserve selected/checked/busy and other
+authored state keys rather than overwrite the whole object (#1359).
+
+Real Web buttons retain the native `disabled` attribute and its browser
+behavior. They additionally reflect the same `aria-disabled` fact so ARIA
+utilities see the same state as on Native; ARIA does not replace native button
+semantics. This is an owner-state protocol, not permission to equate pointer
+press state with ARIA state or to invent unavailable facts on decorative slots.
+
 ## Deferred: `@hozo/android-a11y`
 
 This will come up once there are users. It is worth doing, and the mechanism is

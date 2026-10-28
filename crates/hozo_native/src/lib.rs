@@ -474,6 +474,9 @@ fn render_condition_expr(source: &str, expr: &ConditionExpr) -> String {
     match expr {
         ConditionExpr::Static(value) => value.to_string(),
         ConditionExpr::Ref(r) => source_text(source, *r).to_string(),
+        ConditionExpr::StateDisabled(r) => {
+            format!("({})?.disabled === true", source_text(source, *r))
+        }
         ConditionExpr::Captured(capture) => format!(
             "{}[{}]",
             hozo_ir::ClassEvaluation::binding(source, capture.plan),
@@ -1154,6 +1157,12 @@ fn environment_name(query: Environment) -> &'static str {
 }
 
 fn aria_state_guard(node: &Node, source: &str, state: &str) -> Option<String> {
+    if state == "disabled" {
+        return node
+            .props
+            .effective_disabled()
+            .map(|fact| format!("Boolean({})", render_condition_expr(source, &fact)));
+    }
     if state == "invalid" {
         // CSS matches the literal "true", not arbitrary truthy values or
         // the grammar/spelling tokens. Evaluate the prop expression once.
@@ -1191,13 +1200,12 @@ fn read_only_guard(node: &Node, source: &str) -> Option<String> {
     // matches a disabled HTML input. The disabled semantic fact is separate.
     if let Some(disabled) = node
         .props
-        .disabled
-        .as_ref()
+        .effective_disabled()
         .filter(|_| node.primitive == Primitive::TextInput)
     {
         return Some(format!(
             "Boolean({}) || ({})",
-            render_condition_expr(source, disabled),
+            render_condition_expr(source, &disabled),
             base.unwrap_or_else(|| "false".to_string())
         ));
     }
@@ -1244,10 +1252,10 @@ fn runtime_class_state(node: &Node, source: &str, interaction: bool) -> Option<S
             .to_string(),
         );
     }
-    if let Some(disabled) = node.props.disabled.as_ref() {
+    if let Some(disabled) = node.props.effective_disabled() {
         fields.push(format!(
             "disabled: Boolean({})",
-            render_condition_expr(source, disabled)
+            render_condition_expr(source, &disabled)
         ));
     }
     if let Some(guard) = aria_state_guard(node, source, "invalid") {
@@ -1257,6 +1265,9 @@ fn runtime_class_state(node: &Node, source: &str, interaction: bool) -> Option<S
         if let Some(guard) = read_only_guard(node, source) {
             fields.push(format!("readOnly: Boolean({guard})"));
         }
+    }
+    if let Some(guard) = aria_state_guard(node, source, "disabled") {
+        fields.push(format!("'aria-disabled': {guard}"));
     }
     if node.props.accessibility_state.is_some() {
         // A literal says which states it has; an opaque expression could
@@ -1268,6 +1279,9 @@ fn runtime_class_state(node: &Node, source: &str, interaction: bool) -> Option<S
                 .to_vec(),
         };
         for state in states {
+            if state == "disabled" {
+                continue;
+            }
             if let Some(guard) = aria_state_guard(node, source, &state) {
                 fields.push(format!("'aria-{state}': {guard}"));
             }
@@ -1398,6 +1412,7 @@ fn expr_key(expr: &ConditionExpr) -> String {
     match expr {
         ConditionExpr::Static(value) => value.to_string(),
         ConditionExpr::Ref(r) => format!("{}_{}", r.0.start, r.0.end),
+        ConditionExpr::StateDisabled(r) => format!("state_disabled_{}_{}", r.0.start, r.0.end),
         ConditionExpr::Captured(capture) => {
             format!("{}_{}", capture.reference.0.start, capture.reference.0.end)
         }

@@ -41,6 +41,7 @@
         "$TURBO_ROOT$/packages/ui/src/combobox.tsx",
         "$TURBO_ROOT$/packages/ui/src/listbox.tsx",
         "$TURBO_ROOT$/packages/ui/src/menu.tsx",
+        "$TURBO_ROOT$/packages/primitives/src/native-disabled.ts",
         "$TURBO_ROOT$/packages/engine/src/**",
         "$TURBO_ROOT$/packages/rn-compat/src/**",
         "$TURBO_ROOT$/packages/typography/src/**"
@@ -52,6 +53,7 @@
     "@hozo/tailwind#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/packages/primitives/src/native-disabled.ts",
         "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",
         "$TURBO_ROOT$/packages/engine/src/transform-slots.ts",
         "$TURBO_DEFAULT$",
@@ -62,6 +64,7 @@
     "@hozo/tailwind-conformance#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/*/src/**",
         "$TURBO_ROOT$/crates/hozo_napi/src/lib.rs",
@@ -127,6 +130,7 @@
     "@hozo/example-storybook#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/packages/primitives/src/**",
         "$TURBO_ROOT$/crates/hozo_ir/src/theme.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind.rs",
         "$TURBO_ROOT$/apps/landing/src/examples/ui/ResizablePaneDemo.tsx",
@@ -179,6 +183,7 @@
     "@hozo/example-native-showcase#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/theme.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind.rs",
         "$TURBO_ROOT$/apps/landing/src/examples/ui/**",

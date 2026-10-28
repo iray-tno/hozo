@@ -48,6 +48,7 @@ const productionStaticSources = [
   'crates/hozo_native/src/lib.rs',
   'crates/hozo_native/src/runtime_classes.rs',
   'crates/hozo_native/src/conditions.rs',
+  'crates/hozo_native/src/conditions/guards.rs',
   'crates/hozo_native/src/text_region.rs',
   'crates/hozo_native/src/style.rs',
   'crates/hozo_native/src/render.rs',
