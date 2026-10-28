@@ -1,6 +1,11 @@
 // biome-ignore-all lint/suspicious/noArrayIndexKey: code lines and tokens use source-position identity
 import { useHozoMessage } from '@hozo/behaviors'
-import { initialRange, ListMetrics, type WindowRange, windowRange } from '@hozo/primitives'
+import {
+  initialRange,
+  ListMetrics,
+  type WindowRange,
+  windowRange,
+} from '@hozo/primitives/windowing'
 import {
   type CSSProperties,
   type ReactNode,
