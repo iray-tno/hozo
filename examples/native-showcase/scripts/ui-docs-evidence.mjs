@@ -163,17 +163,30 @@ export async function exerciseUiDocs(
   for (const overlay of overlays) await visitOverlay(overlay)
   // The same overlays turned sideways, under their own key. Images are
   // `landscape-<name>.png`. Turned back afterwards whatever happened, so a
-  // walk that goes on is upright.
+  // walk that goes on is upright. A device that cannot be turned is recorded
+  // like a scene that never appeared, not thrown: the walk's rule is that only
+  // a walk that showed nothing at all fails.
   if (landscape.length > 0 && !device.rotate) {
     for (const { name } of landscape) {
       manifest.landscape[name] = { status: 'skipped', reason: 'this device cannot be rotated' }
     }
   } else if (landscape.length > 0) {
+    let turned = false
     try {
       await device.rotate(true)
+      turned = true
+    } catch (error) {
+      for (const { name } of landscape) {
+        manifest.landscape[name] = { status: 'unreached', reason: String(error?.message ?? error) }
+      }
+    }
+    if (turned) {
       for (const overlay of landscape) await visitOverlay(overlay, 'landscape', 'landscape')
-    } finally {
-      await device.rotate(false)
+      try {
+        await device.rotate(false)
+      } catch {
+        /* Every landscape scene already has its entry. */
+      }
     }
   }
   writeFileSync(resolve(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)

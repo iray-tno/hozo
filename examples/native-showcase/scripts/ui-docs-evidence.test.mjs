@@ -219,4 +219,17 @@ test('landscape overlays are shot turned, then the device is turned back, or are
 
   const upright = await exerciseUiDocs(device, output, { pages: ['button'], landscape: [drawer] })
   assert.equal(upright.landscape.Drawer.status, 'skipped')
+
+  // A device lost before the turn is a scene that never appeared, not a throw.
+  const lost = await exerciseUiDocs(
+    {
+      ...device,
+      rotate: async () => {
+        throw new Error('device offline')
+      },
+    },
+    output,
+    { pages: ['button'], landscape: [drawer] },
+  )
+  assert.deepEqual(lost.landscape.Drawer, { status: 'unreached', reason: 'device offline' })
 })
