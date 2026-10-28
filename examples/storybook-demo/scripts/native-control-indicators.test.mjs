@@ -104,6 +104,7 @@ for (const file of [
   'time-picker.tsx',
   'file-dropzone.tsx',
   'accordion.tsx',
+  'drawer.tsx',
 ]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
@@ -2664,6 +2665,21 @@ test('Native BottomSheet root fills its Modal and pins the sheet to the bottom w
   assert.equal(root.flexDirection, 'row', 'items-end is the bottom edge only in a row')
   assert.equal(root.alignItems, 'flex-end')
   assert.equal(root.justifyContent, 'center')
+})
+
+test('Native Drawer root puts the panel against the edge its UI root class names', async (t) => {
+  // @hozo/ui's root lists, read from its source so the two cannot drift.
+  const source = readFileSync(path.join(uiRoot, 'src/drawer.tsx'), 'utf8')
+  for (const [side, justify] of [
+    ['left', 'flex-start'],
+    ['right', 'flex-end'],
+  ]) {
+    const rootClass = source.match(new RegExp(`^  ${side}: '([^']+)'`, 'm'))[1]
+    const tree = await mount(t, HozoDrawer, { open: true, side, className: rootClass })
+    const root = flat(views(tree)[0].props.style)
+    assert.equal(root.flexDirection, 'row', `${side}: justify-* is across only in a row`)
+    assert.equal(root.justifyContent, justify, side)
+  }
 })
 
 test('Native Drawer and BottomSheet add the safe area to the padding of the edges they reach', async (t) => {

@@ -26,9 +26,14 @@ import { Drawer as DrawerPattern, type DrawerProps, useHozoDrawerSide } from '@h
 
 export type HozoDrawerProps = Omit<DrawerProps, 'className' | 'scrimClassName' | 'panelClassName'>
 
+/**
+ * `flex-row` is the Web's default and React Native's is a column, where
+ * `justify-end` moved the panel down rather than across: a right-hand drawer
+ * opened on the left, its rounded edge against the screen.
+ */
 const ROOT: Record<'left' | 'right', string> = {
-  left: 'fixed inset-0 z-50 flex justify-start',
-  right: 'fixed inset-0 z-50 flex justify-end',
+  left: 'fixed inset-0 z-50 flex flex-row justify-start',
+  right: 'fixed inset-0 z-50 flex flex-row justify-end',
 }
 
 /** Dark in both schemes, because a scrim is not a surface seen from behind. */
