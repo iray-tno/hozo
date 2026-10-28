@@ -1030,6 +1030,143 @@ test('simple projected properties use upstream winners in actual static and gene
   }
 })
 
+test('positive ARIA owner ordering matches real Tailwind with independent disabled and hover facts', {
+  skip: !executablePath,
+}, async () => {
+  const names = [
+    'p-4',
+    'p-2',
+    'aria-busy:p-3',
+    'aria-checked:p-5',
+    'aria-expanded:p-7',
+    'aria-selected:p-8',
+    'aria-[invalid=true]:p-9',
+    'disabled:p-10',
+    'hover:aria-selected:p-12',
+    'aria-checked:aria-selected:p-14',
+  ]
+  const css = '@theme {--spacing:.25rem;} @tailwind utilities;'
+  const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
+  const context = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
+  const legacy = prepareTailwindContext(JSON.stringify(prepared.snapshot))
+  const cache = openCandidateCache()
+  cache.scanFile('aria.ts', JSON.stringify(names.join(' ')), 0)
+  const resolve = evaluate(
+    cache.renderNativeModulePlan(context).code.replace(/^import .*$/gm, ''),
+    {
+      createClassResolver,
+    },
+  ).hozoClasses
+  const sheet = (await compile(css)).build(names)
+  const page = await browser.newPage()
+  let observations = 0
+  let oldMismatches = 0
+  try {
+    for (const classes of [names.join(' '), names.toReversed().join(' ')]) {
+      const source = `import {Pressable} from '@hozo/core';export const A=({state,invalid,blocked})=><Pressable accessibilityState={state} aria-invalid={invalid} disabled={blocked} className="${classes}"/>`
+      const web = compiler.prepareWebModule(source).emit(context)[0]
+      const old = compiler.prepareWebModule(source).emit(legacy)[0]
+      const native = compiler.prepareNativeModule(source).emit(context).components[0]
+      assert.equal(native.diagnostics.length, 0)
+      const webOwners = [web, old].map((output) =>
+        evaluate(`module.exports=(state,invalid,blocked)=>(${output.jsx})`, {
+          h: (_type, props) => props,
+        }),
+      )
+      const render = evaluate(
+        `const hozoStyles=${native.styles};module.exports=(state,invalid,blocked)=>(${native.jsx})`,
+        {
+          Pressable: 'owner',
+          HozoPressable: 'owner',
+          h: (_type, props) => props,
+        },
+      )
+      await page.setContent(
+        `<!doctype html><style>${sheet}\n${web.css}\n${old.css.replaceAll('hozo-0', 'legacy')}</style><button id="reference" class="${classes}">Reference</button><button id="compiled" class="hozo-0">Compiled</button><button id="old" class="legacy">Legacy</button>`,
+      )
+      for (let mask = 0; mask < 32; mask++) {
+        const state = Object.fromEntries(
+          ['busy', 'checked', 'expanded', 'selected'].map((key, bit) => [
+            key,
+            Boolean(mask & (1 << bit)),
+          ]),
+        )
+        const invalid = Boolean(mask & 16)
+        const blocked = mask % 3 === 0
+        const props = render(state, invalid, blocked)
+        await page.evaluate(
+          ({ state, invalid, blocked, projected }) => {
+            for (const element of document.querySelectorAll('button')) {
+              const attributes =
+                element.id === 'reference'
+                  ? {
+                      ...Object.fromEntries(
+                        Object.entries(state).map(([key, value]) => [`aria-${key}`, value]),
+                      ),
+                      'aria-invalid': invalid,
+                    }
+                  : projected[element.id === 'compiled' ? 0 : 1]
+              for (const name of [
+                'aria-busy',
+                'aria-checked',
+                'aria-disabled',
+                'aria-expanded',
+                'aria-selected',
+                'aria-invalid',
+                'data-hozo-disabled',
+              ]) {
+                const value = attributes[name]
+                if (value == null) element.removeAttribute(name)
+                else element.setAttribute(name, String(value))
+              }
+              element.disabled = blocked
+            }
+          },
+          {
+            state,
+            invalid,
+            blocked,
+            projected: webOwners.map((render) => render(state, invalid, blocked)),
+          },
+        )
+        await page.mouse.move(700, 500)
+        for (const id of ['reference', 'compiled', 'old']) {
+          const owner = page.locator(`#${id}`)
+          // Hover some selected states but not all; the fact is read back
+          // from the browser, including on a disabled button.
+          if (mask % 2 === 0) await owner.hover({ force: true })
+          const observed = await owner.evaluate((element) => ({
+            padding: Number.parseFloat(getComputedStyle(element).paddingTop),
+            hovered: element.matches(':hover'),
+          }))
+          const facts = {
+            ...Object.fromEntries(
+              Object.entries(state).map(([key, value]) => [`aria-${key}`, value]),
+            ),
+            'aria-invalid': invalid,
+            disabled: blocked,
+            hovered: observed.hovered,
+          }
+          const style = typeof props.style === 'function' ? props.style(facts) : props.style
+          const selected = Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
+          const dynamic = Object.assign({}, ...resolve(classes, facts))
+          if (id === 'old') oldMismatches += Number(observed.padding !== selected.paddingTop)
+          else {
+            assert.equal(selected.paddingTop, observed.padding, `${id}/${mask}/static`)
+            assert.equal(dynamic.paddingTop, observed.padding, `${id}/${mask}/generated`)
+            observations++
+          }
+          await page.mouse.move(700, 500)
+        }
+      }
+    }
+    assert.equal(observations, 128)
+    assert.ok(oldMismatches > 0, 'the independent oracle detects legacy whole-input string order')
+  } finally {
+    await page.close()
+  }
+})
+
 test('font-weight registration and custom theme values agree in actual Web, Native and generated outputs', {
   skip: !executablePath,
 }, async () => {
