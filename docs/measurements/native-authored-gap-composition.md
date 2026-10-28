@@ -104,6 +104,14 @@ samples remain recorded, rather than selecting the fastest repeated run.
 
 ## Remaining work
 
+CI40694163365 passed package checks but one Storybook Node assertion still
+expected the ordinary spread helper on an opaque Listbox wrapper. The test
+now requires `hozoGapSpreadStyles`, supplies the actual implementation, and
+also verifies a caller gap reaches both16px axes while the bound, padding,
+margin and single getter read survive. Focused1and the complete candidate
+cascade42tests passed (58.57s), including its mutation controls. No production
+behavior, timeout or expected value changed for this CI repair.
+
 Wire the same boundary into uncompiled pattern/secondary-slot owners and
 verify direct authored callback composition, clearing/null cases, percentages,
 mixed StyleX/class tiers and contextual grid behavior. This slice does not

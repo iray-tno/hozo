@@ -10,6 +10,7 @@ import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
 import { createClassResolver, hozoSplitTextStyle } from '@hozo/engine'
+import { hozoGapSpreadStyles } from '@hozo/engine/generated/gap-styles'
 import { hozoSpreadStyles } from '@hozo/engine/generated/spread-styles'
 import { NativeSelect } from '@hozo/form'
 import { Button as ButtonFallback } from '@hozo/primitives'
@@ -4474,7 +4475,7 @@ test("a UI wrapper keeps its compiled look when a caller's Native style comes th
     'utf8',
   )
   const native = compiler.compileNative(source).find((part) => part.jsx.includes('HozoListbox'))
-  assert.ok(native.jsx.includes('{...hozoSpreadStyles('), native.jsx)
+  assert.ok(native.jsx.includes('{...hozoGapSpreadStyles('), native.jsx)
   const { HozoListbox } = load('listbox.native.tsx')
   const render = (rest) => {
     const element = evaluate(
@@ -4486,6 +4487,7 @@ test("a UI wrapper keeps its compiled look when a caller's Native style comes th
         box: /const box =\s*'([^']+)'/.exec(source)[1],
         hozoClasses: () => undefined,
         hozoSpreadStyles,
+        hozoGapSpreadStyles,
         HozoListbox,
       },
     )
@@ -4501,13 +4503,15 @@ test("a UI wrapper keeps its compiled look when a caller's Native style comes th
     options,
     get style() {
       reads += 1
-      return { paddingTop: 19, marginTop: 7 }
+      return { paddingTop: 19, marginTop: 7, gap: 16 }
     },
   }
   const styled = flat(render(rest).props.style)
   assert.equal(styled.maxHeight, 240, 'the compiled bound survives a caller style')
   assert.equal(styled.paddingTop, 19, "the caller's edge beats the compiled padding")
   assert.equal(styled.marginTop, 7, "and the caller's own property arrives")
+  assert.equal(styled.rowGap, 16, 'the caller gap reaches both Native axes')
+  assert.equal(styled.columnGap, 16)
   assert.equal(reads, 1, 'the spread is read once')
 })
 
