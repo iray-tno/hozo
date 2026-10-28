@@ -83,6 +83,34 @@ are retained, not discarded as flakes.
 The Native generated text fixture is regenerated normally for source receipt
 freshness. Its hash change does not constitute another device run.
 
+### CI dependency repair after rebasing
+
+CI40701012370 failed five Chip inheritance cases before exercising their
+assertions: the test adapter marked the engine package external, which also
+matched Chip's new `@hozo/engine/generated/gap-styles` dependency, but its
+restricted module loader did not supply that leaf. This was a deterministic
+test-graph omission, not an inheritance mismatch or a device timeout. The
+same head's Android and iOS jobs both succeeded.
+
+After #1372 merged, gh-stack rebased this layer onto main90e6a823, preserving
+the intervening CodeBlock and appearance changes without replaying the
+squash-merged parent. The test adapter now bundles the actual gap leaf from
+source and asserts its implementation is present. A new regression requires
+both16px axes over compiled8px/4px axes, unchanged frozen author input, and
+text colour inheritance without box styles leaking into the label. The
+complete inheritance runtime file passed **26 tests**, no skips, including
+the five CI failures and existing resolver-count/host-topology checks. No
+production behavior, assertion, timeout or runtime subscription was relaxed
+to fix this dependency failure. Rust1,083/one intentional ignore, fmt,
+all-target Clippy and a fresh addon were verified again after the rebase.
+The adapter's concurrent/motion consumers, dynamic owner probes, the1,152
+gap observations and raw-source cache guards passed **58 tests**, no skips.
+Typography/patterns were rebuilt for main's new CodeBlock dependency; the
+first raw-source run against the old local typography output correctly
+reported its missing `useCodeLineRows` export. Rebuilding, not a mock or a
+product-code workaround, resolved that local setup failure. The Native text
+fixture source receipt also passed its freshness check unchanged.
+
 ## Limits and next boundary
 
 No full local root suite, application/Metro/device build, Fabric pixels or AT

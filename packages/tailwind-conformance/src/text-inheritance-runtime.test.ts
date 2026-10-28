@@ -274,6 +274,40 @@ test('generated standalone Chip publishes only its resolved label through opaque
   assert.deepEqual(records[2], records[0])
 })
 
+test('the Chip inheritance probe runs the real gap boundary without publishing box axes to text', () => {
+  const api = loadTextInheritanceRuntime(React.createContext(14), undefined, true, true)
+  const own = Object.freeze({ gap: 16, padding: 7 })
+  let tree: ReturnType<typeof renderer.create>
+  try {
+    renderer.act(() => {
+      tree = renderer.create(
+        React.createElement(
+          api.HozoChip,
+          {
+            defaultSelected: false,
+            style: own,
+            hozoStyle: () => ({ rowGap: 8, columnGap: 4, color: '#1355bb' }),
+            hozoInheritedLabel: api.HozoInheritedLabel,
+            hozoInheritedText: api.HozoInheritedText,
+          },
+          'Label',
+        ),
+      )
+    })
+    assert.deepEqual(flatten(tree.root.findByType('Pressable').props.style({ pressed: false })), {
+      rowGap: 16,
+      columnGap: 16,
+      padding: 7,
+    })
+    const label = flatten(tree.root.findByType('NativeText').props.style)
+    assert.equal(label.color, '#1355bb')
+    for (const key of ['gap', 'rowGap', 'columnGap', 'padding']) assert.equal(label[key], undefined)
+    assert.deepEqual(own, { gap: 16, padding: 7 })
+  } finally {
+    renderer.act(() => tree?.unmount())
+  }
+})
+
 test('Chip label integration adds no resolver calls or event owners to the existing string path', () => {
   const api = loadTextInheritanceRuntime(React.createContext(14), undefined, true, true)
   const counts = []
