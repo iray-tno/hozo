@@ -2709,6 +2709,45 @@ test('Native Drawer and BottomSheet add the safe area to the padding of the edge
   assert.deepEqual(await padding(HozoDrawer, 'panelClassName', none), [24, 24], 'no provider')
 })
 
+test('Native Drawer, BottomSheet and Menu keep clear of a landscape notch on the left or right', async (t) => {
+  t.after(() => {
+    nativeInsets = { top: 0, right: 0, bottom: 0, left: 0 }
+  })
+  // iPhone landscape: the notch on the left, the home indicator below.
+  nativeInsets = { top: 0, right: 0, bottom: 21, left: 59 }
+  const sides = (style) => [flat(style).paddingLeft, flat(style).paddingRight]
+
+  // The panel reaches its own edge and no other, so only that edge is padded.
+  const left = await mount(t, HozoDrawer, { open: true, panelClassName: 'p-6' })
+  assert.deepEqual(sides(panel(left).props.style), [83, 24], 'a left drawer pads the left')
+  const right = await mount(t, HozoDrawer, { open: true, side: 'right', panelClassName: 'p-6' })
+  assert.deepEqual(sides(panel(right).props.style), [24, 24], 'a right drawer is away from it')
+  nativeInsets = { top: 0, right: 59, bottom: 21, left: 0 }
+  const turned = await mount(t, HozoDrawer, { open: true, side: 'right', panelClassName: 'p-6' })
+  assert.deepEqual(
+    sides(panel(turned).props.style),
+    [24, 83],
+    'and pads the right once it is there',
+  )
+
+  // The sheet is centred with a maximum width, so the root keeps it off both
+  // insets and the sheet's own padding is left alone.
+  nativeInsets = { top: 0, right: 59, bottom: 21, left: 59 }
+  const sheet = await mount(t, HozoBottomSheet, { open: true, sheetClassName: 'p-6' })
+  assert.deepEqual(sides(views(sheet)[0].props.style), [59, 59], 'the root clears both sides')
+  assert.deepEqual(sides(panel(sheet).props.style), [24, 24], 'the sheet keeps its own padding')
+
+  // The menu is full width, so its own box pads both sides.
+  const menuTree = await mount(t, HozoMenu, {
+    trigger: 'Actions',
+    menuClassName: 'p-2',
+    defaultOpen: true,
+    items: [{ label: 'Run' }],
+  })
+  const menu = menuTree.root.find((node) => node.props.accessibilityRole === 'menu')
+  assert.deepEqual(sides(menu.props.style), [67, 67], 'the menu pads both sides')
+})
+
 test('Native BottomSheet draws the handle bar as a box inside the handle, with or without detents', async (t) => {
   for (const detents of [[1], [0.5, 1]]) {
     const tree = await mount(t, HozoBottomSheet, {
