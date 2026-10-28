@@ -978,6 +978,9 @@ fn render_condition_expr(source: &str, expr: &hozo_ir::ConditionExpr) -> String 
     match expr {
         ConditionExpr::Static(value) => value.to_string(),
         ConditionExpr::Ref(r) => source_text(source, *r).to_string(),
+        ConditionExpr::StateDisabled(r) => {
+            format!("({})?.disabled === true", source_text(source, *r))
+        }
         ConditionExpr::Captured(capture) => format!(
             "{}[{}]",
             hozo_ir::ClassEvaluation::binding(source, capture.plan),
@@ -1182,29 +1185,13 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
         node.props.on_press.is_some() && extra_attrs.iter().any(|(key, _)| *key == "tabIndex");
 
     // The one expression that decides `disabled`, whichever way it was
-    // spelled. React Native folds them together -- `aria-disabled` and
-    // `accessibilityState.disabled` are one state, and `Pressable.js`
-    // merges the `disabled` prop into it -- so Hozo does too, rather than
-    // emitting `aria-disabled` twice and letting the later one win by
-    // accident, which is what writing both used to do.
-    let state_disabled = node
+    // spelled. This is Hozo's existing unavailable policy, also used by
+    // the fallback Pressable: a false flag cannot enable a state-disabled
+    // control. Props, styles and activation must not each reconstruct it.
+    let disabled_expr = node
         .props
-        .accessibility_state
-        .filter(|_| {
-            node.props
-                .accessibility_state_keys
-                .as_ref()
-                .is_none_or(|keys| keys.iter().any(|key| key == "disabled"))
-        })
-        .map(|value| format!("({}).disabled", source_text(source, value)));
-    let disabled_expr = match (node.props.disabled.as_ref(), state_disabled) {
-        (Some(flag), Some(state)) => Some(format!(
-            "({}) || {state}",
-            render_condition_expr(source, flag)
-        )),
-        (Some(flag), None) => Some(render_condition_expr(source, flag)),
-        (None, state) => state,
-    };
+        .effective_disabled()
+        .map(|fact| render_condition_expr(source, &fact));
 
     // A retained alias is a component too. Looking only at its spelling
     // renamed nativeID/onPress/disabled for the DOM before the fallback
@@ -1517,7 +1504,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                 // `disabled` folds into `hozoInteractive` when there is
                 // one; emitting it here too put `aria-disabled` on the
                 // element twice and let the later win by accident.
-                if (synthesized_control || tag == "a") && *key == "disabled" {
+                if *key == "disabled" {
                     continue;
                 }
                 let written = node
@@ -1526,7 +1513,12 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
                     .as_ref()
                     .is_none_or(|keys| keys.iter().any(|written| written == key));
                 if written {
-                    attrs.push_str(&format!(" {attr_name}={{({value}).{key}}}"));
+                    let member = if node.props.accessibility_state_keys.is_none() {
+                        "?."
+                    } else {
+                        "."
+                    };
+                    attrs.push_str(&format!(" {attr_name}={{({value}){member}{key}}}"));
                 }
             }
         }
@@ -1988,12 +1980,7 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
             );
         }
     }
-    if let Some(disabled) = node
-        .props
-        .disabled
-        .as_ref()
-        .filter(|_| !synthesized_control && tag != "a")
-    {
+    if !synthesized_control && tag != "a" {
         // `disabled` is a real, React-boolean-aware HTML attribute only on
         // actual form controls (<button> here) -- react omits it entirely
         // when the value is falsy. Everything else Hozo maps to a <div>
@@ -2002,16 +1989,18 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
         // The actual rendered tag decides, not Primitive::Button, which
         // may be an anchor. Retained component aliases keep the portable
         // prop because they choose their host at runtime (#943).
-        let attr_name =
-            if is_hozo_component || matches!(tag, "button" | "input" | "textarea" | "select") {
-                "disabled"
-            } else {
-                "aria-disabled"
-            };
-        attrs.push_str(&format!(
-            " {attr_name}={{{}}}",
-            render_condition_expr(source, disabled)
-        ));
+        if is_hozo_component {
+            if let Some(disabled) = &node.props.disabled {
+                attrs.push_str(&format!(
+                    " disabled={{{}}}",
+                    render_condition_expr(source, disabled)
+                ));
+            }
+        } else if matches!(tag, "button" | "input" | "textarea" | "select") {
+            if let Some(disabled) = &disabled_expr {
+                attrs.push_str(&format!(" disabled={{{disabled}}}"));
+            }
+        }
     }
 
     // React Native's `focusable`, in the spelling the DOM has.
@@ -2058,6 +2047,9 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
     // Skipped when `hozoInteractive` is supplying it, which is the same
     // rule the state attributes above follow.
     if let Some(expr) = disabled_expr.as_ref().filter(|_| !synthesized_control) {
+        if !is_hozo_component && tag != "a" {
+            attrs.push_str(&format!(" aria-disabled={{{expr}}}"));
+        }
         attrs.push_str(&format!(
             " data-hozo-disabled={{({expr}) ? '' : undefined}}"
         ));
@@ -2525,14 +2517,18 @@ fn class_guards(style: &[hozo_ir::StyleDeclaration], source: &str) -> Vec<String
             collect_from_expr(expr, &mut refs);
         }
     }
-    refs.sort_by_key(|(reference, _)| (reference.0.start, reference.0.end));
-    refs.dedup_by_key(|(reference, _)| *reference);
+    refs.sort_by_key(|(reference, state, _)| (reference.0.start, reference.0.end, *state));
+    refs.dedup_by_key(|(reference, state, _)| (*reference, *state));
     refs.into_iter()
-        .map(|(reference, expression)| {
+        .map(|(reference, state, expression)| {
             format!(
                 "({}) && '{}'",
                 render_condition_expr(source, expression),
-                css::expr_ref_class(reference)
+                if state {
+                    css::state_disabled_ref_class(reference)
+                } else {
+                    css::expr_ref_class(reference)
+                }
             )
         })
         .collect()
@@ -2540,13 +2536,14 @@ fn class_guards(style: &[hozo_ir::StyleDeclaration], source: &str) -> Vec<String
 
 fn collect_from_expr<'a>(
     expr: &'a hozo_ir::ConditionExpr,
-    out: &mut Vec<(hozo_ir::ExprRef, &'a hozo_ir::ConditionExpr)>,
+    out: &mut Vec<(hozo_ir::ExprRef, bool, &'a hozo_ir::ConditionExpr)>,
 ) {
     use hozo_ir::ConditionExpr;
     match expr {
         ConditionExpr::Static(_) => {}
-        ConditionExpr::Ref(r) => out.push((*r, expr)),
-        ConditionExpr::Captured(capture) => out.push((capture.reference, expr)),
+        ConditionExpr::Ref(r) => out.push((*r, false, expr)),
+        ConditionExpr::StateDisabled(r) => out.push((*r, true, expr)),
+        ConditionExpr::Captured(capture) => out.push((capture.reference, false, expr)),
         ConditionExpr::Not(inner) => collect_from_expr(inner, out),
         ConditionExpr::And(a, b) | ConditionExpr::Or(a, b) => {
             collect_from_expr(a, out);

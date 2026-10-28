@@ -1548,6 +1548,13 @@ pub fn expr_ref_class(expr_ref: hozo_ir::ExprRef) -> String {
     format!("hozo-cond-{}-{}", expr_ref.0.start, expr_ref.0.end)
 }
 
+pub fn state_disabled_ref_class(expr_ref: hozo_ir::ExprRef) -> String {
+    format!(
+        "hozo-state-disabled-{}-{}",
+        expr_ref.0.start, expr_ref.0.end
+    )
+}
+
 fn condition_expr_selector(expr: &ConditionExpr) -> String {
     match expr {
         ConditionExpr::Static(true) => String::new(),
@@ -1558,6 +1565,9 @@ fn condition_expr_selector(expr: &ConditionExpr) -> String {
         // (#881). `:not()` and `:is()` take their arguments' weight, so the
         // other arms stay weightless too.
         ConditionExpr::Ref(expr_ref) => format!(":where(.{})", expr_ref_class(*expr_ref)),
+        ConditionExpr::StateDisabled(expr_ref) => {
+            format!(":where(.{})", state_disabled_ref_class(*expr_ref))
+        }
         ConditionExpr::Captured(capture) => {
             format!(":where(.{})", expr_ref_class(capture.reference))
         }

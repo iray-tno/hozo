@@ -71,6 +71,7 @@ export const GENERATED_ABI: Readonly<Record<string, string>> = {
   hozoTransformStyles: '@hozo/core/generated/transform-slots',
   HozoView: '@hozo/core/generated/view',
   hozoViewDomProps: '@hozo/core/generated/view-dom-props',
+  nativeDisabledProps: '@hozo/core/generated/native-disabled',
   useHozoAnimation: '@hozo/core/generated/animation',
   useHozoBreakpoint: '@hozo/core/generated/environment',
   useHozoDark: '@hozo/core/generated/environment',

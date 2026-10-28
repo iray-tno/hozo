@@ -11,6 +11,7 @@ import test from 'node:test'
 const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url), 'utf8'))
 const reads = {
   '@hozo/tailwind#test': [
+    'packages/primitives/src/native-disabled.ts',
     'packages/engine/src/class-resolver.ts',
     'packages/engine/src/transform-slots.ts',
     'crates/hozo_parser/src/tailwind_variants.rs',
@@ -32,6 +33,9 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'packages/primitives/src/native-disabled.ts',
+    'packages/engine/src/interactive.ts',
+    'packages/engine/src/activate.ts',
     'packages/ui/src/combobox.tsx',
     'packages/ui/src/listbox.tsx',
     'packages/ui/src/menu.tsx',
@@ -51,6 +55,11 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'packages/primitives/src/generated/native-disabled.ts',
+    'packages/primitives/src/native-disabled.ts',
+    'packages/primitives/src/foundation.native.tsx',
+    'packages/primitives/src/pressable.native.tsx',
+    'packages/primitives/src/link.native.tsx',
     'packages/engine/src/generated/class-resolver.ts',
     'packages/engine/src/generated/transform-slots.ts',
     'crates/hozo_ir/src/theme.rs',
@@ -191,6 +200,7 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    'crates/hozo_native/src/conditions/guards.rs',
     'crates/hozo_ir/src/theme.rs',
     'crates/hozo_parser/src/tailwind.rs',
     'apps/landing/src/examples/ui/ResizablePaneDemo.tsx',
@@ -261,6 +271,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'crates/hozo_native/src/conditions/guards.rs',
     'packages/tailwind/src/theme.ts',
     'packages/tailwind/src/ordering.ts',
     'packages/tailwind/src/static-css.ts',

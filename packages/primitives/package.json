@@ -96,6 +96,10 @@
       "types": "./dist/generated/link.d.ts",
       "default": "./dist/generated/link.js"
     },
+    "./generated/native-disabled": {
+      "types": "./dist/generated/native-disabled.d.ts",
+      "default": "./dist/generated/native-disabled.js"
+    },
     "./generated/pressable": {
       "react-native": {
         "types": "./dist/generated/pressable.native.d.ts",

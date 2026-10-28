@@ -74,13 +74,13 @@ pub(super) fn resolve(
         Condition::Not(inner) => resolve(inner, target, source, runtime)
             .map(Guard::negate)
             .map_err(|reason| format!("`not-{}:` cannot be resolved: {reason}", condition_suffix(inner).unwrap_or_default())),
-        Condition::Disabled => node.props.disabled.as_ref()
+        Condition::Disabled => node.props.effective_disabled().as_ref()
             .map(|disabled| Guard::Dynamic(format!("({})", render_condition_expr(source, disabled))))
             .ok_or_else(|| "`disabled:` needs a `disabled` prop on the same element to drive it, and this one has none.".into()),
         // Keep the established enabled contract: without this prop the
         // element cannot become disabled. Explicit disabled predicates,
         // including their negation, still require a readable driver.
-        Condition::Enabled => Ok(node.props.disabled.as_ref().map_or(Guard::Known(true), |disabled| {
+        Condition::Enabled => Ok(node.props.effective_disabled().as_ref().map_or(Guard::Known(true), |disabled| {
             Guard::Dynamic(format!("!({})", render_condition_expr(source, disabled)))
         })),
         // This form state is a real TextInput prop, not DOM constraint
@@ -232,7 +232,7 @@ fn ambient(hook: RuntimeHook, runtime: &mut RuntimeNeeds) -> Guard {
 /// With neither spelling, preserve the diagnostic instead of guessing false.
 fn read_only(node: &Node, source: &str) -> Result<Guard, String> {
     let props = &node.props.text_input;
-    if node.props.disabled.is_none() {
+    if node.props.effective_disabled().is_none() {
         match (props.read_only.as_ref(), props.editable.as_ref()) {
             (Some(ConditionExpr::Static(value)), _) => return Ok(Guard::Known(*value)),
             (None, Some(ConditionExpr::Static(value))) => return Ok(Guard::Known(!value)),

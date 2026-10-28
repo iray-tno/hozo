@@ -21,6 +21,7 @@ import {
 } from './button-host-attributes.ts'
 import { hozoButtonProps } from './button-host-props.native.ts'
 import { HozoLink } from './link.native.tsx'
+import { nativeDisabledProps } from './native-disabled.ts'
 import { type NativeTextInputProps, nativeTextInputProps } from './text-input-props.native.ts'
 
 export type {
@@ -96,6 +97,7 @@ export function Pressable({
   download: _download,
   ...props
 }: PressableProps) {
+  props = nativeDisabledProps(props)
   if (href === undefined) return <RNPressable {...props} />
 
   const Link = HozoLink as unknown as ComponentType<

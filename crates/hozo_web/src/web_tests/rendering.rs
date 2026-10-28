@@ -1,6 +1,38 @@
 use super::*;
 
 #[test]
+fn a_synthetic_state_fact_never_reuses_its_raw_source_expression_guard_class() {
+    use hozo_ir::{
+        Condition, ConditionExpr, Dimension, StyleDeclaration, StyleProperty, StyleSource,
+    };
+    let source = "import {View} from '@hozo/core';const el=<View accessibilityState={state}/>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let mut node = parsed.roots[0].node.clone();
+    let state = node.props.accessibility_state.unwrap();
+    node.style = vec![
+        StyleDeclaration {
+            source: StyleSource::Unspecified,
+            condition: Condition::Expr(ConditionExpr::Ref(state)),
+            property: StyleProperty::Opacity(0.5),
+        },
+        StyleDeclaration {
+            source: StyleSource::Unspecified,
+            condition: Condition::Expr(ConditionExpr::StateDisabled(state)),
+            property: StyleProperty::Height(Dimension::Auto),
+        },
+    ];
+    let output = lower(&node, source, &Theme::default());
+    let raw = css::expr_ref_class(state);
+    let fact = css::state_disabled_ref_class(state);
+    assert_ne!(raw, fact);
+    for name in [raw, fact] {
+        assert!(output.jsx.contains(&name), "{}", output.jsx);
+        assert!(output.css.contains(&name), "{}", output.css);
+    }
+    assert!(output.jsx.contains("(state)?.disabled === true"));
+}
+
+#[test]
 fn menu_retains_actual_button_and_div_classes_and_a_leaf_abi() {
     let source = r#"import { Menu } from '@hozo/core'; const el = <Menu trigger="Actions" items={items}
         className="enabled:opacity-50 disabled:opacity-25"
@@ -914,7 +946,7 @@ fn universal_native_props_lower_to_dom_identity_pointer_and_aria() {
     assert!(
         output
             .jsx
-            .contains("aria-disabled={({ disabled, selected: true, busy }).disabled}"),
+            .contains("aria-disabled={({ disabled, selected: true, busy })?.disabled === true}"),
         "{}",
         output.jsx
     );
@@ -1503,7 +1535,9 @@ fn disabled_renders_the_native_attribute_on_button() {
     let parsed = hozo_parser::parse_tsx(source);
     let output = lower(&parsed.roots[0].node, source, &Theme::default());
     assert!(output.jsx.contains("disabled={isLoading}"));
-    assert!(!output.jsx.contains("aria-disabled"));
+    // Reflect the same fact for aria-disabled utilities without replacing
+    // the native disabled attribute that supplies actual button behavior.
+    assert!(output.jsx.contains("aria-disabled={isLoading}"));
 }
 
 /// The rendered tag decides, not the primitive: a Button with a
@@ -2770,7 +2804,7 @@ fn both_spellings_of_disabled_fold_into_one_guard() {
     assert!(
         output
             .jsx
-            .contains("{...hozoInteractive(save, (a) || ({ disabled: b }).disabled)}"),
+            .contains("{...hozoInteractive(save, (a) || (({ disabled: b })?.disabled === true))}"),
         "{}",
         output.jsx
     );

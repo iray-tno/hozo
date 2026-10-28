@@ -154,6 +154,7 @@ const openedURLs = []
 const NativeAnimatedView = (props) =>
   React.createElement('NativeAnimatedView', props, props.children)
 const nativeAnimated = {
+  createAnimatedComponent: (Component) => Component,
   View: NativeAnimatedView,
   Value: class {
     constructor(value) {
@@ -194,6 +195,15 @@ const NativePressable = ({ children, style, disabled, ...props }) => {
 const exportsFrom = (names, relative) =>
   `export { ${names} } from ${JSON.stringify(filename(relative))};`
 const probeSources = [
+  exportsFrom(
+    'HozoPressable as NativeOwnerPressable',
+    'packages/primitives/src/pressable.native.tsx',
+  ),
+  exportsFrom(
+    'Pressable as NativeCanonicalPressable',
+    'packages/primitives/src/foundation.native.tsx',
+  ),
+  exportsFrom('HozoLink as NativeOwnerLink', 'packages/primitives/src/link.native.tsx'),
   exportsFrom('HozoFileDropzone', 'packages/form/src/file-dropzone.native.tsx'),
   exportsFrom('HozoFileDropzone as UiFileDropzone', 'packages/ui/src/file-dropzone.tsx'),
   exportsFrom('HozoTimePicker', 'packages/form/src/time-picker.native.tsx'),
@@ -276,6 +286,12 @@ const bundled = await build({
     {
       name: 'native-patterns',
       setup(builder) {
+        builder.onResolve(
+          { filter: /^@hozo\/(?:core|primitives)\/generated\/native-disabled$/ },
+          () => ({
+            path: filename('packages/primitives/src/generated/native-disabled.ts'),
+          }),
+        )
         builder.onResolve({ filter: /(?:^|\/)candidates\.native\.js$/ }, () => ({
           path: '@hozo/engine/project',
           external: true,
@@ -428,6 +444,7 @@ const { HozoNativeSelect, NativeSelectProvider, UiNativeSelect, UiAccordion } = 
 const { HozoCalendar, UiCalendar } = module.exports
 const { HozoTimePicker, UiTimePicker } = module.exports
 const { HozoFileDropzone, UiFileDropzone } = module.exports
+const { NativeOwnerPressable, NativeCanonicalPressable, NativeOwnerLink } = module.exports
 const {
   HozoDatePicker,
   HozoDateRangePicker,
@@ -521,6 +538,34 @@ const measuredHosts = {
         : done(-9999, -9999, 80, 30),
   }),
 }
+
+test('Native canonical, enhanced and destination controls share unavailable behavior without losing authored state', async (t) => {
+  for (const Component of [NativeCanonicalPressable, NativeOwnerPressable, NativeOwnerLink]) {
+    for (const disabled of [undefined, false, true])
+      for (const stateDisabled of [false, true]) {
+        let calls = 0
+        const before = openedURLs.length
+        const tree = await mount(t, Component, {
+          href: Component === NativeOwnerLink ? '/disabled-owner' : undefined,
+          disabled,
+          accessibilityState: { disabled: stateDisabled, selected: true, checked: 'mixed' },
+          onPress: () => calls++,
+        })
+        const host = tree.root.findByType('NativePressable')
+        const unavailable = Boolean(disabled || stateDisabled)
+        assert.equal(Boolean(host.props.disabled), unavailable)
+        assert.equal(Boolean(host.props.accessibilityState.disabled), unavailable)
+        assert.equal(host.props.accessibilityState.selected, true)
+        assert.equal(host.props.accessibilityState.checked, 'mixed')
+        if (Component === NativeOwnerLink) {
+          const event = { defaultPrevented: false }
+          await act(() => tree.root.findByType(NativePressable).props.onPress(event))
+          assert.equal(calls, unavailable ? 0 : 1)
+          assert.equal(openedURLs.length, before + (unavailable ? 0 : 1))
+        }
+      }
+  }
+})
 
 test('Native Form applies its own classes before explicit style and preserves submit ordering', async (t) => {
   const { tree } = await checkClassSlots(

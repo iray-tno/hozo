@@ -144,7 +144,7 @@ test('negated disabled and ARIA props apply only on the opposite state', () => {
     }
   }
   assert.deepEqual(c.result.prelude, [])
-  assert.deepEqual(c.result.runtimeImports, [])
+  assert.deepEqual(c.result.runtimeImports, ['nativeDisabledProps'])
 })
 
 test('negated motion query complements the positive query and shares its hook', () => {

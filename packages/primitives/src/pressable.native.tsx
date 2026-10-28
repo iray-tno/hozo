@@ -36,6 +36,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native'
+import { nativeDisabledProps } from './native-disabled.ts'
 import { useHozoTextColorTransition } from './text-color-transition.native.ts'
 
 export interface HozoTransition {
@@ -244,6 +245,7 @@ export function HozoPressable({
   children,
   ...props
 }: HozoPressableProps) {
+  props = nativeDisabledProps(props)
   // Keep the event/context owner mounted when motion is added or removed.
   // Only the optional animation child owns nodes and progress listeners.
   const driver = useRef<((state: HozoPressableState) => void) | null>(null)

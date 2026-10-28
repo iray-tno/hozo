@@ -6,6 +6,7 @@ import {
 } from '@hozo/engine/navigation'
 import { type ComponentPropsWithRef, type ElementType, type ReactNode, useRef } from 'react'
 import { Linking, Pressable, type PressableProps } from 'react-native'
+import { nativeDisabledProps } from './native-disabled.ts'
 import type { HozoPressable } from './pressable.native.tsx'
 
 type LinkHost = typeof Pressable | typeof HozoPressable
@@ -47,19 +48,20 @@ export type HozoLinkProps<Host extends LinkHost = typeof Pressable> =
  * or navigation. The type-only import keeps that machinery out of ordinary
  * links' Metro graph, where unused static imports would still cost modules.
  */
-export function HozoLink<Host extends LinkHost = typeof Pressable>({
-  hozoLinkComponent,
-  href,
-  external,
-  replace,
-  prefetch,
-  onPress,
-  onPressIn,
-  disabled,
-  children,
-  accessibilityRole = 'link',
-  ...props
-}: HozoLinkProps<Host>) {
+export function HozoLink<Host extends LinkHost = typeof Pressable>(input: HozoLinkProps<Host>) {
+  const {
+    hozoLinkComponent,
+    href,
+    external,
+    replace,
+    prefetch,
+    onPress,
+    onPressIn,
+    disabled,
+    children,
+    accessibilityRole = 'link',
+    ...props
+  } = nativeDisabledProps(input)
   const Component: ElementType = hozoLinkComponent ?? Pressable
   const navigation = useHozoNavigation()
   const prefetchedHref = useRef<string | null>(null)
@@ -69,6 +71,7 @@ export function HozoLink<Host extends LinkHost = typeof Pressable>({
       disabled={disabled}
       accessibilityRole={accessibilityRole}
       onPressIn={(event: Parameters<NonNullable<PressableProps['onPressIn']>>[0]) => {
+        if (disabled) return
         onPressIn?.(event)
         if (prefetch && !disabled && prefetchedHref.current !== href) {
           prefetchedHref.current = href
@@ -76,6 +79,7 @@ export function HozoLink<Host extends LinkHost = typeof Pressable>({
         }
       }}
       onPress={(event: Parameters<NonNullable<PressableProps['onPress']>>[0]) => {
+        if (disabled) return
         onPress?.(event)
         if (!event.defaultPrevented) {
           void activateHozoNavigation(navigation, { href, external, replace }, Linking.openURL)

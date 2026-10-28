@@ -9,6 +9,7 @@ import {
 } from '@hozo/compiler'
 import { transformSync } from 'esbuild'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { nativeDisabledProps } from '../../primitives/src/native-disabled.ts'
 import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 const css = '@theme {--spacing:.25rem;} @tailwind utilities;'
@@ -58,7 +59,12 @@ test('positive ARIA facts share original-rule priority in static and generated N
           jsxFactory: 'h',
         },
       ).code,
-      { Pressable: 'owner', HozoPressable: 'owner', h: (_type: unknown, props: unknown) => props },
+      {
+        nativeDisabledProps,
+        Pressable: 'owner',
+        HozoPressable: 'owner',
+        h: (_type: unknown, props: unknown) => props,
+      },
     )
     for (let mask = 0; mask < 32; mask++) {
       const owner = Object.fromEntries(
@@ -152,6 +158,7 @@ test('ARIA ordering creates no callback without readable events and explicit aut
         View: 'View',
         Pressable: 'owner',
         HozoPressable: 'owner',
+        nativeDisabledProps,
         h: (_type: unknown, props: unknown) => props,
       },
     )

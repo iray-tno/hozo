@@ -1,0 +1,71 @@
+# One disabled owner fact
+
+This repairs [#1359](https://github.com/iray-tno/hozo/issues/1359), found by
+the positive-ARIA differential for #1230. It does not yet admit `aria-disabled`
+to common Tailwind ordering; that graduation is a separate dependent layer.
+
+## Contract and implementation
+
+Hozo's existing unavailable policy is
+`Boolean(disabled || accessibilityState?.disabled === true)`. An explicit false
+flag cannot enable a state-disabled control. Behavior, announcement, static
+styles and generated class state must agree on this fact without dropping
+`selected`, `checked`, `busy` or other authored state keys.
+
+The IR now owns this fact. A typed state-member predicate is distinct from an
+authored expression with the same source span, including its generated Web
+guard class. Native metadata uses one small pure `nativeDisabledProps` leaf
+when normalization is required. Its generated export follows the normal ABI
+generator; no runtime React Native import or provider is introduced. Metadata
+evaluates each authored flag/state expression once. This is not a new promise
+of single evaluation across every generated style/prop expression.
+
+Ordinary compiled controls without state have no new helper import/call;
+literal partial state without a disabled key also avoids it unless an explicit
+flag requires merging. The helper returns the original props on the enabled
+and already-normalized fast paths, preserves a disabled state object's identity,
+and never mutates authored input. Native fallback/enhanced Pressable and Link
+share the same helper. Disabled links stop authored callbacks, prefetch and
+navigation before those operations run.
+
+Web emits one `aria-disabled` value instead of competing state/flag attributes.
+Actual form controls retain real HTML `disabled`, now using the same effective
+fact; ARIA reflection does not replace platform behavior. Opaque optional state
+objects are null-safe. ADR 001 records the existing OR policy explicitly.
+
+## Verification and cost
+
+CPU 1/Idle, serial builds and test concurrency 1. All final Rust changes were
+followed by a fresh debug addon before JS verification.
+
+- Workspace Rust: **1,079 passed, one intentional ignored**; fmt and all-target
+  Clippy with warnings denied passed. The Web regression distinguishes a raw
+  authored condition from the compiler-owned member fact at the same span.
+- Compiler: **360 passed, one existing skip**. New matrix: **432 observations**
+  across Pressable/Button/Link, handlers, flag/state/both sources, static/dynamic
+  classes and optional/false/true/mixed state values. Props and generated/static
+  Native styles agree. Metadata evaluation/cold-path guards cover all three.
+- Tailwind **153**, Metro **93**, Vite **62**, Next **21**, primitives **85** and
+  real-browser composition **36** tests passed. Native host/receipt/cache tests
+  **145** passed, including **18 mounts** through actual fallback/enhanced/link
+  implementations and a state-disabled link activation attempt.
+- Primitives production/test and core production typechecks passed. Generated
+  ABI checks report **57 leaves / 79 names**; metadata, receipt freshness,
+  generated docs, lint and diff checks passed. Source probes include the actual
+  helper and Native guards in Turbo inputs, verified in a dry run.
+- Isolated esbuild-minified helper: **201 bytes / 159 gzip bytes**, no runtime
+  imports. This excludes module-loader and whole-app/Metro costs; no whole-app
+  size or speed result is claimed.
+
+Earlier failures are retained under
+`artifacts/tailwind-order/namespace-invariance/disabled-*`: intentional emitted
+prop/fact expectation updates, incorrect probe warnings/fixture roles, an
+unsound generic helper return type, a broad SSR assertion that also matched CSS,
+and a stale core generated-entry build used by Vite. The helper return type and
+SSR assertion were corrected, generated entries rebuilt, and affected suites
+passed. These are not classified as flakes or hidden by retries.
+
+No new conformance percentage, fresh full app/device/AT result, full root JS
+suite or completed six-group migration is claimed. The generated Native source
+receipt is freshness evidence, not a device run. Those heavier integration
+checks belong to CI.

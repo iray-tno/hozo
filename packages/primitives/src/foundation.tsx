@@ -419,6 +419,7 @@ export function Button({
         className={className}
         disabled={disabled}
         data-hozo-disabled={disabled ? '' : undefined}
+        aria-disabled={disabled}
         data-hozo-pressable={onPress && !disabled ? '' : undefined}
         aria-label={accessibilityLabel}
         aria-description={accessibilityHint}

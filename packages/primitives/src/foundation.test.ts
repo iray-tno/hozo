@@ -46,6 +46,16 @@ test('the canonical package directly renders every foundational Web primitive', 
   assert.match(html, /data-href="hozo-view-base"/)
 })
 
+test('a fallback native button reflects the same disabled fact for ARIA utilities', () => {
+  for (const disabled of [undefined, false, true]) {
+    const rendered = renderToStaticMarkup(createElement(Button, { disabled }, 'Save'))
+    const html = rendered.slice(rendered.lastIndexOf('<button'))
+    if (disabled === undefined) assert.doesNotMatch(html, /aria-disabled=/)
+    else assert.match(html, new RegExp(`aria-disabled="${disabled}"`))
+    assert.equal(/\sdisabled=""/.test(html), Boolean(disabled))
+  }
+})
+
 test('Button keeps typed host IDs and scalar DOM metadata on its actual action or navigation host', () => {
   for (const href of [undefined, '/docs']) {
     const html = renderToStaticMarkup(

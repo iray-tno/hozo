@@ -173,7 +173,9 @@ impl ClassEvaluation {
                 self.capture_condition(a);
                 self.capture_condition(b);
             }
-            ConditionExpr::Static(_) | ConditionExpr::Captured(_) => {}
+            ConditionExpr::Static(_)
+            | ConditionExpr::Captured(_)
+            | ConditionExpr::StateDisabled(_) => {}
         }
     }
 

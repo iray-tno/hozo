@@ -887,14 +887,14 @@ pub(super) fn render_node(
     // its `disabled` prop was missing and the style was never applied. So
     // it goes down already bound to this element's prop, the way a
     // package component's does to the caller's (#950).
-    let disabled = node.props.disabled.as_ref();
+    let disabled = node.props.effective_disabled();
     let descend: Vec<StyleDeclaration> = inherited
         .iter()
         .cloned()
         .chain(
             text_declarations
                 .iter()
-                .map(|d| bound_to_disabled(d, disabled)),
+                .map(|d| bound_to_disabled(d, disabled.as_ref())),
         )
         .collect();
 
@@ -1223,7 +1223,7 @@ pub(super) fn render_node(
     } else if component == "TextInput"
         && (!pressed_parts.is_empty()
             || runtime_states
-            || node.props.disabled.is_some()
+            || node.props.effective_disabled().is_some()
             || node.props.aria_invalid.is_some())
     {
         cx.runtime.need_component("HozoTextInput");
@@ -1607,7 +1607,6 @@ pub(super) fn render_node(
         ("testID", node.props.test_id),
         ("nativeID", node.props.native_id),
         ("pointerEvents", node.props.pointer_events),
-        ("accessibilityState", node.props.accessibility_state),
         ("accessibilityValue", node.props.accessibility_value),
         (
             "accessibilityLiveRegion",
@@ -1968,14 +1967,52 @@ pub(super) fn render_node(
             render_condition_expr(source, focusable)
         ));
     }
-    if let Some(disabled) = &node.props.disabled {
+    if let Some(disabled) = node
+        .props
+        .disabled
+        .as_ref()
+        .filter(|_| node.props.accessibility_state.is_none())
+    {
         let disabled = render_condition_expr(source, disabled);
         props_text.push_str(&format!(" disabled={{{disabled}}}"));
-        if matches!(node.primitive, Primitive::Button | Primitive::Pressable) {
+    }
+    match (node.props.accessibility_state, node.props.disabled.as_ref()) {
+        (Some(state), flag)
+            if flag.is_some()
+                || (node.props.effective_disabled().is_some()
+                    && matches!(
+                        node.primitive,
+                        Primitive::Button
+                            | Primitive::Pressable
+                            | Primitive::Link
+                            | Primitive::TextInput
+                    )) =>
+        {
+            cx.runtime.need_component("nativeDisabledProps");
+            let flag = flag
+                .map(|flag| format!(", disabled: {}", render_condition_expr(source, flag)))
+                .unwrap_or_default();
+            props_text.push_str(&format!(
+                " {{...nativeDisabledProps({{ accessibilityState: {}{flag} }})}}",
+                source_text(source, state)
+            ));
+        }
+        (Some(state), None) => props_text.push_str(&format!(
+            " accessibilityState={{{}}}",
+            source_text(source, state)
+        )),
+        (None, Some(_))
+            if matches!(
+                node.primitive,
+                Primitive::Button | Primitive::Pressable | Primitive::Link
+            ) =>
+        {
+            let disabled = render_condition_expr(source, &node.props.effective_disabled().unwrap());
             props_text.push_str(&format!(
                 " accessibilityState={{{{ disabled: Boolean({disabled}) }}}}"
             ));
         }
+        _ => {}
     }
     let destination_primitive = node.primitive == Primitive::Link
         || node.primitive == Primitive::Svg(SvgElement::Link)

@@ -28,6 +28,7 @@ import { compile } from 'tailwindcss'
 import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
+import { nativeDisabledProps } from '../../../packages/primitives/src/native-disabled.ts'
 import {
   prepareOrderSubjects,
   projectOrderNative,
@@ -60,6 +61,7 @@ function evaluate(code, context) {
   const module = { exports: {} }
   runInNewContext(transformSync(code, { loader: 'tsx', jsxFactory: 'h', format: 'cjs' }).code, {
     module,
+    nativeDisabledProps,
     ...context,
   })
   return module.exports
