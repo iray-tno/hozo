@@ -3,7 +3,10 @@
 import assert from 'node:assert/strict'
 import { createCompiler, openCandidateCache, prepareTailwindContext } from '@hozo/compiler'
 import Yoga from 'yoga-layout'
+import { hozoAuthoredStyle } from '../../engine/src/authored-gap.ts'
 import { hozoDomStyle } from '../../engine/src/dom-style.ts'
+import { hozoGapSpreadStyles } from '../../engine/src/gap-styles.ts'
+import { hozoSpreadStyles } from '../../engine/src/spread-styles.ts'
 import { prepareTailwindOrder, tailwindPackageDir } from '../../tailwind/src/theme.ts'
 import {
   executeOrderModule,
@@ -17,14 +20,14 @@ export const gapAliasCases = [
     id: 'inline-generic-after-row',
     classes: 'gap-y-[8px]',
     inline: { gap: 16 },
-    native: [8, 16],
+    native: [16, 16],
     web: [16, 16],
   },
   {
     id: 'inline-generic-after-column',
     classes: 'gap-x-[8px]',
     inline: { gap: 16 },
-    native: [16, 8],
+    native: [16, 16],
     web: [16, 16],
   },
   {
@@ -52,7 +55,7 @@ export const gapAliasCases = [
     id: 'inline-generic-after-both-axes',
     classes: 'gap-[16px] gap-x-[8px] gap-y-[4px]',
     inline: { gap: 24 },
-    native: [4, 8],
+    native: [24, 24],
     web: [24, 24],
   },
   {
@@ -160,22 +163,56 @@ export async function prepareGapAliasSubjects() {
       const dynamic = compiler
         .prepareNativeModule(input.replace(`className="${classes}"`, 'className={runtimeNames}'))
         .emit(context).components[0]
+      const spread = compiler
+        .prepareNativeModule(input.replace('style={inline}', '{...rest}'))
+        .emit(context).components[0]
+      const dynamicSpread = compiler
+        .prepareNativeModule(
+          input
+            .replace(`className="${classes}"`, 'className={runtimeNames}')
+            .replace('style={inline}', '{...rest}'),
+        )
+        .emit(context).components[0]
       assert.deepEqual(native.diagnostics, [])
+      assert.deepEqual(
+        spread.diagnostics.map((finding) => finding.code),
+        ['UNSAFE_PROP_SPREAD_AFTER_STYLE'],
+      )
+      assert.ok(
+        dynamicSpread.diagnostics.every((finding) =>
+          ['DYNAMIC_CLASS_NAME_NOT_RESOLVED', 'UNSAFE_PROP_SPREAD_AFTER_STYLE'].includes(
+            finding.code,
+          ),
+        ),
+      )
       assert.ok(
         dynamic.diagnostics.every((finding) => finding.code === 'DYNAMIC_CLASS_NAME_NOT_RESOLVED'),
       )
-      const execute = (output) =>
-        flattenOrderStyle(
+      const execute = (output, spread = false) => {
+        let reads = 0
+        const selected = flattenOrderStyle(
           (
             executeOrderModule(`const hozoStyles=${output.styles};module.exports=(${output.jsx})`, {
               View: 'owner',
               inline: entry.inline,
               runtimeNames: classes,
               hozoClasses: resolve,
+              hozoAuthoredStyle,
+              hozoSpreadStyles,
+              hozoGapSpreadStyles,
+              rest: {
+                get style() {
+                  reads++
+                  return entry.inline
+                },
+              },
               h: (_type, props) => props,
             }) as { style: unknown }
           ).style,
         )
+        assert.equal(reads, spread ? 1 : 0, 'spread style accessor is evaluated once')
+        return selected
+      }
       const web = compiler.prepareWebModule(input).emit(context)[0]
       assert.deepEqual(web.diagnostics, [])
       const webProps = executeOrderModule(`module.exports=(${web.jsx})`, {
@@ -188,6 +225,8 @@ export async function prepareGapAliasSubjects() {
         classes,
         selected: execute(native),
         dynamic: execute(dynamic),
+        spread: execute(spread, true),
+        dynamicSpread: execute(dynamicSpread, true),
         css: web.css,
         webProps,
         rawWeb: 'rawWeb' in entry ? entry.rawWeb : entry.web,

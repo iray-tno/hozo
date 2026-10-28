@@ -126,7 +126,12 @@ fn quote(name: &str) -> String {
 /// `last` lists the keys whose held value already ends with a style the
 /// author wrote after every spread: in source that one wins, so a spread's
 /// copy of the key is dropped rather than composed.
-pub(crate) fn helper_call(held: &[(String, String)], last: &[String], args: &[String]) -> String {
+pub(crate) fn helper_call(
+    held: &[(String, String)],
+    last: &[String],
+    args: &[String],
+    helper: &str,
+) -> String {
     let styles = held
         .iter()
         .map(|(name, value)| format!("{name}: {value}"))
@@ -138,7 +143,7 @@ pub(crate) fn helper_call(held: &[(String, String)], last: &[String], args: &[St
         .collect::<Vec<_>>()
         .join(", ");
     format!(
-        " {{...hozoSpreadStyles({{ {styles} }}, [{last}], {})}}",
+        " {{...{helper}({{ {styles} }}, [{last}], {})}}",
         args.join(", ")
     )
 }

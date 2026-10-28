@@ -20,3 +20,22 @@ export function projectAuthoredGap(style: Record<string, unknown>): void {
   style.rowGap = row
   style.columnGap = column
 }
+
+/** Generated Native code calls this before mixing an author with class axes. */
+export function hozoAuthoredStyle<T>(input: T): T {
+  if (!input || typeof input !== 'object') return input
+  if (!Array.isArray(input) && (!('gap' in input) || !Object.hasOwn(input, 'gap'))) return input
+  // Flatten only the author's contribution. Reading it once also avoids a
+  // pre-scan that would evaluate style accessors again during composition.
+  const flat: Record<string, unknown> = {}
+  function visit(value: unknown): void {
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item)
+    } else if (value && typeof value === 'object') {
+      Object.assign(flat, value)
+    }
+  }
+  visit(input)
+  projectAuthoredGap(flat)
+  return flat as T
+}

@@ -1444,6 +1444,17 @@ pub(super) fn render_node(
     // already had a diagnostic for exactly this; a named `style` had
     // nothing. In the array it composes the way React Native composes
     // styles, and the author's still wins, because it is still last.
+    // Gap's generic Yoga gutter cannot override a compiled axis gutter.
+    // Resolve the author's own contribution before composing it with those
+    // class styles. Known unrelated static classes keep their direct path;
+    // an opaque class may carry gap, so it needs the same bounded boundary.
+    let project_authored_gap = !node.class_name_fallback.is_empty()
+        || node.style.iter().any(|declaration| {
+            matches!(
+                declaration.property,
+                StyleProperty::Gap(_) | StyleProperty::RowGap(_) | StyleProperty::ColumnGap(_)
+            )
+        });
     let authored_style: Vec<String> = node
         .props
         .passthrough
@@ -1455,7 +1466,12 @@ pub(super) fn render_node(
             // `style={expr}`. A string is not a style React Native accepts,
             // so anything else is left where it was.
             let inner = value.strip_prefix('{')?.strip_suffix('}')?;
-            Some(inner.trim().to_string())
+            Some(if project_authored_gap {
+                cx.runtime.need_component("hozoAuthoredStyle");
+                format!("hozoAuthoredStyle({})", inner.trim())
+            } else {
+                inner.trim().to_string()
+            })
         })
         .collect();
     // Pattern callbacks are a private generated-code ABI, not an authored
@@ -2437,7 +2453,12 @@ pub(super) fn render_node(
                     })
                 })
                 .collect();
-            cx.runtime.need_component("hozoSpreadStyles");
+            let helper = if project_authored_gap {
+                "hozoGapSpreadStyles"
+            } else {
+                "hozoSpreadStyles"
+            };
+            cx.runtime.need_component(helper);
             for (_, text) in &rendered[..first] {
                 props_text.push(' ');
                 props_text.push_str(text);
@@ -2446,6 +2467,7 @@ pub(super) fn render_node(
                 &held.held,
                 &written_last,
                 &args,
+                helper,
             ));
             for (_, text) in &rendered[last + 1..] {
                 props_text.push(' ');

@@ -273,6 +273,10 @@ The [gap alias measurement](../measurements/tailwind-gap-alias-boundary.md)
 now reproduces inline/class and within-inline divergence in actual Yoga and
 browser layouts. Keeping the gap barrier is not a fix; paired projection and
 explicit-style composition must land before eligibility expands.
+The [Native author-composition slice](../measurements/native-authored-gap-composition.md)
+now closes the bounded compiled-root/spread cases with one shared projection.
+Fallback/secondary-slot owners and the full gap ordering assessment remain open;
+the gap barrier is not removed by that fix.
 
 Policy v6 assesses five exact positive ARIA owner facts and their conjunctions
 with already-supported interactions. One canonical input's order survives

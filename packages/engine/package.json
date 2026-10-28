@@ -69,6 +69,10 @@
       "types": "./dist/generated/environment.d.ts",
       "default": "./dist/generated/environment.js"
     },
+    "./generated/gap-styles": {
+      "types": "./dist/generated/gap-styles.d.ts",
+      "default": "./dist/generated/gap-styles.js"
+    },
     "./generated/image-source": {
       "types": "./dist/generated/image-source.d.ts",
       "default": "./dist/generated/image-source.js"

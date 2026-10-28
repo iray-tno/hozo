@@ -25,7 +25,9 @@ import { chromium } from 'playwright-core'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { compile } from 'tailwindcss'
+import { hozoAuthoredStyle } from '../../../packages/engine/src/authored-gap.ts'
 import { hozoTextMetricStyles } from '../../../packages/engine/src/class-resolver.ts'
+import { hozoGapSpreadStyles } from '../../../packages/engine/src/gap-styles.ts'
 import { hozoSpreadStyles } from '../../../packages/engine/src/spread-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 import { nativeDisabledProps } from '../../../packages/primitives/src/native-disabled.ts'
@@ -68,6 +70,8 @@ function evaluate(code, context) {
   runInNewContext(transformSync(code, { loader: 'tsx', jsxFactory: 'h', format: 'cjs' }).code, {
     module,
     nativeDisabledProps,
+    hozoAuthoredStyle,
+    hozoGapSpreadStyles,
     ...context,
   })
   return module.exports
@@ -484,7 +488,12 @@ test('gap alias boundary compares actual Tailwind and compiled browser geometry 
           )
           browserObservations++
           if (id === 'reference') {
-            for (const style of [subject.selected, subject.dynamic]) {
+            for (const style of [
+              subject.selected,
+              subject.dynamic,
+              subject.spread,
+              subject.dynamicSpread,
+            ]) {
               const native = yogaGapGeometry(style, layout)
               assert.deepEqual(native, subject.native)
               if (JSON.stringify(native) !== JSON.stringify(measured)) knownMismatches++
@@ -494,7 +503,7 @@ test('gap alias boundary compares actual Tailwind and compiled browser geometry 
       }
     }
     assert.equal(browserObservations, 480)
-    assert.equal(knownMismatches, 96, 'remaining class/inline boundary, not a passing parity claim')
+    assert.equal(knownMismatches, 0, 'class/inline gap composition matches on both compiler paths')
   } finally {
     await page.close()
   }

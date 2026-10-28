@@ -1887,7 +1887,11 @@ fn chip_root_residuals_use_the_same_owner_route_as_secondary_classes() {
         opaque.jsx
     );
     assert!(!opaque.jsx.contains("hozoClasses("), "{}", opaque.jsx);
-    assert!(opaque.jsx.contains("style={[extra]}"), "{}", opaque.jsx);
+    assert!(
+        opaque.jsx.contains("style={[hozoAuthoredStyle(extra)]}"),
+        "{}",
+        opaque.jsx
+    );
 
     let mixed = compile(
         "cx('p-2 hover:opacity-50 not-focus:rounded-lg md:mt-2', chooseClasses(), chooseOther())",
@@ -2421,7 +2425,11 @@ fn runtime_text_input_classes_receive_only_field_focus_facts() {
         "{}",
         output.jsx
     );
-    for expected in ["hozoStyle=", "style={[custom]}", "ref={input}"] {
+    for expected in [
+        "hozoStyle=",
+        "style={[hozoAuthoredStyle(custom)]}",
+        "ref={input}",
+    ] {
         assert!(output.jsx.contains(expected), "{}", output.jsx);
     }
     assert!(

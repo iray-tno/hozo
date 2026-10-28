@@ -104,6 +104,10 @@
       "types": "./dist/generated/flat-list.d.ts",
       "default": "./dist/generated/flat-list.js"
     },
+    "./generated/gap-styles": {
+      "types": "./dist/generated/gap-styles.d.ts",
+      "default": "./dist/generated/gap-styles.js"
+    },
     "./generated/grid": {
       "types": "./dist/generated/grid.d.ts",
       "default": "./dist/generated/grid.js"

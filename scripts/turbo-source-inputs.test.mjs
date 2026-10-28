@@ -81,6 +81,7 @@ const reads = {
     'packages/tailwind-conformance/src/gap-alias-reference.ts',
     'packages/engine/src/dom-style.ts',
     'packages/engine/src/authored-gap.ts',
+    'packages/engine/src/gap-styles.ts',
     'packages/engine/src/class-resolver.ts',
     'packages/compiler/src/index.ts',
     'apps/landing/src/examples/ui/ResizablePaneDemo.tsx',
