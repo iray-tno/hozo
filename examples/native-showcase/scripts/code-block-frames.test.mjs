@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   assertReusableCodeInputs,
   frameSummary,
+  STALE_AFTER_MS,
   timingRecords,
   waitForCompletedFrames,
 } from './code-block-frames.mjs'
@@ -118,4 +119,60 @@ test('frame completion polls only observations, retains pending data and keeps t
     /original measurement window/,
   )
   assert.equal(clock, 250)
+})
+
+test('only an inverted row frozen for STALE_AFTER_MS before the deadline is stale (#1381)', async () => {
+  // As in run 40695244453: one row whose completion predates its vsync,
+  // unchanged for the whole window, beside frames that did complete.
+  const frozen = frame(0, 90000000)
+  const run = (read, deadline) => {
+    let clock = 0
+    return waitForCompletedFrames({
+      read: () => read(clock),
+      retain: () => {},
+      deadline,
+      refreshHz: 60,
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms
+      },
+    })
+  }
+  const result = await run(() => dump([frame(0, 110000000), frozen]), STALE_AFTER_MS + 100)
+  assert.equal(result.summary.pendingFrames, 0)
+  assert.equal(result.summary.stalePendingFrames, 1)
+  assert.equal(result.summary.ordinaryFrames, 1)
+  assert.equal(result.summary.rows[1].durationMs, null)
+  // Still waits out the whole window first: a row is not stale on sight.
+  assert.ok(result.observations > STALE_AFTER_MS / 100)
+
+  // Frozen, but not for long enough.
+  await assert.rejects(
+    () => run(() => dump([frame(0, 110000000), frozen]), STALE_AFTER_MS - 100),
+    /original measurement window/,
+  )
+  // Never completed at all is not the inverted case, however long it sits.
+  await assert.rejects(
+    () =>
+      run(() => dump([frame(0, 110000000), frame(0, '9223372036854775807')]), STALE_AFTER_MS + 100),
+    /original measurement window/,
+  )
+  // An inverted row that keeps being rewritten is in flight, not frozen.
+  await assert.rejects(
+    () =>
+      run(
+        (clock) => dump([frame(0, 110000000), frame(0, 90000000 - (clock % 1000))]),
+        STALE_AFTER_MS + 100,
+      ),
+    /original measurement window/,
+  )
+  // A frozen row next to one that is merely late still fails.
+  await assert.rejects(
+    () =>
+      run(
+        (clock) => dump([frame(0, 110000000), frozen, frame(0, 80000000 + clock)]),
+        STALE_AFTER_MS + 100,
+      ),
+    /original measurement window/,
+  )
 })

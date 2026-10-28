@@ -10,7 +10,7 @@ export function assertReusableCodeInputs(changed) {
   )
 }
 
-export function frameSummary(dump, refreshHz) {
+export function frameSummary(dump, refreshHz, stale = new Set()) {
   assert.ok(Number.isFinite(refreshHz) && refreshHz > 0, 'missing display refresh rate')
   const budgetMs = 1000 / refreshHz
   const rows = []
@@ -28,7 +28,15 @@ export function frameSummary(dump, refreshHz) {
       const intended = field('IntendedVsync')
       const completed = field('FrameCompleted')
       const pending = completed === 9223372036854775807n || completed <= intended
-      rows.push({ flags, pending, durationMs: pending ? null : Number(completed - intended) / 1e6 })
+      rows.push({
+        flags,
+        pending,
+        // Only a row `waitForCompletedFrames` has watched stay frozen, and
+        // only one whose completion predates its vsync, is stale; see there.
+        stale: completed > 0n && completed < intended && stale.has(line),
+        durationMs: pending ? null : Number(completed - intended) / 1e6,
+        ...(pending ? { raw: line } : {}),
+      })
     } else if (line.includes('---PROFILEDATA---')) columns = undefined
   }
   assert.ok(rows.length > 0, 'no frame rows: an empty measurement is not a pass')
@@ -38,7 +46,7 @@ export function frameSummary(dump, refreshHz) {
     .sort((a, b) => a - b)
   if (!durations.length) {
     const error = new Error('no ordinary completed frames')
-    error.pendingFrames = rows.filter((row) => row.pending).length
+    error.pendingFrames = rows.filter((row) => row.pending && !row.stale).length
     throw error
   }
   const percentile = (fraction) => durations[Math.ceil(durations.length * fraction) - 1]
@@ -50,7 +58,8 @@ export function frameSummary(dump, refreshHz) {
     rows,
     ordinaryFrames: durations.length,
     flaggedFrames: rows.filter((row) => row.flags !== 0).length,
-    pendingFrames: rows.filter((row) => row.pending).length,
+    pendingFrames: rows.filter((row) => row.pending && !row.stale).length,
+    stalePendingFrames: rows.filter((row) => row.stale).length,
     overBudgetFrames: durations.filter((duration) => duration > budgetMs).length,
     p50Ms: percentile(0.5),
     p95Ms: percentile(0.95),
@@ -65,6 +74,9 @@ export function frameSummary(dump, refreshHz) {
   }
 }
 
+/** How long a pending row has to sit unchanged before the deadline to be stale. */
+export const STALE_AFTER_MS = 10_000
+
 export async function waitForCompletedFrames({
   read,
   retain,
@@ -74,17 +86,50 @@ export async function waitForCompletedFrames({
   sleep,
 }) {
   let observation = 0
+  // Every pending row, by its exact text: when it first appeared, or
+  // `undefined` once an observation came without it.
+  //
+  // A row whose completion predates its vsync is usually in flight: its slot
+  // still holds an older frame's time and is rewritten a few observations
+  // later, so it is waited for like any other. One such row has also been
+  // seen frozen for all 485 observations of a 60s window (#1381), failing
+  // the run on main and windowed alike. So only at the original deadline,
+  // and only for a row that sat unchanged for STALE_AFTER_MS -- far longer
+  // than any in-flight row has taken -- is it called stale. Stale rows are reported,
+  // left out of the durations, and not allowed to stop the run. Anything
+  // else still pending fails as before.
+  const watched = new Map()
+  let last
   while (now() < deadline) {
     const dump = read()
     observation++
     retain(observation, dump)
+    last = dump
+    const lines = new Set(dump.split(/\r?\n/).map((line) => line.trim()))
+    for (const line of watched.keys()) if (!lines.has(line)) watched.set(line, undefined)
     try {
       const summary = frameSummary(dump, refreshHz)
       if (!summary.pendingFrames) return { summary, observations: observation }
+      for (const row of summary.rows)
+        if (row.pending && !watched.has(row.raw)) watched.set(row.raw, now())
     } catch (error) {
       if (!error.pendingFrames) throw error
     }
     await sleep(Math.min(100, Math.max(0, deadline - now())))
+  }
+  if (last !== undefined) {
+    const frozen = new Set(
+      [...watched]
+        .filter(([, since]) => since !== undefined && deadline - since >= STALE_AFTER_MS)
+        .map(([line]) => line),
+    )
+    try {
+      const summary = frameSummary(last, refreshHz, frozen)
+      if (!summary.pendingFrames && summary.stalePendingFrames)
+        return { summary, observations: observation }
+    } catch (error) {
+      if (!error.pendingFrames) throw error
+    }
   }
   throw new Error('submitted frames did not complete within the original measurement window')
 }

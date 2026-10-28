@@ -56,6 +56,8 @@ for (const count of [10, 100, 300, 1000]) {
       androidTotal: aggregates.reduce((sum, value) => sum + value.total, 0),
       flagged: cases.reduce((sum, sample) => sum + sample.frames.flaggedFrames, 0),
       pending: cases.reduce((sum, sample) => sum + sample.frames.pendingFrames, 0),
+      // Older evidence predates the count (#1381).
+      stalePending: cases.reduce((sum, sample) => sum + (sample.frames.stalePendingFrames ?? 0), 0),
       truncatedWindows: cases.filter((sample) => sample.frames.recentWindowOnly).length,
     }
     if (latency.length)
