@@ -19,6 +19,9 @@ import { centre, matchLabel, parseNodes } from './device-evidence.mjs'
 const root = fileURLToPath(new URL('../', import.meta.url))
 const output = resolve(process.argv[2] ?? 'artifacts/native-showcase-code-block')
 const app = 'dev.hozo.showcase'
+// `code-block-windowed` measures the same matrix with `maxHeight` set, so the
+// block is its own scroller and mounts only the lines near the visible ones.
+const windowed = process.env.HOZO_ANDROID_SCENARIO === 'code-block-windowed'
 const apk = resolve(root, 'android/app/build/outputs/apk/release/app-release.apk')
 mkdirSync(output, { recursive: true })
 const adb = (...args) =>
@@ -41,6 +44,7 @@ const evidence = {
     ]),
   ),
   build: 'standalone release / Hermes; SwiftShader emulator GPU in CI',
+  variant: windowed ? 'windowed (maxHeight)' : 'whole block',
 }
 
 async function control(name) {
@@ -175,7 +179,7 @@ try {
     '-a',
     'android.intent.action.VIEW',
     '-d',
-    'hozo-showcase://storybook?STORYBOOK_STORY_ID=diagnostics-codeblock-performance--matrix',
+    `hozo-showcase://storybook?STORYBOOK_STORY_ID=diagnostics-codeblock-performance--${windowed ? 'windowed' : 'matrix'}`,
     app,
   )
   await control('CodeBlock performance probe')
@@ -221,13 +225,25 @@ try {
             '800',
           )
         })
+        // The list scrolls itself, out of the story's sight, so whether the
+        // swipe moved it is read from the screen after the first one: the
+        // first line has to be gone. Outside the measured window.
+        if (windowed && swipe === 0) {
+          adb('shell', 'uiautomator', 'dump', '/sdcard/code-block.xml')
+          const tree = parseNodes(adb('exec-out', 'cat', '/sdcard/code-block.xml'))
+          assert.ok(
+            !tree.some((node) => matchLabel(node, 'item0000')),
+            'scroll input did not move the windowed lines',
+          )
+        }
       }
       tap('Finish scroll measurement')
       const scrollTiming = await waitForTiming('scroll')
       // Small baseline may fit; longer fixtures must actually scroll.
       if (count > 10) {
         assert.ok(scrollTiming.rafGapsMs.length > 0, 'missing JS frames during scroll')
-        assert.ok(scrollTiming.maxOffset > 0, 'scroll input did not move code content')
+        if (!windowed)
+          assert.ok(scrollTiming.maxOffset > 0, 'scroll input did not move code content')
       } else scrollTiming.scrollFrames = 'not measured: small baseline fits the viewport'
       json(`${count}-${round}-scroll-js.json`, scrollTiming)
       writeFileSync(
