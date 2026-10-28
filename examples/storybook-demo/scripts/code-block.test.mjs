@@ -373,7 +373,7 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
   }
 })
 
-test('Native maxHeight windows the lines and holds the scrolling width open with the widest one (mock hosts)', async () => {
+test('Native windowing mounts only some lines and holds the scrolling width open with the widest one (mock hosts)', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true
   const module = await loadNativeCodeBlock({ facts: [], announcements: [], dark: false })
   const lines = Array.from({ length: 50 }, (_, at) => ({
@@ -401,9 +401,10 @@ test('Native maxHeight windows the lines and holds the scrolling width open with
   assert.equal(spoken(whole).length, 50, 'and every line is mounted')
   await act(async () => whole.unmount())
 
-  const windowed = await mount({ maxHeight: 200 })
+  const windowed = await mount({ maxHeight: 200, windowing: 'on' })
   const list = windowed.root.findByType('NativeFlatList')
   assert.equal(flatten(list.props.style).maxHeight, 200)
+  assert.equal(list.props.windowSize, 5, "not React Native's 21 viewports (#1382)")
   assert.equal(windowed.root.findAllByType('NativeScrollView').length, 1, 'still scrolls sideways')
   const [sizer] = hidden(windowed)
   assert.deepEqual(flatten(sizer.props.style), { height: 0, overflow: 'hidden' })
@@ -425,7 +426,7 @@ test('Native maxHeight windows the lines and holds the scrolling width open with
   )
   await act(async () => windowed.unmount())
 
-  const wrapped = await mount({ maxHeight: 200, wrap: true })
+  const wrapped = await mount({ maxHeight: 200, windowing: 'on', wrap: true })
   assert.equal(
     wrapped.root.findAllByType('NativeScrollView').length,
     0,
@@ -433,4 +434,39 @@ test('Native maxHeight windows the lines and holds the scrolling width open with
   )
   assert.equal(hidden(wrapped).length, 0)
   await act(async () => wrapped.unmount())
+})
+
+test('Native windowing is auto past 100 lines, and on or off when asked (mock hosts)', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  const module = await loadNativeCodeBlock({ facts: [], announcements: [], dark: false })
+  const block = (count, props) =>
+    React.createElement(module.exports.CodeBlock, {
+      lines: Array.from({ length: count }, (_, at) => ({ tokens: `line ${at}` })),
+      wrap: true,
+      ...props,
+    })
+  const shape = async (count, props) => {
+    let renderer
+    await act(async () => {
+      renderer = create(block(count, props))
+    })
+    const lists = renderer.root.findAllByType('NativeFlatList').length
+    const scrollers = renderer.root
+      .findAllByType('NativeScrollView')
+      .map((node) => flatten(node.props.style)?.maxHeight)
+    await act(async () => renderer.unmount())
+    return { lists, scrollers }
+  }
+  assert.deepEqual(await shape(100, { maxHeight: 200 }), { lists: 0, scrollers: [200] })
+  assert.deepEqual(await shape(101, { maxHeight: 200 }), { lists: 1, scrollers: [] })
+  assert.deepEqual(await shape(101, { maxHeight: 200, windowing: 'off' }), {
+    lists: 0,
+    scrollers: [200],
+  })
+  assert.deepEqual(await shape(3, { maxHeight: 200, windowing: 'on' }), { lists: 1, scrollers: [] })
+  assert.deepEqual(
+    await shape(500, { windowing: 'on' }),
+    { lists: 0, scrollers: [] },
+    'nothing to window without a height to scroll in',
+  )
 })

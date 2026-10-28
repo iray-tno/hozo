@@ -168,6 +168,9 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
                 lineNumbers
                 wrap
                 maxHeight={height * 0.6}
+                // Every size, so the matrix compares like with like; `auto`
+                // would leave the 10 and 100 line blocks whole.
+                windowing="on"
                 style={{
                   backgroundColor: '#f8fafc',
                   color: '#0f172a',

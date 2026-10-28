@@ -14,7 +14,12 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
-import { type CodeBlockOptions, codeBlockLabels, codeLineStart } from './code-block-types.ts'
+import {
+  type CodeBlockOptions,
+  codeBlockLabels,
+  codeBlockWindowed,
+  codeLineStart,
+} from './code-block-types.ts'
 import { CodeCopy } from './code-copy.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -92,23 +97,33 @@ export function CodeBlock(props: CodeBlockProps) {
         }
       : undefined,
   })
-  const content =
-    props.maxHeight === undefined ? (
-      <View style={rows.style}>{rows.lines.map(rows.renderLine)}</View>
-    ) : (
-      <FlatList
-        data={rows.lines}
-        keyExtractor={(_, index) => String(index)}
-        renderItem={({ item, index }) => rows.renderLine(item, index)}
-        style={{ maxHeight: props.maxHeight }}
-        contentContainerStyle={rows.style}
-        nestedScrollEnabled
-      />
-    )
+  const windowed = codeBlockWindowed(props, rows.lines.length)
+  const whole = <View style={rows.style}>{rows.lines.map(rows.renderLine)}</View>
+  const content = windowed ? (
+    <FlatList
+      data={rows.lines}
+      keyExtractor={(_, index) => String(index)}
+      renderItem={({ item, index }) => rows.renderLine(item, index)}
+      style={{ maxHeight: props.maxHeight }}
+      contentContainerStyle={rows.style}
+      // Two viewports either side rather than React Native's ten: at its
+      // default of 21 a phone-sized block has some 550 lines of overscan,
+      // and a few hundred lines were all mounted soon after the first
+      // paint anyway (#1382).
+      windowSize={5}
+      nestedScrollEnabled
+    />
+  ) : props.maxHeight === undefined ? (
+    whole
+  ) : (
+    <ScrollView style={{ maxHeight: props.maxHeight }} nestedScrollEnabled>
+      {whole}
+    </ScrollView>
+  )
   // A windowed list cannot be as wide as a line it has not mounted, so the
   // widest line is drawn once more, at no height and out of the reading
   // order, to hold the scrolling width open for the ones that come later.
-  const widest = props.maxHeight === undefined || props.wrap ? undefined : widestLine(rows.lines)
+  const widest = !windowed || props.wrap ? undefined : widestLine(rows.lines)
   return (
     <View role="figure" accessibilityLabel={name} style={box}>
       <Text
