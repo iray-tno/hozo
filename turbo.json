@@ -148,6 +148,7 @@
         "$TURBO_ROOT$/packages/tailwind-conformance/src/gap-alias-reference.ts",
         "$TURBO_ROOT$/packages/engine/src/dom-style.ts",
         "$TURBO_ROOT$/packages/engine/src/authored-gap.ts",
+        "$TURBO_ROOT$/packages/engine/src/gap-styles.ts",
         "$TURBO_ROOT$/packages/engine/src/generated/class-resolver.ts",
         "$TURBO_ROOT$/packages/engine/src/generated/transform-slots.ts",
         "$TURBO_ROOT$/packages/engine/src/class-resolver.ts",

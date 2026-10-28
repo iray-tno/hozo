@@ -1,6 +1,35 @@
 use super::*;
 
 #[test]
+fn authored_gap_projection_is_bounded_to_known_or_opaque_class_gap_owners() {
+    for (classes, expected) in [
+        (r#""gap-y-2""#, true),
+        (r#""gap-x-2""#, true),
+        (r#""gap-2""#, true),
+        ("{classes}", true),
+        (r#""opacity-50""#, false),
+    ] {
+        let source = format!("import {{ View }} from '@hozo/core';const el=<View className={classes} style={{own}} />");
+        let parsed = hozo_parser::parse_tsx(&source);
+        let output = lower(&parsed.roots[0].node, &source, &Theme::default());
+        assert_eq!(
+            output.jsx.contains("hozoAuthoredStyle(own)"),
+            expected,
+            "{}",
+            output.jsx
+        );
+        assert_eq!(
+            output.runtime_imports.contains(&"hozoAuthoredStyle"),
+            expected
+        );
+    }
+    let source = r#"import {View} from '@hozo/core';const el=<View className="gap-2" />"#;
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &Theme::default());
+    assert!(!output.runtime_imports.contains(&"hozoAuthoredStyle"));
+}
+
+#[test]
 fn unmodeled_props_and_spreads_reach_the_output() {
     let source = r#"
             import { View } from '@hozo/core'
@@ -307,7 +336,7 @@ fn a_wrappers_spread_composes_with_the_pattern_slot_styles_it_compiled() {
         "#,
     );
     assert!(
-        jsx.starts_with("<HozoListbox {...hozoSpreadStyles({ "),
+        jsx.starts_with("<HozoListbox {...hozoGapSpreadStyles({ "),
         "{jsx}"
     );
     assert!(jsx.contains("optionStyle: hozoStyles.hozo1"), "{jsx}");

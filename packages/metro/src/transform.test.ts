@@ -80,7 +80,16 @@ export function C() { return <${component} ${slot}={chooseClasses()} ${style}={e
     )
     assert.ok(output)
     assert.ok(output.includes(`${slot}={chooseClasses()}`), output)
-    assert.ok(output.includes(`${style}={${style === 'style' ? '[extra]' : 'extra'}}`), output)
+    assert.ok(
+      output.includes(`${style}={${style === 'style' ? '[hozoAuthoredStyle(extra)]' : 'extra'}}`),
+      output,
+    )
+    if (style === 'style')
+      assert.match(
+        output,
+        /import \{ hozoAuthoredStyle \} from '@hozo\/core\/generated\/gap-styles'/,
+      )
+    else assert.doesNotMatch(output, /hozoAuthoredStyle/)
     assert.equal(output.match(/chooseClasses\(\)/g)?.length, 1)
     assert.doesNotMatch(output, /hozoClasses|candidate|HozoPressable|HozoText/)
   }
@@ -133,7 +142,7 @@ export function C() { return <Chip defaultSelected className={cx('p-2 hover:opac
     /hozoStyles\.hozo_r0_0, __hozoBp_md && hozoStyles\.hozo_r0_0_md, hozoClasses\(__hozoClassSlot0Value0, __hozoClassSlot0State\), hozoClasses\(__hozoClassSlot0Value1, __hozoClassSlot0State\), hovered &&/,
   )
   assert.match(output, /!\(focused\) && hozoStyles\.hozo_r0_0_notfocus/)
-  assert.match(output, /style=\{\[extra\]\}/)
+  assert.match(output, /style=\{\[hozoAuthoredStyle\(extra\)\]\}/)
   assert.match(output, /import \{ hozoClasses \} from '.*candidates\.native\.js'/)
   assert.doesNotMatch(output, /className=|HozoPressable|HozoText/)
 })

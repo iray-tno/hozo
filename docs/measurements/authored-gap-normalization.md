@@ -1,5 +1,10 @@
 # Authored gap normalization: preserve Native semantics on Web
 
+This records the first Web-side slice. The following
+[Native composition slice](./native-authored-gap-composition.md) resolves the
+bounded compiled-root/spread discrepancies recorded below; broader gap
+ordering and fallback/slot work remain open.
+
 The first fix following [the gap boundary measurement](./tailwind-gap-alias-boundary.md)
 aligns the interpretation **within the author's inline StyleProp**. It does
 not yet fix class-axis/inline-generic composition on Native or admit gap to

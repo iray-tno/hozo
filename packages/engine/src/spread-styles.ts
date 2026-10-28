@@ -20,11 +20,19 @@ function resolve(value: StyleValue, state: unknown): StyleValue {
 }
 
 /** Class styles first, the caller's after; a pressable's style function stays one. */
-function compose(compiled: StyleValue, own: StyleValue): StyleValue {
+function compose(
+  compiled: StyleValue,
+  own: StyleValue,
+  normalize?: (value: StyleValue) => StyleValue,
+): StyleValue {
   if (typeof compiled === 'function' || typeof own === 'function') {
-    return (state: unknown) => [resolve(compiled, state), resolve(own, state)]
+    return (state: unknown) => {
+      const generated = resolve(compiled, state)
+      const author = resolve(own, state)
+      return [generated, normalize ? normalize(author) : author]
+    }
   }
-  return [compiled, own]
+  return [compiled, normalize ? normalize(own) : own]
 }
 
 /**
@@ -40,6 +48,16 @@ export function hozoSpreadStyles(
   writtenLast: readonly string[],
   ...sources: readonly unknown[]
 ): Record<string, unknown> {
+  return composeSpreadStyles(styles, writtenLast, sources)
+}
+
+/** Internal core shared by the ordinary and gap-aware generated boundaries. */
+export function composeSpreadStyles(
+  styles: Readonly<Record<string, StyleValue>>,
+  writtenLast: readonly string[],
+  sources: readonly unknown[],
+  normalize?: (value: StyleValue) => StyleValue,
+): Record<string, unknown> {
   let props: Record<string, unknown> = {}
   for (const source of sources) {
     // Object spread, not `Object.assign`: it defines rather than sets, so an
@@ -49,7 +67,7 @@ export function hozoSpreadStyles(
   for (const [name, compiled] of Object.entries(styles)) {
     props[name] =
       !writtenLast.includes(name) && Object.hasOwn(props, name)
-        ? compose(compiled, props[name])
+        ? compose(compiled, props[name], normalize)
         : compiled
   }
   return props
