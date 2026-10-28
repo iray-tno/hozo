@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { projectAuthoredGap } from './authored-gap.ts'
 
 export type HozoDomStyle =
   | CSSProperties
@@ -119,10 +120,12 @@ const unsupported = new Map<string, string>([
 /**
  * Converts React Native's StyleProp shape to the single object React DOM requires.
  * Arrays are recursively flattened, falsy entries are ignored, and later objects win.
+ * Gap aliases are projected afterwards, retaining Yoga's axis-over-generic priority.
  */
 export function hozoDomStyle(input: HozoDomStyle): CSSProperties | undefined {
   const flat: Record<string, unknown> = {}
   flattenInto(input, flat)
+  if (flat.gap !== undefined) projectAuthoredGap(flat)
 
   if ('transform' in flat) {
     const transform = normalizeTransform(flat.transform)

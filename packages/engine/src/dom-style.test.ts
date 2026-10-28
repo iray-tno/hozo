@@ -68,3 +68,61 @@ test('reads a spread style accessor once and ignores inherited style', () => {
   const inherited = Object.create({ style: [{ opacity: 0 }] }) as { style: HozoDomStyle }
   assert.equal(hozoDomProps(inherited), inherited)
 })
+
+test('inline gap axes retain Native priority in either object order and across nested arrays', () => {
+  for (const style of [
+    { rowGap: 8, gap: 24 },
+    { gap: 24, rowGap: 8 },
+    [{ rowGap: 8 }, [false, null, { gap: 24 }]],
+    [[{ gap: 24 }], { rowGap: 8 }],
+  ]) {
+    assert.deepEqual(hozoDomStyle(style), { rowGap: 8, columnGap: 24 })
+  }
+  assert.deepEqual(hozoDomStyle({ columnGap: 0, gap: 16 }), { rowGap: 16, columnGap: 0 })
+  assert.deepEqual(hozoDomStyle([{ rowGap: 8, gap: 16 }, { rowGap: undefined }]), {
+    rowGap: 16,
+    columnGap: 16,
+  })
+  assert.deepEqual(hozoDomStyle({ rowGap: null, columnGap: undefined, gap: '25%' }), {
+    rowGap: '25%',
+    columnGap: '25%',
+  })
+})
+
+test('gap normalization does not mutate frozen styles or evaluate authored accessors twice', () => {
+  const reads: string[] = []
+  const own = Object.freeze({
+    get gap() {
+      reads.push('gap')
+      return 24
+    },
+    get rowGap() {
+      reads.push('rowGap')
+      return 8
+    },
+    get opacity() {
+      reads.push('opacity')
+      return 0.5
+    },
+  })
+  assert.deepEqual(hozoDomStyle([own]), { rowGap: 8, columnGap: 24, opacity: 0.5 })
+  assert.deepEqual(reads, ['gap', 'rowGap', 'opacity'])
+  assert.equal(Object.hasOwn(own, 'gap'), true)
+})
+
+test('CSS-only and invalid generic gaps are not reinterpreted as Native values', () => {
+  for (const gap of [
+    '8px 16px',
+    'var(--spacing)',
+    'calc(2px + 1%)',
+    'normal',
+    -1,
+    NaN,
+    Infinity,
+    null,
+    undefined,
+  ]) {
+    assert.deepEqual(hozoDomStyle({ rowGap: 8, gap }), { rowGap: 8, gap })
+  }
+  assert.deepEqual(hozoDomStyle({ opacity: 0.5, rowGap: 8 }), { opacity: 0.5, rowGap: 8 })
+})

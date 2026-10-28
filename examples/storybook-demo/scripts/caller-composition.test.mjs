@@ -466,9 +466,9 @@ test('gap alias boundary compares actual Tailwind and compiled browser geometry 
             ),
           )
         await page.setContent(
-          `<!doctype html><style>${sheet}\n${subject.css}</style>${element('reference', subject.classes, subject.inline)}${element('compiled', subject.webProps.className, subject.webProps.style)}`,
+          `<!doctype html><style>${sheet}\n${subject.css}</style>${element('raw-reference', subject.classes, subject.inline)}${element('reference', subject.classes, subject.referenceInline)}${element('compiled', subject.webProps.className, subject.webProps.style)}`,
         )
-        for (const id of ['reference', 'compiled']) {
+        for (const id of ['raw-reference', 'reference', 'compiled']) {
           const positions = await page.locator(`#${id}`).evaluate((owner) => {
             const box = owner.getBoundingClientRect()
             return [...owner.children].map((child) => {
@@ -477,7 +477,11 @@ test('gap alias boundary compares actual Tailwind and compiled browser geometry 
             })
           })
           const measured = gapGeometry(positions, layout.flexDirection)
-          assert.deepEqual(measured, subject.web, `${subject.id}/${id}/${JSON.stringify(layout)}`)
+          assert.deepEqual(
+            measured,
+            id === 'raw-reference' ? subject.rawWeb : subject.web,
+            `${subject.id}/${id}/${JSON.stringify(layout)}`,
+          )
           browserObservations++
           if (id === 'reference') {
             for (const style of [subject.selected, subject.dynamic]) {
@@ -489,8 +493,8 @@ test('gap alias boundary compares actual Tailwind and compiled browser geometry 
         }
       }
     }
-    assert.equal(browserObservations, 320)
-    assert.equal(knownMismatches, 128, 'boundary evidence, not a passing parity claim')
+    assert.equal(browserObservations, 480)
+    assert.equal(knownMismatches, 96, 'remaining class/inline boundary, not a passing parity claim')
   } finally {
     await page.close()
   }
