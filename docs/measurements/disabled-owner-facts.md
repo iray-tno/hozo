@@ -69,3 +69,29 @@ No new conformance percentage, fresh full app/device/AT result, full root JS
 suite or completed six-group migration is claimed. The generated Native source
 receipt is freshness evidence, not a device run. Those heavier integration
 checks belong to CI.
+
+## CI follow-up: stale native-button expectation
+
+CI runs `40634948574` and `40639815504`, plus the dependent layer's
+`40635688033` and `40639814998`, each failed the same Storybook assertion:
+`disabled-link.test.mjs` required an ordinary disabled button to omit
+`aria-disabled`. The actual host retained `disabled=""` and intentionally
+reflected `aria-disabled="true"`. The old assertion was not updated along with
+the shared owner-fact contract. The failure was reproduced locally and was
+not classified as flaky. Rebased source trees were identical, so rebasing or
+rerunning alone could not fix it. Both original PRs' Android/iOS jobs passed.
+
+The repair changes tests only: compiled/fallback SSR hosts must retain native
+disabled and the matching ARIA/data fact for true, false and absent input.
+Real-browser tests additionally require native `:disabled`, suppressed
+programmatic click/Enter activation and Tab exclusion, with enabled controls
+still clickable and reachable. The fallback assertion is scoped to the actual
+button rather than its base stylesheet. The focused suite has **nine passed,
+zero skipped**. This does not replace the original runtime correction or
+weaken native disabled behavior.
+
+With a fresh addon at the lower layer, the exact Node phase extracted from
+Storybook's CI test entry passed **268 tests, zero failures or skips** (up from
+265 because the old single assertion becomes four compiled/fallback SSR and
+browser tests). This includes all its existing browser and Native-host probes;
+it is not a fresh Storybook production build or device/AT run.
