@@ -285,6 +285,13 @@ predicate remains distinct from `:disabled` in selector/guard evidence even
 though normalized action-owner delivery makes their boolean values agree.
 No runtime sorting, provider or new state key is needed for this graduation.
 
+Policy v8 adds exact upstream negations of the same six boolean ARIA facts.
+Positive/negative multiplicities are separate evidence, not a class-family
+priority table. The dynamic candidate path needed missing negated-ARIA support;
+its encoded predicate is prepared once against the existing owner fact, keeping
+unknown distinct from false and sharing legacy/ordered missing-fact handling.
+See [negation evidence and isolated cost](../measurements/tailwind-negated-aria-order.md).
+
 ## 1. Restart, not another family-specific patch
 
 PR [#1237](https://github.com/iray-tno/hozo/pull/1237) is closed as superseded and must not be

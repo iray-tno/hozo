@@ -31,7 +31,7 @@ negated known sibling predicates such as `not-first:`/`not-last:`, and negated
 supported environment queries such as `not-motion-reduce:` reuse the positive
 predicate, including when stacked with other supported conditions. Prop predicates
 need the same readable driver as their positive form; `not-disabled:` without a
-`disabled` prop or an unreadable ARIA state is still a diagnostic, not a false value
+readable disabled fact or an unreadable ARIA state is still a diagnostic, not a false value
 to invert. `not-enabled:` follows the existing `enabled:` contract: without a
 `disabled` prop, enabled is known true and its negation does not apply. Unknown
 sibling positions and unsupported environment queries remain diagnostics too.
@@ -44,8 +44,12 @@ negated focus-visible alone enables the same pointer/keyboard modality inference
 as its positive form. Text in that interaction context uses the owner's state,
 not an independent text focus target, just as positive focus variants do. No new
 store or subscription is added. Other elements without a readable focus driver
-remain diagnostics. `not-hover:` and other unsupported selector negations remain
-unwired.
+remain diagnostics. Dynamic class maps also carry negated ARIA predicates as
+compiler-owned `!aria-…` keys, prepared once by the resolver from the underlying
+owner facts. Missing facts remain unassessed, including under negation; no new
+owner-state fields or subscriptions are needed. Both ordinary and ordered maps
+use this same matcher. Non-ARIA dynamic selector negations such as `not-hover:`
+remain unwired; their static lowering is a separate capability.
 
 **Interaction state infrastructure.** The canonical `HozoPressable` in `@hozo/primitives` tracks
 pressed, hovered, focused and focus-visible state using the shared helpers owned here. Focus-visible

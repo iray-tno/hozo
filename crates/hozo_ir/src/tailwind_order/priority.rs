@@ -1,7 +1,9 @@
 //! A bounded author-rule priority in one utility input tier, not a complete
 //! CSS cascade or permission to reorder authored expressions/unknown writes.
 use super::TailwindOrderContext;
-use crate::tailwind_assessment::{aria_owner_index, OWNER_PREDICATE_COUNT};
+use crate::tailwind_assessment::{
+    aria_owner_index, negated_aria_owner_index, OWNER_PREDICATE_COUNT,
+};
 use crate::{
     assess_tailwind_rule, assess_tailwind_write, scalar_tailwind_property, Condition,
     RuleAssessmentError, StyleProperty, TailwindWriteOwnership,
@@ -75,6 +77,10 @@ impl TailwindOrderContext {
                 Condition::Pressed => 3,
                 Condition::Disabled => 4,
                 Condition::Aria(state) => aria_owner_index(state)?,
+                Condition::Not(inner) => match inner.as_ref() {
+                    Condition::Aria(state) => negated_aria_owner_index(state)?,
+                    _ => return None,
+                },
                 Condition::All(parts) if !parts.is_empty() => {
                     for part in parts {
                         collect(part, actual)?;

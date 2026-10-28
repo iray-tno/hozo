@@ -418,6 +418,10 @@ fn state_keys(condition: &Condition) -> Option<Vec<String>> {
         Condition::Disabled => vec!["disabled".to_string()],
         Condition::FormState(FormState::ReadOnly) => vec!["readOnly".to_string()],
         Condition::Aria(state) => vec![format!("aria-{state}")],
+        Condition::Not(inner) => match inner.as_ref() {
+            Condition::Aria(state) => vec![format!("!aria-{state}")],
+            _ => return None,
+        },
         Condition::DataAttribute(selector) => {
             vec![data_fact_key(selector)?]
         }
@@ -677,6 +681,29 @@ mod tests {
             "{module}"
         );
         assert!(!module.contains("is conditional"), "{module}");
+    }
+
+    #[test]
+    fn negated_aria_candidates_keep_polarity_without_inventing_owner_facts() {
+        let module = render_candidate_module(
+            &[
+                "not-aria-selected:p-4",
+                "aria-checked:not-aria-selected:p-8",
+            ]
+            .map(String::from),
+            &Theme::default(),
+        );
+        assert!(module.contains(r#"[[["!aria-selected"], "#), "{module}");
+        assert!(
+            module.contains(r#"[[["aria-checked", "!aria-selected"], "#),
+            "{module}"
+        );
+        assert!(!module.contains("is conditional"), "{module}");
+        assert!(state_keys(&Condition::Not(Box::new(Condition::Hover))).is_none());
+        assert!(state_keys(&Condition::Not(Box::new(Condition::Not(Box::new(
+            Condition::Aria("selected".into())
+        )))))
+        .is_none());
     }
 
     #[test]
