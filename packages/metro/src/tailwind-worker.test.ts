@@ -8,7 +8,7 @@ import test, { type TestContext } from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { createCompiler, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
 import { CACHE_DIR, StylexModuleCache, TailwindProjectSession } from '@hozo/compiler/project'
-import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { createClassResolver, hozoTextMetricStyles } from '../../engine/src/class-resolver.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
 import { metroStatePath, readMetroState, withHozo } from './config.ts'
 import { getCacheKey, transform } from './index.ts'
@@ -159,6 +159,37 @@ test('font-weight tokens use the same captured values in static workers and the 
   assert.notEqual(getCacheKey({ projectRoot: root }), firstKey)
   assert.match(await run(), /fontWeight: '300'/)
   assert.equal(dynamic(), '300')
+})
+
+test('default Metro static output and generated metric composition agree without an opt-in flag', async (t) => {
+  const { root, config, tokens, file } = fixture(t)
+  const classes = 'text-lg text-xl leading-6 p-4 p-2'
+  writeFileSync(
+    file,
+    `import {Text} from '@hozo/core';export const A=()=> <Text className="${classes}"/>`,
+  )
+  writeFileSync(path.join(root, 'src', 'metrics.ts'), `export const metrics=()=> '${classes}'`)
+  writeFileSync(tokens, '@theme {--spacing:.25rem;}')
+  await withHozo(config)
+  const code = readFileSync(path.join(root, CACHE_DIR, 'candidates.native.js'), 'utf8')
+  assert.match(code, /hozoTextMetricStyles/)
+  const resolver = runInNewContext(
+    `${code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
+    { createClassResolver, hozoTextMetricStyles },
+  )
+  for (const value of [classes, classes.split(' ').reverse().join(' ')]) {
+    const output = await transform({
+      src: `import {Text} from '@hozo/core';export const A=()=> <Text className="${value}"/>`,
+      filename: file,
+      options: { projectRoot: root, platform: 'android' },
+    })
+    assert.match(output, /fontSize: 20/)
+    assert.match(output, /lineHeight: 24/)
+    const dynamic = Object.assign({}, ...resolver(value))
+    assert.equal(dynamic.fontSize, 20)
+    assert.equal(dynamic.lineHeight, 24)
+    assert.equal(dynamic.paddingTop, 16)
+  }
 })
 
 test('full lexical startup names give one retained parse followed by ready hits without ordinary lowering', async (t) => {
@@ -313,7 +344,7 @@ test('a validly hashed old projection policy is rejected, not mixed with current
   const reference = readMetroState(root)!.tailwind!
   const data = JSON.parse(readFileSync(reference.file, 'utf8'))
   assert.equal(data.orderingPolicy, TAILWIND_SCALAR_ORDER_POLICY)
-  data.orderingPolicy = 'scalar-order-v2'
+  data.orderingPolicy = 'scalar-order-v4'
   const content = JSON.stringify(data)
   writeFileSync(reference.file, content)
   await assert.rejects(

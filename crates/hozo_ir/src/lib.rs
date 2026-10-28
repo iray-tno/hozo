@@ -5413,11 +5413,18 @@ pub fn group_by_condition(
     let mut source = None;
     let mut start = 0;
     let mut ordered = false;
+    let input = declarations
+        .iter()
+        .find(|d| d.source != StyleSource::Unspecified)
+        .map(|d| d.source.input());
+    let mut canonical_input = true;
     for decl in declarations {
         // A later styling input can revisit a condition after another
         // condition. Merging it into the earlier rule would move its write
         // backwards across that rule, losing JSX tie order.
         let next_ordered = matches!(decl.source, StyleSource::TailwindOrdered { .. });
+        canonical_input &= (next_ordered && Some(decl.source.input()) == input)
+            || (decl.source == StyleSource::Unspecified && decl.condition == Condition::Always);
         if source != Some(decl.source.input())
             || ordered != next_ordered
             || (next_ordered
@@ -5443,9 +5450,15 @@ pub fn group_by_condition(
     // Only a domain whose selector weight is known can be linearized
     // this way on Native. Do not guess at structural/arbitrary selectors.
     // Multiple StyleX inputs need the same rule, not just mixed frontends.
-    if groups
-        .iter()
-        .all(|(condition, _)| condition.owner_interaction_specificity().is_some())
+    // The common plan already owns canonical input order. In particular a
+    // backend may project register fallbacks before explicit writes without
+    // changing their guards. Re-sorting those by the legacy condition weight
+    // would undo that projection. Unconditional semantic defaults add no
+    // selector weight; mixed/unassessed/unknown guarded inputs keep the old path.
+    if !canonical_input
+        && groups
+            .iter()
+            .all(|(condition, _)| condition.owner_interaction_specificity().is_some())
     {
         groups.sort_by_key(|(condition, _)| condition.owner_interaction_specificity().unwrap());
     }

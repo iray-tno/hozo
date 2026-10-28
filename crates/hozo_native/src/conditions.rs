@@ -300,12 +300,51 @@ pub(super) fn build_style_entries(
     // condition, a breakpoint, `dark:`, a className branch -- is (0,1,0) and
     // loses to it.
     let mut state_parts: Vec<String> = Vec::new();
-    let mut used_names = declarations
-        .windows(2)
-        .any(|pair| pair[0].source.input() != pair[1].source.input())
-        .then(std::collections::HashSet::new);
+    let mut groups = hozo_ir::group_by_condition(declarations);
+    for (_, props) in &mut groups {
+        *props = hozo_ir::dedupe_last_wins(std::mem::take(props));
+    }
+    let is_default = |property: &StyleProperty| {
+        matches!(
+            property,
+            StyleProperty::LineHeight(hozo_ir::LineHeight::FontDefault(_))
+        )
+    };
+    let projects_metrics = groups.iter().any(|(_, props)| props.iter().any(is_default))
+        && groups.iter().any(|(_, props)| {
+            props.iter().any(|property| {
+                matches!(
+                    property,
+                    StyleProperty::LineHeight(hozo_ir::LineHeight::Length(_))
+                )
+            })
+        });
+    if projects_metrics {
+        // This is CSS register projection, after authored input precedence
+        // has been decided: a font default reads an explicit --tw-leading
+        // even from a less-specific rule or another frontend input. Keep
+        // normal writes in their established order and move only fallbacks.
+        let mut defaults = Vec::new();
+        let mut writes = Vec::new();
+        for (condition, props) in groups {
+            let (fallback, rest): (Vec<_>, Vec<_>) = props.into_iter().partition(is_default);
+            if !fallback.is_empty() {
+                defaults.push((condition.clone(), fallback));
+            }
+            if !rest.is_empty() {
+                writes.push((condition, rest));
+            }
+        }
+        defaults.extend(writes);
+        groups = defaults;
+    }
+    let mut used_names = (projects_metrics
+        || declarations
+            .windows(2)
+            .any(|pair| pair[0].source.input() != pair[1].source.input()))
+    .then(std::collections::HashSet::new);
 
-    for (condition, props) in hozo_ir::group_by_condition(declarations) {
+    for (condition, props) in groups {
         // Read before the match below moves parts of `condition` out.
         let is_dark_only = condition.mentions_dark();
         let conditional = if is_element_state(&condition) {
@@ -313,7 +352,6 @@ pub(super) fn build_style_entries(
         } else {
             &mut conditional_parts
         };
-        let props = hozo_ir::dedupe_last_wins(props);
         if props.is_empty() {
             continue;
         }

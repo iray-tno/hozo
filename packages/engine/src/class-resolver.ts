@@ -2,6 +2,26 @@
 export type StyleObject = Record<string, unknown>
 
 /**
+ * Compiler-owned text-size fallbacks are not explicit line heights. CSS's
+ * --tw-leading register survives a later font-size rule; RN has one numeric
+ * slot. The map marks actual generated objects, never class names or private
+ * style keys. Only maps containing these fallbacks install this composition.
+ */
+export function hozoTextMetricStyles(
+  styles: StyleObject[],
+  defaults: ReadonlyMap<StyleObject, StyleObject>,
+): StyleObject[] {
+  if (
+    !styles.some((style) => defaults.has(style)) ||
+    !styles.some((style) => Object.hasOwn(style, 'lineHeight') && !defaults.has(style))
+  )
+    return styles
+  // Default-free objects are built once by the generated factory. A state
+  // update selects them; it never clones a style object or inspects ranks.
+  return styles.map((style) => defaults.get(style) ?? style)
+}
+
+/**
  * The state an element is in when its runtime classes are resolved: what
  * its pressable reports (`pressed`, `hovered`, `focused`, `focusVisible`)
  * and what its props say: `disabled`, and `aria-checked`, `aria-selected` and

@@ -26,8 +26,8 @@ test('ordinary project sessions enable shared scalar winners without changing st
     for (const classes of ['p-4 p-2', 'p-2 p-4']) {
       const [web] = await session.emit(`web-${classes}`, [collected(classes)])
       assert.match(web[0].css, /padding-top: 16px/)
-      assert.equal(web[0].tailwindPlan.mode, 'scalar-order-v3')
-      assert.match(web[0].tailwindPlan.fingerprint, /^scalar-order-v3:/)
+      assert.equal(web[0].tailwindPlan.mode, 'scalar-order-v5')
+      assert.match(web[0].tailwindPlan.fingerprint, /^scalar-order-v5:/)
       const [native] = await session.emit(`native-${classes}`, [
         (compiler) => compiler.prepareNativeModule(source(classes)),
       ])
