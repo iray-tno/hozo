@@ -185,12 +185,10 @@ test('overflow has a separate keyboard stop; wrapping, themes, raw copy and reti
   }
 })
 
-test('Native lines group tokens and hide gutters; provider copy, scheme and interaction facts (mock hosts)', async () => {
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true
-  const announcements = [],
-    facts = [],
-    writes = []
-  let dark = false
+const flatten = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
+
+/** `@hozo/patterns`' Native CodeBlock over mock hosts; `env` is read live. */
+async function loadNativeCodeBlock(env) {
   const bundle = await build({
     stdin: {
       contents: `export {CodeBlock} from './packages/patterns/src/code-block.native.tsx'; export {CodeClipboardProvider} from './packages/patterns/src/code-clipboard.tsx'`,
@@ -229,7 +227,6 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
       },
     ],
   })
-  const flatten = (style) => Object.assign({}, ...[style].flat(Infinity).filter(Boolean))
   const native = {
     View: 'NativeView',
     Text: 'NativeText',
@@ -241,18 +238,34 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
         typeof children === 'function' ? children({ pressed: false }) : children,
       ),
     StyleSheet: { flatten },
+    // Windowing is React Native's; this stand-in mounts the first
+    // `initialNumToRender` rows, so a test can see which lines were left out.
+    FlatList: ({ data, renderItem, keyExtractor, initialNumToRender = 2, ...props }) =>
+      React.createElement(
+        'NativeFlatList',
+        props,
+        data
+          .slice(0, initialNumToRender)
+          .map((item, index) =>
+            React.createElement(
+              React.Fragment,
+              { key: keyExtractor(item, index) },
+              renderItem({ item, index }),
+            ),
+          ),
+      ),
   }
   const module = { exports: {} }
   new Function('require', 'module', 'exports', bundle.outputFiles[0].text)(
     (name) => {
       if (name === 'react-native') return native
       if (name === 'test-announcements')
-        return { useAnnounce: () => (message) => announcements.push(message) }
-      if (name === '@hozo/engine/generated/environment') return { useHozoDark: () => dark }
+        return { useAnnounce: () => (message) => env.announcements.push(message) }
+      if (name === '@hozo/engine/generated/environment') return { useHozoDark: () => env.dark }
       if (name === '@hozo/engine/project')
         return {
           hozoClasses: (value, state) => {
-            facts.push([value, state])
+            env.facts.push([value, state])
             return value === 'frame'
               ? [{ padding: 8, color: 'navy', fontSize: 18 }]
               : value === 'line'
@@ -271,6 +284,16 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
     module,
     module.exports,
   )
+  return module
+}
+
+test('Native lines group tokens and hide gutters; provider copy, scheme and interaction facts (mock hosts)', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  const announcements = [],
+    facts = [],
+    writes = []
+  const env = { facts, announcements, dark: false }
+  const module = await loadNativeCodeBlock(env)
   const lines = [
     { tokens: [{ text: '\tx', color: { light: 'red', dark: 'blue' } }], mark: 'ins' },
     { tokens: 'old', mark: 'del' },
@@ -336,7 +359,7 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
       4,
     )
     const provider = { writeText: async (text) => writes.push(text) }
-    dark = true
+    env.dark = true
     await act(async () => renderer.update(element(provider)))
     assert.equal(row().findAllByType('NativeText').at(-1).props.style.color, 'blue')
     const button = () => renderer.root.findByType('NativePressable')
@@ -348,4 +371,66 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
   } finally {
     if (renderer) await act(async () => renderer.unmount())
   }
+})
+
+test('Native maxHeight windows the lines and holds the scrolling width open with the widest one (mock hosts)', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true
+  const module = await loadNativeCodeBlock({ facts: [], announcements: [], dark: false })
+  const lines = Array.from({ length: 50 }, (_, at) => ({
+    tokens: at === 37 ? 'the widest line of all' : `line ${at}`,
+  }))
+  const mount = async (props) => {
+    let renderer
+    await act(async () => {
+      renderer = create(React.createElement(module.exports.CodeBlock, { lines, ...props }))
+    })
+    return renderer
+  }
+  const spoken = (renderer) =>
+    renderer.root
+      .findAllByType('NativeText')
+      .filter((node) => node.props.accessible)
+      .map((node) => node.props.accessibilityLabel)
+  const hidden = (renderer) =>
+    renderer.root
+      .findAllByType('NativeView')
+      .filter((node) => node.props.importantForAccessibility === 'no-hide-descendants')
+
+  const whole = await mount({})
+  assert.equal(whole.root.findAllByType('NativeFlatList').length, 0, 'without it, no list')
+  assert.equal(spoken(whole).length, 50, 'and every line is mounted')
+  await act(async () => whole.unmount())
+
+  const windowed = await mount({ maxHeight: 200 })
+  const list = windowed.root.findByType('NativeFlatList')
+  assert.equal(flatten(list.props.style).maxHeight, 200)
+  assert.equal(windowed.root.findAllByType('NativeScrollView').length, 1, 'still scrolls sideways')
+  const [sizer] = hidden(windowed)
+  assert.deepEqual(flatten(sizer.props.style), { height: 0, overflow: 'hidden' })
+  assert.deepEqual(
+    sizer
+      .findAllByType('NativeText')
+      .filter((node) => node.props.accessible)
+      .map((node) => node.props.accessibilityLabel),
+    ['the widest line of all'],
+    'the width is held by the widest line, out of the reading order',
+  )
+  assert.deepEqual(
+    list
+      .findAllByType('NativeText')
+      .filter((node) => node.props.accessible)
+      .map((node) => node.props.accessibilityLabel),
+    ['line 0', 'line 1'],
+    'the list mounts what its window asks for, not all fifty',
+  )
+  await act(async () => windowed.unmount())
+
+  const wrapped = await mount({ maxHeight: 200, wrap: true })
+  assert.equal(
+    wrapped.root.findAllByType('NativeScrollView').length,
+    0,
+    'a wrapped block has no width to hold',
+  )
+  assert.equal(hidden(wrapped).length, 0)
+  await act(async () => wrapped.unmount())
 })

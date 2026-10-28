@@ -10,6 +10,18 @@ export interface CodeBlockOptions {
   tabSize?: number
   theme?: string
   copy?: boolean | { text: string }
+  /**
+   * The tallest the lines may be, in pixels, before they scroll inside the
+   * block instead of making it longer.
+   *
+   * On React Native the block then mounts only the lines near the visible
+   * ones, which is what makes a long block affordable there (#1289). The Web
+   * keeps every line in the page, so that find-in-page and selection still
+   * reach all of them; the cost #1289 measured is Native's. A class such as
+   * `max-h-96` bounds the frame but cannot turn this on: the windowing has
+   * to know it is the scroller.
+   */
+  maxHeight?: number
 }
 
 export function codeLineStart(numbers: CodeBlockOptions['lineNumbers']): number {

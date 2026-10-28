@@ -1,10 +1,11 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { HozoTextSizeContext } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
-import { CodeLines } from '@hozo/typography/code/lines/native'
+import { type NormalizedCodeLine, useCodeLineRows } from '@hozo/typography/code/lines/native'
 import { codeText, normalizeCodeLines } from '@hozo/typography/code/model'
 import { useContext } from 'react'
 import {
+  FlatList,
   ScrollView,
   type StyleProp,
   StyleSheet,
@@ -51,54 +52,63 @@ export function CodeBlock(props: CodeBlockProps) {
   const width =
     ((props.lineNumbers ? String(start + lines.length - 1).length : 0) + (hasMarks ? 2 : 0) + 1) *
     fontSize
-  const content = (
-    <CodeLines
-      {...props}
-      lineClassName={props.lineClassName}
-      insClassName={props.insClassName}
-      delClassName={props.delClassName}
-      markClassName={props.markClassName}
-      lines={lines}
-      className={undefined}
-      style={[{ fontFamily: 'monospace', fontSize, lineHeight }, text]}
-      renderGutter={
-        gutter
-          ? (line, index) => {
-              const facts = {
-                'data-code-mark': Boolean(line.mark),
-                'data-code-mark=ins': line.mark === 'ins',
-                'data-code-mark=del': line.mark === 'del',
-                'data-code-mark=mark': line.mark === 'mark',
-              }
-              const [gutterBox, gutterText] = splitTextStyle([
-                hozoClasses(props.gutterClassName, facts),
-                line.mark ? hozoClasses(props[`${line.mark}ClassName`], facts) : undefined,
-                props.gutterStyle,
-              ])
-              return (
-                <View
-                  importantForAccessibility="no-hide-descendants"
-                  accessibilityElementsHidden
-                  style={[{ width, flexShrink: 0 }, gutterBox]}
-                >
-                  <Text
-                    style={[
-                      { fontFamily: 'monospace', fontSize, lineHeight, textAlign: 'right' },
-                      gutterText,
-                    ]}
-                  >
-                    {hasMarks
-                      ? `${line.mark === 'ins' ? '+' : line.mark === 'del' ? '−' : line.mark === 'mark' ? '•' : ' '} `
-                      : ''}
-                    {props.lineNumbers ? start + index : ''}
-                  </Text>
-                </View>
-              )
-            }
-          : undefined
-      }
-    />
-  )
+  const rows = useCodeLineRows({
+    ...props,
+    lines,
+    className: undefined,
+    style: [{ fontFamily: 'monospace', fontSize, lineHeight }, text],
+    renderGutter: gutter
+      ? (line, index) => {
+          const facts = {
+            'data-code-mark': Boolean(line.mark),
+            'data-code-mark=ins': line.mark === 'ins',
+            'data-code-mark=del': line.mark === 'del',
+            'data-code-mark=mark': line.mark === 'mark',
+          }
+          const [gutterBox, gutterText] = splitTextStyle([
+            hozoClasses(props.gutterClassName, facts),
+            line.mark ? hozoClasses(props[`${line.mark}ClassName`], facts) : undefined,
+            props.gutterStyle,
+          ])
+          return (
+            <View
+              importantForAccessibility="no-hide-descendants"
+              accessibilityElementsHidden
+              style={[{ width, flexShrink: 0 }, gutterBox]}
+            >
+              <Text
+                style={[
+                  { fontFamily: 'monospace', fontSize, lineHeight, textAlign: 'right' },
+                  gutterText,
+                ]}
+              >
+                {hasMarks
+                  ? `${line.mark === 'ins' ? '+' : line.mark === 'del' ? '−' : line.mark === 'mark' ? '•' : ' '} `
+                  : ''}
+                {props.lineNumbers ? start + index : ''}
+              </Text>
+            </View>
+          )
+        }
+      : undefined,
+  })
+  const content =
+    props.maxHeight === undefined ? (
+      <View style={rows.style}>{rows.lines.map(rows.renderLine)}</View>
+    ) : (
+      <FlatList
+        data={rows.lines}
+        keyExtractor={(_, index) => String(index)}
+        renderItem={({ item, index }) => rows.renderLine(item, index)}
+        style={{ maxHeight: props.maxHeight }}
+        contentContainerStyle={rows.style}
+        nestedScrollEnabled
+      />
+    )
+  // A windowed list cannot be as wide as a line it has not mounted, so the
+  // widest line is drawn once more, at no height and out of the reading
+  // order, to hold the scrolling width open for the ones that come later.
+  const widest = props.maxHeight === undefined || props.wrap ? undefined : widestLine(rows.lines)
   return (
     <View role="figure" accessibilityLabel={name} style={box}>
       <Text
@@ -106,7 +116,26 @@ export function CodeBlock(props: CodeBlockProps) {
       >
         {title}
       </Text>
-      {props.wrap ? content : <ScrollView horizontal>{content}</ScrollView>}
+      {props.wrap ? (
+        content
+      ) : (
+        <ScrollView horizontal>
+          {widest ? (
+            <View>
+              <View
+                accessibilityElementsHidden
+                importantForAccessibility="no-hide-descendants"
+                style={{ height: 0, overflow: 'hidden' }}
+              >
+                {rows.renderLine(widest.line, widest.index)}
+              </View>
+              {content}
+            </View>
+          ) : (
+            content
+          )}
+        </ScrollView>
+      )}
       {props.copy ? (
         <CodeCopy
           text={typeof props.copy === 'object' ? props.copy.text : codeText(props.lines)}
@@ -116,4 +145,21 @@ export function CodeBlock(props: CodeBlockProps) {
       ) : null}
     </View>
   )
+}
+
+/**
+ * The line that needs the most columns. The text is monospaced, so columns
+ * are the width; a wide character (CJK, full-width forms, most emoji) takes
+ * two, which is approximated by code point rather than read from Unicode's
+ * East Asian Width table.
+ */
+function widestLine(lines: readonly NormalizedCodeLine[]) {
+  let widest: { line: NormalizedCodeLine; index: number; columns: number } | undefined
+  lines.forEach((line, index) => {
+    let columns = 0
+    for (const token of line.tokens)
+      for (const char of token.text) columns += (char.codePointAt(0) ?? 0) >= 0x2e80 ? 2 : 1
+    if (!widest || columns > widest.columns) widest = { line, index, columns }
+  })
+  return widest
 }
