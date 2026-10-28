@@ -112,7 +112,8 @@ export function HozoDrawer({
    * This single number is the whole of the axis mapping, which is what keeps the
    * arithmetic shared with the bottom sheet.
    */
-  const away = useHozoDrawerSide(side) === 'left' ? -1 : 1
+  const edge = useHozoDrawerSide(side)
+  const away = edge === 'left' ? -1 : 1
 
   const live = useRef({ fraction, width, away, onClose })
   live.current = { fraction, width, away, onClose }
@@ -192,7 +193,11 @@ export function HozoDrawer({
           style={[
             hozoClasses(panelClassName),
             panelStyle,
-            insetPadding([hozoClasses(panelClassName), panelStyle], insets, ['top', 'bottom']),
+            insetPadding([hozoClasses(panelClassName), panelStyle], insets, [
+              'top',
+              'bottom',
+              edge,
+            ]),
             { transform: [{ translateX: away * travelFor(fraction, width) }] },
           ]}
           {...pan.panHandlers}

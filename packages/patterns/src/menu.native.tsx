@@ -4,6 +4,7 @@ import { type ReactNode, useState } from 'react'
 import { Modal, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
+import { insetPadding } from './safe-area-padding.native.ts'
 import type { MenuItemSlotFacts, MenuTriggerSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -138,7 +139,9 @@ export function HozoMenu({
           accessibilityViewIsModal
           accessibilityRole="menu"
           accessibilityLabel={accessibilityLabel}
-          style={menuBox}
+          // Full width against the bottom edge, so a landscape notch on either
+          // side is over the items unless the box pads it.
+          style={[menuBox, insetPadding(menuBox, insets, ['left', 'right'])]}
         >
           {items.map((item, at) => (
             <Pressable

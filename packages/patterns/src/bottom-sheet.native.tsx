@@ -173,7 +173,19 @@ export function HozoBottomSheet({
   // Modal, so filling it is the same layer.
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[{ flex: 1 }, hozoClasses(className), style]}>
+      <View
+        style={[
+          { flex: 1 },
+          hozoClasses(className),
+          style,
+          // A landscape notch is on the left or the right, and the sheet is
+          // centred with a maximum width: whether it reaches that edge depends
+          // on the screen. Keeping the root's content off the inset holds the
+          // sheet clear either way, and the scrim is absolute, so it still
+          // covers the strip under the notch.
+          insetPadding([hozoClasses(className), style], insets, ['left', 'right']),
+        ]}
+      >
         {/*
           The scrim is the tap that dismisses, which is the single-pointer
           alternative to dragging the sheet away. Hidden from the accessibility

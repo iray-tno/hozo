@@ -6,6 +6,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import {
   exerciseUiDocs,
+  UI_LANDSCAPE_OVERLAY_SCENES,
   UI_OVERLAY_SCENES,
   UI_STATE_SCENES,
   uiDocStoryId,
@@ -191,4 +192,44 @@ test('the open overlays the walk captures are the stories UiOverlays exports, wa
   assert.match(stories, /title: 'UI\/Open overlays'/, 'the story ids assume this title')
   for (const { ready } of UI_OVERLAY_SCENES) assert.ok(stories.includes(`'${ready}'`), ready)
   assert.equal(uiOverlayStoryId('BottomSheet'), 'ui-open-overlays--bottom-sheet')
+})
+
+test('landscape overlays are shot turned, then the device is turned back, or are skipped without a way to turn it', async () => {
+  const output = mkdtempSync(join(tmpdir(), 'ui-docs-'))
+  const events = []
+  const device = {
+    open: (id) => events.push(`open ${id}`),
+    waitForEither: async (labels) => labels.at(-1),
+    settle: async () => {},
+    capture: (name) => events.push(`capture ${name}`),
+  }
+  const [drawer] = UI_LANDSCAPE_OVERLAY_SCENES.filter(({ name }) => name === 'Drawer')
+  const turned = await exerciseUiDocs(
+    { ...device, rotate: async (landscape) => events.push(`rotate ${landscape}`) },
+    output,
+    { pages: ['button'], landscape: [drawer] },
+  )
+  assert.deepEqual(events.slice(-4), [
+    'rotate true',
+    `open ${uiOverlayStoryId('Drawer')}`,
+    'capture landscape-drawer',
+    'rotate false',
+  ])
+  assert.deepEqual(turned.landscape.Drawer, { status: 'ok', image: 'landscape-drawer.png' })
+
+  const upright = await exerciseUiDocs(device, output, { pages: ['button'], landscape: [drawer] })
+  assert.equal(upright.landscape.Drawer.status, 'skipped')
+
+  // A device lost before the turn is a scene that never appeared, not a throw.
+  const lost = await exerciseUiDocs(
+    {
+      ...device,
+      rotate: async () => {
+        throw new Error('device offline')
+      },
+    },
+    output,
+    { pages: ['button'], landscape: [drawer] },
+  )
+  assert.deepEqual(lost.landscape.Drawer, { status: 'unreached', reason: 'device offline' })
 })
