@@ -15,6 +15,7 @@ investigation moves.
 
 | Test | Where | Issue |
 | --- | --- | --- |
+| The appearance audit reaching its readiness deadline with an empty or stale story frame on one CPU | `examples/storybook-demo/scripts/check-appearance.mjs` | [#1367](https://github.com/iray-tno/hozo/issues/1367) |
 | The browser video keyboard test reading `Play video` after waiting for `Pause video` | `packages/media/tests/browser-video.test.mjs` | [#1247](https://github.com/iray-tno/hozo/issues/1247) |
 | The `ios` job, before any test runs ("Timed out waiting for AX loaded notification") | `.github/workflows` | [#530](https://github.com/iray-tno/hozo/issues/530) |
 | The `voiceover` job, on the runner ("-1743", VoiceOver refusing to launch) | `.github/workflows` | [#631](https://github.com/iray-tno/hozo/issues/631) |
