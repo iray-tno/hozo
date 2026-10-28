@@ -46,6 +46,7 @@ export const UI_OVERLAY_SCENES = [
   { name: 'Combobox', ready: 'Combobox option, shown open' },
   { name: 'BottomSheet', ready: 'Bottom sheet body, shown open' },
   { name: 'Drawer', ready: 'Drawer body, shown open' },
+  { name: 'RightDrawer', ready: 'Right drawer body, shown open' },
 ]
 // Storybook splits an export name at its capitals: `BottomSheet` is
 // `bottom-sheet`, and a story id that only lowercases it opens nothing.

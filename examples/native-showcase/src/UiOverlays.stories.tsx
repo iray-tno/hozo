@@ -110,6 +110,15 @@ function OpenDrawer() {
   )
 }
 
+function OpenRightDrawer() {
+  const [body] = useState('Right drawer body, shown open')
+  return (
+    <UiDrawer open side="right" onClose={() => {}} accessibilityLabel="Open right drawer">
+      {body}
+    </UiDrawer>
+  )
+}
+
 const meta = {
   title: 'UI/Open overlays',
   component: OpenDialog,
@@ -124,3 +133,4 @@ export const Menu: Story = { render: () => <OpenMenu /> }
 export const Combobox: Story = { render: () => <OpenCombobox /> }
 export const BottomSheet: Story = { render: () => <OpenBottomSheet /> }
 export const Drawer: Story = { render: () => <OpenDrawer /> }
+export const RightDrawer: Story = { render: () => <OpenRightDrawer /> }
