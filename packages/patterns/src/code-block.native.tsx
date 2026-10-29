@@ -139,7 +139,15 @@ export function CodeBlock(props: CodeBlockProps) {
   // order, to hold the scrolling width open for the ones that come later.
   const widest = !windowed || props.wrap ? undefined : widestCodeLine(rows.lines)
   return (
-    <View role="figure" accessibilityLabel={name} style={box}>
+    <View
+      role="figure"
+      // Only the mounted lines can be reached by swiping before the list
+      // scrolls, so the name says how long the block is (#1408).
+      accessibilityLabel={
+        windowed ? message('hozo.code.lines', { title: name, count: rows.lines.length }) : name
+      }
+      style={box}
+    >
       <Text
         style={[text, StyleSheet.flatten(hozoClasses(props.captionClassName)), props.captionStyle]}
       >

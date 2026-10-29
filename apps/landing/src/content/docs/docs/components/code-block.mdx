@@ -33,6 +33,9 @@ tree. Hozo supplies neither a highlighter nor a diff algorithm.
   reads the whole text, held once more as hidden plain lines with their mark
   prefixes, since its reading does not scroll the block. Its position then no
   longer follows the screen, and find-in-page matches lines it cannot show.
+  On Native the block's name adds its length ("Code, 4000 lines"); whether
+  TalkBack and VoiceOver reach the last line as the list scrolls is not yet
+  verified on a device (#1408).
   `'auto'` windows past 100 lines.
 - `copy`: copies every shown line, including removed lines, without numbers,
   glyphs or spoken prefixes. `{ text: 'replacement' }` overrides the copied text.
@@ -126,7 +129,7 @@ VoiceOver/TalkBack and frame performance remain unverified, as listed in
 records initial display, whole-block updates and scrolling separately, including
 failed observations. Keep Native blocks small and avoid assuming that hundreds
 of tokenized lines can update within one display frame; measure the actual
-application's token density and update rate. The first implementation does not
-virtualize. `Ins` and `Del` use underline and
+application's token density and update rate. With `maxHeight`, a long block
+windows its lines (see `windowing`). `Ins` and `Del` use underline and
 line-through on Native. On Web they render `<ins>` and `<del>`; `Strikethrough`
 continues to render `<s>`.

@@ -25,9 +25,11 @@ export interface CodeBlockOptions {
    * line is mounted whatever this says.
    *
    * Windowing is what makes a long block affordable (#1289), and it costs
-   * something: find-in-page, select-all and a screen reader's own reading
-   * reach only the mounted lines (the copy button still copies all of
-   * them). `'auto'`, the default, windows only past 100 lines, where the
+   * something: select-all reaches only the mounted lines (the copy button
+   * still copies all of them). On the Web a screen reader reads a hidden
+   * copy of the whole text instead, and find-in-page matches lines it cannot
+   * show; on Native the block's name gives its length, and a screen reader
+   * reaches later lines only as the list scrolls (#1408). `'auto'`, the default, windows only past 100 lines, where the
    * mount cost has been measured to matter; `'on'` and `'off'` decide regardless of length.
    */
   windowing?: 'auto' | 'on' | 'off'
