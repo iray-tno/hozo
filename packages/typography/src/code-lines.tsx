@@ -61,6 +61,14 @@ const hidden: CSSProperties = {
   whiteSpace: 'nowrap',
   userSelect: 'none',
 }
+// The whole text of a windowed block, for a screen reader: its own reading
+// moves through the document without scrolling the block, so it would stop
+// at the last mounted line (#1408). One plain row per line costs a fraction
+// of the token rows it stands in for. Line breaks are kept, not collapsed,
+// and select-all and copy stay with the visible rows. Not
+// `content-visibility: auto`, which would be cheaper still: Chrome then
+// leaves the text out of the accessibility tree.
+const readable: CSSProperties = { ...hidden, whiteSpace: 'pre' }
 const tokenCss =
   '.hozo-code-token{color:var(--hozo-code-light,inherit)}@media(prefers-color-scheme:dark){.hozo-code-token{color:var(--hozo-code-dark,var(--hozo-code-light,inherit))}}'
 
@@ -197,6 +205,15 @@ export function CodeLines(props: CodeLinesProps) {
         ]),
     drawLine,
   )
+  const renderReadable = useCodeRows(lines, codeKey(labels), drawReadable)
+  function drawReadable(line: (typeof lines)[number], index: number) {
+    return (
+      <span key={index} style={{ display: 'block' }}>
+        {line.mark ? `${labels[line.mark]}: ` : null}
+        {line.tokens.map((token) => token.text).join('')}
+      </span>
+    )
+  }
   function drawLine(line: (typeof lines)[number], index: number) {
     const Tag = line.mark ?? 'span'
     const className =
@@ -243,7 +260,15 @@ export function CodeLines(props: CodeLinesProps) {
       <style href="hozo-code-tokens" precedence="hozo-base">
         {tokenCss}
       </style>
+      {props.scroller ? (
+        <pre dir="ltr" style={readable}>
+          <code>{lines.map(renderReadable)}</code>
+        </pre>
+      ) : null}
       <pre
+        // Windowed, the rows are only what is on screen; the text above is
+        // what is read.
+        aria-hidden={props.scroller ? true : undefined}
         className={props.className}
         dir="ltr"
         style={{
