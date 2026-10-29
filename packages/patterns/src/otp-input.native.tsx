@@ -1,5 +1,6 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, useLayoutEffect, useRef, useState } from 'react'
 import { type StyleProp, Text, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
@@ -127,7 +128,7 @@ export function HozoOtpInput({
   const [inputBox, inputText] = splitTextStyle([
     hozoClasses(inputClassName, inputFacts),
     hozoInputStyle?.({ ...inputInteraction, ...inputFacts }),
-    inputStyle,
+    hozoAuthoredStyle(inputStyle),
   ])
   // The wrapper is an unfocusable hit target, not a second input. In
   // particular a bubbled input focus must not give it a focus-visible ring.
@@ -145,7 +146,7 @@ export function HozoOtpInput({
       'aria-checked': false,
     }) satisfies OtpDecorationSlotFacts
   const look = (interaction: InteractionState) =>
-    splitTextStyle([hozoClasses(className, wrapperFacts(interaction)), style])
+    splitTextStyle([hozoClasses(className, wrapperFacts(interaction)), hozoAuthoredStyle(style)])
 
   const change = (raw: string) => {
     const next = otpValue(raw, length, type)
@@ -180,12 +181,15 @@ export function HozoOtpInput({
               const facts = wrapperFacts(interaction)
               const [cellBox, cellText] = splitTextStyle([
                 hozoClasses(cellClassName, facts),
-                cellStyle,
+                hozoAuthoredStyle(cellStyle),
                 focused &&
-                  index === active && [hozoClasses(activeCellClassName, facts), activeCellStyle],
+                  index === active && [
+                    hozoClasses(activeCellClassName, facts),
+                    hozoAuthoredStyle(activeCellStyle),
+                  ],
                 character !== undefined && [
                   hozoClasses(filledCellClassName, facts),
-                  filledCellStyle,
+                  hozoAuthoredStyle(filledCellStyle),
                 ],
               ])
               return (
