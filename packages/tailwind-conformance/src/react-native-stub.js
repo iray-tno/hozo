@@ -36,6 +36,16 @@ export const FlatList = 'FlatList'
 export const RefreshControl = 'RefreshControl'
 export const Modal = 'Modal'
 
+export const Keyboard = { dismiss() {} }
+
+// A public form barrel imports the NativeSelect transport even when a probe
+// only renders other controls. Do not pretend this harness can open an OS UI.
+export const ActionSheetIOS = {
+  showActionSheetWithOptions() {
+    throw new Error('the Native host probe cannot present an iOS action sheet')
+  },
+}
+
 // Read off `globalThis` by the packages that wanted it until now, where
 // React Native has never put it. Now imported, so the stub has to carry
 // it -- which is the point: a missing import fails loudly here, and a

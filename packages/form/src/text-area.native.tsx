@@ -5,6 +5,7 @@
 // `shouldRestoreFocus`.
 import { useAnnounce, useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -163,7 +164,7 @@ export function HozoTextArea({
   const resolvedField =
     StyleSheet.flatten([
       hozoClasses(fieldClassName, fieldFacts) as StyleProp<TextStyle>,
-      fieldStyle,
+      hozoAuthoredStyle(fieldStyle),
     ]) ?? {}
   const lineHeight = usableLineHeight(resolvedField.lineHeight, resolvedField.fontSize)
   const top =
@@ -187,7 +188,7 @@ export function HozoTextArea({
   }, [announce, announceRemaining, formatCount, maxLength, remaining])
 
   return (
-    <View style={[hozoClasses(className, nonControlClassFacts), style]}>
+    <View style={[hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]}>
       <TextInput
         multiline
         value={text}
@@ -237,7 +238,7 @@ export function HozoTextArea({
         <Text
           accessibilityElementsHidden
           importantForAccessibility="no"
-          style={[hozoClasses(countClassName, nonControlClassFacts), countStyle]}
+          style={[hozoClasses(countClassName, nonControlClassFacts), hozoAuthoredStyle(countStyle)]}
         >
           {formatCount(remaining, maxLength)}
         </Text>

@@ -1,3 +1,4 @@
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
 import { Keyboard, type StyleProp, View, type ViewStyle } from 'react-native'
@@ -93,7 +94,7 @@ export function HozoForm({
     <FormContext.Provider value={context}>
       <View
         accessibilityLabel={accessibilityLabel}
-        style={[hozoClasses(className, nonControlClassFacts), style]}
+        style={[hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]}
         testID={testID}
       >
         {children}

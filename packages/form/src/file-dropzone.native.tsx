@@ -1,6 +1,7 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { Children, type ReactNode, useEffect, useState } from 'react'
 import {
@@ -156,7 +157,7 @@ export function HozoFileDropzone({
         // announcements do not manufacture extra ARIA styling predicates.
         'aria-busy': false,
       }),
-      style,
+      hozoAuthoredStyle(style),
     ]) ?? {},
   )
 
