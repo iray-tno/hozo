@@ -7,6 +7,7 @@ import {
   type UseHoverTriggerOptions,
   useHoverTrigger,
 } from '@hozo/behaviors/native'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import {
   type ComponentRef,
@@ -136,7 +137,7 @@ export function Tooltip({
       crossAxisOffset={crossAxisOffset}
       flip={flip}
       shift={shift}
-      style={[hozoClasses(className), style]}
+      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
     >
       {/* Usually a string (the docs demo passes one), which a bare View
           would reject on a device (#1205). */}

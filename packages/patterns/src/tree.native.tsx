@@ -1,3 +1,4 @@
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import {
@@ -121,7 +122,7 @@ export function HozoTree({
     <View
       accessibilityRole="list"
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), style]}
+      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
     >
       {rows.map((row) => {
         const look = (interaction: InteractionState) =>
@@ -145,7 +146,7 @@ export function HozoTree({
               expanded: row.branch ? row.expanded : undefined,
             }}
             disabled={row.disabled}
-            style={(interaction) => [look(interaction)[0], rowStyle]}
+            style={(interaction) => [look(interaction)[0], hozoAuthoredStyle(rowStyle)]}
             // A press selects, and opens or closes a branch too unless the
             // marker is the toggle -- the same as the Web half, which this
             // half used to disagree with by toggling a branch and never
