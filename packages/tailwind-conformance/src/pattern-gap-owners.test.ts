@@ -134,6 +134,30 @@ const owners = [
   ['BottomSheet', 'handleClassName', 'handleStyle'],
   ['BottomSheet', 'handleClassName', 'handleStyle', { detents: [0.5, 1] }],
   ['BottomSheet', 'handleBarClassName', 'handleBarStyle'],
+  ['Tree', 'className', 'style'],
+  ['Tree', 'rowClassName', 'rowStyle'],
+  [
+    'Tree',
+    'rowClassName',
+    'rowStyle',
+    {
+      nodes: [{ id: 'a', label: 'A', children: [{ id: 'b', label: 'B' }] }],
+      defaultExpanded: ['a'],
+    },
+    2,
+  ],
+  ['Toolbar', 'className', 'style'],
+  ['Tooltip', 'className', 'style'],
+  ['Splitter', 'className', 'style'],
+  ['ResizablePane', 'className', 'style'],
+  ['ResizablePane', 'paneClassName', 'paneStyle'],
+  ['ResizablePane', 'handleClassName', 'handleStyle'],
+  ['Accordion', 'className', 'style'],
+  ['Accordion', 'sectionClassName', 'sectionStyle'],
+  ['Accordion', 'triggerClassName', 'triggerStyle'],
+  ['Accordion', 'headingClassName', 'triggerStyle'],
+  ['Accordion', 'panelClassName', 'panelStyle'],
+  ['Alert', 'className', 'style'],
 ].map(([component, classProp, styleProp, base, hosts, focusInput, marker]) => ({
   component,
   classProp,
@@ -143,14 +167,14 @@ const owners = [
   focusInput,
   marker,
 })) as Owner[]
-assert.equal(owners.length, 78, 'include both scroll and conditional-handle presentations')
+assert.equal(owners.length, 93, 'include alternate presentations and class sources')
 assert.equal(
   new Set(owners.map(({ component, styleProp }) => `${component}.${styleProp}`)).size,
-  76,
+  89,
 )
 assert.equal(
   owners.reduce((total, { hosts = 1 }) => total + hosts, 0),
-  90,
+  106,
 )
 const interactiveSlots = new Set([
   'Chip.removeStyle',
@@ -190,10 +214,10 @@ const controlOwners = owners
       component === 'Switch' ||
       (component === 'RadioGroup' && styleProp === 'optionStyle'),
   )
-const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup,Dialog} from '@hozo/core'
-import {Slider,Checkbox,Switch,Popover,Drawer,BottomSheet} from '@hozo/patterns'
-export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup,Dialog as RawDialog} from '@hozo/core'
-export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch,Popover as RawPopover,Drawer as RawDrawer,BottomSheet as RawBottomSheet} from '@hozo/patterns'
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup,Dialog,Tree,Toolbar,Splitter,ResizablePane} from '@hozo/core'
+import {Slider,Checkbox,Switch,Popover,Drawer,BottomSheet,Accordion,Alert,Tooltip} from '@hozo/patterns'
+export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup,Dialog as RawDialog,Tree as RawTree,Toolbar as RawToolbar,Splitter as RawSplitter,ResizablePane as RawResizablePane} from '@hozo/core'
+export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch,Popover as RawPopover,Drawer as RawDrawer,BottomSheet as RawBottomSheet,Accordion as RawAccordion,Alert as RawAlert,Tooltip as RawTooltip} from '@hozo/patterns'
 ${owners
   .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -276,6 +300,20 @@ const baseProps = {
   Popover: { open: true, trigger: 'Open', children: 'Popover body' },
   Drawer: { open: true, children: 'Drawer body' },
   BottomSheet: { open: true, children: 'Sheet body', detents: [1] },
+  Tree: { nodes: [{ id: 'a', label: 'A' }] },
+  Toolbar: { items: [{ render: () => react.createElement('Text', null, 'Tool') }] },
+  Tooltip: { open: true, portal: false, content: 'Tip', children: react.createElement('View') },
+  Splitter: { label: 'Size', controls: 'pane', min: 0, max: 400, defaultSize: 100 },
+  ResizablePane: {
+    label: 'Pane',
+    side: 'start',
+    min: 0,
+    max: 400,
+    defaultSize: 100,
+    children: 'Body',
+  },
+  Accordion: { items: [{ header: 'Header', content: 'Panel' }], defaultExpanded: '0' },
+  Alert: { children: 'Notice' },
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -365,6 +403,28 @@ test('raw patterns and compiled root/secondary slots project the author before c
             assert.equal(targets[0].node.type, 'Animated.View')
           if (component === 'BottomSheet' && styleProp === 'handleStyle')
             assert.equal(targets[0].node.type, base?.detents ? 'Pressable' : 'View')
+          if (component === 'Tree')
+            for (const { node } of targets)
+              assert.equal(
+                node.props.accessibilityRole,
+                styleProp === 'style' ? 'list' : 'menuitem',
+              )
+          if (component === 'Toolbar')
+            assert.equal(targets[0].node.props.accessibilityRole, 'toolbar')
+          if (
+            component === 'Splitter' ||
+            (component === 'ResizablePane' && styleProp === 'handleStyle')
+          ) {
+            assert.equal(targets[0].node.props.accessibilityRole, 'adjustable')
+            assert.equal(targets[0].node.props.accessibilityValue.now, 100)
+          }
+          if (component === 'ResizablePane' && styleProp === 'paneStyle') {
+            assert.equal(targets[0].node.props.role, 'region')
+            assert.equal(targets[0].style.width, 100)
+            assert.equal(targets[0].style.overflow, 'hidden')
+          }
+          if (component === 'Accordion' && styleProp === 'triggerStyle')
+            assert.equal(targets[0].node.props.accessibilityRole, 'header')
           if (component === 'OtpInput' && styleProp === 'inputStyle') {
             assert.equal(targets.filter(({ node }) => node.type === 'TextInput').length, 1)
             assert.equal(
@@ -408,7 +468,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 8640)
+  assert.equal(observations, 10176)
   assert.deepEqual(
     mismatches,
     [],

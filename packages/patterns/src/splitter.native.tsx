@@ -1,6 +1,7 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { useDrag1D } from '@hozo/behaviors/native'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useId } from 'react'
 import { type StyleProp, View, type ViewStyle } from 'react-native'
@@ -100,7 +101,7 @@ function Handle({
           )
       }}
       hitSlop={vertical ? { left: 22, right: 22 } : { top: 22, bottom: 22 }}
-      style={[hozoClasses(className, facts), style]}
+      style={[hozoClasses(className, facts), hozoAuthoredStyle(style)]}
       onFocus={handlers.focus}
       onBlur={handlers.blur}
       onPointerEnter={handlers.hoverIn}
@@ -152,7 +153,7 @@ export function ResizablePane(props: ResizablePaneProps) {
     <View
       style={[
         hozoClasses(className),
-        style,
+        hozoAuthoredStyle(style),
         { flexDirection: vertical ? 'row' : 'column', flexShrink: 0 },
       ]}
     >
@@ -165,7 +166,7 @@ export function ResizablePane(props: ResizablePaneProps) {
         accessibilityElementsHidden={state.collapsed}
         style={[
           hozoClasses(paneClassName),
-          paneStyle,
+          hozoAuthoredStyle(paneStyle),
           {
             [vertical ? 'width' : 'height']: state.current,
             flexShrink: 0,

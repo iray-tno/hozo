@@ -1,3 +1,4 @@
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import type { ReactNode } from 'react'
 import { type StyleProp, View, type ViewStyle } from 'react-native'
@@ -41,7 +42,7 @@ export function HozoToolbar({ className, items, accessibilityLabel, style }: Hoz
     <View
       accessibilityRole="toolbar"
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), style]}
+      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
     >
       {items.map((item, at) => (
         // Identified by position and nothing else: `defaultIndex`,

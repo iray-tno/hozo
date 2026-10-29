@@ -19,6 +19,7 @@
  */
 
 import { hozoTextChildren } from '@hozo/behaviors'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
@@ -147,13 +148,16 @@ export function HozoAccordion(props: HozoAccordionProps) {
 
   // A panel's box and its text, split as a header's are: a `View` drops the
   // panel's colour and size, so they go to the content's `Text`.
-  const [panelBox, panelText] = splitTextStyle([hozoClasses(panelClassName), panelStyle])
+  const [panelBox, panelText] = splitTextStyle([
+    hozoClasses(panelClassName),
+    hozoAuthoredStyle(panelStyle),
+  ])
 
   return (
     <View
       accessibilityRole="none"
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), style]}
+      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
     >
       {items.map((item, at) => {
         const key = keyOf(item, at)
@@ -174,12 +178,12 @@ export function HozoAccordion(props: HozoAccordionProps) {
           ])
         }
         return (
-          <View key={key} style={[hozoClasses(sectionClassName), sectionStyle]}>
+          <View key={key} style={[hozoClasses(sectionClassName), hozoAuthoredStyle(sectionStyle)]}>
             <Pressable
               accessibilityRole="header"
               accessibilityState={{ expanded, disabled: item.disabled }}
               disabled={item.disabled}
-              style={(interaction) => [trigger(interaction)[0], triggerStyle]}
+              style={(interaction) => [trigger(interaction)[0], hozoAuthoredStyle(triggerStyle)]}
               onPress={() => toggle(at)}
             >
               {(interaction) => {

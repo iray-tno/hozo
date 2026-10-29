@@ -17,6 +17,7 @@
  * inherit a View's colour.
  */
 
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useEffect } from 'react'
 import {
@@ -52,7 +53,7 @@ export function HozoAlert({ children, live = false, className, style }: HozoAler
     <View
       role={live === 'assertive' ? 'alert' : live === 'polite' ? 'status' : undefined}
       accessibilityLiveRegion={live || undefined}
-      style={[box, style]}
+      style={[box, hozoAuthoredStyle(style)]}
     >
       {spoken === undefined ? children : <Text style={text}>{children}</Text>}
     </View>
