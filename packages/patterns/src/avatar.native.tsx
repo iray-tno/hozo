@@ -1,4 +1,5 @@
 import { hozoTextChildren, useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
 import {
@@ -77,10 +78,10 @@ export function HozoAvatar({
   const showImage = src !== undefined && failed !== src
   const letters = initials ?? (name ? avatarInitials(name, locale) : '')
   const label = avatarLabel(message, name, status, accessibilityLabel)
-  const [box, text] = splitTextStyle([hozoClasses(className), style])
+  const [box, text] = splitTextStyle([hozoClasses(className), hozoAuthoredStyle(style)])
   const [fallbackBox, fallbackText] = splitTextStyle([
     hozoClasses(fallbackClassName, nonControlSlotFacts),
-    fallbackStyle,
+    hozoAuthoredStyle(fallbackStyle),
   ])
 
   const hidden = {
@@ -102,7 +103,7 @@ export function HozoAvatar({
             FILL,
             cornersOf(box),
             hozoClasses(imageClassName, nonControlSlotFacts),
-            imageStyle,
+            hozoAuthoredStyle(imageStyle),
           ]}
           onError={() => setFailed(src)}
           {...hidden}
@@ -118,7 +119,10 @@ export function HozoAvatar({
       )}
       {status ? (
         <View
-          style={[hozoClasses(statusClassName, nonControlSlotFacts), statusStyle]}
+          style={[
+            hozoClasses(statusClassName, nonControlSlotFacts),
+            hozoAuthoredStyle(statusStyle),
+          ]}
           {...hidden}
         />
       ) : null}

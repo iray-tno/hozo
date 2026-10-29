@@ -23,6 +23,8 @@ type Owner = {
   styleProp: string
   base?: Record<string, unknown>
   hosts?: number
+  focusInput?: boolean
+  marker?: string
 }
 const owners = [
   ['Chip', 'className', 'style'],
@@ -82,12 +84,33 @@ const owners = [
     { steps: [{ label: 'Error', status: 'error' }] },
   ],
   ['Stepper', 'descriptionClassName', 'descriptionStyle'],
-].map(([component, classProp, styleProp, base, hosts]) => ({
+  ['Avatar', 'className', 'style'],
+  ['Avatar', 'fallbackClassName', 'fallbackStyle'],
+  ['Avatar', 'imageClassName', 'imageStyle', { src: 'https://example.test/avatar.png' }],
+  ['Avatar', 'statusClassName', 'statusStyle'],
+  ['OtpInput', 'className', 'style'],
+  ['OtpInput', 'cellClassName', 'cellStyle', undefined, 2],
+  ['OtpInput', 'activeCellClassName', 'activeCellStyle', undefined, 1, true],
+  ['OtpInput', 'filledCellClassName', 'filledCellStyle'],
+  ['OtpInput', 'inputClassName', 'inputStyle', undefined, 2, false, 'zIndex'],
+  ['CommandPalette', 'className', 'style'],
+  ['CommandPalette', 'scrimClassName', 'scrimStyle'],
+  ['CommandPalette', 'panelClassName', 'panelStyle'],
+  ['CommandPalette', 'inputClassName', 'inputStyle'],
+  ['CommandPalette', 'listClassName', 'listStyle'],
+  ['CommandPalette', 'groupHeadingClassName', 'groupHeadingStyle'],
+  ['CommandPalette', 'itemClassName', 'itemStyle'],
+  ['CommandPalette', 'activeItemClassName', 'activeItemStyle'],
+  ['CommandPalette', 'shortcutClassName', 'shortcutStyle'],
+  ['CommandPalette', 'emptyClassName', 'emptyStyle', { commands: [] }],
+].map(([component, classProp, styleProp, base, hosts, focusInput, marker]) => ({
   component,
   classProp,
   styleProp,
   base,
   hosts,
+  focusInput,
+  marker,
 })) as Owner[]
 const interactiveSlots = new Set([
   'Chip.removeStyle',
@@ -110,8 +133,8 @@ const interactiveOwners = owners
         ? interactionNames.replace(' focus:gap-y-[6px]', '')
         : interactionNames,
   }))
-const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper} from '@hozo/core'
-export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper} from '@hozo/core'
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette} from '@hozo/core'
+export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette} from '@hozo/core'
 ${owners
   .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -169,6 +192,12 @@ const baseProps = {
   Tabs: { tabs: [{ label: 'Tab', content: 'Panel' }] },
   Pagination: { pageCount: 1 },
   Stepper: { steps: [{ label: 'Step', description: 'Details' }], activeStep: 0, onStepPress() {} },
+  Avatar: { name: 'Ada', status: 'online' },
+  OtpInput: { length: 2, value: '1', accessibilityLabel: 'Code', showCaret: false },
+  CommandPalette: {
+    open: true,
+    commands: [{ id: 'a', label: 'Action', group: 'Group', shortcut: 'Ctrl+K', onSelect() {} }],
+  },
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -183,33 +212,74 @@ const authorInputs = [
 test('raw patterns and compiled root/secondary slots project the author before composing class gap axes', () => {
   const mismatches: unknown[] = []
   let observations = 0
-  for (const [index, { component, classProp, styleProp, base, hosts = 1 }] of owners.entries()) {
+  for (const [
+    index,
+    { component, classProp, styleProp, base, hosts = 1, focusInput, marker = 'paddingBottom' },
+  ] of owners.entries()) {
     for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
       for (const author of authorInputs) {
         const type = components[mode === 'Raw' ? `Raw${component}` : `${mode}${index}`]
         const ownerProps = { ...baseProps[component], ...base }
+        const own = marker === 'paddingBottom' ? author.value : [author.value, { [marker]: 23 }]
         const props =
           mode === 'Raw'
-            ? { ...ownerProps, [classProp]: names, [styleProp]: author.value }
-            : { base: ownerProps, own: author.value, runtimeNames: names }
+            ? { ...ownerProps, [classProp]: names, [styleProp]: own }
+            : { base: ownerProps, own, runtimeNames: names }
         let view: ReturnType<typeof renderer.create>
         renderer.act(() => {
           view = renderer.create(react.createElement(type, props))
         })
         try {
-          const targets = view.root.findAll(
-            (node) =>
-              typeof node.type === 'string' &&
-              ['View', 'Pressable', 'TextInput', 'ScrollView'].includes(node.type) &&
-              stub.StyleSheet.flatten(node.props.style)?.paddingBottom === 23,
-          )
+          if (focusInput) {
+            const input = view.root.findByType('TextInput')
+            assert.equal(typeof input.props.onFocus, 'function')
+            renderer.act(() => input.props.onFocus({ nativeEvent: {} }))
+          }
+          // Scroll content owns child gap; the viewport is a different style
+          // channel. OTP's frame resets padding, so use an unaffected marker
+          // and check both its decorative frame and actual input host.
+          const targets = view.root
+            .findAll(
+              (node) =>
+                typeof node.type === 'string' &&
+                ['View', 'Pressable', 'TextInput', 'ScrollView', 'Image', 'Text'].includes(
+                  node.type,
+                ),
+            )
+            .flatMap((node) =>
+              ['style', 'contentContainerStyle'].map((channel) => ({
+                node,
+                channel,
+                style: stub.StyleSheet.flatten(node.props[channel]),
+              })),
+            )
+            .filter(({ style }) => style?.[marker] === 23)
           assert.equal(
             targets.length,
             hosts,
             `${component}.${styleProp}/${mode}: actual owner, not its label/ancestor`,
           )
+          if (component === 'OtpInput' && styleProp === 'inputStyle') {
+            assert.equal(targets.filter(({ node }) => node.type === 'TextInput').length, 1)
+            assert.equal(
+              targets.filter(
+                ({ node }) => node.type === 'View' && node.props.pointerEvents === 'none',
+              ).length,
+              1,
+            )
+            for (const { style } of targets)
+              assert.equal(
+                style.paddingBottom,
+                0,
+                'fixed input-frame geometry remains authoritative',
+              )
+          }
+          if (component === 'CommandPalette' && styleProp === 'listStyle') {
+            assert.equal(targets[0].node.type, 'ScrollView')
+            assert.equal(targets[0].channel, 'contentContainerStyle')
+          }
           for (const target of targets) {
-            const selected = stub.StyleSheet.flatten(target.props.style)
+            const selected = target.style
             for (const layout of gapLayouts) {
               const actual = yogaGapGeometry(selected, layout)
               if (JSON.stringify(actual) !== JSON.stringify(author.expected)) {
@@ -232,7 +302,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 3360)
+  assert.equal(observations, 5376)
   assert.deepEqual(
     mismatches,
     [],

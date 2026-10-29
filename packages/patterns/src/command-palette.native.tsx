@@ -1,5 +1,6 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import {
@@ -166,8 +167,11 @@ export function HozoCommandPalette({
   const label = message('hozo.commandPalette.label', {}, accessibilityLabel)
   // Text styles written on the palette or its panel reach every label in it,
   // as they would by inheritance on the Web.
-  const [rootBox, rootText] = splitTextStyle([hozoClasses(className), style])
-  const [panelBox, ownText] = splitTextStyle([hozoClasses(panelClassName), panelStyle])
+  const [rootBox, rootText] = splitTextStyle([hozoClasses(className), hozoAuthoredStyle(style)])
+  const [panelBox, ownText] = splitTextStyle([
+    hozoClasses(panelClassName),
+    hozoAuthoredStyle(panelStyle),
+  ])
   const panelText = { ...rootText, ...ownText }
   // The Web input is editable and aria-expanded while the palette is mounted.
   // Omit unmeasured pointer facts, even from a compiled residual callback.
@@ -192,7 +196,7 @@ export function HozoCommandPalette({
           style={(interaction) => [
             FILL_ABSOLUTE,
             hozoClasses(scrimClassName, { ...interaction }),
-            scrimStyle,
+            hozoAuthoredStyle(scrimStyle),
           ]}
           onPress={close}
         />
@@ -228,12 +232,14 @@ export function HozoCommandPalette({
               panelText,
               hozoClasses(inputClassName, inputFacts),
               hozoInputStyle?.(inputFacts),
-              inputStyle as StyleProp<TextStyle>,
+              hozoAuthoredStyle(inputStyle) as StyleProp<TextStyle>,
             ]}
           />
           <PatternScrollContainer
             enabled={hozoListScrollY ?? true}
-            style={[hozoClasses(listClassName), listStyle] as StyleProp<ViewStyle>}
+            style={
+              [hozoClasses(listClassName), hozoAuthoredStyle(listStyle)] as StyleProp<ViewStyle>
+            }
           >
             {groups.map((group) => (
               <View key={group.name ?? ''}>
@@ -243,7 +249,7 @@ export function HozoCommandPalette({
                     style={[
                       panelText,
                       hozoClasses(groupHeadingClassName, nonControlSlotFacts),
-                      groupHeadingStyle as StyleProp<TextStyle>,
+                      hozoAuthoredStyle(groupHeadingStyle) as StyleProp<TextStyle>,
                     ]}
                   >
                     {group.name}
@@ -275,11 +281,11 @@ export function HozoCommandPalette({
                     return splitTextStyle([
                       hozoClasses(itemClassName, state),
                       hozoItemStyle?.(state),
-                      itemStyle,
+                      hozoAuthoredStyle(itemStyle),
                       index === current && [
                         hozoClasses(activeItemClassName, state),
                         hozoActiveItemStyle?.(state),
-                        activeItemStyle,
+                        hozoAuthoredStyle(activeItemStyle),
                       ],
                     ])
                   }
@@ -303,7 +309,7 @@ export function HozoCommandPalette({
                         const [, itemText] = look(interaction)
                         const [shortcutBox, shortcutText] = splitTextStyle([
                           hozoClasses(shortcutClassName, nonControlSlotFacts),
-                          shortcutStyle,
+                          hozoAuthoredStyle(shortcutStyle),
                         ])
                         return (
                           <>
@@ -332,7 +338,7 @@ export function HozoCommandPalette({
                 style={[
                   panelText,
                   hozoClasses(emptyClassName, nonControlSlotFacts),
-                  emptyStyle as StyleProp<TextStyle>,
+                  hozoAuthoredStyle(emptyStyle) as StyleProp<TextStyle>,
                 ]}
               >
                 {message('hozo.commandPalette.empty')}

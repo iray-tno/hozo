@@ -54,6 +54,10 @@ ignored `artifacts/tailwind-order/namespace-invariance/pattern-status-gap-*`.
 
 ## Next boundary
 
+The [input/palette follow-up](input-palette-gap-composition.md) covers Avatar,
+OTP and CommandPalette and explicitly distinguishes scroll-content and
+fixed input-frame style channels.
+
 Interactive hover/press/focus gap transitions need their own changing-value
 controls; rest-state matching does not prove event delivery. The
 [interaction follow-up](pattern-gap-interaction-precedence.md) adds those
