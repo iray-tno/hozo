@@ -1,4 +1,5 @@
 import { hozoTextChildren } from '@hozo/behaviors'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
@@ -80,14 +81,17 @@ export function HozoTabs({
     )
 
   // The panel's box and its text, split for the same reason as a tab's.
-  const [panelBox, panelText] = splitTextStyle([hozoClasses(panelClassName), panelStyle])
+  const [panelBox, panelText] = splitTextStyle([
+    hozoClasses(panelClassName),
+    hozoAuthoredStyle(panelStyle),
+  ])
 
   return (
-    <View style={[hozoClasses(className), style]}>
+    <View style={[hozoClasses(className), hozoAuthoredStyle(style)]}>
       <View
         accessibilityRole="tablist"
         accessibilityLabel={accessibilityLabel}
-        style={[hozoClasses(tabListClassName), tabListStyle]}
+        style={[hozoClasses(tabListClassName), hozoAuthoredStyle(tabListStyle)]}
       >
         {tabs.map((tab, at) => (
           <Pressable
@@ -101,7 +105,7 @@ export function HozoTabs({
             accessibilityRole="tab"
             accessibilityState={{ selected: at === selected, disabled: tab.disabled }}
             disabled={tab.disabled}
-            style={(interaction) => [look(tab, at, interaction)[0], tabStyle]}
+            style={(interaction) => [look(tab, at, interaction)[0], hozoAuthoredStyle(tabStyle)]}
             onPress={() => select(at)}
           >
             {(interaction) =>

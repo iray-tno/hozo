@@ -15,6 +15,15 @@ const react = require('react')
 const renderer = require('react-test-renderer')
 const stub = require('react-native')
 const names = 'gap-y-[8px] gap-x-[4px]'
+const interactionNames =
+  'gap-y-[8px] gap-x-[2px] hover:gap-x-[4px] active:gap-y-[12px] focus:gap-y-[6px]'
+type Owner = {
+  component: string
+  classProp: string
+  styleProp: string
+  base?: Record<string, unknown>
+  hosts?: number
+}
 const owners = [
   ['Chip', 'className', 'style'],
   ['Chip', 'removeClassName', 'removeStyle'],
@@ -28,14 +37,94 @@ const owners = [
   ['Combobox', 'inputClassName', 'inputStyle'],
   ['Combobox', 'listClassName', 'listStyle'],
   ['Combobox', 'optionClassName', 'optionStyle'],
-]
-const source = `import {Chip,Listbox,Menu,Combobox} from '@hozo/core'
-export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox} from '@hozo/core'
+  ['Tabs', 'className', 'style'],
+  ['Tabs', 'tabListClassName', 'tabListStyle'],
+  ['Tabs', 'tabClassName', 'tabStyle'],
+  ['Tabs', 'panelClassName', 'panelStyle'],
+  ['Pagination', 'className', 'style'],
+  ['Pagination', 'itemClassName', 'itemStyle', undefined, 3],
+  ['Pagination', 'currentItemClassName', 'currentItemStyle'],
+  ['Pagination', 'disabledItemClassName', 'disabledItemStyle', undefined, 2],
+  [
+    'Pagination',
+    'ellipsisClassName',
+    'ellipsisStyle',
+    { pageCount: 20, page: 10, siblingCount: 0 },
+    2,
+  ],
+  ['Stepper', 'className', 'style'],
+  ['Stepper', 'stepClassName', 'stepStyle'],
+  ['Stepper', 'currentStepClassName', 'currentStepStyle'],
+  [
+    'Stepper',
+    'completedStepClassName',
+    'completedStepStyle',
+    { steps: [{ label: 'Done', status: 'completed' }] },
+  ],
+  [
+    'Stepper',
+    'errorStepClassName',
+    'errorStepStyle',
+    { steps: [{ label: 'Error', status: 'error' }] },
+  ],
+  ['Stepper', 'indicatorClassName', 'indicatorStyle'],
+  ['Stepper', 'currentIndicatorClassName', 'currentIndicatorStyle'],
+  [
+    'Stepper',
+    'completedIndicatorClassName',
+    'completedIndicatorStyle',
+    { steps: [{ label: 'Done', status: 'completed' }] },
+  ],
+  [
+    'Stepper',
+    'errorIndicatorClassName',
+    'errorIndicatorStyle',
+    { steps: [{ label: 'Error', status: 'error' }] },
+  ],
+  ['Stepper', 'descriptionClassName', 'descriptionStyle'],
+].map(([component, classProp, styleProp, base, hosts]) => ({
+  component,
+  classProp,
+  styleProp,
+  base,
+  hosts,
+})) as Owner[]
+const interactiveSlots = new Set([
+  'Chip.removeStyle',
+  'Listbox.optionStyle',
+  'Menu.triggerStyle',
+  'Menu.itemStyle',
+  'Combobox.optionStyle',
+  'Tabs.tabStyle',
+  'Pagination.currentItemStyle',
+  'Stepper.stepStyle',
+])
+const interactiveOwners = owners
+  .map((owner, index) => ({ ...owner, index }))
+  .filter(({ component, styleProp }) => interactiveSlots.has(`${component}.${styleProp}`))
+  .map((owner) => ({
+    ...owner,
+    // The Web Combobox keeps focus on its input, not on an option.
+    classes:
+      owner.component === 'Combobox'
+        ? interactionNames.replace(' focus:gap-y-[6px]', '')
+        : interactionNames,
+  }))
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper} from '@hozo/core'
+export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper} from '@hozo/core'
 ${owners
-  .flatMap(([component, classProp, styleProp], index) =>
+  .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
       (mode) =>
         `export function ${mode}${index}({base,own,runtimeNames}) {return <${component} {...${mode === 'Spread' ? `{...base,${styleProp}:own}` : 'base'}} ${classProp}=${mode === 'Opaque' ? '{runtimeNames}' : JSON.stringify(names)} ${mode === 'Spread' ? '' : `${styleProp}={own}`}/>}`,
+    ),
+  )
+  .join('\n')}
+${interactiveOwners
+  .flatMap(({ component, classProp, styleProp, index, classes }) =>
+    ['Literal', 'Opaque', 'Spread'].map(
+      (mode) =>
+        `export function State${mode}${index}({base,own,runtimeNames}) {return <${component} {...${mode === 'Spread' ? `{...base,${styleProp}:own}` : 'base'}} ${component === 'Stepper' ? 'onStepPress={base.onStepPress}' : ''} ${classProp}=${mode === 'Opaque' ? '{runtimeNames}' : JSON.stringify(classes)} ${mode === 'Spread' ? '' : `${styleProp}={own}`}/>}`,
     ),
   )
   .join('\n')}`
@@ -45,13 +134,14 @@ const cache = openCandidateCache()
 cache.scanFile('GapOwners.tsx', source, 1)
 // The compiled literal owners do not need their classes in a fallback map.
 // A separate data module supplies the choices opaque/raw callers can return.
-cache.scanFile('GapChoices.ts', JSON.stringify(names), 1)
+const choices = [...new Set(`${names} ${interactionNames}`.split(' '))]
+cache.scanFile('GapChoices.ts', JSON.stringify(choices), 1)
 assert.deepEqual(
   cache
     .candidates()
-    .filter((name) => names.split(' ').includes(name))
+    .filter((name) => choices.includes(name))
     .sort(),
-  names.split(' ').sort(),
+  choices.sort(),
 )
 const sheet = path.join(project, 'node_modules/.hozo/candidates.native.js')
 mkdirSync(path.dirname(sheet), { recursive: true })
@@ -76,6 +166,9 @@ const baseProps = {
   Listbox: { options: [{ value: 'a', label: 'A' }] },
   Menu: { trigger: 'Open', defaultOpen: true, items: [{ label: 'Action' }] },
   Combobox: { defaultOpen: true, options: [{ value: 'a', label: 'A' }], onValueChange() {} },
+  Tabs: { tabs: [{ label: 'Tab', content: 'Panel' }] },
+  Pagination: { pageCount: 1 },
+  Stepper: { steps: [{ label: 'Step', description: 'Details' }], activeStep: 0, onStepPress() {} },
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -90,14 +183,15 @@ const authorInputs = [
 test('raw patterns and compiled root/secondary slots project the author before composing class gap axes', () => {
   const mismatches: unknown[] = []
   let observations = 0
-  for (const [index, [component, classProp, styleProp]] of owners.entries()) {
+  for (const [index, { component, classProp, styleProp, base, hosts = 1 }] of owners.entries()) {
     for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
       for (const author of authorInputs) {
         const type = components[mode === 'Raw' ? `Raw${component}` : `${mode}${index}`]
+        const ownerProps = { ...baseProps[component], ...base }
         const props =
           mode === 'Raw'
-            ? { ...baseProps[component], [classProp]: names, [styleProp]: author.value }
-            : { base: baseProps[component], own: author.value, runtimeNames: names }
+            ? { ...ownerProps, [classProp]: names, [styleProp]: author.value }
+            : { base: ownerProps, own: author.value, runtimeNames: names }
         let view: ReturnType<typeof renderer.create>
         renderer.act(() => {
           view = renderer.create(react.createElement(type, props))
@@ -111,24 +205,26 @@ test('raw patterns and compiled root/secondary slots project the author before c
           )
           assert.equal(
             targets.length,
-            1,
+            hosts,
             `${component}.${styleProp}/${mode}: actual owner, not its label/ancestor`,
           )
-          const selected = stub.StyleSheet.flatten(targets[0].props.style)
-          for (const layout of gapLayouts) {
-            const actual = yogaGapGeometry(selected, layout)
-            if (JSON.stringify(actual) !== JSON.stringify(author.expected)) {
-              mismatches.push({
-                component,
-                styleProp,
-                mode,
-                input: author.id,
-                layout,
-                expected: author.expected,
-                actual,
-              })
+          for (const target of targets) {
+            const selected = stub.StyleSheet.flatten(target.props.style)
+            for (const layout of gapLayouts) {
+              const actual = yogaGapGeometry(selected, layout)
+              if (JSON.stringify(actual) !== JSON.stringify(author.expected)) {
+                mismatches.push({
+                  component,
+                  styleProp,
+                  mode,
+                  input: author.id,
+                  layout,
+                  expected: author.expected,
+                  actual,
+                })
+              }
+              observations++
             }
-            observations++
           }
         } finally {
           renderer.act(() => view.unmount())
@@ -136,10 +232,141 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 1152)
+  assert.equal(observations, 3360)
   assert.deepEqual(
     mismatches,
     [],
     `${mismatches.length}/${observations} owner gap observations differ`,
   )
+})
+
+test('Stepper does not inspect authored gap accessors on discarded status layers', () => {
+  let reads = 0
+  const inactive = Object.defineProperty({}, 'gap', {
+    enumerable: true,
+    get() {
+      reads++
+      throw new Error('an inactive status style was inspected')
+    },
+  })
+  const props: Record<string, unknown> = {
+    steps: [{ label: 'Next', status: 'upcoming' }],
+    activeStep: 0,
+    onStepPress() {},
+  }
+  for (const status of ['completed', 'current', 'error']) {
+    props[`${status}StepStyle`] = inactive
+    props[`${status}IndicatorStyle`] = inactive
+  }
+  let view: ReturnType<typeof renderer.create>
+  try {
+    renderer.act(() => {
+      view = renderer.create(react.createElement(components.RawStepper, props))
+    })
+    const step = view.root.findByType('Pressable')
+    stub.StyleSheet.flatten(step.props.style)
+    assert.equal(reads, 0)
+  } finally {
+    renderer.act(() => view?.unmount())
+  }
+})
+
+test('real owner hover/press/focus updates gap controls without overriding authored axes', () => {
+  const frames = [
+    [undefined, [8, 2]],
+    ['onHoverIn', [8, 4]],
+    ['onPressIn', [12, 4]],
+    ['onPressOut', [8, 4]],
+    ['onHoverOut', [8, 2]],
+    ['onFocus', [6, 2]],
+    ['onBlur', [8, 2]],
+  ] as const
+  const mismatches: unknown[] = []
+  let observations = 0
+  for (const { component, classProp, styleProp, base, index, classes } of interactiveOwners) {
+    for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
+      for (const author of authorInputs) {
+        const type = components[mode === 'Raw' ? `Raw${component}` : `State${mode}${index}`]
+        const ownerProps = { ...baseProps[component], ...base }
+        const props =
+          mode === 'Raw'
+            ? { ...ownerProps, [classProp]: classes, [styleProp]: author.value }
+            : { base: ownerProps, own: author.value, runtimeNames: classes }
+        let view: ReturnType<typeof renderer.create>
+        const target = () => {
+          const matches = view.root.findAll(
+            (node) =>
+              node.type === 'Pressable' &&
+              stub.StyleSheet.flatten(node.props.style)?.paddingBottom === 23,
+          )
+          assert.equal(
+            matches.length,
+            1,
+            `${component}.${styleProp}/${mode}: one actual interaction owner`,
+          )
+          return matches[0]
+        }
+        try {
+          renderer.act(() => {
+            view = renderer.create(react.createElement(type, props))
+          })
+          for (const [event, control] of frames) {
+            if (event) {
+              assert.equal(typeof target().props[event], 'function')
+              renderer.act(() => target().props[event]({ nativeEvent: {} }))
+            }
+            const expected =
+              author.id === 'no-gap-control'
+                ? component === 'Combobox' && event === 'onFocus'
+                  ? [8, 2]
+                  : control
+                : author.expected
+            const selected = stub.StyleSheet.flatten(target().props.style)
+            for (const layout of gapLayouts) {
+              const actual = yogaGapGeometry(selected, layout)
+              if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+                mismatches.push({
+                  component,
+                  styleProp,
+                  mode,
+                  input: author.id,
+                  event,
+                  layout,
+                  expected,
+                  actual,
+                })
+              }
+              observations++
+            }
+          }
+        } finally {
+          renderer.act(() => view?.unmount())
+        }
+      }
+    }
+  }
+  assert.equal(observations, 5376)
+  assert.deepEqual(
+    mismatches,
+    [],
+    `${mismatches.length}/${observations} state gap observations differ`,
+  )
+})
+
+test('gap evidence retains refusals for a borrowed focus owner and an undeclared step button', () => {
+  for (const [source, reason] of [
+    [
+      'import {Combobox} from \'@hozo/core\';export function C(){return <Combobox optionClassName="focus:gap-y-[6px]"/>}',
+      /Combobox option focus is not wired/,
+    ],
+    [
+      'import {Stepper} from \'@hozo/core\';export function C(props){return <Stepper {...props} stepClassName="hover:gap-x-[4px]"/>}',
+      /needs an authored `onStepPress`/,
+    ],
+  ] as const) {
+    assert.throws(
+      () => loadNativeModule(source, project, { root: project, compiler: createCompiler() }),
+      reason,
+    )
+  }
 })

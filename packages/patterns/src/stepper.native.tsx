@@ -1,4 +1,5 @@
 import { useHozoMessage } from '@hozo/behaviors'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
@@ -103,7 +104,7 @@ export function HozoStepper({
     classes: string | undefined,
     own: Style,
     state?: Readonly<Record<string, unknown>>,
-  ): Style => [hozoClasses(classes, state), own]
+  ): Style => [hozoClasses(classes, state), hozoAuthoredStyle(own)]
   const byStatus = (status: HozoStepStatus, completed: Style, current: Style, error: Style) =>
     status === 'completed'
       ? completed
@@ -142,23 +143,25 @@ export function HozoStepper({
           const [stepBox, stepText] = splitTextStyle([
             hozoClasses(stepClassName, state),
             hozoStepStyle?.(compiledState),
-            stepStyle,
+            hozoAuthoredStyle(stepStyle),
             byStatus(
               status,
               [
                 hozoClasses(completedStepClassName, state),
                 hozoCompletedStepStyle?.(compiledState),
-                completedStepStyle,
+                // Class tuples are constructed eagerly. Do not newly inspect
+                // authored accessors on status layers that will be discarded.
+                status === 'completed' && hozoAuthoredStyle(completedStepStyle),
               ],
               [
                 hozoClasses(currentStepClassName, state),
                 hozoCurrentStepStyle?.(compiledState),
-                currentStepStyle,
+                status === 'current' && hozoAuthoredStyle(currentStepStyle),
               ],
               [
                 hozoClasses(errorStepClassName, state),
                 hozoErrorStepStyle?.(compiledState),
-                errorStepStyle,
+                status === 'error' && hozoAuthoredStyle(errorStepStyle),
               ],
             ),
           ])
@@ -169,9 +172,21 @@ export function HozoStepper({
             styled(indicatorClassName, indicatorStyle, decorationState),
             byStatus(
               status,
-              styled(completedIndicatorClassName, completedIndicatorStyle, decorationState),
-              styled(currentIndicatorClassName, currentIndicatorStyle, decorationState),
-              styled(errorIndicatorClassName, errorIndicatorStyle, decorationState),
+              styled(
+                completedIndicatorClassName,
+                status === 'completed' ? completedIndicatorStyle : undefined,
+                decorationState,
+              ),
+              styled(
+                currentIndicatorClassName,
+                status === 'current' ? currentIndicatorStyle : undefined,
+                decorationState,
+              ),
+              styled(
+                errorIndicatorClassName,
+                status === 'error' ? errorIndicatorStyle : undefined,
+                decorationState,
+              ),
             ),
           ])
           const [descriptionBox, descriptionText] = splitTextStyle(
