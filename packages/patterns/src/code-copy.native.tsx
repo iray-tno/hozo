@@ -1,4 +1,5 @@
 import { useAnnounce, useHozoMessage } from '@hozo/behaviors'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useContext, useEffect, useRef, useState } from 'react'
 import { type StyleProp, Text, type ViewStyle } from 'react-native'
@@ -34,7 +35,9 @@ export function CodeCopy({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={message('hozo.code.copy')}
-      style={(state) => splitTextStyle([hozoClasses(className, { ...state }), style])[0]}
+      style={(state) =>
+        splitTextStyle([hozoClasses(className, { ...state }), hozoAuthoredStyle(style)])[0]
+      }
       onPress={async () => {
         const operation = ++serial.current
         const active = () =>

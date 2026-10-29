@@ -158,6 +158,7 @@ const owners = [
   ['Accordion', 'headingClassName', 'triggerStyle'],
   ['Accordion', 'panelClassName', 'panelStyle'],
   ['Alert', 'className', 'style'],
+  ['CodeBlock', 'copyClassName', 'copyStyle'],
 ].map(([component, classProp, styleProp, base, hosts, focusInput, marker]) => ({
   component,
   classProp,
@@ -167,14 +168,14 @@ const owners = [
   focusInput,
   marker,
 })) as Owner[]
-assert.equal(owners.length, 93, 'include alternate presentations and class sources')
+assert.equal(owners.length, 94, 'include alternate presentations and class sources')
 assert.equal(
   new Set(owners.map(({ component, styleProp }) => `${component}.${styleProp}`)).size,
-  89,
+  90,
 )
 assert.equal(
   owners.reduce((total, { hosts = 1 }) => total + hosts, 0),
-  106,
+  107,
 )
 const interactiveSlots = new Set([
   'Chip.removeStyle',
@@ -218,10 +219,11 @@ const controlOwners = owners
       component === 'Switch' ||
       (component === 'RadioGroup' && styleProp === 'optionStyle'),
   )
-const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup,Dialog,Tree,Toolbar,Splitter,ResizablePane} from '@hozo/core'
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup,Dialog,Tree,Toolbar,Splitter,ResizablePane,CodeBlock} from '@hozo/core'
 import {Slider,Checkbox,Switch,Popover,Drawer,BottomSheet,Accordion,Alert,Tooltip} from '@hozo/patterns'
 export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup,Dialog as RawDialog,Tree as RawTree,Toolbar as RawToolbar,Splitter as RawSplitter,ResizablePane as RawResizablePane} from '@hozo/core'
 export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch,Popover as RawPopover,Drawer as RawDrawer,BottomSheet as RawBottomSheet,Accordion as RawAccordion,Alert as RawAlert,Tooltip as RawTooltip} from '@hozo/patterns'
+export {CodeBlock as RawCodeBlock,CodeClipboardProvider as ClipboardProvider} from '@hozo/core'
 ${owners
   .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -318,6 +320,16 @@ const baseProps = {
   },
   Accordion: { items: [{ header: 'Header', content: 'Panel' }], defaultExpanded: '0' },
   Alert: { children: 'Notice' },
+  CodeBlock: { lines: 'const answer = 42', copy: true, wrap: true, windowing: 'off' },
+}
+// Native copying is application-connected; do not mistake a missing provider's
+// absent button for a passing style owner. Use the public provider unchanged.
+const clipboard = { writeText() {} }
+function ownerElement(component: string, type: unknown, props: Record<string, unknown>) {
+  const child = react.createElement(type, props)
+  return component === 'CodeBlock'
+    ? react.createElement(components.ClipboardProvider, { value: clipboard }, child)
+    : child
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -352,7 +364,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
             : { base: ownerProps, own, runtimeNames: names }
         let view: ReturnType<typeof renderer.create>
         renderer.act(() => {
-          view = renderer.create(react.createElement(type, props))
+          view = renderer.create(ownerElement(component, type, props))
         })
         try {
           if (focusInput) {
@@ -429,6 +441,14 @@ test('raw patterns and compiled root/secondary slots project the author before c
           }
           if (component === 'Accordion' && styleProp === 'triggerStyle')
             assert.equal(targets[0].node.props.accessibilityRole, 'header')
+          if (component === 'CodeBlock') {
+            assert.equal(targets[0].node.type, 'Pressable')
+            assert.equal(targets[0].node.props.accessibilityRole, 'button')
+            for (const label of targets[0].node.findAllByType('Text')) {
+              const text = stub.StyleSheet.flatten(label.props.style)
+              for (const key of ['gap', 'rowGap', 'columnGap']) assert.equal(text[key], undefined)
+            }
+          }
           if (component === 'OtpInput' && styleProp === 'inputStyle') {
             assert.equal(targets.filter(({ node }) => node.type === 'TextInput').length, 1)
             assert.equal(
@@ -472,7 +492,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 10176)
+  assert.equal(observations, 10272)
   assert.deepEqual(
     mismatches,
     [],
