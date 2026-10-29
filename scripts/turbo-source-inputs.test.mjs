@@ -208,6 +208,10 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    'packages/engine/src/generated/gap-styles.ts',
+    'packages/engine/src/authored-gap.ts',
+    'packages/engine/src/gap-styles.ts',
+    'packages/engine/src/spread-styles.ts',
     'crates/hozo_native/src/conditions/guards.rs',
     'crates/hozo_ir/src/theme.rs',
     'crates/hozo_parser/src/tailwind.rs',

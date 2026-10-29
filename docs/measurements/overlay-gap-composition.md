@@ -46,8 +46,27 @@ owner/input-slot/dynamic-slot/Native-host/source-cache command's **66 tests**,
 pass without skips. The full candidate-cascade/Native-control files pass
 **174 tests** (66.40s); the owner file also passes **7 tests** independently.
 Lint, generated docs/metadata/ABI (58 leaves, 81 names), Native source receipts
-and diff checks pass. Existing Turbo tasks already hash these pattern/engine
-sources; no broad cache dependency is added for a narrow probe.
+and diff checks pass. Conformance/Storybook tasks already hash these sources;
+the additional Native Showcase probe inputs are described below.
+
+## CI source-probe repair
+
+Run `40830136442` passed the package checks but failed the separate Native
+Showcase unit step: its real Dialog source probe rejected the new generated
+gap leaf as an unexpected dependency. The same deterministic failure was
+reproduced locally; both logs are retained. This is not a flaky AX failure.
+
+The probe now imports the real generated gap leaf and returns those exports
+from its bounded require adapter. Existing descendant-control and modal
+isolation assertions are unchanged. A frozen nested author additionally
+requires effective row/column gaps on both the plain panel and scroll content,
+no viewport gap and no mutation; a no-op projection would not pass. The
+Showcase Turbo inputs and root source-cache guard include the exact four
+engine files reached by that leaf, not an entire new package dependency.
+The repaired Showcase file passes **21 tests**. Full serial Showcase units:
+**236 passed, 1 existing Windows SIGTERM skip**, no failures. Source-cache
+guards pass **11 tests**, and a Turbo dry run confirms all four new source
+inputs. Lint/docs/metadata/ABI/diff checks pass; no app/device build is implied.
 
 ## Limits and follow-up
 
