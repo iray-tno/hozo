@@ -189,6 +189,8 @@ const interactiveSlots = new Set([
   'Drawer.scrimStyle',
   'BottomSheet.scrimStyle',
   'BottomSheet.handleStyle',
+  'Tree.rowStyle',
+  'Accordion.triggerStyle',
 ])
 const interactiveOwners = owners
   .map((owner, index) => ({ ...owner, index }))
@@ -196,7 +198,9 @@ const interactiveOwners = owners
     ({ component, styleProp, base }) =>
       interactiveSlots.has(`${component}.${styleProp}`) &&
       // The single-detent handle is a decorative View, not an event owner.
-      !(component === 'BottomSheet' && styleProp === 'handleStyle' && !base?.detents),
+      !(component === 'BottomSheet' && styleProp === 'handleStyle' && !base?.detents) &&
+      // Multi-row expansion is covered at rest; events here target one row.
+      !(component === 'Tree' && base?.nodes),
   )
   .map((owner) => ({
     ...owner,
@@ -581,7 +585,7 @@ test('real owner hover/press/focus updates gap controls without overriding autho
       }
     }
   }
-  assert.equal(observations, 8064)
+  assert.equal(observations, 10080)
   assert.deepEqual(
     mismatches,
     [],
@@ -1016,4 +1020,145 @@ test('BottomSheet keeps separate slot authors and measured translation when its 
       }
     }
   assert.equal(observations, 2400)
+})
+
+test('ResizablePane leaves authored handle projection with the actual adjustable owner', () => {
+  const index = owners.findIndex(
+    ({ component, styleProp }) => component === 'ResizablePane' && styleProp === 'handleStyle',
+  )
+  for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
+    const gaps = [20, 28, 16]
+    const reads = [0, 0, 0]
+    const style = (at: number) =>
+      Object.freeze({
+        zIndex: 71 + at,
+        get gap() {
+          reads[at]++
+          return gaps[at]
+        },
+      })
+    const changes: number[] = []
+    const commits: number[] = []
+    const base = {
+      ...baseProps.ResizablePane,
+      className: names,
+      style: style(0),
+      paneClassName: names,
+      paneStyle: style(1),
+      onSizeChange: (value: number) => changes.push(value),
+      onSizeCommit: (value: number) => commits.push(value),
+    }
+    const own = style(2)
+    const props =
+      mode === 'Raw'
+        ? { ...base, handleClassName: names, handleStyle: own }
+        : { base, own, runtimeNames: names }
+    const type = components[mode === 'Raw' ? 'RawResizablePane' : `${mode}${index}`]
+    let view: ReturnType<typeof renderer.create>
+    const targets = () =>
+      [71, 72, 73].map((marker) => {
+        const matches = view.root.findAll(
+          (node) =>
+            node.type === 'View' && stub.StyleSheet.flatten(node.props.style).zIndex === marker,
+        )
+        assert.equal(matches.length, 1, `one actual pane/handle owner for ${marker}`)
+        return matches[0]
+      })
+    const check = (expected: number[], size: number) => {
+      const [root, pane, handle] = targets()
+      assert.equal(handle.props.accessibilityRole, 'adjustable')
+      assert.equal(handle.props.accessibilityValue.now, size)
+      assert.equal(stub.StyleSheet.flatten(root.props.style).flexDirection, 'row')
+      assert.equal(stub.StyleSheet.flatten(pane.props.style).width, size)
+      for (const [at, target] of targets().entries())
+        for (const layout of gapLayouts)
+          assert.deepEqual(yogaGapGeometry(stub.StyleSheet.flatten(target.props.style), layout), [
+            expected[at],
+            expected[at],
+          ])
+    }
+    try {
+      renderer.act(() => {
+        view = renderer.create(react.createElement(type, props))
+      })
+      check([20, 28, 16], 100)
+      const before = [...reads]
+      gaps.splice(0, gaps.length, 32, 36, 24)
+      renderer.act(() => targets()[2].props.onFocus({ nativeEvent: {} }))
+      check([20, 28, 24], 100)
+      assert.deepEqual(
+        reads,
+        [before[0], before[1], before[2] + 1],
+        'focus reads only its actual owner, not an eager/cached parent projection',
+      )
+      renderer.act(() =>
+        targets()[2].props.onAccessibilityAction({ nativeEvent: { actionName: 'increment' } }),
+      )
+      check([32, 36, 24], 108)
+      assert.deepEqual(changes, [108])
+      assert.deepEqual(commits, [108])
+    } finally {
+      renderer.act(() => view?.unmount())
+    }
+  }
+})
+
+test('Tooltip does not inspect its floating author while closed and reopens with fresh gaps', () => {
+  const index = owners.findIndex(({ component }) => component === 'Tooltip')
+  for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
+    let readable = false
+    let gap = 16
+    let reads = 0
+    const own = Object.freeze({
+      zIndex: 81,
+      get gap() {
+        assert.equal(readable, true, 'closed tooltip author was evaluated')
+        reads++
+        return gap
+      },
+    })
+    const props = (open: boolean) =>
+      mode === 'Raw'
+        ? { ...baseProps.Tooltip, open, className: names, style: own }
+        : { base: { ...baseProps.Tooltip, open }, own, runtimeNames: names }
+    const type = components[mode === 'Raw' ? 'RawTooltip' : `${mode}${index}`]
+    let view: ReturnType<typeof renderer.create>
+    const floating = () =>
+      view.root.findAll(
+        (node) => node.type === 'View' && stub.StyleSheet.flatten(node.props.style).zIndex === 81,
+      )
+    const check = () => {
+      assert.equal(floating().length, 1)
+      const before = reads
+      for (const layout of gapLayouts)
+        assert.deepEqual(
+          yogaGapGeometry(stub.StyleSheet.flatten(floating()[0].props.style), layout),
+          [gap, gap],
+        )
+      assert.equal(reads, before, 'rendered style contains projected data')
+    }
+    try {
+      renderer.act(() => {
+        view = renderer.create(react.createElement(type, props(false)))
+      })
+      assert.equal(reads, 0)
+      assert.equal(floating().length, 0)
+      readable = true
+      renderer.act(() => view.update(react.createElement(type, props(true))))
+      check()
+      const openReads = reads
+      assert.ok(openReads > 0)
+      readable = false
+      renderer.act(() => view.update(react.createElement(type, props(false))))
+      assert.equal(floating().length, 0)
+      assert.equal(reads, openReads)
+      gap = 24
+      readable = true
+      renderer.act(() => view.update(react.createElement(type, props(true))))
+      check()
+      assert.ok(reads > openReads)
+    } finally {
+      renderer.act(() => view?.unmount())
+    }
+  }
 })
