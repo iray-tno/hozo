@@ -31,45 +31,71 @@ export function codeText(lines: readonly CodeLine[] | string): string {
         .join('\n')
 }
 
+type NormalizedLine = Omit<CodeLine, 'tokens'> & { tokens: CodeToken[] }
+
 /** Tab stops cross token boundaries, so highlighting cannot change indentation. */
 export function normalizeCodeLines(
   lines: readonly CodeLine[] | string,
   tabSize = 2,
-): (Omit<CodeLine, 'tokens'> & { tokens: CodeToken[] })[] {
+): NormalizedLine[] {
+  return normalizeCodeLinesFrom(lines, tabSize, new Map())[0]
+}
+
+/**
+ * @internal `normalizeCodeLines`, handing back what a line object came out as
+ * in `previous` (the map the last call returned, at the same tab size) when it
+ * is passed again. A renderer can then tell the lines an edit left alone from
+ * the one it changed by identity (#1289); lines are read as immutable, as
+ * React reads props.
+ */
+export function normalizeCodeLinesFrom(
+  lines: readonly CodeLine[] | string,
+  tabSize: number,
+  previous: ReadonlyMap<CodeLine, NormalizedLine[]>,
+): [NormalizedLine[], Map<CodeLine, NormalizedLine[]>] {
   if (!Number.isSafeInteger(tabSize) || tabSize < 1)
     throw new RangeError('tabSize must be a positive safe integer')
-  const input: readonly CodeLine[] =
-    typeof lines === 'string'
-      ? lines
-          .replace(/\r\n?/g, '\n')
-          .split('\n')
-          .map((tokens) => ({ tokens }))
-      : lines
-  return input.flatMap((line) => {
-    const parts = typeof line.tokens === 'string' ? [{ text: line.tokens }] : line.tokens
-    const result: (Omit<CodeLine, 'tokens'> & { tokens: CodeToken[] })[] = []
-    let tokens: CodeToken[] = []
-    let column = 0
-    for (const token of parts) {
-      const pieces = token.text.replace(/\r\n?/g, '\n').split('\n')
-      pieces.forEach((piece, index) => {
-        if (index > 0) {
-          result.push({ tokens, mark: line.mark })
-          tokens = []
-          column = 0
-        }
-        let text = ''
-        for (const character of piece) {
-          const expanded = character === '\t' ? ' '.repeat(tabSize - (column % tabSize)) : character
-          text += expanded
-          column += expanded.length
-        }
-        tokens.push({ ...token, text })
-      })
-    }
-    result.push({ tokens, mark: line.mark })
-    return result
+  const next = new Map<CodeLine, NormalizedLine[]>()
+  if (typeof lines === 'string')
+    return [
+      lines
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .flatMap((tokens) => normalizeLine({ tokens }, tabSize)),
+      next,
+    ]
+  const result = lines.flatMap((line) => {
+    const normalized = next.get(line) ?? previous.get(line) ?? normalizeLine(line, tabSize)
+    next.set(line, normalized)
+    return normalized
   })
+  return [result, next]
+}
+
+function normalizeLine(line: CodeLine, tabSize: number): NormalizedLine[] {
+  const parts = typeof line.tokens === 'string' ? [{ text: line.tokens }] : line.tokens
+  const result: NormalizedLine[] = []
+  let tokens: CodeToken[] = []
+  let column = 0
+  for (const token of parts) {
+    const pieces = token.text.replace(/\r\n?/g, '\n').split('\n')
+    pieces.forEach((piece, index) => {
+      if (index > 0) {
+        result.push({ tokens, mark: line.mark })
+        tokens = []
+        column = 0
+      }
+      let text = ''
+      for (const character of piece) {
+        const expanded = character === '\t' ? ' '.repeat(tabSize - (column % tabSize)) : character
+        text += expanded
+        column += expanded.length
+      }
+      tokens.push({ ...token, text })
+    })
+  }
+  result.push({ tokens, mark: line.mark })
+  return result
 }
 
 /**

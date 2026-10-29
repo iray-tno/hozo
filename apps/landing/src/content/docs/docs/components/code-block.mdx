@@ -17,6 +17,8 @@ tree. Hozo supplies neither a highlighter nor a diff algorithm.
 </UiExample>
 
 - `lines`: a string, or `{ tokens: string | CodeToken[], mark?: 'ins' | 'del' | 'mark' }[]`.
+  Treat line objects as immutable: on Native, a line passed again as the same object
+  is not redrawn, so an edit should replace the lines it changes and keep the rest.
 - `title`, `language`, `accessibilityLabel`: the caption and accessible name.
 - `lineNumbers`: `true` or `{ start: 10 }`. `wrap` wraps long lines; otherwise the
   block scrolls horizontally. The overflowing region has its own keyboard stop,
