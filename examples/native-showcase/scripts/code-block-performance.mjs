@@ -72,7 +72,12 @@ async function measure(name, action, timingName) {
   const started = Date.now()
   try {
     await action()
-    if (timingName) sample.js = await waitForTiming(timingName, started + 60_000)
+    if (timingName) {
+      sample.js = await waitForTiming(timingName, started + 60_000)
+      // Until the JS thread is quiet again, which for a windowed list is
+      // after its later batches; the next operation must not overlap them.
+      sample.settled = await waitForTiming(`settle-${timingName}`, started + 60_000)
+    }
     await pause(150)
     const complete = await waitForCompletedFrames({
       read: () => adb('shell', 'dumpsys', 'gfxinfo', app, 'framestats'),
@@ -89,7 +94,7 @@ async function measure(name, action, timingName) {
     sample.driverWindowMs = Date.now() - started
     sample.passed = true
     console.log(
-      `${name}: ${sample.frames.ordinaryFrames} frames, p95 ${sample.frames.p95Ms.toFixed(2)}ms, ${sample.frames.overBudgetFrames} over ${sample.frames.budgetMs.toFixed(2)}ms`,
+      `${name}: ${sample.frames.ordinaryFrames} frames, p95 ${sample.frames.p95Ms?.toFixed(2) ?? '-'}ms, ${sample.frames.overBudgetFrames} over ${sample.frames.budgetMs.toFixed(2)}ms, ${sample.frames.stalePendingFrames} stale`,
     )
   } catch (error) {
     sample.error = String(error.stack)
@@ -189,6 +194,7 @@ try {
   for (const name of [
     'Clear block',
     'Update block',
+    'Edit one line',
     'Start scroll measurement',
     'Finish scroll measurement',
     ...[10, 100, 300, 1000].map((count) => `Mount ${count} lines`),
@@ -208,6 +214,12 @@ try {
           `${count}-${round}-update-${tick}`,
           () => tap('Update block'),
           `update-${count}-${tick}`,
+        )
+      for (let edit = 1; edit <= 3; edit++)
+        await measure(
+          `${count}-${round}-edit-${edit}`,
+          () => tap('Edit one line'),
+          `edit-${count}-${edit}`,
         )
       tap('Start scroll measurement')
       await pause(200)

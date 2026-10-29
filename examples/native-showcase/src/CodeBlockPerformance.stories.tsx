@@ -2,7 +2,13 @@ import { CodeBlock } from '@hozo/patterns'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
-import { CODE_BLOCK_COUNTS, codeBlockFixture } from './code-block-fixture'
+import { CODE_BLOCK_COUNTS, codeBlockEdit, codeBlockFixture } from './code-block-fixture'
+
+// A frame this late means the JS thread was busy; this many on time in a row
+// means it is no longer, so a list still rendering batches has finished.
+const BUSY_FRAME_MS = 34
+const QUIET_FRAMES = 30
+const SETTLE_TIMEOUT_MS = 15_000
 
 function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
   // Story modules are imported by the ordinary showcase too. Allocate this
@@ -17,15 +23,29 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
       ),
     [],
   )
+  // One line changed after the last update, the rest the same objects, as an
+  // editor or an incremental highlighter hands them over.
+  const edits = useMemo(
+    () =>
+      new Map(
+        CODE_BLOCK_COUNTS.map((count) => {
+          const last = fixtures.get(count)?.[3] ?? []
+          return [count, [1, 2, 3].map((edit) => codeBlockEdit(last, edit))]
+        }),
+      ),
+    [fixtures],
+  )
   const [selection, setSelection] = useState<{
     count: (typeof CODE_BLOCK_COUNTS)[number]
     tick: number
+    edit: number
   } | null>(null)
   const scroll = useRef<ScrollView>(null)
   const operation = useRef<{ name: string; started: number; gaps: number[]; last: number } | null>(
     null,
   )
   const frame = useRef<number | null>(null)
+  const settling = useRef<number | null>(null)
   const offset = useRef(0)
   const maxOffset = useRef(0)
   const { height } = useWindowDimensions()
@@ -34,8 +54,55 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
     if (frame.current !== null) cancelAnimationFrame(frame.current)
     frame.current = null
   }, [])
+  const stopSettling = useCallback(() => {
+    if (settling.current !== null) cancelAnimationFrame(settling.current)
+    settling.current = null
+  }, [])
+  // The first layout or commit is not the end of the work: a windowed list
+  // keeps rendering batches after it. Watch from the operation's start until
+  // the JS thread has been quiet for QUIET_FRAMES, and report when that began.
+  const settle = useCallback(
+    (name: string, started: number, before: number[]) => {
+      stopSettling()
+      let last = performance.now()
+      let quietSince = last
+      let quiet = 0
+      // Late frames from the start, including those before the first boundary.
+      let busyMs = before.filter((gap) => gap > BUSY_FRAME_MS).reduce((sum, gap) => sum + gap, 0)
+      const next = () => {
+        const now = performance.now()
+        const gap = now - last
+        last = now
+        if (gap > BUSY_FRAME_MS) {
+          busyMs += gap
+          quiet = 0
+          quietSince = now
+        } else quiet++
+        const timedOut = now - started > SETTLE_TIMEOUT_MS
+        if (quiet < QUIET_FRAMES && !timedOut) {
+          settling.current = requestAnimationFrame(next)
+          return
+        }
+        settling.current = null
+        console.info(
+          '[Hozo CodeBlock timing]',
+          JSON.stringify({
+            name: `settle-${name}`,
+            boundary: timedOut ? 'not-settled' : `quiet-${QUIET_FRAMES}-frames`,
+            elapsedMs: quietSince - started,
+            busyMs,
+            rafCount: 0,
+            rafChunks: 0,
+          }),
+        )
+      }
+      settling.current = requestAnimationFrame(next)
+    },
+    [stopSettling],
+  )
   const begin = (name: string) => {
     stop()
+    stopSettling()
     const started = performance.now()
     const sample = { name, started, last: started, gaps: [] as number[] }
     operation.current = sample
@@ -77,18 +144,30 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
         }),
       )
       operation.current = null
+      if (sample.name !== 'scroll') settle(sample.name, sample.started, sample.gaps)
     },
-    [selection, stop],
+    [selection, stop, settle],
   )
   useLayoutEffect(() => {
-    if (!selection || selection.tick === 0) return
+    if (!selection || (selection.tick === 0 && selection.edit === 0)) return
     // This is a JS commit + two-rAF observation, not a GPU presentation fence.
     const first = requestAnimationFrame(() => {
       frame.current = requestAnimationFrame(() => finish('commit-plus-two-raf'))
     })
     return () => cancelAnimationFrame(first)
   }, [selection, finish])
-  useLayoutEffect(() => () => stop(), [stop])
+  useLayoutEffect(
+    () => () => {
+      stop()
+      stopSettling()
+    },
+    [stop, stopSettling],
+  )
+  const lines = selection
+    ? selection.edit
+      ? edits.get(selection.count)?.[selection.edit - 1]
+      : fixtures.get(selection.count)?.[selection.tick]
+    : undefined
 
   return (
     <View style={{ flex: 1, gap: 8 }}>
@@ -101,7 +180,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
             accessibilityLabel={`Mount ${count} lines`}
             onPress={() => {
               begin(`mount-${count}`)
-              setSelection({ count, tick: 0 })
+              setSelection({ count, tick: 0, edit: 0 })
             }}
           >
             <Text>{count} lines</Text>
@@ -112,6 +191,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
           accessibilityLabel="Clear block"
           onPress={() => {
             stop()
+            stopSettling()
             operation.current = null
             setSelection(null)
           }}
@@ -129,6 +209,18 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
           }}
         >
           <Text>Update</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Edit one line"
+          disabled={!selection || selection.tick < 3 || selection.edit >= 3}
+          onPress={() => {
+            if (!selection) return
+            begin(`edit-${selection.count}-${selection.edit + 1}`)
+            setSelection({ ...selection, edit: selection.edit + 1 })
+          }}
+        >
+          <Text>Edit</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -163,8 +255,8 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
               }}
             >
               <CodeBlock
-                title={`${selection.count} lines, revision ${selection.tick}`}
-                lines={fixtures.get(selection.count)?.[selection.tick] ?? []}
+                title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
+                lines={lines ?? []}
                 lineNumbers
                 wrap
                 maxHeight={height * 0.6}
@@ -201,8 +293,8 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
               }}
             >
               <CodeBlock
-                title={`${selection.count} lines, revision ${selection.tick}`}
-                lines={fixtures.get(selection.count)?.[selection.tick] ?? []}
+                title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
+                lines={lines ?? []}
                 lineNumbers
                 wrap
                 style={{

@@ -7,7 +7,9 @@ import { resolve } from 'node:path'
 const root = resolve(process.argv[2])
 const evidence = JSON.parse(readFileSync(resolve(root, 'evidence.json'), 'utf8'))
 assert.equal(evidence.passed, true, 'an incomplete run is not a completed matrix')
-assert.equal(evidence.cases.length, 84)
+// 84 before the one-line edits and the settle records were added.
+const edited = evidence.cases.some((sample) => sample.name.includes('-edit-'))
+assert.equal(evidence.cases.length, edited ? 120 : 84)
 const percentile = (values, fraction) => {
   assert.ok(values.length)
   const sorted = [...values].sort((a, b) => a - b)
@@ -24,17 +26,16 @@ const result = {
   groups: [],
 }
 for (const count of [10, 100, 300, 1000]) {
-  for (const phase of ['mount', 'update', 'scroll']) {
+  for (const phase of ['mount', 'update', 'edit', 'scroll']) {
     const cases = evidence.cases.filter(
       (sample) => sample.name.startsWith(`${count}-`) && sample.name.includes(`-${phase}`),
     )
     if (!cases.length) {
-      assert.equal(count, 10)
-      assert.equal(phase, 'scroll')
+      assert.ok((count === 10 && phase === 'scroll') || (!edited && phase === 'edit'))
       continue
     }
     assert.ok(cases.every((sample) => sample.passed))
-    assert.equal(cases.length, phase === 'mount' ? 3 : phase === 'update' ? 9 : 12)
+    assert.equal(cases.length, phase === 'mount' ? 3 : phase === 'scroll' ? 12 : 9)
     const frames = cases.flatMap((sample) =>
       sample.frames.rows
         .filter((row) => !row.pending && row.flags === 0)
@@ -65,6 +66,20 @@ for (const count of [10, 100, 300, 1000]) {
         latencyMedianMs: percentile(latency, 0.5),
         latencyMinMs: Math.min(...latency),
         latencyMaxMs: Math.max(...latency),
+      })
+    const settled = cases.flatMap((sample) => (sample.settled ? [sample.settled] : []))
+    if (settled.length)
+      Object.assign(group, {
+        settledMedianMs: percentile(
+          settled.map((value) => value.elapsedMs),
+          0.5,
+        ),
+        settledMaxMs: Math.max(...settled.map((value) => value.elapsedMs)),
+        busyMedianMs: percentile(
+          settled.map((value) => value.busyMs),
+          0.5,
+        ),
+        notSettled: settled.filter((value) => value.boundary === 'not-settled').length,
       })
     const gaps =
       phase === 'scroll'

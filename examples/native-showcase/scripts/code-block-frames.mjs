@@ -44,12 +44,17 @@ export function frameSummary(dump, refreshHz, stale = new Set()) {
     .filter((row) => !row.pending && row.flags === 0)
     .map((row) => row.durationMs)
     .sort((a, b) => a - b)
-  if (!durations.length) {
+  const stalePendingFrames = rows.filter((row) => row.stale).length
+  // A window whose only frames froze has no duration to report, but nothing
+  // is still drawing either; it is counted, not failed (#1381).
+  if (!durations.length && (!stalePendingFrames || rows.some((row) => row.pending && !row.stale))) {
     const error = new Error('no ordinary completed frames')
     error.pendingFrames = rows.filter((row) => row.pending && !row.stale).length
+    error.rows = rows
     throw error
   }
-  const percentile = (fraction) => durations[Math.ceil(durations.length * fraction) - 1]
+  const percentile = (fraction) =>
+    durations.length ? durations[Math.ceil(durations.length * fraction) - 1] : null
   const total = dump.match(/Total frames rendered:\s*(\d+)/)
   const janky = dump.match(/Janky frames:\s*(\d+)\s*\(([\d.]+)%\)/)
   return {
@@ -59,11 +64,11 @@ export function frameSummary(dump, refreshHz, stale = new Set()) {
     ordinaryFrames: durations.length,
     flaggedFrames: rows.filter((row) => row.flags !== 0).length,
     pendingFrames: rows.filter((row) => row.pending && !row.stale).length,
-    stalePendingFrames: rows.filter((row) => row.stale).length,
+    stalePendingFrames,
     overBudgetFrames: durations.filter((duration) => duration > budgetMs).length,
     p50Ms: percentile(0.5),
     p95Ms: percentile(0.95),
-    maxMs: durations.at(-1),
+    maxMs: durations.at(-1) ?? null,
     aggregate:
       total && janky
         ? { total: Number(total[1]), janky: Number(janky[1]), jankyPercent: Number(janky[2]) }
@@ -108,14 +113,17 @@ export async function waitForCompletedFrames({
     last = dump
     const lines = new Set(dump.split(/\r?\n/).map((line) => line.trim()))
     for (const line of watched.keys()) if (!lines.has(line)) watched.set(line, undefined)
+    let rows
     try {
       const summary = frameSummary(dump, refreshHz)
       if (!summary.pendingFrames) return { summary, observations: observation }
-      for (const row of summary.rows)
-        if (row.pending && !watched.has(row.raw)) watched.set(row.raw, now())
+      rows = summary.rows
     } catch (error) {
       if (!error.pendingFrames) throw error
+      // A window of pending rows alone has to be watched as well.
+      rows = error.rows
     }
+    for (const row of rows) if (row.pending && !watched.has(row.raw)) watched.set(row.raw, now())
     await sleep(Math.min(100, Math.max(0, deadline - now())))
   }
   if (last !== undefined) {
