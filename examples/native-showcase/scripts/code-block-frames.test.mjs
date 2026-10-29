@@ -178,4 +178,16 @@ test('only a row frozen for STALE_AFTER_MS before the deadline is stale (#1381)'
       ),
     /original measurement window/,
   )
+  // As in run 40808732352: a 10-line update whose one frame froze. Nothing to
+  // time, nothing still drawing; counted, not failed.
+  const alone = await run(() => dump([frozen]), STALE_AFTER_MS + 100)
+  assert.equal(alone.summary.ordinaryFrames, 0)
+  assert.equal(alone.summary.stalePendingFrames, 1)
+  assert.equal(alone.summary.p95Ms, null)
+  // Alone and still drawing, or alone and not frozen long enough, fails.
+  for (const [rows, deadline] of [
+    [[frame(0, '9223372036854775807')], STALE_AFTER_MS + 100],
+    [[frozen], STALE_AFTER_MS - 100],
+  ])
+    await assert.rejects(() => run(() => dump(rows), deadline), /original measurement window/)
 })

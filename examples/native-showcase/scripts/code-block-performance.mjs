@@ -94,7 +94,7 @@ async function measure(name, action, timingName) {
     sample.driverWindowMs = Date.now() - started
     sample.passed = true
     console.log(
-      `${name}: ${sample.frames.ordinaryFrames} frames, p95 ${sample.frames.p95Ms.toFixed(2)}ms, ${sample.frames.overBudgetFrames} over ${sample.frames.budgetMs.toFixed(2)}ms`,
+      `${name}: ${sample.frames.ordinaryFrames} frames, p95 ${sample.frames.p95Ms?.toFixed(2) ?? '-'}ms, ${sample.frames.overBudgetFrames} over ${sample.frames.budgetMs.toFixed(2)}ms, ${sample.frames.stalePendingFrames} stale`,
     )
   } catch (error) {
     sample.error = String(error.stack)
