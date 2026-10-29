@@ -3,7 +3,7 @@ import { useHozoMessage } from '@hozo/behaviors'
 import { HozoTextSizeContext, hozoSplitTextStyle } from '@hozo/engine'
 import { useHozoDark } from '@hozo/engine/generated/environment'
 import { hozoClasses } from '@hozo/engine/project'
-import { type ReactNode, useContext } from 'react'
+import { type ReactNode, useContext, useRef } from 'react'
 import {
   type StyleProp,
   StyleSheet,
@@ -32,6 +32,38 @@ export interface CodeLinesProps {
   markStyle?: CodeStyle
   /** @internal A separate gutter supplied by CodeBlock. */
   renderGutter?: (line: CodeLine, index: number) => ReactNode
+  /**
+   * @internal Everything `renderGutter` draws from besides the line and its
+   * index, as `codeRowKey` gives it. Without it, a gutter's rows are not reused.
+   */
+  gutterKey?: string
+}
+
+const MARK_FACTS = [undefined, 'ins', 'del', 'mark'].map((mark) => ({
+  'data-code-mark': Boolean(mark),
+  'data-code-mark=ins': mark === 'ins',
+  'data-code-mark=del': mark === 'del',
+  'data-code-mark=mark': mark === 'mark',
+}))
+
+/**
+ * @internal One string for everything a row is drawn from besides its line
+ * and index, with styles flattened and classes resolved under each mark, so
+ * an equal key means an equal row. `undefined` when a value cannot be written
+ * out (an animated style, say): then nothing is reused.
+ */
+export function codeRowKey(
+  values: readonly unknown[],
+  classNames: readonly (string | undefined)[] = [],
+): string | undefined {
+  try {
+    return JSON.stringify([
+      values,
+      classNames.map((name) => MARK_FACTS.map((facts) => hozoClasses(name, facts))),
+    ])
+  } catch {
+    return undefined
+  }
 }
 
 const split = (style: CodeStyle) =>
@@ -68,7 +100,40 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
   }
   const fontSize = typeof text.fontSize === 'number' ? text.fontSize : inheritedSize
   const lineHeight = text.lineHeight ?? fontSize * 1.5
+  // Rows already drawn, by line object. A line an edit left alone comes back
+  // from `normalizeCodeLines` as the same object, and is handed back here as
+  // the same element, which React skips; without this, changing one line
+  // re-rendered every mounted one (#1289).
+  const drawn = useRef(
+    new WeakMap<NormalizedCodeLine, { index: number; key: string; row: ReactNode }>(),
+  )
+  const key =
+    props.renderGutter && props.gutterKey === undefined
+      ? undefined
+      : codeRowKey(
+          [
+            theme,
+            fontSize,
+            lineHeight,
+            props.wrap,
+            text,
+            labels,
+            props.gutterKey,
+            ...[props.lineStyle, props.insStyle, props.delStyle, props.markStyle].map((style) =>
+              StyleSheet.flatten(style),
+            ),
+          ],
+          [props.lineClassName, props.insClassName, props.delClassName, props.markClassName],
+        )
   const renderLine = (line: NormalizedCodeLine, index: number) => {
+    if (key === undefined) return drawLine(line, index)
+    const hit = drawn.current.get(line)
+    if (hit && hit.index === index && hit.key === key) return hit.row
+    const row = drawLine(line, index)
+    drawn.current.set(line, { index, key, row })
+    return row
+  }
+  const drawLine = (line: NormalizedCodeLine, index: number) => {
     const facts = {
       'data-code-mark': Boolean(line.mark),
       'data-code-mark=ins': line.mark === 'ins',

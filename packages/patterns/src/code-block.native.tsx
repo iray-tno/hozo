@@ -1,7 +1,7 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { HozoTextSizeContext } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
-import { useCodeLineRows } from '@hozo/typography/code/lines/native'
+import { codeRowKey, useCodeLineRows } from '@hozo/typography/code/lines/native'
 import { codeText, normalizeCodeLines, widestCodeLine } from '@hozo/typography/code/model'
 import { useContext } from 'react'
 import {
@@ -62,6 +62,18 @@ export function CodeBlock(props: CodeBlockProps) {
     lines,
     className: undefined,
     style: [{ fontFamily: 'monospace', fontSize, lineHeight }, text],
+    gutterKey: codeRowKey(
+      [
+        start,
+        width,
+        hasMarks,
+        props.lineNumbers,
+        fontSize,
+        lineHeight,
+        StyleSheet.flatten(props.gutterStyle),
+      ],
+      [props.gutterClassName, props.insClassName, props.delClassName, props.markClassName],
+    ),
     renderGutter: gutter
       ? (line, index) => {
           const facts = {

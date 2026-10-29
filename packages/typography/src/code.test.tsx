@@ -28,6 +28,20 @@ test('tabs span token boundaries, CRLF and empty lines retain source positions',
   )
 })
 
+test('a line passed again as the same object normalizes to the same objects', () => {
+  const kept = { tokens: '\tkept' }
+  const split = { tokens: 'one\ntwo' }
+  const before = normalizeCodeLines([kept, split, { tokens: 'old' }])
+  const after = normalizeCodeLines([kept, split, { tokens: 'new' }])
+  assert.equal(after[0], before[0])
+  assert.equal(after[1], before[1])
+  assert.equal(after[2], before[2])
+  assert.notEqual(after[3], before[3])
+  // Per tab size, so a different size is not served the other's columns.
+  assert.equal(normalizeCodeLines([kept], 4)[0]?.tokens[0]?.text, '    kept')
+  assert.equal(normalizeCodeLines([kept])[0], before[0])
+})
+
 test('Shiki 4.4.3 real single/multiple theme tokens preserve text and colour slots', async () => {
   const source = 'const answer = "<script>"\n'
   const single = await codeToTokens(source, { lang: 'ts', theme: 'github-light' })
