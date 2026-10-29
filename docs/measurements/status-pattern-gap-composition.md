@@ -55,7 +55,10 @@ ignored `artifacts/tailwind-order/namespace-invariance/pattern-status-gap-*`.
 ## Next boundary
 
 Interactive hover/press/focus gap transitions need their own changing-value
-controls; rest-state matching does not prove event delivery. Other uncompiled
+controls; rest-state matching does not prove event delivery. The
+[interaction follow-up](pattern-gap-interaction-precedence.md) adds those
+controls for eight selected owners without claiming OS event delivery.
+Other uncompiled
 owners, clearing/null/percentage values, mixed StyleX tiers and contextual
 grid also remain. Keep gap's canonical assessment barrier until that broader
 evidence supports its removal. No changeset per user instruction.
