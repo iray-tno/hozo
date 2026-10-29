@@ -40,7 +40,7 @@ test('wrapped copy-free rendering needs no scroll ref and unnamed figures have a
   )
 })
 
-test('maxHeight scrolls the lines inside the block on the Web and keeps every line in the page', () => {
+test('maxHeight scrolls the lines inside the block on the Web, whole up to 100 lines', () => {
   const lines = Array.from({ length: 50 }, (_, at) => `line ${at}`).join('\n')
   for (const wrap of [false, true]) {
     const html = renderToStaticMarkup(createElement(CodeBlock, { lines, wrap, maxHeight: 200 }))
@@ -48,4 +48,25 @@ test('maxHeight scrolls the lines inside the block on the Web and keeps every li
     assert.match(html, /role="region"[^>]*style="[^"]*overflow-y:auto;max-height:200px/)
     assert.ok(html.includes('line 49'), 'find-in-page still reaches the last line')
   }
+})
+
+test('a windowed block on the Web serves its first lines and holds the rest as space', () => {
+  const lines = Array.from({ length: 1000 }, (_, at) => ({ tokens: `line ${at}.` }))
+  const render = (props: Record<string, unknown>) =>
+    renderToStaticMarkup(createElement(CodeBlock, { lines, maxHeight: 200, ...props }))
+  const html = render({})
+  assert.ok(html.includes('line 0.') && html.includes('line 39.'), 'the top of the block')
+  assert.ok(!html.includes('line 40.') && !html.includes('line 999.'), 'not the other 960')
+  // 960 lines at the 20px estimate, until the browser measures them.
+  assert.ok(
+    html.includes('<span aria-hidden="true" style="display:block;height:19200px"></span></code>'),
+  )
+  // Unwrapped, the widest line (the longest number) holds the width open.
+  assert.match(html, /visibility:hidden"><span data-code-line="100"/)
+  assert.ok(!render({ wrap: true }).includes('visibility:hidden'), 'wrapped has no width to hold')
+  assert.ok(render({ windowing: 'off' }).includes('line 999.'), 'off keeps every line')
+  assert.ok(
+    render({ maxHeight: undefined, windowing: 'on' }).includes('line 999.'),
+    'no scroller, nothing to window',
+  )
 })

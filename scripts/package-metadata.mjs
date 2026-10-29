@@ -104,7 +104,11 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'components', 'accessibility', 'universal'],
   },
   primitives: {
-    exports: { '.': './dist/index.js' },
+    // `./windowing` is the list's window arithmetic, for a Web component
+    // that is its own scroller and cannot be a `FlatList` (#1380). A subpath
+    // rather than the entry, which `@hozo/core` re-exports whole.
+    exports: { '.': './dist/index.js', './windowing': './dist/windowing.js' },
+    noNative: ['./windowing'],
     native: true,
     keywords: ['react-native', 'react', 'primitives', 'components', 'universal'],
   },

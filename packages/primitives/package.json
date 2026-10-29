@@ -32,6 +32,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./windowing": {
+      "types": "./dist/windowing.d.ts",
+      "default": "./dist/windowing.js"
+    },
     "./generated/animated": {
       "types": "./dist/generated/animated.d.ts",
       "default": "./dist/generated/animated.js"

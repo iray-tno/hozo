@@ -1,8 +1,8 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { HozoTextSizeContext } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
-import { type NormalizedCodeLine, useCodeLineRows } from '@hozo/typography/code/lines/native'
-import { codeText, normalizeCodeLines } from '@hozo/typography/code/model'
+import { useCodeLineRows } from '@hozo/typography/code/lines/native'
+import { codeText, normalizeCodeLines, widestCodeLine } from '@hozo/typography/code/model'
 import { useContext } from 'react'
 import {
   FlatList,
@@ -14,7 +14,12 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
-import { type CodeBlockOptions, codeBlockLabels, codeLineStart } from './code-block-types.ts'
+import {
+  type CodeBlockOptions,
+  codeBlockLabels,
+  codeBlockWindowed,
+  codeLineStart,
+} from './code-block-types.ts'
 import { CodeCopy } from './code-copy.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -92,23 +97,31 @@ export function CodeBlock(props: CodeBlockProps) {
         }
       : undefined,
   })
-  const content =
-    props.maxHeight === undefined ? (
-      <View style={rows.style}>{rows.lines.map(rows.renderLine)}</View>
-    ) : (
-      <FlatList
-        data={rows.lines}
-        keyExtractor={(_, index) => String(index)}
-        renderItem={({ item, index }) => rows.renderLine(item, index)}
-        style={{ maxHeight: props.maxHeight }}
-        contentContainerStyle={rows.style}
-        nestedScrollEnabled
-      />
-    )
+  const windowed = codeBlockWindowed(props, rows.lines.length)
+  const whole = <View style={rows.style}>{rows.lines.map(rows.renderLine)}</View>
+  const content = windowed ? (
+    <FlatList
+      data={rows.lines}
+      keyExtractor={(_, index) => String(index)}
+      renderItem={({ item, index }) => rows.renderLine(item, index)}
+      style={{ maxHeight: props.maxHeight }}
+      contentContainerStyle={rows.style}
+      // React Native's default window of 21 viewports. A window of 5 was
+      // measured against it on the Android emulator and scrolled worse
+      // (frame p50 85-98ms against 54-67ms) without mounting faster (#1382).
+      nestedScrollEnabled
+    />
+  ) : props.maxHeight === undefined ? (
+    whole
+  ) : (
+    <ScrollView style={{ maxHeight: props.maxHeight }} nestedScrollEnabled>
+      {whole}
+    </ScrollView>
+  )
   // A windowed list cannot be as wide as a line it has not mounted, so the
   // widest line is drawn once more, at no height and out of the reading
   // order, to hold the scrolling width open for the ones that come later.
-  const widest = props.maxHeight === undefined || props.wrap ? undefined : widestLine(rows.lines)
+  const widest = !windowed || props.wrap ? undefined : widestCodeLine(rows.lines)
   return (
     <View role="figure" accessibilityLabel={name} style={box}>
       <Text
@@ -145,21 +158,4 @@ export function CodeBlock(props: CodeBlockProps) {
       ) : null}
     </View>
   )
-}
-
-/**
- * The line that needs the most columns. The text is monospaced, so columns
- * are the width; a wide character (CJK, full-width forms, most emoji) takes
- * two, which is approximated by code point rather than read from Unicode's
- * East Asian Width table.
- */
-function widestLine(lines: readonly NormalizedCodeLine[]) {
-  let widest: { line: NormalizedCodeLine; index: number; columns: number } | undefined
-  lines.forEach((line, index) => {
-    let columns = 0
-    for (const token of line.tokens)
-      for (const char of token.text) columns += (char.codePointAt(0) ?? 0) >= 0x2e80 ? 2 : 1
-    if (!widest || columns > widest.columns) widest = { line, index, columns }
-  })
-  return widest
 }
