@@ -120,6 +120,20 @@ const owners = [
   ['Switch', 'className', 'style'],
   ['RadioGroup', 'className', 'style'],
   ['RadioGroup', 'optionClassName', 'optionStyle', undefined, 2],
+  ['Dialog', 'className', 'style'],
+  ['Dialog', 'className', 'style', { hozoScrollY: true }],
+  ['Popover', 'className', 'style'],
+  ['Popover', 'triggerClassName', 'triggerStyle'],
+  ['Popover', 'panelClassName', 'panelStyle'],
+  ['Drawer', 'className', 'style'],
+  ['Drawer', 'scrimClassName', 'scrimStyle'],
+  ['Drawer', 'panelClassName', 'panelStyle'],
+  ['BottomSheet', 'className', 'style'],
+  ['BottomSheet', 'scrimClassName', 'scrimStyle'],
+  ['BottomSheet', 'sheetClassName', 'sheetStyle'],
+  ['BottomSheet', 'handleClassName', 'handleStyle'],
+  ['BottomSheet', 'handleClassName', 'handleStyle', { detents: [0.5, 1] }],
+  ['BottomSheet', 'handleBarClassName', 'handleBarStyle'],
 ].map(([component, classProp, styleProp, base, hosts, focusInput, marker]) => ({
   component,
   classProp,
@@ -129,6 +143,15 @@ const owners = [
   focusInput,
   marker,
 })) as Owner[]
+assert.equal(owners.length, 78, 'include both scroll and conditional-handle presentations')
+assert.equal(
+  new Set(owners.map(({ component, styleProp }) => `${component}.${styleProp}`)).size,
+  76,
+)
+assert.equal(
+  owners.reduce((total, { hosts = 1 }) => total + hosts, 0),
+  90,
+)
 const interactiveSlots = new Set([
   'Chip.removeStyle',
   'Listbox.optionStyle',
@@ -158,10 +181,10 @@ const controlOwners = owners
       component === 'Switch' ||
       (component === 'RadioGroup' && styleProp === 'optionStyle'),
   )
-const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup} from '@hozo/core'
-import {Slider,Checkbox,Switch} from '@hozo/patterns'
-export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup} from '@hozo/core'
-export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch} from '@hozo/patterns'
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup,Dialog} from '@hozo/core'
+import {Slider,Checkbox,Switch,Popover,Drawer,BottomSheet} from '@hozo/patterns'
+export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup,Dialog as RawDialog} from '@hozo/core'
+export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch,Popover as RawPopover,Drawer as RawDrawer,BottomSheet as RawBottomSheet} from '@hozo/patterns'
 ${owners
   .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -240,6 +263,10 @@ const baseProps = {
     ],
     defaultValue: 'a',
   },
+  Dialog: { open: true, children: 'Dialog body' },
+  Popover: { open: true, trigger: 'Open', children: 'Popover body' },
+  Drawer: { open: true, children: 'Drawer body' },
+  BottomSheet: { open: true, children: 'Sheet body', detents: [1] },
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -289,9 +316,15 @@ test('raw patterns and compiled root/secondary slots project the author before c
             .findAll(
               (node) =>
                 typeof node.type === 'string' &&
-                ['View', 'Pressable', 'TextInput', 'ScrollView', 'Image', 'Text'].includes(
-                  node.type,
-                ),
+                [
+                  'View',
+                  'Pressable',
+                  'TextInput',
+                  'ScrollView',
+                  'Image',
+                  'Text',
+                  'Animated.View',
+                ].includes(node.type),
             )
             .flatMap((node) =>
               ['style', 'contentContainerStyle'].map((channel) => ({
@@ -314,6 +347,15 @@ test('raw patterns and compiled root/secondary slots project the author before c
                 node.props.accessibilityRole,
                 styleProp === 'style' ? 'radiogroup' : 'radio',
               )
+          if (component === 'Dialog') {
+            assert.equal(targets[0].node.type, base?.hozoScrollY ? 'ScrollView' : 'View')
+            assert.equal(targets[0].channel, base?.hozoScrollY ? 'contentContainerStyle' : 'style')
+            assert.equal(targets[0].node.props.accessibilityViewIsModal, true)
+          }
+          if (component === 'Popover' && styleProp === 'panelStyle')
+            assert.equal(targets[0].node.type, 'Animated.View')
+          if (component === 'BottomSheet' && styleProp === 'handleStyle')
+            assert.equal(targets[0].node.type, base?.detents ? 'Pressable' : 'View')
           if (component === 'OtpInput' && styleProp === 'inputStyle') {
             assert.equal(targets.filter(({ node }) => node.type === 'TextInput').length, 1)
             assert.equal(
@@ -357,7 +399,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 7296)
+  assert.equal(observations, 8640)
   assert.deepEqual(
     mismatches,
     [],

@@ -1,5 +1,6 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
 import { useDrag1D } from '@hozo/behaviors/native'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -163,7 +164,7 @@ export function HozoBottomSheet({
   const resizable = stops.length > 1
   const bar =
     handleBarClassName || handleBarStyle ? (
-      <View style={[hozoClasses(handleBarClassName), handleBarStyle]} />
+      <View style={[hozoClasses(handleBarClassName), hozoAuthoredStyle(handleBarStyle)]} />
     ) : null
 
   // The root is the layer over the window: `fixed inset-0` on the Web. React
@@ -177,7 +178,7 @@ export function HozoBottomSheet({
         style={[
           { flex: 1 },
           hozoClasses(className),
-          style,
+          hozoAuthoredStyle(style),
           // A landscape notch is on the left or the right, and the sheet is
           // centred with a maximum width: whether it reaches that edge depends
           // on the screen. Keeping the root's content off the inset holds the
@@ -196,7 +197,10 @@ export function HozoBottomSheet({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={(interaction) => [hozoClasses(scrimClassName, { ...interaction }), scrimStyle]}
+          style={(interaction) => [
+            hozoClasses(scrimClassName, { ...interaction }),
+            hozoAuthoredStyle(scrimStyle),
+          ]}
           onPress={onClose}
         />
         <View
@@ -214,7 +218,7 @@ export function HozoBottomSheet({
           onLayout={onLayout}
           style={[
             hozoClasses(sheetClassName),
-            sheetStyle,
+            hozoAuthoredStyle(sheetStyle),
             insetPadding([hozoClasses(sheetClassName), sheetStyle], insets, ['bottom']),
             { transform: [{ translateY: travelFor(fraction, height) }] },
           ]}
@@ -225,7 +229,7 @@ export function HozoBottomSheet({
               accessibilityLabel={handleAccessibilityLabel}
               style={(interaction) => [
                 hozoClasses(handleClassName, { ...interaction }),
-                handleStyle,
+                hozoAuthoredStyle(handleStyle),
               ]}
               onPress={() => {
                 const next = cycleDetent(fraction, stops)
@@ -239,7 +243,7 @@ export function HozoBottomSheet({
             <View
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={[hozoClasses(handleClassName), handleStyle]}
+              style={[hozoClasses(handleClassName), hozoAuthoredStyle(handleStyle)]}
               {...drag.handlers}
             >
               {bar}
