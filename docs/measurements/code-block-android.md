@@ -99,21 +99,40 @@ the command writes `summary.json` and rejects an incomplete or missing matrix.
 The earlier failed runs are not pooled into this result or compared as a
 before/after speed claim: they ran in separate CI environments.
 
+## Targets after #1289
+
+The emulator's speed moves about 2x between CI runs (#1392), so an absolute
+millisecond target would pass or fail with the host. The targets below are set
+against a floor measured in the same run: the same 1000 lines as one plain
+`Text` each, in the same scroller (#1398). Mounts are timed until the JS thread
+has been quiet for 30 frames, which covers a windowed list's later batches.
+Medians at 1000 lines, 8 tokens a line, line numbers on:
+
+| Target | Whole block | Windowed block | Status |
+| --- | --- | --- | --- |
+| Scroll UI frame p95 within +10% of the plain list | 102.7 vs 103.7 ms | 88.0 vs 86.5 ms (+1.7%) | Met |
+| One-line edit at most 100 ms | 86 ms | 84 ms | Met |
+| Settled mount: a recorded ceiling, not yet reduced | 1176 vs 206 ms (5.7x, ceiling 6x) | 237 vs 20 ms (11.9x, ceiling 12x) | Recorded |
+
+- Scroll and mount are from runs 40820765315 (whole) and 40820767773 (windowed).
+- Edits are from runs 40816119756 and 40816122978. A line an edit leaves alone keeps its row (#1396).
+- Scrolling frames are the same for the block and for plain text, so the 67–104 ms frames belong to SwiftShader, not to CodeBlock. The block's extra cost is on the JS thread: scroll rAF p95 is 46 against 19 ms whole, and 23 against 17 ms windowed.
+- A mount ratio past its ceiling, measured in one run, is a regression. Lowering the ratios is [#1420](https://github.com/iray-tno/hozo/issues/1420).
+- An update that replaces every line was not given a target. It still costs about 900 ms whole at 1000 lines.
+
 ## Measured limit and application guidance
 
 **No tested long-block count establishes a 60Hz smooth-render/update/scroll
-envelope on this emulator.** Ten lines is a small functional fixture, not a
-performance guarantee. The first implementation is suitable for trying small
-Native snippets with application-specific measurement; it must not advertise
-hundreds or thousands of tokenized lines as smooth or frame-bounded. Avoid
-whole-block updates at an animation/input frame rate. Keep long source out of
-frequently updated Native views until a separately measured improvement (for
-example, a rendering/virtualization design) establishes an acceptable limit.
-These results do not establish a universal line cap for physical devices or
-prove that CodeBlock alone causes the software-GPU scrolling limit.
+envelope on this emulator**; its software GPU misses one display period even
+for plain text. Ten lines is a small functional fixture, not a performance
+guarantee. Give a long Native block a `maxHeight`, so that it windows past 100
+lines. Pass unchanged lines as the same objects, so that an edit redraws only
+what changed. Avoid replacing every line at an animation or input frame rate.
+These results do not establish a universal line cap for physical devices.
 
-Performance improvement is tracked separately in
-[#1289](https://github.com/iray-tno/hozo/issues/1289). This completes the bounded measurement requested by
+Performance improvement was tracked in
+[#1289](https://github.com/iray-tno/hozo/issues/1289), and mount cost continues in
+[#1420](https://github.com/iray-tno/hozo/issues/1420). This completes the bounded measurement requested by
 [#1278](https://github.com/iray-tno/hozo/issues/1278), including the cases that
 miss the budget. It does not complete performance optimization.
 
@@ -121,4 +140,4 @@ These emulator observations do not certify physical-device frame performance,
 Native input, clipboard delivery or TalkBack/iOS VoiceOver. The maintainer
 deferred physical-device validation on 2026-10-26 and retained that gap in
 [known limitations](../../apps/landing/src/content/docs/docs/status.md).
-Virtualization remains separate design work.
+Windowing came later (#1380, #1382); see the targets above.

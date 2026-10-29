@@ -25,10 +25,11 @@ description: "The honest list: what is partial, manual or untested."
 - **Long Native code blocks have no established smooth frame budget.** The
   [pinned Android emulator measurement](https://github.com/iray-tno/hozo/blob/main/docs/measurements/code-block-android.md)
   completed the 10–1000-line matrix, but no tested long-block count established
-  a 60Hz rendering/update/scroll envelope. A 1000-line, 8000-token block took
-  about 1.19s to reach its initial layout callback in that environment. Keep
-  Native snippets small and measure the application's update workload;
-  optimization is tracked in [#1289](https://github.com/iray-tno/hozo/issues/1289).
+  a 60Hz rendering/update/scroll envelope; the emulator misses it for plain
+  text too. Against plain text in the same run, scrolling costs the same and a
+  one-line edit takes under 100ms at 1000 lines, but mounting is 6x slower whole
+  and 12x windowed. Give long blocks a `maxHeight` so they window; mount cost
+  is tracked in [#1420](https://github.com/iray-tno/hozo/issues/1420).
 - **The Grid subset is partial**, and the Tailwind surface is wide but not
   complete — `@hozo/tailwind-conformance` reports exactly which utilities
   match the real engine. Its current numbers are committed at
