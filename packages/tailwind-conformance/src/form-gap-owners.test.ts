@@ -25,14 +25,25 @@ const owners = [
   ['TextArea', 'fieldClassName', 'fieldStyle', 'TextInput'],
   ['TextArea', 'countClassName', 'countStyle', 'Text'],
   ['FileDropzone', 'className', 'style', 'Pressable'],
+  ['DatePicker', 'className', 'style', 'View'],
+  ['DatePicker', 'triggerClassName', 'triggerStyle', 'Pressable'],
+  ['DatePicker', 'dialogClassName', 'dialogStyle', 'View'],
+  ['DateRangePicker', 'className', 'style', 'View'],
+  ['DateRangePicker', 'triggerClassName', 'triggerStyle', 'Pressable'],
+  ['DateRangePicker', 'dialogClassName', 'dialogStyle', 'View'],
+  ['DateTimePicker', 'className', 'style', 'View'],
+  ['DateTimePicker', 'triggerClassName', 'triggerStyle', 'Pressable'],
+  ['DateTimePicker', 'dialogClassName', 'dialogStyle', 'View'],
+  ['DateTimePicker', 'doneClassName', 'doneStyle', 'Pressable'],
 ] as const
 // Form is an opt-in package, not a default semantic lowering source. A real
 // primitive keeps Metro's transform active; the form imports must remain
 // untouched. These caller shapes do not claim ahead-of-time form lowering.
 const source = `import {View} from '@hozo/core'
-import {Form,TextArea,FileDropzone} from '@hozo/form'
+import {Form,TextArea,FileDropzone,DatePicker,DateRangePicker,DateTimePicker} from '@hozo/form'
 export function NativeAnchor(){return <View/>}
 export {Form as RawForm,TextArea as RawTextArea,FileDropzone as RawFileDropzone,useFormSubmit as formSubmit} from '@hozo/form'
+export {DatePicker as RawDatePicker,DateRangePicker as RawDateRangePicker,DateTimePicker as RawDateTimePicker} from '@hozo/form'
 ${owners
   .flatMap(([component, classProp, styleProp], index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -96,6 +107,18 @@ const baseProps = {
     children: 'Choose files',
     pickFiles: async () => null,
   },
+  ...Object.fromEntries(
+    ['DatePicker', 'DateRangePicker', 'DateTimePicker'].map((component) => [
+      component,
+      {
+        defaultOpen: true,
+        defaultMonth: { year: 2026, month: 10 },
+        today: { year: 2026, month: 10, day: 15 },
+        accessibilityLabel: component,
+        locale: 'en-US',
+      },
+    ]),
+  ),
 }
 const authors = [
   { id: 'no-gap', own: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -157,6 +180,23 @@ test('public form owners project each authored contribution before class gap axe
             for (const axis of ['gap', 'rowGap', 'columnGap'])
               assert.equal(stub.StyleSheet.flatten(labels[0].props.style)?.[axis], undefined)
           }
+          if (component.startsWith('Date')) {
+            assert.equal(view.root.findByType('Modal').props.visible, true)
+            if (styleProp === 'dialogStyle')
+              assert.equal(target.props.accessibilityViewIsModal, true)
+            if (host === 'Pressable') {
+              assert.equal(target.props.accessibilityRole, 'button')
+              assert.equal(
+                target.props.accessibilityState.expanded,
+                styleProp === 'doneStyle' ? undefined : true,
+              )
+              if (styleProp === 'doneStyle')
+                assert.deepEqual(target.findByType('Text').children, ['Done'])
+            }
+            for (const label of target.findAllByType('Text'))
+              for (const axis of ['gap', 'rowGap', 'columnGap'])
+                assert.equal(stub.StyleSheet.flatten(label.props.style)?.[axis], undefined)
+          }
           for (const layout of gapLayouts) {
             const actual = yogaGapGeometry(stub.StyleSheet.flatten(target.props.style), layout)
             if (JSON.stringify(actual) !== JSON.stringify(author.expected))
@@ -168,7 +208,7 @@ test('public form owners project each authored contribution before class gap axe
           renderer.act(() => view?.unmount())
         }
       }
-  assert.equal(observations, 480)
+  assert.equal(observations, 1440)
   assert.deepEqual(mismatches, [], `${mismatches.length}/${observations} form gap differences`)
 })
 
