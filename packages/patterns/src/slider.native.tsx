@@ -1,3 +1,4 @@
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 
 /**
@@ -169,7 +170,7 @@ export function HozoSlider({
     <View
       accessible={false}
       pointerEvents="box-only"
-      style={[hozoClasses(className), style]}
+      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
       onLayout={onLayout}
       {...drag.handlers}
       onResponderGrant={(event) => {
@@ -188,7 +189,7 @@ export function HozoSlider({
         <View
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[hozoClasses(railClassName), railStyle]}
+          style={[hozoClasses(railClassName), hozoAuthoredStyle(railStyle)]}
         />
       )}
       {fillStyle === undefined && fillClassName === undefined ? null : (
@@ -197,7 +198,7 @@ export function HozoSlider({
           importantForAccessibility="no-hide-descendants"
           style={[
             hozoClasses(fillClassName),
-            fillStyle,
+            hozoAuthoredStyle(fillStyle),
             vertical ? { height: `${fraction * 100}%` } : { width: `${fraction * 100}%` },
           ]}
         />
@@ -223,7 +224,7 @@ export function HozoSlider({
         style={[
           hozoClasses(thumbClassName, thumbFacts),
           hozoThumbStyle?.(thumbFacts),
-          thumbStyle,
+          hozoAuthoredStyle(thumbStyle),
           vertical ? { bottom: `${fraction * 100}%` } : { start: `${fraction * 100}%` },
         ]}
       />

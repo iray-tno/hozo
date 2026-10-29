@@ -103,6 +103,16 @@ const owners = [
   ['CommandPalette', 'activeItemClassName', 'activeItemStyle'],
   ['CommandPalette', 'shortcutClassName', 'shortcutStyle'],
   ['CommandPalette', 'emptyClassName', 'emptyStyle', { commands: [] }],
+  ['Slider', 'className', 'style'],
+  ['Slider', 'railClassName', 'railStyle'],
+  ['Slider', 'fillClassName', 'fillStyle'],
+  ['Slider', 'thumbClassName', 'thumbStyle'],
+  ['ColorPicker', 'className', 'style'],
+  ['ColorPicker', 'swatchClassName', 'swatchStyle', undefined, 2],
+  ['ColorPicker', 'selectedSwatchClassName', 'selectedSwatchStyle'],
+  ['ColorPicker', 'sliderClassName', 'sliderStyle', undefined, 3],
+  ['ColorPicker', 'thumbClassName', 'thumbStyle', undefined, 3],
+  ['ColorPicker', 'inputClassName', 'inputStyle'],
 ].map(([component, classProp, styleProp, base, hosts, focusInput, marker]) => ({
   component,
   classProp,
@@ -133,8 +143,10 @@ const interactiveOwners = owners
         ? interactionNames.replace(' focus:gap-y-[6px]', '')
         : interactionNames,
   }))
-const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette} from '@hozo/core'
-export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette} from '@hozo/core'
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker} from '@hozo/core'
+import {Slider} from '@hozo/patterns'
+export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker} from '@hozo/core'
+export {Slider as RawSlider} from '@hozo/patterns'
 ${owners
   .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -198,6 +210,12 @@ const baseProps = {
     open: true,
     commands: [{ id: 'a', label: 'Action', group: 'Group', shortcut: 'Ctrl+K', onSelect() {} }],
   },
+  Slider: { value: 40 },
+  ColorPicker: {
+    defaultValue: '#ff0000',
+    presets: ['#ff0000', '#00ff00'],
+    accessibilityLabel: 'Colour',
+  },
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -219,6 +237,11 @@ test('raw patterns and compiled root/secondary slots project the author before c
     for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
       for (const author of authorInputs) {
         const type = components[mode === 'Raw' ? `Raw${component}` : `${mode}${index}`]
+        assert.notEqual(
+          type,
+          undefined,
+          `${component}/${mode}: the authored public import must resolve`,
+        )
         const ownerProps = { ...baseProps[component], ...base }
         const own = marker === 'paddingBottom' ? author.value : [author.value, { [marker]: 23 }]
         const props =
@@ -302,7 +325,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 5376)
+  assert.equal(observations, 6816)
   assert.deepEqual(
     mismatches,
     [],
@@ -438,5 +461,48 @@ test('gap evidence retains refusals for a borrowed focus owner and an undeclared
       () => loadNativeModule(source, project, { root: project, compiler: createCompiler() }),
       reason,
     )
+  }
+})
+
+test('ColorPicker delegates authored thumb projection to each actual Slider owner', () => {
+  let value = 16
+  let reads = 0
+  const own = Object.freeze({
+    get gap() {
+      reads++
+      return value
+    },
+  })
+  let view: ReturnType<typeof renderer.create>
+  const thumbs = () =>
+    view.root.findAll(
+      (node) => node.type === 'View' && node.props.accessibilityRole === 'adjustable',
+    )
+  const check = (expected: number[]) => {
+    assert.equal(thumbs().length, 3)
+    for (const [index, thumb] of thumbs().entries()) {
+      const style = stub.StyleSheet.flatten(thumb.props.style)
+      assert.equal(style.gap, undefined)
+      assert.deepEqual([style.rowGap, style.columnGap], [expected[index], expected[index]])
+    }
+  }
+  try {
+    renderer.act(() => {
+      view = renderer.create(
+        react.createElement(components.RawColorPicker, {
+          accessibilityLabel: 'Colour',
+          thumbClassName: names,
+          thumbStyle: own,
+        }),
+      )
+    })
+    assert.equal(reads, 3, 'one author read per actual thumb, not an eager parent projection')
+    check([16, 16, 16])
+    value = 24
+    renderer.act(() => thumbs()[0].props.onFocus({ nativeEvent: {} }))
+    check([24, 16, 16])
+    assert.equal(reads, 4, 'only the focused owner reevaluates; no cached mutable author')
+  } finally {
+    renderer.act(() => view?.unmount())
   }
 })
