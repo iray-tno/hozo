@@ -19,3 +19,12 @@ export function codeBlockFixture(count: number, revision: number): CodeLine[] {
     mark: index % 10 === 1 ? 'ins' : index % 10 === 2 ? 'del' : undefined,
   }))
 }
+
+// The fourth line, which every variant shows on screen. Only it is a new
+// object; the caller's other lines are passed through as they were.
+export function codeBlockEdit(lines: CodeLine[], edit: number): CodeLine[] {
+  const next = [...lines]
+  const [line] = codeBlockFixture(4, 10 + edit).slice(3)
+  if (line) next[3] = line
+  return next
+}
