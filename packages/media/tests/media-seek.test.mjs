@@ -33,11 +33,19 @@ async function load(native = false, slider = false, rtl = false) {
     write: false,
     platform: 'node',
     format: 'cjs',
+    metafile: true,
     packages: 'external',
     plugins: [
       {
         name: 'slider-interaction-source',
         setup(builder) {
+          // Like the interaction hooks below, this is the real source leaf,
+          // not an identity stub or a new production dependency of media.
+          builder.onResolve({ filter: /^@hozo\/engine\/generated\/gap-styles$/ }, () => ({
+            path: fileURLToPath(
+              new URL('../../engine/src/generated/gap-styles.ts', import.meta.url),
+            ),
+          }))
           // The raw Slider probe must load its real hook without making
           // behaviors a production dependency of the media package.
           builder.onResolve({ filter: /^@hozo\/behaviors\/pressable-interaction$/ }, () => ({
@@ -57,6 +65,13 @@ async function load(native = false, slider = false, rtl = false) {
       },
     ],
   })
+  if (native && slider)
+    assert.ok(
+      Object.keys(result.metafile.inputs).some((file) =>
+        file.endsWith('engine/src/authored-gap.ts'),
+      ),
+      'the Native Slider probe must bundle the real authored-gap implementation',
+    )
   const module = { exports: {} }
   new Function('require', 'module', 'exports', result.outputFiles[0].text)(
     (name) =>
@@ -210,6 +225,39 @@ test('seek refuses missing/unready/unknown durations and disabled input without 
   for (const value of [NaN, Infinity, -Infinity])
     await act(async () => p.last.slider.onValueCommit(value))
   assert.deepEqual(p.requests, [])
+})
+
+test('Native Slider source probe projects frozen authored gaps without a helper stub', async (t) => {
+  const { Slider } = await load(true, true)
+  const author = Object.freeze([
+    false,
+    Object.freeze({ gap: 8 }),
+    Object.freeze([Object.freeze({ rowGap: 3 })]),
+  ])
+  let renderer
+  await act(async () => {
+    renderer = create(
+      React.createElement(Slider, {
+        style: author,
+        railStyle: author,
+        fillStyle: author,
+        thumbStyle: author,
+        value: 25,
+      }),
+    )
+  })
+  t.after(async () => act(async () => renderer.unmount()))
+  const hosts = renderer.root.findAllByType('NativeView')
+  assert.equal(hosts.length, 4, 'root, rail, fill and adjustable thumb')
+  for (const host of hosts) {
+    const style = Object.assign({}, ...host.props.style.flat(Infinity))
+    assert.equal(style.gap, undefined)
+    assert.equal(style.rowGap, 3)
+    assert.equal(style.columnGap, 8)
+  }
+  assert.equal(hosts[2].props.style.at(-1).width, '25%')
+  assert.equal(hosts[3].props.style.at(-1).start, '25%')
+  assert.equal(author[1].gap, 8, 'the frozen caller remains untouched')
 })
 
 for (const native of [false, true])

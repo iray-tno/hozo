@@ -62,3 +62,29 @@ reset/null/percentage values, mixed StyleX tiers and contextual grid remain
 before gap's canonical eligibility barrier can be removed. The helper's
 existing no-gap identity and author-array flattening costs are unchanged;
 this is not zero-overhead proof. No changeset per user instruction.
+
+## CI source-probe repair
+
+After #1393 merged, this PR was rebased onto main `25745f62`. Both the
+original CI run `40815321059` and rebased run `40819808442` failed the same
+three Media seeking tests: their raw Native Slider probe could not resolve
+`@hozo/engine/generated/gap-styles`. This was a deterministic test-loader
+boundary, not a flaky gesture failure. The failed logs remain in the artifact
+directory above.
+
+The probe now bundles the actual generated source leaf, just as it already
+bundles Slider's interaction hooks, without adding an engine production
+dependency to Media. A metafile assertion requires the real authored-gap
+implementation. A new rendered-source regression checks all four Slider
+owners using a frozen nested author, explicit row-gap precedence and retained
+fill/thumb positions; an identity helper stub would not satisfy it. Existing
+drag, cancellation, RTL and accessibility assertions are unchanged.
+
+CPU1/Idle/serial revalidation: **139 non-browser Media tests** passed with no
+skips, including all 13 seeking tests; the gap-owner matrix/delegation file
+passed **5 tests**, and the Native-only mock-host drag regression passed
+**1 test**. Source-cache guards passed **11 tests**. Turbo's dry run confirms
+all four engine source files (generated leaf, authored-gap, gap-styles and
+spread-styles) participate in `@hozo/media#test`'s inputs. This repair does not
+change production code, test expectations, timeouts or the prior measurement's
+limitations. Media's browser tests and the full root suite remain CI work.
