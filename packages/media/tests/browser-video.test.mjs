@@ -355,17 +355,70 @@ test('real browser decodes the local MP4, plays, seeks, loops, errors, changes s
     assert.equal(await page.evaluate(() => window.ref.current.getStatus().playing), false)
     await page.keyboard.press('Home')
     await page.waitForFunction(() => window.ref.current.getStatus().currentTime < 0.1)
+    // Keyboard focus is independent of the four-second clip's lifetime. Keep
+    // playback live across browser round trips, including the Space key;
+    // terminal end is exercised separately below with loop disabled again.
+    await page.evaluate(() => window.configure({ muted: true, loop: true }))
+    await page.waitForFunction(() => document.querySelector('video').loop)
     const toggle = page.getByRole('button', { name: 'Play video', exact: true })
     await toggle.focus()
+    await toggle.evaluate((button) => {
+      window.keyboardToggle = button
+    })
     await page.keyboard.press('Enter')
     await page.waitForFunction(
       () =>
         window.ref.current.getStatus().playing && window.ref.current.getStatus().currentTime > 0.1,
     )
-    await page.getByRole('button', { name: 'Pause video', exact: true }).waitFor()
-    assert.equal(await page.evaluate(() => document.activeElement?.textContent), 'Pause video')
+    const playingFocus = async () => {
+      const observation = await page.waitForFunction(() => {
+        const video = document.querySelector('video')
+        const button = window.keyboardToggle
+        if (
+          video.paused ||
+          video.ended ||
+          !window.ref.current.getStatus().playing ||
+          button.textContent !== 'Pause video'
+        )
+          return false
+        // Capture focus with the playback/UI observation, not a later read
+        // of whichever label the focused element has by then.
+        return { focused: document.activeElement === button, label: button.textContent }
+      })
+      try {
+        assert.deepEqual(await observation.jsonValue(), { focused: true, label: 'Pause video' })
+      } finally {
+        await observation.dispose()
+      }
+    }
+    await playingFocus()
+    // Cross the real decoder's boundary before the focus read and Space key.
+    // This models a late host round trip without a guessed sleep or retry.
+    const boundary = await page.evaluate(() => {
+      const video = document.querySelector('video')
+      window.ref.current.seekTo(video.duration - 0.15)
+      return { time: video.currentTime, duration: video.duration }
+    })
+    assert.ok(boundary.time > boundary.duration - 0.2)
+    await page.waitForFunction(() => {
+      const video = document.querySelector('video')
+      return !video.paused && !video.ended && video.currentTime < 1
+    })
+    await playingFocus()
+    assert.equal(await page.evaluate(() => window.ended), 0, 'keyboard fixture stays live')
     await page.keyboard.press('Space')
-    await page.waitForFunction(() => !window.ref.current.getStatus().playing)
+    await page.waitForFunction(() => {
+      const video = document.querySelector('video')
+      return (
+        video.paused &&
+        !video.ended &&
+        !window.ref.current.getStatus().playing &&
+        window.keyboardToggle.textContent === 'Play video'
+      )
+    })
+    assert.equal(await page.evaluate(() => document.activeElement === window.keyboardToggle), true)
+    await page.evaluate(() => window.configure({ muted: true, loop: false }))
+    await page.waitForFunction(() => !document.querySelector('video').loop)
     await page.evaluate(() => window.ref.current.seekTo(0))
     await page.waitForFunction(
       () =>
