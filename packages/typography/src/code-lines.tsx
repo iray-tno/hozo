@@ -16,13 +16,10 @@ import {
   useRef,
   useState,
 } from 'react'
-import {
-  type CodeLine,
-  type CodeMark,
-  type CodeToken,
-  normalizeCodeLines,
-  widestCodeLine,
-} from './code/model.ts'
+import { type CodeLine, type CodeMark, type CodeToken, widestCodeLine } from './code/model.ts'
+import { codeKey, useCodeRows, useNormalizedCodeLines } from './code/reuse.ts'
+
+export { codeKey, useNormalizedCodeLines }
 
 export interface CodeLinesProps {
   lines: readonly CodeLine[] | string
@@ -41,6 +38,11 @@ export interface CodeLinesProps {
   markStyle?: CSSProperties
   /** @internal A separate, non-selectable gutter supplied by CodeBlock. */
   renderGutter?: (line: CodeLine, index: number) => ReactNode
+  /**
+   * @internal Everything `renderGutter` draws from besides the line and its
+   * index, as `codeKey` gives it. Without it, a gutter's rows are not reused.
+   */
+  gutterKey?: string
   /**
    * @internal The element the lines scroll in. Given, only the lines near
    * the visible ones are mounted; CodeBlock decides when (#1380).
@@ -168,14 +170,34 @@ function useLineWindow(count: number, scroller: RefObject<HTMLElement | null> | 
 
 export function CodeLines(props: CodeLinesProps) {
   const message = useHozoMessage()
-  const lines = normalizeCodeLines(props.lines, props.tabSize)
+  const lines = useNormalizedCodeLines(props.lines, props.tabSize)
   const labels: Record<CodeMark, string> = {
     ins: message('hozo.code.added'),
     del: message('hozo.code.removed'),
     mark: message('hozo.code.highlighted'),
   }
   const shown = useLineWindow(lines.length, props.scroller)
-  const renderLine = (line: (typeof lines)[number], index: number) => {
+  const renderLine = useCodeRows(
+    lines,
+    props.renderGutter && props.gutterKey === undefined
+      ? undefined
+      : codeKey([
+          props.theme,
+          props.wrap,
+          labels,
+          props.gutterKey,
+          props.lineClassName,
+          props.insClassName,
+          props.delClassName,
+          props.markClassName,
+          props.lineStyle,
+          props.insStyle,
+          props.delStyle,
+          props.markStyle,
+        ]),
+    drawLine,
+  )
+  function drawLine(line: (typeof lines)[number], index: number) {
     const Tag = line.mark ?? 'span'
     const className =
       [props.lineClassName, line.mark ? props[`${line.mark}ClassName`] : undefined]

@@ -3,7 +3,7 @@ import { useHozoMessage } from '@hozo/behaviors'
 import { HozoTextSizeContext, hozoSplitTextStyle } from '@hozo/engine'
 import { useHozoDark } from '@hozo/engine/generated/environment'
 import { hozoClasses } from '@hozo/engine/project'
-import { type ReactNode, useContext, useRef } from 'react'
+import { type ReactNode, useContext } from 'react'
 import {
   type StyleProp,
   StyleSheet,
@@ -12,12 +12,10 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
-import {
-  type CodeLine,
-  type CodeMark,
-  type normalizeCodeLines,
-  normalizeCodeLinesFrom,
-} from './code/model.ts'
+import type { CodeLine, CodeMark, normalizeCodeLines } from './code/model.ts'
+import { codeKey, useCodeRows, useNormalizedCodeLines } from './code/reuse.ts'
+
+export { useNormalizedCodeLines }
 
 type CodeStyle = StyleProp<ViewStyle | TextStyle>
 export interface CodeLinesProps {
@@ -61,14 +59,10 @@ export function codeRowKey(
   values: readonly unknown[],
   classNames: readonly (string | undefined)[] = [],
 ): string | undefined {
-  try {
-    return JSON.stringify([
-      values,
-      classNames.map((name) => MARK_FACTS.map((facts) => hozoClasses(name, facts))),
-    ])
-  } catch {
-    return undefined
-  }
+  return codeKey([
+    values,
+    classNames.map((name) => MARK_FACTS.map((facts) => hozoClasses(name, facts))),
+  ])
 }
 
 const split = (style: CodeStyle) =>
@@ -76,26 +70,6 @@ const split = (style: CodeStyle) =>
 
 /** A line after `normalizeCodeLines`: its tokens are always a list. */
 export type NormalizedCodeLine = ReturnType<typeof normalizeCodeLines>[number]
-
-/**
- * @internal `normalizeCodeLines`, keeping a line's normalized objects from the
- * last render while the same line object is passed.
- */
-export function useNormalizedCodeLines(
-  lines: readonly CodeLine[] | string,
-  tabSize = 2,
-): NormalizedCodeLine[] {
-  const last = useRef<{ tabSize: number; byLine: ReadonlyMap<CodeLine, NormalizedCodeLine[]> }>(
-    undefined,
-  )
-  const [result, byLine] = normalizeCodeLinesFrom(
-    lines,
-    tabSize,
-    last.current?.tabSize === tabSize ? last.current.byLine : new Map(),
-  )
-  last.current = { tabSize, byLine }
-  return result
-}
 
 export interface CodeLineRows {
   lines: readonly NormalizedCodeLine[]
@@ -125,23 +99,6 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
   }
   const fontSize = typeof text.fontSize === 'number' ? text.fontSize : inheritedSize
   const lineHeight = text.lineHeight ?? fontSize * 1.5
-  // Rows already drawn, by line object. A line an edit left alone comes back
-  // from `useNormalizedCodeLines` as the same object, and is handed back here
-  // as the same element, which React skips; without this, changing one line
-  // re-rendered every mounted one (#1289). A `FlatList` asks for rows after
-  // this render too, so the map outlives it, holding only the current lines.
-  const drawn = useRef<{
-    lines?: readonly NormalizedCodeLine[]
-    rows: Map<NormalizedCodeLine, { index: number; key: string; row: ReactNode }>
-  }>({ rows: new Map() })
-  if (drawn.current.lines !== lines) {
-    const rows: typeof drawn.current.rows = new Map()
-    for (const line of lines) {
-      const hit = drawn.current.rows.get(line)
-      if (hit) rows.set(line, hit)
-    }
-    drawn.current = { lines, rows }
-  }
   const key =
     props.renderGutter && props.gutterKey === undefined
       ? undefined
@@ -160,15 +117,8 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
           ],
           [props.lineClassName, props.insClassName, props.delClassName, props.markClassName],
         )
-  const renderLine = (line: NormalizedCodeLine, index: number) => {
-    if (key === undefined) return drawLine(line, index)
-    const hit = drawn.current.rows.get(line)
-    if (hit && hit.index === index && hit.key === key) return hit.row
-    const row = drawLine(line, index)
-    drawn.current.rows.set(line, { index, key, row })
-    return row
-  }
-  const drawLine = (line: NormalizedCodeLine, index: number) => {
+  const renderLine = useCodeRows(lines, key, drawLine)
+  function drawLine(line: NormalizedCodeLine, index: number) {
     const facts = {
       'data-code-mark': Boolean(line.mark),
       'data-code-mark=ins': line.mark === 'ins',

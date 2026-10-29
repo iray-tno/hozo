@@ -1,7 +1,7 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { hozoScrollable } from '@hozo/engine'
-import { CodeLines } from '@hozo/typography/code/lines'
-import { codeText, normalizeCodeLines } from '@hozo/typography/code/model'
+import { CodeLines, codeKey, useNormalizedCodeLines } from '@hozo/typography/code/lines'
+import { codeText } from '@hozo/typography/code/model'
 import { type CSSProperties, useId, useRef } from 'react'
 import {
   type CodeBlockOptions,
@@ -35,7 +35,7 @@ export function CodeBlock(props: CodeBlockProps) {
   const id = useId()
   const scroller = useRef<HTMLDivElement>(null)
   const { title, name, captionNamesFigure } = codeBlockLabels(props, message('hozo.code.label'))
-  const lines = normalizeCodeLines(props.lines, props.tabSize)
+  const lines = useNormalizedCodeLines(props.lines, props.tabSize)
   const start = codeLineStart(props.lineNumbers)
   const hasMarks = lines.some((line) => line.mark)
   const gutter = Boolean(props.lineNumbers || hasMarks)
@@ -75,6 +75,17 @@ export function CodeBlock(props: CodeBlockProps) {
           className={undefined}
           scroller={codeBlockWindowed(props, lines.length) ? scroller : undefined}
           style={{ fontFamily: 'monospace', lineHeight: 1.5 }}
+          gutterKey={codeKey([
+            start,
+            width,
+            hasMarks,
+            props.lineNumbers,
+            props.gutterClassName,
+            props.insClassName,
+            props.delClassName,
+            props.markClassName,
+            props.gutterStyle,
+          ])}
           renderGutter={
             gutter
               ? (line, index) => (
