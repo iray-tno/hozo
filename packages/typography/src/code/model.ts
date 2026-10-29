@@ -33,31 +33,43 @@ export function codeText(lines: readonly CodeLine[] | string): string {
 
 type NormalizedLine = Omit<CodeLine, 'tokens'> & { tokens: CodeToken[] }
 
-// What each line object came out as, per tab size. A line passed again as the
-// same object comes out as the same objects, so a renderer can tell the lines
-// an edit left alone from the one it changed by identity (#1289). Lines are
-// read as immutable, as React reads props.
-const normalized = new WeakMap<CodeLine, Map<number, NormalizedLine[]>>()
-
 /** Tab stops cross token boundaries, so highlighting cannot change indentation. */
 export function normalizeCodeLines(
   lines: readonly CodeLine[] | string,
   tabSize = 2,
 ): NormalizedLine[] {
+  return normalizeCodeLinesFrom(lines, tabSize, new Map())[0]
+}
+
+/**
+ * @internal `normalizeCodeLines`, handing back what a line object came out as
+ * in `previous` (the map the last call returned, at the same tab size) when it
+ * is passed again. A renderer can then tell the lines an edit left alone from
+ * the one it changed by identity (#1289); lines are read as immutable, as
+ * React reads props.
+ */
+export function normalizeCodeLinesFrom(
+  lines: readonly CodeLine[] | string,
+  tabSize: number,
+  previous: ReadonlyMap<CodeLine, NormalizedLine[]>,
+): [NormalizedLine[], Map<CodeLine, NormalizedLine[]>] {
   if (!Number.isSafeInteger(tabSize) || tabSize < 1)
     throw new RangeError('tabSize must be a positive safe integer')
+  const next = new Map<CodeLine, NormalizedLine[]>()
   if (typeof lines === 'string')
-    return lines
-      .replace(/\r\n?/g, '\n')
-      .split('\n')
-      .flatMap((tokens) => normalizeLine({ tokens }, tabSize))
-  return lines.flatMap((line) => {
-    let sizes = normalized.get(line)
-    if (!sizes) normalized.set(line, (sizes = new Map()))
-    let result = sizes.get(tabSize)
-    if (!result) sizes.set(tabSize, (result = normalizeLine(line, tabSize)))
-    return result
+    return [
+      lines
+        .replace(/\r\n?/g, '\n')
+        .split('\n')
+        .flatMap((tokens) => normalizeLine({ tokens }, tabSize)),
+      next,
+    ]
+  const result = lines.flatMap((line) => {
+    const normalized = next.get(line) ?? previous.get(line) ?? normalizeLine(line, tabSize)
+    next.set(line, normalized)
+    return normalized
   })
+  return [result, next]
 }
 
 function normalizeLine(line: CodeLine, tabSize: number): NormalizedLine[] {

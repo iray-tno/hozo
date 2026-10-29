@@ -3,7 +3,12 @@ import test from 'node:test'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { codeToTokens } from 'shiki'
 import { parseCodeMeta } from './code/meta.ts'
-import { codeText, markCodeLines, normalizeCodeLines } from './code/model.ts'
+import {
+  codeText,
+  markCodeLines,
+  normalizeCodeLines,
+  normalizeCodeLinesFrom,
+} from './code/model.ts'
 import { fromShiki } from './code/shiki.ts'
 import { CodeLines } from './code-lines.tsx'
 
@@ -31,15 +36,16 @@ test('tabs span token boundaries, CRLF and empty lines retain source positions',
 test('a line passed again as the same object normalizes to the same objects', () => {
   const kept = { tokens: '\tkept' }
   const split = { tokens: 'one\ntwo' }
-  const before = normalizeCodeLines([kept, split, { tokens: 'old' }])
-  const after = normalizeCodeLines([kept, split, { tokens: 'new' }])
+  const [before, map] = normalizeCodeLinesFrom([kept, split, { tokens: 'old' }], 2, new Map())
+  const [after] = normalizeCodeLinesFrom([kept, split, { tokens: 'new' }], 2, map)
   assert.equal(after[0], before[0])
   assert.equal(after[1], before[1])
   assert.equal(after[2], before[2])
   assert.notEqual(after[3], before[3])
-  // Per tab size, so a different size is not served the other's columns.
-  assert.equal(normalizeCodeLines([kept], 4)[0]?.tokens[0]?.text, '    kept')
-  assert.equal(normalizeCodeLines([kept])[0], before[0])
+  // Without the last map, fresh objects with the same content.
+  const [fresh] = normalizeCodeLinesFrom([kept], 2, new Map())
+  assert.notEqual(fresh[0], before[0])
+  assert.deepEqual(fresh[0], before[0])
 })
 
 test('Shiki 4.4.3 real single/multiple theme tokens preserve text and colour slots', async () => {

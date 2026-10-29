@@ -12,7 +12,12 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
-import { type CodeLine, type CodeMark, normalizeCodeLines } from './code/model.ts'
+import {
+  type CodeLine,
+  type CodeMark,
+  type normalizeCodeLines,
+  normalizeCodeLinesFrom,
+} from './code/model.ts'
 
 type CodeStyle = StyleProp<ViewStyle | TextStyle>
 export interface CodeLinesProps {
@@ -72,6 +77,26 @@ const split = (style: CodeStyle) =>
 /** A line after `normalizeCodeLines`: its tokens are always a list. */
 export type NormalizedCodeLine = ReturnType<typeof normalizeCodeLines>[number]
 
+/**
+ * @internal `normalizeCodeLines`, keeping a line's normalized objects from the
+ * last render while the same line object is passed.
+ */
+export function useNormalizedCodeLines(
+  lines: readonly CodeLine[] | string,
+  tabSize = 2,
+): NormalizedCodeLine[] {
+  const last = useRef<{ tabSize: number; byLine: ReadonlyMap<CodeLine, NormalizedCodeLine[]> }>(
+    undefined,
+  )
+  const [result, byLine] = normalizeCodeLinesFrom(
+    lines,
+    tabSize,
+    last.current?.tabSize === tabSize ? last.current.byLine : new Map(),
+  )
+  last.current = { tabSize, byLine }
+  return result
+}
+
 export interface CodeLineRows {
   lines: readonly NormalizedCodeLine[]
   style: StyleProp<ViewStyle>
@@ -91,7 +116,7 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
   const dark = useHozoDark()
   const inheritedSize = useContext(HozoTextSizeContext)
   const theme = props.theme ?? (dark ? 'dark' : 'light')
-  const lines = normalizeCodeLines(props.lines, props.tabSize)
+  const lines = useNormalizedCodeLines(props.lines, props.tabSize)
   const [box, text] = split([hozoClasses(props.className), props.style])
   const labels: Record<CodeMark, string> = {
     ins: message('hozo.code.added'),
@@ -101,12 +126,22 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
   const fontSize = typeof text.fontSize === 'number' ? text.fontSize : inheritedSize
   const lineHeight = text.lineHeight ?? fontSize * 1.5
   // Rows already drawn, by line object. A line an edit left alone comes back
-  // from `normalizeCodeLines` as the same object, and is handed back here as
-  // the same element, which React skips; without this, changing one line
-  // re-rendered every mounted one (#1289).
-  const drawn = useRef(
-    new WeakMap<NormalizedCodeLine, { index: number; key: string; row: ReactNode }>(),
-  )
+  // from `useNormalizedCodeLines` as the same object, and is handed back here
+  // as the same element, which React skips; without this, changing one line
+  // re-rendered every mounted one (#1289). A `FlatList` asks for rows after
+  // this render too, so the map outlives it, holding only the current lines.
+  const drawn = useRef<{
+    lines?: readonly NormalizedCodeLine[]
+    rows: Map<NormalizedCodeLine, { index: number; key: string; row: ReactNode }>
+  }>({ rows: new Map() })
+  if (drawn.current.lines !== lines) {
+    const rows: typeof drawn.current.rows = new Map()
+    for (const line of lines) {
+      const hit = drawn.current.rows.get(line)
+      if (hit) rows.set(line, hit)
+    }
+    drawn.current = { lines, rows }
+  }
   const key =
     props.renderGutter && props.gutterKey === undefined
       ? undefined
@@ -127,10 +162,10 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
         )
   const renderLine = (line: NormalizedCodeLine, index: number) => {
     if (key === undefined) return drawLine(line, index)
-    const hit = drawn.current.get(line)
+    const hit = drawn.current.rows.get(line)
     if (hit && hit.index === index && hit.key === key) return hit.row
     const row = drawLine(line, index)
-    drawn.current.set(line, { index, key, row })
+    drawn.current.rows.set(line, { index, key, row })
     return row
   }
   const drawLine = (line: NormalizedCodeLine, index: number) => {

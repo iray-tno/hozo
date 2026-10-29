@@ -1,8 +1,12 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { HozoTextSizeContext } from '@hozo/engine'
 import { hozoClasses } from '@hozo/engine/project'
-import { codeRowKey, useCodeLineRows } from '@hozo/typography/code/lines/native'
-import { codeText, normalizeCodeLines, widestCodeLine } from '@hozo/typography/code/model'
+import {
+  codeRowKey,
+  useCodeLineRows,
+  useNormalizedCodeLines,
+} from '@hozo/typography/code/lines/native'
+import { codeText, widestCodeLine } from '@hozo/typography/code/model'
 import { useContext } from 'react'
 import {
   FlatList,
@@ -47,7 +51,7 @@ export function CodeBlock(props: CodeBlockProps) {
   const message = useHozoMessage()
   const inheritedSize = useContext(HozoTextSizeContext)
   const { title, name } = codeBlockLabels(props, message('hozo.code.label'))
-  const lines = normalizeCodeLines(props.lines, props.tabSize)
+  const lines = useNormalizedCodeLines(props.lines, props.tabSize)
   const start = codeLineStart(props.lineNumbers)
   const hasMarks = lines.some((line) => line.mark)
   const gutter = Boolean(props.lineNumbers || hasMarks)
