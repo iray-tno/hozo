@@ -19,6 +19,7 @@ const fieldNames =
   'gap-y-[8px] gap-x-[2px] focus:gap-y-[6px] disabled:gap-x-[14px] read-only:gap-y-[10px]'
 const fileNames =
   'gap-y-[8px] gap-x-[2px] hover:gap-x-[4px] active:gap-y-[12px] focus:gap-y-[6px] disabled:gap-x-[14px] aria-busy:gap-y-[18px]'
+const pickerNames = fileNames.replace(' aria-busy:gap-y-[18px]', '')
 const owners = [
   ['Form', 'className', 'style', 'View'],
   ['TextArea', 'className', 'style', 'View'],
@@ -61,6 +62,16 @@ ${[
       (mode) =>
         `export function State${mode}${component}({base,own,runtimeNames}) {return <${component} {...${mode === 'Spread' ? `{...base,${styleProp}:own}` : 'base'}} ${classProp}=${mode === 'Opaque' ? '{runtimeNames}' : JSON.stringify(classes)} ${mode === 'Spread' ? '' : `${styleProp}={own}`}/>}`,
     ),
+  )
+  .join('\n')}
+${owners
+  .flatMap(([component, classProp, styleProp], index) =>
+    styleProp === 'triggerStyle' || styleProp === 'doneStyle'
+      ? ['Literal', 'Opaque', 'Spread'].map(
+          (mode) =>
+            `export function Picker${mode}${index}({base,own,runtimeNames}) {return <${component} {...${mode === 'Spread' ? `{...base,${styleProp}:own}` : 'base'}} ${classProp}=${mode === 'Opaque' ? '{runtimeNames}' : JSON.stringify(pickerNames)} ${mode === 'Spread' ? '' : `${styleProp}={own}`}/>}`,
+        )
+      : [],
   )
   .join('\n')}`
 const root = fileURLToPath(new URL('../../../', import.meta.url))
@@ -516,6 +527,240 @@ test('FileDropzone refreshes its actual box author across picker busy and comple
       assert.deepEqual(selected, [[file]])
     } finally {
       renderer.act(() => view?.unmount())
+    }
+  }
+})
+
+test('date triggers and Done retain authored axes through delivered interaction on their own buttons', () => {
+  let observations = 0
+  const frames = [
+    [undefined, [8, 2]],
+    ['onHoverIn', [8, 4]],
+    ['onPressIn', [12, 4]],
+    ['onPressOut', [8, 4]],
+    ['onHoverOut', [8, 2]],
+    ['onFocus', [6, 2]],
+    ['onBlur', [8, 2]],
+  ] as const
+  for (const [index, [component, classProp, styleProp]] of owners.entries()) {
+    if (styleProp !== 'triggerStyle' && styleProp !== 'doneStyle') continue
+    for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread'])
+      for (const author of authors) {
+        let base = { ...baseProps[component] }
+        const type = components[mode === 'Raw' ? `Raw${component}` : `Picker${mode}${index}`]
+        const element = () =>
+          react.createElement(
+            type,
+            mode === 'Raw'
+              ? { ...base, [classProp]: pickerNames, [styleProp]: author.own }
+              : { base, own: author.own, runtimeNames: pickerNames },
+          )
+        let view: ReturnType<typeof renderer.create>
+        const target = () => {
+          const buttons = view.root.findAll(
+            (node) =>
+              node.type === 'Pressable' &&
+              stub.StyleSheet.flatten(node.props.style)?.paddingBottom === 23,
+          )
+          assert.equal(buttons.length, 1, 'one actual trigger or Done, not a Calendar button')
+          return buttons[0]
+        }
+        const check = (control: readonly number[]) => {
+          const button = target()
+          assert.equal(button.props.accessibilityRole, 'button')
+          assert.equal(
+            button.props.accessibilityState.expanded,
+            styleProp === 'doneStyle' ? undefined : true,
+          )
+          assert.equal(
+            button.props.disabled,
+            styleProp === 'doneStyle' ? false : Boolean(base.disabled),
+          )
+          for (const label of button.findAllByType('Text'))
+            for (const axis of ['gap', 'rowGap', 'columnGap'])
+              assert.equal(stub.StyleSheet.flatten(label.props.style)?.[axis], undefined)
+          for (const layout of gapLayouts) {
+            assert.deepEqual(
+              yogaGapGeometry(stub.StyleSheet.flatten(button.props.style), layout),
+              author.id === 'no-gap' ? control : author.expected,
+              `${component}.${styleProp}/${mode}/${author.id}`,
+            )
+            observations++
+          }
+        }
+        try {
+          renderer.act(() => {
+            view = renderer.create(element())
+          })
+          for (const [event, control] of frames) {
+            if (event) {
+              assert.equal(typeof target().props[event], 'function')
+              renderer.act(() => target().props[event]({ nativeEvent: {} }))
+            }
+            check(control)
+          }
+          // Done remains usable even when the DateTime inputs are disabled;
+          // it owns no disabled prop. Do not borrow the trigger's fact.
+          base = { ...base, disabled: true }
+          renderer.act(() => view.update(element()))
+          check(styleProp === 'doneStyle' ? [8, 2] : [8, 14])
+          base = { ...base, disabled: false }
+          renderer.act(() => view.update(element()))
+          check([8, 2])
+        } finally {
+          renderer.act(() => view?.unmount())
+        }
+      }
+  }
+  assert.equal(observations, 3456)
+})
+
+test('date picker frames gate closed dialog authors and preserve fresh gaps and owned text precedence', () => {
+  for (const component of ['DatePicker', 'DateRangePicker', 'DateTimePicker']) {
+    const index = owners.findIndex(
+      ([name, , style]) => name === component && style === 'dialogStyle',
+    )
+    for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
+      let readable = false
+      const gaps = [20, 16, 24]
+      const reads = [0, 0, 0]
+      const changes: boolean[] = []
+      const style = (at: number, extra = {}) =>
+        Object.freeze({
+          ...extra,
+          zIndex: 61 + at,
+          get gap() {
+            if (at === 2) assert.equal(readable, true, 'closed dialog author was evaluated')
+            reads[at]++
+            return gaps[at]
+          },
+        })
+      const rootStyle = style(0, { color: '#112233', fontSize: 18 })
+      const triggerStyle = style(1, { color: '#556677' })
+      const dialogStyle = style(2, { color: '#334455', fontWeight: '600' })
+      const base = {
+        ...baseProps[component],
+        defaultOpen: false,
+        className: names,
+        style: rootStyle,
+        triggerClassName: names,
+        triggerStyle,
+        triggerTextStyle: Object.freeze({ color: '#778899', fontSize: 22 }),
+        onOpenChange: (open: boolean) => changes.push(open),
+      }
+      const type = components[mode === 'Raw' ? `Raw${component}` : `${mode}${index}`]
+      const props =
+        mode === 'Raw'
+          ? { ...base, dialogClassName: names, dialogStyle }
+          : { base, own: dialogStyle, runtimeNames: names }
+      let view: ReturnType<typeof renderer.create>
+      const marked = (marker: number) =>
+        view.root.findAll(
+          (node) =>
+            ['View', 'Pressable'].includes(node.type) &&
+            stub.StyleSheet.flatten(node.props.style)?.zIndex === marker,
+        )
+      const trigger = () => {
+        assert.equal(marked(62).length, 1)
+        return marked(62)[0]
+      }
+      const check = (open: boolean, rootGap: number, triggerGap: number) => {
+        assert.equal(view.root.findByType('Modal').props.visible, open)
+        assert.equal(trigger().props.accessibilityState.expanded, open)
+        assert.equal(marked(61).length, 1)
+        // Modal is deliberately a string stand-in retaining its children.
+        // This checks the shared frame gate, not RN unmount/focus delivery.
+        assert.equal(marked(63).length, open ? 1 : 0)
+        for (const [marker, gap] of [
+          [61, rootGap],
+          [62, triggerGap],
+          ...(open ? [[63, gaps[2]]] : []),
+        ]) {
+          const box = stub.StyleSheet.flatten(marked(marker)[0].props.style)
+          assert.equal(box.color, undefined)
+          assert.equal(box.fontSize, undefined)
+          for (const layout of gapLayouts)
+            assert.deepEqual(yogaGapGeometry(box, layout), [gap, gap])
+        }
+        const label = stub.StyleSheet.flatten(trigger().findByType('Text').props.style)
+        assert.equal(label.color, '#778899', 'owned trigger text overrides box and inherited text')
+        assert.equal(label.fontSize, 22)
+        for (const axis of ['gap', 'rowGap', 'columnGap']) assert.equal(label[axis], undefined)
+        if (open) {
+          assert.equal(marked(63)[0].props.accessibilityViewIsModal, true)
+          const days = view.root.findAll(
+            (node) =>
+              node.type === 'Pressable' &&
+              Object.hasOwn(node.props.accessibilityState ?? {}, 'selected'),
+          )
+          assert.ok(
+            days.length > 0,
+            'inspect actual Calendar labels, not an inherited object alone',
+          )
+          const text = stub.StyleSheet.flatten(days[0].findByType('Text').props.style)
+          assert.equal(
+            text.color,
+            '#334455',
+            'dialog text overrides wrapper text for owned content',
+          )
+          assert.equal(text.fontWeight, '600')
+          assert.equal(text.fontSize, 18)
+          for (const axis of ['gap', 'rowGap', 'columnGap']) assert.equal(text[axis], undefined)
+        }
+      }
+      try {
+        renderer.act(() => {
+          view = renderer.create(react.createElement(type, props))
+        })
+        check(false, 20, 16)
+        assert.equal(reads[2], 0)
+        const initial = [...reads]
+        gaps.splice(0, 3, 28, 24, 32)
+        renderer.act(() => trigger().props.onFocus({ nativeEvent: {} }))
+        check(false, 20, 24)
+        assert.deepEqual(
+          reads,
+          [initial[0], initial[1] + 1, 0],
+          'only the actual focused button reevaluates',
+        )
+        readable = true
+        renderer.act(() => trigger().props.onPress())
+        check(true, 28, 24)
+        const openReads = reads[2]
+        assert.ok(openReads > 0)
+        readable = false
+        renderer.act(() => view.root.findByType('Modal').props.onRequestClose())
+        check(false, 28, 24)
+        assert.equal(reads[2], openReads)
+        gaps.splice(0, 3, 30, 26, 36)
+        readable = true
+        renderer.act(() => trigger().props.onPress())
+        check(true, 30, 26)
+        assert.ok(reads[2] > openReads)
+        const reopenedReads = reads[2]
+        readable = false
+        if (component === 'DateTimePicker') {
+          const done = view.root.findAll(
+            (node) =>
+              node.type === 'Pressable' &&
+              node.findAllByType('Text').some((text) => text.children.join('') === 'Done'),
+          )
+          assert.equal(done.length, 1)
+          renderer.act(() => done[0].props.onPress())
+        } else {
+          const backdrop = view.root.findAll(
+            (node) => node.type === 'Pressable' && node.props.accessibilityElementsHidden,
+          )
+          assert.equal(backdrop.length, 1)
+          assert.equal(backdrop[0].props.importantForAccessibility, 'no-hide-descendants')
+          renderer.act(() => backdrop[0].props.onPress())
+        }
+        check(false, 30, 26)
+        assert.equal(reads[2], reopenedReads)
+        assert.deepEqual(changes, [true, false, true, false])
+      } finally {
+        renderer.act(() => view?.unmount())
+      }
     }
   }
 })
