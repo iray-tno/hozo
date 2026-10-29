@@ -1,7 +1,8 @@
 import { CodeBlock } from '@hozo/patterns'
+import type { CodeLine } from '@hozo/typography/code/model'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
+import { FlatList, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { CODE_BLOCK_COUNTS, codeBlockEdit, codeBlockFixture } from './code-block-fixture'
 
 // A frame this late means the JS thread was busy; this many on time in a row
@@ -9,6 +10,16 @@ import { CODE_BLOCK_COUNTS, codeBlockEdit, codeBlockFixture } from './code-block
 const BUSY_FRAME_MS = 34
 const QUIET_FRAMES = 30
 const SETTLE_TIMEOUT_MS = 15_000
+
+// The floor under a CodeBlock: the same 1000 lines as one plain Text each, in
+// the same scroller, measured in the same run so that the emulator's own cost,
+// which moves about 2x between runs, can be told from the block's.
+const plainStyle = { fontFamily: 'monospace', fontSize: 12, lineHeight: 18 } as const
+const plainText = (line: CodeLine) =>
+  typeof line.tokens === 'string' ? line.tokens : line.tokens.map((token) => token.text).join('')
+const plainLine = ({ item }: { item: CodeLine }) => (
+  <Text style={plainStyle}>{plainText(item)}</Text>
+)
 
 function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
   // Story modules are imported by the ordinary showcase too. Allocate this
@@ -39,6 +50,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
     count: (typeof CODE_BLOCK_COUNTS)[number]
     tick: number
     edit: number
+    baseline?: boolean
   } | null>(null)
   const scroll = useRef<ScrollView>(null)
   const operation = useRef<{ name: string; started: number; gaps: number[]; last: number } | null>(
@@ -188,6 +200,16 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
         ))}
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Mount plain list"
+          onPress={() => {
+            begin('baseline-mount')
+            setSelection({ count: 1000, tick: 0, edit: 0, baseline: true })
+          }}
+        >
+          <Text>Plain list</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Clear block"
           onPress={() => {
             stop()
@@ -249,27 +271,38 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
         <View style={{ flex: 1 }}>
           {selection ? (
             <View
-              key={selection.count}
+              key={selection.baseline ? 'baseline' : selection.count}
               onLayout={() => {
-                if (operation.current?.name.startsWith('mount-')) finish('native-layout-callback')
+                if (/^(mount-|baseline-)/.test(operation.current?.name ?? ''))
+                  finish('native-layout-callback')
               }}
             >
-              <CodeBlock
-                title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
-                lines={lines ?? []}
-                lineNumbers
-                wrap
-                maxHeight={height * 0.6}
-                // Every size, so the matrix compares like with like; `auto`
-                // would leave the 10 and 100 line blocks whole.
-                windowing="on"
-                style={{
-                  backgroundColor: '#f8fafc',
-                  color: '#0f172a',
-                  fontSize: 12,
-                  lineHeight: 18,
-                }}
-              />
+              {selection.baseline ? (
+                <FlatList
+                  data={lines}
+                  keyExtractor={(_, index) => String(index)}
+                  renderItem={plainLine}
+                  style={{ maxHeight: height * 0.6 }}
+                  nestedScrollEnabled
+                />
+              ) : (
+                <CodeBlock
+                  title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
+                  lines={lines ?? []}
+                  lineNumbers
+                  wrap
+                  maxHeight={height * 0.6}
+                  // Every size, so the matrix compares like with like; `auto`
+                  // would leave the 10 and 100 line blocks whole.
+                  windowing="on"
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    color: '#0f172a',
+                    fontSize: 12,
+                    lineHeight: 18,
+                  }}
+                />
+              )}
             </View>
           ) : (
             <Text>Block cleared</Text>
@@ -287,23 +320,35 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
         >
           {selection ? (
             <View
-              key={selection.count}
+              key={selection.baseline ? 'baseline' : selection.count}
               onLayout={() => {
-                if (operation.current?.name.startsWith('mount-')) finish('native-layout-callback')
+                if (/^(mount-|baseline-)/.test(operation.current?.name ?? ''))
+                  finish('native-layout-callback')
               }}
             >
-              <CodeBlock
-                title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
-                lines={lines ?? []}
-                lineNumbers
-                wrap
-                style={{
-                  backgroundColor: '#f8fafc',
-                  color: '#0f172a',
-                  fontSize: 12,
-                  lineHeight: 18,
-                }}
-              />
+              {selection.baseline ? (
+                <View>
+                  {lines?.map((item) => (
+                    // Every fixture line names its own index.
+                    <Text key={plainText(item)} style={plainStyle}>
+                      {plainText(item)}
+                    </Text>
+                  ))}
+                </View>
+              ) : (
+                <CodeBlock
+                  title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
+                  lines={lines ?? []}
+                  lineNumbers
+                  wrap
+                  style={{
+                    backgroundColor: '#f8fafc',
+                    color: '#0f172a',
+                    fontSize: 12,
+                    lineHeight: 18,
+                  }}
+                />
+              )}
             </View>
           ) : (
             <Text>Block cleared</Text>
