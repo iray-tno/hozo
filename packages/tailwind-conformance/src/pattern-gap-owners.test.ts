@@ -120,6 +120,20 @@ const owners = [
   ['Switch', 'className', 'style'],
   ['RadioGroup', 'className', 'style'],
   ['RadioGroup', 'optionClassName', 'optionStyle', undefined, 2],
+  ['Dialog', 'className', 'style'],
+  ['Dialog', 'className', 'style', { hozoScrollY: true }],
+  ['Popover', 'className', 'style'],
+  ['Popover', 'triggerClassName', 'triggerStyle'],
+  ['Popover', 'panelClassName', 'panelStyle'],
+  ['Drawer', 'className', 'style'],
+  ['Drawer', 'scrimClassName', 'scrimStyle'],
+  ['Drawer', 'panelClassName', 'panelStyle'],
+  ['BottomSheet', 'className', 'style'],
+  ['BottomSheet', 'scrimClassName', 'scrimStyle'],
+  ['BottomSheet', 'sheetClassName', 'sheetStyle'],
+  ['BottomSheet', 'handleClassName', 'handleStyle'],
+  ['BottomSheet', 'handleClassName', 'handleStyle', { detents: [0.5, 1] }],
+  ['BottomSheet', 'handleBarClassName', 'handleBarStyle'],
 ].map(([component, classProp, styleProp, base, hosts, focusInput, marker]) => ({
   component,
   classProp,
@@ -129,6 +143,15 @@ const owners = [
   focusInput,
   marker,
 })) as Owner[]
+assert.equal(owners.length, 78, 'include both scroll and conditional-handle presentations')
+assert.equal(
+  new Set(owners.map(({ component, styleProp }) => `${component}.${styleProp}`)).size,
+  76,
+)
+assert.equal(
+  owners.reduce((total, { hosts = 1 }) => total + hosts, 0),
+  90,
+)
 const interactiveSlots = new Set([
   'Chip.removeStyle',
   'Listbox.optionStyle',
@@ -138,10 +161,19 @@ const interactiveSlots = new Set([
   'Tabs.tabStyle',
   'Pagination.currentItemStyle',
   'Stepper.stepStyle',
+  'Popover.triggerStyle',
+  'Drawer.scrimStyle',
+  'BottomSheet.scrimStyle',
+  'BottomSheet.handleStyle',
 ])
 const interactiveOwners = owners
   .map((owner, index) => ({ ...owner, index }))
-  .filter(({ component, styleProp }) => interactiveSlots.has(`${component}.${styleProp}`))
+  .filter(
+    ({ component, styleProp, base }) =>
+      interactiveSlots.has(`${component}.${styleProp}`) &&
+      // The single-detent handle is a decorative View, not an event owner.
+      !(component === 'BottomSheet' && styleProp === 'handleStyle' && !base?.detents),
+  )
   .map((owner) => ({
     ...owner,
     // The Web Combobox keeps focus on its input, not on an option.
@@ -158,10 +190,10 @@ const controlOwners = owners
       component === 'Switch' ||
       (component === 'RadioGroup' && styleProp === 'optionStyle'),
   )
-const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup} from '@hozo/core'
-import {Slider,Checkbox,Switch} from '@hozo/patterns'
-export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup} from '@hozo/core'
-export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch} from '@hozo/patterns'
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup,Dialog} from '@hozo/core'
+import {Slider,Checkbox,Switch,Popover,Drawer,BottomSheet} from '@hozo/patterns'
+export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup,Dialog as RawDialog} from '@hozo/core'
+export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch,Popover as RawPopover,Drawer as RawDrawer,BottomSheet as RawBottomSheet} from '@hozo/patterns'
 ${owners
   .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -240,6 +272,10 @@ const baseProps = {
     ],
     defaultValue: 'a',
   },
+  Dialog: { open: true, children: 'Dialog body' },
+  Popover: { open: true, trigger: 'Open', children: 'Popover body' },
+  Drawer: { open: true, children: 'Drawer body' },
+  BottomSheet: { open: true, children: 'Sheet body', detents: [1] },
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -289,9 +325,15 @@ test('raw patterns and compiled root/secondary slots project the author before c
             .findAll(
               (node) =>
                 typeof node.type === 'string' &&
-                ['View', 'Pressable', 'TextInput', 'ScrollView', 'Image', 'Text'].includes(
-                  node.type,
-                ),
+                [
+                  'View',
+                  'Pressable',
+                  'TextInput',
+                  'ScrollView',
+                  'Image',
+                  'Text',
+                  'Animated.View',
+                ].includes(node.type),
             )
             .flatMap((node) =>
               ['style', 'contentContainerStyle'].map((channel) => ({
@@ -314,6 +356,15 @@ test('raw patterns and compiled root/secondary slots project the author before c
                 node.props.accessibilityRole,
                 styleProp === 'style' ? 'radiogroup' : 'radio',
               )
+          if (component === 'Dialog') {
+            assert.equal(targets[0].node.type, base?.hozoScrollY ? 'ScrollView' : 'View')
+            assert.equal(targets[0].channel, base?.hozoScrollY ? 'contentContainerStyle' : 'style')
+            assert.equal(targets[0].node.props.accessibilityViewIsModal, true)
+          }
+          if (component === 'Popover' && styleProp === 'panelStyle')
+            assert.equal(targets[0].node.type, 'Animated.View')
+          if (component === 'BottomSheet' && styleProp === 'handleStyle')
+            assert.equal(targets[0].node.type, base?.detents ? 'Pressable' : 'View')
           if (component === 'OtpInput' && styleProp === 'inputStyle') {
             assert.equal(targets.filter(({ node }) => node.type === 'TextInput').length, 1)
             assert.equal(
@@ -357,7 +408,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 7296)
+  assert.equal(observations, 8640)
   assert.deepEqual(
     mismatches,
     [],
@@ -470,7 +521,7 @@ test('real owner hover/press/focus updates gap controls without overriding autho
       }
     }
   }
-  assert.equal(observations, 5376)
+  assert.equal(observations, 8064)
   assert.deepEqual(
     mismatches,
     [],
@@ -723,4 +774,186 @@ test('a mixed checkbox passes mixed to its indicator and activates to checked wi
       renderer.act(() => view?.unmount())
     }
   }
+})
+
+test('Popover projects panel authors only while mounted and refreshes them through leave and reopen', () => {
+  const index = owners.findIndex(
+    ({ component, styleProp }) => component === 'Popover' && styleProp === 'triggerStyle',
+  )
+  for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
+    let reads = 0
+    let gap = 16
+    let readable = false
+    const own = Object.freeze({
+      get gap() {
+        assert.equal(readable, true, 'an unmounted panel author must not be inspected')
+        reads++
+        return gap
+      },
+    })
+    const changes: boolean[] = []
+    const base = {
+      trigger: 'Open',
+      children: 'Body',
+      modal: true,
+      defaultOpen: false,
+      panelClassName: names,
+      panelStyle: own,
+      offset: 4,
+      onOpenChange: (open: boolean) => changes.push(open),
+    }
+    const props = () =>
+      mode === 'Raw'
+        ? { ...base, triggerClassName: names, triggerStyle: authorInputs[0].value }
+        : { base: { ...base }, own: authorInputs[0].value, runtimeNames: names }
+    const type = components[mode === 'Raw' ? 'RawPopover' : `${mode}${index}`]
+    let view: ReturnType<typeof renderer.create>
+    const trigger = () => view.root.findByType('Pressable')
+    const panels = () => view.root.findAllByType('Animated.View')
+    const checkPanel = (leaving: boolean) => {
+      assert.equal(panels().length, 1)
+      const panel = panels()[0]
+      assert.equal(panel.props.pointerEvents, leaving ? 'none' : 'auto')
+      assert.equal(panel.props.accessibilityElementsHidden, leaving)
+      assert.equal(panel.props.accessibilityViewIsModal, !leaving)
+      const before = reads
+      for (const layout of gapLayouts)
+        assert.deepEqual(yogaGapGeometry(stub.StyleSheet.flatten(panel.props.style), layout), [
+          gap,
+          gap,
+        ])
+      assert.equal(
+        reads,
+        before,
+        'the rendered panel contains projected data, not a live author getter',
+      )
+    }
+    stub.Animated.__hozoResetTimings()
+    try {
+      renderer.act(() => {
+        view = renderer.create(react.createElement(type, props()))
+      })
+      assert.equal(panels().length, 0)
+      assert.equal(reads, 0)
+      readable = true
+      renderer.act(() => trigger().props.onPress())
+      assert.ok(reads > 0)
+      checkPanel(false)
+      assert.equal(stub.Animated.__hozoTimings.at(-1).config.toValue, 1)
+      const openedReads = reads
+      gap = 24
+      renderer.act(() => trigger().props.onPress())
+      assert.ok(reads > openedReads, 'the leaving owner rereads the changed author')
+      checkPanel(true)
+      const exit = stub.Animated.__hozoTimings.at(-1)
+      assert.equal(exit.config.toValue, 0)
+      assert.equal(exit.config.useNativeDriver, true)
+      renderer.act(() => exit.finish())
+      assert.equal(panels().length, 0)
+      const retiredReads = reads
+      readable = false
+      base.offset = 8
+      renderer.act(() => view.update(react.createElement(type, props())))
+      assert.equal(reads, retiredReads)
+      gap = 32
+      readable = true
+      renderer.act(() => trigger().props.onPress())
+      checkPanel(false)
+      assert.deepEqual(changes, [true, false, true])
+    } finally {
+      renderer.act(() => view?.unmount())
+      stub.Animated.__hozoResetTimings()
+    }
+  }
+})
+
+test('BottomSheet keeps separate slot authors and measured translation when its handle changes host type', () => {
+  const index = owners.findIndex(
+    ({ component, styleProp }) => component === 'BottomSheet' && styleProp === 'handleStyle',
+  )
+  let observations = 0
+  for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread'])
+    for (const author of authorInputs) {
+      const base = {
+        open: true,
+        children: 'Sheet',
+        testID: 'gap-sheet',
+        detents: [1],
+        className: names,
+        // The fixed 140px oracle needs two 50px children on its first line.
+        // Keep distinct slot gaps below the 40px wrap-topology threshold.
+        style: Object.freeze({ gap: 28, zIndex: 52 }),
+        scrimClassName: names,
+        scrimStyle: Object.freeze({ gap: 20, zIndex: 53 }),
+        sheetClassName: names,
+        sheetStyle: Object.freeze({ gap: 32, zIndex: 51 }),
+        handleBarClassName: names,
+        handleBarStyle: Object.freeze({ gap: 12, zIndex: 54 }),
+      }
+      const props = () =>
+        mode === 'Raw'
+          ? { ...base, handleClassName: names, handleStyle: author.value }
+          : { base: { ...base }, own: author.value, runtimeNames: names }
+      const type = components[mode === 'Raw' ? 'RawBottomSheet' : `${mode}${index}`]
+      let view: ReturnType<typeof renderer.create>
+      const marked = (key: string, value: number) => {
+        const matches = view.root.findAll(
+          (node) =>
+            ['View', 'Pressable'].includes(node.type) &&
+            stub.StyleSheet.flatten(node.props.style)[key] === value,
+        )
+        assert.equal(matches.length, 1, `${key}=${value}: one actual slot`)
+        return matches[0]
+      }
+      const handle = () => marked('paddingBottom', 23)
+      const check = (resizable: boolean, translation: number) => {
+        const target = handle()
+        assert.equal(target.type, resizable ? 'Pressable' : 'View')
+        if (resizable) assert.equal(target.props.accessibilityRole, 'button')
+        else assert.equal(target.props.accessibilityElementsHidden, true)
+        assert.deepEqual(stub.StyleSheet.flatten(marked('zIndex', 51).props.style).transform, [
+          { translateY: translation },
+        ])
+        assert.equal(view.root.findByType('Modal').props.visible, true)
+        const slots = [
+          { node: target, expected: author.expected },
+          ...[
+            [51, 32],
+            [52, 28],
+            [53, 20],
+            [54, 12],
+          ].map(([marker, gap]) => ({ node: marked('zIndex', marker), expected: [gap, gap] })),
+        ]
+        for (const { node, expected } of slots)
+          for (const layout of gapLayouts) {
+            assert.deepEqual(
+              yogaGapGeometry(stub.StyleSheet.flatten(node.props.style), layout),
+              expected,
+            )
+            observations++
+          }
+      }
+      try {
+        renderer.act(() => {
+          view = renderer.create(react.createElement(type, props()))
+        })
+        renderer.act(() =>
+          marked('zIndex', 51).props.onLayout({ nativeEvent: { layout: { height: 400 } } }),
+        )
+        check(false, 0)
+        base.detents = [0.5, 1]
+        renderer.act(() => view.update(react.createElement(type, props())))
+        check(true, 0)
+        renderer.act(() => handle().props.onPress())
+        check(true, 200)
+        renderer.act(() => handle().props.onPress())
+        check(true, 0)
+        base.detents = [1]
+        renderer.act(() => view.update(react.createElement(type, props())))
+        check(false, 0)
+      } finally {
+        renderer.act(() => view?.unmount())
+      }
+    }
+  assert.equal(observations, 2400)
 })

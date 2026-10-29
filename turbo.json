@@ -191,6 +191,10 @@
     "@hozo/example-native-showcase#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/packages/engine/src/generated/gap-styles.ts",
+        "$TURBO_ROOT$/packages/engine/src/authored-gap.ts",
+        "$TURBO_ROOT$/packages/engine/src/gap-styles.ts",
+        "$TURBO_ROOT$/packages/engine/src/spread-styles.ts",
         "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/theme.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind.rs",

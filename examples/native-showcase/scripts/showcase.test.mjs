@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { createCompiler } from '../../../packages/compiler/src/index.ts'
+import * as gapStyles from '../../../packages/engine/src/generated/gap-styles.ts'
 import { transformHozoSource } from '../../../packages/metro/src/transform.ts'
 import { videoStatus } from './video-evidence.mjs'
 
@@ -519,6 +520,8 @@ test('Native Dialog isolates its modal without combining descendant controls', (
     if (name === '@hozo/behaviors/native') return { moveAccessibilityFocus: () => {} }
     // Its `className`, resolved through the project's candidate map (#886).
     if (name === '@hozo/engine/project') return { hozoClasses: () => [] }
+    // This source probe needs the real projection, not a no-op substitute.
+    if (name === '@hozo/engine/generated/gap-styles') return gapStyles
     // The scrim blur's adapter (#1310); none is configured in this probe.
     if (name === '@hozo/engine') return { hozoBackdropFilterAdapter: () => undefined }
     throw new Error(`Unexpected Native Dialog dependency: ${name}`)
@@ -528,12 +531,17 @@ test('Native Dialog isolates its modal without combining descendant controls', (
     react.createElement('NativeButton', { key: label, accessibilityLabel: label }),
   )
   const onClose = () => {}
+  const author = Object.freeze([
+    Object.freeze({ gap: 16 }),
+    Object.freeze([false, Object.freeze({ rowGap: 6 })]),
+  ])
   const modal = module.exports.Dialog({
     open: true,
     onClose,
     accessibilityLabel: 'Save workspace changes',
     testID: 'confirmation',
     children: controls,
+    style: author,
   })
   assert.equal(modal.type, native.Modal)
   assert.equal(modal.props.visible, true)
@@ -546,6 +554,7 @@ test('Native Dialog isolates its modal without combining descendant controls', (
   assert.equal(panel.props.accessibilityLabel, 'Save workspace changes')
   assert.equal(panel.props.testID, 'confirmation')
   assert.equal(panel.props.children, controls)
+  assert.deepEqual(native.StyleSheet.flatten(panel.props.style), { rowGap: 6, columnGap: 16 })
   const styled = module.exports.Dialog({
     open: true,
     onClose,
@@ -553,6 +562,7 @@ test('Native Dialog isolates its modal without combining descendant controls', (
     hozoScrollY: true,
     hozoBackdropStyle: { backgroundColor: 'black' },
     children: controls,
+    style: author,
   })
   const frame = styled.props.children
   assert.equal(frame.type, native.View)
@@ -562,6 +572,10 @@ test('Native Dialog isolates its modal without combining descendant controls', (
   assert.equal(scroll.props.accessible, false)
   assert.equal(scroll.props.accessibilityViewIsModal, true)
   assert.equal(scroll.props.children, controls)
+  assert.deepEqual(scroll.props.contentContainerStyle, { rowGap: 6, columnGap: 16 })
+  assert.equal(scroll.props.style.rowGap, undefined, 'gap belongs to content, not the viewport')
+  assert.equal(scroll.props.style.columnGap, undefined)
+  assert.equal(author[0].gap, 16, 'the original frozen author is untouched')
 })
 
 test('Storybook composes with the Hozo transformer and host singleton resolver', async () => {

@@ -1,6 +1,7 @@
 import { hozoTextChildren, shouldRestoreFocus } from '@hozo/behaviors'
 import { moveAccessibilityFocus } from '@hozo/behaviors/native'
 import { hozoBackdropFilterAdapter } from '@hozo/engine'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import {
   type ComponentRef,
@@ -187,7 +188,7 @@ export function Dialog({
   const panel = (
     <PatternScrollContainer
       enabled={hozoScrollY}
-      style={[hozoClasses(className), style] as StyleProp<ViewStyle>}
+      style={[hozoClasses(className), hozoAuthoredStyle(style)] as StyleProp<ViewStyle>}
       // A dialog is a container, not one combined accessibility element.
       // On iOS an accessible parent hides its descendant controls from AX.
       // Keep modal isolation without swallowing confirm/cancel buttons.

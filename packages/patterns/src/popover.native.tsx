@@ -1,5 +1,6 @@
 import { hozoTextChildren } from '@hozo/behaviors'
 import { FloatingPositioner, type Placement, Portal, usePresence } from '@hozo/behaviors/native'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ComponentRef, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Animated, Easing, type StyleProp, Text, View, type ViewStyle } from 'react-native'
@@ -140,7 +141,7 @@ export function HozoPopover({
     )
 
   return (
-    <View style={[hozoClasses(className), style]}>
+    <View style={[hozoClasses(className), hozoAuthoredStyle(style)]}>
       <Pressable
         ref={anchorRef}
         accessibilityRole="button"
@@ -149,7 +150,7 @@ export function HozoPopover({
         // into both platforms' node info.
         accessibilityState={{ expanded: open, disabled: Boolean(disabled) }}
         disabled={disabled}
-        style={(interaction) => [triggerLook(interaction)[0], triggerStyle]}
+        style={(interaction) => [triggerLook(interaction)[0], hozoAuthoredStyle(triggerStyle)]}
         onPress={() => change(!open)}
       >
         {(interaction) =>
@@ -178,7 +179,7 @@ export function HozoPopover({
               pointerEvents={leaving ? 'none' : 'auto'}
               accessibilityElementsHidden={leaving}
               importantForAccessibility={leaving ? 'no-hide-descendants' : 'auto'}
-              style={[hozoClasses(panelClassName), panelStyle, { opacity }]}
+              style={[hozoClasses(panelClassName), hozoAuthoredStyle(panelStyle), { opacity }]}
             >
               {hozoTextChildren(
                 children,

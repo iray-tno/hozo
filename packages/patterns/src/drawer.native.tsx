@@ -1,4 +1,5 @@
 import { hozoTextChildren } from '@hozo/behaviors'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -167,7 +168,7 @@ export function HozoDrawer({
   // same layer.
   return (
     <Modal visible={open} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={[{ flex: 1 }, hozoClasses(className), style]}>
+      <View style={[{ flex: 1 }, hozoClasses(className), hozoAuthoredStyle(style)]}>
         {/*
           The scrim is the tap that dismisses, which is the alternative for anyone
           who cannot swipe the panel away. Hidden from the accessibility tree
@@ -177,7 +178,10 @@ export function HozoDrawer({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={(interaction) => [hozoClasses(scrimClassName, { ...interaction }), scrimStyle]}
+          style={(interaction) => [
+            hozoClasses(scrimClassName, { ...interaction }),
+            hozoAuthoredStyle(scrimStyle),
+          ]}
           onPress={onClose}
         />
         <View
@@ -192,7 +196,7 @@ export function HozoDrawer({
           onLayout={onLayout}
           style={[
             hozoClasses(panelClassName),
-            panelStyle,
+            hozoAuthoredStyle(panelStyle),
             insetPadding([hozoClasses(panelClassName), panelStyle], insets, [
               'top',
               'bottom',
