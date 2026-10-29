@@ -530,6 +530,9 @@ checks.push(
       .replaceAll('&quot;', '"')
       .replaceAll('&#x27;', "'")
       .replaceAll('&amp;', '&')
+  // A code line's opening tag. It carries its index for a windowed block to
+  // measure by (#1380), so it is matched rather than spelled out.
+  const CODE_LINE = /<span data-code-line="\d+" style="display:flex;min-width:100%">/g
   const samplesIn = (markup) =>
     [...markup.matchAll(/<pre\b[^>]*>([\s\S]*?)<\/pre>/g)].map((match) => decode(match[1]))
   const labelOf = (sample) => JSON.stringify(sample.trim().split('\n')[0].slice(0, 40))
@@ -538,7 +541,7 @@ checks.push(
       .map(([markup]) => markup)
       .find((markup) => markup.includes('>Install Hozo</figcaption>')) ?? ''
   const installCode = samplesIn(
-    install.replaceAll('<span style="display:flex;min-width:100%">', '\n'),
+    install.replace(CODE_LINE, '\n'),
   )[0]?.slice(1)
   checks.push([
     installCode === 'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler',
@@ -559,7 +562,7 @@ checks.push(
   // two or three lines by design and are not held to this.
   const start = html.indexOf('id="code-showcase"')
   const showcase = start === -1 ? '' : html.slice(start, html.indexOf('</section>', start))
-  const samples = samplesIn(showcase.replaceAll('<span style="display:flex;min-width:100%">', '\n'))
+  const samples = samplesIn(showcase.replace(CODE_LINE, '\n'))
   checks.push([samples.length === 3, `expected 3 side-by-side samples, found ${samples.length}`])
   for (const sample of samples) {
     checks.push([
@@ -578,7 +581,7 @@ checks.push(
         .map(([markup]) => markup)
         .find((markup) => markup.includes(`>${snippet.title}</figcaption>`)) ?? ''
     const rendered = samplesIn(
-      figure.replaceAll('<span style="display:flex;min-width:100%">', '\n'),
+      figure.replace(CODE_LINE, '\n'),
     )[0]
     checks.push(
       [Boolean(figure), `${name}: the named code figure is missing`],
