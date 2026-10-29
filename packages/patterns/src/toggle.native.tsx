@@ -18,6 +18,7 @@
  * the same reason `RadioGroup` here is a `Pressable` and not a picker.
  */
 
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, type ViewStyle } from 'react-native'
@@ -119,7 +120,10 @@ export function HozoCheckbox({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: state, disabled }}
       disabled={disabled}
-      style={(interaction) => [look(className, interaction, state === true, disabled)[0], style]}
+      style={(interaction) => [
+        look(className, interaction, state === true, disabled)[0],
+        hozoAuthoredStyle(style),
+      ]}
       onPress={press}
     >
       {(interaction) => {
@@ -159,7 +163,10 @@ export function HozoSwitch({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: state === true, disabled }}
       disabled={disabled}
-      style={(interaction) => [look(className, interaction, state === true, disabled)[0], style]}
+      style={(interaction) => [
+        look(className, interaction, state === true, disabled)[0],
+        hozoAuthoredStyle(style),
+      ]}
       onPress={press}
     >
       {(interaction) => {
