@@ -540,9 +540,7 @@ checks.push(
     [...html.matchAll(/<figure\b[^>]*>[\s\S]*?<\/figure>/g)]
       .map(([markup]) => markup)
       .find((markup) => markup.includes('>Install Hozo</figcaption>')) ?? ''
-  const installCode = samplesIn(
-    install.replace(CODE_LINE, '\n'),
-  )[0]?.slice(1)
+  const installCode = samplesIn(install.replace(CODE_LINE, '\n'))[0]?.slice(1)
   checks.push([
     installCode === 'pnpm add @hozo/core\npnpm add -D @hozo/vite @hozo/compiler',
     'the quick install mixes runtime and development dependencies',
@@ -580,9 +578,7 @@ checks.push(
       [...page.matchAll(/<figure\b[^>]*>[\s\S]*?<\/figure>/g)]
         .map(([markup]) => markup)
         .find((markup) => markup.includes(`>${snippet.title}</figcaption>`)) ?? ''
-    const rendered = samplesIn(
-      figure.replace(CODE_LINE, '\n'),
-    )[0]
+    const rendered = samplesIn(figure.replace(CODE_LINE, '\n'))[0]
     checks.push(
       [Boolean(figure), `${name}: the named code figure is missing`],
       [rendered?.slice(1) === snippet.code, `${name}: the built example differs from its source`],
