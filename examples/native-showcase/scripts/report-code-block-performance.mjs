@@ -9,7 +9,9 @@ const evidence = JSON.parse(readFileSync(resolve(root, 'evidence.json'), 'utf8')
 assert.equal(evidence.passed, true, 'an incomplete run is not a completed matrix')
 // 84 before the one-line edits and the settle records were added.
 const edited = evidence.cases.some((sample) => sample.name.includes('-edit-'))
-assert.equal(evidence.cases.length, edited ? 120 : 84)
+// And 15 more once a plain list was measured beside the 1000-line block.
+const based = evidence.cases.some((sample) => sample.name.startsWith('baseline-'))
+assert.equal(evidence.cases.length, (edited ? 120 : 84) + (based ? 15 : 0))
 const percentile = (values, fraction) => {
   assert.ok(values.length)
   const sorted = [...values].sort((a, b) => a - b)
@@ -25,13 +27,17 @@ const result = {
   runtime: evidence.runtime,
   groups: [],
 }
-for (const count of [10, 100, 300, 1000]) {
+for (const count of [10, 100, 300, 1000, ...(based ? ['baseline'] : [])]) {
   for (const phase of ['mount', 'update', 'edit', 'scroll']) {
     const cases = evidence.cases.filter(
       (sample) => sample.name.startsWith(`${count}-`) && sample.name.includes(`-${phase}`),
     )
     if (!cases.length) {
-      assert.ok((count === 10 && phase === 'scroll') || (!edited && phase === 'edit'))
+      assert.ok(
+        (count === 10 && phase === 'scroll') ||
+          (!edited && phase === 'edit') ||
+          (count === 'baseline' && phase !== 'mount' && phase !== 'scroll'),
+      )
       continue
     }
     assert.ok(cases.every((sample) => sample.passed))

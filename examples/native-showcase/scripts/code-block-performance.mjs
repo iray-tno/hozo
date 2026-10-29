@@ -195,6 +195,7 @@ try {
     'Clear block',
     'Update block',
     'Edit one line',
+    'Mount plain list',
     'Start scroll measurement',
     'Finish scroll measurement',
     ...[10, 100, 300, 1000].map((count) => `Mount ${count} lines`),
@@ -204,6 +205,47 @@ try {
   const screen = adb('shell', 'wm', 'size').match(/(\d+)x(\d+)/)
   assert.ok(screen)
   const [width, height] = screen.slice(1).map(Number)
+  // Four swipes, each its own window, inside one JS scroll observation.
+  async function scrollWindows(name, count) {
+    tap('Start scroll measurement')
+    await pause(200)
+    for (let swipe = 0; count > 10 && swipe < 4; swipe++) {
+      const down = swipe % 2 === 0
+      await measure(`${name}-scroll-${swipe + 1}`, () => {
+        adb(
+          'shell',
+          'input',
+          'swipe',
+          String(Math.round(width / 2)),
+          String(Math.round(height * (down ? 0.75 : 0.4))),
+          String(Math.round(width / 2)),
+          String(Math.round(height * (down ? 0.4 : 0.75))),
+          '800',
+        )
+      })
+      // The list scrolls itself, out of the story's sight, so whether the
+      // swipe moved it is read from the screen after the first one: the
+      // first line has to be gone. Outside the measured window.
+      if (windowed && swipe === 0) {
+        adb('shell', 'uiautomator', 'dump', '/sdcard/code-block.xml')
+        const tree = parseNodes(adb('exec-out', 'cat', '/sdcard/code-block.xml'))
+        assert.ok(
+          !tree.some((node) =>
+            [node.text, node['content-desc']].some((text) => text?.includes('item0000 ')),
+          ),
+          'scroll input did not move the windowed lines',
+        )
+      }
+    }
+    tap('Finish scroll measurement')
+    const scrollTiming = await waitForTiming('scroll')
+    // Small baseline may fit; longer fixtures must actually scroll.
+    if (count > 10) {
+      assert.ok(scrollTiming.rafGapsMs.length > 0, 'missing JS frames during scroll')
+      if (!windowed) assert.ok(scrollTiming.maxOffset > 0, 'scroll input did not move code content')
+    } else scrollTiming.scrollFrames = 'not measured: small baseline fits the viewport'
+    json(`${name}-scroll-js.json`, scrollTiming)
+  }
   for (const count of [10, 100, 300, 1000]) {
     for (let round = 1; round <= 3; round++) {
       tap('Clear block')
@@ -221,43 +263,7 @@ try {
           () => tap('Edit one line'),
           `edit-${count}-${edit}`,
         )
-      tap('Start scroll measurement')
-      await pause(200)
-      for (let swipe = 0; count > 10 && swipe < 4; swipe++) {
-        const down = swipe % 2 === 0
-        await measure(`${count}-${round}-scroll-${swipe + 1}`, () => {
-          adb(
-            'shell',
-            'input',
-            'swipe',
-            String(Math.round(width / 2)),
-            String(Math.round(height * (down ? 0.75 : 0.4))),
-            String(Math.round(width / 2)),
-            String(Math.round(height * (down ? 0.4 : 0.75))),
-            '800',
-          )
-        })
-        // The list scrolls itself, out of the story's sight, so whether the
-        // swipe moved it is read from the screen after the first one: the
-        // first line has to be gone. Outside the measured window.
-        if (windowed && swipe === 0) {
-          adb('shell', 'uiautomator', 'dump', '/sdcard/code-block.xml')
-          const tree = parseNodes(adb('exec-out', 'cat', '/sdcard/code-block.xml'))
-          assert.ok(
-            !tree.some((node) => matchLabel(node, 'item0000')),
-            'scroll input did not move the windowed lines',
-          )
-        }
-      }
-      tap('Finish scroll measurement')
-      const scrollTiming = await waitForTiming('scroll')
-      // Small baseline may fit; longer fixtures must actually scroll.
-      if (count > 10) {
-        assert.ok(scrollTiming.rafGapsMs.length > 0, 'missing JS frames during scroll')
-        if (!windowed)
-          assert.ok(scrollTiming.maxOffset > 0, 'scroll input did not move code content')
-      } else scrollTiming.scrollFrames = 'not measured: small baseline fits the viewport'
-      json(`${count}-${round}-scroll-js.json`, scrollTiming)
+      await scrollWindows(`${count}-${round}`, count)
       writeFileSync(
         resolve(output, `${count}-${round}.png`),
         execFileSync('adb', ['exec-out', 'screencap', '-p'], {
@@ -265,6 +271,14 @@ try {
           maxBuffer: 32 * 1024 * 1024,
         }),
       )
+      if (count === 1000) {
+        // The plain list right after the block it is the floor for, so both
+        // see the same host (#1289).
+        tap('Clear block')
+        await control('Block cleared')
+        await measure(`baseline-${round}-mount`, () => tap('Mount plain list'), 'baseline-mount')
+        await scrollWindows(`baseline-${round}`, count)
+      }
     }
   }
   evidence.passed = true
