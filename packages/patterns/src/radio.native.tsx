@@ -1,3 +1,4 @@
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
@@ -77,7 +78,7 @@ export function HozoRadioGroup<T>({
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), style]}
+      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
     >
       {options.map((option, at) => {
         const checked = option.value === current
@@ -96,7 +97,7 @@ export function HozoRadioGroup<T>({
             accessibilityRole="radio"
             accessibilityState={{ checked, disabled: option.disabled }}
             disabled={option.disabled}
-            style={(interaction) => [look(interaction)[0], optionStyle]}
+            style={(interaction) => [look(interaction)[0], hozoAuthoredStyle(optionStyle)]}
             onPress={() => select(at)}
           >
             {(interaction) => {

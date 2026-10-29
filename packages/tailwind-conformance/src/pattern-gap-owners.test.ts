@@ -113,6 +113,10 @@ const owners = [
   ['ColorPicker', 'sliderClassName', 'sliderStyle', undefined, 3],
   ['ColorPicker', 'thumbClassName', 'thumbStyle', undefined, 3],
   ['ColorPicker', 'inputClassName', 'inputStyle'],
+  ['Checkbox', 'className', 'style'],
+  ['Switch', 'className', 'style'],
+  ['RadioGroup', 'className', 'style'],
+  ['RadioGroup', 'optionClassName', 'optionStyle', undefined, 2],
 ].map(([component, classProp, styleProp, base, hosts, focusInput, marker]) => ({
   component,
   classProp,
@@ -143,10 +147,10 @@ const interactiveOwners = owners
         ? interactionNames.replace(' focus:gap-y-[6px]', '')
         : interactionNames,
   }))
-const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker} from '@hozo/core'
-import {Slider} from '@hozo/patterns'
-export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker} from '@hozo/core'
-export {Slider as RawSlider} from '@hozo/patterns'
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup} from '@hozo/core'
+import {Slider,Checkbox,Switch} from '@hozo/patterns'
+export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup} from '@hozo/core'
+export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch} from '@hozo/patterns'
 ${owners
   .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -216,6 +220,15 @@ const baseProps = {
     presets: ['#ff0000', '#00ff00'],
     accessibilityLabel: 'Colour',
   },
+  Checkbox: { children: 'Check', accessibilityLabel: 'Check' },
+  Switch: { children: 'Switch', accessibilityLabel: 'Switch' },
+  RadioGroup: {
+    options: [
+      { value: 'a', label: 'A' },
+      { value: 'b', label: 'B' },
+    ],
+    defaultValue: 'a',
+  },
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -282,6 +295,14 @@ test('raw patterns and compiled root/secondary slots project the author before c
             hosts,
             `${component}.${styleProp}/${mode}: actual owner, not its label/ancestor`,
           )
+          if (component === 'Checkbox' || component === 'Switch')
+            assert.equal(targets[0].node.props.accessibilityRole, component.toLowerCase())
+          if (component === 'RadioGroup')
+            for (const { node } of targets)
+              assert.equal(
+                node.props.accessibilityRole,
+                styleProp === 'style' ? 'radiogroup' : 'radio',
+              )
           if (component === 'OtpInput' && styleProp === 'inputStyle') {
             assert.equal(targets.filter(({ node }) => node.type === 'TextInput').length, 1)
             assert.equal(
@@ -325,7 +346,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 6816)
+  assert.equal(observations, 7296)
   assert.deepEqual(
     mismatches,
     [],
