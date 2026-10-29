@@ -158,6 +158,7 @@ const owners = [
   ['Accordion', 'headingClassName', 'triggerStyle'],
   ['Accordion', 'panelClassName', 'panelStyle'],
   ['Alert', 'className', 'style'],
+  ['CodeBlock', 'copyClassName', 'copyStyle'],
 ].map(([component, classProp, styleProp, base, hosts, focusInput, marker]) => ({
   component,
   classProp,
@@ -167,14 +168,14 @@ const owners = [
   focusInput,
   marker,
 })) as Owner[]
-assert.equal(owners.length, 93, 'include alternate presentations and class sources')
+assert.equal(owners.length, 94, 'include alternate presentations and class sources')
 assert.equal(
   new Set(owners.map(({ component, styleProp }) => `${component}.${styleProp}`)).size,
-  89,
+  90,
 )
 assert.equal(
   owners.reduce((total, { hosts = 1 }) => total + hosts, 0),
-  106,
+  107,
 )
 const interactiveSlots = new Set([
   'Chip.removeStyle',
@@ -191,6 +192,7 @@ const interactiveSlots = new Set([
   'BottomSheet.handleStyle',
   'Tree.rowStyle',
   'Accordion.triggerStyle',
+  'CodeBlock.copyStyle',
 ])
 const interactiveOwners = owners
   .map((owner, index) => ({ ...owner, index }))
@@ -218,10 +220,11 @@ const controlOwners = owners
       component === 'Switch' ||
       (component === 'RadioGroup' && styleProp === 'optionStyle'),
   )
-const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup,Dialog,Tree,Toolbar,Splitter,ResizablePane} from '@hozo/core'
+const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup,Dialog,Tree,Toolbar,Splitter,ResizablePane,CodeBlock} from '@hozo/core'
 import {Slider,Checkbox,Switch,Popover,Drawer,BottomSheet,Accordion,Alert,Tooltip} from '@hozo/patterns'
 export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup,Dialog as RawDialog,Tree as RawTree,Toolbar as RawToolbar,Splitter as RawSplitter,ResizablePane as RawResizablePane} from '@hozo/core'
 export {Slider as RawSlider,Checkbox as RawCheckbox,Switch as RawSwitch,Popover as RawPopover,Drawer as RawDrawer,BottomSheet as RawBottomSheet,Accordion as RawAccordion,Alert as RawAlert,Tooltip as RawTooltip} from '@hozo/patterns'
+export {CodeBlock as RawCodeBlock,CodeClipboardProvider as ClipboardProvider} from '@hozo/core'
 ${owners
   .flatMap(({ component, classProp, styleProp }, index) =>
     ['Literal', 'Opaque', 'Spread'].map(
@@ -318,6 +321,16 @@ const baseProps = {
   },
   Accordion: { items: [{ header: 'Header', content: 'Panel' }], defaultExpanded: '0' },
   Alert: { children: 'Notice' },
+  CodeBlock: { lines: 'const answer = 42', copy: true, wrap: true, windowing: 'off' },
+}
+// Native copying is application-connected; do not mistake a missing provider's
+// absent button for a passing style owner. Use the public provider unchanged.
+const clipboard = { writeText() {} }
+function ownerElement(component: string, type: unknown, props: Record<string, unknown>) {
+  const child = react.createElement(type, props)
+  return component === 'CodeBlock'
+    ? react.createElement(components.ClipboardProvider, { value: clipboard }, child)
+    : child
 }
 const authorInputs = [
   { id: 'no-gap-control', value: Object.freeze({ paddingBottom: 23 }), expected: [8, 4] },
@@ -352,7 +365,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
             : { base: ownerProps, own, runtimeNames: names }
         let view: ReturnType<typeof renderer.create>
         renderer.act(() => {
-          view = renderer.create(react.createElement(type, props))
+          view = renderer.create(ownerElement(component, type, props))
         })
         try {
           if (focusInput) {
@@ -429,6 +442,14 @@ test('raw patterns and compiled root/secondary slots project the author before c
           }
           if (component === 'Accordion' && styleProp === 'triggerStyle')
             assert.equal(targets[0].node.props.accessibilityRole, 'header')
+          if (component === 'CodeBlock') {
+            assert.equal(targets[0].node.type, 'Pressable')
+            assert.equal(targets[0].node.props.accessibilityRole, 'button')
+            for (const label of targets[0].node.findAllByType('Text')) {
+              const text = stub.StyleSheet.flatten(label.props.style)
+              for (const key of ['gap', 'rowGap', 'columnGap']) assert.equal(text[key], undefined)
+            }
+          }
           if (component === 'OtpInput' && styleProp === 'inputStyle') {
             assert.equal(targets.filter(({ node }) => node.type === 'TextInput').length, 1)
             assert.equal(
@@ -472,7 +493,7 @@ test('raw patterns and compiled root/secondary slots project the author before c
       }
     }
   }
-  assert.equal(observations, 10176)
+  assert.equal(observations, 10272)
   assert.deepEqual(
     mismatches,
     [],
@@ -548,7 +569,7 @@ test('real owner hover/press/focus updates gap controls without overriding autho
         }
         try {
           renderer.act(() => {
-            view = renderer.create(react.createElement(type, props))
+            view = renderer.create(ownerElement(component, type, props))
           })
           for (const [event, control] of frames) {
             if (event) {
@@ -585,7 +606,7 @@ test('real owner hover/press/focus updates gap controls without overriding autho
       }
     }
   }
-  assert.equal(observations, 10080)
+  assert.equal(observations, 10752)
   assert.deepEqual(
     mismatches,
     [],
@@ -1160,5 +1181,154 @@ test('Tooltip does not inspect its floating author while closed and reopens with
     } finally {
       renderer.act(() => view?.unmount())
     }
+  }
+})
+
+test('public CodeBlock keeps copy gap authors fresh without reviving retired clipboard feedback', async () => {
+  const index = owners.findIndex(({ component }) => component === 'CodeBlock')
+  const announced: string[] = []
+  const announcement = mock.method(
+    stub.AccessibilityInfo,
+    'announceForAccessibility',
+    (text: string) => announced.push(text),
+  )
+  type Request = { text: string; resolve: () => void; reject: (reason?: unknown) => void }
+  try {
+    for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
+      announced.length = 0
+      const requests: Request[] = []
+      const writeText = (text: string) =>
+        new Promise<void>((resolve, reject) => requests.push({ text, resolve, reject }))
+      const first = { writeText }
+      const replacement = { writeText }
+      let connection: typeof first | undefined
+      let readable = false
+      let gap = 16
+      let reads = 0
+      let payload = 'first payload'
+      const own = Object.freeze({
+        paddingBottom: 23,
+        get gap() {
+          assert.equal(readable, true, 'disconnected copy author was evaluated')
+          reads++
+          return gap
+        },
+      })
+      const type = components[mode === 'Raw' ? 'RawCodeBlock' : `${mode}${index}`]
+      const element = () => {
+        const base = { ...baseProps.CodeBlock, copy: { text: payload } }
+        const props =
+          mode === 'Raw'
+            ? { ...base, copyClassName: names, copyStyle: own }
+            : { base, own, runtimeNames: names }
+        const child = react.createElement(type, props)
+        // Removing the public provider intentionally unmounts its subtree;
+        // replacing its value below separately tests a still-mounted owner.
+        return connection
+          ? react.createElement(components.ClipboardProvider, { value: connection }, child)
+          : child
+      }
+      let view: ReturnType<typeof renderer.create>
+      const buttons = () => view.root.findAllByType('Pressable')
+      const button = () => {
+        assert.equal(buttons().length, 1, `${mode}: one actual connected copy owner`)
+        return buttons()[0]
+      }
+      const check = (label: string) => {
+        const target = button()
+        assert.equal(target.props.accessibilityRole, 'button')
+        assert.equal(target.props.accessibilityLabel, 'Copy code')
+        const style = stub.StyleSheet.flatten(target.props.style)
+        assert.equal(style.gap, undefined)
+        for (const layout of gapLayouts)
+          assert.deepEqual(yogaGapGeometry(style, layout), [gap, gap])
+        const texts = target.findAllByType('Text')
+        assert.equal(texts.length, 1)
+        assert.deepEqual(texts[0].children, [label])
+        const textStyle = stub.StyleSheet.flatten(texts[0].props.style)
+        for (const axis of ['gap', 'rowGap', 'columnGap'])
+          assert.equal(textStyle?.[axis], undefined)
+      }
+      const press = () => {
+        let operation: Promise<void>
+        const before = requests.length
+        renderer.act(() => {
+          operation = button().props.onPress()
+        })
+        assert.equal(requests.length, before + 1)
+        return { operation, request: requests.at(-1) as Request }
+      }
+      const settle = async (pending: ReturnType<typeof press>, fail = false) => {
+        await renderer.act(async () => {
+          if (fail) pending.request.reject(new Error('application clipboard unavailable'))
+          else pending.request.resolve()
+          await pending.operation
+        })
+      }
+      try {
+        renderer.act(() => {
+          view = renderer.create(element())
+        })
+        assert.equal(buttons().length, 0)
+        assert.equal(reads, 0, 'no provider is not a passing button or an eager style scan')
+        readable = true
+        connection = first
+        renderer.act(() => view.update(element()))
+        check('Copy code')
+        assert.ok(reads > 0)
+        const retiredText = press()
+        assert.equal(retiredText.request.text, payload)
+        payload = 'replacement payload'
+        gap = 24
+        renderer.act(() => view.update(element()))
+        check('Copy code')
+        await settle(retiredText)
+        check('Copy code')
+        assert.deepEqual(announced, [], 'retired content cannot announce success')
+
+        const active = press()
+        await settle(active)
+        check('Copied')
+        assert.deepEqual(announced, ['Copied'])
+        const retiredConnection = press()
+        connection = replacement
+        gap = 28
+        renderer.act(() => view.update(element()))
+        check('Copy code')
+        await settle(retiredConnection)
+        check('Copy code')
+        assert.deepEqual(announced, ['Copied'], 'replaced provider cannot announce success')
+
+        const unmounted = press()
+        const connectedReads = reads
+        readable = false
+        connection = undefined
+        renderer.act(() => view.update(element()))
+        assert.equal(buttons().length, 0)
+        assert.equal(reads, connectedReads)
+        await settle(unmounted)
+        assert.deepEqual(announced, ['Copied'], 'unmounted copy cannot announce success')
+        assert.equal(reads, connectedReads)
+
+        connection = replacement
+        readable = true
+        gap = 32
+        renderer.act(() => view.update(element()))
+        check('Copy code')
+        assert.ok(reads > connectedReads, 'reconnection projects the current author')
+        const failed = press()
+        await settle(failed, true)
+        check('Copy code')
+        assert.deepEqual(announced, ['Copied', 'Could not copy code'])
+        assert.deepEqual(
+          requests.map(({ text }) => text),
+          ['first payload', ...Array(4).fill('replacement payload')],
+        )
+      } finally {
+        renderer.act(() => view?.unmount())
+      }
+    }
+  } finally {
+    announcement.mock.restore()
   }
 })
