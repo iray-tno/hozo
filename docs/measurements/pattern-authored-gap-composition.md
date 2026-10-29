@@ -113,6 +113,11 @@ fixture source receipt also passed its freshness check unchanged.
 
 ## Limits and next boundary
 
+The [status-bearing owner follow-up](status-pattern-gap-composition.md)
+extends the finite gap matrix to Tabs, Pagination and Stepper, including
+selected/disabled/status and decorative owners. Other boundaries below
+are still separate work.
+
 No full local root suite, application/Metro/device build, Fabric pixels or AT
 run is claimed. No compatibility headline, report snapshot, order policy or
 gap assessment barrier changes. These four components are a bounded owner

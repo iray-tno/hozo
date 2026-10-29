@@ -1,4 +1,5 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { activateHozoNavigation, useHozoNavigation } from '@hozo/engine/navigation'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
@@ -102,7 +103,7 @@ export function HozoPagination({
   const items = paginationItems({ page: current, pageCount, siblingCount, boundaryCount })
   const back = previousIcon ?? (dir === 'rtl' ? '›' : '‹')
   const forward = nextIcon ?? (dir === 'rtl' ? '‹' : '›')
-  const [box, rowText] = splitTextStyle([hozoClasses(className), style])
+  const [box, rowText] = splitTextStyle([hozoClasses(className), hozoAuthoredStyle(style)])
   const role = getPageHref ? 'link' : 'button'
 
   const control = (
@@ -126,16 +127,16 @@ export function HozoPagination({
       return splitTextStyle([
         hozoClasses(itemClassName, facts),
         hozoItemStyle?.(facts),
-        itemStyle,
+        hozoAuthoredStyle(itemStyle),
         state === 'current' && [
           hozoClasses(currentItemClassName, facts),
           hozoCurrentItemStyle?.(facts),
-          currentItemStyle,
+          hozoAuthoredStyle(currentItemStyle),
         ],
         state === 'disabled' && [
           hozoClasses(disabledItemClassName, facts),
           hozoDisabledItemStyle?.(facts),
-          disabledItemStyle,
+          hozoAuthoredStyle(disabledItemStyle),
         ],
       ])
     }
@@ -162,7 +163,7 @@ export function HozoPagination({
 
   const [ellipsisBox, ellipsisText] = splitTextStyle([
     hozoClasses(ellipsisClassName, nonControlSlotFacts),
-    ellipsisStyle,
+    hozoAuthoredStyle(ellipsisStyle),
   ])
   return (
     <View style={[ROW, box]} testID={testID}>
