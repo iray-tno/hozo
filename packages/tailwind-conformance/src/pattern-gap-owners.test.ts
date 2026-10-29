@@ -17,6 +17,9 @@ const stub = require('react-native')
 const names = 'gap-y-[8px] gap-x-[4px]'
 const interactionNames =
   'gap-y-[8px] gap-x-[2px] hover:gap-x-[4px] active:gap-y-[12px] focus:gap-y-[6px]'
+const controlNames = `${interactionNames} aria-checked:gap-y-[10px] disabled:gap-x-[14px] aria-disabled:gap-x-[14px]`
+const markNames =
+  'gap-y-[3px] gap-x-[5px] aria-checked:gap-y-[7px] hover:gap-x-[9px] disabled:gap-x-[11px]'
 type Owner = {
   component: string
   classProp: string
@@ -147,6 +150,14 @@ const interactiveOwners = owners
         ? interactionNames.replace(' focus:gap-y-[6px]', '')
         : interactionNames,
   }))
+const controlOwners = owners
+  .map((owner, index) => ({ ...owner, index }))
+  .filter(
+    ({ component, styleProp }) =>
+      component === 'Checkbox' ||
+      component === 'Switch' ||
+      (component === 'RadioGroup' && styleProp === 'optionStyle'),
+  )
 const source = `import {Chip,Listbox,Menu,Combobox,Tabs,Pagination,Stepper,Avatar,OtpInput,CommandPalette,ColorPicker,RadioGroup} from '@hozo/core'
 import {Slider,Checkbox,Switch} from '@hozo/patterns'
 export {Chip as RawChip,Listbox as RawListbox,Menu as RawMenu,Combobox as RawCombobox,Tabs as RawTabs,Pagination as RawPagination,Stepper as RawStepper,Avatar as RawAvatar,OtpInput as RawOtpInput,CommandPalette as RawCommandPalette,ColorPicker as RawColorPicker,RadioGroup as RawRadioGroup} from '@hozo/core'
@@ -159,7 +170,7 @@ ${owners
     ),
   )
   .join('\n')}
-${interactiveOwners
+${[...interactiveOwners, ...controlOwners.map((owner) => ({ ...owner, classes: controlNames }))]
   .flatMap(({ component, classProp, styleProp, index, classes }) =>
     ['Literal', 'Opaque', 'Spread'].map(
       (mode) =>
@@ -173,7 +184,7 @@ const cache = openCandidateCache()
 cache.scanFile('GapOwners.tsx', source, 1)
 // The compiled literal owners do not need their classes in a fallback map.
 // A separate data module supplies the choices opaque/raw callers can return.
-const choices = [...new Set(`${names} ${interactionNames}`.split(' '))]
+const choices = [...new Set(`${names} ${controlNames} ${markNames} pt-[41px] pt-[42px]`.split(' '))]
 cache.scanFile('GapChoices.ts', JSON.stringify(choices), 1)
 assert.deepEqual(
   cache
@@ -525,5 +536,191 @@ test('ColorPicker delegates authored thumb projection to each actual Slider owne
     assert.equal(reads, 4, 'only the focused owner reevaluates; no cached mutable author')
   } finally {
     renderer.act(() => view?.unmount())
+  }
+})
+
+test('toggle and radio gap authors stay on actual controls through checked, disabled and interaction changes', () => {
+  const frames = [
+    'rest',
+    'hover',
+    'press',
+    'release',
+    'leave',
+    'focus',
+    'blur',
+    'select-first',
+    'checked-hover',
+    'checked-leave',
+    'select-next',
+    'disabled',
+    'reenabled',
+  ]
+  const events: Record<string, string> = {
+    hover: 'onHoverIn',
+    press: 'onPressIn',
+    release: 'onPressOut',
+    leave: 'onHoverOut',
+    focus: 'onFocus',
+    blur: 'onBlur',
+    'checked-hover': 'onHoverIn',
+    'checked-leave': 'onHoverOut',
+  }
+  let observations = 0
+  for (const { component, classProp, styleProp, index } of controlOwners)
+    for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread'])
+      for (const author of authorInputs) {
+        const radio = component === 'RadioGroup'
+        const type = components[mode === 'Raw' ? `Raw${component}` : `State${mode}${index}`]
+        const notify: unknown[] = []
+        const props = (disabled: boolean) => {
+          const base = {
+            ...baseProps[component],
+            defaultValue: undefined,
+            defaultChecked: false,
+            disabled,
+            options: [
+              { value: 'a', label: 'A', disabled },
+              { value: 'b', label: 'B', disabled },
+            ],
+            onValueChange: (value: unknown) => notify.push(value),
+            onCheckedChange: (checked: boolean) => notify.push(checked),
+            indicator: () => ({
+              className: `${controlNames} pt-[41px]`,
+              markClassName: `${markNames} pt-[42px]`,
+            }),
+          }
+          return mode === 'Raw'
+            ? { ...base, [classProp]: controlNames, [styleProp]: author.value }
+            : { base, own: author.value, runtimeNames: controlNames }
+        }
+        let view: ReturnType<typeof renderer.create>
+        const controls = () => view.root.findAll((node) => node.type === 'Pressable')
+        try {
+          renderer.act(() => {
+            view = renderer.create(react.createElement(type, props(false)))
+          })
+          for (const [frame, name] of frames.entries()) {
+            if (events[name])
+              renderer.act(() => controls()[0].props[events[name]]({ nativeEvent: {} }))
+            if (name === 'select-first' || name === 'select-next')
+              renderer.act(() =>
+                controls()[name === 'select-next' && radio ? 1 : 0].props.onPress(),
+              )
+            if (name === 'disabled' || name === 'reenabled')
+              renderer.act(() => view.update(react.createElement(type, props(name === 'disabled'))))
+            const disabled = name === 'disabled'
+            const hovered = ['hover', 'press', 'release', 'checked-hover'].includes(name)
+            assert.equal(controls().length, radio ? 2 : 1)
+            for (const [at, control] of controls().entries()) {
+              const checked = frame >= 7 && (frame < 10 ? at === 0 : radio && at === 1)
+              assert.equal(
+                control.props.accessibilityRole,
+                radio ? 'radio' : component.toLowerCase(),
+              )
+              assert.equal(control.props.accessibilityState.checked, checked)
+              assert.equal(Boolean(control.props.disabled), disabled)
+              const row = checked
+                ? 10
+                : at === 0 && name === 'press'
+                  ? 12
+                  : at === 0 && name === 'focus'
+                    ? 6
+                    : 8
+              const column = disabled ? 14 : at === 0 && hovered ? 4 : 2
+              const indicator = control.findAll(
+                (node) => node.type === 'View' && node.props.pointerEvents === 'none',
+              )
+              assert.equal(indicator.length, 1, 'one decorative indicator per actual control')
+              assert.equal(indicator[0].props.accessibilityElementsHidden, true)
+              assert.equal(indicator[0].props.importantForAccessibility, 'no-hide-descendants')
+              const marks = indicator[0].findAll(
+                (node) => node.type === 'View' && node !== indicator[0],
+              )
+              assert.equal(marks.length, 1)
+              const look = stub.StyleSheet.flatten(indicator[0].props.style)
+              const mark = stub.StyleSheet.flatten(marks[0].props.style)
+              assert.equal(look.paddingTop, 41)
+              assert.equal(mark.paddingTop, 42)
+              for (const style of [look, mark]) assert.notEqual(style.paddingBottom, 23)
+              for (const label of control.findAllByType('Text')) {
+                const text = stub.StyleSheet.flatten(label.props.style)
+                for (const key of ['gap', 'rowGap', 'columnGap']) assert.equal(text[key], undefined)
+              }
+              for (const [style, expected] of [
+                [
+                  stub.StyleSheet.flatten(control.props.style),
+                  author.id === 'no-gap-control' ? [row, column] : author.expected,
+                ],
+                [look, [row, column]],
+                [mark, [checked ? 7 : 3, disabled ? 11 : at === 0 && hovered ? 9 : 5]],
+              ] as const)
+                for (const layout of gapLayouts) {
+                  assert.deepEqual(
+                    yogaGapGeometry(style, layout),
+                    expected,
+                    `${component}/${mode}/${author.id}/${name}/${at}: actual control vs independent indicator`,
+                  )
+                  observations++
+                }
+            }
+          }
+          assert.deepEqual(notify, radio ? ['a', 'b'] : [true, false])
+        } finally {
+          renderer.act(() => view?.unmount())
+        }
+      }
+  assert.equal(observations, 14976)
+})
+
+test('a mixed checkbox passes mixed to its indicator and activates to checked without leaking authored gaps', () => {
+  const { index } = controlOwners.find(({ component }) => component === 'Checkbox')!
+  for (const mode of ['Raw', 'Literal', 'Opaque', 'Spread']) {
+    const states: unknown[] = []
+    const changes: boolean[] = []
+    const base = {
+      children: 'Mixed',
+      defaultChecked: 'mixed',
+      onCheckedChange: (checked: boolean) => changes.push(checked),
+      indicator: ({ checked }: { checked: unknown }) => {
+        states.push(checked)
+        return { className: controlNames, markClassName: markNames }
+      },
+    }
+    const props =
+      mode === 'Raw'
+        ? { ...base, className: controlNames, style: authorInputs[1].value }
+        : { base, own: authorInputs[1].value, runtimeNames: controlNames }
+    const type = components[mode === 'Raw' ? 'RawCheckbox' : `State${mode}${index}`]
+    let view: ReturnType<typeof renderer.create>
+    try {
+      renderer.act(() => {
+        view = renderer.create(react.createElement(type, props))
+      })
+      const host = () => view.root.findByType('Pressable')
+      const checkStyles = (checked: boolean) => {
+        const views = host().findAll((node) => node.type === 'View')
+        assert.equal(views.length, 2, 'indicator and mark, not a duplicated control')
+        const expected = [
+          [16, 16],
+          [checked ? 10 : 8, 2],
+          [checked ? 7 : 3, 5],
+        ]
+        for (const [at, node] of [host(), ...views].entries())
+          assert.deepEqual(
+            yogaGapGeometry(stub.StyleSheet.flatten(node.props.style), gapLayouts[0]),
+            expected[at],
+          )
+      }
+      assert.equal(host().props.accessibilityState.checked, 'mixed')
+      assert.equal(states.at(-1), 'mixed')
+      checkStyles(false)
+      renderer.act(() => host().props.onPress())
+      assert.equal(host().props.accessibilityState.checked, true)
+      assert.equal(states.at(-1), true)
+      assert.deepEqual(changes, [true])
+      checkStyles(true)
+    } finally {
+      renderer.act(() => view?.unmount())
+    }
   }
 })
