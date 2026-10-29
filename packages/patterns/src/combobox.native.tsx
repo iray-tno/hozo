@@ -1,5 +1,6 @@
 import { hozoTextChildren } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import {
@@ -120,9 +121,15 @@ export function HozoCombobox<T>({
     [close, onValueChange, options],
   )
 
-  const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
+  const [rootBox, rootText] = splitTextStyle([
+    hozoClasses(className, nonControlSlotFacts),
+    hozoAuthoredStyle(style),
+  ])
   const [listBox, listText] = open
-    ? splitTextStyle([hozoClasses(listClassName, nonControlSlotFacts), listStyle])
+    ? splitTextStyle([
+        hozoClasses(listClassName, nonControlSlotFacts),
+        hozoAuthoredStyle(listStyle),
+      ])
     : []
   const inputFacts = {
     focused: inputInteraction.focused,
@@ -144,7 +151,7 @@ export function HozoCombobox<T>({
           rootText,
           hozoClasses(inputClassName, inputFacts),
           hozoInputStyle?.(inputFacts),
-          inputStyle as StyleProp<TextStyle>,
+          hozoAuthoredStyle(inputStyle) as StyleProp<TextStyle>,
         ]}
         accessibilityRole="combobox"
         accessibilityLabel={accessibilityLabel}
@@ -207,7 +214,7 @@ export function HozoCombobox<T>({
                     listText,
                     hozoClasses(optionClassName, facts),
                     hozoOptionStyle?.(facts),
-                    optionStyle,
+                    hozoAuthoredStyle(optionStyle),
                   ])
                 }
                 const content = option.render ?? option.label

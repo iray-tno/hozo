@@ -10,7 +10,7 @@ import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
 import { createClassResolver, hozoSplitTextStyle } from '@hozo/engine'
-import { hozoGapSpreadStyles } from '@hozo/engine/generated/gap-styles'
+import { hozoAuthoredStyle, hozoGapSpreadStyles } from '@hozo/engine/generated/gap-styles'
 import { hozoSpreadStyles } from '@hozo/engine/generated/spread-styles'
 import { NativeSelect } from '@hozo/form'
 import { Button as ButtonFallback } from '@hozo/primitives'
@@ -4518,6 +4518,7 @@ async function patternHarness(cacheName, look) {
         StyleSheet: { flatten: flat },
       },
       '@hozo/engine/project': { hozoClasses },
+      '@hozo/engine/generated/gap-styles': { hozoAuthoredStyle },
       // Use the real shared partition; this fixture only stands in for
       // hosts/hooks, not for the production style classification rules.
       '@hozo/engine': { hozoSplitTextStyle },

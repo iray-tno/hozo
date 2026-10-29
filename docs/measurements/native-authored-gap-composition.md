@@ -112,7 +112,10 @@ margin and single getter read survive. Focused1and the complete candidate
 cascade42tests passed (58.57s), including its mutation controls. No production
 behavior, timeout or expected value changed for this CI repair.
 
-Wire the same boundary into uncompiled pattern/secondary-slot owners and
+The [pattern owner follow-up](pattern-authored-gap-composition.md) applies
+that boundary to four Native patterns and twelve authored props, including
+the compiler's plain secondary-slot arrays. It is not an all-owner claim.
+Wire the same boundary into the remaining uncompiled pattern/secondary-slot owners and
 verify direct authored callback composition, clearing/null cases, percentages,
 mixed StyleX/class tiers and contextual grid behavior. This slice does not
 assert those are settled. Only then assess gap's original upstream write

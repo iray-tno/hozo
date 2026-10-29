@@ -66,6 +66,12 @@ ${chips ? "export {HozoInheritedLabel} from '@hozo/core/generated/inherited-labe
       ...(chips ? ['@hozo/behaviors', '@hozo/engine/project'] : []),
     ],
     alias: {
+      // The broad external engine boundary also matches its generated leaves.
+      // Bundle this pure dependency from source, just like the shipped label
+      // helpers; an identity mock would hide the actual author/axis boundary.
+      '@hozo/engine/generated/gap-styles': fileURLToPath(
+        new URL('../../engine/src/generated/gap-styles.ts', import.meta.url),
+      ),
       '@hozo/core/generated/inherited-label': fileURLToPath(
         new URL('../../primitives/src/generated/inherited-label.ts', import.meta.url),
       ),
@@ -99,6 +105,7 @@ ${chips ? "export {HozoInheritedLabel} from '@hozo/core/generated/inherited-labe
   assert.ok(files.some((file) => file.endsWith('engine/src/text-inheritance.ts')))
   assert.ok(files.some((file) => file.endsWith('primitives/src/inherited-text.native.tsx')))
   assert.ok(files.some((file) => file.endsWith('primitives/src/inherited-view.native.tsx')))
+  if (chips) assert.ok(files.some((file) => file.endsWith('engine/src/authored-gap.ts')))
   assert.ok(files.every((file) => !/text-inheritance-reference/.test(file)))
   const native = {
     ...(labels || chips ? require('./react-native-stub.js') : {}),

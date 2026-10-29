@@ -1,3 +1,4 @@
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
@@ -72,11 +73,14 @@ export function HozoMenu({
   const [open, setOpen] = useState(defaultOpen)
   const insets = useHozoProvidedSafeArea()
 
-  const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
+  const [rootBox, rootText] = splitTextStyle([
+    hozoClasses(className, nonControlSlotFacts),
+    hozoAuthoredStyle(style),
+  ])
   const [menuBox, menuText] = splitTextStyle([
     rootText,
     hozoClasses(menuClassName, nonControlSlotFacts),
-    menuStyle,
+    hozoAuthoredStyle(menuStyle),
   ])
   const triggerLook = (interaction: InteractionState) => {
     const facts = {
@@ -89,7 +93,7 @@ export function HozoMenu({
       rootText,
       hozoClasses(triggerClassName, facts),
       hozoTriggerStyle?.(facts),
-      triggerStyle,
+      hozoAuthoredStyle(triggerStyle),
     ])
   }
   const itemLook = (interaction: InteractionState, disabled?: boolean) => {
@@ -102,7 +106,7 @@ export function HozoMenu({
       menuText,
       hozoClasses(itemClassName, facts),
       hozoItemStyle?.(facts),
-      itemStyle,
+      hozoAuthoredStyle(itemStyle),
     ])
   }
 

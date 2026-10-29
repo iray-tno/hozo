@@ -1,4 +1,5 @@
 import { hozoTextChildren, useHozoMessage } from '@hozo/behaviors'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import {
   type ComponentProps,
@@ -117,11 +118,15 @@ export function HozoChip({
   })
   const look = (interaction: InteractionState) => {
     const state = slotState(interaction, selectable && !onRemove)
-    return split([hozoClasses(className, state), hozoStyle?.(state), style])
+    return split([hozoClasses(className, state), hozoStyle?.(state), hozoAuthoredStyle(style)])
   }
   const removeLook = (interaction: InteractionState) => {
     const state = slotState(interaction, true)
-    return split([hozoClasses(removeClassName, state), hozoRemoveStyle?.(state), removeStyle])
+    return split([
+      hozoClasses(removeClassName, state),
+      hozoRemoveStyle?.(state),
+      hozoAuthoredStyle(removeStyle),
+    ])
   }
   const name = accessibilityLabel ?? (typeof children === 'string' ? children : undefined)
   const remove = (events?: ReturnType<typeof useChipRowInteraction>['events']['remove']) =>

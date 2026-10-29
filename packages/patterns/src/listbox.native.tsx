@@ -1,3 +1,4 @@
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, type ViewStyle } from 'react-native'
@@ -114,7 +115,10 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
     commit(already ? chosen.filter((value) => value !== option.value) : [...chosen, option.value])
   }
 
-  const [rootBox, rootText] = splitTextStyle([hozoClasses(className, nonControlSlotFacts), style])
+  const [rootBox, rootText] = splitTextStyle([
+    hozoClasses(className, nonControlSlotFacts),
+    hozoAuthoredStyle(style),
+  ])
 
   return (
     <PatternScrollContainer
@@ -137,7 +141,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
             rootText,
             hozoClasses(optionClassName, facts),
             hozoOptionStyle?.(facts),
-            optionStyle,
+            hozoAuthoredStyle(optionStyle),
           ])
         }
         const content = option.render ?? option.label
