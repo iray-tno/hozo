@@ -169,7 +169,9 @@ export function HozoOtpInput({
             aria-hidden
             className={classes}
             data-hozo-filled={character !== undefined ? '' : undefined}
-            style={{ position: 'relative' }}
+            // Positioned cells paint above the earlier input. Let presses
+            // through to that one field, including over an existing digit.
+            style={{ position: 'relative', pointerEvents: 'none' }}
           >
             {character === undefined ? '' : mask ? '•' : character}
             {show && caret?.index === index ? (
