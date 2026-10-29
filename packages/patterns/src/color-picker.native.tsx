@@ -1,5 +1,6 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import { type StyleProp, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
@@ -132,8 +133,10 @@ export function HozoColorPicker({
     [
       { experimental_backgroundImage: track },
       hozoClasses(sliderClassName),
-      sliderStyle,
+      hozoAuthoredStyle(sliderStyle),
     ] as StyleProp<ViewStyle>
+  // Slider owns thumb classes and focus. Keep the author intact until that
+  // actual owner composes it, rather than projecting once for all tracks here.
   const thumb = thumbStyle as StyleProp<ViewStyle>
   const inputFacts = {
     focused: !disabled && inputInteraction.focused,
@@ -155,7 +158,7 @@ export function HozoColorPicker({
   return (
     <View
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), style] as StyleProp<ViewStyle>}
+      style={[hozoClasses(className), hozoAuthoredStyle(style)] as StyleProp<ViewStyle>}
       testID={testID}
     >
       {presets && presets.length > 0 ? (
@@ -190,11 +193,11 @@ export function HozoColorPicker({
                   return [
                     hozoClasses(swatchClassName, state),
                     hozoSwatchStyle?.(state) as StyleProp<ViewStyle>,
-                    swatchStyle as StyleProp<ViewStyle>,
+                    hozoAuthoredStyle(swatchStyle) as StyleProp<ViewStyle>,
                     checked && [
                       hozoClasses(selectedSwatchClassName, state),
                       hozoSelectedSwatchStyle?.(state) as StyleProp<ViewStyle>,
-                      selectedSwatchStyle as StyleProp<ViewStyle>,
+                      hozoAuthoredStyle(selectedSwatchStyle) as StyleProp<ViewStyle>,
                     ],
                     { backgroundColor: preset },
                   ]
@@ -282,7 +285,7 @@ export function HozoColorPicker({
           [
             hozoClasses(inputClassName, inputFacts),
             hozoInputStyle?.(inputFacts),
-            inputStyle,
+            hozoAuthoredStyle(inputStyle),
           ] as StyleProp<TextStyle>
         }
       />

@@ -54,7 +54,9 @@ the baseline. Original setup/baseline/final logs are retained under ignored
 
 ## Still separate
 
-ColorPicker and its delegated Slider owners are the next boundary. Other
+The [Slider/ColorPicker follow-up](slider-color-gap-composition.md) covers
+that delegated boundary with a per-thumb author-read/isolation regression.
+Other
 component packages, gate replacement, direct style callbacks, reset/null/
 percentage values, mixed StyleX tiers and contextual grid remain before gap
 eligibility can expand. No full local root suite, app/Metro/device build,
