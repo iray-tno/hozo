@@ -75,13 +75,16 @@ test('the chosen segment is drawn from that attribute rather than a class', () =
   assert.match(first, /aria-checked:text-hozo-on-accent/)
 })
 
-test('the focus ring is drawn inward, because the strip clips its corners', () => {
+test('the focus ring stands off the segment, because nothing clips it (#1449)', () => {
   const [first] = segments(render())
   assert(first)
-  assert.match(first, /focus-visible:-outline-offset-2/)
-  // And the clipping is really there, which is what makes the line above
-  // necessary rather than a preference.
-  assert(render().includes('overflow-hidden'))
+  // Drawn inward, the ring was the accent colour over a chosen segment's
+  // accent fill, and could not be seen.
+  assert.match(first, /focus-visible:outline-offset-2/)
+  assert.doesNotMatch(first, /-outline-offset-/)
+  assert(!render().includes('overflow-hidden'), 'a clipping strip would cut the ring off')
+  // Each segment is rounded itself, so a chosen end segment is a whole pill.
+  assert.match(first, /\brounded-hozo-inset\b/)
 })
 
 test('a segment starts from its label width, so a strip with no width of its own still fits them', () => {

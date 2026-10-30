@@ -31,14 +31,22 @@
  * recorded here rather than in the issue, since being the same as its two
  * neighbours matters more than being the same as a sketch.
  *
- * ## Why the corners and the dividers are not variants per segment
+ * ## Why every segment is a pill inside a track
  *
  * One `optionClassName` goes to every option, so a first and last segment cannot
- * be given different lists. `first:`/`last:` would do it -- `accordion.tsx` uses
- * them -- but the container is simpler and has no edge cases: `overflow-hidden`
- * with the radius clips the end segments' corners, and `gap-px` over the
- * container's own border colour draws the dividers as the gaps between segments.
- * No pseudo-elements, and a strip of one segment still looks right.
+ * be given different lists. The strip used to answer that by clipping: square
+ * segments, dividers drawn as `gap-px` over the border colour, and
+ * `overflow-hidden` with the radius rounding the two ends. It looked unfinished
+ * (#1449): the border and the padding of the same colour made a ring twice as
+ * thick as a border, and a chosen end segment was a rectangle cut by a curve
+ * on one side and square on the other.
+ *
+ * Now the strip is a sunken track and each segment has its own, smaller radius,
+ * so the chosen one is a whole pill wherever it sits, and its corners follow
+ * the track's at the distance of the padding. Nothing is clipped, so the focus
+ * ring can stand off the segment, as it does on a button, instead of being
+ * drawn inward in the same colour as a chosen segment's fill, where it could
+ * not be seen. A strip of one segment is a pill in a track.
  */
 
 import { RadioGroup as RadioGroupPattern, type RadioGroupProps } from '@hozo/patterns'
@@ -51,11 +59,11 @@ export type { RadioOption as HozoSegmentedOption } from '@hozo/patterns'
 
 /**
  * `inline-flex` so the strip is as wide as its segments rather than as wide as
- * the form, and `p-px` so the border colour shows all the way round rather than
- * only between the segments.
+ * the form. `p-1` is the distance the segments' corners keep from the
+ * track's, which is what `rounded-hozo-inset` is sized for.
  */
 const strip =
-  'inline-flex flex-row gap-px overflow-hidden rounded-hozo-control border border-hozo-border-strong bg-hozo-border-strong p-px'
+  'inline-flex flex-row gap-1 rounded-hozo-control border border-hozo-border bg-hozo-surface-sunken p-1'
 
 /**
  * `flex-auto` with `min-w-0`: each segment is as wide as its label, any width
@@ -76,7 +84,7 @@ const strip =
  * grid.
  */
 const segment =
-  'min-w-0 flex-auto cursor-pointer px-4 py-2 text-center text-sm leading-6 whitespace-nowrap bg-hozo-surface text-hozo-text-body hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-hozo-focus aria-checked:bg-hozo-accent aria-checked:text-hozo-on-accent aria-checked:font-semibold aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-hozo-surface'
+  'min-w-0 flex-auto cursor-pointer rounded-hozo-inset px-4 py-2 text-center text-sm leading-6 whitespace-nowrap bg-transparent text-hozo-text-body hover:bg-hozo-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus aria-checked:bg-hozo-accent aria-checked:text-hozo-on-accent aria-checked:font-semibold aria-disabled:text-hozo-text-subtle aria-disabled:cursor-not-allowed aria-disabled:hover:bg-transparent'
 
 export function HozoSegmentedControl<T>(props: HozoSegmentedControlProps<T>) {
   return (

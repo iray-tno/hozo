@@ -155,6 +155,10 @@
 
   /* Radii: a control, a surface, a page-level card. */
   --radius-hozo-control: var(--radius-lg);
+  /* A control inside a control, such as a segment in its track: about the
+   * track's radius less the 1px border and 4px (`p-1`) it is inset by, so
+   * the two curves run side by side instead of crossing. */
+  --radius-hozo-inset: var(--radius-sm);
   --radius-hozo-surface: var(--radius-xl);
   --radius-hozo-panel: var(--radius-2xl);
 
