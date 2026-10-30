@@ -3,6 +3,9 @@
 use super::*;
 
 pub struct OwnerStyle {
+    /// Original IR has only unconditional declarations and no residuals.
+    /// A condition folded for a synthetic host is not proof about a pattern.
+    pub literal_resting: bool,
     pub expression: String,
     pub callback: bool,
     /// A requirement on the existing destination, never invented state.
@@ -25,6 +28,7 @@ pub(super) fn record(
             .strip_prefix(" style={")
             .and_then(|value| value.strip_suffix('}'))
             .map(|expression| OwnerStyle {
+                literal_resting: false,
                 expression: expression.to_string(),
                 callback,
                 focus_visible: false,
@@ -112,6 +116,13 @@ pub fn lower_owner_style(
     if !style_only {
         carrier = None;
     }
+    if let Some(style) = &mut carrier {
+        style.literal_resting = root.class_name_fallback.is_empty()
+            && root
+                .style
+                .iter()
+                .all(|declaration| declaration.condition == Condition::Always);
+    }
     if output
         .diagnostics
         .iter()
@@ -160,6 +171,7 @@ mod tests {
             assert_eq!(output.styles, ordinary.styles);
             assert_eq!(output.runtime_imports, ordinary.runtime_imports);
             assert_eq!(carrier.callback, source.contains("Pressable"));
+            assert_eq!(carrier.literal_resting, !source.contains("hover:"));
         }
     }
 

@@ -1189,6 +1189,7 @@ pub struct CompiledNativeComponent {
 
 #[napi(object)]
 pub struct CompiledOwnerStyle {
+    pub literal_resting: bool,
     pub expression: String,
     pub callback: bool,
     pub focus_visible: bool,
@@ -1575,6 +1576,7 @@ fn lower_native_components(
                 let (output, style) =
                     hozo_native::lower_owner_style(&root.node, &root.forwarded, source, theme);
                 carrier = style.map(|style| CompiledOwnerStyle {
+                    literal_resting: style.literal_resting,
                     expression: style.expression,
                     callback: style.callback,
                     focus_visible: style.focus_visible,

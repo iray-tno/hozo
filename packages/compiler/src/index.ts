@@ -117,7 +117,12 @@ export interface CompiledTagDecision {
 
 export interface CompiledNativeComponent {
   /** @internal RFC010: style-only preparation, absent on ordinary output. */
-  ownerStyle?: { expression: string; callback: boolean; focusVisible: boolean }
+  ownerStyle?: {
+    expression: string
+    callback: boolean
+    focusVisible: boolean
+    literalResting: boolean
+  }
   /** @internal Build-time only; never included in emitted JSX/styles. */
   tailwindPlan?: TailwindCompilePlan
   jsx: string

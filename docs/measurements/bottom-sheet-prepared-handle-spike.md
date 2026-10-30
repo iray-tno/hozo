@@ -235,3 +235,44 @@ no rewrite or class resolution. Later adapter integration should consume its
 existing parse rather than putting this opt-in evidence pass in the hot path.
 The generated text fixture pins the two new compiler modules (34 -> 36 sources);
 its factory code, output hashes and route decisions remain unchanged.
+
+## Literal caller preview (explicit, not adapter rollout)
+
+`previewOwnerLiteralCallers` consumes one explicitly selected shadow contract
+and the compiler-owned caller sites. For a literal, it asks the existing
+backend to prepare every declared host shape. Only identical state-independent
+carriers with no diagnostics/hooks/wrappers or additional Native imports are
+wired through the private ABI. The backend separately reports `literalResting`
+from unconditional, residual-free IR: equal output after folding a semantic
+condition for a synthetic primitive is not proof about the actual owner.
+The authored style props, children, component identity and evaluation order
+stay in place. Opaque expressions, spreads, duplicates, private-carrier
+collisions, namespaces and unassessed shape/state inputs retain their original
+class attributes with explicit findings, rather than disappearing.
+
+Prepared styles and their callback are hoisted once per distinct literal in
+the module. A conservative source-wide name check avoids caller/nested binding
+collisions, and compiler offsets preserve the directive/hashbang prefix. A
+second pass is a no-op. The probe now compares the actual pre/post caller
+through Metro and the real BottomSheet, on both host shapes, with fresh author
+getters, frozen gap/opacity overrides, update/removal and host retention. The
+opaque control positively witnesses literal resolution; the prepared path is
+traced separately and never requests that literal, including after updates.
+
+This is an internal **explicit-direct-compiler-preview**, not a normal compile
+mode, published integration or audit upgrade. It uses the direct compiler API;
+participation in the production final-context collect/emit batch, cascade
+conflict evidence and bundler-specific caching/capture remain gates before
+any adapter rollout. The preview does not introduce another ordering rule.
+Browser computed state, production bundle costs, dynamic expression capture,
+complete manifest v2 and owner audit remain open; no headline or six-workstream
+percentage moves. No utility parsing or sorting is implemented in this JS layer.
+
+Verification of this layer used CPU 1 / Idle / serial: Rust workspace 1090
+passed, zero failed, one existing IR ignore; fresh addon rebuild; compiler
+build/typecheck; scoped caller/carrier/owner/Web/gap/catalog/cache/Native-fixture
+suite 83 passed, zero skipped; platform loader smoke seven passed. Clippy
+(`-D warnings`), rustfmt, lint (1792 files), generated text fixture equality,
+docs, metadata, generated ABI, title and diff checks passed. The committed
+fixture changes only three source hashes; factories, routes and case hashes
+are unchanged. No full-root JS suite or local device/GPU build was run.

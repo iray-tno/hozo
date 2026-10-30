@@ -294,6 +294,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/compiler/src/owner-caller-plan.ts',
     'crates/hozo_parser/src/owner_slots.rs',
     'crates/hozo_napi/src/owner_slots.rs',
     'crates/hozo_native/src/owner_style.rs',
