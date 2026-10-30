@@ -1,0 +1,41 @@
+name: owner-evidence
+on:
+  pull_request:
+    paths:
+      - 'scripts/style-slots/handle-*.mjs'
+      - 'examples/storybook-demo/scripts/owner-handle.test.mjs'
+      - 'packages/compiler/src/owner-*.ts'
+      - 'packages/patterns/src/bottom-sheet*'
+      - '.github/workflows/owner-evidence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: owner-evidence-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CARGO_BUILD_JOBS: '2'
+      GOMAXPROCS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
+      - run: pnpm --filter @hozo/compiler build:native
+      - run: pnpm exec turbo run build --filter='@hozo/example-storybook^...' --concurrency=2
+      - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-handle.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owner-handle-browser-evidence
+          path: artifacts/style-fact-model/handle-browser.json
+          if-no-files-found: warn

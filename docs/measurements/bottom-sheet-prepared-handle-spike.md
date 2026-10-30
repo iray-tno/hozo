@@ -370,3 +370,23 @@ allowed is the emitted empty RN type-augmentation module; any other bundler
 warning fails. Initial fixture fixes used the consuming package's strict pnpm
 resolution scope (not the root) and asserted the actual published dist entry,
 not an assumed source entry. No runtime dependency or sideEffects policy changed.
+
+## Browser state probe (execution evidence required)
+
+`examples/storybook-demo/scripts/owner-handle.test.mjs` adds a real browser
+comparison on the existing public Web carrier. Candidate CSS and independently
+compiled Tailwind CSS render the actual BottomSheet in separate pages. The
+bounded cases are decorative rest and interactive rest/hover/keyboard focus/
+pressed (five pairs, ten observations), with explicit expected resting values.
+It also checks the actual button/div/hidden semantics, update identity, click
+detent activation, close/reopen and an independently removed-sheet negative
+control. Focus moves to the content button to remain inside the modal scope;
+no synthetic state attributes are written by the harness.
+
+CI's `owner-evidence` job runs this test directly without a Storybook build;
+the regular Storybook test list and its raw-source inputs also include it.
+Pass/failure and partial observations are saved in `handle-browser.json`.
+Local validation is syntax, CSS preparation and cache checks only, with no
+browser launch. Until a current-head CI receipt is inspected, browser agreement
+is **not measured**, not implicitly green because the harness was added. This
+does not add a new Web compilation mode or authorize a Native/default rollout.

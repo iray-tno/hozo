@@ -67,6 +67,10 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'scripts/style-slots/handle-web.mjs',
+    'scripts/style-slots/handle-publication.mjs',
+    'scripts/style-slots/owner-shadow.json',
+    'packages/tailwind/src/theme.ts',
     'packages/primitives/src/generated/native-disabled.ts',
     'packages/primitives/src/native-disabled.ts',
     'packages/primitives/src/foundation.native.tsx',

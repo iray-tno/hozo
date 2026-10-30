@@ -148,6 +148,9 @@
     "@hozo/example-storybook#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/scripts/style-slots/handle-*.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
+        "$TURBO_ROOT$/packages/tailwind/src/theme.ts",
         "$TURBO_ROOT$/packages/primitives/src/**",
         "$TURBO_ROOT$/crates/hozo_ir/src/theme.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind.rs",
