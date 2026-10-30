@@ -294,6 +294,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'scripts/style-slots/handle-publication.mjs',
     'packages/compiler/src/tailwind-final-batch.ts',
     'packages/compiler/src/tailwind-project.ts',
     'packages/compiler/src/owner-caller-plan.ts',

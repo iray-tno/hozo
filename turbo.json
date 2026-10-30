@@ -72,6 +72,7 @@
     "@hozo/tailwind-conformance#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/scripts/style-slots/handle-publication.mjs",
         "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/crates/hozo_parser/src/owner_slots.rs",

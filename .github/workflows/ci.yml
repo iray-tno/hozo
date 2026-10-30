@@ -52,6 +52,17 @@ jobs:
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm test:packages
+      # Small production component bundles, not a Metro/emulator build.
+      # Uncached so the exact current-head receipt exists even on a Turbo hit.
+      - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/owner-bundle.test.ts
+        env:
+          GOMAXPROCS: '1'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owner-handle-bundle-evidence
+          path: artifacts/style-fact-model/handle-bundle.json
+          if-no-files-found: warn
       # Counts/props and per-module bytes, not a device or timing gate. The
       # report keeps known inheritance gaps visible even when tests pass.
       - run: node scripts/text-inheritance-baseline.mjs --rows 32 --output artifacts/text-inheritance/baseline.json
