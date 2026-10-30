@@ -1,6 +1,7 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useCallback, useState } from 'react'
 import {
@@ -317,10 +318,14 @@ export function HozoTimePicker({
   }
 
   const [rootBox, rootText] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), style]) ?? {},
+    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]) ??
+      {},
   )
   const [fieldBox, fieldText] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(fieldClassName, nonControlClassFacts), fieldStyle]) ?? {},
+    StyleSheet.flatten([
+      hozoClasses(fieldClassName, nonControlClassFacts),
+      hozoAuthoredStyle(fieldStyle),
+    ]) ?? {},
   )
   // The period is a sibling of the two field groups on Web, not another
   // fieldClassName consumer. Preserve its legacy Native fieldStyle override
