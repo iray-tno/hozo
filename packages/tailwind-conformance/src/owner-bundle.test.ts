@@ -6,6 +6,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { gzipSync } from 'node:zlib'
 import { build } from 'esbuild'
+import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
   handleRoot,
   prepareHandlePublication,
@@ -14,6 +15,7 @@ import {
 test('production component bundles exclude compiler machinery and measure both carrier/map costs', async () => {
   const evidence: Record<string, unknown> = {
     schema: 1,
+    ...evidenceSource(),
     passed: false,
     scope: 'explicit-component-bundle-react-native-peers-external',
     adapterRollout: false,

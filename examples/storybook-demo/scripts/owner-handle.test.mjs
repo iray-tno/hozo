@@ -5,6 +5,7 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
+import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import { handleRoot } from '../../../scripts/style-slots/handle-publication.mjs'
 import { prepareWebHandle } from '../../../scripts/style-slots/handle-web.mjs'
 
@@ -31,6 +32,7 @@ test('real Web handle computed rest/hover/focus/pressed styles match Tailwind on
 }, async () => {
   const evidence = {
     schema: 1,
+    ...evidenceSource(),
     passed: false,
     scope: 'web-computed-style-real-pointer-focus',
     observations: [],
