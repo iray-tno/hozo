@@ -1,4 +1,4 @@
-import type { CodeLine } from '@hozo/core'
+import { type CodeLine, View } from '@hozo/core'
 import { CodeBlock } from '@hozo/ui'
 
 const lines: CodeLine[] = [
@@ -10,5 +10,9 @@ const lines: CodeLine[] = [
 ]
 
 export function CodeBlockDemo() {
-  return <CodeBlock title="paths.ts" language="ts" lines={lines} lineNumbers copy />
+  return (
+    <View className="w-full max-w-md">
+      <CodeBlock title="paths.ts" language="ts" lines={lines} lineNumbers copy />
+    </View>
+  )
 }
