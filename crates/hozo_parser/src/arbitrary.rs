@@ -36,7 +36,7 @@ const MATH_FUNCTIONS: &[&str] = &[
 ];
 
 /// Whether a class uses arbitrary syntax at all -- brackets, or v4's
-/// `(--var)` shorthand.
+/// `(--var)` shorthand, with or without a type hint (`(color:--var)`).
 ///
 /// Deliberately cheap and deliberately over-eager. Its only job is to
 /// decide whether failing to parse something deserves a diagnostic, and a
@@ -44,7 +44,12 @@ const MATH_FUNCTIONS: &[&str] = &[
 /// Hozo has no business complaining about `card-header`. A bracket is
 /// different -- it is unambiguously Tailwind being asked for something.
 pub fn is_arbitrary(token: &str) -> bool {
-    token.contains('[') || token.contains("(--")
+    token.contains('[')
+        || token.contains("(--")
+        // The hinted shorthand has no `(--` in it. Without this it fell
+        // through to the colour catch-all as the palette token
+        // `(color:--b)` (#1477).
+        || (token.contains("-(") && token.ends_with(')'))
 }
 
 /// Turns the text between the brackets into the CSS it stands for.
@@ -800,11 +805,17 @@ fn from_prefix(prefix: &str, value: &str, hint: Option<&str>) -> Option<Vec<Styl
         // The ambiguous one. `text-[14px]` is a font size and
         // `text-[#fff]` is a colour, and before this existed both compiled
         // to a colour -- so a font size became `color: var(--hozo-color-[14px])`.
-        "text" if hint != Some("color") && is_length_percentage(value) => Some(or_raw(
-            "font-size",
-            value,
-            length().map(StyleProperty::FontSize),
-        )),
+        // A `length` hint says so outright, which matters for `var()`:
+        // `text-[length:var(--s)]` is a font size whatever `--s` holds.
+        "text"
+            if hint == Some("length") || (hint != Some("color") && is_length_percentage(value)) =>
+        {
+            Some(or_raw(
+                "font-size",
+                value,
+                length().map(StyleProperty::FontSize),
+            ))
+        }
         "text" => one(StyleProperty::TextColor(color())),
         // A background is an image, a position, a size or a colour, and
         // only the value says which. The length case is the surprising
@@ -1776,6 +1787,26 @@ mod split_tests {
             split_variant("[&:hover]:p-4"),
             Some(("&:hover".to_string(), "p-4"))
         );
+    }
+
+    #[test]
+    fn a_hint_decides_a_var_and_the_shorthand_takes_one_too() {
+        // #1477. `text-[length:var(--s)]` was a colour: the hint was read for
+        // colours and ignored for sizes. And the hinted shorthand had no
+        // `(--` in it, so it was never treated as arbitrary at all.
+        let size = Some(vec![StyleProperty::Arbitrary(
+            "font-size".to_string(),
+            "var(--s)".to_string(),
+        )]);
+        assert_eq!(properties("text-[length:var(--s)]"), size);
+        assert_eq!(properties("text-(length:--s)"), size);
+        assert_eq!(
+            properties("bg-(color:--b)"),
+            Some(vec![StyleProperty::BackgroundColor(Color::Css(
+                "var(--b)".to_string()
+            ))])
+        );
+        assert!(is_arbitrary("bg-(color:--b)"));
     }
 
     #[test]
