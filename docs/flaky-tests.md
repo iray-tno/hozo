@@ -15,11 +15,41 @@ investigation moves.
 
 | Test | Where | Issue |
 | --- | --- | --- |
-| The appearance audit reaching its readiness deadline with an empty or stale story frame on one CPU | `examples/storybook-demo/scripts/check-appearance.mjs` | [#1367](https://github.com/iray-tno/hozo/issues/1367) |
-| The virtual-reader audit reaching its preparation deadline with empty story roots on one CPU | `examples/storybook-demo/scripts/check-utterances.mjs` | [#1426](https://github.com/iray-tno/hozo/issues/1426) |
 | The `ios` job, before any test runs ("Timed out waiting for AX loaded notification") | `.github/workflows` | [#530](https://github.com/iray-tno/hozo/issues/530) |
 | The `voiceover` job, on the runner ("-1743", VoiceOver refusing to launch) | `.github/workflows` | [#631](https://github.com/iray-tno/hozo/issues/631) |
 | The Native Dialog returning focus to its opener | device a11y checks | [#484](https://github.com/iray-tno/hozo/issues/484) |
+
+## Not flaky: the Storybook audits on a lowered priority
+
+The appearance and virtual-reader audits in `examples/storybook-demo` were
+listed here (#1367, #1426). They failed locally, never in CI, with a story's
+root still empty after its 5-second deadline, or its frame still on
+`about:blank` or the previous story. Every one was in a run pinned to one CPU
+**at `BelowNormal` priority** while other work shared that core.
+
+The priority is the cause. Chrome inherits it, then raises its renderers back
+to Normal and leaves the rest of itself (the network service among them)
+where it was. Any Normal-priority work on the same core then stops those
+processes outright, and a story waits seconds for `index.json` or a chunk
+from a local server that answers in milliseconds. Measured on one core
+against two Normal-priority busy processes, six seconds on and two off:
+
+| Audit priority | Appearance: stories that missed the deadline | Virtual reader: stories not read |
+| --- | --- | --- |
+| `BelowNormal` | 9, 6, 8, 5 | 28, 33 |
+| `Normal` | 0, 1 | 0, 0 |
+
+Each figure is one 102-story run.
+
+With no competing load, `BelowNormal` passes too (three of three, median 169ms
+a story). The resource timings of the slow stories show the requests, not the
+rendering, taking the time.
+
+So run these audits at Normal priority when you restrict them to one CPU. A
+lower priority measures what else the machine is doing. The receipts cannot
+tell the two apart for you: a request still waiting has no resource-timing
+entry yet, so a starved story and a broken one both show an empty root. If one
+fails at a lower priority, rerun it at Normal before reporting it.
 
 ## When you meet one
 
