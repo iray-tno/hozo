@@ -81,8 +81,8 @@ test('the tree points along the text when closed and down when open', () => {
   // two angles mean different things in the two controls, so "the chevron
   // rotation" is not one decision made once.
   const source = code('tree.tsx')
-  const closed = /const CLOSED = '([^']*)'/.exec(source)?.[1] ?? ''
-  const open = /const OPEN = '([^']*)'/.exec(source)?.[1] ?? ''
+  const closed = /const CLOSED =\s*\n?\s*'([^']*)'/.exec(source)?.[1] ?? ''
+  const open = /const OPEN =\s*\n?\s*'([^']*)'/.exec(source)?.[1] ?? ''
   assert.match(closed, /(^|\s)-rotate-45(\s|$)/, 'closed is east')
   assert.match(open, /(^|\s)rotate-45(\s|$)/, 'open is south')
   // A logical end border mirrors the box in an RTL locale, which React

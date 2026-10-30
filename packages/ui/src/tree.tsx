@@ -82,9 +82,17 @@ const INSIDE = 'flex flex-row items-center gap-2'
  *
  * A leaf gets the space and no ink: without it the labels at one depth would
  * not line up with each other, which is the one thing indentation is for.
+ *
+ * Only the chevron rotates (`transition-transform duration-150 ease-out
+ * motion-reduce:transition-none`); collapsed descendants leave `visibleRows`
+ * immediately rather than staying mounted to animate out, so roving focus,
+ * `aria-posinset`/`aria-setsize` and large collapsed subtrees never carry
+ * exiting rows (#1451).
  */
-const OPEN = 'size-2 rotate-45 rtl:-rotate-45 border-b-2 border-e-2 border-hozo-text-muted'
-const CLOSED = 'size-2 -rotate-45 rtl:rotate-45 border-b-2 border-e-2 border-hozo-text-muted'
+const OPEN =
+  'size-2 rotate-45 rtl:-rotate-45 border-b-2 border-e-2 border-hozo-text-muted transition-transform duration-150 ease-out motion-reduce:transition-none'
+const CLOSED =
+  'size-2 -rotate-45 rtl:rotate-45 border-b-2 border-e-2 border-hozo-text-muted transition-transform duration-150 ease-out motion-reduce:transition-none'
 const LEAF = 'size-2'
 
 export function HozoTree({ className, ...rest }: HozoTreeProps) {

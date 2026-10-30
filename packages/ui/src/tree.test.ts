@@ -69,14 +69,44 @@ test('a closed branch is drawn differently from a leaf', () => {
   assert.ok(branch.length > 0 && leaf.length > 0, 'both rows were found')
   assert.match(
     branch,
-    /aria-hidden="true" class="[^"]*-rotate-45/,
-    'the closed branch has a marker',
+    /aria-hidden="true" class="[^"]*-rotate-45[^"]*transition-transform duration-150 ease-out motion-reduce:transition-none/,
+    'the closed branch has a marker with restrained transform transition and reduced-motion reset',
   )
   assert.doesNotMatch(leaf, /rotate/, 'the leaf has none')
+  assert.doesNotMatch(leaf, /transition-transform/, 'the leaf has no transition')
   // And the branch says so in the tree as well, which is what the marker is a
   // picture of.
   assert.match(branch, /aria-expanded="false"/)
   assert.doesNotMatch(leaf, /aria-expanded/)
+})
+
+test('an open branch and a closed branch share the same transform transition and RTL rotation pair', () => {
+  const html = render()
+  const openBranch = rows(html).find((row) => row.includes('crates')) ?? ''
+  const closedBranch = rows(html).find((row) => row.includes('hozo_web')) ?? ''
+  assert.match(
+    openBranch,
+    /aria-hidden="true" class="[^"]*\brotate-45 rtl:-rotate-45\b[^"]*transition-transform duration-150 ease-out motion-reduce:transition-none"/,
+  )
+  assert.match(
+    closedBranch,
+    /aria-hidden="true" class="[^"]*-rotate-45 rtl:rotate-45\b[^"]*transition-transform duration-150 ease-out motion-reduce:transition-none"/,
+  )
+})
+
+test('a collapsed branch with a large subtree mounts none of its hidden descendants', () => {
+  const manyChildren: TreeNode[] = Array.from({ length: 500 }, (_, index) => ({
+    id: `item-${index}`,
+    label: `file-${index}.ts`,
+  }))
+  const html = render({
+    nodes: [
+      { id: 'big', label: 'big-folder', children: manyChildren },
+      { id: 'readme', label: 'README.md' },
+    ],
+    defaultExpanded: [],
+  })
+  assert.equal(rows(html).length, 2, 'only the top-level closed branch and sibling leaf mount')
 })
 
 test('indentation is a literal class per depth', () => {

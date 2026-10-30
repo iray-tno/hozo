@@ -80,7 +80,37 @@ const pages = {
         },
       })
     })
-    await figure.getByRole('button', { name: 'Copy code' }).click()
+    const copy = figure.getByRole('button', { name: 'Copy code' })
+    const layout = await figure.evaluate((el) => {
+      const fig = el.getBoundingClientRect()
+      const caption = el.querySelector('figcaption').getBoundingClientRect()
+      const button = el.querySelector('button').getBoundingClientRect()
+      const gutter = getComputedStyle(el.querySelector('code > span > [aria-hidden=true]'))
+      return {
+        buttonInHeader: button.top >= fig.top && button.bottom <= caption.bottom,
+        buttonHeight: button.height,
+        gutterDivider: gutter.borderInlineEndWidth,
+      }
+    })
+    assert.deepEqual(
+      [layout.buttonInHeader, layout.buttonHeight >= 24, layout.gutterDivider],
+      [true, true, '1px'],
+      'code-block: Copy button must sit in the header bar at >=24px height with a 1px gutter divider',
+    )
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    assert.equal(
+      await copy.evaluate((el) => getComputedStyle(el).transitionDuration),
+      '0.15s',
+      'code-block: Copy button did not transition colours',
+    )
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    assert.equal(
+      await copy.evaluate((el) => getComputedStyle(el).transitionProperty),
+      'none',
+      'code-block: reduced motion did not disable Copy transition',
+    )
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    await copy.click()
     await page.getByRole('status').filter({ hasText: 'Copied' }).waitFor()
     assert.equal(
       await page.evaluate(() => window.codeCopiedText),
@@ -381,6 +411,23 @@ const pages = {
   },
   async tree(page) {
     const crates = page.getByRole('treeitem', { name: 'crates' })
+    const marker = crates.locator('[aria-hidden="true"]')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    assert.deepEqual(
+      await marker.evaluate((el) => {
+        const style = getComputedStyle(el)
+        return [style.transitionProperty, style.transitionDuration]
+      }),
+      ['transform, translate, scale, rotate', '0.15s'],
+      'tree: branch chevron does not transition transform',
+    )
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    assert.equal(
+      await marker.evaluate((el) => getComputedStyle(el).transitionProperty),
+      'none',
+      'tree: reduced motion did not disable chevron transition',
+    )
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.getByRole('treeitem', { name: 'README.md' }).focus()
     await crates.focus()
     await page.keyboard.press('ArrowLeft')
