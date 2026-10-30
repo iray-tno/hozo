@@ -94,9 +94,7 @@ try {
     )
     assert.equal(await drawing.evaluate((node) => node.tagName.toLowerCase()), 'svg')
     await page.getByRole('radio', { name: 'Seigaiha', exact: true }).click()
-    await page
-      .getByRole('group', { name: 'Seigaiha, the wave pattern', exact: true })
-      .waitFor()
+    await page.getByRole('group', { name: 'Seigaiha, the wave pattern', exact: true }).waitFor()
 
     // A slider drives the real filter primitive, and the source shown follows.
     const shadow = page.locator('svg[role="group"] feDropShadow')
