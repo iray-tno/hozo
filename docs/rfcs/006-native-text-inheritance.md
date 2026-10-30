@@ -5,6 +5,11 @@
 - **Target packages**: `@hozo/engine`, `@hozo/primitives`, `@hozo/typography`,
   `@hozo/patterns`, `@hozo/compiler`; Native compiler crates.
 
+[RFC 010](010-one-styling-fact-model.md) proposes the shared fact/owner
+structure and per-domain deletion plan around this protocol. It does not
+change this RFC's proof, performance or default-rollout gates; follow-up is
+tracked in [#1458](https://github.com/iray-tno/hozo/issues/1458).
+
 ## 1. Decision proposed, not a performance claim
 
 Make the Native inheritance contract independent of the compiler's ability

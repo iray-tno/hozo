@@ -8,6 +8,12 @@
   `@hozo/engine`, and their build-tool adapters.
 - **Baseline inspected**: main `99e9c03a61aaa80c86893fbea72c25df431f86ce`.
 
+[RFC 010](010-one-styling-fact-model.md) proposes the shared fact/owner
+structure and explicit deletion receipts for this migration. The existing
+six domain workstreams, comparator and graduation evidence remain here;
+the structural follow-up is tracked in
+[#1458](https://github.com/iray-tno/hozo/issues/1458), not a progress reset.
+
 The implementation history below records staged measurements; statements
 about earlier unswitched adapters describe those stages, not the current
 default. The latest boundary is summarized immediately before section 1.
