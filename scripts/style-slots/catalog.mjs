@@ -175,15 +175,18 @@ export const components = {
   ResizablePane: slots('className paneClassName handleClassName', {
     overrides: { className: { lowering: 'component-managed' } },
   }),
-  Accordion: slots('className sectionClassName headingClassName triggerClassName panelClassName', {
-    overrides: {
-      headingClassName: {
-        styleProp: null,
-        reason:
-          'Native has no heading host or headingStyle: heading classes precede trigger classes on the trigger.',
+  Accordion: slots(
+    'className sectionClassName headingClassName triggerClassName panelClassName panelContentClassName',
+    {
+      overrides: {
+        headingClassName: {
+          styleProp: null,
+          reason:
+            'Native has no heading host or headingStyle: heading classes precede trigger classes on the trigger.',
+        },
       },
     },
-  }),
+  ),
   Alert: slots('className'),
   Avatar: slots('className imageClassName fallbackClassName statusClassName', {
     secondary: true,
