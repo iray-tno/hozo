@@ -31,7 +31,7 @@ const renderer = require('react-test-renderer') as {
   }
   act: (callback: () => void) => void
 }
-const { HozoAnimated } = require('@hozo/primitives/generated/animated') as {
+const { HozoAnimated } = require('@hozo/engine/generated/animated') as {
   HozoAnimated: unknown
 }
 

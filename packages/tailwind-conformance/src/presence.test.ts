@@ -46,7 +46,7 @@ const renderer = require('react-test-renderer') as {
   create: (element: unknown, options?: { createNodeMock?: () => unknown }) => Root
   act: (callback: () => void | Promise<void>) => void | Promise<void>
 }
-const { HozoAnimated } = require('@hozo/primitives/generated/animated') as {
+const { HozoAnimated } = require('@hozo/engine/generated/animated') as {
   HozoAnimated: unknown
 }
 const { Presence: NativePresence } = (await import('@hozo/primitives')) as {

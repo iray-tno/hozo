@@ -8,8 +8,8 @@
 // The Web half is `./presence.tsx`. Both are written against the same
 // class: `data-[state=closed]:`.
 
+import { PresenceContext, type PresenceContextValue } from '@hozo/engine/generated/animated'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { PresenceContext, type PresenceContextValue } from './presence-context.ts'
 
 export interface PresenceProps {
   /** Whether the child is shown. Turning it false starts the exit. */

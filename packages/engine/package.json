@@ -49,6 +49,10 @@
       "types": "./dist/project.d.ts",
       "default": "./dist/project.js"
     },
+    "./generated/animated": {
+      "types": "./dist/generated/animated.d.ts",
+      "default": "./dist/generated/animated.js"
+    },
     "./generated/animation": {
       "types": "./dist/generated/animation.d.ts",
       "default": "./dist/generated/animation.js"

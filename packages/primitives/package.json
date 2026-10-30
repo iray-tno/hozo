@@ -36,10 +36,6 @@
       "types": "./dist/windowing.d.ts",
       "default": "./dist/windowing.js"
     },
-    "./generated/animated": {
-      "types": "./dist/generated/animated.d.ts",
-      "default": "./dist/generated/animated.js"
-    },
     "./generated/backdrop-filter": {
       "types": "./dist/generated/backdrop-filter.d.ts",
       "default": "./dist/generated/backdrop-filter.js"
