@@ -420,7 +420,11 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
       }
     if (name === '@hozo/core/generated/environment')
       return { useHozoDark: () => nativeDark, useHozoViewport: () => nativeViewport }
-    if (name === '@hozo/engine/project') return { hozoClasses }
+    // No transition table: these probes read resting looks, so every control
+    // indicator part is the plain View it is without motion.
+    if (name === '@hozo/engine/project') return { hozoClasses, hozoClassTransitions: {} }
+    if (name === '@hozo/engine/generated/animated') return { HozoAnimated: NativeView }
+    if (name === '@hozo/engine/generated/environment') return { useHozoEnvironment: () => false }
     if (name === '@hozo/engine/generated/safe-area')
       return { useHozoProvidedSafeArea: () => nativeInsets }
     if (name === 'expo-document-picker') throw new Error('No document picker in this host probe')

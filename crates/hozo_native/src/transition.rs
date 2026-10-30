@@ -94,14 +94,19 @@ pub(super) fn native_driver_transition(
             _ => None,
         })
         .unwrap_or("cubic-bezier(0.4, 0, 0.2, 1)");
-    let easing = match timing {
+    let easing = easing_name(timing);
+    Some((duration, delay, easing, opacity, transform, colors))
+}
+
+/// The `HozoTransitionSpec` easing a CSS timing function comes closest to.
+pub(super) fn easing_name(timing: &str) -> &'static str {
+    match timing {
         "linear" => "linear",
         "ease-in" | "cubic-bezier(0.4, 0, 1, 1)" => "ease-in",
         "ease-out" | "cubic-bezier(0, 0, 0.2, 1)" => "ease-out",
         "ease-in-out" => "ease-in-out",
         _ => "ease-in-out",
-    };
-    Some((duration, delay, easing, opacity, transform, colors))
+    }
 }
 
 /// A transition on an element whose condition is ambient rather than an

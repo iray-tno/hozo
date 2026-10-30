@@ -1,1 +1,1 @@
-export { hozoClasses, hozoPreflight } from './project.ts'
+export { hozoClasses, hozoClassTransitions, hozoPreflight } from './project.ts'

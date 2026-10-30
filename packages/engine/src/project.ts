@@ -1,4 +1,5 @@
 import { createClassResolver } from './class-resolver.ts'
+import type { ClassTransitionTable } from './class-transition.ts'
 
 /**
  * Project-wide Native defaults when no bundler integration supplies them.
@@ -18,3 +19,11 @@ export const hozoPreflight = true
  * what those props did before.
  */
 export const hozoClasses = createClassResolver({})
+
+/**
+ * What the project's runtime-resolved classes say about transitions (#1450),
+ * for the same components, read through `createClassTransitions`.
+ * Redirected like `hozoClasses`; unconfigured, it is empty, so those
+ * components keep switching at once.
+ */
+export const hozoClassTransitions: ClassTransitionTable = {}
