@@ -276,3 +276,73 @@ suite 83 passed, zero skipped; platform loader smoke seven passed. Clippy
 docs, metadata, generated ABI, title and diff checks passed. The committed
 fixture changes only three source hashes; factories, routes and case hashes
 are unchanged. No full-root JS suite or local device/GPU build was run.
+
+## Collected caller lifetime (explicit, no adapter rollout)
+
+`prepareOwnerLiteralCallers` now owns one retained Native parse per distinct
+literal and declared shape. Its frozen candidate union comes from those
+parses, not another token scanner. It implements the existing `PreparedModule`
+protocol: the finite publisher can collect it alongside other modules, then
+pass the exact same final context into every shape's emission. The result
+identifies that supplied context and labels its scope
+`explicit-collected-compiler-preview`. It installs no mutable compiler context
+and never falls back to direct compilation after suspension. The direct and
+collected previews share discovery, admission and source-edit logic.
+
+One-shot emission, idempotent disposal, deduplication, options captured before
+suspension and failure cleanup are covered by controlled-context unit tests.
+Missing candidates reject before any shape emits; partial collection, candidate
+enumeration and later shape-emission failures release all acquired handles.
+Opaque/unsafe/syntax-failed callers stay original and acquire no synthetic IR.
+These tests establish ownership, not Tailwind fidelity. A follow-up must run
+the real final publisher with Tailwind, independently compare conflicting
+classes against static and candidate output, and deliver the result to the
+actual owner. Adapter parse reuse, manifest identity and default rollout are
+still unassessed; existing inventory/audit/default claims do not change.
+
+## Final-context conflict delivery (bounded batch, not adapter rollout)
+
+The collected preview now participates in a real `emitFinalTailwindBatch`
+probe. Two opposite class orders combine padding, width and background-color
+conflicts. One Tailwind preparation includes the retained owner shapes,
+independent ordinary Native/Web static references and reconciled runtime
+candidate facts. Every Native shape/reference consumes the same context
+object, and the generated runtime map has the same policy fingerprint.
+No direct compiler fallback or global ordering setter is allowed in the batch.
+
+Both class orders select padding 16, width 32 and background `#223344` in
+the emitted Native reference and Web CSS; direct legacy output differs in
+each case. The preview's actual code is then loaded through Metro's source
+transform and rendered with the real BottomSheet implementation against RN
+host stand-ins. Its decorative and interactive handles match the independently
+opaque control. Frozen author overrides win and restore correctly when removed;
+host identity and getter counts survive updates and hover. Prepared mounts and
+updates never request their literal, whereas the opaque positive control does.
+The interactive control's style callback is evaluated before asserting that
+positive trace: mounting the RN stand-in alone does not evaluate it.
+
+A static-only `p-8` joins the common context but not the runtime candidate
+membership. Unassessed owner state keeps its public class carrier even when
+the final batch completes; stylesheet failure/epoch cancellation returns no
+partial code and consumes the composite handle. Raw-source cache guards name
+the final publisher and lifetime helper in addition to the owner preview.
+
+The initial harness omitted exports from its tracing facade and imported
+BottomSheet from core, where it is not exported. Both were corrected to the
+actual candidate module/public patterns entry. The initial interactive trace
+assertion also ran before evaluating the stand-in's callback; it now positively
+observes actual evaluation rather than accepting a zero trace. No product
+failure or flaky-test claim follows from those harness mistakes.
+
+This establishes the finite batch seam and bounded selected-style conflicts,
+not a complete adapter graph, browser computed style/events, a physical Native
+run, bundle cost or production import/parse reuse. The fixture explicitly
+selects its package/export/shadow and finite source set. It grants no manifest
+trust and changes no default, audit inventory or coverage headline.
+
+Verification: related caller/owner/Web/catalog/cache tests pass 58/58 with
+zero skips, CPU 1 / Idle / serial. Compiler build/typecheck, lint (1794 files),
+docs, metadata, generated ABI, strict text fixture equality and title/diff
+checks pass. No Rust source or generated factory/receipt changes. This is
+selected-style/source-transform evidence with RN host stand-ins, not a local
+Metro application build, physical device, GPU or full-root JS run.
