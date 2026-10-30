@@ -3782,7 +3782,8 @@ fn parse_border_width_px(suffix: &str) -> Option<Length> {
 /// property whose name contains a colon, which is not a name at all.
 ///
 /// Colons inside brackets are the arbitrary value's own (`bg-[url(a:b)]`),
-/// and do not count.
+/// and do not count. Nor do those inside v4's parenthesised shorthand,
+/// where a colon is a type hint: `bg-(color:--brand)` (#1477).
 ///
 /// Both callers need this and only one had it. The project-wide scan has
 /// tested it since it was written, because a scan also sees CSS text such
@@ -3794,11 +3795,11 @@ pub fn has_unstripped_variant(token: &str) -> bool {
     let (_, base) = parse_variant_prefix(token);
     let mut depth = 0usize;
     base.bytes().any(|byte| match byte {
-        b'[' => {
+        b'[' | b'(' => {
             depth += 1;
             false
         }
-        b']' => {
+        b']' | b')' => {
             depth = depth.saturating_sub(1);
             false
         }

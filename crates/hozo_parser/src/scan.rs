@@ -201,6 +201,24 @@ fn quoted_array_content_start(bytes: &[u8], opening: usize) -> Option<usize> {
         .map(|_| next)
 }
 
+/// Whether the `(` at `at` opens v4's variable shorthand: `h-(--panel)`,
+/// or `bg-(color:--brand)` with a type hint.
+///
+/// Narrower than a bracket, which opens an arbitrary value wherever it
+/// stands. A parenthesis is ordinary code -- `cx(`, `a-(b)` -- so it opens
+/// one only straight after a `-` and before `--` or a hint's letter. What
+/// that still admits from code fails to resolve and is dropped, as an
+/// unknown bracket is; without it, `h-(--x)` was cut at the `(` and the
+/// class never reached the parser that already understood it (#1477).
+fn opens_variable_shorthand(bytes: &[u8], at: usize) -> bool {
+    bytes[at] == b'('
+        && at > 0
+        && bytes[at - 1] == b'-'
+        && bytes
+            .get(at + 1)
+            .is_some_and(|next| *next == b'-' || next.is_ascii_lowercase())
+}
+
 fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
     let bytes = source.as_bytes();
     let mut found: Vec<String> = Vec::new();
@@ -209,6 +227,9 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
     // boolean because a variant can hold another one: `[&[data-x=y]]:p-4` is
     // two levels and ends at the second closing bracket.
     let mut depth: usize = 0;
+    // The same for v4's `(--var)` shorthand, `h-(--panel)`, counted apart
+    // from brackets because a bracket inside it is just a byte.
+    let mut parens: usize = 0;
     let mut array_opening_end = 0;
 
     for i in 0..=bytes.len() {
@@ -230,6 +251,18 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
             }
         }
         if let Some(b) = byte {
+            if parens > 0 && is_bracket_byte(b) {
+                if b == b'(' {
+                    parens += 1;
+                } else if b == b')' {
+                    parens -= 1;
+                }
+                continue;
+            }
+            if !inside && start.is_some() && opens_variable_shorthand(bytes, i) {
+                parens = 1;
+                continue;
+            }
             if inside && is_bracket_byte(b) {
                 if b == b'[' {
                     depth += 1;
@@ -250,6 +283,7 @@ fn scan_outside(source: &str, consumed: &[SourceSpan]) -> Vec<String> {
         // it: the next run starts outside, rather than inheriting a depth
         // from a line that never balanced.
         depth = 0;
+        parens = 0;
         let Some(token_start) = start.take() else {
             continue;
         };
@@ -319,6 +353,29 @@ export const C = () => <View className=\"p-4\"><Skeleton className=\"h-4 w-48\" 
         let names = scan_class_candidates(source);
         assert!(names.contains(&"p-4".to_string()));
         assert!(names.contains(&"p-8".to_string()));
+    }
+
+    #[test]
+    fn the_variable_shorthand_is_read_to_its_closing_parenthesis() {
+        // #1477. `(` was not a class byte, so `h-(--x)` was cut at it: `h-`
+        // resolves to nothing and the rest was never a token. The parser
+        // already read the shorthand as `h-[var(--x)]`; nothing gave it one.
+        let source = r#"
+            const a = 'h-(--x) md:w-(--y) bg-(color:--b) text-(length:--s) h-[var(--z)] p-4'
+            const b = cx('p-8', n-(1))
+        "#;
+        assert_eq!(
+            scan_class_candidates(source),
+            vec![
+                "h-(--x)",
+                "md:w-(--y)",
+                "bg-(color:--b)",
+                "text-(length:--s)",
+                "h-[var(--z)]",
+                "p-4",
+                "p-8"
+            ]
+        );
     }
 
     #[test]
