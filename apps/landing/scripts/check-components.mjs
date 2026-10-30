@@ -60,6 +60,16 @@ const pages = {
   async 'code-block'(page) {
     const figure = page.getByRole('figure', { name: 'paths.ts', exact: true })
     await figure.waitFor()
+    assert.equal(
+      await page.getByRole('separator', { name: 'Resize Files' }).count(),
+      0,
+      'code-block demo must not include an unrelated splitter',
+    )
+    assert.equal(
+      await page.getByRole('region', { name: 'Files', exact: true }).count(),
+      0,
+      'code-block demo must not include a Files sidebar',
+    )
     await page.evaluate(() => {
       Object.defineProperty(navigator, 'clipboard', {
         configurable: true,
