@@ -17,12 +17,17 @@ export type HozoCommandPaletteProps = Omit<CommandPaletteProps, 'className' | 's
 
 const root = 'fixed inset-0 z-50 flex items-start justify-center pt-[12vh] px-4'
 const scrim = 'absolute inset-0 bg-hozo-scrim/50'
+// A column, so the field below stretches to the panel's width less its margin.
 const panel =
-  'relative w-full max-w-xl overflow-hidden rounded-hozo-panel border border-hozo-border bg-hozo-surface text-sm text-hozo-text-body shadow-hozo-surface'
-// The ring is inset: the panel clips its overflow for the rounded corners, so
-// an outline outside the field would be cut off at the panel's edge.
+  'relative flex w-full max-w-xl flex-col overflow-hidden rounded-hozo-panel border border-hozo-border bg-hozo-surface text-sm text-hozo-text-body shadow-hozo-surface'
+// A field of its own, set in from the panel's edge by `m-2`, which is also
+// what the result rows are set in by. The field used to run edge to edge with
+// a ring drawn inward, and since it has focus the whole time the palette is
+// open, that ring was always there: a rectangle whose top corners the panel's
+// curve cut off (#1447). Set in by 8px, its `rounded-hozo-control` runs
+// alongside the panel's `rounded-hozo-panel`, and the ring follows it.
 const input =
-  'w-full border-b border-hozo-border bg-transparent px-4 py-3 text-base text-hozo-text placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-hozo-focus'
+  'mx-2 mt-2 rounded-hozo-control border border-hozo-border bg-hozo-surface-sunken px-3 py-2 text-base text-hozo-text placeholder:text-hozo-text-subtle focus-visible:outline-2 focus-visible:-outline-offset-1 focus-visible:outline-hozo-focus'
 const list = 'max-h-80 overflow-y-auto p-2'
 const heading = 'px-2 pt-3 pb-1 text-xs font-medium text-hozo-text-subtle'
 const item =
