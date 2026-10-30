@@ -27,6 +27,7 @@ While `docs/proposal.md` describes the foundational vision and `docs/decisions/`
 | [007](007-canonical-tailwind-order.md) | One Tailwind ordering plan before platform lowering | Compiler, Tailwind, engine and build integrations | **Draft** | #1230 |
 | [008](008-window-splitter.md) | Window splitter | Behaviors, patterns, core and UI | **Implemented (initial slice)** | #1191 |
 | [009](009-code-blocks.md) | Code blocks | Typography, patterns, core and UI | **Implemented (initial slice)** | #1189 |
+| [010](010-one-styling-fact-model.md) | One styling fact model | Compiler, engine, component contracts and build integrations | **Draft** | [#1458](https://github.com/iray-tno/hozo/issues/1458) |
 
 ---
 
