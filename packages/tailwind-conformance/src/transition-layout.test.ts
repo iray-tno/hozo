@@ -99,3 +99,28 @@ test('transition-all covers position and size; a value that is not a number does
   assert.deepEqual(range(moved.height), [0, 120])
   assert.equal(moved.width, undefined, 'a percentage has nothing to interpolate before layout')
 })
+
+test('an animation interrupted halfway starts the next from where it had got to', () => {
+  // The stub's Animated never advances on its own, so the test moves the
+  // running animation's progress by hand, as each frame would.
+  const stub = require('./react-native-stub.js') as {
+    Animated: { __hozoTimings: { value: { setValue: (at: number) => void } }[] }
+  }
+  const transition = { duration: 200, easing: 'linear', properties: ['height'] }
+  const draw = (height: number, opacity: number) =>
+    react.createElement(HozoAnimated, { style: { height, opacity }, hozoTransition: transition })
+  let root: ReturnType<typeof renderer.create> | undefined
+  renderer.act(() => {
+    root = renderer.create(draw(0, 0))
+  })
+  assert.ok(root)
+  const mounted = root
+  renderer.act(() => mounted.update(draw(120, 1)))
+  renderer.act(() => stub.Animated.__hozoTimings.at(-1)?.value.setValue(0.25))
+  renderer.act(() => mounted.update(draw(0, 0)))
+  const style = mounted.toJSON().props.style
+  renderer.act(() => mounted.unmount())
+  const moved = (Array.isArray(style) ? style[1] : {}) as Record<string, Interpolation | undefined>
+  assert.deepEqual(range(moved.height), [30, 0], 'jumped to the previous target first')
+  assert.deepEqual(range(moved.opacity), [0.25, 0])
+})
