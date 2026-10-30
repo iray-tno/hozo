@@ -134,6 +134,10 @@
   --hozo-color-hinoki: var(--sl-color-accent);
   --hozo-color-hinoki-light: var(--sl-color-text-accent);
   --hozo-color-yakisugi-950: var(--sl-color-black);
+  /* The diagrams' boxes (components/docs/diagram.tsx): a surface a step off
+   * the page, and its edge. */
+  --hozo-color-yakisugi-800: var(--sl-color-gray-6);
+  --hozo-color-yakisugi-600: var(--sl-color-gray-5);
   --hozo-color-kuri: #7a5c43;
 }
 
