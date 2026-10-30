@@ -1,6 +1,7 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from 'react'
 import {
@@ -221,7 +222,7 @@ export function HozoNativeSelect({
     'aria-checked': false,
   }
   const [controlBox, controlText] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(className, facts), style]) ?? {},
+    StyleSheet.flatten([hozoClasses(className, facts), hozoAuthoredStyle(style)]) ?? {},
   )
   const current = controlled ?? uncontrolled
 
@@ -231,7 +232,10 @@ export function HozoNativeSelect({
   // their unused class lists (or emit state warnings for absent chrome).
   const sheet = open
     ? hozoSplitTextStyle(
-        StyleSheet.flatten([hozoClasses(sheetClassName, nonControlClassFacts), sheetStyle]) ?? {},
+        StyleSheet.flatten([
+          hozoClasses(sheetClassName, nonControlClassFacts),
+          hozoAuthoredStyle(sheetStyle),
+        ]) ?? {},
       )
     : null
   // The fallback's Native-only rows expose the same disabled/selected
@@ -249,7 +253,7 @@ export function HozoNativeSelect({
           'aria-disabled': Boolean(option.disabled),
           'aria-checked': false,
         }),
-        optionStyle,
+        hozoAuthoredStyle(optionStyle),
       ]) ?? {},
     )
 
@@ -355,7 +359,11 @@ export function HozoNativeSelect({
         <Pressable
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
-          style={[open && hozoClasses(scrimClassName, nonControlClassFacts), scrimStyle]}
+          style={[
+            open && hozoClasses(scrimClassName, nonControlClassFacts),
+            // An unused system/presenter scrim must not eagerly read its author.
+            open ? hozoAuthoredStyle(scrimStyle) : scrimStyle,
+          ]}
           onPress={() => setOpen(false)}
         />
         <View

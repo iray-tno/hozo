@@ -283,6 +283,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/form/src/native-select.native.tsx',
     'packages/form/src/date-picker-frame.native.ts',
     'packages/form/src/picker-button.native.tsx',
     'packages/form/src/date-picker.native.tsx',
