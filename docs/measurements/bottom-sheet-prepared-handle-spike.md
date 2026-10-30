@@ -276,3 +276,26 @@ suite 83 passed, zero skipped; platform loader smoke seven passed. Clippy
 docs, metadata, generated ABI, title and diff checks passed. The committed
 fixture changes only three source hashes; factories, routes and case hashes
 are unchanged. No full-root JS suite or local device/GPU build was run.
+
+## Collected caller lifetime (explicit, no adapter rollout)
+
+`prepareOwnerLiteralCallers` now owns one retained Native parse per distinct
+literal and declared shape. Its frozen candidate union comes from those
+parses, not another token scanner. It implements the existing `PreparedModule`
+protocol: the finite publisher can collect it alongside other modules, then
+pass the exact same final context into every shape's emission. The result
+identifies that supplied context and labels its scope
+`explicit-collected-compiler-preview`. It installs no mutable compiler context
+and never falls back to direct compilation after suspension. The direct and
+collected previews share discovery, admission and source-edit logic.
+
+One-shot emission, idempotent disposal, deduplication, options captured before
+suspension and failure cleanup are covered by controlled-context unit tests.
+Missing candidates reject before any shape emits; partial collection, candidate
+enumeration and later shape-emission failures release all acquired handles.
+Opaque/unsafe/syntax-failed callers stay original and acquire no synthetic IR.
+These tests establish ownership, not Tailwind fidelity. A follow-up must run
+the real final publisher with Tailwind, independently compare conflicting
+classes against static and candidate output, and deliver the result to the
+actual owner. Adapter parse reuse, manifest identity and default rollout are
+still unassessed; existing inventory/audit/default claims do not change.
