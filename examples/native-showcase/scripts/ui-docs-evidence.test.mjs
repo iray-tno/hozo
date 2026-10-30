@@ -39,8 +39,10 @@ test('a failed or unreachable demo is recorded and the walk goes on', async () =
   const output = mkdtempSync(join(tmpdir(), 'ui-docs-'))
   const opened = []
   const captured = []
+  let probes = 0
   const manifest = await exerciseUiDocs(
     {
+      assertAvailable: () => probes++,
       open: (id) => opened.push(id),
       waitForEither: async (labels) => {
         if (labels[2] === 'UI docs gone') throw new Error('never appeared')
@@ -67,6 +69,8 @@ test('a failed or unreachable demo is recorded and the walk goes on', async () =
     { button: 'ok', broken: 'failed', gone: 'unreached', crashed: 'failed', card: 'ok' },
   )
   assert.deepEqual(captured, ['button', 'broken', 'gone', 'crashed', 'card', 'gone'])
+  assert.equal(probes, 3, 'two missing-story checks and the final device check stay healthy')
+  assert.equal(manifest.deviceError, undefined)
   assert.equal(manifest.takenAt, '2026-10-21T00:00:00.000Z')
   assert.deepEqual(JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8')), manifest)
 })
@@ -90,6 +94,140 @@ test('a walk that reached nothing fails', async () => {
     ),
     /No UI docs story could be opened/,
   )
+})
+
+test('a device lost after ten docs pages fails with the partial manifest intact', async () => {
+  const output = mkdtempSync(join(tmpdir(), 'ui-docs-lost-'))
+  const opened = []
+  const captured = []
+  let connected = true
+  let probes = 0
+  await assert.rejects(
+    exerciseUiDocs(
+      {
+        open: (id) => {
+          opened.push(id)
+          if (opened.length === 11) connected = false
+          if (!connected) throw new Error('adb: device offline')
+        },
+        waitForEither: async (labels) => labels.at(-1),
+        settle: async () => {},
+        capture: (name) => {
+          if (!connected) throw new Error('no screen')
+          captured.push(name)
+        },
+        assertAvailable: () => {
+          probes++
+          assert.ok(connected, 'adb shell true: device offline')
+        },
+        logs: () => 'partial device log',
+        rotate: async () => assert.ok(connected, 'no device to rotate'),
+      },
+      output,
+      {
+        states: UI_STATE_SCENES,
+        overlays: UI_OVERLAY_SCENES,
+        landscape: UI_LANDSCAPE_OVERLAY_SCENES,
+      },
+    ),
+    /UI docs device became unavailable/,
+  )
+  const manifest = JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8'))
+  assert.equal(Object.values(manifest.pages).filter(({ status }) => status === 'ok').length, 10)
+  assert.equal(
+    Object.values(manifest.pages).filter(({ status }) => status === 'unreached').length,
+    UI_DOC_PAGES.length - 10,
+  )
+  for (const [key, expected] of [
+    ['states', UI_STATE_SCENES],
+    ['overlays', UI_OVERLAY_SCENES],
+    ['landscape', UI_LANDSCAPE_OVERLAY_SCENES],
+  ]) {
+    assert.equal(Object.keys(manifest[key]).length, expected.length)
+    assert.ok(Object.values(manifest[key]).every(({ status }) => status === 'unreached'))
+  }
+  assert.match(manifest.pages[UI_DOC_PAGES[10]].reason, /adb: device offline/)
+  assert.match(manifest.deviceError, /adb shell true: device offline/)
+  assert.deepEqual(captured, UI_DOC_PAGES.slice(0, 10))
+  assert.equal(opened.length, 11, 'no further routes or retries on a lost device')
+  assert.equal(probes, 1, 'the first connection failure remains fatal')
+  assert.equal(readFileSync(join(output, 'logcat.txt'), 'utf8'), 'partial device log')
+})
+
+test('connection loss during capture, state, overlay, rotation and completion also fails', async () => {
+  for (const phase of [
+    'page-wait',
+    'page-settle',
+    'page-capture',
+    'state',
+    'overlay',
+    'landscape-enter',
+    'landscape',
+    'restore',
+    'finish',
+  ]) {
+    const output = mkdtempSync(join(tmpdir(), `ui-docs-lost-${phase}-`))
+    let connected = true
+    let rotated = false
+    let current
+    const loseDuringPage = (stage) => {
+      if (phase === stage && current === uiDocStoryId('alert')) {
+        connected = false
+        throw new Error('device offline')
+      }
+    }
+    await assert.rejects(
+      exerciseUiDocs(
+        {
+          open: (id) => {
+            current = id
+            if (
+              (phase === 'state' && id === uiStateStoryId('Tabs')) ||
+              (phase === 'overlay' && id === uiOverlayStoryId('Dialog')) ||
+              (phase === 'landscape' && rotated)
+            ) {
+              connected = false
+              throw new Error('device offline')
+            }
+          },
+          waitForEither: async (labels) => {
+            loseDuringPage('page-wait')
+            return labels.at(-1)
+          },
+          settle: async () => loseDuringPage('page-settle'),
+          capture: () => loseDuringPage('page-capture'),
+          rotate: async (landscape) => {
+            rotated = landscape
+            if ((phase === 'restore' && !landscape) || (phase === 'landscape-enter' && landscape)) {
+              connected = false
+              throw new Error('device offline')
+            }
+          },
+          assertAvailable: async () => {
+            assert.ok(connected && phase !== 'finish', 'device offline')
+          },
+        },
+        output,
+        {
+          pages: ['button', 'alert'],
+          states: ['Tabs'],
+          overlays: [{ name: 'Dialog', ready: 'Dialog body' }],
+          landscape: [{ name: 'Drawer', ready: 'Drawer body' }],
+        },
+      ),
+      /UI docs device became unavailable/,
+      phase,
+    )
+    const manifest = JSON.parse(readFileSync(join(output, 'manifest.json'), 'utf8'))
+    assert.equal(manifest.pages.button.status, 'ok', phase)
+    assert.match(manifest.deviceError, /device offline/, phase)
+  }
+})
+
+test('the Android docs driver checks the device shell independently of story rendering', () => {
+  const driver = readFileSync(join(root, 'scripts/android-smoke.mjs'), 'utf8')
+  const docs = driver.split("evidence.scenario === 'ui-docs'")[1]
+  assert.match(docs, /assertAvailable: \(\) => adb\('shell', 'true'\)/)
 })
 
 test('an iOS walk says so in its manifest and keeps its logs under their own name', async () => {
@@ -220,16 +358,16 @@ test('landscape overlays are shot turned, then the device is turned back, or are
   const upright = await exerciseUiDocs(device, output, { pages: ['button'], landscape: [drawer] })
   assert.equal(upright.landscape.Drawer.status, 'skipped')
 
-  // A device lost before the turn is a scene that never appeared, not a throw.
+  // A turn unsupported by this driver is still recorded without losing pages.
   const lost = await exerciseUiDocs(
     {
       ...device,
       rotate: async () => {
-        throw new Error('device offline')
+        throw new Error('rotation unavailable')
       },
     },
     output,
     { pages: ['button'], landscape: [drawer] },
   )
-  assert.deepEqual(lost.landscape.Drawer, { status: 'unreached', reason: 'device offline' })
+  assert.deepEqual(lost.landscape.Drawer, { status: 'unreached', reason: 'rotation unavailable' })
 })

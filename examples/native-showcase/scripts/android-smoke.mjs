@@ -459,6 +459,9 @@ try {
   } else if (evidence.scenario === 'ui-docs') {
     evidence.uiDocs = await exerciseUiDocs(
       {
+        // Check the transport independently of a story's markers or renderer.
+        // A partial docs walk on a disconnected emulator must not pass CI.
+        assertAvailable: () => adb('shell', 'true'),
         open: (id) =>
           adb(
             'shell',

@@ -5,6 +5,7 @@
 // fails, or never appears, is recorded and the walk goes on: the docs show
 // what Native makes of each component, a broken one included, and one bad
 // demo must not cost the other thirty-eight their pictures.
+// Losing the device is different: keep the partial evidence, but fail the walk.
 //
 // The manifest says what each image is of: the page, how it went, and the
 // commit and time it was taken, which the docs print beside it so a picture
@@ -72,6 +73,9 @@ export const STORYBOOK_FAILURE = 'Something went wrong rendering your story'
  *   settle: () => Promise<void>,
  *   capture: (name: string) => void,
  *   logs?: () => string,
+ *   assertAvailable?: () => void | Promise<void>,
+ *     -- an independent device transport check after a scene error and at
+ *     completion. A failed check is fatal even if some pages were captured.
  *   rotate?: (landscape: boolean) => Promise<void>,
  *     -- without it, `landscape` scenes are skipped and say so.
  * }} device
@@ -99,10 +103,32 @@ export async function exerciseUiDocs(
     overlays: {},
     landscape: {},
   }
+  let deviceFailure
+  const requireDevice = () => {
+    if (deviceFailure) throw deviceFailure
+  }
+  const checkDevice = async () => {
+    if (deviceFailure || !device.assertAvailable) return
+    try {
+      await device.assertAvailable()
+    } catch (error) {
+      deviceFailure = new Error(`UI docs device became unavailable: ${error?.message ?? error}`, {
+        cause: error,
+      })
+      manifest.deviceError = deviceFailure.message
+    }
+  }
+  const unreached = async (key, name, error) => {
+    manifest[key][name] = { status: 'unreached', reason: String(error?.message ?? error) }
+    // A missing story can be retried; a dead transport cannot prove anything
+    // about the next story. Latch the first loss even if it later reconnects.
+    await checkDevice()
+  }
   const visit = async (page) => {
     const ready = `UI docs ${page}`
     const failed = `UI docs ${page} failed`
     try {
+      requireDevice()
       device.open(uiDocStoryId(page))
       // A failure is either ours, named, or Storybook's, which says only that
       // something went wrong; both are failures, not a 30-second wait.
@@ -111,8 +137,9 @@ export async function exerciseUiDocs(
       device.capture(page)
       manifest.pages[page] = { status: seen === ready ? 'ok' : 'failed', image: `${page}.png` }
     } catch (error) {
-      manifest.pages[page] = { status: 'unreached', reason: String(error?.message ?? error) }
+      await unreached('pages', page, error)
       try {
+        requireDevice()
         device.capture(page)
         manifest.pages[page].image = `${page}.png`
       } catch {
@@ -124,19 +151,21 @@ export async function exerciseUiDocs(
   // Once more for a page that never appeared. The first deep link after a
   // cold launch can outlast the wait (iOS lost Accordion, the first page,
   // that way), and a later attempt costs one page, not a run.
-  for (const page of pages) if (manifest.pages[page].status === 'unreached') await visit(page)
+  for (const page of pages)
+    if (!deviceFailure && manifest.pages[page].status === 'unreached') await visit(page)
   // The state screens, after the pages and under their own key, so the docs,
   // which read `pages`, are unaffected. Images are `state-<name>.png`.
   const visitState = async (scene) => {
     const image = `state-${scene.toLowerCase()}`
     try {
+      requireDevice()
       device.open(uiStateStoryId(scene))
       const seen = await device.waitForEither([STORYBOOK_FAILURE, scene], timeout)
       await device.settle()
       device.capture(image)
       manifest.states[scene] = { status: seen === scene ? 'ok' : 'failed', image: `${image}.png` }
     } catch (error) {
-      manifest.states[scene] = { status: 'unreached', reason: String(error?.message ?? error) }
+      await unreached('states', scene, error)
     }
   }
   for (const scene of states) await visitState(scene)
@@ -145,14 +174,16 @@ export async function exerciseUiDocs(
   const visitOverlay = async ({ name, ready }, key = 'overlays', prefix = 'overlay') => {
     const image = `${prefix}-${kebab(name)}`
     try {
+      requireDevice()
       device.open(uiOverlayStoryId(name))
       const seen = await device.waitForEither([STORYBOOK_FAILURE, ready], timeout)
       await device.settle()
       device.capture(image)
       manifest[key][name] = { status: seen === ready ? 'ok' : 'failed', image: `${image}.png` }
     } catch (error) {
-      manifest[key][name] = { status: 'unreached', reason: String(error?.message ?? error) }
+      await unreached(key, name, error)
       try {
+        requireDevice()
         device.capture(image)
         manifest[key][name].image = `${image}.png`
       } catch {
@@ -163,9 +194,8 @@ export async function exerciseUiDocs(
   for (const overlay of overlays) await visitOverlay(overlay)
   // The same overlays turned sideways, under their own key. Images are
   // `landscape-<name>.png`. Turned back afterwards whatever happened, so a
-  // walk that goes on is upright. A device that cannot be turned is recorded
-  // like a scene that never appeared, not thrown: the walk's rule is that only
-  // a walk that showed nothing at all fails.
+  // walk that goes on is upright. A failed turn is recorded like a scene that
+  // never appeared; a lost device still fails the walk after saving evidence.
   if (landscape.length > 0 && !device.rotate) {
     for (const { name } of landscape) {
       manifest.landscape[name] = { status: 'skipped', reason: 'this device cannot be rotated' }
@@ -173,22 +203,25 @@ export async function exerciseUiDocs(
   } else if (landscape.length > 0) {
     let turned = false
     try {
+      requireDevice()
       await device.rotate(true)
       turned = true
     } catch (error) {
       for (const { name } of landscape) {
-        manifest.landscape[name] = { status: 'unreached', reason: String(error?.message ?? error) }
+        await unreached('landscape', name, error)
       }
     }
     if (turned) {
       for (const overlay of landscape) await visitOverlay(overlay, 'landscape', 'landscape')
       try {
+        requireDevice()
         await device.rotate(false)
       } catch {
-        /* Every landscape scene already has its entry. */
+        await checkDevice()
       }
     }
   }
+  await checkDevice()
   writeFileSync(resolve(output, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`)
   // What each failure threw, which the screenshot shows only in part.
   try {
@@ -196,8 +229,9 @@ export async function exerciseUiDocs(
   } catch {
     /* The manifest stands without it. */
   }
+  if (deviceFailure) throw deviceFailure
   const reached = Object.values(manifest.pages).filter((entry) => entry.status !== 'unreached')
-  // Only a walk that showed nothing at all is a failure of the walk itself.
+  // A healthy device may still show broken demos, but must show at least one.
   if (reached.length === 0) throw new Error('No UI docs story could be opened')
   return manifest
 }
