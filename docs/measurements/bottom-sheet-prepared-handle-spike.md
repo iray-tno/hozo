@@ -37,11 +37,37 @@ style. That scaffold proves application, not an accepted optimized producer.
 Replace it with direct compiler-produced entries when the generic manifest
 owner path lands; never ship it as another runtime compiler/cascade engine.
 
-The data-only `fixtures/bottom-sheet-handle-contract.json` is a proposed
-two-shape description, schema `rfc010-spike-0`, with `audit: unknown`.
-Neither a production manifest reader nor an executable Gate interpreter
-consumes it. Actual hosts/events are independently observed in the tests;
-the fixture is not allowed to certify itself or reduce the 55 pending slots.
+The initial hand-written `fixtures/bottom-sheet-handle-contract.json` has
+been deleted. The catalog now authors the two-shape description and generates
+`scripts/style-slots/owner-shadow.json`, schema `rfc010-owner-shadow-0`.
+The compiler's internal data-only reader validates it; both platform probes
+consume that same parsed contract. It remains `audit: unknown` and cannot
+certify itself or reduce the 55 pending slots. This is a shadow prototype,
+not a shipped manifest-v2 reader or a production caller rewrite.
+
+## Shadow contract follow-up
+
+The first bounded vocabulary supports declared symbolic booleans, equality,
+conjunction/disjunction, two known host pairs and explicit author order
+separate from the prepared carrier. It rejects extra fields, undeclared or
+executable bindings, unsupported hosts/events, duplicate IDs/orders and
+oversized/deep Gate trees. An unknown input is not false; overlap is ambiguous,
+and a definite match competing with an unknown shape is unresolved. Closed
+`open: false` can establish absence even without knowing `resizable`.
+
+This inspector takes already supplied facts. It neither discovers nor captures
+owner expressions, computes `resizable`, runs package code, nor evaluates
+caller getters. The actual BottomSheet still selects its own hosts with its
+existing logic; the probes compare that observation with the shadow result.
+The default compiler/adapter/application import graphs do not load this module.
+The shadow JSON is not advertised or shipped as a participating package manifest.
+
+Missing work remains explicit: semantic fact bindings, text publication,
+finite non-boolean domains, export/package-instance resolution, complete
+manifest-v2 transport/capture and direct compiler-produced caller entries.
+The temporary primitive-element producer above is unchanged and still must
+be removed. No conformance headline, Native default or six-workstream
+completion percentage moves for this schema/transport slice.
 
 ## Evidence
 

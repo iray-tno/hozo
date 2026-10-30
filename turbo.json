@@ -38,6 +38,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
         "$TURBO_ROOT$/packages/ui/src/combobox.tsx",
         "$TURBO_ROOT$/packages/ui/src/listbox.tsx",
         "$TURBO_ROOT$/packages/ui/src/menu.tsx",
@@ -66,6 +67,7 @@
       "inputs": [
         "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
         "$TURBO_ROOT$/packages/*/src/**",
         "$TURBO_ROOT$/crates/hozo_napi/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/lib.rs",

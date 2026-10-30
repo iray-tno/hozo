@@ -642,8 +642,11 @@ and runtime paths agree for one non-`Primitive` owner, or shows why not.
 
 The [first handle application slice](../measurements/bottom-sheet-prepared-handle-spike.md)
 adds a bounded Native carrier and Web/Native transport probes. Its producer
-and two-shape contract are test scaffolding, not a production manifest reader
-or generalized lowering. Phase A, owner audit and default routing remain open.
+is still test scaffolding. A follow-up replaces the hand-written contract JSON
+with a catalog-generated shadow and an internal bounded data-only compiler
+reader (symbolic booleans and three-valued Gate selection). This is not the
+complete manifest-v2 schema, a production manifest reader or generalized
+lowering. Phase A, owner audit and default routing remain open.
 
 ### B. One owner contract everywhere
 

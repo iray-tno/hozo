@@ -38,6 +38,7 @@
       "!packages/tailwind-conformance/fixtures/tailwind-order-reference.json",
       "!packages/three/scene-conformance.json",
       "!**/hozo.manifest.json",
+      "!scripts/style-slots/owner-shadow.json",
       "!examples/native-demo/ios"
     ]
   },

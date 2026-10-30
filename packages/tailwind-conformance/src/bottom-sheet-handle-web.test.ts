@@ -6,17 +6,21 @@ import { createCompiler } from '@hozo/compiler'
 import { BottomSheet } from '@hozo/patterns'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { parseOwnerContractShadow, selectOwnerShape } from '../../compiler/src/owner-contract.ts'
 import { classesDefinedIn, renderWeb } from './render.ts'
 
-const contract = JSON.parse(
-  readFileSync(new URL('./fixtures/bottom-sheet-handle-contract.json', import.meta.url), 'utf8'),
-)
+const contract = parseOwnerContractShadow(
+  readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
+).contracts[0]!
 
 test('existing Web class carrier delivers compiler-owned classes to each real handle shape', () => {
   assert.equal(contract.audit, 'unknown', 'a transport probe is not a complete contract audit')
   assert.equal(contract.abi.webClassProp, 'handleClassName')
   const compiler = createCompiler()
   for (const shape of contract.shapes) {
+    const selected = selectOwnerShape(contract, { open: true, resizable: shape.id === 'resizable' })
+    assert.equal(selected.status, 'selected')
+    if (selected.status === 'selected') assert.equal(selected.shape.id, shape.id)
     const tag = shape.id === 'resizable' ? 'Pressable' : 'View'
     const names =
       shape.id === 'resizable'

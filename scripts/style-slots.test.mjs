@@ -2,9 +2,22 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { nonControlSlotFacts } from '../packages/patterns/src/non-control-facts.native.ts'
-import { components, profiles } from './style-slots/catalog.mjs'
+import { components, ownerShadow, profiles } from './style-slots/catalog.mjs'
 import { checkGenerated, outputs, validateCatalog } from './style-slots/generate.mjs'
 import { checkPublicProps } from './style-slots/public-props.mjs'
+
+test('the owner shadow replaces spike JSON without promoting pending catalog slots', () => {
+  const rendered = outputs()
+  assert.deepEqual(JSON.parse(rendered['scripts/style-slots/owner-shadow.json']), ownerShadow)
+  for (const contract of ownerShadow.contracts) {
+    const [component] = contract.owner.split('.')
+    const slot = components[component].find((slot) => slot.classProp === contract.classProp)
+    assert.ok(slot, 'a shadow contribution must refer to an inventoried class prop')
+    assert.equal(slot.owner, 'pending-audit')
+    assert.equal(contract.audit, 'unknown')
+    assert.equal(slot.callback, undefined, 'shadow data must not add a Primitive callback route')
+  }
+})
 
 test('ColorPicker thumb focus belongs to each slider, separate from swatch pointer and input facts', () => {
   const thumb = components.ColorPicker.find((slot) => slot.classProp === 'thumbClassName')
