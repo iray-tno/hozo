@@ -82,7 +82,7 @@ try {
     // The studio's drawing is named, and the shape radio renames it. A group
     // rather than an image: its shapes are conditional, which the compiler
     // cannot see into, and `img` would make whatever is inside presentational.
-    const drawing = page.getByRole('group', { name: 'A dovetail joint, drawn apart', exact: true })
+    const drawing = page.getByRole('group', { name: 'Asanoha, the hemp-leaf pattern', exact: true })
     await drawing.waitFor()
     // SSR makes the drawing visible before client:visible has bound its controls.
     await drawing.scrollIntoViewIfNeeded()
@@ -93,9 +93,9 @@ try {
           ?.hasAttribute('ssr') === false,
     )
     assert.equal(await drawing.evaluate((node) => node.tagName.toLowerCase()), 'svg')
-    await page.getByRole('radio', { name: 'Seal', exact: true }).click()
+    await page.getByRole('radio', { name: 'Seigaiha', exact: true }).click()
     await page
-      .getByRole('group', { name: 'A red seal with the character 組', exact: true })
+      .getByRole('group', { name: 'Seigaiha, the wave pattern', exact: true })
       .waitFor()
 
     // A slider drives the real filter primitive, and the source shown follows.
@@ -109,7 +109,7 @@ try {
     const sourceText = async () =>
       (await source.locator('pre code > span').allTextContents()).join('\n')
     assert.match(await sourceText(), /stdDeviation=\{20\}/)
-    assert.match(await sourceText(), /the seal/)
+    assert.match(await sourceText(), /the seigaiha/)
     await page.getByRole('radio', { name: 'Bengara', exact: true }).click()
     assert.equal(await shadow.getAttribute('flood-color'), '#9e3d31')
     assert.match(await sourceText(), /floodColor="#9e3d31"/)

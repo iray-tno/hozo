@@ -11,12 +11,12 @@ import { useId, useState } from 'react'
 // is the namespace the page is about, and the only code shown is the source
 // for what is on screen; the REPL is where compiler output is real.
 
-type Shape = 'joint' | 'lantern' | 'seal'
+type Shape = 'asanoha' | 'shippo' | 'seigaiha'
 
 const SHAPES: readonly { value: Shape; label: string; description: string }[] = [
-  { value: 'joint', label: 'Joint', description: 'A dovetail joint, drawn apart' },
-  { value: 'lantern', label: 'Lantern', description: 'A paper lantern with a latticed frame' },
-  { value: 'seal', label: 'Seal', description: 'A red seal with the character 組' },
+  { value: 'asanoha', label: 'Asanoha', description: 'Asanoha, the hemp-leaf pattern' },
+  { value: 'shippo', label: 'Shippo', description: 'Shippo, the seven-treasures pattern' },
+  { value: 'seigaiha', label: 'Seigaiha', description: 'Seigaiha, the wave pattern' },
 ]
 
 const COLOURS = [
@@ -29,20 +29,101 @@ const COLOURS = [
 const OPTION =
   'px-3 py-1.5 rounded-lg text-xs font-semibold text-stone-400 border border-transparent hover:text-shikkui aria-checked:bg-hinoki/20 aria-checked:text-hinoki aria-checked:border-hinoki/30 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hinoki'
 
+// The three patterns are computed, not traced: each is a lattice, and the
+// drawing is the lattice's lines. All three centre a motif on (100, 100),
+// which is the one drawn bright and given the glow.
+const CENTRE = 100
+const round = (value: number) => Math.round(value * 100) / 100
+type Point = readonly [number, number]
+const segment = ([ax, ay]: Point, [bx, by]: Point) =>
+  `M${round(ax)} ${round(ay)}L${round(bx)} ${round(by)}`
+
+// Asanoha, the hemp leaf: a triangular lattice, with each triangle's
+// centroid joined to its three corners. Around every lattice point that
+// leaves a six-leaved star.
+const ASANOHA_SIDE = 26
+function asanoha() {
+  const height = (ASANOHA_SIDE * Math.sqrt(3)) / 2
+  const at = (i: number, j: number): Point => [
+    CENTRE + i * ASANOHA_SIDE + (Math.abs(j) % 2 ? ASANOHA_SIDE / 2 : 0),
+    CENTRE + j * height,
+  ]
+  const triangles: Point[][] = []
+  for (let j = -6; j < 6; j++)
+    for (let i = -6; i < 6; i++) {
+      const odd = Math.abs(j) % 2 === 1
+      triangles.push([at(i, j), at(i + 1, j), odd ? at(i + 1, j + 1) : at(i, j + 1)])
+      triangles.push([at(i, j + 1), at(i + 1, j + 1), odd ? at(i, j) : at(i + 1, j)])
+    }
+  const draw = (shapes: Point[][]) =>
+    shapes
+      .flatMap(([a, b, c]) => {
+        const centroid: Point = [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3]
+        return [
+          segment(a, b),
+          segment(b, c),
+          segment(c, a),
+          segment(centroid, a),
+          segment(centroid, b),
+          segment(centroid, c),
+        ]
+      })
+      .join('')
+  const central = triangles.filter((corners) =>
+    corners.some(([x, y]) => Math.hypot(x - CENTRE, y - CENTRE) < 0.5),
+  )
+  return { lattice: draw(triangles), motif: draw(central) }
+}
+
+// Shippo, the seven treasures: equal circles on a square lattice, spaced so
+// that each overlaps its four neighbours in petals that meet at their tips.
+const SHIPPO_SPACING = 40
+const SHIPPO_RADIUS = SHIPPO_SPACING / Math.SQRT2
+function shippo() {
+  const centres: Point[] = []
+  for (let j = -3; j <= 3; j++)
+    for (let i = -3; i <= 3; i++)
+      centres.push([CENTRE + i * SHIPPO_SPACING, CENTRE + j * SHIPPO_SPACING])
+  const r = round(SHIPPO_RADIUS)
+  const tip = round(SHIPPO_RADIUS * Math.SQRT1_2)
+  // The petal towards the right-hand neighbour; the others are it, turned.
+  const petal = `M${CENTRE + tip} ${CENTRE - tip}A${r} ${r} 0 0 1 ${CENTRE + tip} ${CENTRE + tip}A${r} ${r} 0 0 1 ${CENTRE + tip} ${CENTRE - tip}Z`
+  return { centres, petal }
+}
+
+// Seigaiha, the blue sea's waves: rows of concentric rings, each row half a
+// ring lower and half a step across, drawn top to bottom so that every row
+// hides the lower half of the one before.
+const SEIGAIHA_RADIUS = 24
+const SEIGAIHA_RINGS = [1, 0.75, 0.5, 0.25].map((share) => share * SEIGAIHA_RADIUS)
+function seigaiha() {
+  const units: { centre: Point; motif: boolean }[] = []
+  for (let row = -10; row <= 12; row++)
+    for (let i = -4; i <= 4; i++) {
+      const x = CENTRE + i * SEIGAIHA_RADIUS * 2 + (Math.abs(row) % 2 ? SEIGAIHA_RADIUS : 0)
+      const y = CENTRE + (row * SEIGAIHA_RADIUS) / 2
+      units.push({ centre: [x, y], motif: row === 0 && i === 0 })
+    }
+  return units
+}
+
+const ASANOHA = asanoha()
+const SHIPPO = shippo()
+const SEIGAIHA = seigaiha()
+
 export function FilterStudio() {
   const ids = useId().replaceAll(':', '')
   const shadowId = `${ids}-shadow`
   const glowId = `${ids}-glow`
-  const hinokiId = `${ids}-hinoki`
-  const kuriId = `${ids}-kuri`
-  const paperId = `${ids}-paper`
-  const [shape, setShape] = useState<Shape>('joint')
+  const gradientId = `${ids}-gradient`
+  const clipId = `${ids}-clip`
+  const [shape, setShape] = useState<Shape>('asanoha')
   const [dx, setDx] = useState(0)
   const [dy, setDy] = useState(4)
   const [blur, setBlur] = useState(6)
   const [opacity, setOpacity] = useState(40)
-  const [colour, setColour] = useState<string>('#000000')
-  const [glow, setGlow] = useState(8)
+  const [colour, setColour] = useState<string>('#c8a882')
+  const [glow, setGlow] = useState(3)
   const description = SHAPES.find((entry) => entry.value === shape)?.description ?? ''
 
   const source = `import { Svg } from '@hozo/svg'
@@ -99,117 +180,121 @@ export function FilterStudio() {
               <Svg.Filter id={glowId} x="-50%" y="-50%" width="200%" height="200%">
                 <Svg.FeGaussianBlur stdDeviation={glow} />
               </Svg.Filter>
-              <Svg.LinearGradient id={hinokiId} x1="0" y1="0" x2="0" y2="1">
-                <Svg.Stop offset="0%" stopColor="#e6cfac" />
-                <Svg.Stop offset="100%" stopColor="#c49f74" />
+              <Svg.ClipPath id={clipId}>
+                <Svg.Circle cx={100} cy={100} r={78} />
+              </Svg.ClipPath>
+              <Svg.LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+                <Svg.Stop offset="0%" stopColor="#dfc8ab" />
+                <Svg.Stop offset="100%" stopColor="#9e3d31" />
               </Svg.LinearGradient>
-              <Svg.LinearGradient id={kuriId} x1="0" y1="0" x2="0" y2="1">
-                <Svg.Stop offset="0%" stopColor="#8f6c4f" />
-                <Svg.Stop offset="100%" stopColor="#5e4632" />
-              </Svg.LinearGradient>
-              <Svg.RadialGradient id={paperId} cx="50%" cy="55%" r="65%">
-                <Svg.Stop offset="0%" stopColor="#fff6e0" />
-                <Svg.Stop offset="70%" stopColor="#f5d9a2" />
-                <Svg.Stop offset="100%" stopColor="#e3b26a" />
-              </Svg.RadialGradient>
             </Svg.Defs>
-            {/* The sheet the piece rests on, so a shadow of any colour has
-                somewhere to fall. It takes no filter itself. */}
-            <Svg.Rect x={8} y={8} width={184} height={184} rx={14} fill="#ebe5d8" />
-            {shape === 'joint' ? (
-              // A dovetail drawn apart: the tail of the upper piece and the
-              // socket it fits, the joint the mark at the top of the page is cut from.
-              <Svg.G filter={`url(#${shadowId})`}>
-                <Svg.Polygon
-                  points="44,36 156,36 156,90 120,90 128,118 72,118 80,90 44,90"
-                  fill={`url(#${hinokiId})`}
-                />
-                <Svg.Polygon
-                  points="44,96 80,96 72,124 128,124 120,96 156,96 156,160 44,160"
-                  fill={`url(#${kuriId})`}
-                />
-                <Svg.Path
-                  d="M50 50C80 46 118 54 150 48M50 64C84 60 116 68 150 62M50 78C78 75 122 81 150 76"
-                  stroke="#a8855e"
-                  strokeWidth={1}
-                  strokeOpacity={0.5}
-                  fill="none"
-                />
-                <Svg.Path
-                  d="M50 136C82 132 118 140 150 134M50 149C80 146 120 152 150 147"
-                  stroke="#3d2e21"
-                  strokeWidth={1}
-                  strokeOpacity={0.6}
-                  fill="none"
-                />
+            {/* A medallion: the pattern cut to a circle, lifted by the shadow.
+                The motif at its centre is drawn twice, blurred under sharp,
+                which is what the glow slider brightens. */}
+            <Svg.G filter={`url(#${shadowId})`}>
+              <Svg.Circle cx={100} cy={100} r={78} fill="#141312" />
+              <Svg.G clipPath={`url(#${clipId})`}>
+                {shape === 'asanoha' ? (
+                  <>
+                    <Svg.Path
+                      d={ASANOHA.lattice}
+                      stroke="#c8a882"
+                      strokeOpacity={0.45}
+                      strokeWidth={0.9}
+                      fill="none"
+                    />
+                    <Svg.Path
+                      d={ASANOHA.motif}
+                      stroke="#e9cf9f"
+                      strokeWidth={2.5}
+                      fill="none"
+                      filter={`url(#${glowId})`}
+                    />
+                    <Svg.Path d={ASANOHA.motif} stroke="#f3e2c4" strokeWidth={1.4} fill="none" />
+                  </>
+                ) : null}
+                {shape === 'shippo' ? (
+                  <>
+                    {SHIPPO.centres.map(([cx, cy]) => (
+                      <Svg.Circle
+                        key={`${cx} ${cy}`}
+                        cx={cx}
+                        cy={cy}
+                        r={SHIPPO_RADIUS}
+                        stroke="#c8a882"
+                        strokeOpacity={0.45}
+                        strokeWidth={0.9}
+                        fill="none"
+                      />
+                    ))}
+                    <Svg.G filter={`url(#${glowId})`}>
+                      {[0, 90, 180, 270].map((turn) => (
+                        <Svg.Path
+                          key={turn}
+                          d={SHIPPO.petal}
+                          transform={`rotate(${turn} 100 100)`}
+                          fill={`url(#${gradientId})`}
+                        />
+                      ))}
+                    </Svg.G>
+                    {[0, 90, 180, 270].map((turn) => (
+                      <Svg.Path
+                        key={turn}
+                        d={SHIPPO.petal}
+                        transform={`rotate(${turn} 100 100)`}
+                        fill={`url(#${gradientId})`}
+                        stroke="#f3e2c4"
+                        strokeWidth={1}
+                      />
+                    ))}
+                  </>
+                ) : null}
+                {shape === 'seigaiha'
+                  ? SEIGAIHA.map(({ centre: [cx, cy], motif }) => (
+                      <Svg.G key={`${cx} ${cy}`}>
+                        <Svg.Circle cx={cx} cy={cy} r={SEIGAIHA_RADIUS} fill="#141312" />
+                        {motif ? (
+                          <Svg.G filter={`url(#${glowId})`}>
+                            {SEIGAIHA_RINGS.map((r) => (
+                              <Svg.Circle
+                                key={r}
+                                cx={cx}
+                                cy={cy}
+                                r={r}
+                                stroke="#e9cf9f"
+                                strokeWidth={4}
+                                fill="none"
+                              />
+                            ))}
+                          </Svg.G>
+                        ) : null}
+                        {SEIGAIHA_RINGS.map((r) => (
+                          <Svg.Circle
+                            key={r}
+                            cx={cx}
+                            cy={cy}
+                            r={r}
+                            stroke={motif ? '#f3e2c4' : '#c8a882'}
+                            strokeOpacity={motif ? 1 : 0.45}
+                            strokeWidth={motif ? 1.4 : 0.9}
+                            fill="none"
+                          />
+                        ))}
+                      </Svg.G>
+                    ))
+                  : null}
               </Svg.G>
-            ) : null}
-            {shape === 'lantern' ? (
-              // An andon: the light is a blurred shape behind the paper, so
-              // the glow slider is what makes it shine.
-              <>
-                <Svg.Ellipse
-                  cx={100}
-                  cy={102}
-                  rx={44}
-                  ry={54}
-                  fill="#f2b45a"
-                  fillOpacity={0.7}
-                  filter={`url(#${glowId})`}
-                />
-                <Svg.G filter={`url(#${shadowId})`}>
-                  <Svg.Rect x={58} y={34} width={84} height={10} rx={3} fill="#3a2e22" />
-                  <Svg.Rect x={66} y={44} width={68} height={104} fill={`url(#${paperId})`} />
-                  <Svg.Path
-                    d="M100 44V148M66 70H134M66 96H134M66 122H134"
-                    stroke="#3a2e22"
-                    strokeWidth={2}
-                    fill="none"
-                  />
-                  <Svg.Rect
-                    x={66}
-                    y={44}
-                    width={68}
-                    height={104}
-                    stroke="#3a2e22"
-                    strokeWidth={4}
-                    fill="none"
-                  />
-                  <Svg.Rect x={60} y={148} width={80} height={8} rx={2} fill="#3a2e22" />
-                  <Svg.Rect x={66} y={156} width={8} height={10} fill="#3a2e22" />
-                  <Svg.Rect x={126} y={156} width={8} height={10} fill="#3a2e22" />
-                </Svg.G>
-              </>
-            ) : null}
-            {shape === 'seal' ? (
-              // A hakubun seal: the character is the paper showing through
-              // the ink, so it shares the sheet's colour. Set a little askew,
-              // as a hand presses it.
-              <Svg.G filter={`url(#${shadowId})`} transform="rotate(-4 100 100)">
-                <Svg.Rect x={50} y={50} width={100} height={100} rx={6} fill="#b03a2e" />
-                <Svg.Rect
-                  x={58}
-                  y={58}
-                  width={84}
-                  height={84}
-                  rx={3}
-                  stroke="#ebe5d8"
-                  strokeWidth={2.5}
-                  fill="none"
-                />
-                <Svg.Text
-                  x={100}
-                  y={124}
-                  textAnchor="middle"
-                  fill="#ebe5d8"
-                  fontFamily="Zen Kaku Gothic New, sans-serif"
-                  fontSize={64}
-                  fontWeight="bold"
-                >
-                  組
-                </Svg.Text>
-              </Svg.G>
-            ) : null}
+              <Svg.Circle cx={100} cy={100} r={78} stroke="#c8a882" strokeWidth={2} fill="none" />
+              <Svg.Circle
+                cx={100}
+                cy={100}
+                r={84}
+                stroke="#c8a882"
+                strokeOpacity={0.4}
+                strokeWidth={0.75}
+                fill="none"
+              />
+            </Svg.G>
           </Svg>
         </View>
 
@@ -242,9 +327,9 @@ export function FilterStudio() {
           </View>
           <Heading level={3} className="pt-2 text-sm font-bold text-shikkui">
             <Code className="text-hinoki">Svg.FeGaussianBlur</Code>{' '}
-            <Text className="font-normal text-stone-400">(the lantern&apos;s glow)</Text>
+            <Text className="font-normal text-stone-400">(the centre motif&apos;s glow)</Text>
           </Heading>
-          <Control label="stdDeviation" value={glow} unit="" min={0} max={16} onChange={setGlow} />
+          <Control label="stdDeviation" value={glow} unit="" min={0} max={8} onChange={setGlow} />
           <View className="flex flex-row flex-wrap gap-2 pt-2 border-t border-hinoki/18">
             <Button
               onPress={() => {
@@ -252,7 +337,7 @@ export function FilterStudio() {
                 setDy(4)
                 setBlur(6)
                 setOpacity(40)
-                setColour('#000000')
+                setColour('#c8a882')
               }}
               className="px-2.5 py-1 rounded border border-hinoki/18 text-stone-300 hover:border-hinoki/35"
             >
