@@ -98,19 +98,26 @@ export function checkboxIndicator({
   return { className, markClassName }
 }
 
+// The thumb slides and the track fades between its colours (#1450). The
+// thumb moves by its logical inset, `start-1` to `start-4`, which is what is
+// transitioned, so it slides the right way in a right-to-left document with
+// no mirrored transform to keep in step. The state itself changes at once:
+// only the drawing follows it, so a quick second toggle turns the thumb
+// round from wherever it is. With reduced motion it does not slide; the
+// colour still changes.
 export function switchIndicator({ checked, disabled }: { checked: boolean; disabled: boolean }) {
   const className = disabled
-    ? 'absolute start-2 top-3 h-4 w-7 rounded-full bg-hozo-border'
+    ? 'absolute start-2 top-3 h-4 w-7 rounded-full bg-hozo-border transition-colors duration-150 ease-out'
     : checked
-      ? 'absolute start-2 top-3 h-4 w-7 rounded-full bg-hozo-accent'
-      : 'absolute start-2 top-3 h-4 w-7 rounded-full bg-hozo-border-strong'
+      ? 'absolute start-2 top-3 h-4 w-7 rounded-full bg-hozo-accent transition-colors duration-150 ease-out'
+      : 'absolute start-2 top-3 h-4 w-7 rounded-full bg-hozo-border-strong transition-colors duration-150 ease-out'
   const markClassName = checked
     ? disabled
-      ? 'absolute start-4 top-1 size-2 rounded-full bg-hozo-text-subtle'
-      : 'absolute start-4 top-1 size-2 rounded-full bg-hozo-surface'
+      ? 'absolute start-4 top-1 size-2 rounded-full bg-hozo-text-subtle transition-[inset-inline-start,background-color] duration-150 ease-out motion-reduce:transition-colors'
+      : 'absolute start-4 top-1 size-2 rounded-full bg-hozo-surface transition-[inset-inline-start,background-color] duration-150 ease-out motion-reduce:transition-colors'
     : disabled
-      ? 'absolute start-1 top-1 size-2 rounded-full bg-hozo-text-subtle'
-      : 'absolute start-1 top-1 size-2 rounded-full bg-hozo-surface'
+      ? 'absolute start-1 top-1 size-2 rounded-full bg-hozo-text-subtle transition-[inset-inline-start,background-color] duration-150 ease-out motion-reduce:transition-colors'
+      : 'absolute start-1 top-1 size-2 rounded-full bg-hozo-surface transition-[inset-inline-start,background-color] duration-150 ease-out motion-reduce:transition-colors'
   return { className, markClassName }
 }
 
