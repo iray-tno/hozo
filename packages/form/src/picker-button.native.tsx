@@ -1,5 +1,6 @@
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect } from 'react'
 import {
@@ -62,7 +63,7 @@ export function PickerButton({
         focusVisible: !disabled && state.focusVisible,
         'aria-expanded': expanded ?? false,
       }),
-      style,
+      hozoAuthoredStyle(style),
     ]) ?? {},
   )
   return (
