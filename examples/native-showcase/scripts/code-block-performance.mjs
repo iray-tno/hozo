@@ -199,6 +199,7 @@ try {
     'Start scroll measurement',
     'Finish scroll measurement',
     ...[10, 100, 300, 1000].map((count) => `Mount ${count} lines`),
+    ...['no-gutter', 'one-token', 'bare'].map((variant) => `Mount variant ${variant}`),
   ])
     buttons.set(name, centre(await control(name)).map(String))
   const tap = (name) => adb('shell', 'input', 'tap', ...buttons.get(name))
