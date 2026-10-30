@@ -45,7 +45,7 @@ test('alpha keeps a two-tone edge and callers can replace the value-dependent lo
 
 test('thumbs centre with logical inline-start margin rather than a physical horizontal translation', () => {
   for (const thumb of thumbs({ defaultValue: '#ffff00', alpha: true })) {
-    assert.match(thumb, /\b-ms-3\b/)
+    assert.match(thumb, /\s-ms-3\s/)
     assert.match(thumb, /\bsize-6\b/)
     assert.doesNotMatch(thumb, /-translate-x-1\/2/)
   }
