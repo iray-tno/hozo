@@ -47,6 +47,11 @@ export {
   type HozoColorPickerProps as ColorPickerProps,
   type HozoColorPickerProps,
 } from './color-picker.tsx'
+export type {
+  ColorPickerThumb,
+  ColorPickerThumbLook,
+  ColorPickerTrack,
+} from './color-picker-look.ts'
 export { colorName, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 export {
   type Autocomplete,

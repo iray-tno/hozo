@@ -121,6 +121,12 @@
   --color-hozo-focus: var(--color-indigo-600);
   --color-hozo-focus--dark: var(--color-indigo-400);
 
+  /* Polarity follows the chosen color, not the page's light/dark scheme. */
+  --color-hozo-marker-on-light: var(--color-black);
+  --color-hozo-marker-on-light--dark: var(--color-black);
+  --color-hozo-marker-on-dark: var(--color-white);
+  --color-hozo-marker-on-dark--dark: var(--color-white);
+
   /* Destructive actions and error text. The one family not counted from the
    * demo, which barely has one, so these were chosen -- and chosen to clear
    * 4.5:1 on `surface` like the rest. */

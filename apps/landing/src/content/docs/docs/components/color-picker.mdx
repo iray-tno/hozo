@@ -26,3 +26,14 @@ its hex. Try all three:
   with the arrow keys.
 - **`showEyeDropper`** adds a button that picks a colour from the screen, in
   browsers that have the EyeDropper API.
+- **The slider markers choose a light or dark border for each track's colour.**
+  An opposite-colour outer edge keeps the marker visible across gradients and
+  when opacity reveals the surface behind it. These use
+  `hozo-marker-on-light` and `hozo-marker-on-dark`, whose polarity stays the same
+  in both page themes. Keep their contrast when customizing the palette.
+- **`thumbLook({ track, color })`** customizes the value-dependent classes by
+  returning `{ className }`. `track` is `hue`, `saturation`, `lightness` or
+  `alpha`; `color` is a hex sample of that track at its slider value, including
+  opacity for `alpha`. The picker cannot infer the surface behind transparent
+  colours. Keep ordinary focus styling in `thumbClassName`: each slider owns
+  its own keyboard focus.

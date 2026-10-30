@@ -47,6 +47,11 @@ export {
   type HozoColorPickerProps as ColorPickerProps,
   type HozoColorPickerProps,
 } from './color-picker.native.tsx'
+export type {
+  ColorPickerThumb,
+  ColorPickerThumbLook,
+  ColorPickerTrack,
+} from './color-picker-look.ts'
 export { colorName, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 export {
   HozoCombobox as Combobox,

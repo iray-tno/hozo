@@ -1,6 +1,32 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { colorName, colorTracks, hexToHsla, hslaToHex, parseHex } from './color-rules.ts'
+import {
+  colorName,
+  colorThumbs,
+  colorTracks,
+  hexToHsla,
+  hslaToHex,
+  parseHex,
+} from './color-rules.ts'
+
+test('thumb samples follow track stops rather than reusing the selected color', () => {
+  const black = { h: 0, s: 0, l: 0, a: 0.5 }
+  assert.deepEqual(colorThumbs(black), {
+    hue: '#ff0000',
+    saturation: '#000000',
+    lightness: '#000000',
+    alpha: '#00000080',
+  })
+  assert.deepEqual(colorThumbs({ h: 359, s: 50, l: 50, a: 1 }), {
+    hue: '#ff0000',
+    saturation: '#c04042',
+    lightness: '#bf4042',
+    alpha: '#bf4042',
+  })
+  assert.equal(colorThumbs({ h: 0, s: 100, l: 25, a: 0 }).lightness, '#800000')
+  assert.equal(colorThumbs({ h: 0, s: 100, l: 75, a: 0 }).lightness, '#ff8080')
+  assert.equal(colorThumbs({ h: 0, s: 100, l: 100, a: 1 }).lightness, '#ffffff')
+})
 
 test('hex is read in its four lengths, with or without #, and refused otherwise', () => {
   assert.deepEqual(parseHex('#f00'), { r: 255, g: 0, b: 0, a: 1 })

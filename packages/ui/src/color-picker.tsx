@@ -8,6 +8,7 @@
  */
 
 import { ColorPicker, type ColorPickerProps, cx } from '@hozo/core'
+import type { ColorPickerThumbLook } from '@hozo/patterns'
 
 export type HozoColorPickerProps = ColorPickerProps
 
@@ -17,7 +18,24 @@ const swatch =
 const selected = 'ring-2 ring-offset-2 ring-hozo-accent'
 const slider = 'relative h-3 w-full rounded-full'
 const thumb =
-  'absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-hozo-surface bg-transparent shadow-hozo-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
+  'absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-transparent shadow-hozo-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
+
+export const colorThumbLook: ColorPickerThumbLook = ({ color }) => {
+  const linear = (at: number) => {
+    const channel = Number.parseInt(color.slice(at, at + 2), 16) / 255
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  }
+  const luminance = 0.2126 * linear(1) + 0.7152 * linear(3) + 0.0722 * linear(5)
+  // Equal black/white contrast at sqrt(1.05 * .05) - .05. The opposite
+  // outline keeps the circle visible where a gradient changes under its
+  // edge, or alpha reveals a surface whose color the picker cannot know.
+  return {
+    className:
+      luminance > Math.sqrt(1.05 * 0.05) - 0.05
+        ? 'border-hozo-marker-on-light outline-1 outline-hozo-marker-on-dark'
+        : 'border-hozo-marker-on-dark outline-1 outline-hozo-marker-on-light',
+  }
+}
 const input =
   'w-32 rounded-hozo-control border border-hozo-border-strong bg-hozo-surface px-3 py-2 font-mono text-sm text-hozo-text focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
 const eyeDropper =
@@ -31,6 +49,7 @@ function StyledColorPicker({
   selectedSwatchClassName,
   sliderClassName,
   thumbClassName,
+  thumbLook = colorThumbLook,
   inputClassName,
   eyeDropperClassName,
   ...rest
@@ -43,6 +62,7 @@ function StyledColorPicker({
       selectedSwatchClassName={cx(selected, selectedSwatchClassName)}
       sliderClassName={cx(slider, sliderClassName)}
       thumbClassName={cx(thumb, thumbClassName)}
+      thumbLook={thumbLook}
       inputClassName={cx(input, inputClassName)}
       eyeDropperClassName={cx(eyeDropper, eyeDropperClassName)}
     />
