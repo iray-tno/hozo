@@ -53,7 +53,13 @@ function longest(durations: string, delays: string): number {
 function exitDuration(element: Element): number {
   const style = getComputedStyle(element)
   return Math.max(
-    longest(style.transitionDuration, style.transitionDelay),
+    // `transition-none` -- and so `motion-reduce:transition-none` -- sets
+    // the property list to `none` and leaves the duration where the other
+    // classes put it. Nothing transitions then, and no `transitionend` will
+    // come to end the exit early.
+    style.transitionProperty === 'none'
+      ? 0
+      : longest(style.transitionDuration, style.transitionDelay),
     style.animationName === 'none' ? 0 : longest(style.animationDuration, style.animationDelay),
   )
 }

@@ -180,9 +180,10 @@ function webTree(show: boolean) {
 }
 
 /** A computed style with a 200ms transition, or none. */
-function withComputedStyle(duration: string, run: () => void | Promise<void>) {
+function withComputedStyle(duration: string, run: () => void | Promise<void>, property = 'all') {
   const previous = (globalThis as Record<string, unknown>).getComputedStyle
   ;(globalThis as Record<string, unknown>).getComputedStyle = () => ({
+    transitionProperty: property,
     transitionDuration: duration,
     transitionDelay: '0s',
     animationName: 'none',
@@ -250,13 +251,29 @@ test('web: a transition from a descendant is not the exit', async () => {
 })
 
 test('web: with no transition, closing removes the child at once', () => {
-  // Including under `motion-reduce:transition-none`, which computes to 0s.
   withComputedStyle('0s', () => {
     const root = mount(webTree(true), nodeMock)
     update(root, webTree(false))
     assert.equal(root.toJSON(), null)
     renderer.act(() => root.unmount())
   })
+})
+
+test('web: under transition-none the duration left by other classes does not hold the exit', () => {
+  // `motion-reduce:transition-none` sets `transition-property: none` and
+  // nothing else, so a `duration-200` beside it still computes to 0.2s --
+  // measured in Chrome on the docs Accordion (#1442). No `transitionend`
+  // follows, and the element would wait out the whole duration inert.
+  withComputedStyle(
+    '0.2s',
+    () => {
+      const root = mount(webTree(true), nodeMock)
+      update(root, webTree(false))
+      assert.equal(root.toJSON(), null)
+      renderer.act(() => root.unmount())
+    },
+    'none',
+  )
 })
 
 // Hozo's own Native popover fades in and out with the same timing, so a
