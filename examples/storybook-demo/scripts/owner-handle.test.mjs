@@ -68,8 +68,10 @@ window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelecto
           const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
           pages.push(page)
           page.on('pageerror', (error) => errors.push(error.message))
+          // Normalize the UA border on both subjects, as preflight does.
+          // Padding32 + border4 otherwise forces used width36 despite width32.
           await page.setContent(
-            `<style>.owner-panel{width:300px;height:400px}</style><style data-candidates>${css}</style><div id="root"></div>`,
+            `<style>.owner-panel{width:300px;height:400px}.owner-handle{border:0;box-sizing:border-box}</style><style data-candidates>${css}</style><div id="root"></div>`,
           )
           await page.addScriptTag({ content: bundle.outputFiles[0].text })
           await page.evaluate((value) => window.mount(value), interactive)

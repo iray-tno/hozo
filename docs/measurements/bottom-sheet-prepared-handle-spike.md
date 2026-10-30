@@ -390,3 +390,12 @@ Local validation is syntax, CSS preparation and cache checks only, with no
 browser launch. Until a current-head CI receipt is inspected, browser agreement
 is **not measured**, not implicitly green because the harness was added. This
 does not add a new Web compilation mode or authorize a Native/default rollout.
+
+The first browser CI run (`41141137056`) reached the interactive resting
+assertion and observed width36 with correct padding16/background/opacity.
+The fixture had omitted a shared UA-border reset: the button's padding32 plus
+border4 cannot fit into a border-box width32. Both candidate and oracle now
+receive the same explicit border0/border-box baseline, like preflight. The
+expected width32 assertion remains; no utility comparator or product code
+changed. The failed run stays failed and browser evidence awaits the corrected
+current-head run.
