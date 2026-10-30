@@ -1,6 +1,7 @@
 import { useHozoI18n, useHozoMessage } from '@hozo/behaviors'
 import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoSplitTextStyle } from '@hozo/engine'
+import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useEffect, useState } from 'react'
 import {
@@ -315,7 +316,7 @@ function CalendarDay({
         'data-hozo-range-end': day.rangeEnd,
         'data-hozo-in-range': day.inRange,
       }),
-      style,
+      hozoAuthoredStyle(style),
     ]) ?? {},
   )
   return (
@@ -386,7 +387,7 @@ function CalendarMonthButton({
         focused: !disabled && state.focused,
         focusVisible: !disabled && state.focusVisible,
       }),
-      style,
+      hozoAuthoredStyle(style),
     ]) ?? {},
   )
   return (
@@ -521,10 +522,14 @@ export function HozoCalendar(props: HozoCalendarProps) {
   // not drawn on a Native View. Only labels owned here receive these
   // declarations; this is not a provider or a clone of custom day layouts.
   const [rootBox, rootText] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), style]) ?? {},
+    StyleSheet.flatten([hozoClasses(className, nonControlClassFacts), hozoAuthoredStyle(style)]) ??
+      {},
   )
   const [headerBox, headerText] = hozoSplitTextStyle(
-    StyleSheet.flatten([hozoClasses(headerClassName, nonControlClassFacts), headerStyle]) ?? {},
+    StyleSheet.flatten([
+      hozoClasses(headerClassName, nonControlClassFacts),
+      hozoAuthoredStyle(headerStyle),
+    ]) ?? {},
   )
   const [gridBox, gridText] = hozoSplitTextStyle(
     StyleSheet.flatten(hozoClasses(gridClassName, nonControlClassFacts)) ?? {},

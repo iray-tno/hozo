@@ -279,6 +279,11 @@ The [pattern follow-up](../measurements/pattern-authored-gap-composition.md)
 also covers four fallback owners and twelve root/secondary authored props.
 Other owners and the full gap ordering assessment remain open;
 the gap barrier is not removed by that fix.
+The [Native consumer inventory](../measurements/native-gap-owner-inventory.md)
+now records direct resolver/projection consumers, class-only owners and the
+remaining CodeBlock/CodeLines review. Its executable ledger prevents an
+unreviewed new consumer from silently joining that bounded source inventory;
+helper presence is not a per-slot correctness or gap-eligibility proof.
 
 Policy v6 assesses five exact positive ARIA owner facts and their conjunctions
 with already-supported interactions. One canonical input's order survives

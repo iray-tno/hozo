@@ -283,6 +283,20 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    // Native gap inventory discovers these package roots and scans shared as
+    // well as .native modules; an upstream build output is not its input.
+    'packages/core/src/generated/gap-styles.ts',
+    'packages/typography/src/code-lines.native.tsx',
+    'packages/patterns/src/code-block.native.tsx',
+    'packages/patterns/src/control-indicator.native.tsx',
+    'packages/form/src/field.native.tsx',
+    'packages/media/src/index.native.ts',
+    'packages/webview/src/index.native.tsx',
+    'packages/form/src/calendar.native.tsx',
+    'packages/form/src/calendar-rules.ts',
+    'packages/form/src/calendar-format.ts',
+    'packages/form/src/time-rules.ts',
+    'packages/form/src/time-format.ts',
     'packages/form/src/native-select.native.tsx',
     'packages/form/src/date-picker-frame.native.ts',
     'packages/form/src/picker-button.native.tsx',
