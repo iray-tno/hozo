@@ -157,6 +157,12 @@ expect(/fontSize:/.test(bundle), 'text styles reached the StyleSheet')
 // run over; 485,370 to 485,325 through #1309, #1314 and #1316; a Dialog scrim blur
 // layer and the patterns' Native backdrop adapter (#1320) 488,035; shared
 // Tailwind ordering templates in engine (#1324) 489,687.
+//
+// Raised to 510 KB with maintainer approval for #1424: 497,613 at 4b500340
+// grew to 504,970 at cf6be6b7, then 505,291 at cb0e9c83 on Windows. The
+// latter two have the same 146 modules; the last 321 is form (+272) and
+// behaviors (+49). The barrel check still passes. This accepts the measured
+// cost with 4,709 of room; it is not a runtime size reduction.
 const hozoBytes = (() => {
   const starts = [...bundle.matchAll(/__d\(function/g)].map((match) => match.index)
   starts.push(bundle.length)
@@ -170,8 +176,8 @@ const hozoBytes = (() => {
 })()
 expect(hozoBytes > 0, "Hozo's own modules were found in the bundle by name")
 expect(
-  hozoBytes < 500_000,
-  `Hozo's modules stay below 500 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
+  hozoBytes < 510_000,
+  `Hozo's modules stay below 510 KB of the Native dev bundle (were ${hozoBytes} bytes)`,
 )
 
 // The cause behind the six raises above, watched directly rather than
