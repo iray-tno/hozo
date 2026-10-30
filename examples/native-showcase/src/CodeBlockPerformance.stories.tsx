@@ -21,6 +21,18 @@ const plainLine = ({ item }: { item: CodeLine }) => (
   <Text style={plainStyle}>{plainText(item)}</Text>
 )
 
+// The 1000-line block with one part of it taken away at a time, mounted in the
+// same run as the whole block and the plain list, so the difference says what
+// that part costs (#1420): the gutter (numbers and mark glyphs), the tokens as
+// nested coloured Text, or both, which leaves the rows themselves.
+const VARIANTS = ['no-gutter', 'one-token', 'bare'] as const
+type Variant = (typeof VARIANTS)[number]
+const variantLines = (lines: CodeLine[], variant: Variant) =>
+  lines.map((line) => ({
+    tokens: variant === 'no-gutter' ? line.tokens : plainText(line),
+    mark: variant === 'one-token' ? line.mark : undefined,
+  }))
+
 function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
   // Story modules are imported by the ordinary showcase too. Allocate this
   // matrix only when the diagnostic is opened, before any measured input.
@@ -46,11 +58,16 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
       ),
     [fixtures],
   )
+  const variants = useMemo(() => {
+    const lines = fixtures.get(1000)?.[0] ?? []
+    return new Map(VARIANTS.map((variant) => [variant, variantLines(lines, variant)]))
+  }, [fixtures])
   const [selection, setSelection] = useState<{
     count: (typeof CODE_BLOCK_COUNTS)[number]
     tick: number
     edit: number
     baseline?: boolean
+    variant?: Variant
   } | null>(null)
   const scroll = useRef<ScrollView>(null)
   const operation = useRef<{ name: string; started: number; gaps: number[]; last: number } | null>(
@@ -176,9 +193,11 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
     [stop, stopSettling],
   )
   const lines = selection
-    ? selection.edit
-      ? edits.get(selection.count)?.[selection.edit - 1]
-      : fixtures.get(selection.count)?.[selection.tick]
+    ? selection.variant
+      ? variants.get(selection.variant)
+      : selection.edit
+        ? edits.get(selection.count)?.[selection.edit - 1]
+        : fixtures.get(selection.count)?.[selection.tick]
     : undefined
 
   return (
@@ -208,6 +227,19 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
         >
           <Text>Plain list</Text>
         </Pressable>
+        {VARIANTS.map((variant) => (
+          <Pressable
+            key={variant}
+            accessibilityRole="button"
+            accessibilityLabel={`Mount variant ${variant}`}
+            onPress={() => {
+              begin(`variant-${variant}-mount`)
+              setSelection({ count: 1000, tick: 0, edit: 0, variant })
+            }}
+          >
+            <Text>{variant}</Text>
+          </Pressable>
+        ))}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Clear block"
@@ -271,9 +303,9 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
         <View style={{ flex: 1 }}>
           {selection ? (
             <View
-              key={selection.baseline ? 'baseline' : selection.count}
+              key={selection.baseline ? 'baseline' : (selection.variant ?? selection.count)}
               onLayout={() => {
-                if (/^(mount-|baseline-)/.test(operation.current?.name ?? ''))
+                if (/^(mount-|baseline-|variant-)/.test(operation.current?.name ?? ''))
                   finish('native-layout-callback')
               }}
             >
@@ -289,7 +321,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
                 <CodeBlock
                   title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
                   lines={lines ?? []}
-                  lineNumbers
+                  lineNumbers={!selection.variant || selection.variant === 'one-token'}
                   wrap
                   maxHeight={height * 0.6}
                   // Every size, so the matrix compares like with like; `auto`
@@ -320,9 +352,9 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
         >
           {selection ? (
             <View
-              key={selection.baseline ? 'baseline' : selection.count}
+              key={selection.baseline ? 'baseline' : (selection.variant ?? selection.count)}
               onLayout={() => {
-                if (/^(mount-|baseline-)/.test(operation.current?.name ?? ''))
+                if (/^(mount-|baseline-|variant-)/.test(operation.current?.name ?? ''))
                   finish('native-layout-callback')
               }}
             >
@@ -339,7 +371,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
                 <CodeBlock
                   title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
                   lines={lines ?? []}
-                  lineNumbers
+                  lineNumbers={!selection.variant || selection.variant === 'one-token'}
                   wrap
                   style={{
                     backgroundColor: '#f8fafc',

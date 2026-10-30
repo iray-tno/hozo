@@ -199,6 +199,7 @@ try {
     'Start scroll measurement',
     'Finish scroll measurement',
     ...[10, 100, 300, 1000].map((count) => `Mount ${count} lines`),
+    ...['no-gutter', 'one-token', 'bare'].map((variant) => `Mount variant ${variant}`),
   ])
     buttons.set(name, centre(await control(name)).map(String))
   const tap = (name) => adb('shell', 'input', 'tap', ...buttons.get(name))
@@ -278,6 +279,17 @@ try {
         await control('Block cleared')
         await measure(`baseline-${round}-mount`, () => tap('Mount plain list'), 'baseline-mount')
         await scrollWindows(`baseline-${round}`, count)
+        // The block with one part taken away, mounted only: what each part
+        // costs at mount is #1420's question.
+        for (const variant of ['no-gutter', 'one-token', 'bare']) {
+          tap('Clear block')
+          await control('Block cleared')
+          await measure(
+            `variant-${variant}-${round}-mount`,
+            () => tap(`Mount variant ${variant}`),
+            `variant-${variant}-mount`,
+          )
+        }
       }
     }
   }

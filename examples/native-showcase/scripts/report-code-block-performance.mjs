@@ -11,7 +11,11 @@ assert.equal(evidence.passed, true, 'an incomplete run is not a completed matrix
 const edited = evidence.cases.some((sample) => sample.name.includes('-edit-'))
 // And 15 more once a plain list was measured beside the 1000-line block.
 const based = evidence.cases.some((sample) => sample.name.startsWith('baseline-'))
-assert.equal(evidence.cases.length, (edited ? 120 : 84) + (based ? 15 : 0))
+// And 9 once three variants of that block were mounted beside it (#1420).
+const variants = evidence.cases.some((sample) => sample.name.startsWith('variant-'))
+  ? ['variant-no-gutter', 'variant-one-token', 'variant-bare']
+  : []
+assert.equal(evidence.cases.length, (edited ? 120 : 84) + (based ? 15 : 0) + variants.length * 3)
 const percentile = (values, fraction) => {
   assert.ok(values.length)
   const sorted = [...values].sort((a, b) => a - b)
@@ -27,7 +31,7 @@ const result = {
   runtime: evidence.runtime,
   groups: [],
 }
-for (const count of [10, 100, 300, 1000, ...(based ? ['baseline'] : [])]) {
+for (const count of [10, 100, 300, 1000, ...(based ? ['baseline'] : []), ...variants]) {
   for (const phase of ['mount', 'update', 'edit', 'scroll']) {
     const cases = evidence.cases.filter(
       (sample) => sample.name.startsWith(`${count}-`) && sample.name.includes(`-${phase}`),
@@ -36,7 +40,8 @@ for (const count of [10, 100, 300, 1000, ...(based ? ['baseline'] : [])]) {
       assert.ok(
         (count === 10 && phase === 'scroll') ||
           (!edited && phase === 'edit') ||
-          (count === 'baseline' && phase !== 'mount' && phase !== 'scroll'),
+          (count === 'baseline' && phase !== 'mount' && phase !== 'scroll') ||
+          (variants.includes(count) && phase !== 'mount'),
       )
       continue
     }
