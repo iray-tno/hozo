@@ -205,6 +205,7 @@
         "$TURBO_ROOT$/packages/engine/src/gap-styles.ts",
         "$TURBO_ROOT$/packages/engine/src/spread-styles.ts",
         "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
+        "$TURBO_ROOT$/crates/hozo_native/src/owner_style.rs",
         "$TURBO_ROOT$/crates/hozo_ir/src/theme.rs",
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind.rs",
         "$TURBO_ROOT$/apps/landing/src/examples/ui/**",

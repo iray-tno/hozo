@@ -201,3 +201,17 @@ the theme test initially used `name` instead of the actual `token` API and
 the one-shot test expected the wrong error wording. These are corrected
 probes/implementation findings, not evidence of a flake. No production Metro
 app, physical device, GPU, AT or full-root JS suite was run locally.
+
+CI follow-up: run `41087267360` passed Rust, package tests, text proof stages,
+lint and both platform smoke jobs, but failed Native Showcase's committed
+fixture reproducibility check. The compiler-source receipt had not been
+regenerated after the backend/NAPI edits. Regeneration changes only five
+source hashes and adds `owner_style.rs` to the pinned graph (33 -> 34); all
+factory code, case output hashes and route decisions are unchanged. The
+new file also has an independently checked hash and a Showcase source-cache
+input. The strict generator `--check` assertion remains intact.
+
+After this correction, targeted text/cache checks pass 16/16 and the complete
+Showcase unit suite passes 239 tests with zero failures and its one existing
+Windows SIGTERM-fixture skip. No retry of the unchanged CI run was used as a
+substitute for fixing the stale receipt.

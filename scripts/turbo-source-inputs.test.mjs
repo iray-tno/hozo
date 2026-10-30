@@ -214,6 +214,7 @@ const reads = {
     'examples/showcase/src/patterns.tsx',
   ],
   '@hozo/example-native-showcase#test': [
+    'crates/hozo_native/src/owner_style.rs',
     'packages/engine/src/generated/gap-styles.ts',
     'packages/engine/src/authored-gap.ts',
     'packages/engine/src/gap-styles.ts',
