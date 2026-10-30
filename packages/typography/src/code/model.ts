@@ -98,6 +98,57 @@ function normalizeLine(line: CodeLine, tabSize: number): NormalizedLine[] {
   return result
 }
 
+/** A token as one theme draws it. */
+export interface DrawnCodeToken {
+  text: string
+  color?: string
+  italic?: boolean
+  bold?: boolean
+  underline?: boolean
+}
+
+/**
+ * The tokens as `theme` draws them, with each run of neighbours that would be
+ * drawn the same joined into one, so a Native line nests one `Text` per run
+ * rather than per token (#1431). Highlighters split far finer than they
+ * colour: punctuation, whitespace and plain identifiers often share a style.
+ *
+ * Only an unchanged look is joined. Colour, italic, bold and underline must
+ * all match, with one exception: whitespace with no underline draws nothing,
+ * so its colour is not compared. Its weight and slant still are, since a
+ * font's bold or italic space is not always as wide.
+ */
+export function drawnCodeTokens(tokens: readonly CodeToken[], theme: string): DrawnCodeToken[] {
+  const result: DrawnCodeToken[] = []
+  for (const token of tokens) {
+    if (!token.text) continue
+    const drawn: DrawnCodeToken = {
+      text: token.text,
+      color:
+        typeof token.color === 'string'
+          ? token.color
+          : (token.color?.[theme] ?? token.color?.light),
+      italic: token.italic || undefined,
+      bold: token.bold || undefined,
+      underline: token.underline || undefined,
+    }
+    const last = result.at(-1)
+    if (
+      last &&
+      last.italic === drawn.italic &&
+      last.bold === drawn.bold &&
+      last.underline === drawn.underline &&
+      (last.color === drawn.color || (!drawn.underline && (blank(last.text) || blank(drawn.text))))
+    ) {
+      if (blank(last.text)) last.color = drawn.color
+      last.text += drawn.text
+    } else result.push(drawn)
+  }
+  return result
+}
+
+const blank = (text: string) => /^\s+$/.test(text)
+
 /**
  * The line that needs the most columns, for a windowed block to hold its
  * scrolling width open with before the line itself is mounted.

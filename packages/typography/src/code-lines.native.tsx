@@ -12,7 +12,13 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
-import type { CodeLine, CodeMark, normalizeCodeLines } from './code/model.ts'
+import {
+  type CodeLine,
+  type CodeMark,
+  type DrawnCodeToken,
+  drawnCodeTokens,
+  type normalizeCodeLines,
+} from './code/model.ts'
 import { codeKey, useCodeRows, useNormalizedCodeLines } from './code/reuse.ts'
 
 export { useNormalizedCodeLines }
@@ -67,6 +73,17 @@ export function codeRowKey(
 
 const split = (style: CodeStyle) =>
   hozoSplitTextStyle(StyleSheet.flatten(style) ?? {}) as [ViewStyle, TextStyle]
+
+// Only what the run sets, so that on the line itself an unset colour still
+// leaves the line's own.
+function runStyle(run: DrawnCodeToken | undefined): TextStyle {
+  return {
+    ...(run?.color ? { color: run.color } : {}),
+    ...(run?.italic ? { fontStyle: 'italic' } : {}),
+    ...(run?.bold ? { fontWeight: '700' } : {}),
+    ...(run?.underline ? { textDecorationLine: 'underline' } : {}),
+  }
+}
 
 /** A line after `normalizeCodeLines`: its tokens are always a list. */
 export type NormalizedCodeLine = ReturnType<typeof normalizeCodeLines>[number]
@@ -133,6 +150,7 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
     ])
     const tokens = line.tokens
     const content = tokens.map((token) => token.text).join('')
+    const runs = drawnCodeTokens(tokens, theme)
     return (
       <View key={index} style={[{ flexDirection: 'row', minHeight: lineHeight }, lineBox]}>
         {props.renderGutter?.(line, index)}
@@ -143,25 +161,19 @@ export function useCodeLineRows(props: CodeLinesProps): CodeLineRows {
             { fontFamily: 'monospace', fontSize, lineHeight },
             text,
             lineText,
+            // A line drawn in one style needs no nested Text: the run's style
+            // goes on the line itself, which is the same drawing (#1431).
+            runs.length === 1 ? runStyle(runs[0]) : undefined,
             { flexGrow: 1, flexShrink: props.wrap ? 1 : 0, minWidth: 0 },
           ]}
         >
-          {tokens.map((token, at) => (
-            <Text
-              key={at}
-              style={{
-                color:
-                  typeof token.color === 'string'
-                    ? token.color
-                    : (token.color?.[theme] ?? token.color?.light),
-                fontStyle: token.italic ? 'italic' : undefined,
-                fontWeight: token.bold ? '700' : undefined,
-                textDecorationLine: token.underline ? 'underline' : undefined,
-              }}
-            >
-              {token.text}
-            </Text>
-          ))}
+          {runs.length === 1
+            ? runs[0]?.text
+            : runs.map((run, at) => (
+                <Text key={at} style={runStyle(run)}>
+                  {run.text}
+                </Text>
+              ))}
         </Text>
       </View>
     )
