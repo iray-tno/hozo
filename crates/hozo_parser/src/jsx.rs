@@ -338,6 +338,29 @@ impl<'r, 'a, 'd> Visit<'a> for PrimitiveFinder<'r, 'a, 'd> {
                 // would compile them a second time.
                 return;
             }
+        } else if matches!(it.opening_element.name, JSXElementName::MemberExpression(_)) {
+            // `<Svg.Rect>`, `<TermList.Term>`: `build_node` is what knows
+            // which members are primitives, so it is asked directly. These
+            // used to be passed over here, so `{rows.map(() => <Svg.Text/>)}`
+            // inside an `<Svg>` reached the DOM with its classes raw and no
+            // diagnostic, while the same element written at the top of a
+            // component compiled. A member it does not model is someone
+            // else's component, and the walk below looks inside it.
+            if let Some(node) = build_node(
+                it,
+                self.scope,
+                self.diagnostics,
+                self.consumed,
+                self.expression_container,
+            ) {
+                self.nested.push(NestedNode {
+                    span: to_span(it.span()),
+                    node,
+                    enclosing: self.enclosing.clone(),
+                    forwarded: Vec::new(),
+                });
+                return;
+            }
         }
         // Keeps descending otherwise: `<ProfileCard><Text/></ProfileCard>` and
         // `{rows.map(() => <Text/>)}` both hide one further down.
@@ -2692,6 +2715,42 @@ mod tests {
                 vec!["in=\"SourceGraphic\"", "result=\"effect\""]
             );
         }
+    }
+
+    #[test]
+    fn svg_members_inside_an_expression_are_compiled_in_place() {
+        use hozo_ir::{Child, Primitive, SvgElement};
+        for (body, element) in [
+            (
+                "{lines.map((line) => <Svg.Text key={line} className=\"fill-red-500\">{line}</Svg.Text>)}",
+                SvgElement::Text,
+            ),
+            (
+                "{shown ? <Svg.Rect className=\"fill-red-500\" /> : null}",
+                SvgElement::Rect,
+            ),
+        ] {
+            let source = format!(
+                "import {{ Svg }} from '@hozo/svg'; const el = <Svg viewBox=\"0 0 1 1\">{body}</Svg>"
+            );
+            let output = crate::parse_tsx(&source);
+            assert_eq!(output.roots.len(), 1);
+            let [Child::Verbatim { nested, .. }] = output.roots[0].node.children.as_slice() else {
+                panic!("expected one carried child: {:?}", output.roots[0].node.children);
+            };
+            assert_eq!(nested.len(), 1, "{body}");
+            assert_eq!(nested[0].node.primitive, Primitive::Svg(element));
+            assert!(!nested[0].node.style.is_empty(), "its class compiles: {body}");
+        }
+        // A member the compiler does not model is still looked inside.
+        let output = crate::parse_tsx(
+            "import { View } from '@hozo/core'; const el = <View>{a ? <Card.Body><View className=\"p-4\" /></Card.Body> : null}</View>",
+        );
+        let [Child::Verbatim { nested, .. }] = output.roots[0].node.children.as_slice() else {
+            panic!("expected one carried child");
+        };
+        assert_eq!(nested.len(), 1);
+        assert_eq!(nested[0].node.primitive, Primitive::View);
     }
 
     #[test]
