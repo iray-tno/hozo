@@ -90,4 +90,16 @@ test('each track runs through the colours its slider moves through, opaque excep
   // The colour itself at zero alpha, not `transparent`, so no ramp through grey.
   const opaque = hslaToHex({ h: 217, s: 91, l: 60, a: 1 })
   assert.equal(tracks.alpha, `linear-gradient(to right, ${opaque}00, ${opaque})`)
+
+  const rtlTracks = colorTracks({ h: 217, s: 91, l: 60, a: 0.5 }, true)
+  assert.match(rtlTracks.hue, /^linear-gradient\(to left, #ff0000, .*, #ff0000\)$/)
+  assert.equal(
+    rtlTracks.saturation,
+    `linear-gradient(to left, ${hslaToHex({ h: 217, s: 0, l: 60, a: 1 })}, ${hslaToHex({ h: 217, s: 100, l: 60, a: 1 })})`,
+  )
+  assert.equal(
+    rtlTracks.lightness,
+    `linear-gradient(to left, #000000, ${hslaToHex({ h: 217, s: 91, l: 50, a: 1 })}, #ffffff)`,
+  )
+  assert.equal(rtlTracks.alpha, `linear-gradient(to left, ${opaque}00, ${opaque})`)
 })

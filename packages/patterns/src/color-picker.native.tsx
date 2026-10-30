@@ -3,7 +3,14 @@ import { usePressableInteraction } from '@hozo/behaviors/pressable-interaction'
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
-import { type StyleProp, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
+import {
+  I18nManager,
+  type StyleProp,
+  TextInput,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 import type { ColorPickerThumbLook, ColorPickerTrack } from './color-picker-look.ts'
 import { colorThumbs, colorTracks, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
@@ -130,7 +137,7 @@ export function HozoColorPicker({
     if (next) update(alpha ? next : { ...next, a: 1 })
   }
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
-  const tracks = colorTracks(hsla)
+  const tracks = colorTracks(hsla, I18nManager.isRTL)
   const samples = thumbLook ? colorThumbs(hsla) : undefined
   const thumbClasses = (track: ColorPickerTrack) =>
     [thumbClassName, samples && thumbLook?.({ track, color: samples[track] }).className]

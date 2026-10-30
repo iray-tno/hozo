@@ -8,6 +8,7 @@ import { build } from 'esbuild'
 
 const ui = fileURLToPath(new URL('../../../packages/ui/', import.meta.url))
 const file = path.join(ui, 'src/color-picker.tsx')
+const sliderFile = path.join(ui, 'src/slider.tsx')
 
 /** Also accepts the retained base source for a controlled before/after probe. */
 export async function colorPickerFixture(source = readFileSync(file, 'utf8')) {
@@ -15,6 +16,7 @@ export async function colorPickerFixture(source = readFileSync(file, 'utf8')) {
   const compiler = createCompiler(theme)
   const cache = openCandidateCache()
   cache.scanFile(file, source, 1)
+  cache.scanFile(sliderFile, readFileSync(sliderFile, 'utf8'), 1)
   const compiled = lowerModule(source, file, file, compiler, '')
   if (!compiled) throw new Error('ColorPicker UI did not compile')
   const fixture = await build({
@@ -23,11 +25,17 @@ export async function colorPickerFixture(source = readFileSync(file, 'utf8')) {
         import {createRoot} from 'react-dom/client';
         import {flushSync} from 'react-dom';
         import {ColorPicker} from ${JSON.stringify(file)};
+        import {Slider} from ${JSON.stringify(sliderFile)};
         const root = createRoot(document.getElementById('root'));
         window.colorChanges = [];
+        window.sliderChanges = [];
         window.renderColorPicker = (props) => flushSync(() => root.render(createElement(ColorPicker, {
           accessibilityLabel: 'Marker contrast', alpha:true,
           onChange:(value) => window.colorChanges.push(value), ...props
+        })));
+        window.renderSlider = (props) => flushSync(() => root.render(createElement(Slider, {
+          accessibilityLabel: 'Level',
+          onValueChange:(value) => window.sliderChanges.push(value), ...props
         })));`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
     },
@@ -66,8 +74,22 @@ export async function colorPickerContrast(page) {
     nodes.map((node) => {
       const style = getComputedStyle(node)
       const box = node.getBoundingClientRect()
+      const track = node.parentElement.getBoundingClientRect()
+      const now = Number(node.getAttribute('aria-valuenow'))
+      const min = Number(node.getAttribute('aria-valuemin'))
+      const max = Number(node.getAttribute('aria-valuemax'))
+      const fraction = max === min ? 0 : (now - min) / (max - min)
+      const rtl = style.direction === 'rtl'
+      const center = box.x + box.width / 2
+      const expectedCenter = rtl
+        ? track.right - fraction * track.width
+        : track.left + fraction * track.width
       return {
         name: node.getAttribute('aria-label'),
+        now,
+        center,
+        expectedCenter,
+        offset: center - expectedCenter,
         border:
           style.borderTopStyle !== 'none' && Number.parseFloat(style.borderTopWidth) > 0
             ? style.borderTopColor
@@ -76,7 +98,11 @@ export async function colorPickerContrast(page) {
           style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0
             ? style.outlineColor
             : null,
-        x: Math.floor(box.x + box.width / 2),
+        // Sample inside the 12px rounded-full track cap when the thumb center sits on an endpoint.
+        x: Math.min(
+          Math.max(Math.floor(center), Math.ceil(track.left) + 2),
+          Math.floor(track.right) - 3,
+        ),
         y: Math.floor(box.y + box.height / 2),
       }
     }),
