@@ -24,6 +24,7 @@ import { createContext, createElement, type ReactNode, useCallback, useContext }
 export const hozoMessages = {
   'hozo.code.label': 'Code',
   'hozo.code.contents': 'Code contents: {title}',
+  'hozo.code.lines': '{title}, {count} lines',
   'hozo.code.added': 'Added',
   'hozo.code.removed': 'Removed',
   'hozo.code.highlighted': 'Highlighted',
