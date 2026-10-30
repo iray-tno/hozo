@@ -1,8 +1,20 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { openCandidateCache, prepareTailwindContext } from './index.ts'
+import { createCompiler, openCandidateCache, prepareTailwindContext } from './index.ts'
 import { loadNativeBinding, nativePackageName } from './native-loader.ts'
+
+test('the host addon returns owner-style metadata only for an explicit assessed request', () => {
+  const compiler = createCompiler()
+  const source = `import {Pressable} from '@hozo/core'; export const X=()=> <Pressable className="p-2 focus-visible:opacity-50"/>`
+  const ordinary = compiler.compileNativeModule(source)
+  const prepared = compiler.compileNativeModule(source, undefined, undefined, { ownerStyle: true })
+  assert.ok(ordinary.components[0]!.ownerStyle == null)
+  assert.ok(prepared.components[0]!.ownerStyle?.callback)
+  assert.equal(prepared.components[0]!.ownerStyle!.focusVisible, true)
+  assert.ok(prepared.components[0]!.jsx.includes(prepared.components[0]!.ownerStyle!.expression))
+  assert.equal(prepared.components[0]!.styles, ordinary.components[0]!.styles)
+})
 
 test('the host addon exposes compatible candidate replay on every platform smoke path', () => {
   const cache = openCandidateCache()

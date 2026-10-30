@@ -1,6 +1,5 @@
-// First RFC010 spike slice: a real owner consumes styles prepared by the
-// existing primitive lowering. This fixture producer is NOT a generalized
-// compiler/manifest implementation and adds no component to Primitive.
+// RFC010: direct styles from the existing backend reach a real owner.
+// Caller wiring remains an explicit fixture, not generalized manifest lowering.
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire, registerHooks } from 'node:module'
@@ -21,25 +20,47 @@ const restClasses = 'p-[8px] opacity-100 bg-[#ffffff]'
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const project = mkdtempSync(path.join(root, 'packages/tailwind-conformance/.handle-spike-'))
 const compiler = createCompiler()
-const source = `
+const contract = parseOwnerContractShadow(
+  readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
+).contracts[0]!
+const planSource = `
 import {View, Pressable} from '@hozo/core'
-import {BottomSheet} from '@hozo/patterns'
-export {BottomSheet as Raw} from '@hozo/patterns'
 export function InteractivePlan({extra}) {
-  return <Pressable className={\`${classes} \${extra ?? ''}\`} />
+  return <${contract.shapes[0]!.nativeHost} className={\`${classes} \${extra}\`} />
 }
 export function DecorativePlan({extra}) {
-  return <View className={\`${restClasses} \${extra ?? ''}\`} />
+  return <${contract.shapes[1]!.nativeHost} className={\`${restClasses} \${extra}\`} />
 }
+`
+const preparedPlans = compiler.compileNativeModule(planSource, undefined, undefined, {
+  ownerStyle: true,
+})
+const declarations = preparedPlans.components
+  .map((plan, index) => {
+    const carrier = plan.ownerStyle
+    assert.ok(carrier, JSON.stringify(plan.diagnostics))
+    assert.ok(!plan.diagnostics.some((d) => d.severity === 'error'))
+    if (carrier.focusVisible) assert.ok(contract.shapes[index]!.events.includes('focusVisible'))
+    const name = index === 0 ? 'DirectInteractivePlan' : 'DirectDecorativePlan'
+    // Hoist each StyleSheet once. The backend's expression is emitted verbatim,
+    // not interpreted or obtained by constructing an unmounted React element.
+    return `export const ${name} = ((hozoStyles) => (extra) => (${carrier.expression}))(PreparedStyleSheet.create(${plan.styles}));`
+  })
+  .join('\n')
+const source = `
+import {StyleSheet as PreparedStyleSheet} from 'react-native'
+import {hozoClasses} from '@hozo/engine/project'
+import {BottomSheet} from '@hozo/patterns'
+export {BottomSheet as Raw} from '@hozo/patterns'
+${planSource}
+${declarations}
 export function Prepared({base,own,extra,observe}) {
   // Capture the residual once during caller rendering, not on every event.
   const captured = extra
+  const interactive = DirectInteractivePlan(captured)
   const prepared = (state) => {
     observe?.(state)
-    const element = state === undefined
-      ? DecorativePlan({extra:captured}) : InteractivePlan({extra:captured})
-    const style = element.props.style
-    return typeof style === 'function' ? style(state) : style
+    return state === undefined ? DirectDecorativePlan(captured) : interactive(state)
   }
   return <BottomSheet {...base} handleStyle={own} hozoHandleStyle={prepared} />
 }
@@ -86,9 +107,6 @@ const warnings = mock.method(console, 'warn', () => {})
 const exports = loadNativeModule(source, project, { root: project, compiler })
 warnings.mock.restore()
 const requests = (require(tracedSheet) as { requested: unknown[] }).requested
-const contract = parseOwnerContractShadow(
-  readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
-).contracts[0]!
 
 type Host = { type: unknown; props: Record<string, unknown> }
 type Rendered = {
@@ -159,6 +177,28 @@ test('the ordinary compiler still carries BottomSheet; the producer really compi
     /NOT_WIRED_ON_NATIVE/,
   )
   assert.ok(!plans.components[1].jsx.includes('hovered &&'))
+})
+
+test('direct compiler carriers return styles, not temporary React elements', () => {
+  const callback = (exports.DirectInteractivePlan as (extra: string) => (state: object) => unknown)(
+    'rounded-[7px]',
+  )
+  const state = { pressed: false, hovered: true, focused: false, focusVisible: false }
+  const output = callback(state)
+  assert.equal(React.isValidElement(output), false)
+  assert.equal(rn.StyleSheet.flatten(output).opacity, 0.5)
+  assert.equal(rn.StyleSheet.flatten(output).borderRadius, 7)
+  assert.equal(preparedPlans.components[0]!.ownerStyle!.callback, true)
+  assert.equal(preparedPlans.components[0]!.ownerStyle!.focusVisible, true)
+  assert.equal(preparedPlans.components[1]!.ownerStyle!.callback, false)
+  const ordinary = compiler.compileNativeModule(planSource)
+  for (let index = 0; index < ordinary.components.length; index++) {
+    const { ownerStyle, ...direct } = preparedPlans.components[index]!
+    assert.ok(ownerStyle)
+    const { ownerStyle: absent, ...reference } = ordinary.components[index]!
+    assert.ok(absent == null)
+    assert.deepEqual(direct, reference, 'ordinary emitted output remains the independent reference')
+  }
 })
 
 test('prepared and opaque plans reach the real two-shape handle, preserving author precedence', () => {

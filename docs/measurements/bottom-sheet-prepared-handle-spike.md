@@ -24,18 +24,31 @@ Web already has a class carrier on the real handle; it needs no new prop here.
 
 ## What the producer is (and is not)
 
-The Native test fixture compiles real Pressable/View plan functions with the
-existing compiler and Metro transformer. It invokes those functions without
-mounting their elements, takes their generated style/callback and hands it
-to the real public BottomSheet. Literal portions therefore use actual
-compiler-generated styles, while the residual uses the actual generated
-candidate map at the owner. This is a **test-only producer**, not a new
-production transformation or a declaration that BottomSheet is a Primitive.
+The Native probe now requests `ownerStyle: true` on `compileNativeModule`.
+The existing backend records the style expression it actually emits, not a
+second lowering or a parse of generated JSX. Ordinary JSX/styles/imports
+remain the independent reference and are compared byte-for-byte apart from
+the requested metadata. The probe emits the expression directly, hoists each
+StyleSheet once and gives the real BottomSheet that callback/value. The old
+unmounted React-element allocation and `.props.style` extraction are deleted.
+The ordinary plan functions remain only as an independent compiler/Metro
+reference; the prepared producer no longer invokes them.
 
-It deliberately allocates an unmounted React element to obtain a compiled
-style. That scaffold proves application, not an accepted optimized producer.
-Replace it with direct compiler-produced entries when the generic manifest
-owner path lands; never ship it as another runtime compiler/cascade engine.
+Caller wiring is still a **test-only explicit producer**, not generalized
+manifest-based transformation or a declaration that BottomSheet is a Primitive.
+It captures the residual into a local before the owner callback; class
+assembly still uses the real generated candidate map, not another resolver.
+The synthetic preparation hosts are chosen from the validated shadow contract.
+
+This per-call request is restricted to leaf View/Pressable class contributions.
+Uncaptured accessors, conditional authored expressions, inherited context,
+explicit props/styles, extra host effects, hooks and wrappers are not certified:
+ordinary output remains with an error and no partial carrier. The bounded
+backend still produces JSX internally, but the emitted producer does not
+construct a temporary element at runtime. Existing focus-visible collection
+is returned as a requirement, not silently dropped; the actual handle already
+observes it. It does not add another event machine to satisfy the requirement.
+The retained prepare/emit path preserves the request and its one-shot lifecycle.
 
 The initial hand-written `fixtures/bottom-sheet-handle-contract.json` has
 been deleted. The catalog now authors the two-shape description and generates
@@ -64,10 +77,11 @@ The shadow JSON is not advertised or shipped as a participating package manifest
 
 Missing work remains explicit: semantic fact bindings, text publication,
 finite non-boolean domains, export/package-instance resolution, complete
-manifest-v2 transport/capture and direct compiler-produced caller entries.
-The temporary primitive-element producer above is unchanged and still must
-be removed. No conformance headline, Native default or six-workstream
-completion percentage moves for this schema/transport slice.
+manifest-v2 transport/capture and automatic caller expression capture/rewrite.
+Direct compiler-produced Native carriers now replace the element-extraction
+scaffold above; generic routing, hygiene and broad owner/domain support remain
+open. No conformance headline, Native default or six-workstream completion
+percentage moves for this bounded seam.
 
 ## Evidence
 
@@ -127,7 +141,9 @@ BottomSheet implementations, its rules/Pressable and the local contract.
 
 The current checkout's parser differed from the last verified addon. The
 addon was rebuilt before compiler-backed tests (Cargo jobs=1), followed by
-the compiler package. No Rust source changes are part of this slice.
+the compiler package. Those initial application-seam and shadow slices did
+not change Rust. The direct-carrier follow-up does change the Native backend
+and NAPI; it rebuilds the addon before executing the updated probes.
 
 ## Cost and remaining gates
 
@@ -143,8 +159,9 @@ Before phase A is complete, add the manifest-v2 authoring/shadow reader and
 direct caller/owner-plan generation (including full shape/fact semantics),
 independent real-browser state/style evidence and a representative production
 bundle comparison. The complete manifest set/freeze experiment remains open
-too. Then remove the fixture producer/contract in favor of the shared fact
-source. No ordinary BottomSheet literal routing, ordering eligibility, text
+too. Then replace explicit fixture wiring with the shared fact/caller route;
+the hand-written contract and element-extraction producer are already deleted.
+No ordinary BottomSheet literal routing, ordering eligibility, text
 default, conformance headline or legacy authority is changed here.
 
 Retained failed observations: a shell quoting error before the initial probe
@@ -155,3 +172,32 @@ resolver trace that missed Metro's direct file import. The zero trace was
 not accepted as evidence: both import routes are now instrumented and the
 nonzero residual control passes. None was hidden by weakening diagnostics,
 skipping a test or retrying a failure as a flake.
+
+## Direct-carrier verification (2026-10-31)
+
+On base `eccf6d1810718a1abf9c9609b820907a0f8f8feb`, CPU 1 / Idle / serial:
+
+- `cargo test --workspace --quiet -- --test-threads=1`: 1,088 passed,
+  zero failed, one existing IR ignore. Two new backend tests include ordinary
+  output equality and refusal of unassessed roots/capture/host effects.
+- Fresh debug addon rebuild, compiler build/typecheck: passed.
+- Scoped compiler contract/owner/manifest, both handle platforms, gap inventory,
+  pattern gap owners, catalog/cache/native-host guards: 75 passed, no skips.
+  Native-loader platform smoke: another six passed, including the new opt-in
+  NAPI carrier/focus-visible requirement check.
+- `cargo fmt --all --check`, workspace/all-targets Clippy with warnings denied,
+  lint (1,789 files), docs, metadata, generated ABI (58 leaves / 82 names),
+  conventional title and diff checks: passed. Source-cache dry runs include
+  the owner backend and retained NAPI emitter in both consuming test tasks.
+
+Retained development failures: the first capture guard rejected a required
+focus-visible host flag (fixed by returning its requirement, not dropping it);
+an incorrect negative test assumed RN's supported `pointerEvents` style was
+a non-style effect (replaced with a real disabled host-prop case); the CJS
+test loader initialized a reused StyleSheet import after Metro's prepended
+stylesheet declaration (the explicit producer now uses a separate aliased
+StyleSheet binding, leaving the ordinary Metro reference independent);
+the theme test initially used `name` instead of the actual `token` API and
+the one-shot test expected the wrong error wording. These are corrected
+probes/implementation findings, not evidence of a flake. No production Metro
+app, physical device, GPU, AT or full-root JS suite was run locally.

@@ -666,10 +666,26 @@ pub struct TextForwardingModule {
 #[derive(Default)]
 #[napi(object)]
 pub struct NativeCompileOptions {
+    pub owner_style: Option<bool>,
     pub text_reference: Option<bool>,
     pub text_inheritance: Option<bool>,
     pub text_static: Option<bool>,
     pub tailwind_plan: Option<bool>,
+}
+
+impl NativeCompileOptions {
+    fn validate_owner_style(&self) -> napi::Result<()> {
+        if self.owner_style.unwrap_or(false)
+            && (self.text_reference.unwrap_or(false)
+                || self.text_inheritance.unwrap_or(false)
+                || self.text_static.unwrap_or(false))
+        {
+            return Err(napi::Error::from_reason(
+                "Internal ownerStyle cannot be combined with text experiments",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[napi]
@@ -800,10 +816,11 @@ impl Compiler {
         bindings: Option<Vec<StylexExternalBinding>>,
         source_file: Option<String>,
         options: Option<NativeCompileOptions>,
-    ) -> CompiledNativeModule {
+    ) -> napi::Result<CompiledNativeModule> {
         let bindings = external_bindings(bindings);
         let options = options.unwrap_or_default();
-        lower_native_module(
+        options.validate_owner_style()?;
+        Ok(lower_native_module(
             &source,
             &self.theme,
             self.sources.as_deref(),
@@ -811,6 +828,7 @@ impl Compiler {
             NativeModuleOptions {
                 source_file: source_file.as_deref(),
                 text_reference: options.text_reference.unwrap_or(false),
+                owner_style: options.owner_style.unwrap_or(false),
                 text_inheritance: options.text_inheritance.unwrap_or(false),
                 text_static: options.text_static.unwrap_or(false)
                     && options.text_inheritance.unwrap_or(false),
@@ -822,7 +840,7 @@ impl Compiler {
             },
             &self.text_forwarding,
             &self.class_helpers,
-        )
+        ))
     }
 
     /// Replaces the class-joining functions both backends read argument by
@@ -1141,6 +1159,8 @@ impl CandidateCache {
 
 #[napi(object)]
 pub struct CompiledNativeComponent {
+    /// Explicit RFC010 preparation only, never inferred from a package claim.
+    pub owner_style: Option<CompiledOwnerStyle>,
     pub tailwind_plan: Option<TailwindCompilePlan>,
     /// Compiled JSX to splice into the original source, same convention as
     /// `CompiledComponent.jsx`.
@@ -1161,6 +1181,13 @@ pub struct CompiledNativeComponent {
     pub diagnostics: Vec<CompileDiagnostic>,
     pub span_start: u32,
     pub span_end: u32,
+}
+
+#[napi(object)]
+pub struct CompiledOwnerStyle {
+    pub expression: String,
+    pub callback: bool,
+    pub focus_visible: bool,
 }
 
 #[napi(object)]
@@ -1380,13 +1407,14 @@ fn lower_native(
         class_helpers,
     );
     let plans = tailwind.apply(&mut parsed);
-    lower_native_components(source, theme, &parsed, false, false, plans)
+    lower_native_components(source, theme, &parsed, false, false, false, plans)
 }
 
 /// Module-only choices stay together; the reference experiment must not
 /// become mutable Compiler state or change later ordinary compilations.
 #[derive(Default)]
 struct NativeModuleOptions<'a> {
+    owner_style: bool,
     source_file: Option<&'a str>,
     text_reference: bool,
     text_inheritance: bool,
@@ -1458,12 +1486,13 @@ fn emit_native_module(
     options: NativeModuleOptions<'_>,
 ) -> CompiledNativeModule {
     let plans = options.tailwind.apply(parsed);
-    let components = lower_native_components(
+    let mut components = lower_native_components(
         source,
         theme,
         parsed,
         options.text_reference,
         options.text_inheritance,
+        options.owner_style,
         plans,
     );
     let imports = parsed
@@ -1485,11 +1514,11 @@ fn emit_native_module(
     // Do not walk/allocate it a second time just to return an empty list.
     let offsets = (!parsed.syntax_errors.is_empty() || !class_diagnostics.is_empty())
         .then(|| Utf16Offsets::new(source));
-    let diagnostics = class_diagnostics
+    let diagnostics: Vec<CompileDiagnostic> = class_diagnostics
         .into_iter()
         .map(|diagnostic| to_js_diagnostic(diagnostic, offsets.as_ref().expect("built above")))
         .collect();
-    let syntax_diagnostics = if parsed.syntax_errors.is_empty() {
+    let syntax_diagnostics: Vec<CompileDiagnostic> = if parsed.syntax_errors.is_empty() {
         Vec::new()
     } else {
         let offsets = offsets.as_ref().expect("built above");
@@ -1505,6 +1534,13 @@ fn emit_native_module(
             })
             .collect()
     };
+    if options.owner_style
+        && (!syntax_diagnostics.is_empty() || diagnostics.iter().any(|d| d.severity == "error"))
+    {
+        for component in &mut components {
+            component.owner_style = None;
+        }
+    }
     CompiledNativeModule {
         components,
         imports,
@@ -1521,6 +1557,7 @@ fn lower_native_components(
     parsed: &hozo_parser::ParseOutput,
     text_reference: bool,
     text_inheritance: bool,
+    owner_style: bool,
     plans: Vec<hozo_parser::TailwindRootPlan>,
 ) -> Vec<CompiledNativeComponent> {
     let offsets = Utf16Offsets::new(source);
@@ -1529,7 +1566,17 @@ fn lower_native_components(
         .roots
         .iter()
         .map(|root| {
-            let output = if text_inheritance && !parsed.stable_text_roots.is_empty() {
+            let mut carrier = None;
+            let output = if owner_style {
+                let (output, style) =
+                    hozo_native::lower_owner_style(&root.node, &root.forwarded, source, theme);
+                carrier = style.map(|style| CompiledOwnerStyle {
+                    expression: style.expression,
+                    callback: style.callback,
+                    focus_visible: style.focus_visible,
+                });
+                output
+            } else if text_inheritance && !parsed.stable_text_roots.is_empty() {
                 hozo_native::lower_text_inheritance_static(
                     &root.node,
                     &root.forwarded,
@@ -1551,7 +1598,11 @@ fn lower_native_components(
                     .into_iter()
                     .map(|d| to_js_diagnostic(d, &offsets)),
             );
+            if owner_style && diagnostics.iter().any(|d| d.severity == "error") {
+                carrier = None;
+            }
             CompiledNativeComponent {
+                owner_style: carrier,
                 tailwind_plan: plans
                     .next()
                     .map(|plan| tailwind_order::compile_plan(plan, &offsets)),

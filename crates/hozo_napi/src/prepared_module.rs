@@ -279,6 +279,7 @@ impl PreparedNativeModule {
             &state.theme,
             &mut state.parsed,
             NativeModuleOptions {
+                owner_style: self.options.owner_style.unwrap_or(false),
                 text_reference: self.options.text_reference.unwrap_or(false),
                 text_inheritance: self.options.text_inheritance.unwrap_or(false),
                 text_static: self.options.text_static.unwrap_or(false),
@@ -377,6 +378,7 @@ impl Compiler {
         options: Option<NativeCompileOptions>,
     ) -> napi::Result<PreparedNativeModule> {
         let options = options.unwrap_or_default();
+        options.validate_owner_style()?;
         if options.text_reference.unwrap_or(false) && options.text_inheritance.unwrap_or(false) {
             return Err(napi::Error::from_reason(
                 "Select one internal text experiment per compile call",

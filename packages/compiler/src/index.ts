@@ -116,6 +116,8 @@ export interface CompiledTagDecision {
 }
 
 export interface CompiledNativeComponent {
+  /** @internal RFC010: style-only preparation, absent on ordinary output. */
+  ownerStyle?: { expression: string; callback: boolean; focusVisible: boolean }
   /** @internal Build-time only; never included in emitted JSX/styles. */
   tailwindPlan?: TailwindCompilePlan
   jsx: string
@@ -577,6 +579,8 @@ export interface CompileEvidence {
 }
 
 export interface NativeCompileOptions extends CompileEvidence {
+  /** @internal RFC010 leaf-owner preparation; not a project/bundler mode. */
+  ownerStyle?: boolean
   textReference?: boolean
   textInheritance?: boolean
   textStatic?: boolean
@@ -689,6 +693,11 @@ export function prepareFinalTailwindContext(snapshot: string): PreparedTailwindC
 }
 
 function validateNativeOptions(options: NativeCompileOptions | undefined) {
+  if (
+    options?.ownerStyle &&
+    (options.textReference || options.textInheritance || options.textStatic)
+  )
+    throw new Error('Internal ownerStyle cannot be combined with text experiments')
   if (options?.textReference && options.textInheritance)
     throw new Error('Select one internal text experiment per compile call')
   if (options?.textStatic && !options.textInheritance)
