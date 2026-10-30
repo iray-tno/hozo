@@ -2706,21 +2706,39 @@ for (const [name, Component, ownClass, ownStyle] of [
   })
 }
 
-test('Native BottomSheet root fills its Modal and pins the sheet to the bottom with the UI root class', async (t) => {
+test('Native BottomSheet keeps the UI bottom anchor and top corners at narrow and wide widths', async (t) => {
   // @hozo/ui's root list, read from its source so the two cannot drift.
-  const rootClass = readFileSync(path.join(uiRoot, 'src/bottom-sheet.tsx'), 'utf8').match(
-    /^const root = '([^']+)'/m,
-  )[1]
-  const tree = await mount(t, HozoBottomSheet, { open: true, className: rootClass })
-  const root = flat(views(tree)[0].props.style)
-  assert.equal(
-    root.flex,
-    1,
-    'the Web layer is fixed inset-0; RN drops fixed, so the root fills the Modal',
-  )
-  assert.equal(root.flexDirection, 'row', 'items-end is the bottom edge only in a row')
-  assert.equal(root.alignItems, 'flex-end')
-  assert.equal(root.justifyContent, 'center')
+  const source = readFileSync(path.join(uiRoot, 'src/bottom-sheet.tsx'), 'utf8')
+  const rootClass = source.match(/^const root = '([^']+)'/m)[1]
+  const sheetClass = source.match(/^const sheet =\s*'([^']+)'/m)[1]
+  const previous = nativeViewport
+  t.after(() => {
+    nativeViewport = previous
+  })
+  for (const width of [390, 1280]) {
+    nativeViewport = { width, height: 800 }
+    const tree = await mount(t, HozoBottomSheet, {
+      open: true,
+      className: rootClass,
+      sheetClassName: sheetClass,
+      testID: 'desktop-sheet',
+    })
+    const root = flat(views(tree)[0].props.style)
+    assert.equal(
+      root.flex,
+      1,
+      'the Web layer is fixed inset-0; RN drops fixed, so the root fills the Modal',
+    )
+    assert.equal(root.flexDirection, 'row', 'items-end is the bottom edge only in a row')
+    assert.equal(root.alignItems, 'flex-end')
+    assert.equal(root.justifyContent, 'center')
+    const sheet = flat(
+      views(tree).find((node) => node.props.testID === 'desktop-sheet').props.style,
+    )
+    assert.equal(sheet.maxWidth, 512)
+    assert.equal(sheet.borderTopLeftRadius, 16)
+    assert.equal(sheet.borderBottomLeftRadius ?? 0, 0)
+  }
 })
 
 test('Native Drawer root puts the panel against the edge its UI root class names', async (t) => {

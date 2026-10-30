@@ -6,19 +6,10 @@
  * flick on the same detent. This file places it against the bottom edge and
  * draws a grabber.
  *
- * ## `@hozo/patterns` does not know about the breakpoint, and should not
- *
- * #142 asks for the Web behaviour to be responsive: a sheet on a phone and a
- * centred dialog on a desktop. That is a look, so it is four variants in this
- * class list rather than a media query in a state machine -- `sm:items-center`
- * moves the box to the middle, `sm:max-w-md` and the radius on all four corners
- * finish the job, and the compiler resolves the whole thing at build time
- * because the names are literal.
- *
- * Worth stating what that means for the drag: it survives the breakpoint. A
- * centred panel dragged downward still dismisses, which is what a pointer user
- * would expect of something they just grabbed, and nothing about the gesture
- * needed to know which side of 640px it was on.
+ * The bottom edge stays the anchor on wide screens too (#1443). A centred
+ * panel left empty space beneath a half-open detent, even though dragging and
+ * the grabber still described a sheet. Capping the width keeps it compact on
+ * desktop without changing the meaning of those controls at a breakpoint.
  *
  * ## The sheet has no close button, for the reason `Dialog` has none
  *
@@ -40,7 +31,7 @@ export type HozoBottomSheetProps = Omit<
  * `justify-center` into the vertical middle; written out, the same two names
  * put the sheet at the bottom and in the middle on both (#1349).
  */
-const root = 'fixed inset-0 z-50 flex flex-row items-end justify-center sm:items-center'
+const root = 'fixed inset-0 z-50 flex flex-row items-end justify-center'
 
 /** Dark in both schemes, because a scrim is not a surface seen from behind. */
 const scrim =
@@ -51,11 +42,11 @@ const scrim =
  * one thing a modal cannot do is put content where nobody can scroll to it, and
  * the part that goes missing is the bottom, where the buttons are.
  *
- * The radius is on the top corners only until `sm:`, where the panel stops
- * touching the bottom edge and wants all four.
+ * Only the top corners are rounded: the bottom corners meet the window edge
+ * at every width. Padding and the grabber remain the same on both platforms.
  */
 const sheet =
-  'relative flex w-full max-w-lg flex-col gap-4 max-h-[85vh] overflow-y-auto rounded-t-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface transition duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0 motion-safe:starting:translate-y-full motion-safe:data-[state=closed]:translate-y-full data-[hozo-dragging=true]:transition-none sm:max-w-md sm:rounded-hozo-panel'
+  'relative flex w-full max-w-lg flex-col gap-4 max-h-[85vh] overflow-y-auto rounded-t-hozo-panel border border-hozo-border bg-hozo-surface p-6 text-hozo-text-body shadow-hozo-surface transition duration-200 ease-out starting:opacity-0 data-[state=closed]:opacity-0 motion-safe:starting:translate-y-full motion-safe:data-[state=closed]:translate-y-full data-[hozo-dragging=true]:transition-none'
 
 /**
  * A 24px box holding a 4px bar.

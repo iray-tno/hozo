@@ -105,6 +105,7 @@ const reads = {
     'packages/behaviors/src/drag-1d.native.ts',
     'packages/behaviors/src/drag-1d-session.ts',
     'packages/patterns/src/bottom-sheet.tsx',
+    'packages/ui/src/bottom-sheet.tsx',
     'packages/patterns/src/bottom-sheet.native.tsx',
     'packages/patterns/src/sheet-rules.ts',
     'packages/behaviors/src/portal.tsx',
