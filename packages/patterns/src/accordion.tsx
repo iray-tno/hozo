@@ -32,8 +32,16 @@
  * reader user navigates by.
  */
 
-import { nextIndex, type RovingKey } from '@hozo/behaviors'
-import { type KeyboardEvent, type ReactNode, useCallback, useId, useRef, useState } from 'react'
+import { nextIndex, type RovingKey, usePresence } from '@hozo/behaviors'
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
 import { controlIndicator } from './control-indicator.tsx'
 import type { HozoControlIndicatorClasses } from './control-indicator-classes.ts'
 
@@ -70,6 +78,12 @@ interface Shared {
   triggerClassName?: string
   /** On the panel, which is a labelled region whether it is open or not. */
   panelClassName?: string
+  /**
+   * On the node inside the panel that holds the content. Padding goes here
+   * rather than on the panel when the panel's height animates, because a
+   * panel's own padding survives `height: 0`.
+   */
+  panelContentClassName?: string
   /**
    * What marks a header open or closed, as classes for a decorative node
    * after the header: `className` for it, and `markClassName` for an
@@ -114,6 +128,7 @@ export function HozoAccordion(props: HozoAccordionProps) {
     triggerClassName,
     indicator,
     panelClassName,
+    panelContentClassName,
   } = props
   const multiple = props.multiple === true
   const base = useId()
@@ -208,29 +223,119 @@ export function HozoAccordion(props: HozoAccordionProps) {
                 {controlIndicator(indicator?.({ expanded, disabled: Boolean(item.disabled) }))}
               </button>
             </Heading>
-            {/*
-              Always rendered, and hidden when closed rather than removed.
-
-              `aria-controls` has to point at something that exists, and a
-              reader that follows it into nothing is worse than one that finds
-              a collapsed region. `hidden` is the attribute rather than a
-              class, because this package ships no CSS and a panel that stayed
-              visible until a stylesheet arrived would be a broken control
-              rather than an unstyled one.
-            */}
-            <div
+            <Panel
               id={`${base}-panel-${at}`}
-              role="region"
-              aria-labelledby={`${base}-trigger-${at}`}
-              hidden={!expanded}
+              labelledBy={`${base}-trigger-${at}`}
+              expanded={expanded}
               className={panelClassName}
-              data-hozo-state={expanded ? 'open' : 'closed'}
-            >
-              {item.content}
-            </div>
+              contentClassName={panelContentClassName}
+              content={item.content}
+            />
           </div>
         )
       })}
+    </div>
+  )
+}
+
+interface PanelProps {
+  id: string
+  labelledBy: string
+  expanded: boolean
+  className: string | undefined
+  contentClassName: string | undefined
+  content: ReactNode
+}
+
+/**
+ * Always rendered, and hidden when closed rather than removed.
+ *
+ * `aria-controls` has to point at something that exists, and a reader that
+ * follows it into nothing is worse than one that finds a collapsed region.
+ * `hidden` is the attribute rather than a class, because this package ships
+ * no CSS and a panel that stayed visible until a stylesheet arrived would be
+ * a broken control rather than an unstyled one.
+ *
+ * ## What it gives a stylesheet that wants to animate it
+ *
+ * Height is the property, and `auto` is the value CSS cannot transition to
+ * in most browsers yet. So the panel carries its content's measured height
+ * as `--hozo-panel-height`, kept current while it is open, and a class list
+ * can transition `height` between `0` and that. The variable is inert
+ * without such a class, and unset before the first measurement, where
+ * `height: var(--hozo-panel-height)` falls back to `auto`.
+ *
+ * - **Closing:** the trigger says collapsed at once, and the panel turns
+ *   `inert` -- out of the tab order and the accessibility tree -- for as
+ *   long as its exit runs. `hidden` arrives when the exit's transition ends
+ *   (`usePresence`), or at once if it has none, as under
+ *   `motion-reduce:transition-none`.
+ * - **Opening:** the panel is shown at `data-hozo-state="closed"` for one
+ *   style calculation and then flipped to `open`, so the transition has a
+ *   collapsed frame to start from. `@starting-style` would do this without
+ *   script, but it also runs on a panel that is open when the page loads.
+ * - **Reversing:** a transition reverses from wherever it is, so a quick
+ *   close-open never jumps.
+ */
+function Panel({ id, labelledBy, expanded, className, contentClassName, content }: PanelProps) {
+  const presence = usePresence(expanded)
+  const panel = useRef<HTMLDivElement | null>(null)
+  const inner = useRef<HTMLDivElement | null>(null)
+  // Whether the open frame has been reached. Starts true for a panel open
+  // on mount, which has nothing to animate in from.
+  const [entered, setEntered] = useState(expanded)
+  if (!presence.mounted && entered) setEntered(false)
+
+  useLayoutEffect(() => {
+    if (!expanded || entered) return
+    // Read so the collapsed frame is calculated before the open one replaces it.
+    void panel.current?.offsetHeight
+    setEntered(true)
+  }, [expanded, entered])
+
+  useLayoutEffect(() => {
+    const node = inner.current
+    const target = panel.current
+    if (!presence.mounted || !node || !target) return
+    const measure = () =>
+      target.style.setProperty('--hozo-panel-height', `${node.getBoundingClientRect().height}px`)
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(measure)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [presence.mounted])
+
+  const { ref } = presence
+  const bind = useCallback(
+    (node: HTMLDivElement | null) => {
+      panel.current = node
+      ref(node)
+    },
+    [ref],
+  )
+
+  const open = expanded && entered
+  return (
+    <div
+      ref={bind}
+      id={id}
+      role="region"
+      aria-labelledby={labelledBy}
+      hidden={!presence.mounted}
+      inert={(presence.mounted && !expanded) || undefined}
+      className={className}
+      data-hozo-state={open ? 'open' : 'closed'}
+      onTransitionEnd={presence.onTransitionEnd}
+      onAnimationEnd={presence.onAnimationEnd}
+    >
+      {/*
+        The node measured, and the one to pad: padding on the panel itself
+        would stay visible at `height: 0`.
+      */}
+      <div ref={inner} className={contentClassName}>
+        {content}
+      </div>
     </div>
   )
 }

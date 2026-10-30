@@ -113,6 +113,20 @@ test('nothing carries a class it was not given', () => {
   assert.equal(count(html, 'class="P"'), 3)
 })
 
+test('the content sits in its own node inside the panel, to measure and to pad', () => {
+  // Padding on the panel would survive `height: 0`, so a stylesheet that
+  // animates the height pads this node instead.
+  const html = render({
+    defaultExpanded: 'shipping',
+    panelClassName: 'P',
+    panelContentClassName: 'C',
+  })
+  assert.match(html, /role="region"[^>]*class="P"[^>]*><div class="C">Two days\.<\/div><\/div>/)
+  assert.equal(count(html, 'class="C"'), 3)
+  // Inert is for a panel that is closing, which a first render never has.
+  assert.doesNotMatch(html, /inert/)
+})
+
 test('open and closed are on the elements a stylesheet can reach', () => {
   // This package ships no CSS, so the chevron and the panel's height are the
   // application's to draw, and it should not have to pass its own state back

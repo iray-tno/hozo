@@ -89,6 +89,28 @@ function transformMap(style: ViewStyle | undefined): Map<string, number> {
   return out
 }
 
+/**
+ * The style an interrupted animation is showing: `to`, with each number it
+ * animates (opacity, and the position and size keys the spec names) put
+ * `at` of the way from `from`. `at` is the eased progress, so this is the
+ * value on screen and not a point on a straight line.
+ */
+function midway(
+  from: ViewStyle,
+  to: ViewStyle,
+  at: number,
+  properties: readonly string[] | undefined,
+): ViewStyle {
+  if (at >= 1) return to
+  const out: Record<string, unknown> = { ...to }
+  for (const key of ['opacity', ...layoutKeys(properties)]) {
+    const start = (from as Record<string, unknown>)[key]
+    const end = (to as Record<string, unknown>)[key]
+    if (typeof start === 'number' && typeof end === 'number') out[key] = start + (end - start) * at
+  }
+  return out as ViewStyle
+}
+
 /** What a transform key means when nothing sets it. */
 function identity(key: string): number {
   return key.startsWith('scale') ? 1 : 0
@@ -156,14 +178,26 @@ export function HozoAnimated({
   // in a stable order.
   const signature = JSON.stringify(flat)
   const previous = useRef(signature)
+  // How far the running animation has got, which is 1 once it has ended.
+  const reached = useRef(1)
   if (previous.current !== signature) {
     // The *visible* style becomes the new starting point, not the
     // previous target. Interrupting a half-finished fade and restarting
-    // from where it was going would make it jump backwards first.
-    from.current = to.current
+    // from where it was going would make it jump to the end first. For a
+    // number that is the point between the two the animation had reached;
+    // a colour or a transform still starts from the previous target.
+    from.current = midway(from.current, to.current, reached.current, hozoTransition?.properties)
     to.current = flat
     previous.current = signature
   }
+
+  useEffect(() => {
+    if (!hozoTransition) return
+    const listener = progress.addListener(({ value }) => {
+      reached.current = value
+    })
+    return () => progress.removeListener(listener)
+  }, [progress, hozoTransition])
 
   // Registered for as long as it can exit, so `Presence` knows to wait for
   // it and how long to wait before giving up.
