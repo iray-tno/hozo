@@ -4520,7 +4520,10 @@ async function patternHarness(cacheName, look) {
       // No transition table: these probes read resting looks, so every
       // control indicator part is the plain View it is without motion.
       '@hozo/engine/project': { hozoClasses, hozoClassTransitions: {} },
-      '@hozo/engine/generated/animated': { HozoAnimated: 'HozoAnimated' },
+      '@hozo/engine/generated/animated': {
+        HozoAnimated: 'HozoAnimated',
+        PresenceContext: { Provider: 'PresenceContext.Provider' },
+      },
       '@hozo/engine/generated/environment': { useHozoEnvironment: () => false },
       '@hozo/engine/generated/gap-styles': { hozoAuthoredStyle },
       // Use the real shared partition; this fixture only stands in for
@@ -4530,6 +4533,10 @@ async function patternHarness(cacheName, look) {
         hozoTextChildren: (children) => children,
         useHozoMessage: () => (key, _values, fallback) => fallback ?? key,
         useHozoI18n: () => ({ dir: 'ltr', locale: 'en' }),
+      },
+      // An accordion panel's exit, which these resting probes never start.
+      '@hozo/behaviors/native': {
+        usePresence: (show) => ({ mounted: show, state: show ? 'open' : 'closed', done: () => {} }),
       },
       // Initial input state only in these structural probes. Real events
       // and tracker updates are tested in the browser-free React probe.

@@ -36,7 +36,7 @@ import {
 } from '@hozo/patterns'
 
 /**
- * The pattern's props without the four class lists this package owns.
+ * The pattern's props without the five class lists this package owns.
  *
  * Distributed over the union on purpose: `Omit<A | B, K>` collapses the two
  * halves into one object and loses the `multiple` discriminant with them,
@@ -44,7 +44,14 @@ import {
  * string. `T extends unknown ? …` keeps them apart.
  */
 type Styled<T> = T extends unknown
-  ? Omit<T, 'sectionClassName' | 'headingClassName' | 'triggerClassName' | 'panelClassName'>
+  ? Omit<
+      T,
+      | 'sectionClassName'
+      | 'headingClassName'
+      | 'triggerClassName'
+      | 'panelClassName'
+      | 'panelContentClassName'
+    >
   : never
 
 export type HozoAccordionProps = Styled<AccordionProps>
@@ -80,7 +87,16 @@ const chevron =
 const chevronOpen =
   'size-2 shrink-0 -rotate-135 border-b-2 border-r-2 border-hozo-text-muted transition-transform'
 
-const panel = 'px-4 pb-4 text-sm text-hozo-text-body'
+/**
+ * The panel opens and closes by its height, from `0` to the content's measured
+ * height, which the pattern keeps in `--hozo-panel-height` because `auto`
+ * cannot be transitioned to. The padding is on the content inside, since the
+ * panel's own would still show at `height: 0`. Under reduced motion it opens
+ * and closes at once, and the pattern hides it as soon as the state changes.
+ */
+const panel =
+  'overflow-hidden h-[var(--hozo-panel-height)] transition-[height] duration-200 ease-out data-[hozo-state=closed]:h-0 motion-reduce:transition-none'
+const panelContent = 'px-4 pb-4 text-sm text-hozo-text-body'
 
 export function HozoAccordion({ className, ...rest }: HozoAccordionProps) {
   return (
@@ -95,6 +111,7 @@ export function HozoAccordion({ className, ...rest }: HozoAccordionProps) {
       headingClassName={heading}
       triggerClassName={trigger}
       panelClassName={panel}
+      panelContentClassName={panelContent}
       indicator={({ expanded }) => ({ className: expanded ? chevronOpen : chevron })}
     />
   )

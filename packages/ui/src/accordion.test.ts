@@ -35,7 +35,7 @@ const panels = (html: string): string[] =>
 
 test('a closed panel keeps the hidden attribute and no class list overrides it', () => {
   const html = render()
-  const closed = panels(html).filter((tag) => tag.includes('hidden'))
+  const closed = panels(html).filter((tag) => tag.includes('hidden=""'))
   assert.equal(closed.length, 2, 'two of the three panels start closed')
   for (const tag of closed) {
     assert.doesNotMatch(
