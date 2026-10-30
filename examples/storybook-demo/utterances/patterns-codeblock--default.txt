@@ -1,7 +1,3 @@
-region, Files
-paths.ts
-end of region, Files
-separator, Resize Files, orientated vertically, max value 160, min value 72, 1 control, current value 96 pixels
 figure, paths.ts
 caption
 paths.ts
