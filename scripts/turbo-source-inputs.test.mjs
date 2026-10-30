@@ -283,6 +283,11 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    // RFC010's prepared-handle probe reads both platform implementations.
+    'packages/patterns/src/bottom-sheet.native.tsx',
+    'packages/patterns/src/bottom-sheet.tsx',
+    'packages/patterns/src/sheet-rules.ts',
+    'packages/patterns/src/pressable.native.tsx',
     // Native gap inventory discovers these package roots and scans shared as
     // well as .native modules; an upstream build output is not its input.
     'packages/core/src/generated/gap-styles.ts',
