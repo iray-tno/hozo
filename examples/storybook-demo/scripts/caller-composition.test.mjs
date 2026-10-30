@@ -2502,6 +2502,14 @@ test('the real Web TextArea owns editable focus and form predicates, not its wra
     assert.equal((await read()).readOnly, true)
     assert.equal((await read()).border, '4px')
     await page.evaluate(() => window.renderTextArea({ disabled: true }))
+    await page.waitForFunction(
+      () => {
+        const textarea = document.querySelector('textarea')
+        return textarea?.matches(':disabled') && !textarea.matches(':focus')
+      },
+      null,
+      { timeout: 2000 },
+    )
     assert.equal((await read()).focused, false)
     assert.equal((await read()).readOnly, true)
     assert.equal((await read()).opacity, '0.25')
@@ -2556,6 +2564,14 @@ test('the real Web NativeSelect is read-only, blurs when disabled and has no aut
     assert.deepEqual(await read(), [true, true, '0.75', '4px', '0px', 'slow'])
     assert.equal(await control.getAttribute('aria-expanded'), null)
     await page.evaluate(() => window.renderSelect({ disabled: true }))
+    await page.waitForFunction(
+      () => {
+        const select = document.querySelector('select')
+        return select?.matches(':disabled') && !select.matches(':focus')
+      },
+      null,
+      { timeout: 2000 },
+    )
     assert.deepEqual(await read(), [false, true, '0.25', '4px', '0px', 'slow'])
     await page.evaluate(() => window.renderSelect({ 'aria-invalid': true, 'aria-required': true }))
     assert.deepEqual(await read(), [false, true, '1', '4px', '0px', 'slow'])
@@ -2702,6 +2718,17 @@ test('the real Web Calendar separates group, header and table typography without
     await page.mouse.up()
     await page.evaluate(() => window.renderCalendar({ max: { year: 2026, month: 7, day: 31 } }))
     assert.equal(await next.isDisabled(), true)
+    // Blink clears focus from a newly disabled control on a post-layout task,
+    // not synchronously when `disabled` is set.
+    await page.waitForFunction(
+      () => {
+        const buttons = document.querySelectorAll('[role="group"] > div button')
+        const last = buttons[buttons.length - 1]
+        return last?.matches(':disabled') && !last.matches(':focus')
+      },
+      null,
+      { timeout: 2000 },
+    )
     assert.equal(await next.evaluate((element) => element.matches(':focus')), false)
     const dayProps = {
       month: { year: 2026, month: 6 },
