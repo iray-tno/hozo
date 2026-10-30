@@ -1,5 +1,5 @@
 import { useHozoMessage } from '@hozo/behaviors'
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ColorPickerThumbLook, ColorPickerTrack } from './color-picker-look.ts'
 import { colorThumbs, colorTracks, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
@@ -92,7 +92,15 @@ export function HozoColorPicker({
   // and rewriting it to `#aabbcc` mid-word would fight their typing.
   const [editing, setEditing] = useState(false)
   const [eyeDropper, setEyeDropper] = useState(false)
+  const [rtl, setRtl] = useState(false)
+  const group = useRef<HTMLDivElement>(null)
   const swatches = useRef<(HTMLButtonElement | null)[]>([])
+
+  useLayoutEffect(() => {
+    if (!group.current) return
+    const next = readDirection(group.current) === 'rtl'
+    if (next !== rtl) setRtl(next)
+  })
 
   // A new `value` from outside replaces the colour, unless it is the one
   // already showing -- which is every echo of our own `onChange`.
@@ -126,10 +134,13 @@ export function HozoColorPicker({
   const focusable = selectedPreset !== undefined && selectedPreset >= 0 ? selectedPreset : 0
   const onSwatchKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     if (!presets) return
+    const rtl = readDirection(event.currentTarget) === 'rtl'
+    const forward = rtl ? 'ArrowLeft' : 'ArrowRight'
+    const backward = rtl ? 'ArrowRight' : 'ArrowLeft'
     const step =
-      event.key === 'ArrowRight' || event.key === 'ArrowDown'
+      event.key === forward || event.key === 'ArrowDown'
         ? 1
-        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+        : event.key === backward || event.key === 'ArrowUp'
           ? -1
           : 0
     const target =
@@ -148,7 +159,7 @@ export function HozoColorPicker({
 
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
   const invalid = hexToHsla(draft) === null
-  const tracks = colorTracks(hsla)
+  const tracks = colorTracks(hsla, rtl)
   const samples = thumbLook ? colorThumbs(hsla) : undefined
   const thumbClasses = (track: ColorPickerTrack) =>
     [thumbClassName, samples && thumbLook?.({ track, color: samples[track] }).className]
@@ -156,7 +167,13 @@ export function HozoColorPicker({
       .join(' ') || undefined
 
   return (
-    <div role="group" aria-label={accessibilityLabel} className={className} data-testid={testID}>
+    <div
+      ref={group}
+      role="group"
+      aria-label={accessibilityLabel}
+      className={className}
+      data-testid={testID}
+    >
       {presets && presets.length > 0 ? (
         <div role="radiogroup" aria-label={message('hozo.colorPicker.presets')}>
           {presets.map((preset, index) => {
@@ -281,6 +298,11 @@ export function HozoColorPicker({
       ) : null}
     </div>
   )
+}
+
+function readDirection(element: Element): string {
+  if (typeof window === 'undefined') return 'ltr'
+  return window.getComputedStyle(element).direction || 'ltr'
 }
 
 export { HozoColorPicker as ColorPicker, type HozoColorPickerProps as ColorPickerProps }

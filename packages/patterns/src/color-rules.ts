@@ -156,17 +156,21 @@ export function colorName({ h, s, l }: Hsla): ColorName {
  * `transparent`, which is black at zero alpha and would draw the ramp
  * through grey anywhere a renderer does not premultiply.
  */
-export function colorTracks(hsla: Hsla): {
+export function colorTracks(
+  hsla: Hsla,
+  rtl = false,
+): {
   hue: string
   saturation: string
   lightness: string
   alpha: string
 } {
+  const direction = rtl ? 'to left' : 'to right'
   return {
-    hue: 'linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)',
-    saturation: `linear-gradient(to right, ${hslaToHex({ ...hsla, s: 0, a: 1 })}, ${hslaToHex({ ...hsla, s: 100, a: 1 })})`,
-    lightness: `linear-gradient(to right, #000000, ${hslaToHex({ ...hsla, l: 50, a: 1 })}, #ffffff)`,
-    alpha: `linear-gradient(to right, ${hslaToHex({ ...hsla, a: 0 })}, ${hslaToHex({ ...hsla, a: 1 })})`,
+    hue: `linear-gradient(${direction}, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000)`,
+    saturation: `linear-gradient(${direction}, ${hslaToHex({ ...hsla, s: 0, a: 1 })}, ${hslaToHex({ ...hsla, s: 100, a: 1 })})`,
+    lightness: `linear-gradient(${direction}, #000000, ${hslaToHex({ ...hsla, l: 50, a: 1 })}, #ffffff)`,
+    alpha: `linear-gradient(${direction}, ${hslaToHex({ ...hsla, a: 0 })}, ${hslaToHex({ ...hsla, a: 1 })})`,
   }
 }
 

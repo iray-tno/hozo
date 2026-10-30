@@ -17,8 +17,10 @@ const swatch =
   'size-8 rounded-full border border-hozo-border cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
 const selected = 'ring-2 ring-offset-2 ring-hozo-accent'
 const slider = 'relative h-3 w-full rounded-full'
+// `-ms-3` is half the `size-6` thumb, taken off its inline start so it
+// centres on `insetInlineStart` in both LTR and RTL (as `slider.tsx` does).
 const thumb =
-  'absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 bg-transparent shadow-hozo-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
+  'absolute top-1/2 -ms-3 size-6 -translate-y-1/2 rounded-full border-2 bg-transparent shadow-hozo-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-hozo-focus'
 
 export const colorThumbLook: ColorPickerThumbLook = ({ color }) => {
   const linear = (at: number) => {

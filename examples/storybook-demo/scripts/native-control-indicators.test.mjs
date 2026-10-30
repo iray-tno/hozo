@@ -26,6 +26,7 @@ const compiler = createCompiler(theme)
 // The colour-scheme hook is a platform fact in this host-render test, not
 // evidence about OS subscription delivery. Both palettes run the real output.
 let nativeDark = false
+const nativeI18n = { isRTL: false }
 const nativePlatform = { OS: 'ios' }
 const actionSheets = []
 let nativeViewport = { width: 400, height: 800 }
@@ -416,7 +417,7 @@ new Function('require', 'module', 'exports', bundled.outputFiles[0].text)(
         Easing: { quad: (value) => value * value, out: (easing) => easing },
         PanResponder: nativePanResponder,
         Keyboard: { dismiss: () => keyboardDismissals++ },
-        I18nManager: { isRTL: false },
+        I18nManager: nativeI18n,
         Pressable: NativePressable,
         StyleSheet: { flatten: flat, create: (styles) => styles },
         // The floating positioner's flip/shift bounds; a phone-sized window,
@@ -3025,6 +3026,48 @@ test('Native UI ColorPicker marker contrast follows each value without borrowing
     assert.equal(style(1).outlineWidth, 1)
   }
   nativeDark = false
+})
+
+test('Native UI ColorPicker centers thumbs with logical marginStart and reverses track gradients in RTL', async (t) => {
+  t.after(() => {
+    nativeI18n.isRTL = false
+  })
+  for (const isRTL of [false, true]) {
+    nativeI18n.isRTL = isRTL
+    const changes = []
+    const tree = await mount(t, UiColorPicker, {
+      accessibilityLabel: 'Direction',
+      alpha: true,
+      defaultValue: '#ffff00',
+      onChange: (value) => changes.push(value),
+    })
+    const sliders = () => tree.root.findAllByType(HozoSlider)
+    const thumbs = () => views(tree).filter((node) => node.props.accessibilityRole === 'adjustable')
+    const direction = isRTL ? 'to left' : 'to right'
+    for (const slider of sliders()) {
+      const track = flat(slider.findAllByType('NativeView')[0].props.style)
+      assert.match(
+        track.experimental_backgroundImage,
+        new RegExp(`^linear-gradient\\(${direction}, `),
+      )
+    }
+    const hueThumb = flat(thumbs()[0].props.style)
+    assert.equal(hueThumb.marginStart, -12)
+    assert.equal(hueThumb.width, 24)
+    assert.equal(hueThumb.height, 24)
+    assert.equal(hueThumb.start, `${(60 / 359) * 100}%`)
+    assert.deepEqual(hueThumb.transform, [{ translateY: '-50%' }])
+
+    const hueTrack = sliders()[0].findAllByType('NativeView')[0]
+    await act(() =>
+      hueTrack.props.onLayout({ nativeEvent: { layout: { width: 359, height: 12 } } }),
+    )
+    const locationX = isRTL ? 359 - 180 : 180
+    await act(() => hueTrack.props.onResponderGrant({ nativeEvent: { locationX, locationY: 6 } }))
+    await act(() => hueTrack.props.onResponderRelease({}, { dx: 0, dy: 0 }))
+    assert.equal(changes.at(-1), '#00ffff')
+    assert.equal(flat(thumbs()[0].props.style).start, `${(180 / 359) * 100}%`)
+  }
 })
 
 test('Native overlay ColorPicker applies root, swatch, input and nested slider class slots', async (t) => {
