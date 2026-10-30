@@ -98,6 +98,7 @@ fn render_candidate_module_impl(
     let mut unsupported: Vec<(&String, String)> = Vec::new();
     let mut states: Vec<(&String, Vec<StateGroup>)> = Vec::new();
     let mut transforms = Vec::new();
+    let mut transitions: Vec<(&String, Option<&'static str>, String)> = Vec::new();
     let mut font_defaults = Vec::new();
     let mut explicit_leading = false;
     for name in class_names {
@@ -112,6 +113,18 @@ fn render_candidate_module_impl(
                 plan.refused(name, "important-not-lowered");
             }
             unsupported.push((name, hozo_parser::IMPORTANT_NOT_LOWERED.into()));
+            continue;
+        }
+        // A transition utility draws nothing; it says how a change in what
+        // is drawn should arrive. React Native cannot be told that through
+        // a style object, so these go in a table of their own that the
+        // engine reads into `HozoAnimated`'s spec (#1450), including under
+        // `motion-reduce:` / `motion-safe:`, which the reader decides.
+        if let Some((condition, spec)) = transition_part(&utility.groups) {
+            if let Some(plan) = plan.as_deref_mut() {
+                plan.refused(name, "transition");
+            }
+            transitions.push((name, condition, spec));
             continue;
         }
         // Any conditional group disqualifies the class, which is what
@@ -345,6 +358,20 @@ fn render_candidate_module_impl(
     } else {
         out.push_str(&format!("export const hozoClasses = createClassResolver(styles, unsupported, undefined{states_argument})\n"));
     }
+    // Always, empty or not: this module stands in for `@hozo/engine/project`,
+    // and a component importing the name from there would get `undefined`
+    // from a module that left it out. Data only, read by the engine's
+    // `createClassTransitions`, so the module imports nothing new.
+    out.push_str("export const hozoClassTransitions = {");
+    for (name, condition, spec) in &transitions {
+        let condition = condition.map_or("null".to_string(), quote);
+        out.push_str(&format!("\n  {}: [{condition}, {spec}],", quote(name)));
+    }
+    out.push_str(if transitions.is_empty() {
+        "}\n"
+    } else {
+        "\n}\n"
+    });
     // This module is already the one project-specific value Metro carries
     // onto the device. Keep the resolved reset choice beside the candidate
     // map so uncompiled fallback components use the same browser defaults
@@ -354,6 +381,51 @@ fn render_candidate_module_impl(
         theme.preflight()
     ));
     out
+}
+
+/// A class made only of transition properties, unconditional or under
+/// `motion-reduce:` / `motion-safe:`, as the condition it needs and the
+/// part of a `HozoTransitionSpec` it sets. `None` for anything else, which
+/// keeps the path it had.
+fn transition_part(
+    groups: &[(Condition, Vec<StyleProperty>)],
+) -> Option<(Option<&'static str>, String)> {
+    let mut condition = None;
+    let mut fields = Vec::new();
+    for (group_condition, properties) in groups {
+        let this = match group_condition {
+            Condition::Always => None,
+            Condition::Environment(hozo_ir::Environment::MotionReduce) => Some("motion-reduce"),
+            Condition::Environment(hozo_ir::Environment::MotionSafe) => Some("motion-safe"),
+            _ => return None,
+        };
+        if fields.is_empty() {
+            condition = this;
+        } else if condition != this {
+            return None;
+        }
+        for property in properties {
+            fields.push(match property {
+                StyleProperty::TransitionProperty(list) => format!(
+                    "properties: [{}]",
+                    list.split(',')
+                        .map(|name| quote(name.trim()))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                StyleProperty::TransitionDuration(ms, _) => format!("duration: {ms}"),
+                StyleProperty::TransitionDelay(ms, _) => format!("delay: {ms}"),
+                StyleProperty::TransitionTimingFunction(timing, _) => {
+                    format!("easing: {}", quote(crate::transition::easing_name(timing)))
+                }
+                _ => return None,
+            });
+        }
+    }
+    if fields.is_empty() {
+        return None;
+    }
+    Some((condition, format!("{{ {} }}", fields.join(", "))))
 }
 
 /// Metadata stays beside the emitted style object, never inside RN styles.
@@ -681,6 +753,60 @@ mod tests {
             "{module}"
         );
         assert!(!module.contains("is conditional"), "{module}");
+    }
+
+    #[test]
+    fn transition_utilities_go_in_their_own_table_not_unsupported() {
+        let module = render_candidate_module(
+            &[
+                "transition-[inset-inline-start,background-color]",
+                "duration-150",
+                "ease-out",
+                "motion-reduce:transition-colors",
+                "hover:duration-300",
+                "p-4",
+            ]
+            .map(String::from),
+            &Theme::default(),
+        );
+        assert!(
+            module.contains(
+                r#""transition-[inset-inline-start,background-color]": [null, { properties: ["inset-inline-start", "background-color"]"#
+            ),
+            "{module}"
+        );
+        assert!(
+            module.contains(r#""duration-150": [null, { duration: 150 }]"#),
+            "{module}"
+        );
+        assert!(
+            module.contains(r#""ease-out": [null, { easing: "ease-out" }]"#),
+            "{module}"
+        );
+        assert!(
+            module.contains(
+                r#""motion-reduce:transition-colors": ["motion-reduce", { properties: ["#
+            ),
+            "{module}"
+        );
+        // A condition the reader cannot decide keeps the path it had.
+        assert!(!module.contains(r#""hover:duration-300": ["#), "{module}");
+        let unsupported = &module[module.find("const unsupported").unwrap()..];
+        let unsupported = &unsupported[..unsupported.find("\n}\n").unwrap()];
+        assert!(!unsupported.contains("duration-150"), "{module}");
+        assert!(!unsupported.contains("motion-reduce:"), "{module}");
+    }
+
+    #[test]
+    fn a_module_without_transitions_still_exports_the_table() {
+        let module = render_candidate_module(&["p-4".to_string()], &Theme::default());
+        assert!(
+            module.contains("export const hozoClassTransitions = {}\n"),
+            "{module}"
+        );
+        // Data only: the harnesses that evaluate this module inject its
+        // imports by name, and a new one would break every one of them.
+        assert!(!module.contains("createClassTransitions"), "{module}");
     }
 
     #[test]

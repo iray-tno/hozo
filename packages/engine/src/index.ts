@@ -34,6 +34,12 @@ export {
   createClassResolver,
   type StyleObject,
 } from './class-resolver.ts'
+export {
+  type ClassTransition,
+  type ClassTransitionSpec,
+  type ClassTransitionTable,
+  createClassTransitions,
+} from './class-transition.ts'
 export { blendColor, canBlendColor } from './color-transition.ts'
 export { type CxValue, cx } from './cx.ts'
 export { type HozoDomStyle, hozoDomProps, hozoDomStyle } from './dom-style.ts'
