@@ -640,6 +640,11 @@ RFC 007's; this RFC adds an end-state structure and deletion obligations.
 *Exit:* the dashboard prints; shadow equality holds; the spike shows static
 and runtime paths agree for one non-`Primitive` owner, or shows why not.
 
+The [first handle application slice](../measurements/bottom-sheet-prepared-handle-spike.md)
+adds a bounded Native carrier and Web/Native transport probes. Its producer
+and two-shape contract are test scaffolding, not a production manifest reader
+or generalized lowering. Phase A, owner audit and default routing remain open.
+
 ### B. One owner contract everywhere
 
 - Add `@hozo/form`'s nine components with secondary class props, and

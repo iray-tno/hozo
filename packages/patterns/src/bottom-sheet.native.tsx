@@ -5,7 +5,7 @@ import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { type LayoutChangeEvent, Modal, type StyleProp, View, type ViewStyle } from 'react-native'
-import { Pressable } from './pressable.native.tsx'
+import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { insetPadding } from './safe-area-padding.native.ts'
 import {
   clampToDetents,
@@ -46,6 +46,14 @@ export interface HozoBottomSheetProps {
   sheetStyle?: StyleProp<ViewStyle>
   handleStyle?: StyleProp<ViewStyle>
   handleBarStyle?: StyleProp<ViewStyle>
+  /**
+   * @internal Complete prepared class contribution for the handle (#1458).
+   * The real pressable supplies its state; decoration supplies no state.
+   * A producer must consume handleClassName, including any opaque residual,
+   * rather than resolving the same input again through both routes.
+   * Ordinary compiler output does not emit this experimental carrier yet.
+   */
+  hozoHandleStyle?: (state: InteractionState | undefined) => StyleProp<ViewStyle>
   testID?: string
   children?: ReactNode
 }
@@ -100,9 +108,12 @@ export function HozoBottomSheet({
   sheetStyle,
   handleStyle,
   handleBarStyle,
+  hozoHandleStyle,
   testID,
   children,
 }: HozoBottomSheetProps) {
+  if (hozoHandleStyle && handleClassName !== undefined)
+    throw new Error('Prepared BottomSheet handle styles must consume handleClassName')
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
   const message = useHozoMessage()
@@ -228,7 +239,11 @@ export function HozoBottomSheet({
               accessibilityRole="button"
               accessibilityLabel={handleAccessibilityLabel}
               style={(interaction) => [
-                hozoClasses(handleClassName, { ...interaction }),
+                hozoHandleStyle
+                  ? open
+                    ? hozoHandleStyle(interaction)
+                    : undefined
+                  : hozoClasses(handleClassName, { ...interaction }),
                 hozoAuthoredStyle(handleStyle),
               ]}
               onPress={() => {
@@ -243,7 +258,14 @@ export function HozoBottomSheet({
             <View
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={[hozoClasses(handleClassName), hozoAuthoredStyle(handleStyle)]}
+              style={[
+                hozoHandleStyle
+                  ? open
+                    ? hozoHandleStyle(undefined)
+                    : undefined
+                  : hozoClasses(handleClassName),
+                hozoAuthoredStyle(handleStyle),
+              ]}
               {...drag.handlers}
             >
               {bar}
