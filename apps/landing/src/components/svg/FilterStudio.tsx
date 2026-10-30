@@ -41,7 +41,7 @@ const segment = ([ax, ay]: Point, [bx, by]: Point) =>
 // Asanoha, the hemp leaf: a triangular lattice, with each triangle's
 // centroid joined to its three corners. Around every lattice point that
 // leaves a six-leaved star.
-const ASANOHA_SIDE = 26
+const ASANOHA_SIDE = 40
 function asanoha() {
   const height = (ASANOHA_SIDE * Math.sqrt(3)) / 2
   const at = (i: number, j: number): Point => [
@@ -77,7 +77,7 @@ function asanoha() {
 
 // Shippo, the seven treasures: equal circles on a square lattice, spaced so
 // that each overlaps its four neighbours in petals that meet at their tips.
-const SHIPPO_SPACING = 40
+const SHIPPO_SPACING = 50
 const SHIPPO_RADIUS = SHIPPO_SPACING / Math.SQRT2
 function shippo() {
   const centres: Point[] = []
@@ -94,7 +94,7 @@ function shippo() {
 // Seigaiha, the blue sea's waves: rows of concentric rings, each row half a
 // ring lower and half a step across, drawn top to bottom so that every row
 // hides the lower half of the one before.
-const SEIGAIHA_RADIUS = 24
+const SEIGAIHA_RADIUS = 34
 const SEIGAIHA_RINGS = [1, 0.75, 0.5, 0.25].map((share) => share * SEIGAIHA_RADIUS)
 function seigaiha() {
   const units: { centre: Point; motif: boolean }[] = []
