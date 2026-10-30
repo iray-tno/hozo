@@ -16,8 +16,8 @@ investigation moves.
 | Test | Where | Issue |
 | --- | --- | --- |
 | The appearance audit reaching its readiness deadline with an empty or stale story frame on one CPU | `examples/storybook-demo/scripts/check-appearance.mjs` | [#1367](https://github.com/iray-tno/hozo/issues/1367) |
+| The virtual-reader audit reaching its preparation deadline with empty story roots on one CPU | `examples/storybook-demo/scripts/check-utterances.mjs` | [#1426](https://github.com/iray-tno/hozo/issues/1426) |
 | The Web Calendar caller test still seeing the next-month button focused right after disabling it | `examples/storybook-demo/scripts/caller-composition.test.mjs` | [#1403](https://github.com/iray-tno/hozo/issues/1403) |
-| The browser video keyboard test reading `Play video` after waiting for `Pause video` | `packages/media/tests/browser-video.test.mjs` | [#1247](https://github.com/iray-tno/hozo/issues/1247) |
 | The `ios` job, before any test runs ("Timed out waiting for AX loaded notification") | `.github/workflows` | [#530](https://github.com/iray-tno/hozo/issues/530) |
 | The `voiceover` job, on the runner ("-1743", VoiceOver refusing to launch) | `.github/workflows` | [#631](https://github.com/iray-tno/hozo/issues/631) |
 | The Native Dialog returning focus to its opener | device a11y checks | [#484](https://github.com/iray-tno/hozo/issues/484) |
