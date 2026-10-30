@@ -381,6 +381,23 @@ const pages = {
   },
   async tree(page) {
     const crates = page.getByRole('treeitem', { name: 'crates' })
+    const marker = crates.locator('[aria-hidden="true"]')
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
+    assert.deepEqual(
+      await marker.evaluate((el) => {
+        const style = getComputedStyle(el)
+        return [style.transitionProperty, style.transitionDuration]
+      }),
+      ['transform, translate, scale, rotate', '0.15s'],
+      'tree: branch chevron does not transition transform',
+    )
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    assert.equal(
+      await marker.evaluate((el) => getComputedStyle(el).transitionProperty),
+      'none',
+      'tree: reduced motion did not disable chevron transition',
+    )
+    await page.emulateMedia({ reducedMotion: 'no-preference' })
     await page.getByRole('treeitem', { name: 'README.md' }).focus()
     await crates.focus()
     await page.keyboard.press('ArrowLeft')
