@@ -38,6 +38,8 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/crates/hozo_parser/src/owner_slots.rs",
+        "$TURBO_ROOT$/crates/hozo_napi/src/owner_slots.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/owner_style.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/render.rs",
@@ -72,6 +74,8 @@
       "inputs": [
         "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/crates/hozo_parser/src/owner_slots.rs",
+        "$TURBO_ROOT$/crates/hozo_napi/src/owner_slots.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/owner_style.rs",
         "$TURBO_ROOT$/crates/hozo_napi/src/prepared_module.rs",
         "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
@@ -210,6 +214,8 @@
         "$TURBO_ROOT$/crates/hozo_parser/src/tailwind.rs",
         "$TURBO_ROOT$/apps/landing/src/examples/ui/**",
         "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/crates/hozo_parser/src/owner_slots.rs",
+        "$TURBO_ROOT$/crates/hozo_napi/src/owner_slots.rs",
         "$TURBO_ROOT$/.github/workflows/deploy-pages.yml",
         "$TURBO_ROOT$/.github/workflows/native-showcase.yml",
         "$TURBO_ROOT$/examples/showcase/src/**",

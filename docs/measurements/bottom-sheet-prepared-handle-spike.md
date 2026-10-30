@@ -215,3 +215,23 @@ After this correction, targeted text/cache checks pass 16/16 and the complete
 Showcase unit suite passes 239 tests with zero failures and its one existing
 Windows SIGTERM-fixture skip. No retry of the unchanged CI run was used as a
 substitute for fixing the stale receipt.
+
+## Caller facts prerequisite (no default rewrite)
+
+An explicit `inspectOwnerClassSlots` request now uses the parser's AST and
+import-symbol references to report literal class attributes at real caller
+sites. Aliased named imports are assessed; lexical shadowing, type-only and
+foreign imports do not borrow that identity. Spread/duplicate/private-carrier,
+opaque-value and namespace sites retain explicit unassessed reasons. Invalid
+syntax or mutable/unresolved bindings fail the inspection instead of certifying
+an empty census. JS edit spans and the post-directive/hashbang module insertion
+offset are UTF-16, including astral text before the JSX.
+
+This is compiler-owned discovery, not a second JS parser or permission to trust
+an unaudited manifest. Ordinary compilation never invokes the extra semantic
+pass. The next caller-plan layer must separately prepare every relevant host
+shape, preserve unassessed input and apply the carrier; this API alone performs
+no rewrite or class resolution. Later adapter integration should consume its
+existing parse rather than putting this opt-in evidence pass in the hot path.
+The generated text fixture pins the two new compiler modules (34 -> 36 sources);
+its factory code, output hashes and route decisions remain unchanged.

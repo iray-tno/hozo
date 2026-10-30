@@ -375,6 +375,11 @@ interface CandidateCacheConstructor {
  * the one to move to when `pack:native` grows up into its CLI.
  */
 interface NativeBinding {
+  inspectOwnerClassSlots(
+    source: string,
+    targets: OwnerSlotBinding[],
+    sourceFile?: string,
+  ): OwnerSlotInspection
   prepareTailwindContext(snapshot: string): PreparedTailwindContext
   prepareFinalTailwindContext(snapshot: string): PreparedTailwindContext
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
@@ -1003,6 +1008,30 @@ export function moduleImports(source: string, module: string): string[] {
  */
 export function topLevelBindings(source: string): string[] {
   return loadNative().topLevelBindings(source)
+}
+
+/** @internal Explicit caller inspection, not manifest trust or rewrite permission.
+ * Named runtime import symbols only. Namespace sites remain unassessed.
+ * Coordinates are UTF-16 for edits in the original JS source string.
+ */
+export interface OwnerSlotBinding {
+  source: string
+  imported: string
+  classProp: string
+  preparedProp: string
+}
+export interface OwnerSlotInspection {
+  /** Insert generated module declarations after hashbang/directive prologue. */
+  insertionOffset: number
+  sites: { target: number; spanStart: number; spanEnd: number; classes?: string; reason?: string }[]
+  diagnostics: CompileDiagnostic[]
+}
+export function inspectOwnerClassSlots(
+  source: string,
+  targets: OwnerSlotBinding[],
+  sourceFile?: string,
+): OwnerSlotInspection {
+  return loadNative().inspectOwnerClassSlots(source, targets, sourceFile)
 }
 
 /**

@@ -15,6 +15,7 @@ mod dynamic_class;
 mod important;
 mod interaction_order;
 mod jsx;
+mod owner_slots;
 mod rest;
 mod scan;
 mod stylex;
@@ -42,6 +43,9 @@ pub use dynamic_class::ClassHelper;
 pub use important::IMPORTANT_NOT_LOWERED;
 pub use interaction_order::interaction_cascade_key;
 pub use jsx::is_primitive_name;
+pub use owner_slots::{
+    inspect_owner_class_slots, OwnerSlotBinding, OwnerSlotInspection, OwnerSlotSite,
+};
 pub use rn_imports::{
     react_native_imports, ReactNativeImportDeclaration, ReactNativeImportSpecifier,
     ReactNativeImports,

@@ -14,6 +14,10 @@ use napi_derive::napi;
 use std::sync::Arc;
 mod tailwind_order;
 use tailwind_order::{TailwindCompilePlan, TailwindOrderInspection};
+mod owner_slots;
+pub use owner_slots::{
+    inspect_owner_class_slots, OwnerSlotBinding, OwnerSlotInspection, OwnerSlotSite,
+};
 mod prepared_module;
 pub use prepared_module::{
     prepare_final_tailwind_context, prepare_tailwind_context, PreparedNativeModule,

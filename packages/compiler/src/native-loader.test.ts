@@ -1,8 +1,31 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createCompiler, openCandidateCache, prepareTailwindContext } from './index.ts'
+import {
+  createCompiler,
+  inspectOwnerClassSlots,
+  openCandidateCache,
+  prepareTailwindContext,
+} from './index.ts'
 import { loadNativeBinding, nativePackageName } from './native-loader.ts'
+
+test('the host addon reports owner caller spans from import symbols in UTF-16', () => {
+  const source = `// 🧩\nimport {BottomSheet as Sheet} from '@hozo/patterns'; const a=<Sheet handleClassName="p-2"/>`
+  const result = inspectOwnerClassSlots(source, [
+    {
+      source: '@hozo/patterns',
+      imported: 'BottomSheet',
+      classProp: 'handleClassName',
+      preparedProp: 'hozoHandleStyle',
+    },
+  ])
+  assert.deepEqual(result.diagnostics, [])
+  assert.equal(result.sites.length, 1)
+  assert.equal(
+    source.slice(result.sites[0].spanStart, result.sites[0].spanEnd),
+    'handleClassName="p-2"',
+  )
+})
 
 test('the host addon returns owner-style metadata only for an explicit assessed request', () => {
   const compiler = createCompiler()
