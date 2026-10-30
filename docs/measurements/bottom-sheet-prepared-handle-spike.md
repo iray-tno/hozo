@@ -24,18 +24,31 @@ Web already has a class carrier on the real handle; it needs no new prop here.
 
 ## What the producer is (and is not)
 
-The Native test fixture compiles real Pressable/View plan functions with the
-existing compiler and Metro transformer. It invokes those functions without
-mounting their elements, takes their generated style/callback and hands it
-to the real public BottomSheet. Literal portions therefore use actual
-compiler-generated styles, while the residual uses the actual generated
-candidate map at the owner. This is a **test-only producer**, not a new
-production transformation or a declaration that BottomSheet is a Primitive.
+The Native probe now requests `ownerStyle: true` on `compileNativeModule`.
+The existing backend records the style expression it actually emits, not a
+second lowering or a parse of generated JSX. Ordinary JSX/styles/imports
+remain the independent reference and are compared byte-for-byte apart from
+the requested metadata. The probe emits the expression directly, hoists each
+StyleSheet once and gives the real BottomSheet that callback/value. The old
+unmounted React-element allocation and `.props.style` extraction are deleted.
+The ordinary plan functions remain only as an independent compiler/Metro
+reference; the prepared producer no longer invokes them.
 
-It deliberately allocates an unmounted React element to obtain a compiled
-style. That scaffold proves application, not an accepted optimized producer.
-Replace it with direct compiler-produced entries when the generic manifest
-owner path lands; never ship it as another runtime compiler/cascade engine.
+Caller wiring is still a **test-only explicit producer**, not generalized
+manifest-based transformation or a declaration that BottomSheet is a Primitive.
+It captures the residual into a local before the owner callback; class
+assembly still uses the real generated candidate map, not another resolver.
+The synthetic preparation hosts are chosen from the validated shadow contract.
+
+This per-call request is restricted to leaf View/Pressable class contributions.
+Uncaptured accessors, conditional authored expressions, inherited context,
+explicit props/styles, extra host effects, hooks and wrappers are not certified:
+ordinary output remains with an error and no partial carrier. The bounded
+backend still produces JSX internally, but the emitted producer does not
+construct a temporary element at runtime. Existing focus-visible collection
+is returned as a requirement, not silently dropped; the actual handle already
+observes it. It does not add another event machine to satisfy the requirement.
+The retained prepare/emit path preserves the request and its one-shot lifecycle.
 
 The initial hand-written `fixtures/bottom-sheet-handle-contract.json` has
 been deleted. The catalog now authors the two-shape description and generates
@@ -64,10 +77,11 @@ The shadow JSON is not advertised or shipped as a participating package manifest
 
 Missing work remains explicit: semantic fact bindings, text publication,
 finite non-boolean domains, export/package-instance resolution, complete
-manifest-v2 transport/capture and direct compiler-produced caller entries.
-The temporary primitive-element producer above is unchanged and still must
-be removed. No conformance headline, Native default or six-workstream
-completion percentage moves for this schema/transport slice.
+manifest-v2 transport/capture and automatic caller expression capture/rewrite.
+Direct compiler-produced Native carriers now replace the element-extraction
+scaffold above; generic routing, hygiene and broad owner/domain support remain
+open. No conformance headline, Native default or six-workstream completion
+percentage moves for this bounded seam.
 
 ## Evidence
 
@@ -127,7 +141,9 @@ BottomSheet implementations, its rules/Pressable and the local contract.
 
 The current checkout's parser differed from the last verified addon. The
 addon was rebuilt before compiler-backed tests (Cargo jobs=1), followed by
-the compiler package. No Rust source changes are part of this slice.
+the compiler package. Those initial application-seam and shadow slices did
+not change Rust. The direct-carrier follow-up does change the Native backend
+and NAPI; it rebuilds the addon before executing the updated probes.
 
 ## Cost and remaining gates
 
@@ -143,8 +159,9 @@ Before phase A is complete, add the manifest-v2 authoring/shadow reader and
 direct caller/owner-plan generation (including full shape/fact semantics),
 independent real-browser state/style evidence and a representative production
 bundle comparison. The complete manifest set/freeze experiment remains open
-too. Then remove the fixture producer/contract in favor of the shared fact
-source. No ordinary BottomSheet literal routing, ordering eligibility, text
+too. Then replace explicit fixture wiring with the shared fact/caller route;
+the hand-written contract and element-extraction producer are already deleted.
+No ordinary BottomSheet literal routing, ordering eligibility, text
 default, conformance headline or legacy authority is changed here.
 
 Retained failed observations: a shell quoting error before the initial probe
@@ -155,3 +172,107 @@ resolver trace that missed Metro's direct file import. The zero trace was
 not accepted as evidence: both import routes are now instrumented and the
 nonzero residual control passes. None was hidden by weakening diagnostics,
 skipping a test or retrying a failure as a flake.
+
+## Direct-carrier verification (2026-10-31)
+
+On base `eccf6d1810718a1abf9c9609b820907a0f8f8feb`, CPU 1 / Idle / serial:
+
+- `cargo test --workspace --quiet -- --test-threads=1`: 1,088 passed,
+  zero failed, one existing IR ignore. Two new backend tests include ordinary
+  output equality and refusal of unassessed roots/capture/host effects.
+- Fresh debug addon rebuild, compiler build/typecheck: passed.
+- Scoped compiler contract/owner/manifest, both handle platforms, gap inventory,
+  pattern gap owners, catalog/cache/native-host guards: 75 passed, no skips.
+  Native-loader platform smoke: another six passed, including the new opt-in
+  NAPI carrier/focus-visible requirement check.
+- `cargo fmt --all --check`, workspace/all-targets Clippy with warnings denied,
+  lint (1,789 files), docs, metadata, generated ABI (58 leaves / 82 names),
+  conventional title and diff checks: passed. Source-cache dry runs include
+  the owner backend and retained NAPI emitter in both consuming test tasks.
+
+Retained development failures: the first capture guard rejected a required
+focus-visible host flag (fixed by returning its requirement, not dropping it);
+an incorrect negative test assumed RN's supported `pointerEvents` style was
+a non-style effect (replaced with a real disabled host-prop case); the CJS
+test loader initialized a reused StyleSheet import after Metro's prepended
+stylesheet declaration (the explicit producer now uses a separate aliased
+StyleSheet binding, leaving the ordinary Metro reference independent);
+the theme test initially used `name` instead of the actual `token` API and
+the one-shot test expected the wrong error wording. These are corrected
+probes/implementation findings, not evidence of a flake. No production Metro
+app, physical device, GPU, AT or full-root JS suite was run locally.
+
+CI follow-up: run `41087267360` passed Rust, package tests, text proof stages,
+lint and both platform smoke jobs, but failed Native Showcase's committed
+fixture reproducibility check. The compiler-source receipt had not been
+regenerated after the backend/NAPI edits. Regeneration changes only five
+source hashes and adds `owner_style.rs` to the pinned graph (33 -> 34); all
+factory code, case output hashes and route decisions are unchanged. The
+new file also has an independently checked hash and a Showcase source-cache
+input. The strict generator `--check` assertion remains intact.
+
+After this correction, targeted text/cache checks pass 16/16 and the complete
+Showcase unit suite passes 239 tests with zero failures and its one existing
+Windows SIGTERM-fixture skip. No retry of the unchanged CI run was used as a
+substitute for fixing the stale receipt.
+
+## Caller facts prerequisite (no default rewrite)
+
+An explicit `inspectOwnerClassSlots` request now uses the parser's AST and
+import-symbol references to report literal class attributes at real caller
+sites. Aliased named imports are assessed; lexical shadowing, type-only and
+foreign imports do not borrow that identity. Spread/duplicate/private-carrier,
+opaque-value and namespace sites retain explicit unassessed reasons. Invalid
+syntax or mutable/unresolved bindings fail the inspection instead of certifying
+an empty census. JS edit spans and the post-directive/hashbang module insertion
+offset are UTF-16, including astral text before the JSX.
+
+This is compiler-owned discovery, not a second JS parser or permission to trust
+an unaudited manifest. Ordinary compilation never invokes the extra semantic
+pass. The next caller-plan layer must separately prepare every relevant host
+shape, preserve unassessed input and apply the carrier; this API alone performs
+no rewrite or class resolution. Later adapter integration should consume its
+existing parse rather than putting this opt-in evidence pass in the hot path.
+The generated text fixture pins the two new compiler modules (34 -> 36 sources);
+its factory code, output hashes and route decisions remain unchanged.
+
+## Literal caller preview (explicit, not adapter rollout)
+
+`previewOwnerLiteralCallers` consumes one explicitly selected shadow contract
+and the compiler-owned caller sites. For a literal, it asks the existing
+backend to prepare every declared host shape. Only identical state-independent
+carriers with no diagnostics/hooks/wrappers or additional Native imports are
+wired through the private ABI. The backend separately reports `literalResting`
+from unconditional, residual-free IR: equal output after folding a semantic
+condition for a synthetic primitive is not proof about the actual owner.
+The authored style props, children, component identity and evaluation order
+stay in place. Opaque expressions, spreads, duplicates, private-carrier
+collisions, namespaces and unassessed shape/state inputs retain their original
+class attributes with explicit findings, rather than disappearing.
+
+Prepared styles and their callback are hoisted once per distinct literal in
+the module. A conservative source-wide name check avoids caller/nested binding
+collisions, and compiler offsets preserve the directive/hashbang prefix. A
+second pass is a no-op. The probe now compares the actual pre/post caller
+through Metro and the real BottomSheet, on both host shapes, with fresh author
+getters, frozen gap/opacity overrides, update/removal and host retention. The
+opaque control positively witnesses literal resolution; the prepared path is
+traced separately and never requests that literal, including after updates.
+
+This is an internal **explicit-direct-compiler-preview**, not a normal compile
+mode, published integration or audit upgrade. It uses the direct compiler API;
+participation in the production final-context collect/emit batch, cascade
+conflict evidence and bundler-specific caching/capture remain gates before
+any adapter rollout. The preview does not introduce another ordering rule.
+Browser computed state, production bundle costs, dynamic expression capture,
+complete manifest v2 and owner audit remain open; no headline or six-workstream
+percentage moves. No utility parsing or sorting is implemented in this JS layer.
+
+Verification of this layer used CPU 1 / Idle / serial: Rust workspace 1090
+passed, zero failed, one existing IR ignore; fresh addon rebuild; compiler
+build/typecheck; scoped caller/carrier/owner/Web/gap/catalog/cache/Native-fixture
+suite 83 passed, zero skipped; platform loader smoke seven passed. Clippy
+(`-D warnings`), rustfmt, lint (1792 files), generated text fixture equality,
+docs, metadata, generated ABI, title and diff checks passed. The committed
+fixture changes only three source hashes; factories, routes and case hashes
+are unchanged. No full-root JS suite or local device/GPU build was run.

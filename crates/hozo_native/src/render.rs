@@ -1519,20 +1519,17 @@ pub(super) fn render_node(
             };
             format!("({state}) => [{}]", style_array_parts.join(", "))
         };
-        held.emit(
-            &mut props_text,
-            &format!(" {}={{{callback}}}", pattern_style_prop.unwrap_or("style")),
-        );
+        let attribute = format!(" {}={{{callback}}}", pattern_style_prop.unwrap_or("style"));
+        crate::owner_style::record(cx, &base_name, &attribute, true);
+        held.emit(&mut props_text, &attribute);
     } else if style_array_parts.len() == 1 && !style_array_parts[0].contains("&&") {
-        held.emit(
-            &mut props_text,
-            &format!(" style={{{}}}", style_array_parts[0]),
-        );
+        let attribute = format!(" style={{{}}}", style_array_parts[0]);
+        crate::owner_style::record(cx, &base_name, &attribute, false);
+        held.emit(&mut props_text, &attribute);
     } else if !style_array_parts.is_empty() {
-        held.emit(
-            &mut props_text,
-            &format!(" style={{[{}]}}", style_array_parts.join(", ")),
-        );
+        let attribute = format!(" style={{[{}]}}", style_array_parts.join(", "));
+        crate::owner_style::record(cx, &base_name, &attribute, false);
+        held.emit(&mut props_text, &attribute);
     }
     if let Some((duration, delay, easing, opacity, transform, colors)) = transition {
         props_text.push_str(&format!(
@@ -2509,6 +2506,8 @@ pub(super) fn render_node(
             }
         }
     }
+
+    crate::owner_style::validate_props(cx, &base_name, &props_text);
 
     // Every child, in source order. A `Verbatim` is re-emitted from source
     // rather than dropped; a bare string on a non-Text element gets the

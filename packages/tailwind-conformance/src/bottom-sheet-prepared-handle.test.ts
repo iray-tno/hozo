@@ -1,6 +1,5 @@
-// First RFC010 spike slice: a real owner consumes styles prepared by the
-// existing primitive lowering. This fixture producer is NOT a generalized
-// compiler/manifest implementation and adds no component to Primitive.
+// RFC010: direct styles from the existing backend reach a real owner.
+// Caller wiring remains an explicit fixture, not generalized manifest lowering.
 import assert from 'node:assert/strict'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire, registerHooks } from 'node:module'
@@ -8,6 +7,7 @@ import path from 'node:path'
 import { after, mock, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
+import { previewOwnerLiteralCallers } from '../../compiler/src/owner-caller-plan.ts'
 import { parseOwnerContractShadow, selectOwnerShape } from '../../compiler/src/owner-contract.ts'
 import { loadNativeModule } from './native-render.ts'
 
@@ -21,25 +21,47 @@ const restClasses = 'p-[8px] opacity-100 bg-[#ffffff]'
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const project = mkdtempSync(path.join(root, 'packages/tailwind-conformance/.handle-spike-'))
 const compiler = createCompiler()
-const source = `
+const contract = parseOwnerContractShadow(
+  readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
+).contracts[0]!
+const planSource = `
 import {View, Pressable} from '@hozo/core'
-import {BottomSheet} from '@hozo/patterns'
-export {BottomSheet as Raw} from '@hozo/patterns'
 export function InteractivePlan({extra}) {
-  return <Pressable className={\`${classes} \${extra ?? ''}\`} />
+  return <${contract.shapes[0]!.nativeHost} className={\`${classes} \${extra}\`} />
 }
 export function DecorativePlan({extra}) {
-  return <View className={\`${restClasses} \${extra ?? ''}\`} />
+  return <${contract.shapes[1]!.nativeHost} className={\`${restClasses} \${extra}\`} />
 }
+`
+const preparedPlans = compiler.compileNativeModule(planSource, undefined, undefined, {
+  ownerStyle: true,
+})
+const declarations = preparedPlans.components
+  .map((plan, index) => {
+    const carrier = plan.ownerStyle
+    assert.ok(carrier, JSON.stringify(plan.diagnostics))
+    assert.ok(!plan.diagnostics.some((d) => d.severity === 'error'))
+    if (carrier.focusVisible) assert.ok(contract.shapes[index]!.events.includes('focusVisible'))
+    const name = index === 0 ? 'DirectInteractivePlan' : 'DirectDecorativePlan'
+    // Hoist each StyleSheet once. The backend's expression is emitted verbatim,
+    // not interpreted or obtained by constructing an unmounted React element.
+    return `export const ${name} = ((hozoStyles) => (extra) => (${carrier.expression}))(PreparedStyleSheet.create(${plan.styles}));`
+  })
+  .join('\n')
+const source = `
+import {StyleSheet as PreparedStyleSheet} from 'react-native'
+import {hozoClasses} from '@hozo/engine/project'
+import {BottomSheet} from '@hozo/patterns'
+export {BottomSheet as Raw} from '@hozo/patterns'
+${planSource}
+${declarations}
 export function Prepared({base,own,extra,observe}) {
   // Capture the residual once during caller rendering, not on every event.
   const captured = extra
+  const interactive = DirectInteractivePlan(captured)
   const prepared = (state) => {
     observe?.(state)
-    const element = state === undefined
-      ? DecorativePlan({extra:captured}) : InteractivePlan({extra:captured})
-    const style = element.props.style
-    return typeof style === 'function' ? style(state) : style
+    return state === undefined ? DirectDecorativePlan(captured) : interactive(state)
   }
   return <BottomSheet {...base} handleStyle={own} hozoHandleStyle={prepared} />
 }
@@ -53,7 +75,7 @@ export function ReadCaller({input,...props}) {
 const cache = openCandidateCache()
 cache.scanFile(
   'HandleChoices.ts',
-  JSON.stringify([...classes.split(' '), 'rounded-[7px]', 'rounded-[9px]']),
+  JSON.stringify([...classes.split(' '), 'rounded-[7px]', 'rounded-[9px]', 'gap-x-2']),
   1,
 )
 const sheet = path.join(project, 'node_modules/.hozo/candidates.native.js')
@@ -85,10 +107,26 @@ after(() => {
 const warnings = mock.method(console, 'warn', () => {})
 const exports = loadNativeModule(source, project, { root: project, compiler })
 warnings.mock.restore()
+const literalClasses = `${restClasses} gap-x-2`
+const literalSource = `${planSource}
+import {BottomSheet} from '@hozo/patterns';
+export function LiteralCaller({open,detents,author}) {
+  return <BottomSheet open={open} detents={detents} handleStyle={author.value} handleClassName="${literalClasses}">Body</BottomSheet>
+}`
+const literalPreview = previewOwnerLiteralCallers(literalSource, compiler, {
+  source: '@hozo/patterns',
+  imported: 'BottomSheet',
+  shadow: readFileSync(
+    new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
+    'utf8',
+  ),
+})
+assert.equal(literalPreview.findings[0]!.disposition, 'prepared-literal')
+const literalWarnings = mock.method(console, 'warn', () => {})
+const literalOrdinary = loadNativeModule(literalSource, project, { root: project, compiler })
+const literalPrepared = loadNativeModule(literalPreview.code, project, { root: project, compiler })
+literalWarnings.mock.restore()
 const requests = (require(tracedSheet) as { requested: unknown[] }).requested
-const contract = parseOwnerContractShadow(
-  readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
-).contracts[0]!
 
 type Host = { type: unknown; props: Record<string, unknown> }
 type Rendered = {
@@ -159,6 +197,125 @@ test('the ordinary compiler still carries BottomSheet; the producer really compi
     /NOT_WIRED_ON_NATIVE/,
   )
   assert.ok(!plans.components[1].jsx.includes('hovered &&'))
+})
+
+test('direct compiler carriers return styles, not temporary React elements', () => {
+  const callback = (exports.DirectInteractivePlan as (extra: string) => (state: object) => unknown)(
+    'rounded-[7px]',
+  )
+  const state = { pressed: false, hovered: true, focused: false, focusVisible: false }
+  const output = callback(state)
+  assert.equal(React.isValidElement(output), false)
+  assert.equal(rn.StyleSheet.flatten(output).opacity, 0.5)
+  assert.equal(rn.StyleSheet.flatten(output).borderRadius, 7)
+  assert.equal(preparedPlans.components[0]!.ownerStyle!.callback, true)
+  assert.equal(preparedPlans.components[0]!.ownerStyle!.focusVisible, true)
+  assert.equal(preparedPlans.components[1]!.ownerStyle!.callback, false)
+  const ordinary = compiler.compileNativeModule(planSource)
+  for (let index = 0; index < ordinary.components.length; index++) {
+    const { ownerStyle, ...direct } = preparedPlans.components[index]!
+    assert.ok(ownerStyle)
+    const { ownerStyle: absent, ...reference } = ordinary.components[index]!
+    assert.ok(absent == null)
+    assert.deepEqual(direct, reference, 'ordinary emitted output remains the independent reference')
+  }
+})
+
+test('literal caller preview reaches both real owners without resolving the literal or caching its author', () => {
+  for (const resizable of [false, true]) {
+    let own: Record<string, unknown> | undefined = Object.freeze({ gap: 16, opacity: 0.25 })
+    let ordinaryReads = 0
+    let preparedReads = 0
+    const beforeAuthor = {
+      get value() {
+        ordinaryReads++
+        return own
+      },
+    }
+    const afterAuthor = {
+      get value() {
+        preparedReads++
+        return own
+      },
+    }
+    const props = { open: true, detents: resizable ? [0.5, 1] : [1] }
+    requests.length = 0
+    const ordinary = render(literalOrdinary.LiteralCaller, { ...props, author: beforeAuthor })
+    let prepared: Rendered | undefined
+    try {
+      const expected = style(handle(ordinary, resizable))
+      assert.ok(
+        requests.some((value) => value === literalClasses),
+        'independent opaque route must witness actual literal resolution',
+      )
+      requests.length = 0
+      prepared = render(literalPrepared.LiteralCaller, { ...props, author: afterAuthor })
+      const owner = handle(prepared, resizable)
+      assert.deepEqual(style(owner), expected)
+      assert.equal(style(owner).paddingTop, 8)
+      assert.equal(style(owner).opacity, 0.25)
+      assert.equal(style(owner).columnGap, 16)
+      assert.equal(style(owner).rowGap, 16)
+      assert.equal(ordinaryReads, 1)
+      assert.equal(preparedReads, 1)
+      if (resizable) {
+        renderer.act(() => (owner.props.onHoverIn as (e: object) => void)({}))
+        assert.equal(handle(prepared, true), owner)
+        assert.deepEqual(style(owner), expected)
+        assert.equal(preparedReads, 1)
+      }
+      own = Object.freeze({ gap: 24, columnGap: 6, opacity: 0.75 })
+      renderer.act(() => {
+        prepared!.update(
+          React.createElement(literalPrepared.LiteralCaller, { ...props, author: afterAuthor }),
+        )
+      })
+      assert.equal(handle(prepared, resizable), owner)
+      assert.equal(style(owner).columnGap, 6)
+      assert.equal(style(owner).rowGap, 24)
+      assert.equal(preparedReads, 2)
+      assert.deepEqual(
+        requests.filter((value) => typeof value === 'string' && value.length),
+        [],
+        'prepared mount, events and author updates must not resolve literal classes',
+      )
+      renderer.act(() =>
+        ordinary.update(
+          React.createElement(literalOrdinary.LiteralCaller, { ...props, author: beforeAuthor }),
+        ),
+      )
+      assert.deepEqual(style(owner), style(handle(ordinary, resizable)))
+      assert.deepEqual(
+        requests.filter((value) => typeof value === 'string' && value.length),
+        [literalClasses],
+        'only the updated opaque control may resolve literal classes',
+      )
+      requests.length = 0
+      own = undefined
+      renderer.act(() =>
+        prepared!.update(
+          React.createElement(literalPrepared.LiteralCaller, { ...props, author: afterAuthor }),
+        ),
+      )
+      assert.equal(handle(prepared, resizable), owner)
+      assert.equal(style(owner).opacity, 1)
+      assert.equal(style(owner).columnGap, 8)
+      assert.equal(preparedReads, 3)
+      assert.deepEqual(
+        requests.filter((value) => typeof value === 'string' && value.length),
+        [],
+      )
+      renderer.act(() =>
+        ordinary.update(
+          React.createElement(literalOrdinary.LiteralCaller, { ...props, author: beforeAuthor }),
+        ),
+      )
+      assert.deepEqual(style(owner), style(handle(ordinary, resizable)))
+    } finally {
+      unmount(ordinary)
+      if (prepared) unmount(prepared)
+    }
+  }
 })
 
 test('prepared and opaque plans reach the real two-shape handle, preserving author precedence', () => {

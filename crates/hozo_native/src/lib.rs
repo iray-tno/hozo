@@ -59,6 +59,7 @@ mod grid;
 mod interaction;
 mod keyframes;
 mod markup;
+mod owner_style;
 mod pattern;
 mod pattern_layout;
 mod render;
@@ -96,6 +97,7 @@ use hozo_ir::{
     Environment, ExprRef, FilterFunction, FormState, Length, Node, Primitive, Severity, Structural,
     StyleDeclaration, StyleProperty, SvgElement, TextOverflow, Theme, WhiteSpace,
 };
+pub use owner_style::{lower_owner_style, OwnerStyle};
 use render::render_node;
 pub use runtime_classes::{
     native_class_diagnostics, native_class_report, native_class_verdict,
@@ -213,6 +215,8 @@ pub(crate) struct NativeRenderContext<'a> {
     pub text_reference: bool,
     /// Internal per-call runtime integration. Never a project/default mode.
     pub text_inheritance: bool,
+    /// Only the explicit RFC010 preparation request observes this carrier.
+    pub owner_style: Option<&'a mut Option<OwnerStyle>>,
 }
 
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
@@ -360,6 +364,26 @@ fn lower_forwarded_impl(
     text_reference: bool,
     text_inheritance: bool,
 ) -> LowerOutput {
+    lower_forwarded_capturing(
+        root,
+        forwarded,
+        source,
+        theme,
+        text_reference,
+        text_inheritance,
+        None,
+    )
+}
+
+fn lower_forwarded_capturing(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+    text_reference: bool,
+    text_inheritance: bool,
+    owner_style: Option<&mut Option<OwnerStyle>>,
+) -> LowerOutput {
     let inherited: Vec<StyleDeclaration> = forwarded_text(forwarded).cloned().collect();
     let mut allocator = NameAllocator { next: 0 };
     let mut style_entries: Vec<StyleEntry> = Vec::new();
@@ -379,6 +403,7 @@ fn lower_forwarded_impl(
         runtime: &mut runtime,
         text_reference,
         text_inheritance,
+        owner_style,
     };
     let ancestor = AncestorContext {
         inherited: &inherited,

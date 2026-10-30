@@ -116,6 +116,13 @@ export interface CompiledTagDecision {
 }
 
 export interface CompiledNativeComponent {
+  /** @internal RFC010: style-only preparation, absent on ordinary output. */
+  ownerStyle?: {
+    expression: string
+    callback: boolean
+    focusVisible: boolean
+    literalResting: boolean
+  }
   /** @internal Build-time only; never included in emitted JSX/styles. */
   tailwindPlan?: TailwindCompilePlan
   jsx: string
@@ -373,6 +380,11 @@ interface CandidateCacheConstructor {
  * the one to move to when `pack:native` grows up into its CLI.
  */
 interface NativeBinding {
+  inspectOwnerClassSlots(
+    source: string,
+    targets: OwnerSlotBinding[],
+    sourceFile?: string,
+  ): OwnerSlotInspection
   prepareTailwindContext(snapshot: string): PreparedTailwindContext
   prepareFinalTailwindContext(snapshot: string): PreparedTailwindContext
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
@@ -577,6 +589,8 @@ export interface CompileEvidence {
 }
 
 export interface NativeCompileOptions extends CompileEvidence {
+  /** @internal RFC010 leaf-owner preparation; not a project/bundler mode. */
+  ownerStyle?: boolean
   textReference?: boolean
   textInheritance?: boolean
   textStatic?: boolean
@@ -689,6 +703,11 @@ export function prepareFinalTailwindContext(snapshot: string): PreparedTailwindC
 }
 
 function validateNativeOptions(options: NativeCompileOptions | undefined) {
+  if (
+    options?.ownerStyle &&
+    (options.textReference || options.textInheritance || options.textStatic)
+  )
+    throw new Error('Internal ownerStyle cannot be combined with text experiments')
   if (options?.textReference && options.textInheritance)
     throw new Error('Select one internal text experiment per compile call')
   if (options?.textStatic && !options.textInheritance)
@@ -994,6 +1013,30 @@ export function moduleImports(source: string, module: string): string[] {
  */
 export function topLevelBindings(source: string): string[] {
   return loadNative().topLevelBindings(source)
+}
+
+/** @internal Explicit caller inspection, not manifest trust or rewrite permission.
+ * Named runtime import symbols only. Namespace sites remain unassessed.
+ * Coordinates are UTF-16 for edits in the original JS source string.
+ */
+export interface OwnerSlotBinding {
+  source: string
+  imported: string
+  classProp: string
+  preparedProp: string
+}
+export interface OwnerSlotInspection {
+  /** Insert generated module declarations after hashbang/directive prologue. */
+  insertionOffset: number
+  sites: { target: number; spanStart: number; spanEnd: number; classes?: string; reason?: string }[]
+  diagnostics: CompileDiagnostic[]
+}
+export function inspectOwnerClassSlots(
+  source: string,
+  targets: OwnerSlotBinding[],
+  sourceFile?: string,
+): OwnerSlotInspection {
+  return loadNative().inspectOwnerClassSlots(source, targets, sourceFile)
 }
 
 /**

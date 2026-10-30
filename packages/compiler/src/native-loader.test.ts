@@ -1,8 +1,43 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { openCandidateCache, prepareTailwindContext } from './index.ts'
+import {
+  createCompiler,
+  inspectOwnerClassSlots,
+  openCandidateCache,
+  prepareTailwindContext,
+} from './index.ts'
 import { loadNativeBinding, nativePackageName } from './native-loader.ts'
+
+test('the host addon reports owner caller spans from import symbols in UTF-16', () => {
+  const source = `// 🧩\nimport {BottomSheet as Sheet} from '@hozo/patterns'; const a=<Sheet handleClassName="p-2"/>`
+  const result = inspectOwnerClassSlots(source, [
+    {
+      source: '@hozo/patterns',
+      imported: 'BottomSheet',
+      classProp: 'handleClassName',
+      preparedProp: 'hozoHandleStyle',
+    },
+  ])
+  assert.deepEqual(result.diagnostics, [])
+  assert.equal(result.sites.length, 1)
+  assert.equal(
+    source.slice(result.sites[0].spanStart, result.sites[0].spanEnd),
+    'handleClassName="p-2"',
+  )
+})
+
+test('the host addon returns owner-style metadata only for an explicit assessed request', () => {
+  const compiler = createCompiler()
+  const source = `import {Pressable} from '@hozo/core'; export const X=()=> <Pressable className="p-2 focus-visible:opacity-50"/>`
+  const ordinary = compiler.compileNativeModule(source)
+  const prepared = compiler.compileNativeModule(source, undefined, undefined, { ownerStyle: true })
+  assert.ok(ordinary.components[0]!.ownerStyle == null)
+  assert.ok(prepared.components[0]!.ownerStyle?.callback)
+  assert.equal(prepared.components[0]!.ownerStyle!.focusVisible, true)
+  assert.ok(prepared.components[0]!.jsx.includes(prepared.components[0]!.ownerStyle!.expression))
+  assert.equal(prepared.components[0]!.styles, ordinary.components[0]!.styles)
+})
 
 test('the host addon exposes compatible candidate replay on every platform smoke path', () => {
   const cache = openCandidateCache()

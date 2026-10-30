@@ -642,7 +642,9 @@ and runtime paths agree for one non-`Primitive` owner, or shows why not.
 
 The [first handle application slice](../measurements/bottom-sheet-prepared-handle-spike.md)
 adds a bounded Native carrier and Web/Native transport probes. Its producer
-is still test scaffolding. A follow-up replaces the hand-written contract JSON
+is still explicitly wired test scaffolding, but its old temporary-element
+extraction is replaced by an opt-in direct Native carrier from the existing
+renderer. A follow-up replaces the hand-written contract JSON
 with a catalog-generated shadow and an internal bounded data-only compiler
 reader (symbolic booleans and three-valued Gate selection). This is not the
 complete manifest-v2 schema, a production manifest reader or generalized
