@@ -28,10 +28,47 @@ export interface HozoTransitionSpec {
   duration: number
   delay?: number
   easing: 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out'
+  /**
+   * The CSS `transition-property` list, as `transition-[left,width]` or
+   * `transition-all` writes it. Only the position and size keys read it:
+   * opacity, colours and transforms animate whenever they change, as they
+   * always have, and a spec without it animates no position or size.
+   */
+  properties?: readonly string[]
 }
 
 /** The colour properties worth animating, in the order they are read. */
 const COLOR_KEYS = ['backgroundColor', 'borderColor', 'color'] as const
+
+// Position and size, which React Native lays out with every frame of the
+// animation: they run on the JavaScript driver with the colours, and only
+// when the spec names them. A `transition-colors` beside an `md:w-80` has
+// never moved the width, and a resize that started animating because this
+// learned to would be a change nobody asked for.
+//
+// Each CSS name maps to the React Native keys it covers. `start` and `end`
+// stay logical, so a thumb that moves by its inline-start inset slides the
+// right way in a right-to-left layout with nothing mirrored here: Yoga
+// resolves the side.
+const LAYOUT_PROPERTIES: Record<string, readonly string[]> = {
+  inset: ['top', 'right', 'bottom', 'left', 'start', 'end'],
+  'inset-inline': ['start', 'end', 'left', 'right'],
+  'inset-block': ['top', 'bottom'],
+  'inset-inline-start': ['start'],
+  'inset-inline-end': ['end'],
+  top: ['top'],
+  right: ['right'],
+  bottom: ['bottom'],
+  left: ['left'],
+  width: ['width'],
+  height: ['height'],
+}
+
+function layoutKeys(properties: readonly string[] | undefined): readonly string[] {
+  if (!properties) return []
+  if (properties.includes('all')) return [...new Set(Object.values(LAYOUT_PROPERTIES).flat())]
+  return [...new Set(properties.flatMap((property) => LAYOUT_PROPERTIES[property] ?? []))]
+}
 
 /**
  * The transform entries, flattened to `{ key: value }`.
@@ -188,6 +225,15 @@ export function HozoAnimated({
       const start = (from.current as Record<string, unknown>)[key]
       const end = (flat as Record<string, unknown>)[key]
       if (typeof start !== 'string' || typeof end !== 'string' || start === end) continue
+      overrides[key] = progress.interpolate({ inputRange: [0, 1], outputRange: [start, end] })
+    }
+
+    // Numbers only: a percentage or `auto` has nothing to interpolate
+    // between until it is laid out, so it changes at once, as before.
+    for (const key of layoutKeys(hozoTransition.properties)) {
+      const start = (from.current as Record<string, unknown>)[key]
+      const end = (flat as Record<string, unknown>)[key]
+      if (typeof start !== 'number' || typeof end !== 'number' || start === end) continue
       overrides[key] = progress.interpolate({ inputRange: [0, 1], outputRange: [start, end] })
     }
 
