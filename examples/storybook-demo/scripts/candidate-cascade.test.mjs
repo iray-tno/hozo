@@ -9,7 +9,7 @@ import { runInNewContext } from 'node:vm'
 import { gzipSync } from 'node:zlib'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
 import { lowerModule } from '@hozo/compiler/lower'
-import { createClassResolver, hozoSplitTextStyle } from '@hozo/engine'
+import { createClassResolver, createClassTransitions, hozoSplitTextStyle } from '@hozo/engine'
 import { hozoAuthoredStyle, hozoGapSpreadStyles } from '@hozo/engine/generated/gap-styles'
 import { hozoSpreadStyles } from '@hozo/engine/generated/spread-styles'
 import { NativeSelect } from '@hozo/form'
@@ -4517,11 +4517,15 @@ async function patternHarness(cacheName, look) {
         Linking: { openURL: () => {} },
         StyleSheet: { flatten: flat },
       },
-      '@hozo/engine/project': { hozoClasses },
+      // No transition table: these probes read resting looks, so every
+      // control indicator part is the plain View it is without motion.
+      '@hozo/engine/project': { hozoClasses, hozoClassTransitions: {} },
+      '@hozo/engine/generated/animated': { HozoAnimated: 'HozoAnimated' },
+      '@hozo/engine/generated/environment': { useHozoEnvironment: () => false },
       '@hozo/engine/generated/gap-styles': { hozoAuthoredStyle },
       // Use the real shared partition; this fixture only stands in for
       // hosts/hooks, not for the production style classification rules.
-      '@hozo/engine': { hozoSplitTextStyle },
+      '@hozo/engine': { hozoSplitTextStyle, createClassTransitions },
       '@hozo/behaviors': {
         hozoTextChildren: (children) => children,
         useHozoMessage: () => (key, _values, fallback) => fallback ?? key,
