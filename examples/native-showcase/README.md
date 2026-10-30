@@ -62,6 +62,19 @@ On macOS, with the release Simulator app built as described below and the input
 driver installed, use `HOZO_IOS_SCENARIO=svg-filters pnpm --filter
 @hozo/example-native-showcase smoke:ios` for the isolated iOS measurement.
 
+## Docs component capture
+
+The Android full scenario finishes with the docs pages, shared state screens
+and open overlays; `android-scenario=ui-docs` runs that walk alone. A failed or
+missing demo is recorded while the walk continues collecting other previews.
+After a scene error and at completion, an independent `adb shell true` checks
+that the device is still reachable. A failed transport check stops further
+scene operations and fails the driver after saving the partial `manifest.json`
+with `deviceError`. Captured images and each unreached entry remain in
+`hozo-native-showcase-android-ui-docs`; ten captured pages cannot turn a lost
+emulator into a passing walk. This detects the loss, without establishing why
+the emulator stopped.
+
 ## CodeBlock frame measurement
 
 Dispatch `native-showcase` with `platform=android` and
