@@ -1,6 +1,7 @@
 import { useHozoMessage } from '@hozo/behaviors'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
-import { colorTracks, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
+import type { ColorPickerThumbLook, ColorPickerTrack } from './color-picker-look.ts'
+import { colorThumbs, colorTracks, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
 import { HozoSlider } from './slider.tsx'
 
@@ -28,6 +29,8 @@ export interface HozoColorPickerProps {
   sliderClassName?: string
   /** Each slider's thumb. */
   thumbClassName?: string
+  /** Value-dependent thumb appearance; focus remains owned by each slider. */
+  thumbLook?: ColorPickerThumbLook
   inputClassName?: string
   eyeDropperClassName?: string
   testID?: string
@@ -76,6 +79,7 @@ export function HozoColorPicker({
   selectedSwatchClassName,
   sliderClassName,
   thumbClassName,
+  thumbLook,
   inputClassName,
   eyeDropperClassName,
   testID,
@@ -145,6 +149,11 @@ export function HozoColorPicker({
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
   const invalid = hexToHsla(draft) === null
   const tracks = colorTracks(hsla)
+  const samples = thumbLook ? colorThumbs(hsla) : undefined
+  const thumbClasses = (track: ColorPickerTrack) =>
+    [thumbClassName, samples && thumbLook?.({ track, color: samples[track] }).className]
+      .filter(Boolean)
+      .join(' ') || undefined
 
   return (
     <div role="group" aria-label={accessibilityLabel} className={className} data-testid={testID}>
@@ -193,7 +202,7 @@ export function HozoColorPicker({
         }
         disabled={disabled}
         className={sliderClassName}
-        thumbClassName={thumbClassName}
+        thumbClassName={thumbClasses('hue')}
         style={{ background: tracks.hue }}
       />
       <HozoSlider
@@ -203,7 +212,7 @@ export function HozoColorPicker({
         valueText={percent}
         disabled={disabled}
         className={sliderClassName}
-        thumbClassName={thumbClassName}
+        thumbClassName={thumbClasses('saturation')}
         style={{ background: tracks.saturation }}
       />
       <HozoSlider
@@ -213,7 +222,7 @@ export function HozoColorPicker({
         valueText={percent}
         disabled={disabled}
         className={sliderClassName}
-        thumbClassName={thumbClassName}
+        thumbClassName={thumbClasses('lightness')}
         style={{ background: tracks.lightness }}
       />
       {alpha ? (
@@ -224,7 +233,7 @@ export function HozoColorPicker({
           valueText={(a) => message('hozo.colorPicker.alphaValue', { value: a })}
           disabled={disabled}
           className={sliderClassName}
-          thumbClassName={thumbClassName}
+          thumbClassName={thumbClasses('alpha')}
           style={{ background: tracks.alpha }}
         />
       ) : null}

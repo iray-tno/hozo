@@ -105,6 +105,7 @@ for (const file of [
   'file-dropzone.tsx',
   'accordion.tsx',
   'drawer.tsx',
+  'color-picker.tsx',
 ]) {
   cache.scanFile(file, readFileSync(path.join(uiRoot, 'src', file), 'utf8'), 1)
 }
@@ -244,6 +245,7 @@ const probeSources = [
   exportsFrom('HozoListbox as UiListbox', 'packages/ui/src/listbox.tsx'),
   exportsFrom('HozoCommandPalette as UiCommandPalette', 'packages/ui/src/command-palette.tsx'),
   exportsFrom('HozoDialog as UiDialog', 'packages/ui/src/dialog.tsx'),
+  exportsFrom('ColorPicker as UiColorPicker', 'packages/ui/src/color-picker.tsx'),
   exportsFrom('HozoTabs', 'packages/patterns/src/tabs.native.tsx'),
   exportsFrom(
     'HozoCheckbox as CheckboxPattern, HozoSwitch as SwitchPattern',
@@ -298,7 +300,10 @@ const bundled = await build({
           external: true,
         }))
         builder.onLoad(
-          { filter: /[/\\]ui[/\\]src[/\\](?:combobox|listbox|dialog|command-palette)\.tsx$/ },
+          {
+            filter:
+              /[/\\]ui[/\\]src[/\\](?:combobox|listbox|dialog|command-palette|color-picker)\.tsx$/,
+          },
           ({ path: file }) => ({
             contents: transformHozoSource(readFileSync(file, 'utf8'), file, root, compiler),
             loader: 'tsx',
@@ -436,6 +441,7 @@ const { HozoCommandPalette, HozoPagination, HozoNavigationProvider } = module.ex
 const { HozoPopover, HozoDrawer, HozoBottomSheet } = module.exports
 const { Dialog, Tooltip, HozoSlider } = module.exports
 const { HozoColorPicker, HozoStepper } = module.exports
+const { UiColorPicker } = module.exports
 const { CompiledThumbPicker } = module.exports
 const { HozoChip, HozoOtpInput } = module.exports
 const { UiCombobox, UiListbox, UiCommandPalette, UiDialog } = module.exports
@@ -2985,6 +2991,36 @@ test('Native slider thumbs own focus for runtime and compiled ColorPicker slots'
     )
     assert.ok(changes.length > afterPan, 'enabled adjustable actions remain connected')
   }
+})
+
+test('Native UI ColorPicker marker contrast follows each value without borrowing thumb focus', async (t) => {
+  for (const dark of [false, true]) {
+    nativeDark = dark
+    const props = { accessibilityLabel: 'Contrast', alpha: true, value: '#ffffff' }
+    const tree = await mount(t, UiColorPicker, props)
+    const thumbs = () => views(tree).filter((node) => node.props.accessibilityRole === 'adjustable')
+    const style = (at) => flat(thumbs()[at].props.style)
+    const border = (at) => style(at).borderTopColor ?? style(at).borderColor
+    const black = (color) => ['#000', '#000000', 'black'].includes(color)
+    const white = (color) => ['#fff', '#ffffff', 'white'].includes(color)
+    assert.equal(thumbs().length, 4)
+    assert.ok(black(border(1)), JSON.stringify(style(1)))
+    assert.ok(white(style(1).outlineColor), JSON.stringify(style(1)))
+    assert.equal(style(1).outlineWidth, 1)
+    await act(() => thumbs()[1].props.onFocus({}))
+    assert.equal(style(1).outlineWidth, 2, 'compiled focus styling remains on its actual thumb')
+    assert.equal(style(2).outlineWidth, 1, 'an adjacent thumb keeps only its contrasting edge')
+    await act(() =>
+      tree.update(React.createElement(UiColorPicker, { ...props, value: '#00000080' })),
+    )
+    assert.ok(white(border(1)), JSON.stringify(style(1)))
+    assert.equal(style(1).outlineWidth, 2, 'a color update does not remove focus')
+    assert.ok(white(border(3)), 'alpha retains a light/dark edge over an unknown backdrop')
+    assert.ok(black(style(3).outlineColor))
+    await act(() => thumbs()[1].props.onBlur({}))
+    assert.equal(style(1).outlineWidth, 1)
+  }
+  nativeDark = false
 })
 
 test('Native overlay ColorPicker applies root, swatch, input and nested slider class slots', async (t) => {

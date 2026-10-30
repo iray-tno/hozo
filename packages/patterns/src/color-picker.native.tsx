@@ -4,7 +4,8 @@ import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { useEffect, useState } from 'react'
 import { type StyleProp, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
-import { colorTracks, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
+import type { ColorPickerThumbLook, ColorPickerTrack } from './color-picker-look.ts'
+import { colorThumbs, colorTracks, type Hsla, hexToHsla, hslaToHex } from './color-rules.ts'
 import { describedColor, spokenName } from './color-words.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { HozoSlider, type SliderThumbState } from './slider.native.tsx'
@@ -37,6 +38,8 @@ export interface HozoColorPickerProps {
   selectedSwatchClassName?: string
   sliderClassName?: string
   thumbClassName?: string
+  /** Value-dependent classes, evaluated before Slider resolves its own focus. */
+  thumbLook?: ColorPickerThumbLook
   inputClassName?: string
   eyeDropperClassName?: string
   style?: Style
@@ -78,6 +81,7 @@ export function HozoColorPicker({
   selectedSwatchClassName,
   sliderClassName,
   thumbClassName,
+  thumbLook,
   inputClassName,
   style,
   swatchStyle,
@@ -127,6 +131,11 @@ export function HozoColorPicker({
   }
   const percent = (n: number) => message('hozo.colorPicker.percent', { value: Math.round(n) })
   const tracks = colorTracks(hsla)
+  const samples = thumbLook ? colorThumbs(hsla) : undefined
+  const thumbClasses = (track: ColorPickerTrack) =>
+    [thumbClassName, samples && thumbLook?.({ track, color: samples[track] }).className]
+      .filter(Boolean)
+      .join(' ') || undefined
   // The track paints its gradient under the caller's classes and style, as
   // the Web half's inline `background` does.
   const slider = (track: string) =>
@@ -221,7 +230,7 @@ export function HozoColorPicker({
         }
         disabled={disabled}
         style={slider(tracks.hue)}
-        thumbClassName={thumbClassName}
+        thumbClassName={thumbClasses('hue')}
         hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
       />
@@ -232,7 +241,7 @@ export function HozoColorPicker({
         valueText={percent}
         disabled={disabled}
         style={slider(tracks.saturation)}
-        thumbClassName={thumbClassName}
+        thumbClassName={thumbClasses('saturation')}
         hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
       />
@@ -243,7 +252,7 @@ export function HozoColorPicker({
         valueText={percent}
         disabled={disabled}
         style={slider(tracks.lightness)}
-        thumbClassName={thumbClassName}
+        thumbClassName={thumbClasses('lightness')}
         hozoThumbStyle={hozoThumbStyle}
         thumbStyle={thumb}
       />
@@ -255,7 +264,7 @@ export function HozoColorPicker({
           valueText={(a) => message('hozo.colorPicker.alphaValue', { value: a })}
           disabled={disabled}
           style={slider(tracks.alpha)}
-          thumbClassName={thumbClassName}
+          thumbClassName={thumbClasses('alpha')}
           hozoThumbStyle={hozoThumbStyle}
           thumbStyle={thumb}
         />

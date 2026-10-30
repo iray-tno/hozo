@@ -169,3 +169,35 @@ export function colorTracks(hsla: Hsla): {
     alpha: `linear-gradient(to right, ${hslaToHex({ ...hsla, a: 0 })}, ${hslaToHex({ ...hsla, a: 1 })})`,
   }
 }
+
+/** Sample the same RGB stops as the tracks, at the sliders' rounded values. */
+export function colorThumbs(hsla: Hsla) {
+  const mix = (stops: string[], fraction: number) => {
+    const at = clamp(fraction, 0, 1) * (stops.length - 1)
+    const index = Math.min(Math.floor(at), stops.length - 2)
+    const from = parseHex(stops[index]!)!
+    const to = parseHex(stops[index + 1]!)!
+    return `#${(['r', 'g', 'b'] as const)
+      .map((channel) =>
+        Math.round(from[channel] + (to[channel] - from[channel]) * (at - index))
+          .toString(16)
+          .padStart(2, '0'),
+      )
+      .join('')}`
+  }
+  return {
+    hue: mix(
+      ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff', '#ff0000'],
+      Math.round(hsla.h) / 359,
+    ),
+    saturation: mix(
+      [hslaToHex({ ...hsla, s: 0, a: 1 }), hslaToHex({ ...hsla, s: 100, a: 1 })],
+      Math.round(hsla.s) / 100,
+    ),
+    lightness: mix(
+      ['#000000', hslaToHex({ ...hsla, l: 50, a: 1 }), '#ffffff'],
+      Math.round(hsla.l) / 100,
+    ),
+    alpha: hslaToHex({ ...hsla, a: Math.round(hsla.a * 100) / 100 }),
+  }
+}
