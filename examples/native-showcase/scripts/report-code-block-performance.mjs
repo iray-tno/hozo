@@ -11,10 +11,13 @@ assert.equal(evidence.passed, true, 'an incomplete run is not a completed matrix
 const edited = evidence.cases.some((sample) => sample.name.includes('-edit-'))
 // And 15 more once a plain list was measured beside the 1000-line block.
 const based = evidence.cases.some((sample) => sample.name.startsWith('baseline-'))
-// And 9 once three variants of that block were mounted beside it (#1420).
-const variants = evidence.cases.some((sample) => sample.name.startsWith('variant-'))
-  ? ['variant-no-gutter', 'variant-one-token', 'variant-bare']
-  : []
+// And 3 for each variant of that block mounted beside it: three from #1420,
+// a fourth from #1431.
+const variants = [
+  ...new Set(
+    evidence.cases.flatMap((sample) => sample.name.match(/^variant-[a-z-]+?(?=-\d+-mount$)/) ?? []),
+  ),
+]
 assert.equal(evidence.cases.length, (edited ? 120 : 84) + (based ? 15 : 0) + variants.length * 3)
 const percentile = (values, fraction) => {
   assert.ok(values.length)

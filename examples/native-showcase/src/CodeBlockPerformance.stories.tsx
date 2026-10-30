@@ -4,6 +4,7 @@ import type { Meta, StoryObj } from '@storybook/react-native'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { FlatList, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
 import { CODE_BLOCK_COUNTS, codeBlockEdit, codeBlockFixture } from './code-block-fixture'
+import highlighted from './code-block-highlighted.json'
 
 // A frame this late means the JS thread was busy; this many on time in a row
 // means it is no longer, so a list still rendering batches has finished.
@@ -25,13 +26,19 @@ const plainLine = ({ item }: { item: CodeLine }) => (
 // same run as the whole block and the plain list, so the difference says what
 // that part costs (#1420): the gutter (numbers and mark glyphs), the tokens as
 // nested coloured Text, or both, which leaves the rows themselves.
-const VARIANTS = ['no-gutter', 'one-token', 'bare'] as const
+//
+// `highlighted` is the whole block again, drawing 1000 lines of Shiki's output
+// for real source instead (#1431): neighbouring tokens there often draw the
+// same, which the fixed fixture's never do.
+const VARIANTS = ['no-gutter', 'one-token', 'bare', 'highlighted'] as const
 type Variant = (typeof VARIANTS)[number]
 const variantLines = (lines: CodeLine[], variant: Variant) =>
-  lines.map((line) => ({
-    tokens: variant === 'no-gutter' ? line.tokens : plainText(line),
-    mark: variant === 'one-token' ? line.mark : undefined,
-  }))
+  variant === 'highlighted'
+    ? (highlighted as CodeLine[])
+    : lines.map((line) => ({
+        tokens: variant === 'no-gutter' ? line.tokens : plainText(line),
+        mark: variant === 'one-token' ? line.mark : undefined,
+      }))
 
 function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
   // Story modules are imported by the ordinary showcase too. Allocate this
@@ -321,7 +328,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
                 <CodeBlock
                   title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
                   lines={lines ?? []}
-                  lineNumbers={!selection.variant || selection.variant === 'one-token'}
+                  lineNumbers={selection.variant !== 'no-gutter' && selection.variant !== 'bare'}
                   wrap
                   maxHeight={height * 0.6}
                   // Every size, so the matrix compares like with like; `auto`
@@ -371,7 +378,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
                 <CodeBlock
                   title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
                   lines={lines ?? []}
-                  lineNumbers={!selection.variant || selection.variant === 'one-token'}
+                  lineNumbers={selection.variant !== 'no-gutter' && selection.variant !== 'bare'}
                   wrap
                   style={{
                     backgroundColor: '#f8fafc',
