@@ -8,6 +8,7 @@ import path from 'node:path'
 import { after, mock, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
+import { parseOwnerContractShadow, selectOwnerShape } from '../../compiler/src/owner-contract.ts'
 import { loadNativeModule } from './native-render.ts'
 
 const require = createRequire(import.meta.url)
@@ -85,9 +86,9 @@ const warnings = mock.method(console, 'warn', () => {})
 const exports = loadNativeModule(source, project, { root: project, compiler })
 warnings.mock.restore()
 const requests = (require(tracedSheet) as { requested: unknown[] }).requested
-const contract = JSON.parse(
-  readFileSync(new URL('./fixtures/bottom-sheet-handle-contract.json', import.meta.url), 'utf8'),
-)
+const contract = parseOwnerContractShadow(
+  readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
+).contracts[0]!
 
 type Host = { type: unknown; props: Record<string, unknown> }
 type Rendered = {
@@ -363,6 +364,7 @@ test('prepared evaluation is gated and receives no invented decoration events', 
   assert.deepEqual(contract.shapes[1].events, [])
   const seen: unknown[] = []
   const base = { open: false, detents: [1], children: 'Body' }
+  assert.equal(selectOwnerShape(contract, { open: false }).status, 'absent')
   const tree = render(exports.Prepared, { base, observe: (state: unknown) => seen.push(state) })
   assert.deepEqual(seen, [])
   renderer.act(() =>
@@ -375,6 +377,12 @@ test('prepared evaluation is gated and receives no invented decoration events', 
   )
   assert.ok(seen.length > 0)
   assert.ok(seen.every((state) => state === undefined))
+  const decorative = selectOwnerShape(contract, { open: true, resizable: false })
+  assert.equal(decorative.status, 'selected')
+  if (decorative.status === 'selected') {
+    assert.equal(decorative.shape.nativeHost, handle(tree, false).type)
+    assert.deepEqual(decorative.shape.events, [])
+  }
   seen.length = 0
   renderer.act(() =>
     tree.update(
@@ -386,6 +394,10 @@ test('prepared evaluation is gated and receives no invented decoration events', 
   )
   style(handle(tree, true))
   assert.equal(contract.shapes[0].nativeHost, 'Pressable')
+  const interactive = selectOwnerShape(contract, { open: true, resizable: true })
+  assert.equal(interactive.status, 'selected')
+  if (interactive.status === 'selected')
+    assert.equal(interactive.shape.nativeHost, handle(tree, true).type)
   for (const event of contract.shapes[0].events)
     assert.ok(seen.some((state) => state && typeof state === 'object' && event in state))
   assert.ok(seen.some((state) => state && typeof state === 'object' && 'hovered' in state))

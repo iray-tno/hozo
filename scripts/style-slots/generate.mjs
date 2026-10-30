@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { components, profiles } from './catalog.mjs'
+import { components, ownerShadow, profiles } from './catalog.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const header =
@@ -275,6 +275,7 @@ ${Object.entries(facts)
   )
   .join('')}`
   return {
+    'scripts/style-slots/owner-shadow.json': `${JSON.stringify(ownerShadow, null, 2)}\n`,
     'crates/hozo_ir/src/class_slots.rs': ir,
     'crates/hozo_native/src/pattern_contracts.rs': native,
     'packages/patterns/src/slot-facts.native.ts': ts,

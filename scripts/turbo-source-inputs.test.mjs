@@ -37,6 +37,7 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'scripts/style-slots/owner-shadow.json',
     'packages/primitives/src/native-disabled.ts',
     'packages/engine/src/interactive.ts',
     'packages/engine/src/activate.ts',
@@ -283,6 +284,8 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'scripts/style-slots/owner-shadow.json',
+    'packages/compiler/src/owner-contract.ts',
     // RFC010's prepared-handle probe reads both platform implementations.
     'packages/patterns/src/bottom-sheet.native.tsx',
     'packages/patterns/src/bottom-sheet.tsx',

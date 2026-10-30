@@ -490,3 +490,37 @@ export const components = {
   Tooltip: slots('className'),
   Tree: slots('className rowClassName'),
 }
+
+// RFC010 shadow only: not a Primitive mapping, audited profile or shipped
+// manifest. Replaces the handle spike's hand-written test JSON. Keep claims
+// unknown until independent host evidence and the complete application plan
+// can authorize that owner's rollout.
+export const ownerShadow = {
+  schema: 'rfc010-owner-shadow-0',
+  contracts: [
+    {
+      owner: 'BottomSheet.handle',
+      classProp: 'handleClassName',
+      audit: 'unknown',
+      bindings: ['open', 'resizable'],
+      abi: { nativePreparedProp: 'hozoHandleStyle', webClassProp: 'handleClassName' },
+      authoredStyles: [{ prop: 'handleStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'resizable',
+          when: { all: [{ eq: ['open', true] }, { eq: ['resizable', true] }] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+        },
+        {
+          id: 'decorative',
+          when: { all: [{ eq: ['open', true] }, { eq: ['resizable', false] }] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
+  ],
+}
