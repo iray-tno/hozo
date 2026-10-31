@@ -829,3 +829,20 @@ Rechecked at `d2a04c39759e57fe1159bd0ca65420ce88a1f64d`:
 The original supplied compiler probes remain attributed to `cb0e9c8`.
 This baseline refresh does not claim new device, AT, browser, performance,
 bundle-size, complete diagnostic-rate or conformance-denominator evidence.
+
+### Incremental package producer (experimental)
+
+`buildPackageManifest` adds bounded package channels to the existing v1
+envelope under `package`. The root `version: 1` and `textForwarding` stay
+readable by existing text consumers; no second text summary is serialized.
+The bounded package reader normalizes this envelope and the earlier standalone
+`rfc010-package-shadow-0` fixture through the same validator. This is **not**
+the finalized manifest-v2 ABI.
+
+The package build supplies its public value exports, exact published source
+set, helper declarations and source-compilation policy. Candidate extraction
+uses the existing Rust scanner once at publication, without executing source
+or resolving dependency implementations. Budgets reject oversized input;
+there is no truncation. `owners: null` does not certify an owner audit, and
+export membership does not authorize primitive lowering. Default adapter
+discovery and text consumers remain unchanged.

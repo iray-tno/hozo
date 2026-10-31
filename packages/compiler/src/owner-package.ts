@@ -13,6 +13,12 @@ export interface OwnerPackageShadow {
   /** Kept readable by the existing v1 converter, not a text-erasure proof. */
   textForwarding: HozoManifest
 }
+/** A v1-readable envelope: text is stored once, in its established channel.
+ * This optional experimental extension is not the finalized RFC010 v2 ABI.
+ */
+export interface HozoPackageManifest extends HozoManifest {
+  package: Omit<OwnerPackageShadow, 'textForwarding'>
+}
 function fail(at: string): never {
   throw new Error(`Invalid owner package: ${at}`)
 }
@@ -113,6 +119,23 @@ export function parseOwnerPackageShadow(text: string): OwnerPackageShadow {
     parsed = JSON.parse(text)
   } catch {
     fail('JSON')
+  }
+  // Both transport forms use the same channel validator. In particular the
+  // envelope cannot hide a second, contradictory copy of the text summary.
+  if (parsed && typeof parsed === 'object' && Object.hasOwn(parsed, 'package')) {
+    const envelope = object(parsed, ['version', 'textForwarding', 'package'])
+    const channels = object(envelope.package, [
+      'schema',
+      'owners',
+      'exports',
+      'candidates',
+      'helpers',
+      'compiledByConsumer',
+    ])
+    parsed = {
+      ...channels,
+      textForwarding: { version: envelope.version, textForwarding: envelope.textForwarding },
+    }
   }
   const root = object(parsed, [
     'schema',

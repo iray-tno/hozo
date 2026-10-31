@@ -37,6 +37,7 @@ export {
 export { OwnerManifestEpoch, type OwnerManifestLease } from './owner-manifest-epoch.ts'
 export { type ResolvedOwnerInstance, readResolvedOwnerManifest } from './owner-manifest-read.ts'
 export {
+  type HozoPackageManifest,
   OWNER_PACKAGE_SCHEMA,
   type OwnerPackageShadow,
   parseOwnerPackageShadow,
