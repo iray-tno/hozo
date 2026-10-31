@@ -34,6 +34,11 @@ export {
 export { OwnerManifestEpoch, type OwnerManifestLease } from './owner-manifest-epoch.ts'
 export { type ResolvedOwnerInstance, readResolvedOwnerManifest } from './owner-manifest-read.ts'
 export {
+  OWNER_PACKAGE_SCHEMA,
+  type OwnerPackageShadow,
+  parseOwnerPackageShadow,
+} from './owner-package.ts'
+export {
   type CachedStylexModule,
   StylexModuleCache,
   type StylexResolutionRequest,

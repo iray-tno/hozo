@@ -213,7 +213,7 @@ jobs:
       - run: pnpm --filter @hozo/compiler test:platform
       # Resolver identities and filesystem containment are platform behavior too.
       # Bounded Node fixtures only; no application or browser build on the matrix.
-      - run: node --test --test-concurrency=1 packages/compiler/src/owner-manifest-capture.test.ts packages/compiler/src/owner-manifest-read.test.ts packages/compiler/src/owner-manifest-resolution.test.ts packages/compiler/src/owner-manifest-epoch.test.ts
+      - run: node --test --test-concurrency=1 packages/compiler/src/owner-manifest-capture.test.ts packages/compiler/src/owner-manifest-read.test.ts packages/compiler/src/owner-manifest-resolution.test.ts packages/compiler/src/owner-manifest-epoch.test.ts packages/compiler/src/owner-package.test.ts
       # One tiny ready-graph/watch fixture, not the full Vite or app suite.
       - run: pnpm --filter @hozo/tailwind build
       - run: pnpm --filter @hozo/vite build
