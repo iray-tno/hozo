@@ -7,11 +7,12 @@
 // dropped the `onChangeText` inside @hozo/ui's prop spread (#1118).
 
 import assert from 'node:assert/strict'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import { auditComponentPage } from './component-audit.mjs'
 
 const dist = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -588,22 +589,31 @@ const pages = {
 }
 
 let browser
+const results = []
+const save = () =>
+  writeFileSync(
+    path.join(dist, '_components-result.json'),
+    JSON.stringify({ version: 1, expected: Object.keys(pages).length, results }, null, 2),
+  )
 try {
   browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] })
   for (const [name, exercise] of Object.entries(pages)) {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
-    const errors = []
-    page.on('pageerror', (error) => errors.push(String(error)))
-    page.on('console', (message) => message.type() === 'error' && errors.push(message.text()))
-    await page.goto(`${base}/${name}/`, { waitUntil: 'networkidle' })
-    // The island is `display: contents`, and Playwright judges its
-    // visibility by its first child, which for some previews is the
-    // `<style>` of the View base. Scroll to the first child that renders.
-    await page.locator('astro-island > :not(style)').first().scrollIntoViewIfNeeded()
-    await page.waitForFunction(() => !document.querySelector('astro-island[ssr]'))
-    await exercise(page)
-    assert.deepEqual(errors, [], `${name}: the page logged errors`)
-    await page.close()
+    try {
+      results.push(await auditComponentPage(page, { name, url: `${base}/${name}/`, exercise }))
+    } catch (error) {
+      results.push({
+        name,
+        status: 'failed',
+        error: error.stack ?? String(error),
+        ...error.diagnostics,
+      })
+      console.error(`[components] ${name}: ${JSON.stringify(error.diagnostics)}`)
+      throw error
+    } finally {
+      save()
+      await page.close()
+    }
   }
   console.log(`Components: ${Object.keys(pages).join(', ')} hydrate and respond in a browser`)
 } finally {
