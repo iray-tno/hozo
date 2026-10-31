@@ -7,6 +7,7 @@ import {
   collectOwnerPackageContributions,
   type OwnerImportEdge,
   OwnerManifestEpoch,
+  type OwnerManifestObservation,
   type OwnerPackageContributions,
   type ResolvedOwnerInstance,
   readBoundedUtf8File,
@@ -81,6 +82,7 @@ export async function captureViteOwnerCandidates(
   })
   const locate = plan.locate
   const selected: { edge: OwnerImportEdge; entry: string }[] = []
+  const observations: OwnerManifestObservation[] = []
   const metadata = new Map<string, string>()
   const watch = new Set<string>()
   let metadataBytes = 0
@@ -119,6 +121,9 @@ export async function captureViteOwnerCandidates(
     const resolved = await resolve(edge)
     if (!resolved || resolved.external) fail('startup resolution unavailable or external')
     selected.push({ edge, entry: resolved.id })
+    // Observe at selection, not after ALL asynchronous resolutions. Otherwise
+    // a later resolver can replace an earlier package and bless mixed inputs.
+    observations.push(observe(edge, resolved.id))
   }
   const capture = () =>
     captureOwnerManifests(
@@ -126,7 +131,7 @@ export async function captureViteOwnerCandidates(
       selected.map(({ edge, entry }) => observe(edge, entry)),
       { platform: 'web', epoch: context },
     )
-  const frozen = capture()
+  const frozen = captureOwnerManifests(edges, observations, { platform: 'web', epoch: context })
   epoch.adopt(frozen)
   const contributions = collectOwnerPackageContributions(frozen)
   if (contributions.status !== 'complete') {
@@ -184,6 +189,9 @@ export async function captureViteOwnerCandidates(
       throw error
     }
   }
+  // Admission fences edits during the serial resolver pass as well as edits
+  // after it. No already-obsolete set reaches candidate CSS preparation.
+  validate()
   return Object.freeze({
     contributions,
     watchFiles: Object.freeze([...watch]),

@@ -57,6 +57,14 @@ for Windows watcher spellings. A fresh production build acquires a fresh set;
 development-server use is explicitly refused rather than pretending HMR is
 implemented. The normal `hozo()` entry, options and fallback behavior are unchanged.
 
+Final review added a mutation-during-collection control. The first implementation
+read target facts only after all asynchronous resolutions, so a later resolver
+could change an earlier package and have the new bytes treated as the original
+set. The regression failed with a missing expected rejection before the fix.
+Targets are now observed immediately after selection and the complete original
+set is revalidated before admission. The control covers both package metadata
+and manifest bytes; neither mixed set may reach CSS preparation.
+
 Tiny actual Vite builds select two versions through browser exports, including
 transitive/cyclic imports. Manifest-only p-2/p-4 become padding 14px/28px under
 spacing 7px in emitted CSS and survive final inventory reconciliation without
@@ -66,3 +74,4 @@ participant, missing manifests, retargeted ownership and retired pending work
 are negative controls. No browser/device pixel, full application, SSR or
 multi-environment claim follows from these client library builds. Automatic
 ownership/plan discovery, dev HMR, full public v2 and default promotion remain open.
+
