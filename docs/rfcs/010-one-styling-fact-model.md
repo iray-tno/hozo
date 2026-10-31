@@ -857,3 +857,11 @@ candidate production. The existing metadata export/files list ships the JSON.
 The producer refuses unresolved export-star lists rather than certifying an
 incomplete public export set. Owner contracts remain null and helpers empty
 for this package; neither is inferred from JSX export names.
+
+`scripts/component-manifests-packed.test.mjs` runs the real pnpm publication
+packer for UI, checks publishable dependency ranges and source inventory,
+then regenerates the manifest from the unpacked archive alone. It also reads
+the archive through the bounded instance reader/capture and compares candidate
+CSS and Native resolver generation against direct source scanning. This is
+package transport/code-generation evidence, **not** an installed UI app,
+browser/device rendering, complete adapter graph capture or owner audit.
