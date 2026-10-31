@@ -865,3 +865,13 @@ the archive through the bounded instance reader/capture and compares candidate
 CSS and Native resolver generation against direct source scanning. This is
 package transport/code-generation evidence, **not** an installed UI app,
 browser/device rendering, complete adapter graph capture or owner audit.
+
+Catalog publication routing is authored beside the shadow contracts as
+`ownerPublications`. `packageOwnerChannels` attaches a contract only to its
+declared owning package and existing public value exports. BottomSheet's handle
+belongs to `@hozo/patterns` under `BottomSheet` and `HozoBottomSheet`; matching
+names in `@hozo/ui` or `@hozo/core` do not acquire it through re-exporting.
+Duplicate publishers, absent export aliases, unassigned contracts and unknown
+catalog slots fail generation. The bounded reader still rejects an `audited`
+claim. Export existence/publication routing is not proof of implementation
+identity or semantics, and does not authorize builtin lowering or rollout.

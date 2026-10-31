@@ -494,8 +494,8 @@ export const components = {
   Tree: slots('className rowClassName'),
 }
 
-// RFC010 shadow only: not a Primitive mapping, audited profile or shipped
-// manifest. Replaces the handle spike's hand-written test JSON. Keep claims
+// RFC010 shadow only: not a Primitive mapping or audited profile.
+// Replaces the handle spike's hand-written test JSON. Keep claims
 // unknown until independent host evidence and the complete application plan
 // can authorize that owner's rollout.
 export const ownerShadow = {
@@ -527,3 +527,15 @@ export const ownerShadow = {
     },
   ],
 }
+
+// Publication ownership is authored here beside the contract, not inferred
+// from a matching component name or a facade re-export. Existence of these
+// value exports is checked against each package's actual entry by the producer.
+// This declaration does not certify that an alias implements the contract.
+export const ownerPublications = [
+  {
+    owner: 'BottomSheet.handle',
+    package: '@hozo/patterns',
+    exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+]
