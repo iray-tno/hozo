@@ -846,3 +846,14 @@ or resolving dependency implementations. Budgets reject oversized input;
 there is no truncation. `owners: null` does not certify an owner audit, and
 export membership does not authorize primitive lowering. Default adapter
 discovery and text consumers remain unchanged.
+
+`pnpm manifests` now opts `@hozo/ui` into this extension. Its current source
+set has 42 production TS/TSX files, 85 value exports and 324 runtime candidate
+strings; the 10 existing text summaries remain equivalent. The JSON is 36,518
+UTF-8 bytes, below the 65,536-byte reader budget (formerly 22,211 bytes).
+These are transport inventories, not utility coverage or owner audit rates.
+Tests/stories/declarations and consumer-generated CSS are excluded from
+candidate production. The existing metadata export/files list ships the JSON.
+The producer refuses unresolved export-star lists rather than certifying an
+incomplete public export set. Owner contracts remain null and helpers empty
+for this package; neither is inferred from JSX export names.
