@@ -112,6 +112,7 @@ const reads = {
     'packages/patterns/package.json',
     'scripts/style-slots/owner-fixture.mjs',
     'scripts/style-slots/tabs-probe.mjs',
+    'scripts/browser-audit-diagnostics.mjs',
     'scripts/style-slots/evidence-source.mjs',
     'scripts/style-slots/handle-web.mjs',
     'scripts/style-slots/owner-input-cases.mjs',

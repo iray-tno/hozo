@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
+import { captureAuditState } from '../../../scripts/browser-audit-diagnostics.mjs'
 import { auditPage, waitForSettledStory } from './a11y-audit.mjs'
 import { createAuditReport, runAuditCatalogue, summarizeAudit } from './a11y-catalogue.mjs'
 
@@ -269,11 +270,18 @@ test('the actual CLI persists and distinguishes genuine findings from execution 
   assert.equal(bad.report.verdict.notRun.length, 0)
   assert.ok(bad.report.verdict.fresh.some((finding) => finding.rule === 'color-contrast'))
   assert.ok(bad.report.verdict.fresh.every((finding) => finding.impact !== 'error'))
+  const failedRender = bad.report.cases.filter((entry) => entry.id === 'runtime-error')
+  for (const entry of failedRender) {
+    assert.equal(entry.diagnostics.browser.rootChildren, 1)
+    assert.equal(entry.diagnostics.browser.phase, 'settled')
+    assert.ok(Array.isArray(entry.diagnostics.requests.pending))
+  }
   assert.match(bad.output.stderr, /execution error: runtime-error/)
+  assert.match(bad.output.stderr, /failure state:/)
   assert.match(bad.output.stderr, /actual axe violation/)
 })
 
-test('a paused finite entrance fails within the original bound', {
+test('a paused finite entrance retains its state and still fails within the original bound', {
   skip: !executablePath,
 }, async () => {
   const page = await browser.newPage()
@@ -285,7 +293,14 @@ test('a paused finite entrance fails within the original bound', {
         .animate([{ opacity: 0 }, { opacity: 1 }], { duration: 800 })
       animation.pause()
     })
-    await assert.rejects(page.evaluate(waitForSettledStory, 100), /story did not settle/)
+    await assert.rejects(auditPage(page, axeSource, 100), (error) => {
+      assert.match(error.message, /story did not settle/)
+      const state = error.diagnostics.browser
+      assert.ok(['frames', 'animations'].includes(state.phase), JSON.stringify(state))
+      assert.ok(state.animations.some((animation) => animation.playState === 'paused'))
+      assert.equal(state.rootPresent, true)
+      return true
+    })
   } finally {
     await page.close()
   }
@@ -297,10 +312,40 @@ test('a missing story cannot pass as an empty accessibility tree', {
   const page = await browser.newPage()
   try {
     await page.setContent('<div id="storybook-root"></div>')
-    await assert.rejects(page.evaluate(waitForSettledStory, 100), /story did not settle/)
+    await assert.rejects(auditPage(page, axeSource, 100), (error) => {
+      assert.match(error.message, /story did not settle/)
+      assert.equal(error.diagnostics.browser.phase, 'root')
+      assert.equal(error.diagnostics.browser.rootChildren, 0)
+      return true
+    })
+    // A late render cannot rewrite which wait actually reached its deadline.
+    await page.evaluate(() => {
+      document.getElementById('storybook-root').innerHTML = '<p>Late</p>'
+    })
+    await page.waitForFunction(() => window.__hozoAuditPreparation.phase === 'settled')
+    const late = await captureAuditState(page)
+    assert.equal(late.phase, 'root')
+    assert.equal(late.phaseAtCapture, 'settled')
+    assert.ok(late.captureDelayMs >= 0)
   } finally {
     await page.close()
   }
+})
+
+test('an unavailable renderer produces explicit missing evidence without blocking failure reporting', async () => {
+  assert.deepEqual(await captureAuditState({ evaluate: () => new Promise(() => {}) }), {
+    captureError: 'browser state capture exceeded 1000ms',
+  })
+  assert.deepEqual(
+    await captureAuditState({
+      evaluate: async () => {
+        throw new Error('closed page')
+      },
+    }),
+    {
+      captureError: 'closed page',
+    },
+  )
 })
 
 test('the hidden Storybook error template is not mistaken for a render failure', {

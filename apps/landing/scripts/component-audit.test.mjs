@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { createServer } from 'node:http'
 import test from 'node:test'
 import { chromium } from 'playwright-core'
+import { observePageRequests } from '../../../scripts/browser-audit-diagnostics.mjs'
 import { auditComponentPage } from './component-audit.mjs'
 
 const executablePath = [
@@ -108,5 +109,45 @@ test('component audit retains network failures and the original failed verdict b
     await browser.close()
     server.closeAllConnections()
     await new Promise((resolve) => server.close(resolve))
+  }
+})
+
+test('a reused page does not attribute an earlier request cancellation to the next audit', {
+  skip: !executablePath,
+}, async () => {
+  const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] })
+  try {
+    const page = await browser.newPage()
+    await page.route('http://audit.test/', (route) => route.fulfill({ body: '<p>Ready</p>' }))
+    let releaseOld
+    const oldRoute = new Promise((resolve) => {
+      releaseOld = resolve
+    })
+    await page.route('**/old', (route) => releaseOld(route))
+    await page.route('**/current', (route) => route.fulfill({ status: 503, body: 'unavailable' }))
+    await page.goto('http://audit.test/')
+    await page.evaluate(() => {
+      fetch('/old').catch(() => {})
+    })
+    const route = await oldRoute
+    const observer = observePageRequests(page)
+    try {
+      await Promise.all([page.waitForEvent('requestfailed'), route.abort('failed')])
+      await page.evaluate(() => fetch('/current').then((response) => response.text()))
+      const snapshot = observer.snapshot()
+      assert.deepEqual(snapshot.failed, [], 'the old request did not start in this audit')
+      assert.deepEqual(snapshot.httpErrors, [
+        {
+          url: 'http://audit.test/current',
+          method: 'GET',
+          resourceType: 'fetch',
+          status: 503,
+        },
+      ])
+    } finally {
+      observer.stop()
+    }
+  } finally {
+    await browser.close()
   }
 })

@@ -135,6 +135,7 @@ export async function runAuditCatalogue(
                 Object.assign(entry, {
                   status: 'error',
                   error: error.message,
+                  ...(error.diagnostics ? { diagnostics: error.diagnostics } : {}),
                   elapsedMs: now() - caseStarted,
                 })
               }
