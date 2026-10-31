@@ -18,3 +18,18 @@ nodes, 512 edges, 64 KiB per metadata file and 2 MiB total unique metadata.
 This uses Metro's current `getPackageForModule` callback (deprecated upstream),
 not a new private package lookup fallback. If the host removes it, assessment is
 incomplete. No normal withHozo change or candidate rendering replacement yet.
+
+## Real Metro resolver fixture
+
+The bounded fixture loads the actual `metro-resolver` installed by native-demo
+(measured at 0.87.1), not an imitation of its resolution algorithm. Test-only
+filesystem and explicit root-registry callbacks satisfy its context contract;
+ownership lookup stops at every node_modules boundary. This registry is fixture
+data, not proof of general production ownership discovery.
+
+Android/iOS export conditions, a nested second version, transitive/cyclic
+declarations and configured resolver overrides preserve actual selected entries
+through transfer to a worker. Fresh conditional-entry replacement invalidates
+metadata adoption; a missing optional dependency returns no partial seed. Entries
+throw if executed and are never loaded. No Metro server/file-map bootstrap,
+application bundle, arbitrary Haste/asset plugin or device is claimed.

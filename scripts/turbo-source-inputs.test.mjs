@@ -60,6 +60,8 @@ const reads = {
   '@hozo/migration-audit#test': ['packages/typography/src/fonts.ts'],
   '@hozo/vite#test': ['scripts/style-slots/owner-shadow.json'],
   '@hozo/metro#test': [
+    'packages/metro/fixtures/owner-metro-resolver.mjs',
+    'examples/native-demo/package.json',
     'scripts/style-slots/owner-shadow.json',
     'packages/engine/src/class-resolver.ts',
     'packages/engine/src/transform-slots.ts',
