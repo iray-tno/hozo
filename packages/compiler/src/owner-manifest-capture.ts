@@ -1,7 +1,16 @@
 // RFC010 shadow capture only. Adapters own resolution and the complete edge set;
 // this module owns validated contribution identity, not a package-name resolver.
 import { createHash } from 'node:crypto'
-import { type OwnerContractShadow, parseOwnerContractShadow } from './owner-contract.ts'
+import {
+  OWNER_SHADOW_VERSION,
+  type OwnerContractShadow,
+  parseOwnerContractShadow,
+} from './owner-contract.ts'
+import {
+  OWNER_PACKAGE_SCHEMA,
+  type OwnerPackageShadow,
+  parseOwnerPackageShadow,
+} from './owner-package.ts'
 
 export interface OwnerImportEdge {
   importer: string
@@ -28,7 +37,12 @@ type Frozen<T> = T extends readonly (infer V)[]
 interface Binding extends OwnerImportEdge {
   instance: string
   entry: string
-  manifest: { file: string; sha256: string; shadow: OwnerContractShadow } | null
+  manifest: {
+    file: string
+    sha256: string
+    shadow: OwnerContractShadow
+    package?: OwnerPackageShadow
+  } | null
 }
 interface Issue extends OwnerImportEdge {
   kind:
@@ -161,8 +175,13 @@ export function captureOwnerManifests(
       continue
     }
     let shadow: OwnerContractShadow
+    let packageData: OwnerPackageShadow | undefined
     try {
-      shadow = parseOwnerContractShadow(manifest.text)
+      const schema = JSON.parse(manifest.text)?.schema
+      if (schema === OWNER_PACKAGE_SCHEMA) {
+        packageData = parseOwnerPackageShadow(manifest.text)
+        shadow = packageData.owners ?? { schema: OWNER_SHADOW_VERSION, contracts: [] }
+      } else shadow = parseOwnerContractShadow(manifest.text)
     } catch (error) {
       issues.push({ ...value, kind: 'invalid-manifest', reason: String(error) })
       continue
@@ -174,7 +193,17 @@ export function captureOwnerManifests(
       continue
     }
     instances.set(instance, claim)
-    bindings.push({ ...value, instance, entry, manifest: { file: manifest.file, sha256, shadow } })
+    bindings.push({
+      ...value,
+      instance,
+      entry,
+      manifest: {
+        file: manifest.file,
+        sha256,
+        shadow,
+        ...(packageData ? { package: packageData } : {}),
+      },
+    })
   }
   const base = { scope: 'declared-owner-resolution-set' as const, platform, epoch }
   if (issues.length) return freeze({ ...base, status: 'incomplete' as const, issues })

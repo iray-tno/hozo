@@ -18,3 +18,18 @@ helper names, with additional per-channel limits. Text variants use the existing
 v1 converter's format, with finite validated conditions/defaults. Unknown fields,
 schemas, unsafe identifiers, duplicate declarations and unsupported claims fail
 explicitly. No adapter consumes it by default yet; v1 readers remain unchanged.
+
+## Frozen package contributions
+
+The existing instance capture now decodes either the owner-only shadow or this
+package envelope. Raw content/entry/platform/context remain in identity. The
+package projection unions only finite candidate tokens; exports, helpers,
+compiled-source policy and legacy text facts stay attached to each resolved
+instance, including when two versions publish the same names. No global
+name-to-facts table is manufactured.
+
+Incomplete captures and owner-only declarations expose no usable package union:
+the missing channels are explicitly unassessed, not guessed empty. Ordinary
+nonparticipants are separately listed as unassessed. A complete participant
+union is not proof of their style coverage. Explicit `owners: null` is valid
+for a candidate/helper-only package and never invents an audited owner.

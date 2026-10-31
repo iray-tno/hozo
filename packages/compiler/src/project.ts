@@ -39,6 +39,10 @@ export {
   parseOwnerPackageShadow,
 } from './owner-package.ts'
 export {
+  collectOwnerPackageContributions,
+  type OwnerPackageContributions,
+} from './owner-package-contributions.ts'
+export {
   type CachedStylexModule,
   StylexModuleCache,
   type StylexResolutionRequest,
