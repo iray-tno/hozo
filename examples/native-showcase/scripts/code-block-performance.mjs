@@ -18,8 +18,8 @@ import { centre, matchLabel, parseNodes } from './device-evidence.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 // The 1000-line block with a part taken away, and with real highlighter output
-// (#1420, #1431); the story's VARIANTS.
-const VARIANTS = ['no-gutter', 'one-token', 'bare', 'highlighted']
+// (#1420, #1431), and unwrapped (#1432); the story's VARIANTS.
+const VARIANTS = ['no-gutter', 'one-token', 'bare', 'highlighted', 'unwrapped']
 const output = resolve(process.argv[2] ?? 'artifacts/native-showcase-code-block')
 const app = 'dev.hozo.showcase'
 // `code-block-windowed` measures the same matrix with `maxHeight` set, so the
@@ -292,6 +292,17 @@ try {
             () => tap(`Mount variant ${variant}`),
             `variant-${variant}-mount`,
           )
+          // What the unwrapped block drew, to see its gutter line up with
+          // the rows (#1432): a column misplaced by a pixel a row would be
+          // off by several lines at the bottom of the screen.
+          if (variant === 'unwrapped' && round === 1)
+            writeFileSync(
+              resolve(output, 'variant-unwrapped.png'),
+              execFileSync('adb', ['exec-out', 'screencap', '-p'], {
+                timeout: 30_000,
+                maxBuffer: 32 * 1024 * 1024,
+              }),
+            )
         }
       }
     }
