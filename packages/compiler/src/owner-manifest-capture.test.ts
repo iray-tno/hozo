@@ -114,3 +114,29 @@ test('ordinary nonparticipants are distinct from promised missing manifests; cap
   assert.throws(() => captureOwnerManifests([a], [], { ...options, epoch: '' }), /identities/)
   assert.throws(() => captureOwnerManifests(Array(513).fill(a), [], options), /budget/)
 })
+
+test('bounded observations and code-unit ordering cannot silently certify empty/unsupported input', () => {
+  assert.throws(() => captureOwnerManifests([a], Array(1025).fill(row()), options), /budget/)
+  assert.throws(
+    () => captureOwnerManifests([a], [row(a, undefined, ' '.repeat(2_097_153))], options),
+    /budget/,
+  )
+  const audited = text.replace('"audit": "unknown"', '"audit": "audited"')
+  assert.notEqual(audited, text)
+  assert.equal(
+    captureOwnerManifests([a], [row(a, undefined, audited)], options).status,
+    'incomplete',
+  )
+  const ascii = { ...a, importer: 'z' },
+    unicode = { ...a, importer: 'ä' }
+  const sorted = captureOwnerManifests([unicode, ascii], [row(unicode), row(ascii)], options)
+  assert.equal(sorted.status, 'complete')
+  if (sorted.status === 'complete')
+    assert.deepEqual(
+      sorted.bindings.map((binding) => binding.importer),
+      ['z', 'ä'],
+    )
+  const empty = captureOwnerManifests([], [], options)
+  assert.equal(empty.scope, 'declared-owner-resolution-set')
+  if (empty.status === 'complete') assert.deepEqual(empty.bindings, [])
+})
