@@ -886,3 +886,12 @@ Web/Native entries have equal value-export and legacy-text inventories; drift
 fails rather than pretending the selected platform does not matter. Sources
 continue to ship for maps, not as permission to transform the built package.
 UI's manifest/text data and the default adapter routes remain unchanged.
+
+The packed-patterns regression regenerates this envelope from archive sources,
+checks the compiled default/native entry export sets, and records separate
+platform/selected-entry captures. The transported contract also feeds the
+existing explicit literal-caller preview: state-independent padding prepares,
+while state-dependent and mismatched-facade inputs stay authored. This does
+not install the contract into an adapter, authorize a global name lookup or
+audit actual host behavior. Package publication and execution remain separate
+evidence levels.
