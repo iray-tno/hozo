@@ -33,3 +33,29 @@ the missing channels are explicitly unassessed, not guessed empty. Ordinary
 nonparticipants are separately listed as unassessed. A complete participant
 union is not proof of their style coverage. Explicit `owners: null` is valid
 for a candidate/helper-only package and never invents an audited owner.
+
+## Explicit Metro startup/worker transfer
+
+The internal transfer takes a bounded JSON seed of expected edges and actual
+resolver-supplied roots/entries/manifest declarations. It does not discover that
+set. Config captures the source bytes and participant projection before writing
+a content-addressed transfer reference. A worker verifies transfer hash, schema,
+platform/context and fresh source capture before adopting it. Source-byte edits
+between config and worker fail, even without a package-version change. Original
+declaration paths are retained, so re-reading does not pin a replaced symlink's
+old canonical target. Shared bounded UTF-8 IO is reused rather than copied.
+
+Each worker reads once at startup. Canonical resolution observations are map
+lookups afterward: unknown or changed edges retire pending output and require
+restart, never grow the frozen candidate union. Transfer/capture/contribution
+identity all enter the prototype worker cache key. An earlier worker does not
+poll for filesystem edits; a dependency/config/metadata change requires fresh
+upstream declarations and restart. The transfer is not an atomic transaction
+against concurrent hostile filesystem replacement.
+
+Tests use an actual second Node process and real data files, not a Metro bundle
+or device. `withHozo`, normal `getCacheKey`, generated candidate modules and F6/F7
+remain unchanged. Automatic resolver-backed preflight discovery before Metro's
+config-time map generation, default wiring, full v2/text-publication/trust and
+candidate rendering remain separate work; a caller-supplied complete set does
+not prove that the application graph is complete.

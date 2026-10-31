@@ -18,6 +18,7 @@ import {
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
 import { gitIgnoredSync, walkFiles } from './walk.ts'
 
+export { readBoundedUtf8File } from './bounded-data.ts'
 export {
   type CandidateContribution,
   type ExpectedCandidateSource,
