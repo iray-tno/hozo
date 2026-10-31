@@ -75,3 +75,21 @@ are negative controls. No browser/device pixel, full application, SSR or
 multi-environment claim follows from these client library builds. Automatic
 ownership/plan discovery, dev HMR, full public v2 and default promotion remain open.
 
+## Packed Web/Native fixture agreement
+
+The Web probe now packs and offline-installs the **same** non-Hozo fixture used
+by the Native probe, with lifecycle execution disabled. The actual Vite build
+uses its default Web export and the installed manifest, not a source checkout
+or an explicit package-source scan. Normal mode emits neither utility; explicit
+manifest consumption emits p-3/p-5 as padding 21px/35px under spacing 7px,
+matching the Native generated-resolver assertions for that fixture/theme. The
+six-file tarball excludes the checkout-only p-96 token, which does not leak into
+CSS. The final Web inventory contains exactly that installed package instance
+and one authored file, still with `finalOrderingReady: false`.
+
+The shared asynchronous fixture-process helper keeps CPU-1 execution serial,
+passes cancellation through and waits for child close before temporary cleanup.
+Pack/install run once per probe, without network, lifecycle scripts, publication
+or a repository install. Every fixture byte and helper read outside @hozo/vite
+is an explicit Turbo test input and has a root source-input guard. These are
+two frontend generation checks, not a browser/native pixel-equivalence claim.

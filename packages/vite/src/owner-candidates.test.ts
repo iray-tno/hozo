@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -12,6 +13,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { build, type Plugin } from 'vite'
+import { fixtureNode } from '../../metro/fixtures/fixture-process.mjs'
 import { hozo, hozoWithOwnerCandidates } from './index.ts'
 import { captureViteOwnerCandidates } from './owner-candidates.ts'
 
@@ -109,7 +111,7 @@ function fixture(t) {
     JSON.parse(
       readFileSync(path.join(root, 'node_modules/.hozo/candidate-inventory-client.json'), 'utf8'),
     )
-  return { root, first, second, bridge, entry, plan, options, run, inventory }
+  return { root, first, second, bridge, roots, entry, plan, options, run, inventory }
 }
 
 test('actual Vite resolver installs two package instances in emitted CSS and final inventory', {
@@ -230,4 +232,81 @@ test('warm owner leases do no filesystem polling and watcher retirement fences p
   release()
   await assert.rejects(pending, /INVALIDATED/)
   assert.throws(() => session.validate(), /INVALIDATED/)
+})
+
+test('the same packed non-Hozo fixture used by Native supplies manifest-only Web CSS', {
+  timeout: 30000,
+}, async (t) => {
+  const f = fixture(t)
+  const stage = path.join(f.root, 'packing')
+  cpSync(new URL('../../metro/fixtures/owner-candidate-package/', import.meta.url), stage, {
+    recursive: true,
+  })
+  const nodeDirectory = path.dirname(process.execPath)
+  const npm = [
+    path.join(nodeDirectory, 'node_modules/npm/bin/npm-cli.js'),
+    path.join(nodeDirectory, '../lib/node_modules/npm/bin/npm-cli.js'),
+  ].find(existsSync)
+  assert.ok(npm, 'the pinned Node distribution must provide its npm CLI')
+  const packed = JSON.parse(
+    (
+      await fixtureNode(
+        [
+          npm,
+          'pack',
+          '--ignore-scripts',
+          '--offline',
+          '--json',
+          '--cache',
+          './npm-cache',
+          '--loglevel=verbose',
+        ],
+        stage,
+        { signal: t.signal },
+      )
+    ).stdout,
+  )[0]
+  assert.equal(packed.filename, 'acme-frozen-styles-1.0.0.tgz')
+  assert.equal(packed.files.length, 6)
+  await fixtureNode(
+    [
+      npm,
+      'install',
+      '--ignore-scripts',
+      '--offline',
+      '--no-audit',
+      '--no-fund',
+      '--package-lock=false',
+      '--cache',
+      './npm-cache',
+      './packing/acme-frozen-styles-1.0.0.tgz',
+    ],
+    f.root,
+    { signal: t.signal },
+  )
+  const installed = path.join(f.root, 'node_modules/acme-frozen-styles')
+  f.roots.push(installed)
+  assert.equal(existsSync(path.join(installed, 'not-packed.js')), false)
+  f.plan.edges = [{ importer: f.entry, specifier: 'acme-frozen-styles' }]
+  writeFileSync(
+    f.entry,
+    `import {View} from '@hozo/core';import {token} from 'acme-frozen-styles';export const Row=()=> <View className={token}/>`,
+  )
+  await f.run(false)
+  assert.doesNotMatch(
+    readFileSync(path.join(f.root, 'node_modules/.hozo/candidates.css'), 'utf8'),
+    /padding-top/,
+  )
+  const output = await f.run()
+  const css = JSON.stringify(output)
+  assert.match(css, /padding-top: ?21px/)
+  assert.match(css, /padding-top: ?35px/)
+  assert.doesNotMatch(css, /p-96/)
+  assert.doesNotMatch(css, /owner-package-candidates|runtime-source-and-package-facts/)
+  const report = f.inventory()
+  assert.equal(report.status, 'complete')
+  assert.deepEqual(report.candidates, ['p-3', 'p-5'])
+  assert.deepEqual(report.packages.instances, [installed])
+  assert.equal(report.authored.length, 1)
+  assert.equal(report.finalOrderingReady, false)
 })
