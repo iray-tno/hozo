@@ -30,7 +30,6 @@ import {
   preflightEnabled,
   scanProject,
   scanSummary,
-  withOwnerPackageCandidates,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
 import { loadProjectTailwindSnapshot, loadProjectTheme, type Theme } from '@hozo/tailwind'
@@ -126,11 +125,12 @@ export async function prepareCandidateModule(
       warn: (message) => console.warn(message),
     })
   }
-  const scanned = scanProject(projectRoot, options.content, options.sources)
-  const { stats, files } = scanned
-  const cache = ownerContributions
-    ? withOwnerPackageCandidates(scanned, ownerContributions, options.sources)
-    : scanned.cache
+  const { cache, stats, files } = scanProject(
+    projectRoot,
+    options.content,
+    options.sources,
+    ownerContributions,
+  )
   if (options.debug) {
     // eslint-disable-next-line no-console
     console.info(scanSummary(stats))

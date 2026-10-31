@@ -58,3 +58,36 @@ This proves explicit candidate consumption in a bounded real-resolver fixture,
 not automatic Metro file-map bootstrap, a complete application graph, app/device
 rendering, full manifest v2 or default promotion. Package source scanning and
 legacy helper/text discovery have not been removed in this layer.
+
+## Retire candidate extraction per actual instance, not every source analysis
+
+The consuming path now passes its complete contribution set into `scanProject`.
+For matching canonical dependency instances, manifest candidates replace the
+source-candidate extraction pass. Old persistent candidate records for those
+files are dropped; synthetic manifest records stay memory-only. Authored files
+always retain extraction, including an authored path also admitted as package
+source. Ordinary/unassessed packages and another version with the same name do
+not inherit a participant's coverage. Escaping symlinked files are not covered
+by the target package's manifest.
+
+The bounded Metro fixture measures **8 package-source candidate scan calls on
+the normal cold path versus 0 on the consuming path**, both when retiring old
+records and with an empty source-candidate cache. It still keeps the package's
+StyleX summary and exact helper-discovery results, authored/ordinary dependency
+candidates, theme values and a clean return to normal config. This is a count of
+one removed parsing pass, not elapsed-time or whole-build speed evidence.
+
+Source discovery, StyleX analysis, helper discovery and the full lexical
+ordering seed remain. Removing their shared source walk would erase unrelated
+facts the candidate-only manifest does not replace. Likewise, the schema has no
+separate `usesTailwind` fact: if its candidate union contains no recognized
+utility, source extraction remains to preserve static-only auto preflight.
+Empty/unrecognized manifest tests pin that behavior. The recognized-candidate
+probe uses the same scanner once at startup, never a second utility parser or
+per-transform manifest polling. A fresh manifest union conservatively reports
+`changed`, rather than treating an authored cache hit as proof of identical
+package contents.
+
+This is a scoped F7 candidate-extraction replacement, **not** deletion of the
+entire F7 source walk or F6 helper/text discovery. Default adapters and package
+owner audit have not changed.

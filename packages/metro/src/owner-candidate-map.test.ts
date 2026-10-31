@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
 import { openCandidateCache } from '@hozo/compiler'
+import { CACHE_DIR, StylexModuleCache } from '@hozo/compiler/project'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { ownerMetroFixture } from '../fixtures/owner-metro-resolver.mjs'
 import { metroStatePath, readMetroState, withHozo, withHozoOwnerCandidates } from './config.ts'
@@ -173,4 +174,124 @@ test('a late resolution retires actual upstream output on the consuming path too
     release()
   }
   await assert.rejects(pending, /INVALIDATED/)
+})
+
+function discoverable(dir: string) {
+  const file = path.join(dir, 'package.json')
+  const data = JSON.parse(readFileSync(file, 'utf8'))
+  data.exports['./package.json'] = './package.json'
+  writeFileSync(file, JSON.stringify(data))
+}
+
+test('manifest-backed instances stop candidate extraction while StyleX, helper and ordinary sources remain', {
+  timeout: 10000,
+}, async (t) => {
+  const f = fixture(t)
+  const ordinary = path.join(f.root, 'node_modules', 'ordinary')
+  discoverable(f.first)
+  discoverable(ordinary)
+  const tokenFile = path.join(f.first, 'tokens.ts')
+  writeFileSync(tokenFile, `export const tone='p-4'`)
+  writeFileSync(path.join(ordinary, 'tokens.ts'), `export const tone='m-6'`)
+  const styles = path.join(f.first, 'styles.ts')
+  writeFileSync(
+    styles,
+    `import * as stylex from '@stylexjs/stylex';export const styles=stylex.create({root:{padding:8}})`,
+  )
+  writeFileSync(
+    path.join(f.first, 'helper.ts'),
+    `import {clsx} from 'clsx';import {twMerge} from 'tailwind-merge';export function cn(...inputs){return twMerge(clsx(inputs))}`,
+  )
+  const caller = path.join(f.first, 'Row.tsx')
+  writeFileSync(
+    caller,
+    `import {View} from '@hozo/core';import {cn} from './helper';export const Row=()=> <View className={cn('p-4')}/>`,
+  )
+  const options = { ...f.options, content: { packages: ['kit', 'ordinary'] } }
+  const prototype = Object.getPrototypeOf(openCandidateCache())
+  const scan = prototype.scanFile
+  const calls: string[] = []
+  t.mock.method(prototype, 'scanFile', function (file, source, revision) {
+    calls.push(file)
+    return scan.call(this, file, source, revision)
+  })
+  await withHozo(f.config, options)
+  assert.equal(calls.filter((file) => file.startsWith(`${f.first}${path.sep}`)).length, 8)
+  const normalHelpers = readMetroState(f.root)?.foundClassHelpers
+  assert.deepEqual(normalHelpers?.[caller], [{ module: './helper', name: 'cn' }])
+  const persisted = path.join(f.root, CACHE_DIR, 'candidates.json')
+  assert.ok(openCandidateCache(persisted).exportFile(tokenFile))
+  // Exercise both stale-record retirement and a genuinely cold candidate scan.
+  for (const cold of [false, true]) {
+    if (cold) rmSync(persisted)
+    calls.length = 0
+    await withHozoOwnerCandidates(f.config, f.preflight(), options)
+    assert.equal(calls.filter((file) => file.startsWith(`${f.first}${path.sep}`)).length, 0)
+    if (cold) {
+      assert.ok(calls.includes(f.params.filename), 'authored source still uses the scanner')
+      assert.ok(
+        calls.includes(path.join(ordinary, 'tokens.ts')),
+        'ordinary dependency is not covered',
+      )
+    }
+    assert.deepEqual(readMetroState(f.root)?.foundClassHelpers, normalHelpers)
+    assert.ok(
+      new StylexModuleCache(path.join(f.root, CACHE_DIR, 'stylex-modules.json')).get(styles),
+    )
+    assert.equal(openCandidateCache(persisted).exportFile(tokenFile), null)
+    assert.equal(Object.assign({}, ...resolver(f.root)('p-4')).paddingTop, 28)
+    assert.equal(Object.assign({}, ...resolver(f.root)('m-6')).marginTop, 42)
+    assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
+  }
+  await withHozo(f.config, options)
+  assert.ok(
+    openCandidateCache(persisted).exportFile(tokenFile),
+    'normal restart restores its original scan',
+  )
+})
+
+test('empty or unrecognized manifests retain source extraction needed for auto preflight', {
+  timeout: 10000,
+}, async (t) => {
+  for (const candidates of [[], ['not-a-utility']]) {
+    const f = fixture(t)
+    discoverable(f.first)
+    const staticFile = path.join(f.first, 'Static.tsx')
+    writeFileSync(
+      staticFile,
+      `import {View} from '@hozo/core';export const Row=()=> <View className="p-4"/>`,
+    )
+    for (const dir of [f.first, f.second]) {
+      const file = path.join(dir, 'owner.json')
+      const data = JSON.parse(readFileSync(file, 'utf8'))
+      data.candidates = candidates
+      writeFileSync(file, JSON.stringify(data))
+    }
+    const options = { ...f.options, content: { include: [], packages: ['kit'] } }
+    await withHozoOwnerCandidates(f.config, f.preflight(), options)
+    assert.equal(readMetroState(f.root)?.preflight, true)
+    assert.ok(
+      openCandidateCache(path.join(f.root, CACHE_DIR, 'candidates.json')).exportFile(staticFile),
+    )
+  }
+})
+
+test('a manifest on another version cannot suppress an ordinary same-name instance', {
+  timeout: 10000,
+}, async (t) => {
+  const f = fixture(t)
+  discoverable(f.first)
+  const metadata = path.join(f.first, 'package.json')
+  const data = JSON.parse(readFileSync(metadata, 'utf8'))
+  delete data.hozo
+  writeFileSync(metadata, JSON.stringify(data))
+  const tokenFile = path.join(f.first, 'tokens.ts')
+  writeFileSync(tokenFile, `export const tone='m-6'`)
+  const options = { ...f.options, content: { packages: ['kit'] } }
+  await withHozoOwnerCandidates(f.config, f.preflight(), options)
+  assert.ok(
+    openCandidateCache(path.join(f.root, CACHE_DIR, 'candidates.json')).exportFile(tokenFile),
+  )
+  assert.equal(Object.assign({}, ...resolver(f.root)('m-6')).marginTop, 42)
+  assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
 })
