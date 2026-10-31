@@ -17,6 +17,9 @@ import {
 import { centre, matchLabel, parseNodes } from './device-evidence.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
+// The 1000-line block with a part taken away, and with real highlighter output
+// (#1420, #1431); the story's VARIANTS.
+const VARIANTS = ['no-gutter', 'one-token', 'bare', 'highlighted']
 const output = resolve(process.argv[2] ?? 'artifacts/native-showcase-code-block')
 const app = 'dev.hozo.showcase'
 // `code-block-windowed` measures the same matrix with `maxHeight` set, so the
@@ -199,7 +202,7 @@ try {
     'Start scroll measurement',
     'Finish scroll measurement',
     ...[10, 100, 300, 1000].map((count) => `Mount ${count} lines`),
-    ...['no-gutter', 'one-token', 'bare'].map((variant) => `Mount variant ${variant}`),
+    ...VARIANTS.map((variant) => `Mount variant ${variant}`),
   ])
     buttons.set(name, centre(await control(name)).map(String))
   const tap = (name) => adb('shell', 'input', 'tap', ...buttons.get(name))
@@ -281,7 +284,7 @@ try {
         await scrollWindows(`baseline-${round}`, count)
         // The block with one part taken away, mounted only: what each part
         // costs at mount is #1420's question.
-        for (const variant of ['no-gutter', 'one-token', 'bare']) {
+        for (const variant of VARIANTS) {
           tap('Clear block')
           await control('Block cleared')
           await measure(

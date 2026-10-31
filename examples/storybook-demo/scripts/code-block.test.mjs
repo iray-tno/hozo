@@ -295,7 +295,15 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
   const env = { facts, announcements, dark: false }
   const module = await loadNativeCodeBlock(env)
   const lines = [
-    { tokens: [{ text: '\tx', color: { light: 'red', dark: 'blue' } }], mark: 'ins' },
+    // Two runs, so the line nests a Text for each; a line of one run carries
+    // the run's style itself (#1431), which the second line shows.
+    {
+      tokens: [
+        { text: '\t+', color: 'gray' },
+        { text: 'x', color: { light: 'red', dark: 'blue' } },
+      ],
+      mark: 'ins',
+    },
     { tokens: 'old', mark: 'del' },
   ]
   const props = {
@@ -326,7 +334,7 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
     const row = () =>
       renderer.root
         .findAllByType('NativeText')
-        .find((node) => node.props.accessibilityLabel === 'Added:   x')
+        .find((node) => node.props.accessibilityLabel === 'Added:   +x')
     assert.ok(row())
     assert.equal(
       flatten(row().props.style).color,
@@ -343,6 +351,11 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
       ),
     )
     assert.equal(row().findAllByType('NativeText').at(-1).props.style.color, 'red')
+    const old = renderer.root
+      .findAllByType('NativeText')
+      .find((node) => node.props.accessibilityLabel === 'Removed: old')
+    assert.equal(old.props.children, 'old')
+    assert.equal(flatten(old.props.style).color, 'purple')
     assert.equal(
       renderer.root
         .findAllByType('NativeView')
@@ -366,7 +379,7 @@ test('Native lines group tokens and hide gutters; provider copy, scheme and inte
     await act(async () => button().props.onFocus({}))
     assert.ok(facts.some(([, state]) => state?.focused === true))
     await act(async () => button().props.onPress())
-    assert.deepEqual(writes, ['\tx\nold'])
+    assert.deepEqual(writes, ['\t+x\nold'])
     assert.deepEqual(announcements, ['Copied'])
   } finally {
     if (renderer) await act(async () => renderer.unmount())
