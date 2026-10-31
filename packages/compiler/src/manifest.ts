@@ -16,6 +16,10 @@
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { buildPackageManifest, type PackageManifestOptions } from './package-manifest.ts'
+
+export type { HozoPackageManifest } from './owner-package.ts'
+export { buildPackageManifest, type PackageManifestOptions } from './package-manifest.ts'
 
 import {
   summarizeTextForwarding,
@@ -220,6 +224,8 @@ export function writeManifest(
      * published entry is built output, which has no JSX left to read.
      */
     entry?: string
+    /** Opt-in bounded RFC010 package channels; legacy callers are unchanged. */
+    package?: PackageManifestOptions
   } = {},
 ): PackageManifestResult {
   const json = JSON.parse(
@@ -228,7 +234,10 @@ export function writeManifest(
   const entry = options.entry ?? packageEntry(json)
   if (!entry) throw new Error(`hozo manifest: ${packageDir}/package.json names no entry`)
   const file = path.join(packageDir, json.hozo?.manifest ?? DEFAULT_MANIFEST_FILE)
-  const text = serializeManifest(buildManifest({ entry: path.join(packageDir, entry) }))
+  const legacy = buildManifest({ entry: path.join(packageDir, entry) })
+  const text = serializeManifest(
+    options.package ? buildPackageManifest(legacy, options.package) : legacy,
+  )
   if (options.check) return { file, text, current: readFromDisk(file) === text }
   writeFileSync(file, text)
   return { file, text, current: true }

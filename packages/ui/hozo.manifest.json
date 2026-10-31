@@ -5,12 +5,12 @@
       "props": [
         {
           "name": "tone",
-          "default": "neutral",
           "values": [
             "accent",
             "danger",
             "neutral"
-          ]
+          ],
+          "default": "neutral"
         }
       ],
       "variants": [
@@ -38,21 +38,21 @@
       "props": [
         {
           "name": "size",
-          "default": "md",
           "values": [
             "md",
             "sm"
-          ]
+          ],
+          "default": "md"
         },
         {
           "name": "tone",
-          "default": "neutral",
           "values": [
             "accent",
             "danger",
             "neutral",
             "quiet"
-          ]
+          ],
+          "default": "neutral"
         }
       ],
       "variants": [
@@ -131,12 +131,12 @@
       "props": [
         {
           "name": "tone",
-          "default": "neutral",
           "values": [
             "accent",
             "danger",
             "neutral"
-          ]
+          ],
+          "default": "neutral"
         }
       ],
       "variants": [
@@ -164,21 +164,21 @@
       "props": [
         {
           "name": "size",
-          "default": "md",
           "values": [
             "md",
             "sm"
-          ]
+          ],
+          "default": "md"
         },
         {
           "name": "tone",
-          "default": "neutral",
           "values": [
             "accent",
             "danger",
             "neutral",
             "quiet"
-          ]
+          ],
+          "default": "neutral"
         }
       ],
       "variants": [
@@ -257,30 +257,30 @@
       "props": [
         {
           "name": "align",
-          "default": "stretch",
           "values": [
             "center",
             "end",
             "stretch"
-          ]
+          ],
+          "default": "stretch"
         },
         {
           "name": "direction",
-          "default": "column",
           "values": [
             "column",
             "row"
-          ]
+          ],
+          "default": "column"
         },
         {
           "name": "gap",
-          "default": "normal",
           "values": [
             "loose",
             "none",
             "normal",
             "tight"
-          ]
+          ],
+          "default": "normal"
         }
       ],
       "variants": [
@@ -493,30 +493,30 @@
       "props": [
         {
           "name": "align",
-          "default": "stretch",
           "values": [
             "center",
             "end",
             "stretch"
-          ]
+          ],
+          "default": "stretch"
         },
         {
           "name": "direction",
-          "default": "column",
           "values": [
             "column",
             "row"
-          ]
+          ],
+          "default": "column"
         },
         {
           "name": "gap",
-          "default": "normal",
           "values": [
             "loose",
             "none",
             "normal",
             "tight"
-          ]
+          ],
+          "default": "normal"
         }
       ],
       "variants": [
@@ -725,5 +725,679 @@
       "disabledProp": "disabled",
       "hostStates": true
     }
+  },
+  "package": {
+    "schema": "rfc010-package-shadow-0",
+    "owners": null,
+    "exports": [
+      {
+        "name": "Accordion",
+        "owners": []
+      },
+      {
+        "name": "Alert",
+        "owners": []
+      },
+      {
+        "name": "Avatar",
+        "owners": []
+      },
+      {
+        "name": "Badge",
+        "owners": []
+      },
+      {
+        "name": "BottomSheet",
+        "owners": []
+      },
+      {
+        "name": "Button",
+        "owners": []
+      },
+      {
+        "name": "Calendar",
+        "owners": []
+      },
+      {
+        "name": "Card",
+        "owners": []
+      },
+      {
+        "name": "Checkbox",
+        "owners": []
+      },
+      {
+        "name": "CodeBlock",
+        "owners": []
+      },
+      {
+        "name": "CodeClipboardProvider",
+        "owners": []
+      },
+      {
+        "name": "ColorPicker",
+        "owners": []
+      },
+      {
+        "name": "Combobox",
+        "owners": []
+      },
+      {
+        "name": "CommandPalette",
+        "owners": []
+      },
+      {
+        "name": "DatePicker",
+        "owners": []
+      },
+      {
+        "name": "DateRangePicker",
+        "owners": []
+      },
+      {
+        "name": "DateTimePicker",
+        "owners": []
+      },
+      {
+        "name": "Dialog",
+        "owners": []
+      },
+      {
+        "name": "Drawer",
+        "owners": []
+      },
+      {
+        "name": "Field",
+        "owners": []
+      },
+      {
+        "name": "FileDropzone",
+        "owners": []
+      },
+      {
+        "name": "Form",
+        "owners": []
+      },
+      {
+        "name": "HozoAccordion",
+        "owners": []
+      },
+      {
+        "name": "HozoAlert",
+        "owners": []
+      },
+      {
+        "name": "HozoAvatar",
+        "owners": []
+      },
+      {
+        "name": "HozoBadge",
+        "owners": []
+      },
+      {
+        "name": "HozoBottomSheet",
+        "owners": []
+      },
+      {
+        "name": "HozoButton",
+        "owners": []
+      },
+      {
+        "name": "HozoCalendar",
+        "owners": []
+      },
+      {
+        "name": "HozoCard",
+        "owners": []
+      },
+      {
+        "name": "HozoCheckbox",
+        "owners": []
+      },
+      {
+        "name": "HozoColorPicker",
+        "owners": []
+      },
+      {
+        "name": "HozoCombobox",
+        "owners": []
+      },
+      {
+        "name": "HozoCommandPalette",
+        "owners": []
+      },
+      {
+        "name": "HozoDatePicker",
+        "owners": []
+      },
+      {
+        "name": "HozoDateRangePicker",
+        "owners": []
+      },
+      {
+        "name": "HozoDateTimePicker",
+        "owners": []
+      },
+      {
+        "name": "HozoDialog",
+        "owners": []
+      },
+      {
+        "name": "HozoDrawer",
+        "owners": []
+      },
+      {
+        "name": "HozoField",
+        "owners": []
+      },
+      {
+        "name": "HozoFileDropzone",
+        "owners": []
+      },
+      {
+        "name": "HozoForm",
+        "owners": []
+      },
+      {
+        "name": "HozoInput",
+        "owners": []
+      },
+      {
+        "name": "HozoListbox",
+        "owners": []
+      },
+      {
+        "name": "HozoMenu",
+        "owners": []
+      },
+      {
+        "name": "HozoNativeSelect",
+        "owners": []
+      },
+      {
+        "name": "HozoOtpInput",
+        "owners": []
+      },
+      {
+        "name": "HozoPagination",
+        "owners": []
+      },
+      {
+        "name": "HozoPopover",
+        "owners": []
+      },
+      {
+        "name": "HozoRadioGroup",
+        "owners": []
+      },
+      {
+        "name": "HozoSegmentedControl",
+        "owners": []
+      },
+      {
+        "name": "HozoSkeleton",
+        "owners": []
+      },
+      {
+        "name": "HozoSlider",
+        "owners": []
+      },
+      {
+        "name": "HozoStack",
+        "owners": []
+      },
+      {
+        "name": "HozoStepper",
+        "owners": []
+      },
+      {
+        "name": "HozoSwitch",
+        "owners": []
+      },
+      {
+        "name": "HozoTabs",
+        "owners": []
+      },
+      {
+        "name": "HozoTextArea",
+        "owners": []
+      },
+      {
+        "name": "HozoTimePicker",
+        "owners": []
+      },
+      {
+        "name": "HozoToolbar",
+        "owners": []
+      },
+      {
+        "name": "HozoTooltip",
+        "owners": []
+      },
+      {
+        "name": "HozoTree",
+        "owners": []
+      },
+      {
+        "name": "Input",
+        "owners": []
+      },
+      {
+        "name": "Listbox",
+        "owners": []
+      },
+      {
+        "name": "Menu",
+        "owners": []
+      },
+      {
+        "name": "NativeSelect",
+        "owners": []
+      },
+      {
+        "name": "OtpInput",
+        "owners": []
+      },
+      {
+        "name": "Pagination",
+        "owners": []
+      },
+      {
+        "name": "Popover",
+        "owners": []
+      },
+      {
+        "name": "RadioGroup",
+        "owners": []
+      },
+      {
+        "name": "ResizablePane",
+        "owners": []
+      },
+      {
+        "name": "SegmentedControl",
+        "owners": []
+      },
+      {
+        "name": "Skeleton",
+        "owners": []
+      },
+      {
+        "name": "Slider",
+        "owners": []
+      },
+      {
+        "name": "Splitter",
+        "owners": []
+      },
+      {
+        "name": "Stack",
+        "owners": []
+      },
+      {
+        "name": "Stepper",
+        "owners": []
+      },
+      {
+        "name": "Switch",
+        "owners": []
+      },
+      {
+        "name": "Tabs",
+        "owners": []
+      },
+      {
+        "name": "TextArea",
+        "owners": []
+      },
+      {
+        "name": "TimePicker",
+        "owners": []
+      },
+      {
+        "name": "Toolbar",
+        "owners": []
+      },
+      {
+        "name": "Tooltip",
+        "owners": []
+      },
+      {
+        "name": "Tree",
+        "owners": []
+      },
+      {
+        "name": "useFormSubmit",
+        "owners": []
+      }
+    ],
+    "candidates": [
+      "-mb-3",
+      "-mb-px",
+      "-me-px",
+      "-ms-3",
+      "-rotate-135",
+      "-rotate-45",
+      "-translate-y-1/2",
+      "absolute",
+      "active:opacity-80",
+      "after:absolute",
+      "after:border-b-2",
+      "after:border-hozo-accent",
+      "after:bottom-0",
+      "after:content-['']",
+      "after:h-0",
+      "after:inset-x-2",
+      "align-middle",
+      "aria-[invalid=true]:border-hozo-danger",
+      "aria-checked:bg-hozo-accent",
+      "aria-checked:font-semibold",
+      "aria-checked:text-hozo-on-accent",
+      "aria-disabled:bg-hozo-surface-raised",
+      "aria-disabled:border-hozo-border-strong",
+      "aria-disabled:cursor-not-allowed",
+      "aria-disabled:hover:bg-transparent",
+      "aria-disabled:text-hozo-text-subtle",
+      "aria-selected:bg-hozo-accent",
+      "aria-selected:bg-hozo-accent-subtle",
+      "aria-selected:border-hozo-accent",
+      "aria-selected:font-semibold",
+      "aria-selected:outline-2",
+      "aria-selected:outline-hozo-focus",
+      "aria-selected:outline-offset-2",
+      "aria-selected:text-hozo-accent-text",
+      "aria-selected:text-hozo-on-accent",
+      "backdrop:backdrop-blur-xs",
+      "backdrop:bg-hozo-scrim/50",
+      "bg-hozo-accent",
+      "bg-hozo-accent-subtle",
+      "bg-hozo-accent-text",
+      "bg-hozo-border",
+      "bg-hozo-border-strong",
+      "bg-hozo-code-delete-bg",
+      "bg-hozo-code-highlight-bg",
+      "bg-hozo-code-insert-bg",
+      "bg-hozo-danger",
+      "bg-hozo-danger-subtle",
+      "bg-hozo-presence",
+      "bg-hozo-scrim/50",
+      "bg-hozo-surface",
+      "bg-hozo-surface-inverse",
+      "bg-hozo-surface-raised",
+      "bg-hozo-surface-sunken",
+      "bg-hozo-text-subtle",
+      "bg-transparent",
+      "block",
+      "border",
+      "border-2",
+      "border-b",
+      "border-b-2",
+      "border-collapse",
+      "border-dashed",
+      "border-e",
+      "border-e-2",
+      "border-hozo-accent",
+      "border-hozo-border",
+      "border-hozo-border-strong",
+      "border-hozo-border-subtle",
+      "border-hozo-danger",
+      "border-hozo-marker-on-dark",
+      "border-hozo-marker-on-light",
+      "border-hozo-on-accent",
+      "border-hozo-surface",
+      "border-hozo-text-muted",
+      "border-hozo-text-subtle",
+      "border-l",
+      "border-r",
+      "border-r-2",
+      "border-s",
+      "border-t",
+      "border-transparent",
+      "bottom-0",
+      "container",
+      "cursor-col-resize",
+      "cursor-grab",
+      "cursor-not-allowed",
+      "cursor-pointer",
+      "cursor-row-resize",
+      "cursor-text",
+      "data-[collapsed]:border-hozo-text-subtle",
+      "data-[dragging]:bg-hozo-accent-subtle",
+      "data-[dragging]:border-hozo-accent",
+      "data-[hozo-disabled]:cursor-not-allowed",
+      "data-[hozo-disabled]:hover:bg-transparent",
+      "data-[hozo-disabled]:text-hozo-text-subtle",
+      "data-[hozo-dragging=true]:transition-none",
+      "data-[hozo-in-range]:bg-hozo-accent-subtle",
+      "data-[hozo-in-range]:text-hozo-accent-text",
+      "data-[hozo-outside]:text-hozo-text-subtle",
+      "data-[hozo-range-end]:bg-hozo-accent",
+      "data-[hozo-range-end]:font-semibold",
+      "data-[hozo-range-end]:text-hozo-on-accent",
+      "data-[hozo-range-start]:bg-hozo-accent",
+      "data-[hozo-range-start]:font-semibold",
+      "data-[hozo-range-start]:text-hozo-on-accent",
+      "data-[hozo-state=closed]:h-0",
+      "data-[hozo-step=decrease]:bottom-0",
+      "data-[hozo-step=increase]:top-0",
+      "data-[state=closed]:opacity-0",
+      "disabled:bg-hozo-surface-raised",
+      "disabled:cursor-auto",
+      "disabled:cursor-not-allowed",
+      "disabled:hover:bg-transparent",
+      "disabled:text-hozo-text-subtle",
+      "duration-150",
+      "duration-200",
+      "ease-out",
+      "end-0",
+      "end-2",
+      "first:border-t-0",
+      "fixed",
+      "flex",
+      "flex-1",
+      "flex-auto",
+      "flex-col",
+      "flex-row",
+      "flex-wrap",
+      "focus-visible:-outline-offset-1",
+      "focus-visible:outline-2",
+      "focus-visible:outline-hozo-focus",
+      "focus-visible:outline-offset-0",
+      "focus-visible:outline-offset-2",
+      "focus-visible:rounded-hozo-control",
+      "font-medium",
+      "font-mono",
+      "font-semibold",
+      "gap-1",
+      "gap-2",
+      "gap-3",
+      "gap-4",
+      "h-1",
+      "h-2",
+      "h-3",
+      "h-4",
+      "h-40",
+      "h-6",
+      "h-9",
+      "h-[var(--hozo-panel-height)]",
+      "h-full",
+      "hover:bg-hozo-accent-hover",
+      "hover:bg-hozo-danger-text",
+      "hover:bg-hozo-surface-hover",
+      "hover:border-hozo-accent-hover",
+      "hover:text-hozo-text",
+      "inline-flex",
+      "inset-0",
+      "inset-x-0",
+      "inset-x-2",
+      "inset-y-0",
+      "inset-y-2",
+      "items-center",
+      "items-end",
+      "items-start",
+      "items-stretch",
+      "justify-between",
+      "justify-center",
+      "justify-end",
+      "justify-start",
+      "leading-4",
+      "leading-6",
+      "m-0",
+      "m-auto",
+      "max-h-60",
+      "max-h-80",
+      "max-h-[85vh]",
+      "max-w-[85vw]",
+      "max-w-lg",
+      "max-w-md",
+      "max-w-xl",
+      "max-w-xs",
+      "min-h-12",
+      "min-w-0",
+      "min-w-40",
+      "min-w-56",
+      "min-w-8",
+      "min-w-9",
+      "motion-reduce:transition-colors",
+      "motion-reduce:transition-none",
+      "motion-safe:animate-pulse",
+      "motion-safe:data-[state=closed]:-translate-x-full",
+      "motion-safe:data-[state=closed]:translate-x-full",
+      "motion-safe:data-[state=closed]:translate-y-full",
+      "motion-safe:starting:-translate-x-full",
+      "motion-safe:starting:translate-x-full",
+      "motion-safe:starting:translate-y-full",
+      "mt-2",
+      "mx-2",
+      "no-underline",
+      "object-cover",
+      "outline-1",
+      "outline-hozo-marker-on-dark",
+      "outline-hozo-marker-on-light",
+      "overflow-hidden",
+      "overflow-y-auto",
+      "p-1",
+      "p-2",
+      "p-4",
+      "p-6",
+      "pb-1",
+      "pb-4",
+      "pe-2",
+      "pe-24",
+      "pe-3",
+      "pe-6",
+      "placeholder:text-hozo-text-subtle",
+      "ps-0",
+      "ps-10",
+      "ps-11",
+      "ps-15",
+      "ps-20",
+      "ps-3",
+      "ps-5",
+      "ps-9",
+      "pt-3",
+      "pt-4",
+      "pt-[12vh]",
+      "px-1",
+      "px-2",
+      "px-3",
+      "px-4",
+      "px-6",
+      "py-1",
+      "py-2",
+      "py-3",
+      "py-6",
+      "py-8",
+      "relative",
+      "resize-none",
+      "ring-2",
+      "ring-hozo-accent",
+      "ring-offset-2",
+      "rotate-45",
+      "rounded",
+      "rounded-b-hozo-surface",
+      "rounded-e-hozo-surface",
+      "rounded-full",
+      "rounded-hozo-control",
+      "rounded-hozo-inset",
+      "rounded-hozo-panel",
+      "rounded-hozo-surface",
+      "rounded-l-hozo-panel",
+      "rounded-r-hozo-panel",
+      "rounded-s-hozo-surface",
+      "rounded-t-hozo-panel",
+      "rounded-t-hozo-surface",
+      "rtl:-rotate-45",
+      "rtl:rotate-45",
+      "select-none",
+      "self-center",
+      "self-end",
+      "self-start",
+      "self-stretch",
+      "shadow-hozo-surface",
+      "shrink-0",
+      "size-10",
+      "size-11",
+      "size-14",
+      "size-2",
+      "size-3",
+      "size-4",
+      "size-6",
+      "size-7",
+      "size-8",
+      "size-9",
+      "size-full",
+      "start-0",
+      "start-1",
+      "start-2",
+      "start-4",
+      "starting:opacity-0",
+      "tabular-nums",
+      "text-base",
+      "text-center",
+      "text-hozo-accent-text",
+      "text-hozo-code-delete",
+      "text-hozo-code-highlight",
+      "text-hozo-code-insert",
+      "text-hozo-danger",
+      "text-hozo-danger-text",
+      "text-hozo-on-accent",
+      "text-hozo-on-danger",
+      "text-hozo-text",
+      "text-hozo-text-body",
+      "text-hozo-text-inverse",
+      "text-hozo-text-muted",
+      "text-hozo-text-subtle",
+      "text-left",
+      "text-lg",
+      "text-sm",
+      "text-start",
+      "text-xs",
+      "top-1",
+      "top-1/2",
+      "top-2",
+      "top-3",
+      "touch-none",
+      "transition",
+      "transition-[height]",
+      "transition-[inset-inline-start,background-color]",
+      "transition-colors",
+      "transition-opacity",
+      "transition-transform",
+      "w-1",
+      "w-12",
+      "w-2",
+      "w-32",
+      "w-6",
+      "w-7",
+      "w-8",
+      "w-80",
+      "w-[calc(100vw-2rem)]",
+      "w-full",
+      "whitespace-nowrap",
+      "z-50"
+    ],
+    "helpers": [],
+    "compiledByConsumer": true
   }
 }

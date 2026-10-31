@@ -177,8 +177,8 @@ export function captureOwnerManifests(
     let shadow: OwnerContractShadow
     let packageData: OwnerPackageShadow | undefined
     try {
-      const schema = JSON.parse(manifest.text)?.schema
-      if (schema === OWNER_PACKAGE_SCHEMA) {
+      const input = JSON.parse(manifest.text)
+      if (input?.schema === OWNER_PACKAGE_SCHEMA || (input && Object.hasOwn(input, 'package'))) {
         packageData = parseOwnerPackageShadow(manifest.text)
         shadow = packageData.owners ?? { schema: OWNER_SHADOW_VERSION, contracts: [] }
       } else shadow = parseOwnerContractShadow(manifest.text)

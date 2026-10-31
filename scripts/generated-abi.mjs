@@ -89,7 +89,7 @@ export function leafSpecifier({ owner, leaf }, facaded = facadedOwners()) {
 }
 
 /** Value exports of one module, as esbuild reads them -- types are erased. */
-async function valueExports(file) {
+export async function valueExports(file, { requireExplicit = false } = {}) {
   const { build } = await import('esbuild')
   const result = await build({
     entryPoints: [file],
@@ -100,6 +100,11 @@ async function valueExports(file) {
     outdir: path.join(root, '.generated-abi-probe'),
     logLevel: 'silent',
   })
+  // An unbundled metadata probe cannot enumerate an export-star's target.
+  // Inspect esbuild's normalized statement, not authored TS syntax. A caller
+  // publishing a complete export list must refuse rather than silently omit it.
+  if (requireExplicit && /^export \* from /m.test(result.outputFiles[0].text))
+    throw new Error(`Value export probe requires explicit named exports: ${file}`)
   const [output] = Object.values(result.metafile.outputs)
   return [...output.exports].sort()
 }
