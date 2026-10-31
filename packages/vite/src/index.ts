@@ -26,6 +26,7 @@
 // owns the project walk and the file-deletion signal, while the cache in
 // Rust owns scanning, staleness, and persistence.
 
+import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { type CandidateCache, scanTailwindOrderCandidates } from '@hozo/compiler'
@@ -53,11 +54,13 @@ import {
   TailwindCandidateUniverse,
   TailwindPreparationCancelled,
   webBaseCssFor,
+  withOwnerPackageCandidates,
   writeFileIfChanged,
 } from '@hozo/compiler/project'
 import { preflightCss } from '@hozo/tailwind'
 import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer } from 'vite'
 import { contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
+import { captureViteOwnerCandidates, type ViteOwnerCandidatePlan } from './owner-candidates.ts'
 import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from './tailwind-epoch.ts'
 
 /**
@@ -74,6 +77,20 @@ import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from '.
 export type HozoOptions = HozoProjectOptions
 
 export function hozo(options: HozoOptions = {}): Plugin[] {
+  return configureHozo(options)
+}
+
+/** @internal Explicit candidate-only BUILD experiment. No normal-option or
+ * default change, owner/helper/text installation or automatic root discovery.
+ */
+export function hozoWithOwnerCandidates(
+  options: HozoOptions,
+  plan: ViteOwnerCandidatePlan,
+): Plugin[] {
+  return configureHozo(options, plan)
+}
+
+function configureHozo(options: HozoOptions, ownerPlan?: ViteOwnerCandidatePlan): Plugin[] {
   // One matching compiler/session per stylesheet epoch, never per file.
   let root = process.cwd()
   let cache: CandidateCache
@@ -100,6 +117,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
   const requests = new Map<string, { token: symbol; file: string }>()
   let inventory: ViteCandidateInventory | undefined
   let inventoryPath = ''
+  let owners: Awaited<ReturnType<typeof captureViteOwnerCandidates>> | undefined
 
   function updateUniverse() {
     const next = new TailwindCandidateUniverse([
@@ -153,6 +171,7 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       current.check()
       if (generation !== candidateGeneration) return
       if (nextUniverse.key !== universe.key) continue
+      owners?.validate()
       classOrder = next
       sheetUniverseKey = nextUniverse.key
       writeCandidateCss()
@@ -219,9 +238,11 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       if (file && !accepts(file)) return
       if (!file) return
       const request = Symbol(id)
+      const ownerEpoch = owners
       const requestId = JSON.stringify([this.environment?.name ?? 'default', id])
       requests.set(requestId, { token: request, file: path.resolve(file) })
       const checkRequest = () => {
+        ownerEpoch?.check()
         if (requests.get(requestId)?.token !== request)
           throw new TailwindPreparationCancelled('TAILWIND_MODULE_SUPERSEDED')
       }
@@ -534,6 +555,8 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       enforce: 'pre',
 
       configResolved(config) {
+        if (ownerPlan && config.command !== 'build')
+          throw new Error('[hozo] owner candidates require a production build')
         root = options.root ?? config.root
         resolvedConfig = config
       },
@@ -543,6 +566,8 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       },
 
       async buildStart() {
+        owners?.invalidate()
+        owners = undefined
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined
@@ -567,13 +592,43 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           )
         }
         const current = await currentEpoch((message) => this.warn(message))
+        if (ownerPlan) {
+          if (!current.snapshot)
+            throw new Error('[hozo] owner candidates require a Tailwind snapshot')
+          const context = createHash('sha256')
+            .update(
+              JSON.stringify([
+                'vite-owner-candidates-0',
+                root,
+                ownerPlan.context,
+                current.snapshot.serialize(),
+                options.sources,
+                options.classHelpers,
+                options.fontAvailability,
+                options.preflight,
+                resolvedConfig?.resolve.conditions,
+                resolvedConfig?.resolve.alias,
+              ]),
+            )
+            .digest('hex')
+          owners = await captureViteOwnerCandidates(
+            ownerPlan,
+            async ({ importer, specifier }) =>
+              this.resolve(specifier, importer, { skipSelf: true }),
+            context,
+          )
+          for (const file of owners.watchFiles) this.addWatchFile(file)
+          inventory?.observeOwnerPackages(owners.contributions)
+        }
         for (const dependency of current.watchFiles) this.addWatchFile(dependency)
 
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves
         // statically.
         const project = scanProject(root, options.content, options.sources)
-        cache = project.cache
+        cache = owners
+          ? withOwnerPackageCandidates(project, owners.contributions, options.sources)
+          : project.cache
         stylexModules = project.stylexModules
         orderingSources.clear()
         for (const file of project.files) {
@@ -612,6 +667,10 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
       },
 
       async watchChange(id, change) {
+        if (owners?.watches(id)) {
+          owners.invalidate()
+          return
+        }
         const absolute = path.resolve(id)
         for (const [requestId, request] of requests) {
           if (request.file === absolute) requests.delete(requestId)
@@ -694,11 +753,23 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
         stylexModules?.persist()
         if (!inventory) return
         if (error) {
+          owners?.invalidate()
           writeFileIfChanged(
             inventoryPath,
             JSON.stringify({ schema: 1, status: 'failed', finalOrderingReady: false }),
           )
           return
+        }
+        if (owners) {
+          try {
+            owners.validateGraph(this)
+          } catch (error) {
+            writeFileIfChanged(
+              inventoryPath,
+              JSON.stringify({ schema: 1, status: 'failed', finalOrderingReady: false }),
+            )
+            throw error
+          }
         }
         // The source walk and the bundler graph are different authorities:
         // configured authored content remains even when not imported, while
@@ -718,7 +789,24 @@ export function hozo(options: HozoOptions = {}): Plugin[] {
           `${JSON.stringify(inventory.reconcile(authored, modules), null, 2)}\n`,
         )
       },
+      generateBundle: {
+        order: 'post',
+        handler() {
+          try {
+            owners?.validateGraph(this)
+          } catch (error) {
+            if (inventory)
+              writeFileIfChanged(
+                inventoryPath,
+                JSON.stringify({ schema: 1, status: 'failed', finalOrderingReady: false }),
+              )
+            throw error
+          }
+        },
+      },
       closeBundle() {
+        owners?.invalidate()
+        owners = undefined
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined
