@@ -21,7 +21,40 @@ overlap, shared tokens, variants, important syntax, replay without authored
 rescanning and no persistence. These are candidate transport/generation checks,
 not broader owner audit, browser/device fidelity or a performance benchmark.
 
-At this layer the adapters do not yet consume the overlay. The next boundary is
-to install it before Metro's candidate-map freeze and check that package-only
-styles reach the real generated resolver, without changing normal builds or
-letting stale snapshots publish output.
+## Metro candidate-only vertical slice
+
+`withHozoOwnerCandidates` on Metro's config entry explicitly consumes this
+overlay before generating the project resolver and full lexical ordering seed.
+Like `withHozoOwnerShadow`, it requires a caller-supplied, complete ready-resolver
+preflight; it is not installed by normal `withHozo` or exposed as a root option.
+The old assessment harness still does not consume candidates. Neither mode
+installs package owner/helper/text facts. Web consumption is explicitly refused.
+
+Generation now prepares bytes without publishing them. Config captures the
+complete contribution set before asynchronous CSS/order preparation, revalidates
+metadata and manifests afterwards, and compares the actual instance contents
+before publishing the map, ordering sidecar and config. Changed input cannot
+overwrite an existing map/state with mixed facts. Candidate consumption refuses
+an unavailable CSS snapshot instead of labeling a fallback palette canonical.
+Normal builds retain their existing warned fallback.
+
+The actual Metro resolver fixture selects two versions of the same package
+under Android and iOS conditions. Their manifest-only `p-2` reaches the generated
+`hozoClasses` resolver as padding 14 under `--spacing: 7px`; the authored static
+`p-4` and manifest/runtime `p-4` both yield 28. Tests execute the real generated
+resolver with the actual engine resolver (not a hand-written style map), follow
+the config's `@hozo/engine/project` resolution, run the static transform and
+check the ordering transfer. Manifest-only use enables auto preflight; returning
+to normal config removes the overlay without persistent synthetic records.
+
+A generation-time manifest edit preserves the previous candidate module and
+metro.json, incomplete/CSS failure publishes neither, and a successful but
+unassessed subpath resolution retires pending actual upstream output. The first
+subpath test attempted an undeclared export and stopped at Metro's warning
+before reaching the guard; the fixture now declares that export before capture
+so the test exercises the intended successful-but-unassessed resolution.
+
+This proves explicit candidate consumption in a bounded real-resolver fixture,
+not automatic Metro file-map bootstrap, a complete application graph, app/device
+rendering, full manifest v2 or default promotion. Package source scanning and
+legacy helper/text discovery have not been removed in this layer.

@@ -21,15 +21,20 @@ import {
 } from './owner-manifest-preflight.ts'
 import {
   assertMetroOwnerShadowScope,
+  MetroOwnerShadowSession,
   type MetroOwnerShadowState,
   ownerShadowSession,
   prepareMetroOwnerShadow,
 } from './owner-manifest-shadow.ts'
+import {
+  MetroOwnerManifestWorker,
+  writeMetroOwnerManifestTransfer,
+} from './owner-manifest-transfer.ts'
 
 import {
   candidateModulePath,
-  generateCandidateModule,
   type MetroTailwindReference,
+  prepareCandidateModule,
 } from './project.ts'
 
 const PROJECT_RUNTIME_MODULE = '@hozo/engine/project'
@@ -83,7 +88,7 @@ type MetroResolveRequest = (
  * through this file.
  */
 export interface HozoMetroState {
-  /** Explicit assessment only; no package candidates/facts installed yet. */
+  /** Explicit assessment or candidate consumption; never default owner facts. */
   ownerShadow?: MetroOwnerShadowState
   upstreamTransformer?: string
   css?: string
@@ -229,10 +234,27 @@ export async function withHozoOwnerShadow<T extends MetroConfigShape>(
   return configureHozo(configOrPromise, options, preflight)
 }
 
+/** @internal Candidate-only vertical slice over a ready resolver preflight.
+ * Deliberately separate from normal options and the assessment-only harness.
+ * No owner contract/helper/text installation or automatic graph bootstrap.
+ */
+export async function withHozoOwnerCandidates<T extends MetroConfigShape>(
+  configOrPromise: T | Promise<T>,
+  preflight: MetroOwnerPreflight,
+  options: HozoMetroOptions = {},
+): Promise<T> {
+  if (preflight.status !== 'complete') throw new Error('[hozo] owner preflight INCOMPLETE')
+  if (preflight.platform === 'web')
+    throw new Error('[hozo] Owner candidate consumption is Native-only')
+  assertMetroOwnerPreflightCurrent(preflight)
+  return configureHozo(configOrPromise, options, preflight, 'candidate-consumption')
+}
+
 async function configureHozo<T extends MetroConfigShape>(
   configOrPromise: T | Promise<T>,
   options: HozoMetroOptions,
   ownerPreflight?: Extract<MetroOwnerPreflight, { status: 'complete' }>,
+  ownerMode: MetroOwnerShadowState['mode'] = 'assessment-only',
 ): Promise<T> {
   const config = await configOrPromise
   const projectRoot = path.resolve(options.root ?? config.projectRoot ?? process.cwd())
@@ -244,17 +266,28 @@ async function configureHozo<T extends MetroConfigShape>(
       ? configuredUpstream
       : undefined
 
-  const { preflight, files, tailwind } = await generateCandidateModule(projectRoot, {
-    css: options.css,
-    content: options.content,
-    preflight: options.preflight,
-    sources: options.sources,
-  })
+  const initialOwners =
+    ownerPreflight && ownerMode === 'candidate-consumption'
+      ? new MetroOwnerManifestWorker(
+          writeMetroOwnerManifestTransfer(projectRoot, ownerPreflight.request),
+          { platform: ownerPreflight.platform, epoch: JSON.parse(ownerPreflight.request).epoch },
+        ).contributions
+      : undefined
+  const prepared = await prepareCandidateModule(
+    projectRoot,
+    {
+      css: options.css,
+      content: options.content,
+      preflight: options.preflight,
+      sources: options.sources,
+    },
+    initialOwners,
+  )
+  const { preflight, files, tailwind } = prepared
   const fontFaceCss = options.fontFaceCss?.trim()
   const fontFaceCssPath = fontFaceCss
     ? path.join(projectRoot, CACHE_DIR, 'font-faces.css')
     : undefined
-  if (fontFaceCssPath) writeFileIfChanged(fontFaceCssPath, `${fontFaceCss}\n`)
   // Read once, now: a helper edited while Metro runs needs a restart, as
   // the candidate module does.
   // The candidate scan's own walk, rather than a second one.
@@ -271,10 +304,19 @@ async function configureHozo<T extends MetroConfigShape>(
     fontAvailability: options.fontAvailability,
   }
   if (ownerPreflight)
-    state.ownerShadow = prepareMetroOwnerShadow(projectRoot, ownerPreflight, state)
+    state.ownerShadow = prepareMetroOwnerShadow(projectRoot, ownerPreflight, state, ownerMode)
+  if (initialOwners && state.ownerShadow) {
+    const fresh = new MetroOwnerShadowSession(state.ownerShadow).worker.contributions
+    // Fingerprints include the context epoch, which is intentionally different
+    // before/after CSS preparation. Compare the actual scoped content instead.
+    if (JSON.stringify(initialOwners.instances) !== JSON.stringify(fresh.instances))
+      throw new Error('[hozo] Owner candidates changed during preparation; restart Metro')
+  }
   state.epoch = createHash('sha256').update(JSON.stringify(state)).digest('hex')
   const statePath = metroStatePath(projectRoot)
   const writeState = () => writeMetroState(statePath, state)
+  prepared.publish()
+  if (fontFaceCssPath) writeFileIfChanged(fontFaceCssPath, `${fontFaceCss}\n`)
   writeState()
 
   const stylexModules = new StylexModuleCache(

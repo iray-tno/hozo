@@ -1,4 +1,4 @@
-// Opt-in assessment wiring. This does NOT install package candidates or facts.
+// Explicit assessment or candidate-only consumption, never owner/helper/text facts.
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -16,7 +16,7 @@ import {
 
 type Complete = Extract<MetroOwnerPreflight, { status: 'complete' }>
 export interface MetroOwnerShadowState {
-  mode: 'assessment-only'
+  mode: 'assessment-only' | 'candidate-consumption'
   platform: string
   context: string
   preflight: { file: string; sha256: string }
@@ -39,6 +39,7 @@ export function prepareMetroOwnerShadow(
   root: string,
   preflight: Complete,
   projectState: unknown,
+  mode: MetroOwnerShadowState['mode'] = 'assessment-only',
 ): MetroOwnerShadowState {
   assertMetroOwnerShadowScope(root, preflight)
   assertMetroOwnerPreflightCurrent(preflight)
@@ -54,14 +55,14 @@ export function prepareMetroOwnerShadow(
   // Combine with actual configured CSS/preflight/sources/font facts, not only
   // the test/user label used while collecting the declaration closure.
   const context = hash(
-    JSON.stringify(['owner-shadow-context-0', projectState, preflight.fingerprint]),
+    JSON.stringify(['owner-shadow-context-0', mode, projectState, preflight.fingerprint]),
   )
   const request = JSON.parse(preflight.request)
   request.epoch = context
   const transfer = writeMetroOwnerManifestTransfer(root, JSON.stringify(request))
   assertMetroOwnerPreflightCurrent(preflight)
   return Object.freeze({
-    mode: 'assessment-only',
+    mode,
     platform: preflight.platform,
     context,
     preflight: Object.freeze({ file, sha256 }),
@@ -83,7 +84,8 @@ export class MetroOwnerShadowSession {
   #routes = new Map<string, Complete['routes'][number][]>()
   #manifests = new Map<string, string>()
   constructor(state: MetroOwnerShadowState) {
-    if (state.mode !== 'assessment-only') fail('invalid assessment mode')
+    if (state.mode !== 'assessment-only' && state.mode !== 'candidate-consumption')
+      fail('invalid assessment mode')
     const body = readBoundedUtf8File(state.preflight.file, 8_388_608)
     if (hash(body) !== state.preflight.sha256) fail('preflight record hash mismatch')
     const data = JSON.parse(body)
