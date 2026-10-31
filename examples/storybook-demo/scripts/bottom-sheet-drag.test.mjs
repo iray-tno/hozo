@@ -8,6 +8,7 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import React, { act } from 'react'
 import { create } from 'react-test-renderer'
+import { bottomSheetFixture, mountBottomSheet } from './bottom-sheet-fixture.mjs'
 
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const require = createRequire(import.meta.url)
@@ -19,6 +20,112 @@ const executablePath = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ].find((file) => file && existsSync(file))
 if (process.env.CI) assert.ok(executablePath, 'CI requires BottomSheet browser coverage')
+
+test('styled sheet keeps its bottom anchor, detents and modal controls at narrow and wide widths', {
+  skip: !executablePath,
+}, async () => {
+  const fixture = await bottomSheetFixture()
+  const browser = await chromium.launch({ executablePath, args: ['--no-sandbox'] })
+  try {
+    const page = await browser.newPage()
+    const errors = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    const settled = async () =>
+      page.getByRole('dialog').evaluate(async (node) => {
+        await Promise.all(node.getAnimations().map((animation) => animation.finished))
+      })
+    for (const width of [390, 640, 1280]) {
+      await page.setViewportSize({ width, height: 800 })
+      for (const dark of [false, true]) {
+        for (const reducedMotion of ['reduce', 'no-preference']) {
+          await mountBottomSheet(page, fixture, { dark, reducedMotion })
+          const opener = page.getByRole('button', { name: 'Filters', exact: true })
+          await opener.click()
+          const panel = page.getByRole('dialog', { name: 'Filters' })
+          await panel.waitFor()
+          await settled()
+          const full = await panel.boundingBox()
+          assert.equal(full.width, Math.min(width, 512))
+          assert.equal(full.x, (width - full.width) / 2)
+          assert.equal(full.y + full.height, 800)
+          const corners = await panel.evaluate((node) => {
+            const style = getComputedStyle(node)
+            return [style.borderTopLeftRadius, style.borderBottomLeftRadius]
+          })
+          assert.deepEqual(corners, ['16px', '0px'])
+          const handle = page.getByRole('button', { name: 'Resize' })
+          await handle.focus()
+          await handle.press('ArrowDown')
+          await settled()
+          const half = await panel.boundingBox()
+          assert.ok(Math.abs(half.y - (800 - full.height / 2)) < 0.1)
+          await handle.press('Enter')
+          await settled()
+          assert.equal((await panel.boundingBox()).y, full.y)
+          await handle.press('Shift+Tab')
+          assert.equal(
+            await page
+              .getByRole('button', { name: 'Cancel' })
+              .evaluate((node) => document.activeElement === node),
+            true,
+            'focus wraps inside the modal',
+          )
+          await page.keyboard.press('Tab')
+          assert.equal(await handle.evaluate((node) => document.activeElement === node), true)
+          await handle.press('Escape')
+          await panel.waitFor({ state: 'detached' })
+          assert.equal(await opener.evaluate((node) => document.activeElement === node), true)
+          await opener.click()
+          await panel.waitFor()
+          await settled()
+          await page.mouse.click(8, 8)
+          await panel.waitFor({ state: 'detached' })
+        }
+      }
+      await mountBottomSheet(page, fixture)
+      await page.getByRole('button', { name: 'Filters', exact: true }).click()
+      await page.getByRole('dialog').waitFor()
+      await settled()
+      const initial = await page.getByRole('dialog').boundingBox()
+      const handle = page.getByRole('button', { name: 'Resize' })
+      await handle.click()
+      await settled()
+      const grip = await handle.boundingBox()
+      await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(
+        grip.x + grip.width / 2,
+        grip.y + grip.height / 2 - initial.height / 2,
+        {
+          steps: 5,
+        },
+      )
+      await page.waitForFunction(
+        () => document.querySelector('[role=dialog]').dataset.hozoDragging === 'true',
+      )
+      await page.mouse.up()
+      await settled()
+      assert.equal((await page.getByRole('dialog').boundingBox()).y, initial.y)
+      await handle.press('Escape')
+      await page.getByRole('dialog').waitFor({ state: 'detached' })
+      await page.evaluate(() => window.mountSheet({ long: true, multiple: false }))
+      await page.getByRole('button', { name: 'Filters', exact: true }).click()
+      const panel = page.getByRole('dialog')
+      await panel.waitFor()
+      await settled()
+      const box = await panel.boundingBox()
+      assert.equal(box.height, 680, 'long content is capped at 85vh')
+      assert.equal(box.y + box.height, 800)
+      assert.equal(await page.getByRole('button', { name: 'Resize' }).count(), 0)
+      await page.getByRole('button', { name: 'Cancel' }).scrollIntoViewIfNeeded()
+      await page.getByRole('button', { name: 'Cancel' }).click()
+      await panel.waitFor({ state: 'detached' })
+    }
+    assert.deepEqual(errors, [])
+  } finally {
+    await browser.close()
+  }
+})
 
 test('Web sheet flushes release, restores cancellation, keeps taps and retires captured drags', {
   skip: !executablePath,

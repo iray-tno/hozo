@@ -7,9 +7,10 @@ import UiExample from '../../../../components/docs/UiExample.astro'
 import { BottomSheetDemo } from '../../../../examples/ui/BottomSheetDemo.tsx'
 import source from '../../../../examples/ui/BottomSheetDemo.tsx?raw'
 
-`BottomSheet` rises from the bottom of the screen. On a wide screen it becomes
-a centred panel instead, and it can still be dragged. Open it, then drag the
-handle, press Escape, or click the scrim:
+`BottomSheet` rises from the bottom of the screen. On a wide screen it stays
+against the bottom edge, horizontally centred with a maximum width of 32rem.
+Its top corners are rounded and its handle remains available at every width.
+Open it, then drag the handle, press Escape, or click the scrim:
 
 <UiExample source={source} file="BottomSheetDemo.tsx">
   <BottomSheetDemo client:visible />

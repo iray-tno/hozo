@@ -91,7 +91,7 @@ Two decisions it makes for you, both written down in the source: the error comes
 | `Dialog` | a panel and a `::backdrop` scrim, on a real `<dialog>` |
 | `Tooltip` | an inverse bubble, positioned by the pattern |
 | `Popover` | a panel on a surface, non-modal, closing when focus leaves |
-| `BottomSheet` | a modal sheet against the bottom edge, centred from `sm:`, with a grabber |
+| `BottomSheet` | a modal sheet against the bottom edge at every width, capped at 32rem, with a grabber |
 | `Drawer` | a modal panel against the left or right edge, one class list per side |
 | `RadioGroup` | a ring and a dot, drawn from `aria-checked` |
 | `SegmentedControl` | that same radio group as a strip; a look, not a component |
