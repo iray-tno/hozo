@@ -25,6 +25,7 @@ import {
   codeLineStart,
 } from './code-block-types.ts'
 import { CodeCopy } from './code-copy.native.tsx'
+import { gutterColumn, gutterStyles, gutterText } from './code-gutter.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
 type CodeStyle = StyleProp<ViewStyle | TextStyle>
@@ -61,6 +62,11 @@ export function CodeBlock(props: CodeBlockProps) {
   const width =
     ((props.lineNumbers ? String(start + lines.length - 1).length : 0) + (hasMarks ? 2 : 0) + 1) *
     fontSize
+  const windowed = codeBlockWindowed(props, lines.length)
+  const column =
+    gutter && !props.wrap && !windowed
+      ? gutterColumn(props, lines, { start, hasMarks, width, fontSize, lineHeight })
+      : undefined
   const rows = useCodeLineRows({
     ...props,
     lines,
@@ -75,46 +81,40 @@ export function CodeBlock(props: CodeBlockProps) {
         fontSize,
         lineHeight,
         StyleSheet.flatten(props.gutterStyle),
+        Boolean(column),
       ],
       [props.gutterClassName, props.insClassName, props.delClassName, props.markClassName],
     ),
-    renderGutter: gutter
-      ? (line, index) => {
-          const facts = {
-            'data-code-mark': Boolean(line.mark),
-            'data-code-mark=ins': line.mark === 'ins',
-            'data-code-mark=del': line.mark === 'del',
-            'data-code-mark=mark': line.mark === 'mark',
-          }
-          const [gutterBox, gutterText] = splitTextStyle([
-            hozoClasses(props.gutterClassName, facts),
-            line.mark ? hozoClasses(props[`${line.mark}ClassName`], facts) : undefined,
-            props.gutterStyle,
-          ])
-          return (
-            <View
-              importantForAccessibility="no-hide-descendants"
-              accessibilityElementsHidden
-              style={[{ width, flexShrink: 0 }, gutterBox]}
-            >
-              <Text
-                style={[
-                  { fontFamily: 'monospace', fontSize, lineHeight, textAlign: 'right' },
-                  gutterText,
-                ]}
+    renderGutter: column
+      ? () => column.spacer
+      : gutter
+        ? (line, index) => {
+            const [gutterBox, cellText] = gutterStyles(props, line.mark)
+            return (
+              <View
+                importantForAccessibility="no-hide-descendants"
+                accessibilityElementsHidden
+                style={[{ width, flexShrink: 0 }, gutterBox]}
               >
-                {hasMarks
-                  ? `${line.mark === 'ins' ? '+' : line.mark === 'del' ? '−' : line.mark === 'mark' ? '•' : ' '} `
-                  : ''}
-                {props.lineNumbers ? start + index : ''}
-              </Text>
-            </View>
-          )
-        }
-      : undefined,
+                <Text
+                  style={[
+                    { fontFamily: 'monospace', fontSize, lineHeight, textAlign: 'right' },
+                    cellText,
+                  ]}
+                >
+                  {gutterText(line.mark, props.lineNumbers ? start + index : undefined, hasMarks)}
+                </Text>
+              </View>
+            )
+          }
+        : undefined,
   })
-  const windowed = codeBlockWindowed(props, rows.lines.length)
-  const whole = <View style={rows.style}>{rows.lines.map(rows.renderLine)}</View>
+  const whole = (
+    <View style={rows.style}>
+      {rows.lines.map(rows.renderLine)}
+      {column?.column}
+    </View>
+  )
   const content = windowed ? (
     <FlatList
       data={rows.lines}

@@ -152,6 +152,8 @@ const classOnly = [
 ]
 const pending = [
   'packages/patterns/src/code-block.native.tsx',
+  // The gutter half of code-block.native.tsx, split out for #1432.
+  'packages/patterns/src/code-gutter.native.tsx',
   'packages/typography/src/code-lines.native.tsx',
 ]
 const forwarding = ['packages/core/src/generated/gap-styles.ts']
