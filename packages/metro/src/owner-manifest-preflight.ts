@@ -8,7 +8,7 @@ import { METRO_OWNER_REQUEST } from './owner-manifest-transfer.ts'
 
 export interface OwnerMetroContext {
   originModulePath: string
-  getPackageForModule?(file: string): { rootPath: string } | null | undefined
+  getPackageForModule?(file: string): { rootPath: string; packageJson?: unknown } | null | undefined
   [key: string]: unknown
 }
 export type OwnerMetroResolver = (

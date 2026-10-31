@@ -201,6 +201,9 @@ export class MetroOwnerManifestWorker {
   run<T>(calculate: (contributions: MetroOwnerManifestWorker['contributions']) => T | Promise<T>) {
     return this.#epoch.run(() => calculate(this.contributions))
   }
+  check() {
+    this.#epoch.lease().check()
+  }
   invalidate() {
     this.#epoch.invalidate()
   }
