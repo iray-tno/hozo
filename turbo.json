@@ -61,7 +61,12 @@
     },
     "@hozo/vite#test": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json"]
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
+        "$TURBO_ROOT$/packages/metro/fixtures/fixture-process.mjs",
+        "$TURBO_ROOT$/packages/metro/fixtures/owner-candidate-package/**"
+      ]
     },
     "@hozo/tailwind#test": {
       "dependsOn": ["^build"],
@@ -126,6 +131,7 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/metro/fixtures/owner-metro-resolver.mjs",
+        "$TURBO_ROOT$/packages/metro/fixtures/fixture-process.mjs",
         "$TURBO_ROOT$/packages/metro/fixtures/owner-candidate-package/**",
         "$TURBO_ROOT$/examples/native-demo/package.json",
         "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",

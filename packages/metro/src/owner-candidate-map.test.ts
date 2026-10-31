@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
@@ -7,6 +6,7 @@ import { runInNewContext } from 'node:vm'
 import { openCandidateCache } from '@hozo/compiler'
 import { CACHE_DIR, StylexModuleCache } from '@hozo/compiler/project'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
+import { fixtureNode } from '../fixtures/fixture-process.mjs'
 import { ownerMetroFixture } from '../fixtures/owner-metro-resolver.mjs'
 import { metroStatePath, readMetroState, withHozo, withHozoOwnerCandidates } from './config.ts'
 import { getCacheKey, transform } from './index.ts'
@@ -297,6 +297,25 @@ test('a manifest on another version cannot suppress an ordinary same-name instan
   assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
 })
 
+test('fixture child output can trigger cancellation without blocking the parent or losing stderr', {
+  timeout: 20000,
+}, async (t) => {
+  const f = fixture(t)
+  const controller = new AbortController()
+  const child = fixtureNode(
+    ['-e', "process.stderr.write('fixture-started');setInterval(()=>{},1000)"],
+    f.root,
+    { signal: controller.signal },
+  )
+  child.child.stderr!.once('data', () => controller.abort())
+  await assert.rejects(child, (error: Error & { stderr?: string }) => {
+    assert.match(error.stderr ?? '', /fixture-started/)
+    assert.equal(error.name, 'AbortError')
+    return true
+  })
+  assert.ok(child.child.exitCode !== null || child.child.signalCode !== null)
+})
+
 test('a packed and offline-installed non-Hozo dependency reaches the generated runtime without checkout leakage', {
   timeout: 30000,
 }, async (t) => {
@@ -311,17 +330,30 @@ test('a packed and offline-installed non-Hozo dependency reaches the generated r
     path.join(nodeDirectory, '../lib/node_modules/npm/bin/npm-cli.js'),
   ].find(existsSync)
   assert.ok(npm, 'the pinned Node distribution must provide its npm CLI')
-  const run = (args: string[], cwd: string) =>
-    execFileSync(process.execPath, [npm, ...args], {
-      cwd,
-      encoding: 'utf8',
-      timeout: 15000,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+  const run = async (args: string[], cwd: string) => {
+    try {
+      return (await fixtureNode([npm, ...args], cwd, { signal: t.signal })).stdout
+    } catch (error) {
+      throw new Error(`Fixture npm ${args[0]} failed (no retry); see child output/cause`, {
+        cause: error,
+      })
+    }
+  }
   // Call the bundled CLI directly: no Windows .cmd wrapper, shell interpolation,
   // registry access, lifecycle execution, app build or repository install.
   const packed = JSON.parse(
-    run(['pack', '--ignore-scripts', '--json', '--offline', '--cache', './npm-cache'], stage),
+    await run(
+      [
+        'pack',
+        '--ignore-scripts',
+        '--json',
+        '--offline',
+        '--cache',
+        './npm-cache',
+        '--loglevel=verbose',
+      ],
+      stage,
+    ),
   )[0]
   assert.equal(packed.filename, 'acme-frozen-styles-1.0.0.tgz')
   assert.deepEqual(packed.files.map((file) => file.path).sort(), [
@@ -336,7 +368,7 @@ test('a packed and offline-installed non-Hozo dependency reaches the generated r
   const project = JSON.parse(readFileSync(metadata, 'utf8'))
   project.dependencies = {}
   writeFileSync(metadata, JSON.stringify(project))
-  run(
+  await run(
     [
       'install',
       '--ignore-scripts',

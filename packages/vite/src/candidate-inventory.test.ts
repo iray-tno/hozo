@@ -4,11 +4,73 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { openCandidateCache } from '@hozo/compiler'
+import {
+  type OwnerPackageContributions,
+  reconcileRuntimeCandidateContributions,
+} from '@hozo/compiler/project'
 import { build, type Plugin } from 'vite'
 import { candidateMetaKey, contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
 import { hozo } from './index.ts'
 
 const source = (name: string) => `export const tone = () => '${name}'`
+
+test('manifest candidates survive final reconciliation as explicit inputs, not authored coverage', (t) => {
+  const inventory = new ViteCandidateInventory('client')
+  const packages: OwnerPackageContributions = {
+    status: 'complete',
+    fingerprint: 'capture-a',
+    candidates: ['p-4', 'p-2'],
+    instances: [],
+    unassessed: [],
+  }
+  inventory.observeOwnerPackages(packages)
+  const code = `import {View} from '@hozo/core';const x=<View className="p-4"/>`
+  inventory.observeAuthored('authored', code, record(code))
+  const authored = [{ id: 'authored', revision: contentRevision(code) }]
+  const prototype = Object.getPrototypeOf(openCandidateCache())
+  t.mock.method(prototype, 'scanFile', () => {
+    throw new Error('reconciliation must replay')
+  })
+  const result = inventory.reconcile(authored, [])
+  assert.equal(result.status, 'complete')
+  assert.equal(result.scope, 'runtime-source-and-package-facts')
+  assert.deepEqual(result.authored, ['authored'])
+  assert.deepEqual(result.candidates, ['p-2', 'p-4'])
+  assert.equal(result.finalOrderingReady, false)
+  const inputs = inventory.publicationInputs(authored, [])
+  const replay = reconcileRuntimeCandidateContributions(inputs.expected, inputs.contributions)
+  assert.equal(replay.status, 'complete')
+  if (replay.status === 'complete') assert.deepEqual(replay.cache.candidates(), result.candidates)
+})
+
+test('package facts cannot replace a frozen inventory or make broken module receipts complete', () => {
+  const inventory = new ViteCandidateInventory('client')
+  const packages: OwnerPackageContributions = {
+    status: 'complete',
+    fingerprint: 'capture-a',
+    candidates: ['p-2'],
+    instances: [],
+    unassessed: [],
+  }
+  inventory.observeOwnerPackages(packages)
+  assert.throws(
+    () => inventory.observeOwnerPackages({ ...packages, fingerprint: 'capture-b' }),
+    /fresh inventory/,
+  )
+  assert.equal(inventory.reconcile([], []).status, 'incomplete')
+  assert.equal('candidates' in inventory.reconcile([], []), false)
+  assert.throws(
+    () =>
+      new ViteCandidateInventory('client').observeOwnerPackages({
+        status: 'incomplete',
+        reasons: ['missing'],
+      }),
+    /complete/,
+  )
+  const result = inventory.reconcile([], [{ id: '/bad.ts', code: 'export const x=1', meta: {} }])
+  assert.equal(result.status, 'incomplete')
+  assert.equal('candidates' in result, false)
+})
 
 function record(code: string, sources?: readonly string[]) {
   const cache = openCandidateCache(undefined, sources)

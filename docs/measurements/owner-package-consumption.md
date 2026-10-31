@@ -122,3 +122,25 @@ than changing lowering.
 Packed evidence here is Android resolver/config/transform and generated-engine
 execution, not an Android device, full Metro bundle, end-user app runtime or
 registry install. The two-instance iOS resolver case is tested separately above.
+
+## Child-process lifecycle follow-up
+
+A subsequent CPU-1/Idle local run timed out in the direct npm CLI too, with no
+child output. Thus avoiding npm.cmd did not establish the cause or guarantee
+startup reliability. The original 15-second timeout is retained and the timeout
+is not retried or counted as a successful observation.
+
+The fixture now awaits an asynchronous direct npm invocation with bounded
+output, the test's abort signal and verbose pack failure context. The parent
+event loop remains available for output, cancellation and test deadlines.
+A controlled regression child emits stderr and then waits: its output triggers
+abort without sleeps/retries. This exposed a real cleanup race on Windows:
+promisified execFile rejects on AbortError before the child closes, and deleting
+its cwd at that point failed with EPERM. The helper now waits for `close` on
+both success and failure before delivering a result. The regression checks
+preserved stderr and process termination before fixture cleanup.
+
+This hardens observation and cleanup, not a claim that the unexplained original
+startup timeout is proven eliminated. Offline/lifecycle-disabled pack/install
+and all candidate-equivalence assertions remain mandatory, with no deadline
+increase or success-until-green retry loop.

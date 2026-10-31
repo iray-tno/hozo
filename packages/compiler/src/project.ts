@@ -41,7 +41,10 @@ export {
   type OwnerPackageShadow,
   parseOwnerPackageShadow,
 } from './owner-package.ts'
-export { withOwnerPackageCandidates } from './owner-package-candidates.ts'
+export {
+  ownerPackageCandidateContribution,
+  withOwnerPackageCandidates,
+} from './owner-package-candidates.ts'
 export {
   collectOwnerPackageContributions,
   type OwnerPackageContributions,
