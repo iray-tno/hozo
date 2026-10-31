@@ -130,10 +130,29 @@ NUL-containing virtual IDs are encoded losslessly as graph identities and
 unknown ownership is incomplete, not an ordinary nonparticipant.
 
 This deliberately does not discover arbitrary package roots, map authored
-import/export bindings, assess external/lazy runtime dependencies, or prove a
-warm Vite watcher rebuild. Graph IDs are resolved module edges, not source
+import/export bindings or assess external/lazy runtime dependencies. The
+initial ready-graph tests use separate builds; the follow-up below assesses a
+bounded warm watcher case. Graph IDs are resolved module edges, not source
 binding names. The root registry and compiler/theme/ABI policy context are
 fixture-supplied. A graph/output receipt is not a successful build certificate:
 a later output hook may still fail. The probe neither writes candidate maps
 nor injects receipts into emitted bundles; `hozo()` does not enable it. Metro
 startup, production manifest v2, owner audits and F6/F7 removal remain open.
+
+### One real watcher, including a failed rebuild
+
+The same Vite/Rolldown watcher and plugin objects now run the initial build,
+a manifest-only content edit, and a newly imported package. Event subscriptions
+are installed before the first build is released; no timing sleep or automatic
+retry is used. Each `BUNDLE_END` result is closed as Rolldown requires, and the
+watcher is closed during teardown. The first edit changes the capture hash
+without a package version/source edit; the later import grows six graph edges
+to seven. Previous leases cannot deliver either new result.
+
+Deleting an already promised manifest then triggers an expected failed rebuild:
+the observation is `missing-manifest`, no fourth complete output receipt is
+published, and the earlier lease remains retired. A failed build is not retried
+into success. The five small Vite probes run in the macOS/Windows smoke matrix
+as well as the normal Linux suite; local results are Windows-only until CI
+confirms the other hosts. This does not assess warm conditional-export entry
+replacement, general package-root discovery or Metro's startup/worker cache.

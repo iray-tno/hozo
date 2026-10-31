@@ -72,7 +72,7 @@ function fixture(t) {
   }
   return { root, first, second, unused, locate }
 }
-async function tinyBuild(root, platform, plugins: Plugin[]) {
+async function tinyBuild(root, platform, plugins: Plugin[], watch = false) {
   return build({
     root,
     configFile: false,
@@ -81,6 +81,7 @@ async function tinyBuild(root, platform, plugins: Plugin[]) {
     resolve: { conditions: platform === 'native' ? ['react-native'] : ['browser'] },
     build: {
       write: false,
+      watch: watch ? {} : null,
       minify: false,
       lib: { entry: path.join(root, 'entry.js'), formats: ['es'] },
     },
@@ -208,4 +209,96 @@ test('graph receipts do not certify a later output failure as a successful build
   await assert.rejects(tinyBuild(f.root, 'web', [probe.plugin, fail]), /late output failed/)
   assert.ok(phases.includes('graph'))
   assert.throws(() => probe.current().lease(), /INVALIDATED/)
+})
+
+test('one real watcher rebuilds on manifest-only bytes and late imports without reusing the frozen set', {
+  timeout: 30000,
+}, async (t) => {
+  const f = fixture(t)
+  const captures: OwnerManifestCapture[] = []
+  const leases: OwnerManifestLease[] = []
+  let incomplete: OwnerManifestCapture | undefined
+  const probe = ownerManifestGraphProbe({
+    platform: 'web',
+    context: 'one-watcher',
+    locate: f.locate,
+    observed(phase, capture) {
+      if (phase === 'graph' && capture.status === 'incomplete') incomplete = capture
+      if (phase === 'output') {
+        captures.push(capture)
+        leases.push(probe.current().lease())
+      }
+    },
+  })
+  let release: () => void = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  // Subscribe before the first build can finish, without a timing sleep.
+  const waitForSubscription: Plugin = { name: 'subscribe-before-build', buildStart: () => gate }
+  const watcher = await tinyBuild(f.root, 'web', [waitForSubscription, probe.plugin], true)
+  assert.ok('on' in watcher && 'close' in watcher)
+  t.after(() => watcher.close())
+  function nextBundle() {
+    return new Promise<void>((resolve, reject) => {
+      const deadline = setTimeout(
+        () => finish(new Error('watcher did not complete the expected build')),
+        10000,
+      )
+      const finish = (error?: unknown) => {
+        clearTimeout(deadline)
+        watcher.off('event', handler)
+        if (error) reject(error)
+        else resolve()
+      }
+      const handler = (event) => {
+        if (event.code === 'ERROR') finish(event.error)
+        if (event.code === 'BUNDLE_END') {
+          // Rolldown explicitly requires closing each result in watch mode.
+          Promise.resolve(event.result.close()).then(() => finish(), finish)
+        }
+      }
+      watcher.on('event', handler)
+    })
+  }
+  const initial = nextBundle()
+  release()
+  await initial
+  assert.equal(captures.length, 1)
+  assert.equal(captures[0]!.status, 'complete')
+  const updated = nextBundle()
+  writeFileSync(path.join(f.second, 'owner.json'), `${text}\n`)
+  await updated
+  assert.equal(captures.length, 2)
+  assert.equal(captures[1]!.status, 'complete')
+  assert.notDeepEqual(captures[0], captures[1])
+  if (captures[0]!.status === 'complete' && captures[1]!.status === 'complete') {
+    assert.equal(captures[0]!.bindings.length, 6)
+    assert.equal(captures[1]!.bindings.length, 6)
+    assert.notEqual(captures[0]!.fingerprint, captures[1]!.fingerprint)
+  }
+  assert.throws(() => leases[0]!.check(), /INVALIDATED/)
+  writeFileSync(path.join(f.unused, 'owner.json'), text)
+  const late = nextBundle()
+  writeFileSync(
+    path.join(f.root, 'entry.js'),
+    `${readFileSync(path.join(f.root, 'entry.js'), 'utf8')};export {value as lateValue} from 'fixture-unused'`,
+  )
+  await late
+  assert.equal(captures.length, 3)
+  const latest = captures[2]!
+  assert.equal(latest.status, 'complete')
+  if (latest.status === 'complete') {
+    assert.equal(latest.bindings.length, 7)
+    assert.ok(latest.bindings.some((binding) => binding.instance === f.unused))
+  }
+  assert.throws(() => leases[1]!.check(), /INVALIDATED/)
+  const missing = nextBundle()
+  rmSync(path.join(f.second, 'owner.json'))
+  await assert.rejects(missing, /INCOMPLETE/)
+  assert.equal(captures.length, 3, 'failed rebuild publishes no complete output receipt')
+  assert.equal(incomplete?.status, 'incomplete')
+  if (incomplete?.status === 'incomplete')
+    assert.ok(incomplete.issues.some((issue) => issue.kind === 'missing-manifest'))
+  assert.throws(() => leases[2]!.check(), /INVALIDATED/)
 })
