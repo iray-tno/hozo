@@ -67,6 +67,11 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'scripts/style-slots/evidence-source.mjs',
+    'scripts/style-slots/handle-web.mjs',
+    'scripts/style-slots/handle-publication.mjs',
+    'scripts/style-slots/owner-shadow.json',
+    'packages/tailwind/src/theme.ts',
     'packages/primitives/src/generated/native-disabled.ts',
     'packages/primitives/src/native-disabled.ts',
     'packages/primitives/src/foundation.native.tsx',
@@ -294,6 +299,8 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'scripts/style-slots/evidence-source.mjs',
+    'scripts/style-slots/handle-publication.mjs',
     'packages/compiler/src/tailwind-final-batch.ts',
     'packages/compiler/src/tailwind-project.ts',
     'packages/compiler/src/owner-caller-plan.ts',

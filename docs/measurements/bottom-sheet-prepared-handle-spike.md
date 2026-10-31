@@ -346,3 +346,56 @@ docs, metadata, generated ABI, strict text fixture equality and title/diff
 checks pass. No Rust source or generated factory/receipt changes. This is
 selected-style/source-transform evidence with RN host stand-ins, not a local
 Metro application build, physical device, GPU or full-root JS run.
+
+## Production component bundle (not a Metro application)
+
+`owner-bundle.test.ts` loads the normal published Native entries, bundles the
+actual BottomSheet with production minification/tree shaking, and compares
+opaque/prepared sources from the same explicit final context. The fixture
+rescans its exact rewritten source to derive the prepared candidate module in
+that context. This demonstrates the bounded before/after deletion, not a
+production algorithm for collecting or freezing an application's whole graph.
+
+Local esbuild measurement: opaque 16,153 bytes / gzip 6,593; prepared 15,907 /
+gzip 6,496 (delta -246 / -97). Candidate module bytes are 815 -> 297, entries
+6 -> 0. Both preserve the same external peers: React, JSX runtime, React Native
+and safe-area-context. Compiler, Tailwind preparation and shadow contracts are
+absent from both bundle input graphs. No universal size budget or speedup claim
+is inferred from this one source/theme/platform fixture.
+
+The test writes a pass/fail/hash/byte/fingerprint receipt. CI executes it once
+outside Turbo caching and uploads that receipt, including failures. Raw-source
+cache inputs also include its build-time producer. The only ignored bare import
+allowed is the emitted empty RN type-augmentation module; any other bundler
+warning fails. Initial fixture fixes used the consuming package's strict pnpm
+resolution scope (not the root) and asserted the actual published dist entry,
+not an assumed source entry. No runtime dependency or sideEffects policy changed.
+
+## Browser state probe (execution evidence required)
+
+`examples/storybook-demo/scripts/owner-handle.test.mjs` adds a real browser
+comparison on the existing public Web carrier. Candidate CSS and independently
+compiled Tailwind CSS render the actual BottomSheet in separate pages. The
+bounded cases are decorative rest and interactive rest/hover/keyboard focus/
+pressed (five pairs, ten observations), with explicit expected resting values.
+It also checks the actual button/div/hidden semantics, update identity, click
+detent activation, close/reopen and an independently removed-sheet negative
+control. Focus moves to the content button to remain inside the modal scope;
+no synthetic state attributes are written by the harness.
+
+CI's `owner-evidence` job runs this test directly without a Storybook build;
+the regular Storybook test list and its raw-source inputs also include it.
+Pass/failure and partial observations are saved in `handle-browser.json`.
+Local validation is syntax, CSS preparation and cache checks only, with no
+browser launch. Until a current-head CI receipt is inspected, browser agreement
+is **not measured**, not implicitly green because the harness was added. This
+does not add a new Web compilation mode or authorize a Native/default rollout.
+
+The first browser CI run (`41141137056`) reached the interactive resting
+assertion and observed width36 with correct padding16/background/opacity.
+The fixture had omitted a shared UA-border reset: the button's padding32 plus
+border4 cannot fit into a border-box width32. Both candidate and oracle now
+receive the same explicit border0/border-box baseline, like preflight. The
+expected width32 assertion remains; no utility comparator or product code
+changed. The failed run stays failed and browser evidence awaits the corrected
+current-head run.

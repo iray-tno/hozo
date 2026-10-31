@@ -62,6 +62,12 @@ styling semantics fit into three physical source files.
 
 ## 1. Why a target, not another slice
 
+The [live inventory/scoped-receipt report](../measurements/styling-fact-status.md)
+prints the current catalog separately from this pinned historical baseline.
+Browser state pairs and component-bundle bytes have their own denominators;
+missing global measures remain unmeasured. This reporting slice does not
+complete phase A or authorize an owner/default migration.
+
 Four related efforts have substantial implementations but still have open
 integration, rollout and deletion work: composition (decision 009, #1152),
 ordering (decision 011, RFC 007, #1230), inheritance (RFC 006, #1207) and
