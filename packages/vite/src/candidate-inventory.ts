@@ -5,6 +5,8 @@ import { type CandidateCache, openCandidateCache } from '@hozo/compiler'
 import {
   type CandidateContribution,
   type ExpectedCandidateSource,
+  type OwnerPackageContributions,
+  ownerPackageCandidateContribution,
   reconcileRuntimeCandidateContributions,
 } from '@hozo/compiler/project'
 
@@ -58,6 +60,10 @@ export class ViteCandidateInventory {
   private readonly producer = randomUUID()
   private readonly fresh = new Map<string, ModuleReceipt>()
   private readonly authored: CandidateContribution[] = []
+  private packages:
+    | { facts: CandidateContribution; fingerprint: string; instances: readonly string[] }
+    | undefined
+  private packageIssue = false
   private derived: CandidateCache | undefined
   private readonly environment: string
   private readonly sources?: readonly string[]
@@ -69,6 +75,29 @@ export class ViteCandidateInventory {
 
   observeAuthored(id: string, code: string, record: string | null) {
     if (record !== null) this.authored.push({ id, revision: contentRevision(code), record })
+  }
+
+  /** Package claims are explicit inputs, never inferred from a final JS scan.
+   * Replacing a capture requires a fresh build/inventory, not union growth.
+   */
+  observeOwnerPackages(contributions: OwnerPackageContributions) {
+    try {
+      if (this.packageIssue || contributions.status !== 'complete')
+        throw new Error('Owner package capture incomplete; start a fresh inventory')
+      if (this.packages) {
+        if (this.packages.fingerprint !== contributions.fingerprint)
+          throw new Error('Owner package inventory changed; start a fresh inventory')
+        return
+      }
+      this.packages = {
+        facts: ownerPackageCandidateContribution(contributions, this.sources),
+        fingerprint: contributions.fingerprint,
+        instances: contributions.instances.map((row) => row.instance),
+      }
+    } catch (error) {
+      this.packageIssue = true
+      throw error
+    }
   }
 
   transformMeta(id: string, input: string, record: string) {
@@ -127,7 +156,13 @@ export class ViteCandidateInventory {
   ) {
     const expected = [...authored]
     const observations = [...this.authored]
+    if (this.packages) {
+      expected.push({ id: this.packages.facts.id, revision: this.packages.facts.revision })
+      observations.push(this.packages.facts)
+    }
     const proofIssues: { id: string; kind: string }[] = []
+    if (this.packageIssue)
+      proofIssues.push({ id: 'owner-packages', kind: 'invalidated-package-capture' })
     for (const module of modules) {
       const id = candidateModuleId(this.environment, module.id)
       const row = receipt(module.meta[candidateMetaKey])
@@ -163,7 +198,7 @@ export class ViteCandidateInventory {
     )
     return {
       schema: 1,
-      scope: 'runtime-source-facts',
+      scope: this.packages ? 'runtime-source-and-package-facts' : 'runtime-source-facts',
       environment: this.environment,
       status: issues.length ? 'incomplete' : 'complete',
       // No consumers should confuse the source-fact union with complete
@@ -172,6 +207,14 @@ export class ViteCandidateInventory {
       authoredValidation: 'content-revision-with-native-policy-and-mtime-cache',
       authored: authored.map((entry) => entry.id).sort(),
       modules: modules.map((entry) => entry.id).sort(),
+      ...(this.packages
+        ? {
+            packages: {
+              fingerprint: this.packages.fingerprint,
+              instances: this.packages.instances,
+            },
+          }
+        : {}),
       accepted: result.accepted,
       ignored: result.ignored,
       issues,
