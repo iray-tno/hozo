@@ -30,15 +30,20 @@ const plainLine = ({ item }: { item: CodeLine }) => (
 // `highlighted` is the whole block again, drawing 1000 lines of Shiki's output
 // for real source instead (#1431): neighbouring tokens there often draw the
 // same, which the fixed fixture's never do.
-const VARIANTS = ['no-gutter', 'one-token', 'bare', 'highlighted'] as const
+//
+// `unwrapped` is the whole block with `wrap` off, where every row is one line
+// high and the gutter can be one column (#1432).
+const VARIANTS = ['no-gutter', 'one-token', 'bare', 'highlighted', 'unwrapped'] as const
 type Variant = (typeof VARIANTS)[number]
 const variantLines = (lines: CodeLine[], variant: Variant) =>
   variant === 'highlighted'
     ? (highlighted as CodeLine[])
-    : lines.map((line) => ({
-        tokens: variant === 'no-gutter' ? line.tokens : plainText(line),
-        mark: variant === 'one-token' ? line.mark : undefined,
-      }))
+    : variant === 'unwrapped'
+      ? lines
+      : lines.map((line) => ({
+          tokens: variant === 'no-gutter' ? line.tokens : plainText(line),
+          mark: variant === 'one-token' ? line.mark : undefined,
+        }))
 
 function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
   // Story modules are imported by the ordinary showcase too. Allocate this
@@ -329,7 +334,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
                   title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
                   lines={lines ?? []}
                   lineNumbers={selection.variant !== 'no-gutter' && selection.variant !== 'bare'}
-                  wrap
+                  wrap={selection.variant !== 'unwrapped'}
                   maxHeight={height * 0.6}
                   // Every size, so the matrix compares like with like; `auto`
                   // would leave the 10 and 100 line blocks whole.
@@ -379,7 +384,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
                   title={`${selection.count} lines, revision ${selection.tick}.${selection.edit}`}
                   lines={lines ?? []}
                   lineNumbers={selection.variant !== 'no-gutter' && selection.variant !== 'bare'}
-                  wrap
+                  wrap={selection.variant !== 'unwrapped'}
                   style={{
                     backgroundColor: '#f8fafc',
                     color: '#0f172a',
