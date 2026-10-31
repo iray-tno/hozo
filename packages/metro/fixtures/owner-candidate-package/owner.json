@@ -1,0 +1,9 @@
+{
+  "schema": "rfc010-package-shadow-0",
+  "owners": null,
+  "exports": [{ "name": "token", "owners": [] }],
+  "helpers": [],
+  "candidates": ["p-3", "p-5"],
+  "compiledByConsumer": true,
+  "textForwarding": { "version": 1, "textForwarding": {} }
+}
