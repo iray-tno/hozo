@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { runInNewContext } from 'node:vm'
@@ -294,4 +295,95 @@ test('a manifest on another version cannot suppress an ordinary same-name instan
   )
   assert.equal(Object.assign({}, ...resolver(f.root)('m-6')).marginTop, 42)
   assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
+})
+
+test('a packed and offline-installed non-Hozo dependency reaches the generated runtime without checkout leakage', {
+  timeout: 30000,
+}, async (t) => {
+  const f = fixture(t)
+  const stage = path.join(f.root, 'packing')
+  cpSync(new URL('../fixtures/owner-candidate-package/', import.meta.url), stage, {
+    recursive: true,
+  })
+  const nodeDirectory = path.dirname(process.execPath)
+  const npm = [
+    path.join(nodeDirectory, 'node_modules/npm/bin/npm-cli.js'),
+    path.join(nodeDirectory, '../lib/node_modules/npm/bin/npm-cli.js'),
+  ].find(existsSync)
+  assert.ok(npm, 'the pinned Node distribution must provide its npm CLI')
+  const run = (args: string[], cwd: string) =>
+    execFileSync(process.execPath, [npm, ...args], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 15000,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  // Call the bundled CLI directly: no Windows .cmd wrapper, shell interpolation,
+  // registry access, lifecycle execution, app build or repository install.
+  const packed = JSON.parse(
+    run(['pack', '--ignore-scripts', '--json', '--offline', '--cache', './npm-cache'], stage),
+  )[0]
+  assert.equal(packed.filename, 'acme-frozen-styles-1.0.0.tgz')
+  assert.deepEqual(packed.files.map((file) => file.path).sort(), [
+    'android.js',
+    'index.js',
+    'ios.js',
+    'owner.json',
+    'package.json',
+    'tokens.js',
+  ])
+  const metadata = path.join(f.root, 'package.json')
+  const project = JSON.parse(readFileSync(metadata, 'utf8'))
+  project.dependencies = {}
+  writeFileSync(metadata, JSON.stringify(project))
+  run(
+    [
+      'install',
+      '--ignore-scripts',
+      '--offline',
+      '--no-audit',
+      '--no-fund',
+      '--package-lock=false',
+      '--cache',
+      './npm-cache',
+      './packing/acme-frozen-styles-1.0.0.tgz',
+    ],
+    f.root,
+  )
+  const installed = path.join(f.root, 'node_modules', 'acme-frozen-styles')
+  f.roots.push(installed)
+  assert.equal(existsSync(path.join(installed, 'not-packed.js')), false)
+  assert.equal(
+    readFileSync(path.join(installed, 'owner.json'), 'utf8'),
+    readFileSync(path.join(stage, 'owner.json'), 'utf8'),
+  )
+  const source = `import {View} from '@hozo/core';import {token} from 'acme-frozen-styles';export const Row=()=> <View className={token}/>`
+  writeFileSync(f.params.filename, source)
+  const params = { ...f.params, src: source }
+  const options = {
+    ...f.options,
+    content: { include: ['src/**'], packages: ['acme-frozen-styles'] },
+  }
+  await withHozo(f.config, options)
+  const before = readFileSync(candidateModulePath(f.root), 'utf8')
+  const normalOutput = await transform(params)
+  const configured = await withHozoOwnerCandidates(f.config, f.preflight(), options)
+  assert.equal(
+    configured.resolver.resolveRequest(f.context, 'acme-frozen-styles', 'android').filePath,
+    path.join(installed, 'android.js'),
+  )
+  assert.equal(
+    readFileSync(candidateModulePath(f.root), 'utf8'),
+    before,
+    'manifest and ordinary package source produce identical resolver bytes',
+  )
+  assert.equal(await transform(params), normalOutput)
+  assert.match(normalOutput as string, /hozoClasses\(token\)/)
+  const resolve = resolver(f.root)
+  assert.equal(Object.assign({}, ...resolve('p-3')).paddingTop, 21)
+  assert.equal(Object.assign({}, ...resolve('p-5')).paddingTop, 35)
+  assert.equal(resolve('p-96').length, 0)
+  const cache = openCandidateCache(path.join(f.root, CACHE_DIR, 'candidates.json'))
+  assert.equal(cache.exportFile(path.join(installed, 'tokens.js')), null)
+  assert.ok(cache.exportFile(f.params.filename))
 })

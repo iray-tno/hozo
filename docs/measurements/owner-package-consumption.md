@@ -91,3 +91,34 @@ package contents.
 This is a scoped F7 candidate-extraction replacement, **not** deletion of the
 entire F7 source walk or F6 helper/text discovery. Default adapters and package
 owner audit have not changed.
+
+## Real packed non-Hozo consumer boundary
+
+The test packs `acme-frozen-styles` into a real npm tarball, checks its six-file
+inventory, and installs that tarball offline into a temporary consumer. Both
+operations disable lifecycle scripts; fixture lifecycle hooks and entry modules
+throw if executed. The fixture is test data, not a workspace/public package or
+a registry publication. The installed package includes the declared manifest,
+not the checkout-only `not-packed.js` and its `p-96` token.
+
+With the actual Metro resolver selecting its Android export, normal package
+source extraction and manifest-backed consumption produce byte-identical
+candidate modules and identical dynamic JSX transform output. Executing the
+generated resolver produces padding 21/35 for `p-3`/`p-5` under spacing 7px,
+does not resolve `p-96`, and leaves no package-source candidate record. Authored
+records remain. Raw fixture files are explicit Turbo test inputs, guarded
+outside Turbo; the test performs no repository install or application build.
+
+The first Windows test timed out in the `npm.cmd` shell invocation, while a
+standalone pack succeeded. Calling the pinned Node distribution's npm CLI
+directly avoids that wrapper and completed pack/install without increasing the
+15-second subprocess deadline. This isolates the invocation boundary, not a
+claim to have diagnosed the wrapper's internal cause. The next test failure
+was an over-specific assertion requiring an unused state argument in
+`hozoClasses(token, ...)`; the actual View output correctly uses
+`hozoClasses(token)`. The corrected assertion checks that actual output rather
+than changing lowering.
+
+Packed evidence here is Android resolver/config/transform and generated-engine
+execution, not an Android device, full Metro bundle, end-user app runtime or
+registry install. The two-instance iOS resolver case is tested separately above.
