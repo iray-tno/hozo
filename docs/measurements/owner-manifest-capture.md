@@ -88,3 +88,71 @@ actual Metro/Vite/Next startup/freeze integration, manifests' candidate/export
 channels and the removal of old F6/F7 readers remain unassessed. The three
 bounded capture/read/resolution suites also run in the macOS/Windows smoke
 matrix; this adds no browser/app/emulator build there.
+
+## Adapter epoch and delivery fence
+
+The internal project API now exposes the bounded shadow capture/read helpers
+and `OwnerManifestEpoch` for adapter integration. No normal adapter calls it
+yet, and the compiler root/manifest-v1 API is unchanged. A complete capture
+may be adopted once; equal rechecks retain that original immutable object.
+Changed/incomplete observations retire the epoch permanently, as do explicit
+watcher/config invalidations. Reverting the bytes cannot revive old leases.
+
+`run` checks after an asynchronous boundary even for a synchronous cache hit,
+so retirement while work is pending prevents returning its output. It is a
+delivery fence, not a transaction: callbacks must calculate without publishing
+external side effects before the returned promise resolves. Lease checks do
+no IO, hashing, candidate preparation or sorting. Adapters still own gathering
+fresh observations at graph boundaries and invalidating when inputs change.
+
+The next fixture must use a real bundler-ready graph, not the previous package
+dependency closure. Vite can capture after graph construction; Metro's current
+config-time candidate map precedes that graph. This API does not resolve that
+startup mismatch or justify deleting either old F6/F7 reader.
+
+## Vite ready-graph probe (not installed by default)
+
+`ownerManifestGraphProbe` is an explicit internal probe beside the Vite
+adapter. It runs alongside the real `hozo()` plugin in a tiny production
+build. `buildEnd` receives the bundler's actual static and literal-dynamic
+module IDs; the probe freezes that declared graph's shadow observations and
+re-reads them in a post `generateBundle` hook. Watch notifications, build
+failure and closure retire leases. Changed content before output is refused,
+not silently assigned the old map's namespace.
+
+The fixture has two installed versions of a non-Hozo package, transitive and
+cyclic imports, a dynamic import and an unused declared package with invalid
+data. Six resolved edges are captured; the unused declaration is not a graph
+edge. Vite's actual export conditions choose browser/react-native files in
+separate builds. No application entry is executed. Metadata is read as JSON
+by an explicitly supplied fixture ownership registry, never via package code.
+NUL-containing virtual IDs are encoded losslessly as graph identities and
+unknown ownership is incomplete, not an ordinary nonparticipant.
+
+This deliberately does not discover arbitrary package roots, map authored
+import/export bindings or assess external/lazy runtime dependencies. The
+initial ready-graph tests use separate builds; the follow-up below assesses a
+bounded warm watcher case. Graph IDs are resolved module edges, not source
+binding names. The root registry and compiler/theme/ABI policy context are
+fixture-supplied. A graph/output receipt is not a successful build certificate:
+a later output hook may still fail. The probe neither writes candidate maps
+nor injects receipts into emitted bundles; `hozo()` does not enable it. Metro
+startup, production manifest v2, owner audits and F6/F7 removal remain open.
+
+### One real watcher, including a failed rebuild
+
+The same Vite/Rolldown watcher and plugin objects now run the initial build,
+a manifest-only content edit, and a newly imported package. Event subscriptions
+are installed before the first build is released; no timing sleep or automatic
+retry is used. Each `BUNDLE_END` result is closed as Rolldown requires, and the
+watcher is closed during teardown. The first edit changes the capture hash
+without a package version/source edit; the later import grows six graph edges
+to seven. Previous leases cannot deliver either new result.
+
+Deleting an already promised manifest then triggers an expected failed rebuild:
+the observation is `missing-manifest`, no fourth complete output receipt is
+published, and the earlier lease remains retired. A failed build is not retried
+into success. The five small Vite probes run in the macOS/Windows smoke matrix
+as well as the normal Linux suite; local results are Windows-only until CI
+confirms the other hosts. This does not assess warm conditional-export entry
+replacement, general package-root discovery or Metro's startup/worker cache.

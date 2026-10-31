@@ -58,6 +58,7 @@ const reads = {
     'packages/typography/src/fonts.ts',
   ],
   '@hozo/migration-audit#test': ['packages/typography/src/fonts.ts'],
+  '@hozo/vite#test': ['scripts/style-slots/owner-shadow.json'],
   '@hozo/metro#test': [
     'packages/engine/src/class-resolver.ts',
     'packages/engine/src/transform-slots.ts',
