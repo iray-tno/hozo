@@ -211,3 +211,6 @@ jobs:
       - run: pnpm --filter @hozo/compiler build:native
       - run: pnpm --filter @hozo/compiler build
       - run: pnpm --filter @hozo/compiler test:platform
+      # Resolver identities and filesystem containment are platform behavior too.
+      # Bounded Node fixtures only; no application or browser build on the matrix.
+      - run: node --test --test-concurrency=1 packages/compiler/src/owner-manifest-capture.test.ts packages/compiler/src/owner-manifest-read.test.ts packages/compiler/src/owner-manifest-resolution.test.ts

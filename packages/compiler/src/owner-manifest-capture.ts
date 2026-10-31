@@ -185,3 +185,21 @@ export function captureOwnerManifests(
     bindings,
   })
 }
+
+/** @internal Call at an adapter's freeze/use boundary with fresh observations,
+ * not as a per-component filesystem poll. This neither refreshes a snapshot nor
+ * silently swaps rank namespaces; the adapter must restart/rebuild on failure.
+ */
+export function assertOwnerManifestCaptureCurrent(
+  captured: OwnerManifestCapture,
+  current: OwnerManifestCapture,
+): void {
+  if (
+    captured.status !== 'complete' ||
+    current.status !== 'complete' ||
+    captured.fingerprint !== current.fingerprint
+  )
+    throw new Error(
+      'OWNER_MANIFEST_CAPTURE_INVALIDATED: rebuild the declared contribution set before use',
+    )
+}

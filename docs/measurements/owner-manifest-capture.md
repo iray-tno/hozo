@@ -61,3 +61,30 @@ throwing entry. A POSIX FIFO subprocess regression has a bounded deadline;
 that POSIX-only case is skipped on Windows. This is not an atomic filesystem
 snapshot against hostile concurrent path replacement: adapter invalidation
 and rechecking the declared contribution set before use remain required.
+
+## Real resolver fixture and explicit revalidation
+
+A bounded Node driver follows the fixture packages' declared dependency closure
+using `createRequire(importer).resolve`. Custom Node conditions choose browser
+or react-native exports. The dataset has two installed instances of a package
+outside `@hozo/`, a transitive dependency, an ordinary nonparticipant and a
+cycle. All entries throw if imported; resolution/metadata capture never runs
+them. Five dependency edges/five roots (app plus four installed instances)
+are observed without confusing the two same-name versions.
+
+`assertOwnerManifestCaptureCurrent` rejects reuse after changed manifest bytes,
+selected entry, late contribution or missing promise. An unchanged version
+label cannot conceal byte changes; a version-only label change does not invent
+a new owner contract. Fresh captures may be compared at the adapter's freeze/use
+boundary; the assertion does no IO, polling, map replacement or implicit retry.
+An earlier snapshot remains immutable when a later set differs or is incomplete.
+
+This driver is a fixture, not a second production resolver. Root-level exports
+are deliberately authored so the resolved entry identifies its fixture root;
+it is not proof of general package-root discovery. Package dependency closure
+is not a bundler's actual module graph. Fresh resolver processes establish
+re-capture behavior, not a warm Metro/Node cache invalidation mechanism. The
+actual Metro/Vite/Next startup/freeze integration, manifests' candidate/export
+channels and the removal of old F6/F7 readers remain unassessed. The three
+bounded capture/read/resolution suites also run in the macOS/Windows smoke
+matrix; this adds no browser/app/emulator build there.
