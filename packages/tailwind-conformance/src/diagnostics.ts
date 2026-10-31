@@ -183,6 +183,17 @@ const PROVOCATIONS: Record<string, Provocation> = {
 `,
     backend: 'native',
   },
+  // Tailwind's important marker, which neither lowering can carry: a
+  // stylesheet order and an inline style both lose the precedence it asks for.
+  TAILWIND_IMPORTANT_NOT_LOWERED: { source: '<View className="p-2!">x</View>' },
+  // `onPress` becomes `onClick` on Web, so an element carrying both drops
+  // one. An Svg shape, because the core primitives map `onPress` themselves.
+  PROP_COLLIDES_WITH_PLATFORM_NAME: {
+    module:
+      `import { Svg } from '@hozo/svg'\n` +
+      `export function C() { return <Svg><Svg.Rect onClick={f} onPress={g} /></Svg> }\n`,
+    backend: 'web',
+  },
 }
 
 /**

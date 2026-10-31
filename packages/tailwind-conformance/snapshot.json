@@ -81,10 +81,10 @@
     "falsePositives": 0
   },
   "diagnostics": {
-    "declared": 34,
-    "fires": 32,
+    "declared": 35,
+    "fires": 34,
     "silent": 0,
-    "noCase": 1,
+    "noCase": 0,
     "unreachable": 1
   },
   "rnwFree": {
@@ -198,9 +198,9 @@
   },
   "nativeVariants": {
     "total": 29403,
-    "covered": 8280,
-    "restricted": 4746,
-    "refused": 21123,
+    "covered": 8547,
+    "restricted": 5013,
+    "refused": 20856,
     "silent": 0,
     "noOp": 0
   }
