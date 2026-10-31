@@ -71,6 +71,7 @@ export function CodeBlock(props: CodeBlockProps) {
     ...props,
     lines,
     className: undefined,
+    lineStyle: column ? [props.lineStyle, { paddingStart: column.rowStart }] : props.lineStyle,
     style: [{ fontFamily: 'monospace', fontSize, lineHeight }, text],
     gutterKey: codeRowKey(
       [
@@ -86,7 +87,7 @@ export function CodeBlock(props: CodeBlockProps) {
       [props.gutterClassName, props.insClassName, props.delClassName, props.markClassName],
     ),
     renderGutter: column
-      ? () => column.spacer
+      ? undefined
       : gutter
         ? (line, index) => {
             const [gutterBox, cellText] = gutterStyles(props, line.mark)

@@ -2,7 +2,14 @@ import { hozoClasses } from '@hozo/engine/project'
 import type { NormalizedCodeLine } from '@hozo/typography/code/lines/native'
 import type { CodeMark } from '@hozo/typography/code/model'
 import type { ReactNode } from 'react'
-import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
+import {
+  type StyleProp,
+  StyleSheet,
+  Text,
+  type TextStyle,
+  View,
+  type ViewStyle,
+} from 'react-native'
 import { splitTextStyle } from './text-style.native.ts'
 
 type CodeStyle = StyleProp<ViewStyle | TextStyle>
@@ -101,8 +108,11 @@ const sameApartFromBackground = (a: ViewStyle, b: ViewStyle) => {
 }
 
 export interface GutterColumn {
-  /** Each row's stand-in for its cell, holding the column's width open. */
-  spacer: ReactNode
+  /**
+   * The start padding each row takes instead of drawing its cell: its own,
+   * and the cell's width, so its text stays where it was.
+   */
+  rowStart: number
   /** The whole gutter, to draw over the rows. */
   column: ReactNode
 }
@@ -122,7 +132,9 @@ export interface GutterColumn {
  * (vertical padding, borders, margins), and one line height for the lines and
  * the gutter under every mark. A mark's cell may differ from an unmarked one
  * only by its background, drawn behind its run. Rows still draw their own
- * backgrounds, so each row keeps a spacer where its cell was.
+ * backgrounds; each is padded by the cell's width where the cell was, rather
+ * than given an empty View to hold it open, which measured as most of what
+ * the column saved.
  */
 export function gutterColumn(
   props: CodeGutterProps,
@@ -159,11 +171,13 @@ export function gutterColumn(
       : undefined
   }
   const pitch = height(undefined)
-  const [plainRow] = rows.get(undefined) ?? [{}]
+  const plainRow: ViewStyle = rows.get(undefined)?.[0] ?? {}
   const [plainCell, plainText] = cells.get(undefined) ?? [{}, {}]
   const start = inset(plainRow)
   const cellWidth = plainCell.width ?? options.width
-  if (start === undefined || typeof cellWidth !== 'number') return undefined
+  const rowPadding = plainRow.paddingStart ?? plainRow.paddingHorizontal ?? 0
+  if (start === undefined || typeof cellWidth !== 'number' || typeof rowPadding !== 'number')
+    return undefined
   for (const mark of used) {
     const [row, text] = rows.get(mark) ?? [{}, {}]
     const [cell, cellText] = cells.get(mark) ?? [{}, {}]
@@ -172,6 +186,11 @@ export function gutterColumn(
       (text.lineHeight ?? options.lineHeight) !== pitch ||
       (cellText.lineHeight ?? options.lineHeight) !== pitch ||
       inset(row) !== start ||
+      // A mark's own style comes after the row's padding is set, and would
+      // take the cell's width back out of it.
+      [...TALLER, ...SIDEWAYS, 'paddingStart', 'paddingHorizontal'].some(
+        (key) => key in (StyleSheet.flatten(mark ? props[`${mark}Style`] : undefined) ?? {}),
+      ) ||
       [...TALLER, ...SIDEWAYS].some((key) => key in row) ||
       [...TALLER, ...CELL_MARGINS].some((key) => key in cell) ||
       !sameApartFromBackground(cell, plainCell) ||
@@ -195,7 +214,7 @@ export function gutterColumn(
     else runs.push({ mark: line.mark, from: index, texts: [text] })
   })
   return {
-    spacer: <View style={{ width: cellWidth, flexShrink: 0 }} />,
+    rowStart: rowPadding + cellWidth,
     column: (
       <View
         importantForAccessibility="no-hide-descendants"

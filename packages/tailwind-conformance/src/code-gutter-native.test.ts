@@ -133,12 +133,12 @@ test('unwrapped lines with the UI classes draw one gutter column, line for line'
   assert.equal(StyleSheet.flatten(column.props.style).start, 12)
 })
 
-test('each row keeps a spacer the width its cell was, so the line text does not move', () => {
+test('each row is padded by the width of its cell instead of drawing it, so the text does not move', () => {
   const { hidden, rows } = mount({})
   const width = StyleSheet.flatten(hidden[0].props.style).width
   for (const row of rows) {
-    const [spacer] = row.parent.children.filter((node: Tree) => node !== row)
-    assert.equal(StyleSheet.flatten(spacer.props.style).width, width)
+    assert.deepEqual(row.parent.children, [row], 'nothing but the line in the row')
+    assert.equal(StyleSheet.flatten(row.parent.props.style).paddingStart, 12 + width)
   }
 })
 
@@ -148,6 +148,7 @@ test('wrapped lines, or rows taller than a line, keep a cell in every row', () =
     { lineClassName: `${ui.lineClassName} ${taller}` },
     { gutterStyle: { lineHeight: 20 } },
     { lineStyle: { paddingLeft: 4 } },
+    { insStyle: { paddingStart: 4 } },
   ]) {
     const { hidden } = mount(props)
     assert.equal(hidden.length, lines.length, JSON.stringify(props))

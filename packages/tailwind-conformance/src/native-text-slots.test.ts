@@ -155,7 +155,6 @@ const EXCUSED = new Map([
   ['form/form:children', 'A form holds fields, not text; it is a box around controls.'],
   ['form/native-select:children', 'The presenter provider: context, not a box.'],
   ['form/calendar:content', 'An internal day cell given text the calendar formats itself.'],
-  ['patterns/code-gutter:spacer', 'Not a slot: an empty View CodeBlock draws in each row.'],
   ['patterns/code-gutter:column', 'Not a slot: the gutter CodeBlock draws, its Text its own.'],
   ['form/field:label', 'Field wraps label, description and error in Text; see field tests.'],
   ['form/field:description', 'As label.'],
