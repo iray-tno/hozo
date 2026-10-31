@@ -52,6 +52,8 @@ check and a bounded read loop. Nonblocking open prevents a JSON-named FIFO
 from hanging before the type check. Missing promises differ from absent
 declarations; invalid JSON/schema is still reported by the existing shadow
 reader rather than interpreted as executable config or an empty contract.
+The decoder preserves a UTF-8 BOM as content rather than silently removing
+bytes; the strict JSON/schema reader rejects BOM-prefixed input.
 
 Tests cover containment, aliases/junctions, missing/invalid data, directories,
 oversize and invalid UTF-8 without importing the fixture's deliberately

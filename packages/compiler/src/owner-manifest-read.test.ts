@@ -45,6 +45,15 @@ test('safe disk observations preserve exact content and distinguish nonparticipa
   )
   assert.equal(invalid.status, 'incomplete')
   if (invalid.status === 'incomplete') assert.equal(invalid.issues[0]!.kind, 'invalid-manifest')
+  writeFileSync(path.join(resolved.packageRoot, 'owner.json'), `\ufeff${text}`)
+  const bom = readResolvedOwnerManifest(edge, resolved)
+  assert.equal(bom.status, 'resolved')
+  if (bom.status === 'resolved' && bom.manifest.kind === 'present')
+    assert.equal(bom.manifest.text, `\ufeff${text}`)
+  const bomCapture = captureOwnerManifests([edge], [bom], options)
+  assert.equal(bomCapture.status, 'incomplete')
+  if (bomCapture.status === 'incomplete')
+    assert.equal(bomCapture.issues[0]!.kind, 'invalid-manifest')
 })
 
 test('unsafe paths, directories, oversize, invalid UTF-8 and nonfilesystem entries stay unresolved', (t) => {

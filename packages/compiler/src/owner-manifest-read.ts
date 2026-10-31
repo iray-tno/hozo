@@ -39,7 +39,11 @@ function boundedText(file: string) {
       bytes += read
     }
     if (bytes > limit) throw new Error('manifest-size-budget')
-    return new TextDecoder('utf-8', { fatal: true }).decode(buffer.subarray(0, bytes))
+    // Preserve a BOM as content too: decoding must not hide a byte change from
+    // capture identity or silently broaden the strict JSON reader's contract.
+    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
+      buffer.subarray(0, bytes),
+    )
   } finally {
     closeSync(fd)
   }
