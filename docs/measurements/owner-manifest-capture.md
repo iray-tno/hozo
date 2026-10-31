@@ -109,3 +109,31 @@ The next fixture must use a real bundler-ready graph, not the previous package
 dependency closure. Vite can capture after graph construction; Metro's current
 config-time candidate map precedes that graph. This API does not resolve that
 startup mismatch or justify deleting either old F6/F7 reader.
+
+## Vite ready-graph probe (not installed by default)
+
+`ownerManifestGraphProbe` is an explicit internal probe beside the Vite
+adapter. It runs alongside the real `hozo()` plugin in a tiny production
+build. `buildEnd` receives the bundler's actual static and literal-dynamic
+module IDs; the probe freezes that declared graph's shadow observations and
+re-reads them in a post `generateBundle` hook. Watch notifications, build
+failure and closure retire leases. Changed content before output is refused,
+not silently assigned the old map's namespace.
+
+The fixture has two installed versions of a non-Hozo package, transitive and
+cyclic imports, a dynamic import and an unused declared package with invalid
+data. Six resolved edges are captured; the unused declaration is not a graph
+edge. Vite's actual export conditions choose browser/react-native files in
+separate builds. No application entry is executed. Metadata is read as JSON
+by an explicitly supplied fixture ownership registry, never via package code.
+NUL-containing virtual IDs are encoded losslessly as graph identities and
+unknown ownership is incomplete, not an ordinary nonparticipant.
+
+This deliberately does not discover arbitrary package roots, map authored
+import/export bindings, assess external/lazy runtime dependencies, or prove a
+warm Vite watcher rebuild. Graph IDs are resolved module edges, not source
+binding names. The root registry and compiler/theme/ABI policy context are
+fixture-supplied. A graph/output receipt is not a successful build certificate:
+a later output hook may still fail. The probe neither writes candidate maps
+nor injects receipts into emitted bundles; `hozo()` does not enable it. Metro
+startup, production manifest v2, owner audits and F6/F7 removal remain open.

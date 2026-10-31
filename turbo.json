@@ -59,6 +59,10 @@
     "@hozo/next#test": {
       "dependsOn": ["build", "^build"]
     },
+    "@hozo/vite#test": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json"]
+    },
     "@hozo/tailwind#test": {
       "dependsOn": ["^build"],
       "inputs": [
