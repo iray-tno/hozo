@@ -32,6 +32,7 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./hozo.manifest.json": "./hozo.manifest.json",
     "./generated/avatar": {
       "react-native": {
         "types": "./dist/generated/avatar.native.d.ts",
@@ -125,6 +126,7 @@
   "files": [
     "CHANGELOG.md",
     "dist",
+    "hozo.manifest.json",
     "src",
     "!src/**/*.test.ts",
     "!src/**/*.test.tsx",
@@ -159,5 +161,8 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-native": "^0.87.1"
+  },
+  "hozo": {
+    "manifest": "./hozo.manifest.json"
   }
 }

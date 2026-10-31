@@ -875,3 +875,14 @@ Duplicate publishers, absent export aliases, unassigned contracts and unknown
 catalog slots fail generation. The bounded reader still rejects an `audited`
 claim. Export existence/publication routing is not proof of implementation
 identity or semantics, and does not authorize builtin lowering or rollout.
+
+The patterns package now publishes the same catalog contract through its own
+`hozo.manifest.json` metadata/export/files entry. Its 106 production TS/TSX
+source files produce 11 runtime candidate strings and 72 public value exports;
+the 7,206-byte envelope has one unknown-audit owner and no text summaries.
+`compiledByConsumer` is false for its built distribution, unlike source-shipped
+UI's true. A single package envelope is currently accepted only when split
+Web/Native entries have equal value-export and legacy-text inventories; drift
+fails rather than pretending the selected platform does not matter. Sources
+continue to ship for maps, not as permission to transform the built package.
+UI's manifest/text data and the default adapter routes remain unchanged.

@@ -114,7 +114,9 @@ const PACKAGES = {
   },
   patterns: {
     dependencyOverrides: { '@hozo/typography': 'workspace:^' },
-    exports: { '.': './dist/index.js' },
+    exports: { '.': './dist/index.js', './hozo.manifest.json': './hozo.manifest.json' },
+    files: ['dist', 'hozo.manifest.json'],
+    hozo: { manifest: './hozo.manifest.json' },
     native: true,
     keywords: ['react-native', 'react', 'patterns', 'accessibility', 'components'],
   },

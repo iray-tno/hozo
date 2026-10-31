@@ -12,6 +12,7 @@ import {
 } from '../packages/compiler/src/manifest.ts'
 import { parseOwnerPackageShadow } from '../packages/compiler/src/owner-package.ts'
 import { sourcePackageChannels } from './component-manifests.mjs'
+import { ownerShadow } from './style-slots/catalog.mjs'
 
 test('source package channels retain public value aliases but not types, tests or stories', async () => {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-package-channels-'))
@@ -25,6 +26,7 @@ export type Props = { className?: string }; export const Inner = 'p-4 p-2'`,
       'widget.test.ts': `const classes = 'p-96'`,
       'widget.spec.ts': `const classes = 'p-80'`,
       'widget.stories.tsx': `const classes = 'p-64'`,
+      'widget.bench.ts': `const classes = 'p-56'`,
       'types.d.ts': `export declare const unused: 'p-40'`,
       'widget.tsx.hozo.css': `.p-32 { padding: 8rem }`,
     }
@@ -55,6 +57,65 @@ export type Props = { className?: string }; export const Inner = 'p-4 p-2'`,
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
+})
+
+test('a shared manifest refuses divergent platform value exports or text publication', async () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-platform-channels-'))
+  try {
+    mkdirSync(path.join(root, 'src'))
+    const web = 'src/index.tsx',
+      native = 'src/index.native.tsx'
+    const source = (name, classes) => `import {Button as Host} from '@hozo/primitives'
+export function ${name}({className, ...rest}) {return <Host {...rest} className="${classes}"/>}`
+    writeFileSync(path.join(root, web), source('Widget', 'text-sm'))
+    writeFileSync(path.join(root, native), source('Other', 'text-sm'))
+    await assert.rejects(
+      () => sourcePackageChannels(root, web, { nativeEntry: native }),
+      /divergent.*exports/,
+    )
+    writeFileSync(path.join(root, native), source('Widget', 'text-lg'))
+    await assert.rejects(
+      () => sourcePackageChannels(root, web, { nativeEntry: native }),
+      /divergent.*text/,
+    )
+    writeFileSync(path.join(root, native), source('Widget', 'text-sm'))
+    const options = await sourcePackageChannels(root, web, {
+      nativeEntry: native,
+      compiledByConsumer: false,
+    })
+    assert.equal(options.compiledByConsumer, false)
+    assert.deepEqual(options.exports, [{ name: 'Widget', owners: [] }])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('patterns publishes its catalog-owned contract without cloning it onto the UI facade', async () => {
+  const dir = fileURLToPath(new URL('../packages/patterns/', import.meta.url))
+  const json = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'))
+  const options = await sourcePackageChannels(dir, './src/index.ts', {
+    packageName: json.name,
+    nativeEntry: './src/index.native.ts',
+    compiledByConsumer: false,
+  })
+  const legacy = buildManifest({ entry: path.join(dir, 'src/index.ts') })
+  const manifest = buildPackageManifest(legacy, options)
+  assert.equal(
+    readFileSync(path.join(dir, json.hozo.manifest), 'utf8'),
+    serializeManifest(manifest),
+  )
+  assert.deepEqual(manifest.package.owners, ownerShadow)
+  for (const name of ['BottomSheet', 'HozoBottomSheet'])
+    assert.deepEqual(manifest.package.exports.find((row) => row.name === name).owners, [
+      'BottomSheet.handle',
+    ])
+  assert.equal(manifest.package.compiledByConsumer, false)
+  assert.deepEqual(manifest.textForwarding, {})
+  const ui = fileURLToPath(new URL('../packages/ui/', import.meta.url))
+  const uiOptions = await sourcePackageChannels(ui, './src/index.ts', { packageName: '@hozo/ui' })
+  assert.equal(uiOptions.owners, null)
+  assert.ok(uiOptions.exports.every((row) => row.owners.length === 0))
+  assert.equal(uiOptions.compiledByConsumer, true)
 })
 
 test('the published UI manifest is freshly derived and preserves all legacy text summaries', async () => {
