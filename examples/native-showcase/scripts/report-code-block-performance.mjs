@@ -12,7 +12,7 @@ const edited = evidence.cases.some((sample) => sample.name.includes('-edit-'))
 // And 15 more once a plain list was measured beside the 1000-line block.
 const based = evidence.cases.some((sample) => sample.name.startsWith('baseline-'))
 // And 3 for each variant of that block mounted beside it: three from #1420,
-// a fourth from #1431, a fifth from #1432.
+// a fourth from #1431, a fifth and sixth from #1432.
 const variants = [
   ...new Set(
     evidence.cases.flatMap((sample) => sample.name.match(/^variant-[a-z-]+?(?=-\d+-mount$)/) ?? []),

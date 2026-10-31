@@ -18,8 +18,16 @@ import { centre, matchLabel, parseNodes } from './device-evidence.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
 // The 1000-line block with a part taken away, and with real highlighter output
-// (#1420, #1431), and unwrapped (#1432); the story's VARIANTS.
-const VARIANTS = ['no-gutter', 'one-token', 'bare', 'highlighted', 'unwrapped']
+// (#1420, #1431), and unwrapped with and without its gutter (#1432); the
+// story's VARIANTS.
+const VARIANTS = [
+  'no-gutter',
+  'one-token',
+  'bare',
+  'highlighted',
+  'unwrapped',
+  'unwrapped-no-gutter',
+]
 const output = resolve(process.argv[2] ?? 'artifacts/native-showcase-code-block')
 const app = 'dev.hozo.showcase'
 // `code-block-windowed` measures the same matrix with `maxHeight` set, so the
