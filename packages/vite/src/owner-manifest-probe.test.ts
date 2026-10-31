@@ -3,7 +3,12 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSy
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import type { OwnerManifestCapture, OwnerManifestLease } from '@hozo/compiler/project'
+import {
+  collectOwnerPackageContributions,
+  OWNER_PACKAGE_SCHEMA,
+  type OwnerManifestCapture,
+  type OwnerManifestLease,
+} from '@hozo/compiler/project'
 import { build, type Plugin } from 'vite'
 import { hozo } from './index.ts'
 import { ownerManifestGraphProbe } from './owner-manifest-probe.ts'
@@ -15,6 +20,38 @@ const text = readFileSync(
 function json(file, value) {
   writeFileSync(file, JSON.stringify(value))
 }
+
+test('the actual Vite ready graph projects package candidates without flattening instance facts', async (t) => {
+  const f = fixture(t)
+  for (const [index, instance] of [f.first, f.second].entries()) {
+    json(path.join(instance, 'owner.json'), {
+      schema: OWNER_PACKAGE_SCHEMA,
+      owners: null,
+      exports: [{ name: 'value', owners: [] }],
+      candidates: index === 0 ? ['p-4'] : ['p-2', 'p-4'],
+      helpers: [],
+      compiledByConsumer: true,
+      textForwarding: { version: 1, textForwarding: {} },
+    })
+  }
+  let result: ReturnType<typeof collectOwnerPackageContributions> | undefined
+  const probe = ownerManifestGraphProbe({
+    platform: 'web',
+    context: 'package-channel-test',
+    locate: f.locate,
+    observed(phase, capture) {
+      if (phase === 'output') result = collectOwnerPackageContributions(capture)
+    },
+  })
+  await tinyBuild(f.root, 'web', [probe.plugin])
+  assert.equal(result?.status, 'complete')
+  if (result?.status === 'complete') {
+    assert.deepEqual(result.candidates, ['p-2', 'p-4'])
+    assert.equal(result.instances.length, 2)
+    assert.ok(result.unassessed.includes(f.root))
+    assert.ok(result.instances.every((instance) => instance.data.exports[0]!.name === 'value'))
+  }
+})
 function fixture(t) {
   const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'hozo-owner-vite-')))
   t.after(() => rmSync(root, { recursive: true, force: true }))

@@ -25,6 +25,7 @@ import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
 import { loadProjectTheme } from '@hozo/tailwind'
 import { type HozoMetroState, readMetroState } from './config.ts'
 import { modularizeHozoImports } from './modular-imports.ts'
+import { ownerShadowIdentity, ownerShadowSession } from './owner-manifest-shadow.ts'
 import { MetroTailwindWorker, readTailwindTransfer } from './tailwind-worker.ts'
 import { transformHozoSource } from './transform.ts'
 
@@ -186,10 +187,12 @@ type WorkerEpoch = {
 }
 const workerEpochs = new Map<string, WorkerEpoch>()
 function workerKey(state: HozoMetroState, platform?: string): string {
-  return JSON.stringify([
+  const key = [
     state.epoch ?? [state.tailwind, state.preflight, state.sources, state.fontAvailability],
     platform === undefined ? undefined : state.stylexRevisions?.[platform],
-  ])
+  ]
+  if (state.ownerShadow) key.push(ownerShadowIdentity(state.ownerShadow))
+  return JSON.stringify(key)
 }
 
 function preparedCompilerFor(root: string, platform: string, state: HozoMetroState) {
@@ -257,12 +260,23 @@ export function getCacheKey(options: CacheKeyOptions = {}): string {
   const helpers = createHash('sha256')
     .update(JSON.stringify([state?.classHelpers ?? [], state?.foundClassHelpers ?? {}]))
     .digest('hex')
-  return [upstreamKey, manifests, helpers, state ? workerKey(state) : ''].join('$')
+  const key = [upstreamKey, manifests, helpers, state ? workerKey(state) : '']
+  if (options.projectRoot && state?.ownerShadow)
+    key.push(
+      ownerShadowSession(options.projectRoot, state.ownerShadow, state.ownerShadow.platform).worker
+        .cacheKey,
+    )
+  return key.join('$')
 }
 
 export async function transform(params: TransformParams): Promise<unknown> {
   const projectRoot = params.options?.projectRoot
   const state = projectRoot ? readMetroState(projectRoot) : undefined
+  const ownerSession =
+    projectRoot && state?.ownerShadow
+      ? ownerShadowSession(projectRoot, state.ownerShadow, params.options?.platform ?? 'default')
+      : undefined
+  ownerSession?.worker.check()
   const theme =
     projectRoot && !state?.tailwind
       ? await loadProjectTheme(projectRoot, {
@@ -329,7 +343,15 @@ export async function transform(params: TransformParams): Promise<unknown> {
   const absolute = absoluteFile
   const modular = modularizeHozoImports(before, absolute)
   const nextParams = modular === params.src ? params : { ...params, src: modular }
-  return loadUpstream(projectRoot).transform(nextParams)
+  const output = loadUpstream(projectRoot).transform(nextParams)
+  if (!ownerSession) return output
+  const delivered = await output
+  ownerSession.worker.check()
+  if (workerKey(readMetroState(projectRoot!) ?? {}, platform) !== workerKey(state!, platform)) {
+    ownerSession.worker.invalidate()
+    throw new TailwindPreparationCancelled('TAILWIND_PROJECT_INVALIDATED')
+  }
+  return delivered
 }
 
 export { type HozoMetroOptions, withHozo } from './config.ts'

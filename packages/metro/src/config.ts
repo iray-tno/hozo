@@ -14,6 +14,17 @@ import {
   writeFileIfChanged,
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
+import {
+  assertMetroOwnerPreflightCurrent,
+  type MetroOwnerPreflight,
+  type OwnerMetroContext,
+} from './owner-manifest-preflight.ts'
+import {
+  assertMetroOwnerShadowScope,
+  type MetroOwnerShadowState,
+  ownerShadowSession,
+  prepareMetroOwnerShadow,
+} from './owner-manifest-shadow.ts'
 
 import {
   candidateModulePath,
@@ -48,6 +59,7 @@ interface MetroResolution {
 
 interface MetroResolutionContext {
   originModulePath: string
+  getPackageForModule?: OwnerMetroContext['getPackageForModule']
   resolveRequest(
     context: MetroResolutionContext,
     moduleName: string,
@@ -71,6 +83,8 @@ type MetroResolveRequest = (
  * through this file.
  */
 export interface HozoMetroState {
+  /** Explicit assessment only; no package candidates/facts installed yet. */
+  ownerShadow?: MetroOwnerShadowState
   upstreamTransformer?: string
   css?: string
   sources?: readonly string[]
@@ -199,8 +213,30 @@ export async function withHozo<T extends MetroConfigShape>(
   configOrPromise: T | Promise<T>,
   options: HozoMetroOptions = {},
 ): Promise<T> {
+  return configureHozo(configOrPromise, options)
+}
+
+/** @internal Opt-in shadow harness with caller-supplied ready preflight.
+ * Kept off the root entry and normal options; not a candidate support switch.
+ */
+export async function withHozoOwnerShadow<T extends MetroConfigShape>(
+  configOrPromise: T | Promise<T>,
+  preflight: MetroOwnerPreflight,
+  options: HozoMetroOptions = {},
+): Promise<T> {
+  if (preflight.status !== 'complete') throw new Error('[hozo] owner preflight INCOMPLETE')
+  assertMetroOwnerPreflightCurrent(preflight)
+  return configureHozo(configOrPromise, options, preflight)
+}
+
+async function configureHozo<T extends MetroConfigShape>(
+  configOrPromise: T | Promise<T>,
+  options: HozoMetroOptions,
+  ownerPreflight?: Extract<MetroOwnerPreflight, { status: 'complete' }>,
+): Promise<T> {
   const config = await configOrPromise
   const projectRoot = path.resolve(options.root ?? config.projectRoot ?? process.cwd())
+  if (ownerPreflight) assertMetroOwnerShadowScope(projectRoot, ownerPreflight)
   const transformerPath = currentTransformerPath()
   const configuredUpstream = config.transformer?.babelTransformerPath
   const upstreamTransformer =
@@ -234,6 +270,8 @@ export async function withHozo<T extends MetroConfigShape>(
     fontFaceCssPath,
     fontAvailability: options.fontAvailability,
   }
+  if (ownerPreflight)
+    state.ownerShadow = prepareMetroOwnerShadow(projectRoot, ownerPreflight, state)
   state.epoch = createHash('sha256').update(JSON.stringify(state)).digest('hex')
   const statePath = metroStatePath(projectRoot)
   const writeState = () => writeMetroState(statePath, state)
@@ -255,6 +293,9 @@ export async function withHozo<T extends MetroConfigShape>(
   const configuredResolveRequest = config.resolver?.resolveRequest
   const resolvedPlatforms = new Set<string>()
   const resolveRequest: MetroResolveRequest = (context, moduleName, platform) => {
+    const ownerSession = state.ownerShadow
+      ? ownerShadowSession(projectRoot, state.ownerShadow, platform ?? 'default')
+      : undefined
     // `@hozo/engine/project` has a useful common-case fallback in the
     // published package. A configured Native build gets the exact value
     // generated for this project instead, without asking every app for a
@@ -281,7 +322,9 @@ export async function withHozo<T extends MetroConfigShape>(
         .digest('hex')
       writeState()
     }
-    return delegate(context, moduleName, platform)
+    const resolution = delegate(context, moduleName, platform)
+    ownerSession?.observe(context, moduleName, resolution)
+    return resolution
   }
 
   return {

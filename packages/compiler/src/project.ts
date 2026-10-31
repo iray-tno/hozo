@@ -18,6 +18,7 @@ import {
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
 import { gitIgnoredSync, walkFiles } from './walk.ts'
 
+export { readBoundedUtf8File } from './bounded-data.ts'
 export {
   type CandidateContribution,
   type ExpectedCandidateSource,
@@ -33,6 +34,15 @@ export {
 } from './owner-manifest-capture.ts'
 export { OwnerManifestEpoch, type OwnerManifestLease } from './owner-manifest-epoch.ts'
 export { type ResolvedOwnerInstance, readResolvedOwnerManifest } from './owner-manifest-read.ts'
+export {
+  OWNER_PACKAGE_SCHEMA,
+  type OwnerPackageShadow,
+  parseOwnerPackageShadow,
+} from './owner-package.ts'
+export {
+  collectOwnerPackageContributions,
+  type OwnerPackageContributions,
+} from './owner-package-contributions.ts'
 export {
   type CachedStylexModule,
   StylexModuleCache,

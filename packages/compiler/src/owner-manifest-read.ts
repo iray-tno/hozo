@@ -1,16 +1,8 @@
 // Read an adapter-resolved instance. No root walk, package-name lookup or
 // executable config loader: resolution and graph completeness stay upstream.
-import {
-  closeSync,
-  constants,
-  fstatSync,
-  openSync,
-  readSync,
-  realpathSync,
-  statSync,
-} from 'node:fs'
+import { realpathSync, statSync } from 'node:fs'
 import path from 'node:path'
-import { TextDecoder } from 'node:util'
+import { readBoundedUtf8File } from './bounded-data.ts'
 import type { OwnerImportEdge, OwnerManifestObservation } from './owner-manifest-capture.ts'
 
 export interface ResolvedOwnerInstance {
@@ -23,30 +15,6 @@ const limit = 65_536
 function inside(root: string, file: string) {
   const relative = path.relative(root, file)
   return relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
-}
-function boundedText(file: string) {
-  // A .json-named FIFO must not hang the build before fstat can reject it.
-  const fd = openSync(file, constants.O_RDONLY | (constants.O_NONBLOCK ?? 0))
-  try {
-    const stat = fstatSync(fd)
-    if (!stat.isFile()) throw new Error('manifest-not-a-file')
-    if (stat.size > limit) throw new Error('manifest-size-budget')
-    const buffer = Buffer.alloc(limit + 1)
-    let bytes = 0
-    while (bytes < buffer.length) {
-      const read = readSync(fd, buffer, bytes, buffer.length - bytes, bytes)
-      if (read === 0) break
-      bytes += read
-    }
-    if (bytes > limit) throw new Error('manifest-size-budget')
-    // Preserve a BOM as content too: decoding must not hide a byte change from
-    // capture identity or silently broaden the strict JSON reader's contract.
-    return new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(
-      buffer.subarray(0, bytes),
-    )
-  } finally {
-    closeSync(fd)
-  }
 }
 
 /** @internal Safe disk observation for the shadow capture. A valid JSON read
@@ -96,7 +64,7 @@ export function readResolvedOwnerManifest(
       throw error
     }
     if (!inside(instance, file)) return unresolved('manifest-symlink-outside-instance')
-    return { ...base, manifest: { kind: 'present', file, text: boundedText(file) } }
+    return { ...base, manifest: { kind: 'present', file, text: readBoundedUtf8File(file, limit) } }
   } catch (error) {
     return unresolved(error instanceof Error ? error.message : String(error))
   }
