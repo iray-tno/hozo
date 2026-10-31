@@ -1,0 +1,28 @@
+{
+  "name": "acme-frozen-styles",
+  "version": "1.0.0",
+  "type": "module",
+  "files": [
+    "index.js",
+    "android.js",
+    "ios.js",
+    "tokens.js",
+    "owner.json"
+  ],
+  "exports": {
+    ".": {
+      "android": "./android.js",
+      "ios": "./ios.js",
+      "default": "./index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "hozo": {
+    "manifest": "owner.json"
+  },
+  "scripts": {
+    "prepare": "node -e \"throw new Error('fixture lifecycle must not execute')\"",
+    "prepack": "node -e \"throw new Error('fixture lifecycle must not execute')\"",
+    "postinstall": "node -e \"throw new Error('fixture lifecycle must not execute')\""
+  }
+}

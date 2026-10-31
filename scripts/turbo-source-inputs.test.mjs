@@ -61,6 +61,13 @@ const reads = {
   '@hozo/vite#test': ['scripts/style-slots/owner-shadow.json'],
   '@hozo/metro#test': [
     'packages/metro/fixtures/owner-metro-resolver.mjs',
+    'packages/metro/fixtures/owner-candidate-package/package.json',
+    'packages/metro/fixtures/owner-candidate-package/owner.json',
+    'packages/metro/fixtures/owner-candidate-package/index.js',
+    'packages/metro/fixtures/owner-candidate-package/android.js',
+    'packages/metro/fixtures/owner-candidate-package/ios.js',
+    'packages/metro/fixtures/owner-candidate-package/tokens.js',
+    'packages/metro/fixtures/owner-candidate-package/not-packed.js',
     'examples/native-demo/package.json',
     'scripts/style-slots/owner-shadow.json',
     'packages/engine/src/class-resolver.ts',

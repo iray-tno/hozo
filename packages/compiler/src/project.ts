@@ -1,7 +1,7 @@
 // Project-wide source discovery and candidate-cache reconciliation, shared
 // by the Vite and Metro integrations.
 
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
@@ -15,6 +15,8 @@ import {
   type StylexExternalBinding,
   summarizeClassHelpers,
 } from './index.ts'
+import { withOwnerPackageCandidates } from './owner-package-candidates.ts'
+import type { OwnerPackageContributions } from './owner-package-contributions.ts'
 import { StylexModuleCache, type StylexResolutionRequest } from './stylex-project.ts'
 import { gitIgnoredSync, walkFiles } from './walk.ts'
 
@@ -39,6 +41,7 @@ export {
   type OwnerPackageShadow,
   parseOwnerPackageShadow,
 } from './owner-package.ts'
+export { withOwnerPackageCandidates } from './owner-package-candidates.ts'
 export {
   collectOwnerPackageContributions,
   type OwnerPackageContributions,
@@ -412,6 +415,14 @@ function notIgnoredAbove(root: string): (file: string) => boolean {
  * and the rest stay out however broad the `include`.
  */
 export function discoverSources(root: string, options: ContentOptions = {}): string[] {
+  return discoverSourcePlan(root, options).files
+}
+
+function discoverSourcePlan(
+  root: string,
+  options: ContentOptions,
+  manifestInstances?: ReadonlySet<string>,
+) {
   // `include` is the project saying which files these are, so gitignore --
   // which answers a different question, about what to commit -- does not
   // get to overrule it.
@@ -425,7 +436,19 @@ export function discoverSources(root: string, options: ContentOptions = {}): str
     .map((file) => path.resolve(file))
 
   const own = respectGitignore ? files.filter(notIgnoredAbove(root)) : files
-  return [...own, ...packageSources(root, options)].sort()
+  const replaced = new Set<string>()
+  const all = [...own, ...packageSources(root, options, manifestInstances, replaced)].sort()
+  let candidateFiles = all
+  if (replaced.size) {
+    const authored = new Set(own)
+    candidateFiles = all.filter((file) => !replaced.has(file) || authored.has(file))
+  }
+  return {
+    files: all,
+    // Authored content always wins, even if a caller explicitly names its own
+    // package as a dependency source. No path/name heuristic may erase it.
+    candidateFiles,
+  }
 }
 
 /**
@@ -455,12 +478,19 @@ export function discoverSources(root: string, options: ContentOptions = {}): str
  * `node_modules` looking for Hozo packages would find the ones a dependency
  * pulled in, which the project never asked for and cannot see.
  */
-function packageSources(root: string, options: ContentOptions): string[] {
+function packageSources(
+  root: string,
+  options: ContentOptions,
+  manifestInstances: ReadonlySet<string> | undefined,
+  replaced: Set<string>,
+): string[] {
   const names = options.packages ?? hozoDependencies(root)
   const files: string[] = []
   for (const name of names) {
     const dir = packageDirectory(name, root)
     if (dir === undefined) continue
+    const instance = manifestInstances?.size ? realpathSync(dir) : undefined
+    const covered = instance !== undefined && manifestInstances!.has(instance)
     // Rooted at the package, so `DEFAULT_EXCLUDE`'s `node_modules` rule means
     // "not a package nested inside this one" rather than "not this package".
     for (const file of walkFiles(DEFAULT_INCLUDE, {
@@ -473,7 +503,21 @@ function packageSources(root: string, options: ContentOptions): string[] {
       // source walk is unchanged.
       ignore: [...DEFAULT_EXCLUDE, '**/*.{test,spec,bench}.{ts,tsx,js,jsx,mts,mjs}'],
     })) {
-      if (SCANNABLE.has(path.extname(file))) files.push(path.resolve(file))
+      if (SCANNABLE.has(path.extname(file))) {
+        const absolute = path.resolve(file)
+        files.push(absolute)
+        if (covered) {
+          // Only the actual canonical instance is covered, never a package
+          // with the same name or a symlinked file escaping that instance.
+          const relative = path.relative(instance, realpathSync(file))
+          if (
+            relative !== '..' &&
+            !relative.startsWith(`..${path.sep}`) &&
+            !path.isAbsolute(relative)
+          )
+            replaced.add(absolute)
+        }
+      }
     }
   }
   return files
@@ -610,13 +654,30 @@ export function scanProject(
   root: string,
   options: ContentOptions = {},
   sources?: readonly string[],
+  manifestContributions?: OwnerPackageContributions,
 ): ProjectCache {
   const started = performance.now()
+  // The current candidate-only schema has no independent usesTailwind bit.
+  // Replace extraction only when recognized manifest candidates already keep
+  // auto preflight true. Empty/unrecognized manifests retain the old probe,
+  // so a package containing only static classes cannot silently lose its reset.
+  const manifestUsesTailwind = manifestContributions
+    ? withOwnerPackageCandidates(
+        { cache: openCandidateCache(undefined, sources), files: [] },
+        manifestContributions,
+        sources,
+      ).usesTailwind
+    : false
+  const manifestInstances =
+    manifestUsesTailwind && manifestContributions?.status === 'complete'
+      ? new Set(manifestContributions.instances.map((row) => row.instance))
+      : undefined
   const dir = path.join(root, CACHE_DIR)
   mkdirSync(dir, { recursive: true })
   const cache = openCandidateCache(path.join(dir, 'candidates.json'), sources)
   const stylexModules = new StylexModuleCache(path.join(dir, 'stylex-modules.json'))
-  const files = discoverSources(root, options)
+  const { files, candidateFiles } = discoverSourcePlan(root, options, manifestInstances)
+  const candidateSet = candidateFiles === files ? undefined : new Set(candidateFiles)
   let scannedFiles = 0
   let skippedFiles = 0
   let sourceBytes = 0
@@ -624,28 +685,36 @@ export function scanProject(
 
   for (const file of files) {
     const stat = statSync(file)
-    if (cache.isCurrent(file, stat.mtimeMs) && stylexModules.isCurrent(file, stat.mtimeMs)) {
+    const candidate = candidateSet === undefined || candidateSet.has(file)
+    if (
+      (!candidate || cache.isCurrent(file, stat.mtimeMs)) &&
+      stylexModules.isCurrent(file, stat.mtimeMs)
+    ) {
       skippedFiles++
       continue
     }
     const source = readFileSync(file, 'utf8')
     sourceBytes += Buffer.byteLength(source)
     scannedFiles++
-    changed = cache.scanFile(file, source, stat.mtimeMs) || changed
+    if (candidate) changed = cache.scanFile(file, source, stat.mtimeMs) || changed
     changed = stylexModules.scanFile(file, source, stat.mtimeMs) || changed
   }
 
-  const deletedFiles = cache.retainFiles(files)
+  const deletedFiles = cache.retainFiles(candidateFiles)
   const deletedStylexFiles = stylexModules.retainFiles(files)
   changed = deletedFiles > 0 || deletedStylexFiles > 0 || changed
   cache.persist()
   stylexModules.persist()
 
   return {
-    cache,
+    cache: manifestContributions
+      ? withOwnerPackageCandidates({ cache, files: candidateFiles }, manifestContributions, sources)
+      : cache,
     stylexModules,
     dir,
-    changed,
+    // Manifest revisions are external to the persistent authored cache. Do not
+    // let its warm hit suppress publication of a fresh manifest-backed union.
+    changed: changed || manifestContributions !== undefined,
     files,
     stats: {
       discoveredFiles: files.length,

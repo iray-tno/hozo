@@ -26,6 +26,7 @@ import {
 
 import {
   type HozoProjectOptions,
+  type OwnerPackageContributions,
   preflightEnabled,
   scanProject,
   scanSummary,
@@ -89,12 +90,30 @@ export async function generateCandidateModule(
   projectRoot: string,
   options: HozoProjectOptions = {},
 ): Promise<GeneratedCandidateModule> {
+  const { publish, ...result } = await prepareCandidateModule(projectRoot, options)
+  publish()
+  return result
+}
+
+/** @internal Config can revalidate its owner snapshot AFTER asynchronous
+ * Tailwind preparation, BEFORE any resolver bytes are published. Normal and
+ * manifest-backed builds still use this one scanner and generation pipeline.
+ */
+export async function prepareCandidateModule(
+  projectRoot: string,
+  options: HozoProjectOptions = {},
+  ownerContributions?: OwnerPackageContributions,
+): Promise<GeneratedCandidateModule & { publish(): void }> {
   let snapshot: Awaited<ReturnType<typeof loadProjectTailwindSnapshot>> | undefined
   let theme: Theme | undefined
   try {
     snapshot = await loadProjectTailwindSnapshot(projectRoot, { css: options.css })
     theme = snapshot.theme
   } catch (error) {
+    if (ownerContributions)
+      throw new Error('[hozo] Package candidate consumption requires a Tailwind snapshot', {
+        cause: error,
+      })
     // Preserve existing warned lowering for unassessed CSS, never label a
     // default-palette fallback as this project's canonical order context.
     console.warn(
@@ -106,7 +125,12 @@ export async function generateCandidateModule(
       warn: (message) => console.warn(message),
     })
   }
-  const { cache, stats, files } = scanProject(projectRoot, options.content, options.sources)
+  const { cache, stats, files } = scanProject(
+    projectRoot,
+    options.content,
+    options.sources,
+    ownerContributions,
+  )
   if (options.debug) {
     // eslint-disable-next-line no-console
     console.info(scanSummary(stats))
@@ -118,16 +142,14 @@ export async function generateCandidateModule(
   // policy and captured CSS bytes, not numeric rank ordinals. Static seed
   // names must not be reintroduced as runtime candidates.
   const runtimeOrder = snapshot ? await snapshot.prepareOrder(cache.candidates()) : undefined
-  writeFileIfChanged(
-    modulePath,
-    runtimeOrder
-      ? cache.renderNativeModulePlan(
-          prepareFinalTailwindContext(JSON.stringify(runtimeOrder.snapshot)),
-          resolvedTheme,
-        ).code
-      : cache.renderNativeModule(resolvedTheme),
-  )
+  const code = runtimeOrder
+    ? cache.renderNativeModulePlan(
+        prepareFinalTailwindContext(JSON.stringify(runtimeOrder.snapshot)),
+        resolvedTheme,
+      ).code
+    : cache.renderNativeModule(resolvedTheme)
   let tailwind: MetroTailwindReference | undefined
+  let tailwindContent: string | undefined
   if (snapshot) {
     // Runtime candidates deliberately subtract static classes. The ordering
     // seed must include them, without putting them back into runtime CSS.
@@ -143,8 +165,18 @@ export async function generateCandidateModule(
     })
     const sha256 = createHash('sha256').update(content).digest('hex')
     const file = path.join(projectRoot, 'node_modules', '.hozo', `tailwind-${sha256}.json`)
-    writeFileIfChanged(file, content)
+    tailwindContent = content
     tailwind = { file, sha256 }
   }
-  return { modulePath, usesTailwind: cache.usesTailwind, preflight, files, tailwind }
+  return {
+    modulePath,
+    usesTailwind: cache.usesTailwind,
+    preflight,
+    files,
+    tailwind,
+    publish() {
+      if (tailwind && tailwindContent) writeFileIfChanged(tailwind.file, tailwindContent)
+      writeFileIfChanged(modulePath, code)
+    },
+  }
 }

@@ -67,3 +67,8 @@ restart; this is not filesystem polling or automatic invalidation. Ready context
 bootstrap, production candidate/fact consumption, full v2 and F6/F7 removal remain
 open. Cross-platform smoke uses the same bounded resolver/transform tests, not a
 Metro server/app bundle or a physical device.
+
+The subsequent [candidate-only consumption slice](owner-package-consumption.md)
+uses the same configured pipeline with an explicit consuming entry. The shadow
+harness above remains assessment-only; ordinary withHozo and general production
+rollout are unchanged.
