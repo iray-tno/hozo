@@ -24,6 +24,15 @@ export {
   type RuntimeCandidateReconciliation,
   reconcileRuntimeCandidateContributions,
 } from './candidate-reconciliation.ts'
+// Internal shadow adapter boundary, not a default manifest-v2 consumer.
+export {
+  captureOwnerManifests,
+  type OwnerImportEdge,
+  type OwnerManifestCapture,
+  type OwnerManifestObservation,
+} from './owner-manifest-capture.ts'
+export { OwnerManifestEpoch, type OwnerManifestLease } from './owner-manifest-epoch.ts'
+export { type ResolvedOwnerInstance, readResolvedOwnerManifest } from './owner-manifest-read.ts'
 export {
   type CachedStylexModule,
   StylexModuleCache,

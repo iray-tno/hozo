@@ -88,3 +88,24 @@ actual Metro/Vite/Next startup/freeze integration, manifests' candidate/export
 channels and the removal of old F6/F7 readers remain unassessed. The three
 bounded capture/read/resolution suites also run in the macOS/Windows smoke
 matrix; this adds no browser/app/emulator build there.
+
+## Adapter epoch and delivery fence
+
+The internal project API now exposes the bounded shadow capture/read helpers
+and `OwnerManifestEpoch` for adapter integration. No normal adapter calls it
+yet, and the compiler root/manifest-v1 API is unchanged. A complete capture
+may be adopted once; equal rechecks retain that original immutable object.
+Changed/incomplete observations retire the epoch permanently, as do explicit
+watcher/config invalidations. Reverting the bytes cannot revive old leases.
+
+`run` checks after an asynchronous boundary even for a synchronous cache hit,
+so retirement while work is pending prevents returning its output. It is a
+delivery fence, not a transaction: callbacks must calculate without publishing
+external side effects before the returned promise resolves. Lease checks do
+no IO, hashing, candidate preparation or sorting. Adapters still own gathering
+fresh observations at graph boundaries and invalidating when inputs change.
+
+The next fixture must use a real bundler-ready graph, not the previous package
+dependency closure. Vite can capture after graph construction; Metro's current
+config-time candidate map precedes that graph. This API does not resolve that
+startup mismatch or justify deleting either old F6/F7 reader.
