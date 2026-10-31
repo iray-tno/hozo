@@ -10,6 +10,7 @@ import test from 'node:test'
 
 const config = JSON.parse(readFileSync(new URL('../turbo.json', import.meta.url), 'utf8'))
 const reads = {
+  '@hozo/landing#test': ['scripts/browser-audit-diagnostics.mjs'],
   '@hozo/tailwind#test': [
     'packages/primitives/src/native-disabled.ts',
     'packages/engine/src/class-resolver.ts',
