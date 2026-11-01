@@ -904,3 +904,14 @@ ordinary/owner-only packages and ambiguous contracts cannot supply a selected
 contract. There is no package-name lookup, facade chasing or filesystem polling
 on this path. Selection remains an unknown-audit transport fact; its no-IO
 lease check rejects use after the original epoch retires.
+
+`InstanceOwnerCallerProject` is an opt-in Native preview that owns the existing
+`TailwindProjectSession` for one matching compiler/CSS/manifest epoch. It feeds
+actual collected IR plus captured package candidates into that session, returns
+both binding provenance and the actual prepared context fingerprint, and uses
+its existing exact-context cache/cancellation/disposal path. Manifest retirement
+aborts the session; CSS/ABI edits require explicit invalidation. Invalid and
+unassessed new requests enter module supersession before validation, so they
+cannot leave an older version of that importer eligible for delivery. Opaque
+or unassessed style expressions stay authored; there is no direct compile
+fallback, mutable rank setter, new ordering engine or default adapter change.

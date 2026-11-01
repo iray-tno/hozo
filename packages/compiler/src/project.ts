@@ -27,6 +27,10 @@ export {
   type RuntimeCandidateReconciliation,
   reconcileRuntimeCandidateContributions,
 } from './candidate-reconciliation.ts'
+export {
+  type InstanceOwnerCallerPreview,
+  InstanceOwnerCallerProject,
+} from './owner-caller-project.ts'
 // Internal shadow adapter boundary, not a default manifest-v2 consumer.
 export {
   captureOwnerManifests,
