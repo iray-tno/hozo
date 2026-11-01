@@ -258,6 +258,14 @@ try {
     } else scrollTiming.scrollFrames = 'not measured: small baseline fits the viewport'
     json(`${name}-scroll-js.json`, scrollTiming)
   }
+  // One unmeasured mount first. The first one after launch drew a single
+  // 81ms frame that gfxinfo counted in its totals and never listed in
+  // framestats, before or after the window, so the run stopped on an empty
+  // measurement (#1512). In the runs that passed, the same window listed
+  // its one frame, so this keeps the cold frame out of the matrix rather
+  // than relaxing the empty-measurement check.
+  tap('Mount 10 lines')
+  await waitForTiming('settle-mount-10')
   for (const count of [10, 100, 300, 1000]) {
     for (let round = 1; round <= 3; round++) {
       tap('Clear block')
