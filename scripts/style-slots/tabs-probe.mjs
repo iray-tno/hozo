@@ -19,9 +19,9 @@ export const tabPhases = [
   'selected-disabled',
 ]
 
-export async function prepareTabsProbe(collected = []) {
+export async function prepareTabsProbe(collected = [], classes = tabClasses) {
   const cache = openCandidateCache()
-  cache.scanFile('TabsChoices.ts', JSON.stringify(tabClasses.split(' ')), 0)
+  cache.scanFile('TabsChoices.ts', JSON.stringify(classes.split(' ')), 0)
   const row = { id: 'tabs', revision: 'one', record: cache.exportFile('TabsChoices.ts') }
   const css = '@import "tailwindcss/theme.css";'
   const batch = await emitFinalTailwindBatch({
@@ -37,12 +37,12 @@ export async function prepareTabsProbe(collected = []) {
     `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`,
   )
   return {
-    classes: tabClasses,
+    classes,
     fingerprint: batch.fingerprint,
     modules: batch.modules,
     native: batch.native.code,
     candidateCss: cache.renderCss(),
-    oracleCss: oracle.build(tabClasses.split(' ')),
+    oracleCss: oracle.build(classes.split(' ')),
   }
 }
 

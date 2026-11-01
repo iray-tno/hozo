@@ -131,7 +131,7 @@ not been proved. This is not a general component/manifest authoring API.
 map together in the same completed finite Tailwind batch. The test consumes
 the returned style expression directly and creates its stylesheet once before
 rendering. It then passes the callback to the real Native Tabs receiver and
-compares the same nine candidates, six phases and three owners against both
+compares the base nine candidates, six phases and three owners against both
 the traced opaque route and independently specified semantic expectations.
 Both routes retain the same positional hosts, reject disabled activation and
 observe controlled selected+disabled separately from user activation. This
@@ -148,6 +148,31 @@ control. No runtime implementation was changed to satisfy that measurement.
 This is Native component-host-model evidence, not Android/iOS event or pixel
 proof. The adjacent browser comparison still evaluates the ordinary Tabs
 route against Tailwind, not a Web prepared carrier. Caller shape selection,
-text-bearing compiler carriers, author composition for the compiled route,
+text-bearing compiler carriers,
 production bundle cost and a full owner audit remain separate gates. Default
 adapters, published manifests and the owner-audit count are unchanged.
+
+## Compiled carrier with authored overrides
+
+The compiled delivery probe adds two axis-gap candidates to the original nine,
+then applies and removes a frozen authored array on both opaque and compiled
+routes. The author's explicit row gap stays 5, generic gap supplies column 7,
+and authored opacity/background override every state contribution. Removing
+that array restores class gaps 3/2 and each tab's selected/disabled look,
+without replacing any of the three positional hosts or rebuilding the single
+compiled stylesheet. Class entries are frozen too, so composition cannot
+silently mutate the hoisted plan. Six additional author-phase rows record
+18 host observations independently of the existing state progression.
+
+Getter counts are measured immediately around explicit host-style evaluations:
+one read per tab, and none from a retired author afterwards. React 19's
+development renderer profiler also reads changed props to log their diff;
+the initial local assertion incorrectly counted that instrumentation as an
+eager component read. A stack trace located it in `logComponentRender`, not
+Hozo. The separate initial-mount marker test still requires zero reads before
+host evaluation. No product code, getter policy or timeout was changed for
+this distinction. The receipt retains both total and host-evaluation counts.
+
+This closes the bounded compiled **box**/author composition check. Compiled
+label paint/metrics and caller replacement remain separate gates, as do Web
+prepared delivery, device pixels, performance and full owner audit.

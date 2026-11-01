@@ -40,8 +40,10 @@ test('compiled tab carrier matches opaque candidate resolution at all 18 actual 
     fingerprint: '',
     declarations: ['disabled', 'aria-selected', 'aria-disabled'],
     carrier: '',
+    classes: '',
     stylesheetCreates: 0,
     observations: [] as unknown[],
+    authorObservations: [] as unknown[],
     requests: { opaque: 0, prepared: 0 },
   }
   const project = mkdtempSync(
@@ -59,14 +61,17 @@ test('compiled tab carrier matches opaque candidate resolution at all 18 actual 
   let hook: ReturnType<typeof registerHooks> | undefined
   try {
     const compiler = createCompiler()
-    const input = `import {Pressable} from '@hozo/primitives';export const Plan=()=> <Pressable className=${JSON.stringify(tabClasses)}/>`
+    const classes = `${tabClasses} gap-x-[2px] gap-y-[3px]`
+    evidence.classes = classes
+    const input = `import {Pressable} from '@hozo/primitives';export const Plan=()=> <Pressable className=${JSON.stringify(classes)}/>`
     const retained = compiler.prepareNativeModule(input, undefined, undefined, {
       ownerStyle: true,
       ownerFacts: ['disabled', 'aria-selected', 'aria-disabled'],
     })
-    const fixture = await prepareTabsProbe([
-      { id: 'Plan.native.tsx', revision: 'one', module: retained },
-    ])
+    const fixture = await prepareTabsProbe(
+      [{ id: 'Plan.native.tsx', revision: 'one', module: retained }],
+      classes,
+    )
     const component = fixture.modules[0].output.components[0]
     const carrier = component.ownerStyle
     assert.ok(carrier?.callback)
@@ -82,6 +87,7 @@ test('compiled tab carrier matches opaque candidate resolution at all 18 actual 
     )({
       create(styles: unknown) {
         evidence.stylesheetCreates++
+        for (const value of Object.values(styles as object)) Object.freeze(value)
         return rn.StyleSheet.create(styles)
       },
     })
@@ -118,17 +124,21 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
     for (const route of ['opaque', 'prepared'] as const) {
       const changes: number[] = []
       let select!: (at: number) => void
+      let setAuthor!: (style: unknown) => void
       function Screen() {
         const [index, setIndex] = React.useState(0)
+        const [author, updateAuthor] = React.useState(undefined)
         select = setIndex
+        setAuthor = updateAuthor
         return React.createElement(app.Raw, {
           tabs,
           index,
+          tabStyle: author,
           onIndexChange(at: number) {
             changes.push(at)
             setIndex(at)
           },
-          ...(route === 'prepared' ? { hozoTabStyle: plan } : { tabClassName: tabClasses }),
+          ...(route === 'prepared' ? { hozoTabStyle: plan } : { tabClassName: classes }),
         })
       }
       requests.length = 0
@@ -177,7 +187,59 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       renderer.act(() => select(2))
       record(tabPhases[5])
       assert.deepEqual(changes, [1], 'controlled input is not user activation')
-      evidence.requests[route] = requests.filter((value) => value === tabClasses).length
+      let reads = 0
+      const authored = Object.freeze({
+        gap: 7,
+        backgroundColor: '#abcdef',
+        get opacity() {
+          reads++
+          return 0.8
+        },
+      })
+      const authorArray = Object.freeze([false, null, Object.freeze({ rowGap: 5 }), authored])
+      const recordAuthor = (phase: string, overridden: boolean) => {
+        const before = reads
+        assert.deepEqual(owners(), original, `${route}: author changes retain actual hosts`)
+        const rows = owners().map((node, at) => {
+          const style = rn.StyleSheet.flatten(node.props.style({ pressed: false }))
+          const expected = expectedTabRows('selected-disabled')[at]
+          const actual = {
+            rowGap: style.rowGap,
+            columnGap: style.columnGap,
+            background: style.backgroundColor,
+            opacity: style.opacity ?? 1,
+          }
+          assert.deepEqual(actual, {
+            rowGap: overridden ? 5 : 3,
+            columnGap: overridden ? 7 : 2,
+            background: overridden ? '#abcdef' : expected.background,
+            opacity: overridden ? 0.8 : expected.opacity,
+          })
+          return actual
+        })
+        evidence.authorObservations.push({
+          route,
+          phase,
+          rows,
+          getterReads: reads,
+          hostEvaluationGetterReads: reads - before,
+        })
+      }
+      recordAuthor('before-author', false)
+      renderer.act(() => setAuthor(authorArray))
+      // React 19's development profiler also reads changed props to log their
+      // diff. Count the actual host-style evaluations separately from it; the
+      // independent initial-mount marker test checks eager label evaluation.
+      const beforeHostEvaluation = reads
+      recordAuthor('with-author', true)
+      assert.equal(reads - beforeHostEvaluation, 3, 'one author read per evaluated tab host')
+      renderer.act(() => setAuthor(undefined))
+      const afterRemoval = reads
+      recordAuthor('author-removed', false)
+      assert.equal(reads, afterRemoval, 'host evaluation cannot read a retired author')
+      assert.equal(authored.gap, 7)
+      assert.ok(Object.isFrozen(authorArray) && Object.isFrozen(authored))
+      evidence.requests[route] = requests.filter((value) => value === classes).length
       if (route === 'prepared')
         assert.ok(
           requests.every((value) => value == null),
@@ -197,6 +259,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       'stylesheet is built before rendering, never on state updates',
     )
     assert.equal(evidence.observations.length, 12, 'six phases on both routes')
+    assert.equal(evidence.authorObservations.length, 6, 'author add/remove on both routes')
     evidence.passed = true
   } catch (error) {
     Object.assign(evidence, { error: String(error) })
