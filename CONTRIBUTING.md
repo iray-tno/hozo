@@ -180,6 +180,12 @@ passes every local test and fails CI at the last step. Change the generator.
 `.node` file. Until you rebuild it, every JS test is measuring the previous
 version of your Rust change — including the ones that pass.
 
+**The Native text fixture also pins compiler sources.** When changing a file
+fingerprinted by `text-inheritance-device-source.ts`, regenerate with
+`node examples/native-showcase/scripts/generate-text-inheritance.mjs` after
+rebuilding the addon, then run it with `--check`. Even unchanged emitted code
+needs the new source hashes committed. Keep that provenance check intact.
+
 **A raw source probe needs raw source cache inputs.** A test that reads or
 bundles another package by filesystem path must include those paths in its
 Turbo `test` task's `inputs`, alongside `$TURBO_DEFAULT$`. This includes local
