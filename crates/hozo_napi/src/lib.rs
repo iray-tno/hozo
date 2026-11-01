@@ -671,6 +671,7 @@ pub struct TextForwardingModule {
 #[napi(object)]
 pub struct NativeCompileOptions {
     pub owner_style: Option<bool>,
+    pub owner_facts: Option<Vec<String>>,
     pub text_reference: Option<bool>,
     pub text_inheritance: Option<bool>,
     pub text_static: Option<bool>,
@@ -678,7 +679,39 @@ pub struct NativeCompileOptions {
 }
 
 impl NativeCompileOptions {
+    fn owner_facts(&self) -> napi::Result<Vec<hozo_native::OwnerFact>> {
+        let Some(keys) = &self.owner_facts else {
+            return Ok(Vec::new());
+        };
+        if !self.owner_style.unwrap_or(false) {
+            return Err(napi::Error::from_reason(
+                "Internal ownerFacts requires ownerStyle",
+            ));
+        }
+        let mut facts = Vec::new();
+        for key in keys {
+            let fact = match key.as_str() {
+                "disabled" => hozo_native::OwnerFact::Disabled,
+                "aria-selected" => hozo_native::OwnerFact::AriaSelected,
+                "aria-disabled" => hozo_native::OwnerFact::AriaDisabled,
+                _ => {
+                    return Err(napi::Error::from_reason(format!(
+                        "Unsupported owner fact: {key}"
+                    )))
+                }
+            };
+            if facts.contains(&fact) {
+                return Err(napi::Error::from_reason(format!(
+                    "Duplicate owner fact: {key}"
+                )));
+            }
+            facts.push(fact);
+        }
+        Ok(facts)
+    }
+
     fn validate_owner_style(&self) -> napi::Result<()> {
+        self.owner_facts()?;
         if self.owner_style.unwrap_or(false)
             && (self.text_reference.unwrap_or(false)
                 || self.text_inheritance.unwrap_or(false)
@@ -831,6 +864,7 @@ impl Compiler {
             Some((&self.stylex, &bindings)),
             NativeModuleOptions {
                 source_file: source_file.as_deref(),
+                owner_facts: options.owner_facts()?,
                 text_reference: options.text_reference.unwrap_or(false),
                 owner_style: options.owner_style.unwrap_or(false),
                 text_inheritance: options.text_inheritance.unwrap_or(false),
@@ -1189,6 +1223,8 @@ pub struct CompiledNativeComponent {
 
 #[napi(object)]
 pub struct CompiledOwnerStyle {
+    /// Declared callback inputs, not owner identity or an audit verdict.
+    pub facts: Option<Vec<String>>,
     pub literal_resting: bool,
     pub expression: String,
     pub callback: bool,
@@ -1412,7 +1448,13 @@ fn lower_native(
         class_helpers,
     );
     let plans = tailwind.apply(&mut parsed);
-    lower_native_components(source, theme, &parsed, false, false, false, plans)
+    lower_native_components(
+        source,
+        theme,
+        &parsed,
+        &NativeModuleOptions::default(),
+        plans,
+    )
 }
 
 /// Module-only choices stay together; the reference experiment must not
@@ -1420,6 +1462,7 @@ fn lower_native(
 #[derive(Default)]
 struct NativeModuleOptions<'a> {
     owner_style: bool,
+    owner_facts: Vec<hozo_native::OwnerFact>,
     source_file: Option<&'a str>,
     text_reference: bool,
     text_inheritance: bool,
@@ -1491,15 +1534,7 @@ fn emit_native_module(
     options: NativeModuleOptions<'_>,
 ) -> CompiledNativeModule {
     let plans = options.tailwind.apply(parsed);
-    let mut components = lower_native_components(
-        source,
-        theme,
-        parsed,
-        options.text_reference,
-        options.text_inheritance,
-        options.owner_style,
-        plans,
-    );
+    let mut components = lower_native_components(source, theme, parsed, &options, plans);
     let imports = parsed
         .imports
         .iter()
@@ -1560,9 +1595,7 @@ fn lower_native_components(
     source: &str,
     theme: &hozo_ir::Theme,
     parsed: &hozo_parser::ParseOutput,
-    text_reference: bool,
-    text_inheritance: bool,
-    owner_style: bool,
+    options: &NativeModuleOptions<'_>,
     plans: Vec<hozo_parser::TailwindRootPlan>,
 ) -> Vec<CompiledNativeComponent> {
     let offsets = Utf16Offsets::new(source);
@@ -1572,17 +1605,29 @@ fn lower_native_components(
         .iter()
         .map(|root| {
             let mut carrier = None;
-            let output = if owner_style {
-                let (output, style) =
-                    hozo_native::lower_owner_style(&root.node, &root.forwarded, source, theme);
+            let output = if options.owner_style {
+                let (output, style) = hozo_native::lower_owner_style_with_facts(
+                    &root.node,
+                    &root.forwarded,
+                    source,
+                    theme,
+                    &options.owner_facts,
+                );
                 carrier = style.map(|style| CompiledOwnerStyle {
+                    facts: (!style.facts.is_empty()).then(|| {
+                        style
+                            .facts
+                            .iter()
+                            .map(|fact| fact.key().to_string())
+                            .collect()
+                    }),
                     literal_resting: style.literal_resting,
                     expression: style.expression,
                     callback: style.callback,
                     focus_visible: style.focus_visible,
                 });
                 output
-            } else if text_inheritance && !parsed.stable_text_roots.is_empty() {
+            } else if options.text_inheritance && !parsed.stable_text_roots.is_empty() {
                 hozo_native::lower_text_inheritance_static(
                     &root.node,
                     &root.forwarded,
@@ -1590,9 +1635,9 @@ fn lower_native_components(
                     theme,
                     parsed.stable_text_roots.contains(&root.node.span),
                 )
-            } else if text_inheritance {
+            } else if options.text_inheritance {
                 hozo_native::lower_text_inheritance(&root.node, &root.forwarded, source, theme)
-            } else if text_reference {
+            } else if options.text_reference {
                 hozo_native::lower_text_reference(&root.node, &root.forwarded, source, theme)
             } else {
                 hozo_native::lower_forwarded(&root.node, &root.forwarded, source, theme)
@@ -1604,7 +1649,7 @@ fn lower_native_components(
                     .into_iter()
                     .map(|d| to_js_diagnostic(d, &offsets)),
             );
-            if owner_style && diagnostics.iter().any(|d| d.severity == "error") {
+            if options.owner_style && diagnostics.iter().any(|d| d.severity == "error") {
                 carrier = None;
             }
             CompiledNativeComponent {

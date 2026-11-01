@@ -44,6 +44,7 @@ const reads = {
     'crates/hozo_native/src/owner_style.rs',
     'crates/hozo_native/src/lib.rs',
     'crates/hozo_native/src/render.rs',
+    'crates/hozo_native/src/conditions/guards.rs',
     'crates/hozo_napi/src/lib.rs',
     'crates/hozo_napi/src/prepared_module.rs',
     'scripts/style-slots/owner-shadow.json',

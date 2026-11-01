@@ -2,7 +2,40 @@
 //! carrier; never parse generated JSX or reconstruct its declaration ordering.
 use super::*;
 
+/// Bounded inputs supplied by an existing owner, never inferred from a
+/// synthetic primitive's missing props or loaded as executable manifest text.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[doc(hidden)]
+pub enum OwnerFact {
+    Disabled,
+    AriaSelected,
+    AriaDisabled,
+}
+
+impl OwnerFact {
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Disabled => "disabled",
+            Self::AriaSelected => "aria-selected",
+            Self::AriaDisabled => "aria-disabled",
+        }
+    }
+
+    pub(crate) fn alias(self) -> &'static str {
+        match self {
+            Self::Disabled => "__hozoOwnerDisabled",
+            Self::AriaSelected => "__hozoOwnerAriaSelected",
+            Self::AriaDisabled => "__hozoOwnerAriaDisabled",
+        }
+    }
+
+    pub(crate) fn parameter(self) -> String {
+        format!("{:?}: {}", self.key(), self.alias())
+    }
+}
+
 pub struct OwnerStyle {
+    pub facts: Vec<OwnerFact>,
     /// Original IR has only unconditional declarations and no residuals.
     /// A condition folded for a synthetic host is not proof about a pattern.
     pub literal_resting: bool,
@@ -28,6 +61,7 @@ pub(super) fn record(
             .strip_prefix(" style={")
             .and_then(|value| value.strip_suffix('}'))
             .map(|expression| OwnerStyle {
+                facts: cx.owner_facts.to_vec(),
                 literal_resting: false,
                 expression: expression.to_string(),
                 callback,
@@ -61,6 +95,19 @@ pub fn lower_owner_style(
     source: &str,
     theme: &Theme,
 ) -> (LowerOutput, Option<OwnerStyle>) {
+    lower_owner_style_with_facts(root, forwarded, source, theme, &[])
+}
+
+/// Style-only preparation: its carrier is applied by the existing destination,
+/// not permission to replace that destination with this synthetic leaf's JSX.
+#[doc(hidden)]
+pub fn lower_owner_style_with_facts(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+    facts: &[OwnerFact],
+) -> (LowerOutput, Option<OwnerStyle>) {
     fn binding_only(value: &str) -> bool {
         if matches!(
             value.trim(),
@@ -83,6 +130,10 @@ pub fn lower_owner_style(
         }
     }
     let eligible = matches!(root.primitive, Primitive::View | Primitive::Pressable)
+        && facts.iter().enumerate().all(|(at, fact)| !facts[..at].contains(fact))
+        && (facts.is_empty() || root.primitive == Primitive::Pressable)
+        // The residual resolver's semantic inputs need their own delivery proof.
+        && (facts.is_empty() || root.class_name_fallback.is_empty())
         && root.children.is_empty()
         && root.props.passthrough.is_empty()
         && root.props.stylex_residuals.is_empty()
@@ -104,7 +155,7 @@ pub fn lower_owner_style(
         theme,
         false,
         false,
-        eligible.then_some(&mut carrier),
+        eligible.then_some((&mut carrier, facts)),
     );
     // These are the existing owner's supplied state and residual resolver,
     // not wrappers to install. Every other helper/hook needs separate evidence.
@@ -200,5 +251,100 @@ mod tests {
                 "{source}"
             );
         }
+    }
+
+    #[test]
+    fn explicit_owner_facts_are_callback_inputs_not_synthetic_host_props() {
+        let source = "const el=<Pressable className=\"p-2 aria-selected:disabled:p-3 aria-disabled:opacity-50\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let facts = [
+            OwnerFact::Disabled,
+            OwnerFact::AriaSelected,
+            OwnerFact::AriaDisabled,
+        ];
+        let (output, carrier) = lower_owner_style_with_facts(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            &facts,
+        );
+        let carrier = carrier.expect("declared boolean inputs supply these guards");
+        assert_eq!(carrier.facts, facts);
+        assert!(carrier.callback);
+        assert!(!carrier.literal_resting);
+        for fact in facts {
+            assert!(carrier.expression.contains(&fact.parameter()));
+            assert!(carrier
+                .expression
+                .contains(&format!("typeof {} === 'boolean'", fact.alias())));
+        }
+        assert!(!output.jsx.contains(" disabled="));
+        assert!(!output.jsx.contains(" accessibilityState="));
+        assert!(
+            compile(source).1.is_none(),
+            "ordinary leaf cannot invent semantic state"
+        );
+    }
+
+    #[test]
+    fn semantic_preparation_keeps_refusals_and_unavailable_negation() {
+        let facts = [OwnerFact::Disabled];
+        for source in [
+            "const el=<View className=\"p-2\"/>",
+            "const el=<Pressable className={`p-2 ${extra}`}/>",
+            "const el=<Pressable className=\"aria-selected:p-2\"/>",
+            "const el=<Pressable className=\"not-aria-selected:p-2\"/>",
+            "const el=<Pressable className=\"aria-checked:p-2\"/>",
+            "const el=<Pressable className=\"text-red-500\"/>",
+            "const el=<Pressable className=\"dark:p-2\"/>",
+            "const el=<Pressable disabled className=\"p-2\"/>",
+        ] {
+            let parsed = hozo_parser::parse_tsx(source);
+            let (output, carrier) = lower_owner_style_with_facts(
+                &parsed.roots[0].node,
+                &[],
+                source,
+                &Theme::default(),
+                &facts,
+            );
+            assert!(carrier.is_none(), "{source}");
+            assert!(
+                output
+                    .diagnostics
+                    .iter()
+                    .any(|d| d.severity == Severity::Error),
+                "{source}"
+            );
+        }
+        for candidate in ["not-disabled:p-3", "enabled:p-3", "hover:not-disabled:p-3"] {
+            let source = format!("const el=<Pressable className=\"p-2 {candidate}\"/>");
+            let parsed = hozo_parser::parse_tsx(&source);
+            let (_, carrier) = lower_owner_style_with_facts(
+                &parsed.roots[0].node,
+                &[],
+                &source,
+                &Theme::default(),
+                &facts,
+            );
+            let expression = carrier
+                .expect("negative boolean guard is scoped")
+                .expression;
+            assert!(expression.contains("typeof __hozoOwnerDisabled === 'boolean'"));
+            assert!(expression.contains("!"));
+        }
+        let source = "const el=<Pressable className=\"disabled:opacity-50\"/>";
+        let parsed = hozo_parser::parse_tsx(source);
+        let (_, carrier) = lower_owner_style_with_facts(
+            &parsed.roots[0].node,
+            &[],
+            source,
+            &Theme::default(),
+            &[OwnerFact::Disabled, OwnerFact::Disabled],
+        );
+        assert!(
+            carrier.is_none(),
+            "Rust callers cannot produce duplicate callback bindings"
+        );
     }
 }

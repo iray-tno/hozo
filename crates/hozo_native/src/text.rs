@@ -174,6 +174,7 @@ pub(super) fn wrap_in_text(
     // `pressed:` lands here only after that.
     let mut pressed_parts = Vec::new();
     let target = crate::conditions::StyleTarget {
+        owner_facts: &[],
         node,
         position,
         interaction_context,

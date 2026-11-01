@@ -97,7 +97,7 @@ use hozo_ir::{
     Environment, ExprRef, FilterFunction, FormState, Length, Node, Primitive, Severity, Structural,
     StyleDeclaration, StyleProperty, SvgElement, TextOverflow, Theme, WhiteSpace,
 };
-pub use owner_style::{lower_owner_style, OwnerStyle};
+pub use owner_style::{lower_owner_style, lower_owner_style_with_facts, OwnerFact, OwnerStyle};
 use render::render_node;
 pub use runtime_classes::{
     native_class_diagnostics, native_class_report, native_class_verdict,
@@ -217,6 +217,7 @@ pub(crate) struct NativeRenderContext<'a> {
     pub text_inheritance: bool,
     /// Only the explicit RFC010 preparation request observes this carrier.
     pub owner_style: Option<&'a mut Option<OwnerStyle>>,
+    pub owner_facts: &'a [OwnerFact],
 }
 
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
@@ -382,8 +383,11 @@ fn lower_forwarded_capturing(
     theme: &Theme,
     text_reference: bool,
     text_inheritance: bool,
-    owner_style: Option<&mut Option<OwnerStyle>>,
+    owner: Option<(&mut Option<OwnerStyle>, &[OwnerFact])>,
 ) -> LowerOutput {
+    let (owner_style, owner_facts) = owner
+        .map(|(style, facts)| (Some(style), facts))
+        .unwrap_or((None, &[]));
     let inherited: Vec<StyleDeclaration> = forwarded_text(forwarded).cloned().collect();
     let mut allocator = NameAllocator { next: 0 };
     let mut style_entries: Vec<StyleEntry> = Vec::new();
@@ -404,6 +408,7 @@ fn lower_forwarded_capturing(
         text_reference,
         text_inheritance,
         owner_style,
+        owner_facts,
     };
     let ancestor = AncestorContext {
         inherited: &inherited,
@@ -794,6 +799,7 @@ fn spaced_children(
     // children rather than for the element that would track the press.
     let mut pressed_parts: Vec<String> = Vec::new();
     let target = conditions::StyleTarget {
+        owner_facts: &[],
         node,
         position,
         interaction_context: false,
