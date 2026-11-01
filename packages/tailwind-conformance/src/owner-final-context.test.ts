@@ -1,6 +1,6 @@
 // One finite batch and real component delivery, not a production adapter rollout.
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire, registerHooks } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
@@ -9,6 +9,7 @@ import { runInNewContext } from 'node:vm'
 import { createCompiler, openCandidateCache, type PreparedTailwindContext } from '@hozo/compiler'
 import { emitFinalTailwindBatch } from '@hozo/compiler/project'
 import { prepareTailwindOrder, tailwindPackageDir } from '@hozo/tailwind'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { prepareOwnerLiteralCallers } from '../../compiler/src/owner-caller-plan.ts'
 import { loadNativeModule } from './native-render.ts'
 
@@ -16,10 +17,7 @@ const require = createRequire(import.meta.url)
 const React = require('react')
 const renderer = require('react-test-renderer')
 const rn = require('react-native')
-const shadow = readFileSync(
-  new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
-  'utf8',
-)
+const shadow = ownerFixtureShadow('BottomSheet.handle')
 const options = { source: '@hozo/patterns', imported: 'BottomSheet', shadow }
 const cases = [
   'p-4 p-2 w-8 w-4 bg-[#112233] bg-[#223344]',

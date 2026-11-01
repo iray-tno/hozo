@@ -220,7 +220,9 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
     'selected entry/platform identities stay distinct',
   )
 
-  const contract = manifest.package.owners.contracts[0]
+  const contract = manifest.package.owners.contracts.find(
+    (row) => row.owner === 'BottomSheet.handle',
+  )
   assert.equal(contract.audit, 'unknown')
   assert.equal(selectOwnerShape(contract, { present: false }).status, 'absent')
   for (const resizable of [false, true]) {
@@ -250,7 +252,11 @@ export const App=()=> <BottomSheet open handleClassName="p-[8px]"><Text classNam
     ])
     const source = `import {${imported} as Sheet} from '@hozo/patterns';
 export const App=()=> <Sheet open handleClassName="p-[8px] opacity-50" handleStyle={authored}/>`
-    const options = { source: json.name, imported, shadow: JSON.stringify(manifest.package.owners) }
+    const options = {
+      source: json.name,
+      imported,
+      shadow: JSON.stringify({ schema: manifest.package.owners.schema, contracts: [contract] }),
+    }
     const preview = previewOwnerLiteralCallers(source, compiler, options)
     assert.equal(preview.findings[0].disposition, 'prepared-literal')
     assert.match(preview.code, /hozoHandleStyle=\{/)

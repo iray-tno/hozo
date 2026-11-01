@@ -1,13 +1,11 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { captureOwnerManifests, type OwnerManifestObservation } from './owner-manifest-capture.ts'
 import { OwnerManifestEpoch } from './owner-manifest-epoch.ts'
 import { selectOwnerPackageContract } from './owner-package-selection.ts'
 
-const shadow = JSON.parse(
-  readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
-)
+const shadow = JSON.parse(ownerFixtureShadow('BottomSheet.handle'))
 const a = { importer: '/app/App.tsx', specifier: 'kit' }
 const b = { importer: '/bridge/Other.tsx', specifier: 'kit' }
 const request = { ...a, entry: '/one/native.js', imported: 'Sheet', classProp: 'handleClassName' }

@@ -1,14 +1,11 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { captureOwnerManifests, type OwnerManifestObservation } from './owner-manifest-capture.ts'
 import { OWNER_PACKAGE_SCHEMA } from './owner-package.ts'
 import { collectOwnerPackageContributions } from './owner-package-contributions.ts'
 
-const ownerText = readFileSync(
-  new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
-  'utf8',
-)
+const ownerText = ownerFixtureShadow('BottomSheet.handle')
 const options = { platform: 'android', epoch: 'compiler-theme-abi-policy' }
 const a = { importer: '/app/App.tsx', specifier: 'widget-kit' },
   b = { importer: '/bridge/Panel.tsx', specifier: 'widget-kit' }

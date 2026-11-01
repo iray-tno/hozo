@@ -527,6 +527,27 @@ export const ownerShadow = {
         },
       ],
     },
+    {
+      owner: 'Tabs.Tab',
+      classProp: 'tabClassName',
+      audit: 'unknown',
+      // Each existing tab supplies its own live snapshot to this one recipe.
+      // splitText styles the receiver's string-label Text, not opaque ReactNode
+      // descendants. Publication is not an inheritance audit.
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoTabStyle', webClassProp: 'tabClassName' },
+      authoredStyles: [{ prop: 'tabStyle', order: 0 }],
+      shapes: [
+        {
+          id: 'tab',
+          when: { eq: ['present', true] },
+          nativeHost: 'Pressable',
+          webHost: 'button',
+          events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: ['disabled', 'aria-selected', 'aria-disabled'], splitText: true },
+        },
+      ],
+    },
   ],
 }
 
@@ -539,5 +560,10 @@ export const ownerPublications = [
     owner: 'BottomSheet.handle',
     package: '@hozo/patterns',
     exports: ['BottomSheet', 'HozoBottomSheet'],
+  },
+  {
+    owner: 'Tabs.Tab',
+    package: '@hozo/patterns',
+    exports: ['Tabs', 'HozoTabs'],
   },
 ]

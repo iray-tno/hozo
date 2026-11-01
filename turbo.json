@@ -49,6 +49,7 @@
         "$TURBO_ROOT$/crates/hozo_napi/src/prepared_module.rs",
         "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
         "$TURBO_ROOT$/scripts/style-slots/tabs-owner-shadow.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/owner-fixture.mjs",
         "$TURBO_ROOT$/packages/ui/src/combobox.tsx",
         "$TURBO_ROOT$/packages/ui/src/listbox.tsx",
         "$TURBO_ROOT$/packages/ui/src/menu.tsx",
@@ -66,6 +67,7 @@
       "inputs": [
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
+        "$TURBO_ROOT$/scripts/style-slots/owner-fixture.mjs",
         "$TURBO_ROOT$/packages/metro/fixtures/fixture-process.mjs",
         "$TURBO_ROOT$/packages/metro/fixtures/owner-candidate-package/**"
       ]
@@ -87,6 +89,7 @@
         "$TURBO_ROOT$/scripts/style-slots/handle-publication.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-owner-shadow.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/owner-fixture.mjs",
         "$TURBO_ROOT$/scripts/style-slots/evidence-source.mjs",
         "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
         "$TURBO_DEFAULT$",
@@ -173,6 +176,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_ROOT$/scripts/style-slots/handle-*.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/owner-fixture.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",
         "$TURBO_ROOT$/scripts/style-slots/evidence-source.mjs",
         "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",

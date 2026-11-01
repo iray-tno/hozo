@@ -214,8 +214,8 @@ inferring requirements from emitted JSX. Shapes without inputs keep the old
 state-independent rule. All shapes must still agree on the assessed carrier,
 metadata and stylesheet before any caller edit is published.
 
-`tabs-owner-shadow.mjs` is explicitly selected measurement data, not a new
-catalog/public package contribution or an audit. The generic caller preview
+`tabs-owner-shadow.mjs` explicitly selects the catalog contribution for the
+measurement; it no longer defines a second contract. It is not an audit. The generic caller preview
 uses it to request the backend inputs/destination, hoist one stylesheet and
 replace only the literal class attribute. Backend callbacks are preserved as
 callbacks, not wrapped into a function returning a function. Authored props
@@ -238,7 +238,25 @@ one actual stylesheet creation. Those are scoped counts, not app-size or
 render-time measurements.
 
 This is still an explicit selected-contract preview, not normal Vite/Metro
-adoption, registry/packed-manifest Tabs publication, cross-instance resolution,
-Web prepared behavior, an audited owner or legacy removal. Promotion must use
-the existing package/instance path and independent gates; this receipt cannot
-audit its own measurement contract.
+adoption, cross-instance Tabs execution, Web prepared behavior, an audited
+owner or legacy removal. The receipt cannot audit its own contract.
+
+## Catalog and package publication
+
+The existing experimental package channel now publishes `Tabs.Tab` from
+`@hozo/patterns`, referenced only by its actual `Tabs` / `HozoTabs` value
+exports. The UI/core facades do not acquire that contract by spelling or
+re-export. The catalog is its single authoring location; generated shadow JSON,
+the patterns manifest and the selected probe read the same contribution.
+Miniature BottomSheet tests explicitly select their owner rather than depending
+on the catalog containing just one contract. A multi-owner document is still
+not accepted by the single-owner caller API: production selection belongs to
+the existing captured instance/export/class-prop path.
+
+`splitText` describes the current receiver, not universal text inheritance.
+Native Tabs sends text fields to its own Text only for a string label; a supplied
+ReactNode stays untouched. `tabStyle` remains the existing authored **box**
+override. Publication does not solve opaque-label inheritance, certify parity
+for every label shape, promote the pending catalog slot, or enable adapters.
+Both contracts remain `audit: unknown`; the shadow inventory rises from one
+to two while every global coverage/audit measure remains unavailable.

@@ -39,8 +39,8 @@ test('inventory stays separate from scoped evidence and missing global measures 
     pendingOwners: 56,
     componentManaged: 33,
     componentManagedPending: 33,
-    shadowContributions: 1,
-    shadowAuditUnknown: 1,
+    shadowContributions: 2,
+    shadowAuditUnknown: 2,
   })
   assert.equal(report.observations[0].status, 'measured')
   assert.equal(report.observations[0].matchedPairs, 5)

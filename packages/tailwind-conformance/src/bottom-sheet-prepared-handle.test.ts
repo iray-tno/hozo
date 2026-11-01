@@ -7,6 +7,7 @@ import path from 'node:path'
 import { after, mock, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { previewOwnerLiteralCallers } from '../../compiler/src/owner-caller-plan.ts'
 import { parseOwnerContractShadow, selectOwnerShape } from '../../compiler/src/owner-contract.ts'
 import { loadNativeModule } from './native-render.ts'
@@ -118,10 +119,7 @@ export function LiteralCaller({open,detents,author}) {
 const literalPreview = previewOwnerLiteralCallers(literalSource, compiler, {
   source: '@hozo/patterns',
   imported: 'BottomSheet',
-  shadow: readFileSync(
-    new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
-    'utf8',
-  ),
+  shadow: ownerFixtureShadow('BottomSheet.handle'),
 })
 assert.equal(literalPreview.findings[0]!.disposition, 'prepared-literal')
 const literalWarnings = mock.method(console, 'warn', () => {})
