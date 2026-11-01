@@ -104,3 +104,14 @@ Its addition is not a browser success claim until a current-head artifact is
 read. The Native ordinary/prepared/selected/instance comparison is rerun
 separately. Opaque ReactNode labels, authored Web style parity, font pixels,
 normal adapter activation and audit/default promotion are still not certified.
+
+## Removed generated-JSX extraction from the handle probe
+
+The older BottomSheet Web transport test now consumes the backend's explicit
+class/CSS carrier directly. It no longer renders preparation JSX just to
+recover a class attribute or installs a synthetic `hozo-view` class on the
+existing handle. Its independent SSR assertions still require that every
+defined class reaches exactly one real button/div owner, preserve the hidden
+decoration and actual dialog/handle-bar structure, and retain the ordinary
+closed-owner negative control. This retires the temporary extraction scaffold,
+not an ordinary production resolver or an audited default route.

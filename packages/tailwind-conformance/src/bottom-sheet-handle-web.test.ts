@@ -7,13 +7,13 @@ import { BottomSheet } from '@hozo/patterns'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { parseOwnerContractShadow, selectOwnerShape } from '../../compiler/src/owner-contract.ts'
-import { classesDefinedIn, renderWeb } from './render.ts'
+import { classesDefinedIn } from './render.ts'
 
 const contract = parseOwnerContractShadow(
   readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
 ).contracts[0]!
 
-test('existing Web class carrier delivers compiler-owned classes to each real handle shape', () => {
+test('backend Web class carriers reach both real handle shapes without generated JSX extraction', () => {
   assert.equal(contract.audit, 'unknown', 'a transport probe is not a complete contract audit')
   assert.equal(contract.abi.webClassProp, 'handleClassName')
   const compiler = createCompiler()
@@ -29,13 +29,24 @@ test('existing Web class carrier delivers compiler-owned classes to each real ha
       shape.id === 'resizable'
         ? 'p-[8px] opacity-100 hover:opacity-50 focus:p-[12px] active:bg-[#ff0000]'
         : 'p-[8px] opacity-100 bg-[#ffffff]'
-    const compiled = compiler.compile(
+    const retained = compiler.prepareWebModule(
       `import {${tag}} from '@hozo/core'; export function Plan(){return <${tag} className="${names}"/>}`,
+      undefined,
+      { ownerClass: true },
     )
+    const compiled = (() => {
+      try {
+        return retained.preview()
+      } finally {
+        retained.dispose()
+      }
+    })()
     assert.equal(compiled.length, 1)
     assert.deepEqual(compiled[0].diagnostics, [])
-    const emitted = renderWeb([{ name: 'Plan', jsx: compiled[0].jsx }])[0]
-    const carried = [...emitted.classes].join(' ')
+    const carrier = compiled[0].ownerClass
+    assert.ok(carrier)
+    const carried = carrier.className
+    assert.doesNotMatch(carried, /hozo-view/)
     const html = renderToStaticMarkup(
       createElement(
         BottomSheet,
@@ -59,10 +70,10 @@ test('existing Web class carrier delivers compiler-owned classes to each real ha
       'compiled classes must reach one actual handle, not just an output string',
     )
     assert.equal(hosts[0][1], shape.webHost)
-    const defined = classesDefinedIn(compiled[0].css)
+    const defined = classesDefinedIn(carrier.css)
     assert.ok(defined.size > 0)
     for (const name of defined)
-      assert.ok(emitted.classes.has(name), `CSS class ${name} absent on owner`)
+      assert.ok(carried.split(' ').includes(name), `CSS class ${name} absent on owner`)
     if (shape.id === 'resizable') assert.match(hosts[0][0], /data-hozo-pressable=""/)
     else assert.match(hosts[0][0], /aria-hidden="true"/)
     assert.match(html, /class="handle-bar"/)
