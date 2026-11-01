@@ -282,3 +282,30 @@ captured destination metadata retires the lease and rejects further delivery.
 These are packed transport/selection and compiler-carrier checks, not execution
 of that tarball's React component, adapter activation, GPU/OS pixels or a new
 owner audit. The actual component delivery probe remains a separate gate.
+
+## Instance-selected delivery to actual Native Tabs
+
+The real-component comparison now includes a fourth route produced by
+`InstanceOwnerCallerProject`. It reads the actual local patterns package's
+declared manifest and selected Native export entry, captures a lease, and lets
+the existing selector choose the Tabs contribution. Unlike the tarball test,
+this runs the emitted caller through the actual Tabs/Pressable implementation
+with RN host stand-ins. It is not a packed-component execution claim.
+
+Package candidate facts join the finite opaque/static/selected-caller batch.
+One actual Tailwind preparation produces its complete immutable snapshot;
+the instance-owned session validates the same requested candidate universe
+and consumes that snapshot through its normal capability API. Its fingerprint
+must match the batch, not a mutable global order table or a second independently
+computed namespace. The receipt retains importer, entry, manifest hash,
+instance and epoch identity. Both caller modules are loaded independently so
+their hoisted identifiers are not artificially renamed or combined.
+
+All four routes match six phases x three tabs (72 state-host observations)
+and three author phases x three tabs (36 author-host observations), including
+the string labels, frozen author add/remove, live selection/disabled state,
+real activation, stable positional hosts and stable prepared callback. The
+instance route emits one stylesheet site and requests zero class strings.
+The old ordinary Web probe still uses its original bounded candidates; this
+extension does not certify Web prepared behavior, opaque-label inheritance,
+OS text pixels, broad auditing or default adapter adoption.

@@ -1,7 +1,7 @@
 // Actual Native backend carrier -> existing Tabs -> existing Pressable owners.
 // RN hosts remain stand-ins. This is delivery evidence, not an audited contract.
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire, registerHooks } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
@@ -17,6 +17,13 @@ import {
 } from '../../../scripts/style-slots/tabs-probe.mjs'
 import { createCompiler } from '../../compiler/src/index.ts'
 import { prepareOwnerLiteralCallers } from '../../compiler/src/owner-caller-plan.ts'
+import {
+  captureOwnerManifests,
+  collectOwnerPackageContributions,
+  InstanceOwnerCallerProject,
+  OwnerManifestEpoch,
+  readResolvedOwnerManifest,
+} from '../../compiler/src/project.ts'
 import { loadNativeModule } from './native-render.ts'
 
 type Host = {
@@ -34,7 +41,7 @@ type Tree = {
   unmount: () => void
 }
 
-test('manual and caller-prepared tabs match opaque resolution across state and author updates', async () => {
+test('direct, caller and instance-prepared tabs match opaque resolution across state and author updates', async () => {
   const evidence = {
     schema: 1,
     ...evidenceSource(),
@@ -48,8 +55,9 @@ test('manual and caller-prepared tabs match opaque resolution across state and a
     stylesheetCreates: 0,
     observations: [] as unknown[],
     authorObservations: [] as unknown[],
-    requests: { opaque: 0, prepared: 0, caller: 0 },
+    requests: { opaque: 0, prepared: 0, caller: 0, instance: 0 },
     callerHoistedStyleSites: 0,
+    instance: null as unknown,
   }
   const project = mkdtempSync(
     path.join(tabsProbeRoot, 'packages/tailwind-conformance/.tabs-compiled-'),
@@ -64,9 +72,37 @@ test('manual and caller-prepared tabs match opaque resolution across state and a
   const rn = require('react-native')
   const trees: Tree[] = []
   let hook: ReturnType<typeof registerHooks> | undefined
+  let instanceProject: InstanceOwnerCallerProject | undefined
   try {
     const compiler = createCompiler()
     const classes = `${tabClasses} gap-x-[2px] gap-y-[3px] text-[#334455] aria-selected:text-[#445566] text-[18px] disabled:font-bold hover:tracking-[1px]`
+    const packageRoot = path.join(tabsProbeRoot, 'packages/patterns')
+    const metadata = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8'))
+    // The selected Native entry and actual manifest are read, not a fixture's
+    // one-contract JSON. The packed test separately verifies this transport.
+    const edge = {
+      importer: path.join(project, 'InstanceCaller.native.tsx'),
+      specifier: '@hozo/patterns',
+    }
+    const entry = realpathSync(
+      path.join(packageRoot, metadata.exports['.']['react-native'].default),
+    )
+    const observation = readResolvedOwnerManifest(edge, {
+      packageRoot,
+      entry,
+      declaredManifest: metadata.hozo.manifest,
+    })
+    const epoch = new OwnerManifestEpoch()
+    epoch.adopt(
+      captureOwnerManifests([edge], [observation], {
+        platform: 'ios',
+        epoch: 'tabs-actual-owner-delivery',
+      }),
+    )
+    const lease = epoch.lease()
+    const packages = collectOwnerPackageContributions(lease.capture)
+    assert.equal(packages.status, 'complete')
+    if (packages.status !== 'complete') throw new Error('Missing package candidate facts')
     evidence.classes = classes
     const input = `import {Pressable} from '@hozo/primitives';export const Plan=()=> <Pressable className=${JSON.stringify(classes)}/>`
     const retained = compiler.prepareNativeModule(input, undefined, undefined, {
@@ -85,7 +121,37 @@ test('manual and caller-prepared tabs match opaque resolution across state and a
         { id: 'Caller.native.tsx', revision: 'one', module: caller },
       ],
       classes,
+      packages.candidates,
     )
+    let instanceContextPreparations = 0
+    instanceProject = new InstanceOwnerCallerProject(lease, compiler, async (names) => {
+      instanceContextPreparations++
+      // Replay the one actually prepared full namespace, not a second order
+      // calculation. The normal project API validates and owns its capability.
+      assert.deepEqual(
+        [...names],
+        JSON.parse(fixture.orderSnapshot).candidates.map(
+          (row: { candidate: string }) => row.candidate,
+        ),
+      )
+      return fixture.orderSnapshot
+    })
+    const instance = await instanceProject.emit(
+      `import {Tabs} from '@hozo/patterns';export function InstanceCaller({tabs,index,onIndexChange,tabStyle}){return <Tabs tabs={tabs} index={index} onIndexChange={onIndexChange} tabStyle={tabStyle} tabClassName=${JSON.stringify(classes)}/>}`,
+      { ...edge, entry, imported: 'Tabs', classProp: 'tabClassName' },
+    )
+    assert.equal(instance.preview.findings[0]!.disposition, 'prepared-literal')
+    assert.equal(instance.preview.contextFingerprint, fixture.fingerprint)
+    assert.equal(instance.identity.owner, 'Tabs.Tab')
+    assert.equal(instance.identity.instance, realpathSync(packageRoot))
+    assert.equal(instanceContextPreparations, 1)
+    evidence.instance = {
+      identity: instance.identity,
+      contextPreparations: instanceContextPreparations,
+      contextFingerprint: instance.preview.contextFingerprint,
+      stylesheetSites: instance.preview.code.split('.create(').length - 1,
+    }
+    assert.equal(instance.preview.code.split('.create(').length - 1, 1)
     const component = fixture.modules.find(
       (entry: { id: string }) => entry.id === 'Plan.native.tsx',
     )!.output.components[0]
@@ -142,13 +208,18 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       project,
       { root: project },
     )
+    const instanceApp = loadNativeModule(
+      `import {View} from '@hozo/primitives';export const Sentinel=()=> <View/>;${instance.preview.code}`,
+      project,
+      { root: project },
+    )
     const requests: unknown[] = require(trace).requests
     const tabs = [
       { label: 'A', content: 'one' },
       { label: 'B', content: 'two' },
       { label: 'C', content: 'three', disabled: true },
     ]
-    for (const route of ['opaque', 'prepared', 'caller'] as const) {
+    for (const route of ['opaque', 'prepared', 'caller', 'instance'] as const) {
       const changes: number[] = []
       let select!: (at: number) => void
       let setAuthor!: (style: unknown) => void
@@ -157,20 +228,27 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
         const [author, updateAuthor] = React.useState(undefined)
         select = setIndex
         setAuthor = updateAuthor
-        return React.createElement(route === 'caller' ? app.Caller : app.Raw, {
-          tabs,
-          index,
-          tabStyle: author,
-          onIndexChange(at: number) {
-            changes.push(at)
-            setIndex(at)
+        return React.createElement(
+          route === 'instance'
+            ? instanceApp.InstanceCaller
+            : route === 'caller'
+              ? app.Caller
+              : app.Raw,
+          {
+            tabs,
+            index,
+            tabStyle: author,
+            onIndexChange(at: number) {
+              changes.push(at)
+              setIndex(at)
+            },
+            ...(route === 'prepared'
+              ? { hozoTabStyle: plan }
+              : route === 'opaque'
+                ? { tabClassName: classes }
+                : {}),
           },
-          ...(route === 'prepared'
-            ? { hozoTabStyle: plan }
-            : route === 'opaque'
-              ? { tabClassName: classes }
-              : {}),
-        })
+        )
       }
       requests.length = 0
       let tree!: Tree
@@ -326,13 +404,14 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       1,
       'stylesheet is built before rendering, never on state updates',
     )
-    assert.equal(evidence.observations.length, 18, 'six phases on all three routes')
-    assert.equal(evidence.authorObservations.length, 9, 'author add/remove on all three routes')
+    assert.equal(evidence.observations.length, 24, 'six phases on all four routes')
+    assert.equal(evidence.authorObservations.length, 12, 'author add/remove on all four routes')
     evidence.passed = true
   } catch (error) {
     Object.assign(evidence, { error: String(error) })
     throw error
   } finally {
+    instanceProject?.invalidate()
     for (const tree of trees) renderer.act(() => tree.unmount())
     hook?.deregister()
     rmSync(project, { recursive: true, force: true })
