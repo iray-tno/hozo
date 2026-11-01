@@ -8,6 +8,8 @@
 
 mod css;
 mod markup;
+mod owner_class;
+pub use owner_class::lower_owner_class;
 mod source_evidence;
 use source_evidence::Rendered;
 pub use source_evidence::SourceCopy;
@@ -17,6 +19,8 @@ mod web_tests;
 use hozo_ir::{Diagnostic, Node, Primitive, Theme};
 
 pub struct LowerOutput {
+    /// Explicit class-only preparation for an existing destination, never a host replacement.
+    pub owner_class: Option<String>,
     pub jsx: String,
     pub css: String,
     /// Named imports `jsx` needs from `@hozo/engine`.
@@ -220,6 +224,7 @@ pub(crate) struct WebRenderContext<'a> {
     pub uses_view_base: &'a mut bool,
     pub uses_key_activation: &'a mut bool,
     pub tag_decisions: &'a mut Option<Vec<TagDecision>>,
+    pub owner_class: Option<&'a mut Option<String>>,
 }
 
 /// `source` is the original TSX text `root` was parsed from -- needed to
@@ -238,6 +243,16 @@ pub fn lower_with_evidence(
     source: &str,
     theme: &Theme,
     evidence: bool,
+) -> LowerOutput {
+    lower_capturing(root, source, theme, evidence, None)
+}
+
+fn lower_capturing(
+    root: &Node,
+    source: &str,
+    theme: &Theme,
+    evidence: bool,
+    owner_class: Option<&mut Option<String>>,
 ) -> LowerOutput {
     // An `animate-<name>` or `rounded-<name>` the theme does not define
     // has nothing to emit here: its class is carried, which is what lets the project's own CSS
@@ -266,6 +281,7 @@ pub fn lower_with_evidence(
         uses_view_base: &mut uses_view_base,
         uses_key_activation: &mut uses_key_activation,
         tag_decisions: &mut tag_decisions,
+        owner_class,
     };
     let rendered = render_node(root, &mut cx);
     let jsx = rendered.text;
@@ -410,6 +426,7 @@ pub fn lower_with_evidence(
         runtime_imports.push("hozoImageDomProps");
     }
     LowerOutput {
+        owner_class: None,
         jsx,
         css,
         runtime_imports,
@@ -1241,6 +1258,13 @@ fn render_node(node: &Node, cx: &mut WebRenderContext<'_>) -> Rendered {
     } else {
         class_name
     };
+    // Capture only the root's authored class rule. The synthetic View's base
+    // class is preparation scaffolding, not part of the existing destination.
+    if let Some(target) = cx.owner_class.as_deref_mut() {
+        if target.is_none() {
+            *target = Some(classes.clone());
+        }
+    }
     if node.primitive.is_view_box() {
         *cx.uses_view_base = true;
         classes = if classes.is_empty() {

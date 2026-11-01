@@ -83,6 +83,8 @@ export interface TailwindOrderInspection {
 }
 
 export interface CompiledComponent {
+  /** @internal Explicit existing-owner preparation; excludes the synthetic base class. */
+  ownerClass?: string
   /** @internal Evidence from this compile's existing parse, when requested with a context. */
   tailwindPlan?: TailwindCompilePlan
   jsx: string
@@ -425,12 +427,12 @@ interface NativeCompiler {
     source: string,
     context: PreparedTailwindContext,
     bindings?: StylexExternalBinding[],
-    options?: CompileOptions,
+    options?: PreparedWebOptions,
   ): CompiledComponent[] | PreviewableWebModule
   prepareWebModule(
     source: string,
     bindings?: StylexExternalBinding[],
-    options?: CompileOptions,
+    options?: PreparedWebOptions,
   ): PreviewableWebModule
   prepareNativeModule(
     source: string,
@@ -618,6 +620,11 @@ export interface CompileOptions extends CompileEvidence {
   tagEvidence?: boolean
 }
 
+/** @internal A retained Web preparation request, never an ordinary compile default. */
+export interface PreparedWebOptions extends CompileOptions {
+  ownerClass?: boolean
+}
+
 declare const preparedContext: unique symbol
 
 /** @internal Rule IDs and their ordinal positions belong to this fingerprint.
@@ -786,7 +793,7 @@ export interface Compiler {
     source: string,
     context: PreparedTailwindContext,
     bindings?: StylexExternalBinding[],
-    options?: CompileOptions,
+    options?: PreparedWebOptions,
   ): CompiledComponent[] | PreparedModule<CompiledComponent[]>
   /** @internal RFC 007: retain one actual parse across async preparation.
    * Emission consumes the module and requires an explicitly prepared context;
@@ -795,7 +802,7 @@ export interface Compiler {
   prepareWebModule(
     source: string,
     bindings?: StylexExternalBinding[],
-    options?: CompileOptions,
+    options?: PreparedWebOptions,
   ): PreviewableWebModule
   /** @internal Same lifecycle for Native, preserving metadata and text ABI selection. */
   prepareNativeModule(

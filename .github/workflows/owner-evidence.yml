@@ -15,6 +15,8 @@ on:
       - 'packages/tailwind-conformance/src/tabs-compiled-owner.test.ts'
       - 'packages/compiler/src/owner-*.ts'
       - 'crates/hozo_native/src/owner_style.rs'
+      - 'crates/hozo_web/src/owner_class.rs'
+      - 'crates/hozo_web/src/lib.rs'
       - 'crates/hozo_native/src/conditions/guards.rs'
       - 'crates/hozo_native/src/render.rs'
       - 'crates/hozo_napi/src/lib.rs'

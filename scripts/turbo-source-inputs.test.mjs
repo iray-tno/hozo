@@ -38,6 +38,8 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'crates/hozo_web/src/owner_class.rs',
+    'crates/hozo_web/src/lib.rs',
     'scripts/style-slots/owner-fixture.mjs',
     'scripts/style-slots/tabs-owner-shadow.mjs',
     'packages/compiler/fixtures/owner-manifest-resolve.mjs',
@@ -330,6 +332,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'crates/hozo_web/src/owner_class.rs',
     'scripts/style-slots/owner-fixture.mjs',
     'scripts/style-slots/tabs-owner-shadow.mjs',
     'packages/patterns/src/tabs.native.tsx',
