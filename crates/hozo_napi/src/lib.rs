@@ -166,7 +166,7 @@ pub fn summarize_stylex_module(source: String, source_file: Option<String>) -> S
 #[napi(object)]
 pub struct CompiledComponent {
     /// RFC010 explicit Web class-only preparation, absent from ordinary output.
-    pub owner_class: Option<String>,
+    pub owner_class: Option<CompiledOwnerClass>,
     /// Internal RFC 007 evidence from the parse actually lowered. Requires
     /// a prepared context and per-call capture; never application code.
     pub tailwind_plan: Option<TailwindCompilePlan>,
@@ -189,6 +189,12 @@ pub struct CompiledComponent {
     pub source_copies: Option<Vec<CompiledSourceCopy>>,
     pub span_start: u32,
     pub span_end: u32,
+}
+
+#[napi(object)]
+pub struct CompiledOwnerClass {
+    pub class_name: String,
+    pub css: String,
 }
 
 #[napi(object)]
@@ -471,7 +477,10 @@ fn emit_web(
                     .map(|d| to_js_diagnostic(d, &offsets)),
             );
             CompiledComponent {
-                owner_class: output.owner_class,
+                owner_class: output.owner_class.map(|class| CompiledOwnerClass {
+                    class_name: class.class_name,
+                    css: class.css,
+                }),
                 tailwind_plan: plans
                     .next()
                     .map(|plan| tailwind_order::compile_plan(plan, &offsets)),

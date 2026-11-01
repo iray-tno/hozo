@@ -54,7 +54,17 @@ pub fn lower_owner_class(root: &Node, source: &str, theme: &Theme, evidence: boo
             span: root.span,
         });
     }
-    output.owner_class = carrier;
+    output.owner_class = carrier.map(|class_name| OwnerClass {
+        class_name,
+        // This prefix is the renderer's own shared primitive defaults, not
+        // authored CSS to parse or a host dependency to install on the owner.
+        // Keep required content/leading/keyframe globals from the same emit.
+        css: output
+            .css
+            .strip_prefix(VIEW_BASE_CSS)
+            .unwrap_or(&output.css)
+            .to_string(),
+    });
     output
 }
 
@@ -72,7 +82,11 @@ mod tests {
             let prepared = lower_owner_class(root, &source, &Theme::default(), false);
             assert_eq!(prepared.jsx, ordinary.jsx);
             assert_eq!(prepared.css, ordinary.css);
-            assert_eq!(prepared.owner_class.as_deref(), Some("hozo-0"));
+            let carrier = prepared.owner_class.as_ref().unwrap();
+            assert_eq!(carrier.class_name, "hozo-0");
+            assert!(carrier.css.starts_with(".hozo-0"));
+            assert!(ordinary.css.ends_with(&carrier.css));
+            assert!(!carrier.css.contains("hozo-view"));
             assert!(ordinary.owner_class.is_none());
             assert!(
                 prepared.diagnostics.is_empty(),
@@ -81,6 +95,26 @@ mod tests {
             );
             assert!(prepared.runtime_imports.is_empty());
         }
+    }
+
+    #[test]
+    fn class_owned_css_matches_across_synthetic_host_shapes_and_keeps_required_globals() {
+        let source = |tag| {
+            format!("const el=<{tag} className=\"p-2 hover:opacity-50 leading-[24px] animate-pulse before:content-['x']\"/>")
+        };
+        let carrier = |source: &str| {
+            let parsed = hozo_parser::parse_tsx(source);
+            lower_owner_class(&parsed.roots[0].node, source, &Theme::default(), false)
+                .owner_class
+                .unwrap()
+        };
+        let view = carrier(&source("View"));
+        let pressable = carrier(&source("Pressable"));
+        assert_eq!(view.class_name, pressable.class_name);
+        assert_eq!(view.css, pressable.css);
+        assert!(view.css.contains("--hozo-content"));
+        assert!(view.css.contains("@keyframes"));
+        assert!(view.css.contains("24px"));
     }
 
     #[test]

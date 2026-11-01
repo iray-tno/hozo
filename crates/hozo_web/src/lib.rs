@@ -20,7 +20,7 @@ use hozo_ir::{Diagnostic, Node, Primitive, Theme};
 
 pub struct LowerOutput {
     /// Explicit class-only preparation for an existing destination, never a host replacement.
-    pub owner_class: Option<String>,
+    pub owner_class: Option<OwnerClass>,
     pub jsx: String,
     pub css: String,
     /// Named imports `jsx` needs from `@hozo/engine`.
@@ -35,6 +35,12 @@ pub struct LowerOutput {
     pub tag_decisions: Option<Vec<TagDecision>>,
     /// Exact carried fragments, scoped to branches that actually emitted them.
     pub source_copies: Option<Vec<SourceCopy>>,
+}
+
+pub struct OwnerClass {
+    pub class_name: String,
+    /// Class-owned rules and required CSS globals, not the synthetic host base.
+    pub css: String,
 }
 
 pub struct TagDecision {

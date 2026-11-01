@@ -13,10 +13,12 @@ test('explicit retained Web preparation exposes the real class without extractin
     const retained = compiler.prepareWebModule(input, undefined, { ownerClass: true })
     try {
       const prepared = retained.preview()[0]!
-      assert.equal(prepared.ownerClass, 'hozo-0')
+      assert.equal(prepared.ownerClass?.className, 'hozo-0')
       assert.equal(prepared.jsx, ordinary.jsx)
       assert.equal(prepared.css, ordinary.css)
-      assert.doesNotMatch(prepared.ownerClass!, /hozo-view/)
+      assert.doesNotMatch(prepared.ownerClass!.className, /hozo-view/)
+      assert.doesNotMatch(prepared.ownerClass!.css, /hozo-view/)
+      assert.ok(ordinary.css.endsWith(prepared.ownerClass!.css))
       assert.deepEqual(prepared.runtimeImports, [])
       assert.deepEqual(prepared.diagnostics, [])
       assert.match(prepared.css, /\.hozo-0/)
@@ -71,7 +73,7 @@ test('retained Web class preparation captures options/theme and has the ordinary
   options.ownerClass = false
   assert.deepEqual(retained.candidates, ['bg-ink'])
   const preview = retained.preview()[0]!
-  assert.equal(preview.ownerClass, 'hozo-0')
+  assert.equal(preview.ownerClass?.className, 'hozo-0')
   assert.ok(preview.tagDecisions?.length)
   // A controlled transport context, not a Tailwind-fidelity/ordering oracle.
   const context = prepareTailwindContext(
@@ -85,7 +87,7 @@ test('retained Web class preparation captures options/theme and has the ordinary
     }),
   )
   const output = retained.emit(context)[0]!
-  assert.equal(output.ownerClass, preview.ownerClass)
+  assert.deepEqual(output.ownerClass, preview.ownerClass)
   assert.match(output.css, /oklch\(50% 0.1 20\)/)
   assert.deepEqual(output.jsx, preview.jsx)
   assert.throws(() => retained.preview(), /already been emitted or disposed/)

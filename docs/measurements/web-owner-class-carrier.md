@@ -6,8 +6,12 @@ test scaffold, not an API that normal caller lowering should depend on.
 
 The retained Web module now accepts the internal `ownerClass` request. The
 existing Web renderer records the root's allocated authored class before adding
-the synthetic primitive's base class. It returns that string as `ownerClass`
+the synthetic primitive's base class. It returns `ownerClass: {className, css}`
 alongside its ordinary JSX/CSS; no generated JSX is parsed or reconstructed.
+The class-owned CSS excludes the renderer's own shared primitive-default prefix
+but retains content/leading/keyframe globals required by that same emission.
+This makes the carrier independent of synthetic View/Pressable base differences
+without asking the JS caller to parse or trim CSS.
 Only leaf View/Pressable class-only input is admitted. Residual strings,
 unknown carried classes, expression capture, children, extra props and runtime
 effects retain ordinary output plus a diagnostic, without a partial carrier.

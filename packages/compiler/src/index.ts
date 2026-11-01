@@ -84,7 +84,7 @@ export interface TailwindOrderInspection {
 
 export interface CompiledComponent {
   /** @internal Explicit existing-owner preparation; excludes the synthetic base class. */
-  ownerClass?: string
+  ownerClass?: { className: string; css: string }
   /** @internal Evidence from this compile's existing parse, when requested with a context. */
   tailwindPlan?: TailwindCompilePlan
   jsx: string

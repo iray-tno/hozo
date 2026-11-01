@@ -532,7 +532,7 @@ mod tests {
         else {
             panic!("complete context must emit directly")
         };
-        assert_eq!(output[0].owner_class.as_deref(), Some("hozo-0"));
+        assert_eq!(output[0].owner_class.as_ref().unwrap().class_name, "hozo-0");
         let Either::B(mut retained) = compiler
             .compile_web_or_prepare(
                 "const el=<View className=\"p-3\"/>".into(),
@@ -545,8 +545,12 @@ mod tests {
             panic!("missing context must retain the original parse")
         };
         assert_eq!(
-            retained.preview().unwrap()[0].owner_class.as_deref(),
-            Some("hozo-0")
+            retained.preview().unwrap()[0]
+                .owner_class
+                .as_ref()
+                .unwrap()
+                .class_name,
+            "hozo-0"
         );
         retained.dispose();
     }
