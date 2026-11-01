@@ -1,14 +1,20 @@
 // RFC010 preview only. No adapter imports this module or trusts shadow data
 // as an audit. Discovery belongs to the parser; styles belong to the backend.
+import { createHash } from 'node:crypto'
+import { namespaceHozoClasses } from './class-namespace.ts'
 import {
   type CompileDiagnostic,
-  type CompiledNativeModule,
   type Compiler,
   inspectOwnerClassSlots,
   type NativeCompileOptions,
   type PreparedModule,
   type PreparedTailwindContext,
 } from './index.ts'
+import {
+  nativeOwnerCarrier,
+  type OwnerCarrierAssessment,
+  webOwnerCarrier,
+} from './owner-caller-carrier.ts'
 import { type OwnerShape, parseOwnerContractShadow } from './owner-contract.ts'
 
 export interface OwnerCallerPreview {
@@ -16,6 +22,8 @@ export interface OwnerCallerPreview {
   /** Exact emit capability, not an inferred project/manifest identity. */
   contextFingerprint?: string
   code: string
+  /** Present only for Web preparation; the adapter owns companion CSS delivery. */
+  css?: string
   diagnostics: CompileDiagnostic[]
   findings: {
     spanStart: number
@@ -33,6 +41,7 @@ export interface OwnerCallerPreview {
  * Expression capture and ABI/owner auditing remain separate.
  */
 interface OwnerCallerOptions {
+  target?: 'native' | 'web'
   source: string
   imported: string
   shadow: string
@@ -54,17 +63,25 @@ export function previewOwnerLiteralCallers(
   compiler: Compiler,
   options: OwnerCallerOptions,
 ): OwnerCallerPreview {
-  return collectOwnerLiteralCallers(
-    source,
-    options,
-    (input, shape) => () =>
+  return collectOwnerLiteralCallers(source, options, (input, shape) => () => {
+    if (options.target === 'web') {
+      const module = compiler.prepareWebModule(input, undefined, { ownerClass: true })
+      try {
+        return webOwnerCarrier(module.preview(), shape)
+      } finally {
+        module.dispose()
+      }
+    }
+    return nativeOwnerCarrier(
       compiler.compileNativeModule(
         input,
         undefined,
         'OwnerPreparation.tsx',
         preparationOptions(shape),
       ),
-  )()
+      shape,
+    )
+  })()
 }
 
 /** @internal A participant in the existing finite collect/prepare/emit batch.
@@ -76,7 +93,7 @@ export function prepareOwnerLiteralCallers(
   compiler: Compiler,
   options: OwnerCallerOptions,
 ): PreparedModule<OwnerCallerPreview> {
-  const owned: PreparedModule<CompiledNativeModule>[] = []
+  const owned: PreparedModule<unknown>[] = []
   let plan: ReturnType<typeof collectOwnerLiteralCallers> | undefined
   const dispose = () => {
     plan = undefined
@@ -84,6 +101,11 @@ export function prepareOwnerLiteralCallers(
   }
   try {
     plan = collectOwnerLiteralCallers(source, options, (input, shape) => {
+      if (options.target === 'web') {
+        const module = compiler.prepareWebModule(input, undefined, { ownerClass: true })
+        owned.push(module)
+        return (context) => webOwnerCarrier(module.emit(context!), shape)
+      }
       const module = compiler.prepareNativeModule(
         input,
         undefined,
@@ -91,7 +113,7 @@ export function prepareOwnerLiteralCallers(
         preparationOptions(shape),
       )
       owned.push(module)
-      return (context) => module.emit(context!)
+      return (context) => nativeOwnerCarrier(module.emit(context!), shape)
     })
     const candidates = Object.freeze([...new Set(owned.flatMap((m) => m.candidates))].sort())
     return {
@@ -125,8 +147,11 @@ function collectOwnerLiteralCallers(
   prepare: (
     input: string,
     shape: OwnerShape,
-  ) => (context?: PreparedTailwindContext) => CompiledNativeModule,
+  ) => (context?: PreparedTailwindContext) => OwnerCarrierAssessment,
 ): (context?: PreparedTailwindContext) => OwnerCallerPreview {
+  if (options.target !== undefined && !['native', 'web'].includes(options.target))
+    throw new Error('Unsupported owner caller target')
+  const web = options.target === 'web'
   const shadow = parseOwnerContractShadow(options.shadow)
   if (shadow.contracts.length !== 1) throw new Error('Select exactly one shadow owner contribution')
   const contract = shadow.contracts[0]!
@@ -145,6 +170,7 @@ function collectOwnerLiteralCallers(
   const result: OwnerCallerPreview = {
     scope: 'explicit-direct-compiler-preview',
     code: source,
+    ...(web && { css: '' }),
     diagnostics: inspection.diagnostics,
     findings: [],
   }
@@ -195,50 +221,31 @@ function collectOwnerLiteralCallers(
       }
       let plan = plans.get(site.classes)
       if (!plan) {
-        const prepared = collected.get(site.classes)!.map(({ shape, emit }) => {
-          const module = emit(context)
-          const root = module.components[0]
-          const messages = [
-            ...module.syntaxDiagnostics,
-            ...module.diagnostics,
-            ...(root?.diagnostics ?? []),
-          ]
-          const notes = messages.map((d) => `${shape.id}: ${d.code}: ${d.message}`)
-          return {
-            root,
-            notes,
-            valid:
-              module.components.length === 1 &&
-              !!root?.ownerStyle &&
-              (root.ownerStyle.splitText ?? false) === (shape.inputs?.splitText ?? false) &&
-              JSON.stringify(root.ownerStyle.facts ?? []) ===
-                JSON.stringify(shape.inputs?.facts ?? []) &&
-              (!!shape.inputs ||
-                (root.ownerStyle.literalResting &&
-                  !root.ownerStyle.callback &&
-                  !root.ownerStyle.focusVisible)) &&
-              root.prelude.length === 0 &&
-              root.runtimeImports.every((name) => !!shape.inputs && name === 'HozoPressable') &&
-              root.nativeImports.every((name) => name === shape.nativeHost) &&
-              messages.length === 0,
-          }
-        })
-        const first = prepared[0]?.root
+        const prepared = collected.get(site.classes)!.map(({ emit }) => emit(context))
+        const first = prepared[0]?.carrier
         const equivalent =
-          !!first?.ownerStyle &&
-          prepared.every(
-            (p) =>
-              p.valid &&
-              p.root!.styles === first.styles &&
-              JSON.stringify(p.root!.ownerStyle) === JSON.stringify(first.ownerStyle),
-          )
+          !!first &&
+          prepared.every((p) => !!p.carrier && JSON.stringify(p.carrier) === JSON.stringify(first))
         const notes = prepared.flatMap((p) => p.notes)
         if (equivalent) {
-          const name = fresh('Plan')
-          declarations.push(
-            `const ${name} = ((hozoStyles) => ${first.ownerStyle!.callback ? `(${first.ownerStyle!.expression})` : `() => (${first.ownerStyle!.expression})`})(${sheet}.create(${first.styles}));`,
-          )
-          plan = { name, notes }
+          if (first.target === 'web') {
+            // Use the existing namespacer, with a disjoint owner-plan scope.
+            // Content/CSS identity is portable across checkouts and separates
+            // same-source recipes under different themes or output policies.
+            const scope = `owner-${createHash('sha256')
+              .update(JSON.stringify([contract.owner, source, first.css]))
+              .digest('hex')
+              .slice(0, 16)}`
+            const index = plans.size
+            result.css! += namespaceHozoClasses(first.css, index, scope)
+            plan = { name: namespaceHozoClasses(first.className, index, scope), notes }
+          } else {
+            const name = fresh('Plan')
+            declarations.push(
+              `const ${name} = ((hozoStyles) => ${first.ownerStyle.callback ? `(${first.ownerStyle.expression})` : `() => (${first.ownerStyle.expression})`})(${sheet}.create(${first.styles}));`,
+            )
+            plan = { name, notes }
+          }
         } else {
           plan = {
             notes: [
@@ -250,7 +257,7 @@ function collectOwnerLiteralCallers(
         plans.set(site.classes, plan)
       }
       finding.notes = plan.notes
-      if (!plan.name) {
+      if (plan.name === undefined) {
         finding.reason = 'shape-unassessed'
         continue
       }
@@ -258,15 +265,18 @@ function collectOwnerLiteralCallers(
       edits.push({
         start: site.spanStart,
         end: site.spanEnd,
-        value: `${contract.abi.nativePreparedProp}={${plan.name}}`,
+        value: web
+          ? `${contract.abi.webClassProp}={${JSON.stringify(plan.name)}}`
+          : `${contract.abi.nativePreparedProp}={${plan.name}}`,
       })
     }
     if (!edits.length) return result
-    edits.push({
-      start: inspection.insertionOffset,
-      end: inspection.insertionOffset,
-      value: `\nimport {StyleSheet as ${sheet}} from 'react-native';\n${declarations.join('\n')}\n`,
-    })
+    if (!web)
+      edits.push({
+        start: inspection.insertionOffset,
+        end: inspection.insertionOffset,
+        value: `\nimport {StyleSheet as ${sheet}} from 'react-native';\n${declarations.join('\n')}\n`,
+      })
     for (const edit of edits.sort((a, b) => b.start - a.start))
       result.code = result.code.slice(0, edit.start) + edit.value + result.code.slice(edit.end)
     return result

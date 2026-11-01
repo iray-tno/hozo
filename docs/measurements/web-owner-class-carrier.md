@@ -34,3 +34,29 @@ default adapter activation or a coverage percentage. The next layers must
 namespace classes through the existing Web helper, preserve the original
 component/class-prop binding, and deliver the resulting CSS to real browser
 owners before any rollout decision.
+
+## Shared explicit caller preparation
+
+The existing caller planner accepts the explicit `target: 'web'` request.
+Discovery, import-symbol identity, unsafe/opaque refusal, literal/shape
+deduplication, exact-context consumption and disposal remain shared with Native.
+Only backend carrier assessment and final handoff differ. Native assessment is
+extracted unchanged and still compares the complete destination/fact metadata;
+Web requires an actual class/CSS carrier with no diagnostics or runtime imports.
+Every declared shape must agree before a literal is rewritten.
+
+The Web result retains the actual component and its existing class prop, and
+returns companion `css`. The adapter still owns delivering that CSS. No Native
+StyleSheet, callback, synthetic host or runtime resolver is introduced on Web.
+The existing `namespaceHozoClasses` helper moves to a dependency-free module
+without changing its established lower-module export or copied-source edit
+behavior. Explicit owner recipes use a disjoint content/CSS-derived scope:
+identical literals share one rule, different recipes or themes do not collide,
+and absolute checkout paths are not part of the scope. CSS selection/order
+still comes exclusively from the backend and supplied Tailwind context.
+
+Unit tests preserve directives, authored evaluation syntax and unsafe inputs,
+check per-recipe namespacing, and verify exact context identity and disposal on
+incomplete or failed shape emission. They are not yet browser computed-style
+proof or normal adapter activation. Dynamic inputs retain their original class
+carrier in either target; this step does not add mixed-expression preparation.
