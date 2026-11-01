@@ -23,7 +23,9 @@ disabled arrow-skip logic remain unchanged.
 The strengthened SSR regression fails before correction and passes afterwards;
 the prior assertion explicitly forbidding a native disabled attribute was
 incorrect for decision 001 and is replaced rather than preserved as a policy.
-The focused wiring suite has 14 passing tests. This is DOM markup/owner-state
+The focused wiring suite has 14 passing tests. The UI wrapper's duplicate
+old expectation and its explanatory comments are updated to the same policy;
+its existing `aria-disabled:` look remains valid and unchanged. This is DOM markup/owner-state
 evidence, not browser event delivery, computed style, Native pixels, assistive
 technology, performance or a completed owner audit. Real browser and Native
 resolver comparisons follow as separate evidence, not implied by an SSR pass.

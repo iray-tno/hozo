@@ -3,10 +3,9 @@
  *
  * An unselected panel is hidden by the `hidden` attribute, and any display
  * utility in the panel's list beats it -- every panel visible at once, with
- * `aria-selected` naming one of them. And a tab carries `aria-disabled` rather
- * than the real attribute, because a `disabled` button leaves the tab order
- * and this strip's roving focus needs it to stay, so the `disabled:` variant
- * would style nothing.
+ * `aria-selected` naming one of them. An unavailable tab must also expose the
+ * same fact to native button behavior, compiled selectors and its ARIA look;
+ * roving focus skips it rather than offering a focusable disabled exception.
  */
 
 import assert from 'node:assert/strict'
@@ -51,14 +50,13 @@ test('the chosen tab is styled from what a reader is told, not from a prop', () 
   assert.match(chosen[0] ?? '', /aria-selected:border-hozo-accent/)
 })
 
-test('a disabled tab is aria-disabled, so the variant that styles it names that', () => {
+test('a disabled tab retains its ARIA look alongside actual unavailable behavior', () => {
   const html = render()
   const off = tags(html, 'tab').filter((tag) => tag.includes('aria-disabled="true"'))
   assert.equal(off.length, 1)
-  // The real attribute would take it out of the tab order, which a roving
-  // strip needs it to stay in. So `disabled:` -- `[data-hozo-disabled]` --
-  // matches nothing, and the list has to say `aria-disabled:`.
-  assert.doesNotMatch(off[0] ?? '', / disabled=""/)
+  assert.match(off[0] ?? '', / disabled=""/)
+  assert.match(off[0] ?? '', /data-hozo-disabled=""/)
+  assert.match(off[0] ?? '', /tabindex="-1"/)
   assert.match(off[0] ?? '', /aria-disabled:cursor-not-allowed/)
 })
 

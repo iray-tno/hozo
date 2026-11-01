@@ -12,12 +12,10 @@
  * A `selected` prop here would be a second source of truth, and the disagreement
  * it eventually has is a tab that looks chosen and announces that it is not.
  *
- * Disabled is `aria-disabled:` for the opposite reason: these tabs carry
- * `aria-disabled` rather than the real attribute, because a `disabled` button
- * leaves the tab order and a tab strip's roving focus needs it to stay. So
- * `disabled:` -- which compiles to `[data-hozo-disabled]` -- would match
- * nothing here, and the variant that works is the one naming what the element
- * actually has.
+ * Disabled tabs are skipped by roving focus and carry both native disabled
+ * behavior and `aria-disabled`, on the same owner (decision 001). The look
+ * continues to name the ARIA fact, which Native also supplies; authors can
+ * use `disabled:` too. Neither variant invents a second unavailable state.
  *
  * ## The indicator moves edge with the orientation
  *
