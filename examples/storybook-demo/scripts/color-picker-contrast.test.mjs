@@ -169,11 +169,15 @@ test('compiled ColorPicker markers remain visible on real gradients and alpha ba
     assert.equal(await lightness.evaluate((node) => document.activeElement === node), true)
     assert.equal(await lightness.evaluate((node) => getComputedStyle(node).outlineWidth), '2px')
     const hex = page.locator('input')
-    await hex.evaluate((node) => {
-      window.hexEvents = []
-      for (const type of ['focus', 'beforeinput', 'input', 'change', 'blur'])
-        node.addEventListener(type, () => window.hexEvents.push({ type, value: node.value }))
-    })
+    // The slider commits its value before the effect that mirrors it to the
+    // HEX draft. Filling white while that draft still says white need not
+    // produce an input change. Begin from the rendered black field, not just
+    // the slider's ARIA value; a lost update must fail this readiness check.
+    await page.waitForFunction(
+      () =>
+        document.querySelector('input').value === '#000000' &&
+        window.colorChanges.at(-1) === '#000000',
+    )
     const editObservation = async (phase) =>
       page.evaluate(
         (phase) => ({
@@ -183,20 +187,26 @@ test('compiled ColorPicker markers remain visible on real gradients and alpha ba
             .querySelector('[role=slider][aria-label=Lightness]')
             .getAttribute('aria-valuenow'),
           changes: [...window.colorChanges],
-          events: [...window.hexEvents],
         }),
         phase,
       )
     const editObservations = [await editObservation('before-fill')]
     await hex.fill('#ffffff')
+    // Observe the actual notification AND rendered owner before blur can
+    // normalize the draft. No retrying input or fixed-frame delay.
+    await page.waitForFunction(
+      () =>
+        window.colorChanges.at(-1) === '#ffffff' &&
+        document
+          .querySelector('[role=slider][aria-label=Lightness]')
+          .getAttribute('aria-valuenow') === '100',
+    )
     editObservations.push(await editObservation('after-fill'))
     await hex.blur()
+    await page.waitForFunction(() => document.querySelector('input').value === '#ffffff')
     editObservations.push(await editObservation('after-blur'))
-    await page.evaluate(
-      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
-    )
-    editObservations.push(await editObservation('after-two-frames'))
     console.log(`[color-picker hex edit] ${JSON.stringify(editObservations)}`)
+    assert.deepEqual(await page.evaluate(() => window.colorChanges), ['#000000', '#ffffff'])
     assert.equal(await lightness.getAttribute('aria-valuenow'), '100')
     assert.equal(
       await lightness.evaluate((node) => getComputedStyle(node).borderTopColor),
