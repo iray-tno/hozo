@@ -177,6 +177,8 @@ test('compiled ColorPicker markers remain visible on real gradients and alpha ba
       () =>
         document.querySelector('input').value === '#000000' &&
         window.colorChanges.at(-1) === '#000000',
+      undefined,
+      { timeout: 5_000 },
     )
     const editObservation = async (phase) =>
       page.evaluate(
@@ -200,10 +202,18 @@ test('compiled ColorPicker markers remain visible on real gradients and alpha ba
         document
           .querySelector('[role=slider][aria-label=Lightness]')
           .getAttribute('aria-valuenow') === '100',
+      undefined,
+      { timeout: 5_000 },
     )
     editObservations.push(await editObservation('after-fill'))
     await hex.blur()
-    await page.waitForFunction(() => document.querySelector('input').value === '#ffffff')
+    await page.waitForFunction(
+      () => document.querySelector('input').value === '#ffffff',
+      undefined,
+      {
+        timeout: 5_000,
+      },
+    )
     editObservations.push(await editObservation('after-blur'))
     console.log(`[color-picker hex edit] ${JSON.stringify(editObservations)}`)
     assert.deepEqual(await page.evaluate(() => window.colorChanges), ['#000000', '#ffffff'])
