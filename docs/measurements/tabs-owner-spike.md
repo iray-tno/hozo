@@ -29,3 +29,41 @@ its existing `aria-disabled:` look remains valid and unchanged. This is DOM mark
 evidence, not browser event delivery, computed style, Native pixels, assistive
 technology, performance or a completed owner audit. Real browser and Native
 resolver comparisons follow as separate evidence, not implied by an SSR pass.
+
+## Repeated live facts, before prepared caller rewriting
+
+`tabs-owner-state.test.ts` runs the actual Native Tabs and shared Pressable
+hooks against the existing RN host stand-ins. Its candidate map is generated
+in one real prepared Tailwind context, not an invented rank table. Three tabs
+share the same nine candidate tokens and independently own their selection,
+disabled, hover, focus and press facts. The sequence is initial, hover second,
+focus second, press second, select second, then a controlled selection of the
+disabled third tab. The last case checks `aria-selected:disabled:p-3` without
+borrowing a sibling's interaction. Existing positional host identity and
+callback behavior must remain stable, including rejecting direct activation
+of the disabled tab. The state changes do not rebuild the candidate map.
+
+`owner-tabs.test.mjs` repeats that sequence using the actual Web component,
+real browser pointer/focus/click delivery and two separate stylesheets:
+Hozo's candidate output and independently compiled Tailwind CSS. Each phase
+checks all three hosts, not just the active one. Six phases mean 18 Native
+host observations and 36 Web observations (18 candidate + 18 Tailwind).
+Natural button dimensions are normalized only for the deliberately large
+focus/press widths/heights; the other captured values are computed styles.
+An unavailable button must reject programmatic focus and click. Removing
+its native/compiled unavailable hooks must visibly remove `disabled:` opacity,
+even with `aria-disabled` still true: the two facts are not conflated.
+
+Both receipts retain source commit, dirty status, the actual prepared Native
+context fingerprint, passed/failure and partial observations. CI runs these
+directly and uploads `owner-tabs-evidence` even on failure. The ordinary
+Storybook test list includes the browser test; exact raw-source Turbo inputs
+cover the helper and its compiler/Tailwind implementation dependencies.
+
+The local Native test and oracle/bundle preparation passed. No local browser
+was launched: browser results require an inspected CI receipt. Native event
+handlers are invoked by the test, not an OS or screen reader. This establishes
+bounded actual-owner facts in the existing component-managed route, not a
+prepared Tabs caller carrier, full text/author composition, a manifest audit,
+general interaction compatibility or default compiler adoption. Those remain
+separate gates for extending the application seam.
