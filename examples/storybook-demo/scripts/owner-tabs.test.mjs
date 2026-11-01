@@ -81,13 +81,13 @@ test('real Web tabs isolate selection/disabled and real pointer/focus styling pe
       const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
       page.on('pageerror', (error) => errors.push(error.message))
       try {
-        // Identical preflight-like solid-border baseline: width alone cannot
-        // paint when a border reset leaves border-style:none. Keep width 3
-        // as the expectation on both subjects, rather than accepting zero.
+        // Match preflight's layer as well as its solid-border baseline. An
+        // unlayered border reset would outrank the candidate utilities' layer.
+        // Keep width 3 as the expectation, rather than accepting zero.
         // Used width/height are not authored auto values.
         // Labels A/B/C have natural dimensions strictly below the test's 96/80.
         await page.setContent(
-          `<style>button{border:0 solid;box-sizing:border-box;font:16px/20px sans-serif}</style><style>${css}</style><div id="root"></div>`,
+          `<style>@layer base{button{border:0 solid;box-sizing:border-box;font:16px/20px sans-serif}}</style><style>${css}</style><div id="root"></div>`,
         )
         await page.addScriptTag({ content: bundle.outputFiles[0].text })
         const tabs = page.getByRole('tab')
