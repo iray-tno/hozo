@@ -10,6 +10,7 @@ import { prepareTailwindOrder, tailwindPackageDir } from '../../packages/tailwin
 export const tabsProbeRoot = fileURLToPath(new URL('../../', import.meta.url))
 export const tabClasses =
   'p-2 bg-[#112233] aria-selected:bg-[#223344] disabled:opacity-50 aria-disabled:border-[3px] hover:rounded-[7px] focus:w-[96px] active:h-[80px] aria-selected:disabled:p-3'
+export const tabLabelClasses = `${tabClasses} gap-x-[2px] gap-y-[3px] text-[#334455] aria-selected:text-[#445566] text-[18px] disabled:font-bold hover:tracking-[1px]`
 export const tabPhases = [
   'initial',
   'hover-second',

@@ -42,6 +42,8 @@
         "$TURBO_ROOT$/crates/hozo_parser/src/owner_slots.rs",
         "$TURBO_ROOT$/crates/hozo_napi/src/owner_slots.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/owner_style.rs",
+        "$TURBO_ROOT$/crates/hozo_web/src/owner_class.rs",
+        "$TURBO_ROOT$/crates/hozo_web/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/lib.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/render.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
@@ -86,6 +88,8 @@
     "@hozo/tailwind-conformance#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/packages/patterns/hozo.manifest.json",
+        "$TURBO_ROOT$/packages/patterns/package.json",
         "$TURBO_ROOT$/scripts/style-slots/handle-publication.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-owner-shadow.mjs",
@@ -96,6 +100,7 @@
         "$TURBO_ROOT$/crates/hozo_parser/src/owner_slots.rs",
         "$TURBO_ROOT$/crates/hozo_napi/src/owner_slots.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/owner_style.rs",
+        "$TURBO_ROOT$/crates/hozo_web/src/owner_class.rs",
         "$TURBO_ROOT$/crates/hozo_napi/src/prepared_module.rs",
         "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
         "$TURBO_ROOT$/packages/*/src/**",
@@ -175,6 +180,10 @@
     "@hozo/example-storybook#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/scripts/style-slots/tabs-web-publication.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/web-owner-publication.mjs",
+        "$TURBO_ROOT$/packages/patterns/hozo.manifest.json",
+        "$TURBO_ROOT$/packages/patterns/package.json",
         "$TURBO_ROOT$/scripts/style-slots/handle-*.mjs",
         "$TURBO_ROOT$/scripts/style-slots/owner-fixture.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",

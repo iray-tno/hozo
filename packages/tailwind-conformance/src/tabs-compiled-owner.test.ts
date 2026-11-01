@@ -11,7 +11,7 @@ import { tabsProbeOwnerShadow } from '../../../scripts/style-slots/tabs-owner-sh
 import {
   expectedTabRows,
   prepareTabsProbe,
-  tabClasses,
+  tabLabelClasses,
   tabPhases,
   tabsProbeRoot,
 } from '../../../scripts/style-slots/tabs-probe.mjs'
@@ -75,7 +75,7 @@ test('direct, caller and instance-prepared tabs match opaque resolution across s
   let instanceProject: InstanceOwnerCallerProject | undefined
   try {
     const compiler = createCompiler()
-    const classes = `${tabClasses} gap-x-[2px] gap-y-[3px] text-[#334455] aria-selected:text-[#445566] text-[18px] disabled:font-bold hover:tracking-[1px]`
+    const classes = tabLabelClasses
     const packageRoot = path.join(tabsProbeRoot, 'packages/patterns')
     const metadata = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8'))
     // The selected Native entry and actual manifest are read, not a fixture's

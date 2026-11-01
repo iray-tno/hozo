@@ -8,6 +8,7 @@ import { chromium } from 'playwright-core'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import { handleRoot } from '../../../scripts/style-slots/handle-publication.mjs'
 import { prepareWebHandle } from '../../../scripts/style-slots/handle-web.mjs'
+import { prepareWebHandlePublication } from '../../../scripts/style-slots/handle-web-publication.mjs'
 
 const executablePath = [
   process.env.CHROME_PATH,
@@ -19,8 +20,9 @@ if (process.env.CI) assert.ok(executablePath, 'CI requires real owner-handle bro
 
 test('handle Web oracle and candidate fixture include the actual state selectors', async () => {
   const fixture = await prepareWebHandle()
+  const prepared = await prepareWebHandlePublication()
   assert.ok(fixture.candidateCss.length && fixture.oracleCss.length)
-  for (const css of [fixture.candidateCss, fixture.oracleCss]) {
+  for (const css of [fixture.candidateCss, fixture.oracleCss, prepared.css]) {
     assert.match(css, /hover/)
     assert.match(css, /focus/)
     assert.match(css, /active/)
@@ -32,16 +34,54 @@ test('handle Web oracle and candidate fixture include the actual state selectors
       file.endsWith('patterns/dist/bottom-sheet.js'),
     ),
   )
+  const preparedBundle = await stateBundle(fixture, prepared.code)
+  const lifetime = await prepareWebHandlePublication(true)
+  const lifetimePreparedBundle = await lifetimeBundle(fixture.rest, lifetime.code)
+  for (const output of [preparedBundle, lifetimePreparedBundle]) {
+    assert.ok(
+      Object.keys(output.metafile.inputs).some((file) =>
+        file.endsWith('patterns/dist/bottom-sheet.js'),
+      ),
+    )
+    assert.ok(
+      !Object.keys(output.metafile.inputs).some((file) =>
+        /packages\/(compiler|tailwind)\//.test(file.replaceAll('\\', '/')),
+      ),
+    )
+  }
 })
 
-async function lifetimeBundle(classes) {
+async function lifetimeBundle(classes, prepared) {
   return build({
     stdin: {
-      contents: `import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';import {BottomSheet} from '@hozo/patterns';
+      contents: `${prepared ?? "import {BottomSheet} from '@hozo/patterns';"}
+import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 function App({interactive}) {const [open,setOpen]=useState(false);window.show=(value)=>flushSync(()=>setOpen(value));
-return <BottomSheet open={open} portal={false} detents={interactive?[.5,1]:[1]} accessibilityLabel="Lifetime evidence" sheetClassName="lifetime-panel" handleClassName={"lifetime-handle "+${JSON.stringify(classes)}}><button>Body</button></BottomSheet>}
+return <${prepared ? 'HandleFixture' : 'BottomSheet'} open={open} ${prepared ? 'interactive={interactive}' : `portal={false} detents={interactive?[.5,1]:[1]} handleClassName={${JSON.stringify(classes)}}`} accessibilityLabel="Lifetime evidence" sheetClassName="lifetime-panel"><button>Body</button></${prepared ? 'HandleFixture' : 'BottomSheet'}>}
 window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelector('#root'));flushSync(()=>fixtureRoot.render(<App interactive={interactive}/>))};
 window.finishExit=()=>flushSync(()=>document.querySelector('.lifetime-panel').dispatchEvent(new TransitionEvent('transitionend',{bubbles:true,propertyName:'transform'})));`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+      loader: 'tsx',
+    },
+    bundle: true,
+    write: false,
+    metafile: true,
+    minify: true,
+    format: 'iife',
+    platform: 'browser',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+}
+
+async function stateBundle(fixture, prepared) {
+  return build({
+    stdin: {
+      contents: `${prepared ?? "import {BottomSheet} from '@hozo/patterns';"}
+import {useState} from 'react';import {createRoot} from 'react-dom/client';
+function App({interactive}) {const [open,setOpen]=useState(true);const [tick,setTick]=useState(0);window.setOpen=setOpen;window.bump=()=>setTick(x=>x+1);
+return <${prepared ? 'HandleFixture' : 'BottomSheet'} open={open} onClose={()=>setOpen(false)} ${prepared ? 'interactive={interactive}' : `portal={false} detents={interactive?[.5,1]:[1]} handleClassName={interactive?${JSON.stringify(fixture.interactive)}:${JSON.stringify(fixture.rest)}}`} accessibilityLabel="Owner evidence" sheetClassName="owner-panel"><button>Content</button><span>{tick}</span></${prepared ? 'HandleFixture' : 'BottomSheet'}>}
+window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelector('#root'));fixtureRoot.render(<App interactive={interactive}/>)};`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
       loader: 'tsx',
     },
@@ -65,36 +105,30 @@ test('real Web handle computed rest/hover/focus/pressed styles match Tailwind on
     passed: false,
     scope: 'web-computed-style-real-pointer-focus',
     observations: [],
+    controls: [],
+    prepared: null,
   }
   const destination = path.join(handleRoot, 'artifacts/style-fact-model/handle-browser.json')
   let browser
   try {
     const fixture = await prepareWebHandle()
-    const bundle = await build({
-      stdin: {
-        contents: `import {useState} from 'react'; import {createRoot} from 'react-dom/client'; import {BottomSheet} from '@hozo/patterns';
-function App({interactive}) {const [open,setOpen]=useState(true);const [tick,setTick]=useState(0);window.setOpen=setOpen;window.bump=()=>setTick(x=>x+1);
-return <BottomSheet open={open} portal={false} onClose={()=>setOpen(false)} detents={interactive?[.5,1]:[1]} accessibilityLabel="Owner evidence" sheetClassName="owner-panel" handleClassName={"owner-handle "+(interactive?${JSON.stringify(fixture.interactive)}:${JSON.stringify(fixture.rest)} )}><button>Content</button><span>{tick}</span></BottomSheet>}
-window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelector('#root'));fixtureRoot.render(<App interactive={interactive}/>)};`,
-        resolveDir: fileURLToPath(new URL('../', import.meta.url)),
-        loader: 'tsx',
-      },
-      bundle: true,
-      write: false,
-      minify: true,
-      format: 'iife',
-      platform: 'browser',
-      jsx: 'automatic',
-      define: { 'process.env.NODE_ENV': '"production"' },
-    })
+    const prepared = await prepareWebHandlePublication()
+    evidence.prepared = {
+      identity: prepared.identity,
+      fingerprint: prepared.fingerprint,
+      preparations: prepared.preparations,
+    }
+    const bundle = await stateBundle(fixture)
+    const instanceBundle = await stateBundle(fixture, prepared.code)
     browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-gpu'] })
     const errors = []
     for (const interactive of [false, true]) {
       const pages = []
       try {
-        for (const [kind, css] of [
-          ['candidate', fixture.candidateCss],
-          ['tailwind', fixture.oracleCss],
+        for (const [kind, css, app] of [
+          ['candidate', fixture.candidateCss, bundle],
+          ['tailwind', fixture.oracleCss, bundle],
+          ['prepared', prepared.css, instanceBundle],
         ]) {
           const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
           pages.push(page)
@@ -102,12 +136,12 @@ window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelecto
           // Normalize the UA border on both subjects, as preflight does.
           // Padding32 + border4 otherwise forces used width36 despite width32.
           await page.setContent(
-            `<style>.owner-panel{width:300px;height:400px}.owner-handle{border:0;box-sizing:border-box}</style><style data-candidates>${css}</style><div id="root"></div>`,
+            `<style>.owner-panel{width:300px;height:400px}.owner-panel > :first-child{border:0;box-sizing:border-box}</style><style data-candidates>${css}</style><div id="root"></div>`,
           )
-          await page.addScriptTag({ content: bundle.outputFiles[0].text })
+          await page.addScriptTag({ content: app.outputFiles[0].text })
           await page.evaluate((value) => window.mount(value), interactive)
           await page.getByRole('dialog', { name: 'Owner evidence' }).waitFor()
-          const handle = page.locator('.owner-handle')
+          const handle = page.locator('.owner-panel > :first-child')
           assert.equal(await handle.count(), 1)
           assert.equal(
             await handle.evaluate((node) => node.tagName),
@@ -121,7 +155,7 @@ window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelecto
             window.ownerBefore = node
           })
           await page.waitForFunction(
-            () => !document.querySelector('.owner-handle').matches(':focus'),
+            () => !document.querySelector('.owner-panel > :first-child').matches(':focus'),
           )
           const rest = await read(handle)
           assert.deepEqual(rest, {
@@ -139,7 +173,9 @@ window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelecto
           if (interactive) {
             await handle.hover()
             await page.waitForFunction(
-              () => getComputedStyle(document.querySelector('.owner-handle')).opacity === '0.5',
+              () =>
+                getComputedStyle(document.querySelector('.owner-panel > :first-child')).opacity ===
+                '0.5',
             )
             evidence.observations.push({
               kind,
@@ -152,7 +188,9 @@ window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelecto
             await page.keyboard.press('Shift+Tab')
             assert.equal(await handle.evaluate((node) => node === document.activeElement), true)
             await page.waitForFunction(
-              () => getComputedStyle(document.querySelector('.owner-handle')).paddingTop === '12px',
+              () =>
+                getComputedStyle(document.querySelector('.owner-panel > :first-child'))
+                  .paddingTop === '12px',
             )
             evidence.observations.push({
               kind,
@@ -164,8 +202,8 @@ window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelecto
             await page.mouse.down()
             await page.waitForFunction(
               () =>
-                getComputedStyle(document.querySelector('.owner-handle')).backgroundColor ===
-                'rgb(255, 0, 0)',
+                getComputedStyle(document.querySelector('.owner-panel > :first-child'))
+                  .backgroundColor === 'rgb(255, 0, 0)',
             )
             evidence.observations.push({
               kind,
@@ -193,8 +231,17 @@ window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelecto
             before,
             'an absent stylesheet must not certify delivery',
           )
+          evidence.controls.push({ kind, interactive, absentStylesheetDetected: true })
         }
         const rows = evidence.observations.filter((row) => row.interactive === interactive)
+        assert.deepEqual(
+          rows
+            .filter((row) => row.kind === 'prepared')
+            .map(({ state, selected }) => ({ state, selected })),
+          rows
+            .filter((row) => row.kind === 'tailwind')
+            .map(({ state, selected }) => ({ state, selected })),
+        )
         assert.deepEqual(
           rows
             .filter((row) => row.kind === 'candidate')
@@ -208,7 +255,8 @@ window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelecto
       }
     }
     assert.deepEqual(errors, [])
-    assert.equal(evidence.observations.length, 10)
+    assert.equal(evidence.observations.length, 15)
+    assert.equal(evidence.controls.length, 6)
     evidence.passed = true
   } catch (error) {
     evidence.error = String(error)
@@ -241,6 +289,7 @@ test('real Web handle styles follow owner presence rather than the open request'
     passed: false,
     scope: 'web-owner-presence-controlled-clock',
     observations: [],
+    prepared: null,
   }
   const destination = path.join(
     handleRoot,
@@ -249,27 +298,35 @@ test('real Web handle styles follow owner presence rather than the open request'
   let browser
   try {
     const fixture = await prepareWebHandle()
+    const prepared = await prepareWebHandlePublication(true)
+    evidence.prepared = {
+      identity: prepared.identity,
+      fingerprint: prepared.fingerprint,
+      preparations: prepared.preparations,
+    }
     const bundle = await lifetimeBundle(fixture.rest)
+    const instanceBundle = await lifetimeBundle(fixture.rest, prepared.code)
     browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-gpu'] })
     const errors = []
     for (const interactive of [false, true]) {
-      for (const [kind, css] of [
-        ['candidate', fixture.candidateCss],
-        ['tailwind', fixture.oracleCss],
+      for (const [kind, css, app] of [
+        ['candidate', fixture.candidateCss, bundle],
+        ['tailwind', fixture.oracleCss, bundle],
+        ['prepared', prepared.css, instanceBundle],
       ]) {
         const page = await browser.newPage()
         page.on('pageerror', (error) => errors.push(error.message))
         try {
           await page.clock.install()
           await page.setContent(
-            `<style>.lifetime-panel{width:300px;height:400px;transition:transform 1s linear}.lifetime-panel[data-state=closed]{transform:translateY(100%) !important}.lifetime-handle{border:0;box-sizing:border-box}</style><style>${css}</style><div id="root"></div>`,
+            `<style>.lifetime-panel{width:300px;height:400px;transition:transform 1s linear}.lifetime-panel[data-state=closed]{transform:translateY(100%) !important}.lifetime-panel > :first-child{border:0;box-sizing:border-box}</style><style>${css}</style><div id="root"></div>`,
           )
-          await page.addScriptTag({ content: bundle.outputFiles[0].text })
+          await page.addScriptTag({ content: app.outputFiles[0].text })
           await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000))
           await page.evaluate((value) => window.mount(value), interactive)
           const record = async (phase) => {
             const selected = await page.evaluate(() => {
-              const handle = document.querySelector('.lifetime-handle')
+              const handle = document.querySelector('.lifetime-panel > :first-child')
               if (!handle) return null
               const style = getComputedStyle(handle)
               const panel = document.querySelector('.lifetime-panel')
@@ -293,9 +350,9 @@ test('real Web handle styles follow owner presence rather than the open request'
           }
           assert.equal(await record('initial-hidden'), null)
           await page.evaluate(() => window.show(true))
-          await page.locator('.lifetime-handle').waitFor({ state: 'attached' })
+          await page.locator('.lifetime-panel > :first-child').waitFor({ state: 'attached' })
           await page.evaluate(() => {
-            window.ownerBefore = document.querySelector('.lifetime-handle')
+            window.ownerBefore = document.querySelector('.lifetime-panel > :first-child')
           })
           const opened = await record('open')
           assert.deepEqual(opened, {
@@ -322,18 +379,26 @@ test('real Web handle styles follow owner presence rather than the open request'
           // JS clock, then complete explicitly before its 100ms fallback timer.
           // This proves DOM/style lifetime, not physical animation smoothness.
           await page.evaluate(() => window.finishExit())
-          assert.equal(await page.locator('.lifetime-handle').count(), 1)
+          assert.equal(await page.locator('.lifetime-panel > :first-child').count(), 1)
           await page.clock.runFor(1000)
           await page.evaluate(() => window.finishExit())
           assert.equal(await record('absent'), null)
           await page.evaluate(() => window.show(true))
-          await page.locator('.lifetime-handle').waitFor({ state: 'attached' })
+          await page.locator('.lifetime-panel > :first-child').waitFor({ state: 'attached' })
           assert.deepEqual(await record('reopened'), { ...opened, sameHost: false })
         } finally {
           await page.close()
         }
       }
       const rows = evidence.observations.filter((row) => row.interactive === interactive)
+      assert.deepEqual(
+        rows
+          .filter((row) => row.kind === 'prepared')
+          .map(({ phase, selected }) => ({ phase, selected })),
+        rows
+          .filter((row) => row.kind === 'tailwind')
+          .map(({ phase, selected }) => ({ phase, selected })),
+      )
       assert.deepEqual(
         rows
           .filter((row) => row.kind === 'candidate')
@@ -344,7 +409,7 @@ test('real Web handle styles follow owner presence rather than the open request'
       )
     }
     assert.deepEqual(errors, [])
-    assert.equal(evidence.observations.length, 20)
+    assert.equal(evidence.observations.length, 30)
     evidence.passed = true
   } catch (error) {
     evidence.error = String(error)

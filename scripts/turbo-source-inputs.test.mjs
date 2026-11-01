@@ -38,6 +38,8 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'crates/hozo_web/src/owner_class.rs',
+    'crates/hozo_web/src/lib.rs',
     'scripts/style-slots/owner-fixture.mjs',
     'scripts/style-slots/tabs-owner-shadow.mjs',
     'packages/compiler/fixtures/owner-manifest-resolve.mjs',
@@ -95,6 +97,11 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'scripts/style-slots/handle-web-publication.mjs',
+    'scripts/style-slots/web-owner-publication.mjs',
+    'scripts/style-slots/tabs-web-publication.mjs',
+    'packages/patterns/hozo.manifest.json',
+    'packages/patterns/package.json',
     'scripts/style-slots/owner-fixture.mjs',
     'scripts/style-slots/tabs-probe.mjs',
     'scripts/style-slots/evidence-source.mjs',
@@ -330,6 +337,9 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/patterns/hozo.manifest.json',
+    'packages/patterns/package.json',
+    'crates/hozo_web/src/owner_class.rs',
     'scripts/style-slots/owner-fixture.mjs',
     'scripts/style-slots/tabs-owner-shadow.mjs',
     'packages/patterns/src/tabs.native.tsx',

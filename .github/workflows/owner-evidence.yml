@@ -4,6 +4,8 @@ on:
     paths:
       - 'scripts/style-slots/handle-*.mjs'
       - 'scripts/style-slots/tabs-probe.mjs'
+      - 'scripts/style-slots/tabs-web-publication.mjs'
+      - 'scripts/style-slots/web-owner-publication.mjs'
       - 'scripts/style-slots/tabs-owner-shadow.mjs'
       - 'scripts/style-slots/owner-fixture.mjs'
       - 'scripts/style-slots/owner-shadow.json'
@@ -15,6 +17,8 @@ on:
       - 'packages/tailwind-conformance/src/tabs-compiled-owner.test.ts'
       - 'packages/compiler/src/owner-*.ts'
       - 'crates/hozo_native/src/owner_style.rs'
+      - 'crates/hozo_web/src/owner_class.rs'
+      - 'crates/hozo_web/src/lib.rs'
       - 'crates/hozo_native/src/conditions/guards.rs'
       - 'crates/hozo_native/src/render.rs'
       - 'crates/hozo_napi/src/lib.rs'

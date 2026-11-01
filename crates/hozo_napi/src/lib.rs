@@ -165,6 +165,8 @@ pub fn summarize_stylex_module(source: String, source_file: Option<String>) -> S
 
 #[napi(object)]
 pub struct CompiledComponent {
+    /// RFC010 explicit Web class-only preparation, absent from ordinary output.
+    pub owner_class: Option<CompiledOwnerClass>,
     /// Internal RFC 007 evidence from the parse actually lowered. Requires
     /// a prepared context and per-call capture; never application code.
     pub tailwind_plan: Option<TailwindCompilePlan>,
@@ -187,6 +189,12 @@ pub struct CompiledComponent {
     pub source_copies: Option<Vec<CompiledSourceCopy>>,
     pub span_start: u32,
     pub span_end: u32,
+}
+
+#[napi(object)]
+pub struct CompiledOwnerClass {
+    pub class_name: String,
+    pub css: String,
 }
 
 #[napi(object)]
@@ -363,6 +371,7 @@ pub fn compile(source: String) -> Vec<CompiledComponent> {
         WebModuleOptions {
             compat: hozo_parser::ReactNativeCompat::Lower,
             evidence: false,
+            owner_class: false,
             tailwind: TailwindPlanOptions::default(),
         },
         &[],
@@ -372,6 +381,7 @@ pub fn compile(source: String) -> Vec<CompiledComponent> {
 struct WebModuleOptions<'a> {
     compat: hozo_parser::ReactNativeCompat,
     evidence: bool,
+    owner_class: bool,
     tailwind: TailwindPlanOptions<'a>,
 }
 
@@ -453,7 +463,11 @@ fn emit_web(
         .roots
         .iter()
         .map(|root| {
-            let output = hozo_web::lower_with_evidence(&root.node, source, theme, evidence);
+            let output = if options.owner_class {
+                hozo_web::lower_owner_class(&root.node, source, theme, evidence)
+            } else {
+                hozo_web::lower_with_evidence(&root.node, source, theme, evidence)
+            };
             let emitted_offsets = evidence.then(|| Utf16Offsets::new(&output.jsx));
             let mut diagnostics = parser_diagnostics_for(parsed, &root.node, &offsets);
             diagnostics.extend(
@@ -463,6 +477,10 @@ fn emit_web(
                     .map(|d| to_js_diagnostic(d, &offsets)),
             );
             CompiledComponent {
+                owner_class: output.owner_class.map(|class| CompiledOwnerClass {
+                    class_name: class.class_name,
+                    css: class.css,
+                }),
                 tailwind_plan: plans
                     .next()
                     .map(|plan| tailwind_order::compile_plan(plan, &offsets)),
@@ -798,6 +816,7 @@ impl Compiler {
             WebModuleOptions {
                 compat,
                 evidence: tag_evidence.unwrap_or(false),
+                owner_class: false,
                 tailwind: TailwindPlanOptions {
                     context: self.tailwind_order.as_deref(),
                     capture: tailwind_plan.unwrap_or(false),

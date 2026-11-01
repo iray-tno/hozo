@@ -9,9 +9,11 @@ import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs
 import {
   expectedTabRows,
   prepareTabsProbe,
+  tabLabelClasses,
   tabPhases,
   tabsProbeRoot,
 } from '../../../scripts/style-slots/tabs-probe.mjs'
+import { prepareWebTabsPublication } from '../../../scripts/style-slots/tabs-web-publication.mjs'
 
 const executablePath = [
   process.env.CHROME_PATH,
@@ -21,12 +23,13 @@ const executablePath = [
 ].find((file) => file && existsSync(file))
 if (process.env.CI) assert.ok(executablePath, 'CI requires real Tabs browser evidence')
 
-async function appBundle(classes) {
+async function appBundle(classes, prepared) {
   return build({
     stdin: {
-      contents: `import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';import {Tabs} from '@hozo/patterns';
+      contents: `${prepared ?? "import {Tabs} from '@hozo/patterns';"}
+import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 window.changes=[];
-function App(){const [index,setIndex]=useState(0);window.select=at=>flushSync(()=>setIndex(at));return <Tabs index={index} onIndexChange={at=>{changes.push(at);setIndex(at)}} tabClassName={${JSON.stringify(classes)}} tabs={[{label:'A',content:'one'},{label:'B',content:'two'},{label:'C',content:'three',disabled:true}]}/>}
+function App(){const [index,setIndex]=useState(0);window.select=at=>flushSync(()=>setIndex(at));return <${prepared ? 'TabsFixture' : 'Tabs'} index={index} onIndexChange={at=>{changes.push(at);setIndex(at)}} ${prepared ? '' : `tabClassName={${JSON.stringify(classes)}}`} tabs={[{label:'A',content:'one'},{label:'B',content:'two'},{label:'C',content:'three',disabled:true}]}/>}
 flushSync(()=>createRoot(document.querySelector('#root')).render(<App/>));`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
       loader: 'tsx',
@@ -43,7 +46,7 @@ flushSync(()=>createRoot(document.querySelector('#root')).render(<App/>));`,
 }
 
 test('Tabs evidence prepares independent CSS and bundles the actual Web owner', async () => {
-  const fixture = await prepareTabsProbe()
+  const fixture = await prepareTabsProbe([], tabLabelClasses)
   assert.ok(fixture.candidateCss.length && fixture.oracleCss.length && fixture.native.length)
   assert.ok(fixture.fingerprint)
   const bundle = await appBundle(fixture.classes)
@@ -51,9 +54,22 @@ test('Tabs evidence prepares independent CSS and bundles the actual Web owner', 
     Object.keys(bundle.metafile.inputs).some((file) => file.endsWith('patterns/dist/tabs.js')),
   )
   assert.equal(bundle.outputFiles.length, 1)
+  const prepared = await prepareWebTabsPublication()
+  const instanceBundle = await appBundle(fixture.classes, prepared.code)
+  assert.ok(prepared.fingerprint && prepared.css)
+  assert.ok(
+    Object.keys(instanceBundle.metafile.inputs).some((file) =>
+      file.endsWith('patterns/dist/tabs.js'),
+    ),
+  )
+  assert.ok(
+    !Object.keys(instanceBundle.metafile.inputs).some((file) =>
+      /packages\/(compiler|tailwind)\//.test(file.replaceAll('\\', '/')),
+    ),
+  )
 })
 
-test('real Web tabs isolate selection/disabled and real pointer/focus styling per repeated owner', {
+test('real Web candidate and instance-prepared tabs match Tailwind across owner states and label styles', {
   skip: !executablePath,
   timeout: 60_000,
 }, async () => {
@@ -65,18 +81,27 @@ test('real Web tabs isolate selection/disabled and real pointer/focus styling pe
     fingerprint: '',
     observations: [],
     controls: [],
+    prepared: null,
   }
   const destination = path.join(tabsProbeRoot, 'artifacts/style-fact-model/tabs-browser.json')
   let browser
   try {
-    const fixture = await prepareTabsProbe()
+    const fixture = await prepareTabsProbe([], tabLabelClasses)
+    const prepared = await prepareWebTabsPublication()
+    evidence.prepared = {
+      identity: prepared.identity,
+      fingerprint: prepared.fingerprint,
+      preparations: prepared.preparations,
+    }
     evidence.fingerprint = fixture.fingerprint
     const bundle = await appBundle(fixture.classes)
+    const instanceBundle = await appBundle(fixture.classes, prepared.code)
     browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-gpu'] })
     const errors = []
-    for (const [kind, css] of [
-      ['candidate', fixture.candidateCss],
-      ['tailwind', fixture.oracleCss],
+    for (const [kind, css, app] of [
+      ['candidate', fixture.candidateCss, bundle],
+      ['tailwind', fixture.oracleCss, bundle],
+      ['prepared', prepared.css, instanceBundle],
     ]) {
       const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
       page.on('pageerror', (error) => errors.push(error.message))
@@ -89,7 +114,7 @@ test('real Web tabs isolate selection/disabled and real pointer/focus styling pe
         await page.setContent(
           `<style>@layer base{button{border:0 solid;box-sizing:border-box;font:16px/20px sans-serif}}</style><style>${css}</style><div id="root"></div>`,
         )
-        await page.addScriptTag({ content: bundle.outputFiles[0].text })
+        await page.addScriptTag({ content: app.outputFiles[0].text })
         const tabs = page.getByRole('tab')
         assert.equal(await tabs.count(), 3)
         await page.evaluate(() => {
@@ -111,11 +136,28 @@ test('real Web tabs isolate selection/disabled and real pointer/focus styling pe
                 radius: Number.parseFloat(style.borderTopLeftRadius),
                 width: style.width === '96px' ? 96 : null,
                 height: style.height === '80px' ? 80 : null,
+                color: style.color,
+                fontSize: Number.parseFloat(style.fontSize),
+                fontWeight: style.fontWeight,
+                letterSpacing: Number.parseFloat(style.letterSpacing) || 0,
+                rowGap: Number.parseFloat(style.rowGap),
+                columnGap: Number.parseFloat(style.columnGap),
               }
             }),
           )
           evidence.observations.push({ kind, phase, selected })
-          assert.deepEqual(selected, expectedTabRows(phase))
+          assert.deepEqual(
+            selected,
+            expectedTabRows(phase).map((row, at) => ({
+              ...row,
+              color: row.selected ? 'rgb(68, 85, 102)' : 'rgb(51, 68, 85)',
+              fontSize: 18,
+              fontWeight: row.disabled ? '700' : '400',
+              letterSpacing: at === 1 && phase !== 'initial' ? 1 : 0,
+              rowGap: 3,
+              columnGap: 2,
+            })),
+          )
         }
         await page.mouse.move(800, 650)
         await record(tabPhases[0])
@@ -146,6 +188,7 @@ test('real Web tabs isolate selection/disabled and real pointer/focus styling pe
           node.removeAttribute('data-hozo-disabled')
         })
         assert.equal(await tabs.nth(2).evaluate((node) => getComputedStyle(node).opacity), '1')
+        assert.equal(await tabs.nth(2).evaluate((node) => getComputedStyle(node).fontWeight), '400')
         evidence.controls.push({
           kind,
           blockedDisabledFocusAndClick: true,
@@ -156,8 +199,16 @@ test('real Web tabs isolate selection/disabled and real pointer/focus styling pe
       }
     }
     assert.deepEqual(errors, [])
-    assert.equal(evidence.observations.length, 12)
-    assert.equal(evidence.controls.length, 2)
+    assert.equal(evidence.observations.length, 18)
+    assert.equal(evidence.controls.length, 3)
+    assert.deepEqual(
+      evidence.observations
+        .filter((row) => row.kind === 'prepared')
+        .map(({ phase, selected }) => ({ phase, selected })),
+      evidence.observations
+        .filter((row) => row.kind === 'tailwind')
+        .map(({ phase, selected }) => ({ phase, selected })),
+    )
     assert.deepEqual(
       evidence.observations
         .filter((row) => row.kind === 'candidate')

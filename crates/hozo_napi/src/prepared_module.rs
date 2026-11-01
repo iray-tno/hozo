@@ -199,6 +199,7 @@ pub struct PreparedWebModule {
     state: Option<ParsedModule>,
     evidence: bool,
     capture: bool,
+    owner_class: bool,
 }
 
 #[napi]
@@ -221,6 +222,7 @@ impl PreparedWebModule {
             WebModuleOptions {
                 compat: hozo_parser::ReactNativeCompat::OnlyFromOwner,
                 evidence: self.evidence,
+                owner_class: self.owner_class,
                 tailwind: TailwindPlanOptions::default(),
             },
         ))
@@ -240,6 +242,7 @@ impl PreparedWebModule {
                 // Only a parsing choice; the already-owned parse is emitted.
                 compat: hozo_parser::ReactNativeCompat::OnlyFromOwner,
                 evidence: self.evidence,
+                owner_class: self.owner_class,
                 tailwind: TailwindPlanOptions {
                     context: Some(&context.context),
                     capture: self.capture,
@@ -304,6 +307,7 @@ impl PreparedNativeModule {
 #[napi(object)]
 #[derive(Default)]
 pub struct PreparedWebOptions {
+    pub owner_class: Option<bool>,
     pub rehome_react_native: Option<bool>,
     pub tag_evidence: Option<bool>,
     pub tailwind_plan: Option<bool>,
@@ -368,6 +372,7 @@ impl Compiler {
             }),
             evidence: options.tag_evidence.unwrap_or(false),
             capture: options.tailwind_plan.unwrap_or(false),
+            owner_class: options.owner_class.unwrap_or(false),
         }
     }
 
@@ -505,6 +510,49 @@ mod tests {
                 }),
             )
             .is_err());
+    }
+
+    #[test]
+    fn ready_and_retained_web_paths_keep_the_explicit_class_carrier() {
+        let compiler = Compiler::new(None, None);
+        let options = || {
+            Some(PreparedWebOptions {
+                owner_class: Some(true),
+                ..Default::default()
+            })
+        };
+        let Either::A(output) = compiler
+            .compile_web_or_prepare(
+                "const el=<View className=\"p-2\"/>".into(),
+                &context(),
+                None,
+                options(),
+            )
+            .unwrap()
+        else {
+            panic!("complete context must emit directly")
+        };
+        assert_eq!(output[0].owner_class.as_ref().unwrap().class_name, "hozo-0");
+        let Either::B(mut retained) = compiler
+            .compile_web_or_prepare(
+                "const el=<View className=\"p-3\"/>".into(),
+                &context(),
+                None,
+                options(),
+            )
+            .unwrap()
+        else {
+            panic!("missing context must retain the original parse")
+        };
+        assert_eq!(
+            retained.preview().unwrap()[0]
+                .owner_class
+                .as_ref()
+                .unwrap()
+                .class_name,
+            "hozo-0"
+        );
+        retained.dispose();
     }
 
     #[test]

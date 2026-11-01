@@ -85,3 +85,61 @@ test('bundle deltas are derived from measured rows, not trusted headline or inve
   receipt.measurements[1].bytes = -1
   assert.equal(stylingFactStatus({ commit, receipts: [receipt] }).observations[0].status, 'invalid')
 })
+
+test('prepared browser rows require their own provenance and complete pairs without promoting global coverage', () => {
+  const receipt = browser()
+  receipt.controls = ['candidate', 'tailwind', 'prepared'].flatMap((kind) =>
+    [false, true].map((interactive) => ({ kind, interactive, absentStylesheetDetected: true })),
+  )
+  receipt.prepared = {
+    identity: {
+      owner: 'BottomSheet.handle',
+      platform: 'web',
+      classProp: 'handleClassName',
+      manifestSha256: 'b'.repeat(64),
+    },
+    fingerprint: 'test-context',
+    preparations: 1,
+  }
+  receipt.observations.push(
+    ...receipt.observations
+      .filter((row) => row.kind === 'candidate')
+      .map((row) => ({ ...row, kind: 'prepared' })),
+  )
+  const result = stylingFactStatus({ commit, receipts: [receipt] })
+  assert.equal(result.observations[0].status, 'measured')
+  assert.equal(result.observations[0].matchedPairs, 10)
+  assert.equal(result.observations[0].denominator, 10)
+  assert.equal(result.globalMeasures.contractAudit, null)
+  assert.equal(result.globalMeasures.coverage, null)
+  for (const change of [
+    (value) => {
+      value.prepared.identity.platform = 'ios'
+    },
+    (value) => {
+      value.prepared.identity.manifestSha256 = ''
+    },
+    (value) => {
+      value.observations.pop()
+    },
+    (value) => {
+      value.controls.pop()
+    },
+    (value) => {
+      value.controls[0] = null
+    },
+    (value) => {
+      value.observations[0] = null
+    },
+    (value) => {
+      value.prepared = null
+    },
+    (value) => {
+      value.observations.find((row) => row.kind === 'prepared').selected = { paddingTop: '0px' }
+    },
+  ]) {
+    const bad = structuredClone(receipt)
+    change(bad)
+    assert.equal(stylingFactStatus({ commit, receipts: [bad] }).observations[0].status, 'invalid')
+  }
+})
