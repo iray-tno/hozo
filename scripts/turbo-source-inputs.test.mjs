@@ -44,6 +44,7 @@ const reads = {
     'crates/hozo_native/src/owner_style.rs',
     'crates/hozo_native/src/lib.rs',
     'crates/hozo_native/src/render.rs',
+    'crates/hozo_native/src/conditions/guards.rs',
     'crates/hozo_napi/src/lib.rs',
     'crates/hozo_napi/src/prepared_module.rs',
     'scripts/style-slots/owner-shadow.json',
@@ -325,6 +326,8 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/patterns/src/tabs.native.tsx',
+    'packages/patterns/src/text-style.native.ts',
     'scripts/style-slots/tabs-probe.mjs',
     'scripts/style-slots/evidence-source.mjs',
     'scripts/style-slots/handle-publication.mjs',

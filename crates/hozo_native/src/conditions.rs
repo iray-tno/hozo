@@ -251,6 +251,7 @@ fn light_only(condition: &Condition) -> bool {
 // cannot drift.
 
 pub(crate) struct StyleTarget<'a> {
+    pub owner_facts: &'a [OwnerFact],
     pub node: &'a Node,
     pub position: SiblingPosition,
     pub interaction_context: bool,

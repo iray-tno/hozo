@@ -118,6 +118,8 @@ export interface CompiledTagDecision {
 export interface CompiledNativeComponent {
   /** @internal RFC010: style-only preparation, absent on ordinary output. */
   ownerStyle?: {
+    /** Declared callback inputs; not an owner/audit certification. */
+    facts?: ('disabled' | 'aria-selected' | 'aria-disabled')[]
     expression: string
     callback: boolean
     focusVisible: boolean
@@ -591,6 +593,8 @@ export interface CompileEvidence {
 export interface NativeCompileOptions extends CompileEvidence {
   /** @internal RFC010 leaf-owner preparation; not a project/bundler mode. */
   ownerStyle?: boolean
+  /** @internal Explicit existing-owner booleans, requires ownerStyle. Literal Pressable only. */
+  ownerFacts?: readonly ('disabled' | 'aria-selected' | 'aria-disabled')[]
   textReference?: boolean
   textInheritance?: boolean
   textStatic?: boolean

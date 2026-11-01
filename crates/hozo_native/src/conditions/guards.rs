@@ -61,6 +61,40 @@ pub(super) fn resolve(
     let interaction_context = target.interaction_context;
     let pattern_slot = target.pattern_slot;
 
+    // Explicit preparation only. Unknown/missing supplied booleans are not
+    // false, especially under negation. Keep availability outside the predicate
+    // using the same scoped-guard machinery as optional existing owners.
+    if !target.owner_facts.is_empty() {
+        let fact = match condition {
+            Condition::Disabled | Condition::Enabled => Some(OwnerFact::Disabled),
+            Condition::Aria(state) if state == "selected" => Some(OwnerFact::AriaSelected),
+            Condition::Aria(state) if state == "disabled" => Some(OwnerFact::AriaDisabled),
+            Condition::Aria(state) => {
+                return Err(format!(
+                    "Owner preparation has no declared aria-{state} fact."
+                ))
+            }
+            _ => None,
+        };
+        if let Some(fact) = fact {
+            if !target.owner_facts.contains(&fact) {
+                return Err(format!(
+                    "Owner preparation requires the explicit {} fact.",
+                    fact.key()
+                ));
+            }
+            let alias = fact.alias();
+            return Ok(Guard::InteractiveScoped {
+                available: format!("typeof {alias} === 'boolean'"),
+                predicate: if matches!(condition, Condition::Enabled) {
+                    format!("!{alias}")
+                } else {
+                    alias.into()
+                },
+            });
+        }
+    }
+
     if let Some(binding) = pattern_slot
         .and_then(|slot| crate::pattern::semantic_binding(node.primitive, slot, condition))
     {

@@ -79,3 +79,75 @@ also failed before executing because this narrow workflow had not built
 Metro's source-transform entry; that dependency is now an explicit build
 target, not a heavy Metro application bundle. These are harness defects,
 not product failures or flakes; the original log/partial receipt is retained.
+
+## Explicit Native prepared receiver
+
+Tabs now has an internal `hozoTabStyle` callback. It receives a fresh snapshot
+of the existing Pressable's interaction and that individual tab's disabled,
+aria-selected and aria-disabled booleans. The ordinary resolver consumes those
+same facts; a callback may not coexist with tabClassName and double-apply it.
+No event machine, wrapper, subscription, rank calculation or style cache is
+added. The ordinary path does not read manifests or allocate a second snapshot.
+
+Both routes still use the existing box/text split and normalize authored
+tabStyle at the host style evaluation boundary, after the class contribution.
+Independent prepared marker tests check per-tab facts, selected+disabled,
+hover isolation, string-label color, stable positional hosts and restoration
+after frozen author gap/opacity overrides are removed. The marker callback's
+mutation cannot alter real host/sibling state. A traced actual candidate map
+positively witnesses the opaque route and verifies that the prepared marker
+does not request a removed class string.
+
+These marker functions are deliberately not a compiler producer. This proves
+the receiver boundary against RN host stand-ins, not compiled Tabs caller
+rewriting, native OS behavior or an audited contract. String labels retain
+their existing text behavior; opaque label inheritance is not newly certified.
+The backend must next supply explicitly declared semantic facts through its
+existing condition/priority renderer rather than parsing classes in JavaScript
+or manufacturing a second interaction owner. Default routes and published
+manifest data remain unchanged.
+
+## Explicit compiled semantic inputs, not a second cascade
+
+The internal Native `ownerStyle` preparation request can additionally declare
+`ownerFacts`: `disabled`, `aria-selected`, and `aria-disabled`. Only a literal,
+class-only leaf Pressable is eligible in this mode. These inputs come from
+the existing destination; the synthetic leaf's JSX is not a replacement for
+that destination. The backend adds callback bindings to its existing guard
+renderer and returns the declared keys beside the actual carrier. No class
+parsing, rank calculation, interaction engine or JavaScript style planner is
+added. Ordinary compilation and existing preparation without facts retain
+their output; the request does not mutate the compiler's later calls.
+
+A declared but missing/nonboolean runtime value is unavailable, not false.
+The existing scoped guard keeps that availability check outside negation.
+An undeclared semantic predicate, unknown fact, duplicate declaration or facts
+without ownerStyle is rejected. Text, inherited/ambient context, extra host
+props, wrappers and captured expressions still cannot receive a partial plan.
+Semantic residual class inputs are also refused: their resolver delivery has
+not been proved. This is not a general component/manifest authoring API.
+
+`tabs-compiled-owner.test.ts` prepares one real module and the opaque candidate
+map together in the same completed finite Tailwind batch. The test consumes
+the returned style expression directly and creates its stylesheet once before
+rendering. It then passes the callback to the real Native Tabs receiver and
+compares the same nine candidates, six phases and three owners against both
+the traced opaque route and independently specified semantic expectations.
+Both routes retain the same positional hosts, reject disabled activation and
+observe controlled selected+disabled separately from user activation. This
+adds 18 prepared and 18 opaque host observations, not 36 different candidate
+capabilities. JSON receipts include the exact source, dirty flag, context
+fingerprint, carrier, partial rows and request counts, including on failure.
+
+The first local delivery run matched every style tuple but its final harness
+assertion incorrectly rejected the outer Tabs' existing empty class-input
+calls. The assertion now checks that no class **string** is re-resolved on the
+prepared route, while requiring positive literal requests on the opaque
+control. No runtime implementation was changed to satisfy that measurement.
+
+This is Native component-host-model evidence, not Android/iOS event or pixel
+proof. The adjacent browser comparison still evaluates the ordinary Tabs
+route against Tailwind, not a Web prepared carrier. Caller shape selection,
+text-bearing compiler carriers, author composition for the compiled route,
+production bundle cost and a full owner audit remain separate gates. Default
+adapters, published manifests and the owner-audit count are unchanged.

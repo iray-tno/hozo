@@ -979,6 +979,7 @@ pub(super) fn render_node(
         .or_else(|| (node.primitive == Primitive::TextInput).then_some("hozoStyle"));
     let transform_entry_start = cx.style_entries.len();
     let target = crate::conditions::StyleTarget {
+        owner_facts: cx.owner_facts,
         node,
         position,
         interaction_context: interaction_context
@@ -1021,6 +1022,7 @@ pub(super) fn render_node(
         let mut parts = Vec::new();
         let mut pressed = Vec::new();
         let target = crate::conditions::StyleTarget {
+            owner_facts: &[],
             node,
             position,
             interaction_context: true,
@@ -1510,12 +1512,24 @@ pub(super) fn render_node(
         let callback = if crate::pattern::interaction_slot(node.primitive, "className").is_some() {
             crate::class_route::static_callback(node.primitive, "className", &style_array_parts)
         } else {
-            let state = if needs_focus_visible {
-                "{ pressed, hovered, focused, focusVisible }".to_string()
+            let fields = if needs_focus_visible {
+                "pressed, hovered, focused, focusVisible"
             } else if needs_hover_or_focus || rendered_component == "HozoText" {
-                "{ pressed, hovered, focused }".to_string()
+                "pressed, hovered, focused"
             } else {
-                "{ pressed }".to_string()
+                "pressed"
+            };
+            let state = if cx.owner_facts.is_empty() {
+                format!("{{ {fields} }}")
+            } else {
+                format!(
+                    "{{ {fields}, {} }}",
+                    cx.owner_facts
+                        .iter()
+                        .map(|fact| fact.parameter())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
             };
             format!("({state}) => [{}]", style_array_parts.join(", "))
         };
@@ -2161,6 +2175,7 @@ pub(super) fn render_node(
                 props_text.push_str(&format!(" {prop}={{{value}}}"));
             }
             let target = crate::conditions::StyleTarget {
+                owner_facts: &[],
                 node,
                 position,
                 interaction_context: false,
