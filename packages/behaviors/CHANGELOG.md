@@ -1,5 +1,33 @@
 # @hozo/behaviors
 
+## 0.4.0
+
+### Minor Changes
+
+- [#1243](https://github.com/iray-tno/hozo/pull/1243) [`480e00a`](https://github.com/iray-tno/hozo/commit/480e00a0d6e165b92beb8dbf9310710fcceb7fd1) Thanks [@iray-tno](https://github.com/iray-tno)! - Add a portable one-axis drag behavior, Splitter and ResizablePane. Panes resize with captured pointer drags, Web keyboard commands and Native accessibility actions, support logical sides and collapse/restore, and expose change/commit callbacks for application-owned persistence.
+
+- [#1245](https://github.com/iray-tno/hozo/pull/1245) [`37a9151`](https://github.com/iray-tno/hozo/commit/37a915152634d8e25dfa9b2958661d4bc8f0a134) Thanks [@iray-tno](https://github.com/iray-tno)! - Add portable CodeLines and CodeBlock with application-supplied tokens, semantic line marks, hidden gutters, line numbers, wrapping, accessible scrolling and copy feedback. Supply Native clipboard access through CodeClipboardProvider. Pure model, Shiki connection and fence metadata helpers have independent subpaths; no highlighter or diff runtime is included.
+  
+  Del now renders a semantic `<del>` on Web instead of `<s>`. Strikethrough retains `<s>`; Ins adds `<ins>` with underline on Native.
+
+### Patch Changes
+
+- [#1256](https://github.com/iray-tno/hozo/pull/1256) [`4270a72`](https://github.com/iray-tno/hozo/commit/4270a727b14605d7ff5c9831238e60cb518e3ed6) Thanks [@iray-tno](https://github.com/iray-tno)! - Share BottomSheet drag capture, frame coalescing and cancellation through useDrag1D on Web and Native. Settle from the final release position and velocity, restore the starting detent on cancellation, and discard pending movement when closing or unmounting. Keep handle taps and keyboard activation separate from the click generated after a drag.
+  
+  Expose drag velocity details, an optional geometry validation callback and a Native movement threshold without changing existing delta-only callbacks.
+
+- [#1419](https://github.com/iray-tno/hozo/pull/1419) [`1c052da`](https://github.com/iray-tno/hozo/commit/1c052dad66426e8a4acd462c776f161249330c35) Thanks [@iray-tno](https://github.com/iray-tno)! - A windowed Native `CodeBlock`'s accessible name now gives its length, for example "Code, 4000 lines", from the new `hozo.code.lines` message.
+
+- [#1343](https://github.com/iray-tno/hozo/pull/1343) [`e4734c8`](https://github.com/iray-tno/hozo/commit/e4734c832c6469edc4ba88a7e09209b2b2ccd29b) Thanks [@iray-tno](https://github.com/iray-tno)! - On React Native, `FloatingPositioner` flips and shifts its panel against the real window size instead of a fixed 400×800, and positions it again when the window changes.
+
+- [#1336](https://github.com/iray-tno/hozo/pull/1336) [`d5a1a1e`](https://github.com/iray-tno/hozo/commit/d5a1a1ee6a55dd50c6c2f91289a11a8665dd9d74) Thanks [@iray-tno](https://github.com/iray-tno)! - On React Native, `FloatingPositioner` places its panel against the parent it is laid out in, not the window. Without a `PortalProvider` a Popover rendered inside its own wrapper and opened that wrapper's offset away from its trigger.
+
+- [#1306](https://github.com/iray-tno/hozo/pull/1306) [`5cbbb5d`](https://github.com/iray-tno/hozo/commit/5cbbb5de2ba68dd8e44c1939535a84f5325bb950) Thanks [@iray-tno](https://github.com/iray-tno)! - On React Native, a string given to `Dialog`, `Drawer`, `BottomSheet` or `Popover` as children, to `Tooltip` as `content`, to `Avatar` as `fallback` or to `Combobox` as `emptyMessage` is drawn inside a `Text`, with the box's text classes. It sat bare in a `View`, which React Native rejects. `hozoTextChildren` takes an optional text style for this.
+
+- [#1039](https://github.com/iray-tno/hozo/pull/1039) [`cf7773e`](https://github.com/iray-tno/hozo/commit/cf7773edcfd5f9d9cb42e35489ce1b15e35312bb) Thanks [@iray-tno](https://github.com/iray-tno)! - A Text nested in `@hozo/ui`'s `Checkbox` or `Switch` label now takes their `hover:`, `active:` and `focus-visible:` text classes on Native. `@hozo/patterns`' pressable provides its state through `HozoInteractionContext`, now in `@hozo/behaviors/pressable-interaction` and shared with `@hozo/primitives`, so the `HozoText` a caller's Text compiles to reads it.
+
+- [#1473](https://github.com/iray-tno/hozo/pull/1473) [`c4696a4`](https://github.com/iray-tno/hozo/commit/c4696a4660ceb546fc9e29bc18d1fe73979681e5) Thanks [@iray-tno](https://github.com/iray-tno)! - `usePresence` on the Web ends an exit at once when the element's `transition-property` is `none`, as `motion-reduce:transition-none` makes it. It used to wait out the duration the other classes left behind, keeping a closed element mounted for that long under reduced motion.
+
 ## 0.3.0
 
 ### Minor Changes

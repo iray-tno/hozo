@@ -1,5 +1,29 @@
 # @hozo/engine
 
+## 0.4.0
+
+### Minor Changes
+
+- [#1462](https://github.com/iray-tno/hozo/pull/1462) [`add3e7b`](https://github.com/iray-tno/hozo/commit/add3e7b2c5a152c770eabee7d09d723e925958e1) Thanks [@iray-tno](https://github.com/iray-tno)! - `HozoAnimated` and `PresenceContext` move from `@hozo/primitives` to `@hozo/engine` (`@hozo/engine/generated/animated`), so `@hozo/patterns` can run them. `@hozo/primitives/generated/animated` is gone; compiled output imports them through `@hozo/core/generated/animated` as before.
+
+- [#1462](https://github.com/iray-tno/hozo/pull/1462) [`c9a3b4d`](https://github.com/iray-tno/hozo/commit/c9a3b4d61541024c66165c91a4b7e2a75c9a203c) Thanks [@iray-tno](https://github.com/iray-tno)! - The Native candidate module now emits a `hozoClassTransitions` table for transition utilities (`transition-*`, `duration-*`, `delay-*`, `ease-*`, also under `motion-reduce:` / `motion-safe:`) instead of reporting them as Web-only, and `@hozo/engine` adds `createClassTransitions` to read a runtime class string into a `HozoAnimated` transition spec.
+
+### Patch Changes
+
+- [#1473](https://github.com/iray-tno/hozo/pull/1473) [`fac2f53`](https://github.com/iray-tno/hozo/commit/fac2f53a7636c7373cf22c4d49fcf5a137bb08ec) Thanks [@iray-tno](https://github.com/iray-tno)! - An interrupted `HozoAnimated` transition now starts from where its numbers had got to (opacity, and the position and size keys its spec names), rather than jumping to the previous target first. A panel closed halfway through opening shrinks from its current height.
+
+- [#1348](https://github.com/iray-tno/hozo/pull/1348) [`b59995e`](https://github.com/iray-tno/hozo/commit/b59995e108e4cc9b6d093c2487cebece0d02a707) Thanks [@iray-tno](https://github.com/iray-tno)! - The Native `Menu` sheet clears the home indicator and the Android gesture handle: it adds the bottom inset an app's `<SafeAreaProvider>` reports below its own padding, and nothing in an app without one. `@hozo/engine` gains `useHozoProvidedSafeArea()` for that, which reads zeros instead of throwing when the provider or `react-native-safe-area-context` is missing, and the missing-package warning for a safe-area class now fires when such a class first renders rather than whenever the Native entry loads.
+
+- [#1056](https://github.com/iray-tno/hozo/pull/1056) [`c1ca21a`](https://github.com/iray-tno/hozo/commit/c1ca21afee0e3f4dd92110570f3ff3775b01c4cf) Thanks [@iray-tno](https://github.com/iray-tno)! - On Native, a `style` a caller passes through a component's `{...rest}` no longer replaces the styles compiled from its classes: the two compose, classes first and the caller's style after, as the owner itself composes them. Elements whose spreads cannot carry `style` compile as before.
+
+- [#1155](https://github.com/iray-tno/hozo/pull/1155) [`416d627`](https://github.com/iray-tno/hozo/commit/416d627e8afc6a3f321c95dbe1f74b630d173d7b) Thanks [@iray-tno](https://github.com/iray-tno)! - On the Web, a spread onto a compiled `View`, `Text` or `Image` keeps the props that need the element.
+  
+  - **`onLayout`** is called on mount and when the layout changes, as it is uncompiled. It is not called again on a re-render.
+  - **The responder props** (`onStartShouldSetResponder`, `onResponderGrant`, `onResponderMove`, …) claim and release the pointer on a `View`.
+  - **An `Image` whose `src` fails to load falls back to `defaultSource`.**
+  
+  Before this, these reached the DOM raw and did nothing. The spread's translation now adds a callback ref when the spread carries one of them. `@hozo/engine` exports `createSpreadResponder` for it: the responder without a hook.
+
 ## 0.3.0
 
 ### Patch Changes
