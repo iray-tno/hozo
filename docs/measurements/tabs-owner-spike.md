@@ -306,6 +306,8 @@ and three author phases x three tabs (36 author-host observations), including
 the string labels, frozen author add/remove, live selection/disabled state,
 real activation, stable positional hosts and stable prepared callback. The
 instance route emits one stylesheet site and requests zero class strings.
-The old ordinary Web probe still uses its original bounded candidates; this
-extension does not certify Web prepared behavior, opaque-label inheritance,
+At this Native-only checkpoint, the Web probe still used its original bounded
+candidates. The later [Web carrier gates](web-owner-class-carrier.md) extend
+that comparison separately; this Native extension alone does not certify Web
+prepared behavior, opaque-label inheritance,
 OS text pixels, broad auditing or default adapter adoption.

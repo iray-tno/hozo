@@ -88,6 +88,8 @@
     "@hozo/tailwind-conformance#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/packages/patterns/hozo.manifest.json",
+        "$TURBO_ROOT$/packages/patterns/package.json",
         "$TURBO_ROOT$/scripts/style-slots/handle-publication.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-owner-shadow.mjs",
@@ -178,6 +180,9 @@
     "@hozo/example-storybook#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/scripts/style-slots/tabs-web-publication.mjs",
+        "$TURBO_ROOT$/packages/patterns/hozo.manifest.json",
+        "$TURBO_ROOT$/packages/patterns/package.json",
         "$TURBO_ROOT$/scripts/style-slots/handle-*.mjs",
         "$TURBO_ROOT$/scripts/style-slots/owner-fixture.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",

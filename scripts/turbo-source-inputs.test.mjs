@@ -97,6 +97,9 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'scripts/style-slots/tabs-web-publication.mjs',
+    'packages/patterns/hozo.manifest.json',
+    'packages/patterns/package.json',
     'scripts/style-slots/owner-fixture.mjs',
     'scripts/style-slots/tabs-probe.mjs',
     'scripts/style-slots/evidence-source.mjs',
@@ -332,6 +335,8 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/patterns/hozo.manifest.json',
+    'packages/patterns/package.json',
     'crates/hozo_web/src/owner_class.rs',
     'scripts/style-slots/owner-fixture.mjs',
     'scripts/style-slots/tabs-owner-shadow.mjs',

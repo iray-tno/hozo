@@ -78,3 +78,29 @@ Tailwind preparation; CSS keeps 14px padding, absolute label size and actual
 state selectors. Native preparation is forbidden in that Web test. This is
 packed instance/carrier evidence, not execution of that archive in a browser
 or an owner audit. Normal adapters still do not call this explicit preview.
+
+## Independent browser delivery gate
+
+The Tabs browser probe adds instance-prepared output as a third route beside
+ordinary candidate CSS and independently generated Tailwind CSS. A finite
+fixture reads the actual Node-selected patterns Web entry and its manifest,
+uses the same instance-owned project API, and bundles the returned caller
+module with the actual Web Tabs implementation. Compiler/Tailwind preparation
+is excluded from that application bundle; only the prepared class string and
+companion CSS reach the browser. This is an explicit one-edge fixture, not a
+claim that an ordinary adapter discovered a complete graph.
+
+All three routes now use the same 16-candidate box/string-label input as the
+Native compiled probe. The browser gate requires six actual pointer/focus/
+selection phases on three tab owners per route (54 host observations), with
+independent expected box, color, size, weight, letter-spacing and gap values.
+It also requires stable DOM owners, real activation/disabled behavior and a
+negative control that removes disabled hooks while retaining ARIA: opacity
+and font weight must then restore. No synthetic state attributes are installed.
+
+Local validation only prepares CSS and the small fixture bundles; the real
+browser gate runs in `owner-evidence` CI and preserves partial/failure receipts.
+Its addition is not a browser success claim until a current-head artifact is
+read. The Native ordinary/prepared/selected/instance comparison is rerun
+separately. Opaque ReactNode labels, authored Web style parity, font pixels,
+normal adapter activation and audit/default promotion are still not certified.
