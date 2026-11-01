@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import allureConfig from '../../../allurerc.mjs'
 import { checkJUnitDirectory } from './assert-junit.mjs'
 import { convertJUnitDirectory } from './junit-to-allure.mjs'
@@ -297,5 +298,10 @@ test('normalizeJUnit preserves suitePackageName when mixed testcase and testsuit
 })
 
 test('allurerc historyPath resolves to the repository root allure-history directory', () => {
-  assert.equal(resolve(allureConfig.historyPath), resolve('allure-history', 'allure-history.jsonl'))
+  // Against this file rather than process.cwd(): the package's own test run
+  // starts in packages/test-reporter, the repository's from the root.
+  assert.equal(
+    resolve(allureConfig.historyPath),
+    fileURLToPath(new URL('../../../allure-history/allure-history.jsonl', import.meta.url)),
+  )
 })
