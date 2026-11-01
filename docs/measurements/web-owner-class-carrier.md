@@ -60,3 +60,21 @@ check per-recipe namespacing, and verify exact context identity and disposal on
 incomplete or failed shape emission. They are not yet browser computed-style
 proof or normal adapter activation. Dynamic inputs retain their original class
 carrier in either target; this step does not add mixed-expression preparation.
+
+## Captured package-instance selection on Web
+
+`InstanceOwnerCallerProject` now selects its target from the captured platform,
+not a caller-provided override. Its existing contract/export/entry selector,
+candidate collection, Tailwind session, supersession and lease invalidation
+are unchanged. Unknown platforms still reject; Web uses retained Web modules,
+while iOS/Android/native keep Native preparation. The result retains its exact
+manifest/entry/instance/context provenance and Web companion CSS.
+
+Unit checks cover ready-context reuse, entry mismatch and retirement during a
+non-cooperative asynchronous CSS preparation. The real pnpm patterns archive
+also supplies a selected Web entry/manifest to both Tabs export aliases, using
+the consumer's actual 7px spacing theme. The two alias callers share one
+Tailwind preparation; CSS keeps 14px padding, absolute label size and actual
+state selectors. Native preparation is forbidden in that Web test. This is
+packed instance/carrier evidence, not execution of that archive in a browser
+or an owner audit. Normal adapters still do not call this explicit preview.

@@ -1,4 +1,4 @@
-// Explicit Native preview only. This owns the EXISTING project session, not a
+// Explicit platform-selected preview only. This owns the EXISTING project session, not a
 // second rank cache or default adapter path. One selected owner per request.
 import type { Compiler } from './index.ts'
 import { type OwnerCallerPreview, prepareOwnerLiteralCallers } from './owner-caller-plan.ts'
@@ -25,6 +25,7 @@ export interface InstanceOwnerCallerPreview {
  */
 export class InstanceOwnerCallerProject {
   readonly #lease: OwnerManifestLease
+  readonly #target: 'native' | 'web'
   #session: TailwindProjectSession | undefined
   #candidates: readonly string[]
   readonly #abort = () => this.invalidate()
@@ -35,11 +36,12 @@ export class InstanceOwnerCallerProject {
     prepare: ConstructorParameters<typeof TailwindProjectSession>[1],
   ) {
     lease.check()
-    if (!['ios', 'android', 'native'].includes(lease.capture.platform))
-      throw new Error('OWNER_CALLER_NATIVE_PLATFORM_REQUIRED')
+    if (!['web', 'ios', 'android', 'native'].includes(lease.capture.platform))
+      throw new Error('OWNER_CALLER_PLATFORM_REQUIRED')
     const packages = collectOwnerPackageContributions(lease.capture)
     if (packages.status !== 'complete') throw new Error('OWNER_CALLER_PACKAGE_CHANNELS_INCOMPLETE')
     this.#lease = lease
+    this.#target = lease.capture.platform === 'web' ? 'web' : 'native'
     this.#candidates = packages.candidates
     this.#session = new TailwindProjectSession(compiler, prepare)
     lease.signal.addEventListener('abort', this.#abort, { once: true })
@@ -66,6 +68,7 @@ export class InstanceOwnerCallerProject {
           selected.check()
           identity = selected.identity
           return prepareOwnerLiteralCallers(source, compiler, {
+            target: this.#target,
             source: selected.identity.specifier,
             imported: selected.identity.imported,
             shadow: selected.shadow,

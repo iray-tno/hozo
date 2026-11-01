@@ -31,7 +31,7 @@ function fixture(platform = 'ios', ownerOnly = false) {
     ...edge,
     status: 'resolved',
     instance: '/package',
-    entry: request.entry,
+    entry: platform === 'web' ? '/package/web.js' : request.entry,
     manifest: {
       kind: 'present',
       file: '/package/manifest.json',
@@ -290,10 +290,10 @@ test('incomplete descriptors and unassessed metadata never fall back to direct o
   }
   assert.throws(
     () =>
-      new InstanceOwnerCallerProject(fixture('web').lease, state.compiler, async () =>
+      new InstanceOwnerCallerProject(fixture('unsupported').lease, state.compiler, async () =>
         snapshot([]),
       ),
-    /NATIVE_PLATFORM_REQUIRED/,
+    /PLATFORM_REQUIRED/,
   )
   assert.throws(
     () =>
@@ -325,4 +325,83 @@ test('opaque callers stay authored and replacement projects use their own captur
       project.invalidate()
     }
   }
+})
+
+test('Web capture selects the Web carrier without a Native fallback and keeps cache/lease identity', async () => {
+  const { lease, epoch } = fixture('web')
+  const compiler = createCompiler()
+  compiler.prepareNativeModule = () => {
+    throw new Error('Web cannot prepare Native')
+  }
+  compiler.compile = () => {
+    throw new Error('no direct Web fallback')
+  }
+  let preparations = 0
+  const project = new InstanceOwnerCallerProject(lease, compiler, async (names) => {
+    preparations++
+    return snapshot(names)
+  })
+  const current = { ...request, entry: '/package/web.js' }
+  try {
+    const first = await project.emit(source(), current)
+    const second = await project.emit(source(), { ...current, ...b })
+    assert.equal(preparations, 1)
+    assert.equal(first.identity.platform, 'web')
+    assert.equal(first.identity.entry, current.entry)
+    assert.equal(first.identity.captureFingerprint, lease.capture.fingerprint)
+    assert.equal(first.preview.contextFingerprint, second.preview.contextFingerprint)
+    assert.ok(first.preview.css)
+    assert.match(first.preview.code, /handleClassName=\{"hozo-owner-/)
+    assert.doesNotMatch(first.preview.code, /react-native|hozoHandleStyle/)
+    await assert.rejects(project.emit(source(), request), /entry-mismatch/)
+    epoch.invalidate()
+    await assert.rejects(project.emit(source(), current), /INVALIDATED/)
+  } finally {
+    project.invalidate()
+  }
+})
+
+test('retiring a Web manifest while CSS awaits promptly releases Web IR and fences late output', async () => {
+  const { lease, epoch } = fixture('web')
+  const compiler = createCompiler(),
+    wait = deferred()
+  const prepare = compiler.prepareWebModule.bind(compiler)
+  const rows: { disposed: number; emitted: number }[] = []
+  compiler.prepareWebModule = (...args) => {
+    const module = prepare(...args),
+      row = { disposed: 0, emitted: 0 }
+    rows.push(row)
+    return {
+      candidates: module.candidates,
+      preview: () => module.preview(),
+      emit(context) {
+        row.emitted++
+        return module.emit(context)
+      },
+      dispose() {
+        row.disposed++
+        module.dispose()
+      },
+    }
+  }
+  let names: readonly string[] = []
+  const project = new InstanceOwnerCallerProject(lease, compiler, async (current) => {
+    names = current
+    wait.begin()
+    return wait.pending
+  })
+  const pending = project.emit(source(), { ...request, entry: '/package/web.js' })
+  await wait.started
+  const rejected = assert.rejects(pending, { code: 'TAILWIND_PROJECT_INVALIDATED' })
+  epoch.invalidate()
+  await rejected
+  assert.equal(rows.length, 2)
+  assert.ok(rows.every((row) => row.disposed === 1 && row.emitted === 0))
+  wait.finish(snapshot(names))
+  await Promise.resolve()
+  await assert.rejects(
+    project.emit(source(), { ...request, entry: '/package/web.js' }),
+    /INVALIDATED/,
+  )
+  project.invalidate()
 })

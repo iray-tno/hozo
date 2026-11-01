@@ -506,6 +506,73 @@ export const App=()=> <Sheet open handleClassName="p-[8px] opacity-50" handleSty
     importer: path.join(consumer, file),
     specifier: json.name,
   }))
+  const webEntry = realpathSync(path.join(instance, json.exports['.'].default))
+  const webEpoch = new OwnerManifestEpoch()
+  webEpoch.adopt(
+    captureOwnerManifests(
+      edges,
+      edges.map((edge) =>
+        readResolvedOwnerManifest(edge, {
+          packageRoot: instance,
+          entry: webEntry,
+          declaredManifest: json.hozo.manifest,
+        }),
+      ),
+      { platform: 'web', epoch: `packed-web-owner:${css.fingerprint}` },
+    ),
+  )
+  let webPreparations = 0
+  const webCompiler = createCompiler(css.theme, [...DEFAULT_PRIMITIVE_SOURCES])
+  webCompiler.prepareNativeModule = () => {
+    throw new Error('not a Native owner request')
+  }
+  const webProject = new InstanceOwnerCallerProject(
+    webEpoch.lease(),
+    webCompiler,
+    async (names, signal) => {
+      webPreparations++
+      assert.ok(manifest.package.candidates.every((name) => names.includes(name)))
+      return JSON.stringify((await css.prepareOrder(names, signal)).snapshot)
+    },
+  )
+  const webReceipts = []
+  try {
+    for (const [index, imported] of ['Tabs', 'HozoTabs'].entries()) {
+      const input = `import {${imported} as Choices} from '@hozo/patterns';export const App=()=> <Choices tabs={tabs} tabClassName="p-2 text-[18px] aria-selected:bg-[#223344] disabled:opacity-50 hover:tracking-[1px]"/>`
+      const result = await webProject.emit(input, {
+        ...edges[index],
+        entry: webEntry,
+        imported,
+        classProp: 'tabClassName',
+      })
+      assert.equal(result.preview.findings[0].disposition, 'prepared-literal')
+      assert.match(result.preview.css, /padding-top: 14px/)
+      assert.match(result.preview.css, /aria-selected/)
+      assert.match(result.preview.css, /font-size: 18px/)
+      assert.doesNotMatch(result.preview.code, /react-native|hozoTabStyle/)
+      assert.equal(result.identity.platform, 'web')
+      assert.equal(result.identity.entry, webEntry)
+      assert.equal(result.identity.instance, instance)
+      assert.equal(result.identity.owner, 'Tabs.Tab')
+      assert.equal(result.identity.manifestSha256, createHash('sha256').update(text).digest('hex'))
+      webReceipts.push({
+        imported,
+        fingerprint: result.preview.contextFingerprint,
+        cssBytes: Buffer.byteLength(result.preview.css),
+      })
+    }
+    assert.equal(webPreparations, 1)
+    assert.equal(webReceipts[0].fingerprint, webReceipts[1].fingerprint)
+    t.diagnostic(
+      JSON.stringify({
+        scope: 'actual packed Web entry and instance-selected caller CSS; not browser execution',
+        webPreparations,
+        aliases: webReceipts,
+      }),
+    )
+  } finally {
+    webProject.invalidate()
+  }
   const nativeEntry = path.join(instance, json.exports['.']['react-native'].default)
   const observations = edges.map((edge) =>
     readResolvedOwnerManifest(edge, {
