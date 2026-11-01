@@ -18,7 +18,10 @@ test('existing Web class carrier delivers compiler-owned classes to each real ha
   assert.equal(contract.abi.webClassProp, 'handleClassName')
   const compiler = createCompiler()
   for (const shape of contract.shapes) {
-    const selected = selectOwnerShape(contract, { open: true, resizable: shape.id === 'resizable' })
+    const selected = selectOwnerShape(contract, {
+      present: true,
+      resizable: shape.id === 'resizable',
+    })
     assert.equal(selected.status, 'selected')
     if (selected.status === 'selected') assert.equal(selected.shape.id, shape.id)
     const tag = shape.id === 'resizable' ? 'Pressable' : 'View'

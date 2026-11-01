@@ -37,5 +37,7 @@ jobs:
         if: always()
         with:
           name: owner-handle-browser-evidence
-          path: artifacts/style-fact-model/handle-browser.json
+          path: |
+            artifacts/style-fact-model/handle-browser.json
+            artifacts/style-fact-model/handle-browser-lifetime.json
           if-no-files-found: warn

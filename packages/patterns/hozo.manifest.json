@@ -11,7 +11,7 @@
           "classProp": "handleClassName",
           "audit": "unknown",
           "bindings": [
-            "open",
+            "present",
             "resizable"
           ],
           "abi": {
@@ -31,7 +31,7 @@
                 "all": [
                   {
                     "eq": [
-                      "open",
+                      "present",
                       true
                     ]
                   },
@@ -58,7 +58,7 @@
                 "all": [
                   {
                     "eq": [
-                      "open",
+                      "present",
                       true
                     ]
                   },

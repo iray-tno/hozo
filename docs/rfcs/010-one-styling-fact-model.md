@@ -879,7 +879,7 @@ identity or semantics, and does not authorize builtin lowering or rollout.
 The patterns package now publishes the same catalog contract through its own
 `hozo.manifest.json` metadata/export/files entry. Its 106 production TS/TSX
 source files produce 11 runtime candidate strings and 72 public value exports;
-the 7,206-byte envelope has one unknown-audit owner and no text summaries.
+the 7,215-byte envelope has one unknown-audit owner and no text summaries.
 `compiledByConsumer` is false for its built distribution, unlike source-shipped
 UI's true. A single package envelope is currently accepted only when split
 Web/Native entries have equal value-export and legacy-text inventories; drift
@@ -925,3 +925,35 @@ a replacement spacing-11px epoch prepares 22px with different capture/context
 fingerprints. This uses the workspace compiler/Tailwind against the packed
 patterns artifact; it is not an isolated tooling install, actual adapter graph,
 host audit, pixel test or performance benchmark.
+
+### Handle lifetime correction
+
+The handle contract uses `present`, not the author's `open` request. Web keeps
+exiting presence mounted and RN 0.87's iOS Modal keeps its children until
+dismiss completes; Android removes them when hidden. The Native decoration's
+style evaluation is deferred beneath that Modal boundary without an extra
+native host or style cache. A hidden initial owner does not normalize its
+author; an iOS dismissing owner retains prepared and authored style until
+unmount. The existing Pressable callback remains host-owned.
+
+Two failing regressions reproduced eager hidden author evaluation and the
+prepared look disappearing before iOS dismiss. The scoped Native Modal lifetime
+model follows the installed RN JS control flow; it is **not** execution of RN's
+native Modal, a simulator, pixels or a full owner audit. Existing host/state,
+author precedence and resolver controls remain in place. The experimental
+catalog/published contract is regenerated together (`open`→`present`, adding
+9 JSON bytes from the earlier 7,206-byte envelope). No audit claim or default
+caller route is promoted by this correction.
+
+The browser presence probe renders the actual Web component against both
+candidate and independent Tailwind CSS. It records both handle shapes across
+initial absence, open, exiting, absent and reopened: 20 phase observations.
+Exiting preserves the same styled host while its ancestor is inert and ignores
+pointers; reopening creates a new host. A controlled JS clock and explicit
+transition-completion event bound this to DOM/computed-style lifetime, not real
+animation duration, smoothness, pixels or Native window behavior. An early
+completion event must not remove the owner. The separate browser-lifetime
+receipt is uploaded alongside the existing real pointer/focus receipt; failure
+keeps `passed: false` and any partial observations. Local oracle/bundle checks
+alone do not certify the browser run, and neither receipt promotes the package
+contract's unknown audit status or installs a default caller route.

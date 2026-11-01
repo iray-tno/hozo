@@ -505,20 +505,22 @@ export const ownerShadow = {
       owner: 'BottomSheet.handle',
       classProp: 'handleClassName',
       audit: 'unknown',
-      bindings: ['open', 'resizable'],
+      // A closed iOS Modal / exiting Web presence may still paint the owner.
+      // `present` is actual rendered lifetime, not the author's `open` request.
+      bindings: ['present', 'resizable'],
       abi: { nativePreparedProp: 'hozoHandleStyle', webClassProp: 'handleClassName' },
       authoredStyles: [{ prop: 'handleStyle', order: 0 }],
       shapes: [
         {
           id: 'resizable',
-          when: { all: [{ eq: ['open', true] }, { eq: ['resizable', true] }] },
+          when: { all: [{ eq: ['present', true] }, { eq: ['resizable', true] }] },
           nativeHost: 'Pressable',
           webHost: 'button',
           events: ['pressed', 'hovered', 'focused', 'focusVisible'],
         },
         {
           id: 'decorative',
-          when: { all: [{ eq: ['open', true] }, { eq: ['resizable', false] }] },
+          when: { all: [{ eq: ['present', true] }, { eq: ['resizable', false] }] },
           nativeHost: 'View',
           webHost: 'div',
           events: [],

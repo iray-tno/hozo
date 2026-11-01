@@ -47,81 +47,81 @@ test('shadow data is explicit, bounded and independent of the shipped v1 manifes
   }, /audit/)
 })
 
-test('gates choose each real handle shape; a closed owner does not require resizable', () => {
+test('gates choose each present handle shape; an absent owner does not require resizable', () => {
   const owner = contract()
   for (const resizable of [false, true]) {
-    assert.deepEqual(selectOwnerShape(owner, { open: false, resizable }), { status: 'absent' })
-    const selected = selectOwnerShape(owner, { open: true, resizable })
+    assert.deepEqual(selectOwnerShape(owner, { present: false, resizable }), { status: 'absent' })
+    const selected = selectOwnerShape(owner, { present: true, resizable })
     assert.equal(selected.status, 'selected')
     if (selected.status === 'selected')
       assert.equal(selected.shape.id, resizable ? 'resizable' : 'decorative')
   }
-  assert.deepEqual(selectOwnerShape(owner, { open: false }), { status: 'absent' })
+  assert.deepEqual(selectOwnerShape(owner, { present: false }), { status: 'absent' })
   assert.deepEqual(selectOwnerShape(owner, {}), {
     status: 'unresolved',
     possible: ['resizable', 'decorative'],
   })
-  assert.deepEqual(selectOwnerShape(owner, { open: true }), {
+  assert.deepEqual(selectOwnerShape(owner, { present: true }), {
     status: 'unresolved',
     possible: ['resizable', 'decorative'],
   })
-  assert.deepEqual(selectOwnerShape(owner, { open: 'true' }), {
+  assert.deepEqual(selectOwnerShape(owner, { present: 'true' }), {
     status: 'invalid',
-    binding: 'open',
+    binding: 'present',
   })
   assert.equal(
-    selectOwnerShape(owner, Object.create({ open: true, resizable: true })).status,
+    selectOwnerShape(owner, Object.create({ present: true, resizable: true })).status,
     'unresolved',
   )
   let reads = 0
   const accessor = {
-    get open() {
+    get present() {
       reads++
       return true
     },
     resizable: true,
   }
-  assert.deepEqual(selectOwnerShape(owner, accessor), { status: 'invalid', binding: 'open' })
+  assert.deepEqual(selectOwnerShape(owner, accessor), { status: 'invalid', binding: 'present' })
   assert.equal(reads, 0, 'shadow inspection must not capture/evaluate caller accessors')
 })
 
 test('overlap and a true shape competing with an unknown one never silently select the first', () => {
   const owner = contract()
-  owner.shapes[1]!.when = { eq: ['open', true] }
-  assert.deepEqual(selectOwnerShape(owner, { open: true, resizable: true }), {
+  owner.shapes[1]!.when = { eq: ['present', true] }
+  assert.deepEqual(selectOwnerShape(owner, { present: true, resizable: true }), {
     status: 'ambiguous',
     matching: ['resizable', 'decorative'],
   })
-  assert.deepEqual(selectOwnerShape(owner, { open: true }), {
+  assert.deepEqual(selectOwnerShape(owner, { present: true }), {
     status: 'unresolved',
     possible: ['resizable', 'decorative'],
   })
-  owner.shapes[0]!.when = { any: [{ eq: ['open', true] }, { eq: ['resizable', true] }] }
-  assert.equal(selectOwnerShape(owner, { open: false }).status, 'unresolved')
-  assert.equal(selectOwnerShape(owner, { open: false, resizable: true }).status, 'selected')
+  owner.shapes[0]!.when = { any: [{ eq: ['present', true] }, { eq: ['resizable', true] }] }
+  assert.equal(selectOwnerShape(owner, { present: false }).status, 'unresolved')
+  assert.equal(selectOwnerShape(owner, { present: false, resizable: true }).status, 'selected')
 })
 
 test('symbols are declared booleans, not executable expressions or arbitrary gate operators', () => {
   rejects((value) => {
-    value.contracts[0]!.bindings[0] = 'props.open()'
+    value.contracts[0]!.bindings[0] = 'props.present()'
   }, /binding/)
   rejects((value) => {
-    value.contracts[0]!.bindings.push('open')
+    value.contracts[0]!.bindings.push('present')
   }, /duplicate/)
   rejects((value) => {
     value.contracts[0]!.shapes[0]!.when = { eq: ['missing', true] }
   }, /binding/)
   rejects((value) => {
-    Object.assign(value.contracts[0]!.shapes[0]!, { when: { js: 'open()' } })
+    Object.assign(value.contracts[0]!.shapes[0]!, { when: { js: 'present()' } })
   }, /operator/)
   rejects((value) => {
-    Object.assign(value.contracts[0]!.shapes[0]!, { when: { eq: ['open', 'true'] } })
+    Object.assign(value.contracts[0]!.shapes[0]!, { when: { eq: ['present', 'true'] } })
   }, /binding/)
   rejects((value) => {
     value.contracts[0]!.shapes[0]!.when = { all: [] }
   }, /operands/)
   rejects((value) => {
-    value.contracts[0]!.shapes[0]!.when = { all: [{ eq: ['open', true] }], any: [] }
+    value.contracts[0]!.shapes[0]!.when = { all: [{ eq: ['present', true] }], any: [] }
   }, /fields/)
   rejects((value) => {
     for (let i = 0; i < 10; i++)
@@ -131,7 +131,7 @@ test('symbols are declared booleans, not executable expressions or arbitrary gat
     value.contracts[0]!.shapes = Array.from({ length: 16 }, (_, i) => ({
       ...value.contracts[0]!.shapes[0]!,
       id: `s${i}`,
-      when: { all: Array.from({ length: 16 }, () => ({ eq: ['open', true] })) },
+      when: { all: Array.from({ length: 16 }, () => ({ eq: ['present', true] })) },
     }))
   }, /budget/)
 })
