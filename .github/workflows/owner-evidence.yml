@@ -35,7 +35,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --filter '!@hozo/test-reporter'
       - run: pnpm --filter @hozo/compiler build:native
-      - run: pnpm exec turbo run build --filter='@hozo/example-storybook^...' --concurrency=2
+      # Native component probes import Metro's source transform, not an app build.
+      - run: pnpm exec turbo run build --filter='@hozo/example-storybook^...' --filter='@hozo/metro' --concurrency=2
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-handle.test.mjs
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/tabs-owner-state.test.ts examples/storybook-demo/scripts/owner-tabs.test.mjs
       - uses: actions/upload-artifact@v4

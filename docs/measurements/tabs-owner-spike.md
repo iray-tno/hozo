@@ -67,3 +67,12 @@ bounded actual-owner facts in the existing component-managed route, not a
 prepared Tabs caller carrier, full text/author composition, a manifest audit,
 general interaction compatibility or default compiler adoption. Those remain
 separate gates for extending the application seam.
+
+The first browser CI run (`41273375045`) failed before any state progression:
+the shared UA reset used `border:0`, leaving `border-style:none`, so the
+expected disabled border width painted as zero. Both subjects now use a
+solid-border baseline and retain the 3px expectation. Its Native companion
+also failed before executing because this narrow workflow had not built
+Metro's source-transform entry; that dependency is now an explicit build
+target, not a heavy Metro application bundle. These are harness defects,
+not product failures or flakes; the original log/partial receipt is retained.
