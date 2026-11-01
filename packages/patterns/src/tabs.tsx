@@ -98,6 +98,10 @@ export function HozoTabs({
             aria-controls={`${base}-panel-${at}`}
             aria-selected={at === selected}
             aria-disabled={tab.disabled || undefined}
+            // One unavailable owner for browser/Tailwind and compiled Hozo
+            // selectors, as on Native. ARIA alone does not disable a button.
+            disabled={tab.disabled}
+            data-hozo-disabled={tab.disabled ? '' : undefined}
             tabIndex={stops[at]}
             className={tabClassName}
             onKeyDown={onKeyDown}
