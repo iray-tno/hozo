@@ -225,6 +225,17 @@ const IMPORTS =
   `import { View, Text, Pressable, Button, Link, Dialog, Paragraph, Section, Heading, Image, TextInput, Modal } ` +
   `from '@hozo/core'\n`
 
+/**
+ * Declared codes with neither a provocation nor a reason none can exist.
+ *
+ * The report counts these as `noCase`, but the report runs only on main, so
+ * a new code reached it as a red deploy days later. This needs no compile,
+ * which is what lets a pull request's test run ask it.
+ */
+export function diagnosticCodesWithoutCase(): string[] {
+  return declaredDiagnosticCodes().filter((code) => !PROVOCATIONS[code] && !UNREACHABLE[code])
+}
+
 export function compareDiagnostic(code: string): DiagnosticResult {
   const reason = UNREACHABLE[code]
   if (reason) return { code, verdict: 'UNREACHABLE', raised: [], reason }
