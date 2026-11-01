@@ -169,8 +169,34 @@ test('compiled ColorPicker markers remain visible on real gradients and alpha ba
     assert.equal(await lightness.evaluate((node) => document.activeElement === node), true)
     assert.equal(await lightness.evaluate((node) => getComputedStyle(node).outlineWidth), '2px')
     const hex = page.locator('input')
+    await hex.evaluate((node) => {
+      window.hexEvents = []
+      for (const type of ['focus', 'beforeinput', 'input', 'change', 'blur'])
+        node.addEventListener(type, () => window.hexEvents.push({ type, value: node.value }))
+    })
+    const editObservation = async (phase) =>
+      page.evaluate(
+        (phase) => ({
+          phase,
+          draft: document.querySelector('input').value,
+          lightness: document
+            .querySelector('[role=slider][aria-label=Lightness]')
+            .getAttribute('aria-valuenow'),
+          changes: [...window.colorChanges],
+          events: [...window.hexEvents],
+        }),
+        phase,
+      )
+    const editObservations = [await editObservation('before-fill')]
     await hex.fill('#ffffff')
+    editObservations.push(await editObservation('after-fill'))
     await hex.blur()
+    editObservations.push(await editObservation('after-blur'))
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    )
+    editObservations.push(await editObservation('after-two-frames'))
+    console.log(`[color-picker hex edit] ${JSON.stringify(editObservations)}`)
     assert.equal(await lightness.getAttribute('aria-valuenow'), '100')
     assert.equal(
       await lightness.evaluate((node) => getComputedStyle(node).borderTopColor),
