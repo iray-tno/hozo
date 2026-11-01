@@ -51,6 +51,12 @@ export {
   type OwnerPackageContributions,
 } from './owner-package-contributions.ts'
 export {
+  type OwnerContractIdentity,
+  type OwnerContractRequest,
+  type OwnerContractSelection,
+  selectOwnerPackageContract,
+} from './owner-package-selection.ts'
+export {
   type CachedStylexModule,
   StylexModuleCache,
   type StylexResolutionRequest,

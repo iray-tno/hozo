@@ -895,3 +895,12 @@ while state-dependent and mismatched-facade inputs stay authored. This does
 not install the contract into an adapter, authorize a global name lookup or
 audit actual host behavior. Package publication and execution remain separate
 evidence levels.
+
+`selectOwnerPackageContract` is an explicit, lease-bound selector over the
+captured import edge and its exact selected entry. It retains package instance,
+manifest content hash, platform and epoch alongside the public export and
+class-prop identity. Same-name exports from another instance, missing edges,
+ordinary/owner-only packages and ambiguous contracts cannot supply a selected
+contract. There is no package-name lookup, facade chasing or filesystem polling
+on this path. Selection remains an unknown-audit transport fact; its no-IO
+lease check rejects use after the original epoch retires.
