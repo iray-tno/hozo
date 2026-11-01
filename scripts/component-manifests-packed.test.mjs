@@ -2,7 +2,15 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { globSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import {
+  globSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
@@ -18,11 +26,14 @@ import { selectOwnerShape } from '../packages/compiler/src/owner-contract.ts'
 import {
   captureOwnerManifests,
   collectOwnerPackageContributions,
+  InstanceOwnerCallerProject,
+  OwnerManifestEpoch,
   readResolvedOwnerManifest,
   withOwnerPackageCandidates,
 } from '../packages/compiler/src/project.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from '../packages/compiler/src/sources.ts'
 import { fixtureNode } from '../packages/metro/fixtures/fixture-process.mjs'
+import { loadProjectTailwindSnapshot } from '../packages/tailwind/src/project-snapshot.ts'
 import { sourcePackageChannels } from './component-manifests.mjs'
 import { valueExports } from './generated-abi.mjs'
 import { ownerShadow } from './style-slots/catalog.mjs'
@@ -249,6 +260,110 @@ export const App=()=> <Sheet open handleClassName="p-[8px] opacity-50" handleSty
     assert.equal(previewOwnerLiteralCallers(stateful, compiler, options).code, stateful)
     const facade = source.replace('@hozo/patterns', '@hozo/ui')
     assert.equal(previewOwnerLiteralCallers(facade, compiler, options).code, facade)
+  }
+
+  // Real Tailwind preparation against the actual packed contract. The archive
+  // supplies facts; the workspace compiler/Tailwind remain the tested tooling.
+  const consumer = path.join(unpacked, 'consumer')
+  mkdirSync(consumer)
+  const stylesheet = path.join(consumer, 'global.css')
+  writeFileSync(stylesheet, '@import "tailwindcss"; @theme { --spacing: 7px; }')
+  const css = await loadProjectTailwindSnapshot(consumer)
+  assert.equal(css.theme.spacingPx, 7)
+  const edges = ['App.tsx', 'Other.tsx'].map((file) => ({
+    importer: path.join(consumer, file),
+    specifier: json.name,
+  }))
+  const nativeEntry = path.join(instance, json.exports['.']['react-native'].default)
+  const observations = edges.map((edge) =>
+    readResolvedOwnerManifest(edge, {
+      packageRoot: instance,
+      entry: nativeEntry,
+      declaredManifest: json.hozo.manifest,
+    }),
+  )
+  const capturedEpoch = (snapshot) => {
+    const epoch = new OwnerManifestEpoch()
+    epoch.adopt(
+      captureOwnerManifests(edges, observations, {
+        platform: 'ios',
+        epoch: `packed-owner-current-compiler-abi:${snapshot.fingerprint}`,
+      }),
+    )
+    return epoch
+  }
+  const epoch = capturedEpoch(css)
+  let preparations = 0
+  const project = new InstanceOwnerCallerProject(
+    epoch.lease(),
+    createCompiler(css.theme, [...DEFAULT_PRIMITIVE_SOURCES]),
+    async (names, signal) => {
+      preparations++
+      assert.ok(names.includes('p-2'))
+      assert.ok(manifest.package.candidates.every((name) => names.includes(name)))
+      return JSON.stringify((await css.prepareOrder(names, signal)).snapshot)
+    },
+  )
+  const request = (edge, imported = 'BottomSheet') => ({
+    ...edge,
+    entry: realpathSync(nativeEntry),
+    imported,
+    classProp: 'handleClassName',
+  })
+  const caller = (imported = 'BottomSheet') => `import {${imported} as Sheet} from '@hozo/patterns';
+export const App=()=> <Sheet handleClassName="p-2"/>`
+  let originalFingerprint
+  try {
+    const first = await project.emit(caller(), request(edges[0]))
+    const other = await project.emit(
+      caller('HozoBottomSheet'),
+      request(edges[1], 'HozoBottomSheet'),
+    )
+    assert.match(first.preview.code, /paddingTop: 14/)
+    assert.match(other.preview.code, /paddingTop: 14/)
+    assert.equal(first.identity.instance, instance)
+    assert.equal(first.identity.manifestSha256, createHash('sha256').update(text).digest('hex'))
+    assert.equal(first.preview.contextFingerprint, other.preview.contextFingerprint)
+    assert.equal(preparations, 1, 'both actual aliases share the existing ready namespace')
+    originalFingerprint = first.preview.contextFingerprint
+    writeFileSync(stylesheet, '@import "tailwindcss"; @theme { --spacing: 11px; }')
+    const old = await project.emit(caller(), request(edges[0]))
+    assert.match(
+      old.preview.code,
+      /paddingTop: 14/,
+      'captured compiler/CSS must not read changing disk silently',
+    )
+    assert.equal(old.preview.contextFingerprint, originalFingerprint)
+  } finally {
+    project.invalidate()
+  }
+  await assert.rejects(project.emit(caller(), request(edges[0])), /INVALIDATED/)
+  const freshCss = await loadProjectTailwindSnapshot(consumer)
+  const freshEpoch = capturedEpoch(freshCss)
+  const replacement = new InstanceOwnerCallerProject(
+    freshEpoch.lease(),
+    createCompiler(freshCss.theme, [...DEFAULT_PRIMITIVE_SOURCES]),
+    async (names, signal) => JSON.stringify((await freshCss.prepareOrder(names, signal)).snapshot),
+  )
+  try {
+    const fresh = await replacement.emit(caller(), request(edges[0]))
+    assert.match(fresh.preview.code, /paddingTop: 22/)
+    assert.notEqual(fresh.preview.contextFingerprint, originalFingerprint)
+    assert.notEqual(fresh.identity.captureFingerprint, epoch.lease().capture.fingerprint)
+    t.diagnostic(
+      JSON.stringify({
+        scope: 'packed contract and actual Tailwind instance-owned preview; not adapter/host audit',
+        originalPadding: 14,
+        replacementPadding: 22,
+        capturedSpacing: 7,
+        replacementSpacing: 11,
+        sharedContextPreparations: preparations,
+        originalFingerprint,
+        replacementFingerprint: fresh.preview.contextFingerprint,
+      }),
+    )
+  } finally {
+    replacement.invalidate()
   }
   t.diagnostic(
     JSON.stringify({

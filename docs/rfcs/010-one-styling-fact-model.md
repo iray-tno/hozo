@@ -915,3 +915,13 @@ unassessed new requests enter module supersession before validation, so they
 cannot leave an older version of that importer eligible for delivery. Opaque
 or unassessed style expressions stay authored; there is no direct compile
 fallback, mutable rank setter, new ordering engine or default adapter change.
+
+The real patterns archive probe now connects its captured instance contract to
+that project using actual `loadProjectTailwindSnapshot` descriptors and theme,
+not the unit tests' controlled lifecycle signatures. With spacing 7px, `p-2`
+prepares 14px for both exported aliases using one shared context preparation.
+Changing CSS on disk does not mutate the old snapshot; after explicit retirement
+a replacement spacing-11px epoch prepares 22px with different capture/context
+fingerprints. This uses the workspace compiler/Tailwind against the packed
+patterns artifact; it is not an isolated tooling install, actual adapter graph,
+host audit, pixel test or performance benchmark.
