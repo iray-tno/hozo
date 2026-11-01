@@ -75,6 +75,51 @@
               "events": []
             }
           ]
+        },
+        {
+          "owner": "Tabs.Tab",
+          "classProp": "tabClassName",
+          "audit": "unknown",
+          "bindings": [
+            "present"
+          ],
+          "abi": {
+            "nativePreparedProp": "hozoTabStyle",
+            "webClassProp": "tabClassName"
+          },
+          "authoredStyles": [
+            {
+              "prop": "tabStyle",
+              "order": 0
+            }
+          ],
+          "shapes": [
+            {
+              "id": "tab",
+              "when": {
+                "eq": [
+                  "present",
+                  true
+                ]
+              },
+              "nativeHost": "Pressable",
+              "webHost": "button",
+              "events": [
+                "pressed",
+                "hovered",
+                "focused",
+                "focusVisible"
+              ],
+              "inputs": {
+                "facts": [
+                  "disabled",
+                  "aria-selected",
+                  "aria-disabled"
+                ],
+                "splitText": true
+              }
+            }
+          ]
         }
       ]
     },
@@ -217,7 +262,9 @@
       },
       {
         "name": "HozoTabs",
-        "owners": []
+        "owners": [
+          "Tabs.Tab"
+        ]
       },
       {
         "name": "HozoToolbar",
@@ -277,7 +324,9 @@
       },
       {
         "name": "Tabs",
-        "owners": []
+        "owners": [
+          "Tabs.Tab"
+        ]
       },
       {
         "name": "Toolbar",

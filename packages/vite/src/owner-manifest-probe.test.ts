@@ -10,13 +10,11 @@ import {
   type OwnerManifestLease,
 } from '@hozo/compiler/project'
 import { build, type Plugin } from 'vite'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { hozo } from './index.ts'
 import { ownerManifestGraphProbe } from './owner-manifest-probe.ts'
 
-const text = readFileSync(
-  new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
-  'utf8',
-)
+const text = ownerFixtureShadow('BottomSheet.handle')
 function json(file, value) {
   writeFileSync(file, JSON.stringify(value))
 }

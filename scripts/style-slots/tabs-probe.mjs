@@ -19,18 +19,24 @@ export const tabPhases = [
   'selected-disabled',
 ]
 
-export async function prepareTabsProbe(collected = [], classes = tabClasses) {
+export async function prepareTabsProbe(collected = [], classes = tabClasses, extraCandidates = []) {
   const cache = openCandidateCache()
-  cache.scanFile('TabsChoices.ts', JSON.stringify(classes.split(' ')), 0)
+  cache.scanFile('TabsChoices.ts', JSON.stringify([...classes.split(' '), ...extraCandidates]), 0)
   const row = { id: 'tabs', revision: 'one', record: cache.exportFile('TabsChoices.ts') }
   const css = '@import "tailwindcss/theme.css";'
+  let orderSnapshot
   const batch = await emitFinalTailwindBatch({
     expected: collected.map(({ id, revision }) => ({ id, revision })),
     collected,
     runtime: { expected: [row], contributions: [row] },
-    prepare: async (names) =>
-      JSON.stringify((await prepareTailwindOrder(css, tailwindPackageDir(), names)).snapshot),
+    prepare: async (names) => {
+      orderSnapshot = JSON.stringify(
+        (await prepareTailwindOrder(css, tailwindPackageDir(), names)).snapshot,
+      )
+      return orderSnapshot
+    },
   })
+  if (!orderSnapshot) throw new Error('Tabs probe did not prepare its final namespace')
   const require = createRequire(path.join(tabsProbeRoot, 'examples/storybook-demo/package.json'))
   const { compile } = require('tailwindcss')
   const oracle = await compile(
@@ -39,6 +45,7 @@ export async function prepareTabsProbe(collected = [], classes = tabClasses) {
   return {
     classes,
     fingerprint: batch.fingerprint,
+    orderSnapshot,
     modules: batch.modules,
     native: batch.native.code,
     candidateCss: cache.renderCss(),

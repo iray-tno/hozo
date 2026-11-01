@@ -1,12 +1,10 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { textForwardingModule } from './manifest.ts'
 import { OWNER_PACKAGE_SCHEMA, parseOwnerPackageShadow } from './owner-package.ts'
 
-const owners = JSON.parse(
-  readFileSync(new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url), 'utf8'),
-)
+const owners = JSON.parse(ownerFixtureShadow('BottomSheet.handle'))
 function example() {
   return {
     schema: OWNER_PACKAGE_SCHEMA,

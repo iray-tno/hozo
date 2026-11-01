@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { createCompiler, inspectOwnerClassSlots } from './index.ts'
 import { previewOwnerLiteralCallers } from './owner-caller-plan.ts'
 
-const shadow = readFileSync(
-  new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
-  'utf8',
-)
+const shadow = ownerFixtureShadow('BottomSheet.handle')
 const options = { source: '@hozo/patterns', imported: 'BottomSheet', shadow }
 const compiler = createCompiler()
 

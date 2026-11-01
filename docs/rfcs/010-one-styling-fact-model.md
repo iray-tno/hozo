@@ -869,7 +869,11 @@ browser/device rendering, complete adapter graph capture or owner audit.
 Catalog publication routing is authored beside the shadow contracts as
 `ownerPublications`. `packageOwnerChannels` attaches a contract only to its
 declared owning package and existing public value exports. BottomSheet's handle
-belongs to `@hozo/patterns` under `BottomSheet` and `HozoBottomSheet`; matching
+belongs to `@hozo/patterns` under `BottomSheet` and `HozoBottomSheet`; `Tabs.Tab`
+is published there under `Tabs` and `HozoTabs`, with explicit per-tab booleans
+and the receiver's existing split-label destination. Both remain unknown-audit
+contracts. A string label's owned Text is not opaque ReactNode inheritance;
+see [the bounded Tabs evidence](../measurements/tabs-owner-spike.md). Matching
 names in `@hozo/ui` or `@hozo/core` do not acquire it through re-exporting.
 Duplicate publishers, absent export aliases, unassigned contracts and unknown
 catalog slots fail generation. The bounded reader still rejects an `audited`

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import {
+  cpSync,
   globSync,
   mkdirSync,
   mkdtempSync,
@@ -14,6 +15,8 @@ import {
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { runInNewContext } from 'node:vm'
+import { transformSync } from 'esbuild'
 import { createCompiler, openCandidateCache } from '../packages/compiler/src/index.ts'
 import {
   buildManifest,
@@ -29,6 +32,7 @@ import {
   InstanceOwnerCallerProject,
   OwnerManifestEpoch,
   readResolvedOwnerManifest,
+  selectOwnerPackageContract,
   withOwnerPackageCandidates,
 } from '../packages/compiler/src/project.ts'
 import { DEFAULT_PRIMITIVE_SOURCES } from '../packages/compiler/src/sources.ts'
@@ -158,6 +162,228 @@ test('the real pnpm UI tarball carries reproducible candidate and legacy text ch
   )
 })
 
+test('packed Tabs callers retain per-instance provenance, stateful carriers and author evaluation', {
+  timeout: 30000,
+}, async (t) => {
+  const { instance, json, unpacked } = await packedPackage(t, 'patterns')
+  const manifestFile = path.join(instance, json.hozo.manifest)
+  const text = readFileSync(manifestFile, 'utf8')
+  const manifest = JSON.parse(text)
+  const tab = manifest.package.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
+  assert.equal(tab.audit, 'unknown')
+  assert.equal(selectOwnerShape(tab, { present: false }).status, 'absent')
+  assert.equal(selectOwnerShape(tab, { present: true }).shape.id, 'tab')
+
+  // A second installation with deliberately stripped Tabs metadata is a
+  // negative fixture, not a claim about another published patterns version.
+  const second = path.join(unpacked, 'other-install')
+  cpSync(instance, second, { recursive: true })
+  const stripped = structuredClone(manifest)
+  stripped.package.owners.contracts = stripped.package.owners.contracts.filter(
+    (row) => row.owner !== tab.owner,
+  )
+  for (const row of stripped.package.exports)
+    row.owners = row.owners.filter((owner) => owner !== tab.owner)
+  writeFileSync(path.join(second, json.hozo.manifest), JSON.stringify(stripped))
+
+  const consumer = path.join(unpacked, 'tab-consumer')
+  mkdirSync(consumer)
+  writeFileSync(
+    path.join(consumer, 'global.css'),
+    '@import "tailwindcss"; @theme { --spacing: 7px; }',
+  )
+  const css = await loadProjectTailwindSnapshot(consumer)
+  const edges = ['App.tsx', 'Alias.tsx', 'Nested.tsx'].map((file) => ({
+    importer: path.join(consumer, file),
+    specifier: json.name,
+  }))
+  const installations = [instance, instance, second]
+  const observations = () =>
+    edges.map((edge, index) =>
+      readResolvedOwnerManifest(edge, {
+        packageRoot: installations[index],
+        entry: path.join(installations[index], json.exports['.']['react-native'].default),
+        declaredManifest: json.hozo.manifest,
+      }),
+    )
+  const capture = () =>
+    captureOwnerManifests(edges, observations(), {
+      platform: 'ios',
+      epoch: `packed-tabs:${css.fingerprint}`,
+    })
+  const epoch = new OwnerManifestEpoch()
+  epoch.adopt(capture())
+  const lease = epoch.lease()
+  const request = (at, imported = 'Tabs') => ({
+    ...edges[at],
+    entry: realpathSync(path.join(installations[at], json.exports['.']['react-native'].default)),
+    imported,
+    classProp: 'tabClassName',
+  })
+  for (const imported of ['Tabs', 'HozoTabs']) {
+    const selected = selectOwnerPackageContract(lease, request(0, imported))
+    assert.equal(selected.status, 'selected')
+    assert.deepEqual(JSON.parse(selected.shadow), {
+      schema: manifest.package.owners.schema,
+      contracts: [tab],
+    })
+    assert.equal(selected.identity.owner, 'Tabs.Tab')
+  }
+  assert.deepEqual(selectOwnerPackageContract(lease, request(2)), {
+    status: 'unassessed',
+    reason: 'owner-not-declared',
+  })
+  assert.deepEqual(selectOwnerPackageContract(lease, request(0, 'BottomSheet')), {
+    status: 'unassessed',
+    reason: 'owner-not-declared',
+  })
+
+  const classes =
+    'p-2 text-[18px] text-[#112233] aria-selected:text-[#223344] disabled:opacity-50 disabled:font-bold hover:tracking-[1px]'
+  const source = (imported = 'Tabs', props = `tabClassName="${classes}"`) =>
+    `import {${imported} as Choices} from '@hozo/patterns';
+export function App({tabs,index,author}) {return <Choices tabs={tabs} index={index} tabStyle={author.value} ${props}/>}`
+  let preparations = 0
+  const compiler = createCompiler(css.theme, [...DEFAULT_PRIMITIVE_SOURCES])
+  // The project must use retained preparation, not the old direct fallback.
+  compiler.compileNativeModule = () => {
+    throw new Error('no direct fallback')
+  }
+  compiler.setTailwindOrder = () => {
+    throw new Error('no mutable order setter')
+  }
+  const project = new InstanceOwnerCallerProject(lease, compiler, async (names, signal) => {
+    preparations++
+    if (preparations === 1) assert.ok(classes.split(' ').every((token) => names.includes(token)))
+    assert.ok(manifest.package.candidates.every((token) => names.includes(token)))
+    return JSON.stringify((await css.prepareOrder(names, signal)).snapshot)
+  })
+  const receipts = []
+  try {
+    const first = await project.emit(source(), request(0))
+    const alias = await project.emit(source('HozoTabs'), request(1, 'HozoTabs'))
+    assert.equal(preparations, 1, 'both aliases use the existing exact-context cache')
+    assert.equal(first.preview.contextFingerprint, alias.preview.contextFingerprint)
+    for (const [result, imported] of [
+      [first, 'Tabs'],
+      [alias, 'HozoTabs'],
+    ]) {
+      assert.equal(result.identity.instance, instance)
+      assert.equal(result.identity.manifestSha256, createHash('sha256').update(text).digest('hex'))
+      assert.equal(result.identity.imported, imported)
+      assert.equal(result.identity.owner, tab.owner)
+      assert.equal(result.preview.findings[0].disposition, 'prepared-literal')
+      assert.doesNotMatch(result.preview.code, /tabClassName=|hozoClasses|HozoPressable/)
+      let creates = 0,
+        authorReads = 0
+      const sentinel = Object.freeze({ imported })
+      const module = { exports: {} }
+      const code = transformSync(result.preview.code, {
+        loader: 'tsx',
+        format: 'cjs',
+        jsxFactory: 'element',
+      }).code
+      runInNewContext(code, {
+        module,
+        exports: module.exports,
+        element: (type, props) => ({ type, props }),
+        require(name) {
+          if (name === json.name) return { [imported]: sentinel }
+          assert.equal(name, 'react-native')
+          return {
+            StyleSheet: {
+              create(styles) {
+                creates++
+                for (const value of Object.values(styles)) Object.freeze(value)
+                return Object.freeze(styles)
+              },
+            },
+          }
+        },
+      })
+      const authored = Object.freeze([false, Object.freeze({ opacity: 0.8 })])
+      const author = {
+        get value() {
+          authorReads++
+          return authored
+        },
+      }
+      assert.equal(authorReads, 0, 'a module hoist cannot read an author')
+      const a = module.exports.App({ tabs: [], index: 0, author })
+      const b = module.exports.App({ tabs: [], index: 1, author })
+      assert.equal(a.type, sentinel, 'preserve the actual imported component, not a fake host')
+      assert.equal(a.props.tabStyle, authored)
+      assert.equal(a.props.hozoTabStyle, b.props.hozoTabStyle)
+      assert.equal(authorReads, 2, 'one authored prop evaluation per caller render')
+      assert.equal(creates, 1)
+      const flatten = (value) =>
+        Array.isArray(value) ? Object.assign({}, ...value.map(flatten)) : value || {}
+      const states = [
+        {},
+        { 'aria-selected': true },
+        { disabled: true },
+        { hovered: true },
+        { 'aria-selected': true, disabled: true, hovered: true },
+      ]
+      for (const current of states) {
+        const state = {
+          pressed: false,
+          hovered: false,
+          focused: false,
+          focusVisible: false,
+          disabled: false,
+          'aria-selected': false,
+          'aria-disabled': false,
+          ...current,
+        }
+        const style = flatten(a.props.hozoTabStyle(state))
+        assert.equal(style.paddingTop, 14)
+        assert.equal(style.fontSize, 18)
+        assert.equal(style.color, current['aria-selected'] ? '#223344' : '#112233')
+        assert.equal(style.opacity ?? 1, current.disabled ? 0.5 : 1)
+        assert.equal(style.fontWeight ?? '400', current.disabled ? '700' : '400')
+        assert.equal(style.letterSpacing ?? 0, current.hovered ? 1 : 0)
+      }
+      assert.equal(authorReads, 2, 'the class callback must not capture or read authored styles')
+      receipts.push({
+        imported,
+        evaluatedStates: states.length,
+        creates,
+        authorReads,
+        fingerprint: result.preview.contextFingerprint,
+      })
+    }
+    await assert.rejects(project.emit(source(), request(2)), /owner-not-declared/)
+    // Dynamic residuals and unsupported relative text remain whole authored
+    // calls, even when metadata and Tailwind context are otherwise complete.
+    for (const props of ['tabClassName={input.value}', 'tabClassName="text-[2em]"']) {
+      const input = source('Tabs', props)
+      assert.equal((await project.emit(input, request(0))).preview.code, input)
+    }
+    const leaseChanged = structuredClone(manifest)
+    leaseChanged.package.owners.contracts.find(
+      (row) => row.owner === tab.owner,
+    ).shapes[0].inputs.splitText = false
+    writeFileSync(manifestFile, JSON.stringify(leaseChanged))
+    assert.throws(() => epoch.adopt(capture()), /INVALIDATED/)
+    await assert.rejects(project.emit(source(), request(0)), /INVALIDATED/)
+    assert.notEqual(readFileSync(manifestFile, 'utf8'), text)
+    t.diagnostic(
+      JSON.stringify({
+        scope:
+          'packed Tabs instance selection and compiler-carrier evaluation; not a host/device audit',
+        aliases: receipts,
+        sameNameInstances: 2,
+        initiallySharedPreparations: 1,
+        missingOwnerRejected: true,
+        metadataChangeRetiredLease: true,
+      }),
+    )
+  } finally {
+    project.invalidate()
+  }
+})
+
 test('the built patterns tarball preserves scoped owner facts for both selected entries and explicit caller preview', {
   timeout: 30000,
 }, async (t) => {
@@ -220,7 +446,9 @@ test('the built patterns tarball preserves scoped owner facts for both selected 
     'selected entry/platform identities stay distinct',
   )
 
-  const contract = manifest.package.owners.contracts[0]
+  const contract = manifest.package.owners.contracts.find(
+    (row) => row.owner === 'BottomSheet.handle',
+  )
   assert.equal(contract.audit, 'unknown')
   assert.equal(selectOwnerShape(contract, { present: false }).status, 'absent')
   for (const resizable of [false, true]) {
@@ -250,7 +478,11 @@ export const App=()=> <BottomSheet open handleClassName="p-[8px]"><Text classNam
     ])
     const source = `import {${imported} as Sheet} from '@hozo/patterns';
 export const App=()=> <Sheet open handleClassName="p-[8px] opacity-50" handleStyle={authored}/>`
-    const options = { source: json.name, imported, shadow: JSON.stringify(manifest.package.owners) }
+    const options = {
+      source: json.name,
+      imported,
+      shadow: JSON.stringify({ schema: manifest.package.owners.schema, contracts: [contract] }),
+    }
     const preview = previewOwnerLiteralCallers(source, compiler, options)
     assert.equal(preview.findings[0].disposition, 'prepared-literal')
     assert.match(preview.code, /hozoHandleStyle=\{/)

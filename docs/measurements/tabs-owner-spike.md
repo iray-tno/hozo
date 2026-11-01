@@ -214,8 +214,8 @@ inferring requirements from emitted JSX. Shapes without inputs keep the old
 state-independent rule. All shapes must still agree on the assessed carrier,
 metadata and stylesheet before any caller edit is published.
 
-`tabs-owner-shadow.mjs` is explicitly selected measurement data, not a new
-catalog/public package contribution or an audit. The generic caller preview
+`tabs-owner-shadow.mjs` explicitly selects the catalog contribution for the
+measurement; it no longer defines a second contract. It is not an audit. The generic caller preview
 uses it to request the backend inputs/destination, hoist one stylesheet and
 replace only the literal class attribute. Backend callbacks are preserved as
 callbacks, not wrapped into a function returning a function. Authored props
@@ -238,7 +238,74 @@ one actual stylesheet creation. Those are scoped counts, not app-size or
 render-time measurements.
 
 This is still an explicit selected-contract preview, not normal Vite/Metro
-adoption, registry/packed-manifest Tabs publication, cross-instance resolution,
-Web prepared behavior, an audited owner or legacy removal. Promotion must use
-the existing package/instance path and independent gates; this receipt cannot
-audit its own measurement contract.
+adoption, cross-instance Tabs execution, Web prepared behavior, an audited
+owner or legacy removal. The receipt cannot audit its own contract.
+
+## Catalog and package publication
+
+The existing experimental package channel now publishes `Tabs.Tab` from
+`@hozo/patterns`, referenced only by its actual `Tabs` / `HozoTabs` value
+exports. The UI/core facades do not acquire that contract by spelling or
+re-export. The catalog is its single authoring location; generated shadow JSON,
+the patterns manifest and the selected probe read the same contribution.
+Miniature BottomSheet tests explicitly select their owner rather than depending
+on the catalog containing just one contract. A multi-owner document is still
+not accepted by the single-owner caller API: production selection belongs to
+the existing captured instance/export/class-prop path.
+
+`splitText` describes the current receiver, not universal text inheritance.
+Native Tabs sends text fields to its own Text only for a string label; a supplied
+ReactNode stays untouched. `tabStyle` remains the existing authored **box**
+override. Publication does not solve opaque-label inheritance, certify parity
+for every label shape, promote the pending catalog slot, or enable adapters.
+Both contracts remain `audit: unknown`; the shadow inventory rises from one
+to two while every global coverage/audit measure remains unavailable.
+
+## Packed instance-owned Tabs callers
+
+The publication test now reads the actual patterns pnpm tarball through
+`readResolvedOwnerManifest`, captures Native entry/importer identities, and
+uses `InstanceOwnerCallerProject` without copying a selected Tabs contract into
+the test. Both public export names select only `Tabs.Tab` from the two-owner
+manifest. Two callers share one actual Tailwind preparation, including the
+package candidates and a consumer theme with 7px spacing. Their emitted class
+callbacks are evaluated in five independent state combinations: padding 14,
+font size 18, selected color, disabled opacity/weight and hover tracking.
+Each module creates one stylesheet; a caller update retains its callback and
+evaluates the authored prop once without capturing it into the class recipe.
+
+A second same-name installation deliberately has its Tabs metadata stripped;
+it must remain unassessed instead of borrowing the first instance's contract.
+This negative installation is not another claimed registry release. Unsupported
+relative text and dynamic classes keep the entire authored call. Changing the
+captured destination metadata retires the lease and rejects further delivery.
+These are packed transport/selection and compiler-carrier checks, not execution
+of that tarball's React component, adapter activation, GPU/OS pixels or a new
+owner audit. The actual component delivery probe remains a separate gate.
+
+## Instance-selected delivery to actual Native Tabs
+
+The real-component comparison now includes a fourth route produced by
+`InstanceOwnerCallerProject`. It reads the actual local patterns package's
+declared manifest and selected Native export entry, captures a lease, and lets
+the existing selector choose the Tabs contribution. Unlike the tarball test,
+this runs the emitted caller through the actual Tabs/Pressable implementation
+with RN host stand-ins. It is not a packed-component execution claim.
+
+Package candidate facts join the finite opaque/static/selected-caller batch.
+One actual Tailwind preparation produces its complete immutable snapshot;
+the instance-owned session validates the same requested candidate universe
+and consumes that snapshot through its normal capability API. Its fingerprint
+must match the batch, not a mutable global order table or a second independently
+computed namespace. The receipt retains importer, entry, manifest hash,
+instance and epoch identity. Both caller modules are loaded independently so
+their hoisted identifiers are not artificially renamed or combined.
+
+All four routes match six phases x three tabs (72 state-host observations)
+and three author phases x three tabs (36 author-host observations), including
+the string labels, frozen author add/remove, live selection/disabled state,
+real activation, stable positional hosts and stable prepared callback. The
+instance route emits one stylesheet site and requests zero class strings.
+The old ordinary Web probe still uses its original bounded candidates; this
+extension does not certify Web prepared behavior, opaque-label inheritance,
+OS text pixels, broad auditing or default adapter adoption.

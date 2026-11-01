@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
+import { createCompiler } from '../packages/compiler/src/index.ts'
 import {
   buildManifest,
   buildPackageManifest,
@@ -109,8 +110,17 @@ test('patterns publishes its catalog-owned contract without cloning it onto the 
     assert.deepEqual(manifest.package.exports.find((row) => row.name === name).owners, [
       'BottomSheet.handle',
     ])
+  for (const name of ['Tabs', 'HozoTabs'])
+    assert.deepEqual(manifest.package.exports.find((row) => row.name === name).owners, ['Tabs.Tab'])
   assert.equal(manifest.package.compiledByConsumer, false)
   assert.deepEqual(manifest.textForwarding, {})
+  const compiler = createCompiler()
+  const source = `import {Tabs} from '@hozo/patterns';
+export const App=()=> <Tabs tabs={tabs} tabClassName="p-2 hover:text-red-500"/>`
+  const ordinary = compiler.compileNativeModule(source)
+  compiler.setTextForwarding([textForwardingModule(json.name, manifest)])
+  assert.deepEqual(compiler.compileNativeModule(source), ordinary)
+  assert.equal(JSON.stringify(ordinary).includes('hozoTabStyle'), false)
   const ui = fileURLToPath(new URL('../packages/ui/', import.meta.url))
   const uiOptions = await sourcePackageChannels(ui, './src/index.ts', { packageName: '@hozo/ui' })
   assert.equal(uiOptions.owners, null)

@@ -1,11 +1,11 @@
 // Explicit RFC010 evidence fixture. This is not an adapter or manifest resolver.
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { createCompiler, openCandidateCache } from '../../packages/compiler/src/index.ts'
 import { prepareOwnerLiteralCallers } from '../../packages/compiler/src/owner-caller-plan.ts'
 import { emitFinalTailwindBatch } from '../../packages/compiler/src/tailwind-final-batch.ts'
 import { prepareTailwindOrder, tailwindPackageDir } from '../../packages/tailwind/src/theme.ts'
+import { ownerFixtureShadow } from './owner-fixture.mjs'
 
 export const handleClasses = 'p-4 p-2 w-8 w-4 bg-[#112233] bg-[#223344]'
 export const handleSource = `import {BottomSheet} from '@hozo/patterns';
@@ -32,7 +32,7 @@ export async function prepareHandlePublication() {
   const owner = prepareOwnerLiteralCallers(handleSource, compiler, {
     source: '@hozo/patterns',
     imported: 'BottomSheet',
-    shadow: readFileSync(new URL('./owner-shadow.json', import.meta.url), 'utf8'),
+    shadow: ownerFixtureShadow('BottomSheet.handle'),
   })
   const opaque = openCandidateCache()
   opaque.scanFile('Opaque.tsx', handleSource, 0)
