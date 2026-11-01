@@ -2,7 +2,7 @@ import { hozoTextChildren } from '@hozo/behaviors'
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
-import { type StyleProp, Text, View, type ViewStyle } from 'react-native'
+import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
 
@@ -11,6 +11,14 @@ export interface HozoTab {
   content: ReactNode
   disabled?: boolean
 }
+
+type TabOwnerState = Readonly<
+  InteractionState & {
+    disabled: boolean
+    'aria-selected': boolean
+    'aria-disabled': boolean
+  }
+>
 
 export interface HozoTabsProps {
   /**
@@ -38,6 +46,13 @@ export interface HozoTabsProps {
   style?: StyleProp<ViewStyle>
   tabListStyle?: StyleProp<ViewStyle>
   tabStyle?: StyleProp<ViewStyle>
+  /**
+   * @internal Complete prepared tab class contribution (RFC010).
+   * Each existing Pressable supplies its own live facts. A producer consumes
+   * tabClassName, including any residual, rather than applying both routes.
+   * Ordinary compiler output does not emit this experimental carrier yet.
+   */
+  hozoTabStyle?: (state: TabOwnerState) => StyleProp<ViewStyle | TextStyle>
   panelStyle?: StyleProp<ViewStyle>
 }
 
@@ -54,8 +69,11 @@ export function HozoTabs({
   style,
   tabListStyle,
   tabStyle,
+  hozoTabStyle,
   panelStyle,
 }: HozoTabsProps) {
+  if (hozoTabStyle && tabClassName !== undefined)
+    throw new Error('Prepared Tabs tab styles must consume tabClassName')
   const [uncontrolled, setUncontrolled] = useState(defaultIndex)
   const selected = index ?? uncontrolled
 
@@ -70,15 +88,17 @@ export function HozoTabs({
 
   // A tab's box and label: a Pressable is a View and drops a label's colour
   // and weight, so those go to its Text (see `splitTextStyle`).
-  const look = (tab: HozoTab, at: number, interaction: InteractionState) =>
-    splitTextStyle(
-      hozoClasses(tabClassName, {
-        ...interaction,
-        disabled: Boolean(tab.disabled),
-        'aria-selected': at === selected,
-        'aria-disabled': Boolean(tab.disabled),
-      }),
-    )
+  const look = (tab: HozoTab, at: number, interaction: InteractionState) => {
+    // A disposable snapshot, not shared interaction/strip state. The same
+    // facts drive both routes, before the existing box/label split.
+    const facts: TabOwnerState = {
+      ...interaction,
+      disabled: Boolean(tab.disabled),
+      'aria-selected': at === selected,
+      'aria-disabled': Boolean(tab.disabled),
+    }
+    return splitTextStyle(hozoTabStyle ? hozoTabStyle(facts) : hozoClasses(tabClassName, facts))
+  }
 
   // The panel's box and its text, split for the same reason as a tab's.
   const [panelBox, panelText] = splitTextStyle([

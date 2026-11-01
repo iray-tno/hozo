@@ -7,6 +7,7 @@ on:
       - 'examples/storybook-demo/scripts/owner-handle.test.mjs'
       - 'examples/storybook-demo/scripts/owner-tabs.test.mjs'
       - 'packages/tailwind-conformance/src/tabs-owner-state.test.ts'
+      - 'packages/tailwind-conformance/src/tabs-prepared-owner.test.ts'
       - 'packages/compiler/src/owner-*.ts'
       - 'packages/patterns/src/bottom-sheet*'
       - 'packages/patterns/src/tabs*'
@@ -38,7 +39,7 @@ jobs:
       # Native component probes import Metro's source transform, not an app build.
       - run: pnpm exec turbo run build --filter='@hozo/example-storybook^...' --filter='@hozo/metro' --concurrency=2
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-handle.test.mjs
-      - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/tabs-owner-state.test.ts examples/storybook-demo/scripts/owner-tabs.test.mjs
+      - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/tabs-owner-state.test.ts packages/tailwind-conformance/src/tabs-prepared-owner.test.ts examples/storybook-demo/scripts/owner-tabs.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -325,6 +325,8 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/patterns/src/tabs.native.tsx',
+    'packages/patterns/src/text-style.native.ts',
     'scripts/style-slots/tabs-probe.mjs',
     'scripts/style-slots/evidence-source.mjs',
     'scripts/style-slots/handle-publication.mjs',

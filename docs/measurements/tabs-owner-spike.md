@@ -79,3 +79,30 @@ also failed before executing because this narrow workflow had not built
 Metro's source-transform entry; that dependency is now an explicit build
 target, not a heavy Metro application bundle. These are harness defects,
 not product failures or flakes; the original log/partial receipt is retained.
+
+## Explicit Native prepared receiver
+
+Tabs now has an internal `hozoTabStyle` callback. It receives a fresh snapshot
+of the existing Pressable's interaction and that individual tab's disabled,
+aria-selected and aria-disabled booleans. The ordinary resolver consumes those
+same facts; a callback may not coexist with tabClassName and double-apply it.
+No event machine, wrapper, subscription, rank calculation or style cache is
+added. The ordinary path does not read manifests or allocate a second snapshot.
+
+Both routes still use the existing box/text split and normalize authored
+tabStyle at the host style evaluation boundary, after the class contribution.
+Independent prepared marker tests check per-tab facts, selected+disabled,
+hover isolation, string-label color, stable positional hosts and restoration
+after frozen author gap/opacity overrides are removed. The marker callback's
+mutation cannot alter real host/sibling state. A traced actual candidate map
+positively witnesses the opaque route and verifies that the prepared marker
+does not request a removed class string.
+
+These marker functions are deliberately not a compiler producer. This proves
+the receiver boundary against RN host stand-ins, not compiled Tabs caller
+rewriting, native OS behavior or an audited contract. String labels retain
+their existing text behavior; opaque label inheritance is not newly certified.
+The backend must next supply explicitly declared semantic facts through its
+existing condition/priority renderer rather than parsing classes in JavaScript
+or manufacturing a second interaction owner. Default routes and published
+manifest data remain unchanged.
