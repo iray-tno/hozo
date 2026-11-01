@@ -83,6 +83,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_ROOT$/scripts/style-slots/handle-publication.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",
         "$TURBO_ROOT$/scripts/style-slots/evidence-source.mjs",
         "$TURBO_ROOT$/crates/hozo_native/src/conditions/guards.rs",
         "$TURBO_DEFAULT$",
@@ -169,6 +170,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_ROOT$/scripts/style-slots/handle-*.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",
         "$TURBO_ROOT$/scripts/style-slots/evidence-source.mjs",
         "$TURBO_ROOT$/scripts/style-slots/owner-shadow.json",
         "$TURBO_ROOT$/packages/tailwind/src/theme.ts",

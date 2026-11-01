@@ -39,10 +39,20 @@ test('a tab points at its panel and the panel back at the tab', () => {
   assert.deepEqual(attributes(html, 'aria-labelledby'), tabIds, 'each panel points back at its tab')
 })
 
-test('a disabled tab keeps its place and says so', () => {
+test('a disabled tab keeps its place but exposes one unavailable owner to CSS and the browser', () => {
   const html = strip()
   assert.match(html, /aria-disabled="true"/)
-  assert.doesNotMatch(html, /<button[^>]*\sdisabled[\s>]/)
+  const buttons = [...html.matchAll(/<button\b[^>]*>/g)].map(([button]) => button)
+  assert.equal(buttons.length, 3)
+  for (const [at, button] of buttons.entries()) {
+    if (at === 2) {
+      assert.match(button, /\sdisabled=""/)
+      assert.match(button, /data-hozo-disabled=""/)
+      assert.match(button, /tabindex="-1"/)
+    } else {
+      assert.doesNotMatch(button, /\sdisabled=|data-hozo-disabled/)
+    }
+  }
   assert.equal(attributes(html, 'role').filter((role) => role === 'tab').length, 3)
 })
 

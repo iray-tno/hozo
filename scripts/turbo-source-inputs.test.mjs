@@ -91,6 +91,7 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'scripts/style-slots/tabs-probe.mjs',
     'scripts/style-slots/evidence-source.mjs',
     'scripts/style-slots/handle-web.mjs',
     'scripts/style-slots/handle-publication.mjs',
@@ -324,6 +325,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'scripts/style-slots/tabs-probe.mjs',
     'scripts/style-slots/evidence-source.mjs',
     'scripts/style-slots/handle-publication.mjs',
     'packages/compiler/src/tailwind-final-batch.ts',
