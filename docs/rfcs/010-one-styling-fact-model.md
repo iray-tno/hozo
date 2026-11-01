@@ -944,3 +944,16 @@ author precedence and resolver controls remain in place. The experimental
 catalog/published contract is regenerated together (`open`→`present`, adding
 9 JSON bytes from the earlier 7,206-byte envelope). No audit claim or default
 caller route is promoted by this correction.
+
+The browser presence probe renders the actual Web component against both
+candidate and independent Tailwind CSS. It records both handle shapes across
+initial absence, open, exiting, absent and reopened: 20 phase observations.
+Exiting preserves the same styled host while its ancestor is inert and ignores
+pointers; reopening creates a new host. A controlled JS clock and explicit
+transition-completion event bound this to DOM/computed-style lifetime, not real
+animation duration, smoothness, pixels or Native window behavior. An early
+completion event must not remove the owner. The separate browser-lifetime
+receipt is uploaded alongside the existing real pointer/focus receipt; failure
+keeps `passed: false` and any partial observations. Local oracle/bundle checks
+alone do not certify the browser run, and neither receipt promotes the package
+contract's unknown audit status or installs a default caller route.

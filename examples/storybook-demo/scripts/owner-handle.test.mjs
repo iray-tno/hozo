@@ -25,7 +25,36 @@ test('handle Web oracle and candidate fixture include the actual state selectors
     assert.match(css, /focus/)
     assert.match(css, /active/)
   }
+  const bundle = await lifetimeBundle(fixture.rest)
+  assert.equal(bundle.outputFiles.length, 1)
+  assert.ok(
+    Object.keys(bundle.metafile.inputs).some((file) =>
+      file.endsWith('patterns/dist/bottom-sheet.js'),
+    ),
+  )
 })
+
+async function lifetimeBundle(classes) {
+  return build({
+    stdin: {
+      contents: `import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';import {BottomSheet} from '@hozo/patterns';
+function App({interactive}) {const [open,setOpen]=useState(false);window.show=(value)=>flushSync(()=>setOpen(value));
+return <BottomSheet open={open} portal={false} detents={interactive?[.5,1]:[1]} accessibilityLabel="Lifetime evidence" sheetClassName="lifetime-panel" handleClassName={"lifetime-handle "+${JSON.stringify(classes)}}><button>Body</button></BottomSheet>}
+window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelector('#root'));flushSync(()=>fixtureRoot.render(<App interactive={interactive}/>))};
+window.finishExit=()=>flushSync(()=>document.querySelector('.lifetime-panel').dispatchEvent(new TransitionEvent('transitionend',{bubbles:true,propertyName:'transform'})));`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+      loader: 'tsx',
+    },
+    bundle: true,
+    write: false,
+    metafile: true,
+    minify: true,
+    format: 'iife',
+    platform: 'browser',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+}
 
 test('real Web handle computed rest/hover/focus/pressed styles match Tailwind on each actual host', {
   skip: !executablePath,
@@ -202,3 +231,127 @@ async function read(handle) {
     }
   })
 }
+
+test('real Web handle styles follow owner presence rather than the open request', {
+  skip: !executablePath,
+}, async () => {
+  const evidence = {
+    schema: 1,
+    ...evidenceSource(),
+    passed: false,
+    scope: 'web-owner-presence-controlled-clock',
+    observations: [],
+  }
+  const destination = path.join(
+    handleRoot,
+    'artifacts/style-fact-model/handle-browser-lifetime.json',
+  )
+  let browser
+  try {
+    const fixture = await prepareWebHandle()
+    const bundle = await lifetimeBundle(fixture.rest)
+    browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-gpu'] })
+    const errors = []
+    for (const interactive of [false, true]) {
+      for (const [kind, css] of [
+        ['candidate', fixture.candidateCss],
+        ['tailwind', fixture.oracleCss],
+      ]) {
+        const page = await browser.newPage()
+        page.on('pageerror', (error) => errors.push(error.message))
+        try {
+          await page.clock.install()
+          await page.setContent(
+            `<style>.lifetime-panel{width:300px;height:400px;transition:transform 1s linear}.lifetime-panel[data-state=closed]{transform:translateY(100%) !important}.lifetime-handle{border:0;box-sizing:border-box}</style><style>${css}</style><div id="root"></div>`,
+          )
+          await page.addScriptTag({ content: bundle.outputFiles[0].text })
+          await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000))
+          await page.evaluate((value) => window.mount(value), interactive)
+          const record = async (phase) => {
+            const selected = await page.evaluate(() => {
+              const handle = document.querySelector('.lifetime-handle')
+              if (!handle) return null
+              const style = getComputedStyle(handle)
+              const panel = document.querySelector('.lifetime-panel')
+              const leaving = handle.closest('[inert]')
+              return {
+                tag: handle.tagName,
+                state: panel.dataset.state,
+                sameHost: handle === window.ownerBefore,
+                inert: !!leaving,
+                pointerEvents: leaving ? getComputedStyle(leaving).pointerEvents : null,
+                style: {
+                  paddingTop: style.paddingTop,
+                  width: style.width,
+                  opacity: style.opacity,
+                  backgroundColor: style.backgroundColor,
+                },
+              }
+            })
+            evidence.observations.push({ kind, interactive, phase, selected })
+            return selected
+          }
+          assert.equal(await record('initial-hidden'), null)
+          await page.evaluate(() => window.show(true))
+          await page.locator('.lifetime-handle').waitFor({ state: 'attached' })
+          await page.evaluate(() => {
+            window.ownerBefore = document.querySelector('.lifetime-handle')
+          })
+          const opened = await record('open')
+          assert.deepEqual(opened, {
+            tag: interactive ? 'BUTTON' : 'DIV',
+            state: 'open',
+            sameHost: true,
+            inert: false,
+            pointerEvents: null,
+            style: {
+              paddingTop: '16px',
+              width: '32px',
+              opacity: '1',
+              backgroundColor: 'rgb(34, 51, 68)',
+            },
+          })
+          await page.evaluate(() => window.show(false))
+          assert.deepEqual(await record('exiting'), {
+            ...opened,
+            state: 'closed',
+            inert: true,
+            pointerEvents: 'none',
+          })
+          // The real hook rejects an early completion event. Advance only the
+          // JS clock, then complete explicitly before its 100ms fallback timer.
+          // This proves DOM/style lifetime, not physical animation smoothness.
+          await page.evaluate(() => window.finishExit())
+          assert.equal(await page.locator('.lifetime-handle').count(), 1)
+          await page.clock.runFor(1000)
+          await page.evaluate(() => window.finishExit())
+          assert.equal(await record('absent'), null)
+          await page.evaluate(() => window.show(true))
+          await page.locator('.lifetime-handle').waitFor({ state: 'attached' })
+          assert.deepEqual(await record('reopened'), { ...opened, sameHost: false })
+        } finally {
+          await page.close()
+        }
+      }
+      const rows = evidence.observations.filter((row) => row.interactive === interactive)
+      assert.deepEqual(
+        rows
+          .filter((row) => row.kind === 'candidate')
+          .map(({ phase, selected }) => ({ phase, selected })),
+        rows
+          .filter((row) => row.kind === 'tailwind')
+          .map(({ phase, selected }) => ({ phase, selected })),
+      )
+    }
+    assert.deepEqual(errors, [])
+    assert.equal(evidence.observations.length, 20)
+    evidence.passed = true
+  } catch (error) {
+    evidence.error = String(error)
+    throw error
+  } finally {
+    await browser?.close()
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(destination, `${JSON.stringify(evidence, null, 2)}\n`)
+  }
+})
