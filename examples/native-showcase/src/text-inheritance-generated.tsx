@@ -51,17 +51,17 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        '14dc74315ce92f02d50707f5e13a0130b82dd8a387d0abe081e06fcbf5d6a48d',
+        '61c730ddd4b6c9b3b7d18ecd71255264dfbee0eb2c25bf4bb9375ca96dd56702',
       'packages/metro/src/transform.ts':
         '0a9af13765cc92deb0d85a0344fa4cbdf8753841de5ed3ddfac0199d4ea81332',
       'crates/hozo_napi/src/lib.rs':
-        '909b7bceb27a2b28335aff4b53eab10db9128457615964aff8bb520606e1872f',
+        'cd9790c0b0d9df4062eed4af03fe60b7cf06ce9601521c18b8967098bc6a2772',
       'crates/hozo_napi/src/owner_slots.rs':
         '32f992813986c3e391d73f3ddcc13c9aec38987c7d3060d482e84b8862f7d9ac',
       'crates/hozo_napi/src/tailwind_order.rs':
         '0330e9abfdd622504da5643df560987bbf88ed4e512d415efa4b7d9c2fa3f753',
       'crates/hozo_napi/src/prepared_module.rs':
-        'cbe8b83b10287b327079911354dee899bbf1f9a227a87de810a62e29330ba128',
+        '08e7a34ef0758fc92aa371bccc9beb2cc208ba2f878f2579bafa6210ffc7c30d',
       'crates/hozo_parser/src/lib.rs':
         '299eb1e103c1f82db41d5720a661cdc42ccc09bb05bed28ba751f751d572b038',
       'crates/hozo_parser/src/owner_slots.rs':
@@ -87,9 +87,9 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        '58269ad03acae91d83591b003b90c430c954b8766a7f67c3813c93289580284c',
+        'cd610a8db72c0889532ee4156413bf1e69ab7da4045299e841bf1422360ccae0',
       'crates/hozo_native/src/owner_style.rs':
-        '32030ce2d108404c9f2328b97793ab28421134b2aeac19cb34fe1487335cef3f',
+        '1ec0dd323b7ded1a1ca7c83d2160b2e1c9ebdaa717e8c82b64298b174bc7287e',
       'crates/hozo_native/src/runtime_classes.rs':
         'd47e472c5042734c1b386ea4e712fe0dffba832a88a6882e75e2759c16d62bae',
       'crates/hozo_native/src/conditions.rs':
@@ -101,7 +101,7 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/style.rs':
         '7c82d60126b0827fd891bf28bab6fe5833acda3c8d5189916757ca990d84e548',
       'crates/hozo_native/src/render.rs':
-        '48e0ff971cdc26890f8e1b4951a923becce5beedec32eed270d4cb63cb0a2b9e',
+        'f6f0d2da8ab95085095967d30cebea14fa7e2ffc3b76b40edb36689f98ff9023',
       'crates/hozo_native/src/text.rs':
         '74c04433e9e410335def93b6e4ab37955cc5ae7c88fb4c4555d3bfe65534d9d0',
       'crates/hozo_ir/src/lib.rs':

@@ -281,6 +281,7 @@ impl PreparedNativeModule {
             NativeModuleOptions {
                 owner_style: self.options.owner_style.unwrap_or(false),
                 owner_facts: self.options.owner_facts()?,
+                owner_split_text: self.options.owner_text.is_some(),
                 text_reference: self.options.text_reference.unwrap_or(false),
                 text_inheritance: self.options.text_inheritance.unwrap_or(false),
                 text_static: self.options.text_static.unwrap_or(false),

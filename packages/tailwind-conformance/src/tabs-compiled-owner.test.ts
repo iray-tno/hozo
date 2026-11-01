@@ -40,6 +40,7 @@ test('compiled tab carrier matches opaque candidate resolution at all 18 actual 
     fingerprint: '',
     declarations: ['disabled', 'aria-selected', 'aria-disabled'],
     carrier: '',
+    splitText: false,
     classes: '',
     stylesheetCreates: 0,
     observations: [] as unknown[],
@@ -61,12 +62,13 @@ test('compiled tab carrier matches opaque candidate resolution at all 18 actual 
   let hook: ReturnType<typeof registerHooks> | undefined
   try {
     const compiler = createCompiler()
-    const classes = `${tabClasses} gap-x-[2px] gap-y-[3px]`
+    const classes = `${tabClasses} gap-x-[2px] gap-y-[3px] text-[#334455] aria-selected:text-[#445566] text-[18px] disabled:font-bold hover:tracking-[1px]`
     evidence.classes = classes
     const input = `import {Pressable} from '@hozo/primitives';export const Plan=()=> <Pressable className=${JSON.stringify(classes)}/>`
     const retained = compiler.prepareNativeModule(input, undefined, undefined, {
       ownerStyle: true,
       ownerFacts: ['disabled', 'aria-selected', 'aria-disabled'],
+      ownerText: 'split',
     })
     const fixture = await prepareTabsProbe(
       [{ id: 'Plan.native.tsx', revision: 'one', module: retained }],
@@ -75,6 +77,8 @@ test('compiled tab carrier matches opaque candidate resolution at all 18 actual 
     const component = fixture.modules[0].output.components[0]
     const carrier = component.ownerStyle
     assert.ok(carrier?.callback)
+    assert.equal(carrier.splitText, true)
+    evidence.splitText = carrier.splitText
     assert.deepEqual(carrier.facts, evidence.declarations)
     assert.deepEqual(component.prelude, [])
     assert.ok(component.runtimeImports.every((name: string) => name === 'HozoPressable'))
@@ -151,10 +155,36 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
         tree.root.findAll((n) => n.type === 'Pressable' && n.props.accessibilityRole === 'tab')
       const original = owners()
       assert.equal(original.length, 3)
+      const readLabels = (phase: string) => {
+        const labels = tree.root.findAll((node) => node.type === 'Text').slice(0, 3)
+        assert.deepEqual(
+          labels.map((node) => node.props.children),
+          ['A', 'B', 'C'],
+        )
+        const expected = expectedTabRows(phase)
+        return labels.map((node, at) => {
+          const style = rn.StyleSheet.flatten(node.props.style)
+          const actual = {
+            color: style.color,
+            size: style.fontSize,
+            weight: style.fontWeight ?? '400',
+            spacing: style.letterSpacing ?? 0,
+          }
+          assert.deepEqual(actual, {
+            color: expected[at].selected ? '#445566' : '#334455',
+            size: 18,
+            weight: expected[at].disabled ? '700' : '400',
+            spacing: at === 1 && phase !== 'initial' ? 1 : 0,
+          })
+          return actual
+        })
+      }
       const record = (phase: string) => {
         assert.deepEqual(owners(), original, `${route}: positional host identity`)
         const rows = owners().map((node) => {
           const style = rn.StyleSheet.flatten(node.props.style({ pressed: false }))
+          assert.equal(style.color, undefined, 'label paint must not stay on the box')
+          assert.equal(style.fontSize, undefined, 'label metrics must not stay on the box')
           return {
             selected: node.props.accessibilityState.selected,
             disabled: node.props.disabled === true,
@@ -168,7 +198,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
           }
         })
         assert.deepEqual(rows, expectedTabRows(phase), `${route}: ${phase}`)
-        evidence.observations.push({ route, phase, rows })
+        evidence.observations.push({ route, phase, rows, labels: readLabels(phase) })
       }
       const event = (name: keyof Host['props']) =>
         renderer.act(() => (owners()[1]!.props[name] as (e: object) => void)({}))
@@ -223,6 +253,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
           rows,
           getterReads: reads,
           hostEvaluationGetterReads: reads - before,
+          labels: readLabels('selected-disabled'),
         })
       }
       recordAuthor('before-author', false)

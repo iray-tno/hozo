@@ -867,8 +867,11 @@ pub(super) fn render_node(
     // correctly on Web.
     // TextInput paints its value, not JSX children. Its own font/colour
     // belongs on the field too; do not hand it to nonexistent child Text.
+    // An explicit leaf carrier may target an existing box/owned-label split.
+    // Keep its assessed text fields in the same priority/style writer, without
+    // manufacturing a child, inheritance scope or extra runtime text callback.
     let (text_declarations, own_declarations): (Vec<_>, Vec<_>) =
-        if renders_text(component) || component == "TextInput" {
+        if renders_text(component) || component == "TextInput" || cx.owner_inputs.split_text {
             (Vec::new(), style.clone())
         } else {
             style
@@ -979,7 +982,7 @@ pub(super) fn render_node(
         .or_else(|| (node.primitive == Primitive::TextInput).then_some("hozoStyle"));
     let transform_entry_start = cx.style_entries.len();
     let target = crate::conditions::StyleTarget {
-        owner_facts: cx.owner_facts,
+        owner_facts: cx.owner_inputs.facts,
         node,
         position,
         interaction_context: interaction_context
@@ -1519,12 +1522,13 @@ pub(super) fn render_node(
             } else {
                 "pressed"
             };
-            let state = if cx.owner_facts.is_empty() {
+            let state = if cx.owner_inputs.facts.is_empty() {
                 format!("{{ {fields} }}")
             } else {
                 format!(
                     "{{ {fields}, {} }}",
-                    cx.owner_facts
+                    cx.owner_inputs
+                        .facts
                         .iter()
                         .map(|fact| fact.parameter())
                         .collect::<Vec<_>>()

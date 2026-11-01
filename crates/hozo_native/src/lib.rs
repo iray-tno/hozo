@@ -97,7 +97,9 @@ use hozo_ir::{
     Environment, ExprRef, FilterFunction, FormState, Length, Node, Primitive, Severity, Structural,
     StyleDeclaration, StyleProperty, SvgElement, TextOverflow, Theme, WhiteSpace,
 };
-pub use owner_style::{lower_owner_style, lower_owner_style_with_facts, OwnerFact, OwnerStyle};
+pub use owner_style::{
+    lower_owner_style, lower_owner_style_with_inputs, OwnerFact, OwnerStyle, OwnerStyleInputs,
+};
 use render::render_node;
 pub use runtime_classes::{
     native_class_diagnostics, native_class_report, native_class_verdict,
@@ -217,7 +219,7 @@ pub(crate) struct NativeRenderContext<'a> {
     pub text_inheritance: bool,
     /// Only the explicit RFC010 preparation request observes this carrier.
     pub owner_style: Option<&'a mut Option<OwnerStyle>>,
-    pub owner_facts: &'a [OwnerFact],
+    pub owner_inputs: OwnerStyleInputs<'a>,
 }
 
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
@@ -383,11 +385,11 @@ fn lower_forwarded_capturing(
     theme: &Theme,
     text_reference: bool,
     text_inheritance: bool,
-    owner: Option<(&mut Option<OwnerStyle>, &[OwnerFact])>,
+    owner: Option<(&mut Option<OwnerStyle>, OwnerStyleInputs<'_>)>,
 ) -> LowerOutput {
-    let (owner_style, owner_facts) = owner
-        .map(|(style, facts)| (Some(style), facts))
-        .unwrap_or((None, &[]));
+    let (owner_style, owner_inputs) = owner
+        .map(|(style, inputs)| (Some(style), inputs))
+        .unwrap_or((None, OwnerStyleInputs::default()));
     let inherited: Vec<StyleDeclaration> = forwarded_text(forwarded).cloned().collect();
     let mut allocator = NameAllocator { next: 0 };
     let mut style_entries: Vec<StyleEntry> = Vec::new();
@@ -408,7 +410,7 @@ fn lower_forwarded_capturing(
         text_reference,
         text_inheritance,
         owner_style,
-        owner_facts,
+        owner_inputs,
     };
     let ancestor = AncestorContext {
         inherited: &inherited,

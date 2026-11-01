@@ -672,6 +672,7 @@ pub struct TextForwardingModule {
 pub struct NativeCompileOptions {
     pub owner_style: Option<bool>,
     pub owner_facts: Option<Vec<String>>,
+    pub owner_text: Option<String>,
     pub text_reference: Option<bool>,
     pub text_inheritance: Option<bool>,
     pub text_static: Option<bool>,
@@ -712,6 +713,13 @@ impl NativeCompileOptions {
 
     fn validate_owner_style(&self) -> napi::Result<()> {
         self.owner_facts()?;
+        if let Some(target) = &self.owner_text {
+            if target != "split" || !self.owner_style.unwrap_or(false) {
+                return Err(napi::Error::from_reason(
+                    "Internal ownerText requires ownerStyle and the split destination",
+                ));
+            }
+        }
         if self.owner_style.unwrap_or(false)
             && (self.text_reference.unwrap_or(false)
                 || self.text_inheritance.unwrap_or(false)
@@ -865,6 +873,7 @@ impl Compiler {
             NativeModuleOptions {
                 source_file: source_file.as_deref(),
                 owner_facts: options.owner_facts()?,
+                owner_split_text: options.owner_text.is_some(),
                 text_reference: options.text_reference.unwrap_or(false),
                 owner_style: options.owner_style.unwrap_or(false),
                 text_inheritance: options.text_inheritance.unwrap_or(false),
@@ -1223,6 +1232,8 @@ pub struct CompiledNativeComponent {
 
 #[napi(object)]
 pub struct CompiledOwnerStyle {
+    /// Only an existing split-box/label receiver may consume this carrier.
+    pub split_text: Option<bool>,
     /// Declared callback inputs, not owner identity or an audit verdict.
     pub facts: Option<Vec<String>>,
     pub literal_resting: bool,
@@ -1463,6 +1474,7 @@ fn lower_native(
 struct NativeModuleOptions<'a> {
     owner_style: bool,
     owner_facts: Vec<hozo_native::OwnerFact>,
+    owner_split_text: bool,
     source_file: Option<&'a str>,
     text_reference: bool,
     text_inheritance: bool,
@@ -1606,14 +1618,18 @@ fn lower_native_components(
         .map(|root| {
             let mut carrier = None;
             let output = if options.owner_style {
-                let (output, style) = hozo_native::lower_owner_style_with_facts(
+                let (output, style) = hozo_native::lower_owner_style_with_inputs(
                     &root.node,
                     &root.forwarded,
                     source,
                     theme,
-                    &options.owner_facts,
+                    hozo_native::OwnerStyleInputs {
+                        facts: &options.owner_facts,
+                        split_text: options.owner_split_text,
+                    },
                 );
                 carrier = style.map(|style| CompiledOwnerStyle {
+                    split_text: style.split_text.then_some(true),
                     facts: (!style.facts.is_empty()).then(|| {
                         style
                             .facts

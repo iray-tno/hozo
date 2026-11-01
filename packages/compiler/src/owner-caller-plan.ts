@@ -190,6 +190,7 @@ function collectOwnerLiteralCallers(
             valid:
               module.components.length === 1 &&
               !!root?.ownerStyle &&
+              !root.ownerStyle.splitText &&
               root.ownerStyle.literalResting &&
               !root.ownerStyle.callback &&
               !root.ownerStyle.focusVisible &&

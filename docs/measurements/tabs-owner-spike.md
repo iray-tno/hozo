@@ -148,7 +148,6 @@ control. No runtime implementation was changed to satisfy that measurement.
 This is Native component-host-model evidence, not Android/iOS event or pixel
 proof. The adjacent browser comparison still evaluates the ordinary Tabs
 route against Tailwind, not a Web prepared carrier. Caller shape selection,
-text-bearing compiler carriers,
 production bundle cost and a full owner audit remain separate gates. Default
 adapters, published manifests and the owner-audit count are unchanged.
 
@@ -173,6 +172,33 @@ Hozo. The separate initial-mount marker test still requires zero reads before
 host evaluation. No product code, getter policy or timeout was changed for
 this distinction. The receipt retains both total and host-evaluation counts.
 
-This closes the bounded compiled **box**/author composition check. Compiled
-label paint/metrics and caller replacement remain separate gates, as do Web
+This closes the bounded compiled **box**/author composition check. Caller
+replacement remains a separate gate, as do Web
 prepared delivery, device pixels, performance and full owner audit.
+
+## Explicit split-label carrier
+
+Native preparation may declare `ownerText: 'split'` only with `ownerStyle`.
+The returned carrier advertises `splitText: true`; a destination must already
+separate its box and owned-label fields. The existing style/condition writer
+keeps those assessed fields in one carrier, and Native Tabs uses its existing
+`splitTextStyle`. No Text host, inherited context, extra callback or resolver
+is installed. The synthetic JSX remains preparation scaffolding, not a
+replacement for the destination. The old box-only caller preview explicitly
+refuses this carrier until a matching text destination is declared.
+
+Newly captured text fields are bounded to context-independent values: colors,
+alignment/transform, portable themed/numeric weights and absolute metrics.
+Parent-relative font sizes, ratio line-height, relative tracking, subtree
+selectors, dynamic class residuals and ambient/wrapper effects remain refused
+as a whole plan. This does not narrow ordinary compiler support; ordinary
+compilation and preparation without this explicit destination are unchanged.
+
+The real Tabs probe now uses 16 candidates (the original nine, two gap axes
+and five label candidates), comparing each actual string label's color, 18px
+size, disabled weight and hover spacing on both routes through all six phases.
+Text paint/metrics must be absent from the box. Labels retain those values
+through all three authored-box phases, while existing frozen-author/host/getter
+checks remain in place. Unit evidence additionally covers absolute line-height,
+theme capture, destination validation and ordinary-output stability. This is
+not opaque-label inheritance, Web prepared delivery or Native font pixels.

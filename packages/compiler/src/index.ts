@@ -118,6 +118,8 @@ export interface CompiledTagDecision {
 export interface CompiledNativeComponent {
   /** @internal RFC010: style-only preparation, absent on ordinary output. */
   ownerStyle?: {
+    /** Requires the destination's existing box/owned-label split, not a host style. */
+    splitText?: true
     /** Declared callback inputs; not an owner/audit certification. */
     facts?: ('disabled' | 'aria-selected' | 'aria-disabled')[]
     expression: string
@@ -595,6 +597,8 @@ export interface NativeCompileOptions extends CompileEvidence {
   ownerStyle?: boolean
   /** @internal Explicit existing-owner booleans, requires ownerStyle. Literal Pressable only. */
   ownerFacts?: readonly ('disabled' | 'aria-selected' | 'aria-disabled')[]
+  /** @internal Existing box/owned-label split; no parent/opaque text inheritance. */
+  ownerText?: 'split'
   textReference?: boolean
   textInheritance?: boolean
   textStatic?: boolean
