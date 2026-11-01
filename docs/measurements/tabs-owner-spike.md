@@ -260,3 +260,25 @@ override. Publication does not solve opaque-label inheritance, certify parity
 for every label shape, promote the pending catalog slot, or enable adapters.
 Both contracts remain `audit: unknown`; the shadow inventory rises from one
 to two while every global coverage/audit measure remains unavailable.
+
+## Packed instance-owned Tabs callers
+
+The publication test now reads the actual patterns pnpm tarball through
+`readResolvedOwnerManifest`, captures Native entry/importer identities, and
+uses `InstanceOwnerCallerProject` without copying a selected Tabs contract into
+the test. Both public export names select only `Tabs.Tab` from the two-owner
+manifest. Two callers share one actual Tailwind preparation, including the
+package candidates and a consumer theme with 7px spacing. Their emitted class
+callbacks are evaluated in five independent state combinations: padding 14,
+font size 18, selected color, disabled opacity/weight and hover tracking.
+Each module creates one stylesheet; a caller update retains its callback and
+evaluates the authored prop once without capturing it into the class recipe.
+
+A second same-name installation deliberately has its Tabs metadata stripped;
+it must remain unassessed instead of borrowing the first instance's contract.
+This negative installation is not another claimed registry release. Unsupported
+relative text and dynamic classes keep the entire authored call. Changing the
+captured destination metadata retires the lease and rejects further delivery.
+These are packed transport/selection and compiler-carrier checks, not execution
+of that tarball's React component, adapter activation, GPU/OS pixels or a new
+owner audit. The actual component delivery probe remains a separate gate.
