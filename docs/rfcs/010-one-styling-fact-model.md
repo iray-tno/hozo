@@ -865,3 +865,33 @@ the archive through the bounded instance reader/capture and compares candidate
 CSS and Native resolver generation against direct source scanning. This is
 package transport/code-generation evidence, **not** an installed UI app,
 browser/device rendering, complete adapter graph capture or owner audit.
+
+Catalog publication routing is authored beside the shadow contracts as
+`ownerPublications`. `packageOwnerChannels` attaches a contract only to its
+declared owning package and existing public value exports. BottomSheet's handle
+belongs to `@hozo/patterns` under `BottomSheet` and `HozoBottomSheet`; matching
+names in `@hozo/ui` or `@hozo/core` do not acquire it through re-exporting.
+Duplicate publishers, absent export aliases, unassigned contracts and unknown
+catalog slots fail generation. The bounded reader still rejects an `audited`
+claim. Export existence/publication routing is not proof of implementation
+identity or semantics, and does not authorize builtin lowering or rollout.
+
+The patterns package now publishes the same catalog contract through its own
+`hozo.manifest.json` metadata/export/files entry. Its 106 production TS/TSX
+source files produce 11 runtime candidate strings and 72 public value exports;
+the 7,206-byte envelope has one unknown-audit owner and no text summaries.
+`compiledByConsumer` is false for its built distribution, unlike source-shipped
+UI's true. A single package envelope is currently accepted only when split
+Web/Native entries have equal value-export and legacy-text inventories; drift
+fails rather than pretending the selected platform does not matter. Sources
+continue to ship for maps, not as permission to transform the built package.
+UI's manifest/text data and the default adapter routes remain unchanged.
+
+The packed-patterns regression regenerates this envelope from archive sources,
+checks the compiled default/native entry export sets, and records separate
+platform/selected-entry captures. The transported contract also feeds the
+existing explicit literal-caller preview: state-independent padding prepares,
+while state-dependent and mismatched-facade inputs stay authored. This does
+not install the contract into an adapter, authorize a global name lookup or
+audit actual host behavior. Package publication and execution remain separate
+evidence levels.

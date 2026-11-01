@@ -1,0 +1,391 @@
+{
+  "version": 1,
+  "textForwarding": {},
+  "package": {
+    "schema": "rfc010-package-shadow-0",
+    "owners": {
+      "schema": "rfc010-owner-shadow-0",
+      "contracts": [
+        {
+          "owner": "BottomSheet.handle",
+          "classProp": "handleClassName",
+          "audit": "unknown",
+          "bindings": [
+            "open",
+            "resizable"
+          ],
+          "abi": {
+            "nativePreparedProp": "hozoHandleStyle",
+            "webClassProp": "handleClassName"
+          },
+          "authoredStyles": [
+            {
+              "prop": "handleStyle",
+              "order": 0
+            }
+          ],
+          "shapes": [
+            {
+              "id": "resizable",
+              "when": {
+                "all": [
+                  {
+                    "eq": [
+                      "open",
+                      true
+                    ]
+                  },
+                  {
+                    "eq": [
+                      "resizable",
+                      true
+                    ]
+                  }
+                ]
+              },
+              "nativeHost": "Pressable",
+              "webHost": "button",
+              "events": [
+                "pressed",
+                "hovered",
+                "focused",
+                "focusVisible"
+              ]
+            },
+            {
+              "id": "decorative",
+              "when": {
+                "all": [
+                  {
+                    "eq": [
+                      "open",
+                      true
+                    ]
+                  },
+                  {
+                    "eq": [
+                      "resizable",
+                      false
+                    ]
+                  }
+                ]
+              },
+              "nativeHost": "View",
+              "webHost": "div",
+              "events": []
+            }
+          ]
+        }
+      ]
+    },
+    "exports": [
+      {
+        "name": "Accordion",
+        "owners": []
+      },
+      {
+        "name": "Alert",
+        "owners": []
+      },
+      {
+        "name": "Avatar",
+        "owners": []
+      },
+      {
+        "name": "BottomSheet",
+        "owners": [
+          "BottomSheet.handle"
+        ]
+      },
+      {
+        "name": "Checkbox",
+        "owners": []
+      },
+      {
+        "name": "Chip",
+        "owners": []
+      },
+      {
+        "name": "CodeBlock",
+        "owners": []
+      },
+      {
+        "name": "CodeClipboardProvider",
+        "owners": []
+      },
+      {
+        "name": "ColorPicker",
+        "owners": []
+      },
+      {
+        "name": "Combobox",
+        "owners": []
+      },
+      {
+        "name": "CommandPalette",
+        "owners": []
+      },
+      {
+        "name": "Dialog",
+        "owners": []
+      },
+      {
+        "name": "Drawer",
+        "owners": []
+      },
+      {
+        "name": "HozoAccordion",
+        "owners": []
+      },
+      {
+        "name": "HozoAlert",
+        "owners": []
+      },
+      {
+        "name": "HozoAvatar",
+        "owners": []
+      },
+      {
+        "name": "HozoBottomSheet",
+        "owners": [
+          "BottomSheet.handle"
+        ]
+      },
+      {
+        "name": "HozoCheckbox",
+        "owners": []
+      },
+      {
+        "name": "HozoChip",
+        "owners": []
+      },
+      {
+        "name": "HozoColorPicker",
+        "owners": []
+      },
+      {
+        "name": "HozoCombobox",
+        "owners": []
+      },
+      {
+        "name": "HozoCommandPalette",
+        "owners": []
+      },
+      {
+        "name": "HozoDialog",
+        "owners": []
+      },
+      {
+        "name": "HozoDrawer",
+        "owners": []
+      },
+      {
+        "name": "HozoListbox",
+        "owners": []
+      },
+      {
+        "name": "HozoMenu",
+        "owners": []
+      },
+      {
+        "name": "HozoOtpInput",
+        "owners": []
+      },
+      {
+        "name": "HozoPagination",
+        "owners": []
+      },
+      {
+        "name": "HozoPopover",
+        "owners": []
+      },
+      {
+        "name": "HozoRadioGroup",
+        "owners": []
+      },
+      {
+        "name": "HozoSlider",
+        "owners": []
+      },
+      {
+        "name": "HozoStepper",
+        "owners": []
+      },
+      {
+        "name": "HozoSwitch",
+        "owners": []
+      },
+      {
+        "name": "HozoTabs",
+        "owners": []
+      },
+      {
+        "name": "HozoToolbar",
+        "owners": []
+      },
+      {
+        "name": "HozoTree",
+        "owners": []
+      },
+      {
+        "name": "Listbox",
+        "owners": []
+      },
+      {
+        "name": "Menu",
+        "owners": []
+      },
+      {
+        "name": "OtpInput",
+        "owners": []
+      },
+      {
+        "name": "PROJECTION_MS",
+        "owners": []
+      },
+      {
+        "name": "Pagination",
+        "owners": []
+      },
+      {
+        "name": "Popover",
+        "owners": []
+      },
+      {
+        "name": "RadioGroup",
+        "owners": []
+      },
+      {
+        "name": "ResizablePane",
+        "owners": []
+      },
+      {
+        "name": "Slider",
+        "owners": []
+      },
+      {
+        "name": "Splitter",
+        "owners": []
+      },
+      {
+        "name": "Stepper",
+        "owners": []
+      },
+      {
+        "name": "Switch",
+        "owners": []
+      },
+      {
+        "name": "Tabs",
+        "owners": []
+      },
+      {
+        "name": "Toolbar",
+        "owners": []
+      },
+      {
+        "name": "Tooltip",
+        "owners": []
+      },
+      {
+        "name": "Tree",
+        "owners": []
+      },
+      {
+        "name": "avatarInitials",
+        "owners": []
+      },
+      {
+        "name": "clampToDetents",
+        "owners": []
+      },
+      {
+        "name": "colorName",
+        "owners": []
+      },
+      {
+        "name": "cycleDetent",
+        "owners": []
+      },
+      {
+        "name": "fractionAfter",
+        "owners": []
+      },
+      {
+        "name": "fractionAt",
+        "owners": []
+      },
+      {
+        "name": "fractionOf",
+        "owners": []
+      },
+      {
+        "name": "hexToHsla",
+        "owners": []
+      },
+      {
+        "name": "hslaToHex",
+        "owners": []
+      },
+      {
+        "name": "movedBy",
+        "owners": []
+      },
+      {
+        "name": "nextDetent",
+        "owners": []
+      },
+      {
+        "name": "normalizeDetents",
+        "owners": []
+      },
+      {
+        "name": "paginationItems",
+        "owners": []
+      },
+      {
+        "name": "projectedFraction",
+        "owners": []
+      },
+      {
+        "name": "rankCommands",
+        "owners": []
+      },
+      {
+        "name": "restingFraction",
+        "owners": []
+      },
+      {
+        "name": "snap",
+        "owners": []
+      },
+      {
+        "name": "travelFor",
+        "owners": []
+      },
+      {
+        "name": "useHozoDrawerSide",
+        "owners": []
+      },
+      {
+        "name": "valueAt",
+        "owners": []
+      }
+    ],
+    "candidates": [
+      "absolute",
+      "border-box",
+      "collapse",
+      "contents",
+      "flex",
+      "hidden",
+      "inline-block",
+      "inline-flex",
+      "relative",
+      "visible",
+      "z-50"
+    ],
+    "helpers": [],
+    "compiledByConsumer": false
+  }
+}
