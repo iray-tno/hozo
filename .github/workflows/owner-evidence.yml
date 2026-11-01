@@ -5,6 +5,7 @@ on:
       - 'scripts/style-slots/handle-*.mjs'
       - 'scripts/style-slots/tabs-probe.mjs'
       - 'scripts/style-slots/tabs-web-publication.mjs'
+      - 'scripts/style-slots/web-owner-publication.mjs'
       - 'scripts/style-slots/tabs-owner-shadow.mjs'
       - 'scripts/style-slots/owner-fixture.mjs'
       - 'scripts/style-slots/owner-shadow.json'

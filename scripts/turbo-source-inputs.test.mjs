@@ -97,6 +97,8 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'scripts/style-slots/handle-web-publication.mjs',
+    'scripts/style-slots/web-owner-publication.mjs',
     'scripts/style-slots/tabs-web-publication.mjs',
     'packages/patterns/hozo.manifest.json',
     'packages/patterns/package.json',

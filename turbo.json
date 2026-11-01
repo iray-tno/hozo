@@ -181,6 +181,7 @@
       "dependsOn": ["^build"],
       "inputs": [
         "$TURBO_ROOT$/scripts/style-slots/tabs-web-publication.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/web-owner-publication.mjs",
         "$TURBO_ROOT$/packages/patterns/hozo.manifest.json",
         "$TURBO_ROOT$/packages/patterns/package.json",
         "$TURBO_ROOT$/scripts/style-slots/handle-*.mjs",

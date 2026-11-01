@@ -50,14 +50,45 @@ function assess(receipt, commit) {
   if (!commit || receipt.sourceCommit !== commit) return { ...base, status: 'stale' }
   if (receipt.passed !== true) return { ...base, status: 'failed' }
   if (receipt.scope === 'web-computed-style-real-pointer-focus') {
+    const kinds = ['candidate', 'tailwind']
+    if (Object.hasOwn(receipt, 'prepared')) {
+      const prepared = receipt.prepared
+      if (
+        prepared?.identity?.owner !== 'BottomSheet.handle' ||
+        prepared.identity.platform !== 'web' ||
+        prepared.identity.classProp !== 'handleClassName' ||
+        !/^[a-f0-9]{64}$/.test(prepared.identity.manifestSha256 ?? '') ||
+        typeof prepared.fingerprint !== 'string' ||
+        !prepared.fingerprint ||
+        prepared.preparations !== 1
+      )
+        return { ...base, status: 'invalid', reason: 'Missing prepared-owner provenance' }
+      kinds.push('prepared')
+      const controls = receipt.controls
+      if (
+        !Array.isArray(controls) ||
+        controls.length !== kinds.length * 2 ||
+        controls.some(
+          (row) =>
+            !row ||
+            !kinds.includes(row.kind) ||
+            typeof row.interactive !== 'boolean' ||
+            row.absentStylesheetDetected !== true,
+        ) ||
+        new Set(controls.map((row) => `${row.kind}:${row.interactive}`)).size !== kinds.length * 2
+      )
+        return { ...base, status: 'invalid', reason: 'Missing prepared-browser negative controls' }
+    }
     const rows = receipt.observations
-    if (!Array.isArray(rows) || rows.length !== browserStates.length * 2)
+    if (!Array.isArray(rows) || rows.length !== browserStates.length * kinds.length)
       return { ...base, status: 'invalid', reason: 'Missing/duplicate browser observations' }
     const selected = new Map()
     for (const row of rows) {
+      if (!row || typeof row !== 'object')
+        return { ...base, status: 'invalid', reason: 'Invalid browser observation' }
       const key = `${row.kind}:${row.interactive}:${row.state}`
       if (
-        !['candidate', 'tailwind'].includes(row.kind) ||
+        !kinds.includes(row.kind) ||
         typeof row.interactive !== 'boolean' ||
         !browserStates.includes(`${row.interactive}:${row.state}`) ||
         selected.has(key) ||
@@ -70,20 +101,22 @@ function assess(receipt, commit) {
       selected.set(key, row.selected)
     }
     for (const state of browserStates) {
-      const candidate = selected.get(`candidate:${state}`),
-        oracle = selected.get(`tailwind:${state}`)
-      if (
-        !candidate ||
-        !oracle ||
-        !Object.keys(candidate).every((key) => candidate[key] === oracle[key])
-      )
-        return { ...base, status: 'invalid', reason: 'Browser pair does not match' }
+      const oracle = selected.get(`tailwind:${state}`)
+      for (const kind of kinds.filter((kind) => kind !== 'tailwind')) {
+        const candidate = selected.get(`${kind}:${state}`)
+        if (
+          !candidate ||
+          !oracle ||
+          !Object.keys(candidate).every((key) => candidate[key] === oracle[key])
+        )
+          return { ...base, status: 'invalid', reason: 'Browser pair does not match' }
+      }
     }
     return {
       ...base,
       status: 'measured',
-      matchedPairs: browserStates.length,
-      denominator: browserStates.length,
+      matchedPairs: browserStates.length * (kinds.length - 1),
+      denominator: browserStates.length * (kinds.length - 1),
       denominatorKind:
         'explicit Web handle state/property fixture, not all Tailwind/Native support',
     }

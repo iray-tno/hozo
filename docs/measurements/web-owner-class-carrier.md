@@ -115,3 +115,30 @@ defined class reaches exactly one real button/div owner, preserve the hidden
 decoration and actual dialog/handle-bar structure, and retain the ordinary
 closed-owner negative control. This retires the temporary extraction scaffold,
 not an ordinary production resolver or an audited default route.
+
+## Prepared BottomSheet browser state and presence gate
+
+The handle browser probes now include actual instance-prepared callers as a
+third route, without changing their independent Tailwind oracle. Tabs and the
+handle share only finite fixture plumbing around the existing project API,
+not another compiler/resolver. The handle source contains two literal caller
+sites; the generic planner, not the harness, supplies their scoped classes/CSS.
+The application bundles contain the actual BottomSheet, not preparation code.
+
+Tests locate the actual handle as the dialog's first direct element instead of
+injecting a marker into the class input being prepared. Both actual shapes
+must match five bounded shape/state cases on each route (15 observations),
+retain real focus/detent activation and DOM identity, and detect removal of
+the exact companion stylesheet in six negative controls. The controlled-clock
+test additionally requires three routes x two shapes x five presence phases
+(30 observations): initially absent, open, exiting with styles retained on the
+same inert/pointer-blocked owner, absent, and reopened with a new owner.
+
+The status reader accepts either the historical two-route receipt or a complete
+three-route receipt with prepared-owner provenance and all six negative
+controls. It compares both subjects against the independent oracle: five
+distinct cases x two delivery subjects = ten scoped pairs, not ten owners or
+a global coverage/audit percentage. Missing or mismatched prepared rows cannot
+silently fall back to the old two-route denominator. All global measures stay
+unavailable. Actual browser success requires inspecting the corresponding
+current-source CI receipt; local CSS/bundle checks alone do not establish it.
