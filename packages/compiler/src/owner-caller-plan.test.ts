@@ -96,3 +96,19 @@ test('foreign/shadowed bindings and malformed modules cannot gain a prepared pro
     1,
   )
 })
+
+test('the box-only caller contract cannot consume a split-label carrier', () => {
+  const source = `import {BottomSheet} from '@hozo/patterns';const a=<BottomSheet handleClassName="p-2"/>`
+  const unexpectedText = {
+    ...compiler,
+    compileNativeModule(...args: Parameters<typeof compiler.compileNativeModule>) {
+      const result = compiler.compileNativeModule(...args)
+      for (const root of result.components)
+        if (root.ownerStyle) root.ownerStyle = { ...root.ownerStyle, splitText: true }
+      return result
+    },
+  }
+  const result = previewOwnerLiteralCallers(source, unexpectedText, options)
+  assert.equal(result.code, source)
+  assert.equal(result.findings[0]!.reason, 'shape-unassessed')
+})

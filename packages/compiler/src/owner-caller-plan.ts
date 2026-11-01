@@ -5,10 +5,11 @@ import {
   type CompiledNativeModule,
   type Compiler,
   inspectOwnerClassSlots,
+  type NativeCompileOptions,
   type PreparedModule,
   type PreparedTailwindContext,
 } from './index.ts'
-import { parseOwnerContractShadow } from './owner-contract.ts'
+import { type OwnerShape, parseOwnerContractShadow } from './owner-contract.ts'
 
 export interface OwnerCallerPreview {
   scope: 'explicit-direct-compiler-preview' | 'explicit-collected-compiler-preview'
@@ -27,14 +28,25 @@ export interface OwnerCallerPreview {
 }
 
 /** @internal One explicitly selected shadow contract, not manifest lookup.
- * Only state-independent literals equivalent on every declared host shape
- * are assessed. Expression capture and ABI/owner auditing remain separate.
+ * Literal carriers must be equivalent on every declared host shape. Stateful
+ * carriers additionally require explicit input/destination declarations.
+ * Expression capture and ABI/owner auditing remain separate.
  */
 interface OwnerCallerOptions {
   source: string
   imported: string
   shadow: string
   sourceFile?: string
+}
+
+function preparationOptions(shape: OwnerShape): NativeCompileOptions {
+  return {
+    ownerStyle: true,
+    ...(shape.inputs && {
+      ownerFacts: shape.inputs.facts,
+      ownerText: shape.inputs.splitText ? ('split' as const) : undefined,
+    }),
+  }
 }
 
 export function previewOwnerLiteralCallers(
@@ -45,8 +57,13 @@ export function previewOwnerLiteralCallers(
   return collectOwnerLiteralCallers(
     source,
     options,
-    (input) => () =>
-      compiler.compileNativeModule(input, undefined, 'OwnerPreparation.tsx', { ownerStyle: true }),
+    (input, shape) => () =>
+      compiler.compileNativeModule(
+        input,
+        undefined,
+        'OwnerPreparation.tsx',
+        preparationOptions(shape),
+      ),
   )()
 }
 
@@ -66,10 +83,13 @@ export function prepareOwnerLiteralCallers(
     for (const module of owned.splice(0)) module.dispose()
   }
   try {
-    plan = collectOwnerLiteralCallers(source, options, (input) => {
-      const module = compiler.prepareNativeModule(input, undefined, 'OwnerPreparation.tsx', {
-        ownerStyle: true,
-      })
+    plan = collectOwnerLiteralCallers(source, options, (input, shape) => {
+      const module = compiler.prepareNativeModule(
+        input,
+        undefined,
+        'OwnerPreparation.tsx',
+        preparationOptions(shape),
+      )
       owned.push(module)
       return (context) => module.emit(context!)
     })
@@ -102,7 +122,10 @@ export function prepareOwnerLiteralCallers(
 function collectOwnerLiteralCallers(
   source: string,
   options: OwnerCallerOptions,
-  prepare: (input: string) => (context?: PreparedTailwindContext) => CompiledNativeModule,
+  prepare: (
+    input: string,
+    shape: OwnerShape,
+  ) => (context?: PreparedTailwindContext) => CompiledNativeModule,
 ): (context?: PreparedTailwindContext) => OwnerCallerPreview {
   const shadow = parseOwnerContractShadow(options.shadow)
   if (shadow.contracts.length !== 1) throw new Error('Select exactly one shadow owner contribution')
@@ -129,19 +152,16 @@ function collectOwnerLiteralCallers(
 
   // Deduplicate before suspension, not after lowering. The modules hold the
   // compiler/theme snapshot and actual candidates, never just a lexical guess.
-  const collected = new Map<
-    string,
-    { id: string; nativeHost: string; emit: ReturnType<typeof prepare> }[]
-  >()
+  const collected = new Map<string, { shape: OwnerShape; emit: ReturnType<typeof prepare> }[]>()
   for (const site of inspection.sites) {
     if (site.reason || site.classes == null || collected.has(site.classes)) continue
     collected.set(
       site.classes,
       contract.shapes.map((shape) => ({
-        id: shape.id,
-        nativeHost: shape.nativeHost,
+        shape,
         emit: prepare(
           `import {${shape.nativeHost}} from '@hozo/primitives'; export function Plan(){return <${shape.nativeHost} className={${JSON.stringify(site.classes)}}/>}`,
+          shape,
         ),
       })),
     )
@@ -175,8 +195,8 @@ function collectOwnerLiteralCallers(
       }
       let plan = plans.get(site.classes)
       if (!plan) {
-        const prepared = collected.get(site.classes)!.map((shape) => {
-          const module = shape.emit(context)
+        const prepared = collected.get(site.classes)!.map(({ shape, emit }) => {
+          const module = emit(context)
           const root = module.components[0]
           const messages = [
             ...module.syntaxDiagnostics,
@@ -190,11 +210,15 @@ function collectOwnerLiteralCallers(
             valid:
               module.components.length === 1 &&
               !!root?.ownerStyle &&
-              root.ownerStyle.literalResting &&
-              !root.ownerStyle.callback &&
-              !root.ownerStyle.focusVisible &&
+              (root.ownerStyle.splitText ?? false) === (shape.inputs?.splitText ?? false) &&
+              JSON.stringify(root.ownerStyle.facts ?? []) ===
+                JSON.stringify(shape.inputs?.facts ?? []) &&
+              (!!shape.inputs ||
+                (root.ownerStyle.literalResting &&
+                  !root.ownerStyle.callback &&
+                  !root.ownerStyle.focusVisible)) &&
               root.prelude.length === 0 &&
-              root.runtimeImports.length === 0 &&
+              root.runtimeImports.every((name) => !!shape.inputs && name === 'HozoPressable') &&
               root.nativeImports.every((name) => name === shape.nativeHost) &&
               messages.length === 0,
           }
@@ -206,20 +230,20 @@ function collectOwnerLiteralCallers(
             (p) =>
               p.valid &&
               p.root!.styles === first.styles &&
-              p.root!.ownerStyle!.expression === first.ownerStyle!.expression,
+              JSON.stringify(p.root!.ownerStyle) === JSON.stringify(first.ownerStyle),
           )
         const notes = prepared.flatMap((p) => p.notes)
         if (equivalent) {
           const name = fresh('Plan')
           declarations.push(
-            `const ${name} = ((hozoStyles) => () => (${first.ownerStyle!.expression}))(${sheet}.create(${first.styles}));`,
+            `const ${name} = ((hozoStyles) => ${first.ownerStyle!.callback ? `(${first.ownerStyle!.expression})` : `() => (${first.ownerStyle!.expression})`})(${sheet}.create(${first.styles}));`,
           )
           plan = { name, notes }
         } else {
           plan = {
             notes: [
               ...notes,
-              'Every declared shape must have the same assessed state-independent style carrier.',
+              'Every declared shape must have the same assessed carrier with matching declared inputs/destination; undeclared shapes remain state-independent.',
             ],
           }
         }

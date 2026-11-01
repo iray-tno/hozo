@@ -131,7 +131,7 @@ not been proved. This is not a general component/manifest authoring API.
 map together in the same completed finite Tailwind batch. The test consumes
 the returned style expression directly and creates its stylesheet once before
 rendering. It then passes the callback to the real Native Tabs receiver and
-compares the same nine candidates, six phases and three owners against both
+compares the base nine candidates, six phases and three owners against both
 the traced opaque route and independently specified semantic expectations.
 Both routes retain the same positional hosts, reject disabled activation and
 observe controlled selected+disabled separately from user activation. This
@@ -147,7 +147,98 @@ control. No runtime implementation was changed to satisfy that measurement.
 
 This is Native component-host-model evidence, not Android/iOS event or pixel
 proof. The adjacent browser comparison still evaluates the ordinary Tabs
-route against Tailwind, not a Web prepared carrier. Caller shape selection,
-text-bearing compiler carriers, author composition for the compiled route,
+route against Tailwind, not a Web prepared carrier. Ordinary adapter adoption,
 production bundle cost and a full owner audit remain separate gates. Default
 adapters, published manifests and the owner-audit count are unchanged.
+
+## Compiled carrier with authored overrides
+
+The compiled delivery probe adds two axis-gap candidates to the original nine,
+then applies and removes a frozen authored array on both opaque and compiled
+routes. The author's explicit row gap stays 5, generic gap supplies column 7,
+and authored opacity/background override every state contribution. Removing
+that array restores class gaps 3/2 and each tab's selected/disabled look,
+without replacing any of the three positional hosts or rebuilding the single
+compiled stylesheet. Class entries are frozen too, so composition cannot
+silently mutate the hoisted plan. Six additional author-phase rows record
+18 host observations independently of the existing state progression.
+
+Getter counts are measured immediately around explicit host-style evaluations:
+one read per tab, and none from a retired author afterwards. React 19's
+development renderer profiler also reads changed props to log their diff;
+the initial local assertion incorrectly counted that instrumentation as an
+eager component read. A stack trace located it in `logComponentRender`, not
+Hozo. The separate initial-mount marker test still requires zero reads before
+host evaluation. No product code, getter policy or timeout was changed for
+this distinction. The receipt retains both total and host-evaluation counts.
+
+This closes the bounded compiled **box**/author composition check. Ordinary
+caller integration remains a separate gate, as do Web
+prepared delivery, device pixels, performance and full owner audit.
+
+## Explicit split-label carrier
+
+Native preparation may declare `ownerText: 'split'` only with `ownerStyle`.
+The returned carrier advertises `splitText: true`; a destination must already
+separate its box and owned-label fields. The existing style/condition writer
+keeps those assessed fields in one carrier, and Native Tabs uses its existing
+`splitTextStyle`. No Text host, inherited context, extra callback or resolver
+is installed. The synthetic JSX remains preparation scaffolding, not a
+replacement for the destination. The old box-only caller preview explicitly
+refuses this carrier until a matching text destination is declared.
+
+Newly captured text fields are bounded to context-independent values: colors,
+alignment/transform, portable themed/numeric weights and absolute metrics.
+Parent-relative font sizes, ratio line-height, relative tracking, subtree
+selectors, dynamic class residuals and ambient/wrapper effects remain refused
+as a whole plan. This does not narrow ordinary compiler support; ordinary
+compilation and preparation without this explicit destination are unchanged.
+
+The real Tabs probe now uses 16 candidates (the original nine, two gap axes
+and five label candidates), comparing each actual string label's color, 18px
+size, disabled weight and hover spacing on both routes through all six phases.
+Text paint/metrics must be absent from the box. Labels retain those values
+through all three authored-box phases, while existing frozen-author/host/getter
+checks remain in place. Unit evidence additionally covers absolute line-height,
+theme capture, destination validation and ordinary-output stability. This is
+not opaque-label inheritance, Web prepared delivery or Native font pixels.
+
+## Selected data-contract caller preview
+
+The bounded shadow reader accepts an optional shape `inputs` declaration with
+up to three known semantic booleans and a `splitText` destination. No code or
+arbitrary expressions are accepted. This first stateful caller consumer
+requires a Pressable/button shape declaring the complete four-field existing
+interaction snapshot; partial event owners remain unassessed rather than
+inferring requirements from emitted JSX. Shapes without inputs keep the old
+state-independent rule. All shapes must still agree on the assessed carrier,
+metadata and stylesheet before any caller edit is published.
+
+`tabs-owner-shadow.mjs` is explicitly selected measurement data, not a new
+catalog/public package contribution or an audit. The generic caller preview
+uses it to request the backend inputs/destination, hoist one stylesheet and
+replace only the literal class attribute. Backend callbacks are preserved as
+callbacks, not wrapped into a function returning a function. Authored props
+are left at their original position and are never eagerly normalized or
+captured into the module hoist. Unsupported/opaque/spread/double-carrier
+inputs retain the original caller, as do missing destination/facts and
+contradictory shapes. Old BottomSheet preview behavior remains covered.
+
+The actual Native probe collects the direct module and caller-preview handle
+in the same completed Tailwind batch as the opaque map. It finds results by
+module identity, not an assumed collection order. The transformed `Caller`
+module is loaded and rendered as a third route, not reduced to a hand-authored
+callback. All three routes match six phases x three tabs (54 state-host
+observations), plus three author phases x three tabs (27 author-host
+observations), including label values and stable positional hosts. Both
+prepared routes request no class string; the opaque control positively does.
+The caller emits one hoisted stylesheet site and keeps the same prepared
+callback identity through updates; the direct producer separately measures
+one actual stylesheet creation. Those are scoped counts, not app-size or
+render-time measurements.
+
+This is still an explicit selected-contract preview, not normal Vite/Metro
+adoption, registry/packed-manifest Tabs publication, cross-instance resolution,
+Web prepared behavior, an audited owner or legacy removal. Promotion must use
+the existing package/instance path and independent gates; this receipt cannot
+audit its own measurement contract.
