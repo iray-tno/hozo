@@ -240,9 +240,7 @@ export function HozoBottomSheet({
               accessibilityLabel={handleAccessibilityLabel}
               style={(interaction) => [
                 hozoHandleStyle
-                  ? open
-                    ? hozoHandleStyle(interaction)
-                    : undefined
+                  ? hozoHandleStyle(interaction)
                   : hozoClasses(handleClassName, { ...interaction }),
                 hozoAuthoredStyle(handleStyle),
               ]}
@@ -255,26 +253,50 @@ export function HozoBottomSheet({
               {bar}
             </Pressable>
           ) : (
-            <View
-              accessibilityElementsHidden
-              importantForAccessibility="no-hide-descendants"
-              style={[
-                hozoHandleStyle
-                  ? open
-                    ? hozoHandleStyle(undefined)
-                    : undefined
-                  : hozoClasses(handleClassName),
-                hozoAuthoredStyle(handleStyle),
-              ]}
-              {...drag.handlers}
+            <DecorativeHandle
+              handleClassName={handleClassName}
+              handleStyle={handleStyle}
+              hozoHandleStyle={hozoHandleStyle}
+              handlers={drag.handlers}
             >
               {bar}
-            </View>
+            </DecorativeHandle>
           )}
           {hozoTextChildren(children, splitTextStyle([hozoClasses(sheetClassName), sheetStyle])[1])}
         </View>
       </View>
     </Modal>
+  )
+}
+
+// Modal, not `open`, owns the painted lifetime: hidden initial children do not
+// render, while iOS retains them until dismiss completes. Defer this eager View
+// style computation under that boundary, without an extra native host, state or
+// style cache. Pressable's callback is already evaluated inside the actual host.
+function DecorativeHandle({
+  handleClassName,
+  handleStyle,
+  hozoHandleStyle,
+  handlers,
+  children,
+}: Pick<
+  HozoBottomSheetProps,
+  'handleClassName' | 'handleStyle' | 'hozoHandleStyle' | 'children'
+> & {
+  handlers: ReturnType<typeof useDrag1D>['handlers']
+}) {
+  return (
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[
+        hozoHandleStyle ? hozoHandleStyle(undefined) : hozoClasses(handleClassName),
+        hozoAuthoredStyle(handleStyle),
+      ]}
+      {...handlers}
+    >
+      {children}
+    </View>
   )
 }
 

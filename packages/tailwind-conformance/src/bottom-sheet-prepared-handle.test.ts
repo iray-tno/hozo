@@ -14,7 +14,6 @@ import { loadNativeModule } from './native-render.ts'
 const require = createRequire(import.meta.url)
 const React = require('react')
 const renderer = require('react-test-renderer')
-const rn = require('react-native')
 const classes =
   'p-[8px] opacity-100 bg-[#ffffff] hover:opacity-50 focus:p-[12px] active:bg-[#ff0000]'
 const restClasses = 'p-[8px] opacity-100 bg-[#ffffff]'
@@ -92,6 +91,8 @@ export function hozoClasses(value,state){requested.push(value);return resolve(va
 )
 const hook = registerHooks({
   resolve(specifier, context, next) {
+    if (specifier === 'react-native')
+      return { url: new URL('./handle-modal-model.js', import.meta.url).href, shortCircuit: true }
     const traced = pathToFileURL(tracedSheet).href
     if (specifier === '@hozo/engine/project') return { url: traced, shortCircuit: true }
     const resolved = next(specifier, context)
@@ -100,6 +101,7 @@ const hook = registerHooks({
       : resolved
   },
 })
+const rn = require('react-native')
 after(() => {
   hook.deregister()
   rmSync(project, { recursive: true, force: true })
@@ -521,7 +523,7 @@ test('prepared evaluation is gated and receives no invented decoration events', 
   assert.deepEqual(contract.shapes[1].events, [])
   const seen: unknown[] = []
   const base = { open: false, detents: [1], children: 'Body' }
-  assert.equal(selectOwnerShape(contract, { open: false }).status, 'absent')
+  assert.equal(selectOwnerShape(contract, { present: false }).status, 'absent')
   const tree = render(exports.Prepared, { base, observe: (state: unknown) => seen.push(state) })
   assert.deepEqual(seen, [])
   renderer.act(() =>
@@ -534,7 +536,7 @@ test('prepared evaluation is gated and receives no invented decoration events', 
   )
   assert.ok(seen.length > 0)
   assert.ok(seen.every((state) => state === undefined))
-  const decorative = selectOwnerShape(contract, { open: true, resizable: false })
+  const decorative = selectOwnerShape(contract, { present: true, resizable: false })
   assert.equal(decorative.status, 'selected')
   if (decorative.status === 'selected') {
     assert.equal(decorative.shape.nativeHost, handle(tree, false).type)
@@ -551,7 +553,7 @@ test('prepared evaluation is gated and receives no invented decoration events', 
   )
   style(handle(tree, true))
   assert.equal(contract.shapes[0].nativeHost, 'Pressable')
-  const interactive = selectOwnerShape(contract, { open: true, resizable: true })
+  const interactive = selectOwnerShape(contract, { present: true, resizable: true })
   assert.equal(interactive.status, 'selected')
   if (interactive.status === 'selected')
     assert.equal(interactive.shape.nativeHost, handle(tree, true).type)
@@ -581,5 +583,87 @@ test('the private prepared route refuses double application instead of losing th
     )
   } finally {
     error.mock.restore()
+  }
+})
+
+test('initially hidden handles never evaluate author styles under either Modal lifetime model', () => {
+  for (const platform of ['android', 'ios'])
+    for (const resizable of [false, true])
+      for (const type of [exports.Prepared, exports.Opaque]) {
+        rn.handleModalModel.platform = platform
+        let reads = 0
+        const own = Object.freeze({
+          get gap() {
+            reads++
+            return 16
+          },
+        })
+        const tree = render(type, {
+          base: { open: false, detents: resizable ? [0.5, 1] : [1] },
+          own,
+          names: restClasses,
+          extra: '',
+        })
+        try {
+          assert.equal(
+            reads,
+            0,
+            `${platform}/${resizable}: hidden owner normalized an author before its Modal rendered it`,
+          )
+          assert.equal(tree.root.findAll((node) => node.type === 'Modal').length, 0)
+        } finally {
+          unmount(tree)
+          rn.handleModalModel.platform = 'android'
+        }
+      }
+})
+
+test('iOS dismissing handles keep prepared and authored styles until the actual owner unmounts', () => {
+  rn.handleModalModel.platform = 'ios'
+  try {
+    for (const resizable of [false, true]) {
+      const base = { open: true, detents: resizable ? [0.5, 1] : [1] }
+      const props = { base, own: Object.freeze({ gap: 16 }), extra: '', names: restClasses }
+      const prepared = render(exports.Prepared, props)
+      const opaque = render(exports.Opaque, props)
+      try {
+        const actual = handle(prepared, resizable)
+        const before = style(actual)
+        assert.equal(before.paddingTop, 8)
+        assert.equal(before.rowGap, 16)
+        renderer.act(() => {
+          prepared.update(
+            React.createElement(exports.Prepared, { ...props, base: { ...base, open: false } }),
+          )
+          opaque.update(
+            React.createElement(exports.Opaque, { ...props, base: { ...base, open: false } }),
+          )
+        })
+        assert.equal(
+          handle(prepared, resizable),
+          actual,
+          'closing must not replace the painted host',
+        )
+        assert.deepEqual(
+          style(actual),
+          before,
+          'closing must not strip the prepared look before dismissal',
+        )
+        assert.deepEqual(style(actual), style(handle(opaque, resizable)))
+        renderer.act(() => {
+          for (const tree of [prepared, opaque]) {
+            const modal = tree.root.findAll((node) => node.type === 'Modal')
+            assert.equal(modal.length, 1)
+            ;(modal[0].props.onDismiss as () => void)()
+          }
+        })
+        assert.equal(prepared.root.findAll((node) => node.type === 'Modal').length, 0)
+      } finally {
+        unmount(prepared)
+        unmount(opaque)
+      }
+    }
+  } finally {
+    rn.handleModalModel.platform = 'android'
   }
 })
