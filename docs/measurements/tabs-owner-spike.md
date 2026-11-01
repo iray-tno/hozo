@@ -147,7 +147,7 @@ control. No runtime implementation was changed to satisfy that measurement.
 
 This is Native component-host-model evidence, not Android/iOS event or pixel
 proof. The adjacent browser comparison still evaluates the ordinary Tabs
-route against Tailwind, not a Web prepared carrier. Caller shape selection,
+route against Tailwind, not a Web prepared carrier. Ordinary adapter adoption,
 production bundle cost and a full owner audit remain separate gates. Default
 adapters, published manifests and the owner-audit count are unchanged.
 
@@ -172,8 +172,8 @@ Hozo. The separate initial-mount marker test still requires zero reads before
 host evaluation. No product code, getter policy or timeout was changed for
 this distinction. The receipt retains both total and host-evaluation counts.
 
-This closes the bounded compiled **box**/author composition check. Caller
-replacement remains a separate gate, as do Web
+This closes the bounded compiled **box**/author composition check. Ordinary
+caller integration remains a separate gate, as do Web
 prepared delivery, device pixels, performance and full owner audit.
 
 ## Explicit split-label carrier
@@ -202,3 +202,43 @@ through all three authored-box phases, while existing frozen-author/host/getter
 checks remain in place. Unit evidence additionally covers absolute line-height,
 theme capture, destination validation and ordinary-output stability. This is
 not opaque-label inheritance, Web prepared delivery or Native font pixels.
+
+## Selected data-contract caller preview
+
+The bounded shadow reader accepts an optional shape `inputs` declaration with
+up to three known semantic booleans and a `splitText` destination. No code or
+arbitrary expressions are accepted. This first stateful caller consumer
+requires a Pressable/button shape declaring the complete four-field existing
+interaction snapshot; partial event owners remain unassessed rather than
+inferring requirements from emitted JSX. Shapes without inputs keep the old
+state-independent rule. All shapes must still agree on the assessed carrier,
+metadata and stylesheet before any caller edit is published.
+
+`tabs-owner-shadow.mjs` is explicitly selected measurement data, not a new
+catalog/public package contribution or an audit. The generic caller preview
+uses it to request the backend inputs/destination, hoist one stylesheet and
+replace only the literal class attribute. Backend callbacks are preserved as
+callbacks, not wrapped into a function returning a function. Authored props
+are left at their original position and are never eagerly normalized or
+captured into the module hoist. Unsupported/opaque/spread/double-carrier
+inputs retain the original caller, as do missing destination/facts and
+contradictory shapes. Old BottomSheet preview behavior remains covered.
+
+The actual Native probe collects the direct module and caller-preview handle
+in the same completed Tailwind batch as the opaque map. It finds results by
+module identity, not an assumed collection order. The transformed `Caller`
+module is loaded and rendered as a third route, not reduced to a hand-authored
+callback. All three routes match six phases x three tabs (54 state-host
+observations), plus three author phases x three tabs (27 author-host
+observations), including label values and stable positional hosts. Both
+prepared routes request no class string; the opaque control positively does.
+The caller emits one hoisted stylesheet site and keeps the same prepared
+callback identity through updates; the direct producer separately measures
+one actual stylesheet creation. Those are scoped counts, not app-size or
+render-time measurements.
+
+This is still an explicit selected-contract preview, not normal Vite/Metro
+adoption, registry/packed-manifest Tabs publication, cross-instance resolution,
+Web prepared behavior, an audited owner or legacy removal. Promotion must use
+the existing package/instance path and independent gates; this receipt cannot
+audit its own measurement contract.

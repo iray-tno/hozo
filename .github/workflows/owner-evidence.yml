@@ -4,6 +4,7 @@ on:
     paths:
       - 'scripts/style-slots/handle-*.mjs'
       - 'scripts/style-slots/tabs-probe.mjs'
+      - 'scripts/style-slots/tabs-owner-shadow.mjs'
       - 'examples/storybook-demo/scripts/owner-handle.test.mjs'
       - 'examples/storybook-demo/scripts/owner-tabs.test.mjs'
       - 'packages/tailwind-conformance/src/tabs-owner-state.test.ts'

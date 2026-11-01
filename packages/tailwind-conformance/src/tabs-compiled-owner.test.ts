@@ -7,6 +7,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
+import { tabsProbeOwnerShadow } from '../../../scripts/style-slots/tabs-owner-shadow.mjs'
 import {
   expectedTabRows,
   prepareTabsProbe,
@@ -15,6 +16,7 @@ import {
   tabsProbeRoot,
 } from '../../../scripts/style-slots/tabs-probe.mjs'
 import { createCompiler } from '../../compiler/src/index.ts'
+import { prepareOwnerLiteralCallers } from '../../compiler/src/owner-caller-plan.ts'
 import { loadNativeModule } from './native-render.ts'
 
 type Host = {
@@ -23,6 +25,7 @@ type Host = {
     accessibilityRole?: string
     accessibilityState: { selected: boolean }
     disabled?: boolean
+    [key: string]: unknown
     style: (state: { pressed: boolean }) => unknown
   } & Record<'onHoverIn' | 'onFocus' | 'onPressIn' | 'onPressOut' | 'onPress', (e: object) => void>
 }
@@ -31,7 +34,7 @@ type Tree = {
   unmount: () => void
 }
 
-test('compiled tab carrier matches opaque candidate resolution at all 18 actual owner observations', async () => {
+test('manual and caller-prepared tabs match opaque resolution across state and author updates', async () => {
   const evidence = {
     schema: 1,
     ...evidenceSource(),
@@ -45,7 +48,8 @@ test('compiled tab carrier matches opaque candidate resolution at all 18 actual 
     stylesheetCreates: 0,
     observations: [] as unknown[],
     authorObservations: [] as unknown[],
-    requests: { opaque: 0, prepared: 0 },
+    requests: { opaque: 0, prepared: 0, caller: 0 },
+    callerHoistedStyleSites: 0,
   }
   const project = mkdtempSync(
     path.join(tabsProbeRoot, 'packages/tailwind-conformance/.tabs-compiled-'),
@@ -70,12 +74,31 @@ test('compiled tab carrier matches opaque candidate resolution at all 18 actual 
       ownerFacts: ['disabled', 'aria-selected', 'aria-disabled'],
       ownerText: 'split',
     })
+    const caller = prepareOwnerLiteralCallers(
+      `import {Tabs} from '@hozo/patterns';export function Caller({tabs,index,onIndexChange,tabStyle}){return <Tabs tabs={tabs} index={index} onIndexChange={onIndexChange} tabStyle={tabStyle} tabClassName=${JSON.stringify(classes)}/>}`,
+      compiler,
+      { source: '@hozo/patterns', imported: 'Tabs', shadow: tabsProbeOwnerShadow },
+    )
     const fixture = await prepareTabsProbe(
-      [{ id: 'Plan.native.tsx', revision: 'one', module: retained }],
+      [
+        { id: 'Plan.native.tsx', revision: 'one', module: retained },
+        { id: 'Caller.native.tsx', revision: 'one', module: caller },
+      ],
       classes,
     )
-    const component = fixture.modules[0].output.components[0]
+    const component = fixture.modules.find(
+      (entry: { id: string }) => entry.id === 'Plan.native.tsx',
+    )!.output.components[0]
     const carrier = component.ownerStyle
+    const preview = fixture.modules.find(
+      (entry: { id: string }) => entry.id === 'Caller.native.tsx',
+    )!.output
+    assert.equal(preview.scope, 'explicit-collected-compiler-preview')
+    assert.equal(preview.contextFingerprint, fixture.fingerprint)
+    assert.equal(preview.findings[0].disposition, 'prepared-literal')
+    assert.ok(!preview.code.includes('tabClassName='))
+    evidence.callerHoistedStyleSites = preview.code.split('.create(').length - 1
+    assert.equal(evidence.callerHoistedStyleSites, 1)
     assert.ok(carrier?.callback)
     assert.equal(carrier.splitText, true)
     evidence.splitText = carrier.splitText
@@ -115,7 +138,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       },
     })
     const app = loadNativeModule(
-      `import {View} from '@hozo/primitives';export const Sentinel=()=> <View/>;export {Tabs as Raw} from '@hozo/patterns';`,
+      `import {View} from '@hozo/primitives';export const Sentinel=()=> <View/>;export {Tabs as Raw} from '@hozo/patterns';${preview.code}`,
       project,
       { root: project },
     )
@@ -125,7 +148,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       { label: 'B', content: 'two' },
       { label: 'C', content: 'three', disabled: true },
     ]
-    for (const route of ['opaque', 'prepared'] as const) {
+    for (const route of ['opaque', 'prepared', 'caller'] as const) {
       const changes: number[] = []
       let select!: (at: number) => void
       let setAuthor!: (style: unknown) => void
@@ -134,7 +157,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
         const [author, updateAuthor] = React.useState(undefined)
         select = setIndex
         setAuthor = updateAuthor
-        return React.createElement(app.Raw, {
+        return React.createElement(route === 'caller' ? app.Caller : app.Raw, {
           tabs,
           index,
           tabStyle: author,
@@ -142,7 +165,11 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
             changes.push(at)
             setIndex(at)
           },
-          ...(route === 'prepared' ? { hozoTabStyle: plan } : { tabClassName: classes }),
+          ...(route === 'prepared'
+            ? { hozoTabStyle: plan }
+            : route === 'opaque'
+              ? { tabClassName: classes }
+              : {}),
         })
       }
       requests.length = 0
@@ -154,6 +181,8 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       const owners = () =>
         tree.root.findAll((n) => n.type === 'Pressable' && n.props.accessibilityRole === 'tab')
       const original = owners()
+      const suppliedPlan = tree.root.findAll((node) => node.type === app.Raw)[0]!.props.hozoTabStyle
+      if (route !== 'opaque') assert.equal(typeof suppliedPlan, 'function')
       assert.equal(original.length, 3)
       const readLabels = (phase: string) => {
         const labels = tree.root.findAll((node) => node.type === 'Text').slice(0, 3)
@@ -181,6 +210,10 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       }
       const record = (phase: string) => {
         assert.deepEqual(owners(), original, `${route}: positional host identity`)
+        assert.equal(
+          tree.root.findAll((node) => node.type === app.Raw)[0]!.props.hozoTabStyle,
+          suppliedPlan,
+        )
         const rows = owners().map((node) => {
           const style = rn.StyleSheet.flatten(node.props.style({ pressed: false }))
           assert.equal(style.color, undefined, 'label paint must not stay on the box')
@@ -229,6 +262,10 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       const authorArray = Object.freeze([false, null, Object.freeze({ rowGap: 5 }), authored])
       const recordAuthor = (phase: string, overridden: boolean) => {
         const before = reads
+        assert.equal(
+          tree.root.findAll((node) => node.type === app.Raw)[0]!.props.hozoTabStyle,
+          suppliedPlan,
+        )
         assert.deepEqual(owners(), original, `${route}: author changes retain actual hosts`)
         const rows = owners().map((node, at) => {
           const style = rn.StyleSheet.flatten(node.props.style({ pressed: false }))
@@ -271,7 +308,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       assert.equal(authored.gap, 7)
       assert.ok(Object.isFrozen(authorArray) && Object.isFrozen(authored))
       evidence.requests[route] = requests.filter((value) => value === classes).length
-      if (route === 'prepared')
+      if (route !== 'opaque')
         assert.ok(
           requests.every((value) => value == null),
           'no class string on prepared owners',
@@ -289,8 +326,8 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       1,
       'stylesheet is built before rendering, never on state updates',
     )
-    assert.equal(evidence.observations.length, 12, 'six phases on both routes')
-    assert.equal(evidence.authorObservations.length, 6, 'author add/remove on both routes')
+    assert.equal(evidence.observations.length, 18, 'six phases on all three routes')
+    assert.equal(evidence.authorObservations.length, 9, 'author add/remove on all three routes')
     evidence.passed = true
   } catch (error) {
     Object.assign(evidence, { error: String(error) })

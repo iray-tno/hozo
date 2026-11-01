@@ -3,6 +3,7 @@
 export const OWNER_SHADOW_VERSION = 'rfc010-owner-shadow-0'
 
 type Gate = { eq: [string, boolean] } | { all: Gate[] } | { any: Gate[] }
+type OwnerFact = 'disabled' | 'aria-selected' | 'aria-disabled'
 
 export interface OwnerShape {
   id: string
@@ -10,6 +11,8 @@ export interface OwnerShape {
   nativeHost: 'Pressable' | 'View'
   webHost: 'button' | 'div'
   events: ('pressed' | 'hovered' | 'focused' | 'focusVisible')[]
+  /** Explicit preparation inputs, not inferred from a synthetic host. */
+  inputs?: { facts: OwnerFact[]; splitText: boolean }
 }
 
 /** A bounded first slice, not yet the complete manifest-v2 schema. */
@@ -33,11 +36,16 @@ function fail(at: string): never {
   throw new Error(`Invalid owner shadow: ${at}`)
 }
 
-function object(value: unknown, keys: string[], at: string): Record<string, unknown> {
+function object(
+  value: unknown,
+  keys: string[],
+  at: string,
+  optional: string[] = [],
+): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail(at)
   const record = value as Record<string, unknown>
   if (
-    Object.keys(record).length !== keys.length ||
+    Object.keys(record).some((key) => !keys.includes(key) && !optional.includes(key)) ||
     !keys.every((key) => Object.hasOwn(record, key))
   )
     fail(`${at} fields`)
@@ -139,7 +147,12 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       `${at}.author order`,
     )
     const shapes = list(contract.shapes, 16, `${at}.shapes`).map((value): OwnerShape => {
-      const shape = object(value, ['id', 'when', 'nativeHost', 'webHost', 'events'], `${at}.shape`)
+      const shape = object(
+        value,
+        ['id', 'when', 'nativeHost', 'webHost', 'events'],
+        `${at}.shape`,
+        ['inputs'],
+      )
       const id = identifier(shape.id, `${at}.shape.id`)
       if (
         !['Pressable', 'View'].includes(shape.nativeHost as string) ||
@@ -157,12 +170,38 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       if (shape.nativeHost === 'View' && (shape.webHost !== 'div' || events.length !== 0))
         fail(`${at}.decoration events/host`)
       if (shape.nativeHost === 'Pressable' && shape.webHost !== 'button') fail(`${at}.control host`)
+      let inputs: OwnerShape['inputs']
+      if (Object.hasOwn(shape, 'inputs')) {
+        const supplied = object(shape.inputs, ['facts', 'splitText'], `${at}.shape inputs`)
+        if (
+          !Array.isArray(supplied.facts) ||
+          supplied.facts.length > 3 ||
+          typeof supplied.splitText !== 'boolean'
+        )
+          fail(`${at}.shape inputs values`)
+        const facts = supplied.facts as OwnerFact[]
+        if (!facts.every((fact) => ['disabled', 'aria-selected', 'aria-disabled'].includes(fact)))
+          fail(`${at}.shape input fact`)
+        unique(facts, `${at}.shape input facts`)
+        // This first stateful consumer requires the complete existing snapshot.
+        // Partial event owners need backend requirement metadata, not JSX text
+        // inspection or borrowing a surrounding component's event state.
+        if (
+          shape.nativeHost !== 'Pressable' ||
+          !['pressed', 'hovered', 'focused', 'focusVisible'].every((event) =>
+            events.includes(event as OwnerShape['events'][number]),
+          )
+        )
+          fail(`${at}.shape inputs need the full control snapshot`)
+        inputs = { facts, splitText: supplied.splitText }
+      }
       return {
         id,
         when: gate(shape.when),
         nativeHost: shape.nativeHost as OwnerShape['nativeHost'],
         webHost: shape.webHost as OwnerShape['webHost'],
         events,
+        ...(inputs && { inputs }),
       }
     })
     unique(
