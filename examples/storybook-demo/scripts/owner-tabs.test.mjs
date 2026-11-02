@@ -7,6 +7,10 @@ import { build } from 'esbuild'
 import { chromium } from 'playwright-core'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
+  expectedIdleTabInputs,
+  tabInputCases,
+} from '../../../scripts/style-slots/owner-input-cases.mjs'
+import {
   expectedTabRows,
   prepareTabsProbe,
   tabLabelClasses,
@@ -29,7 +33,7 @@ async function appBundle(classes, prepared) {
       contents: `${prepared ?? "import {Tabs} from '@hozo/patterns';"}
 import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 window.changes=[];
-function App(){const [index,setIndex]=useState(0);const [author,setAuthor]=useState();window.setAuthor=value=>flushSync(()=>setAuthor(value));window.select=at=>flushSync(()=>setIndex(at));return <${prepared ? 'TabsFixture' : 'Tabs'} index={index} tabStyle={author} onIndexChange={at=>{changes.push(at);setIndex(at)}} ${prepared ? '' : `tabClassName={${JSON.stringify(classes)}}`} tabs={[{label:'A',content:'one'},{label:'B',content:'two'},{label:'C',content:'three',disabled:true}]}/>}
+function App(){const [index,setIndex]=useState(0);const [items,setItems]=useState([{label:'A',content:'one'},{label:'B',content:'two'},{label:'C',content:'three',disabled:true}]);const [author,setAuthor]=useState();window.setInput=input=>flushSync(()=>{setItems(input.tabs);setIndex(input.index)});window.setAuthor=value=>flushSync(()=>setAuthor(value));window.select=at=>flushSync(()=>setIndex(at));return <${prepared ? 'TabsFixture' : 'Tabs'} index={index} tabStyle={author} onIndexChange={at=>{changes.push(at);setIndex(at)}} ${prepared ? '' : `tabClassName={${JSON.stringify(classes)}}`} tabs={items}/>}
 flushSync(()=>createRoot(document.querySelector('#root')).render(<App/>));`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
       loader: 'tsx',
@@ -81,6 +85,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     fingerprint: '',
     observations: [],
     authorObservations: [],
+    inputObservations: [],
     controls: [],
     prepared: null,
   }
@@ -222,6 +227,57 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
         await page.evaluate(() => window.select(2))
         await page.evaluate(() => window.setAuthor(undefined))
         await recordAuthor('after-removal', false)
+        await page.mouse.move(800, 650)
+        await tabs.nth(1).evaluate((node) => node.blur())
+        for (const input of tabInputCases) {
+          await page.evaluate((input) => {
+            window.previousTabs = [...document.querySelectorAll('[role=tab]')]
+            window.setInput(input)
+          }, input)
+          const rows = await tabs.evaluateAll((nodes) =>
+            nodes.map((node, at) => {
+              if (at < window.previousTabs.length && node !== window.previousTabs[at])
+                throw new Error('live input replaced a retained positional Owner')
+              const style = getComputedStyle(node)
+              const hex = (value) =>
+                `#${value
+                  .match(/\d+/g)
+                  .slice(0, 3)
+                  .map((part) => Number(part).toString(16).padStart(2, '0'))
+                  .join('')}`
+              return {
+                label: node.textContent,
+                selected: node.getAttribute('aria-selected') === 'true',
+                disabled: node.disabled,
+                padding: Number.parseFloat(style.paddingTop),
+                background: hex(style.backgroundColor),
+                opacity: Number(style.opacity),
+                border: Number.parseFloat(style.borderTopWidth),
+                color: hex(style.color),
+                size: Number.parseFloat(style.fontSize),
+                weight: style.fontWeight,
+                spacing: Number.parseFloat(style.letterSpacing) || 0,
+              }
+            }),
+          )
+          assert.deepEqual(rows, expectedIdleTabInputs(input), `${kind}: ${input.id}`)
+          const changes = await page.evaluate(() => window.changes.length)
+          await tabs.evaluateAll((nodes) => {
+            for (const node of nodes) if (node.disabled) node.click()
+          })
+          assert.equal(await page.evaluate(() => window.changes.length), changes)
+          evidence.inputObservations.push({ kind, input: input.id, rows })
+        }
+        await page.evaluate(() =>
+          window.setInput({
+            tabs: [
+              { label: 'A', content: 'one' },
+              { label: 'B', content: 'two' },
+              { label: 'C', content: 'three', disabled: true },
+            ],
+            index: 2,
+          }),
+        )
         // Without actual unavailable hooks, ARIA alone must not certify the
         // disabled: contribution. Keep aria-disabled to distinguish the two.
         await tabs.nth(2).evaluate((node) => {
@@ -243,6 +299,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     assert.equal(evidence.observations.length, 18)
     assert.equal(evidence.controls.length, 3)
     assert.equal(evidence.authorObservations.length, 12)
+    assert.equal(evidence.inputObservations.length, 24)
     for (const kind of ['candidate', 'prepared'])
       assert.deepEqual(
         evidence.authorObservations

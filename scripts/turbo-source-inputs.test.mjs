@@ -114,6 +114,7 @@ const reads = {
     'scripts/style-slots/tabs-probe.mjs',
     'scripts/style-slots/evidence-source.mjs',
     'scripts/style-slots/handle-web.mjs',
+    'scripts/style-slots/owner-input-cases.mjs',
     'scripts/style-slots/handle-publication.mjs',
     'scripts/style-slots/owner-shadow.json',
     'packages/tailwind/src/theme.ts',

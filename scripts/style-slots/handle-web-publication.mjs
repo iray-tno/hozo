@@ -1,5 +1,6 @@
 import { handleClasses } from './handle-publication.mjs'
 import { handleStateClasses } from './handle-web.mjs'
+import { handleInputClasses } from './owner-input-cases.mjs'
 import { prepareWebOwnerPublication } from './web-owner-publication.mjs'
 
 export function prepareWebHandlePublication(lifetime = false) {
@@ -18,4 +19,20 @@ export function HandleFixture({interactive,open,onClose,accessibilityLabel,sheet
     owner: 'BottomSheet.handle',
     sites: 2,
   })
+}
+
+export function prepareWebHandleInputPublication() {
+  return prepareWebOwnerPublication(
+    `import {BottomSheet} from '@hozo/patterns';
+export function HandleInputFixture({detents}) {
+ return <BottomSheet open portal={false} detents={detents} accessibilityLabel="Input evidence" sheetClassName="input-panel" handleStyle={{rowGap:16,columnGap:16}} handleClassName=${JSON.stringify(handleInputClasses)}><button>Body</button></BottomSheet>
+}`,
+    {
+      fixture: 'OwnerHandleInputFixture',
+      imported: 'BottomSheet',
+      classProp: 'handleClassName',
+      owner: 'BottomSheet.handle',
+      sites: 1,
+    },
+  )
 }

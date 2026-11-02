@@ -46,3 +46,5 @@ export const handleInputCases = [
   { id: 'back-to-decoration', detents: [1, 1], interactive: false },
   { id: 'back-to-interactive', detents: [0.5, 1], interactive: true },
 ]
+
+export const handleInputClasses = 'p-[8px] opacity-100 bg-[#ffffff] gap-x-2'

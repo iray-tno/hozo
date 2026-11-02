@@ -8,7 +8,14 @@ import { chromium } from 'playwright-core'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import { handleRoot } from '../../../scripts/style-slots/handle-publication.mjs'
 import { prepareWebHandle } from '../../../scripts/style-slots/handle-web.mjs'
-import { prepareWebHandlePublication } from '../../../scripts/style-slots/handle-web-publication.mjs'
+import {
+  prepareWebHandleInputPublication,
+  prepareWebHandlePublication,
+} from '../../../scripts/style-slots/handle-web-publication.mjs'
+import {
+  handleInputCases,
+  handleInputClasses,
+} from '../../../scripts/style-slots/owner-input-cases.mjs'
 
 const executablePath = [
   process.env.CHROME_PATH,
@@ -37,7 +44,9 @@ test('handle Web oracle and candidate fixture include the actual state selectors
   const preparedBundle = await stateBundle(fixture, prepared.code)
   const lifetime = await prepareWebHandlePublication(true)
   const lifetimePreparedBundle = await lifetimeBundle(fixture.rest, lifetime.code)
-  for (const output of [preparedBundle, lifetimePreparedBundle]) {
+  const inputs = await prepareWebHandleInputPublication()
+  const inputPreparedBundle = await inputBundle(inputs.code)
+  for (const output of [preparedBundle, lifetimePreparedBundle, inputPreparedBundle]) {
     assert.ok(
       Object.keys(output.metafile.inputs).some((file) =>
         file.endsWith('patterns/dist/bottom-sheet.js'),
@@ -48,6 +57,130 @@ test('handle Web oracle and candidate fixture include the actual state selectors
         /packages\/(compiler|tailwind)\//.test(file.replaceAll('\\', '/')),
       ),
     )
+  }
+})
+
+async function inputBundle(prepared) {
+  return build({
+    stdin: {
+      contents: `${prepared ?? "import {BottomSheet} from '@hozo/patterns';"}
+import {handleInputCases} from '../../scripts/style-slots/owner-input-cases.mjs';
+import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
+function App(){const [detents,setDetents]=useState();window.setInput=at=>flushSync(()=>setDetents(handleInputCases[at].detents));return <${prepared ? 'HandleInputFixture' : 'BottomSheet'} detents={detents} ${prepared ? '' : `open portal={false} accessibilityLabel="Input evidence" sheetClassName="input-panel" handleStyle={{rowGap:16,columnGap:16}} handleClassName={${JSON.stringify(handleInputClasses)}}`}><button>Body</button></${prepared ? 'HandleInputFixture' : 'BottomSheet'}>}
+flushSync(()=>createRoot(document.querySelector('#root')).render(<App/>));`,
+      resolveDir: fileURLToPath(new URL('../', import.meta.url)),
+      loader: 'tsx',
+    },
+    bundle: true,
+    write: false,
+    metafile: true,
+    minify: true,
+    format: 'iife',
+    platform: 'browser',
+    jsx: 'automatic',
+    define: { 'process.env.NODE_ENV': '"production"' },
+  })
+}
+
+test('real Web handle delivery follows normalized live detents on the actual Owner', {
+  skip: !executablePath,
+}, async () => {
+  const evidence = {
+    schema: 1,
+    ...evidenceSource(),
+    passed: false,
+    scope: 'web-handle-normalized-live-inputs',
+    observations: [],
+    controls: [],
+    prepared: null,
+  }
+  let browser
+  try {
+    const fixture = await prepareWebHandle()
+    const prepared = await prepareWebHandleInputPublication()
+    const { code: _code, css: _css, ...provenance } = prepared
+    evidence.prepared = provenance
+    const opaque = await inputBundle()
+    const compiled = await inputBundle(prepared.code)
+    browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-gpu'] })
+    const errors = []
+    for (const [kind, css, app] of [
+      ['candidate', fixture.candidateCss, opaque],
+      ['tailwind', fixture.oracleCss, opaque],
+      ['prepared', prepared.css, compiled],
+    ]) {
+      const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
+      page.on('pageerror', (error) => errors.push(error.message))
+      try {
+        await page.setContent(
+          `<style>@layer base{button{border:0 solid;box-sizing:border-box}}</style><style data-candidates>${css}</style><div id="root"></div>`,
+        )
+        await page.addScriptTag({ content: app.outputFiles[0].text })
+        await page.mouse.move(800, 650)
+        let previousShape = false
+        for (const [at, input] of handleInputCases.entries()) {
+          const actual = await page.evaluate((at) => {
+            const before = document.querySelector('.input-panel > :first-child')
+            window.setInput(at)
+            const node = document.querySelector('.input-panel > :first-child')
+            const style = getComputedStyle(node)
+            const rgb = style.backgroundColor.match(/\d+/g).slice(0, 3)
+            return {
+              sameHost: node === before,
+              selected: {
+                host: node.tagName,
+                padding: Number.parseFloat(style.paddingTop),
+                opacity: Number(style.opacity),
+                rowGap: Number.parseFloat(style.rowGap),
+                columnGap: Number.parseFloat(style.columnGap),
+                background: `#${rgb.map((value) => Number(value).toString(16).padStart(2, '0')).join('')}`,
+              },
+            }
+          }, at)
+          assert.equal(
+            actual.sameHost,
+            previousShape === input.interactive,
+            `${kind}/${input.id}: host lifetime`,
+          )
+          assert.deepEqual(actual.selected, {
+            host: input.interactive ? 'BUTTON' : 'DIV',
+            padding: 8,
+            opacity: 1,
+            rowGap: 16,
+            columnGap: 16,
+            background: '#ffffff',
+          })
+          evidence.observations.push({ kind, input: input.id, ...actual })
+          previousShape = input.interactive
+        }
+        const owner = page.locator('.input-panel > :first-child')
+        const before = await read(owner)
+        await page.locator('style[data-candidates]').evaluate((node) => node.remove())
+        assert.notDeepEqual(
+          await read(owner),
+          before,
+          'missing stylesheet must invalidate the probe',
+        )
+        evidence.controls.push({ kind, absentStylesheetDetected: true })
+      } finally {
+        await page.close()
+      }
+    }
+    assert.deepEqual(errors, [])
+    assert.equal(evidence.observations.length, 27)
+    assert.equal(evidence.controls.length, 3)
+    evidence.passed = true
+  } catch (error) {
+    evidence.error = String(error)
+    throw error
+  } finally {
+    await browser?.close()
+    const destination = path.join(
+      handleRoot,
+      'artifacts/style-fact-model/handle-inputs-browser.json',
+    )
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(destination, `${JSON.stringify(evidence, null, 2)}\n`)
   }
 })
 
