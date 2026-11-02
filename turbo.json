@@ -182,6 +182,9 @@
     "@hozo/example-storybook#test": {
       "dependsOn": ["^build"],
       "inputs": [
+        "$TURBO_ROOT$/scripts/style-slots/vite-owner-publication.mjs",
+        "$TURBO_ROOT$/packages/vite/src/**",
+        "$TURBO_ROOT$/packages/vite/package.json",
         "$TURBO_ROOT$/scripts/style-slots/tabs-web-publication.mjs",
         "$TURBO_ROOT$/scripts/style-slots/web-owner-publication.mjs",
         "$TURBO_ROOT$/packages/patterns/hozo.manifest.json",

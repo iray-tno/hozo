@@ -85,3 +85,22 @@ failures and late participating packages remain explicit assessment failures,
 not empty compatible graphs. Ordinary `hozo()` has no new parsing/discovery cost.
 Transform metadata records actual selected owner identity/context/findings for
 independent build evidence, never compiler code in the application bundle.
+
+## Actual package graph and independent browser delivery
+
+The dedicated Vite owner fixture builds the real installed Web patterns and
+their dependency graph through `hozoWithDiscoveredOwnerCallers`, not a synthetic
+widget or handwritten preparation. It supplies only ordinary root/CSS/content
+options; no edges, locator, caller targets or generated classes. Actual module
+metadata must show prepared Tabs/BottomSheet identities and three literal sites;
+the emitted application graph must contain both real widgets and no build tools.
+React peers stay external in the library fixture and are bundled once by the
+browser host. The temporary project is removed only after validating its path.
+
+Chrome compares this build with independently generated Tailwind CSS on the
+same actual widgets: Tabs selection/disabled behavior and common author styles,
+both handle shapes, hover/focus, author removal, ordinary primitive padding,
+stable hosts and six exact-stylesheet-removal controls. Failure/partial receipts
+are preserved as `owner-vite-evidence`; browser success requires inspecting the
+current-source artifact. This is bounded static source/real graph evidence,
+not a full dynamic graph, Native pixel or global owner-audit/default claim.

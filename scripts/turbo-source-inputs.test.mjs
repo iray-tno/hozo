@@ -99,6 +99,11 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'scripts/style-slots/vite-owner-publication.mjs',
+    'packages/vite/src/index.ts',
+    'packages/vite/src/owner-candidates.ts',
+    'packages/vite/src/owner-source-plan.ts',
+    'packages/vite/package.json',
     'scripts/style-slots/handle-web-publication.mjs',
     'scripts/style-slots/web-owner-publication.mjs',
     'scripts/style-slots/tabs-web-publication.mjs',
