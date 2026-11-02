@@ -13,6 +13,8 @@ on:
       - 'scripts/style-slots/tabs-owner-shadow.mjs'
       - 'scripts/style-slots/owner-fixture.mjs'
       - 'scripts/style-slots/owner-input-cases.mjs'
+      - 'scripts/style-slots/owner-input-audit.mjs'
+      - 'scripts/style-slots-status.test.mjs'
       - 'scripts/style-slots/owner-shadow.json'
       - 'scripts/style-slots/catalog.mjs'
       - 'examples/storybook-demo/scripts/owner-handle.test.mjs'
@@ -63,6 +65,16 @@ jobs:
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/bottom-sheet-prepared-handle.test.ts
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/tabs-owner-state.test.ts packages/tailwind-conformance/src/tabs-prepared-owner.test.ts packages/tailwind-conformance/src/tabs-compiled-owner.test.ts examples/storybook-demo/scripts/owner-tabs.test.mjs
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-vite.test.mjs
+      # Read real receipts from this checkout; a missing/stale probe fails the
+      # bounded audit rather than quietly inheriting a previous green report.
+      - run: node scripts/style-slots/owner-input-audit.mjs --output artifacts/style-fact-model/owner-input-audit.json
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owner-input-audit
+          path: artifacts/style-fact-model/owner-input-audit.json
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:
