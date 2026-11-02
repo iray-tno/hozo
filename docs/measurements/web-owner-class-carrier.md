@@ -197,3 +197,19 @@ a separate gate. In particular this internal finite plan does not promote the
 two shadow contracts to audited status or enable automatic normal-build
 admission. General resolver ownership/discovery and authored-style parity must
 be reviewed before replacing the ordinary component-managed route.
+
+## Real-widget browser gates use the composed route
+
+The existing handle and Tabs publications now use `prepareOwnerLowerModule`
+inside one ordinary project session. The same module contains an unmounted
+ordinary primitive control, so the probe asserts one actual ordinary parse
+and one Tailwind preparation before delivering code/CSS to the real widgets.
+Receipts distinguish `composed-ordinary-lowering` from the earlier standalone
+owner preview. Historical receipts remain scoped to their original route;
+missing or inconsistent new route/parse metadata cannot certify composition.
+
+The independent Tailwind values, real pointer/focus/selection, stylesheet-removal
+negatives and controlled presence checks are unchanged. The small local checks
+only prepare CSS and bundle the fixtures; the real-browser result must still
+be read from the current-head CI artifact. This proves the compiler-composition
+route on actual widgets, not an automatic real-package Vite graph rollout.

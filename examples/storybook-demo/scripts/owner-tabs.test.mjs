@@ -92,6 +92,8 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
       identity: prepared.identity,
       fingerprint: prepared.fingerprint,
       preparations: prepared.preparations,
+      ordinaryParses: prepared.ordinaryParses,
+      delivery: prepared.delivery,
     }
     evidence.fingerprint = fixture.fingerprint
     const bundle = await appBundle(fixture.classes)

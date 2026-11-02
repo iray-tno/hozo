@@ -112,6 +112,23 @@ test('prepared browser rows require their own provenance and complete pairs with
   assert.equal(result.observations[0].denominator, 10)
   assert.equal(result.globalMeasures.contractAudit, null)
   assert.equal(result.globalMeasures.coverage, null)
+  receipt.prepared.delivery = 'composed-ordinary-lowering'
+  receipt.prepared.ordinaryParses = 1
+  assert.equal(
+    stylingFactStatus({ commit, receipts: [receipt] }).observations[0].status,
+    'measured',
+  )
+  for (const changed of [
+    { ...receipt.prepared, ordinaryParses: 2 },
+    { ...receipt.prepared, delivery: 'explicit-preview-only' },
+    { ...receipt.prepared, delivery: undefined },
+    { ...receipt.prepared, ordinaryParses: undefined },
+  ])
+    assert.equal(
+      stylingFactStatus({ commit, receipts: [{ ...receipt, prepared: changed }] }).observations[0]
+        .status,
+      'invalid',
+    )
   for (const change of [
     (value) => {
       value.prepared.identity.platform = 'ios'
