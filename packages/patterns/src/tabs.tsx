@@ -1,5 +1,13 @@
 import { nextIndex, type Orientation, type RovingKey, tabStops } from '@hozo/behaviors'
-import { type KeyboardEvent, type ReactNode, useCallback, useId, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  useCallback,
+  useId,
+  useRef,
+  useState,
+} from 'react'
 
 export interface HozoTab {
   /** The tab's label. */
@@ -23,6 +31,8 @@ export interface HozoTabsProps {
   className?: string
   tabListClassName?: string
   tabClassName?: string
+  /** Inline box look on every tab; the same owner as Native's tabStyle. */
+  tabStyle?: CSSProperties
   panelClassName?: string
 }
 
@@ -36,6 +46,7 @@ export function HozoTabs({
   className,
   tabListClassName,
   tabClassName,
+  tabStyle,
   panelClassName,
 }: HozoTabsProps) {
   const base = useId()
@@ -104,6 +115,7 @@ export function HozoTabs({
             data-hozo-disabled={tab.disabled ? '' : undefined}
             tabIndex={stops[at]}
             className={tabClassName}
+            style={tabStyle}
             onKeyDown={onKeyDown}
             onFocus={() => setFocused(at)}
             onClick={() => select(at)}

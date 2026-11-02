@@ -213,3 +213,18 @@ negatives and controlled presence checks are unchanged. The small local checks
 only prepare CSS and bundle the fixtures; the real-browser result must still
 be read from the current-head CI artifact. This proves the compiler-composition
 route on actual widgets, not an automatic real-package Vite graph rollout.
+
+## Authored box style wiring
+
+Checking the authored-style condition exposed a real platform gap: the shadow
+contract and Native widgets already had `handleStyle` / `tabStyle`, but their
+Web widgets did not forward these props at all. They now reach the same actual
+handle/tab box as inline styles, following Slider's existing Web CSSProperties
+convention. BottomSheet's internal `touch-action: none` remains last because it
+is gesture ownership, not caller appearance. No class resolver is added.
+
+SSR tests verify both handle shapes, all tab owners and absence on the handle
+bar/strip/panel. They do not prove computed priority. The next browser gate
+covers shared non-important numeric box styles and restoration after removal;
+Native arrays/registered styles, Web-only CSS properties, important classes,
+opaque label inheritance and font pixels are not certified by that gate.
