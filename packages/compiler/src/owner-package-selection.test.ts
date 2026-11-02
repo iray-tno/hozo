@@ -3,7 +3,10 @@ import test from 'node:test'
 import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { captureOwnerManifests, type OwnerManifestObservation } from './owner-manifest-capture.ts'
 import { OwnerManifestEpoch } from './owner-manifest-epoch.ts'
-import { selectOwnerPackageContract } from './owner-package-selection.ts'
+import {
+  discoverOwnerPackageCallers,
+  selectOwnerPackageContract,
+} from './owner-package-selection.ts'
 
 const shadow = JSON.parse(ownerFixtureShadow('BottomSheet.handle'))
 const a = { importer: '/app/App.tsx', specifier: 'kit' }
@@ -133,4 +136,57 @@ test('invalid requests and retired leases cannot escape the original immutable s
   )
   assert.throws(() => selected.check(), /INVALIDATED/)
   assert.throws(() => selectOwnerPackageContract(lease, request), /INVALIDATED/)
+})
+
+test('caller discovery derives export aliases from only the matching captured importer', () => {
+  const input = data()
+  input.exports.push({ name: 'HozoSheet', owners: ['BottomSheet.handle'] })
+  const { lease, epoch } = fixture([
+    observe(a, '/one', input),
+    observe(b, '/two', data('hozoSecondStyle')),
+  ])
+  const found = discoverOwnerPackageCallers(lease, a.importer)
+  assert.deepEqual(found.requests, [request, { ...request, imported: 'HozoSheet' }])
+  assert.deepEqual(found.unassessed, [])
+  assert.ok(Object.isFrozen(found.requests) && found.requests.every(Object.isFrozen))
+  assert.deepEqual(discoverOwnerPackageCallers(lease, '/not-captured').requests, [])
+  assert.equal(discoverOwnerPackageCallers(lease, b.importer).requests[0]!.entry, '/two/native.js')
+  epoch.invalidate()
+  assert.throws(() => discoverOwnerPackageCallers(lease, a.importer), /INVALIDATED/)
+})
+
+test('ordinary, legacy-only and ambiguous bindings stay unassessed in automatic caller discovery', () => {
+  const ordinary = observe()
+  const legacy = observe(b, '/two')
+  if (ordinary.status !== 'resolved' || legacy.status !== 'resolved') throw new Error('fixture')
+  ordinary.manifest = { kind: 'none' }
+  legacy.manifest = { kind: 'present', file: '/two/owner.json', text: JSON.stringify(shadow) }
+  for (const [row, reason] of [
+    [ordinary, 'ordinary-package'],
+    [legacy, 'package-channels-unavailable'],
+  ] as const) {
+    const found = discoverOwnerPackageCallers(fixture([row]).lease, row.importer)
+    assert.deepEqual(found.requests, [])
+    assert.deepEqual(found.unassessed, [{ specifier: row.specifier, reason }])
+  }
+  const input = data()
+  const duplicate = structuredClone(input.owners.contracts[0])
+  duplicate.owner = 'BottomSheet.other'
+  input.owners.contracts.push(duplicate)
+  input.exports[0]!.owners.push(duplicate.owner)
+  const found = discoverOwnerPackageCallers(fixture([observe(a, '/one', input)]).lease, a.importer)
+  assert.deepEqual(found.requests, [])
+  assert.deepEqual(found.unassessed, [{ specifier: a.specifier, reason: 'ambiguous-owner' }])
+})
+
+test('caller discovery enforces a finite target budget instead of returning a usable partial set', () => {
+  const input = data()
+  input.exports = Array.from({ length: 65 }, (_, index) => ({
+    name: `Alias${index}`,
+    owners: ['BottomSheet.handle'],
+  }))
+  assert.throws(
+    () => discoverOwnerPackageCallers(fixture([observe(a, '/one', input)]).lease, a.importer),
+    /DISCOVERY_BUDGET/,
+  )
 })

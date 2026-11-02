@@ -289,6 +289,33 @@ test('actual Vite-selected package instances no longer need a handwritten locate
   assert.match(JSON.stringify(await caller.run()), /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
 })
 
+test('captured manifests select real caller aliases without a handwritten class-prop binding list', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  delete f.plan.locate
+  delete f.plan.callers
+  const input = readFileSync(f.entry, 'utf8')
+  assert.match(JSON.stringify(await f.run()), /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  const file = path.join(f.first, 'owner.json')
+  const data = JSON.parse(readFileSync(file, 'utf8'))
+  data.exports.push({ name: 'AliasSheet', owners: ['BottomSheet.handle'] })
+  writeFileSync(file, JSON.stringify(data))
+  writeFileSync(
+    path.join(f.first, 'web.js'),
+    'export function Sheet(props){return props};export {Sheet as AliasSheet}',
+  )
+  writeFileSync(f.entry, input.replace('Sheet as Panel', 'AliasSheet as Panel'))
+  const output = JSON.stringify(await f.run())
+  assert.match(output, /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  assert.equal(f.inventory().status, 'complete')
+  writeFileSync(
+    f.entry,
+    input.replace('handleClassName="p-2"', 'handleClassName={globalThis.classes}'),
+  )
+  assert.doesNotMatch(JSON.stringify(await f.run()), /hozo-owner-[a-f0-9]{16}-r/)
+})
+
 test('absent physical package boundaries are watched and creation retires an existing lease', {
   timeout: 15000,
 }, async (t) => {

@@ -34,3 +34,20 @@ turn a previously consulted participant into an ordinary package after code
 preparation. Warm lease checks remain filesystem-free. Actual Vite tests use
 two installations and prepared caller output without a handwritten root map;
 new importer/target boundaries reject publication and retire the lease.
+
+## Captured exports select possible caller bindings
+
+`discoverOwnerPackageCallers` projects one importer's exact captured edges into
+published export/class-prop requests using the existing contract selector.
+Export aliases keep their selected entry/instance; they are not inferred from
+component spelling. Ordinary packages, legacy-only channels and ambiguous owner
+references remain unassessed. No partial usable request list escapes its budget.
+The existing binding-aware caller parser still decides which real JSX sites
+occur, and whether literal, opaque, namespace or spread inputs can be prepared.
+
+Finite Vite caller assessments can omit the handwritten `callers` list and use
+this projection. Explicit subsets remain supported. Imports are still supplied
+to the startup capture: this is not yet source import discovery or a complete
+graph. Unknown contracts are not upgraded to audited, and normal `hozo()` is
+unchanged. Actual Vite tests cover a published export alias and opaque fallback
+without either a handwritten locator or a class-prop binding list.

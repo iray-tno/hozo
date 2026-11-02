@@ -40,6 +40,7 @@ import {
 } from '@hozo/compiler/lower'
 import {
   CACHE_DIR,
+  discoverOwnerPackageCallers,
   discoverSources,
   findClassHelpers,
   type HozoProjectOptions,
@@ -93,14 +94,15 @@ export function hozoWithOwnerCandidates(
 }
 
 export interface ViteOwnerCallerPlan extends ViteOwnerCandidatePlan {
-  /** Reviewed finite caller bindings. Entries come from Vite's capture, not callers. */
-  callers: readonly Omit<OwnerContractRequest, 'entry'>[]
+  /** Optional finite subset. Omit to derive possible bindings from the capture. */
+  callers?: readonly Omit<OwnerContractRequest, 'entry'>[]
 }
 
 /** @internal Explicit BUILD assessment through the ordinary transform/CSS
  * publication path. No new public option or default owner/audit admission.
  */
 export function hozoWithOwnerCallers(options: HozoOptions, plan: ViteOwnerCallerPlan): Plugin[] {
+  if (plan.callers === undefined) return configureHozo(options, plan, [], true)
   if (!plan.callers.length || plan.callers.length > 64)
     throw new Error('[hozo] owner caller binding budget unavailable')
   const callers = plan.callers.map((caller) => Object.freeze({ ...caller }))
@@ -119,6 +121,7 @@ function configureHozo(
   options: HozoOptions,
   ownerPlan?: ViteOwnerCandidatePlan,
   callerBindings: readonly Omit<OwnerContractRequest, 'entry'>[] = [],
+  discoverCallers = false,
 ): Plugin[] {
   // One matching compiler/session per stylesheet epoch, never per file.
   let root = process.cwd()
@@ -428,20 +431,26 @@ function configureHozo(
           const bindings = callerBindings.length
             ? callerBindings.filter((binding) => binding.importer === absoluteFile)
             : undefined
-          if (bindings?.length && !id.includes('?')) {
+          const discovered =
+            discoverCallers && owners && !id.includes('?')
+              ? discoverOwnerPackageCallers(owners.lease, absoluteFile).requests
+              : undefined
+          if ((bindings?.length || discovered?.length) && !id.includes('?')) {
             if (!current.session || !owners)
               throw new Error(
                 '[hozo] owner callers require a captured stylesheet and package epoch',
               )
             const selectedOwners = owners
-            const ownerRequests = bindings.map((binding) => {
-              const captured = selectedOwners.lease.capture.bindings.find(
-                (edge) =>
-                  edge.importer === binding.importer && edge.specifier === binding.specifier,
-              )
-              if (!captured) throw new Error('[hozo] owner caller edge was not captured')
-              return { ...binding, entry: captured.entry }
-            })
+            const ownerRequests =
+              discovered ??
+              bindings!.map((binding) => {
+                const captured = selectedOwners.lease.capture.bindings.find(
+                  (edge) =>
+                    edge.importer === binding.importer && edge.specifier === binding.specifier,
+                )
+                if (!captured) throw new Error('[hozo] owner caller edge was not captured')
+                return { ...binding, entry: captured.entry }
+              })
             const [output] = await current.session.emit(
               requestId,
               [

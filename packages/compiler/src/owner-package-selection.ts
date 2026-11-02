@@ -19,6 +19,72 @@ export interface OwnerContractIdentity extends Readonly<OwnerContractRequest> {
   readonly manifestSha256: string
   readonly owner: string
 }
+
+export interface OwnerCallerDiscovery {
+  readonly scope: 'captured-importer-owner-bindings'
+  readonly requests: readonly Readonly<OwnerContractRequest>[]
+  readonly unassessed: readonly Readonly<{ specifier: string; reason: string }>[]
+}
+
+/** @internal Derive possible caller targets from exact captured edges and
+ * published export/owner references. The existing parser still decides which
+ * bindings/sites actually occur; aliases never become a global name table.
+ * This is discovery in an explicitly selected assessment, not owner auditing.
+ */
+export function discoverOwnerPackageCallers(
+  lease: OwnerManifestLease,
+  importer: string,
+): OwnerCallerDiscovery {
+  lease.check()
+  if (
+    typeof importer !== 'string' ||
+    !importer ||
+    importer.length > 4096 ||
+    importer.includes('\0')
+  )
+    throw new Error('OWNER_CALLER_DISCOVERY_INVALID_IMPORTER')
+  const requests: Readonly<OwnerContractRequest>[] = []
+  const unassessed: { specifier: string; reason: string }[] = []
+  for (const binding of lease.capture.bindings) {
+    if (binding.importer !== importer) continue
+    const data = binding.manifest?.package
+    if (!data) {
+      unassessed.push({
+        specifier: binding.specifier,
+        reason: binding.manifest ? 'package-channels-unavailable' : 'ordinary-package',
+      })
+      continue
+    }
+    for (const exported of data.exports) {
+      const props = new Set(
+        data.owners?.contracts
+          .filter((contract) => exported.owners.includes(contract.owner))
+          .map((contract) => contract.classProp),
+      )
+      for (const classProp of props) {
+        const request = {
+          importer: binding.importer,
+          specifier: binding.specifier,
+          entry: binding.entry,
+          imported: exported.name,
+          classProp,
+        }
+        const selected = selectOwnerPackageContract(lease, request)
+        if (selected.status !== 'selected')
+          unassessed.push({ specifier: binding.specifier, reason: selected.reason })
+        else requests.push(Object.freeze(request))
+        if (requests.length + unassessed.length > 64)
+          throw new Error('OWNER_CALLER_DISCOVERY_BUDGET')
+      }
+    }
+  }
+  lease.check()
+  return Object.freeze({
+    scope: 'captured-importer-owner-bindings',
+    requests: Object.freeze(requests),
+    unassessed: Object.freeze(unassessed.map((row) => Object.freeze(row))),
+  })
+}
 export type OwnerContractSelection =
   | Readonly<{
       status: 'unassessed'

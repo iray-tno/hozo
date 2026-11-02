@@ -61,6 +61,8 @@ export {
   type OwnerPackageLocation,
 } from './owner-package-location.ts'
 export {
+  discoverOwnerPackageCallers,
+  type OwnerCallerDiscovery,
   type OwnerContractIdentity,
   type OwnerContractRequest,
   type OwnerContractSelection,
