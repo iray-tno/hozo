@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { createCompiler, prepareFinalTailwindContext } from './index.ts'
+import { prepareInstanceOwnerCallers } from './owner-caller-participant.ts'
 import { InstanceOwnerCallerProject } from './owner-caller-project.ts'
 import { captureOwnerManifests, type OwnerManifestObservation } from './owner-manifest-capture.ts'
 import { OwnerManifestEpoch } from './owner-manifest-epoch.ts'
+import { TailwindProjectSession } from './tailwind-session.ts'
 
 const owners = JSON.parse(ownerFixtureShadow('BottomSheet.handle'))
 const a = { importer: '/app/A.tsx', specifier: 'kit' },
@@ -404,4 +406,147 @@ test('retiring a Web manifest while CSS awaits promptly releases Web IR and fenc
     /INVALIDATED/,
   )
   project.invalidate()
+})
+
+test('owner and ordinary Web IR participate in one adapter-owned preparation and exact context', async () => {
+  const { lease } = fixture('web')
+  const compiler = createCompiler()
+  const original = compiler.prepareWebModule.bind(compiler)
+  const rows: { context: unknown; disposed: number }[] = []
+  compiler.prepareWebModule = (...args) => {
+    const module = original(...args)
+    const row = { context: undefined as unknown, disposed: 0 }
+    rows.push(row)
+    return {
+      candidates: module.candidates,
+      preview: () => module.preview(),
+      emit(context) {
+        row.context = context
+        return module.emit(context)
+      },
+      dispose() {
+        row.disposed++
+        module.dispose()
+      },
+    }
+  }
+  let preparations = 0
+  const session = new TailwindProjectSession(compiler, async (names) => {
+    preparations++
+    assert.deepEqual(names, ['p-2', 'p-3', 'p-4'])
+    assert.equal(rows.length, 3, 'both owner shapes and ordinary IR collected before suspension')
+    assert.ok(rows.every((row) => row.context === undefined))
+    return snapshot(names)
+  })
+  const current = { ...request, entry: '/package/web.js' }
+  const input = source()
+  try {
+    const output = await session.emit(
+      a.importer,
+      [
+        (instance) => prepareInstanceOwnerCallers(lease, input, instance, current),
+        (instance) =>
+          instance.prepareWebModule(
+            "import {View} from '@hozo/primitives';export const Box=()=> <View className='p-3'/>",
+          ),
+      ],
+      ['p-4'],
+    )
+    assert.equal(preparations, 1)
+    assert.equal(output.length, 2)
+    const owner = output[0] as Awaited<ReturnType<InstanceOwnerCallerProject['emit']>>
+    assert.equal(owner.identity.entry, '/package/web.js')
+    assert.match(owner.preview.code, /handleClassName=\{"hozo-owner-/)
+    assert.ok(owner.preview.css)
+    assert.ok(rows.every((row) => row.context === rows[0]!.context && row.disposed === 1))
+    assert.ok(rows[0]!.context)
+    assert.equal(
+      owner.preview.contextFingerprint,
+      (rows[0]!.context as { fingerprint: string }).fingerprint,
+    )
+  } finally {
+    session.invalidate()
+  }
+})
+
+test('a retained participant releases only its IR when its package lease retires', () => {
+  const { lease, epoch } = fixture('web')
+  const compiler = createCompiler()
+  const original = compiler.prepareWebModule.bind(compiler)
+  let disposed = 0
+  compiler.prepareWebModule = (...args) => {
+    const module = original(...args)
+    return {
+      ...module,
+      dispose() {
+        disposed++
+        module.dispose()
+      },
+    }
+  }
+  const current = { ...request, entry: '/package/web.js' }
+  const module = prepareInstanceOwnerCallers(lease, source(), compiler, current)
+  current.imported = 'changed after collection'
+  assert.deepEqual(module.candidates, ['p-2'])
+  epoch.invalidate()
+  assert.equal(disposed, 2)
+  assert.throws(() => module.emit(prepareFinalTailwindContext(snapshot(['p-2']))), /INVALIDATED/)
+  module.dispose()
+  assert.equal(disposed, 2)
+  const ordinary = original(
+    "import {View} from '@hozo/primitives';export const Box=()=> <View className='p-3'/>",
+  )
+  try {
+    assert.ok(ordinary.emit(prepareFinalTailwindContext(snapshot(['p-3'])))[0]!.css)
+  } finally {
+    ordinary.dispose()
+  }
+})
+
+test('participant consumption and synchronous retirement never deliver stale owner output', () => {
+  const current = { ...request, entry: '/package/web.js' }
+  for (const phase of ['collect', 'emit', 'dispose'] as const) {
+    const { lease, epoch } = fixture('web')
+    const compiler = createCompiler()
+    const original = compiler.prepareWebModule.bind(compiler)
+    let disposed = 0
+    compiler.prepareWebModule = (...args) => {
+      const module = original(...args)
+      if (phase === 'collect') epoch.invalidate()
+      return {
+        ...module,
+        emit(context) {
+          const result = module.emit(context)
+          if (phase === 'emit') epoch.invalidate()
+          return result
+        },
+        dispose() {
+          disposed++
+          module.dispose()
+        },
+      }
+    }
+    if (phase === 'collect') {
+      assert.throws(
+        () => prepareInstanceOwnerCallers(lease, source(), compiler, current),
+        /INVALIDATED/,
+      )
+    } else {
+      const module = prepareInstanceOwnerCallers(lease, source(), compiler, current)
+      if (phase === 'dispose') {
+        module.dispose()
+        assert.throws(
+          () => module.emit(prepareFinalTailwindContext(snapshot(['p-2']))),
+          /already been emitted or disposed/,
+        )
+      } else {
+        assert.throws(
+          () => module.emit(prepareFinalTailwindContext(snapshot(['p-2']))),
+          /INVALIDATED/,
+        )
+      }
+      module.dispose()
+    }
+    assert.equal(disposed, 2)
+  }
 })

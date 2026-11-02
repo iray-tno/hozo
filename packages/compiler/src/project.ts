@@ -27,6 +27,7 @@ export {
   type RuntimeCandidateReconciliation,
   reconcileRuntimeCandidateContributions,
 } from './candidate-reconciliation.ts'
+export { prepareInstanceOwnerCallers } from './owner-caller-participant.ts'
 export {
   type InstanceOwnerCallerPreview,
   InstanceOwnerCallerProject,
