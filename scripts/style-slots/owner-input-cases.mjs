@@ -48,3 +48,24 @@ export const handleInputCases = [
 ]
 
 export const handleInputClasses = 'p-[8px] opacity-100 bg-[#ffffff] gap-x-2'
+
+// Kept separate from live-data cases: these observe modality at idle, not OS
+// press cancellation. Each row is evaluated on all three actual tab Owners.
+export const tabModalityCases = [
+  { id: 'rest', focused: false, visible: false },
+  { id: 'keyboard-focus', focused: true, visible: true },
+  { id: 'pointer-while-focused', focused: true, visible: false },
+  { id: 'keyboard-restores-visible', focused: true, visible: true },
+  { id: 'blur', focused: false, visible: false },
+  { id: 'pointer-focus', focused: true, visible: false },
+  { id: 'keyboard-refocus', focused: true, visible: true },
+  { id: 'remount-rest', focused: false, visible: false },
+]
+
+export function expectedTabModality(input) {
+  return [0, 1, 2].map((at) => ({
+    width: at === 1 && input.focused ? 96 : null,
+    bottom: at === 1 && input.visible ? 5 : 0,
+    decoration: at === 1 && input.visible ? 'underline' : 'none',
+  }))
+}

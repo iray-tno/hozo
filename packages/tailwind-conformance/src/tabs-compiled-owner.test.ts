@@ -9,7 +9,9 @@ import { pathToFileURL } from 'node:url'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabModality,
   tabInputCases,
+  tabModalityCases,
 } from '../../../scripts/style-slots/owner-input-cases.mjs'
 import { tabsProbeOwnerShadow } from '../../../scripts/style-slots/tabs-owner-shadow.mjs'
 import {
@@ -60,6 +62,7 @@ test('direct, caller and instance-prepared tabs match opaque resolution across s
     observations: [] as unknown[],
     authorObservations: [] as unknown[],
     inputObservations: [] as unknown[],
+    modalityObservations: [] as unknown[],
     requests: { opaque: 0, prepared: 0, caller: 0, instance: 0 },
     callerHoistedStyleSites: 0,
     instance: null as unknown,
@@ -440,6 +443,48 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
         evidence.inputObservations.push({ route, input: input.id, rows })
         previous = current
       }
+      const recordModality = (at: number) => {
+        const input = tabModalityCases[at]!
+        const labels = tree.root.findAll((node) => node.type === 'Text').slice(0, 3)
+        const rows = owners().map((node, index) => {
+          const box = rn.StyleSheet.flatten(node.props.style({ pressed: false }))
+          const text = rn.StyleSheet.flatten(labels[index]!.props.style)
+          return {
+            width: box.width ?? null,
+            bottom: box.borderBottomWidth ?? box.borderWidth ?? 0,
+            decoration: text.textDecorationLine ?? 'none',
+          }
+        })
+        assert.deepEqual(rows, expectedTabModality(input), `${route}: ${input.id}`)
+        assert.equal(
+          tree.root.findAll((node) => node.type === app.Raw)[0]!.props.hozoTabStyle,
+          suppliedPlan,
+        )
+        evidence.modalityObservations.push({ route, input: input.id, rows })
+      }
+      recordModality(0)
+      event('onKeyDown')
+      event('onFocus')
+      recordModality(1)
+      event('onPointerDown')
+      recordModality(2)
+      event('onKeyDown')
+      recordModality(3)
+      event('onBlur')
+      recordModality(4)
+      event('onPointerDown')
+      event('onFocus')
+      recordModality(5)
+      event('onBlur')
+      event('onKeyDown')
+      event('onFocus')
+      recordModality(6)
+      const retiredOwners = owners()
+      renderer.act(() => setTabs([]))
+      renderer.act(() => setTabs(tabInputCases.at(-1)!.tabs))
+      for (const node of owners())
+        assert.ok(!retiredOwners.includes(node), 'remount needs fresh interaction state')
+      recordModality(7)
       evidence.requests[route] = requests.filter((value) => value === classes).length
       if (route !== 'opaque')
         assert.ok(
@@ -462,6 +507,11 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
     assert.equal(evidence.observations.length, 24, 'six phases on all four routes')
     assert.equal(evidence.authorObservations.length, 12, 'author add/remove on all four routes')
     assert.equal(evidence.inputObservations.length, 32, 'eight live inputs on all four routes')
+    assert.equal(
+      evidence.modalityObservations.length,
+      32,
+      'eight modality phases on all four routes',
+    )
     evidence.passed = true
   } catch (error) {
     Object.assign(evidence, { error: String(error) })
