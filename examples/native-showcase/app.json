@@ -15,9 +15,22 @@
           "enableBackgroundPlayback": false,
           "enableBackgroundRecording": false
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": false
+          }
+        }
       ]
     ],
-    "ios": { "bundleIdentifier": "dev.hozo.showcase", "supportsTablet": true },
-    "android": { "package": "dev.hozo.showcase" }
+    "ios": {
+      "bundleIdentifier": "dev.hozo.showcase",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "dev.hozo.showcase"
+    }
   }
 }
