@@ -217,7 +217,7 @@ const PACKAGES = {
       './webvtt': './dist/webvtt-index.js',
     },
     native: true,
-    peerOverrides: { 'expo-audio': '>=57.0.5 <58', 'expo-asset': '>=57.0.18 <58' },
+    peerOverrides: { 'expo-audio': '>=58.0.11 <59', 'expo-asset': '>=58.0.19 <59' },
     peerMetadataOverrides: { 'expo-audio': { optional: true }, 'expo-asset': { optional: true } },
     keywords: ['react-native', 'react', 'video', 'audio', 'media', 'expo'],
     // Bootstrap a new manifest here rather than hand-writing generated fields.
@@ -232,8 +232,8 @@ const PACKAGES = {
       },
       peerDependencies: {
         react: '^19.0.0',
-        'react-native': '>=0.86',
-        'expo-video': '>=57.0.5 <58',
+        'react-native': '>=0.87',
+        'expo-video': '>=58.0.13 <59',
       },
       peerDependenciesMeta: {
         'react-native': { optional: true },
