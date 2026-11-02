@@ -44,6 +44,7 @@
     "@types/three": "^0.180.0",
     "axe-core": "4.13.0",
     "playwright-core": "^1.63.0",
+    "react-native": "^0.87.1",
     "react-test-renderer": "^19.2.8",
     "storybook": "10.6.3",
     "typescript": "7.0.2",
