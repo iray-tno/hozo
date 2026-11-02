@@ -24,6 +24,7 @@ import {
   hozoWithOwnerCandidates,
 } from './index.ts'
 import { captureViteOwnerCandidates } from './owner-candidates.ts'
+import { ViteOwnerPreflightUnavailable } from './owner-preflight.ts'
 import { discoverViteOwnerSourcePlan } from './owner-source-plan.ts'
 
 function fixture(t) {
@@ -652,6 +653,44 @@ test('non-JS text imports are watched hashed boundaries, not captured JS binding
   writeFileSync(json, '{"answer":43}')
   assert.throws(() => session.validate(), /source snapshot changed/)
   assert.throws(() => session.check(), /INVALIDATED/)
+})
+
+test('expected preflight scope refusal is typed but cannot hide source or manifest races', async (t) => {
+  for (const kind of ['unresolved', 'virtual', 'source-race', 'manifest-race']) {
+    const f = fixture(t)
+    writeFileSync(f.entry, "import 'one';import 'two'")
+    let calls = 0
+    await assert.rejects(
+      captureViteOwnerCandidates(
+        discoverViteOwnerSourcePlan([f.entry]),
+        async () => {
+          calls++
+          if (calls === 1) return { id: path.join(f.first, 'web.js') }
+          if (kind === 'source-race') writeFileSync(f.entry, "import 'one';import 'two';// edited")
+          if (kind === 'manifest-race') {
+            const file = path.join(f.first, 'owner.json')
+            writeFileSync(file, `${readFileSync(file, 'utf8')}\n`)
+          }
+          return kind === 'virtual' ? { id: '\0generated-module' } : null
+        },
+        kind,
+      ),
+      (error) => {
+        assert.ok(error instanceof Error)
+        if (kind === 'unresolved' || kind === 'virtual') {
+          assert.ok(error instanceof ViteOwnerPreflightUnavailable)
+          assert.equal(
+            error.reason,
+            kind === 'unresolved' ? 'unresolved-import' : 'unsupported-module',
+          )
+        } else {
+          assert.equal(error instanceof ViteOwnerPreflightUnavailable, false)
+          assert.match(error.message, /source snapshot changed|manifest observation changed/)
+        }
+        return true
+      },
+    )
+  }
 })
 
 test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {
