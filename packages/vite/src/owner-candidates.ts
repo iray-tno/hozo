@@ -44,8 +44,14 @@ export interface ViteOwnerCandidateSession {
   watchFiles: readonly string[]
   sourceFiles: readonly string[]
   sourceImports(file: string): readonly Readonly<{ source: string; imported: string }>[] | undefined
-  /** Actual external resolver boundaries, never ordinary/empty package claims. */
-  unassessedImports: readonly Readonly<OwnerImportEdge & { reason: 'external'; entry: string }>[]
+  /** Resolver boundaries, never ordinary/empty JS package or caller claims. */
+  unassessedImports: readonly Readonly<
+    OwnerImportEdge & {
+      reason: 'external' | 'non-js-source'
+      entry: string
+      sha256?: string
+    }
+  >[]
   watches(file: string): boolean
   check(): void
   validate(): void
@@ -95,7 +101,11 @@ export async function captureViteOwnerCandidates(
   })
   const locateOverride = plan.locate
   const selected: { edge: OwnerImportEdge; entry: string }[] = []
-  const external: (OwnerImportEdge & { reason: 'external'; entry: string })[] = []
+  const external: (OwnerImportEdge & {
+    reason: 'external' | 'non-js-source'
+    entry: string
+    sha256?: string
+  })[] = []
   const observations: OwnerManifestObservation[] = []
   const metadata = new Map<string, string>()
   const watch = new Set<string>()
@@ -202,11 +212,37 @@ export async function captureViteOwnerCandidates(
       continue
     }
     if (!resolved || resolved.external) fail('startup resolution unavailable or external')
+    const physicalSource = path.resolve(resolved.id)
+    if (followStaticImports && /\.(css|json)$/.test(resolved.id)) {
+      // Vite owns CSS/JSON semantics. Observe their bytes/ownership without
+      // treating them as empty JS packages, parsing them as JSX or offering
+      // their package's component exports as caller bindings.
+      const target = locate(resolved.id)
+      if (!target || path.resolve(target.entry) !== physicalSource)
+        fail('text import ownership unavailable')
+      origins.set(physicalSource, JSON.stringify(target))
+      packageMetadata(target)
+      if (!inspected.has(physicalSource)) {
+        if (sources.length >= 512) fail('static source file budget')
+        const text = readBoundedUtf8File(physicalSource, 4_194_304)
+        sourceBytes += Buffer.byteLength(text)
+        if (sourceBytes > 33_554_432) fail('static source byte budget')
+        sources.push({ file: physicalSource, sha256: hash(text) })
+        inspected.add(physicalSource)
+        watch.add(physicalSource)
+      }
+      external.push({
+        ...edge,
+        reason: 'non-js-source',
+        entry: physicalSource,
+        sha256: sources.find((source) => source.file === physicalSource)!.sha256,
+      })
+      continue
+    }
     selected.push({ edge, entry: resolved.id })
     // Observe at selection, not after ALL asynchronous resolutions. Otherwise
     // a later resolver can replace an earlier package and bless mixed inputs.
     observations.push(observe(edge, resolved.id))
-    const physicalSource = path.resolve(resolved.id)
     if (followStaticImports && !inspected.has(physicalSource)) {
       // Only physical JS sources can be parsed before other plugins run.
       // Query/virtual/non-JS requests are refused, never assessed as empty.

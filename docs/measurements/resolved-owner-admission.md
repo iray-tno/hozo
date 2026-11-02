@@ -80,9 +80,10 @@ or a complete dynamic/CommonJS/derived dependency claim.
 
 Source bytes are hashed before asynchronous resolution and revalidated before
 capture/CSS/output boundaries. Changes to bytes or the configured source set
-refuse publication. External/virtual/unresolved startup requests, syntax/budget
-failures and late participating packages remain explicit assessment failures,
-not empty compatible graphs. Ordinary `hozo()` has no new parsing/discovery cost.
+refuse publication. Virtual/unresolved startup requests, syntax/budget failures
+and late participating packages remain explicit assessment failures, not empty
+compatible graphs. External resolver boundaries are separately unassessed (see
+below). Ordinary `hozo()` has no new parsing/discovery cost.
 Transform metadata records actual selected owner identity/context/findings for
 independent build evidence, never compiler code in the application bundle.
 
@@ -121,7 +122,7 @@ same serial Vite resolver before freeze. Source/edge deduplication closes cycles
 512 files, 512 requests, 4 MiB per source and 32 MiB total remain hard limits.
 Dependency bytes are watched, revalidated and included in capture identity, so
 an unchanged manifest cannot bless edited dependency source. A missing,
-malformed, non-JS or over-budget dependency refuses the assessment.
+malformed, unsupported non-JS or over-budget dependency refuses the assessment.
 
 Actual external resolver decisions are listed separately as unassessed imports,
 not manifest-less ordinary packages or eligible callers. This remains a bounded
@@ -147,3 +148,13 @@ An actual Vite fixture places the caller in a non-Hozo package outside the
 configured entry source, verifies its metadata and CSS, and keeps an unrelated
 sibling untransformed. This does not authorize transforming arbitrary packages
 or claim candidate completeness for deliberately excluded ordinary sources.
+
+## Non-JS text imports keep their own semantics
+
+Physical CSS/JSON imports are bounded, hashed and watched boundary observations,
+not JS manifests/caller bindings. Vite still loads and transforms their actual
+contents. They share the source file/byte budget and mutation fences but are
+never parsed as empty JSX or interpreted as component exports. Unknown source
+formats, virtual/query targets and unresolved requests still refuse the
+assessment. CSS imports/configuration and JSON-derived dynamic class discovery
+are not certified by this JS-owner assessment; the ordinary scan remains.

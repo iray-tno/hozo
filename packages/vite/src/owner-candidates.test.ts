@@ -560,7 +560,7 @@ test('static traversal refuses missing, non-JS, malformed and over-budget depend
   for (const kind of ['missing', 'non-js', 'syntax', 'budget']) {
     const f = fixture(t)
     writeFileSync(f.entry, "import 'dependency'")
-    const file = path.join(f.root, kind === 'non-js' ? 'dependency.css' : 'dependency.js')
+    const file = path.join(f.root, kind === 'non-js' ? 'dependency.vue' : 'dependency.js')
     writeFileSync(
       file,
       kind === 'syntax'
@@ -578,6 +578,50 @@ test('static traversal refuses missing, non-JS, malformed and over-budget depend
       /unavailable|non-JS|SOURCE_UNASSESSED|REQUEST_BUDGET/,
     )
   }
+})
+
+test('ordinary CSS and JSON imports keep their Vite behavior beside captured owner callers', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(path.join(f.root, 'authored.css'), '.authored-boundary { color: rgb(1, 2, 3) }')
+  writeFileSync(path.join(f.root, 'data.json'), '{"answer":42}')
+  writeFileSync(
+    f.entry,
+    `import './authored.css';import data from './data.json';export {data};${readFileSync(f.entry, 'utf8')}`,
+  )
+  const output = JSON.stringify(await f.run('discovered'))
+  assert.match(output, /authored-boundary/)
+  assert.match(output, /answer[^\n]+42/)
+  assert.match(output, /hozo-owner-[a-f0-9]{16}-r/)
+  assert.equal(f.inventory().status, 'complete')
+})
+
+test('non-JS text imports are watched hashed boundaries, not captured JS bindings', async (t) => {
+  const f = fixture(t)
+  const css = path.join(f.root, 'tokens.css'),
+    json = path.join(f.root, 'data.json')
+  writeFileSync(f.entry, "import './tokens.css';import data from './data.json';export {data}")
+  writeFileSync(json, '{"answer":42}')
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    async ({ specifier }) => ({ id: path.resolve(f.root, specifier) }),
+    'text-imports',
+  )
+  assert.deepEqual(session.lease.capture.bindings, [])
+  assert.deepEqual(
+    new Set(session.unassessedImports.map((edge) => edge.entry)),
+    new Set([css, json]),
+  )
+  for (const edge of session.unassessedImports) {
+    assert.equal(edge.reason, 'non-js-source')
+    assert.match(edge.sha256!, /^[a-f0-9]{64}$/)
+    assert.ok(session.watches(edge.entry))
+    assert.equal(session.sourceImports(edge.entry), undefined)
+  }
+  writeFileSync(json, '{"answer":43}')
+  assert.throws(() => session.validate(), /source snapshot changed/)
+  assert.throws(() => session.check(), /INVALIDATED/)
 })
 
 test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {
