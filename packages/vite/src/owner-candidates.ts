@@ -183,13 +183,22 @@ export async function captureViteOwnerCandidates(
     }
     return observation
   }
+  function rememberOrigin(file: string, origin: ResolvedOwnerInstance) {
+    const identity = JSON.stringify(origin)
+    // Source hashes cannot detect a directory-link retarget with identical
+    // bytes. The first physical importer identity is part of the snapshot;
+    // later resolutions must compare it, never replace the evidence.
+    if (origins.has(file) && origins.get(file) !== identity)
+      fail('source ownership changed during capture')
+    origins.set(file, identity)
+  }
   // An inspected source can have no value imports (including type-only files).
   // Observe its ownership anyway: absence of edges is data, not missing input,
   // and a nearer metadata boundary must still retire this empty snapshot.
   for (const source of sources) {
     const origin = locate(source.file)
     if (!origin) fail('source ownership unavailable')
-    origins.set(source.file, JSON.stringify(origin))
+    rememberOrigin(source.file, origin)
     packageMetadata(origin)
     if (followStaticImports) {
       const inspected = inspectViteOwnerSource(source.file)
@@ -203,7 +212,7 @@ export async function captureViteOwnerCandidates(
   for (const edge of edges) {
     const origin = locate(edge.importer)
     if (!origin) fail('importer ownership unavailable')
-    origins.set(edge.importer, JSON.stringify(origin))
+    rememberOrigin(edge.importer, origin)
     packageMetadata(origin)
     const resolved = await resolve(edge)
     if (resolved?.external && followStaticImports) {
@@ -221,7 +230,7 @@ export async function captureViteOwnerCandidates(
       const target = locate(resolved.id)
       if (!target || path.resolve(target.entry) !== physicalSource)
         fail('text import ownership unavailable')
-      origins.set(physicalSource, JSON.stringify(target))
+      rememberOrigin(physicalSource, target)
       packageMetadata(target)
       if (!inspected.has(physicalSource)) {
         if (sources.length >= 512) fail('static source file budget')

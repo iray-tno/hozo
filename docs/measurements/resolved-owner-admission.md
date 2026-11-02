@@ -173,3 +173,13 @@ and visible external/non-JS boundaries. The same independent browser oracle
 and state/author/removal/stylesheet-negative gates run against this actual
 dependency output, not a handwritten substitute. This remains an internal
 bounded build path, not an audited contract/default switch or Native pixels.
+
+## Importer identity cannot be refreshed during capture
+
+The first physical importer identity is immutable within a capture. Subsequent
+source/edge/text-boundary observations compare rather than overwrite it. A
+directory link can be retargeted to another package with byte-identical source;
+source hashes and unchanged old metadata alone cannot detect that transition.
+The regression reproduces this using an actual junction/directory symlink,
+preserves source bytes and refuses the capture before the second resolution.
+Final revalidation still checks identities after the last asynchronous resolver.

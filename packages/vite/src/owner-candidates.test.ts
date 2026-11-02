@@ -7,6 +7,8 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -554,6 +556,34 @@ test('resolver slash spellings keep dependency importer identities native and de
       (edge) => edge.importer === path.join(f.bridge, 'web.js') && edge.specifier === 'widget',
     ),
   )
+})
+
+test('same-byte source directory retargeting cannot overwrite the original importer identity', async (t) => {
+  const f = fixture(t)
+  const link = path.join(f.root, 'linked-source')
+  const source = "import 'one';import 'two';"
+  for (const dir of [f.first, f.second]) writeFileSync(path.join(dir, 'Source.tsx'), source)
+  const leaf = path.join(f.root, 'leaf.js')
+  writeFileSync(leaf, 'export const value=1')
+  symlinkSync(f.first, link, process.platform === 'win32' ? 'junction' : 'dir')
+  const entry = path.join(link, 'Source.tsx')
+  let resolutions = 0
+  await assert.rejects(
+    captureViteOwnerCandidates(
+      discoverViteOwnerSourcePlan([entry]),
+      async () => {
+        resolutions++
+        if (resolutions === 1) {
+          unlinkSync(link)
+          symlinkSync(f.second, link, process.platform === 'win32' ? 'junction' : 'dir')
+        }
+        return { id: leaf }
+      },
+      'same-byte-origin-retarget',
+    ),
+    /source ownership changed during capture/,
+  )
+  assert.equal(resolutions, 1)
 })
 
 test('static traversal refuses missing, non-JS, malformed and over-budget dependency sources', async (t) => {
