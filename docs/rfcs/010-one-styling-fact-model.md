@@ -438,6 +438,11 @@ The end state moves F9 out of the landing into CI as the second rung, and
 adds the third rung for every audited slot. An `audited` contract without the
 third rung fails CI.
 
+The [bounded live-input audit](../measurements/owner-live-input-audit.md) records
+the actual Tabs and BottomSheet delivery domains and the remaining event/device
+boundaries. It is a separately checked receipt, not promotion of either whole
+shadow contract to `audited`.
+
 ### 4.7 Manifest identity
 
 - **Instance, not name.** A manifest is keyed by the package instance the

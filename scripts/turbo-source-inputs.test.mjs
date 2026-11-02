@@ -114,6 +114,7 @@ const reads = {
     'scripts/style-slots/tabs-probe.mjs',
     'scripts/style-slots/evidence-source.mjs',
     'scripts/style-slots/handle-web.mjs',
+    'scripts/style-slots/owner-input-cases.mjs',
     'scripts/style-slots/handle-publication.mjs',
     'scripts/style-slots/owner-shadow.json',
     'packages/tailwind/src/theme.ts',
@@ -345,6 +346,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'scripts/style-slots/owner-input-cases.mjs',
     'packages/patterns/hozo.manifest.json',
     'packages/patterns/package.json',
     'crates/hozo_web/src/owner_class.rs',

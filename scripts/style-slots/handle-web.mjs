@@ -5,13 +5,14 @@ import path from 'node:path'
 import { openCandidateCache } from '../../packages/compiler/src/index.ts'
 import { tailwindPackageDir } from '../../packages/tailwind/src/theme.ts'
 import { handleClasses, handleRoot } from './handle-publication.mjs'
+import { handleInputClasses } from './owner-input-cases.mjs'
 
 export const handleStateClasses = `${handleClasses} opacity-100 hover:opacity-50 focus:p-3 active:bg-[#ff0000]`
 
 export async function prepareWebHandle() {
   const require = createRequire(path.join(handleRoot, 'examples/storybook-demo/package.json'))
   const { compile } = require('tailwindcss')
-  const names = [...new Set(handleStateClasses.split(' '))]
+  const names = [...new Set(`${handleStateClasses} ${handleInputClasses}`.split(' '))]
   const cache = openCandidateCache()
   cache.scanFile('handle.ts', JSON.stringify(names), 0)
   const oracle = await compile(
