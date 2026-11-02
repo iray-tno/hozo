@@ -35,6 +35,6 @@ dependencies {
 }
 ```
 
-React Native 0.86 uses a different registry by default, and 0.88 ships 1.4.4
+React Native 0.88 ships 1.4.4
 ([reactwg/react-native-releases#1426](https://github.com/reactwg/react-native-releases/issues/1426)),
 so the pin is for 0.87 only.

@@ -147,8 +147,8 @@ export function colorName({ h, s, l }: Hsla): ColorName {
  * What each slider's track shows: the colours its value moves through.
  *
  * CSS gradient strings, shared by both halves. The Web paints them as
- * `background`. React Native 0.86 parses the same syntax as
- * `experimental_backgroundImage`, which the Native half paints. Without a
+ * `background`. React Native parses the same syntax as `backgroundImage`,
+ * which the Native half paints. Without a
  * track the Native sliders were invisible: no fill, and a white thumb on a
  * white surface (#1205).
  *

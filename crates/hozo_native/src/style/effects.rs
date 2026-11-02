@@ -332,13 +332,11 @@ fn scale_z(prop: &StyleProperty) -> Option<f64> {
 
 /// The style key a gradient goes under.
 ///
-/// React Native 0.86 reads only the prefixed spelling: `backgroundImage` is
-/// not in its `ReactNativeStyleAttributes`, and Android's `ViewProps` maps
-/// the prefixed name, so an unprefixed gradient is dropped without a word
-/// (#1267). 0.87 reads both. Hozo supports `>=0.86`, so the prefixed one is
-/// the only key every supported version draws; it can lose the prefix when
-/// the floor reaches 0.87.
-const BACKGROUND_IMAGE: &str = "experimental_backgroundImage";
+/// The unprefixed key, which React Native reads from 0.87, Hozo's floor.
+/// 0.86 read only `experimental_backgroundImage` and dropped this one without
+/// a word (#1267), which is why the prefixed spelling was here until the
+/// floor moved (#1272).
+const BACKGROUND_IMAGE: &str = "backgroundImage";
 
 /// A gradient as React Native's background image, which takes CSS
 /// gradient syntax as a string.

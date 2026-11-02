@@ -3064,10 +3064,7 @@ test('Native UI ColorPicker centers thumbs with logical marginStart and reverses
     const direction = isRTL ? 'to left' : 'to right'
     for (const slider of sliders()) {
       const track = flat(slider.findAllByType('NativeView')[0].props.style)
-      assert.match(
-        track.experimental_backgroundImage,
-        new RegExp(`^linear-gradient\\(${direction}, `),
-      )
+      assert.match(track.backgroundImage, new RegExp(`^linear-gradient\\(${direction}, `))
     }
     const hueThumb = flat(thumbs()[0].props.style)
     assert.equal(hueThumb.marginStart, -12)
