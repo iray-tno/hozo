@@ -452,7 +452,11 @@ function configureHozo(
             : undefined
           const discovered =
             discoverCallers && owners && !id.includes('?')
-              ? discoverOwnerPackageCallers(owners.lease, absoluteFile).requests
+              ? discoverOwnerPackageCallers(
+                  owners.lease,
+                  absoluteFile,
+                  owners.sourceImports(absoluteFile),
+                ).requests
               : undefined
           if ((bindings?.length || discovered?.length) && !id.includes('?')) {
             if (!current.session || !owners)

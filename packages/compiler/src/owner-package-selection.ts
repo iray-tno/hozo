@@ -34,6 +34,7 @@ export interface OwnerCallerDiscovery {
 export function discoverOwnerPackageCallers(
   lease: OwnerManifestLease,
   importer: string,
+  imports?: readonly { readonly source: string; readonly imported: string }[],
 ): OwnerCallerDiscovery {
   lease.check()
   if (
@@ -43,10 +44,24 @@ export function discoverOwnerPackageCallers(
     importer.includes('\0')
   )
     throw new Error('OWNER_CALLER_DISCOVERY_INVALID_IMPORTER')
+  if (imports && imports.length > 2048) throw new Error('OWNER_CALLER_DISCOVERY_IMPORT_BUDGET')
+  const names = imports === undefined ? undefined : new Map<string, Set<string>>()
+  for (const item of imports ?? []) {
+    for (const value of [item.source, item.imported])
+      if (typeof value !== 'string' || !value || value.length > 4096 || value.includes('\0'))
+        throw new Error('OWNER_CALLER_DISCOVERY_INVALID_IMPORT')
+    const values = names!.get(item.source) ?? new Set<string>()
+    values.add(item.imported)
+    names!.set(item.source, values)
+  }
   const requests: Readonly<OwnerContractRequest>[] = []
   const unassessed: { specifier: string; reason: string }[] = []
   for (const binding of lease.capture.bindings) {
     if (binding.importer !== importer) continue
+    const imported = names?.get(binding.specifier)
+    if (names && !imported) continue
+    if (imported?.has('*'))
+      unassessed.push({ specifier: binding.specifier, reason: 'namespace-binding' })
     const data = binding.manifest?.package
     if (!data) {
       unassessed.push({
@@ -56,6 +71,7 @@ export function discoverOwnerPackageCallers(
       continue
     }
     for (const exported of data.exports) {
+      if (imported && !imported.has(exported.name)) continue
       const props = new Set(
         data.owners?.contracts
           .filter((contract) => exported.owners.includes(contract.owner))

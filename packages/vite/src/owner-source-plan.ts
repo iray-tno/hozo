@@ -16,6 +16,7 @@ export function inspectViteOwnerSource(file: string) {
     sha256: createHash('sha256').update(source).digest('hex'),
     bytes: Buffer.byteLength(source),
     edges: imports.requests.map((specifier) => ({ importer: file, specifier })),
+    bindings: imports.bindings,
   }
 }
 

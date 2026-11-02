@@ -190,3 +190,44 @@ test('caller discovery enforces a finite target budget instead of returning a us
     /DISCOVERY_BUDGET/,
   )
 })
+
+test('observed value imports select only actual export names without expanding a whole barrel', () => {
+  const input = data()
+  input.exports = Array.from({ length: 65 }, (_, index) => ({
+    name: `Alias${index}`,
+    owners: ['BottomSheet.handle'],
+  }))
+  const { lease } = fixture([observe(a, '/one', input)])
+  const imports = [{ source: 'kit', imported: 'Alias64' }]
+  const found = discoverOwnerPackageCallers(lease, a.importer, imports)
+  assert.equal(found.requests.length, 1)
+  assert.equal(found.requests[0]!.imported, 'Alias64')
+  assert.deepEqual(discoverOwnerPackageCallers(lease, a.importer, []).requests, [])
+  const namespace = discoverOwnerPackageCallers(lease, a.importer, [
+    { source: 'kit', imported: '*' },
+  ])
+  assert.deepEqual(namespace.requests, [])
+  assert.deepEqual(namespace.unassessed, [{ specifier: 'kit', reason: 'namespace-binding' }])
+  assert.throws(
+    () => discoverOwnerPackageCallers(lease, a.importer, [{ source: 'kit', imported: '' }]),
+    /INVALID_IMPORT/,
+  )
+  assert.throws(
+    () =>
+      discoverOwnerPackageCallers(
+        lease,
+        a.importer,
+        Array.from({ length: 2049 }, () => imports[0]!),
+      ),
+    /IMPORT_BUDGET/,
+  )
+  assert.throws(
+    () =>
+      discoverOwnerPackageCallers(
+        lease,
+        a.importer,
+        input.exports.map(({ name }) => ({ source: 'kit', imported: name })),
+      ),
+    /DISCOVERY_BUDGET/,
+  )
+})

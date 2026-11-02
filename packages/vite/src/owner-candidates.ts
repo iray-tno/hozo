@@ -43,6 +43,7 @@ export interface ViteOwnerCandidateSession {
   contributions: Extract<OwnerPackageContributions, { status: 'complete' }>
   watchFiles: readonly string[]
   sourceFiles: readonly string[]
+  sourceImports(file: string): readonly Readonly<{ source: string; imported: string }>[] | undefined
   /** Actual external resolver boundaries, never ordinary/empty package claims. */
   unassessedImports: readonly Readonly<OwnerImportEdge & { reason: 'external'; entry: string }>[]
   watches(file: string): boolean
@@ -104,6 +105,15 @@ export async function captureViteOwnerCandidates(
   const epoch = new OwnerManifestEpoch()
   const sources = plan.sources?.map((source) => ({ ...source })) ?? []
   const followStaticImports = plan.followStaticImports === true
+  const sourceImports = new Map<string, readonly Readonly<{ source: string; imported: string }>[]>()
+  function rememberImports(input: ReturnType<typeof inspectViteOwnerSource>) {
+    sourceImports.set(
+      input.file,
+      Object.freeze(
+        input.bindings.map(({ source, imported }) => Object.freeze({ source, imported })),
+      ),
+    )
+  }
   if (followStaticImports && (!Array.isArray(plan.sources) || plan.locate))
     fail('static source traversal requires physical source observations')
   if (sources.length > 512 || new Set(sources.map((source) => source.file)).size !== sources.length)
@@ -170,6 +180,11 @@ export async function captureViteOwnerCandidates(
     if (!origin) fail('source ownership unavailable')
     origins.set(source.file, JSON.stringify(origin))
     packageMetadata(origin)
+    if (followStaticImports) {
+      const inspected = inspectViteOwnerSource(source.file)
+      if (inspected.sha256 !== source.sha256) fail('source snapshot changed')
+      rememberImports(inspected)
+    }
   }
   const inspected = new Set(sources.map((source) => source.file))
   const edgeKeys = new Set(edges.map((edge) => JSON.stringify([edge.importer, edge.specifier])))
@@ -198,6 +213,7 @@ export async function captureViteOwnerCandidates(
       if (!/\.[cm]?[jt]sx?$/.test(resolved.id)) fail('non-JS static dependency')
       if (sources.length >= 512) fail('static source file budget')
       const source = inspectViteOwnerSource(physicalSource)
+      rememberImports(source)
       sourceBytes += source.bytes
       if (sourceBytes > 33_554_432) fail('static source byte budget')
       inspected.add(physicalSource)
@@ -308,6 +324,10 @@ export async function captureViteOwnerCandidates(
     contributions,
     watchFiles: Object.freeze([...watch]),
     sourceFiles: Object.freeze(sources.map((source) => source.file)),
+    sourceImports: (file: string) => {
+      check()
+      return sourceImports.get(file)
+    },
     unassessedImports: Object.freeze(external.map((edge) => Object.freeze(edge))),
     watches: (file: string) => watch.has(path.resolve(file)),
     check,

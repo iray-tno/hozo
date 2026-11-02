@@ -128,3 +128,10 @@ not manifest-less ordinary packages or eligible callers. This remains a bounded
 static graph with external boundaries, not dynamic/CommonJS or complete graph
 certification. The final participating-package graph fence still applies; no
 default admission, arbitrary module execution or scan deletion follows from it.
+
+Caller projection intersects parser-observed value import names with the
+selected manifest exports before applying its unchanged 64-target budget.
+Barrel reexports and side-effect requests still belong to the static graph,
+but are not direct JSX caller bindings. Namespace imports remain unassessed;
+they cannot turn an entire export table into prepared callers. Physical source
+identities use native absolute spelling even when the resolver uses slashes.
