@@ -33,3 +33,13 @@ pending async output. Final build/output boundaries revalidate observed bytes,
 metadata/manifests/identities and the configured source set. There is no catch
 around lowering or late graph verification, so those failures cannot switch an
 already emitted namespace. Normal `hozo()` options/defaults remain unchanged.
+
+## Rebuild and publication evidence
+
+The same configured plugin is exercised through ordinary fallback, captured
+output and ordinary fallback again. Each build replaces code, companion CSS,
+package inventory and route metadata; the former prepared namespace is absent
+after returning to ordinary output. Source/manifest edits at `generateBundle`
+fail publication even on fallback. A retired guard cannot recover when original
+bytes are restored. A plugin-generated late participating dependency fails the
+captured build rather than changing routes after code has been emitted.
