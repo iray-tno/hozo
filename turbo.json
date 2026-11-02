@@ -93,6 +93,7 @@
         "$TURBO_ROOT$/packages/patterns/hozo.manifest.json",
         "$TURBO_ROOT$/packages/patterns/package.json",
         "$TURBO_ROOT$/scripts/style-slots/handle-publication.mjs",
+        "$TURBO_ROOT$/scripts/style-slots/owner-input-cases.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-probe.mjs",
         "$TURBO_ROOT$/scripts/style-slots/tabs-owner-shadow.mjs",
         "$TURBO_ROOT$/scripts/style-slots/owner-fixture.mjs",

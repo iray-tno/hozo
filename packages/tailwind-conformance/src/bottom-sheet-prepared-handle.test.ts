@@ -7,7 +7,9 @@ import path from 'node:path'
 import { after, mock, test } from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { createCompiler, openCandidateCache } from '@hozo/compiler'
+import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
+import { handleInputCases } from '../../../scripts/style-slots/owner-input-cases.mjs'
 import { previewOwnerLiteralCallers } from '../../compiler/src/owner-caller-plan.ts'
 import { parseOwnerContractShadow, selectOwnerShape } from '../../compiler/src/owner-contract.ts'
 import { loadNativeModule } from './native-render.ts'
@@ -164,6 +166,85 @@ function style(node: Host): Record<string, unknown> {
 function unmount(tree: Rendered) {
   renderer.act(() => tree.unmount())
 }
+
+test('literal handle delivery follows normalized detents through live host changes', () => {
+  const evidence = {
+    schema: 1,
+    ...evidenceSource(),
+    passed: false,
+    scope: 'native-handle-normalized-live-input-host-model',
+    observations: [] as unknown[],
+  }
+  try {
+    for (const platform of ['android', 'ios']) {
+      rn.handleModalModel.platform = platform
+      for (const [route, component] of [
+        ['opaque', literalOrdinary.LiteralCaller],
+        ['caller', literalPrepared.LiteralCaller],
+      ] as const) {
+        requests.length = 0
+        const props = { open: true, author: { value: Object.freeze({ gap: 16 }) } }
+        const tree = render(component, props)
+        let previous: Host | undefined
+        let previousShape = false
+        try {
+          for (const input of handleInputCases) {
+            renderer.act(() =>
+              tree.update(React.createElement(component, { ...props, detents: input.detents })),
+            )
+            const owner = handle(tree, input.interactive)
+            if (previous) {
+              if (previousShape === input.interactive)
+                assert.equal(owner, previous, `${route}/${input.id}: same shape retains host`)
+              else assert.notEqual(owner, previous, 'shape changes must replace the host kind')
+            }
+            const box = style(owner)
+            const selected = {
+              host: owner.type,
+              padding: box.paddingTop ?? box.padding,
+              opacity: box.opacity,
+              rowGap: box.rowGap,
+              columnGap: box.columnGap,
+              background: box.backgroundColor,
+            }
+            assert.deepEqual(selected, {
+              host: input.interactive ? 'Pressable' : 'View',
+              padding: 8,
+              opacity: 1,
+              rowGap: 16,
+              columnGap: 16,
+              background: '#ffffff',
+            })
+            if (input.interactive) assert.equal(typeof owner.props.onPress, 'function')
+            else {
+              assert.equal(owner.props.accessibilityRole, undefined)
+              assert.equal(owner.props.onPress, undefined)
+            }
+            evidence.observations.push({ platform, route, input: input.id, selected })
+            previous = owner
+            previousShape = input.interactive
+          }
+          const resolved = requests.filter((value) => value === literalClasses)
+          if (route === 'caller')
+            assert.deepEqual(resolved, [], 'no literal fallback on shape changes')
+          else assert.ok(resolved.length > 0, 'the opaque control must really resolve its classes')
+        } finally {
+          unmount(tree)
+        }
+      }
+    }
+    assert.equal(evidence.observations.length, 36)
+    evidence.passed = true
+  } catch (error) {
+    Object.assign(evidence, { error: String(error) })
+    throw error
+  } finally {
+    rn.handleModalModel.platform = 'android'
+    const destination = path.join(root, 'artifacts/style-fact-model/handle-inputs-native.json')
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(destination, `${JSON.stringify(evidence, null, 2)}\n`)
+  }
+})
 
 test('the ordinary compiler still carries BottomSheet; the producer really compiles its plans', () => {
   const ordinary = compiler.compileNativeModule(

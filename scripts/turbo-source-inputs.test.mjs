@@ -345,6 +345,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'scripts/style-slots/owner-input-cases.mjs',
     'packages/patterns/hozo.manifest.json',
     'packages/patterns/package.json',
     'crates/hozo_web/src/owner_class.rs',

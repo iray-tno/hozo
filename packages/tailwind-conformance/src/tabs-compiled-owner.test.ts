@@ -7,6 +7,10 @@ import path from 'node:path'
 import test from 'node:test'
 import { pathToFileURL } from 'node:url'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
+import {
+  expectedIdleTabInputs,
+  tabInputCases,
+} from '../../../scripts/style-slots/owner-input-cases.mjs'
 import { tabsProbeOwnerShadow } from '../../../scripts/style-slots/tabs-owner-shadow.mjs'
 import {
   expectedTabRows,
@@ -55,6 +59,7 @@ test('direct, caller and instance-prepared tabs match opaque resolution across s
     stylesheetCreates: 0,
     observations: [] as unknown[],
     authorObservations: [] as unknown[],
+    inputObservations: [] as unknown[],
     requests: { opaque: 0, prepared: 0, caller: 0, instance: 0 },
     callerHoistedStyleSites: 0,
     instance: null as unknown,
@@ -223,11 +228,14 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       const changes: number[] = []
       let select!: (at: number) => void
       let setAuthor!: (style: unknown) => void
+      let setTabs!: (tabs: (typeof tabInputCases)[number]['tabs']) => void
       function Screen() {
         const [index, setIndex] = React.useState(0)
         const [author, updateAuthor] = React.useState(undefined)
+        const [items, updateTabs] = React.useState(tabs)
         select = setIndex
         setAuthor = updateAuthor
+        setTabs = updateTabs
         return React.createElement(
           route === 'instance'
             ? instanceApp.InstanceCaller
@@ -235,7 +243,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
               ? app.Caller
               : app.Raw,
           {
-            tabs,
+            tabs: items,
             index,
             tabStyle: author,
             onIndexChange(at: number) {
@@ -385,6 +393,53 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       assert.equal(reads, afterRemoval, 'host evaluation cannot read a retired author')
       assert.equal(authored.gap, 7)
       assert.ok(Object.isFrozen(authorArray) && Object.isFrozen(authored))
+      // These changes occur on the same component, not fresh mounts of a
+      // happy-path fixture. Retire interactions explicitly: RN host stand-ins
+      // cannot prove how an OS cancels a press when disabled changes mid-press.
+      event('onHoverOut')
+      event('onBlur')
+      event('onPressOut')
+      let previous = owners()
+      for (const input of tabInputCases) {
+        renderer.act(() => {
+          setTabs(input.tabs)
+          select(input.index)
+        })
+        const current = owners()
+        for (let at = 0; at < Math.min(previous.length, current.length); at++)
+          assert.equal(current[at], previous[at], `${route}: retained positional Owner`)
+        assert.equal(
+          tree.root.findAll((node) => node.type === app.Raw)[0]!.props.hozoTabStyle,
+          suppliedPlan,
+          `${route}: data updates must not rebuild the carrier`,
+        )
+        const labels = tree.root.findAll((node) => node.type === 'Text').slice(0, current.length)
+        const rows = current.map((node, at) => {
+          const box = rn.StyleSheet.flatten(node.props.style({ pressed: false }))
+          const text = rn.StyleSheet.flatten(labels[at]!.props.style)
+          return {
+            label: labels[at]!.props.children,
+            selected: node.props.accessibilityState.selected,
+            disabled: node.props.disabled === true,
+            padding: box.paddingTop ?? box.padding,
+            background: box.backgroundColor,
+            opacity: box.opacity ?? 1,
+            border: box.borderTopWidth ?? box.borderWidth ?? 0,
+            color: text.color,
+            size: text.fontSize,
+            weight: text.fontWeight ?? '400',
+            spacing: text.letterSpacing ?? 0,
+          }
+        })
+        assert.deepEqual(rows, expectedIdleTabInputs(input), `${route}: ${input.id}`)
+        const before = changes.length
+        renderer.act(() => {
+          for (const node of current) if (node.props.disabled) node.props.onPress({})
+        })
+        assert.equal(changes.length, before, 'newly disabled Owners cannot activate')
+        evidence.inputObservations.push({ route, input: input.id, rows })
+        previous = current
+      }
       evidence.requests[route] = requests.filter((value) => value === classes).length
       if (route !== 'opaque')
         assert.ok(
@@ -406,6 +461,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
     )
     assert.equal(evidence.observations.length, 24, 'six phases on all four routes')
     assert.equal(evidence.authorObservations.length, 12, 'author add/remove on all four routes')
+    assert.equal(evidence.inputObservations.length, 32, 'eight live inputs on all four routes')
     evidence.passed = true
   } catch (error) {
     Object.assign(evidence, { error: String(error) })
