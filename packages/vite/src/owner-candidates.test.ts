@@ -7,6 +7,8 @@ import {
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -22,6 +24,7 @@ import {
   hozoWithOwnerCandidates,
 } from './index.ts'
 import { captureViteOwnerCandidates } from './owner-candidates.ts'
+import { discoverViteOwnerSourcePlan } from './owner-source-plan.ts'
 
 function fixture(t) {
   const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'hozo-owner-css-')))
@@ -343,6 +346,312 @@ test('configured source imports drive actual Vite capture without edges, locator
   assert.equal(f.inventory().status, 'complete')
   assert.equal(f.inventory().finalOrderingReady, false)
   assert.deepEqual(f.inventory().packages.instances, [f.first])
+})
+
+test('inspected zero-import sources build normally instead of pretending the snapshot is missing', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(f.entry, "import type {Missing} from 'not-installed';export const answer=42")
+  assert.match(JSON.stringify(await f.run('discovered')), /42/)
+  assert.equal(f.inventory().status, 'complete')
+  assert.deepEqual(f.inventory().packages.instances, [])
+  let resolutions = 0
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    async () => {
+      resolutions++
+      return null
+    },
+    'inspected-empty',
+  )
+  assert.equal(resolutions, 0)
+  assert.deepEqual(session.lease.capture.bindings, [])
+  assert.ok(session.watches(f.entry))
+  assert.ok(session.watches(path.join(f.root, 'package.json')))
+  writeFileSync(path.join(f.root, 'package.json'), '{"name":"changed"}')
+  assert.throws(() => session.validate(), /boundary changed|metadata changed/)
+  assert.throws(() => session.check(), /INVALIDATED/)
+  await assert.rejects(
+    captureViteOwnerCandidates(
+      { edges: [], context: 'no-source-observation' },
+      async () => null,
+      'missing',
+    ),
+    /startup plan/,
+  )
+})
+
+test('an empty inspected import set still rejects a late participating package graph', async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(f.entry, 'export const answer=42')
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    async () => null,
+    'late-after-empty',
+  )
+  assert.throws(
+    () =>
+      session.validateGraph({
+        *getModuleIds() {
+          yield f.entry
+        },
+        getModuleInfo() {
+          return { importedIds: [path.join(f.first, 'web.js')], dynamicallyImportedIds: [] }
+        },
+      }),
+    /late or derived participant/,
+  )
+  assert.throws(() => session.check(), /INVALIDATED/)
+})
+
+test('static traversal captures nested package instances and cycles before candidate publication', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(
+    f.entry,
+    "import {View} from '@hozo/primitives';export {nested} from 'bridge';export const Row=()=> <View className={globalThis.tone}/>",
+  )
+  const output = JSON.stringify(await f.run('discovered'))
+  assert.match(output, /padding-top: ?14px/)
+  assert.deepEqual(f.inventory().packages.instances, [f.second])
+})
+
+test('captured dependency callers use ordinary lowering without admitting unrelated node_modules sources', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const consumer = path.join(f.root, 'node_modules/consumer')
+  mkdirSync(consumer)
+  writeFileSync(
+    path.join(consumer, 'package.json'),
+    '{"name":"consumer","type":"module","exports":"./index.tsx"}',
+  )
+  const dependency = path.join(consumer, 'index.tsx')
+  writeFileSync(dependency, readFileSync(f.entry, 'utf8'))
+  const plain = path.join(consumer, 'plain.tsx')
+  writeFileSync(plain, 'export const Plain=()=> <span className="p-9"/>')
+  writeFileSync(dependency, `${readFileSync(dependency, 'utf8')};export {Plain} from './plain.tsx'`)
+  writeFileSync(f.entry, "export {Row,Plain} from 'consumer'")
+  const observed: { importer: string; disposition: string }[] = []
+  const output = JSON.stringify(
+    await f.run('discovered', [
+      {
+        name: 'observe-dependency-owner',
+        generateBundle() {
+          const id = [...this.getModuleIds()].find(
+            (id) => !id.includes('?') && !id.includes('\0') && path.resolve(id) === dependency,
+          )
+          const metadata = this.getModuleInfo(id!).meta.hozoOwnerDelivery
+          observed.push({
+            importer: metadata.owners[0].identity.importer,
+            disposition: metadata.owners[0].findings[0].disposition,
+          })
+        },
+      },
+    ]),
+  )
+  assert.match(output, /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  assert.match(readFileSync(`${dependency}.hozo.css`, 'utf8'), /padding-top: 14px/)
+  assert.equal(existsSync(`${plain}.hozo.css`), false)
+  assert.match(output, /p-9/)
+  assert.deepEqual(observed, [{ importer: dependency, disposition: 'prepared-literal' }])
+  const inventory = f.inventory()
+  assert.equal(inventory.status, 'complete', JSON.stringify(inventory.issues))
+  assert.ok(inventory.modules.some((id) => path.resolve(id) === dependency))
+  assert.ok(!inventory.modules.some((id) => path.resolve(id) === plain))
+  assert.ok(inventory.candidates.includes('p-2'))
+  writeFileSync(
+    dependency,
+    readFileSync(dependency, 'utf8').replace(
+      'handleClassName="p-2"',
+      'handleClassName={globalThis.classes}',
+    ),
+  )
+  assert.doesNotMatch(JSON.stringify(await f.run('discovered')), /hozo-owner-[a-f0-9]{16}-r/)
+  assert.doesNotMatch(readFileSync(`${dependency}.hozo.css`, 'utf8'), /\.hozo-owner-/)
+})
+
+test('static capture snapshots dependency bytes and distinguishes actual external boundaries', async (t) => {
+  const f = fixture(t)
+  writeFileSync(f.entry, "export {nested} from 'bridge';import 'peer'")
+  let resolutions = 0
+  const resolve = async ({ importer, specifier }) => {
+    resolutions++
+    return specifier === 'peer'
+      ? { id: 'peer', external: true }
+      : {
+          id: path.join(
+            specifier === 'bridge' ? f.bridge : importer.startsWith(f.bridge) ? f.second : f.first,
+            'web.js',
+          ),
+        }
+  }
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    resolve,
+    'transitive',
+  )
+  assert.equal(resolutions, 4)
+  assert.deepEqual(
+    session.contributions.instances.map((item) => item.instance),
+    [f.second],
+  )
+  assert.deepEqual(
+    new Set(session.sourceFiles),
+    new Set([f.entry, path.join(f.bridge, 'web.js'), path.join(f.second, 'web.js')]),
+  )
+  assert.equal(
+    session.lease.capture.bindings.some((edge) => edge.specifier === 'peer'),
+    false,
+  )
+  assert.deepEqual(session.unassessedImports, [
+    { importer: f.entry, specifier: 'peer', reason: 'external', entry: 'peer' },
+  ])
+  const dependency = path.join(f.bridge, 'web.js')
+  assert.ok(session.watches(dependency))
+  const before = session.lease.capture.fingerprint
+  writeFileSync(dependency, `${readFileSync(dependency, 'utf8')}\n// changed but same imports`)
+  assert.throws(() => session.validate(), /source snapshot changed/)
+  assert.throws(() => session.check(), /INVALIDATED/)
+  const after = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    resolve,
+    'transitive',
+  )
+  assert.notEqual(after.lease.capture.fingerprint, before)
+})
+
+test('dependency source edits during later resolution cannot enter a mixed frozen graph', async (t) => {
+  const f = fixture(t)
+  writeFileSync(f.entry, "export {nested} from 'bridge'")
+  await assert.rejects(
+    captureViteOwnerCandidates(
+      discoverViteOwnerSourcePlan([f.entry]),
+      async ({ specifier }) => {
+        if (specifier === 'widget')
+          writeFileSync(path.join(f.bridge, 'web.js'), 'export const nested=7')
+        return { id: path.join(specifier === 'bridge' ? f.bridge : f.second, 'web.js') }
+      },
+      'mixed-dependency',
+    ),
+    /source snapshot changed/,
+  )
+})
+
+test('resolver slash spellings keep dependency importer identities native and deduplicated', async (t) => {
+  const f = fixture(t)
+  writeFileSync(f.entry, "export {nested} from 'bridge'")
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    async ({ specifier }) => ({
+      id: path.join(specifier === 'bridge' ? f.bridge : f.second, 'web.js').replaceAll('\\', '/'),
+    }),
+    'resolver-spelling',
+  )
+  assert.equal(session.sourceFiles.length, 3)
+  assert.ok(
+    session.lease.capture.bindings.some(
+      (edge) => edge.importer === path.join(f.bridge, 'web.js') && edge.specifier === 'widget',
+    ),
+  )
+})
+
+test('same-byte source directory retargeting cannot overwrite the original importer identity', async (t) => {
+  const f = fixture(t)
+  const link = path.join(f.root, 'linked-source')
+  const source = "import 'one';import 'two';"
+  for (const dir of [f.first, f.second]) writeFileSync(path.join(dir, 'Source.tsx'), source)
+  const leaf = path.join(f.root, 'leaf.js')
+  writeFileSync(leaf, 'export const value=1')
+  symlinkSync(f.first, link, process.platform === 'win32' ? 'junction' : 'dir')
+  const entry = path.join(link, 'Source.tsx')
+  let resolutions = 0
+  await assert.rejects(
+    captureViteOwnerCandidates(
+      discoverViteOwnerSourcePlan([entry]),
+      async () => {
+        resolutions++
+        if (resolutions === 1) {
+          unlinkSync(link)
+          symlinkSync(f.second, link, process.platform === 'win32' ? 'junction' : 'dir')
+        }
+        return { id: leaf }
+      },
+      'same-byte-origin-retarget',
+    ),
+    /source ownership changed during capture/,
+  )
+  assert.equal(resolutions, 1)
+})
+
+test('static traversal refuses missing, non-JS, malformed and over-budget dependency sources', async (t) => {
+  for (const kind of ['missing', 'non-js', 'syntax', 'budget']) {
+    const f = fixture(t)
+    writeFileSync(f.entry, "import 'dependency'")
+    const file = path.join(f.root, kind === 'non-js' ? 'dependency.vue' : 'dependency.js')
+    writeFileSync(
+      file,
+      kind === 'syntax'
+        ? 'export const ='
+        : kind === 'budget'
+          ? Array.from({ length: 513 }, (_, index) => `import 'edge-${index}';`).join('\n')
+          : 'export const n=1',
+    )
+    await assert.rejects(
+      captureViteOwnerCandidates(
+        discoverViteOwnerSourcePlan([f.entry]),
+        async () => (kind === 'missing' ? null : { id: file }),
+        kind,
+      ),
+      /unavailable|non-JS|SOURCE_UNASSESSED|REQUEST_BUDGET/,
+    )
+  }
+})
+
+test('ordinary CSS and JSON imports keep their Vite behavior beside captured owner callers', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(path.join(f.root, 'authored.css'), '.authored-boundary { color: rgb(1, 2, 3) }')
+  writeFileSync(path.join(f.root, 'data.json'), '{"answer":42}')
+  writeFileSync(
+    f.entry,
+    `import './authored.css';import data from './data.json';export {data};${readFileSync(f.entry, 'utf8')}`,
+  )
+  const output = JSON.stringify(await f.run('discovered'))
+  assert.match(output, /authored-boundary/)
+  assert.match(output, /answer[^\n]+42/)
+  assert.match(output, /hozo-owner-[a-f0-9]{16}-r/)
+  assert.equal(f.inventory().status, 'complete')
+})
+
+test('non-JS text imports are watched hashed boundaries, not captured JS bindings', async (t) => {
+  const f = fixture(t)
+  const css = path.join(f.root, 'tokens.css'),
+    json = path.join(f.root, 'data.json')
+  writeFileSync(f.entry, "import './tokens.css';import data from './data.json';export {data}")
+  writeFileSync(json, '{"answer":42}')
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    async ({ specifier }) => ({ id: path.resolve(f.root, specifier) }),
+    'text-imports',
+  )
+  assert.deepEqual(session.lease.capture.bindings, [])
+  assert.deepEqual(
+    new Set(session.unassessedImports.map((edge) => edge.entry)),
+    new Set([css, json]),
+  )
+  for (const edge of session.unassessedImports) {
+    assert.equal(edge.reason, 'non-js-source')
+    assert.match(edge.sha256!, /^[a-f0-9]{64}$/)
+    assert.ok(session.watches(edge.entry))
+    assert.equal(session.sourceImports(edge.entry), undefined)
+  }
+  writeFileSync(json, '{"answer":43}')
+  assert.throws(() => session.validate(), /source snapshot changed/)
+  assert.throws(() => session.check(), /INVALIDATED/)
 })
 
 test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {

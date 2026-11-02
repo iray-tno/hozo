@@ -81,6 +81,7 @@ test('actual source-observed Vite Tabs and handle output matches independent Tai
   try {
     const fixture = await buildViteOwnerPublication()
     evidence.owners = fixture.owners
+    evidence.capture = fixture.capture
     evidence.modules = fixture.modules
     evidence.sourceSha256 = fixture.sourceSha256
     const tabs = await prepareTabsProbe([], `${tabLabelClasses} p-1`)

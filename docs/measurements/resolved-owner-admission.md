@@ -80,9 +80,10 @@ or a complete dynamic/CommonJS/derived dependency claim.
 
 Source bytes are hashed before asynchronous resolution and revalidated before
 capture/CSS/output boundaries. Changes to bytes or the configured source set
-refuse publication. External/virtual/unresolved startup requests, syntax/budget
-failures and late participating packages remain explicit assessment failures,
-not empty compatible graphs. Ordinary `hozo()` has no new parsing/discovery cost.
+refuse publication. Virtual/unresolved startup requests, syntax/budget failures
+and late participating packages remain explicit assessment failures, not empty
+compatible graphs. External resolver boundaries are separately unassessed (see
+below). Ordinary `hozo()` has no new parsing/discovery cost.
 Transform metadata records actual selected owner identity/context/findings for
 independent build evidence, never compiler code in the application bundle.
 
@@ -104,3 +105,81 @@ stable hosts and six exact-stylesheet-removal controls. Failure/partial receipts
 are preserved as `owner-vite-evidence`; browser success requires inspecting the
 current-source artifact. This is bounded static source/real graph evidence,
 not a full dynamic graph, Native pixel or global owner-audit/default claim.
+
+## An observed empty import set is not missing input
+
+The build assessment accepts a source snapshot whose structural inspection has
+zero runtime imports, including type-only files. It still observes source bytes
+and package ownership, watches metadata and rejects late participating graph
+edges. An explicit finite plan with no edges and no source observations remains
+invalid. This distinguishes measured absence from unavailable discovery; it
+does not claim an empty participant set certifies all application behavior.
+
+## Bounded static dependency traversal
+
+Source-observed capture now follows physical JS static ESM requests through the
+same serial Vite resolver before freeze. Source/edge deduplication closes cycles;
+512 files, 512 requests, 4 MiB per source and 32 MiB total remain hard limits.
+Dependency bytes are watched, revalidated and included in capture identity, so
+an unchanged manifest cannot bless edited dependency source. A missing,
+malformed, unsupported non-JS or over-budget dependency refuses the assessment.
+
+Actual external resolver decisions are listed separately as unassessed imports,
+not manifest-less ordinary packages or eligible callers. This remains a bounded
+static graph with external boundaries, not dynamic/CommonJS or complete graph
+certification. The final participating-package graph fence still applies; no
+default admission, arbitrary module execution or scan deletion follows from it.
+
+Caller projection intersects parser-observed value import names with the
+selected manifest exports before applying its unchanged 64-target budget.
+Barrel reexports and side-effect requests still belong to the static graph,
+but are not direct JSX caller bindings. Namespace imports remain unassessed;
+they cannot turn an entire export table into prepared callers. Physical source
+identities use native absolute spelling even when the resolver uses slashes.
+
+## Captured dependency callers, not all dependencies
+
+The source-observed assessment admits a physical dependency caller to the
+ordinary transform only if its frozen capture selects an owner contract.
+Ordinary sibling sources are not implicitly included in the user's content
+scope. Positive dependency callers use the existing scan/ordinary-lowering/
+session/companion-CSS pipeline; opaque replacements remove stale prepared CSS.
+An actual Vite fixture places the caller in a non-Hozo package outside the
+configured entry source, verifies its metadata and CSS, and keeps an unrelated
+sibling untransformed. This does not authorize transforming arbitrary packages
+or claim candidate completeness for deliberately excluded ordinary sources.
+
+## Non-JS text imports keep their own semantics
+
+Physical CSS/JSON imports are bounded, hashed and watched boundary observations,
+not JS manifests/caller bindings. Vite still loads and transforms their actual
+contents. They share the source file/byte budget and mutation fences but are
+never parsed as empty JSX or interpreted as component exports. Unknown source
+formats, virtual/query targets and unresolved requests still refuse the
+assessment. CSS imports/configuration and JSON-derived dynamic class discovery
+are not certified by this JS-owner assessment; the ordinary scan remains.
+
+## Real dependency caller browser gate
+
+The actual Tabs/BottomSheet fixture now lives in an installed non-Hozo
+`owner-consumer` package, outside configured `Entry.tsx` content. The entry
+only reexports it and imports real CSS/JSON resources. No supplied edges,
+locator, binding list or content-package override admits that caller. Captured
+value bindings select it, and the ordinary transform emits its companion CSS.
+
+Build metadata/receipts retain the exact root-to-dependency resolution,
+source hashes for both entry and caller, selected owner/manifest identities
+and visible external/non-JS boundaries. The same independent browser oracle
+and state/author/removal/stylesheet-negative gates run against this actual
+dependency output, not a handwritten substitute. This remains an internal
+bounded build path, not an audited contract/default switch or Native pixels.
+
+## Importer identity cannot be refreshed during capture
+
+The first physical importer identity is immutable within a capture. Subsequent
+source/edge/text-boundary observations compare rather than overwrite it. A
+directory link can be retargeted to another package with byte-identical source;
+source hashes and unchanged old metadata alone cannot detect that transition.
+The regression reproduces this using an actual junction/directory symlink,
+preserves source bytes and refuses the capture before the second resolution.
+Final revalidation still checks identities after the last asynchronous resolver.
