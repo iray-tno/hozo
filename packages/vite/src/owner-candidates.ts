@@ -191,15 +191,16 @@ export async function captureViteOwnerCandidates(
     // Observe at selection, not after ALL asynchronous resolutions. Otherwise
     // a later resolver can replace an earlier package and bless mixed inputs.
     observations.push(observe(edge, resolved.id))
-    if (followStaticImports && !inspected.has(resolved.id)) {
+    const physicalSource = path.resolve(resolved.id)
+    if (followStaticImports && !inspected.has(physicalSource)) {
       // Only physical JS sources can be parsed before other plugins run.
       // Query/virtual/non-JS requests are refused, never assessed as empty.
       if (!/\.[cm]?[jt]sx?$/.test(resolved.id)) fail('non-JS static dependency')
       if (sources.length >= 512) fail('static source file budget')
-      const source = inspectViteOwnerSource(resolved.id)
+      const source = inspectViteOwnerSource(physicalSource)
       sourceBytes += source.bytes
       if (sourceBytes > 33_554_432) fail('static source byte budget')
-      inspected.add(resolved.id)
+      inspected.add(physicalSource)
       sources.push({ file: source.file, sha256: source.sha256 })
       watch.add(source.file)
       for (const next of source.edges) {

@@ -483,6 +483,24 @@ test('dependency source edits during later resolution cannot enter a mixed froze
   )
 })
 
+test('resolver slash spellings keep dependency importer identities native and deduplicated', async (t) => {
+  const f = fixture(t)
+  writeFileSync(f.entry, "export {nested} from 'bridge'")
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    async ({ specifier }) => ({
+      id: path.join(specifier === 'bridge' ? f.bridge : f.second, 'web.js').replaceAll('\\', '/'),
+    }),
+    'resolver-spelling',
+  )
+  assert.equal(session.sourceFiles.length, 3)
+  assert.ok(
+    session.lease.capture.bindings.some(
+      (edge) => edge.importer === path.join(f.bridge, 'web.js') && edge.specifier === 'widget',
+    ),
+  )
+})
+
 test('static traversal refuses missing, non-JS, malformed and over-budget dependency sources', async (t) => {
   for (const kind of ['missing', 'non-js', 'syntax', 'budget']) {
     const f = fixture(t)
