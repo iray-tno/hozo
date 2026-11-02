@@ -228,3 +228,14 @@ bar/strip/panel. They do not prove computed priority. The next browser gate
 covers shared non-important numeric box styles and restoration after removal;
 Native arrays/registered styles, Web-only CSS properties, important classes,
 opaque label inheritance and font pixels are not certified by that gate.
+
+The existing browser receipts now include authored box observations separately
+from their original state denominator. Handle checks cover both actual shapes
+on candidate/Tailwind/composed routes: set shared numeric/paint overrides, lose
+hover/focus while they remain applied, then remove them and recover the new
+live state on the same host (24 observations). Tabs checks use the same shared
+row/column-gap, background and opacity values as the Native author gate, change
+selection under the override, and remove it while the selected tab is disabled
+(12 rows / 36 host observations). Their removal controls are part of the same
+tests, not a substituted resting snapshot. Original state/presence/stylesheet
+negative controls remain unchanged; no global audit/coverage denominator grows.

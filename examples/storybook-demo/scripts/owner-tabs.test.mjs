@@ -29,7 +29,7 @@ async function appBundle(classes, prepared) {
       contents: `${prepared ?? "import {Tabs} from '@hozo/patterns';"}
 import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 window.changes=[];
-function App(){const [index,setIndex]=useState(0);window.select=at=>flushSync(()=>setIndex(at));return <${prepared ? 'TabsFixture' : 'Tabs'} index={index} onIndexChange={at=>{changes.push(at);setIndex(at)}} ${prepared ? '' : `tabClassName={${JSON.stringify(classes)}}`} tabs={[{label:'A',content:'one'},{label:'B',content:'two'},{label:'C',content:'three',disabled:true}]}/>}
+function App(){const [index,setIndex]=useState(0);const [author,setAuthor]=useState();window.setAuthor=value=>flushSync(()=>setAuthor(value));window.select=at=>flushSync(()=>setIndex(at));return <${prepared ? 'TabsFixture' : 'Tabs'} index={index} tabStyle={author} onIndexChange={at=>{changes.push(at);setIndex(at)}} ${prepared ? '' : `tabClassName={${JSON.stringify(classes)}}`} tabs={[{label:'A',content:'one'},{label:'B',content:'two'},{label:'C',content:'three',disabled:true}]}/>}
 flushSync(()=>createRoot(document.querySelector('#root')).render(<App/>));`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
       loader: 'tsx',
@@ -80,6 +80,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     scope: 'web-tabs-real-pointer-focus',
     fingerprint: '',
     observations: [],
+    authorObservations: [],
     controls: [],
     prepared: null,
   }
@@ -183,6 +184,44 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
         })
         assert.equal(await tabs.nth(1).evaluate((node) => node === document.activeElement), true)
         assert.deepEqual(await page.evaluate(() => window.changes), [1])
+        const recordAuthor = async (phase, overridden) => {
+          const rows = await tabs.evaluateAll((nodes) =>
+            nodes.map((node, at) => {
+              if (node !== window.originalTabs[at]) throw new Error('author style remounted a tab')
+              const style = getComputedStyle(node)
+              const rgb = style.backgroundColor.match(/\d+/g).slice(0, 3)
+              return {
+                rowGap: Number.parseFloat(style.rowGap),
+                columnGap: Number.parseFloat(style.columnGap),
+                background: `#${rgb.map((value) => Number(value).toString(16).padStart(2, '0')).join('')}`,
+                opacity: Number(style.opacity),
+              }
+            }),
+          )
+          assert.deepEqual(
+            rows,
+            expectedTabRows('selected-disabled').map((row) => ({
+              rowGap: overridden ? 5 : 3,
+              columnGap: overridden ? 7 : 2,
+              background: overridden ? '#abcdef' : row.background,
+              opacity: overridden ? 0.8 : row.opacity,
+            })),
+          )
+          evidence.authorObservations.push({ kind, phase, rows })
+        }
+        // Match the same common box values as the existing Native author
+        // gate, including removal while the selected owner is disabled.
+        await recordAuthor('before-author', false)
+        await page.evaluate(() =>
+          window.setAuthor({ rowGap: 5, columnGap: 7, backgroundColor: '#abcdef', opacity: 0.8 }),
+        )
+        await recordAuthor('with-author', true)
+        await page.evaluate(() => window.select(0))
+        assert.equal(await tabs.nth(0).getAttribute('aria-selected'), 'true')
+        await recordAuthor('with-author-selected-enabled', true)
+        await page.evaluate(() => window.select(2))
+        await page.evaluate(() => window.setAuthor(undefined))
+        await recordAuthor('after-removal', false)
         // Without actual unavailable hooks, ARIA alone must not certify the
         // disabled: contribution. Keep aria-disabled to distinguish the two.
         await tabs.nth(2).evaluate((node) => {
@@ -203,6 +242,16 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     assert.deepEqual(errors, [])
     assert.equal(evidence.observations.length, 18)
     assert.equal(evidence.controls.length, 3)
+    assert.equal(evidence.authorObservations.length, 12)
+    for (const kind of ['candidate', 'prepared'])
+      assert.deepEqual(
+        evidence.authorObservations
+          .filter((row) => row.kind === kind)
+          .map(({ kind, ...row }) => row),
+        evidence.authorObservations
+          .filter((row) => row.kind === 'tailwind')
+          .map(({ kind, ...row }) => row),
+      )
     assert.deepEqual(
       evidence.observations
         .filter((row) => row.kind === 'prepared')

@@ -78,9 +78,9 @@ async function stateBundle(fixture, prepared) {
   return build({
     stdin: {
       contents: `${prepared ?? "import {BottomSheet} from '@hozo/patterns';"}
-import {useState} from 'react';import {createRoot} from 'react-dom/client';
-function App({interactive}) {const [open,setOpen]=useState(true);const [tick,setTick]=useState(0);window.setOpen=setOpen;window.bump=()=>setTick(x=>x+1);
-return <${prepared ? 'HandleFixture' : 'BottomSheet'} open={open} onClose={()=>setOpen(false)} ${prepared ? 'interactive={interactive}' : `portal={false} detents={interactive?[.5,1]:[1]} handleClassName={interactive?${JSON.stringify(fixture.interactive)}:${JSON.stringify(fixture.rest)}}`} accessibilityLabel="Owner evidence" sheetClassName="owner-panel"><button>Content</button><span>{tick}</span></${prepared ? 'HandleFixture' : 'BottomSheet'}>}
+import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
+function App({interactive}) {const [open,setOpen]=useState(true);const [tick,setTick]=useState(0);const [author,setAuthor]=useState();window.setAuthor=value=>flushSync(()=>setAuthor(value));window.setOpen=setOpen;window.bump=()=>setTick(x=>x+1);
+return <${prepared ? 'HandleFixture' : 'BottomSheet'} open={open} onClose={()=>setOpen(false)} handleStyle={author} ${prepared ? 'interactive={interactive}' : `portal={false} detents={interactive?[.5,1]:[1]} handleClassName={interactive?${JSON.stringify(fixture.interactive)}:${JSON.stringify(fixture.rest)}}`} accessibilityLabel="Owner evidence" sheetClassName="owner-panel"><button>Content</button><span>{tick}</span></${prepared ? 'HandleFixture' : 'BottomSheet'}>}
 window.mount=(interactive)=>{window.fixtureRoot=createRoot(document.querySelector('#root'));fixtureRoot.render(<App interactive={interactive}/>)};`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
       loader: 'tsx',
@@ -105,6 +105,7 @@ test('real Web handle computed rest/hover/focus/pressed styles match Tailwind on
     passed: false,
     scope: 'web-computed-style-real-pointer-focus',
     observations: [],
+    authorObservations: [],
     controls: [],
     prepared: null,
   }
@@ -219,6 +220,58 @@ test('real Web handle computed rest/hover/focus/pressed styles match Tailwind on
             )
             assert.equal(await handle.evaluate((node) => node === window.ownerBefore), true)
           }
+          const beforeAuthor = await read(handle)
+          evidence.authorObservations.push({
+            kind,
+            interactive,
+            phase: 'before-author',
+            selected: beforeAuthor,
+          })
+          await page.evaluate(() =>
+            window.setAuthor({ paddingTop: 20, opacity: 0.8, backgroundColor: '#abcdef' }),
+          )
+          const withAuthor = await read(handle)
+          assert.deepEqual(withAuthor, {
+            ...beforeAuthor,
+            paddingTop: '20px',
+            opacity: '0.8',
+            backgroundColor: 'rgb(171, 205, 239)',
+          })
+          assert.equal(await handle.evaluate((node) => node === window.ownerBefore), true)
+          assert.equal(await handle.evaluate((node) => getComputedStyle(node).touchAction), 'none')
+          evidence.authorObservations.push({
+            kind,
+            interactive,
+            phase: 'with-author',
+            selected: withAuthor,
+          })
+          await page.mouse.move(800, 650)
+          await page.getByRole('button', { name: 'Content', exact: true }).focus()
+          assert.deepEqual(
+            await read(handle),
+            withAuthor,
+            'author box styles survive losing hover/focus',
+          )
+          evidence.authorObservations.push({
+            kind,
+            interactive,
+            phase: 'with-author-rest',
+            selected: await read(handle),
+          })
+          await page.evaluate(() => window.setAuthor(undefined))
+          const afterAuthor = await read(handle)
+          assert.deepEqual(
+            afterAuthor,
+            rest,
+            'removing author styles restores the new current state, not the earlier focus snapshot',
+          )
+          assert.equal(await handle.evaluate((node) => node === window.ownerBefore), true)
+          evidence.authorObservations.push({
+            kind,
+            interactive,
+            phase: 'after-removal',
+            selected: afterAuthor,
+          })
           await page.evaluate(() => window.setOpen(false))
           await page.getByRole('dialog', { name: 'Owner evidence' }).waitFor({ state: 'detached' })
           await page.evaluate(() => window.setOpen(true))
@@ -258,6 +311,16 @@ test('real Web handle computed rest/hover/focus/pressed styles match Tailwind on
     }
     assert.deepEqual(errors, [])
     assert.equal(evidence.observations.length, 15)
+    assert.equal(evidence.authorObservations.length, 24)
+    for (const kind of ['candidate', 'prepared'])
+      assert.deepEqual(
+        evidence.authorObservations
+          .filter((row) => row.kind === kind)
+          .map(({ kind, ...row }) => row),
+        evidence.authorObservations
+          .filter((row) => row.kind === 'tailwind')
+          .map(({ kind, ...row }) => row),
+      )
     assert.equal(evidence.controls.length, 6)
     evidence.passed = true
   } catch (error) {
