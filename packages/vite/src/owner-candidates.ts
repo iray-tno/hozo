@@ -216,10 +216,14 @@ export async function captureViteOwnerCandidates(
   function unavailable(reason: ViteOwnerPreflightUnavailable['reason'], detail: string): never {
     // A later unsupported edge cannot hide an earlier input race. No lease or
     // prepared output exists yet, but all observations already made must agree.
-    validateInputs()
-    const fresh = selected.map(({ edge, entry }) => observe(edge, entry))
-    if (JSON.stringify(fresh) !== JSON.stringify(observations)) fail('manifest observation changed')
-    throw new ViteOwnerPreflightUnavailable(reason, detail)
+    const validate = () => {
+      validateInputs()
+      const fresh = selected.map(({ edge, entry }) => observe(edge, entry))
+      if (JSON.stringify(fresh) !== JSON.stringify(observations))
+        fail('manifest observation changed')
+    }
+    validate()
+    throw new ViteOwnerPreflightUnavailable(reason, detail, { watchFiles: [...watch], validate })
   }
   // An inspected source can have no value imports (including type-only files).
   // Observe its ownership anyway: absence of edges is data, not missing input,

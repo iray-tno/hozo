@@ -161,8 +161,11 @@ export const Row=()=> <View className="p-3"><Panel handleClassName="p-2" onClose
       configFile: false,
       logLevel: 'silent',
       plugins: [
-        mode === 'discovered'
-          ? hozoWithDiscoveredOwnerCallers(f.options)
+        mode === 'discovered' || mode === 'fallback'
+          ? hozoWithDiscoveredOwnerCallers(
+              f.options,
+              mode === 'fallback' ? 'ordinary-fallback' : 'strict',
+            )
           : mode === 'callers'
             ? hozoWithOwnerCallers(f.options, plan)
             : mode === 'candidates'
@@ -172,7 +175,7 @@ export const Row=()=> <View className="p-3"><Panel handleClassName="p-2" onClose
       ],
       resolve: {
         conditions: ['browser'],
-        ...(mode === 'discovered' && {
+        ...((mode === 'discovered' || mode === 'fallback') && {
           alias: {
             '@hozo/primitives': fileURLToPath(
               new URL('../../primitives/dist/index.js', import.meta.url),
@@ -690,6 +693,73 @@ test('expected preflight scope refusal is typed but cannot hide source or manife
         return true
       },
     )
+  }
+})
+
+test('ordinary fallback is chosen before output, preserving ordinary code and CSS without owner namespaces', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(
+    f.entry,
+    `import text from './token.txt?raw';export {text};${readFileSync(f.entry, 'utf8')}`,
+  )
+  writeFileSync(path.join(f.root, 'token.txt'), 'ordinary-text-asset')
+  let route: unknown
+  const capture: Plugin = {
+    name: 'observe-fallback',
+    generateBundle() {
+      const id = [...this.getModuleIds()].find(
+        (id) => !id.includes('?') && !id.includes('\0') && path.resolve(id) === f.entry,
+      )
+      route = this.getModuleInfo(id!).meta.hozoOwnerAdmission
+    },
+  }
+  const built = await f.run('fallback', [capture])
+  const output = JSON.stringify(built)
+  assert.match(output, /ordinary-text-asset/)
+  assert.match(output, /padding-top: ?21px/)
+  assert.doesNotMatch(output, /hozo-owner-[a-f0-9]{16}-r/)
+  assert.doesNotMatch(readFileSync(`${f.entry}.hozo.css`, 'utf8'), /hozo-owner-[a-f0-9]{16}-r/)
+  assert.deepEqual(route, { schema: 1, route: 'ordinary-fallback', reason: 'unsupported-module' })
+  assert.equal('packages' in f.inventory(), false)
+  const assets = (result) =>
+    (Array.isArray(result) ? result : [result])
+      .flatMap((item) => item.output)
+      .map((item) => ({
+        file: item.fileName,
+        content: item.type === 'chunk' ? item.code : String(item.source),
+      }))
+      .sort((a, b) => a.file.localeCompare(b.file))
+  assert.deepEqual(assets(built), assets(await f.run('ordinary')))
+  await assert.rejects(f.run('discovered'), /entry ownership unavailable/)
+})
+
+test('ordinary fallback cannot swallow arbitrary resolver errors or source invalidation', {
+  timeout: 15000,
+}, async (t) => {
+  for (const kind of ['resolver', 'source']) {
+    const f = callerFixture(t)
+    let hit = false
+    await assert.rejects(
+      f.run('fallback', [
+        {
+          name: 'fail-preflight',
+          enforce: 'pre',
+          resolveId(id) {
+            if (id === 'widget' && !hit) {
+              hit = true
+              if (kind === 'resolver') throw new Error('independent resolver defect')
+              writeFileSync(f.entry, `${readFileSync(f.entry, 'utf8')}\n// changed`)
+              return '\0late-virtual'
+            }
+          },
+        },
+      ]),
+      kind === 'resolver' ? /independent resolver defect/ : /source snapshot changed/,
+    )
+    assert.equal(hit, true)
+    assert.equal(f.inventory().status, 'failed')
   }
 })
 

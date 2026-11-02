@@ -17,3 +17,19 @@ and late graph participants keep their ordinary fatal errors. Once prepared
 code/CSS has been published, changing route is forbidden: fail/rebuild instead
 of mixing ordinary and prepared namespaces. This first layer only types the
 preflight distinction; it neither adds fallback nor changes `hozo()` defaults.
+
+## Internal build admission policy
+
+The existing internal source-observed entry accepts `ordinary-fallback` as an
+explicit preflight policy; its default remains strict. A typed refusal selects
+the ordinary compiler/cache/CSS path before package contributions or dependency
+caller admission. A warning and module metadata identify that route, rather
+than disguising it as a successful capture. The emitted code/CSS is compared
+byte-for-byte with ordinary `hozo()` on an actual Vite raw-import fixture.
+
+The refusal retains its observed-input guard and watches through publication.
+Warm transform checks do no IO; watcher retirement/build replacement fences
+pending async output. Final build/output boundaries revalidate observed bytes,
+metadata/manifests/identities and the configured source set. There is no catch
+around lowering or late graph verification, so those failures cannot switch an
+already emitted namespace. Normal `hozo()` options/defaults remain unchanged.
