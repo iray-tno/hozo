@@ -66,6 +66,7 @@ function inputReceipts() {
         tabModalityCases.map((input) => ({
           kind,
           input: input.id,
+          visible: input.visible,
           rows: expectedTabModality(input),
         })),
       ),
@@ -128,10 +129,34 @@ test('Owner input audit has finite denominators without self-promoting contracts
   assert.equal(report.contractAudit, 'unknown')
   assert.deepEqual(report.domains[0].modality, {
     cases: 8,
+    commonCases: 7,
+    uaConditionedCases: 1,
     nativeObservations: 32,
     webObservations: 24,
+    pointerReclickVisibility: ['candidate', 'tailwind', 'prepared'].map((kind) => ({
+      kind,
+      native: false,
+      web: false,
+    })),
   })
   assert.equal(report.rollout, 'unchanged')
+})
+
+test('UA-conditioned indication differences stay visible and never promote common equivalence', () => {
+  const input = inputReceipts()
+  for (const row of input.webTabs.modalityObservations) {
+    if (row.input !== 'pointer-while-focused') continue
+    row.visible = true
+    row.rows = expectedTabModality({ focused: true, visible: true })
+  }
+  const report = auditOwnerInputs(input)
+  assert.equal(report.passed, true)
+  assert.equal(report.domains[0].modality.commonCases, 7)
+  assert.deepEqual(
+    report.domains[0].modality.pointerReclickVisibility,
+    ['candidate', 'tailwind', 'prepared'].map((kind) => ({ kind, native: false, web: true })),
+  )
+  assert.ok(report.remaining.includes('UA/native focus-visible heuristic alignment'))
 })
 
 test('Owner input audit rejects stale, dirty, failed or missing evidence on either platform', () => {
@@ -155,6 +180,9 @@ test('Owner input audit requires every route, real delivery values, lifetime and
   for (const mutate of [
     (input) => input.nativeTabs.inputObservations.pop(),
     (input) => input.nativeTabs.modalityObservations.pop(),
+    (input) => {
+      input.webTabs.modalityObservations[0].visible = true
+    },
     (input) => {
       input.webTabs.modalityObservations[1].rows[1].bottom = 0
     },

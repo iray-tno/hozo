@@ -65,19 +65,37 @@ function checkRows(actual, expected) {
 }
 
 function tabs(native, web) {
-  for (const [actual, routes] of [
-    [native.modalityObservations, nativeTabRoutes],
-    [web.modalityObservations, webKinds],
-  ])
-    checkRows(
-      actual,
-      routes.flatMap((route) =>
-        tabModalityCases.map((input) => ({
-          key: `${route}:${input.id}`,
-          value: expectedTabModality(input),
-        })),
-      ),
-    )
+  checkRows(
+    native.modalityObservations,
+    nativeTabRoutes.flatMap((route) =>
+      tabModalityCases.map((input) => ({
+        key: `${route}:${input.id}`,
+        value: expectedTabModality(input),
+      })),
+    ),
+  )
+  const browserModality = webKinds.flatMap((kind) =>
+    tabModalityCases.map((input) => {
+      const observed = web.modalityObservations?.find(
+        (row) => row.kind === kind && row.input === input.id,
+      )
+      requireFact(
+        typeof observed?.visible === 'boolean',
+        'Missing actual browser focus-visible fact',
+      )
+      const uaConditioned = input.id === 'pointer-while-focused'
+      if (!uaConditioned)
+        requireFact(observed.visible === input.visible, 'Common browser modality differs')
+      return {
+        key: `${kind}:${input.id}`,
+        value: expectedTabModality({
+          ...input,
+          visible: uaConditioned ? observed.visible : input.visible,
+        }),
+      }
+    }),
+  )
+  checkRows(web.modalityObservations, browserModality)
   checkRows(
     native.inputObservations,
     nativeTabRoutes.flatMap((route) =>
@@ -210,8 +228,17 @@ export function auditOwnerInputs({
           ? {
               modality: {
                 cases: tabModalityCases.length,
+                commonCases: tabModalityCases.length - 1,
+                uaConditionedCases: 1,
                 nativeObservations: nativeTabRoutes.length * tabModalityCases.length,
                 webObservations: webKinds.length * tabModalityCases.length,
+                pointerReclickVisibility: webKinds.map((kind) => ({
+                  kind,
+                  native: false,
+                  web: web.modalityObservations.find(
+                    (row) => row.kind === kind && row.input === 'pointer-while-focused',
+                  ).visible,
+                })),
               },
             }
           : {}),
@@ -235,6 +262,7 @@ export function auditOwnerInputs({
     remaining: [
       'mid-press disable/event cancellation',
       'native OS modality event delivery',
+      'UA/native focus-visible heuristic alignment',
       'opaque label descendants',
       'device acceptance/pixels',
       'other Owners and arbitrary inputs',

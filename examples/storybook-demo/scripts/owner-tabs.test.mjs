@@ -283,16 +283,24 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
               }
             }),
           )
-          assert.deepEqual(rows, expectedTabModality(input), `${kind}: ${input.id}`)
+          const visible = await tabs.nth(1).evaluate((node) => node.matches(':focus-visible'))
+          // Selectors permits UA heuristics. Chrome retains indication when
+          // clicking the already keyboard-focused button; Native deliberately
+          // clears it (also asserted by primitive/Chip tests). Keep that case,
+          // but compare CSS delivery to the UA's actual fact and report the
+          // difference instead of changing either platform to fake equality.
+          const uaConditioned = input.id === 'pointer-while-focused'
+          assert.deepEqual(
+            rows,
+            expectedTabModality({ ...input, visible: uaConditioned ? visible : input.visible }),
+            `${kind}: ${input.id}`,
+          )
           assert.equal(
             await tabs.nth(1).evaluate((node) => node === document.activeElement),
             input.focused,
           )
-          assert.equal(
-            await tabs.nth(1).evaluate((node) => node.matches(':focus-visible')),
-            input.visible,
-          )
-          evidence.modalityObservations.push({ kind, input: input.id, rows })
+          if (!uaConditioned) assert.equal(visible, input.visible)
+          evidence.modalityObservations.push({ kind, input: input.id, visible, rows })
         }
         await recordModality(0)
         // Real keyboard input establishes browser modality; focus() mirrors
