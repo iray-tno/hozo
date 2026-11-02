@@ -135,3 +135,15 @@ Barrel reexports and side-effect requests still belong to the static graph,
 but are not direct JSX caller bindings. Namespace imports remain unassessed;
 they cannot turn an entire export table into prepared callers. Physical source
 identities use native absolute spelling even when the resolver uses slashes.
+
+## Captured dependency callers, not all dependencies
+
+The source-observed assessment admits a physical dependency caller to the
+ordinary transform only if its frozen capture selects an owner contract.
+Ordinary sibling sources are not implicitly included in the user's content
+scope. Positive dependency callers use the existing scan/ordinary-lowering/
+session/companion-CSS pipeline; opaque replacements remove stale prepared CSS.
+An actual Vite fixture places the caller in a non-Hozo package outside the
+configured entry source, verifies its metadata and CSS, and keeps an unrelated
+sibling untransformed. This does not authorize transforming arbitrary packages
+or claim candidate completeness for deliberately excluded ordinary sources.

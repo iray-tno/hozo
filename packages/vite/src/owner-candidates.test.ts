@@ -416,6 +416,61 @@ test('static traversal captures nested package instances and cycles before candi
   assert.deepEqual(f.inventory().packages.instances, [f.second])
 })
 
+test('captured dependency callers use ordinary lowering without admitting unrelated node_modules sources', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const consumer = path.join(f.root, 'node_modules/consumer')
+  mkdirSync(consumer)
+  writeFileSync(
+    path.join(consumer, 'package.json'),
+    '{"name":"consumer","type":"module","exports":"./index.tsx"}',
+  )
+  const dependency = path.join(consumer, 'index.tsx')
+  writeFileSync(dependency, readFileSync(f.entry, 'utf8'))
+  const plain = path.join(consumer, 'plain.tsx')
+  writeFileSync(plain, 'export const Plain=()=> <span className="p-9"/>')
+  writeFileSync(dependency, `${readFileSync(dependency, 'utf8')};export {Plain} from './plain.tsx'`)
+  writeFileSync(f.entry, "export {Row,Plain} from 'consumer'")
+  const observed: { importer: string; disposition: string }[] = []
+  const output = JSON.stringify(
+    await f.run('discovered', [
+      {
+        name: 'observe-dependency-owner',
+        generateBundle() {
+          const id = [...this.getModuleIds()].find(
+            (id) => !id.includes('?') && !id.includes('\0') && path.resolve(id) === dependency,
+          )
+          const metadata = this.getModuleInfo(id!).meta.hozoOwnerDelivery
+          observed.push({
+            importer: metadata.owners[0].identity.importer,
+            disposition: metadata.owners[0].findings[0].disposition,
+          })
+        },
+      },
+    ]),
+  )
+  assert.match(output, /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  assert.match(readFileSync(`${dependency}.hozo.css`, 'utf8'), /padding-top: 14px/)
+  assert.equal(existsSync(`${plain}.hozo.css`), false)
+  assert.match(output, /p-9/)
+  assert.deepEqual(observed, [{ importer: dependency, disposition: 'prepared-literal' }])
+  const inventory = f.inventory()
+  assert.equal(inventory.status, 'complete', JSON.stringify(inventory.issues))
+  assert.ok(inventory.modules.some((id) => path.resolve(id) === dependency))
+  assert.ok(!inventory.modules.some((id) => path.resolve(id) === plain))
+  assert.ok(inventory.candidates.includes('p-2'))
+  writeFileSync(
+    dependency,
+    readFileSync(dependency, 'utf8').replace(
+      'handleClassName="p-2"',
+      'handleClassName={globalThis.classes}',
+    ),
+  )
+  assert.doesNotMatch(JSON.stringify(await f.run('discovered')), /hozo-owner-[a-f0-9]{16}-r/)
+  assert.doesNotMatch(readFileSync(`${dependency}.hozo.css`, 'utf8'), /\.hozo-owner-/)
+})
+
 test('static capture snapshots dependency bytes and distinguishes actual external boundaries', async (t) => {
   const f = fixture(t)
   writeFileSync(f.entry, "export {nested} from 'bridge';import 'peer'")

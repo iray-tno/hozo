@@ -160,6 +160,7 @@ function configureHozo(
   let inventoryPath = ''
   let owners: Awaited<ReturnType<typeof captureViteOwnerCandidates>> | undefined
   let ownerSourceFiles: readonly string[] | undefined
+  let ownerCallerFiles = new Set<string>()
 
   function validateOwnerGraph(graph: Parameters<NonNullable<typeof owners>['validateGraph']>[0]) {
     if (
@@ -285,7 +286,10 @@ function configureHozo(
    */
   const pass = (accepts: (file: string) => boolean): Pick<Plugin, 'transform'> => ({
     async transform(code, id) {
-      const file = scannableFile(id, (candidate) => includedFiles.has(candidate))
+      const file = scannableFile(
+        id,
+        (candidate) => includedFiles.has(candidate) || ownerCallerFiles.has(candidate),
+      )
       if (file && !accepts(file)) return
       if (!file) return
       const request = Symbol(id)
@@ -309,7 +313,9 @@ function configureHozo(
         const scannable =
           file &&
           !isDerivedModule &&
-          (includedFiles.has(path.resolve(file)) || isTransformedSource(file))
+          (includedFiles.has(path.resolve(file)) ||
+            ownerCallerFiles.has(path.resolve(file)) ||
+            isTransformedSource(file))
         if (file && scannable) {
           // For the `pre` pass `code` is still the source as written, which
           // is what the scanner expects. For the second pass it is the JSX
@@ -704,6 +710,7 @@ function configureHozo(
         owners?.invalidate()
         owners = undefined
         ownerSourceFiles = undefined
+        ownerCallerFiles = new Set()
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined
@@ -763,6 +770,17 @@ function configureHozo(
             context,
           )
           for (const file of owners.watchFiles) this.addWatchFile(file)
+          if (discoverOwnerSources) {
+            // Discovery is not permission to transform every dependency. Only
+            // snapshotted physical callers with selected manifest contracts
+            // borrow the existing ordinary transform/companion-CSS path.
+            for (const file of owners.sourceFiles)
+              if (
+                discoverOwnerPackageCallers(owners.lease, file, owners.sourceImports(file)).requests
+                  .length
+              )
+                ownerCallerFiles.add(path.resolve(file))
+          }
           inventory?.observeOwnerPackages(owners.contributions)
         }
         for (const dependency of current.watchFiles) this.addWatchFile(dependency)
@@ -924,7 +942,9 @@ function configureHozo(
           revision: contentRevision(readFileSync(file, 'utf8')),
         }))
         const modules = [...this.getModuleIds()]
-          .filter((id) => scannableFile(id, (file) => includedFiles.has(file)))
+          .filter((id) =>
+            scannableFile(id, (file) => includedFiles.has(file) || ownerCallerFiles.has(file)),
+          )
           .map((id) => {
             const module = this.getModuleInfo(id)
             return { id, code: module?.code ?? null, meta: module?.meta ?? {} }
@@ -953,6 +973,7 @@ function configureHozo(
         owners?.invalidate()
         owners = undefined
         ownerSourceFiles = undefined
+        ownerCallerFiles.clear()
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined
