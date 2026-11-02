@@ -35,6 +35,7 @@ import {
   foldedPrimitiveCalls,
   lowerModule,
   lowerModuleOrPrepare,
+  prepareOwnerLowerModule,
   sideEffectImport,
 } from '@hozo/compiler/lower'
 import {
@@ -44,6 +45,7 @@ import {
   type HozoProjectOptions,
   importSpecifier,
   isTransformedSource,
+  type OwnerContractRequest,
   preflightCssPath,
   resolveClassHelpers,
   resolveStylexRequests,
@@ -90,7 +92,34 @@ export function hozoWithOwnerCandidates(
   return configureHozo(options, plan)
 }
 
-function configureHozo(options: HozoOptions, ownerPlan?: ViteOwnerCandidatePlan): Plugin[] {
+export interface ViteOwnerCallerPlan extends ViteOwnerCandidatePlan {
+  /** Reviewed finite caller bindings. Entries come from Vite's capture, not callers. */
+  callers: readonly Omit<OwnerContractRequest, 'entry'>[]
+}
+
+/** @internal Explicit BUILD assessment through the ordinary transform/CSS
+ * publication path. No new public option or default owner/audit admission.
+ */
+export function hozoWithOwnerCallers(options: HozoOptions, plan: ViteOwnerCallerPlan): Plugin[] {
+  if (!plan.callers.length || plan.callers.length > 64)
+    throw new Error('[hozo] owner caller binding budget unavailable')
+  const callers = plan.callers.map((caller) => Object.freeze({ ...caller }))
+  if (
+    new Set(
+      callers.map((caller) =>
+        JSON.stringify([caller.importer, caller.specifier, caller.imported, caller.classProp]),
+      ),
+    ).size !== callers.length
+  )
+    throw new Error('[hozo] duplicate owner caller binding')
+  return configureHozo(options, plan, callers)
+}
+
+function configureHozo(
+  options: HozoOptions,
+  ownerPlan?: ViteOwnerCandidatePlan,
+  callerBindings: readonly Omit<OwnerContractRequest, 'entry'>[] = [],
+): Plugin[] {
   // One matching compiler/session per stylesheet epoch, never per file.
   let root = process.cwd()
   let cache: CandidateCache
@@ -396,36 +425,97 @@ function configureHozo(options: HozoOptions, ownerPlan?: ViteOwnerCandidatePlan)
         for (;;) {
           const requestedUniverse = universe
           let emittedKey = requestedUniverse.key
-          lowered = current.session
-            ? await current.session.runModule(requestId, requestedUniverse, (compiler, context) => {
-                const result = lowerModuleOrPrepare(
-                  source,
-                  id,
-                  file,
-                  compiler,
-                  root,
-                  context,
-                  stylexModules,
-                  policy,
-                )
-                if (result.kind === 'prepared') {
-                  emittedKey = new TailwindCandidateUniverse([
-                    ...requestedUniverse.candidates,
-                    ...result.module.candidates,
-                  ]).key
-                  if (
-                    rememberCandidates(
-                      JSON.stringify(['actual', requestId]),
-                      file,
-                      result.module.candidates,
-                    ) &&
-                    updateUniverse()
+          const bindings = callerBindings.length
+            ? callerBindings.filter((binding) => binding.importer === absoluteFile)
+            : undefined
+          if (bindings?.length && !id.includes('?')) {
+            if (!current.session || !owners)
+              throw new Error(
+                '[hozo] owner callers require a captured stylesheet and package epoch',
+              )
+            const selectedOwners = owners
+            const ownerRequests = bindings.map((binding) => {
+              const captured = selectedOwners.lease.capture.bindings.find(
+                (edge) =>
+                  edge.importer === binding.importer && edge.specifier === binding.specifier,
+              )
+              if (!captured) throw new Error('[hozo] owner caller edge was not captured')
+              return { ...binding, entry: captured.entry }
+            })
+            const [output] = await current.session.emit(
+              requestId,
+              [
+                (compiler) => {
+                  const module = prepareOwnerLowerModule(
+                    source,
+                    id,
+                    absoluteFile,
+                    compiler,
+                    root,
+                    selectedOwners.lease,
+                    ownerRequests,
+                    stylexModules,
+                    policy,
                   )
-                    invalidateTransforms()
-                }
-                return result
-              })
-            : lowerModule(source, id, file, compiler, root, stylexModules, policy)
+                  try {
+                    emittedKey = new TailwindCandidateUniverse([
+                      ...requestedUniverse.candidates,
+                      ...module.candidates,
+                    ]).key
+                    if (
+                      rememberCandidates(
+                        JSON.stringify(['actual', requestId]),
+                        file,
+                        module.candidates,
+                      ) &&
+                      updateUniverse()
+                    )
+                      invalidateTransforms()
+                    return module
+                  } catch (error) {
+                    module.dispose()
+                    throw error
+                  }
+                },
+              ],
+              requestedUniverse.candidates,
+            )
+            lowered = output!.lowered
+          } else
+            lowered = current.session
+              ? await current.session.runModule(
+                  requestId,
+                  requestedUniverse,
+                  (compiler, context) => {
+                    const result = lowerModuleOrPrepare(
+                      source,
+                      id,
+                      file,
+                      compiler,
+                      root,
+                      context,
+                      stylexModules,
+                      policy,
+                    )
+                    if (result.kind === 'prepared') {
+                      emittedKey = new TailwindCandidateUniverse([
+                        ...requestedUniverse.candidates,
+                        ...result.module.candidates,
+                      ]).key
+                      if (
+                        rememberCandidates(
+                          JSON.stringify(['actual', requestId]),
+                          file,
+                          result.module.candidates,
+                        ) &&
+                        updateUniverse()
+                      )
+                        invalidateTransforms()
+                    }
+                    return result
+                  },
+                )
+              : lowerModule(source, id, file, compiler, root, stylexModules, policy)
           current.check()
           checkRequest()
           // Only exceptional namespace expansion retries; ordinary warm
