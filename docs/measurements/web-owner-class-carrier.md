@@ -142,3 +142,20 @@ a global coverage/audit percentage. Missing or mismatched prepared rows cannot
 silently fall back to the old two-route denominator. All global measures stay
 unavailable. Actual browser success requires inspecting the corresponding
 current-source CI receipt; local CSS/bundle checks alone do not establish it.
+
+## One adapter-owned context, not a nested owner session
+
+`prepareInstanceOwnerCallers` retains the selected owner IR under its package
+lease and implements the same one-shot `PreparedModule` contract as ordinary
+lowering. An adapter can collect both before awaiting its existing session's
+context; no owner-specific context cache or Tailwind preparation is necessary.
+The explicit preview project delegates to this same participant rather than
+maintaining a second selection/emission implementation.
+
+The participant's candidates are its actual parsed IR, not the whole project
+universe. The adapter remains responsible for adding package/source candidates,
+resolving entries and watching the matching CSS/config epoch. Retiring a package
+promptly disposes only this participant's IR, fences synchronous and late output,
+and does not invalidate unrelated ordinary modules in the adapter's session.
+These lifecycle/unit checks do not admit a shadow contract to normal builds or
+certify authored-style composition; those remain separate adoption conditions.
