@@ -26,11 +26,12 @@ const valid = (schema, value) => {
   }
 }
 
-// Expo still requests Zod 3, which has no patch for GHSA-mrhx-c7xc-m3w5, and
-// the workspace overrides it with Zod 4. Expo CLI 58 validates plugin
-// descriptors and output with JSON Schema through @expo/schema-utils, so Zod's
-// one consumer left is the MCP command schema, which takes the `z` it is
-// given. Exercise those consumers rather than assuming the override is safe.
+// Expo CLI 57 validated these with Zod 3, which has no patch for
+// GHSA-mrhx-c7xc-m3w5, so the workspace overrode it with Zod 4 and this test
+// exercised the consumers. Expo CLI 58 validates plugin descriptors and
+// output with JSON Schema through @expo/schema-utils and installs no Zod; its
+// MCP schema takes a `z` from expo-mcp, which this app does not install. The
+// test now pins that: the validators work, and no Zod 3 comes back with Expo.
 const plugin = {
   packageName: 'test-plugin',
   packageRoot: '/test-plugin',
@@ -68,19 +69,10 @@ test('Expo output schemas accept supported media and reject malformed output', (
   assert.equal(valid(DevToolsPluginOutputSchema, [{ type: 'video', url: 'x' }]), false)
 })
 
-test('Expo MCP commands keep strict, typed parameters and a serializable schema with the patched Zod', () => {
-  const z = cliRequire('zod')
-  assert.match(cliRequire('zod/package.json').version, /^4\./)
-  const schema = createMCPDevToolsExtensionSchema(plugin, z)
-  const parameters = { command: 'inspect', label: 'demo', count: 2, enabled: true }
-  assert.deepEqual(schema.parse(parameters), parameters)
-  assert.deepEqual(schema.parse({ command: 'inspect' }), { command: 'inspect' })
-  assert.equal(schema.safeParse({ command: 'missing' }).success, false)
-  assert.equal(schema.safeParse({ ...parameters, count: '2' }).success, false)
-  assert.equal(schema.safeParse({ ...parameters, extra: true }).success, false)
-  const json = z.toJSONSchema(schema)
-  assert.deepEqual(json.required, ['command'])
-  assert.equal(json.additionalProperties, false)
-  assert.equal(json.properties.count.type, 'number')
-  assert.equal(json.properties.enabled.type, 'boolean')
+test('Expo CLI installs no Zod of its own', () => {
+  const manifest = cliRequire('./package.json')
+  for (const section of ['dependencies', 'optionalDependencies', 'peerDependencies'])
+    assert.equal(manifest[section]?.zod, undefined, `@expo/cli ${section} lists zod again`)
+  assert.equal(typeof createMCPDevToolsExtensionSchema, 'function')
+  assert.throws(() => createMCPDevToolsExtensionSchema({ ...plugin, cliExtensions: undefined }))
 })
