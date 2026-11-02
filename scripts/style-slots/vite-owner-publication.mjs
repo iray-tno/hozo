@@ -1,7 +1,7 @@
 // Actual Vite build evidence. No supplied owner edges, locator or caller list.
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -24,13 +24,27 @@ export function OrdinaryControl(){return <View testID="ordinary-control" classNa
 export async function buildViteOwnerPublication() {
   const directory = mkdtempSync(path.join(host, 'hozo-owner-vite-'))
   const entry = path.join(directory, 'Entry.tsx')
+  const consumer = path.join(directory, 'node_modules/owner-consumer')
+  const caller = path.join(consumer, 'index.tsx')
+  const entrySource = `import './authored.css';import data from './data.json';export const fixtureVersion=data.version;export {TabsFixture,HandleFixture,OrdinaryControl} from 'owner-consumer'`
   let metadata
   try {
     writeFileSync(
       path.join(directory, 'package.json'),
       '{"name":"owner-build-fixture","type":"module","private":true}',
     )
-    writeFileSync(entry, viteOwnerSource)
+    mkdirSync(consumer, { recursive: true })
+    writeFileSync(
+      path.join(consumer, 'package.json'),
+      '{"name":"owner-consumer","type":"module","exports":"./index.tsx"}',
+    )
+    writeFileSync(caller, viteOwnerSource)
+    writeFileSync(entry, entrySource)
+    writeFileSync(
+      path.join(directory, 'authored.css'),
+      '.boundary-sentinel { color: rgb(1, 2, 3) }',
+    )
+    writeFileSync(path.join(directory, 'data.json'), '{"version":1}')
     writeFileSync(
       path.join(directory, 'tokens.css'),
       `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`,
@@ -49,7 +63,7 @@ export async function buildViteOwnerPublication() {
           name: 'capture-owner-build-evidence',
           generateBundle() {
             const id = [...this.getModuleIds()].find(
-              (id) => !id.includes('\0') && !id.includes('?') && path.resolve(id) === entry,
+              (id) => !id.includes('\0') && !id.includes('?') && path.resolve(id) === caller,
             )
             assert.ok(id)
             metadata = structuredClone(this.getModuleInfo(id).meta.hozoOwnerDelivery)
@@ -85,7 +99,7 @@ export async function buildViteOwnerPublication() {
       new Set(['Tabs.Tab', 'BottomSheet.handle']),
     )
     for (const owner of owners) {
-      assert.equal(owner.identity.importer, entry)
+      assert.equal(owner.identity.importer, caller)
       assert.equal(owner.identity.platform, 'web')
       assert.match(owner.fingerprint, /^scalar-order-v8:/)
       assert.ok(owner.findings.every((row) => row.disposition === 'prepared-literal'))
@@ -94,6 +108,32 @@ export async function buildViteOwnerPublication() {
     for (const file of ['tabs.js', 'bottom-sheet.js'])
       assert.ok(modules.some((module) => module.endsWith(`/patterns/dist/${file}`)))
     assert.ok(!modules.some((module) => /packages\/(compiler|tailwind|vite)\//.test(module)))
+    assert.ok(modules.some((module) => module.endsWith('/node_modules/owner-consumer/index.tsx')))
+    assert.ok(
+      metadata.capture.edges.some(
+        (edge) =>
+          edge.importer === entry &&
+          edge.specifier === 'owner-consumer' &&
+          path.resolve(edge.entry) === caller,
+      ),
+    )
+    const sourceHash = createHash('sha256').update(viteOwnerSource).digest('hex')
+    assert.equal(
+      metadata.capture.sources.find((source) => source.file === caller)?.sha256,
+      sourceHash,
+    )
+    assert.equal(
+      metadata.capture.sources.find((source) => source.file === entry)?.sha256,
+      createHash('sha256').update(entrySource).digest('hex'),
+    )
+    const textBoundaries = metadata.capture.unassessedImports.filter(
+      (edge) => edge.reason === 'non-js-source',
+    )
+    assert.deepEqual(
+      new Set(textBoundaries.map((edge) => path.extname(edge.entry))),
+      new Set(['.css', '.json']),
+    )
+    assert.ok(textBoundaries.every((edge) => /^[a-f0-9]{64}$/.test(edge.sha256)))
     return {
       code: chunks[0].code,
       css: sheets
@@ -104,8 +144,9 @@ export async function buildViteOwnerPublication() {
         )
         .join('\n'),
       owners,
+      capture: metadata.capture,
       modules,
-      sourceSha256: createHash('sha256').update(viteOwnerSource).digest('hex'),
+      sourceSha256: sourceHash,
     }
   } finally {
     const resolved = realpathSync(directory)

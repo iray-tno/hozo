@@ -158,3 +158,18 @@ never parsed as empty JSX or interpreted as component exports. Unknown source
 formats, virtual/query targets and unresolved requests still refuse the
 assessment. CSS imports/configuration and JSON-derived dynamic class discovery
 are not certified by this JS-owner assessment; the ordinary scan remains.
+
+## Real dependency caller browser gate
+
+The actual Tabs/BottomSheet fixture now lives in an installed non-Hozo
+`owner-consumer` package, outside configured `Entry.tsx` content. The entry
+only reexports it and imports real CSS/JSON resources. No supplied edges,
+locator, binding list or content-package override admits that caller. Captured
+value bindings select it, and the ordinary transform emits its companion CSS.
+
+Build metadata/receipts retain the exact root-to-dependency resolution,
+source hashes for both entry and caller, selected owner/manifest identities
+and visible external/non-JS boundaries. The same independent browser oracle
+and state/author/removal/stylesheet-negative gates run against this actual
+dependency output, not a handwritten substitute. This remains an internal
+bounded build path, not an audited contract/default switch or Native pixels.

@@ -43,6 +43,7 @@ export interface ViteOwnerCandidateSession {
   contributions: Extract<OwnerPackageContributions, { status: 'complete' }>
   watchFiles: readonly string[]
   sourceFiles: readonly string[]
+  sourceObservations: readonly Readonly<{ file: string; sha256: string }>[]
   sourceImports(file: string): readonly Readonly<{ source: string; imported: string }>[] | undefined
   /** Resolver boundaries, never ordinary/empty JS package or caller claims. */
   unassessedImports: readonly Readonly<
@@ -360,6 +361,7 @@ export async function captureViteOwnerCandidates(
     contributions,
     watchFiles: Object.freeze([...watch]),
     sourceFiles: Object.freeze(sources.map((source) => source.file)),
+    sourceObservations: Object.freeze(sources.map((source) => Object.freeze({ ...source }))),
     sourceImports: (file: string) => {
       check()
       return sourceImports.get(file)

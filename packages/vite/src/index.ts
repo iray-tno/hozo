@@ -119,7 +119,7 @@ export function hozoWithOwnerCallers(options: HozoOptions, plan: ViteOwnerCaller
 }
 
 /** @internal BUILD assessment from the existing configured source set. The
- * old scan stays; derived/dynamic/transitive graph coverage is not assumed.
+ * old scan stays; static traversal is bounded, dynamic/derived coverage is not assumed.
  */
 export function hozoWithDiscoveredOwnerCallers(options: HozoOptions): Plugin[] {
   return configureHozo(options, undefined, [], true, true)
@@ -525,6 +525,14 @@ function configureHozo(
                 hozoOwnerDelivery: {
                   schema: 1,
                   scope: 'configured-static-source-capture',
+                  capture: {
+                    fingerprint: selectedOwners.lease.capture.fingerprint,
+                    sources: selectedOwners.sourceObservations,
+                    unassessedImports: selectedOwners.unassessedImports,
+                    edges: selectedOwners.lease.capture.bindings.map(
+                      ({ importer, specifier, entry }) => ({ importer, specifier, entry }),
+                    ),
+                  },
                   owners: output!.owners.map((owner) => ({
                     identity: owner.identity,
                     fingerprint: owner.preview.contextFingerprint,
