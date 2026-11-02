@@ -159,3 +159,20 @@ promptly disposes only this participant's IR, fences synchronous and late output
 and does not invalidate unrelated ordinary modules in the adapter's session.
 These lifecycle/unit checks do not admit a shadow contract to normal builds or
 certify authored-style composition; those remain separate adoption conditions.
+
+## Composition with ordinary Web lowering
+
+The explicit `prepareOwnerLowerModule` participant collects the real ordinary
+module and selected owner shapes before asynchronous preparation. Both consume
+one context, and the ordinary primitive parse is not repeated. It carries actual
+parser-coordinate owner edits through the existing pipeline's validated
+`SourceProvenance`/backend copy ranges, including nested unknown JSX, Canvas
+edits and generated imports. No generated-JSX pattern matching or string diff
+is used. The normal `lowerModule` fast path is unchanged.
+
+If the original attribute is no longer uniquely copied, or two requests target
+overlapping attributes, the entire ordinary result is retained and no companion
+owner CSS is appended. Owner-only and derived modules reuse ordinary lowering's
+CSS naming, and prepared widget wrappers retain the client-boundary requirement.
+This is a bounded composition mechanism, not automatic discovery, owner audit,
+or permission to activate every shadow contract.
