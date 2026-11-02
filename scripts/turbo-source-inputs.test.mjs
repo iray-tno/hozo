@@ -38,6 +38,8 @@ const reads = {
     'examples/storybook-demo/tsconfig.json',
   ],
   '@hozo/compiler#test': [
+    'crates/hozo_parser/src/static_imports.rs',
+    'crates/hozo_napi/src/static_imports.rs',
     'crates/hozo_web/src/owner_class.rs',
     'crates/hozo_web/src/lib.rs',
     'scripts/style-slots/owner-fixture.mjs',

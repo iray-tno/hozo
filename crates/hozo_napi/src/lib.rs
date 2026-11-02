@@ -15,9 +15,11 @@ use std::sync::Arc;
 mod tailwind_order;
 use tailwind_order::{TailwindCompilePlan, TailwindOrderInspection};
 mod owner_slots;
+mod static_imports;
 pub use owner_slots::{
     inspect_owner_class_slots, OwnerSlotBinding, OwnerSlotInspection, OwnerSlotSite,
 };
+pub use static_imports::{inspect_static_module_imports, StaticModuleImports};
 mod prepared_module;
 pub use prepared_module::{
     prepare_final_tailwind_context, prepare_tailwind_context, PreparedNativeModule,

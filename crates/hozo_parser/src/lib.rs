@@ -18,6 +18,7 @@ mod jsx;
 mod owner_slots;
 mod rest;
 mod scan;
+mod static_imports;
 mod stylex;
 mod tailwind;
 mod tailwind_plan;
@@ -57,6 +58,7 @@ pub use scan::{
     resolve_class_name, scan_class_candidates, scan_class_candidates_with,
     scan_tailwind_order_candidates, source_uses_tailwind, ScannedUtility,
 };
+pub use static_imports::{inspect_static_module_imports, StaticModuleImports};
 pub use stylex::{
     css_declaration, ExternalBinding as StylexExternalBinding,
     ModuleContextSummary as StylexModuleContextSummary, ModuleExportKind as StylexModuleExportKind,

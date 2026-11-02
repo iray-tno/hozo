@@ -213,6 +213,13 @@ export interface ReactNativeImports {
   declarations: ReactNativeImportDeclaration[]
 }
 
+/** Static ESM requests and direct runtime bindings, not complete graph evidence. */
+export interface StaticModuleImports {
+  requests: string[]
+  bindings: SourceImport[]
+  diagnostics: CompileDiagnostic[]
+}
+
 export interface StylexModuleMemberSummary {
   name: string
   status: 'static' | 'partial' | 'function' | 'unsupported'
@@ -386,6 +393,7 @@ interface CandidateCacheConstructor {
  * the one to move to when `pack:native` grows up into its CLI.
  */
 interface NativeBinding {
+  inspectStaticModuleImports(source: string, sourceFile?: string): StaticModuleImports
   inspectOwnerClassSlots(
     source: string,
     targets: OwnerSlotBinding[],
@@ -972,6 +980,14 @@ export function analyzeReactNativeUsage(source: string, sourceFile?: string): Re
 /** Structural declarations used by the actual Web import rewrite; no scope pass. */
 export function reactNativeImports(source: string, sourceFile?: string): ReactNativeImports {
   return loadNative().reactNativeImports(source, sourceFile)
+}
+
+/** Structural import metadata only: no Native/Web/StyleX lowering or resolution. */
+export function inspectStaticModuleImports(
+  source: string,
+  sourceFile?: string,
+): StaticModuleImports {
+  return loadNative().inspectStaticModuleImports(source, sourceFile)
 }
 
 /**

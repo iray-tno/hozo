@@ -51,3 +51,19 @@ to the startup capture: this is not yet source import discovery or a complete
 graph. Unknown contracts are not upgraded to audited, and normal `hozo()` is
 unchanged. Actual Vite tests cover a published export alias and opaque fallback
 without either a handwritten locator or a class-prop binding list.
+
+## Structural static import input
+
+`inspectStaticModuleImports` uses the existing Rust parser/source grammar and
+module record, without Native/Web/StyleX lowering. It separates static runtime
+ESM requests (including side effects and reexports) from direct value bindings
+(named, default and namespace imports). Type-only declarations/specifiers,
+comments and strings are not runtime bindings. Syntax errors produce diagnostics
+and no partial usable inventory; Node diagnostics use UTF-16 offsets and the
+bridge bounds source/request sizes.
+
+This is intentionally not a complete dependency graph: dynamic imports,
+CommonJS, plugin-generated modules and their resolution are outside the static
+inventory. Actual bundler resolution and final graph checks must still fence
+admission. Tests cover those scope boundaries instead of inventing an empty
+graph or invoking a lowering backend to discover imports.

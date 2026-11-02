@@ -40,6 +40,8 @@
         "$TURBO_DEFAULT$",
         "$TURBO_ROOT$/packages/compiler/fixtures/owner-manifest-resolve.mjs",
         "$TURBO_ROOT$/crates/hozo_parser/src/owner_slots.rs",
+        "$TURBO_ROOT$/crates/hozo_parser/src/static_imports.rs",
+        "$TURBO_ROOT$/crates/hozo_napi/src/static_imports.rs",
         "$TURBO_ROOT$/crates/hozo_napi/src/owner_slots.rs",
         "$TURBO_ROOT$/crates/hozo_native/src/owner_style.rs",
         "$TURBO_ROOT$/crates/hozo_web/src/owner_class.rs",
