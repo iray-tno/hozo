@@ -19,3 +19,18 @@ This standalone observer has no cache, no completeness claim and no default
 adapter activation. The tests cover same-name installations, ordinary and
 missing metadata, invalid/non-file/oversized declarations, directory links and
 new nested boundaries. They do not certify manifest semantics or a whole graph.
+
+## Vite observes physical ownership by default within its finite capture
+
+Finite candidate/caller assessments no longer require `locate`: Vite still
+selects each import entry, and the shared physical observer determines its
+package. Explicit embedding overrides remain supported. This does not enable
+the assessment in normal `hozo()` or discover imports automatically.
+
+The capture watches positive and absent metadata boundaries. It revalidates
+them and importer ownership at freeze/output boundaries, and retains the
+existing manifest/graph/lease fences. Creating a nearer `package.json` cannot
+turn a previously consulted participant into an ordinary package after code
+preparation. Warm lease checks remain filesystem-free. Actual Vite tests use
+two installations and prepared caller output without a handwritten root map;
+new importer/target boundaries reject publication and retire the lease.

@@ -275,6 +275,65 @@ test('caller plans cannot mutate after configuration and a new stylesheet build 
   )
 })
 
+test('actual Vite-selected package instances no longer need a handwritten locate map', {
+  timeout: 15000,
+}, async (t) => {
+  const f = fixture(t)
+  delete f.plan.locate
+  const output = JSON.stringify(await f.run())
+  assert.match(output, /padding-top: ?14px/)
+  assert.match(output, /padding-top: ?28px/)
+  assert.deepEqual(new Set(f.inventory().packages.instances), new Set([f.first, f.second]))
+  const caller = callerFixture(t)
+  delete caller.plan.locate
+  assert.match(JSON.stringify(await caller.run()), /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+})
+
+test('absent physical package boundaries are watched and creation retires an existing lease', {
+  timeout: 15000,
+}, async (t) => {
+  const f = fixture(t)
+  const importer = path.join(f.root, 'src/App.tsx')
+  mkdirSync(path.dirname(importer))
+  writeFileSync(importer, "import {value} from 'widget'")
+  const session = await captureViteOwnerCandidates(
+    { context: 'physical', edges: [{ importer, specifier: 'widget' }] },
+    async () => ({ id: path.join(f.first, 'web.js') }),
+    'epoch',
+  )
+  const nested = path.join(f.root, 'src/package.json')
+  assert.equal(session.watches(nested), true)
+  assert.ok(session.watchFiles.includes(nested))
+  for (let i = 0; i < 100; i++) session.check()
+  writeFileSync(nested, '{}')
+  assert.throws(() => session.validate(), /package boundary changed/)
+  assert.throws(() => session.check(), /INVALIDATED/)
+})
+
+test('a new nested package cannot make captured owner output appear ordinary at final publication', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  delete f.plan.locate
+  const metadata = JSON.parse(readFileSync(path.join(f.first, 'package.json'), 'utf8'))
+  mkdirSync(path.join(f.first, 'dist'))
+  cpSync(path.join(f.first, 'web.js'), path.join(f.first, 'dist/web.js'))
+  metadata.exports['.'].browser = './dist/web.js'
+  writeFileSync(path.join(f.first, 'package.json'), JSON.stringify(metadata))
+  await assert.rejects(
+    f.run('callers', [
+      {
+        name: 'new-package-boundary',
+        generateBundle() {
+          writeFileSync(path.join(f.first, 'dist/package.json'), '{}')
+        },
+      },
+    ]),
+    /package boundary changed/,
+  )
+  assert.equal(f.inventory().status, 'failed')
+})
+
 test('actual Vite resolver installs two package instances in emitted CSS and final inventory', {
   timeout: 15000,
 }, async (t) => {
