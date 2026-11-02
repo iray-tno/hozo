@@ -176,3 +176,24 @@ owner CSS is appended. Owner-only and derived modules reuse ordinary lowering's
 CSS naming, and prepared widget wrappers retain the client-boundary requirement.
 This is a bounded composition mechanism, not automatic discovery, owner audit,
 or permission to activate every shadow contract.
+
+## Resolver-backed Vite delivery, with explicit admission scope
+
+`hozoWithOwnerCallers` extends the existing finite production-build assessment:
+Vite resolves the planned startup imports, the captured lease supplies each
+entry, and explicit caller bindings select which module/owner inputs to assess.
+Those modules now use the ordinary transform, candidate universe, project
+Tailwind session, CSS companion import, final graph validation and output
+publication fences. They do not instantiate `InstanceOwnerCallerProject` or
+prepare a separate Tailwind context. Modules outside the plan keep the ordinary
+ready-context fast path; candidate-only and normal `hozo()` remain unchanged.
+
+Small actual-Vite tests verify custom theme spacing on ordinary and prepared
+owners in the same file, opaque/unknown/spread retention, CSS removal after a
+source change, exact entry capture, configuration snapshotting, new-CSS epochs
+and metadata retirement before output. The synthetic fixture tests bundler
+plumbing, not the component's appearance. Real widget/browser delivery remains
+a separate gate. In particular this internal finite plan does not promote the
+two shadow contracts to audited status or enable automatic normal-build
+admission. General resolver ownership/discovery and authored-style parity must
+be reviewed before replacing the ordinary component-managed route.

@@ -7,6 +7,7 @@ import {
   collectOwnerPackageContributions,
   type OwnerImportEdge,
   OwnerManifestEpoch,
+  type OwnerManifestLease,
   type OwnerManifestObservation,
   type OwnerPackageContributions,
   type ResolvedOwnerInstance,
@@ -31,6 +32,8 @@ type Graph = {
     | undefined
 }
 export interface ViteOwnerCandidateSession {
+  /** Exact frozen observations; owner delivery may borrow, never replace it. */
+  lease: OwnerManifestLease
   contributions: Extract<OwnerPackageContributions, { status: 'complete' }>
   watchFiles: readonly string[]
   watches(file: string): boolean
@@ -193,6 +196,7 @@ export async function captureViteOwnerCandidates(
   // after it. No already-obsolete set reaches candidate CSS preparation.
   validate()
   return Object.freeze({
+    lease,
     contributions,
     watchFiles: Object.freeze([...watch]),
     watches: (file: string) => watch.has(path.resolve(file)),
