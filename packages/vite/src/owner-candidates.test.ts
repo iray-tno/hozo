@@ -14,7 +14,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { build, type Plugin } from 'vite'
 import { fixtureNode } from '../../metro/fixtures/fixture-process.mjs'
-import { hozo, hozoWithOwnerCandidates } from './index.ts'
+import { hozo, hozoWithOwnerCallers, hozoWithOwnerCandidates } from './index.ts'
 import { captureViteOwnerCandidates } from './owner-candidates.ts'
 
 function fixture(t) {
@@ -113,6 +113,167 @@ function fixture(t) {
     )
   return { root, first, second, bridge, roots, entry, plan, options, run, inventory }
 }
+
+function callerFixture(t) {
+  const f = fixture(t)
+  const contract = JSON.parse(
+    readFileSync(
+      new URL('../../../scripts/style-slots/owner-shadow.json', import.meta.url),
+      'utf8',
+    ),
+  )
+  contract.contracts = contract.contracts.filter((row) => row.owner === 'BottomSheet.handle')
+  const manifest = JSON.parse(readFileSync(path.join(f.first, 'owner.json'), 'utf8'))
+  manifest.owners = contract
+  manifest.exports = [{ name: 'Sheet', owners: ['BottomSheet.handle'] }]
+  writeFileSync(path.join(f.first, 'owner.json'), JSON.stringify(manifest))
+  writeFileSync(path.join(f.first, 'web.js'), 'export function Sheet(props){return props}')
+  writeFileSync(
+    f.entry,
+    `import {View} from '@hozo/primitives';import {Sheet as Panel} from 'widget';
+export const Row=()=> <View className="p-3"><Panel handleClassName="p-2" onClose={globalThis.close}/></View>`,
+  )
+  const plan = {
+    ...f.plan,
+    edges: [f.plan.edges[0]!],
+    callers: [
+      {
+        importer: f.entry,
+        specifier: 'widget',
+        imported: 'Sheet',
+        classProp: 'handleClassName',
+      },
+    ],
+  }
+  const run = (mode = 'callers', extra: Plugin[] = []) =>
+    build({
+      root: f.root,
+      configFile: false,
+      logLevel: 'silent',
+      plugins: [
+        mode === 'callers'
+          ? hozoWithOwnerCallers(f.options, plan)
+          : mode === 'candidates'
+            ? hozoWithOwnerCandidates(f.options, plan)
+            : hozo(f.options),
+        ...extra,
+      ],
+      resolve: { conditions: ['browser'] },
+      build: {
+        write: false,
+        minify: false,
+        lib: { entry: f.entry, formats: ['es'] },
+        rolldownOptions: {
+          external: (id) => id.startsWith('react/') || id.startsWith('@hozo/engine'),
+        },
+      },
+    })
+  return { ...f, plan, run }
+}
+
+test('Vite publishes captured caller code and companion CSS through the ordinary module pipeline', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const candidateOnly = JSON.stringify(await f.run('candidates'))
+  assert.doesNotMatch(candidateOnly, /hozo-owner-[a-f0-9]{16}-r/)
+  const output = JSON.stringify(await f.run())
+  assert.match(output, /handleClassName[^\n]+hozo-owner-/)
+  assert.match(output, /padding-top: ?14px/)
+  assert.match(output, /padding-top: ?21px/)
+  const companion = readFileSync(`${f.entry}.hozo.css`, 'utf8')
+  assert.match(companion, /\.hozo-owner-/)
+  assert.match(companion, /padding-top: 14px/)
+  assert.match(companion, /padding-top: 21px/)
+  assert.doesNotMatch(
+    output,
+    /OWNER_CONTRACT|explicit-instance-owner-preview|prepareInstanceOwnerCallers|TailwindProjectSession/,
+  )
+  assert.equal(f.inventory().status, 'complete')
+  const ordinary = JSON.stringify(await f.run('ordinary'))
+  assert.doesNotMatch(ordinary, /hozo-owner-[a-f0-9]{16}-r/)
+  assert.doesNotMatch(readFileSync(`${f.entry}.hozo.css`, 'utf8'), /hozo-owner-/)
+})
+
+test('Vite retains opaque, unsupported and spread caller carriers and replaces stale prepared CSS', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const source = readFileSync(f.entry, 'utf8')
+  await f.run()
+  for (const carrier of [
+    'handleClassName={globalThis.classes}',
+    'handleClassName="p-2 unknown-owner"',
+    '{...globalThis.props} handleClassName="p-2"',
+  ]) {
+    writeFileSync(f.entry, source.replace('handleClassName="p-2"', carrier))
+    const output = JSON.stringify(await f.run())
+    assert.doesNotMatch(output, /hozo-owner-[a-f0-9]{16}-r/)
+    assert.doesNotMatch(readFileSync(`${f.entry}.hozo.css`, 'utf8'), /hozo-owner-/)
+  }
+})
+
+test('caller output cannot cross capture retirement or missing entry identity', {
+  timeout: 15000,
+}, async (t) => {
+  for (const kind of ['manifest', 'missing-edge']) {
+    const f = callerFixture(t)
+    if (kind === 'missing-edge') f.plan.callers[0]!.specifier = 'not-captured'
+    const plugin: Plugin = {
+      name: 'retire-owner',
+      generateBundle() {
+        const file = path.join(f.first, 'owner.json')
+        writeFileSync(file, `${readFileSync(file, 'utf8')}\n`)
+      },
+    }
+    await assert.rejects(
+      f.run('callers', kind === 'manifest' ? [plugin] : []),
+      /INVALIDATED|not captured/,
+    )
+    assert.equal(f.inventory().status, 'failed')
+  }
+})
+
+test('caller plans cannot mutate after configuration and a new stylesheet build uses its own theme', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const plugins = hozoWithOwnerCallers(f.options, f.plan)
+  f.plan.callers[0]!.imported = 'Mutated'
+  // Exercise the actual configured plugin, not a newly snapshotted plan.
+  await build({
+    root: f.root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins,
+    resolve: { conditions: ['browser'] },
+    build: {
+      write: false,
+      minify: false,
+      lib: { entry: f.entry, formats: ['es'] },
+      rolldownOptions: {
+        external: (id) => id.startsWith('react/') || id.startsWith('@hozo/engine'),
+      },
+    },
+  })
+  assert.match(readFileSync(`${f.entry}.hozo.css`, 'utf8'), /\.hozo-owner-/)
+  f.plan.callers[0]!.imported = 'Sheet'
+  writeFileSync(path.join(f.root, 'tokens.css'), '@theme {--spacing:9px;} @tailwind utilities;')
+  await f.run()
+  const css = readFileSync(`${f.entry}.hozo.css`, 'utf8')
+  assert.match(css, /padding-top: 18px/)
+  assert.match(css, /padding-top: 27px/)
+  assert.doesNotMatch(css, /padding-top: 14px/)
+  assert.throws(() => hozoWithOwnerCallers(f.options, { ...f.plan, callers: [] }), /budget/)
+  assert.throws(
+    () =>
+      hozoWithOwnerCallers(f.options, {
+        ...f.plan,
+        callers: [f.plan.callers[0]!, f.plan.callers[0]!],
+      }),
+    /duplicate/,
+  )
+})
 
 test('actual Vite resolver installs two package instances in emitted CSS and final inventory', {
   timeout: 15000,

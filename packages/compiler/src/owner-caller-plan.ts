@@ -16,6 +16,7 @@ import {
   webOwnerCarrier,
 } from './owner-caller-carrier.ts'
 import { type OwnerShape, parseOwnerContractShadow } from './owner-contract.ts'
+import type { SourceEdit } from './source-provenance.ts'
 
 export interface OwnerCallerPreview {
   scope: 'explicit-direct-compiler-preview' | 'explicit-collected-compiler-preview'
@@ -24,6 +25,8 @@ export interface OwnerCallerPreview {
   code: string
   /** Present only for Web preparation; the adapter owns companion CSS delivery. */
   css?: string
+  /** Actual parser-coordinate replacements, never a diff of generated JSX. */
+  edits: SourceEdit[]
   diagnostics: CompileDiagnostic[]
   findings: {
     spanStart: number
@@ -171,6 +174,7 @@ function collectOwnerLiteralCallers(
     scope: 'explicit-direct-compiler-preview',
     code: source,
     ...(web && { css: '' }),
+    edits: [],
     diagnostics: inspection.diagnostics,
     findings: [],
   }
@@ -279,6 +283,11 @@ function collectOwnerLiteralCallers(
       })
     for (const edit of edits.sort((a, b) => b.start - a.start))
       result.code = result.code.slice(0, edit.start) + edit.value + result.code.slice(edit.end)
+    result.edits = edits.map(({ start, end, value }) => ({
+      spanStart: start,
+      spanEnd: end,
+      replacement: value,
+    }))
     return result
   }
 }

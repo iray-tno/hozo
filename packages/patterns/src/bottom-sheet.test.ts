@@ -69,6 +69,25 @@ test('one detent makes the handle decoration, and several make it a button', () 
   assert(several.includes('aria-label="Resize"'))
 })
 
+test('inline handle box styles reach either actual owner without replacing gesture ownership', () => {
+  for (const detents of [[1], [0.5, 1]]) {
+    const html = render({
+      open: true,
+      detents,
+      handleClassName: 'handle',
+      handleStyle: { paddingTop: 20, opacity: 0.8, touchAction: 'auto' },
+      handleBarClassName: 'bar',
+    })
+    const handle = html.match(/<(?:button|div)\b[^>]*class="handle"[^>]*>/)?.[0]
+    assert.ok(handle)
+    assert.match(handle, /padding-top:20px/)
+    assert.match(handle, /opacity:0.8/)
+    assert.match(handle, /touch-action:none/)
+    assert.equal((html.match(/padding-top:20px/g) ?? []).length, 1)
+    assert.doesNotMatch(html, /class="bar"[^>]*style=/)
+  }
+})
+
 test('the handle bar is a hidden box inside the handle, and only when it has a class', () => {
   for (const detents of [[1], [0.5, 1]]) {
     const html = render({

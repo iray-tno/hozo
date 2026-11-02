@@ -35,6 +35,7 @@ import type { StylexModuleCache } from './stylex-project.ts'
 import type { TailwindModuleAttempt } from './tailwind-session.ts'
 
 export { namespaceHozoClasses } from './class-namespace.ts'
+export { prepareOwnerLowerModule } from './owner-caller-lower.ts'
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
 /**
@@ -633,7 +634,8 @@ export interface LowerModuleStage {
   edits?: SourceEdit[]
 }
 
-function runtimeImportOnlyModule(code: string, id: string, file: string): LoweredModule {
+/** @internal Canonical companion CSS identity, also for owner-only modules. */
+export function runtimeImportOnlyModule(code: string, id: string, file: string): LoweredModule {
   const isDerivedModule = id.includes('?')
   const cssFileName = isDerivedModule
     ? `${path.basename(file)}.${moduleIdHash(id)}.hozo.css`

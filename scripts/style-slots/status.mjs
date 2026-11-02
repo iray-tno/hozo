@@ -60,7 +60,9 @@ function assess(receipt, commit) {
         !/^[a-f0-9]{64}$/.test(prepared.identity.manifestSha256 ?? '') ||
         typeof prepared.fingerprint !== 'string' ||
         !prepared.fingerprint ||
-        prepared.preparations !== 1
+        prepared.preparations !== 1 ||
+        ((Object.hasOwn(prepared, 'delivery') || Object.hasOwn(prepared, 'ordinaryParses')) &&
+          (prepared.delivery !== 'composed-ordinary-lowering' || prepared.ordinaryParses !== 1))
       )
         return { ...base, status: 'invalid', reason: 'Missing prepared-owner provenance' }
       kinds.push('prepared')

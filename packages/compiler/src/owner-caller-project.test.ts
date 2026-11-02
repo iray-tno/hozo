@@ -2,9 +2,12 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { createCompiler, prepareFinalTailwindContext } from './index.ts'
+import { lowerModule, prepareOwnerLowerModule } from './lower.ts'
+import { prepareInstanceOwnerCallers } from './owner-caller-participant.ts'
 import { InstanceOwnerCallerProject } from './owner-caller-project.ts'
 import { captureOwnerManifests, type OwnerManifestObservation } from './owner-manifest-capture.ts'
 import { OwnerManifestEpoch } from './owner-manifest-epoch.ts'
+import { TailwindProjectSession } from './tailwind-session.ts'
 
 const owners = JSON.parse(ownerFixtureShadow('BottomSheet.handle'))
 const a = { importer: '/app/A.tsx', specifier: 'kit' },
@@ -404,4 +407,265 @@ test('retiring a Web manifest while CSS awaits promptly releases Web IR and fenc
     /INVALIDATED/,
   )
   project.invalidate()
+})
+
+test('owner and ordinary Web IR participate in one adapter-owned preparation and exact context', async () => {
+  const { lease } = fixture('web')
+  const compiler = createCompiler()
+  const original = compiler.prepareWebModule.bind(compiler)
+  const rows: { context: unknown; disposed: number }[] = []
+  compiler.prepareWebModule = (...args) => {
+    const module = original(...args)
+    const row = { context: undefined as unknown, disposed: 0 }
+    rows.push(row)
+    return {
+      candidates: module.candidates,
+      preview: () => module.preview(),
+      emit(context) {
+        row.context = context
+        return module.emit(context)
+      },
+      dispose() {
+        row.disposed++
+        module.dispose()
+      },
+    }
+  }
+  let preparations = 0
+  const session = new TailwindProjectSession(compiler, async (names) => {
+    preparations++
+    assert.deepEqual(names, ['p-2', 'p-3', 'p-4'])
+    assert.equal(rows.length, 3, 'both owner shapes and ordinary IR collected before suspension')
+    assert.ok(rows.every((row) => row.context === undefined))
+    return snapshot(names)
+  })
+  const current = { ...request, entry: '/package/web.js' }
+  const input = source()
+  try {
+    const output = await session.emit(
+      a.importer,
+      [
+        (instance) => prepareInstanceOwnerCallers(lease, input, instance, current),
+        (instance) =>
+          instance.prepareWebModule(
+            "import {View} from '@hozo/primitives';export const Box=()=> <View className='p-3'/>",
+          ),
+      ],
+      ['p-4'],
+    )
+    assert.equal(preparations, 1)
+    assert.equal(output.length, 2)
+    const owner = output[0] as Awaited<ReturnType<InstanceOwnerCallerProject['emit']>>
+    assert.equal(owner.identity.entry, '/package/web.js')
+    assert.match(owner.preview.code, /handleClassName=\{"hozo-owner-/)
+    assert.ok(owner.preview.css)
+    assert.ok(rows.every((row) => row.context === rows[0]!.context && row.disposed === 1))
+    assert.ok(rows[0]!.context)
+    assert.equal(
+      owner.preview.contextFingerprint,
+      (rows[0]!.context as { fingerprint: string }).fingerprint,
+    )
+  } finally {
+    session.invalidate()
+  }
+})
+
+test('a retained participant releases only its IR when its package lease retires', () => {
+  const { lease, epoch } = fixture('web')
+  const compiler = createCompiler()
+  const original = compiler.prepareWebModule.bind(compiler)
+  let disposed = 0
+  compiler.prepareWebModule = (...args) => {
+    const module = original(...args)
+    return {
+      ...module,
+      dispose() {
+        disposed++
+        module.dispose()
+      },
+    }
+  }
+  const current = { ...request, entry: '/package/web.js' }
+  const module = prepareInstanceOwnerCallers(lease, source(), compiler, current)
+  current.imported = 'changed after collection'
+  assert.deepEqual(module.candidates, ['p-2'])
+  epoch.invalidate()
+  assert.equal(disposed, 2)
+  assert.throws(() => module.emit(prepareFinalTailwindContext(snapshot(['p-2']))), /INVALIDATED/)
+  module.dispose()
+  assert.equal(disposed, 2)
+  const ordinary = original(
+    "import {View} from '@hozo/primitives';export const Box=()=> <View className='p-3'/>",
+  )
+  try {
+    assert.ok(ordinary.emit(prepareFinalTailwindContext(snapshot(['p-3'])))[0]!.css)
+  } finally {
+    ordinary.dispose()
+  }
+})
+
+test('participant consumption and synchronous retirement never deliver stale owner output', () => {
+  const current = { ...request, entry: '/package/web.js' }
+  for (const phase of ['collect', 'emit', 'dispose'] as const) {
+    const { lease, epoch } = fixture('web')
+    const compiler = createCompiler()
+    const original = compiler.prepareWebModule.bind(compiler)
+    let disposed = 0
+    compiler.prepareWebModule = (...args) => {
+      const module = original(...args)
+      if (phase === 'collect') epoch.invalidate()
+      return {
+        ...module,
+        emit(context) {
+          const result = module.emit(context)
+          if (phase === 'emit') epoch.invalidate()
+          return result
+        },
+        dispose() {
+          disposed++
+          module.dispose()
+        },
+      }
+    }
+    if (phase === 'collect') {
+      assert.throws(
+        () => prepareInstanceOwnerCallers(lease, source(), compiler, current),
+        /INVALIDATED/,
+      )
+    } else {
+      const module = prepareInstanceOwnerCallers(lease, source(), compiler, current)
+      if (phase === 'dispose') {
+        module.dispose()
+        assert.throws(
+          () => module.emit(prepareFinalTailwindContext(snapshot(['p-2']))),
+          /already been emitted or disposed/,
+        )
+      } else {
+        assert.throws(
+          () => module.emit(prepareFinalTailwindContext(snapshot(['p-2']))),
+          /INVALIDATED/,
+        )
+      }
+      module.dispose()
+    }
+    assert.equal(disposed, 2)
+  }
+})
+
+test('owner edits compose with ordinary lowering through exact source copies without a second primitive parse', () => {
+  for (const wrapper of ['fragment', 'primitive', 'owner-only']) {
+    const { lease } = fixture('web')
+    const compiler = createCompiler()
+    const original = compiler.prepareWebModule.bind(compiler)
+    let primitiveParses = 0
+    compiler.prepareWebModule = (input, ...rest) => {
+      if (!input.includes('function Plan()')) primitiveParses++
+      return original(input, ...rest)
+    }
+    const owner = `<Sheet open handleClassName="p-2" onClose={close}>🌱</Sheet>`
+    const body =
+      wrapper === 'primitive'
+        ? `<View className="p-3">${owner}</View>`
+        : wrapper === 'fragment'
+          ? `<><View className="p-3"/>${owner}</>`
+          : owner
+    const input = `'use client';import {Sheet} from 'kit';import {View} from '@hozo/primitives';export const Page=()=> ${body}`
+    const module = prepareOwnerLowerModule(input, a.importer, a.importer, compiler, '/app', lease, [
+      { ...request, entry: '/package/web.js' },
+    ])
+    const context = prepareFinalTailwindContext(snapshot(module.candidates))
+    const output = module.emit(context)
+    assert.ok(output.lowered)
+    assert.equal(output.lowered.needsClientBoundary, true)
+    assert.ok(
+      output.owners.every((owner) => owner.preview.findings[0]!.disposition === 'prepared-literal'),
+      JSON.stringify(output.owners),
+    )
+    assert.match(output.lowered.code, /handleClassName=\{"hozo-owner-/)
+    assert.match(output.lowered.code, /onClose=\{close\}>🌱<\/Sheet>/)
+    assert.doesNotMatch(output.lowered.code, /handleClassName="p-2"/)
+    assert.match(output.lowered.css, /padding-top: 8px/)
+    if (wrapper !== 'owner-only') {
+      assert.doesNotMatch(output.lowered.code, /<View/)
+      assert.match(output.lowered.css, /padding-top: 12px/)
+    }
+    assert.equal(primitiveParses, 1)
+    assert.throws(() => module.emit(context), /already been emitted or disposed/)
+    module.dispose()
+  }
+})
+
+test('opaque, unmappable or overlapping owner edits retain the whole ordinary route without companion owner CSS', () => {
+  for (const kind of ['opaque', 'missing-copies', 'overlap']) {
+    const { lease } = fixture('web')
+    const compiler = createCompiler()
+    const original = compiler.prepareWebModule.bind(compiler)
+    if (kind === 'missing-copies')
+      compiler.prepareWebModule = (input, ...rest) => {
+        const module = original(input, ...rest)
+        return {
+          ...module,
+          emit(context) {
+            return module
+              .emit(context)
+              .map((component) => ({ ...component, sourceCopies: undefined }))
+          },
+        }
+      }
+    const input = `import {Sheet} from 'kit';import {View} from '@hozo/primitives';export const Page=()=> <View className="p-3"><Sheet handleClassName=${kind === 'opaque' ? '{getClasses()}' : '"p-2"'}/></View>`
+    const current = { ...request, entry: '/package/web.js' }
+    const module = prepareOwnerLowerModule(
+      input,
+      a.importer,
+      a.importer,
+      compiler,
+      '/app',
+      lease,
+      kind === 'overlap' ? [current, current] : [current],
+    )
+    const output = module.emit(prepareFinalTailwindContext(snapshot(module.candidates)))
+    const ordinary = lowerModule(input, a.importer, a.importer, createCompiler(), '/app')
+    assert.deepEqual(output.lowered, ordinary)
+    assert.ok(
+      output.owners.every((owner) =>
+        owner.preview.findings.every((row) => row.disposition === 'retained'),
+      ),
+    )
+    assert.ok(
+      output.owners.every((owner) => owner.preview.css === '' && owner.preview.edits.length === 0),
+    )
+  }
+})
+
+test('Canvas edits, runtime imports and derived-module CSS naming preserve owner source identity', () => {
+  const { lease } = fixture('web')
+  const file = a.importer
+  const id = `${file}?owner=1`
+  const compiler = createCompiler()
+  const input = `import {Sheet} from 'kit';import {Pressable} from '@hozo/primitives';import {Canvas} from '@hozo/canvas';
+export const Page=()=> <Pressable onPress={go} className="p-3"><Canvas><Canvas.Rect x={0} y={0} width={10} height={10} className="fill-red-500"/></Canvas><Sheet handleClassName="p-2"/></Pressable>`
+  const stages: string[] = []
+  const module = prepareOwnerLowerModule(
+    input,
+    id,
+    file,
+    compiler,
+    '/app',
+    lease,
+    [{ ...request, entry: '/package/web.js' }],
+    undefined,
+    { observe: (event) => stages.push(event.stage) },
+  )
+  const result = module.emit(prepareFinalTailwindContext(snapshot(module.candidates)))
+  assert.ok(result.lowered)
+  assert.match(result.lowered.code, /handleClassName=\{"hozo-owner-/)
+  assert.doesNotMatch(result.lowered.code, /className="fill-red-500"/)
+  assert.match(result.lowered.code, /fill=/)
+  assert.match(result.lowered.code, /import \{ hozoInteractive \}/)
+  assert.equal(
+    result.lowered.cssFileName,
+    lowerModule(input, id, file, createCompiler(), '/app')!.cssFileName,
+  )
+  assert.notEqual(result.lowered.cssFileName, 'A.tsx.hozo.css')
+  assert.ok(stages.includes('canvas') && stages.includes('semantic') && stages.includes('edits'))
 })

@@ -1,14 +1,11 @@
 // Explicit platform-selected preview only. This owns the EXISTING project session, not a
 // second rank cache or default adapter path. One selected owner per request.
 import type { Compiler } from './index.ts'
-import { type OwnerCallerPreview, prepareOwnerLiteralCallers } from './owner-caller-plan.ts'
+import { ownerCallerTarget, prepareInstanceOwnerCallers } from './owner-caller-participant.ts'
+import type { OwnerCallerPreview } from './owner-caller-plan.ts'
 import type { OwnerManifestLease } from './owner-manifest-epoch.ts'
 import { collectOwnerPackageContributions } from './owner-package-contributions.ts'
-import {
-  type OwnerContractIdentity,
-  type OwnerContractRequest,
-  selectOwnerPackageContract,
-} from './owner-package-selection.ts'
+import type { OwnerContractIdentity, OwnerContractRequest } from './owner-package-selection.ts'
 import { TailwindProjectSession } from './tailwind-session.ts'
 
 export interface InstanceOwnerCallerPreview {
@@ -25,7 +22,6 @@ export interface InstanceOwnerCallerPreview {
  */
 export class InstanceOwnerCallerProject {
   readonly #lease: OwnerManifestLease
-  readonly #target: 'native' | 'web'
   #session: TailwindProjectSession | undefined
   #candidates: readonly string[]
   readonly #abort = () => this.invalidate()
@@ -35,13 +31,10 @@ export class InstanceOwnerCallerProject {
     compiler: Compiler,
     prepare: ConstructorParameters<typeof TailwindProjectSession>[1],
   ) {
-    lease.check()
-    if (!['web', 'ios', 'android', 'native'].includes(lease.capture.platform))
-      throw new Error('OWNER_CALLER_PLATFORM_REQUIRED')
+    ownerCallerTarget(lease)
     const packages = collectOwnerPackageContributions(lease.capture)
     if (packages.status !== 'complete') throw new Error('OWNER_CALLER_PACKAGE_CHANNELS_INCOMPLETE')
     this.#lease = lease
-    this.#target = lease.capture.platform === 'web' ? 'web' : 'native'
     this.#candidates = packages.candidates
     this.#session = new TailwindProjectSession(compiler, prepare)
     lease.signal.addEventListener('abort', this.#abort, { once: true })
@@ -57,34 +50,14 @@ export class InstanceOwnerCallerProject {
     // Snapshot before suspension, including rejected requests. They must still
     // enter the session's per-module supersession fence, not revive old source.
     const input = { ...request }
-    let identity: OwnerContractIdentity | undefined
-    const [preview] = await this.#session!.emit(
+    const [result] = await this.#session!.emit(
       input.importer,
-      [
-        (compiler) => {
-          const selected = selectOwnerPackageContract(this.#lease, input)
-          if (selected.status !== 'selected')
-            throw new Error(`OWNER_CONTRACT_UNASSESSED: ${selected.reason}`)
-          selected.check()
-          identity = selected.identity
-          return prepareOwnerLiteralCallers(source, compiler, {
-            target: this.#target,
-            source: selected.identity.specifier,
-            imported: selected.identity.imported,
-            shadow: selected.shadow,
-            sourceFile: selected.identity.importer,
-          })
-        },
-      ],
+      [(compiler) => prepareInstanceOwnerCallers(this.#lease, source, compiler, input)],
       this.#candidates,
     )
     this.#check()
-    if (!identity || !preview) throw new Error('OWNER_CALLER_PREVIEW_NOT_PRODUCED')
-    return Object.freeze({
-      scope: 'explicit-instance-owner-preview',
-      identity,
-      preview,
-    })
+    if (!result) throw new Error('OWNER_CALLER_PREVIEW_NOT_PRODUCED')
+    return result
   }
 
   /** Abort waiting contexts promptly, dispose retained IR through the existing

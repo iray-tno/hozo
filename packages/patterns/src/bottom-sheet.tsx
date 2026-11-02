@@ -6,7 +6,14 @@ import {
   useHozoMessage,
   usePresence,
 } from '@hozo/behaviors'
-import { type KeyboardEvent, type ReactNode, useEffect, useRef, useState } from 'react'
+import {
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { useScrollLock } from './scroll-lock.ts'
 import {
   clampToDetents,
@@ -56,6 +63,8 @@ export interface HozoBottomSheetProps {
   scrimClassName?: string
   sheetClassName?: string
   handleClassName?: string
+  /** Inline handle look, after classes, as on Native. Gesture ownership remains internal. */
+  handleStyle?: CSSProperties
   /**
    * The bar drawn inside the handle, which is what a person sees of it.
    *
@@ -117,6 +126,7 @@ export function HozoBottomSheet({
   scrimClassName,
   sheetClassName,
   handleClassName,
+  handleStyle,
   handleBarClassName,
   testID,
   children,
@@ -242,7 +252,7 @@ export function HozoBottomSheet({
       className={handleClassName}
       // Touch scrolling would otherwise take the gesture before the first move
       // arrives. Inline because it is what makes the drag work, not how it looks.
-      style={{ touchAction: 'none' }}
+      style={{ ...handleStyle, touchAction: 'none' }}
       onClick={(event) => {
         // Captured drags still produce a browser click. It must not cycle the
         // detent a second time; keyboard activation remains an ordinary click.
@@ -262,7 +272,7 @@ export function HozoBottomSheet({
     <div
       aria-hidden="true"
       className={handleClassName}
-      style={{ touchAction: 'none' }}
+      style={{ ...handleStyle, touchAction: 'none' }}
       {...drag.handlers}
     >
       {bar}

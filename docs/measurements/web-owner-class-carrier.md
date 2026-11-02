@@ -142,3 +142,100 @@ a global coverage/audit percentage. Missing or mismatched prepared rows cannot
 silently fall back to the old two-route denominator. All global measures stay
 unavailable. Actual browser success requires inspecting the corresponding
 current-source CI receipt; local CSS/bundle checks alone do not establish it.
+
+## One adapter-owned context, not a nested owner session
+
+`prepareInstanceOwnerCallers` retains the selected owner IR under its package
+lease and implements the same one-shot `PreparedModule` contract as ordinary
+lowering. An adapter can collect both before awaiting its existing session's
+context; no owner-specific context cache or Tailwind preparation is necessary.
+The explicit preview project delegates to this same participant rather than
+maintaining a second selection/emission implementation.
+
+The participant's candidates are its actual parsed IR, not the whole project
+universe. The adapter remains responsible for adding package/source candidates,
+resolving entries and watching the matching CSS/config epoch. Retiring a package
+promptly disposes only this participant's IR, fences synchronous and late output,
+and does not invalidate unrelated ordinary modules in the adapter's session.
+These lifecycle/unit checks do not admit a shadow contract to normal builds or
+certify authored-style composition; those remain separate adoption conditions.
+
+## Composition with ordinary Web lowering
+
+The explicit `prepareOwnerLowerModule` participant collects the real ordinary
+module and selected owner shapes before asynchronous preparation. Both consume
+one context, and the ordinary primitive parse is not repeated. It carries actual
+parser-coordinate owner edits through the existing pipeline's validated
+`SourceProvenance`/backend copy ranges, including nested unknown JSX, Canvas
+edits and generated imports. No generated-JSX pattern matching or string diff
+is used. The normal `lowerModule` fast path is unchanged.
+
+If the original attribute is no longer uniquely copied, or two requests target
+overlapping attributes, the entire ordinary result is retained and no companion
+owner CSS is appended. Owner-only and derived modules reuse ordinary lowering's
+CSS naming, and prepared widget wrappers retain the client-boundary requirement.
+This is a bounded composition mechanism, not automatic discovery, owner audit,
+or permission to activate every shadow contract.
+
+## Resolver-backed Vite delivery, with explicit admission scope
+
+`hozoWithOwnerCallers` extends the existing finite production-build assessment:
+Vite resolves the planned startup imports, the captured lease supplies each
+entry, and explicit caller bindings select which module/owner inputs to assess.
+Those modules now use the ordinary transform, candidate universe, project
+Tailwind session, CSS companion import, final graph validation and output
+publication fences. They do not instantiate `InstanceOwnerCallerProject` or
+prepare a separate Tailwind context. Modules outside the plan keep the ordinary
+ready-context fast path; candidate-only and normal `hozo()` remain unchanged.
+
+Small actual-Vite tests verify custom theme spacing on ordinary and prepared
+owners in the same file, opaque/unknown/spread retention, CSS removal after a
+source change, exact entry capture, configuration snapshotting, new-CSS epochs
+and metadata retirement before output. The synthetic fixture tests bundler
+plumbing, not the component's appearance. Real widget/browser delivery remains
+a separate gate. In particular this internal finite plan does not promote the
+two shadow contracts to audited status or enable automatic normal-build
+admission. General resolver ownership/discovery and authored-style parity must
+be reviewed before replacing the ordinary component-managed route.
+
+## Real-widget browser gates use the composed route
+
+The existing handle and Tabs publications now use `prepareOwnerLowerModule`
+inside one ordinary project session. The same module contains an unmounted
+ordinary primitive control, so the probe asserts one actual ordinary parse
+and one Tailwind preparation before delivering code/CSS to the real widgets.
+Receipts distinguish `composed-ordinary-lowering` from the earlier standalone
+owner preview. Historical receipts remain scoped to their original route;
+missing or inconsistent new route/parse metadata cannot certify composition.
+
+The independent Tailwind values, real pointer/focus/selection, stylesheet-removal
+negatives and controlled presence checks are unchanged. The small local checks
+only prepare CSS and bundle the fixtures; the real-browser result must still
+be read from the current-head CI artifact. This proves the compiler-composition
+route on actual widgets, not an automatic real-package Vite graph rollout.
+
+## Authored box style wiring
+
+Checking the authored-style condition exposed a real platform gap: the shadow
+contract and Native widgets already had `handleStyle` / `tabStyle`, but their
+Web widgets did not forward these props at all. They now reach the same actual
+handle/tab box as inline styles, following Slider's existing Web CSSProperties
+convention. BottomSheet's internal `touch-action: none` remains last because it
+is gesture ownership, not caller appearance. No class resolver is added.
+
+SSR tests verify both handle shapes, all tab owners and absence on the handle
+bar/strip/panel. They do not prove computed priority. The next browser gate
+covers shared non-important numeric box styles and restoration after removal;
+Native arrays/registered styles, Web-only CSS properties, important classes,
+opaque label inheritance and font pixels are not certified by that gate.
+
+The existing browser receipts now include authored box observations separately
+from their original state denominator. Handle checks cover both actual shapes
+on candidate/Tailwind/composed routes: set shared numeric/paint overrides, lose
+hover/focus while they remain applied, then remove them and recover the new
+live state on the same host (24 observations). Tabs checks use the same shared
+row/column-gap, background and opacity values as the Native author gate, change
+selection under the override, and remove it while the selected tab is disabled
+(12 rows / 36 host observations). Their removal controls are part of the same
+tests, not a substituted resting snapshot. Original state/presence/stylesheet
+negative controls remain unchanged; no global audit/coverage denominator grows.
