@@ -104,3 +104,12 @@ stable hosts and six exact-stylesheet-removal controls. Failure/partial receipts
 are preserved as `owner-vite-evidence`; browser success requires inspecting the
 current-source artifact. This is bounded static source/real graph evidence,
 not a full dynamic graph, Native pixel or global owner-audit/default claim.
+
+## An observed empty import set is not missing input
+
+The build assessment accepts a source snapshot whose structural inspection has
+zero runtime imports, including type-only files. It still observes source bytes
+and package ownership, watches metadata and rejects late participating graph
+edges. An explicit finite plan with no edges and no source observations remains
+invalid. This distinguishes measured absence from unavailable discovery; it
+does not claim an empty participant set certifies all application behavior.

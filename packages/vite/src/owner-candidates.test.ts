@@ -22,6 +22,7 @@ import {
   hozoWithOwnerCandidates,
 } from './index.ts'
 import { captureViteOwnerCandidates } from './owner-candidates.ts'
+import { discoverViteOwnerSourcePlan } from './owner-source-plan.ts'
 
 function fixture(t) {
   const root = realpathSync.native(mkdtempSync(path.join(tmpdir(), 'hozo-owner-css-')))
@@ -343,6 +344,63 @@ test('configured source imports drive actual Vite capture without edges, locator
   assert.equal(f.inventory().status, 'complete')
   assert.equal(f.inventory().finalOrderingReady, false)
   assert.deepEqual(f.inventory().packages.instances, [f.first])
+})
+
+test('inspected zero-import sources build normally instead of pretending the snapshot is missing', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(f.entry, "import type {Missing} from 'not-installed';export const answer=42")
+  assert.match(JSON.stringify(await f.run('discovered')), /42/)
+  assert.equal(f.inventory().status, 'complete')
+  assert.deepEqual(f.inventory().packages.instances, [])
+  let resolutions = 0
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    async () => {
+      resolutions++
+      return null
+    },
+    'inspected-empty',
+  )
+  assert.equal(resolutions, 0)
+  assert.deepEqual(session.lease.capture.bindings, [])
+  assert.ok(session.watches(f.entry))
+  assert.ok(session.watches(path.join(f.root, 'package.json')))
+  writeFileSync(path.join(f.root, 'package.json'), '{"name":"changed"}')
+  assert.throws(() => session.validate(), /boundary changed|metadata changed/)
+  assert.throws(() => session.check(), /INVALIDATED/)
+  await assert.rejects(
+    captureViteOwnerCandidates(
+      { edges: [], context: 'no-source-observation' },
+      async () => null,
+      'missing',
+    ),
+    /startup plan/,
+  )
+})
+
+test('an empty inspected import set still rejects a late participating package graph', async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(f.entry, 'export const answer=42')
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    async () => null,
+    'late-after-empty',
+  )
+  assert.throws(
+    () =>
+      session.validateGraph({
+        *getModuleIds() {
+          yield f.entry
+        },
+        getModuleInfo() {
+          return { importedIds: [path.join(f.first, 'web.js')], dynamicallyImportedIds: [] }
+        },
+      }),
+    /late or derived participant/,
+  )
+  assert.throws(() => session.check(), /INVALIDATED/)
 })
 
 test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {

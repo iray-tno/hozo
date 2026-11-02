@@ -68,7 +68,7 @@ export async function captureViteOwnerCandidates(
 ): Promise<ViteOwnerCandidateSession> {
   if (
     !Array.isArray(plan.edges) ||
-    !plan.edges.length ||
+    (!plan.edges.length && !Array.isArray(plan.sources)) ||
     plan.edges.length > 512 ||
     !plan.context ||
     plan.context.length > 4096
@@ -150,6 +150,15 @@ export async function captureViteOwnerCandidates(
       watch.add(path.resolve(owner.packageRoot, owner.declaredManifest!))
     }
     return observation
+  }
+  // An inspected source can have no value imports (including type-only files).
+  // Observe its ownership anyway: absence of edges is data, not missing input,
+  // and a nearer metadata boundary must still retire this empty snapshot.
+  for (const source of sources) {
+    const origin = locate(source.file)
+    if (!origin) fail('source ownership unavailable')
+    origins.set(source.file, JSON.stringify(origin))
+    packageMetadata(origin)
   }
   for (const edge of edges) {
     const origin = locate(edge.importer)
