@@ -69,3 +69,20 @@ export function expectedTabModality(input) {
     decoration: at === 1 && input.visible ? 'underline' : 'none',
   }))
 }
+
+export const tabLabelCases = [
+  { id: 'zero', label: 0, disabled: false },
+  { id: 'disabled-zero', label: 0, disabled: true },
+  { id: 'negative', label: -7, disabled: false },
+  { id: 'fraction', label: 2.5, disabled: false },
+  { id: 'back-to-string', label: 'B', disabled: false },
+]
+
+export function expectedTabLabels(input) {
+  return ['A', input.label, 'C'].map((label, at) => ({
+    label: String(label),
+    color: at === 1 ? '#445566' : '#334455',
+    size: 18,
+    weight: at === 1 && input.disabled ? '700' : '400',
+  }))
+}

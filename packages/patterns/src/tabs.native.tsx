@@ -129,7 +129,9 @@ export function HozoTabs({
             onPress={() => select(at)}
           >
             {(interaction) =>
-              typeof tab.label === 'string' ? (
+              // Numbers (including 0) are text nodes too. A bare number below
+              // Pressable is invalid on RN and also misses the label's styles.
+              typeof tab.label === 'string' || typeof tab.label === 'number' ? (
                 <Text style={look(tab, at, interaction)[1]}>{tab.label}</Text>
               ) : (
                 tab.label

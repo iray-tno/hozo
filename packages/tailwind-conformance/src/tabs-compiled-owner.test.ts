@@ -9,8 +9,10 @@ import { pathToFileURL } from 'node:url'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabLabels,
   expectedTabModality,
   tabInputCases,
+  tabLabelCases,
   tabModalityCases,
 } from '../../../scripts/style-slots/owner-input-cases.mjs'
 import { tabsProbeOwnerShadow } from '../../../scripts/style-slots/tabs-owner-shadow.mjs'
@@ -63,6 +65,7 @@ test('direct, caller and instance-prepared tabs match opaque resolution across s
     authorObservations: [] as unknown[],
     inputObservations: [] as unknown[],
     modalityObservations: [] as unknown[],
+    labelObservations: [] as unknown[],
     requests: { opaque: 0, prepared: 0, caller: 0, instance: 0 },
     callerHoistedStyleSites: 0,
     instance: null as unknown,
@@ -485,6 +488,35 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       for (const node of owners())
         assert.ok(!retiredOwners.includes(node), 'remount needs fresh interaction state')
       recordModality(7)
+      const labelOwners = owners()
+      for (const input of tabLabelCases) {
+        renderer.act(() => {
+          setTabs([
+            { label: 'A', content: 'one' },
+            { label: input.label, content: 'two', disabled: input.disabled },
+            { label: 'C', content: 'three' },
+          ])
+          select(1)
+        })
+        assert.deepEqual(owners(), labelOwners, `${route}: label update retains tab hosts`)
+        const texts = tree.root.findAll((node) => node.type === 'Text').slice(0, 3)
+        assert.deepEqual(
+          texts.map((node) => node.props.children),
+          ['A', input.label, 'C'],
+          'numeric labels must be inside real Text hosts',
+        )
+        const rows = texts.map((node) => {
+          const text = rn.StyleSheet.flatten(node.props.style)
+          return {
+            label: String(node.props.children),
+            color: text.color,
+            size: text.fontSize,
+            weight: text.fontWeight ?? '400',
+          }
+        })
+        assert.deepEqual(rows, expectedTabLabels(input), `${route}: ${input.id}`)
+        evidence.labelObservations.push({ route, input: input.id, rows })
+      }
       evidence.requests[route] = requests.filter((value) => value === classes).length
       if (route !== 'opaque')
         assert.ok(
@@ -512,6 +544,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       32,
       'eight modality phases on all four routes',
     )
+    assert.equal(evidence.labelObservations.length, 20, 'five label updates on all four routes')
     evidence.passed = true
   } catch (error) {
     Object.assign(evidence, { error: String(error) })
