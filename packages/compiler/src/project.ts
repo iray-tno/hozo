@@ -56,6 +56,13 @@ export {
   type OwnerPackageContributions,
 } from './owner-package-contributions.ts'
 export {
+  locateResolvedOwnerPackage,
+  type OwnerMetadataBoundary,
+  type OwnerPackageLocation,
+} from './owner-package-location.ts'
+export {
+  discoverOwnerPackageCallers,
+  type OwnerCallerDiscovery,
   type OwnerContractIdentity,
   type OwnerContractRequest,
   type OwnerContractSelection,

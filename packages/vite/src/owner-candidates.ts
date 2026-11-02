@@ -1,10 +1,11 @@
 // Explicit production-build experiment, not automatic package discovery.
 import { createHash } from 'node:crypto'
-import { realpathSync } from 'node:fs'
+import { lstatSync, realpathSync } from 'node:fs'
 import path from 'node:path'
 import {
   captureOwnerManifests,
   collectOwnerPackageContributions,
+  locateResolvedOwnerPackage,
   type OwnerImportEdge,
   OwnerManifestEpoch,
   type OwnerManifestLease,
@@ -18,9 +19,11 @@ import {
 export interface ViteOwnerCandidatePlan {
   /** Finite startup imports, resolved by Vite BEFORE candidate CSS is consumed. */
   edges: readonly OwnerImportEdge[]
-  /** Ownership comes from the embedding adapter, never a package-name walk. */
-  locate(entry: string): ResolvedOwnerInstance | undefined
+  /** Optional embedding override. Otherwise observe actual physical ownership. */
+  locate?(entry: string): ResolvedOwnerInstance | undefined
   context: string
+  /** Optional exact source observations that produced the finite startup edges. */
+  sources?: readonly { readonly file: string; readonly sha256: string }[]
 }
 type Graph = {
   getModuleIds(): IterableIterator<string>
@@ -83,13 +86,44 @@ export async function captureViteOwnerCandidates(
       fail('invalid startup import')
     return { importer, specifier }
   })
-  const locate = plan.locate
+  const locateOverride = plan.locate
   const selected: { edge: OwnerImportEdge; entry: string }[] = []
   const observations: OwnerManifestObservation[] = []
   const metadata = new Map<string, string>()
   const watch = new Set<string>()
+  const boundaries = new Map<string, string | null>()
+  const origins = new Map<string, string>()
   let metadataBytes = 0
   const epoch = new OwnerManifestEpoch()
+  const sources = plan.sources?.map((source) => ({ ...source })) ?? []
+  if (sources.length > 512 || new Set(sources.map((source) => source.file)).size !== sources.length)
+    fail('source observation budget/duplicates')
+  for (const source of sources) {
+    if (!path.isAbsolute(source.file) || !/^[a-f0-9]{64}$/.test(source.sha256))
+      fail('invalid source observation')
+    watch.add(source.file)
+  }
+  function validateSources() {
+    let bytes = 0
+    for (const source of sources) {
+      const text = readBoundedUtf8File(source.file, 4_194_304)
+      bytes += Buffer.byteLength(text)
+      if (bytes > 33_554_432 || hash(text) !== source.sha256) fail('source snapshot changed')
+    }
+  }
+  validateSources()
+  function locate(entry: string): ResolvedOwnerInstance | undefined {
+    if (locateOverride) return locateOverride(entry)
+    const result = locateResolvedOwnerPackage(entry)
+    if (result.status !== 'resolved') return undefined
+    for (const { file, sha256 } of result.boundaries) {
+      if (boundaries.has(file) && boundaries.get(file) !== sha256) fail('package boundary changed')
+      if (boundaries.size >= 4096 && !boundaries.has(file)) fail('package boundary budget')
+      boundaries.set(file, sha256)
+      watch.add(file)
+    }
+    return result.instance
+  }
   function packageMetadata(owner: ResolvedOwnerInstance) {
     const root = realpathSync(owner.packageRoot)
     const file = path.join(root, 'package.json')
@@ -120,6 +154,7 @@ export async function captureViteOwnerCandidates(
   for (const edge of edges) {
     const origin = locate(edge.importer)
     if (!origin) fail('importer ownership unavailable')
+    origins.set(edge.importer, JSON.stringify(origin))
     packageMetadata(origin)
     const resolved = await resolve(edge)
     if (!resolved || resolved.external) fail('startup resolution unavailable or external')
@@ -149,6 +184,22 @@ export async function captureViteOwnerCandidates(
   function validate() {
     try {
       check()
+      validateSources()
+      // Newly created nearer metadata changes ownership even if the old
+      // package/manifest bytes are identical. Never treat absence as "no watch".
+      for (const [file, revision] of boundaries) {
+        const stat = lstatSync(file, { throwIfNoEntry: false })
+        if (
+          revision === null
+            ? !!stat
+            : !stat?.isFile() ||
+              stat.isSymbolicLink() ||
+              hash(readBoundedUtf8File(file, 65_536)) !== revision
+        )
+          fail('package boundary changed')
+      }
+      for (const [file, identity] of origins)
+        if (JSON.stringify(locate(file)) !== identity) fail('importer ownership changed')
       for (const [file, revision] of metadata)
         if (hash(readBoundedUtf8File(file, 65_536)) !== revision) fail('metadata changed')
       epoch.adopt(capture())

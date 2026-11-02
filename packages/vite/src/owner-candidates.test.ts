@@ -12,9 +12,15 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { build, type Plugin } from 'vite'
 import { fixtureNode } from '../../metro/fixtures/fixture-process.mjs'
-import { hozo, hozoWithOwnerCallers, hozoWithOwnerCandidates } from './index.ts'
+import {
+  hozo,
+  hozoWithDiscoveredOwnerCallers,
+  hozoWithOwnerCallers,
+  hozoWithOwnerCandidates,
+} from './index.ts'
 import { captureViteOwnerCandidates } from './owner-candidates.ts'
 
 function fixture(t) {
@@ -151,14 +157,25 @@ export const Row=()=> <View className="p-3"><Panel handleClassName="p-2" onClose
       configFile: false,
       logLevel: 'silent',
       plugins: [
-        mode === 'callers'
-          ? hozoWithOwnerCallers(f.options, plan)
-          : mode === 'candidates'
-            ? hozoWithOwnerCandidates(f.options, plan)
-            : hozo(f.options),
+        mode === 'discovered'
+          ? hozoWithDiscoveredOwnerCallers(f.options)
+          : mode === 'callers'
+            ? hozoWithOwnerCallers(f.options, plan)
+            : mode === 'candidates'
+              ? hozoWithOwnerCandidates(f.options, plan)
+              : hozo(f.options),
         ...extra,
       ],
-      resolve: { conditions: ['browser'] },
+      resolve: {
+        conditions: ['browser'],
+        ...(mode === 'discovered' && {
+          alias: {
+            '@hozo/primitives': fileURLToPath(
+              new URL('../../primitives/dist/index.js', import.meta.url),
+            ),
+          },
+        }),
+      },
       build: {
         write: false,
         minify: false,
@@ -273,6 +290,147 @@ test('caller plans cannot mutate after configuration and a new stylesheet build 
       }),
     /duplicate/,
   )
+})
+
+test('actual Vite-selected package instances no longer need a handwritten locate map', {
+  timeout: 15000,
+}, async (t) => {
+  const f = fixture(t)
+  delete f.plan.locate
+  const output = JSON.stringify(await f.run())
+  assert.match(output, /padding-top: ?14px/)
+  assert.match(output, /padding-top: ?28px/)
+  assert.deepEqual(new Set(f.inventory().packages.instances), new Set([f.first, f.second]))
+  const caller = callerFixture(t)
+  delete caller.plan.locate
+  assert.match(JSON.stringify(await caller.run()), /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+})
+
+test('captured manifests select real caller aliases without a handwritten class-prop binding list', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  delete f.plan.locate
+  delete f.plan.callers
+  const input = readFileSync(f.entry, 'utf8')
+  assert.match(JSON.stringify(await f.run()), /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  const file = path.join(f.first, 'owner.json')
+  const data = JSON.parse(readFileSync(file, 'utf8'))
+  data.exports.push({ name: 'AliasSheet', owners: ['BottomSheet.handle'] })
+  writeFileSync(file, JSON.stringify(data))
+  writeFileSync(
+    path.join(f.first, 'web.js'),
+    'export function Sheet(props){return props};export {Sheet as AliasSheet}',
+  )
+  writeFileSync(f.entry, input.replace('Sheet as Panel', 'AliasSheet as Panel'))
+  const output = JSON.stringify(await f.run())
+  assert.match(output, /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  assert.equal(f.inventory().status, 'complete')
+  writeFileSync(
+    f.entry,
+    input.replace('handleClassName="p-2"', 'handleClassName={globalThis.classes}'),
+  )
+  assert.doesNotMatch(JSON.stringify(await f.run()), /hozo-owner-[a-f0-9]{16}-r/)
+})
+
+test('configured source imports drive actual Vite capture without edges, locators or caller lists', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const output = JSON.stringify(await f.run('discovered'))
+  assert.match(output, /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  assert.match(readFileSync(`${f.entry}.hozo.css`, 'utf8'), /padding-top: 14px/)
+  assert.equal(f.inventory().status, 'complete')
+  assert.equal(f.inventory().finalOrderingReady, false)
+  assert.deepEqual(f.inventory().packages.instances, [f.first])
+})
+
+test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  let changed = false
+  await assert.rejects(
+    f.run('discovered', [
+      {
+        name: 'change-observed-source',
+        enforce: 'pre',
+        resolveId(id) {
+          if (id === 'widget' && !changed) {
+            changed = true
+            writeFileSync(f.entry, readFileSync(f.entry, 'utf8').replace('p-2', 'p-4'))
+          }
+        },
+      },
+    ]),
+    /source snapshot changed/,
+  )
+  assert.equal(changed, true)
+  assert.equal(f.inventory().status, 'failed')
+})
+
+test('a new configured source after capture refuses final output instead of extending the frozen owner set', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  f.options.content.include = ['*.tsx']
+  await assert.rejects(
+    f.run('discovered', [
+      {
+        name: 'add-observed-source',
+        generateBundle() {
+          writeFileSync(path.join(f.root, 'Late.tsx'), 'export const Late=()=>null')
+        },
+      },
+    ]),
+    /source set changed/,
+  )
+  assert.equal(f.inventory().status, 'failed')
+})
+
+test('absent physical package boundaries are watched and creation retires an existing lease', {
+  timeout: 15000,
+}, async (t) => {
+  const f = fixture(t)
+  const importer = path.join(f.root, 'src/App.tsx')
+  mkdirSync(path.dirname(importer))
+  writeFileSync(importer, "import {value} from 'widget'")
+  const session = await captureViteOwnerCandidates(
+    { context: 'physical', edges: [{ importer, specifier: 'widget' }] },
+    async () => ({ id: path.join(f.first, 'web.js') }),
+    'epoch',
+  )
+  const nested = path.join(f.root, 'src/package.json')
+  assert.equal(session.watches(nested), true)
+  assert.ok(session.watchFiles.includes(nested))
+  for (let i = 0; i < 100; i++) session.check()
+  writeFileSync(nested, '{}')
+  assert.throws(() => session.validate(), /package boundary changed/)
+  assert.throws(() => session.check(), /INVALIDATED/)
+})
+
+test('a new nested package cannot make captured owner output appear ordinary at final publication', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  delete f.plan.locate
+  const metadata = JSON.parse(readFileSync(path.join(f.first, 'package.json'), 'utf8'))
+  mkdirSync(path.join(f.first, 'dist'))
+  cpSync(path.join(f.first, 'web.js'), path.join(f.first, 'dist/web.js'))
+  metadata.exports['.'].browser = './dist/web.js'
+  writeFileSync(path.join(f.first, 'package.json'), JSON.stringify(metadata))
+  await assert.rejects(
+    f.run('callers', [
+      {
+        name: 'new-package-boundary',
+        generateBundle() {
+          writeFileSync(path.join(f.first, 'dist/package.json'), '{}')
+        },
+      },
+    ]),
+    /package boundary changed/,
+  )
+  assert.equal(f.inventory().status, 'failed')
 })
 
 test('actual Vite resolver installs two package instances in emitted CSS and final inventory', {
