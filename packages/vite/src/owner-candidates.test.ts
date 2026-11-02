@@ -403,6 +403,110 @@ test('an empty inspected import set still rejects a late participating package g
   assert.throws(() => session.check(), /INVALIDATED/)
 })
 
+test('static traversal captures nested package instances and cycles before candidate publication', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(
+    f.entry,
+    "import {View} from '@hozo/primitives';export {nested} from 'bridge';export const Row=()=> <View className={globalThis.tone}/>",
+  )
+  const output = JSON.stringify(await f.run('discovered'))
+  assert.match(output, /padding-top: ?14px/)
+  assert.deepEqual(f.inventory().packages.instances, [f.second])
+})
+
+test('static capture snapshots dependency bytes and distinguishes actual external boundaries', async (t) => {
+  const f = fixture(t)
+  writeFileSync(f.entry, "export {nested} from 'bridge';import 'peer'")
+  let resolutions = 0
+  const resolve = async ({ importer, specifier }) => {
+    resolutions++
+    return specifier === 'peer'
+      ? { id: 'peer', external: true }
+      : {
+          id: path.join(
+            specifier === 'bridge' ? f.bridge : importer.startsWith(f.bridge) ? f.second : f.first,
+            'web.js',
+          ),
+        }
+  }
+  const session = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    resolve,
+    'transitive',
+  )
+  assert.equal(resolutions, 4)
+  assert.deepEqual(
+    session.contributions.instances.map((item) => item.instance),
+    [f.second],
+  )
+  assert.deepEqual(
+    new Set(session.sourceFiles),
+    new Set([f.entry, path.join(f.bridge, 'web.js'), path.join(f.second, 'web.js')]),
+  )
+  assert.equal(
+    session.lease.capture.bindings.some((edge) => edge.specifier === 'peer'),
+    false,
+  )
+  assert.deepEqual(session.unassessedImports, [
+    { importer: f.entry, specifier: 'peer', reason: 'external', entry: 'peer' },
+  ])
+  const dependency = path.join(f.bridge, 'web.js')
+  assert.ok(session.watches(dependency))
+  const before = session.lease.capture.fingerprint
+  writeFileSync(dependency, `${readFileSync(dependency, 'utf8')}\n// changed but same imports`)
+  assert.throws(() => session.validate(), /source snapshot changed/)
+  assert.throws(() => session.check(), /INVALIDATED/)
+  const after = await captureViteOwnerCandidates(
+    discoverViteOwnerSourcePlan([f.entry]),
+    resolve,
+    'transitive',
+  )
+  assert.notEqual(after.lease.capture.fingerprint, before)
+})
+
+test('dependency source edits during later resolution cannot enter a mixed frozen graph', async (t) => {
+  const f = fixture(t)
+  writeFileSync(f.entry, "export {nested} from 'bridge'")
+  await assert.rejects(
+    captureViteOwnerCandidates(
+      discoverViteOwnerSourcePlan([f.entry]),
+      async ({ specifier }) => {
+        if (specifier === 'widget')
+          writeFileSync(path.join(f.bridge, 'web.js'), 'export const nested=7')
+        return { id: path.join(specifier === 'bridge' ? f.bridge : f.second, 'web.js') }
+      },
+      'mixed-dependency',
+    ),
+    /source snapshot changed/,
+  )
+})
+
+test('static traversal refuses missing, non-JS, malformed and over-budget dependency sources', async (t) => {
+  for (const kind of ['missing', 'non-js', 'syntax', 'budget']) {
+    const f = fixture(t)
+    writeFileSync(f.entry, "import 'dependency'")
+    const file = path.join(f.root, kind === 'non-js' ? 'dependency.css' : 'dependency.js')
+    writeFileSync(
+      file,
+      kind === 'syntax'
+        ? 'export const ='
+        : kind === 'budget'
+          ? Array.from({ length: 513 }, (_, index) => `import 'edge-${index}';`).join('\n')
+          : 'export const n=1',
+    )
+    await assert.rejects(
+      captureViteOwnerCandidates(
+        discoverViteOwnerSourcePlan([f.entry]),
+        async () => (kind === 'missing' ? null : { id: file }),
+        kind,
+      ),
+      /unavailable|non-JS|SOURCE_UNASSESSED|REQUEST_BUDGET/,
+    )
+  }
+})
+
 test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {
   timeout: 15000,
 }, async (t) => {

@@ -113,3 +113,18 @@ and package ownership, watches metadata and rejects late participating graph
 edges. An explicit finite plan with no edges and no source observations remains
 invalid. This distinguishes measured absence from unavailable discovery; it
 does not claim an empty participant set certifies all application behavior.
+
+## Bounded static dependency traversal
+
+Source-observed capture now follows physical JS static ESM requests through the
+same serial Vite resolver before freeze. Source/edge deduplication closes cycles;
+512 files, 512 requests, 4 MiB per source and 32 MiB total remain hard limits.
+Dependency bytes are watched, revalidated and included in capture identity, so
+an unchanged manifest cannot bless edited dependency source. A missing,
+malformed, non-JS or over-budget dependency refuses the assessment.
+
+Actual external resolver decisions are listed separately as unassessed imports,
+not manifest-less ordinary packages or eligible callers. This remains a bounded
+static graph with external boundaries, not dynamic/CommonJS or complete graph
+certification. The final participating-package graph fence still applies; no
+default admission, arbitrary module execution or scan deletion follows from it.

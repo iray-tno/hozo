@@ -15,6 +15,7 @@ import {
   readBoundedUtf8File,
   readResolvedOwnerManifest,
 } from '@hozo/compiler/project'
+import { inspectViteOwnerSource } from './owner-source-plan.ts'
 
 export interface ViteOwnerCandidatePlan {
   /** Finite startup imports, resolved by Vite BEFORE candidate CSS is consumed. */
@@ -24,6 +25,8 @@ export interface ViteOwnerCandidatePlan {
   context: string
   /** Optional exact source observations that produced the finite startup edges. */
   sources?: readonly { readonly file: string; readonly sha256: string }[]
+  /** Bounded static ESM expansion through the same actual resolver, not require/dynamic imports. */
+  followStaticImports?: boolean
 }
 type Graph = {
   getModuleIds(): IterableIterator<string>
@@ -39,6 +42,9 @@ export interface ViteOwnerCandidateSession {
   lease: OwnerManifestLease
   contributions: Extract<OwnerPackageContributions, { status: 'complete' }>
   watchFiles: readonly string[]
+  sourceFiles: readonly string[]
+  /** Actual external resolver boundaries, never ordinary/empty package claims. */
+  unassessedImports: readonly Readonly<OwnerImportEdge & { reason: 'external'; entry: string }>[]
   watches(file: string): boolean
   check(): void
   validate(): void
@@ -88,6 +94,7 @@ export async function captureViteOwnerCandidates(
   })
   const locateOverride = plan.locate
   const selected: { edge: OwnerImportEdge; entry: string }[] = []
+  const external: (OwnerImportEdge & { reason: 'external'; entry: string })[] = []
   const observations: OwnerManifestObservation[] = []
   const metadata = new Map<string, string>()
   const watch = new Set<string>()
@@ -96,6 +103,9 @@ export async function captureViteOwnerCandidates(
   let metadataBytes = 0
   const epoch = new OwnerManifestEpoch()
   const sources = plan.sources?.map((source) => ({ ...source })) ?? []
+  const followStaticImports = plan.followStaticImports === true
+  if (followStaticImports && (!Array.isArray(plan.sources) || plan.locate))
+    fail('static source traversal requires physical source observations')
   if (sources.length > 512 || new Set(sources.map((source) => source.file)).size !== sources.length)
     fail('source observation budget/duplicates')
   for (const source of sources) {
@@ -110,8 +120,9 @@ export async function captureViteOwnerCandidates(
       bytes += Buffer.byteLength(text)
       if (bytes > 33_554_432 || hash(text) !== source.sha256) fail('source snapshot changed')
     }
+    return bytes
   }
-  validateSources()
+  let sourceBytes = validateSources()
   function locate(entry: string): ResolvedOwnerInstance | undefined {
     if (locateOverride) return locateOverride(entry)
     const result = locateResolvedOwnerPackage(entry)
@@ -160,25 +171,61 @@ export async function captureViteOwnerCandidates(
     origins.set(source.file, JSON.stringify(origin))
     packageMetadata(origin)
   }
+  const inspected = new Set(sources.map((source) => source.file))
+  const edgeKeys = new Set(edges.map((edge) => JSON.stringify([edge.importer, edge.specifier])))
+  if (edgeKeys.size !== edges.length) fail('duplicate startup import')
   for (const edge of edges) {
     const origin = locate(edge.importer)
     if (!origin) fail('importer ownership unavailable')
     origins.set(edge.importer, JSON.stringify(origin))
     packageMetadata(origin)
     const resolved = await resolve(edge)
+    if (resolved?.external && followStaticImports) {
+      if (!resolved.id || resolved.id.length > 4096 || resolved.id.includes('\0'))
+        fail('invalid external resolver identity')
+      external.push({ ...edge, reason: 'external', entry: resolved.id })
+      continue
+    }
     if (!resolved || resolved.external) fail('startup resolution unavailable or external')
     selected.push({ edge, entry: resolved.id })
     // Observe at selection, not after ALL asynchronous resolutions. Otherwise
     // a later resolver can replace an earlier package and bless mixed inputs.
     observations.push(observe(edge, resolved.id))
+    if (followStaticImports && !inspected.has(resolved.id)) {
+      // Only physical JS sources can be parsed before other plugins run.
+      // Query/virtual/non-JS requests are refused, never assessed as empty.
+      if (!/\.[cm]?[jt]sx?$/.test(resolved.id)) fail('non-JS static dependency')
+      if (sources.length >= 512) fail('static source file budget')
+      const source = inspectViteOwnerSource(resolved.id)
+      sourceBytes += source.bytes
+      if (sourceBytes > 33_554_432) fail('static source byte budget')
+      inspected.add(resolved.id)
+      sources.push({ file: source.file, sha256: source.sha256 })
+      watch.add(source.file)
+      for (const next of source.edges) {
+        const key = JSON.stringify([next.importer, next.specifier])
+        if (edgeKeys.has(key)) continue
+        if (edges.length >= 512) fail('static source edge budget')
+        edges.push(next)
+        edgeKeys.add(key)
+      }
+    }
   }
+  // Dependency bytes participate in identity, not only root-source hashes.
+  const captureContext = followStaticImports
+    ? hash(JSON.stringify(['vite-static-source-graph-0', context, sources, external]))
+    : context
+  const capturedEdges = selected.map(({ edge }) => edge)
   const capture = () =>
     captureOwnerManifests(
-      edges,
+      capturedEdges,
       selected.map(({ edge, entry }) => observe(edge, entry)),
-      { platform: 'web', epoch: context },
+      { platform: 'web', epoch: captureContext },
     )
-  const frozen = captureOwnerManifests(edges, observations, { platform: 'web', epoch: context })
+  const frozen = captureOwnerManifests(capturedEdges, observations, {
+    platform: 'web',
+    epoch: captureContext,
+  })
   epoch.adopt(frozen)
   const contributions = collectOwnerPackageContributions(frozen)
   if (contributions.status !== 'complete') {
@@ -259,6 +306,8 @@ export async function captureViteOwnerCandidates(
     lease,
     contributions,
     watchFiles: Object.freeze([...watch]),
+    sourceFiles: Object.freeze(sources.map((source) => source.file)),
+    unassessedImports: Object.freeze(external.map((edge) => Object.freeze(edge))),
     watches: (file: string) => watch.has(path.resolve(file)),
     check,
     validate,
