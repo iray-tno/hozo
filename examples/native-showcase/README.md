@@ -624,10 +624,10 @@ in accessible labels must stay stable. Switching cases intentionally starts
 new labels. Actual `onTextLayout` callbacks log `[Hozo text layout]` records
 with line metrics and versions, but always `verdict: not-assessed`. These are
 not pixel, font-color/weight, AT or timing results. The source-bound device
-review is linked below. The app's RN 0.86.3
+review is linked below. The app's RN 0.88.1
 also differs from the Node source probe's 0.87.1.
 The app's TypeScript `react-native` path mirrors its Metro singleton:
-workspace helper declarations are checked against the app's actual RN 0.86
+workspace helper declarations are checked against the app's actual RN 0.88
 host, not their separate RN 0.87 development installation. This changes
 type resolution, not runtime imports or the comparator.
 
