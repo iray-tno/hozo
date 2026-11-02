@@ -63,44 +63,104 @@ test('source-observed Vite fixture bundles actual widgets without compiler tooli
   )
 })
 
+test('fallback and ordinary Vite widget fixtures retain source-scanned classes without prepared namespaces', async () => {
+  for (const route of ['fallback', 'ordinary']) {
+    const fixture = await buildViteOwnerPublication(route)
+    assert.deepEqual(fixture.owners, [])
+    assert.equal(fixture.capture, undefined)
+    assert.deepEqual(fixture.configuredPackages, ['owner-consumer'])
+    assert.match(fixture.entrySha256, /^[a-f0-9]{64}$/)
+    const app = await appBundle(fixture.code)
+    assert.equal(app.outputFiles.length, 1)
+    assert.ok(
+      !Object.keys(app.metafile.inputs).some((file) =>
+        /packages\/(compiler|tailwind|vite)\//.test(file.replaceAll('\\', '/')),
+      ),
+    )
+  }
+})
+
 test('actual source-observed Vite Tabs and handle output matches independent Tailwind in a browser', {
   skip: !executablePath,
   timeout: 90_000,
 }, async () => {
+  await runOwnerBrowser(false)
+})
+
+test('ordinary owner fallback preserves actual widget behavior against ordinary Vite and Tailwind', {
+  skip: !executablePath,
+  timeout: 90_000,
+}, async () => {
+  await runOwnerBrowser(true)
+})
+
+async function runOwnerBrowser(fallback) {
   const evidence = {
     schema: 1,
     ...evidenceSource(),
-    scope: 'vite-source-observed-real-owner-browser',
+    scope: fallback
+      ? 'vite-ordinary-fallback-real-owner-browser'
+      : 'vite-source-observed-real-owner-browser',
     passed: false,
     observations: [],
     controls: [],
     owners: [],
   }
-  const destination = path.join(handleRoot, 'artifacts/style-fact-model/vite-owner-browser.json')
+  const destination = path.join(
+    handleRoot,
+    `artifacts/style-fact-model/${fallback ? 'vite-owner-fallback-browser' : 'vite-owner-browser'}.json`,
+  )
   let browser
   try {
-    const fixture = await buildViteOwnerPublication()
+    const fixture = await buildViteOwnerPublication(fallback ? 'fallback' : 'captured')
+    const ordinary = fallback ? await buildViteOwnerPublication('ordinary') : undefined
     evidence.owners = fixture.owners
     evidence.capture = fixture.capture
     evidence.modules = fixture.modules
     evidence.sourceSha256 = fixture.sourceSha256
+    if (ordinary) {
+      assert.equal(fixture.sourceSha256, ordinary.sourceSha256)
+      assert.equal(fixture.entrySha256, ordinary.entrySha256)
+      assert.deepEqual(fixture.configuredPackages, ordinary.configuredPackages)
+      const describe = (built) => ({
+        admission: built.admission ?? null,
+        owners: built.owners,
+        configuredPackages: built.configuredPackages,
+        sourceSha256: built.sourceSha256,
+        entrySha256: built.entrySha256,
+        modules: built.modules,
+        preparedNamespacesAbsent: !(
+          /hozo-owner-[a-f0-9]{16}-r/.test(built.code) || /\.hozo-owner-/.test(built.css)
+        ),
+      })
+      evidence.fallbackBuild = describe(fixture)
+      evidence.ordinaryBuild = describe(ordinary)
+    }
     const tabs = await prepareTabsProbe([], `${tabLabelClasses} p-1`)
     const handle = await prepareWebHandle()
     const compiled = await appBundle(fixture.code)
     const oracle = await appBundle(viteOwnerSource)
+    const normal = ordinary ? await appBundle(ordinary.code) : undefined
+    const routes = fallback ? ['fallback', 'ordinary', 'tailwind'] : ['vite', 'tailwind']
     browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-gpu'] })
     const errors = []
     for (const kind of ['tabs', 'decoration', 'resizable'])
-      for (const route of ['vite', 'tailwind']) {
+      for (const route of routes) {
         const page = await browser.newPage({ viewport: { width: 900, height: 700 } })
         page.on('pageerror', (error) => errors.push(error.message))
         try {
-          const css = route === 'vite' ? fixture.css : `${tabs.oracleCss}\n${handle.oracleCss}`
+          const css =
+            route === 'tailwind'
+              ? `${tabs.oracleCss}\n${handle.oracleCss}`
+              : route === 'ordinary'
+                ? ordinary.css
+                : fixture.css
           await page.setContent(
             `<style>@layer base{button{border:0 solid;box-sizing:border-box;font:16px/20px sans-serif}}.vite-panel{width:300px;height:400px}.vite-panel>:first-child{border:0;box-sizing:border-box}</style><style data-owner-css>${css}</style><div id="root"></div>`,
           )
           await page.addScriptTag({
-            content: (route === 'vite' ? compiled : oracle).outputFiles[0].text,
+            content: (route === 'tailwind' ? oracle : route === 'ordinary' ? normal : compiled)
+              .outputFiles[0].text,
           })
           await page.evaluate(
             ({ kind }) => window.mount(kind === 'tabs' ? 'tabs' : 'handle', kind === 'resizable'),
@@ -214,21 +274,23 @@ test('actual source-observed Vite Tabs and handle output matches independent Tai
         }
       }
     for (const kind of ['tabs', 'decoration', 'resizable'])
-      assert.deepEqual(
-        evidence.observations
-          .filter(
-            (row) => row.kind === kind && row.route === 'vite' && row.phase !== 'sheet-removed',
-          )
-          .map(({ route, ...row }) => row),
-        evidence.observations
-          .filter(
-            (row) => row.kind === kind && row.route === 'tailwind' && row.phase !== 'sheet-removed',
-          )
-          .map(({ route, ...row }) => row),
-      )
+      for (const route of routes.filter((route) => route !== 'tailwind'))
+        assert.deepEqual(
+          evidence.observations
+            .filter(
+              (row) => row.kind === kind && row.route === route && row.phase !== 'sheet-removed',
+            )
+            .map(({ route, ...row }) => row),
+          evidence.observations
+            .filter(
+              (row) =>
+                row.kind === kind && row.route === 'tailwind' && row.phase !== 'sheet-removed',
+            )
+            .map(({ route, ...row }) => row),
+        )
     assert.deepEqual(errors, [])
-    assert.equal(evidence.controls.length, 6)
-    assert.equal(evidence.observations.length, 36)
+    assert.equal(evidence.controls.length, routes.length * 3)
+    assert.equal(evidence.observations.length, routes.length * 18)
     evidence.passed = true
   } catch (error) {
     evidence.error = String(error)
@@ -238,4 +300,4 @@ test('actual source-observed Vite Tabs and handle output matches independent Tai
     mkdirSync(path.dirname(destination), { recursive: true })
     writeFileSync(destination, `${JSON.stringify(evidence, null, 2)}\n`)
   }
-})
+}

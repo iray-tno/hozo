@@ -24,6 +24,7 @@ import {
   hozoWithOwnerCandidates,
 } from './index.ts'
 import { captureViteOwnerCandidates } from './owner-candidates.ts'
+import { ViteOwnerPreflightUnavailable } from './owner-preflight.ts'
 import { discoverViteOwnerSourcePlan } from './owner-source-plan.ts'
 
 function fixture(t) {
@@ -154,24 +155,28 @@ export const Row=()=> <View className="p-3"><Panel handleClassName="p-2" onClose
       },
     ],
   }
-  const run = (mode = 'callers', extra: Plugin[] = []) =>
+  const run = (mode = 'callers', extra: Plugin[] = [], configured?: Plugin[]) =>
     build({
       root: f.root,
       configFile: false,
       logLevel: 'silent',
       plugins: [
-        mode === 'discovered'
-          ? hozoWithDiscoveredOwnerCallers(f.options)
-          : mode === 'callers'
-            ? hozoWithOwnerCallers(f.options, plan)
-            : mode === 'candidates'
-              ? hozoWithOwnerCandidates(f.options, plan)
-              : hozo(f.options),
+        configured ??
+          (mode === 'discovered' || mode === 'fallback'
+            ? hozoWithDiscoveredOwnerCallers(
+                f.options,
+                mode === 'fallback' ? 'ordinary-fallback' : 'strict',
+              )
+            : mode === 'callers'
+              ? hozoWithOwnerCallers(f.options, plan)
+              : mode === 'candidates'
+                ? hozoWithOwnerCandidates(f.options, plan)
+                : hozo(f.options)),
         ...extra,
       ],
       resolve: {
         conditions: ['browser'],
-        ...(mode === 'discovered' && {
+        ...((mode === 'discovered' || mode === 'fallback') && {
           alias: {
             '@hozo/primitives': fileURLToPath(
               new URL('../../primitives/dist/index.js', import.meta.url),
@@ -652,6 +657,257 @@ test('non-JS text imports are watched hashed boundaries, not captured JS binding
   writeFileSync(json, '{"answer":43}')
   assert.throws(() => session.validate(), /source snapshot changed/)
   assert.throws(() => session.check(), /INVALIDATED/)
+})
+
+test('expected preflight scope refusal is typed but cannot hide source or manifest races', async (t) => {
+  for (const kind of ['unresolved', 'virtual', 'source-race', 'manifest-race']) {
+    const f = fixture(t)
+    writeFileSync(f.entry, "import 'one';import 'two'")
+    let calls = 0
+    await assert.rejects(
+      captureViteOwnerCandidates(
+        discoverViteOwnerSourcePlan([f.entry]),
+        async () => {
+          calls++
+          if (calls === 1) return { id: path.join(f.first, 'web.js') }
+          if (kind === 'source-race') writeFileSync(f.entry, "import 'one';import 'two';// edited")
+          if (kind === 'manifest-race') {
+            const file = path.join(f.first, 'owner.json')
+            writeFileSync(file, `${readFileSync(file, 'utf8')}\n`)
+          }
+          return kind === 'virtual' ? { id: '\0generated-module' } : null
+        },
+        kind,
+      ),
+      (error) => {
+        assert.ok(error instanceof Error)
+        if (kind === 'unresolved' || kind === 'virtual') {
+          assert.ok(error instanceof ViteOwnerPreflightUnavailable)
+          assert.equal(
+            error.reason,
+            kind === 'unresolved' ? 'unresolved-import' : 'unsupported-module',
+          )
+        } else {
+          assert.equal(error instanceof ViteOwnerPreflightUnavailable, false)
+          assert.match(error.message, /source snapshot changed|manifest observation changed/)
+        }
+        return true
+      },
+    )
+  }
+})
+
+test('ordinary fallback is chosen before output, preserving ordinary code and CSS without owner namespaces', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  writeFileSync(
+    f.entry,
+    `import text from './token.txt?raw';export {text};${readFileSync(f.entry, 'utf8')}`,
+  )
+  writeFileSync(path.join(f.root, 'token.txt'), 'ordinary-text-asset')
+  let route: unknown
+  const capture: Plugin = {
+    name: 'observe-fallback',
+    generateBundle() {
+      const id = [...this.getModuleIds()].find(
+        (id) => !id.includes('?') && !id.includes('\0') && path.resolve(id) === f.entry,
+      )
+      route = this.getModuleInfo(id!).meta.hozoOwnerAdmission
+    },
+  }
+  const built = await f.run('fallback', [capture])
+  const output = JSON.stringify(built)
+  assert.match(output, /ordinary-text-asset/)
+  assert.match(output, /padding-top: ?21px/)
+  assert.doesNotMatch(output, /hozo-owner-[a-f0-9]{16}-r/)
+  assert.doesNotMatch(readFileSync(`${f.entry}.hozo.css`, 'utf8'), /hozo-owner-[a-f0-9]{16}-r/)
+  assert.deepEqual(route, { schema: 1, route: 'ordinary-fallback', reason: 'unsupported-module' })
+  assert.equal('packages' in f.inventory(), false)
+  const assets = (result) =>
+    (Array.isArray(result) ? result : [result])
+      .flatMap((item) => item.output)
+      .map((item) => ({
+        file: item.fileName,
+        content: item.type === 'chunk' ? item.code : String(item.source),
+      }))
+      .sort((a, b) => a.file.localeCompare(b.file))
+  assert.deepEqual(assets(built), assets(await f.run('ordinary')))
+  await assert.rejects(f.run('discovered'), /entry ownership unavailable/)
+})
+
+test('ordinary fallback cannot swallow arbitrary resolver errors or source invalidation', {
+  timeout: 15000,
+}, async (t) => {
+  for (const kind of ['resolver', 'source']) {
+    const f = callerFixture(t)
+    let hit = false
+    await assert.rejects(
+      f.run('fallback', [
+        {
+          name: 'fail-preflight',
+          enforce: 'pre',
+          resolveId(id) {
+            if (id === 'widget' && !hit) {
+              hit = true
+              if (kind === 'resolver') throw new Error('independent resolver defect')
+              writeFileSync(f.entry, `${readFileSync(f.entry, 'utf8')}\n// changed`)
+              return '\0late-virtual'
+            }
+          },
+        },
+      ]),
+      kind === 'resolver' ? /independent resolver defect/ : /source snapshot changed/,
+    )
+    assert.equal(hit, true)
+    assert.equal(f.inventory().status, 'failed')
+  }
+})
+
+test('one configured plugin can rebuild ordinary to captured to ordinary without stale owner CSS', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const original = readFileSync(f.entry, 'utf8')
+  const raw = `import text from './token.txt?raw';export {text};${original}`
+  writeFileSync(path.join(f.root, 'token.txt'), 'build-lifetime')
+  const configured = hozoWithDiscoveredOwnerCallers(f.options, 'ordinary-fallback')
+  const routes: unknown[] = []
+  const observer: Plugin = {
+    name: 'rebuild-admission',
+    generateBundle() {
+      const id = [...this.getModuleIds()].find(
+        (id) => !id.includes('?') && !id.includes('\0') && path.resolve(id) === f.entry,
+      )
+      routes.push(this.getModuleInfo(id!).meta.hozoOwnerAdmission.route)
+    },
+  }
+  for (const [index, source] of [raw, original, raw].entries()) {
+    writeFileSync(f.entry, source)
+    const output = JSON.stringify(await f.run('fallback', [observer], configured))
+    const css = readFileSync(`${f.entry}.hozo.css`, 'utf8')
+    if (index === 1) {
+      assert.match(output, /hozo-owner-[a-f0-9]{16}-r/)
+      assert.match(css, /\.hozo-owner-/)
+    } else {
+      assert.doesNotMatch(output, /hozo-owner-[a-f0-9]{16}-r/)
+      assert.doesNotMatch(css, /\.hozo-owner-/)
+    }
+    assert.equal('packages' in f.inventory(), index === 1)
+  }
+  assert.deepEqual(routes, ['ordinary-fallback', 'captured', 'ordinary-fallback'])
+})
+
+test('fallback observations cannot change after output or recover after retirement', {
+  timeout: 15000,
+}, async (t) => {
+  for (const kind of ['source', 'manifest']) {
+    const f = callerFixture(t)
+    const raw = path.join(f.root, 'token.txt')
+    writeFileSync(raw, 'late-preflight')
+    writeFileSync(
+      f.entry,
+      `import text from 'zzz-raw';export {text};${readFileSync(f.entry, 'utf8')}`,
+    )
+    await assert.rejects(
+      f.run('fallback', [
+        {
+          name: 'late-fallback-change',
+          enforce: 'pre',
+          resolveId(id) {
+            if (id === 'zzz-raw') return `${raw}?raw`
+          },
+          generateBundle() {
+            const file = kind === 'source' ? f.entry : path.join(f.first, 'owner.json')
+            writeFileSync(file, `${readFileSync(file, 'utf8')}\n`)
+          },
+        },
+      ]),
+      /source snapshot changed|manifest observation changed/,
+    )
+    assert.equal(f.inventory().status, 'failed')
+  }
+  const f = fixture(t)
+  writeFileSync(f.entry, "import 'unresolved'")
+  let guard: ViteOwnerPreflightUnavailable | undefined
+  try {
+    await captureViteOwnerCandidates(
+      discoverViteOwnerSourcePlan([f.entry]),
+      async () => null,
+      'lifetime',
+    )
+  } catch (error) {
+    assert.ok(error instanceof ViteOwnerPreflightUnavailable)
+    guard = error
+  }
+  assert.ok(guard)
+  guard.validate()
+  const source = readFileSync(f.entry, 'utf8')
+  writeFileSync(f.entry, `${source}\n`)
+  assert.throws(() => guard.validate(), /source snapshot changed/)
+  writeFileSync(f.entry, source)
+  assert.throws(() => guard.check(), /PREFLIGHT_INVALIDATED/)
+})
+
+test('admitted captured output cannot switch to fallback when the final graph grows a participant', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const source = readFileSync(f.entry, 'utf8')
+  await assert.rejects(
+    f.run('fallback', [
+      {
+        name: 'late-participant',
+        enforce: 'pre',
+        load(id) {
+          if (path.resolve(id) === f.entry)
+            return `${source};import {nested} from 'bridge';export {nested}`
+        },
+      },
+    ]),
+    /late or derived participant/,
+  )
+  assert.equal(f.inventory().status, 'failed')
+})
+
+test('a project beyond the owner root budget keeps ordinary output and guards even unimported sources', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const directory = path.join(f.root, 'many')
+  mkdirSync(directory)
+  for (let i = 0; i < 513; i++) writeFileSync(path.join(directory, `${i}.ts`), 'export {}')
+  f.options.content.include.push('many/*.ts')
+  let route: unknown
+  const observer: Plugin = {
+    name: 'observe-budget-fallback',
+    generateBundle() {
+      const id = [...this.getModuleIds()].find(
+        (id) => !id.includes('?') && !id.includes('\0') && path.resolve(id) === f.entry,
+      )
+      route = this.getModuleInfo(id!).meta.hozoOwnerAdmission
+    },
+  }
+  const output = JSON.stringify(await f.run('fallback', [observer]))
+  assert.doesNotMatch(output, /hozo-owner-[a-f0-9]{16}-r/)
+  assert.match(output, /padding-top: ?21px/)
+  assert.deepEqual(route, { schema: 1, route: 'ordinary-fallback', reason: 'source-budget' })
+  assert.equal(f.inventory().authored.length, 514)
+  assert.equal(f.inventory().status, 'complete')
+  assert.equal('packages' in f.inventory(), false)
+  await assert.rejects(f.run('discovered'), /SOURCE_FILE_BUDGET/)
+  await assert.rejects(
+    f.run('fallback', [
+      {
+        name: 'change-unimported-root',
+        generateBundle() {
+          writeFileSync(path.join(directory, '0.ts'), 'export const changed=1')
+        },
+      },
+    ]),
+    /fallback source snapshot changed/,
+  )
+  assert.equal(f.inventory().status, 'failed')
 })
 
 test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {

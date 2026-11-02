@@ -64,7 +64,8 @@ import { preflightCss } from '@hozo/tailwind'
 import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer } from 'vite'
 import { contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
 import { captureViteOwnerCandidates, type ViteOwnerCandidatePlan } from './owner-candidates.ts'
-import { discoverViteOwnerSourcePlan } from './owner-source-plan.ts'
+import { ViteOwnerPreflightUnavailable } from './owner-preflight.ts'
+import { discoverViteOwnerSourcePlan, guardViteOwnerFallbackRoots } from './owner-source-plan.ts'
 import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from './tailwind-epoch.ts'
 
 /**
@@ -121,8 +122,13 @@ export function hozoWithOwnerCallers(options: HozoOptions, plan: ViteOwnerCaller
 /** @internal BUILD assessment from the existing configured source set. The
  * old scan stays; static traversal is bounded, dynamic/derived coverage is not assumed.
  */
-export function hozoWithDiscoveredOwnerCallers(options: HozoOptions): Plugin[] {
-  return configureHozo(options, undefined, [], true, true)
+export function hozoWithDiscoveredOwnerCallers(
+  options: HozoOptions,
+  preflight: 'strict' | 'ordinary-fallback' = 'strict',
+): Plugin[] {
+  if (!['strict', 'ordinary-fallback'].includes(preflight))
+    throw new Error('[hozo] invalid owner preflight policy')
+  return configureHozo(options, undefined, [], true, true, preflight)
 }
 
 function configureHozo(
@@ -131,6 +137,7 @@ function configureHozo(
   callerBindings: readonly Omit<OwnerContractRequest, 'entry'>[] = [],
   discoverCallers = false,
   discoverOwnerSources = false,
+  ownerPreflight: 'strict' | 'ordinary-fallback' = 'strict',
 ): Plugin[] {
   // One matching compiler/session per stylesheet epoch, never per file.
   let root = process.cwd()
@@ -161,6 +168,7 @@ function configureHozo(
   let owners: Awaited<ReturnType<typeof captureViteOwnerCandidates>> | undefined
   let ownerSourceFiles: readonly string[] | undefined
   let ownerCallerFiles = new Set<string>()
+  let ownerFallback: ViteOwnerPreflightUnavailable | undefined
 
   function validateOwnerGraph(graph: Parameters<NonNullable<typeof owners>['validateGraph']>[0]) {
     if (
@@ -169,6 +177,7 @@ function configureHozo(
     )
       throw new Error('[hozo] owner configured source set changed; rebuild before publication')
     owners?.validateGraph(graph)
+    ownerFallback?.validate()
   }
 
   function updateUniverse() {
@@ -294,10 +303,12 @@ function configureHozo(
       if (!file) return
       const request = Symbol(id)
       const ownerEpoch = owners
+      const fallbackEpoch = ownerFallback
       const requestId = JSON.stringify([this.environment?.name ?? 'default', id])
       requests.set(requestId, { token: request, file: path.resolve(file) })
       const checkRequest = () => {
         ownerEpoch?.check()
+        fallbackEpoch?.check()
         if (requests.get(requestId)?.token !== request)
           throw new TailwindPreparationCancelled('TAILWIND_MODULE_SUPERSEDED')
       }
@@ -588,6 +599,13 @@ function configureHozo(
           await refreshCandidates((message) => this.warn(message))
         current.check()
         checkRequest()
+        if (discoverOwnerSources)
+          candidateMeta = {
+            ...candidateMeta,
+            hozoOwnerAdmission: ownerFallback
+              ? { schema: 1, route: 'ordinary-fallback', reason: ownerFallback.reason }
+              : { schema: 1, route: 'captured', fingerprint: owners?.lease.capture.fingerprint },
+          }
         if (!lowered) return candidateMeta ? { meta: candidateMeta } : undefined
 
         // Shared with Metro and Next, which is new: this warned on
@@ -719,6 +737,8 @@ function configureHozo(
         owners = undefined
         ownerSourceFiles = undefined
         ownerCallerFiles = new Set()
+        ownerFallback?.invalidate()
+        ownerFallback = undefined
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined
@@ -748,35 +768,52 @@ function configureHozo(
         const discoveredProject = discoverOwnerSources
           ? scanProject(root, options.content, options.sources)
           : undefined
-        const selectedPlan = discoverOwnerSources
-          ? discoverViteOwnerSourcePlan(discoveredProject!.files)
-          : ownerPlan
         if (discoveredProject) ownerSourceFiles = [...discoveredProject.files]
-        if (selectedPlan) {
-          if (!current.snapshot)
-            throw new Error('[hozo] owner candidates require a Tailwind snapshot')
-          const context = createHash('sha256')
-            .update(
-              JSON.stringify([
-                'vite-owner-candidates-0',
-                root,
-                selectedPlan.context,
-                current.snapshot.serialize(),
-                options.sources,
-                options.classHelpers,
-                options.fontAvailability,
-                options.preflight,
-                resolvedConfig?.resolve.conditions,
-                resolvedConfig?.resolve.alias,
-              ]),
+        let selectedPlan: ViteOwnerCandidatePlan | undefined
+        try {
+          selectedPlan = discoverOwnerSources
+            ? discoverViteOwnerSourcePlan(discoveredProject!.files)
+            : ownerPlan
+          if (selectedPlan) {
+            if (!current.snapshot)
+              throw new Error('[hozo] owner candidates require a Tailwind snapshot')
+            const context = createHash('sha256')
+              .update(
+                JSON.stringify([
+                  'vite-owner-candidates-0',
+                  root,
+                  selectedPlan.context,
+                  current.snapshot.serialize(),
+                  options.sources,
+                  options.classHelpers,
+                  options.fontAvailability,
+                  options.preflight,
+                  resolvedConfig?.resolve.conditions,
+                  resolvedConfig?.resolve.alias,
+                ]),
+              )
+              .digest('hex')
+            owners = await captureViteOwnerCandidates(
+              selectedPlan,
+              async ({ importer, specifier }) =>
+                this.resolve(specifier, importer, { skipSelf: true }),
+              context,
             )
-            .digest('hex')
-          owners = await captureViteOwnerCandidates(
-            selectedPlan,
-            async ({ importer, specifier }) =>
-              this.resolve(specifier, importer, { skipSelf: true }),
-            context,
+          }
+        } catch (error) {
+          if (
+            ownerPreflight !== 'ordinary-fallback' ||
+            !(error instanceof ViteOwnerPreflightUnavailable)
           )
+            throw error
+          ownerFallback = selectedPlan
+            ? error
+            : guardViteOwnerFallbackRoots(discoveredProject!.files, error)
+          ownerFallback.validate()
+          for (const file of ownerFallback.watchFiles) this.addWatchFile(file)
+          this.warn(`[hozo] owner preflight ${error.reason}; using ordinary lowering before output`)
+        }
+        if (owners) {
           for (const file of owners.watchFiles) this.addWatchFile(file)
           if (discoverOwnerSources) {
             // Discovery is not permission to transform every dependency. Only
@@ -838,6 +875,10 @@ function configureHozo(
       },
 
       async watchChange(id, change) {
+        if (ownerFallback?.watchFiles.includes(path.resolve(id))) {
+          ownerFallback.invalidate()
+          return
+        }
         if (owners?.watches(id)) {
           owners.invalidate()
           return
@@ -931,7 +972,7 @@ function configureHozo(
           )
           return
         }
-        if (owners) {
+        if (owners || ownerFallback) {
           try {
             validateOwnerGraph(this)
           } catch (error) {
@@ -982,6 +1023,8 @@ function configureHozo(
         owners = undefined
         ownerSourceFiles = undefined
         ownerCallerFiles.clear()
+        ownerFallback?.invalidate()
+        ownerFallback = undefined
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined

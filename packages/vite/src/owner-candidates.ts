@@ -15,6 +15,7 @@ import {
   readBoundedUtf8File,
   readResolvedOwnerManifest,
 } from '@hozo/compiler/project'
+import { ViteOwnerPreflightUnavailable } from './owner-preflight.ts'
 import { inspectViteOwnerSource } from './owner-source-plan.ts'
 
 export interface ViteOwnerCandidatePlan {
@@ -192,6 +193,38 @@ export async function captureViteOwnerCandidates(
       fail('source ownership changed during capture')
     origins.set(file, identity)
   }
+  function validateInputs() {
+    validateSources()
+    // Absence is an observed boundary too. Replacing it must not make a
+    // previously consulted package appear ordinary after capture.
+    for (const [file, revision] of boundaries) {
+      const stat = lstatSync(file, { throwIfNoEntry: false })
+      if (
+        revision === null
+          ? !!stat
+          : !stat?.isFile() ||
+            stat.isSymbolicLink() ||
+            hash(readBoundedUtf8File(file, 65_536)) !== revision
+      )
+        fail('package boundary changed')
+    }
+    for (const [file, identity] of origins)
+      if (JSON.stringify(locate(file)) !== identity) fail('importer ownership changed')
+    for (const [file, revision] of metadata)
+      if (hash(readBoundedUtf8File(file, 65_536)) !== revision) fail('metadata changed')
+  }
+  function unavailable(reason: ViteOwnerPreflightUnavailable['reason'], detail: string): never {
+    // A later unsupported edge cannot hide an earlier input race. No lease or
+    // prepared output exists yet, but all observations already made must agree.
+    const validate = () => {
+      validateInputs()
+      const fresh = selected.map(({ edge, entry }) => observe(edge, entry))
+      if (JSON.stringify(fresh) !== JSON.stringify(observations))
+        fail('manifest observation changed')
+    }
+    validate()
+    throw new ViteOwnerPreflightUnavailable(reason, detail, { watchFiles: [...watch], validate })
+  }
   // An inspected source can have no value imports (including type-only files).
   // Observe its ownership anyway: absence of edges is data, not missing input,
   // and a nearer metadata boundary must still retire this empty snapshot.
@@ -221,7 +254,12 @@ export async function captureViteOwnerCandidates(
       external.push({ ...edge, reason: 'external', entry: resolved.id })
       continue
     }
-    if (!resolved || resolved.external) fail('startup resolution unavailable or external')
+    if (!resolved) unavailable('unresolved-import', 'startup resolution unavailable or external')
+    if (resolved.external) fail('startup resolution unavailable or external')
+    if (followStaticImports && (!path.isAbsolute(resolved.id) || /[\0?#]/.test(resolved.id)))
+      unavailable('unsupported-module', 'entry ownership unavailable: non-physical static module')
+    if (followStaticImports && !/\.(?:[cm]?[jt]sx?|css|json)$/.test(resolved.id))
+      unavailable('unsupported-module', 'non-JS static dependency')
     const physicalSource = path.resolve(resolved.id)
     if (followStaticImports && /\.(css|json)$/.test(resolved.id)) {
       // Vite owns CSS/JSON semantics. Observe their bytes/ownership without
@@ -233,10 +271,10 @@ export async function captureViteOwnerCandidates(
       rememberOrigin(physicalSource, target)
       packageMetadata(target)
       if (!inspected.has(physicalSource)) {
-        if (sources.length >= 512) fail('static source file budget')
+        if (sources.length >= 512) unavailable('source-budget', 'static source file budget')
         const text = readBoundedUtf8File(physicalSource, 4_194_304)
         sourceBytes += Buffer.byteLength(text)
-        if (sourceBytes > 33_554_432) fail('static source byte budget')
+        if (sourceBytes > 33_554_432) unavailable('source-budget', 'static source byte budget')
         sources.push({ file: physicalSource, sha256: hash(text) })
         inspected.add(physicalSource)
         watch.add(physicalSource)
@@ -256,19 +294,18 @@ export async function captureViteOwnerCandidates(
     if (followStaticImports && !inspected.has(physicalSource)) {
       // Only physical JS sources can be parsed before other plugins run.
       // Query/virtual/non-JS requests are refused, never assessed as empty.
-      if (!/\.[cm]?[jt]sx?$/.test(resolved.id)) fail('non-JS static dependency')
-      if (sources.length >= 512) fail('static source file budget')
+      if (sources.length >= 512) unavailable('source-budget', 'static source file budget')
       const source = inspectViteOwnerSource(physicalSource)
       rememberImports(source)
       sourceBytes += source.bytes
-      if (sourceBytes > 33_554_432) fail('static source byte budget')
+      if (sourceBytes > 33_554_432) unavailable('source-budget', 'static source byte budget')
       inspected.add(physicalSource)
       sources.push({ file: source.file, sha256: source.sha256 })
       watch.add(source.file)
       for (const next of source.edges) {
         const key = JSON.stringify([next.importer, next.specifier])
         if (edgeKeys.has(key)) continue
-        if (edges.length >= 512) fail('static source edge budget')
+        if (edges.length >= 512) unavailable('source-budget', 'static source edge budget')
         edges.push(next)
         edgeKeys.add(key)
       }
@@ -303,24 +340,7 @@ export async function captureViteOwnerCandidates(
   function validate() {
     try {
       check()
-      validateSources()
-      // Newly created nearer metadata changes ownership even if the old
-      // package/manifest bytes are identical. Never treat absence as "no watch".
-      for (const [file, revision] of boundaries) {
-        const stat = lstatSync(file, { throwIfNoEntry: false })
-        if (
-          revision === null
-            ? !!stat
-            : !stat?.isFile() ||
-              stat.isSymbolicLink() ||
-              hash(readBoundedUtf8File(file, 65_536)) !== revision
-        )
-          fail('package boundary changed')
-      }
-      for (const [file, identity] of origins)
-        if (JSON.stringify(locate(file)) !== identity) fail('importer ownership changed')
-      for (const [file, revision] of metadata)
-        if (hash(readBoundedUtf8File(file, 65_536)) !== revision) fail('metadata changed')
+      validateInputs()
       epoch.adopt(capture())
     } catch (error) {
       epoch.invalidate()
