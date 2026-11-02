@@ -77,6 +77,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
+          name: owner-vite-fallback-evidence
+          path: artifacts/style-fact-model/vite-owner-fallback-browser.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
           name: owner-tabs-evidence
           path: |
             artifacts/style-fact-model/tabs-browser.json

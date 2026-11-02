@@ -76,3 +76,18 @@ Both modes bundle the real widgets with no compiler tooling in application
 code. The fixture exports its package metadata because the current ordinary
 `content.packages` reader requires it; this is an explicit test-package API,
 not proof that the old reader handles packages hiding `package.json`.
+
+## Independent fallback browser receipt
+
+`owner-vite-fallback-evidence` is separate from captured-owner evidence. It
+compares fallback, ordinary Vite and independent Tailwind on the same actual
+widgets/authored source/content scope: Tabs selection/disabled, both handle
+shapes, hover/focus, authored overrides/removal, ordinary primitive padding and
+stable hosts. All three routes have exact stylesheet-removal controls.
+
+Expected totals are 54 scoped observations/nine controls; the existing captured
+receipt retains 36/six. Partial/failure receipts are uploaded too. Success must
+be checked against clean matching CI source and actual artifacts, including
+equal entry/caller hashes, explicit fallback metadata vs absent ordinary
+metadata, no prepared owner namespace and no build tools in application code.
+These are Web observations, not a global audit/default or Native pixel claim.
