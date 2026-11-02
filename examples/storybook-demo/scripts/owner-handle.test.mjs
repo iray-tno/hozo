@@ -117,6 +117,8 @@ test('real Web handle computed rest/hover/focus/pressed styles match Tailwind on
       identity: prepared.identity,
       fingerprint: prepared.fingerprint,
       preparations: prepared.preparations,
+      ordinaryParses: prepared.ordinaryParses,
+      delivery: prepared.delivery,
     }
     const bundle = await stateBundle(fixture)
     const instanceBundle = await stateBundle(fixture, prepared.code)
@@ -303,6 +305,8 @@ test('real Web handle styles follow owner presence rather than the open request'
       identity: prepared.identity,
       fingerprint: prepared.fingerprint,
       preparations: prepared.preparations,
+      ordinaryParses: prepared.ordinaryParses,
+      delivery: prepared.delivery,
     }
     const bundle = await lifetimeBundle(fixture.rest)
     const instanceBundle = await lifetimeBundle(fixture.rest, prepared.code)
