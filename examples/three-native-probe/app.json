@@ -10,6 +10,16 @@
     },
     "android": {
       "package": "dev.hozo.threenativeprobe"
-    }
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableMinifyInReleaseBuilds": false
+          }
+        }
+      ]
+    ]
   }
 }

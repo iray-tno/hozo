@@ -112,7 +112,7 @@
     "@hozo/core": ">=0.3.0 <1",
     "@tanstack/react-router": ">=1.100",
     "react": "^19.0.0",
-    "react-native": ">=0.86"
+    "react-native": ">=0.87"
   },
   "peerDependenciesMeta": {
     "@hozo/core": {

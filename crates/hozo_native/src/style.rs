@@ -986,7 +986,7 @@ mod tests {
         assert_eq!(
             background_image_entry(&image, &Theme::default()),
             Some((
-                "experimental_backgroundImage",
+                "backgroundImage",
                 "'linear-gradient(90deg,#123456,#abcdef)'".to_string()
             ))
         );

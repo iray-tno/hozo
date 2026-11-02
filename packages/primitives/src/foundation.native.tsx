@@ -74,9 +74,10 @@ export interface PressableProps extends RNPressableProps {
    * A caller needs it to hand the control to something else: `Dialog`'s
    * `restoreFocusTo` is where this came up (#462).
    */
-  // RN 0.86's Pressable ref is a View instance; later minors expose a
-  // HostInstance. Derive it from the actual peer rather than widening it
-  // beyond what that peer's Pressable accepts (and Dialog can restore).
+  // Derived from the installed peer's Pressable rather than spelled out:
+  // its ref type has changed between minors (0.86 a View instance, later a
+  // HostInstance), and this stays exactly what that Pressable accepts (and
+  // Dialog can restore).
   ref?: Ref<ComponentRef<typeof RNPressable>>
   href?: string
   external?: boolean

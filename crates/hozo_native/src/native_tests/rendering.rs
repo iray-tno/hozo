@@ -534,8 +534,9 @@ fn shadow_and_filter_carry_across_as_strings() {
 }
 
 #[test]
-fn a_gradient_goes_under_the_key_react_native_0_86_reads() {
-    // 0.86 has no `backgroundImage` and drops it silently (#1267).
+fn a_gradient_goes_under_the_unprefixed_key() {
+    // The floor is 0.87, which reads `backgroundImage`; the prefixed key was
+    // only for 0.86 (#1267, #1272).
     let source = r#"
             import { View } from '@hozo/core'
             const el = <View className="bg-linear-to-r from-red-500 to-blue-500" />
@@ -546,12 +547,12 @@ fn a_gradient_goes_under_the_key_react_native_0_86_reads() {
     assert!(
         output
             .styles
-            .contains("experimental_backgroundImage: 'linear-gradient(to right, "),
+            .contains(" backgroundImage: 'linear-gradient(to right, "),
         "{}",
         output.styles
     );
     assert!(
-        !output.styles.contains(" backgroundImage:"),
+        !output.styles.contains("experimental_backgroundImage"),
         "{}",
         output.styles
     );

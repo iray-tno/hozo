@@ -96,7 +96,7 @@
   "peerDependencies": {
     "@react-three/fiber": ">=9",
     "react": "^19.0.0",
-    "react-native": ">=0.86",
+    "react-native": ">=0.87",
     "three": ">=0.170"
   },
   "peerDependenciesMeta": {

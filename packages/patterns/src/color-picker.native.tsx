@@ -147,7 +147,7 @@ export function HozoColorPicker({
   // the Web half's inline `background` does.
   const slider = (track: string) =>
     [
-      { experimental_backgroundImage: track },
+      { backgroundImage: track },
       hozoClasses(sliderClassName),
       hozoAuthoredStyle(sliderStyle),
     ] as StyleProp<ViewStyle>

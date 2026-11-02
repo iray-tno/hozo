@@ -2,7 +2,15 @@ import { CodeBlock } from '@hozo/patterns'
 import type { CodeLine } from '@hozo/typography/code/model'
 import type { Meta, StoryObj } from '@storybook/react-native'
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { FlatList, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native'
+import {
+  FlatList,
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native'
 import { CODE_BLOCK_COUNTS, codeBlockEdit, codeBlockFixture } from './code-block-fixture'
 import highlighted from './code-block-highlighted.json'
 
@@ -90,7 +98,7 @@ function CodeBlockPerformance({ windowed = false }: { windowed?: boolean }) {
     baseline?: boolean
     variant?: Variant
   } | null>(null)
-  const scroll = useRef<ScrollView>(null)
+  const scroll = useRef<ScrollViewInstance>(null)
   const operation = useRef<{ name: string; started: number; gaps: number[]; last: number } | null>(
     null,
   )

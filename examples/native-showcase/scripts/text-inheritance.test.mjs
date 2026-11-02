@@ -57,7 +57,9 @@ test('both Native jobs install the private proof workspace before running source
 
 test('Native helper types and Metro use the same app-owned RN peer, not the workspace development peer', () => {
   const config = JSON.parse(readFileSync(new URL('../tsconfig.json', import.meta.url), 'utf8'))
-  assert.deepEqual(config.compilerOptions.paths['react-native'], ['./node_modules/react-native'])
+  assert.deepEqual(config.compilerOptions.paths['react-native'], [
+    './node_modules/react-native/types_generated/index.d.ts',
+  ])
   const metro = readFileSync(new URL('../metro.config.js', import.meta.url), 'utf8')
   assert.match(metro, /'react-native'/)
   assert.match(metro, /require\.resolve\(request, \{ paths: \[projectRoot\] \}\)/)
