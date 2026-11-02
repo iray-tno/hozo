@@ -67,3 +67,21 @@ CommonJS, plugin-generated modules and their resolution are outside the static
 inventory. Actual bundler resolution and final graph checks must still fence
 admission. Tests cover those scope boundaries instead of inventing an empty
 graph or invoking a lowering backend to discover imports.
+
+## Source-observed Vite capture before publication
+
+`hozoWithDiscoveredOwnerCallers` is an internal BUILD assessment with no
+handwritten edges, root map or caller list. It snapshots the existing configured
+source discovery/scan once, obtains static ESM requests from the Rust inventory,
+uses Vite's real resolver and the same physical manifest capture, then prepares
+selected literal owners through the ordinary session/CSS pipeline. The existing
+source scan and final candidate/graph checks remain; this is not scan replacement
+or a complete dynamic/CommonJS/derived dependency claim.
+
+Source bytes are hashed before asynchronous resolution and revalidated before
+capture/CSS/output boundaries. Changes to bytes or the configured source set
+refuse publication. External/virtual/unresolved startup requests, syntax/budget
+failures and late participating packages remain explicit assessment failures,
+not empty compatible graphs. Ordinary `hozo()` has no new parsing/discovery cost.
+Transform metadata records actual selected owner identity/context/findings for
+independent build evidence, never compiler code in the application bundle.

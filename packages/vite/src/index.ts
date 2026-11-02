@@ -64,6 +64,7 @@ import { preflightCss } from '@hozo/tailwind'
 import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer } from 'vite'
 import { contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
 import { captureViteOwnerCandidates, type ViteOwnerCandidatePlan } from './owner-candidates.ts'
+import { discoverViteOwnerSourcePlan } from './owner-source-plan.ts'
 import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from './tailwind-epoch.ts'
 
 /**
@@ -117,11 +118,19 @@ export function hozoWithOwnerCallers(options: HozoOptions, plan: ViteOwnerCaller
   return configureHozo(options, plan, callers)
 }
 
+/** @internal BUILD assessment from the existing configured source set. The
+ * old scan stays; derived/dynamic/transitive graph coverage is not assumed.
+ */
+export function hozoWithDiscoveredOwnerCallers(options: HozoOptions): Plugin[] {
+  return configureHozo(options, undefined, [], true, true)
+}
+
 function configureHozo(
   options: HozoOptions,
   ownerPlan?: ViteOwnerCandidatePlan,
   callerBindings: readonly Omit<OwnerContractRequest, 'entry'>[] = [],
   discoverCallers = false,
+  discoverOwnerSources = false,
 ): Plugin[] {
   // One matching compiler/session per stylesheet epoch, never per file.
   let root = process.cwd()
@@ -150,6 +159,16 @@ function configureHozo(
   let inventory: ViteCandidateInventory | undefined
   let inventoryPath = ''
   let owners: Awaited<ReturnType<typeof captureViteOwnerCandidates>> | undefined
+  let ownerSourceFiles: readonly string[] | undefined
+
+  function validateOwnerGraph(graph: Parameters<NonNullable<typeof owners>['validateGraph']>[0]) {
+    if (
+      ownerSourceFiles &&
+      JSON.stringify(discoverSources(root, options.content)) !== JSON.stringify(ownerSourceFiles)
+    )
+      throw new Error('[hozo] owner configured source set changed; rebuild before publication')
+    owners?.validateGraph(graph)
+  }
 
   function updateUniverse() {
     const next = new TailwindCandidateUniverse([
@@ -490,6 +509,19 @@ function configureHozo(
               requestedUniverse.candidates,
             )
             lowered = output!.lowered
+            if (discoverOwnerSources)
+              candidateMeta = {
+                ...candidateMeta,
+                hozoOwnerDelivery: {
+                  schema: 1,
+                  scope: 'configured-static-source-capture',
+                  owners: output!.owners.map((owner) => ({
+                    identity: owner.identity,
+                    fingerprint: owner.preview.contextFingerprint,
+                    findings: owner.preview.findings,
+                  })),
+                },
+              }
           } else
             lowered = current.session
               ? await current.session.runModule(
@@ -654,7 +686,7 @@ function configureHozo(
       enforce: 'pre',
 
       configResolved(config) {
-        if (ownerPlan && config.command !== 'build')
+        if ((ownerPlan || discoverOwnerSources) && config.command !== 'build')
           throw new Error('[hozo] owner candidates require a production build')
         root = options.root ?? config.root
         resolvedConfig = config
@@ -667,6 +699,7 @@ function configureHozo(
       async buildStart() {
         owners?.invalidate()
         owners = undefined
+        ownerSourceFiles = undefined
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined
@@ -691,7 +724,16 @@ function configureHozo(
           )
         }
         const current = await currentEpoch((message) => this.warn(message))
-        if (ownerPlan) {
+        // Automatic assessment uses the SAME source discovery/scan as normal
+        // compilation, captured before asynchronous resolution and CSS output.
+        const discoveredProject = discoverOwnerSources
+          ? scanProject(root, options.content, options.sources)
+          : undefined
+        const selectedPlan = discoverOwnerSources
+          ? discoverViteOwnerSourcePlan(discoveredProject!.files)
+          : ownerPlan
+        if (discoveredProject) ownerSourceFiles = [...discoveredProject.files]
+        if (selectedPlan) {
           if (!current.snapshot)
             throw new Error('[hozo] owner candidates require a Tailwind snapshot')
           const context = createHash('sha256')
@@ -699,7 +741,7 @@ function configureHozo(
               JSON.stringify([
                 'vite-owner-candidates-0',
                 root,
-                ownerPlan.context,
+                selectedPlan.context,
                 current.snapshot.serialize(),
                 options.sources,
                 options.classHelpers,
@@ -711,7 +753,7 @@ function configureHozo(
             )
             .digest('hex')
           owners = await captureViteOwnerCandidates(
-            ownerPlan,
+            selectedPlan,
             async ({ importer, specifier }) =>
               this.resolve(specifier, importer, { skipSelf: true }),
             context,
@@ -724,7 +766,7 @@ function configureHozo(
         // The whole project, not just what the bundler happens to reach: a
         // class can be produced by a module the graph never resolves
         // statically.
-        const project = scanProject(root, options.content, options.sources)
+        const project = discoveredProject ?? scanProject(root, options.content, options.sources)
         cache = owners
           ? withOwnerPackageCandidates(project, owners.contributions, options.sources)
           : project.cache
@@ -861,7 +903,7 @@ function configureHozo(
         }
         if (owners) {
           try {
-            owners.validateGraph(this)
+            validateOwnerGraph(this)
           } catch (error) {
             writeFileIfChanged(
               inventoryPath,
@@ -892,7 +934,7 @@ function configureHozo(
         order: 'post',
         handler() {
           try {
-            owners?.validateGraph(this)
+            validateOwnerGraph(this)
           } catch (error) {
             if (inventory)
               writeFileIfChanged(
@@ -906,6 +948,7 @@ function configureHozo(
       closeBundle() {
         owners?.invalidate()
         owners = undefined
+        ownerSourceFiles = undefined
         epochGeneration++
         epoch?.invalidate()
         epoch = undefined

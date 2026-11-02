@@ -22,6 +22,8 @@ export interface ViteOwnerCandidatePlan {
   /** Optional embedding override. Otherwise observe actual physical ownership. */
   locate?(entry: string): ResolvedOwnerInstance | undefined
   context: string
+  /** Optional exact source observations that produced the finite startup edges. */
+  sources?: readonly { readonly file: string; readonly sha256: string }[]
 }
 type Graph = {
   getModuleIds(): IterableIterator<string>
@@ -93,6 +95,23 @@ export async function captureViteOwnerCandidates(
   const origins = new Map<string, string>()
   let metadataBytes = 0
   const epoch = new OwnerManifestEpoch()
+  const sources = plan.sources?.map((source) => ({ ...source })) ?? []
+  if (sources.length > 512 || new Set(sources.map((source) => source.file)).size !== sources.length)
+    fail('source observation budget/duplicates')
+  for (const source of sources) {
+    if (!path.isAbsolute(source.file) || !/^[a-f0-9]{64}$/.test(source.sha256))
+      fail('invalid source observation')
+    watch.add(source.file)
+  }
+  function validateSources() {
+    let bytes = 0
+    for (const source of sources) {
+      const text = readBoundedUtf8File(source.file, 4_194_304)
+      bytes += Buffer.byteLength(text)
+      if (bytes > 33_554_432 || hash(text) !== source.sha256) fail('source snapshot changed')
+    }
+  }
+  validateSources()
   function locate(entry: string): ResolvedOwnerInstance | undefined {
     if (locateOverride) return locateOverride(entry)
     const result = locateResolvedOwnerPackage(entry)
@@ -165,6 +184,7 @@ export async function captureViteOwnerCandidates(
   function validate() {
     try {
       check()
+      validateSources()
       // Newly created nearer metadata changes ownership even if the old
       // package/manifest bytes are identical. Never treat absence as "no watch".
       for (const [file, revision] of boundaries) {

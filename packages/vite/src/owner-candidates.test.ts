@@ -12,9 +12,15 @@ import {
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { build, type Plugin } from 'vite'
 import { fixtureNode } from '../../metro/fixtures/fixture-process.mjs'
-import { hozo, hozoWithOwnerCallers, hozoWithOwnerCandidates } from './index.ts'
+import {
+  hozo,
+  hozoWithDiscoveredOwnerCallers,
+  hozoWithOwnerCallers,
+  hozoWithOwnerCandidates,
+} from './index.ts'
 import { captureViteOwnerCandidates } from './owner-candidates.ts'
 
 function fixture(t) {
@@ -151,14 +157,25 @@ export const Row=()=> <View className="p-3"><Panel handleClassName="p-2" onClose
       configFile: false,
       logLevel: 'silent',
       plugins: [
-        mode === 'callers'
-          ? hozoWithOwnerCallers(f.options, plan)
-          : mode === 'candidates'
-            ? hozoWithOwnerCandidates(f.options, plan)
-            : hozo(f.options),
+        mode === 'discovered'
+          ? hozoWithDiscoveredOwnerCallers(f.options)
+          : mode === 'callers'
+            ? hozoWithOwnerCallers(f.options, plan)
+            : mode === 'candidates'
+              ? hozoWithOwnerCandidates(f.options, plan)
+              : hozo(f.options),
         ...extra,
       ],
-      resolve: { conditions: ['browser'] },
+      resolve: {
+        conditions: ['browser'],
+        ...(mode === 'discovered' && {
+          alias: {
+            '@hozo/primitives': fileURLToPath(
+              new URL('../../primitives/dist/index.js', import.meta.url),
+            ),
+          },
+        }),
+      },
       build: {
         write: false,
         minify: false,
@@ -314,6 +331,61 @@ test('captured manifests select real caller aliases without a handwritten class-
     input.replace('handleClassName="p-2"', 'handleClassName={globalThis.classes}'),
   )
   assert.doesNotMatch(JSON.stringify(await f.run()), /hozo-owner-[a-f0-9]{16}-r/)
+})
+
+test('configured source imports drive actual Vite capture without edges, locators or caller lists', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const output = JSON.stringify(await f.run('discovered'))
+  assert.match(output, /handleClassName[^\n]+hozo-owner-[a-f0-9]{16}-r/)
+  assert.match(readFileSync(`${f.entry}.hozo.css`, 'utf8'), /padding-top: 14px/)
+  assert.equal(f.inventory().status, 'complete')
+  assert.equal(f.inventory().finalOrderingReady, false)
+  assert.deepEqual(f.inventory().packages.instances, [f.first])
+})
+
+test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  let changed = false
+  await assert.rejects(
+    f.run('discovered', [
+      {
+        name: 'change-observed-source',
+        enforce: 'pre',
+        resolveId(id) {
+          if (id === 'widget' && !changed) {
+            changed = true
+            writeFileSync(f.entry, readFileSync(f.entry, 'utf8').replace('p-2', 'p-4'))
+          }
+        },
+      },
+    ]),
+    /source snapshot changed/,
+  )
+  assert.equal(changed, true)
+  assert.equal(f.inventory().status, 'failed')
+})
+
+test('a new configured source after capture refuses final output instead of extending the frozen owner set', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  f.options.content.include = ['*.tsx']
+  await assert.rejects(
+    f.run('discovered', [
+      {
+        name: 'add-observed-source',
+        generateBundle() {
+          writeFileSync(path.join(f.root, 'Late.tsx'), 'export const Late=()=>null')
+        },
+      },
+    ]),
+    /source set changed/,
+  )
+  assert.equal(f.inventory().status, 'failed')
 })
 
 test('absent physical package boundaries are watched and creation retires an existing lease', {
