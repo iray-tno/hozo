@@ -63,6 +63,23 @@ test('source-observed Vite fixture bundles actual widgets without compiler tooli
   )
 })
 
+test('fallback and ordinary Vite widget fixtures retain source-scanned classes without prepared namespaces', async () => {
+  for (const route of ['fallback', 'ordinary']) {
+    const fixture = await buildViteOwnerPublication(route)
+    assert.deepEqual(fixture.owners, [])
+    assert.equal(fixture.capture, undefined)
+    assert.deepEqual(fixture.configuredPackages, ['owner-consumer'])
+    assert.match(fixture.entrySha256, /^[a-f0-9]{64}$/)
+    const app = await appBundle(fixture.code)
+    assert.equal(app.outputFiles.length, 1)
+    assert.ok(
+      !Object.keys(app.metafile.inputs).some((file) =>
+        /packages\/(compiler|tailwind|vite)\//.test(file.replaceAll('\\', '/')),
+      ),
+    )
+  }
+})
+
 test('actual source-observed Vite Tabs and handle output matches independent Tailwind in a browser', {
   skip: !executablePath,
   timeout: 90_000,

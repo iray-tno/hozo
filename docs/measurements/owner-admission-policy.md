@@ -61,3 +61,18 @@ guard, including unimported files, before any ordinary output. Malformed source,
 native parser errors and root byte-size failures still remain fatal, not
 message-matched fallback cases. A 514-file actual Vite fixture verifies ordinary
 output/inventory and fatal late edits to an unimported source.
+
+## Actual widget build controls
+
+The real Tabs/BottomSheet dependency fixture has separate captured, fallback
+and ordinary build modes. Fallback/ordinary share the same configured package
+source scope and an actual Vite raw-text import; captured mode retains its
+independent source-outside-content proof. The raw request makes strict owner
+capture unavailable without making ordinary Vite invalid.
+
+Fallback must identify its reason in module metadata, have no selected-owner
+receipt or prepared namespace, and retain ordinary source-scanned utilities.
+Both modes bundle the real widgets with no compiler tooling in application
+code. The fixture exports its package metadata because the current ordinary
+`content.packages` reader requires it; this is an explicit test-package API,
+not proof that the old reader handles packages hiding `package.json`.
