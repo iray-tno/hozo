@@ -5,7 +5,13 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 import { evidenceSource } from './evidence-source.mjs'
-import { expectedIdleTabInputs, handleInputCases, tabInputCases } from './owner-input-cases.mjs'
+import {
+  expectedIdleTabInputs,
+  expectedTabModality,
+  handleInputCases,
+  tabInputCases,
+  tabModalityCases,
+} from './owner-input-cases.mjs'
 
 const nativeTabRoutes = ['opaque', 'prepared', 'caller', 'instance']
 const webKinds = ['candidate', 'tailwind', 'prepared']
@@ -59,6 +65,19 @@ function checkRows(actual, expected) {
 }
 
 function tabs(native, web) {
+  for (const [actual, routes] of [
+    [native.modalityObservations, nativeTabRoutes],
+    [web.modalityObservations, webKinds],
+  ])
+    checkRows(
+      actual,
+      routes.flatMap((route) =>
+        tabModalityCases.map((input) => ({
+          key: `${route}:${input.id}`,
+          value: expectedTabModality(input),
+        })),
+      ),
+    )
   checkRows(
     native.inputObservations,
     nativeTabRoutes.flatMap((route) =>
@@ -187,6 +206,15 @@ export function auditOwnerInputs({
         status: 'measured',
         nativeObservations: spec.nativeObservations,
         webObservations: spec.webObservations,
+        ...(spec.owner === 'Tabs.Tab'
+          ? {
+              modality: {
+                cases: tabModalityCases.length,
+                nativeObservations: nativeTabRoutes.length * tabModalityCases.length,
+                webObservations: webKinds.length * tabModalityCases.length,
+              },
+            }
+          : {}),
       }
     } catch (error) {
       return { ...base, status: 'not-established', reason: error.message }
@@ -199,13 +227,14 @@ export function auditOwnerInputs({
     trackedChanges,
     passed: domains.every((row) => row.status === 'measured'),
     domains,
-    denominatorKind: 'Authored finite live-input cases, not all Owner inputs or styling support',
+    denominatorKind:
+      'Authored finite live-input and modality cases, not all Owner inputs or styling support',
     nativeEvidence: 'Actual component logic with RN host and Modal lifetime models; not devices',
     contractAudit: 'unknown',
     rollout: 'unchanged',
     remaining: [
       'mid-press disable/event cancellation',
-      'focus-visible modality transitions',
+      'native OS modality event delivery',
       'opaque label descendants',
       'device acceptance/pixels',
       'other Owners and arbitrary inputs',

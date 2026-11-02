@@ -22,6 +22,17 @@ activation stays blocked. Existing state and author-style probes run alongside
 these inputs. We intentionally do not invent index clamping: an out-of-range
 controlled selection selects no item on either platform.
 
+Tabs also has a separate eight-phase focus-modality domain: rest, keyboard
+focus, pointer interaction while focused, keyboard restoration, blur, pointer
+focus, keyboard refocus and a fresh mount. This adds 32 Native and 24 Web
+observations; each checks three actual tab receivers, including the label's
+underline and the box's focus-visible border. The browser uses real keyboard
+and pointer input and checks its actual `:focus` / `:focus-visible` state.
+Native drives the real component's existing hooks with the equivalent event
+sequence on host stand-ins. All non-target tabs must remain unaffected. These
+idle modality transitions do not certify keyboard activation or OS event
+delivery/cancellation during a press.
+
 BottomSheet covers omitted, empty, invalid, duplicate and filtered-single
 detents, unsorted/valid multi-detents and reverse shape transitions. The
 receiver is selected after normalization, **not by authored array length**.
@@ -57,7 +68,7 @@ pin a moving latest-success claim.
 Native runs actual component logic with RN host stand-ins and explicitly
 scoped Modal lifetime models, not an Android/iOS device runtime. String-label
 style delivery is not opaque-descendant text inheritance. Mid-press disabling,
-OS cancellation, focus-visible modality transitions, native acceptance/pixels,
+OS cancellation, native modality event delivery, native acceptance/pixels,
 arbitrary utility combinations and other Owners remain unassessed here.
 
 Consequently the report leaves `contractAudit: unknown` and `rollout: unchanged`.

@@ -8,7 +8,9 @@ import { chromium } from 'playwright-core'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabModality,
   tabInputCases,
+  tabModalityCases,
 } from '../../../scripts/style-slots/owner-input-cases.mjs'
 import {
   expectedTabRows,
@@ -86,6 +88,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     observations: [],
     authorObservations: [],
     inputObservations: [],
+    modalityObservations: [],
     controls: [],
     prepared: null,
   }
@@ -268,6 +271,52 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
           assert.equal(await page.evaluate(() => window.changes.length), changes)
           evidence.inputObservations.push({ kind, input: input.id, rows })
         }
+        const recordModality = async (at) => {
+          const input = tabModalityCases[at]
+          const rows = await tabs.evaluateAll((nodes) =>
+            nodes.map((node) => {
+              const style = getComputedStyle(node)
+              return {
+                width: style.width === '96px' ? 96 : null,
+                bottom: Number.parseFloat(style.borderBottomWidth),
+                decoration: style.textDecorationLine,
+              }
+            }),
+          )
+          assert.deepEqual(rows, expectedTabModality(input), `${kind}: ${input.id}`)
+          assert.equal(
+            await tabs.nth(1).evaluate((node) => node === document.activeElement),
+            input.focused,
+          )
+          assert.equal(
+            await tabs.nth(1).evaluate((node) => node.matches(':focus-visible')),
+            input.visible,
+          )
+          evidence.modalityObservations.push({ kind, input: input.id, rows })
+        }
+        await recordModality(0)
+        // Real keyboard input establishes browser modality; focus() mirrors
+        // the widget's roving-focus delivery, without guessing its tab stop.
+        await page.keyboard.press('Tab')
+        await tabs.nth(1).focus()
+        await recordModality(1)
+        await tabs.nth(1).click()
+        await recordModality(2)
+        await page.keyboard.press('a')
+        await recordModality(3)
+        await tabs.nth(1).evaluate((node) => node.blur())
+        await recordModality(4)
+        await tabs.nth(1).click()
+        await recordModality(5)
+        await tabs.nth(1).evaluate((node) => node.blur())
+        await page.keyboard.press('Tab')
+        await tabs.nth(1).focus()
+        await recordModality(6)
+        await page.evaluate((input) => {
+          window.setInput({ tabs: [], index: 0 })
+          window.setInput(input)
+        }, tabInputCases.at(-1))
+        await recordModality(7)
         await page.evaluate(() =>
           window.setInput({
             tabs: [
@@ -300,6 +349,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     assert.equal(evidence.controls.length, 3)
     assert.equal(evidence.authorObservations.length, 12)
     assert.equal(evidence.inputObservations.length, 24)
+    assert.equal(evidence.modalityObservations.length, 24)
     for (const kind of ['candidate', 'prepared'])
       assert.deepEqual(
         evidence.authorObservations

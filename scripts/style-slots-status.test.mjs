@@ -3,8 +3,10 @@ import test from 'node:test'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabModality,
   handleInputCases,
   tabInputCases,
+  tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
 
@@ -42,6 +44,13 @@ function inputReceipts() {
       ...base('native-tabs-compiled-owner-component-host-model'),
       stylesheetCreates: 1,
       requests: { opaque: 5, prepared: 0, caller: 0, instance: 0 },
+      modalityObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
+        tabModalityCases.map((input) => ({
+          route,
+          input: input.id,
+          rows: expectedTabModality(input),
+        })),
+      ),
       inputObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
         tabInputCases.map((input) => ({
           route,
@@ -53,6 +62,13 @@ function inputReceipts() {
     webTabs: {
       ...base('web-tabs-real-pointer-focus'),
       prepared: prepared('Tabs.Tab'),
+      modalityObservations: kinds.flatMap((kind) =>
+        tabModalityCases.map((input) => ({
+          kind,
+          input: input.id,
+          rows: expectedTabModality(input),
+        })),
+      ),
       controls: kinds.map((kind) => ({
         kind,
         blockedDisabledFocusAndClick: true,
@@ -110,6 +126,11 @@ test('Owner input audit has finite denominators without self-promoting contracts
     ],
   )
   assert.equal(report.contractAudit, 'unknown')
+  assert.deepEqual(report.domains[0].modality, {
+    cases: 8,
+    nativeObservations: 32,
+    webObservations: 24,
+  })
   assert.equal(report.rollout, 'unchanged')
 })
 
@@ -133,6 +154,16 @@ test('Owner input audit rejects stale, dirty, failed or missing evidence on eith
 test('Owner input audit requires every route, real delivery values, lifetime and negative controls', () => {
   for (const mutate of [
     (input) => input.nativeTabs.inputObservations.pop(),
+    (input) => input.nativeTabs.modalityObservations.pop(),
+    (input) => {
+      input.webTabs.modalityObservations[1].rows[1].bottom = 0
+    },
+    (input) => {
+      input.nativeTabs.modalityObservations[1].rows[1].decoration = 'none'
+    },
+    (input) => {
+      input.webTabs.modalityObservations[7] = input.webTabs.modalityObservations[6]
+    },
     (input) => {
       input.webTabs.inputObservations[1] = input.webTabs.inputObservations[0]
     },
