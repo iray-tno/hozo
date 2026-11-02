@@ -65,7 +65,7 @@ import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer 
 import { contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
 import { captureViteOwnerCandidates, type ViteOwnerCandidatePlan } from './owner-candidates.ts'
 import { ViteOwnerPreflightUnavailable } from './owner-preflight.ts'
-import { discoverViteOwnerSourcePlan } from './owner-source-plan.ts'
+import { discoverViteOwnerSourcePlan, guardViteOwnerFallbackRoots } from './owner-source-plan.ts'
 import { discoveryPaths, openViteTailwindEpoch, type ViteTailwindEpoch } from './tailwind-epoch.ts'
 
 /**
@@ -768,49 +768,50 @@ function configureHozo(
         const discoveredProject = discoverOwnerSources
           ? scanProject(root, options.content, options.sources)
           : undefined
-        const selectedPlan = discoverOwnerSources
-          ? discoverViteOwnerSourcePlan(discoveredProject!.files)
-          : ownerPlan
         if (discoveredProject) ownerSourceFiles = [...discoveredProject.files]
-        if (selectedPlan) {
-          if (!current.snapshot)
-            throw new Error('[hozo] owner candidates require a Tailwind snapshot')
-          const context = createHash('sha256')
-            .update(
-              JSON.stringify([
-                'vite-owner-candidates-0',
-                root,
-                selectedPlan.context,
-                current.snapshot.serialize(),
-                options.sources,
-                options.classHelpers,
-                options.fontAvailability,
-                options.preflight,
-                resolvedConfig?.resolve.conditions,
-                resolvedConfig?.resolve.alias,
-              ]),
-            )
-            .digest('hex')
-          try {
+        let selectedPlan: ViteOwnerCandidatePlan | undefined
+        try {
+          selectedPlan = discoverOwnerSources
+            ? discoverViteOwnerSourcePlan(discoveredProject!.files)
+            : ownerPlan
+          if (selectedPlan) {
+            if (!current.snapshot)
+              throw new Error('[hozo] owner candidates require a Tailwind snapshot')
+            const context = createHash('sha256')
+              .update(
+                JSON.stringify([
+                  'vite-owner-candidates-0',
+                  root,
+                  selectedPlan.context,
+                  current.snapshot.serialize(),
+                  options.sources,
+                  options.classHelpers,
+                  options.fontAvailability,
+                  options.preflight,
+                  resolvedConfig?.resolve.conditions,
+                  resolvedConfig?.resolve.alias,
+                ]),
+              )
+              .digest('hex')
             owners = await captureViteOwnerCandidates(
               selectedPlan,
               async ({ importer, specifier }) =>
                 this.resolve(specifier, importer, { skipSelf: true }),
               context,
             )
-          } catch (error) {
-            if (
-              ownerPreflight !== 'ordinary-fallback' ||
-              !(error instanceof ViteOwnerPreflightUnavailable)
-            )
-              throw error
-            error.validate()
-            ownerFallback = error
-            for (const file of error.watchFiles) this.addWatchFile(file)
-            this.warn(
-              `[hozo] owner preflight ${error.reason}; using ordinary lowering before output`,
-            )
           }
+        } catch (error) {
+          if (
+            ownerPreflight !== 'ordinary-fallback' ||
+            !(error instanceof ViteOwnerPreflightUnavailable)
+          )
+            throw error
+          ownerFallback = selectedPlan
+            ? error
+            : guardViteOwnerFallbackRoots(discoveredProject!.files, error)
+          ownerFallback.validate()
+          for (const file of ownerFallback.watchFiles) this.addWatchFile(file)
+          this.warn(`[hozo] owner preflight ${error.reason}; using ordinary lowering before output`)
         }
         if (owners) {
           for (const file of owners.watchFiles) this.addWatchFile(file)

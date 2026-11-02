@@ -3,6 +3,7 @@
  * acquire this type merely because their message happens to look familiar. */
 export class ViteOwnerPreflightUnavailable extends Error {
   readonly reason: 'unresolved-import' | 'unsupported-module' | 'source-budget'
+  readonly detail: string
   readonly watchFiles: readonly string[]
   #validate: () => void
   #retired = false
@@ -14,6 +15,7 @@ export class ViteOwnerPreflightUnavailable extends Error {
     super(`Vite owner candidates INCOMPLETE: ${detail.slice(0, 4096)}`)
     this.name = 'ViteOwnerPreflightUnavailable'
     this.reason = reason
+    this.detail = detail.slice(0, 4096)
     this.watchFiles = Object.freeze([...snapshot.watchFiles])
     this.#validate = snapshot.validate
   }

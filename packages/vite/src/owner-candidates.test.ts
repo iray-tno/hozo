@@ -870,6 +870,46 @@ test('admitted captured output cannot switch to fallback when the final graph gr
   assert.equal(f.inventory().status, 'failed')
 })
 
+test('a project beyond the owner root budget keeps ordinary output and guards even unimported sources', {
+  timeout: 15000,
+}, async (t) => {
+  const f = callerFixture(t)
+  const directory = path.join(f.root, 'many')
+  mkdirSync(directory)
+  for (let i = 0; i < 513; i++) writeFileSync(path.join(directory, `${i}.ts`), 'export {}')
+  f.options.content.include.push('many/*.ts')
+  let route: unknown
+  const observer: Plugin = {
+    name: 'observe-budget-fallback',
+    generateBundle() {
+      const id = [...this.getModuleIds()].find(
+        (id) => !id.includes('?') && !id.includes('\0') && path.resolve(id) === f.entry,
+      )
+      route = this.getModuleInfo(id!).meta.hozoOwnerAdmission
+    },
+  }
+  const output = JSON.stringify(await f.run('fallback', [observer]))
+  assert.doesNotMatch(output, /hozo-owner-[a-f0-9]{16}-r/)
+  assert.match(output, /padding-top: ?21px/)
+  assert.deepEqual(route, { schema: 1, route: 'ordinary-fallback', reason: 'source-budget' })
+  assert.equal(f.inventory().authored.length, 514)
+  assert.equal(f.inventory().status, 'complete')
+  assert.equal('packages' in f.inventory(), false)
+  await assert.rejects(f.run('discovered'), /SOURCE_FILE_BUDGET/)
+  await assert.rejects(
+    f.run('fallback', [
+      {
+        name: 'change-unimported-root',
+        generateBundle() {
+          writeFileSync(path.join(directory, '0.ts'), 'export const changed=1')
+        },
+      },
+    ]),
+    /fallback source snapshot changed/,
+  )
+  assert.equal(f.inventory().status, 'failed')
+})
+
 test('authored source mutation during resolution cannot adopt a mixed owner snapshot', {
   timeout: 15000,
 }, async (t) => {

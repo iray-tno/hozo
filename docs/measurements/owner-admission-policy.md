@@ -43,3 +43,21 @@ after returning to ordinary output. Source/manifest edits at `generateBundle`
 fail publication even on fallback. A retired guard cannot recover when original
 bytes are restored. A plugin-generated late participating dependency fails the
 captured build rather than changing routes after code has been emitted.
+
+## Root collection budgets
+
+The 512-file/512-request static owner-analysis limit is unchanged. A configured
+root file-count or aggregate edge-count refusal can now choose ordinary output
+before dependency resolution. The ordinary project scan/content scope is not
+truncated to fit that owner limit. Before adopting fallback, all configured
+root bytes are protected by a separate bounded no-parser guard (4096 files,
+4 MiB per file, 32 MiB total). If that guard cannot be established, the build
+fails; no unchecked ordinary snapshot is published. Root source-set membership
+is also rechecked at publication.
+
+The direct strict collector refuses too many roots before reading them. Its
+refusal does not claim those files were inspected. Admission adds the whole-root
+guard, including unimported files, before any ordinary output. Malformed source,
+native parser errors and root byte-size failures still remain fatal, not
+message-matched fallback cases. A 514-file actual Vite fixture verifies ordinary
+output/inventory and fatal late edits to an unimported source.
