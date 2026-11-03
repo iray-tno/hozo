@@ -207,8 +207,13 @@ export function CodeLines(props: CodeLinesProps) {
   )
   const renderReadable = useCodeRows(lines, codeKey(labels), drawReadable)
   function drawReadable(line: (typeof lines)[number], index: number) {
+    // A line feed between lines, not block rows: inside the one-pixel box
+    // NVDA read block rows as one run, "entry 1entry 2", wrapped at its own
+    // line length (#1408). Before the line rather than after it, so a line's
+    // row stays the same when lines are appended.
     return (
-      <span key={index} style={{ display: 'block' }}>
+      <span key={index}>
+        {index > 0 ? '\n' : null}
         {line.mark ? `${labels[line.mark]}: ` : null}
         {line.tokens.map((token) => token.text).join('')}
       </span>

@@ -60,10 +60,9 @@ test('a windowed block on the Web serves its first lines and holds the rest as s
   assert.ok(rows.includes('line 0.') && rows.includes('line 39.'), 'the top of the block')
   assert.ok(!rows.includes('line 40.') && !rows.includes('line 999.'), 'not the other 960')
   // A screen reader does not scroll the block, so it reads every line here.
-  assert.equal(
-    (readable.match(/<span style="display:block">line \d+\.<\/span>/g) ?? []).length,
-    1000,
-  )
+  assert.equal((readable.match(/<span>\n?line \d+\.<\/span>/g) ?? []).length, 1000)
+  // Separated by line feeds, which a reader keeps as line boundaries.
+  assert.equal((readable.match(/<span>\nline \d+\.<\/span>/g) ?? []).length, 999)
   assert.match(readable, /<pre dir="ltr" style="[^"]*white-space:pre;user-select:none/)
   // 960 lines at the 20px estimate, until the browser measures them.
   assert.ok(
@@ -75,7 +74,7 @@ test('a windowed block on the Web serves its first lines and holds the rest as s
   const marked = render({
     lines: lines.map((line, at) => (at === 500 ? { ...line, mark: 'ins' } : line)),
   })
-  assert.ok(marked.includes('<span style="display:block">Added: line 500.</span>'), 'with its mark')
+  assert.ok(marked.includes('<span>\nAdded: line 500.</span>'), 'with its mark')
   const whole = render({ windowing: 'off' })
   assert.ok(whole.includes('line 999.'), 'off keeps every line')
   assert.ok(!whole.includes('aria-hidden="true" dir'), 'and reads them where they are drawn')
