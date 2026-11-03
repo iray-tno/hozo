@@ -27,6 +27,12 @@ The workflow saves `tabs-contract-audit.json` even when assessment fails. A
 declaration saying `audited` cannot fill in missing receipts or authorize a
 default route. Synthetic test receipts only test the assessor's refusal rules.
 
+The bounded reader may transport `unknown` or `audited` as a publisher's
+declaration. Unknown strings and invented evidence channels are still rejected.
+Changing the declaration changes the capture/content identity, but grants no
+extra candidate, shape, class-preparation, compiler or adapter authority. The
+independent proof is produced by CI, not supplied by that package field.
+
 The first proof slice leaves declarations and default routing unchanged.
 A later package claim may say `audited` only after this independent rung-3
 gate passes for the declared host/ABI domain. That is not permission to report

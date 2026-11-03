@@ -121,7 +121,7 @@ test('bounded observations and code-unit ordering cannot silently certify empty/
     () => captureOwnerManifests([a], [row(a, undefined, ' '.repeat(2_097_153))], options),
     /budget/,
   )
-  const audited = text.replace('"audit": "unknown"', '"audit": "audited"')
+  const audited = text.replace('"audit": "unknown"', '"audit": "certified"')
   assert.notEqual(audited, text)
   assert.equal(
     captureOwnerManifests([a], [row(a, undefined, audited)], options).status,
@@ -139,4 +139,18 @@ test('bounded observations and code-unit ordering cannot silently certify empty/
   const empty = captureOwnerManifests([], [], options)
   assert.equal(empty.scope, 'declared-owner-resolution-set')
   if (empty.status === 'complete') assert.deepEqual(empty.bindings, [])
+})
+
+test('changing a recognized audit declaration changes capture identity, not its scope', () => {
+  const declared = text.replace('"audit": "unknown"', '"audit": "audited"')
+  const unknown = captureOwnerManifests([a], [row()], options)
+  const audited = captureOwnerManifests([a], [row(a, undefined, declared)], options)
+  assert.equal(audited.status, 'complete')
+  assert.equal(audited.scope, unknown.scope)
+  if (audited.status === 'complete' && unknown.status === 'complete') {
+    assert.notEqual(audited.fingerprint, unknown.fingerprint)
+    assert.equal(audited.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'audited')
+    assert.equal(unknown.bindings[0]!.manifest!.shadow.contracts[0]!.audit, 'unknown')
+    assert.ok(Object.isFrozen(audited.bindings[0]!.manifest!.shadow.contracts[0]!))
+  }
 })

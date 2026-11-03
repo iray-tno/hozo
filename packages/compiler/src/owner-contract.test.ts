@@ -43,8 +43,16 @@ test('shadow data is explicit, bounded and independent of the shipped v1 manifes
     value.contracts.push(value.contracts[0]!)
   }, /duplicate/)
   rejects((value) => {
-    Object.assign(value.contracts[0]!, { audit: 'audited' })
+    Object.assign(value.contracts[0]!, { audit: 'certified' })
   }, /audit/)
+})
+
+test('audit vocabulary transports a declaration but cannot add an evidence channel', () => {
+  const value = parsed()
+  value.contracts[0]!.audit = 'audited'
+  assert.equal(parseOwnerContractShadow(JSON.stringify(value)).contracts[0]!.audit, 'audited')
+  Object.assign(value.contracts[0]!, { auditEvidence: { passed: true } })
+  assert.throws(() => parseOwnerContractShadow(JSON.stringify(value)), /fields/)
 })
 
 test('gates choose each present handle shape; an absent owner does not require resizable', () => {

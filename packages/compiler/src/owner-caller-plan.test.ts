@@ -8,6 +8,29 @@ const shadow = ownerFixtureShadow('BottomSheet.handle')
 const options = { source: '@hozo/patterns', imported: 'BottomSheet', shadow }
 const compiler = createCompiler()
 
+test('a declared audit neither widens class eligibility nor changes explicit preview output', () => {
+  const audited = JSON.parse(shadow)
+  audited.contracts[0].audit = 'audited'
+  for (const props of [
+    'handleClassName="p-2"',
+    'handleClassName="hover:opacity-50"',
+    'handleClassName={input.value}',
+  ]) {
+    const source = `import {BottomSheet} from '@hozo/patterns';export const X=()=> <BottomSheet ${props}/>`
+    const baseline = previewOwnerLiteralCallers(source, compiler, options)
+    const declared = previewOwnerLiteralCallers(source, compiler, {
+      ...options,
+      shadow: JSON.stringify(audited),
+    })
+    assert.deepEqual(declared, baseline)
+    assert.equal(
+      compiler.compileNativeModule(source).components.length,
+      0,
+      'ordinary compilation is not opted into Owner rewriting',
+    )
+  }
+})
+
 test('literal caller preview consumes only the targeted attribute and preserves authored evaluation', () => {
   const source = `#!/usr/bin/env node\n'use client';
 import {BottomSheet as Sheet} from '@hozo/patterns';
