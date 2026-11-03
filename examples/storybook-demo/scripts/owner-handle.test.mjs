@@ -64,6 +64,8 @@ async function inputBundle(prepared) {
   return build({
     stdin: {
       contents: `${prepared ?? "import {BottomSheet} from '@hozo/patterns';"}
+import {BottomSheet as RawHandle, HozoBottomSheet as RawHandleAlias} from '@hozo/patterns';
+window.handleAliasesSameOwner = RawHandle === RawHandleAlias;
 import {handleInputCases} from '../../scripts/style-slots/owner-input-cases.mjs';
 import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 function App(){const [detents,setDetents]=useState();window.setInput=at=>flushSync(()=>setDetents(handleInputCases[at].detents));return <${prepared ? 'HandleInputFixture' : 'BottomSheet'} detents={detents} ${prepared ? '' : `open portal={false} accessibilityLabel="Input evidence" sheetClassName="input-panel" handleStyle={{rowGap:16,columnGap:16}} handleClassName={${JSON.stringify(handleInputClasses)}}`}><button>Body</button></${prepared ? 'HandleInputFixture' : 'BottomSheet'}>}
@@ -93,6 +95,7 @@ test('real Web handle delivery follows normalized live detents on the actual Own
     observations: [],
     controls: [],
     prepared: null,
+    aliasesSameOwner: false,
   }
   let browser
   try {
@@ -116,6 +119,7 @@ test('real Web handle delivery follows normalized live detents on the actual Own
           `<style>@layer base{button{border:0 solid;box-sizing:border-box}}</style><style data-candidates>${css}</style><div id="root"></div>`,
         )
         await page.addScriptTag({ content: app.outputFiles[0].text })
+        assert.equal(await page.evaluate(() => window.handleAliasesSameOwner), true)
         await page.mouse.move(800, 650)
         let previousShape = false
         for (const [at, input] of handleInputCases.entries()) {
@@ -169,6 +173,7 @@ test('real Web handle delivery follows normalized live detents on the actual Own
     assert.deepEqual(errors, [])
     assert.equal(evidence.observations.length, 27)
     assert.equal(evidence.controls.length, 3)
+    evidence.aliasesSameOwner = true
     evidence.passed = true
   } catch (error) {
     evidence.error = String(error)
