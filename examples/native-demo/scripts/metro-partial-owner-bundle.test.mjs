@@ -97,7 +97,16 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       maxWorkers: 1,
       resetCache: true,
       resolver: { ...defaults.resolver, useWatchman: false },
-      transformer: { ...defaults.transformer, babelTransformerPath: upstream },
+      transformer: {
+        ...defaults.transformer,
+        babelTransformerPath: upstream,
+        // The fixture Babel pass lowers JSX only. Let Metro lower ESM before
+        // its module wrapper instead of leaving imports inside that wrapper.
+        async getTransformOptions(...args) {
+          const base = await defaults.transformer.getTransformOptions(...args)
+          return { ...base, transform: { ...base.transform, experimentalImportSupport: true } }
+        },
+      },
     }
     const options = { css: 'global.css', content: { packages: [] } }
     const preflight = collectMetroOwnerPreflight(f.context, f.delegate, {
