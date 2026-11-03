@@ -1,0 +1,41 @@
+# Tabs Owner contract audit boundary
+
+RFC 010 separates contract audit from utility coverage, fidelity and device
+acceptance. Its third verification rung asks whether a plan reaches the
+declared actual receiver for each shape. It does not assert identical browser
+heuristics, arbitrary descendant inheritance or verified device pixels.
+
+The selected `Tabs.Tab` contract describes one existing Pressable/button shape,
+`tabClassName` / `hozoTabStyle` delivery, the existing authored `tabStyle` order,
+interaction and selected/disabled facts, and the owned-label text split. That
+split covers primitive labels and transparent containers; it makes no claim
+about text inside arbitrary component bodies.
+
+`node scripts/style-slots/tabs-contract-audit.mjs` checks that domain using:
+
+- tsc against actual exported Web/Native props, not manifest-shaped fake types;
+- actual Native and browser receipt identities against the current manifest
+  hash and the same clean source checkout;
+- independent expected contract/ABI facts, not generated declaration equality;
+- every state and author-style observation on opaque/prepared/caller/instance
+  routes, including the label styles and authored getter evaluation boundary;
+- the live-input, modality, primitive-label and container matrices already
+  checked by the bounded input audit, including negative controls;
+- actual value equality of both published aliases, `Tabs` and `HozoTabs`.
+
+The workflow saves `tabs-contract-audit.json` even when assessment fails. A
+declaration saying `audited` cannot fill in missing receipts or authorize a
+default route. Synthetic test receipts only test the assessor's refusal rules.
+
+The first proof slice leaves declarations and default routing unchanged.
+A later package claim may say `audited` only after this independent rung-3
+gate passes for the declared host/ABI domain. That is not permission to report
+100% fidelity: UA/native focus-visible indication, opaque descendant text,
+native OS event delivery/cancellation and device rendering remain separate
+limits. Nor is one selected contract a complete public-owner denominator.
+
+This distinction avoids two incorrect shortcuts: promoting a manifest because
+it agrees with its own generator, and keeping a verified host contract
+permanently `unknown` solely because unrelated fidelity/device domains remain
+open. Runtime preparation eligibility and default adoption have their own
+gates and do not follow automatically from a contract declaration.

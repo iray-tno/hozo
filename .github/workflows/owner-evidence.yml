@@ -14,6 +14,7 @@ on:
       - 'scripts/style-slots/owner-fixture.mjs'
       - 'scripts/style-slots/owner-input-cases.mjs'
       - 'scripts/style-slots/owner-input-audit.mjs'
+      - 'scripts/style-slots/tabs-contract-audit.mjs'
       - 'scripts/style-slots-status.test.mjs'
       - 'scripts/style-slots/owner-shadow.json'
       - 'scripts/style-slots/catalog.mjs'
@@ -71,6 +72,14 @@ jobs:
       # bounded audit rather than quietly inheriting a previous green report.
       - run: node scripts/style-slots/owner-input-audit.mjs --output artifacts/style-fact-model/owner-input-audit.json
         if: always()
+      - run: node scripts/style-slots/tabs-contract-audit.mjs
+        if: always()
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tabs-contract-audit
+          path: artifacts/style-fact-model/tabs-contract-audit.json
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         if: always()
         with:

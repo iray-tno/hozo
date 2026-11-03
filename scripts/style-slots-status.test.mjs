@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { ownerShadow } from './style-slots/catalog.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
@@ -13,8 +14,168 @@ import {
   tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
+import { assessTabsContract } from './style-slots/tabs-contract-audit.mjs'
+import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
+
+// Synthetic fixtures verify the assessor, never stand in for actual CI receipts.
+function contractInputs() {
+  const value = inputReceipts()
+  const routes = ['opaque', 'prepared', 'caller', 'instance']
+  const kinds = ['candidate', 'tailwind', 'prepared']
+  const labels = (phase) =>
+    expectedTabRows(phase).map((row, at) => ({
+      color: row.selected ? '#445566' : '#334455',
+      size: 18,
+      weight: row.disabled ? '700' : '400',
+      spacing: at === 1 && phase !== 'initial' ? 1 : 0,
+    }))
+  const authors = (phase) =>
+    expectedTabRows('selected-disabled').map((row) => ({
+      rowGap: phase.startsWith('with-author') ? 5 : 3,
+      columnGap: phase.startsWith('with-author') ? 7 : 2,
+      background: phase.startsWith('with-author') ? '#abcdef' : row.background,
+      opacity: phase.startsWith('with-author') ? 0.8 : row.opacity,
+    }))
+  Object.assign(value.nativeTabs, {
+    aliasesSameOwner: true,
+    classes: tabLabelClasses,
+    declarations: ['disabled', 'aria-selected', 'aria-disabled'],
+    splitText: true,
+    fingerprint: 'test-context',
+    instance: {
+      identity: {
+        owner: 'Tabs.Tab',
+        classProp: 'tabClassName',
+        platform: 'ios',
+        manifestSha256: 'b'.repeat(64),
+      },
+      stylesheetSites: 1,
+      contextPreparations: 1,
+      contextFingerprint: 'test-context',
+    },
+    observations: routes.flatMap((route) =>
+      tabPhases.map((phase) => ({
+        route,
+        phase,
+        rows: expectedTabRows(phase),
+        labels: labels(phase),
+      })),
+    ),
+    authorObservations: routes.flatMap((route) =>
+      ['before-author', 'with-author', 'author-removed'].map((phase) => ({
+        route,
+        phase,
+        rows: authors(phase),
+        labels: labels('selected-disabled'),
+        hostEvaluationGetterReads: phase === 'with-author' ? 3 : 0,
+      })),
+    ),
+  })
+  value.webTabs.prepared.identity.classProp = 'tabClassName'
+  Object.assign(value.webTabs, {
+    aliasesSameOwner: true,
+    observations: kinds.flatMap((kind) =>
+      tabPhases.map((phase) => ({
+        kind,
+        phase,
+        selected: expectedTabRows(phase).map((row, at) => ({
+          ...row,
+          color: row.selected ? 'rgb(68, 85, 102)' : 'rgb(51, 68, 85)',
+          fontSize: 18,
+          fontWeight: row.disabled ? '700' : '400',
+          letterSpacing: at === 1 && phase !== 'initial' ? 1 : 0,
+          rowGap: 3,
+          columnGap: 2,
+        })),
+      })),
+    ),
+    authorObservations: kinds.flatMap((kind) =>
+      ['before-author', 'with-author', 'with-author-selected-enabled', 'after-removal'].map(
+        (phase) => ({ kind, phase, rows: authors(phase) }),
+      ),
+    ),
+  })
+  return {
+    ...value,
+    declaration: structuredClone(ownerShadow.contracts.find((row) => row.owner === 'Tabs.Tab')),
+    manifestSha256: 'b'.repeat(64),
+    publicPropsVerified: true,
+  }
+}
+
+test('Tabs contract proof checks the host ladder, not global fidelity or a default switch', () => {
+  const value = contractInputs()
+  const report = assessTabsContract(value)
+  assert.equal(report.passed, true)
+  assert.equal(report.assessment, 'host-delivery-verified')
+  assert.deepEqual(report.rungs, [1, 2, 3])
+  assert.equal(report.declaredAudit, 'unknown')
+  assert.equal(report.fidelity.exact, false)
+  assert.equal(report.rollout, 'unchanged')
+  value.declaration.audit = 'audited'
+  value.nativeTabs.observations = []
+  assert.equal(
+    assessTabsContract(value).passed,
+    false,
+    'a package claim cannot replace host evidence',
+  )
+})
+
+test('Tabs proof refuses incomplete state/author delivery, false aliases and other manifests', () => {
+  for (const mutate of [
+    (v) => {
+      v.publicPropsVerified = false
+    },
+    (v) => {
+      v.declaration.shapes[0].nativeHost = 'View'
+    },
+    (v) => {
+      v.declaration.abi.nativePreparedProp = 'hozoWrongStyle'
+    },
+    (v) => {
+      v.nativeTabs.observations[0].rows[0].padding = 0
+    },
+    (v) => {
+      v.nativeTabs.observations[1] = v.nativeTabs.observations[0]
+    },
+    (v) => {
+      v.nativeTabs.observations[0].labels[0].color = '#000000'
+    },
+    (v) => {
+      v.webTabs.observations[1].selected[1].radius = 0
+    },
+    (v) => {
+      v.nativeTabs.authorObservations[1].rows[0].opacity = 1
+    },
+    (v) => {
+      v.nativeTabs.authorObservations[1].hostEvaluationGetterReads = 6
+    },
+    (v) => {
+      v.webTabs.authorObservations.pop()
+    },
+    (v) => {
+      v.nativeTabs.instance.identity.manifestSha256 = 'c'.repeat(64)
+    },
+    (v) => {
+      v.webTabs.prepared.identity.manifestSha256 = 'c'.repeat(64)
+    },
+    (v) => {
+      v.nativeTabs.instance.contextFingerprint = 'another-context'
+    },
+    (v) => {
+      v.nativeTabs.aliasesSameOwner = false
+    },
+    (v) => {
+      v.webTabs.aliasesSameOwner = false
+    },
+  ]) {
+    const value = contractInputs()
+    mutate(value)
+    assert.equal(assessTabsContract(value).passed, false)
+  }
+})
 
 // Synthetic rows test the report's refusal rules only. They are not runtime
 // evidence; CI's command reads the actual component/browser receipt files.

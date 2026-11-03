@@ -443,6 +443,12 @@ the actual Tabs and BottomSheet delivery domains and the remaining event/device
 boundaries. It is a separately checked receipt, not promotion of either whole
 shadow contract to `audited`.
 
+The [Tabs host-contract assessment](../measurements/tabs-owner-contract-audit.md)
+adds the full state/author/ABI gate for a selected contract. Rung-3 contract
+audit and complete fidelity/device acceptance are distinct: a verified host
+domain must still publish its fidelity limits, and does not authorize default
+routing by itself.
+
 ### 4.7 Manifest identity
 
 - **Instance, not name.** A manifest is keyed by the package instance the
