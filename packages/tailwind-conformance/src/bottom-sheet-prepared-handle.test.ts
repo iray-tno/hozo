@@ -855,6 +855,57 @@ test('initially hidden handles never evaluate author styles under either Modal l
       }
 })
 
+test('partial carrier applies only to the mounted interactive handle', () => {
+  const recipe = classes
+  const prepare = exports.DirectInteractivePlan as (extra: string) => (state: object) => unknown
+  const compiled = prepare('')
+  let evaluations = 0
+  const props = {
+    handleClassName: recipe,
+    handleStyle: Object.freeze({ gap: 16 }),
+    hozoInteractiveHandleStyle: (state: object) => {
+      evaluations++
+      return compiled(state)
+    },
+  }
+  const tree = render(exports.Raw, { ...props, open: false })
+  const update = (detents: number[]) =>
+    renderer.act(() =>
+      tree.update(React.createElement(exports.Raw, { ...props, open: true, detents })),
+    )
+  try {
+    assert.equal(evaluations, 0)
+    requests.length = 0
+    update([0.5, 1])
+    const first = handle(tree, true)
+    renderer.act(() => (first.props.onHoverIn as (event: object) => void)({}))
+    assert.equal(style(first).opacity, 0.5)
+    assert.equal(style(first).rowGap, 16)
+    assert.ok(evaluations > 0)
+    assert.ok(!requests.includes(recipe))
+
+    const before = evaluations
+    update([1, 1])
+    const decorative = handle(tree, false)
+    assert.equal(style(decorative).opacity, 1)
+    assert.equal(style(decorative).columnGap, 16)
+    assert.equal(evaluations, before)
+    assert.ok(requests.includes(recipe), 'decoration must still resolve the full recipe')
+    // The preceding opaque-decoration test checks the diagnostic itself.
+    // Here we prove the unchanged recipe reaches that same resolver.
+
+    requests.length = 0
+    update([0.25, 1])
+    const restored = handle(tree, true)
+    assert.notEqual(restored, first)
+    assert.equal(style(restored).opacity, 1)
+    assert.ok(!requests.includes(recipe))
+    assert.equal(restored.props.hozoInteractiveHandleStyle, undefined)
+  } finally {
+    unmount(tree)
+  }
+})
+
 test('iOS dismissing handles keep prepared and authored styles until the actual owner unmounts', () => {
   rn.handleModalModel.platform = 'ios'
   try {
