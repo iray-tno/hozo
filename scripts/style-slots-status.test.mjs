@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { ownerShadow } from './style-slots/catalog.mjs'
+import { assessHandleDelivery } from './style-slots/handle-contract-assessment.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
@@ -23,6 +25,55 @@ import {
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('published handle assessment binds both live matrices to the current manifest and aliases', () => {
+  const manifestText = readFileSync(
+    new URL('../packages/patterns/hozo.manifest.json', import.meta.url),
+    'utf8',
+  )
+  const input = { ...inputReceipts(), trackedChanges: false, manifestText }
+  for (const [receipt, platform] of [
+    [input.nativeHandle, 'ios'],
+    [input.webHandle, 'web'],
+  ]) {
+    receipt.aliasesSameOwner = true
+    receipt.prepared = {
+      ...receipt.prepared,
+      preparations: 1,
+      identity: {
+        owner: 'BottomSheet.handle',
+        specifier: '@hozo/patterns',
+        imported: 'BottomSheet',
+        classProp: 'handleClassName',
+        platform,
+        manifestSha256: createHash('sha256').update(manifestText).digest('hex'),
+      },
+    }
+  }
+  const report = assessHandleDelivery(input)
+  assert.equal(report.passed, true, report.reason)
+  assert.equal(report.inputDomain.nativeObservations, 36)
+  assert.equal(report.inputDomain.webObservations, 27)
+  assert.equal(report.rungs, undefined, 'live delivery is not full contract verification')
+  for (const mutate of [
+    (value) => {
+      value.nativeHandle.prepared.identity.manifestSha256 = '0'.repeat(64)
+    },
+    (value) => {
+      value.webHandle.aliasesSameOwner = false
+    },
+    (value) => {
+      value.nativeHandle.observations.pop()
+    },
+    (value) => {
+      value.webHandle.sourceCommit = '0'.repeat(40)
+    },
+  ]) {
+    const invalid = structuredClone(input)
+    mutate(invalid)
+    assert.equal(assessHandleDelivery(invalid).passed, false)
+  }
+})
 
 test('Tabs proof reads the actual version-1 package envelope through the shared reader', () => {
   const text = readFileSync(
