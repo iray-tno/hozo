@@ -206,6 +206,7 @@ export function assessHandleDelivery({
     assert.deepEqual(contract.abi, {
       nativePreparedProp: 'hozoHandleStyle',
       webClassProp: 'handleClassName',
+      nativePartial: { prop: 'hozoInteractiveHandleStyle', shape: 'resizable' },
     })
     assert.deepEqual(contract.authoredStyles, [{ prop: 'handleStyle', order: 0 }])
     assert.deepEqual(contract.bindings, ['present', 'resizable'])

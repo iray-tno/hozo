@@ -507,7 +507,11 @@ export const ownerShadow = {
       // A closed iOS Modal / exiting Web presence may still paint the owner.
       // `present` is actual rendered lifetime, not the author's `open` request.
       bindings: ['present', 'resizable'],
-      abi: { nativePreparedProp: 'hozoHandleStyle', webClassProp: 'handleClassName' },
+      abi: {
+        nativePreparedProp: 'hozoHandleStyle',
+        webClassProp: 'handleClassName',
+        nativePartial: { prop: 'hozoInteractiveHandleStyle', shape: 'resizable' },
+      },
       authoredStyles: [{ prop: 'handleStyle', order: 0 }],
       shapes: [
         {
@@ -516,6 +520,7 @@ export const ownerShadow = {
           nativeHost: 'Pressable',
           webHost: 'button',
           events: ['pressed', 'hovered', 'focused', 'focusVisible'],
+          inputs: { facts: [], splitText: false },
         },
         {
           id: 'decorative',
