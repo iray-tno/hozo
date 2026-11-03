@@ -10,6 +10,65 @@ import { auditOwnerInputs } from './owner-input-audit.mjs'
 
 const owner = 'BottomSheet.handle'
 
+export function assessHandleWebLifetime(receipt, sourceCommit, manifestSha256) {
+  const base = { scope: 'web-handle-style-lifetime', owner }
+  try {
+    assert.equal(receipt?.schema, 1)
+    assert.equal(receipt.scope, 'web-owner-presence-controlled-clock')
+    assert.equal(receipt.passed, true)
+    assert.equal(receipt.trackedChanges, false)
+    assert.match(sourceCommit, /^[a-f0-9]{40}$/)
+    assert.match(manifestSha256, /^[a-f0-9]{64}$/)
+    assert.equal(receipt.sourceCommit, sourceCommit)
+    const prepared = receipt.prepared
+    assert.equal(prepared.identity.owner, owner)
+    assert.equal(prepared.identity.platform, 'web')
+    assert.equal(prepared.identity.classProp, 'handleClassName')
+    assert.equal(prepared.identity.manifestSha256, manifestSha256)
+    assert.equal(prepared.delivery, 'composed-ordinary-lowering')
+    assert.equal(prepared.preparations, 1)
+    assert.equal(prepared.ordinaryParses, 1)
+    const expected = []
+    const controls = []
+    for (const interactive of [false, true]) {
+      const open = {
+        tag: interactive ? 'BUTTON' : 'DIV',
+        state: 'open',
+        sameHost: true,
+        inert: false,
+        pointerEvents: null,
+        style: {
+          paddingTop: '16px',
+          width: '32px',
+          opacity: '1',
+          backgroundColor: 'rgb(34, 51, 68)',
+        },
+      }
+      for (const kind of ['candidate', 'tailwind', 'prepared']) {
+        controls.push({ kind, interactive, retained: true })
+        for (const [phase, selected] of [
+          ['initial-hidden', null],
+          ['open', open],
+          ['exiting', { ...open, state: 'closed', inert: true, pointerEvents: 'none' }],
+          ['absent', null],
+          ['reopened', { ...open, sameHost: false }],
+        ])
+          expected.push({ kind, interactive, phase, selected })
+      }
+    }
+    assert.deepEqual(receipt.observations, expected, 'Missing or incorrect lifecycle observation')
+    assert.deepEqual(receipt.earlyExitControls, controls, 'Missing early-exit negative control')
+    return {
+      ...base,
+      passed: true,
+      observations: expected.length,
+      earlyExitControls: controls.length,
+    }
+  } catch (error) {
+    return { ...base, passed: false, reason: error.message }
+  }
+}
+
 export function assessHandleDelivery({
   sourceCommit,
   trackedChanges,
@@ -102,12 +161,20 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       return null
     }
   }
+  const source = evidenceSource()
+  const manifestText = readFileSync(path.join(root, 'packages/patterns/hozo.manifest.json'), 'utf8')
   const report = assessHandleDelivery({
-    ...evidenceSource(),
-    manifestText: readFileSync(path.join(root, 'packages/patterns/hozo.manifest.json'), 'utf8'),
+    ...source,
+    manifestText,
     nativeHandle: read('handle-inputs-native.json'),
     webHandle: read('handle-inputs-browser.json'),
   })
+  report.webLifetime = assessHandleWebLifetime(
+    read('handle-browser-lifetime.json'),
+    source.sourceCommit,
+    createHash('sha256').update(manifestText).digest('hex'),
+  )
+  report.passed &&= report.webLifetime.passed
   mkdirSync(directory, { recursive: true })
   const json = JSON.stringify(report, null, 2)
   writeFileSync(path.join(directory, 'handle-contract-assessment.json'), `${json}\n`)

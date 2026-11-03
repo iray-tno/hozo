@@ -492,6 +492,7 @@ test('real Web handle styles follow owner presence rather than the open request'
     passed: false,
     scope: 'web-owner-presence-controlled-clock',
     observations: [],
+    earlyExitControls: [],
     prepared: null,
   }
   const destination = path.join(
@@ -585,6 +586,7 @@ test('real Web handle styles follow owner presence rather than the open request'
           // This proves DOM/style lifetime, not physical animation smoothness.
           await page.evaluate(() => window.finishExit())
           assert.equal(await page.locator('.lifetime-panel > :first-child').count(), 1)
+          evidence.earlyExitControls.push({ kind, interactive, retained: true })
           await page.clock.runFor(1000)
           await page.evaluate(() => window.finishExit())
           assert.equal(await record('absent'), null)

@@ -3,7 +3,10 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { ownerShadow } from './style-slots/catalog.mjs'
-import { assessHandleDelivery } from './style-slots/handle-contract-assessment.mjs'
+import {
+  assessHandleDelivery,
+  assessHandleWebLifetime,
+} from './style-slots/handle-contract-assessment.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
@@ -25,6 +28,82 @@ import {
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('Web handle lifetime requires present, exiting, absent and fresh hosts on both shapes', () => {
+  const manifestSha256 = 'b'.repeat(64)
+  const receipt = {
+    schema: 1,
+    scope: 'web-owner-presence-controlled-clock',
+    sourceCommit: commit,
+    trackedChanges: false,
+    passed: true,
+    prepared: {
+      identity: {
+        owner: 'BottomSheet.handle',
+        platform: 'web',
+        classProp: 'handleClassName',
+        manifestSha256,
+      },
+      delivery: 'composed-ordinary-lowering',
+      preparations: 1,
+      ordinaryParses: 1,
+    },
+    observations: [],
+    earlyExitControls: [],
+  }
+  for (const interactive of [false, true])
+    for (const kind of ['candidate', 'tailwind', 'prepared']) {
+      const open = {
+        tag: interactive ? 'BUTTON' : 'DIV',
+        state: 'open',
+        sameHost: true,
+        inert: false,
+        pointerEvents: null,
+        style: {
+          paddingTop: '16px',
+          width: '32px',
+          opacity: '1',
+          backgroundColor: 'rgb(34, 51, 68)',
+        },
+      }
+      receipt.earlyExitControls.push({ kind, interactive, retained: true })
+      receipt.observations.push(
+        { kind, interactive, phase: 'initial-hidden', selected: null },
+        { kind, interactive, phase: 'open', selected: open },
+        {
+          kind,
+          interactive,
+          phase: 'exiting',
+          selected: { ...open, state: 'closed', inert: true, pointerEvents: 'none' },
+        },
+        { kind, interactive, phase: 'absent', selected: null },
+        { kind, interactive, phase: 'reopened', selected: { ...open, sameHost: false } },
+      )
+    }
+  const assess = (value) => assessHandleWebLifetime(value, commit, manifestSha256)
+  assert.equal(assess(receipt).observations, 30)
+  for (const mutate of [
+    (value) => {
+      value.observations[2].selected.inert = false
+    },
+    (value) => {
+      value.observations[4].selected.sameHost = true
+    },
+    (value) => {
+      value.earlyExitControls.pop()
+    },
+    (value) => {
+      value.prepared.identity.manifestSha256 = '0'.repeat(64)
+    },
+    (value) => {
+      value.sourceCommit = '0'.repeat(40)
+    },
+  ]) {
+    const invalid = structuredClone(receipt)
+    mutate(invalid)
+    assert.equal(assess(invalid).passed, false)
+  }
+})
 
 test('published handle assessment binds both live matrices to the current manifest and aliases', () => {
   const manifestText = readFileSync(
