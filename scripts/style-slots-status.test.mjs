@@ -111,6 +111,7 @@ test('bounded handle evidence is visible without upgrading its audit declaration
     nativeLifetime: domain('native-handle-style-lifetime-model', 8),
     webStates: domain('web-handle-interaction-styles', 15),
     nativeStates: domain('native-handle-direct-carrier-states', 24),
+    nativePartial: { ...domain('native-handle-published-partial', 6), platforms: 2 },
   }
   const assess = (value, trackedChanges = false) =>
     stylingFactStatus({
@@ -121,6 +122,12 @@ test('bounded handle evidence is visible without upgrading its audit declaration
     })
   const report = assess(receipt)
   assert.equal(report.observations[0].status, 'measured')
+  assert.ok(
+    report.observations[0].domains.some(
+      (row) => row.key === 'nativePartial' && row.observations === 6,
+    ),
+  )
+  assert.equal(assess({ ...receipt, nativePartial: null }).observations[0].status, 'invalid')
   assert.ok(report.contractEvidence.unknownOwners.includes(owner))
   assert.ok(!report.contractEvidence.verifiedOwners.includes(owner))
   assert.equal(report.globalMeasures.contractAudit, null)

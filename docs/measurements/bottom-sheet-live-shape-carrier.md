@@ -19,3 +19,13 @@ diagnostics rather than removing unsupported variants from the recipe.
 Exercise absent/retained owners, live shape changes, author precedence,
 stale callbacks and resolver call counts before allowing any new admission.
 Keep the existing all-shapes rule for contracts without such a capability.
+
+## Published partial path
+
+An explicit instance-project opt-in now selects the partial ABI from the
+published manifest. It leaves the authored class attribute intact for the
+decorative resolver and emits one stylesheet for the interactive carrier.
+The status artifact reports six observed transitions across Android and iOS
+host models, separately from the direct-carrier state matrix. Evidence is
+only counted for the current clean source and manifest. No ordinary adapter
+opts in, and this does not certify the owner or operating-system behavior.
