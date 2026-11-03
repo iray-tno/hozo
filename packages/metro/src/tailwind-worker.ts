@@ -29,9 +29,27 @@ export async function readTailwindTransfer(reference: MetroTailwindReference) {
   ) {
     throw new Error('[hozo] Invalid Metro Tailwind snapshot; restart Metro')
   }
+  const nativeRuntime = data.nativeRuntime
+  if (
+    Object.hasOwn(data, 'nativeRuntime') &&
+    (!nativeRuntime ||
+      typeof nativeRuntime !== 'object' ||
+      typeof nativeRuntime.sha256 !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(nativeRuntime.sha256) ||
+      !Array.isArray(nativeRuntime.candidates) ||
+      nativeRuntime.candidates.some((name: unknown) => typeof name !== 'string' || !name) ||
+      new Set(nativeRuntime.candidates).size !== nativeRuntime.candidates.length)
+  )
+    throw new Error('[hozo] Invalid Metro Native runtime inventory; restart Metro')
   return {
     snapshot: await restoreTailwindStylesheet(data.stylesheet),
     candidates: data.candidates as string[],
+    ...(nativeRuntime && {
+      nativeRuntime: {
+        sha256: nativeRuntime.sha256 as string,
+        candidates: nativeRuntime.candidates as string[],
+      },
+    }),
   }
 }
 

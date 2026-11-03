@@ -12,6 +12,7 @@ import { metroStatePath, readMetroState, withHozo, withHozoOwnerCandidates } fro
 import { getCacheKey, transform } from './index.ts'
 import { collectMetroOwnerPreflight } from './owner-manifest-preflight.ts'
 import { candidateModulePath } from './project.ts'
+import { readTailwindTransfer } from './tailwind-worker.ts'
 
 function fixture(t, platform = 'android') {
   const f = ownerMetroFixture(t)
@@ -102,6 +103,20 @@ test('manifest-only candidates participate in auto preflight without scanning pa
   assert.equal(readMetroState(f.root)?.preflight, false)
   await withHozoOwnerCandidates(f.config, f.preflight(), options)
   assert.equal(readMetroState(f.root)?.preflight, true)
+  assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
+})
+
+test('candidate consumption transfers only emitted Native fallback candidates', async (t) => {
+  const f = fixture(t)
+  writeFileSync(f.params.filename, f.params.src.replace('p-4', 'm-7'))
+  await withHozo(f.config, f.options)
+  const ordinary = await readTailwindTransfer(readMetroState(f.root)!.tailwind!)
+  assert.equal(ordinary.nativeRuntime, undefined)
+  await withHozoOwnerCandidates(f.config, f.preflight(), f.options)
+  const transfer = await readTailwindTransfer(readMetroState(f.root)!.tailwind!)
+  assert.ok(transfer.candidates.includes('m-7'), 'static recipe remains in the ordering seed')
+  assert.ok(transfer.nativeRuntime?.candidates.includes('p-2'))
+  assert.ok(!transfer.nativeRuntime.candidates.includes('m-7'))
   assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
 })
 
