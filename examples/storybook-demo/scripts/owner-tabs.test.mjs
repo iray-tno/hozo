@@ -8,8 +8,10 @@ import { chromium } from 'playwright-core'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabContainer,
   expectedTabLabels,
   expectedTabModality,
+  tabContainerCases,
   tabInputCases,
   tabLabelCases,
   tabModalityCases,
@@ -37,6 +39,8 @@ async function appBundle(classes, prepared) {
       contents: `${prepared ?? "import {Tabs} from '@hozo/patterns';"}
 import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 window.changes=[];
+const containers={array:['before',0,'after'],'nested-array':['before',[0,-7],'after'],fragment:<>before{0}after</>,'nested-fragment':<>before<>{[0,-7]}</><div data-testid="opaque-label-leaf" style={{opacity:.7}}/>after</>};
+window.setContainer=id=>window.setInput({tabs:[{label:'A',content:'one'},{label:containers[id],content:'two'},{label:'C',content:'three'}],index:1});
 function App(){const [index,setIndex]=useState(0);const [items,setItems]=useState([{label:'A',content:'one'},{label:'B',content:'two'},{label:'C',content:'three',disabled:true}]);const [author,setAuthor]=useState();window.setInput=input=>flushSync(()=>{setItems(input.tabs);setIndex(input.index)});window.setAuthor=value=>flushSync(()=>setAuthor(value));window.select=at=>flushSync(()=>setIndex(at));return <${prepared ? 'TabsFixture' : 'Tabs'} index={index} tabStyle={author} onIndexChange={at=>{changes.push(at);setIndex(at)}} ${prepared ? '' : `tabClassName={${JSON.stringify(classes)}}`} tabs={items}/>}
 flushSync(()=>createRoot(document.querySelector('#root')).render(<App/>));`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
@@ -92,6 +96,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     inputObservations: [],
     modalityObservations: [],
     labelObservations: [],
+    containerObservations: [],
     controls: [],
     prepared: null,
   }
@@ -361,6 +366,34 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
           assert.deepEqual(rows, expectedTabLabels(input), `${kind}: ${input.id}`)
           evidence.labelObservations.push({ kind, input: input.id, rows })
         }
+        for (const input of tabContainerCases) {
+          await page.evaluate((id) => window.setContainer(id), input.id)
+          const rows = await tabs.nth(1).evaluate((node) => {
+            if (node !== window.labelOwners[1])
+              throw new Error('container label remounted an Owner')
+            const style = getComputedStyle(node)
+            const rgb = style.color.match(/\d+/g).slice(0, 3)
+            return [
+              {
+                label: node.textContent,
+                color: `#${rgb.map((value) => Number(value).toString(16).padStart(2, '0')).join('')}`,
+                size: Number.parseFloat(style.fontSize),
+              },
+            ]
+          })
+          assert.deepEqual(rows, expectedTabContainer(input), `${kind}: ${input.id}`)
+          if (input.id === 'nested-fragment') {
+            assert.equal(await tabs.nth(1).getByTestId('opaque-label-leaf').count(), 1)
+            assert.equal(
+              await tabs
+                .nth(1)
+                .getByTestId('opaque-label-leaf')
+                .evaluate((node) => getComputedStyle(node).opacity),
+              '0.7',
+            )
+          }
+          evidence.containerObservations.push({ kind, input: input.id, rows })
+        }
         await page.evaluate(() =>
           window.setInput({
             tabs: [
@@ -395,6 +428,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     assert.equal(evidence.inputObservations.length, 24)
     assert.equal(evidence.modalityObservations.length, 24)
     assert.equal(evidence.labelObservations.length, 15)
+    assert.equal(evidence.containerObservations.length, 12)
     for (const kind of ['candidate', 'prepared'])
       assert.deepEqual(
         evidence.authorObservations

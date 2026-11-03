@@ -3,9 +3,11 @@ import test from 'node:test'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabContainer,
   expectedTabLabels,
   expectedTabModality,
   handleInputCases,
+  tabContainerCases,
   tabInputCases,
   tabLabelCases,
   tabModalityCases,
@@ -46,6 +48,14 @@ function inputReceipts() {
       ...base('native-tabs-compiled-owner-component-host-model'),
       stylesheetCreates: 1,
       requests: { opaque: 5, prepared: 0, caller: 0, instance: 0 },
+      containerObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
+        tabContainerCases.map((input) => ({
+          route,
+          input: input.id,
+          textHosts: input.leaves.length,
+          rows: expectedTabContainer(input),
+        })),
+      ),
       labelObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
         tabLabelCases.map((input) => ({ route, input: input.id, rows: expectedTabLabels(input) })),
       ),
@@ -67,6 +77,13 @@ function inputReceipts() {
     webTabs: {
       ...base('web-tabs-real-pointer-focus'),
       prepared: prepared('Tabs.Tab'),
+      containerObservations: kinds.flatMap((kind) =>
+        tabContainerCases.map((input) => ({
+          kind,
+          input: input.id,
+          rows: expectedTabContainer(input),
+        })),
+      ),
       labelObservations: kinds.flatMap((kind) =>
         tabLabelCases.map((input) => ({ kind, input: input.id, rows: expectedTabLabels(input) })),
       ),
@@ -153,6 +170,11 @@ test('Owner input audit has finite denominators without self-promoting contracts
     nativeObservations: 20,
     webObservations: 15,
   })
+  assert.deepEqual(report.domains[0].containers, {
+    cases: 4,
+    nativeObservations: 16,
+    webObservations: 12,
+  })
 })
 
 test('UA-conditioned indication differences stay visible and never promote common equivalence', () => {
@@ -193,6 +215,13 @@ test('Owner input audit requires every route, real delivery values, lifetime and
   for (const mutate of [
     (input) => input.nativeTabs.inputObservations.pop(),
     (input) => input.nativeTabs.labelObservations.pop(),
+    (input) => input.nativeTabs.containerObservations.pop(),
+    (input) => {
+      input.nativeTabs.containerObservations[0].textHosts = 0
+    },
+    (input) => {
+      input.webTabs.containerObservations[0].rows[0].label = 'beforeafter'
+    },
     (input) => {
       input.webTabs.labelObservations[0].rows[1].label = ''
     },

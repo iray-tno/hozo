@@ -7,9 +7,11 @@ import { isDeepStrictEqual } from 'node:util'
 import { evidenceSource } from './evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabContainer,
   expectedTabLabels,
   expectedTabModality,
   handleInputCases,
+  tabContainerCases,
   tabInputCases,
   tabLabelCases,
   tabModalityCases,
@@ -67,6 +69,24 @@ function checkRows(actual, expected) {
 }
 
 function tabs(native, web) {
+  for (const [actual, routes] of [
+    [native.containerObservations, nativeTabRoutes],
+    [web.containerObservations, webKinds],
+  ])
+    checkRows(
+      actual,
+      routes.flatMap((route) =>
+        tabContainerCases.map((input) => ({
+          key: `${route}:${input.id}`,
+          value: expectedTabContainer(input),
+        })),
+      ),
+    )
+  for (const row of native.containerObservations)
+    requireFact(
+      row.textHosts === tabContainerCases.find((input) => input.id === row.input).leaves.length,
+      'Missing Native text receivers in transparent container',
+    )
   for (const [actual, routes] of [
     [native.labelObservations, nativeTabRoutes],
     [web.labelObservations, webKinds],
@@ -260,6 +280,11 @@ export function auditOwnerInputs({
                 nativeObservations: nativeTabRoutes.length * tabLabelCases.length,
                 webObservations: webKinds.length * tabLabelCases.length,
               },
+              containers: {
+                cases: tabContainerCases.length,
+                nativeObservations: nativeTabRoutes.length * tabContainerCases.length,
+                webObservations: webKinds.length * tabContainerCases.length,
+              },
             }
           : {}),
       }
@@ -275,7 +300,7 @@ export function auditOwnerInputs({
     passed: domains.every((row) => row.status === 'measured'),
     domains,
     denominatorKind:
-      'Authored finite live-input and modality cases, not all Owner inputs or styling support',
+      'Authored finite Owner input, modality and label cases, not all styling support',
     nativeEvidence: 'Actual component logic with RN host and Modal lifetime models; not devices',
     contractAudit: 'unknown',
     rollout: 'unchanged',

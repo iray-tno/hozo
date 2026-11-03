@@ -53,7 +53,17 @@ the component returned a bare numeric child and did not apply the label's text
 style. Numbers now use the existing string Text path, with no new context or
 tree traversal. Tests require real Native Text hosts, unchanged tab hosts and
 the selected/disabled label styles; Web output is compared to Tailwind. This
-does not cover arbitrary ReactNode descendants, arrays or fragments.
+only establishes primitive labels; transparent containers have a separate
+domain below, and arbitrary component descendants remain unassessed.
+
+The transparent-container domain covers arrays, nested arrays, Fragments and
+nested Fragments, with a mixed opaque View/div leaf. It adds 16 Native / 12 Web
+observations. Native must expose one Text receiver per authored text leaf,
+including zero, while preserving the tab Owner and the opaque host's own
+styles. The original array assertion failed with no Text receivers. The shared
+normalizer now opens only React's transparent containers, preserving Fragment
+keys; independent tests guard frozen input, stable keyed receivers and that
+arbitrary component bodies are not inspected or executed by normalization.
 
 BottomSheet covers omitted, empty, invalid, duplicate and filtered-single
 detents, unsorted/valid multi-detents and reverse shape transitions. The
