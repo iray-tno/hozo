@@ -90,6 +90,23 @@ test('splitter announces resize, bounds, collapse and restoration', async ({
       })
     }
     assert.equal(await handle.getAttribute('aria-valuenow'), '144')
+    // Three seconds of rest, three times VoiceOver's default hint delay. A
+    // hint said here is one that could be said into the keys below (#1642).
+    if (!onWindows) {
+      const said = await spokenAfter(
+        screenReader,
+        () => new Promise((done) => setTimeout(done, 3000)),
+      )
+      const helpDelay = (
+        screenReader as unknown as { getSetting(key: string): unknown }
+      ).getSetting('SCRContextualHelpDelayInSeconds')
+      warmedUp.push({ action: 'Rest for 3s', said, facts: { helpDelay } })
+      assert.deepEqual(
+        said,
+        [],
+        'VoiceOver spoke while the cursor rested, so a hint can swallow a key',
+      )
+    }
     for (const [key, size, collapsed] of [
       ['ArrowRight', 152, false],
       ['Home', 96, false],
