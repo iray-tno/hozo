@@ -20,7 +20,6 @@ investigation moves.
 | The Native Dialog returning focus to its opener | device a11y checks | [#484](https://github.com/iray-tno/hozo/issues/484) |
 | The `android` job, before any test runs ("Android framework readiness timed out") | `.github/workflows` | [#1525](https://github.com/iray-tno/hozo/issues/1525) |
 | The landing `color-picker` check, after Enter in the hex input ("waiting for getByText('Chosen: #10b981')") | `apps/landing` | [#1603](https://github.com/iray-tno/hozo/issues/1603) |
-| NVDA walks that start past the first element (CodeBlock copy scenarios, the Combobox story) | `examples/screen-readers` | [#1641](https://github.com/iray-tno/hozo/issues/1641) |
 | The VoiceOver splitter scenario, "said nothing after Home" | `examples/screen-readers` | [#1642](https://github.com/iray-tno/hozo/issues/1642) |
 
 ## Not flaky: the Storybook audits on a lowered priority

@@ -250,12 +250,35 @@ export async function enterPage(page: Page, screenReader: ScreenReaderPlaywright
       await screenReader.clearSpokenPhraseLog()
       continue
     }
-    await screenReader.clearSpokenPhraseLog()
-    await screenReader.perform(
-      { keyCode: [WindowsKeyCodes.Home], modifiers: [WindowsModifiers.Control] },
-      { capture: 'initial' },
+    // Ctrl+End, a pause, then Ctrl+Home, each after the reader has finished
+    // speaking, so the walk starts the same way every time (#1641).
+    //
+    // A single Ctrl+Home raced NVDA's handling of the focus change above. When
+    // the document's own announcement ("patterns-combobox--default, document")
+    // came after the key, it replaced the first line: the heading was never
+    // said and the walk began on the paragraph under it. When it came before,
+    // it had already put the virtual cursor on the first line, so Ctrl+Home
+    // did not move it and NVDA read the line without the containers it opens:
+    // "paths dot ts" where it says "clickable, figure, caption, paths dot ts"
+    // when it arrives from elsewhere. Either way the first approved phrase was
+    // missing. Waiting out the focus speech settles the first race. Starting
+    // from the end settles the second, because Ctrl+Home then always crosses
+    // into whatever the first line sits in.
+    await untilQuiet(screenReader)
+    await screenReader.perform({
+      keyCode: [WindowsKeyCodes.End],
+      modifiers: [WindowsModifiers.Control],
+    })
+    await untilQuiet(screenReader)
+    // `spokenAfter` clears the log first and leaves what Ctrl+Home said in it,
+    // so the walk's phrases begin with the first line.
+    const home = await spokenAfter(screenReader, () =>
+      screenReader.perform({
+        keyCode: [WindowsKeyCodes.Home],
+        modifiers: [WindowsModifiers.Control],
+      }),
     )
-    console.log(`[enter] after home    ${await layerState(page)}`)
+    console.log(`[enter] after home    ${await layerState(page)} said=${JSON.stringify(home)}`)
     return
   }
   throw new Error(
@@ -478,8 +501,18 @@ export async function spokenAfter(
     await sleep(POLL_MS)
   }
 
-  // Never the first phrase and out: the announcement is finished when the log
-  // has been the same length for `QUIET_MS`.
+  await untilQuiet(screenReader)
+  return meaningful(await screenReader.spokenPhraseLog())
+}
+
+/**
+ * Waits until the log has been the same length for `QUIET_MS`.
+ *
+ * Never the first phrase and out: an announcement is finished when the log
+ * stops growing, with `SPEECH_MS` as a ceiling.
+ */
+async function untilQuiet(screenReader: IScreenReader): Promise<void> {
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
   const ceiling = Date.now() + SPEECH_MS
   let seen = -1
   let unchangedSince = Date.now()
@@ -489,11 +522,10 @@ export async function spokenAfter(
       seen = length
       unchangedSince = Date.now()
     } else if (Date.now() - unchangedSince >= QUIET_MS) {
-      break
+      return
     }
     await sleep(POLL_MS)
   }
-  return meaningful(await screenReader.spokenPhraseLog())
 }
 
 /** Phrases compared the way this suite compares them: case and spacing do not count. */
