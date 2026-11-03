@@ -124,9 +124,20 @@ const EXTRA: ReadonlySet<string> = new Set([
   'form-filedropzone--default',
 ])
 
+/**
+ * Stories longer than `MAX_STEPS` by design, read whole with their own budget
+ * by `code-and-splitter.spec.ts` instead: a walk here would stop in the middle, for the
+ * same reason the calendars are not on `EXTRA`. The windowed CodeBlock is
+ * sixty lines (#1408).
+ */
+const SCENARIO_ONLY: ReadonlySet<string> = new Set(['patterns-codeblock--windowed'])
+
 const stories = Object.values(index.entries)
   .filter(
-    (entry) => entry.type === 'story' && (entry.id.startsWith('patterns-') || EXTRA.has(entry.id)),
+    (entry) =>
+      entry.type === 'story' &&
+      (entry.id.startsWith('patterns-') || EXTRA.has(entry.id)) &&
+      !SCENARIO_ONLY.has(entry.id),
   )
   .map((entry) => entry.id)
   .sort()

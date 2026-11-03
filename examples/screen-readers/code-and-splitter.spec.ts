@@ -126,6 +126,55 @@ test('splitter announces resize, bounds, collapse and restoration', async ({
   verify()
 })
 
+// A windowed block mounts only the rows near the visible ones, and a reader's
+// own movement does not scroll it, so the whole text is also kept as hidden
+// plain lines (#1408). Read to the end: the last line is never mounted as a
+// row here, so hearing it means the hidden copy was read, and hearing no line
+// twice means the drawn rows were not.
+test('windowed code block reads to its last line, each line once', async ({
+  page,
+  screenReader,
+}, testInfo) => {
+  const name = 'code-block-windowed-to-the-end'
+  const story = 'patterns-codeblock--windowed'
+  const lineCount = 60
+  const stop = startRecording(name)
+  const observed: Observation[] = []
+  let verify: (() => void) | undefined
+  try {
+    await page.goto(`/iframe.html?id=${story}&viewMode=story`, { waitUntil: 'load' })
+    await page.locator('#storybook-root > *').first().waitFor()
+    const figure = page.getByRole('figure', { name: 'entries.txt', exact: true })
+    const drawn = (await figure.locator('pre[aria-hidden="true"]').textContent()) ?? ''
+    assert.doesNotMatch(drawn, new RegExp(`\\bentry ${lineCount}\\b`), 'the last line is mounted')
+    await enterPage(page, screenReader)
+    const reading = await walk(screenReader, { page, maxSteps: lineCount + MAX_STEPS })
+    const heard = new Map<number, number>()
+    for (const phrase of reading.phrases)
+      for (const match of phrase.matchAll(/\bentry (\d+)\b/g))
+        heard.set(Number(match[1]), (heard.get(Number(match[1])) ?? 0) + 1)
+    const facts = {
+      ended: reading.ended,
+      steps: reading.steps,
+      truncated: reading.truncated,
+      linesHeard: heard.size,
+      lastHeard: Math.max(0, ...heard.keys()),
+      heardTwice: [...heard].filter(([, times]) => times > 1).map(([line]) => line),
+      addedPrefix: reading.phrases.some((phrase) => /Added:?\s*entry 30\b/.test(phrase)),
+    }
+    observed.push({ action: 'Read the windowed block to its end', said: reading.phrases, facts })
+    assert.ok(reading.steps < lineCount + MAX_STEPS, 'the reader exhausted its budget')
+    assert.equal(facts.lastHeard, lineCount, 'the reader stopped before the last line')
+    assert.equal(facts.linesHeard, lineCount, 'the reader skipped lines')
+    assert.deepEqual(facts.heardTwice, [], 'the drawn rows were read as well')
+  } finally {
+    stop()
+    verify = finish(name, story, observed, testInfo)
+  }
+  assert.ok(verify)
+  verify()
+})
+
 for (const activation of ['reader', 'browser'] as const) {
   test(`code block reads marked lines and announces ${activation} Enter copy`, async ({
     page,

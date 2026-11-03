@@ -1,0 +1,70 @@
+figure, entries.txt
+caption
+entries.txt
+end of caption
+region, Code contents: entries.txt
+code
+entry 1
+entry 2
+entry 3
+entry 4
+entry 5
+entry 6
+entry 7
+entry 8
+entry 9
+entry 10
+entry 11
+entry 12
+entry 13
+entry 14
+entry 15
+entry 16
+entry 17
+entry 18
+entry 19
+entry 20
+entry 21
+entry 22
+entry 23
+entry 24
+entry 25
+entry 26
+entry 27
+entry 28
+entry 29
+Added:
+entry 30
+entry 31
+entry 32
+entry 33
+entry 34
+entry 35
+entry 36
+entry 37
+entry 38
+entry 39
+entry 40
+entry 41
+entry 42
+entry 43
+entry 44
+entry 45
+entry 46
+entry 47
+entry 48
+entry 49
+entry 50
+entry 51
+entry 52
+entry 53
+entry 54
+entry 55
+entry 56
+entry 57
+entry 58
+entry 59
+entry 60
+end of code
+end of region, Code contents: entries.txt
+end of figure, entries.txt
