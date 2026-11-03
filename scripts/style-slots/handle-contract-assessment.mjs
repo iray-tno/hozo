@@ -11,6 +11,54 @@ import { stylingFactStatus } from './status.mjs'
 
 const owner = 'BottomSheet.handle'
 
+export function assessHandleNativeStates(receipt, sourceCommit) {
+  const base = { scope: 'native-handle-direct-carrier-states', owner }
+  try {
+    assert.match(sourceCommit, /^[a-f0-9]{40}$/)
+    assert.equal(receipt?.schema, 1)
+    assert.equal(receipt.scope, base.scope)
+    assert.equal(receipt.sourceCommit, sourceCommit)
+    assert.equal(receipt.trackedChanges, false)
+    assert.equal(receipt.passed, true)
+    const expected = []
+    const events = [
+      'rest',
+      'onHoverIn',
+      'onFocus',
+      'onPressIn',
+      'onPressOut',
+      'onBlur',
+      'onHoverOut',
+    ]
+    for (const interactive of [false, true])
+      for (const author of ['none', 'object', 'array'])
+        for (const [at, event] of (interactive ? events : ['rest']).entries()) {
+          expected.push({
+            interactive,
+            author,
+            event,
+            selected: {
+              host: interactive ? 'Pressable' : 'View',
+              padding: at >= 2 && at <= 4 ? 12 : 8,
+              opacity: author === 'object' ? 0.25 : at >= 1 && at <= 5 ? 0.5 : 1,
+              background: at === 3 ? '#ff0000' : '#ffffff',
+              radius: 7,
+              rowGap: author === 'array' ? 6 : author === 'object' ? 16 : null,
+              columnGap: author === 'array' ? 24 : author === 'object' ? 16 : null,
+            },
+          })
+        }
+    assert.deepEqual(
+      receipt.observations,
+      expected,
+      'Missing or incorrect direct-carrier state observation',
+    )
+    return { ...base, passed: true, observations: expected.length }
+  } catch (error) {
+    return { ...base, passed: false, reason: error.message }
+  }
+}
+
 export function assessHandleWebStates(receipt, sourceCommit, manifestSha256) {
   const base = { scope: 'web-handle-interaction-styles', owner }
   try {
@@ -248,8 +296,15 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     source.sourceCommit,
     createHash('sha256').update(manifestText).digest('hex'),
   )
+  report.nativeStates = assessHandleNativeStates(
+    read('handle-states-native.json'),
+    source.sourceCommit,
+  )
   report.passed &&=
-    report.webLifetime.passed && report.nativeLifetime.passed && report.webStates.passed
+    report.webLifetime.passed &&
+    report.nativeLifetime.passed &&
+    report.webStates.passed &&
+    report.nativeStates.passed
   mkdirSync(directory, { recursive: true })
   const json = JSON.stringify(report, null, 2)
   writeFileSync(path.join(directory, 'handle-contract-assessment.json'), `${json}\n`)
