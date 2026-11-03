@@ -12,6 +12,7 @@ import { collectMetroOwnerPreflight } from '../../../packages/metro/src/owner-ma
 const require = createRequire(import.meta.url)
 const fromMetro = createRequire(require.resolve('metro/package.json'))
 const metroRuntimeRoot = path.dirname(fromMetro.resolve('metro-runtime/package.json'))
+const asyncRequireSpecifier = 'metro-runtime/src/modules/asyncRequire'
 const { getDefaultConfig } = fromMetro('metro-config')
 const fromTransformer = createRequire(require.resolve('@react-native/metro-babel-transformer'))
 const fromPreset = createRequire(fromTransformer.resolve('@react-native/babel-preset'))
@@ -40,6 +41,15 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       return root
     }
     install('react-native', 'exports.StyleSheet = {create: styles => styles};')
+    // Metro resolves asyncRequire during serialization even without a dynamic
+    // import. Model it as a real declared dependency of this isolated app.
+    const runtime = install('metro-runtime', '')
+    const runtimeModules = path.join(runtime, 'src', 'modules')
+    mkdirSync(runtimeModules, { recursive: true })
+    copyFileSync(
+      fromMetro.resolve(asyncRequireSpecifier),
+      path.join(runtimeModules, 'asyncRequire.js'),
+    )
     const patterns = install(
       '@hozo/patterns',
       `
@@ -102,8 +112,7 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       transformer: {
         ...defaults.transformer,
         babelTransformerPath: upstream,
-        // The temporary app is not under the workspace's node_modules.
-        asyncRequireModulePath: fromMetro.resolve(defaults.transformer.asyncRequireModulePath),
+        asyncRequireModulePath: asyncRequireSpecifier,
         // The fixture Babel pass lowers JSX only. Let Metro lower ESM before
         // its module wrapper instead of leaving imports inside that wrapper.
         async getTransformOptions(...args) {
@@ -117,7 +126,10 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       platform,
       epoch: 'partial-owner-bundle',
       origins: [file],
-      additionalImports: [{ importer: file, specifier: '@hozo/core/generated/class-resolver' }],
+      additionalImports: [
+        { importer: file, specifier: '@hozo/core/generated/class-resolver' },
+        { importer: file, specifier: asyncRequireSpecifier },
+      ],
     })
     assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
     for (const partial of [false, true]) {
