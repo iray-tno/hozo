@@ -92,6 +92,8 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
     const defaults = await getDefaultConfig(f.root)
     const config = {
       ...defaults,
+      // Metro.loadConfig normally adds projectRoot to the file-map roots.
+      watchFolders: [f.root, ...defaults.watchFolders],
       maxWorkers: 1,
       resetCache: true,
       resolver: { ...defaults.resolver, useWatchman: false },
