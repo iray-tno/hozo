@@ -1,10 +1,25 @@
 import assert from 'node:assert/strict'
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
-import { openCandidateCache } from '@hozo/compiler'
-import { CACHE_DIR, StylexModuleCache } from '@hozo/compiler/project'
+import { createCompiler, openCandidateCache } from '@hozo/compiler'
+import {
+  CACHE_DIR,
+  captureOwnerManifests,
+  OwnerManifestEpoch,
+  readResolvedOwnerManifest,
+  StylexModuleCache,
+} from '@hozo/compiler/project'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { fixtureNode } from '../fixtures/fixture-process.mjs'
 import { ownerMetroFixture } from '../fixtures/owner-metro-resolver.mjs'
@@ -12,7 +27,7 @@ import { metroStatePath, readMetroState, withHozo, withHozoOwnerCandidates } fro
 import { getCacheKey, transform } from './index.ts'
 import { collectMetroOwnerPreflight } from './owner-manifest-preflight.ts'
 import { candidateModulePath } from './project.ts'
-import { readTailwindTransfer } from './tailwind-worker.ts'
+import { MetroTailwindWorker, readTailwindTransfer } from './tailwind-worker.ts'
 
 function fixture(t, platform = 'android') {
   const f = ownerMetroFixture(t)
@@ -118,6 +133,56 @@ test('candidate consumption transfers only emitted Native fallback candidates', 
   assert.ok(transfer.nativeRuntime?.candidates.includes('p-2'))
   assert.ok(!transfer.nativeRuntime.candidates.includes('m-7'))
   assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
+})
+
+test('explicit Metro partial worker requires the published fallback map and refuses mixed rewrites', async (t) => {
+  const f = fixture(t)
+  const file = f.params.filename
+  const source = `import {BottomSheet} from '@hozo/patterns'; export const Row=()=> <BottomSheet open handleClassName="p-2 hover:opacity-50"/>`
+  writeFileSync(file, source)
+  await withHozoOwnerCandidates(f.config, f.preflight(), f.options)
+  const transfer = await readTailwindTransfer(readMetroState(f.root)!.tailwind!)
+  const packageRoot = fileURLToPath(new URL('../../patterns/', import.meta.url))
+  const metadata = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8'))
+  const entry = realpathSync(path.join(packageRoot, metadata.exports['.']['react-native'].default))
+  const edge = { importer: file, specifier: '@hozo/patterns' }
+  const observation = readResolvedOwnerManifest(edge, {
+    packageRoot,
+    entry,
+    declaredManifest: metadata.hozo.manifest,
+  })
+  const epoch = new OwnerManifestEpoch()
+  epoch.adopt(
+    captureOwnerManifests([edge], [observation], {
+      platform: 'android',
+      epoch: 'metro-partial-test',
+    }),
+  )
+  const lease = epoch.lease()
+  const worker = new MetroTailwindWorker(
+    createCompiler({ ...transfer.snapshot.theme, preflight: true }),
+    transfer,
+  )
+  t.after(() => {
+    worker.invalidate()
+    epoch.invalidate()
+  })
+  const request = { ...edge, entry, imported: 'BottomSheet', classProp: 'handleClassName' }
+  const transformPartial = (input: string) =>
+    worker.transformPartialOwner(input, file, f.root, lease, request)
+  assert.equal(await worker.transform(source, file, f.root), null)
+  assert.match(
+    (await transformPartial(source)) ?? '',
+    /handleClassName="p-2 hover:opacity-50" hozoInteractiveHandleStyle=/,
+  )
+  assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
+  assert.equal(await transformPartial(source.replace('opacity-50', 'opacity-75')), null)
+  const mixed = `${source}\nimport {View} from '@hozo/core'; export const Other=()=> <View className="p-4"/>`
+  const ordinary = await worker.transform(mixed, file, f.root)
+  assert.ok(ordinary?.includes('paddingTop: 28'))
+  assert.equal(await transformPartial(mixed), ordinary)
+  writeFileSync(candidateModulePath(f.root), '// replaced')
+  await assert.rejects(transformPartial(source), /RUNTIME_CHANGED/)
 })
 
 test('a manifest change during generation cannot publish a mixed map or replace existing config', {

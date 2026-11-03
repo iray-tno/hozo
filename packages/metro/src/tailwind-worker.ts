@@ -1,14 +1,17 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { type Compiler, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
+import { type Compiler, type PreparedModule, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
 import {
+  type OwnerContractRequest,
+  type OwnerManifestLease,
+  prepareInstanceOwnerCallers,
   type StylexModuleCache,
   TailwindCandidateUniverse,
   TailwindProjectSession,
 } from '@hozo/compiler/project'
 import { restoreTailwindStylesheet } from '@hozo/tailwind'
-import type { MetroTailwindReference } from './project.ts'
+import { candidateModulePath, type MetroTailwindReference } from './project.ts'
 import { transformHozoSourceOrPrepare } from './transform.ts'
 
 /** Read once per worker/epoch. A broken transfer is an error, not permission
@@ -61,14 +64,94 @@ export class MetroTailwindWorker {
   readonly session: TailwindProjectSession
   #names: Set<string>
   #universe: TailwindCandidateUniverse
+  readonly #nativeRuntime?: { sha256: string; candidates: ReadonlySet<string> }
 
   constructor(compiler: Compiler, transfer: Awaited<ReturnType<typeof readTailwindTransfer>>) {
     this.compiler = compiler
     this.#names = new Set(transfer.candidates)
     this.#universe = new TailwindCandidateUniverse(this.#names)
+    if (transfer.nativeRuntime)
+      this.#nativeRuntime = {
+        sha256: transfer.nativeRuntime.sha256,
+        candidates: new Set(transfer.nativeRuntime.candidates),
+      }
     this.session = new TailwindProjectSession(compiler, async (names, signal) =>
       JSON.stringify((await transfer.snapshot.prepareOrder(names, signal)).snapshot),
     )
+  }
+
+  /** @internal Explicit one-owner worker experiment. Until Native has source
+   * provenance for mixed output, never splice edits into rewritten code. */
+  async transformPartialOwner(
+    source: string,
+    filename: string,
+    root: string,
+    lease: OwnerManifestLease,
+    request: OwnerContractRequest,
+    stylexModules?: StylexModuleCache,
+  ) {
+    const file = path.resolve(root, filename)
+    if (request.importer !== file || !['ios', 'android'].includes(lease.capture.platform))
+      throw new Error('METRO_PARTIAL_OWNER_REQUEST_MISMATCH')
+    lease.check()
+    const runtime = this.#nativeRuntime
+    if (!runtime) return this.transform(source, filename, root, stylexModules)
+    const checkRuntime = () => {
+      if (
+        createHash('sha256')
+          .update(readFileSync(candidateModulePath(root)))
+          .digest('hex') !== runtime.sha256
+      )
+        throw new Error('METRO_PARTIAL_OWNER_RUNTIME_CHANGED')
+    }
+    checkRuntime()
+    const output = await this.session.runModule(file, this.#universe, (compiler, context) => {
+      const ordinary = transformHozoSourceOrPrepare(
+        source,
+        filename,
+        root,
+        compiler,
+        context,
+        stylexModules,
+      )
+      if (ordinary.kind === 'complete' && ordinary.output !== null) return ordinary
+      let owner: ReturnType<typeof prepareInstanceOwnerCallers>
+      try {
+        owner = prepareInstanceOwnerCallers(lease, source, compiler, request, true)
+      } catch (error) {
+        if (ordinary.kind === 'prepared') ordinary.module.dispose()
+        throw error
+      }
+      if (!owner.candidates.every((candidate) => runtime.candidates.has(candidate))) {
+        owner.dispose()
+        return ordinary
+      }
+      const ownedOrdinary = ordinary.kind === 'prepared' ? ordinary.module : undefined
+      const module: PreparedModule<string | null> = {
+        candidates: [
+          ...new Set([...owner.candidates, ...(ownedOrdinary?.candidates ?? [])]),
+        ].sort(),
+        emit(context) {
+          const lowered = ownedOrdinary?.emit(context) ?? null
+          if (lowered !== null) return lowered
+          const { preview } = owner.emit(context)
+          if (
+            !preview.findings.some((finding) => finding.disposition === 'prepared-partial') ||
+            preview.findings.some((finding) => finding.disposition === 'prepared-literal')
+          )
+            return null
+          return preview.code
+        },
+        dispose() {
+          owner.dispose()
+          ownedOrdinary?.dispose()
+        },
+      }
+      return { kind: 'prepared', module }
+    })
+    lease.check()
+    checkRuntime()
+    return output
   }
 
   transform(source: string, filename: string, root: string, stylexModules?: StylexModuleCache) {
