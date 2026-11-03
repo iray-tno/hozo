@@ -54,6 +54,12 @@ export interface HozoBottomSheetProps {
    * Ordinary compiler output does not emit this experimental carrier yet.
    */
   hozoHandleStyle?: (state: InteractionState | undefined) => StyleProp<ViewStyle>
+  /**
+   * @internal Experimental partial carrier. Consumes the complete class
+   * contribution on the resizable host only; decoration still resolves
+   * handleClassName unchanged, including its missing-state diagnostics.
+   */
+  hozoInteractiveHandleStyle?: (state: InteractionState) => StyleProp<ViewStyle>
   testID?: string
   children?: ReactNode
 }
@@ -109,11 +115,15 @@ export function HozoBottomSheet({
   handleStyle,
   handleBarStyle,
   hozoHandleStyle,
+  hozoInteractiveHandleStyle,
   testID,
   children,
 }: HozoBottomSheetProps) {
+  if (hozoHandleStyle && hozoInteractiveHandleStyle)
+    throw new Error('BottomSheet handle styles cannot use both prepared carriers')
   if (hozoHandleStyle && handleClassName !== undefined)
     throw new Error('Prepared BottomSheet handle styles must consume handleClassName')
+  const interactiveHandleStyle = hozoInteractiveHandleStyle ?? hozoHandleStyle
   // A string from the prop, then the project's i18n, then English;
   // `locale` the same way (decision 008).
   const message = useHozoMessage()
@@ -239,8 +249,8 @@ export function HozoBottomSheet({
               accessibilityRole="button"
               accessibilityLabel={handleAccessibilityLabel}
               style={(interaction) => [
-                hozoHandleStyle
-                  ? hozoHandleStyle(interaction)
+                interactiveHandleStyle
+                  ? interactiveHandleStyle(interaction)
                   : hozoClasses(handleClassName, { ...interaction }),
                 hozoAuthoredStyle(handleStyle),
               ]}
