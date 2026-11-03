@@ -51,6 +51,14 @@ entries are not silently reclassified to turn on old Primitive callback rules.
 Inventory counts distinguish one declared audit from one unknown shadow
 contract; only the independent CI report certifies that declaration.
 
+The `styling-fact-status` artifact shows declared, verified, unverified-declared,
+conflicting and unknown shadow owners separately. It credits a verified host
+contract only from one clean same-commit report matching the current manifest
+hash and passing declaration gate. Missing/stale/failed reports, a dirty
+checkout, or duplicate/conflicting reports cannot raise the verified count.
+The global contract-audit metric stays null until a complete public-owner
+denominator exists; this selected-contract ledger does not substitute for it.
+
 This distinction avoids two incorrect shortcuts: promoting a manifest because
 it agrees with its own generator, and keeping a verified host contract
 permanently `unknown` solely because unrelated fidelity/device domains remain

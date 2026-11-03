@@ -108,6 +108,7 @@ export function assessTabsContract({
   webTabs,
 }) {
   const base = {
+    schema: 1,
     owner: 'Tabs.Tab',
     scope: 'box-and-owned-label-host-delivery',
     sourceCommit,
@@ -273,6 +274,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   } catch (error) {
     report = {
       ...source,
+      schema: 1,
+      scope: 'box-and-owned-label-host-delivery',
       owner: 'Tabs.Tab',
       passed: false,
       assessment: 'not-established',

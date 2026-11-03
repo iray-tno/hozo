@@ -375,6 +375,105 @@ test('every declared audited shadow contract needs its own current independent h
   }
 })
 
+function contractReceipt() {
+  const input = contractInputs()
+  input.declaration.audit = 'audited'
+  const proof = assessTabsContract(input)
+  proof.declarationGate = assessDeclaredAudits({
+    contracts: ownerShadow.contracts,
+    proofs: [proof],
+    sourceCommit: commit,
+    manifestSha256: input.manifestSha256,
+  })
+  return proof
+}
+
+test('status separates a declared audit from one unambiguous current host proof', () => {
+  const options = { commit, expectedManifestSha256: 'b'.repeat(64) }
+  const receipt = contractReceipt()
+  assert.equal(receipt.passed, true)
+  const report = stylingFactStatus({ ...options, receipts: [receipt] })
+  assert.deepEqual(report.contractEvidence, {
+    scope: 'selected-shadow-contracts-not-global-coverage',
+    declaredOwners: ['Tabs.Tab'],
+    verifiedOwners: ['Tabs.Tab'],
+    unverifiedDeclaredOwners: [],
+    conflictingOwners: [],
+    unknownOwners: ['BottomSheet.handle'],
+    counts: { declared: 1, verified: 1, unverified: 0, conflicting: 0, unknown: 1 },
+  })
+  assert.equal(report.observations[0].status, 'measured')
+  assert.ok(report.observations[0].fidelityLimits.includes('device pixels'))
+  assert.equal(report.globalMeasures.contractAudit, null)
+  assert.deepEqual(stylingFactStatus(options).contractEvidence.unverifiedDeclaredOwners, [
+    'Tabs.Tab',
+  ])
+  const duplicate = stylingFactStatus({ ...options, receipts: [receipt, receipt] })
+  assert.deepEqual(duplicate.contractEvidence.verifiedOwners, [])
+  assert.deepEqual(duplicate.contractEvidence.conflictingOwners, ['Tabs.Tab'])
+  assert.deepEqual(
+    stylingFactStatus({ ...options, trackedChanges: true, receipts: [receipt] }).contractEvidence
+      .verifiedOwners,
+    [],
+  )
+})
+
+test('status never credits stale, dirty, failed, foreign-manifest or incomplete contract reports', () => {
+  const options = { commit, expectedManifestSha256: 'b'.repeat(64) }
+  for (const mutate of [
+    (v) => {
+      v.schema = 0
+    },
+    (v) => {
+      v.sourceCommit = 'c'.repeat(40)
+    },
+    (v) => {
+      v.trackedChanges = true
+    },
+    (v) => {
+      delete v.trackedChanges
+    },
+    (v) => {
+      v.passed = false
+    },
+    (v) => {
+      v.manifestSha256 = 'c'.repeat(64)
+    },
+    (v) => {
+      v.rungs = [1]
+    },
+    (v) => {
+      v.declaredAudit = 'unknown'
+    },
+    (v) => {
+      v.declarationGate.passed = false
+    },
+    (v) => {
+      v.declarationGate.verifiedOwners = []
+    },
+    (v) => {
+      v.owner = 'BottomSheet.handle'
+    },
+    (v) => {
+      v.inputDomain.owner = 'BottomSheet.handle'
+    },
+    (v) => {
+      v.fidelity.limits = [false]
+    },
+  ]) {
+    const receipt = contractReceipt()
+    mutate(receipt)
+    assert.deepEqual(
+      stylingFactStatus({ ...options, receipts: [receipt] }).contractEvidence.verifiedOwners,
+      [],
+    )
+  }
+  assert.deepEqual(
+    stylingFactStatus({ commit, receipts: [contractReceipt()] }).contractEvidence.verifiedOwners,
+    [],
+  )
+})
+
 test('Owner input audit has finite denominators without self-promoting contracts or rollout', () => {
   const report = auditOwnerInputs(inputReceipts())
   assert.equal(report.passed, true)
