@@ -11,6 +11,7 @@ import { collectMetroOwnerPreflight } from '../../../packages/metro/src/owner-ma
 
 const require = createRequire(import.meta.url)
 const fromMetro = createRequire(require.resolve('metro/package.json'))
+const metroRuntimeRoot = path.dirname(fromMetro.resolve('metro-runtime/package.json'))
 const { getDefaultConfig } = fromMetro('metro-config')
 const fromTransformer = createRequire(require.resolve('@react-native/metro-babel-transformer'))
 const fromPreset = createRequire(fromTransformer.resolve('@react-native/babel-preset'))
@@ -92,8 +93,9 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
     const defaults = await getDefaultConfig(f.root)
     const config = {
       ...defaults,
-      // Metro.loadConfig normally adds projectRoot to the file-map roots.
-      watchFolders: [f.root, ...defaults.watchFolders],
+      // The fixture lives outside the workspace, but Metro injects its
+      // require polyfill from the installed metro-runtime package.
+      watchFolders: [f.root, metroRuntimeRoot, ...defaults.watchFolders],
       maxWorkers: 1,
       resetCache: true,
       resolver: { ...defaults.resolver, useWatchman: false },
