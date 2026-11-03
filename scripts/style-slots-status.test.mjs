@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { ownerShadow } from './style-slots/catalog.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
@@ -14,10 +15,22 @@ import {
   tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
-import { assessTabsContract } from './style-slots/tabs-contract-audit.mjs'
+import { assessTabsContract, tabsDeclaration } from './style-slots/tabs-contract-audit.mjs'
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('Tabs proof reads the actual version-1 package envelope through the shared reader', () => {
+  const text = readFileSync(
+    new URL('../packages/patterns/hozo.manifest.json', import.meta.url),
+    'utf8',
+  )
+  assert.equal(tabsDeclaration(text).owner, 'Tabs.Tab')
+  const value = JSON.parse(text)
+  value.package.exports.find((row) => row.name === 'HozoTabs').owners = []
+  assert.throws(() => tabsDeclaration(JSON.stringify(value)), /aliases/)
+  assert.throws(() => tabsDeclaration('{}'), /Invalid owner/)
+})
 
 // Synthetic fixtures verify the assessor, never stand in for actual CI receipts.
 function contractInputs() {

@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseOwnerPackageShadow } from '../../packages/compiler/src/owner-package.ts'
 import { evidenceSource } from './evidence-source.mjs'
 import { auditOwnerInputs } from './owner-input-audit.mjs'
 import { checkPublicProps } from './public-props.mjs'
@@ -12,6 +13,18 @@ import { expectedTabRows, tabLabelClasses, tabPhases } from './tabs-probe.mjs'
 const routes = ['opaque', 'prepared', 'caller', 'instance']
 const kinds = ['candidate', 'tailwind', 'prepared']
 const facts = ['disabled', 'aria-selected', 'aria-disabled']
+
+export function tabsDeclaration(text) {
+  const data = parseOwnerPackageShadow(text)
+  const selected = data.owners?.contracts.filter((row) => row.owner === 'Tabs.Tab')
+  assert.equal(selected?.length, 1, 'Package must declare the selected Tabs contract')
+  for (const name of ['Tabs', 'HozoTabs'])
+    assert.ok(
+      data.exports.some((row) => row.name === name && row.owners.includes('Tabs.Tab')),
+      'Both public aliases must reference the contract',
+    )
+  return selected[0]
+}
 
 function matrix(actual, names, phases, check) {
   assert.equal(actual?.length, names.length * phases.length, 'Incomplete contract matrix')
@@ -172,13 +185,14 @@ export function assessTabsContract({
 const root = fileURLToPath(new URL('../../', import.meta.url))
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const read = (name) => JSON.parse(readFileSync(path.join(root, name), 'utf8'))
-  const manifestText = readFileSync(path.join(root, 'packages/patterns/hozo.manifest.json'), 'utf8')
-  const declaration = JSON.parse(manifestText).owners.contracts.find(
-    (row) => row.owner === 'Tabs.Tab',
-  )
   const source = evidenceSource()
   let report
   try {
+    const manifestText = readFileSync(
+      path.join(root, 'packages/patterns/hozo.manifest.json'),
+      'utf8',
+    )
+    const declaration = tabsDeclaration(manifestText)
     checkPublicProps()
     report = assessTabsContract({
       ...source,
