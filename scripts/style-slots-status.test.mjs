@@ -5,6 +5,7 @@ import test from 'node:test'
 import { ownerShadow } from './style-slots/catalog.mjs'
 import {
   assessHandleDelivery,
+  assessHandleNativeLifetime,
   assessHandleWebLifetime,
 } from './style-slots/handle-contract-assessment.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
@@ -28,6 +29,48 @@ import {
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('Native handle lifetime rejects early removal and reused reopening hosts', () => {
+  const rows = []
+  for (const platform of ['android', 'ios'])
+    for (const route of ['opaque', 'caller'])
+      for (const interactive of [false, true]) {
+        const opened = {
+          host: interactive ? 'Pressable' : 'View',
+          padding: 8,
+          rowGap: 16,
+          columnGap: 16,
+          opacity: 1,
+          background: '#ffffff',
+        }
+        rows.push({
+          platform,
+          route,
+          interactive,
+          opened,
+          exiting: platform === 'ios' ? opened : null,
+          absentModals: 0,
+          reopened: opened,
+          sameReopenedHost: false,
+        })
+      }
+  assert.equal(assessHandleNativeLifetime(rows).observations, 8)
+  for (const mutate of [
+    (value) => {
+      value[4].exiting = null
+    },
+    (value) => {
+      value[0].sameReopenedHost = true
+    },
+    (value) => {
+      value.pop()
+    },
+  ]) {
+    const invalid = structuredClone(rows)
+    mutate(invalid)
+    assert.equal(assessHandleNativeLifetime(invalid).passed, false)
+  }
+})
 
 test('Web handle lifetime requires present, exiting, absent and fresh hosts on both shapes', () => {
   const manifestSha256 = 'b'.repeat(64)

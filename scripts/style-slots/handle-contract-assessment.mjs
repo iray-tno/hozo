@@ -10,6 +10,40 @@ import { auditOwnerInputs } from './owner-input-audit.mjs'
 
 const owner = 'BottomSheet.handle'
 
+// The caller must first validate the containing Native receipt's provenance.
+export function assessHandleNativeLifetime(rows) {
+  const base = { scope: 'native-handle-style-lifetime-model', owner }
+  try {
+    const expected = []
+    for (const platform of ['android', 'ios'])
+      for (const route of ['opaque', 'caller'])
+        for (const interactive of [false, true]) {
+          const style = {
+            host: interactive ? 'Pressable' : 'View',
+            padding: 8,
+            rowGap: 16,
+            columnGap: 16,
+            opacity: 1,
+            background: '#ffffff',
+          }
+          expected.push({
+            platform,
+            route,
+            interactive,
+            opened: style,
+            exiting: platform === 'ios' ? style : null,
+            absentModals: 0,
+            reopened: style,
+            sameReopenedHost: false,
+          })
+        }
+    assert.deepEqual(rows, expected, 'Missing or incorrect modeled Native lifetime observation')
+    return { ...base, passed: true, observations: expected.length }
+  } catch (error) {
+    return { ...base, passed: false, reason: error.message }
+  }
+}
+
 export function assessHandleWebLifetime(receipt, sourceCommit, manifestSha256) {
   const base = { scope: 'web-handle-style-lifetime', owner }
   try {
@@ -163,18 +197,22 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   const source = evidenceSource()
   const manifestText = readFileSync(path.join(root, 'packages/patterns/hozo.manifest.json'), 'utf8')
+  const nativeHandle = read('handle-inputs-native.json')
   const report = assessHandleDelivery({
     ...source,
     manifestText,
-    nativeHandle: read('handle-inputs-native.json'),
+    nativeHandle,
     webHandle: read('handle-inputs-browser.json'),
   })
+  report.nativeLifetime = assessHandleNativeLifetime(
+    report.passed ? nativeHandle.lifetimeObservations : null,
+  )
   report.webLifetime = assessHandleWebLifetime(
     read('handle-browser-lifetime.json'),
     source.sourceCommit,
     createHash('sha256').update(manifestText).digest('hex'),
   )
-  report.passed &&= report.webLifetime.passed
+  report.passed &&= report.webLifetime.passed && report.nativeLifetime.passed
   mkdirSync(directory, { recursive: true })
   const json = JSON.stringify(report, null, 2)
   writeFileSync(path.join(directory, 'handle-contract-assessment.json'), `${json}\n`)
