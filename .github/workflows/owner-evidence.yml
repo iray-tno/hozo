@@ -112,6 +112,7 @@ jobs:
             artifacts/style-fact-model/handle-browser.json
             artifacts/style-fact-model/handle-browser-lifetime.json
             artifacts/style-fact-model/handle-inputs-native.json
+            artifacts/style-fact-model/handle-states-native.json
             artifacts/style-fact-model/handle-inputs-browser.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4

@@ -532,6 +532,13 @@ test('literal caller preview reaches both real owners without resolving the lite
 
 test('prepared and opaque plans reach the real two-shape handle, preserving author precedence', () => {
   const warn = mock.method(console, 'warn', () => {})
+  const evidence = {
+    schema: 1,
+    ...evidenceSource(),
+    scope: 'native-handle-direct-carrier-states',
+    passed: false,
+    observations: [] as unknown[],
+  }
   try {
     for (const resizable of [false, true])
       for (const author of [
@@ -553,7 +560,7 @@ test('prepared and opaque plans reach the real two-shape handle, preserving auth
         let opacity = 1
         let background = '#ffffff'
         const preparedHost = handle(prepared, resizable)
-        const compare = () => {
+        const compare = (event: string) => {
           const p = handle(prepared, resizable)
           const o = handle(opaque, resizable)
           assert.deepEqual(style(p), style(o))
@@ -584,8 +591,23 @@ test('prepared and opaque plans reach the real two-shape handle, preserving auth
           )
           if (author) assert.equal(style(p).rowGap, Array.isArray(author) ? 6 : 16)
           if (author) assert.equal(style(p).columnGap, Array.isArray(author) ? 24 : 16)
+          const box = style(p)
+          evidence.observations.push({
+            interactive: resizable,
+            author: !author ? 'none' : Array.isArray(author) ? 'array' : 'object',
+            event,
+            selected: {
+              host: p.type,
+              padding: box.paddingTop,
+              opacity: box.opacity,
+              background: box.backgroundColor,
+              radius: box.borderRadius,
+              rowGap: box.rowGap ?? null,
+              columnGap: box.columnGap ?? null,
+            },
+          })
         }
-        compare()
+        compare('rest')
         for (const event of events) {
           if (event === 'onHoverIn') opacity = 0.5
           if (event === 'onHoverOut') opacity = 1
@@ -597,13 +619,18 @@ test('prepared and opaque plans reach the real two-shape handle, preserving auth
             ;(handle(prepared, resizable).props[event] as (event: object) => void)({})
             ;(handle(opaque, resizable).props[event] as (event: object) => void)({})
           })
-          compare()
+          compare(event)
         }
         unmount(prepared)
         unmount(opaque)
       }
+    assert.equal(evidence.observations.length, 24)
+    evidence.passed = true
   } finally {
     warn.mock.restore()
+    const destination = path.join(root, 'artifacts/style-fact-model/handle-states-native.json')
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(destination, `${JSON.stringify(evidence, null, 2)}\n`)
   }
 })
 
