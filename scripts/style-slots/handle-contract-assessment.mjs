@@ -306,7 +306,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     report.webStates.passed &&
     report.nativeStates.passed
   mkdirSync(directory, { recursive: true })
-  const json = JSON.stringify(report, null, 2)
+  const json = JSON.stringify({ ...report, scope: 'bounded-handle-delivery-evidence' }, null, 2)
   writeFileSync(path.join(directory, 'handle-contract-assessment.json'), `${json}\n`)
   console.log(json)
   if (!report.passed) process.exitCode = 1

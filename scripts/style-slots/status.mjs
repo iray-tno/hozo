@@ -20,7 +20,9 @@ export function stylingFactStatus({
 } = {}) {
   const slots = Object.values(catalog).flat()
   const managed = slots.filter((slot) => slot.lowering === 'component-managed')
-  const observations = receipts.map((receipt) => assess(receipt, commit, expectedManifestSha256))
+  const observations = receipts.map((receipt) =>
+    assess(receipt, commit, expectedManifestSha256, trackedChanges),
+  )
   const declared = shadow.contracts.filter((row) => row.audit === 'audited').map((row) => row.owner)
   const proofs = new Map(declared.map((owner) => [owner, []]))
   receipts.forEach((receipt, at) => {
@@ -79,7 +81,7 @@ export function stylingFactStatus({
   }
 }
 
-function assess(receipt, commit, expectedManifestSha256) {
+function assess(receipt, commit, expectedManifestSha256, trackedChanges) {
   if (!receipt) return { status: 'missing' }
   const base = { scope: receipt.scope, sourceCommit: receipt.sourceCommit }
   if (receipt.trackedChanges === true) return { ...base, status: 'uncommitted' }
@@ -87,6 +89,49 @@ function assess(receipt, commit, expectedManifestSha256) {
     return { ...base, status: 'invalid', reason: 'Missing compatible schema/source identity' }
   if (!commit || receipt.sourceCommit !== commit) return { ...base, status: 'stale' }
   if (receipt.passed !== true) return { ...base, status: 'failed' }
+  if (receipt.scope === 'bounded-handle-delivery-evidence') {
+    const domains = [
+      ['webLifetime', 'web-handle-style-lifetime', 30],
+      ['nativeLifetime', 'native-handle-style-lifetime-model', 8],
+      ['webStates', 'web-handle-interaction-styles', 15],
+      ['nativeStates', 'native-handle-direct-carrier-states', 24],
+    ]
+    const owner = 'BottomSheet.handle'
+    if (
+      trackedChanges ||
+      receipt.trackedChanges !== false ||
+      receipt.owner !== owner ||
+      receipt.rollout !== 'unchanged' ||
+      !/^[a-f0-9]{64}$/.test(expectedManifestSha256 ?? '') ||
+      receipt.manifestSha256 !== expectedManifestSha256 ||
+      receipt.inputDomain?.owner !== owner ||
+      receipt.inputDomain.status !== 'measured' ||
+      receipt.inputDomain.inputCases !== 9 ||
+      receipt.inputDomain.nativeObservations !== 36 ||
+      receipt.inputDomain.webObservations !== 27 ||
+      receipt.webLifetime?.earlyExitControls !== 6 ||
+      domains.some(([key, scope, count]) => {
+        const row = receipt[key]
+        return (
+          row?.scope !== scope ||
+          row.owner !== owner ||
+          row.passed !== true ||
+          row.observations !== count
+        )
+      })
+    )
+      return { ...base, status: 'invalid', reason: 'Incomplete current bounded handle evidence' }
+    return {
+      ...base,
+      status: 'measured',
+      owner,
+      manifestSha256: receipt.manifestSha256,
+      domains: domains.map(([key, scope, observations]) => ({ key, scope, observations })),
+      liveDetents: { cases: 9, nativeObservations: 36, webObservations: 27 },
+      denominatorKind:
+        'bounded handle delivery; Native states use a direct carrier, not a published caller',
+    }
+  }
   if (receipt.scope === contractScope) {
     if (
       receipt.owner !== 'Tabs.Tab' ||
