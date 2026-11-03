@@ -7,8 +7,39 @@ import { fileURLToPath } from 'node:url'
 import { parseOwnerPackageShadow } from '../../packages/compiler/src/owner-package.ts'
 import { evidenceSource } from './evidence-source.mjs'
 import { auditOwnerInputs } from './owner-input-audit.mjs'
+import { stylingFactStatus } from './status.mjs'
 
 const owner = 'BottomSheet.handle'
+
+export function assessHandleWebStates(receipt, sourceCommit, manifestSha256) {
+  const base = { scope: 'web-handle-interaction-styles', owner }
+  try {
+    assert.equal(receipt?.scope, 'web-computed-style-real-pointer-focus')
+    assert.equal(receipt.trackedChanges, false)
+    assert.match(manifestSha256, /^[a-f0-9]{64}$/)
+    assert.equal(receipt.prepared?.identity?.manifestSha256, manifestSha256)
+    assert.equal(receipt.prepared.delivery, 'composed-ordinary-lowering')
+    assert.equal(receipt.prepared.ordinaryParses, 1)
+    const [result] = stylingFactStatus({ commit: sourceCommit, receipts: [receipt] }).observations
+    assert.equal(result.status, 'measured', result.reason)
+    const rest = {
+      paddingTop: '16px',
+      width: '32px',
+      opacity: '1',
+      backgroundColor: 'rgb(34, 51, 68)',
+    }
+    for (const { state, selected } of receipt.observations) {
+      const expected = { ...rest }
+      if (state === 'hover' || state === 'pressed') expected.opacity = '0.5'
+      if (state === 'focus' || state === 'pressed') expected.paddingTop = '12px'
+      if (state === 'pressed') expected.backgroundColor = 'rgb(255, 0, 0)'
+      assert.deepEqual(selected, expected, `Unexpected computed style for ${state}`)
+    }
+    return { ...base, passed: true, observations: receipt.observations.length }
+  } catch (error) {
+    return { ...base, passed: false, reason: error.message }
+  }
+}
 
 // The caller must first validate the containing Native receipt's provenance.
 export function assessHandleNativeLifetime(rows) {
@@ -212,7 +243,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     source.sourceCommit,
     createHash('sha256').update(manifestText).digest('hex'),
   )
-  report.passed &&= report.webLifetime.passed && report.nativeLifetime.passed
+  report.webStates = assessHandleWebStates(
+    read('handle-browser.json'),
+    source.sourceCommit,
+    createHash('sha256').update(manifestText).digest('hex'),
+  )
+  report.passed &&=
+    report.webLifetime.passed && report.nativeLifetime.passed && report.webStates.passed
   mkdirSync(directory, { recursive: true })
   const json = JSON.stringify(report, null, 2)
   writeFileSync(path.join(directory, 'handle-contract-assessment.json'), `${json}\n`)
