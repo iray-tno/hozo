@@ -11,7 +11,11 @@
       ],
       "abi": {
         "nativePreparedProp": "hozoHandleStyle",
-        "webClassProp": "handleClassName"
+        "webClassProp": "handleClassName",
+        "nativePartial": {
+          "prop": "hozoInteractiveHandleStyle",
+          "shape": "resizable"
+        }
       },
       "authoredStyles": [
         {
@@ -45,7 +49,11 @@
             "hovered",
             "focused",
             "focusVisible"
-          ]
+          ],
+          "inputs": {
+            "facts": [],
+            "splitText": false
+          }
         },
         {
           "id": "decorative",

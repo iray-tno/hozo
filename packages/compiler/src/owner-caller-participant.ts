@@ -23,6 +23,7 @@ export function prepareInstanceOwnerCallers(
   source: string,
   compiler: Compiler,
   request: OwnerContractRequest,
+  experimentalNativePartial = false,
 ): PreparedModule<InstanceOwnerCallerPreview> {
   const target = ownerCallerTarget(lease)
   const selected = selectOwnerPackageContract(lease, { ...request })
@@ -34,6 +35,7 @@ export function prepareInstanceOwnerCallers(
     imported: selected.identity.imported,
     shadow: selected.shadow,
     sourceFile: selected.identity.importer,
+    experimentalNativePartial,
   })
   let retained = true
   const dispose = () => {

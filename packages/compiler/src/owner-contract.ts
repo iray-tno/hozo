@@ -23,7 +23,12 @@ export interface ShadowOwnerContract {
   audit: 'unknown' | 'audited'
   /** Symbolic booleans supplied by the owner; never JS expressions. */
   bindings: string[]
-  abi: { nativePreparedProp: string; webClassProp: string }
+  abi: {
+    nativePreparedProp: string
+    webClassProp: string
+    /** One interactive shape consumes this carrier; the original class stays. */
+    nativePartial?: { prop: string; shape: string }
+  }
   authoredStyles: { prop: string; order: number }[]
   shapes: OwnerShape[]
 }
@@ -125,15 +130,30 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       )
       return op === 'all' ? { all: children } : { any: children }
     }
-    const abi = object(contract.abi, ['nativePreparedProp', 'webClassProp'], `${at}.abi`)
+    const abi = object(contract.abi, ['nativePreparedProp', 'webClassProp'], `${at}.abi`, [
+      'nativePartial',
+    ])
     const nativePreparedProp = identifier(abi.nativePreparedProp, `${at}.abi.nativePreparedProp`)
     if (!/^hozo[A-Z]/.test(nativePreparedProp)) fail(`${at}.abi private carrier`)
     if (abi.webClassProp !== contract.classProp) fail(`${at}.abi web carrier`)
+    let nativePartial: ShadowOwnerContract['abi']['nativePartial']
+    if (Object.hasOwn(abi, 'nativePartial')) {
+      const partial = object(abi.nativePartial, ['prop', 'shape'], `${at}.abi native partial`)
+      const prop = identifier(partial.prop, `${at}.abi native partial prop`)
+      const shape = identifier(partial.shape, `${at}.abi native partial shape`)
+      if (!/^hozo[A-Z]/.test(prop) || prop === nativePreparedProp || prop === contract.classProp)
+        fail(`${at}.abi native partial carrier collision`)
+      nativePartial = { prop, shape }
+    }
     const authoredStyles = list(contract.authoredStyles, 16, `${at}.authoredStyles`).map(
       (value) => {
         const author = object(value, ['prop', 'order'], `${at}.author`)
         const prop = identifier(author.prop, `${at}.author.prop`)
-        if (prop === nativePreparedProp || prop === contract.classProp)
+        if (
+          prop === nativePreparedProp ||
+          prop === contract.classProp ||
+          prop === nativePartial?.prop
+        )
           fail(`${at}.author carrier collision`)
         if (!Number.isSafeInteger(author.order) || (author.order as number) < 0)
           fail(`${at}.author.order`)
@@ -210,12 +230,28 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
       shapes.map((shape) => shape.id),
       `${at}.shapes`,
     )
+    if (nativePartial) {
+      const selected = shapes.find((shape) => shape.id === nativePartial?.shape)
+      if (
+        shapes.length !== 2 ||
+        selected?.nativeHost !== 'Pressable' ||
+        !selected.inputs ||
+        selected.inputs.splitText ||
+        selected.inputs.facts.length !== 0 ||
+        !shapes.some((shape) => shape.nativeHost === 'View')
+      )
+        fail(`${at}.abi native partial requires one stateful box shape and one decorative fallback`)
+    }
     return {
       owner: contract.owner,
       classProp: contract.classProp as string,
       audit: contract.audit as ShadowOwnerContract['audit'],
       bindings,
-      abi: { nativePreparedProp, webClassProp: abi.webClassProp as string },
+      abi: {
+        nativePreparedProp,
+        webClassProp: abi.webClassProp as string,
+        ...(nativePartial && { nativePartial }),
+      },
       authoredStyles,
       shapes,
     }

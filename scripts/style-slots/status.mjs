@@ -95,6 +95,7 @@ function assess(receipt, commit, expectedManifestSha256, trackedChanges) {
       ['nativeLifetime', 'native-handle-style-lifetime-model', 8],
       ['webStates', 'web-handle-interaction-styles', 15],
       ['nativeStates', 'native-handle-direct-carrier-states', 24],
+      ['nativePartial', 'native-handle-published-partial', 6],
     ]
     const owner = 'BottomSheet.handle'
     if (
@@ -110,6 +111,7 @@ function assess(receipt, commit, expectedManifestSha256, trackedChanges) {
       receipt.inputDomain.nativeObservations !== 36 ||
       receipt.inputDomain.webObservations !== 27 ||
       receipt.webLifetime?.earlyExitControls !== 6 ||
+      receipt.nativePartial?.platforms !== 2 ||
       domains.some(([key, scope, count]) => {
         const row = receipt[key]
         return (
@@ -129,7 +131,7 @@ function assess(receipt, commit, expectedManifestSha256, trackedChanges) {
       domains: domains.map(([key, scope, observations]) => ({ key, scope, observations })),
       liveDetents: { cases: 9, nativeObservations: 36, webObservations: 27 },
       denominatorKind:
-        'bounded handle delivery; Native states use a direct carrier, not a published caller',
+        'bounded handle delivery; direct-carrier states and published partial transitions are separate',
     }
   }
   if (receipt.scope === contractScope) {

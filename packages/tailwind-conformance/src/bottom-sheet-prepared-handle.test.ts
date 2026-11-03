@@ -27,6 +27,7 @@ const renderer = require('react-test-renderer')
 const classes =
   'p-[8px] opacity-100 bg-[#ffffff] hover:opacity-50 focus:p-[12px] active:bg-[#ff0000]'
 const restClasses = 'p-[8px] opacity-100 bg-[#ffffff]'
+const partialClasses = classes.replace('hover:opacity-50', 'hover:opacity-[.5]')
 const root = fileURLToPath(new URL('../../../', import.meta.url))
 const project = mkdtempSync(path.join(root, 'packages/tailwind-conformance/.handle-spike-'))
 const compiler = createCompiler()
@@ -84,7 +85,13 @@ export function ReadCaller({input,...props}) {
 const cache = openCandidateCache()
 cache.scanFile(
   'HandleChoices.ts',
-  JSON.stringify([...classes.split(' '), 'rounded-[7px]', 'rounded-[9px]', 'gap-x-2']),
+  JSON.stringify([
+    ...classes.split(' '),
+    'hover:opacity-[.5]',
+    'rounded-[7px]',
+    'rounded-[9px]',
+    'gap-x-2',
+  ]),
   1,
 )
 const sheet = path.join(project, 'node_modules/.hozo/candidates.native.js')
@@ -369,6 +376,109 @@ test('published handle delivery follows normalized detents through live host cha
         disposition: state.preview.findings[0]!.disposition,
         reason: state.preview.findings[0]!.reason,
         observations: stateRows,
+      },
+    })
+    let partialPreparations = 0
+    const partialProject = new InstanceOwnerCallerProject(
+      epoch.lease(),
+      compiler,
+      async (names) => {
+        partialPreparations++
+        assert.ok(partialClasses.split(' ').every((candidate) => names.includes(candidate)))
+        return JSON.stringify(
+          (
+            await prepareTailwindOrder(
+              '@import "tailwindcss/theme.css";',
+              tailwindPackageDir(),
+              names,
+            )
+          ).snapshot,
+        )
+      },
+      { experimentalNativePartial: true },
+    )
+    const partialSource = stateSource.replace(
+      `handleClassName="${classes}"`,
+      `handleClassName="${partialClasses}"`,
+    )
+    const partial = await partialProject.emit(partialSource, {
+      ...stateEdge,
+      entry,
+      imported: 'BottomSheet',
+      classProp: 'handleClassName',
+    })
+    assert.equal(partial.identity.manifestSha256, result.identity.manifestSha256)
+    assert.equal(partial.preview.findings[0]?.disposition, 'prepared-partial')
+    assert.equal(partialPreparations, 1)
+    assert.ok(
+      partial.preview.code.includes(
+        `handleClassName="${partialClasses}" hozoInteractiveHandleStyle=`,
+      ),
+    )
+    const partialCaller = loadNativeModule(partial.preview.code, project, {
+      root: project,
+      compiler,
+    })
+    const partialRows = []
+    for (const platform of ['android', 'ios']) {
+      rn.handleModalModel.platform = platform
+      requests.length = 0
+      const props = { open: true, author: { value: Object.freeze({ gap: 16, paddingTop: 20 }) } }
+      const tree = render(partialCaller.LiteralCaller, { ...props, detents: [0.5, 1] })
+      const update = (detents: number[]) =>
+        renderer.act(() =>
+          tree.update(React.createElement(partialCaller.LiteralCaller, { ...props, detents })),
+        )
+      try {
+        const first = handle(tree, true)
+        renderer.act(() => (first.props.onHoverIn as (event: object) => void)({}))
+        const hovered = style(first)
+        assert.equal(hovered.opacity, 0.5)
+        assert.equal(hovered.rowGap, 16)
+        assert.equal(hovered.paddingTop, 20)
+        const hoveredRequests = requests.filter((value) => value === partialClasses).length
+        assert.equal(hoveredRequests, 0)
+        update([1, 1])
+        const decorative = style(handle(tree, false))
+        assert.equal(decorative.opacity, 1)
+        assert.equal(decorative.rowGap, 16)
+        assert.equal(decorative.paddingTop, 20)
+        const decorativeRequests = requests.filter((value) => value === partialClasses).length
+        assert.ok(decorativeRequests > 0)
+        requests.length = 0
+        update([0.25, 1])
+        const restored = handle(tree, true)
+        assert.notEqual(restored, first)
+        const rest = style(restored)
+        assert.equal(rest.opacity, 1)
+        assert.equal(rest.rowGap, 16)
+        assert.equal(rest.paddingTop, 20)
+        const restoredRequests = requests.filter((value) => value === partialClasses).length
+        assert.equal(restoredRequests, 0)
+        const sample = (box: Record<string, unknown>, resolverCalls: number) => ({
+          opacity: box.opacity,
+          paddingTop: box.paddingTop,
+          rowGap: box.rowGap,
+          resolverCalls,
+        })
+        partialRows.push({
+          platform,
+          hovered: sample(hovered, hoveredRequests),
+          decorative: sample(decorative, decorativeRequests),
+          restored: sample(rest, restoredRequests),
+        })
+      } finally {
+        unmount(tree)
+      }
+    }
+    Object.assign(evidence, {
+      statePartial: {
+        identity: partial.identity,
+        disposition: partial.preview.findings[0]?.disposition,
+        contextFingerprint: partial.preview.contextFingerprint,
+        preparations: partialPreparations,
+        stylesheetSites: partial.preview.code.split('.create(').length - 1,
+        observations: partialRows,
       },
     })
     for (const platform of ['android', 'ios']) {

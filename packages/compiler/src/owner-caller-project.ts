@@ -24,18 +24,21 @@ export class InstanceOwnerCallerProject {
   readonly #lease: OwnerManifestLease
   #session: TailwindProjectSession | undefined
   #candidates: readonly string[]
+  readonly #experimentalNativePartial: boolean
   readonly #abort = () => this.invalidate()
 
   constructor(
     lease: OwnerManifestLease,
     compiler: Compiler,
     prepare: ConstructorParameters<typeof TailwindProjectSession>[1],
+    options: { experimentalNativePartial?: boolean } = {},
   ) {
     ownerCallerTarget(lease)
     const packages = collectOwnerPackageContributions(lease.capture)
     if (packages.status !== 'complete') throw new Error('OWNER_CALLER_PACKAGE_CHANNELS_INCOMPLETE')
     this.#lease = lease
     this.#candidates = packages.candidates
+    this.#experimentalNativePartial = options.experimentalNativePartial === true
     this.#session = new TailwindProjectSession(compiler, prepare)
     lease.signal.addEventListener('abort', this.#abort, { once: true })
   }
@@ -52,7 +55,16 @@ export class InstanceOwnerCallerProject {
     const input = { ...request }
     const [result] = await this.#session!.emit(
       input.importer,
-      [(compiler) => prepareInstanceOwnerCallers(this.#lease, source, compiler, input)],
+      [
+        (compiler) =>
+          prepareInstanceOwnerCallers(
+            this.#lease,
+            source,
+            compiler,
+            input,
+            this.#experimentalNativePartial,
+          ),
+      ],
       this.#candidates,
     )
     this.#check()
