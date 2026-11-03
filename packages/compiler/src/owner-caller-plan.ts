@@ -31,7 +31,7 @@ export interface OwnerCallerPreview {
   findings: {
     spanStart: number
     spanEnd: number
-    disposition: 'prepared-literal' | 'retained'
+    disposition: 'prepared-literal' | 'prepared-partial' | 'retained'
     reason?: string
     /** Preparation messages have no falsely remapped synthetic-source spans. */
     notes: string[]
@@ -49,6 +49,7 @@ interface OwnerCallerOptions {
   imported: string
   shadow: string
   sourceFile?: string
+  experimentalNativePartial?: boolean
 }
 
 function preparationOptions(shape: OwnerShape): NativeCompileOptions {
@@ -179,6 +180,26 @@ function collectOwnerLiteralCallers(
     findings: [],
   }
   if (result.diagnostics.length) return () => result
+  const partial = !web ? contract.abi.nativePartial : undefined
+  const partialSites = partial
+    ? inspectOwnerClassSlots(
+        source,
+        [
+          {
+            source: options.source,
+            imported: options.imported,
+            classProp: contract.classProp,
+            preparedProp: partial.prop,
+          },
+        ],
+        options.sourceFile,
+      )
+    : undefined
+  if (partialSites?.diagnostics.length) {
+    result.diagnostics = partialSites.diagnostics
+    return () => result
+  }
+  const partialByStart = new Map(partialSites?.sites.map((site) => [site.spanStart, site]))
 
   // Deduplicate before suspension, not after lowering. The modules hold the
   // compiler/theme snapshot and actual candidates, never just a lexical guess.
@@ -209,7 +230,16 @@ function collectOwnerLiteralCallers(
     }
     const sheet = fresh('StyleSheet')
     const declarations: string[] = []
-    const plans = new Map<string, { name?: string; notes: string[] }>()
+    const plans = new Map<string, { name?: string; notes: string[]; partial?: true }>()
+    const nativePlan = (
+      carrier: Extract<NonNullable<OwnerCarrierAssessment['carrier']>, { target: 'native' }>,
+    ) => {
+      const name = fresh('Plan')
+      declarations.push(
+        `const ${name} = ((hozoStyles) => ${carrier.ownerStyle.callback ? `(${carrier.ownerStyle.expression})` : `() => (${carrier.ownerStyle.expression})`})(${sheet}.create(${carrier.styles}));`,
+      )
+      return name
+    }
     const edits: { start: number; end: number; value: string }[] = []
     for (const site of inspection.sites) {
       const finding: OwnerCallerPreview['findings'][number] = {
@@ -223,9 +253,22 @@ function collectOwnerLiteralCallers(
         finding.reason = site.reason ?? 'nonliteral'
         continue
       }
+      if (partial) {
+        const checked = partialByStart.get(site.spanStart)
+        if (
+          !checked ||
+          checked.reason ||
+          checked.spanEnd !== site.spanEnd ||
+          checked.classes !== site.classes
+        ) {
+          finding.reason = checked?.reason ?? 'partial-site-unassessed'
+          continue
+        }
+      }
       let plan = plans.get(site.classes)
       if (!plan) {
-        const prepared = collected.get(site.classes)!.map(({ emit }) => emit(context))
+        const shapes = collected.get(site.classes)!
+        const prepared = shapes.map(({ emit }) => emit(context))
         const first = prepared[0]?.carrier
         const equivalent =
           !!first &&
@@ -244,11 +287,7 @@ function collectOwnerLiteralCallers(
             result.css! += namespaceHozoClasses(first.css, index, scope)
             plan = { name: namespaceHozoClasses(first.className, index, scope), notes }
           } else {
-            const name = fresh('Plan')
-            declarations.push(
-              `const ${name} = ((hozoStyles) => ${first.ownerStyle.callback ? `(${first.ownerStyle.expression})` : `() => (${first.ownerStyle.expression})`})(${sheet}.create(${first.styles}));`,
-            )
-            plan = { name, notes }
+            plan = { name: nativePlan(first), notes }
           }
         } else {
           plan = {
@@ -257,6 +296,12 @@ function collectOwnerLiteralCallers(
               'Every declared shape must have the same assessed carrier with matching declared inputs/destination; undeclared shapes remain state-independent.',
             ],
           }
+          const interactive =
+            partial && options.experimentalNativePartial
+              ? prepared[shapes.findIndex(({ shape }) => shape.id === partial.shape)]?.carrier
+              : undefined
+          if (interactive?.target === 'native' && interactive.ownerStyle.callback)
+            plan = { name: nativePlan(interactive), notes, partial: true }
         }
         plans.set(site.classes, plan)
       }
@@ -265,7 +310,15 @@ function collectOwnerLiteralCallers(
         finding.reason = 'shape-unassessed'
         continue
       }
-      finding.disposition = 'prepared-literal'
+      finding.disposition = plan.partial ? 'prepared-partial' : 'prepared-literal'
+      if (plan.partial) {
+        edits.push({
+          start: site.spanEnd,
+          end: site.spanEnd,
+          value: ` ${partial!.prop}={${plan.name}}`,
+        })
+        continue
+      }
       edits.push({
         start: site.spanStart,
         end: site.spanEnd,
