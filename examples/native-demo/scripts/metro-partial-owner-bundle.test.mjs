@@ -102,6 +102,8 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       transformer: {
         ...defaults.transformer,
         babelTransformerPath: upstream,
+        // The temporary app is not under the workspace's node_modules.
+        asyncRequireModulePath: fromMetro.resolve(defaults.transformer.asyncRequireModulePath),
         // The fixture Babel pass lowers JSX only. Let Metro lower ESM before
         // its module wrapper instead of leaving imports inside that wrapper.
         async getTransformOptions(...args) {
