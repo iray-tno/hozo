@@ -204,6 +204,9 @@ export class MetroOwnerManifestWorker {
   check() {
     this.#epoch.lease().check()
   }
+  lease() {
+    return this.#epoch.lease()
+  }
   invalidate() {
     this.#epoch.invalidate()
   }

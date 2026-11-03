@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { CACHE_DIR, readBoundedUtf8File } from '@hozo/compiler/project'
+import { CACHE_DIR, discoverOwnerPackageCallers, readBoundedUtf8File } from '@hozo/compiler/project'
 import {
   assertMetroOwnerPreflightCurrent,
   type MetroOwnerPreflight,
@@ -13,10 +13,11 @@ import {
   MetroOwnerManifestWorker,
   writeMetroOwnerManifestTransfer,
 } from './owner-manifest-transfer.ts'
+import { candidateModulePath } from './project.ts'
 
 type Complete = Extract<MetroOwnerPreflight, { status: 'complete' }>
 export interface MetroOwnerShadowState {
-  mode: 'assessment-only' | 'candidate-consumption'
+  mode: 'assessment-only' | 'candidate-consumption' | 'partial-owner-transform'
   platform: string
   context: string
   preflight: { file: string; sha256: string }
@@ -83,8 +84,11 @@ export class MetroOwnerShadowSession {
   readonly worker: MetroOwnerManifestWorker
   #routes = new Map<string, Complete['routes'][number][]>()
   #manifests = new Map<string, string>()
-  constructor(state: MetroOwnerShadowState) {
-    if (state.mode !== 'assessment-only' && state.mode !== 'candidate-consumption')
+  readonly #generatedOrigin?: { file: string; root: string }
+  constructor(state: MetroOwnerShadowState, root?: string) {
+    if (
+      !['assessment-only', 'candidate-consumption', 'partial-owner-transform'].includes(state.mode)
+    )
       fail('invalid assessment mode')
     const body = readBoundedUtf8File(state.preflight.file, 8_388_608)
     if (hash(body) !== state.preflight.sha256) fail('preflight record hash mismatch')
@@ -97,6 +101,11 @@ export class MetroOwnerShadowSession {
       fail('invalid preflight record')
     const preflight = data.value as Complete
     assertMetroOwnerPreflightCurrent(preflight)
+    if (root && state.mode === 'partial-owner-transform') {
+      assertMetroOwnerShadowScope(root, preflight)
+      const canonicalRoot = realpathSync(root)
+      this.#generatedOrigin = { root: canonicalRoot, file: candidateModulePath(canonicalRoot) }
+    }
     this.worker = new MetroOwnerManifestWorker(state.transfer, {
       platform: state.platform,
       epoch: state.context,
@@ -109,6 +118,14 @@ export class MetroOwnerShadowSession {
       rows.push(row)
       this.#routes.set(key, rows)
     }
+  }
+  partialHandle(importer: string) {
+    const lease = this.worker.lease()
+    const { requests } = discoverOwnerPackageCallers(lease, importer, [
+      { source: '@hozo/patterns', imported: 'BottomSheet' },
+    ])
+    const request = requests.find(({ classProp }) => classProp === 'handleClassName')
+    return request ? { lease, request } : undefined
   }
   observe(
     context: OwnerMetroContext,
@@ -127,7 +144,24 @@ export class MetroOwnerShadowSession {
       )
         return
     }
-    const key = JSON.stringify([origin ? path.resolve(origin.rootPath) : null, name])
+    // Metro may not assign package ownership under node_modules/.hozo.
+    // Only the exact generated map may use the app's already captured
+    // routes, and only for imports that the generator actually emits.
+    const generated = this.#generatedOrigin
+    const generatedDependency =
+      generated &&
+      path.resolve(context.originModulePath) === generated.file &&
+      [
+        '@hozo/core/generated/class-resolver',
+        '@hozo/core/generated/transform-slots',
+        'react-native',
+      ].includes(name)
+    const fromRoot = generatedDependency
+      ? generated.root
+      : origin
+        ? path.resolve(origin.rootPath)
+        : null
+    const key = JSON.stringify([fromRoot, name])
     const route = this.#routes
       .get(key)
       ?.find(
@@ -169,7 +203,7 @@ export function ownerShadowSession(
   if (prior?.identity === identity) return prior.value
   prior?.value.worker.invalidate()
   sessions.delete(slot)
-  const value = new MetroOwnerShadowSession(state)
+  const value = new MetroOwnerShadowSession(state, root)
   sessions.set(slot, { identity, value })
   return value
 }

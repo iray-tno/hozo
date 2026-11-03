@@ -142,12 +142,13 @@ export async function prepareCandidateModule(
   // policy and captured CSS bytes, not numeric rank ordinals. Static seed
   // names must not be reintroduced as runtime candidates.
   const runtimeOrder = snapshot ? await snapshot.prepareOrder(cache.candidates()) : undefined
-  const code = runtimeOrder
+  const runtimePlan = runtimeOrder
     ? cache.renderNativeModulePlan(
         prepareFinalTailwindContext(JSON.stringify(runtimeOrder.snapshot)),
         resolvedTheme,
-      ).code
-    : cache.renderNativeModule(resolvedTheme)
+      )
+    : undefined
+  const code = runtimePlan?.code ?? cache.renderNativeModule(resolvedTheme)
   let tailwind: MetroTailwindReference | undefined
   let tailwindContent: string | undefined
   if (snapshot) {
@@ -162,6 +163,21 @@ export async function prepareCandidateModule(
       orderingPolicy: TAILWIND_SCALAR_ORDER_POLICY,
       stylesheet: snapshot.serialize(),
       candidates: [...names].sort(),
+      // Admission needs emitted fallback entries, not the larger order seed.
+      // Ordinary builds do not transport this experimental inventory.
+      ...(ownerContributions &&
+        runtimePlan && {
+          nativeRuntime: {
+            sha256: createHash('sha256').update(code).digest('hex'),
+            candidates: [
+              ...new Set(
+                runtimePlan.entries
+                  .filter(({ kind }) => kind === 'style' || kind === 'state')
+                  .map(({ candidate }) => candidate),
+              ),
+            ].sort(),
+          },
+        }),
     })
     const sha256 = createHash('sha256').update(content).digest('hex')
     const file = path.join(projectRoot, 'node_modules', '.hozo', `tailwind-${sha256}.json`)
