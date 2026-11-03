@@ -174,6 +174,73 @@ function unmount(tree: Rendered) {
   renderer.act(() => tree.unmount())
 }
 
+function publishedLifetime(component: unknown, platform: string, interactive: boolean) {
+  let authorReads = 0
+  const own = Object.freeze({
+    get gap() {
+      authorReads++
+      return 16
+    },
+  })
+  const props = { author: { value: own }, detents: interactive ? [0.5, 1] : [1] }
+  const tree = render(component, { ...props, open: false })
+  const modal = () => tree.root.findAll((node) => node.type === 'Modal')
+  const show = (open: boolean) =>
+    renderer.act(() => tree.update(React.createElement(component, { ...props, open })))
+  try {
+    assert.equal(authorReads, 0)
+    assert.equal(modal().length, 0)
+    show(true)
+    const initial = handle(tree, interactive)
+    const sample = (node: Host) => {
+      const box = style(node)
+      return {
+        host: node.type,
+        padding: box.paddingTop ?? box.padding,
+        rowGap: box.rowGap,
+        columnGap: box.columnGap,
+        opacity: box.opacity,
+        background: box.backgroundColor,
+      }
+    }
+    const opened = sample(initial)
+    assert.deepEqual(opened, {
+      host: interactive ? 'Pressable' : 'View',
+      padding: 8,
+      rowGap: 16,
+      columnGap: 16,
+      opacity: 1,
+      background: '#ffffff',
+    })
+    show(false)
+    let exiting = null
+    if (platform === 'ios') {
+      assert.equal(modal().length, 1)
+      assert.equal(modal()[0].props.visible, false)
+      const retained = handle(tree, interactive)
+      assert.equal(retained, initial)
+      exiting = sample(retained)
+      assert.deepEqual(exiting, opened)
+      renderer.act(() => (modal()[0].props.onDismiss as () => void)())
+    }
+    const absentModals = modal().length
+    assert.equal(absentModals, 0)
+    show(true)
+    const reopened = handle(tree, interactive)
+    assert.notEqual(reopened, initial)
+    assert.deepEqual(sample(reopened), opened)
+    return {
+      opened,
+      exiting,
+      absentModals,
+      reopened: sample(reopened),
+      sameReopenedHost: reopened === initial,
+    }
+  } finally {
+    unmount(tree)
+  }
+}
+
 test('published handle delivery follows normalized detents through live host changes', async () => {
   const evidence = {
     schema: 1,
@@ -181,6 +248,7 @@ test('published handle delivery follows normalized detents through live host cha
     passed: false,
     scope: 'native-handle-normalized-live-input-host-model',
     observations: [] as unknown[],
+    lifetimeObservations: [] as unknown[],
   }
   const epoch = new OwnerManifestEpoch()
   try {
@@ -237,6 +305,13 @@ test('published handle delivery follows normalized detents through live host cha
         ['opaque', literalOrdinary.LiteralCaller],
         ['caller', actual.LiteralCaller],
       ] as const) {
+        for (const interactive of [false, true])
+          evidence.lifetimeObservations.push({
+            platform,
+            route,
+            interactive,
+            ...publishedLifetime(component, platform, interactive),
+          })
         requests.length = 0
         const props = { open: true, author: { value: Object.freeze({ gap: 16 }) } }
         const tree = render(component, props)
@@ -457,6 +532,13 @@ test('literal caller preview reaches both real owners without resolving the lite
 
 test('prepared and opaque plans reach the real two-shape handle, preserving author precedence', () => {
   const warn = mock.method(console, 'warn', () => {})
+  const evidence = {
+    schema: 1,
+    ...evidenceSource(),
+    scope: 'native-handle-direct-carrier-states',
+    passed: false,
+    observations: [] as unknown[],
+  }
   try {
     for (const resizable of [false, true])
       for (const author of [
@@ -478,7 +560,7 @@ test('prepared and opaque plans reach the real two-shape handle, preserving auth
         let opacity = 1
         let background = '#ffffff'
         const preparedHost = handle(prepared, resizable)
-        const compare = () => {
+        const compare = (event: string) => {
           const p = handle(prepared, resizable)
           const o = handle(opaque, resizable)
           assert.deepEqual(style(p), style(o))
@@ -509,8 +591,23 @@ test('prepared and opaque plans reach the real two-shape handle, preserving auth
           )
           if (author) assert.equal(style(p).rowGap, Array.isArray(author) ? 6 : 16)
           if (author) assert.equal(style(p).columnGap, Array.isArray(author) ? 24 : 16)
+          const box = style(p)
+          evidence.observations.push({
+            interactive: resizable,
+            author: !author ? 'none' : Array.isArray(author) ? 'array' : 'object',
+            event,
+            selected: {
+              host: p.type,
+              padding: box.paddingTop,
+              opacity: box.opacity,
+              background: box.backgroundColor,
+              radius: box.borderRadius,
+              rowGap: box.rowGap ?? null,
+              columnGap: box.columnGap ?? null,
+            },
+          })
         }
-        compare()
+        compare('rest')
         for (const event of events) {
           if (event === 'onHoverIn') opacity = 0.5
           if (event === 'onHoverOut') opacity = 1
@@ -522,13 +619,18 @@ test('prepared and opaque plans reach the real two-shape handle, preserving auth
             ;(handle(prepared, resizable).props[event] as (event: object) => void)({})
             ;(handle(opaque, resizable).props[event] as (event: object) => void)({})
           })
-          compare()
+          compare(event)
         }
         unmount(prepared)
         unmount(opaque)
       }
+    assert.equal(evidence.observations.length, 24)
+    evidence.passed = true
   } finally {
     warn.mock.restore()
+    const destination = path.join(root, 'artifacts/style-fact-model/handle-states-native.json')
+    mkdirSync(path.dirname(destination), { recursive: true })
+    writeFileSync(destination, `${JSON.stringify(evidence, null, 2)}\n`)
   }
 })
 

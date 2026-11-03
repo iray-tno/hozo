@@ -7,8 +7,121 @@ import { fileURLToPath } from 'node:url'
 import { parseOwnerPackageShadow } from '../../packages/compiler/src/owner-package.ts'
 import { evidenceSource } from './evidence-source.mjs'
 import { auditOwnerInputs } from './owner-input-audit.mjs'
+import { stylingFactStatus } from './status.mjs'
 
 const owner = 'BottomSheet.handle'
+
+export function assessHandleNativeStates(receipt, sourceCommit) {
+  const base = { scope: 'native-handle-direct-carrier-states', owner }
+  try {
+    assert.match(sourceCommit, /^[a-f0-9]{40}$/)
+    assert.equal(receipt?.schema, 1)
+    assert.equal(receipt.scope, base.scope)
+    assert.equal(receipt.sourceCommit, sourceCommit)
+    assert.equal(receipt.trackedChanges, false)
+    assert.equal(receipt.passed, true)
+    const expected = []
+    const events = [
+      'rest',
+      'onHoverIn',
+      'onFocus',
+      'onPressIn',
+      'onPressOut',
+      'onBlur',
+      'onHoverOut',
+    ]
+    for (const interactive of [false, true])
+      for (const author of ['none', 'object', 'array'])
+        for (const [at, event] of (interactive ? events : ['rest']).entries()) {
+          expected.push({
+            interactive,
+            author,
+            event,
+            selected: {
+              host: interactive ? 'Pressable' : 'View',
+              padding: at >= 2 && at <= 4 ? 12 : 8,
+              opacity: author === 'object' ? 0.25 : at >= 1 && at <= 5 ? 0.5 : 1,
+              background: at === 3 ? '#ff0000' : '#ffffff',
+              radius: 7,
+              rowGap: author === 'array' ? 6 : author === 'object' ? 16 : null,
+              columnGap: author === 'array' ? 24 : author === 'object' ? 16 : null,
+            },
+          })
+        }
+    assert.deepEqual(
+      receipt.observations,
+      expected,
+      'Missing or incorrect direct-carrier state observation',
+    )
+    return { ...base, passed: true, observations: expected.length }
+  } catch (error) {
+    return { ...base, passed: false, reason: error.message }
+  }
+}
+
+export function assessHandleWebStates(receipt, sourceCommit, manifestSha256) {
+  const base = { scope: 'web-handle-interaction-styles', owner }
+  try {
+    assert.equal(receipt?.scope, 'web-computed-style-real-pointer-focus')
+    assert.equal(receipt.trackedChanges, false)
+    assert.match(manifestSha256, /^[a-f0-9]{64}$/)
+    assert.equal(receipt.prepared?.identity?.manifestSha256, manifestSha256)
+    assert.equal(receipt.prepared.delivery, 'composed-ordinary-lowering')
+    assert.equal(receipt.prepared.ordinaryParses, 1)
+    const [result] = stylingFactStatus({ commit: sourceCommit, receipts: [receipt] }).observations
+    assert.equal(result.status, 'measured', result.reason)
+    const rest = {
+      paddingTop: '16px',
+      width: '32px',
+      opacity: '1',
+      backgroundColor: 'rgb(34, 51, 68)',
+    }
+    for (const { state, selected } of receipt.observations) {
+      const expected = { ...rest }
+      if (state === 'hover' || state === 'pressed') expected.opacity = '0.5'
+      if (state === 'focus' || state === 'pressed') expected.paddingTop = '12px'
+      if (state === 'pressed') expected.backgroundColor = 'rgb(255, 0, 0)'
+      assert.deepEqual(selected, expected, `Unexpected computed style for ${state}`)
+    }
+    return { ...base, passed: true, observations: receipt.observations.length }
+  } catch (error) {
+    return { ...base, passed: false, reason: error.message }
+  }
+}
+
+// The caller must first validate the containing Native receipt's provenance.
+export function assessHandleNativeLifetime(rows) {
+  const base = { scope: 'native-handle-style-lifetime-model', owner }
+  try {
+    const expected = []
+    for (const platform of ['android', 'ios'])
+      for (const route of ['opaque', 'caller'])
+        for (const interactive of [false, true]) {
+          const style = {
+            host: interactive ? 'Pressable' : 'View',
+            padding: 8,
+            rowGap: 16,
+            columnGap: 16,
+            opacity: 1,
+            background: '#ffffff',
+          }
+          expected.push({
+            platform,
+            route,
+            interactive,
+            opened: style,
+            exiting: platform === 'ios' ? style : null,
+            absentModals: 0,
+            reopened: style,
+            sameReopenedHost: false,
+          })
+        }
+    assert.deepEqual(rows, expected, 'Missing or incorrect modeled Native lifetime observation')
+    return { ...base, passed: true, observations: expected.length }
+  } catch (error) {
+    return { ...base, passed: false, reason: error.message }
+  }
+}
 
 export function assessHandleWebLifetime(receipt, sourceCommit, manifestSha256) {
   const base = { scope: 'web-handle-style-lifetime', owner }
@@ -163,20 +276,37 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   const source = evidenceSource()
   const manifestText = readFileSync(path.join(root, 'packages/patterns/hozo.manifest.json'), 'utf8')
+  const nativeHandle = read('handle-inputs-native.json')
   const report = assessHandleDelivery({
     ...source,
     manifestText,
-    nativeHandle: read('handle-inputs-native.json'),
+    nativeHandle,
     webHandle: read('handle-inputs-browser.json'),
   })
+  report.nativeLifetime = assessHandleNativeLifetime(
+    report.passed ? nativeHandle.lifetimeObservations : null,
+  )
   report.webLifetime = assessHandleWebLifetime(
     read('handle-browser-lifetime.json'),
     source.sourceCommit,
     createHash('sha256').update(manifestText).digest('hex'),
   )
-  report.passed &&= report.webLifetime.passed
+  report.webStates = assessHandleWebStates(
+    read('handle-browser.json'),
+    source.sourceCommit,
+    createHash('sha256').update(manifestText).digest('hex'),
+  )
+  report.nativeStates = assessHandleNativeStates(
+    read('handle-states-native.json'),
+    source.sourceCommit,
+  )
+  report.passed &&=
+    report.webLifetime.passed &&
+    report.nativeLifetime.passed &&
+    report.webStates.passed &&
+    report.nativeStates.passed
   mkdirSync(directory, { recursive: true })
-  const json = JSON.stringify(report, null, 2)
+  const json = JSON.stringify({ ...report, scope: 'bounded-handle-delivery-evidence' }, null, 2)
   writeFileSync(path.join(directory, 'handle-contract-assessment.json'), `${json}\n`)
   console.log(json)
   if (!report.passed) process.exitCode = 1

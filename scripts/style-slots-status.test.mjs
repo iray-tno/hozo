@@ -5,6 +5,7 @@ import test from 'node:test'
 import { ownerShadow } from './style-slots/catalog.mjs'
 import {
   assessHandleDelivery,
+  assessHandleNativeLifetime,
   assessHandleWebLifetime,
 } from './style-slots/handle-contract-assessment.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
@@ -28,6 +29,93 @@ import {
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('bounded handle evidence is visible without upgrading its audit declaration', () => {
+  const owner = 'BottomSheet.handle'
+  const manifestSha256 = 'b'.repeat(64)
+  const domain = (scope, observations) => ({ scope, owner, passed: true, observations })
+  const receipt = {
+    schema: 1,
+    scope: 'bounded-handle-delivery-evidence',
+    sourceCommit: commit,
+    trackedChanges: false,
+    passed: true,
+    owner,
+    rollout: 'unchanged',
+    manifestSha256,
+    inputDomain: {
+      owner,
+      status: 'measured',
+      inputCases: 9,
+      nativeObservations: 36,
+      webObservations: 27,
+    },
+    webLifetime: { ...domain('web-handle-style-lifetime', 30), earlyExitControls: 6 },
+    nativeLifetime: domain('native-handle-style-lifetime-model', 8),
+    webStates: domain('web-handle-interaction-styles', 15),
+    nativeStates: domain('native-handle-direct-carrier-states', 24),
+  }
+  const assess = (value, trackedChanges = false) =>
+    stylingFactStatus({
+      commit,
+      expectedManifestSha256: manifestSha256,
+      trackedChanges,
+      receipts: [value],
+    })
+  const report = assess(receipt)
+  assert.equal(report.observations[0].status, 'measured')
+  assert.ok(report.contractEvidence.unknownOwners.includes(owner))
+  assert.ok(!report.contractEvidence.verifiedOwners.includes(owner))
+  assert.equal(report.globalMeasures.contractAudit, null)
+  assert.equal(assess(receipt, true).observations[0].status, 'invalid')
+  assert.equal(assess({ ...receipt, nativeStates: null }).observations[0].status, 'invalid')
+  assert.equal(
+    assess({ ...receipt, manifestSha256: 'c'.repeat(64) }).observations[0].status,
+    'invalid',
+  )
+})
+
+test('Native handle lifetime rejects early removal and reused reopening hosts', () => {
+  const rows = []
+  for (const platform of ['android', 'ios'])
+    for (const route of ['opaque', 'caller'])
+      for (const interactive of [false, true]) {
+        const opened = {
+          host: interactive ? 'Pressable' : 'View',
+          padding: 8,
+          rowGap: 16,
+          columnGap: 16,
+          opacity: 1,
+          background: '#ffffff',
+        }
+        rows.push({
+          platform,
+          route,
+          interactive,
+          opened,
+          exiting: platform === 'ios' ? opened : null,
+          absentModals: 0,
+          reopened: opened,
+          sameReopenedHost: false,
+        })
+      }
+  assert.equal(assessHandleNativeLifetime(rows).observations, 8)
+  for (const mutate of [
+    (value) => {
+      value[4].exiting = null
+    },
+    (value) => {
+      value[0].sameReopenedHost = true
+    },
+    (value) => {
+      value.pop()
+    },
+  ]) {
+    const invalid = structuredClone(rows)
+    mutate(invalid)
+    assert.equal(assessHandleNativeLifetime(invalid).passed, false)
+  }
+})
 
 test('Web handle lifetime requires present, exiting, absent and fresh hosts on both shapes', () => {
   const manifestSha256 = 'b'.repeat(64)

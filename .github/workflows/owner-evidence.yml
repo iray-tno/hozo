@@ -84,7 +84,7 @@ jobs:
           name: handle-contract-assessment
           path: artifacts/style-fact-model/handle-contract-assessment.json
           if-no-files-found: error
-      - run: node scripts/style-slots/status.mjs --output artifacts/style-fact-model/styling-fact-status.json artifacts/style-fact-model/tabs-contract-audit.json
+      - run: node scripts/style-slots/status.mjs --output artifacts/style-fact-model/styling-fact-status.json artifacts/style-fact-model/tabs-contract-audit.json artifacts/style-fact-model/handle-contract-assessment.json
         if: always()
       - uses: actions/upload-artifact@v4
         if: always()
@@ -112,6 +112,7 @@ jobs:
             artifacts/style-fact-model/handle-browser.json
             artifacts/style-fact-model/handle-browser-lifetime.json
             artifacts/style-fact-model/handle-inputs-native.json
+            artifacts/style-fact-model/handle-states-native.json
             artifacts/style-fact-model/handle-inputs-browser.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
