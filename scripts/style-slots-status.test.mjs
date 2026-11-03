@@ -3,9 +3,11 @@ import test from 'node:test'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabLabels,
   expectedTabModality,
   handleInputCases,
   tabInputCases,
+  tabLabelCases,
   tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
@@ -44,6 +46,9 @@ function inputReceipts() {
       ...base('native-tabs-compiled-owner-component-host-model'),
       stylesheetCreates: 1,
       requests: { opaque: 5, prepared: 0, caller: 0, instance: 0 },
+      labelObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
+        tabLabelCases.map((input) => ({ route, input: input.id, rows: expectedTabLabels(input) })),
+      ),
       modalityObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
         tabModalityCases.map((input) => ({
           route,
@@ -62,6 +67,9 @@ function inputReceipts() {
     webTabs: {
       ...base('web-tabs-real-pointer-focus'),
       prepared: prepared('Tabs.Tab'),
+      labelObservations: kinds.flatMap((kind) =>
+        tabLabelCases.map((input) => ({ kind, input: input.id, rows: expectedTabLabels(input) })),
+      ),
       modalityObservations: kinds.flatMap((kind) =>
         tabModalityCases.map((input) => ({
           kind,
@@ -140,6 +148,11 @@ test('Owner input audit has finite denominators without self-promoting contracts
     })),
   })
   assert.equal(report.rollout, 'unchanged')
+  assert.deepEqual(report.domains[0].labels, {
+    cases: 5,
+    nativeObservations: 20,
+    webObservations: 15,
+  })
 })
 
 test('UA-conditioned indication differences stay visible and never promote common equivalence', () => {
@@ -179,6 +192,13 @@ test('Owner input audit rejects stale, dirty, failed or missing evidence on eith
 test('Owner input audit requires every route, real delivery values, lifetime and negative controls', () => {
   for (const mutate of [
     (input) => input.nativeTabs.inputObservations.pop(),
+    (input) => input.nativeTabs.labelObservations.pop(),
+    (input) => {
+      input.webTabs.labelObservations[0].rows[1].label = ''
+    },
+    (input) => {
+      input.nativeTabs.labelObservations[0].rows[1].color = '#334455'
+    },
     (input) => input.nativeTabs.modalityObservations.pop(),
     (input) => {
       input.webTabs.modalityObservations[0].visible = true

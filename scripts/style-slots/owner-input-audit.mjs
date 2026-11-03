@@ -7,9 +7,11 @@ import { isDeepStrictEqual } from 'node:util'
 import { evidenceSource } from './evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabLabels,
   expectedTabModality,
   handleInputCases,
   tabInputCases,
+  tabLabelCases,
   tabModalityCases,
 } from './owner-input-cases.mjs'
 
@@ -65,6 +67,19 @@ function checkRows(actual, expected) {
 }
 
 function tabs(native, web) {
+  for (const [actual, routes] of [
+    [native.labelObservations, nativeTabRoutes],
+    [web.labelObservations, webKinds],
+  ])
+    checkRows(
+      actual,
+      routes.flatMap((route) =>
+        tabLabelCases.map((input) => ({
+          key: `${route}:${input.id}`,
+          value: expectedTabLabels(input),
+        })),
+      ),
+    )
   checkRows(
     native.modalityObservations,
     nativeTabRoutes.flatMap((route) =>
@@ -239,6 +254,11 @@ export function auditOwnerInputs({
                     (row) => row.kind === kind && row.input === 'pointer-while-focused',
                   ).visible,
                 })),
+              },
+              labels: {
+                cases: tabLabelCases.length,
+                nativeObservations: nativeTabRoutes.length * tabLabelCases.length,
+                webObservations: webKinds.length * tabLabelCases.length,
               },
             }
           : {}),

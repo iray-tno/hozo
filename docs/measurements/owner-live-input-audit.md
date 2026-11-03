@@ -46,6 +46,15 @@ hide the difference, change Native's established policy or certify general
 heuristic equivalence. A future policy change needs its own decision and
 cross-browser/device evidence, not one Chrome observation.
 
+The primitive-label domain adds five updates: `0`, disabled `0`, a negative
+number, a fraction and return to a string. It contributes 20 Native / 15 Web
+observations. Before the fix the Native Text-host assertion failed on `0`:
+the component returned a bare numeric child and did not apply the label's text
+style. Numbers now use the existing string Text path, with no new context or
+tree traversal. Tests require real Native Text hosts, unchanged tab hosts and
+the selected/disabled label styles; Web output is compared to Tailwind. This
+does not cover arbitrary ReactNode descendants, arrays or fragments.
+
 BottomSheet covers omitted, empty, invalid, duplicate and filtered-single
 detents, unsorted/valid multi-detents and reverse shape transitions. The
 receiver is selected after normalization, **not by authored array length**.

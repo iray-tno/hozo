@@ -8,8 +8,10 @@ import { chromium } from 'playwright-core'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabLabels,
   expectedTabModality,
   tabInputCases,
+  tabLabelCases,
   tabModalityCases,
 } from '../../../scripts/style-slots/owner-input-cases.mjs'
 import {
@@ -89,6 +91,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     authorObservations: [],
     inputObservations: [],
     modalityObservations: [],
+    labelObservations: [],
     controls: [],
     prepared: null,
   }
@@ -325,6 +328,39 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
           window.setInput(input)
         }, tabInputCases.at(-1))
         await recordModality(7)
+        await page.evaluate(() => {
+          window.labelOwners = [...document.querySelectorAll('[role=tab]')]
+        })
+        for (const input of tabLabelCases) {
+          await page.evaluate(
+            (input) =>
+              window.setInput({
+                tabs: [
+                  { label: 'A', content: 'one' },
+                  { label: input.label, content: 'two', disabled: input.disabled },
+                  { label: 'C', content: 'three' },
+                ],
+                index: 1,
+              }),
+            input,
+          )
+          const rows = await tabs.evaluateAll((nodes) =>
+            nodes.map((node, at) => {
+              if (node !== window.labelOwners[at])
+                throw new Error('label update remounted an Owner')
+              const style = getComputedStyle(node)
+              const rgb = style.color.match(/\d+/g).slice(0, 3)
+              return {
+                label: node.textContent,
+                color: `#${rgb.map((value) => Number(value).toString(16).padStart(2, '0')).join('')}`,
+                size: Number.parseFloat(style.fontSize),
+                weight: style.fontWeight,
+              }
+            }),
+          )
+          assert.deepEqual(rows, expectedTabLabels(input), `${kind}: ${input.id}`)
+          evidence.labelObservations.push({ kind, input: input.id, rows })
+        }
         await page.evaluate(() =>
           window.setInput({
             tabs: [
@@ -358,6 +394,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     assert.equal(evidence.authorObservations.length, 12)
     assert.equal(evidence.inputObservations.length, 24)
     assert.equal(evidence.modalityObservations.length, 24)
+    assert.equal(evidence.labelObservations.length, 15)
     for (const kind of ['candidate', 'prepared'])
       assert.deepEqual(
         evidence.authorObservations
