@@ -378,11 +378,14 @@ test('published handle delivery follows normalized detents through live host cha
         observations: stateRows,
       },
     })
+    let partialPreparations = 0
     const partialProject = new InstanceOwnerCallerProject(
       epoch.lease(),
       compiler,
-      async (names) =>
-        JSON.stringify(
+      async (names) => {
+        partialPreparations++
+        assert.ok(partialClasses.split(' ').every((candidate) => names.includes(candidate)))
+        return JSON.stringify(
           (
             await prepareTailwindOrder(
               '@import "tailwindcss/theme.css";',
@@ -390,7 +393,8 @@ test('published handle delivery follows normalized detents through live host cha
               names,
             )
           ).snapshot,
-        ),
+        )
+      },
       { experimentalNativePartial: true },
     )
     const partialSource = stateSource.replace(
@@ -405,6 +409,7 @@ test('published handle delivery follows normalized detents through live host cha
     })
     assert.equal(partial.identity.manifestSha256, result.identity.manifestSha256)
     assert.equal(partial.preview.findings[0]?.disposition, 'prepared-partial')
+    assert.equal(partialPreparations, 1)
     assert.ok(
       partial.preview.code.includes(
         `handleClassName="${partialClasses}" hozoInteractiveHandleStyle=`,
@@ -431,13 +436,15 @@ test('published handle delivery follows normalized detents through live host cha
         assert.equal(hovered.opacity, 0.5)
         assert.equal(hovered.rowGap, 16)
         assert.equal(hovered.paddingTop, 20)
-        assert.ok(!requests.includes(partialClasses))
+        const hoveredRequests = requests.filter((value) => value === partialClasses).length
+        assert.equal(hoveredRequests, 0)
         update([1, 1])
         const decorative = style(handle(tree, false))
         assert.equal(decorative.opacity, 1)
         assert.equal(decorative.rowGap, 16)
         assert.equal(decorative.paddingTop, 20)
-        assert.ok(requests.includes(partialClasses))
+        const decorativeRequests = requests.filter((value) => value === partialClasses).length
+        assert.ok(decorativeRequests > 0)
         requests.length = 0
         update([0.25, 1])
         const restored = handle(tree, true)
@@ -446,19 +453,33 @@ test('published handle delivery follows normalized detents through live host cha
         assert.equal(rest.opacity, 1)
         assert.equal(rest.rowGap, 16)
         assert.equal(rest.paddingTop, 20)
-        assert.ok(!requests.includes(partialClasses))
+        const restoredRequests = requests.filter((value) => value === partialClasses).length
+        assert.equal(restoredRequests, 0)
+        const sample = (box: Record<string, unknown>, resolverCalls: number) => ({
+          opacity: box.opacity,
+          paddingTop: box.paddingTop,
+          rowGap: box.rowGap,
+          resolverCalls,
+        })
         partialRows.push({
           platform,
-          hovered: hovered.opacity,
-          decorative: decorative.opacity,
-          restored: rest.opacity,
+          hovered: sample(hovered, hoveredRequests),
+          decorative: sample(decorative, decorativeRequests),
+          restored: sample(rest, restoredRequests),
         })
       } finally {
         unmount(tree)
       }
     }
     Object.assign(evidence, {
-      statePartial: { identity: partial.identity, observations: partialRows },
+      statePartial: {
+        identity: partial.identity,
+        disposition: partial.preview.findings[0]?.disposition,
+        contextFingerprint: partial.preview.contextFingerprint,
+        preparations: partialPreparations,
+        stylesheetSites: partial.preview.code.split('.create(').length - 1,
+        observations: partialRows,
+      },
     })
     for (const platform of ['android', 'ios']) {
       rn.handleModalModel.platform = platform
