@@ -11,6 +11,50 @@ import { stylingFactStatus } from './status.mjs'
 
 const owner = 'BottomSheet.handle'
 
+// The outer delivery assessment validates the containing receipt and manifest.
+export function assessHandlePartialDelivery(receipt) {
+  const base = { scope: 'native-handle-published-partial', owner }
+  try {
+    const partial = receipt?.statePartial
+    assert.equal(partial?.disposition, 'prepared-partial')
+    assert.equal(partial.preparations, 1)
+    assert.equal(partial.stylesheetSites, 1)
+    assert.match(partial.contextFingerprint, /^scalar-order-v\d+:[a-f0-9]{64}$/)
+    assert.deepEqual(
+      partial.identity,
+      receipt.stateFallback?.identity,
+      'Partial and retained controls must select the same caller identity',
+    )
+    const { importer: _partialImporter, ...partialPackage } = partial.identity
+    const { importer: _restImporter, ...restPackage } = receipt.prepared.identity
+    assert.deepEqual(
+      partialPackage,
+      restPackage,
+      'Partial evidence must share the published package capture',
+    )
+    assert.deepEqual(
+      partial.observations.map((row) => row.platform),
+      ['android', 'ios'],
+    )
+    for (const row of partial.observations) {
+      assert.deepEqual(row.hovered, { opacity: 0.5, paddingTop: 20, rowGap: 16, resolverCalls: 0 })
+      assert.ok(
+        Number.isSafeInteger(row.decorative?.resolverCalls) && row.decorative.resolverCalls > 0,
+      )
+      assert.deepEqual(row.decorative, {
+        opacity: 1,
+        paddingTop: 20,
+        rowGap: 16,
+        resolverCalls: row.decorative.resolverCalls,
+      })
+      assert.deepEqual(row.restored, { opacity: 1, paddingTop: 20, rowGap: 16, resolverCalls: 0 })
+    }
+    return { ...base, passed: true, observations: 6, platforms: 2 }
+  } catch (error) {
+    return { ...base, passed: false, reason: error.message }
+  }
+}
+
 export function assessHandleNativeStates(receipt, sourceCommit) {
   const base = { scope: 'native-handle-direct-carrier-states', owner }
   try {
@@ -301,11 +345,13 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     read('handle-states-native.json'),
     source.sourceCommit,
   )
+  report.nativePartial = assessHandlePartialDelivery(report.passed ? nativeHandle : null)
   report.passed &&=
     report.webLifetime.passed &&
     report.nativeLifetime.passed &&
     report.webStates.passed &&
-    report.nativeStates.passed
+    report.nativeStates.passed &&
+    report.nativePartial.passed
   mkdirSync(directory, { recursive: true })
   const json = JSON.stringify({ ...report, scope: 'bounded-handle-delivery-evidence' }, null, 2)
   writeFileSync(path.join(directory, 'handle-contract-assessment.json'), `${json}\n`)

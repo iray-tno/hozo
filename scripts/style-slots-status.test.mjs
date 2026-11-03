@@ -6,6 +6,7 @@ import { ownerShadow } from './style-slots/catalog.mjs'
 import {
   assessHandleDelivery,
   assessHandleNativeLifetime,
+  assessHandlePartialDelivery,
   assessHandleWebLifetime,
 } from './style-slots/handle-contract-assessment.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
@@ -29,6 +30,62 @@ import {
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('partial handle evidence requires the same capture and only decorative resolution', () => {
+  const identity = {
+    importer: 'state.tsx',
+    manifestSha256: 'b'.repeat(64),
+    captureFingerprint: 'capture',
+  }
+  const sample = (opacity, resolverCalls) => ({
+    opacity,
+    resolverCalls,
+    paddingTop: 20,
+    rowGap: 16,
+  })
+  const receipt = {
+    prepared: { identity: { ...identity, importer: 'rest.tsx' } },
+    stateFallback: { identity: { ...identity } },
+    statePartial: {
+      identity: { ...identity },
+      disposition: 'prepared-partial',
+      preparations: 1,
+      stylesheetSites: 1,
+      contextFingerprint: `scalar-order-v8:${'c'.repeat(64)}`,
+      observations: ['android', 'ios'].map((platform) => ({
+        platform,
+        hovered: sample(0.5, 0),
+        decorative: sample(1, 1),
+        restored: sample(1, 0),
+      })),
+    },
+  }
+  assert.equal(assessHandlePartialDelivery(receipt).observations, 6)
+  for (const mutate of [
+    (v) => {
+      v.statePartial.observations[0].decorative.resolverCalls = 0
+    },
+    (v) => {
+      v.statePartial.observations[1].restored.resolverCalls = 1
+    },
+    (v) => {
+      v.statePartial.observations[1].hovered.paddingTop = 8
+    },
+    (v) => {
+      v.statePartial.identity.captureFingerprint = 'another'
+    },
+    (v) => {
+      v.statePartial.stylesheetSites = 2
+    },
+    (v) => {
+      v.statePartial.observations.pop()
+    },
+  ]) {
+    const invalid = structuredClone(receipt)
+    mutate(invalid)
+    assert.equal(assessHandlePartialDelivery(invalid).passed, false)
+  }
+})
 
 test('bounded handle evidence is visible without upgrading its audit declaration', () => {
   const owner = 'BottomSheet.handle'
