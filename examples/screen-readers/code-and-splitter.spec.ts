@@ -160,10 +160,13 @@ test('windowed code block reads to its last line, each line once', async ({
       linesHeard: heard.size,
       lastHeard: Math.max(0, ...heard.keys()),
       heardTwice: [...heard].filter(([, times]) => times > 1).map(([line]) => line),
+      // One line's end against the next one's start, as NVDA first read it.
+      runTogether: reading.phrases.some((phrase) => /\dentry \d/.test(phrase)),
       addedPrefix: reading.phrases.some((phrase) => /Added:?\s*entry 30\b/.test(phrase)),
     }
     observed.push({ action: 'Read the windowed block to its end', said: reading.phrases, facts })
     assert.ok(reading.steps < lineCount + MAX_STEPS, 'the reader exhausted its budget')
+    assert.equal(facts.runTogether, false, 'the reader ran lines together')
     assert.equal(facts.lastHeard, lineCount, 'the reader stopped before the last line')
     assert.equal(facts.linesHeard, lineCount, 'the reader skipped lines')
     assert.deepEqual(facts.heardTwice, [], 'the drawn rows were read as well')
