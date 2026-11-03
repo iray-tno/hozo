@@ -1,7 +1,7 @@
 // RFC010: direct styles from the existing backend reach a real owner.
 // Caller wiring remains an explicit fixture, not generalized manifest lowering.
 import assert from 'node:assert/strict'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire, registerHooks } from 'node:module'
 import path from 'node:path'
 import { after, mock, test } from 'node:test'
@@ -12,6 +12,13 @@ import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.m
 import { handleInputCases } from '../../../scripts/style-slots/owner-input-cases.mjs'
 import { previewOwnerLiteralCallers } from '../../compiler/src/owner-caller-plan.ts'
 import { parseOwnerContractShadow, selectOwnerShape } from '../../compiler/src/owner-contract.ts'
+import {
+  captureOwnerManifests,
+  InstanceOwnerCallerProject,
+  OwnerManifestEpoch,
+  readResolvedOwnerManifest,
+} from '../../compiler/src/project.ts'
+import { prepareTailwindOrder, tailwindPackageDir } from '../../tailwind/src/theme.ts'
 import { loadNativeModule } from './native-render.ts'
 
 const require = createRequire(import.meta.url)
@@ -54,7 +61,7 @@ const source = `
 import {StyleSheet as PreparedStyleSheet} from 'react-native'
 import {hozoClasses} from '@hozo/engine/project'
 import {BottomSheet} from '@hozo/patterns'
-export {BottomSheet as Raw} from '@hozo/patterns'
+export {BottomSheet as Raw, HozoBottomSheet as RawAlias} from '@hozo/patterns'
 ${planSource}
 ${declarations}
 export function Prepared({base,own,extra,observe}) {
@@ -167,7 +174,7 @@ function unmount(tree: Rendered) {
   renderer.act(() => tree.unmount())
 }
 
-test('literal handle delivery follows normalized detents through live host changes', () => {
+test('published handle delivery follows normalized detents through live host changes', async () => {
   const evidence = {
     schema: 1,
     ...evidenceSource(),
@@ -175,12 +182,60 @@ test('literal handle delivery follows normalized detents through live host chang
     scope: 'native-handle-normalized-live-input-host-model',
     observations: [] as unknown[],
   }
+  const epoch = new OwnerManifestEpoch()
   try {
+    const packageRoot = path.join(root, 'packages/patterns')
+    const metadata = JSON.parse(readFileSync(path.join(packageRoot, 'package.json'), 'utf8'))
+    const entry = realpathSync(
+      path.join(packageRoot, metadata.exports['.']['react-native'].default),
+    )
+    const edge = {
+      importer: path.join(project, 'PublishedCaller.native.tsx'),
+      specifier: '@hozo/patterns',
+    }
+    const observation = readResolvedOwnerManifest(edge, {
+      packageRoot,
+      entry,
+      declaredManifest: metadata.hozo.manifest,
+    })
+    epoch.adopt(
+      captureOwnerManifests([edge], [observation], {
+        platform: 'ios',
+        epoch: 'handle-published-delivery',
+      }),
+    )
+    let preparations = 0
+    const published = new InstanceOwnerCallerProject(epoch.lease(), compiler, async (names) => {
+      preparations++
+      const { snapshot } = await prepareTailwindOrder(
+        '@import "tailwindcss/theme.css";',
+        tailwindPackageDir(),
+        names,
+      )
+      return JSON.stringify(snapshot)
+    })
+    const result = await published.emit(literalSource, {
+      ...edge,
+      entry,
+      imported: 'BottomSheet',
+      classProp: 'handleClassName',
+    })
+    assert.equal(result.preview.findings.length, 1)
+    assert.equal(result.preview.findings[0]!.disposition, 'prepared-literal')
+    assert.equal(result.identity.owner, 'BottomSheet.handle')
+    assert.equal(preparations, 1)
+    assert.ok(exports.Raw, 'the published Native component must exist')
+    assert.equal(exports.Raw, exports.RawAlias, 'both public Native aliases must share an Owner')
+    const actual = loadNativeModule(result.preview.code, project, { root: project, compiler })
+    Object.assign(evidence, {
+      prepared: { identity: result.identity, preparations },
+      aliasesSameOwner: true,
+    })
     for (const platform of ['android', 'ios']) {
       rn.handleModalModel.platform = platform
       for (const [route, component] of [
         ['opaque', literalOrdinary.LiteralCaller],
-        ['caller', literalPrepared.LiteralCaller],
+        ['caller', actual.LiteralCaller],
       ] as const) {
         requests.length = 0
         const props = { open: true, author: { value: Object.freeze({ gap: 16 }) } }
@@ -239,6 +294,7 @@ test('literal handle delivery follows normalized detents through live host chang
     Object.assign(evidence, { error: String(error) })
     throw error
   } finally {
+    epoch.invalidate()
     rn.handleModalModel.platform = 'android'
     const destination = path.join(root, 'artifacts/style-fact-model/handle-inputs-native.json')
     mkdirSync(path.dirname(destination), { recursive: true })
