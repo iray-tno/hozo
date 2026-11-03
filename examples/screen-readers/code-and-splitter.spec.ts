@@ -150,7 +150,12 @@ test('windowed code block reads to its last line, each line once', async ({
     await enterPage(page, screenReader)
     const reading = await walk(screenReader, { page, maxSteps: lineCount + MAX_STEPS })
     const heard = new Map<number, number>()
-    for (const phrase of reading.phrases)
+    // A phrase said again straight after itself is the cursor stuck at the
+    // end of the page, which is how a walk ends, not a line read twice: NVDA
+    // says "entry 60" until the walk gives up on the repeat. Drawn rows read
+    // as well would come round again after the whole text.
+    const moves = reading.phrases.filter((phrase, at) => phrase !== reading.phrases[at - 1])
+    for (const phrase of moves)
       for (const match of phrase.matchAll(/\bentry (\d+)\b/g))
         heard.set(Number(match[1]), (heard.get(Number(match[1])) ?? 0) + 1)
     const facts = {
