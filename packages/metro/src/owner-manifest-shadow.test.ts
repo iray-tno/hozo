@@ -3,7 +3,13 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import test from 'node:test'
 import { ownerMetroFixture } from '../fixtures/owner-metro-resolver.mjs'
-import { metroStatePath, readMetroState, withHozo, withHozoOwnerShadow } from './config.ts'
+import {
+  metroStatePath,
+  readMetroState,
+  withHozo,
+  withHozoOwnerShadow,
+  withHozoPartialOwners,
+} from './config.ts'
 import { getCacheKey, transform } from './index.ts'
 import { collectMetroOwnerPreflight } from './owner-manifest-preflight.ts'
 import { candidateModulePath } from './project.ts'
@@ -39,6 +45,49 @@ function fixture(t) {
   }
   return { ...f, config, options, preflight, params }
 }
+
+test('generated Native candidate map can only resolve its captured app subpath', async (t) => {
+  const f = fixture(t)
+  const appFile = path.join(f.root, 'package.json')
+  const app = JSON.parse(readFileSync(appFile, 'utf8'))
+  app.dependencies['@hozo/core'] = '1'
+  writeFileSync(appFile, JSON.stringify(app))
+  const core = path.join(f.root, 'node_modules', '@hozo', 'core')
+  mkdirSync(core, { recursive: true })
+  const specifier = '@hozo/core/generated/class-resolver'
+  const pkg = {
+    name: '@hozo/core',
+    version: '1.0.0',
+    exports: { '.': './index.js', './generated/class-resolver': './resolver.js' },
+  }
+  writeFileSync(path.join(core, 'package.json'), JSON.stringify(pkg))
+  for (const file of ['index.js', 'resolver.js']) writeFileSync(path.join(core, file), '')
+  const context = {
+    ...f.context,
+    getPackageForModule(file: string) {
+      if (file === core || file.startsWith(`${core}${path.sep}`))
+        return { rootPath: core, packageJson: pkg, packageRelativePath: path.relative(core, file) }
+      return f.context.getPackageForModule(file)
+    },
+  }
+  const importer = context.originModulePath
+  const preflight = collectMetroOwnerPreflight(context, f.delegate, {
+    platform: 'android',
+    epoch: 'generated-origin',
+    origins: [importer],
+    additionalImports: [{ importer, specifier }],
+  })
+  assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
+  const config = await withHozoPartialOwners(f.config, preflight, f.options)
+  const generated = candidateModulePath(f.root)
+  assert.equal(context.getPackageForModule(generated), null)
+  const resolve = (originModulePath: string) =>
+    config.resolver.resolveRequest({ ...context, originModulePath }, specifier, 'android')
+  assert.equal(resolve(generated).filePath, path.join(core, 'resolver.js'))
+  const neighbor = path.join(path.dirname(generated), 'other.js')
+  writeFileSync(neighbor, '')
+  assert.throws(() => resolve(neighbor), /unassessed or changed package resolution/)
+})
 test('explicit shadow connects config, cache and real transform without changing legacy candidate/output bytes', {
   timeout: 10000,
 }, async (t) => {
