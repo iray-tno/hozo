@@ -8,6 +8,8 @@ on:
       - 'scripts/style-slots/web-owner-publication.mjs'
       - 'scripts/style-slots/vite-owner-publication.mjs'
       - 'packages/vite/src/**'
+      - 'packages/metro/src/**'
+      - 'examples/native-demo/scripts/metro-partial-owner-bundle.test.mjs'
       - 'crates/hozo_parser/src/static_imports.rs'
       - 'crates/hozo_napi/src/static_imports.rs'
       - 'scripts/style-slots/tabs-owner-shadow.mjs'
@@ -70,6 +72,7 @@ jobs:
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/bottom-sheet-prepared-handle.test.ts packages/tailwind-conformance/src/text-child-containers.test.ts
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/tabs-owner-state.test.ts packages/tailwind-conformance/src/tabs-prepared-owner.test.ts packages/tailwind-conformance/src/tabs-compiled-owner.test.ts examples/storybook-demo/scripts/owner-tabs.test.mjs
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-vite.test.mjs
+      - run: node --test --test-concurrency=1 examples/native-demo/scripts/metro-partial-owner-bundle.test.mjs
       # Read real receipts from this checkout; a missing/stale probe fails the
       # bounded audit rather than quietly inheriting a previous green report.
       - run: node scripts/style-slots/owner-input-audit.mjs --output artifacts/style-fact-model/owner-input-audit.json
