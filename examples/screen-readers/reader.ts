@@ -63,6 +63,12 @@ export function startRecording(id: string): () => void {
 const ENTRY_ATTEMPTS = 3
 
 /**
+ * What the line a walk starts from says (#1641). Plain words rather than an
+ * id, because NVDA reads it and it is matched in what NVDA said.
+ */
+const TOP_LINE = 'Story starts below'
+
+/**
  * What the page's expandable controls and dialogs say right now.
  *
  * A diagnostic, printed at each step of entry, and it exists because two
@@ -197,7 +203,7 @@ export async function enterPage(page: Page, screenReader: ScreenReaderPlaywright
       console.log(`[enter] voiceover     ${await layerState(page)}`)
       return
     }
-    await page.evaluate(() => {
+    await page.evaluate((text) => {
       const start = document.createElement('button')
       start.id = 'hozo-screen-reader-start'
       start.type = 'button'
@@ -224,7 +230,17 @@ export async function enterPage(page: Page, screenReader: ScreenReaderPlaywright
         start.addEventListener(kind, (event) => event.stopPropagation(), { capture: true })
       }
       document.body.prepend(start)
-    })
+      // The line a walk starts from; see the Ctrl+Home below. Visually
+      // hidden, and in no container, which is what it is for.
+      if (document.getElementById('hozo-screen-reader-top') === null) {
+        const top = document.createElement('p')
+        top.id = 'hozo-screen-reader-top'
+        top.textContent = text
+        top.style.cssText =
+          'position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;margin:0'
+        start.after(top)
+      }
+    }, TOP_LINE)
     // Focused rather than navigated to, so nothing is sent to the page.
     //
     // `navigateToWebContent` is what sends the Escape that `layerState` caught
@@ -250,28 +266,30 @@ export async function enterPage(page: Page, screenReader: ScreenReaderPlaywright
       await screenReader.clearSpokenPhraseLog()
       continue
     }
-    // Ctrl+End, a pause, then Ctrl+Home, each after the reader has finished
-    // speaking, so the walk starts the same way every time (#1641).
+    // Ctrl+Home onto a line of the harness's own, after the reader has
+    // finished speaking, so the walk's first `next` always arrives at the
+    // story from outside it (#1641).
     //
-    // A single Ctrl+Home raced NVDA's handling of the focus change above. When
-    // the document's own announcement ("patterns-combobox--default, document")
-    // came after the key, it replaced the first line: the heading was never
-    // said and the walk began on the paragraph under it. When it came before,
-    // it had already put the virtual cursor on the first line, so Ctrl+Home
-    // did not move it and NVDA read the line without the containers it opens:
-    // "paths dot ts" where it says "clickable, figure, caption, paths dot ts"
-    // when it arrives from elsewhere. Either way the first approved phrase was
-    // missing. Waiting out the focus speech settles the first race. Starting
-    // from the end settles the second, because Ctrl+Home then always crosses
-    // into whatever the first line sits in.
+    // A Ctrl+Home onto the story's first line raced NVDA's handling of the
+    // focus change above. When the document's own announcement
+    // ("patterns-combobox--default, document") came after the key, it replaced
+    // the first line: the heading was never said and the walk began on the
+    // paragraph under it. When it came before, it had already put the virtual
+    // cursor on the first line, so Ctrl+Home did not move it and NVDA read the
+    // line without the containers it opens: "paths dot ts" where it says
+    // "clickable, figure, caption, paths dot ts" when it arrives from
+    // elsewhere. Either way the first approved phrase was missing.
+    //
+    // Waiting out the focus speech settles the first race. The line above the
+    // story settles the second: it sits in no container, so the step from it
+    // opens every container the first line is in, wherever the cursor was.
+    // Starting from Ctrl+End instead was tried and is not enough, because a
+    // story can end inside the container it starts in: CodeBlock's last
+    // element is the copy button in the figure.
+    //
+    // The line stays for the whole test. Removing it changes the buffer the
+    // walk is in, which is the kind of change this is getting away from.
     await untilQuiet(screenReader)
-    await screenReader.perform({
-      keyCode: [WindowsKeyCodes.End],
-      modifiers: [WindowsModifiers.Control],
-    })
-    await untilQuiet(screenReader)
-    // `spokenAfter` clears the log first and leaves what Ctrl+Home said in it,
-    // so the walk's phrases begin with the first line.
     const home = await spokenAfter(screenReader, () =>
       screenReader.perform({
         keyCode: [WindowsKeyCodes.Home],
@@ -279,6 +297,10 @@ export async function enterPage(page: Page, screenReader: ScreenReaderPlaywright
       }),
     )
     console.log(`[enter] after home    ${await layerState(page)} said=${JSON.stringify(home)}`)
+    // Ctrl+Home does not reach the line when the rest of the document is
+    // inert: a `showModal()` dialog puts NVDA on the dialog's first child
+    // instead, and that phrase is the start of the walk, so it is kept.
+    if (home.some((phrase) => phrase.includes(TOP_LINE))) await screenReader.clearSpokenPhraseLog()
     return
   }
   throw new Error(
