@@ -19,6 +19,7 @@ investigation moves.
 | The `voiceover` job, on the runner ("-1743", VoiceOver refusing to launch) | `.github/workflows` | [#631](https://github.com/iray-tno/hozo/issues/631) |
 | The Native Dialog returning focus to its opener | device a11y checks | [#484](https://github.com/iray-tno/hozo/issues/484) |
 | The `android` job, before any test runs ("Android framework readiness timed out") | `.github/workflows` | [#1525](https://github.com/iray-tno/hozo/issues/1525) |
+| The landing `color-picker` check, after Enter in the hex input ("waiting for getByText('Chosen: #10b981')") | `apps/landing` | [#1603](https://github.com/iray-tno/hozo/issues/1603) |
 
 ## Not flaky: the Storybook audits on a lowered priority
 
