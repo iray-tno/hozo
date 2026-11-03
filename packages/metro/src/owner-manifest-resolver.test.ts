@@ -75,3 +75,44 @@ test('an actually unresolved declared optional package yields no partial transfe
   assert.equal(result.status, 'incomplete')
   assert.ok(!('request' in result))
 })
+
+test('explicit additional subpaths resolve inside the same declared package instance', (t) => {
+  const f = ownerMetroFixture(t)
+  const metadata = path.join(f.first, 'package.json')
+  const pkg = JSON.parse(readFileSync(metadata, 'utf8'))
+  pkg.exports['./generated/resolve'] = './alternate.js'
+  writeFileSync(metadata, JSON.stringify(pkg))
+  const importer = f.context.originModulePath
+  const options = { platform: 'android', epoch: 'explicit-subpath', origins: [importer] }
+  const specifier = 'kit/generated/resolve'
+  const result = collectMetroOwnerPreflight(f.context, f.delegate, {
+    ...options,
+    additionalImports: [{ importer, specifier }],
+  })
+  assert.equal(result.status, 'complete', JSON.stringify(result))
+  if (result.status !== 'complete') return
+  assert.ok(
+    result.routes.some(
+      (route) =>
+        route.specifier === specifier && route.entry === path.join(f.first, 'alternate.js'),
+    ),
+  )
+  const redirected = collectMetroOwnerPreflight(
+    f.context,
+    (ctx, name, platform) =>
+      name === specifier
+        ? { type: 'sourceFile', filePath: path.join(f.second, 'alternate.js') }
+        : f.delegate(ctx, name, platform),
+    { ...options, additionalImports: [{ importer, specifier }] },
+  )
+  assert.equal(redirected.status, 'incomplete')
+  for (const invalid of ['undeclared/path', 'kit/../path', 'kit']) {
+    assert.equal(
+      collectMetroOwnerPreflight(f.context, f.delegate, {
+        ...options,
+        additionalImports: [{ importer, specifier: invalid }],
+      }).status,
+      'incomplete',
+    )
+  }
+})

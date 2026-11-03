@@ -63,6 +63,8 @@ export function collectMetroOwnerPreflight(
     platform: string
     epoch: string
     origins: readonly string[]
+    /** Exact package subpaths of declared dependencies, scoped to an origin. */
+    additionalImports?: readonly { importer: string; specifier: string }[]
     maxPackages?: number
     maxEdges?: number
   },
@@ -85,6 +87,28 @@ export function collectMetroOwnerPreflight(
     )
       fail('context/origins/budget unavailable')
     const metadata = new Map<string, { file: string; sha256: string }>()
+    const additional = new Map<string, Map<string, string>>()
+    if ((options.additionalImports?.length ?? 0) > maxEdges) fail('additional import budget')
+    const originEntries = new Set(
+      options.additionalImports?.length
+        ? options.origins.map((origin) => realpathSync(origin))
+        : [],
+    )
+    for (const { importer, specifier } of options.additionalImports ?? []) {
+      const origin = realpathSync(importer)
+      const match = /^(@[\w.-]+\/[\w.-]+|[\w.-]+)\/([\w.-]+(?:\/[\w.-]+)*)$/.exec(specifier)
+      if (
+        !originEntries.has(origin) ||
+        !match ||
+        specifier.length > 214 ||
+        match[2]!.split('/').some((segment) => segment === '.' || segment === '..')
+      )
+        fail('invalid additional import')
+      const imports = additional.get(origin) ?? new Map<string, string>()
+      if (imports.has(specifier)) fail('duplicate additional import')
+      imports.set(specifier, match[1]!)
+      additional.set(origin, imports)
+    }
     let metadataBytes = 0
     function inspect(input: string) {
       const ownership = context.getPackageForModule!(input)
@@ -135,7 +159,12 @@ export function collectMetroOwnerPreflight(
       const declaredManifest = json.hozo?.manifest ?? null
       if (declaredManifest !== null && typeof declaredManifest !== 'string')
         fail('manifest declaration')
-      return { root, entry, names: [...names].sort(), declaredManifest }
+      const extras = additional.get(entry)
+      for (const [specifier, dependency] of extras ?? []) {
+        if (!names.has(dependency)) fail('additional import requires a declared dependency')
+        names.add(specifier)
+      }
+      return { root, entry, names: [...names].sort(), declaredManifest, extras }
     }
     const queue = options.origins.map(inspect),
       visited = new Set<string>()
@@ -158,6 +187,12 @@ export function collectMetroOwnerPreflight(
         if (resolution.type !== 'sourceFile' || typeof resolution.filePath !== 'string')
           fail('non-source/lazy resolution')
         const target = inspect(resolution.filePath)
+        const dependency = current.extras?.get(specifier)
+        if (
+          dependency &&
+          routes.get(JSON.stringify([current.entry, dependency]))?.instance !== target.root
+        )
+          fail('additional import resolved outside its dependency instance')
         routes.set(
           key,
           Object.freeze({
