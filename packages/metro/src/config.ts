@@ -250,6 +250,19 @@ export async function withHozoOwnerCandidates<T extends MetroConfigShape>(
   return configureHozo(configOrPromise, options, preflight, 'candidate-consumption')
 }
 
+/** @internal Bounded experimental transform, only for exact preflight callers. */
+export async function withHozoPartialOwners<T extends MetroConfigShape>(
+  configOrPromise: T | Promise<T>,
+  preflight: MetroOwnerPreflight,
+  options: HozoMetroOptions = {},
+): Promise<T> {
+  if (preflight.status !== 'complete') throw new Error('[hozo] owner preflight INCOMPLETE')
+  if (!['android', 'ios'].includes(preflight.platform))
+    throw new Error('[hozo] Partial owners require an Android or iOS preflight')
+  assertMetroOwnerPreflightCurrent(preflight)
+  return configureHozo(configOrPromise, options, preflight, 'partial-owner-transform')
+}
+
 async function configureHozo<T extends MetroConfigShape>(
   configOrPromise: T | Promise<T>,
   options: HozoMetroOptions,
@@ -267,7 +280,7 @@ async function configureHozo<T extends MetroConfigShape>(
       : undefined
 
   const initialOwners =
-    ownerPreflight && ownerMode === 'candidate-consumption'
+    ownerPreflight && ownerMode !== 'assessment-only'
       ? new MetroOwnerManifestWorker(
           writeMetroOwnerManifestTransfer(projectRoot, ownerPreflight.request),
           { platform: ownerPreflight.platform, epoch: JSON.parse(ownerPreflight.request).epoch },

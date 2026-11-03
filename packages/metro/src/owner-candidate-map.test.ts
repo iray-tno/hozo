@@ -23,7 +23,13 @@ import {
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { fixtureNode } from '../fixtures/fixture-process.mjs'
 import { ownerMetroFixture } from '../fixtures/owner-metro-resolver.mjs'
-import { metroStatePath, readMetroState, withHozo, withHozoOwnerCandidates } from './config.ts'
+import {
+  metroStatePath,
+  readMetroState,
+  withHozo,
+  withHozoOwnerCandidates,
+  withHozoPartialOwners,
+} from './config.ts'
 import { getCacheKey, transform } from './index.ts'
 import { collectMetroOwnerPreflight } from './owner-manifest-preflight.ts'
 import { candidateModulePath } from './project.ts'
@@ -183,6 +189,67 @@ test('explicit Metro partial worker requires the published fallback map and refu
   assert.equal(await transformPartial(mixed), ordinary)
   writeFileSync(candidateModulePath(f.root), '// replaced')
   await assert.rejects(transformPartial(source), /RUNTIME_CHANGED/)
+})
+
+test('opt-in Metro transformer only prepares a caller captured by preflight', async (t) => {
+  const f = fixture(t)
+  const file = f.params.filename
+  const source = `import {BottomSheet as Sheet} from '@hozo/patterns'; export const Row=()=> <Sheet open handleClassName="p-2 hover:opacity-50"/>`
+  writeFileSync(file, source)
+  const packageRoot = path.join(f.root, 'node_modules', '@hozo', 'patterns')
+  mkdirSync(packageRoot, { recursive: true })
+  const entry = path.join(packageRoot, 'index.js')
+  writeFileSync(entry, 'export const BottomSheet = null')
+  const pkg = {
+    name: '@hozo/patterns',
+    version: '1.0.0',
+    main: './index.js',
+    hozo: { manifest: 'owner.json' },
+  }
+  writeFileSync(path.join(packageRoot, 'package.json'), JSON.stringify(pkg))
+  cpSync(
+    new URL('../../patterns/hozo.manifest.json', import.meta.url),
+    path.join(packageRoot, 'owner.json'),
+  )
+  const rootMetadata = path.join(f.root, 'package.json')
+  const app = JSON.parse(readFileSync(rootMetadata, 'utf8'))
+  app.dependencies['@hozo/patterns'] = '1.0.0'
+  writeFileSync(rootMetadata, JSON.stringify(app))
+  const context = {
+    ...f.context,
+    originModulePath: file,
+    getPackageForModule(input: string) {
+      if (path.relative(packageRoot, input) === 'index.js')
+        return { rootPath: packageRoot, packageJson: pkg }
+      return f.context.getPackageForModule(input)
+    },
+  }
+  const preflight = collectMetroOwnerPreflight(context, f.delegate, {
+    platform: 'android',
+    epoch: 'metro-partial-transformer',
+    origins: [file],
+  })
+  assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
+  const params = { ...f.params, src: source }
+  await withHozoOwnerCandidates(f.config, preflight, f.options)
+  const ordinaryKey = getCacheKey({ projectRoot: f.root })
+  const ordinary = await transform(params)
+  assert.doesNotMatch(String(ordinary), /hozoInteractiveHandleStyle/)
+  const configured = await withHozoPartialOwners(f.config, preflight, f.options)
+  assert.notEqual(getCacheKey({ projectRoot: f.root }), ordinaryKey)
+  assert.equal(
+    configured.resolver.resolveRequest(context, '@hozo/patterns', 'android').filePath,
+    entry,
+  )
+  const output = await transform(params)
+  assert.match(String(output), /handleClassName="p-2 hover:opacity-50" hozoInteractiveHandleStyle=/)
+  assert.equal(
+    await transform({ ...params, filename: path.join(f.root, 'src', 'Uncaptured.tsx') }),
+    ordinary,
+  )
+  await withHozo(f.config, f.options)
+  assert.equal(readMetroState(f.root)?.ownerShadow, undefined)
+  assert.equal(await transform(params), ordinary)
 })
 
 test('a manifest change during generation cannot publish a mixed map or replace existing config', {

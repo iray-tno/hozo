@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { CACHE_DIR, readBoundedUtf8File } from '@hozo/compiler/project'
+import { CACHE_DIR, discoverOwnerPackageCallers, readBoundedUtf8File } from '@hozo/compiler/project'
 import {
   assertMetroOwnerPreflightCurrent,
   type MetroOwnerPreflight,
@@ -16,7 +16,7 @@ import {
 
 type Complete = Extract<MetroOwnerPreflight, { status: 'complete' }>
 export interface MetroOwnerShadowState {
-  mode: 'assessment-only' | 'candidate-consumption'
+  mode: 'assessment-only' | 'candidate-consumption' | 'partial-owner-transform'
   platform: string
   context: string
   preflight: { file: string; sha256: string }
@@ -84,7 +84,9 @@ export class MetroOwnerShadowSession {
   #routes = new Map<string, Complete['routes'][number][]>()
   #manifests = new Map<string, string>()
   constructor(state: MetroOwnerShadowState) {
-    if (state.mode !== 'assessment-only' && state.mode !== 'candidate-consumption')
+    if (
+      !['assessment-only', 'candidate-consumption', 'partial-owner-transform'].includes(state.mode)
+    )
       fail('invalid assessment mode')
     const body = readBoundedUtf8File(state.preflight.file, 8_388_608)
     if (hash(body) !== state.preflight.sha256) fail('preflight record hash mismatch')
@@ -109,6 +111,14 @@ export class MetroOwnerShadowSession {
       rows.push(row)
       this.#routes.set(key, rows)
     }
+  }
+  partialHandle(importer: string) {
+    const lease = this.worker.lease()
+    const { requests } = discoverOwnerPackageCallers(lease, importer, [
+      { source: '@hozo/patterns', imported: 'BottomSheet' },
+    ])
+    const request = requests.find(({ classProp }) => classProp === 'handleClassName')
+    return request ? { lease, request } : undefined
   }
   observe(
     context: OwnerMetroContext,

@@ -19,6 +19,7 @@ import {
   importSpecifier,
   resolveClassHelpers,
   StylexModuleCache,
+  semanticModuleEligible,
   TailwindPreparationCancelled,
 } from '@hozo/compiler/project'
 import { DEFAULT_PRIMITIVE_SOURCES } from '@hozo/compiler/sources'
@@ -305,20 +306,37 @@ export async function transform(params: TransformParams): Promise<unknown> {
   compilerState.compiler.setClassHelpers(
     resolveClassHelpers(state?.classHelpers, state?.foundClassHelpers?.[absoluteFile]),
   )
-  const rewritten = compilerState.worker
-    ? await compilerState.worker.transform(
-        params.src,
-        params.filename,
-        projectRoot!,
-        compilerState.stylexModules,
-      )
-    : transformHozoSource(
-        params.src,
-        params.filename,
-        projectRoot,
-        compilerState.compiler,
-        compilerState.stylexModules,
-      )
+  const partial =
+    state?.ownerShadow?.mode === 'partial-owner-transform' &&
+    semanticModuleEligible(absoluteFile, 'native') &&
+    params.src.includes('@hozo/patterns') &&
+    params.src.includes('handleClassName')
+      ? ownerSession?.partialHandle(absoluteFile)
+      : undefined
+  const rewritten =
+    compilerState.worker && partial
+      ? await compilerState.worker.transformPartialOwner(
+          params.src,
+          params.filename,
+          projectRoot!,
+          partial.lease,
+          partial.request,
+          compilerState.stylexModules,
+        )
+      : compilerState.worker
+        ? await compilerState.worker.transform(
+            params.src,
+            params.filename,
+            projectRoot!,
+            compilerState.stylexModules,
+          )
+        : transformHozoSource(
+            params.src,
+            params.filename,
+            projectRoot,
+            compilerState.compiler,
+            compilerState.stylexModules,
+          )
   if (
     rewritten !== null &&
     compilerState.worker &&
