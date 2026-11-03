@@ -86,3 +86,14 @@ export function expectedTabLabels(input) {
     weight: at === 1 && input.disabled ? '700' : '400',
   }))
 }
+
+export const tabContainerCases = [
+  { id: 'array', leaves: ['before', 0, 'after'] },
+  { id: 'nested-array', leaves: ['before', 0, -7, 'after'] },
+  { id: 'fragment', leaves: ['before', 0, 'after'] },
+  { id: 'nested-fragment', leaves: ['before', 0, -7, 'after'] },
+]
+
+export function expectedTabContainer(input) {
+  return [{ label: input.leaves.join(''), color: '#445566', size: 18 }]
+}

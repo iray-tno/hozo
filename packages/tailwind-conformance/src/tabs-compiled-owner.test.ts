@@ -9,8 +9,10 @@ import { pathToFileURL } from 'node:url'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabContainer,
   expectedTabLabels,
   expectedTabModality,
+  tabContainerCases,
   tabInputCases,
   tabLabelCases,
   tabModalityCases,
@@ -36,6 +38,7 @@ import { loadNativeModule } from './native-render.ts'
 
 type Host = {
   type: unknown
+  findAll: (fn: (node: Host) => boolean) => Host[]
   props: {
     accessibilityRole?: string
     accessibilityState: { selected: boolean }
@@ -66,6 +69,7 @@ test('direct, caller and instance-prepared tabs match opaque resolution across s
     inputObservations: [] as unknown[],
     modalityObservations: [] as unknown[],
     labelObservations: [] as unknown[],
+    containerObservations: [] as unknown[],
     requests: { opaque: 0, prepared: 0, caller: 0, instance: 0 },
     callerHoistedStyleSites: 0,
     instance: null as unknown,
@@ -517,6 +521,71 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
         assert.deepEqual(rows, expectedTabLabels(input), `${route}: ${input.id}`)
         evidence.labelObservations.push({ route, input: input.id, rows })
       }
+      const opaque = React.createElement(rn.View, {
+        testID: 'opaque-label-leaf',
+        style: { opacity: 0.7 },
+      })
+      const containers = {
+        array: ['before', 0, 'after'],
+        'nested-array': ['before', [0, -7], 'after'],
+        fragment: React.createElement(React.Fragment, null, 'before', 0, 'after'),
+        'nested-fragment': React.createElement(
+          React.Fragment,
+          null,
+          'before',
+          React.createElement(React.Fragment, null, 0, -7),
+          opaque,
+          'after',
+        ),
+      }
+      for (const input of tabContainerCases) {
+        renderer.act(() =>
+          setTabs([
+            { label: 'A', content: 'one' },
+            { label: containers[input.id], content: 'two' },
+            { label: 'C', content: 'three' },
+          ]),
+        )
+        assert.deepEqual(owners(), labelOwners, `${route}: container updates retain actual Owners`)
+        const texts = owners()[1]!.findAll((node) => node.type === 'Text')
+        assert.deepEqual(
+          texts.map((node) => node.props.children),
+          input.leaves,
+          `${route}: ${input.id} must wrap only the authored text leaves`,
+        )
+        for (const node of texts) {
+          const text = rn.StyleSheet.flatten(node.props.style)
+          assert.equal(text.color, '#445566')
+          assert.equal(text.fontSize, 18)
+          assert.equal(
+            node.findAll((child) => child.props.testID === 'opaque-label-leaf').length,
+            0,
+            'opaque View must not be moved inside a Text',
+          )
+        }
+        if (input.id === 'nested-fragment') {
+          const leaf = owners()[1]!.findAll(
+            (node) => node.props.testID === 'opaque-label-leaf' && node.type === rn.View,
+          )
+          assert.equal(leaf.length, 1)
+          assert.equal(rn.StyleSheet.flatten(leaf[0]!.props.style).opacity, 0.7)
+        }
+        const textStyle = rn.StyleSheet.flatten(texts[0]!.props.style)
+        const rows = [
+          {
+            label: texts.map((node) => node.props.children).join(''),
+            color: textStyle.color,
+            size: textStyle.fontSize,
+          },
+        ]
+        assert.deepEqual(rows, expectedTabContainer(input))
+        evidence.containerObservations.push({
+          route,
+          input: input.id,
+          textHosts: texts.length,
+          rows,
+        })
+      }
       evidence.requests[route] = requests.filter((value) => value === classes).length
       if (route !== 'opaque')
         assert.ok(
@@ -545,6 +614,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       'eight modality phases on all four routes',
     )
     assert.equal(evidence.labelObservations.length, 20, 'five label updates on all four routes')
+    assert.equal(evidence.containerObservations.length, 16, 'four containers on all four routes')
     evidence.passed = true
   } catch (error) {
     Object.assign(evidence, { error: String(error) })

@@ -1,7 +1,7 @@
 import { hozoTextChildren } from '@hozo/behaviors'
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
-import { type ReactNode, useCallback, useState } from 'react'
+import { Fragment, isValidElement, type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { splitTextStyle } from './text-style.native.ts'
@@ -133,6 +133,9 @@ export function HozoTabs({
               // Pressable is invalid on RN and also misses the label's styles.
               typeof tab.label === 'string' || typeof tab.label === 'number' ? (
                 <Text style={look(tab, at, interaction)[1]}>{tab.label}</Text>
+              ) : Array.isArray(tab.label) ||
+                (isValidElement(tab.label) && tab.label.type === Fragment) ? (
+                hozoTextChildren(tab.label, look(tab, at, interaction)[1])
               ) : (
                 tab.label
               )
