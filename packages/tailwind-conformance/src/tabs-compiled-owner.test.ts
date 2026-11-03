@@ -70,6 +70,7 @@ test('direct, caller and instance-prepared tabs match opaque resolution across s
     modalityObservations: [] as unknown[],
     labelObservations: [] as unknown[],
     containerObservations: [] as unknown[],
+    aliasesSameOwner: false,
     requests: { opaque: 0, prepared: 0, caller: 0, instance: 0 },
     callerHoistedStyleSites: 0,
     instance: null as unknown,
@@ -219,7 +220,7 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       },
     })
     const app = loadNativeModule(
-      `import {View} from '@hozo/primitives';export const Sentinel=()=> <View/>;export {Tabs as Raw} from '@hozo/patterns';${preview.code}`,
+      `import {View} from '@hozo/primitives';export const Sentinel=()=> <View/>;export {Tabs as Raw,HozoTabs as RawAlias} from '@hozo/patterns';${preview.code}`,
       project,
       { root: project },
     )
@@ -229,6 +230,8 @@ export const requests=[];export function hozoClasses(value,state){requests.push(
       { root: project },
     )
     const requests: unknown[] = require(trace).requests
+    assert.equal(app.Raw, app.RawAlias, 'both published aliases must own the same component')
+    evidence.aliasesSameOwner = true
     const tabs = [
       { label: 'A', content: 'one' },
       { label: 'B', content: 'two' },

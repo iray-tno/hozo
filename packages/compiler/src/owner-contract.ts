@@ -19,7 +19,8 @@ export interface OwnerShape {
 export interface ShadowOwnerContract {
   owner: string
   classProp: string
-  audit: 'unknown'
+  /** A publisher's declaration, not proof or automatic routing authority. */
+  audit: 'unknown' | 'audited'
   /** Symbolic booleans supplied by the owner; never JS expressions. */
   bindings: string[]
   abi: { nativePreparedProp: string; webClassProp: string }
@@ -93,8 +94,9 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
     )
       fail(`${at}.owner`)
     identifier(contract.classProp, `${at}.classProp`)
-    // This reader cannot promote package claims into independent audit evidence.
-    if (contract.audit !== 'unknown') fail(`${at}.audit`)
+    // Transport a recognized declaration without minting independent evidence.
+    // No capture/lease/preparation capability is conferred by this string.
+    if (contract.audit !== 'unknown' && contract.audit !== 'audited') fail(`${at}.audit`)
     const bindings = list(contract.bindings, 32, `${at}.bindings`).map((binding) =>
       identifier(binding, `${at}.binding`),
     )
@@ -211,7 +213,7 @@ export function parseOwnerContractShadow(text: string): OwnerContractShadow {
     return {
       owner: contract.owner,
       classProp: contract.classProp as string,
-      audit: 'unknown' as const,
+      audit: contract.audit as ShadowOwnerContract['audit'],
       bindings,
       abi: { nativePreparedProp, webClassProp: abi.webClassProp as string },
       authoredStyles,

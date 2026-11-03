@@ -16,7 +16,13 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'Tabs', owners: ['Tabs.Tab'] },
   ])
   assert.equal(result.owners.contracts.length, 2)
-  assert.ok(result.owners.contracts.every((row) => row.audit === 'unknown'))
+  assert.deepEqual(
+    result.owners.contracts.map((row) => [row.owner, row.audit]),
+    [
+      ['BottomSheet.handle', 'unknown'],
+      ['Tabs.Tab', 'audited'],
+    ],
+  )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
   assert.equal(tab.abi.nativePreparedProp, 'hozoTabStyle')
   assert.deepEqual(tab.authoredStyles, [{ prop: 'tabStyle', order: 0 }])
@@ -81,6 +87,15 @@ test('missing aliases, duplicate publishers, invented owners and missing publica
     /inventoried catalog slot/,
   )
   const audited = structuredClone(ownerShadow)
-  audited.contracts[0].audit = 'audited'
+  audited.contracts[0].audit = 'certified'
   assert.throws(() => packageOwnerChannels('@hozo/patterns', exports, { shadow: audited }), /audit/)
+})
+
+test('publication preserves recognized audit declarations without publishing a proof channel', () => {
+  const shadow = structuredClone(ownerShadow)
+  shadow.contracts[0].audit = 'audited'
+  const result = packageOwnerChannels('@hozo/patterns', exports, { shadow })
+  assert.equal(result.owners.contracts[0].audit, 'audited')
+  assert.equal(Object.hasOwn(result, 'auditEvidence'), false)
+  assert.deepEqual(result.exports, packageOwnerChannels('@hozo/patterns', exports).exports)
 })

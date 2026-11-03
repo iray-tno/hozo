@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { ownerShadow } from './style-slots/catalog.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
@@ -13,8 +15,187 @@ import {
   tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
+import {
+  assessDeclaredAudits,
+  assessTabsContract,
+  tabsDeclaration,
+} from './style-slots/tabs-contract-audit.mjs'
+import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('Tabs proof reads the actual version-1 package envelope through the shared reader', () => {
+  const text = readFileSync(
+    new URL('../packages/patterns/hozo.manifest.json', import.meta.url),
+    'utf8',
+  )
+  assert.equal(tabsDeclaration(text).owner, 'Tabs.Tab')
+  const value = JSON.parse(text)
+  value.package.exports.find((row) => row.name === 'HozoTabs').owners = []
+  assert.throws(() => tabsDeclaration(JSON.stringify(value)), /aliases/)
+  assert.throws(() => tabsDeclaration('{}'), /Invalid owner/)
+})
+
+// Synthetic fixtures verify the assessor, never stand in for actual CI receipts.
+function contractInputs() {
+  const value = inputReceipts()
+  const routes = ['opaque', 'prepared', 'caller', 'instance']
+  const kinds = ['candidate', 'tailwind', 'prepared']
+  const labels = (phase) =>
+    expectedTabRows(phase).map((row, at) => ({
+      color: row.selected ? '#445566' : '#334455',
+      size: 18,
+      weight: row.disabled ? '700' : '400',
+      spacing: at === 1 && phase !== 'initial' ? 1 : 0,
+    }))
+  const authors = (phase) =>
+    expectedTabRows('selected-disabled').map((row) => ({
+      rowGap: phase.startsWith('with-author') ? 5 : 3,
+      columnGap: phase.startsWith('with-author') ? 7 : 2,
+      background: phase.startsWith('with-author') ? '#abcdef' : row.background,
+      opacity: phase.startsWith('with-author') ? 0.8 : row.opacity,
+    }))
+  Object.assign(value.nativeTabs, {
+    aliasesSameOwner: true,
+    classes: tabLabelClasses,
+    declarations: ['disabled', 'aria-selected', 'aria-disabled'],
+    splitText: true,
+    fingerprint: 'test-context',
+    instance: {
+      identity: {
+        owner: 'Tabs.Tab',
+        classProp: 'tabClassName',
+        platform: 'ios',
+        manifestSha256: 'b'.repeat(64),
+      },
+      stylesheetSites: 1,
+      contextPreparations: 1,
+      contextFingerprint: 'test-context',
+    },
+    observations: routes.flatMap((route) =>
+      tabPhases.map((phase) => ({
+        route,
+        phase,
+        rows: expectedTabRows(phase),
+        labels: labels(phase),
+      })),
+    ),
+    authorObservations: routes.flatMap((route) =>
+      ['before-author', 'with-author', 'author-removed'].map((phase) => ({
+        route,
+        phase,
+        rows: authors(phase),
+        labels: labels('selected-disabled'),
+        hostEvaluationGetterReads: phase === 'with-author' ? 3 : 0,
+      })),
+    ),
+  })
+  value.webTabs.prepared.identity.classProp = 'tabClassName'
+  Object.assign(value.webTabs, {
+    aliasesSameOwner: true,
+    observations: kinds.flatMap((kind) =>
+      tabPhases.map((phase) => ({
+        kind,
+        phase,
+        selected: expectedTabRows(phase).map((row, at) => ({
+          ...row,
+          color: row.selected ? 'rgb(68, 85, 102)' : 'rgb(51, 68, 85)',
+          fontSize: 18,
+          fontWeight: row.disabled ? '700' : '400',
+          letterSpacing: at === 1 && phase !== 'initial' ? 1 : 0,
+          rowGap: 3,
+          columnGap: 2,
+        })),
+      })),
+    ),
+    authorObservations: kinds.flatMap((kind) =>
+      ['before-author', 'with-author', 'with-author-selected-enabled', 'after-removal'].map(
+        (phase) => ({ kind, phase, rows: authors(phase) }),
+      ),
+    ),
+  })
+  return {
+    ...value,
+    declaration: {
+      ...structuredClone(ownerShadow.contracts.find((row) => row.owner === 'Tabs.Tab')),
+      audit: 'unknown',
+    },
+    manifestSha256: 'b'.repeat(64),
+    publicPropsVerified: true,
+  }
+}
+
+test('Tabs contract proof checks the host ladder, not global fidelity or a default switch', () => {
+  const value = contractInputs()
+  const report = assessTabsContract(value)
+  assert.equal(report.passed, true)
+  assert.equal(report.assessment, 'host-delivery-verified')
+  assert.deepEqual(report.rungs, [1, 2, 3])
+  assert.equal(report.declaredAudit, 'unknown')
+  assert.equal(report.fidelity.exact, false)
+  assert.equal(report.rollout, 'unchanged')
+  value.declaration.audit = 'audited'
+  value.nativeTabs.observations = []
+  assert.equal(
+    assessTabsContract(value).passed,
+    false,
+    'a package claim cannot replace host evidence',
+  )
+})
+
+test('Tabs proof refuses incomplete state/author delivery, false aliases and other manifests', () => {
+  for (const mutate of [
+    (v) => {
+      v.publicPropsVerified = false
+    },
+    (v) => {
+      v.declaration.shapes[0].nativeHost = 'View'
+    },
+    (v) => {
+      v.declaration.abi.nativePreparedProp = 'hozoWrongStyle'
+    },
+    (v) => {
+      v.nativeTabs.observations[0].rows[0].padding = 0
+    },
+    (v) => {
+      v.nativeTabs.observations[1] = v.nativeTabs.observations[0]
+    },
+    (v) => {
+      v.nativeTabs.observations[0].labels[0].color = '#000000'
+    },
+    (v) => {
+      v.webTabs.observations[1].selected[1].radius = 0
+    },
+    (v) => {
+      v.nativeTabs.authorObservations[1].rows[0].opacity = 1
+    },
+    (v) => {
+      v.nativeTabs.authorObservations[1].hostEvaluationGetterReads = 6
+    },
+    (v) => {
+      v.webTabs.authorObservations.pop()
+    },
+    (v) => {
+      v.nativeTabs.instance.identity.manifestSha256 = 'c'.repeat(64)
+    },
+    (v) => {
+      v.webTabs.prepared.identity.manifestSha256 = 'c'.repeat(64)
+    },
+    (v) => {
+      v.nativeTabs.instance.contextFingerprint = 'another-context'
+    },
+    (v) => {
+      v.nativeTabs.aliasesSameOwner = false
+    },
+    (v) => {
+      v.webTabs.aliasesSameOwner = false
+    },
+  ]) {
+    const value = contractInputs()
+    mutate(value)
+    assert.equal(assessTabsContract(value).passed, false)
+  }
+})
 
 // Synthetic rows test the report's refusal rules only. They are not runtime
 // evidence; CI's command reads the actual component/browser receipt files.
@@ -136,6 +317,162 @@ function inputReceipts() {
     },
   }
 }
+
+test('every declared audited shadow contract needs its own current independent host proof', () => {
+  const input = contractInputs()
+  input.declaration.audit = 'audited'
+  const proof = assessTabsContract(input)
+  assert.equal(proof.passed, true)
+  const args = {
+    contracts: structuredClone(ownerShadow.contracts),
+    proofs: [proof],
+    sourceCommit: commit,
+    manifestSha256: 'b'.repeat(64),
+  }
+  const gate = assessDeclaredAudits(args)
+  assert.equal(gate.passed, true)
+  assert.deepEqual(gate.verifiedOwners, ['Tabs.Tab'])
+  assert.deepEqual(gate.unknownOwners, ['BottomSheet.handle'])
+  assert.equal(gate.rollout, 'unchanged')
+  for (const mutate of [
+    (v) => {
+      v.proofs = []
+    },
+    (v) => {
+      v.proofs.push(v.proofs[0])
+    },
+    (v) => {
+      v.contracts[0].audit = 'audited'
+    },
+    (v) => {
+      v.contracts[0].audit = 'certified'
+    },
+    (v) => {
+      v.proofs[0].sourceCommit = 'c'.repeat(40)
+    },
+    (v) => {
+      v.proofs[0].manifestSha256 = 'c'.repeat(64)
+    },
+    (v) => {
+      v.proofs[0].trackedChanges = true
+    },
+    (v) => {
+      v.proofs[0].declaredAudit = 'unknown'
+    },
+    (v) => {
+      v.proofs[0].passed = false
+    },
+    (v) => {
+      v.proofs[0].rungs = []
+    },
+    (v) => {
+      v.proofs[0].assessment = 'publisher-claim-only'
+    },
+  ]) {
+    const invalid = structuredClone(args)
+    mutate(invalid)
+    assert.equal(assessDeclaredAudits(invalid).passed, false)
+  }
+})
+
+function contractReceipt() {
+  const input = contractInputs()
+  input.declaration.audit = 'audited'
+  const proof = assessTabsContract(input)
+  proof.declarationGate = assessDeclaredAudits({
+    contracts: ownerShadow.contracts,
+    proofs: [proof],
+    sourceCommit: commit,
+    manifestSha256: input.manifestSha256,
+  })
+  return proof
+}
+
+test('status separates a declared audit from one unambiguous current host proof', () => {
+  const options = { commit, expectedManifestSha256: 'b'.repeat(64) }
+  const receipt = contractReceipt()
+  assert.equal(receipt.passed, true)
+  const report = stylingFactStatus({ ...options, receipts: [receipt] })
+  assert.deepEqual(report.contractEvidence, {
+    scope: 'selected-shadow-contracts-not-global-coverage',
+    declaredOwners: ['Tabs.Tab'],
+    verifiedOwners: ['Tabs.Tab'],
+    unverifiedDeclaredOwners: [],
+    conflictingOwners: [],
+    unknownOwners: ['BottomSheet.handle'],
+    counts: { declared: 1, verified: 1, unverified: 0, conflicting: 0, unknown: 1 },
+  })
+  assert.equal(report.observations[0].status, 'measured')
+  assert.ok(report.observations[0].fidelityLimits.includes('device pixels'))
+  assert.equal(report.globalMeasures.contractAudit, null)
+  assert.deepEqual(stylingFactStatus(options).contractEvidence.unverifiedDeclaredOwners, [
+    'Tabs.Tab',
+  ])
+  const duplicate = stylingFactStatus({ ...options, receipts: [receipt, receipt] })
+  assert.deepEqual(duplicate.contractEvidence.verifiedOwners, [])
+  assert.deepEqual(duplicate.contractEvidence.conflictingOwners, ['Tabs.Tab'])
+  assert.deepEqual(
+    stylingFactStatus({ ...options, trackedChanges: true, receipts: [receipt] }).contractEvidence
+      .verifiedOwners,
+    [],
+  )
+})
+
+test('status never credits stale, dirty, failed, foreign-manifest or incomplete contract reports', () => {
+  const options = { commit, expectedManifestSha256: 'b'.repeat(64) }
+  for (const mutate of [
+    (v) => {
+      v.schema = 0
+    },
+    (v) => {
+      v.sourceCommit = 'c'.repeat(40)
+    },
+    (v) => {
+      v.trackedChanges = true
+    },
+    (v) => {
+      delete v.trackedChanges
+    },
+    (v) => {
+      v.passed = false
+    },
+    (v) => {
+      v.manifestSha256 = 'c'.repeat(64)
+    },
+    (v) => {
+      v.rungs = [1]
+    },
+    (v) => {
+      v.declaredAudit = 'unknown'
+    },
+    (v) => {
+      v.declarationGate.passed = false
+    },
+    (v) => {
+      v.declarationGate.verifiedOwners = []
+    },
+    (v) => {
+      v.owner = 'BottomSheet.handle'
+    },
+    (v) => {
+      v.inputDomain.owner = 'BottomSheet.handle'
+    },
+    (v) => {
+      v.fidelity.limits = [false]
+    },
+  ]) {
+    const receipt = contractReceipt()
+    mutate(receipt)
+    assert.deepEqual(
+      stylingFactStatus({ ...options, receipts: [receipt] }).contractEvidence.verifiedOwners,
+      [],
+    )
+  }
+  assert.deepEqual(
+    stylingFactStatus({ commit, receipts: [contractReceipt()] }).contractEvidence.verifiedOwners,
+    [],
+  )
+})
 
 test('Owner input audit has finite denominators without self-promoting contracts or rollout', () => {
   const report = auditOwnerInputs(inputReceipts())
@@ -317,7 +654,8 @@ test('inventory stays separate from scoped evidence and missing global measures 
     componentManaged: 33,
     componentManagedPending: 33,
     shadowContributions: 2,
-    shadowAuditUnknown: 2,
+    shadowAuditUnknown: 1,
+    shadowAuditDeclared: 1,
   })
   assert.equal(report.observations[0].status, 'measured')
   assert.equal(report.observations[0].matchedPairs, 5)

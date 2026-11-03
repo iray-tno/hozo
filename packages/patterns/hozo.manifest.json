@@ -79,7 +79,7 @@
         {
           "owner": "Tabs.Tab",
           "classProp": "tabClassName",
-          "audit": "unknown",
+          "audit": "audited",
           "bindings": [
             "present"
           ],

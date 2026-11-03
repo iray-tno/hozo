@@ -1,4 +1,6 @@
 // Read-only inventories and separately scoped receipts. Never a coverage upgrade.
+
+import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -6,15 +8,34 @@ import { components, ownerShadow } from './catalog.mjs'
 import { evidenceSource } from './evidence-source.mjs'
 
 const browserStates = ['false:rest', 'true:rest', 'true:hover', 'true:focus', 'true:pressed']
+const contractScope = 'box-and-owned-label-host-delivery'
 
 export function stylingFactStatus({
   catalog = components,
   shadow = ownerShadow,
   commit,
   receipts = [],
+  trackedChanges = false,
+  expectedManifestSha256,
 } = {}) {
   const slots = Object.values(catalog).flat()
   const managed = slots.filter((slot) => slot.lowering === 'component-managed')
+  const observations = receipts.map((receipt) => assess(receipt, commit, expectedManifestSha256))
+  const declared = shadow.contracts.filter((row) => row.audit === 'audited').map((row) => row.owner)
+  const proofs = new Map(declared.map((owner) => [owner, []]))
+  receipts.forEach((receipt, at) => {
+    if (receipt?.scope === contractScope && proofs.has(receipt.owner))
+      proofs.get(receipt.owner).push(observations[at])
+  })
+  const verified = declared.filter(
+    (owner) =>
+      !trackedChanges &&
+      proofs.get(owner).length === 1 &&
+      proofs.get(owner)[0].status === 'measured',
+  )
+  const unverified = declared.filter((owner) => !verified.includes(owner))
+  const conflicting = declared.filter((owner) => proofs.get(owner).length > 1)
+  const unknown = shadow.contracts.filter((row) => row.audit === 'unknown').map((row) => row.owner)
   return {
     schema: 1,
     sourceCommit: commit,
@@ -27,6 +48,8 @@ export function stylingFactStatus({
       shadowContributions: shadow.contracts.length,
       shadowAuditUnknown: shadow.contracts.filter((contract) => contract.audit === 'unknown')
         .length,
+      shadowAuditDeclared: shadow.contracts.filter((contract) => contract.audit === 'audited')
+        .length,
     },
     globalMeasures: {
       coverage: null,
@@ -36,12 +59,27 @@ export function stylingFactStatus({
       reason:
         'No complete pinned feature/diagnostic/audit denominator is established by these inventories.',
     },
-    observations: receipts.map((receipt) => assess(receipt, commit)),
+    observations,
+    contractEvidence: {
+      scope: 'selected-shadow-contracts-not-global-coverage',
+      declaredOwners: declared,
+      verifiedOwners: verified,
+      unverifiedDeclaredOwners: unverified,
+      conflictingOwners: conflicting,
+      unknownOwners: unknown,
+      counts: {
+        declared: declared.length,
+        verified: verified.length,
+        unverified: unverified.length,
+        conflicting: conflicting.length,
+        unknown: unknown.length,
+      },
+    },
     rollout: 'not-established-by-this-report',
   }
 }
 
-function assess(receipt, commit) {
+function assess(receipt, commit, expectedManifestSha256) {
   if (!receipt) return { status: 'missing' }
   const base = { scope: receipt.scope, sourceCommit: receipt.sourceCommit }
   if (receipt.trackedChanges === true) return { ...base, status: 'uncommitted' }
@@ -49,6 +87,41 @@ function assess(receipt, commit) {
     return { ...base, status: 'invalid', reason: 'Missing compatible schema/source identity' }
   if (!commit || receipt.sourceCommit !== commit) return { ...base, status: 'stale' }
   if (receipt.passed !== true) return { ...base, status: 'failed' }
+  if (receipt.scope === contractScope) {
+    if (
+      receipt.owner !== 'Tabs.Tab' ||
+      receipt.trackedChanges !== false ||
+      receipt.assessment !== 'host-delivery-verified' ||
+      JSON.stringify(receipt.rungs) !== '[1,2,3]' ||
+      receipt.declaredAudit !== 'audited' ||
+      !/^[a-f0-9]{64}$/.test(expectedManifestSha256 ?? '') ||
+      receipt.manifestSha256 !== expectedManifestSha256 ||
+      receipt.inputDomain?.status !== 'measured' ||
+      receipt.inputDomain.owner !== receipt.owner ||
+      receipt.declarationGate?.passed !== true ||
+      receipt.declarationGate.scope !== 'declared-audited-shadow-contracts' ||
+      !Array.isArray(receipt.declarationGate.verifiedOwners) ||
+      !receipt.declarationGate.verifiedOwners.includes(receipt.owner) ||
+      new Set(receipt.declarationGate.verifiedOwners).size !==
+        receipt.declarationGate.verifiedOwners.length ||
+      !Array.isArray(receipt.fidelity?.limits) ||
+      receipt.fidelity.limits.some((limit) => typeof limit !== 'string')
+    )
+      return {
+        ...base,
+        status: 'invalid',
+        reason: 'Missing current scoped host-contract proof/provenance',
+      }
+    return {
+      ...base,
+      status: 'measured',
+      owner: receipt.owner,
+      manifestSha256: receipt.manifestSha256,
+      rungs: receipt.rungs,
+      fidelityLimits: receipt.fidelity.limits,
+      denominatorKind: 'one independently assessed shadow host/ABI contract, not all public owners',
+    }
+  }
   if (receipt.scope === 'web-computed-style-real-pointer-focus') {
     const kinds = ['candidate', 'tailwind']
     if (Object.hasOwn(receipt, 'prepared')) {
@@ -161,8 +234,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     existsSync(file) ? JSON.parse(readFileSync(path.resolve(file), 'utf8')) : null,
   )
   const source = evidenceSource()
+  const expectedManifestSha256 = createHash('sha256')
+    .update(readFileSync(new URL('../../packages/patterns/hozo.manifest.json', import.meta.url)))
+    .digest('hex')
   const report = {
-    ...stylingFactStatus({ commit: source.sourceCommit, receipts }),
+    ...stylingFactStatus({
+      commit: source.sourceCommit,
+      trackedChanges: source.trackedChanges,
+      expectedManifestSha256,
+      receipts,
+    }),
     trackedChanges: source.trackedChanges,
     inputs: args,
   }

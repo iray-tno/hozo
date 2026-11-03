@@ -41,6 +41,7 @@ test('only complete observations can freeze; equal rechecks retain original immu
 test('changed bytes, entries, context or incomplete sets permanently retire the old epoch', () => {
   for (const next of [
     capture(`${text}\n`),
+    capture(text.replace('"audit": "unknown"', '"audit": "audited"')),
     capture(text, '/kit/web.js'),
     capture(text, undefined, 'new-policy'),
     capture('{}'),

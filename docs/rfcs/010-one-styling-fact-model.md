@@ -443,6 +443,12 @@ the actual Tabs and BottomSheet delivery domains and the remaining event/device
 boundaries. It is a separately checked receipt, not promotion of either whole
 shadow contract to `audited`.
 
+The [Tabs host-contract assessment](../measurements/tabs-owner-contract-audit.md)
+adds the full state/author/ABI gate for a selected contract. Rung-3 contract
+audit and complete fidelity/device acceptance are distinct: a verified host
+domain must still publish its fidelity limits, and does not authorize default
+routing by itself.
+
 ### 4.7 Manifest identity
 
 - **Instance, not name.** A manifest is keyed by the package instance the
@@ -876,13 +882,15 @@ Catalog publication routing is authored beside the shadow contracts as
 declared owning package and existing public value exports. BottomSheet's handle
 belongs to `@hozo/patterns` under `BottomSheet` and `HozoBottomSheet`; `Tabs.Tab`
 is published there under `Tabs` and `HozoTabs`, with explicit per-tab booleans
-and the receiver's existing split-label destination. Both remain unknown-audit
-contracts. A string label's owned Text is not opaque ReactNode inheritance;
+and the receiver's existing split-label destination. Originally both were
+unknown-audit contracts; Tabs now has an independently checked rung-3 host/ABI
+declaration, while BottomSheet remains unknown. Owned label Text is not opaque ReactNode inheritance;
 see [the bounded Tabs evidence](../measurements/tabs-owner-spike.md). Matching
 names in `@hozo/ui` or `@hozo/core` do not acquire it through re-exporting.
 Duplicate publishers, absent export aliases, unassigned contracts and unknown
-catalog slots fail generation. The bounded reader still rejects an `audited`
-claim. Export existence/publication routing is not proof of implementation
+catalog slots fail generation. The bounded reader now transports recognized
+audit declarations as data; the independent CI proof, not that field, verifies
+the claim. Export existence/publication routing is not proof of implementation
 identity or semantics, and does not authorize builtin lowering or rollout.
 
 The patterns package now publishes the same catalog contract through its own

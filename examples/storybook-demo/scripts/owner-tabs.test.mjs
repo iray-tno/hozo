@@ -38,6 +38,7 @@ async function appBundle(classes, prepared) {
     stdin: {
       contents: `${prepared ?? "import {Tabs} from '@hozo/patterns';"}
 import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
+import {Tabs as RawAuditTabs,HozoTabs as RawAuditAlias} from '@hozo/patterns';window.aliasesSameOwner=RawAuditTabs===RawAuditAlias;
 window.changes=[];
 const containers={array:['before',0,'after'],'nested-array':['before',[0,-7],'after'],fragment:<>before{0}after</>,'nested-fragment':<>before<>{[0,-7]}</><div data-testid="opaque-label-leaf" style={{opacity:.7}}/>after</>};
 window.setContainer=id=>window.setInput({tabs:[{label:'A',content:'one'},{label:containers[id],content:'two'},{label:'C',content:'three'}],index:1});
@@ -97,6 +98,7 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     modalityObservations: [],
     labelObservations: [],
     containerObservations: [],
+    aliasesSameOwner: false,
     controls: [],
     prepared: null,
   }
@@ -134,6 +136,8 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
           `<style>@layer base{button{border:0 solid;box-sizing:border-box;font:16px/20px sans-serif}}</style><style>${css}</style><div id="root"></div>`,
         )
         await page.addScriptTag({ content: app.outputFiles[0].text })
+        assert.equal(await page.evaluate(() => window.aliasesSameOwner), true)
+        evidence.aliasesSameOwner = true
         const tabs = page.getByRole('tab')
         assert.equal(await tabs.count(), 3)
         await page.evaluate(() => {

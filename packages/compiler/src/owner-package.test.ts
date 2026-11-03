@@ -43,7 +43,7 @@ test('package channels keep aliases, finite candidates, helper exports and reada
   }
   assert.deepEqual(parseOwnerPackageShadow(JSON.stringify(empty)).candidates, [])
 })
-test('absent channels, invented primitive mappings, bad references and claimed audits are not empty contracts', () => {
+test('absent channels, invented mappings, bad references and unknown audit vocabulary fail', () => {
   const invalid = []
   for (const key of Object.keys(example())) {
     const value = example()
@@ -58,10 +58,23 @@ test('absent channels, invented primitive mappings, bad references and claimed a
   badHelper.helpers = ['missing']
   invalid.push(badHelper)
   const audited = structuredClone(example())
-  audited.owners.contracts[0].audit = 'audited'
+  audited.owners.contracts[0].audit = 'certified'
   invalid.push(audited)
   for (const input of invalid)
     assert.throws(() => parseOwnerPackageShadow(JSON.stringify(input)), /Invalid owner/)
+})
+
+test('package audit declarations remain data, not a manifest-supplied certificate', () => {
+  const input = example()
+  input.owners.contracts[0].audit = 'audited'
+  const parsed = parseOwnerPackageShadow(JSON.stringify(input))
+  assert.equal(parsed.owners!.contracts[0]!.audit, 'audited')
+  assert.deepEqual(parsed.candidates, input.candidates)
+  assert.equal(parsed.compiledByConsumer, input.compiledByConsumer)
+  assert.throws(
+    () => parseOwnerPackageShadow(JSON.stringify({ ...input, auditEvidence: { passed: true } })),
+    /Invalid owner/,
+  )
 })
 test('budgets, duplicate tokens and malformed legacy forwarding fail explicitly', () => {
   for (const candidates of [

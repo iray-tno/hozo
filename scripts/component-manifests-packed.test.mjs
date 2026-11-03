@@ -170,7 +170,11 @@ test('packed Tabs callers retain per-instance provenance, stateful carriers and 
   const text = readFileSync(manifestFile, 'utf8')
   const manifest = JSON.parse(text)
   const tab = manifest.package.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
-  assert.equal(tab.audit, 'unknown')
+  assert.equal(
+    tab.audit,
+    'audited',
+    'the packed declaration is still not independent proof or routing authority',
+  )
   assert.equal(selectOwnerShape(tab, { present: false }).status, 'absent')
   assert.equal(selectOwnerShape(tab, { present: true }).shape.id, 'tab')
 
