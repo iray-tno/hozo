@@ -266,8 +266,14 @@ test('published handle delivery follows normalized detents through live host cha
       entry,
       declaredManifest: metadata.hozo.manifest,
     })
+    const stateEdge = { ...edge, importer: path.join(project, 'PublishedStateCaller.native.tsx') }
+    const stateObservation = readResolvedOwnerManifest(stateEdge, {
+      packageRoot,
+      entry,
+      declaredManifest: metadata.hozo.manifest,
+    })
     epoch.adopt(
-      captureOwnerManifests([edge], [observation], {
+      captureOwnerManifests([edge, stateEdge], [observation, stateObservation], {
         platform: 'ios',
         epoch: 'handle-published-delivery',
       }),
@@ -298,6 +304,72 @@ test('published handle delivery follows normalized detents through live host cha
     Object.assign(evidence, {
       prepared: { identity: result.identity, preparations },
       aliasesSameOwner: true,
+    })
+    // A stateful recipe is not interchangeable between Pressable and View.
+    // Test the actual package-selected refusal and execute its untouched caller.
+    const stateSource = literalSource.replace(
+      `handleClassName="${literalClasses}"`,
+      `handleClassName="${classes}"`,
+    )
+    assert.notEqual(stateSource, literalSource)
+    const state = await published.emit(stateSource, {
+      ...stateEdge,
+      entry,
+      imported: 'BottomSheet',
+      classProp: 'handleClassName',
+    })
+    assert.equal(state.identity.manifestSha256, result.identity.manifestSha256)
+    assert.equal(state.preview.findings.length, 1)
+    assert.equal(state.preview.findings[0]!.disposition, 'retained')
+    assert.equal(state.preview.findings[0]!.reason, 'shape-unassessed')
+    assert.equal(state.preview.code, stateSource)
+    const fallback = loadNativeModule(state.preview.code, project, { root: project, compiler })
+    const stateRows = []
+    for (const platform of ['android', 'ios']) {
+      rn.handleModalModel.platform = platform
+      requests.length = 0
+      const tree = render(fallback.LiteralCaller, {
+        open: true,
+        detents: [0.5, 1],
+        author: { value: Object.freeze({ gap: 16 }) },
+      })
+      try {
+        const host = handle(tree, true)
+        for (const [event, padding, opacity, background] of [
+          ['rest', 8, 1, '#ffffff'],
+          ['onHoverIn', 8, 0.5, '#ffffff'],
+          ['onFocus', 12, 0.5, '#ffffff'],
+          ['onPressIn', 12, 0.5, '#ff0000'],
+          ['onPressOut', 12, 0.5, '#ffffff'],
+          ['onBlur', 8, 0.5, '#ffffff'],
+          ['onHoverOut', 8, 1, '#ffffff'],
+        ] as const) {
+          if (event !== 'rest')
+            renderer.act(() => (host.props[event] as (event: object) => void)({}))
+          assert.equal(handle(tree, true), host)
+          const box = style(host)
+          const selected = {
+            padding: box.paddingTop ?? box.padding,
+            opacity: box.opacity,
+            background: box.backgroundColor,
+            rowGap: box.rowGap,
+            columnGap: box.columnGap,
+          }
+          assert.deepEqual(selected, { padding, opacity, background, rowGap: 16, columnGap: 16 })
+          stateRows.push({ platform, event, selected })
+        }
+        assert.ok(requests.includes(classes), 'retained caller must exercise the runtime resolver')
+      } finally {
+        unmount(tree)
+      }
+    }
+    Object.assign(evidence, {
+      stateFallback: {
+        identity: state.identity,
+        disposition: state.preview.findings[0]!.disposition,
+        reason: state.preview.findings[0]!.reason,
+        observations: stateRows,
+      },
     })
     for (const platform of ['android', 'ios']) {
       rn.handleModalModel.platform = platform
