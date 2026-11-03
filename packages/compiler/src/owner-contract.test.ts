@@ -55,6 +55,23 @@ test('audit vocabulary transports a declaration but cannot add an evidence chann
   assert.throws(() => parseOwnerContractShadow(JSON.stringify(value)), /fields/)
 })
 
+test('native partial ABI only describes an explicitly stateful box and a decorative fallback', () => {
+  const value = parsed()
+  const handle = value.contracts[0]!
+  handle.shapes[0]!.inputs = { facts: [], splitText: false }
+  handle.abi.nativePartial = { prop: 'hozoInteractiveHandleStyle', shape: 'resizable' }
+  const parse = () => parseOwnerContractShadow(JSON.stringify(value))
+  assert.deepEqual(parse().contracts[0]!.abi.nativePartial, handle.abi.nativePartial)
+  handle.abi.nativePartial.shape = 'decorative'
+  assert.throws(parse, /native partial requires/)
+  handle.abi.nativePartial.shape = 'resizable'
+  handle.abi.nativePartial.prop = handle.abi.nativePreparedProp
+  assert.throws(parse, /carrier collision/)
+  handle.abi.nativePartial.prop = 'hozoInteractiveHandleStyle'
+  handle.shapes[0]!.inputs.splitText = true
+  assert.throws(parse, /native partial requires/)
+})
+
 test('gates choose each present handle shape; an absent owner does not require resizable', () => {
   const owner = contract()
   for (const resizable of [false, true]) {
