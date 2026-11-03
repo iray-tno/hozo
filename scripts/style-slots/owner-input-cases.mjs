@@ -48,3 +48,52 @@ export const handleInputCases = [
 ]
 
 export const handleInputClasses = 'p-[8px] opacity-100 bg-[#ffffff] gap-x-2'
+
+// Kept separate from live-data cases: these observe modality at idle, not OS
+// press cancellation. Each row is evaluated on all three actual tab Owners.
+export const tabModalityCases = [
+  { id: 'rest', focused: false, visible: false },
+  { id: 'keyboard-focus', focused: true, visible: true },
+  { id: 'pointer-while-focused', focused: true, visible: false },
+  { id: 'keyboard-restores-visible', focused: true, visible: true },
+  { id: 'blur', focused: false, visible: false },
+  { id: 'pointer-focus', focused: true, visible: false },
+  { id: 'keyboard-refocus', focused: true, visible: true },
+  { id: 'remount-rest', focused: false, visible: false },
+]
+
+export function expectedTabModality(input) {
+  return [0, 1, 2].map((at) => ({
+    width: at === 1 && input.focused ? 96 : null,
+    bottom: at === 1 && input.visible ? 5 : 0,
+    decoration: at === 1 && input.visible ? 'underline' : 'none',
+  }))
+}
+
+export const tabLabelCases = [
+  { id: 'zero', label: 0, disabled: false },
+  { id: 'disabled-zero', label: 0, disabled: true },
+  { id: 'negative', label: -7, disabled: false },
+  { id: 'fraction', label: 2.5, disabled: false },
+  { id: 'back-to-string', label: 'B', disabled: false },
+]
+
+export function expectedTabLabels(input) {
+  return ['A', input.label, 'C'].map((label, at) => ({
+    label: String(label),
+    color: at === 1 ? '#445566' : '#334455',
+    size: 18,
+    weight: at === 1 && input.disabled ? '700' : '400',
+  }))
+}
+
+export const tabContainerCases = [
+  { id: 'array', leaves: ['before', 0, 'after'] },
+  { id: 'nested-array', leaves: ['before', 0, -7, 'after'] },
+  { id: 'fragment', leaves: ['before', 0, 'after'] },
+  { id: 'nested-fragment', leaves: ['before', 0, -7, 'after'] },
+]
+
+export function expectedTabContainer(input) {
+  return [{ label: input.leaves.join(''), color: '#445566', size: 18 }]
+}

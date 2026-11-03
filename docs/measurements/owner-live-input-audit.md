@@ -22,6 +22,49 @@ activation stays blocked. Existing state and author-style probes run alongside
 these inputs. We intentionally do not invent index clamping: an out-of-range
 controlled selection selects no item on either platform.
 
+Tabs also has a separate eight-phase focus-modality domain: rest, keyboard
+focus, pointer interaction while focused, keyboard restoration, blur, pointer
+focus, keyboard refocus and a fresh mount. This adds 32 Native and 24 Web
+observations; each checks three actual tab receivers, including the label's
+underline and the box's focus-visible border. The browser uses real keyboard
+and pointer input and checks its actual `:focus` / `:focus-visible` state.
+Native drives the real component's existing hooks with the equivalent event
+sequence on host stand-ins. All non-target tabs must remain unaffected. These
+idle modality transitions do not certify keyboard activation or OS event
+delivery/cancellation during a press.
+
+Seven phases compare the same stated conditions across platforms. The
+already-focused pointer re-click is explicitly **UA-conditioned**, not an
+equality claim: Chrome kept its focus-visible indication in run 41544080241,
+whereas Native's existing deterministic policy clears it. The initial browser
+assertion incorrectly assumed these were identical and failed; that failed run
+remains part of the evidence. [Selectors Level 4](https://www.w3.org/TR/selectors/#the-focus-visible-pseudo)
+allows user agents to choose focus-indication heuristics. The browser check
+therefore verifies delivery against the actual `:focus-visible` fact for this
+phase and the audit reports both Native and Web visibility values. It does not
+hide the difference, change Native's established policy or certify general
+heuristic equivalence. A future policy change needs its own decision and
+cross-browser/device evidence, not one Chrome observation.
+
+The primitive-label domain adds five updates: `0`, disabled `0`, a negative
+number, a fraction and return to a string. It contributes 20 Native / 15 Web
+observations. Before the fix the Native Text-host assertion failed on `0`:
+the component returned a bare numeric child and did not apply the label's text
+style. Numbers now use the existing string Text path, with no new context or
+tree traversal. Tests require real Native Text hosts, unchanged tab hosts and
+the selected/disabled label styles; Web output is compared to Tailwind. This
+only establishes primitive labels; transparent containers have a separate
+domain below, and arbitrary component descendants remain unassessed.
+
+The transparent-container domain covers arrays, nested arrays, Fragments and
+nested Fragments, with a mixed opaque View/div leaf. It adds 16 Native / 12 Web
+observations. Native must expose one Text receiver per authored text leaf,
+including zero, while preserving the tab Owner and the opaque host's own
+styles. The original array assertion failed with no Text receivers. The shared
+normalizer now opens only React's transparent containers, preserving Fragment
+keys; independent tests guard frozen input, stable keyed receivers and that
+arbitrary component bodies are not inspected or executed by normalization.
+
 BottomSheet covers omitted, empty, invalid, duplicate and filtered-single
 detents, unsorted/valid multi-detents and reverse shape transitions. The
 receiver is selected after normalization, **not by authored array length**.
@@ -57,7 +100,7 @@ pin a moving latest-success claim.
 Native runs actual component logic with RN host stand-ins and explicitly
 scoped Modal lifetime models, not an Android/iOS device runtime. String-label
 style delivery is not opaque-descendant text inheritance. Mid-press disabling,
-OS cancellation, focus-visible modality transitions, native acceptance/pixels,
+OS cancellation, native modality event delivery, native acceptance/pixels,
 arbitrary utility combinations and other Owners remain unassessed here.
 
 Consequently the report leaves `contractAudit: unknown` and `rollout: unchanged`.

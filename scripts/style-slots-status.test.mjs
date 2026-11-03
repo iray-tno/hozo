@@ -3,8 +3,14 @@ import test from 'node:test'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabContainer,
+  expectedTabLabels,
+  expectedTabModality,
   handleInputCases,
+  tabContainerCases,
   tabInputCases,
+  tabLabelCases,
+  tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
 
@@ -42,6 +48,24 @@ function inputReceipts() {
       ...base('native-tabs-compiled-owner-component-host-model'),
       stylesheetCreates: 1,
       requests: { opaque: 5, prepared: 0, caller: 0, instance: 0 },
+      containerObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
+        tabContainerCases.map((input) => ({
+          route,
+          input: input.id,
+          textHosts: input.leaves.length,
+          rows: expectedTabContainer(input),
+        })),
+      ),
+      labelObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
+        tabLabelCases.map((input) => ({ route, input: input.id, rows: expectedTabLabels(input) })),
+      ),
+      modalityObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
+        tabModalityCases.map((input) => ({
+          route,
+          input: input.id,
+          rows: expectedTabModality(input),
+        })),
+      ),
       inputObservations: ['opaque', 'prepared', 'caller', 'instance'].flatMap((route) =>
         tabInputCases.map((input) => ({
           route,
@@ -53,6 +77,24 @@ function inputReceipts() {
     webTabs: {
       ...base('web-tabs-real-pointer-focus'),
       prepared: prepared('Tabs.Tab'),
+      containerObservations: kinds.flatMap((kind) =>
+        tabContainerCases.map((input) => ({
+          kind,
+          input: input.id,
+          rows: expectedTabContainer(input),
+        })),
+      ),
+      labelObservations: kinds.flatMap((kind) =>
+        tabLabelCases.map((input) => ({ kind, input: input.id, rows: expectedTabLabels(input) })),
+      ),
+      modalityObservations: kinds.flatMap((kind) =>
+        tabModalityCases.map((input) => ({
+          kind,
+          input: input.id,
+          visible: input.visible,
+          rows: expectedTabModality(input),
+        })),
+      ),
       controls: kinds.map((kind) => ({
         kind,
         blockedDisabledFocusAndClick: true,
@@ -110,7 +152,46 @@ test('Owner input audit has finite denominators without self-promoting contracts
     ],
   )
   assert.equal(report.contractAudit, 'unknown')
+  assert.deepEqual(report.domains[0].modality, {
+    cases: 8,
+    commonCases: 7,
+    uaConditionedCases: 1,
+    nativeObservations: 32,
+    webObservations: 24,
+    pointerReclickVisibility: ['candidate', 'tailwind', 'prepared'].map((kind) => ({
+      kind,
+      native: false,
+      web: false,
+    })),
+  })
   assert.equal(report.rollout, 'unchanged')
+  assert.deepEqual(report.domains[0].labels, {
+    cases: 5,
+    nativeObservations: 20,
+    webObservations: 15,
+  })
+  assert.deepEqual(report.domains[0].containers, {
+    cases: 4,
+    nativeObservations: 16,
+    webObservations: 12,
+  })
+})
+
+test('UA-conditioned indication differences stay visible and never promote common equivalence', () => {
+  const input = inputReceipts()
+  for (const row of input.webTabs.modalityObservations) {
+    if (row.input !== 'pointer-while-focused') continue
+    row.visible = true
+    row.rows = expectedTabModality({ focused: true, visible: true })
+  }
+  const report = auditOwnerInputs(input)
+  assert.equal(report.passed, true)
+  assert.equal(report.domains[0].modality.commonCases, 7)
+  assert.deepEqual(
+    report.domains[0].modality.pointerReclickVisibility,
+    ['candidate', 'tailwind', 'prepared'].map((kind) => ({ kind, native: false, web: true })),
+  )
+  assert.ok(report.remaining.includes('UA/native focus-visible heuristic alignment'))
 })
 
 test('Owner input audit rejects stale, dirty, failed or missing evidence on either platform', () => {
@@ -133,6 +214,33 @@ test('Owner input audit rejects stale, dirty, failed or missing evidence on eith
 test('Owner input audit requires every route, real delivery values, lifetime and negative controls', () => {
   for (const mutate of [
     (input) => input.nativeTabs.inputObservations.pop(),
+    (input) => input.nativeTabs.labelObservations.pop(),
+    (input) => input.nativeTabs.containerObservations.pop(),
+    (input) => {
+      input.nativeTabs.containerObservations[0].textHosts = 0
+    },
+    (input) => {
+      input.webTabs.containerObservations[0].rows[0].label = 'beforeafter'
+    },
+    (input) => {
+      input.webTabs.labelObservations[0].rows[1].label = ''
+    },
+    (input) => {
+      input.nativeTabs.labelObservations[0].rows[1].color = '#334455'
+    },
+    (input) => input.nativeTabs.modalityObservations.pop(),
+    (input) => {
+      input.webTabs.modalityObservations[0].visible = true
+    },
+    (input) => {
+      input.webTabs.modalityObservations[1].rows[1].bottom = 0
+    },
+    (input) => {
+      input.nativeTabs.modalityObservations[1].rows[1].decoration = 'none'
+    },
+    (input) => {
+      input.webTabs.modalityObservations[7] = input.webTabs.modalityObservations[6]
+    },
     (input) => {
       input.webTabs.inputObservations[1] = input.webTabs.inputObservations[0]
     },

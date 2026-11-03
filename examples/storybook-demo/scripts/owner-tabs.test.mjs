@@ -8,7 +8,13 @@ import { chromium } from 'playwright-core'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import {
   expectedIdleTabInputs,
+  expectedTabContainer,
+  expectedTabLabels,
+  expectedTabModality,
+  tabContainerCases,
   tabInputCases,
+  tabLabelCases,
+  tabModalityCases,
 } from '../../../scripts/style-slots/owner-input-cases.mjs'
 import {
   expectedTabRows,
@@ -33,6 +39,8 @@ async function appBundle(classes, prepared) {
       contents: `${prepared ?? "import {Tabs} from '@hozo/patterns';"}
 import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 window.changes=[];
+const containers={array:['before',0,'after'],'nested-array':['before',[0,-7],'after'],fragment:<>before{0}after</>,'nested-fragment':<>before<>{[0,-7]}</><div data-testid="opaque-label-leaf" style={{opacity:.7}}/>after</>};
+window.setContainer=id=>window.setInput({tabs:[{label:'A',content:'one'},{label:containers[id],content:'two'},{label:'C',content:'three'}],index:1});
 function App(){const [index,setIndex]=useState(0);const [items,setItems]=useState([{label:'A',content:'one'},{label:'B',content:'two'},{label:'C',content:'three',disabled:true}]);const [author,setAuthor]=useState();window.setInput=input=>flushSync(()=>{setItems(input.tabs);setIndex(input.index)});window.setAuthor=value=>flushSync(()=>setAuthor(value));window.select=at=>flushSync(()=>setIndex(at));return <${prepared ? 'TabsFixture' : 'Tabs'} index={index} tabStyle={author} onIndexChange={at=>{changes.push(at);setIndex(at)}} ${prepared ? '' : `tabClassName={${JSON.stringify(classes)}}`} tabs={items}/>}
 flushSync(()=>createRoot(document.querySelector('#root')).render(<App/>));`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
@@ -86,6 +94,9 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     observations: [],
     authorObservations: [],
     inputObservations: [],
+    modalityObservations: [],
+    labelObservations: [],
+    containerObservations: [],
     controls: [],
     prepared: null,
   }
@@ -268,6 +279,121 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
           assert.equal(await page.evaluate(() => window.changes.length), changes)
           evidence.inputObservations.push({ kind, input: input.id, rows })
         }
+        const recordModality = async (at) => {
+          const input = tabModalityCases[at]
+          const rows = await tabs.evaluateAll((nodes) =>
+            nodes.map((node) => {
+              const style = getComputedStyle(node)
+              return {
+                width: style.width === '96px' ? 96 : null,
+                bottom: Number.parseFloat(style.borderBottomWidth),
+                decoration: style.textDecorationLine,
+              }
+            }),
+          )
+          const visible = await tabs.nth(1).evaluate((node) => node.matches(':focus-visible'))
+          // Selectors permits UA heuristics. Chrome retains indication when
+          // clicking the already keyboard-focused button; Native deliberately
+          // clears it (also asserted by primitive/Chip tests). Keep that case,
+          // but compare CSS delivery to the UA's actual fact and report the
+          // difference instead of changing either platform to fake equality.
+          const uaConditioned = input.id === 'pointer-while-focused'
+          assert.deepEqual(
+            rows,
+            expectedTabModality({ ...input, visible: uaConditioned ? visible : input.visible }),
+            `${kind}: ${input.id}`,
+          )
+          assert.equal(
+            await tabs.nth(1).evaluate((node) => node === document.activeElement),
+            input.focused,
+          )
+          if (!uaConditioned) assert.equal(visible, input.visible)
+          evidence.modalityObservations.push({ kind, input: input.id, visible, rows })
+        }
+        await recordModality(0)
+        // Real keyboard input establishes browser modality; focus() mirrors
+        // the widget's roving-focus delivery, without guessing its tab stop.
+        await page.keyboard.press('Tab')
+        await tabs.nth(1).focus()
+        await recordModality(1)
+        await tabs.nth(1).click()
+        await recordModality(2)
+        await page.keyboard.press('a')
+        await recordModality(3)
+        await tabs.nth(1).evaluate((node) => node.blur())
+        await recordModality(4)
+        await tabs.nth(1).click()
+        await recordModality(5)
+        await tabs.nth(1).evaluate((node) => node.blur())
+        await page.keyboard.press('Tab')
+        await tabs.nth(1).focus()
+        await recordModality(6)
+        await page.evaluate((input) => {
+          window.setInput({ tabs: [], index: 0 })
+          window.setInput(input)
+        }, tabInputCases.at(-1))
+        await recordModality(7)
+        await page.evaluate(() => {
+          window.labelOwners = [...document.querySelectorAll('[role=tab]')]
+        })
+        for (const input of tabLabelCases) {
+          await page.evaluate(
+            (input) =>
+              window.setInput({
+                tabs: [
+                  { label: 'A', content: 'one' },
+                  { label: input.label, content: 'two', disabled: input.disabled },
+                  { label: 'C', content: 'three' },
+                ],
+                index: 1,
+              }),
+            input,
+          )
+          const rows = await tabs.evaluateAll((nodes) =>
+            nodes.map((node, at) => {
+              if (node !== window.labelOwners[at])
+                throw new Error('label update remounted an Owner')
+              const style = getComputedStyle(node)
+              const rgb = style.color.match(/\d+/g).slice(0, 3)
+              return {
+                label: node.textContent,
+                color: `#${rgb.map((value) => Number(value).toString(16).padStart(2, '0')).join('')}`,
+                size: Number.parseFloat(style.fontSize),
+                weight: style.fontWeight,
+              }
+            }),
+          )
+          assert.deepEqual(rows, expectedTabLabels(input), `${kind}: ${input.id}`)
+          evidence.labelObservations.push({ kind, input: input.id, rows })
+        }
+        for (const input of tabContainerCases) {
+          await page.evaluate((id) => window.setContainer(id), input.id)
+          const rows = await tabs.nth(1).evaluate((node) => {
+            if (node !== window.labelOwners[1])
+              throw new Error('container label remounted an Owner')
+            const style = getComputedStyle(node)
+            const rgb = style.color.match(/\d+/g).slice(0, 3)
+            return [
+              {
+                label: node.textContent,
+                color: `#${rgb.map((value) => Number(value).toString(16).padStart(2, '0')).join('')}`,
+                size: Number.parseFloat(style.fontSize),
+              },
+            ]
+          })
+          assert.deepEqual(rows, expectedTabContainer(input), `${kind}: ${input.id}`)
+          if (input.id === 'nested-fragment') {
+            assert.equal(await tabs.nth(1).getByTestId('opaque-label-leaf').count(), 1)
+            assert.equal(
+              await tabs
+                .nth(1)
+                .getByTestId('opaque-label-leaf')
+                .evaluate((node) => getComputedStyle(node).opacity),
+              '0.7',
+            )
+          }
+          evidence.containerObservations.push({ kind, input: input.id, rows })
+        }
         await page.evaluate(() =>
           window.setInput({
             tabs: [
@@ -300,6 +426,9 @@ test('real Web candidate and instance-prepared tabs match Tailwind across owner 
     assert.equal(evidence.controls.length, 3)
     assert.equal(evidence.authorObservations.length, 12)
     assert.equal(evidence.inputObservations.length, 24)
+    assert.equal(evidence.modalityObservations.length, 24)
+    assert.equal(evidence.labelObservations.length, 15)
+    assert.equal(evidence.containerObservations.length, 12)
     for (const kind of ['candidate', 'prepared'])
       assert.deepEqual(
         evidence.authorObservations

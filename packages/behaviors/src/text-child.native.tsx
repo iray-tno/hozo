@@ -23,7 +23,7 @@
 // simply available. A fallback being right about a case the compiler has
 // to leave is not a divergence worth removing.
 
-import { Children, type ReactNode } from 'react'
+import { Children, Fragment, isValidElement, type ReactNode } from 'react'
 import { type StyleProp, Text, type TextStyle } from 'react-native'
 
 /**
@@ -43,11 +43,14 @@ import { type StyleProp, Text, type TextStyle } from 'react-native'
  * `View` passes it through here, with the box's text half (#1205).
  */
 export function hozoTextChildren(children: ReactNode, style?: StyleProp<TextStyle>): ReactNode {
-  return Children.map(children, (child) =>
-    typeof child === 'string' || typeof child === 'number' ? (
-      <Text style={style}>{child}</Text>
-    ) : (
-      child
-    ),
-  )
+  return Children.map(children, (child) => {
+    if (typeof child === 'string' || typeof child === 'number')
+      return <Text style={style}>{child}</Text>
+    // A Fragment is a transparent container, not a native text boundary.
+    // Preserve its key while normalizing its children; never inspect or
+    // execute arbitrary component elements to guess what they render.
+    if (isValidElement<{ children?: ReactNode }>(child) && child.type === Fragment)
+      return <Fragment key={child.key}>{hozoTextChildren(child.props.children, style)}</Fragment>
+    return child
+  })
 }
