@@ -823,6 +823,61 @@ test('the private prepared route refuses double application instead of losing th
   }
 })
 
+test('a split carrier follows the mounted Native handle shape without leaking interaction state', () => {
+  const interactive = (
+    exports.DirectInteractivePlan as (extra: string) => (state: object) => unknown
+  )('')
+  const decorative = (exports.DirectDecorativePlan as (extra: string) => unknown)('')
+  const calls: string[] = []
+  const carrier = (state: object | undefined) => {
+    calls.push(state === undefined ? 'decorative' : 'interactive')
+    return state === undefined ? decorative : interactive(state)
+  }
+  for (const platform of ['android', 'ios']) {
+    rn.handleModalModel.platform = platform
+    requests.length = 0
+    const props = { open: true, hozoHandleStyle: carrier, handleStyle: Object.freeze({ gap: 16 }) }
+    const tree = render(exports.Raw, { ...props, detents: [0.5, 1] })
+    const update = (detents: number[]) =>
+      renderer.act(() => tree.update(React.createElement(exports.Raw, { ...props, detents })))
+    const sample = (resizable: boolean, opacity: number) => {
+      const host = handle(tree, resizable)
+      const box = style(host)
+      assert.equal(box.opacity, opacity)
+      assert.equal(box.paddingTop ?? box.padding, 8)
+      assert.equal(box.rowGap, 16)
+      assert.equal(box.columnGap, 16)
+      assert.ok(calls.length > 0)
+      assert.ok(calls.every((call) => call === (resizable ? 'interactive' : 'decorative')))
+      return host
+    }
+    try {
+      const first = sample(true, 1)
+      calls.length = 0
+      renderer.act(() => (first.props.onHoverIn as (event: object) => void)({}))
+      assert.equal(sample(true, 0.5), first)
+      calls.length = 0
+      update([1, 1])
+      const decoration = sample(false, 1)
+      assert.notEqual(decoration, first)
+      assert.equal(decoration.props.onHoverIn, undefined)
+      calls.length = 0
+      update([0.25, 1])
+      const restored = sample(true, 1)
+      assert.notEqual(restored, first)
+      assert.notEqual(restored, decoration)
+      calls.length = 0
+      renderer.act(() => (restored.props.onHoverIn as (event: object) => void)({}))
+      assert.equal(sample(true, 0.5), restored)
+      assert.ok(!requests.includes(classes) && !requests.includes(restClasses))
+    } finally {
+      unmount(tree)
+      calls.length = 0
+      rn.handleModalModel.platform = 'android'
+    }
+  }
+})
+
 test('initially hidden handles never evaluate author styles under either Modal lifetime model', () => {
   for (const platform of ['android', 'ios'])
     for (const resizable of [false, true])
