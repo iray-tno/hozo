@@ -16,7 +16,13 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'Tabs', owners: ['Tabs.Tab'] },
   ])
   assert.equal(result.owners.contracts.length, 2)
-  assert.ok(result.owners.contracts.every((row) => row.audit === 'unknown'))
+  assert.deepEqual(
+    result.owners.contracts.map((row) => [row.owner, row.audit]),
+    [
+      ['BottomSheet.handle', 'unknown'],
+      ['Tabs.Tab', 'audited'],
+    ],
+  )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
   assert.equal(tab.abi.nativePreparedProp, 'hozoTabStyle')
   assert.deepEqual(tab.authoredStyles, [{ prop: 'tabStyle', order: 0 }])

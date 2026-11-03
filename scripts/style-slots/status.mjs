@@ -27,6 +27,8 @@ export function stylingFactStatus({
       shadowContributions: shadow.contracts.length,
       shadowAuditUnknown: shadow.contracts.filter((contract) => contract.audit === 'unknown')
         .length,
+      shadowAuditDeclared: shadow.contracts.filter((contract) => contract.audit === 'audited')
+        .length,
     },
     globalMeasures: {
       coverage: null,

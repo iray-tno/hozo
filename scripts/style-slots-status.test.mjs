@@ -15,7 +15,11 @@ import {
   tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
-import { assessTabsContract, tabsDeclaration } from './style-slots/tabs-contract-audit.mjs'
+import {
+  assessDeclaredAudits,
+  assessTabsContract,
+  tabsDeclaration,
+} from './style-slots/tabs-contract-audit.mjs'
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
 
 const commit = 'a'.repeat(40)
@@ -112,7 +116,10 @@ function contractInputs() {
   })
   return {
     ...value,
-    declaration: structuredClone(ownerShadow.contracts.find((row) => row.owner === 'Tabs.Tab')),
+    declaration: {
+      ...structuredClone(ownerShadow.contracts.find((row) => row.owner === 'Tabs.Tab')),
+      audit: 'unknown',
+    },
     manifestSha256: 'b'.repeat(64),
     publicPropsVerified: true,
   }
@@ -311,6 +318,63 @@ function inputReceipts() {
   }
 }
 
+test('every declared audited shadow contract needs its own current independent host proof', () => {
+  const input = contractInputs()
+  input.declaration.audit = 'audited'
+  const proof = assessTabsContract(input)
+  assert.equal(proof.passed, true)
+  const args = {
+    contracts: structuredClone(ownerShadow.contracts),
+    proofs: [proof],
+    sourceCommit: commit,
+    manifestSha256: 'b'.repeat(64),
+  }
+  const gate = assessDeclaredAudits(args)
+  assert.equal(gate.passed, true)
+  assert.deepEqual(gate.verifiedOwners, ['Tabs.Tab'])
+  assert.deepEqual(gate.unknownOwners, ['BottomSheet.handle'])
+  assert.equal(gate.rollout, 'unchanged')
+  for (const mutate of [
+    (v) => {
+      v.proofs = []
+    },
+    (v) => {
+      v.proofs.push(v.proofs[0])
+    },
+    (v) => {
+      v.contracts[0].audit = 'audited'
+    },
+    (v) => {
+      v.contracts[0].audit = 'certified'
+    },
+    (v) => {
+      v.proofs[0].sourceCommit = 'c'.repeat(40)
+    },
+    (v) => {
+      v.proofs[0].manifestSha256 = 'c'.repeat(64)
+    },
+    (v) => {
+      v.proofs[0].trackedChanges = true
+    },
+    (v) => {
+      v.proofs[0].declaredAudit = 'unknown'
+    },
+    (v) => {
+      v.proofs[0].passed = false
+    },
+    (v) => {
+      v.proofs[0].rungs = []
+    },
+    (v) => {
+      v.proofs[0].assessment = 'publisher-claim-only'
+    },
+  ]) {
+    const invalid = structuredClone(args)
+    mutate(invalid)
+    assert.equal(assessDeclaredAudits(invalid).passed, false)
+  }
+})
+
 test('Owner input audit has finite denominators without self-promoting contracts or rollout', () => {
   const report = auditOwnerInputs(inputReceipts())
   assert.equal(report.passed, true)
@@ -491,7 +555,8 @@ test('inventory stays separate from scoped evidence and missing global measures 
     componentManaged: 33,
     componentManagedPending: 33,
     shadowContributions: 2,
-    shadowAuditUnknown: 2,
+    shadowAuditUnknown: 1,
+    shadowAuditDeclared: 1,
   })
   assert.equal(report.observations[0].status, 'measured')
   assert.equal(report.observations[0].matchedPairs, 5)

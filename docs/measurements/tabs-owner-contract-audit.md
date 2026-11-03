@@ -33,12 +33,23 @@ Changing the declaration changes the capture/content identity, but grants no
 extra candidate, shape, class-preparation, compiler or adapter authority. The
 independent proof is produced by CI, not supplied by that package field.
 
-The first proof slice leaves declarations and default routing unchanged.
-A later package claim may say `audited` only after this independent rung-3
-gate passes for the declared host/ABI domain. That is not permission to report
+The initial proof slice left declarations and default routing unchanged.
+After its independent gate passed, `Tabs.Tab` is the first shadow declaration
+promoted to `audited` for the checked host/ABI domain. `BottomSheet.handle`
+remains unknown. The CI gate requires a current, same-manifest proof for every
+declared audited shadow owner; a second audit claim without its own proof,
+a stale/dirty proof or a duplicate proof fails. The report lists verified and
+unknown owners separately. Default adapter routing is still unchanged.
+
+This is not permission to report
 100% fidelity: UA/native focus-visible indication, opaque descendant text,
 native OS event delivery/cancellation and device rendering remain separate
 limits. Nor is one selected contract a complete public-owner denominator.
+
+The legacy slot catalog remains a separate migration surface: its pending
+entries are not silently reclassified to turn on old Primitive callback rules.
+Inventory counts distinguish one declared audit from one unknown shadow
+contract; only the independent CI report certifies that declaration.
 
 This distinction avoids two incorrect shortcuts: promoting a manifest because
 it agrees with its own generator, and keeping a verified host contract

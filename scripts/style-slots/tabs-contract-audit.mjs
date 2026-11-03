@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseOwnerContractShadow } from '../../packages/compiler/src/owner-contract.ts'
 import { parseOwnerPackageShadow } from '../../packages/compiler/src/owner-package.ts'
 import { evidenceSource } from './evidence-source.mjs'
 import { auditOwnerInputs } from './owner-input-audit.mjs'
@@ -24,6 +25,45 @@ export function tabsDeclaration(text) {
       'Both public aliases must reference the contract',
     )
   return selected[0]
+}
+
+/** This gate consumes independently assessed CI output, never package-supplied
+ * evidence. Every declared audited shadow owner needs its own current proof. */
+export function assessDeclaredAudits({ contracts, proofs, sourceCommit, manifestSha256 }) {
+  try {
+    assert.match(sourceCommit, /^[a-f0-9]{40}$/)
+    assert.match(manifestSha256, /^[a-f0-9]{64}$/)
+    const indexed = new Map(proofs.map((proof) => [proof.owner, proof]))
+    assert.equal(indexed.size, proofs.length, 'Duplicate independent owner proofs')
+    const required = contracts.filter((row) => row.audit === 'audited')
+    assert.equal(new Set(contracts.map((row) => row.owner)).size, contracts.length)
+    assert.ok(contracts.every((row) => row.audit === 'unknown' || row.audit === 'audited'))
+    for (const contract of required) {
+      const proof = indexed.get(contract.owner)
+      assert.ok(proof, `No independent host proof for ${contract.owner}`)
+      assert.equal(proof.passed, true)
+      assert.equal(proof.assessment, 'host-delivery-verified')
+      assert.deepEqual(proof.rungs, [1, 2, 3])
+      assert.equal(proof.sourceCommit, sourceCommit)
+      assert.equal(proof.trackedChanges, false)
+      assert.equal(proof.manifestSha256, manifestSha256)
+      assert.equal(proof.declaredAudit, 'audited')
+    }
+    return {
+      passed: true,
+      scope: 'declared-audited-shadow-contracts',
+      verifiedOwners: required.map((row) => row.owner),
+      unknownOwners: contracts.filter((row) => row.audit === 'unknown').map((row) => row.owner),
+      rollout: 'unchanged',
+    }
+  } catch (error) {
+    return {
+      passed: false,
+      scope: 'declared-audited-shadow-contracts',
+      reason: error.message,
+      rollout: 'unchanged',
+    }
+  }
 }
 
 function matrix(actual, names, phases, check) {
@@ -67,7 +107,12 @@ export function assessTabsContract({
   nativeTabs,
   webTabs,
 }) {
-  const base = { owner: 'Tabs.Tab', scope: 'box-and-owned-label-host-delivery', sourceCommit }
+  const base = {
+    owner: 'Tabs.Tab',
+    scope: 'box-and-owned-label-host-delivery',
+    sourceCommit,
+    trackedChanges,
+  }
   try {
     assert.equal(publicPropsVerified, true, 'Actual exported Web/Native props must pass tsc')
     const { audit: _claim, ...contract } = declaration
@@ -193,6 +238,19 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       'utf8',
     )
     const declaration = tabsDeclaration(manifestText)
+    const published = parseOwnerPackageShadow(manifestText).owners
+    const shadow = parseOwnerContractShadow(
+      readFileSync(path.join(root, 'scripts/style-slots/owner-shadow.json'), 'utf8'),
+    )
+    const publishedOwners = new Set(published.contracts.map((row) => row.owner))
+    assert.deepEqual(
+      published,
+      {
+        schema: shadow.schema,
+        contracts: shadow.contracts.filter((row) => publishedOwners.has(row.owner)),
+      },
+      'Published declarations differ from their inventoried shadow contracts',
+    )
     checkPublicProps()
     report = assessTabsContract({
       ...source,
@@ -202,6 +260,16 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       nativeTabs: read('artifacts/style-fact-model/tabs-compiled-native.json'),
       webTabs: read('artifacts/style-fact-model/tabs-browser.json'),
     })
+    report.declarationGate = assessDeclaredAudits({
+      contracts: shadow.contracts,
+      proofs: [report],
+      sourceCommit: source.sourceCommit,
+      manifestSha256: createHash('sha256').update(manifestText).digest('hex'),
+    })
+    if (!report.declarationGate.passed) {
+      report.passed = false
+      report.reason ??= report.declarationGate.reason
+    }
   } catch (error) {
     report = {
       ...source,

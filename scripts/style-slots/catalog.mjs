@@ -495,9 +495,8 @@ export const components = {
 }
 
 // RFC010 shadow only: not a Primitive mapping or audited profile.
-// Replaces the handle spike's hand-written test JSON. Keep claims
-// unknown until independent host evidence and the complete application plan
-// can authorize that owner's rollout.
+// Replaces the handle spike's hand-written test JSON. A host-audit declaration
+// requires the independent CI proof; it does not authorize adapter rollout.
 export const ownerShadow = {
   schema: 'rfc010-owner-shadow-0',
   contracts: [
@@ -530,10 +529,10 @@ export const ownerShadow = {
     {
       owner: 'Tabs.Tab',
       classProp: 'tabClassName',
-      audit: 'unknown',
+      audit: 'audited',
       // Each existing tab supplies its own live snapshot to this one recipe.
-      // splitText styles the receiver's string-label Text, not opaque ReactNode
-      // descendants. Publication is not an inheritance audit.
+      // splitText styles owned primitive/transparent-container labels, not
+      // opaque ReactNode descendants. This is a host/ABI, not inheritance audit.
       bindings: ['present'],
       abi: { nativePreparedProp: 'hozoTabStyle', webClassProp: 'tabClassName' },
       authoredStyles: [{ prop: 'tabStyle', order: 0 }],
