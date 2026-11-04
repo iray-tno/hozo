@@ -1,5 +1,6 @@
 // This inventory is a contract for the dashboard, not a global feature universe.
 // Inputs are status observations that have already passed their own assessors.
+import { metroBundleBuilds, metroBundleScope } from './metro-bundle-evidence.mjs'
 import { handleInputCases, tabInputCases } from './owner-input-cases.mjs'
 import { viteCapturedScope, viteComparableRows, viteFallbackScope } from './vite-evidence.mjs'
 
@@ -90,6 +91,14 @@ const domains = [
     (row) => row.inputDomain?.nativeObservations,
   ],
   [bundle, 'native-component-bundle', 'native-build', 'bundle build', 2, (row) => row.bundleBuilds],
+  [
+    metroBundleScope,
+    'metro-bottom-sheet-production-bundle',
+    'native-build',
+    'production bundle with host stand-ins',
+    metroBundleBuilds,
+    (row) => row.bundleBuilds,
+  ],
 ]
 
 function handleCount(row, domain) {
