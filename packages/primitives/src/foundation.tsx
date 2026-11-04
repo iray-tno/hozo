@@ -202,6 +202,16 @@ export interface ImageProps extends UniversalProps {
   defaultSource?: HozoImageSource
   alt?: string
   accessibilityLabel?: string
+  /**
+   * The image's intrinsic size, so the browser reserves its box before the
+   * file arrives (#1674). React Native's `Image` takes the same two props.
+   */
+  width?: number
+  height?: number
+  /** Web only; React Native ignores them. */
+  loading?: 'eager' | 'lazy'
+  decoding?: 'async' | 'auto' | 'sync'
+  fetchPriority?: 'auto' | 'high' | 'low'
   onLoad?: (event: unknown) => void
   onError?: (event: unknown) => void
   ref?: Ref<HTMLImageElement>
@@ -242,6 +252,11 @@ export function Image({
   defaultSource,
   alt,
   accessibilityLabel,
+  width,
+  height,
+  loading,
+  decoding,
+  fetchPriority,
   onLoad,
   onError,
   onLayout,
@@ -291,6 +306,13 @@ export function Image({
       className={className}
       src={webSrc}
       alt={alt ?? accessibilityLabel ?? ''}
+      // Forwarded as the compiled `<img>` forwards them, so a page renders
+      // the same with or without the compiler (#1674).
+      width={width}
+      height={height}
+      loading={loading}
+      decoding={decoding}
+      fetchPriority={fetchPriority}
       onLoad={onLoad}
       onError={(event) => {
         setFailedSource(src)
