@@ -26,6 +26,12 @@ const evidenceFile = new URL(
   import.meta.url,
 )
 const digest = (input) => createHash('sha256').update(input).digest('hex')
+// The names of the two text style modules, assembled so this file scans as
+// no class. It sits in the demo's project, whose candidate scan reads it like
+// the app's own source: written out whole, the names were read as text colour
+// utilities and left an unresolved colour in the demo's bundle, which its
+// theme check rejects.
+const textStyle = (suffix) => ['text', `style${suffix}`].join('-')
 
 async function checkBundles(t, evidence, manifest) {
   for (const platform of ['android', 'ios']) {
@@ -95,7 +101,7 @@ async function checkBundles(t, evidence, manifest) {
       },
     })
     const engineFile = (name) => new URL(`../../../packages/engine/dist/${name}`, import.meta.url)
-    copyFileSync(engineFile('text-style.js'), path.join(engine, 'index.js'))
+    copyFileSync(engineFile(textStyle('.js')), path.join(engine, 'index.js'))
     copyFileSync(engineFile('authored-gap.js'), path.join(engine, 'gap.js'))
     writeFileSync(
       path.join(engine, 'safe-area.js'),
@@ -127,7 +133,7 @@ async function checkBundles(t, evidence, manifest) {
       'bottom-sheet.native.js',
       'sheet-rules.js',
       'safe-area-padding.native.js',
-      'text-style.native.js',
+      textStyle('.native.js'),
     ])
       copyFileSync(
         new URL(`../../../packages/patterns/dist/${name}`, import.meta.url),
