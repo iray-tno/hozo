@@ -46,8 +46,10 @@ The Metro probe also runs two separate budget-fallback builds (one per
 platform) after the opt-in build in the same fixture. An actual edge-budget
 refusal must return to ordinary output with neither captured nor uncaptured
 carriers, while preserving the same styles and missing-state diagnostic.
-These are recorded as `budgetFallbacks` in the raw receipt, separate from
-the four-build dashboard count. The experiment is not the default.
+The dashboard verifies both `budgetFallbacks` rows separately from the
+four-build count, including the refusal reason, absence of carriers,
+and continued opaque and uncaptured input behavior. The experiment is
+not the default.
 
 These are fixture observations, not the §6 denominators
 for global coverage, fidelity, diagnostic completeness or contract audit.
