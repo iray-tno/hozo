@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import { withHozo, withHozoPartialOwners } from '@hozo/metro/config'
 import Metro from 'metro'
 import { ownerMetroFixture } from '../../../packages/metro/fixtures/owner-metro-resolver.mjs'
 import { collectMetroOwnerPreflight } from '../../../packages/metro/src/owner-manifest-preflight.ts'
+import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 
 const require = createRequire(import.meta.url)
 const fromMetro = createRequire(require.resolve('metro/package.json'))
@@ -17,7 +20,14 @@ const { getDefaultConfig } = fromMetro('metro-config')
 const fromTransformer = createRequire(require.resolve('@react-native/metro-babel-transformer'))
 const fromPreset = createRequire(fromTransformer.resolve('@react-native/babel-preset'))
 
-test('production Metro bundle delivers partial and fallback styles to real BottomSheet code', async (t) => {
+const manifestFile = new URL('../../../packages/patterns/hozo.manifest.json', import.meta.url)
+const evidenceFile = new URL(
+  '../../../artifacts/style-fact-model/metro-partial-owner-bundle.json',
+  import.meta.url,
+)
+const digest = (input) => createHash('sha256').update(input).digest('hex')
+
+async function checkBundles(t, evidence, manifest) {
   for (const platform of ['android', 'ios']) {
     const f = ownerMetroFixture(t)
     const file = path.join(f.root, 'App.tsx')
@@ -127,10 +137,7 @@ test('production Metro bundle delivers partial and fallback styles to real Botto
       path.join(patterns, 'pressable.native.js'),
       "export const Pressable = 'Pressable';",
     )
-    copyFileSync(
-      new URL('../../../packages/patterns/hozo.manifest.json', import.meta.url),
-      path.join(patterns, 'owner.json'),
-    )
+    writeFileSync(path.join(patterns, 'owner.json'), manifest)
     const core = install('@hozo/core', '', {
       exports: { '.': './index.js', './generated/class-resolver': './resolver.js' },
     })
@@ -244,19 +251,52 @@ test('production Metro bundle delivers partial and fallback styles to real Botto
       runInNewContext(code, globals, { timeout: 5000 })
       const { interactive, fallback, carrierSupplied } = globals.partialResult
       assert.equal(carrierSupplied, partial)
-      assert.deepEqual(Object.assign({}, ...fallback.flat(Infinity)), {
+      const fallbackStyle = Object.assign({}, ...fallback.flat(Infinity))
+      assert.deepEqual(fallbackStyle, {
         paddingTop: 21,
         paddingRight: 14,
         paddingBottom: 14,
         paddingLeft: 14,
         opacity: 1,
       })
-      assert.ok(
-        warnings.some((message) => /hover:opacity-50.*hands its classes no state/.test(message)),
+      const missingStateDiagnostic = warnings.some((message) =>
+        /hover:opacity-50.*hands its classes no state/.test(message),
       )
+      assert.ok(missingStateDiagnostic)
       const hovered = Object.assign({}, ...interactive.flat(Infinity))
       assert.equal(hovered.opacity, 0.5)
       assert.equal(hovered.paddingTop, 21)
+      evidence.builds.push({
+        platform,
+        mode: partial ? 'opt-in' : 'ordinary',
+        bundleSha256: digest(code),
+        carrierSupplied,
+        fallbackStyle,
+        missingStateDiagnostic,
+        hover: { opacity: hovered.opacity, paddingTop: hovered.paddingTop },
+      })
     }
+  }
+}
+
+test('production Metro bundle delivers partial and fallback styles to real BottomSheet code', async (t) => {
+  const evidence = {
+    schema: 1,
+    ...evidenceSource(),
+    scope: 'metro-production-owner-bundle-host-standins',
+    passed: false,
+    builds: [],
+  }
+  try {
+    const manifest = readFileSync(manifestFile)
+    evidence.manifestSha256 = digest(manifest)
+    await checkBundles(t, evidence, manifest)
+    evidence.passed = true
+  } catch (error) {
+    evidence.error = String(error)
+    throw error
+  } finally {
+    mkdirSync(path.dirname(fileURLToPath(evidenceFile)), { recursive: true })
+    writeFileSync(evidenceFile, `${JSON.stringify(evidence, null, 2)}\n`)
   }
 })
