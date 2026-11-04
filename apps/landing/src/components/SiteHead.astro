@@ -34,6 +34,20 @@ const structuredData = jsonLd === undefined ? [] : Array.isArray(jsonLd) ? jsonL
 
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+{/* Dark is `data-theme` on this site (`@custom-variant dark`, #1654), which
+    Starlight sets in /docs from its theme selector. These pages have no
+    selector, so they keep following the OS: the attribute mirrors
+    `prefers-color-scheme`, set before first paint and kept in step. */}
+<script is:inline>
+  {
+    const scheme = matchMedia('(prefers-color-scheme: dark)')
+    const apply = () => {
+      document.documentElement.dataset.theme = scheme.matches ? 'dark' : 'light'
+    }
+    apply()
+    scheme.addEventListener('change', apply)
+  }
+</script>
 <link rel="icon" type="image/svg+xml" href={`${base}/favicon.svg`} />
 <meta name="generator" content={Astro.generator} />
 <title>{title}</title>

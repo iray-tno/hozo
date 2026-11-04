@@ -539,6 +539,14 @@ export interface Theme {
   /** Named Tailwind font weights, kept separate from authored numeric weights. */
   fontWeights?: { name: string; value: string }[]
   /**
+   * Where dark rules apply on Web, from the project's own
+   * `@custom-variant dark (...)`: a selector with `&` for the element, or an
+   * at-rule. `@hozo/tailwind`'s `loadTheme` reads it. Omitted means
+   * `@media (prefers-color-scheme: dark)`, Tailwind's default. Native
+   * ignores it (#1654).
+   */
+  darkSelector?: string
+  /**
    * The project's own animations, `--animate-<name>` with its `@keyframes`
    * (decision 007, slice 3). `@hozo/tailwind`'s `loadTheme` reads them.
    */

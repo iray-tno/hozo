@@ -1699,10 +1699,14 @@ pub fn condition_shape(condition: &Condition) -> Shape {
 }
 
 pub fn condition_shapes(condition: &Condition) -> Vec<Shape> {
-    condition_shapes_for(condition, true)
+    condition_shapes_for(condition, true, None)
 }
 
-fn condition_shapes_for(condition: &Condition, portable_disabled: bool) -> Vec<Shape> {
+fn condition_shapes_for(
+    condition: &Condition,
+    portable_disabled: bool,
+    dark: Option<&str>,
+) -> Vec<Shape> {
     match condition {
         // Stacked variants. The at-rules nest in written order, outermost
         // first, and the selector suffixes append in the same order --
@@ -1720,7 +1724,9 @@ fn condition_shapes_for(condition: &Condition, portable_disabled: bool) -> Vec<S
             for condition in conditions {
                 let mut next = Vec::new();
                 for (preludes, selector) in &shapes {
-                    for (inner, template) in condition_shapes_for(condition, portable_disabled) {
+                    for (inner, template) in
+                        condition_shapes_for(condition, portable_disabled, dark)
+                    {
                         let mut preludes = preludes.clone();
                         preludes.extend(inner);
                         next.push((preludes, template.replace('&', selector)));
@@ -1833,7 +1839,7 @@ fn condition_shapes_for(condition: &Condition, portable_disabled: bool) -> Vec<S
         Condition::HasSelector(selector) => {
             one(Vec::new(), format!("&:has({})", has_argument(selector)))
         }
-        Condition::Has(inner) => condition_shapes_for(inner, portable_disabled)
+        Condition::Has(inner) => condition_shapes_for(inner, portable_disabled, dark)
             .into_iter()
             .filter_map(|(at_rules, suffix)| {
                 // Not wrapped: a variant's suffix is one compound already,
@@ -1847,7 +1853,7 @@ fn condition_shapes_for(condition: &Condition, portable_disabled: bool) -> Vec<S
         // selector negated -- with the capability query *dropped*, since
         // an element on a hover-less device is never hovered and the
         // negation holds there too -- plus a rule for that device.
-        Condition::Not(inner) => condition_shapes_for(inner, portable_disabled)
+        Condition::Not(inner) => condition_shapes_for(inner, portable_disabled, dark)
             .into_iter()
             .flat_map(|(at_rules, suffix)| {
                 let mut shapes = Vec::new();
@@ -1877,7 +1883,7 @@ fn condition_shapes_for(condition: &Condition, portable_disabled: bool) -> Vec<S
             // The at-rules are the inner variant's and survive the
             // relation -- `group-hover:` is inside `@media (hover: hover)`
             // exactly as `hover:` is. Only the selector moves.
-            condition_shapes_for(inner, portable_disabled)
+            condition_shapes_for(inner, portable_disabled, dark)
                 .into_iter()
                 .filter_map(|(at_rules, suffix)| {
                     // Refused at parse time, so the `None` is unreachable
@@ -1931,8 +1937,17 @@ fn condition_shapes_for(condition: &Condition, portable_disabled: bool) -> Vec<S
             "&",
         ),
         // Tailwind v4's default dark strategy, and the one whose meaning
-        // React Native's `useColorScheme()` shares.
-        Condition::Dark => one(vec!["@media (prefers-color-scheme: dark)".to_string()], "&"),
+        // React Native's `useColorScheme()` shares -- unless the project
+        // declared its own with `@custom-variant dark (...)`, which Tailwind
+        // honours for the classes it generates and so must Hozo for the ones
+        // it compiles, or one `dark:` follows two rules on one page (#1654).
+        // A selector there has `&` for the element; one starting `@` is an
+        // at-rule around it, which is the other form Tailwind accepts.
+        Condition::Dark => match dark {
+            Some(rule) if rule.starts_with('@') => one(vec![rule.to_string()], "&"),
+            Some(selector) => one(Vec::new(), selector.to_string()),
+            None => one(vec!["@media (prefers-color-scheme: dark)".to_string()], "&"),
+        },
         Condition::FirstChild => one(Vec::new(), "&:first-child"),
         // One arm for eight variants, because the difference between them
         // is entirely in the pseudo-class text -- see `Structural`.
@@ -2336,7 +2351,7 @@ fn render_rule_shapes(
     needs_content: bool,
     portable_disabled: bool,
 ) -> String {
-    condition_shapes_for(condition, portable_disabled)
+    condition_shapes_for(condition, portable_disabled, theme.dark_selector())
         .into_iter()
         .map(|shape| render_shape(class_name, shape, props, theme, needs_content))
         .collect::<Vec<_>>()

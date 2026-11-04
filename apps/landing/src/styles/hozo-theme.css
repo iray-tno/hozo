@@ -10,3 +10,9 @@
  */
 @import "tailwindcss";
 @import "@hozo/ui/theme.css";
+
+/* Dark follows the page's data-theme, which the docs' theme selector sets
+ * and SiteHead sets from the OS on the other pages, rather than the OS alone,
+ * so the live previews switch with the docs (#1654). Hozo reads this for the
+ * classes it compiles, Tailwind for the ones it generates. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));

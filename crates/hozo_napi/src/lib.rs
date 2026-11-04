@@ -1752,6 +1752,9 @@ pub struct JsTheme {
     /// pixels by `@hozo/tailwind`.
     pub radii: Option<Vec<JsThemeRadius>>,
     pub font_weights: Option<Vec<JsThemeFontWeight>>,
+    /// The selector of the project's `@custom-variant dark (...)`, with `&`
+    /// for the element. Absent means `prefers-color-scheme` (#1654).
+    pub dark_selector: Option<String>,
 }
 
 #[napi(object)]
@@ -1891,6 +1894,7 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
         .with_animations(animations)
         .with_radii(radii)
         .with_font_weights(font_weights)
+        .with_dark_selector(theme.dark_selector)
 }
 
 /// Every binding a source file imports from one module, by local name.

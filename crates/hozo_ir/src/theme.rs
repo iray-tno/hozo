@@ -100,6 +100,14 @@ pub struct Theme {
     /// which the parser resolves itself.
     radii: HashMap<String, f64>,
     font_weights: HashMap<String, String>,
+    /// Where dark rules apply on Web, when the project says: the selector in
+    /// its `@custom-variant dark (...)`, such as
+    /// `&:where([data-theme=dark], [data-theme=dark] *)`. Absent means
+    /// `@media (prefers-color-scheme: dark)`, Tailwind's default (#1654).
+    ///
+    /// Web only. Native's dark is `useColorScheme()`, which an app already
+    /// overrides with `Appearance.setColorScheme`.
+    dark_selector: Option<String>,
 }
 
 /// Tailwind's own default, and what every caller got before a theme could
@@ -119,6 +127,7 @@ impl Default for Theme {
             animations: HashMap::new(),
             radii: HashMap::new(),
             font_weights: HashMap::new(),
+            dark_selector: None,
         }
     }
 }
@@ -146,7 +155,20 @@ impl Theme {
             animations: HashMap::new(),
             radii: HashMap::new(),
             font_weights: HashMap::new(),
+            dark_selector: None,
         }
+    }
+
+    /// The same theme with the project's own `dark` variant selector.
+    pub fn with_dark_selector(mut self, selector: Option<String>) -> Self {
+        self.dark_selector = selector;
+        self
+    }
+
+    /// The project's `dark` variant selector, `&` standing for the element;
+    /// see the field.
+    pub fn dark_selector(&self) -> Option<&str> {
+        self.dark_selector.as_deref()
     }
 
     /// The same theme with the project's own animations.
@@ -252,6 +274,8 @@ impl Theme {
             animations: self.animations.clone(),
             radii: self.radii.clone(),
             font_weights: self.font_weights.clone(),
+            // Still where the dark rules go: this theme renders them.
+            dark_selector: self.dark_selector.clone(),
         })
     }
 }
