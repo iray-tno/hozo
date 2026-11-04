@@ -186,6 +186,28 @@ jobs:
           dir=$(node -e "const p=require('node:path');console.log(p.dirname(require.resolve('ffmpeg-static/package.json',{paths:[p.dirname(require.resolve('@guidepup/record'))]})))")
           (cd "$dir" && node install.js)
 
+      # Whether this runner can drive the reader at all, asked of one story
+      # before the suite (#631). A runner that cannot ("-1743", "VoiceOver
+      # cannot be started") fails every test three times over; run 41756439909
+      # spent its job that way and judged no reading. Retried here because it
+      # is the environment being retried, not a reading: the suite below keeps
+      # its own verdict and is not run at all when this never passes.
+      - if: matrix.reader == 'voiceover'
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            READER_PREFLIGHT=1 pnpm run read && exit 0
+            echo "reader preflight attempt $attempt failed"
+            sleep 20
+          done
+          what="VoiceOver could not be driven on ${ImageOS:-this runner} ${ImageVersion:-}"
+          echo "::error title=Runner, not reader::$what. The suite was not run; re-run the job. See #631."
+          printf '### voiceover: the runner, not the reader\n\n%s, in three preflight attempts. The suite was not run; re-run the job. See #631.\n' "$what" >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+        working-directory: examples/screen-readers
+        env:
+          CI: 'true'
+
       # A VoiceOver that refuses to start fails every story the same way it
       # would fail a wrong reading. Said apart, as `verify` does above (#631).
       - shell: bash
@@ -193,7 +215,7 @@ jobs:
           set -o pipefail
           pnpm run read 2>&1 | tee "$RUNNER_TEMP/read.log" && exit 0
           if [ "$RUNNER_OS" = macOS ] \
-            && grep -qE 'Unable to activate application: VoiceOver|VoiceOver cannot be started' "$RUNNER_TEMP/read.log"; then
+            && grep -qE 'Unable to activate application: VoiceOver|VoiceOver cannot be started|Not authorized to send Apple events' "$RUNNER_TEMP/read.log"; then
             what="VoiceOver did not start on ${ImageOS:-this runner} ${ImageVersion:-}"
             echo "::error title=Runner, not reader::$what. No story was judged by a reader; re-run the job. See #631."
             printf '### voiceover: the runner, not the reader\n\n%s. No story was judged by a reader; re-run the job. See #631.\n' "$what" >> "$GITHUB_STEP_SUMMARY"

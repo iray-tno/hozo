@@ -9,23 +9,28 @@ import { devices, type PlaywrightTestConfig } from '@playwright/test'
 
 const port = 6180
 const onMac = process.platform === 'darwin'
+// The one-story check the workflow runs before the suite (#631): alone, and
+// without retries, because a retry is the workflow's to make.
+const preflight = Boolean(process.env.READER_PREFLIGHT)
 
 export default {
   ...screenReaderConfig,
   testDir: '.',
-  testMatch: [
-    'aria-modal.spec.ts',
-    'code-and-splitter.spec.ts',
-    'scenarios.spec.ts',
-    'stories.spec.ts',
-    'tree-shape.spec.ts',
-  ],
+  testMatch: preflight
+    ? ['preflight.spec.ts']
+    : [
+        'aria-modal.spec.ts',
+        'code-and-splitter.spec.ts',
+        'scenarios.spec.ts',
+        'stories.spec.ts',
+        'tree-shape.spec.ts',
+      ],
   // A screen reader walking a story is slow, and a first run on a fresh
   // runner is slower still.
   timeout: 5 * 60 * 1000,
   // Two, because the first run lost a first attempt on each of two stories
   // to `browser.newContext: Target … has been closed` while NVDA settled.
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI && !preflight ? 2 : 0,
   reportSlowTests: null,
   outputDir: 'test-results/playwright',
   reporter: process.env.CI ? [['github'], ['list']] : 'list',
