@@ -534,9 +534,27 @@ const pages = {
     await page.getByRole('radio', { name: 'red, #ef4444' }).click()
     await page.getByText('Chosen: #ef4444').waitFor()
     const hex = page.locator('.hozo-ui-example input')
+    // The field commits on every change, so typing is the whole action; the
+    // Enter this used to press did nothing. When the text does not follow,
+    // the page is recorded as it was, because one CI run timed out here with
+    // nothing to say what the field held or what the demo showed (#1603).
     await hex.fill('#10b981')
-    await hex.press('Enter')
-    await page.getByText('Chosen: #10b981').waitFor()
+    try {
+      await page.getByText('Chosen: #10b981').waitFor()
+    } catch (error) {
+      error.diagnostics = {
+        state: await page.evaluate(() => ({
+          input: document.querySelector('.hozo-ui-example input')?.value,
+          chosen: [...document.querySelectorAll('.hozo-ui-example p')]
+            .map((node) => node.textContent)
+            .filter((text) => text?.startsWith('Chosen:')),
+          active: document.activeElement?.outerHTML.slice(0, 120),
+          islands: document.querySelectorAll('astro-island').length,
+          unhydrated: document.querySelectorAll('astro-island[ssr]').length,
+        })),
+      }
+      throw error
+    }
   },
   async 'command-palette'(page) {
     const opener = page.getByRole('button', { name: 'Open the command palette' })
