@@ -6,7 +6,11 @@ import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
-import { withHozo, withHozoPartialOwners } from '@hozo/metro/config'
+import {
+  withHozo,
+  withHozoPartialOwners,
+  withHozoPartialOwnersOrOrdinary,
+} from '@hozo/metro/config'
 import Metro from 'metro'
 import { ownerMetroFixture } from '../../../packages/metro/fixtures/owner-metro-resolver.mjs'
 import { collectMetroOwnerPreflight } from '../../../packages/metro/src/owner-manifest-preflight.ts'
@@ -266,7 +270,7 @@ async function checkBundles(t, evidence, manifest) {
       },
     }
     const options = { css: 'global.css', content: { packages: [] } }
-    const preflight = collectMetroOwnerPreflight(f.context, f.delegate, {
+    const capture = {
       platform,
       epoch: 'partial-owner-bundle',
       origins: [file, path.join(patterns, 'index.js')],
@@ -280,16 +284,42 @@ async function checkBundles(t, evidence, manifest) {
           '@hozo/engine/generated/safe-area',
         ].map((specifier) => ({ importer: path.join(patterns, 'index.js'), specifier })),
       ],
-    })
+    }
+    const preflight = collectMetroOwnerPreflight(f.context, f.delegate, capture)
     assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
+    // Keep the explicit subpath inventory valid, then exhaust the budget
+    // while traversing the larger dependency closure.
+    const maxEdges = capture.additionalImports.length
+    assert.ok(preflight.routes.length > maxEdges)
+    let resolvedEdges = 0
+    const limited = collectMetroOwnerPreflight(
+      f.context,
+      (...args) => {
+        resolvedEdges++
+        return f.delegate(...args)
+      },
+      { ...capture, maxEdges },
+    )
+    assert.equal(limited.status, 'incomplete', JSON.stringify(limited))
+    assert.equal(limited.reason, 'edge-budget', JSON.stringify(limited))
+    assert.equal(resolvedEdges, maxEdges)
     assert.ok(
       preflight.routes.some((row) => row.importer === file && row.specifier === '@hozo/patterns'),
     )
     assert.ok(!preflight.routes.some((row) => row.importer === uncapturedFile))
-    for (const partial of [false, true]) {
-      const configured = partial
-        ? await withHozoPartialOwners(config, preflight, options)
-        : await withHozo(config, options)
+    for (const mode of ['ordinary', 'opt-in', 'budget-fallback']) {
+      const partial = mode === 'opt-in'
+      const fallback =
+        mode === 'budget-fallback'
+          ? await withHozoPartialOwnersOrOrdinary(config, limited, options)
+          : undefined
+      if (fallback)
+        assert.deepEqual(fallback.admission, { route: 'ordinary-fallback', reason: 'edge-budget' })
+      const configured =
+        fallback?.config ??
+        (partial
+          ? await withHozoPartialOwners(config, preflight, options)
+          : await withHozo(config, options))
       const resolve = configured.resolver.resolveRequest
       configured.resolver.resolveRequest = (context, specifier, target) => {
         try {
@@ -351,9 +381,9 @@ async function checkBundles(t, evidence, manifest) {
         })
         return result
       }
-      evidence.builds.push({
+      const row = {
         platform,
-        mode: partial ? 'opt-in' : 'ordinary',
+        mode,
         bundleSha256: digest(code),
         carrierSupplied,
         fallbackStyle,
@@ -364,7 +394,9 @@ async function checkBundles(t, evidence, manifest) {
           ...ordinaryControl(opaque),
         },
         uncapturedControl: ordinaryControl(uncaptured),
-      })
+      }
+      if (fallback) evidence.budgetFallbacks.push({ ...row, admission: fallback.admission })
+      else evidence.builds.push(row)
     }
   }
 }
@@ -376,6 +408,7 @@ test('production Metro bundle delivers partial and fallback styles to real Botto
     scope: 'metro-production-owner-bundle-host-standins',
     passed: false,
     builds: [],
+    budgetFallbacks: [],
   }
   try {
     const manifest = readFileSync(manifestFile)

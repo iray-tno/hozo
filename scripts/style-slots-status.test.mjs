@@ -154,6 +154,32 @@ test('Metro denominator requires all four current platform/route builds and thei
   }
   assert.equal(uncapturedRow(leaked).status, 'invalid')
   assert.equal(controlRow(leaked).verified, 4)
+
+  const budgetRow = (value) => row([value], false, 'metro-owner-edge-budget-fallback')
+  assert.equal(budgetRow(withUncaptured).status, 'missing')
+  const budgetFallbacks = withUncaptured.builds
+    .filter((build) => build.mode === 'ordinary')
+    .map((build) => ({
+      ...build,
+      mode: 'budget-fallback',
+      admission: { route: 'ordinary-fallback', reason: 'edge-budget' },
+    }))
+  const withBudget = { ...withUncaptured, budgetFallbacks }
+  assert.equal(budgetRow(withBudget).verified, 2)
+  const [android, ios] = budgetFallbacks
+  for (const fallback of [
+    [android],
+    [android, android],
+    [{ ...android, mode: 'ordinary' }, ios],
+    [{ ...android, admission: { route: 'ordinary-fallback', reason: 'untrusted' } }, ios],
+    [{ ...android, carrierSupplied: true }, ios],
+    [{ ...android, missingStateDiagnostic: false }, ios],
+    [{ ...android, uncapturedControl: undefined }, ios],
+  ]) {
+    const changed = { ...withBudget, budgetFallbacks: fallback }
+    assert.equal(budgetRow(changed).status, 'invalid')
+    assert.equal(row([changed]).verified, 4)
+  }
 })
 
 test('Vite evidence counts matched cases and rejects invented or stale build receipts', () => {

@@ -2,6 +2,7 @@ import { isDeepStrictEqual } from 'node:util'
 
 export const metroBundleScope = 'metro-production-owner-bundle-host-standins'
 export const metroBundleBuilds = 4
+export const metroBudgetFallbackBuilds = 2
 
 const fallbackStyle = {
   paddingTop: 21,
@@ -29,6 +30,38 @@ function assessOrdinaryControls(builds, key, checkInputPlatform = false) {
   return { status: 'measured', verified: builds.length }
 }
 
+function hasHandleObservation(row) {
+  return (
+    /^[a-f0-9]{64}$/.test(row.bundleSha256 ?? '') &&
+    isDeepStrictEqual(row.fallbackStyle, fallbackStyle) &&
+    row.missingStateDiagnostic === true &&
+    isDeepStrictEqual(row.hover, { opacity: 0.5, paddingTop: 21 })
+  )
+}
+
+function assessBudgetFallbacks(builds) {
+  if (builds === undefined) return { status: 'missing' }
+  const pending = new Set(['android', 'ios'])
+  if (
+    !Array.isArray(builds) ||
+    builds.length !== metroBudgetFallbackBuilds ||
+    !builds.every(
+      (row) =>
+        row &&
+        pending.delete(row.platform) &&
+        row.mode === 'budget-fallback' &&
+        row.admission?.route === 'ordinary-fallback' &&
+        row.admission.reason === 'edge-budget' &&
+        row.carrierSupplied === false &&
+        hasHandleObservation(row),
+    ) ||
+    assessOrdinaryControls(builds, 'ordinaryControl', true).status !== 'measured' ||
+    assessOrdinaryControls(builds, 'uncapturedControl').status !== 'measured'
+  )
+    return { status: 'invalid' }
+  return { status: 'measured', verified: builds.length }
+}
+
 export function assessMetroBundleEvidence(receipt, expectedManifestSha256) {
   const base = { scope: metroBundleScope, sourceCommit: receipt.sourceCommit }
   const pending = new Set(['android:opt-in', 'android:ordinary', 'ios:opt-in', 'ios:ordinary'])
@@ -42,11 +75,8 @@ export function assessMetroBundleEvidence(receipt, expectedManifestSha256) {
       (row) =>
         !row ||
         !pending.delete(`${row.platform}:${row.mode}`) ||
-        !/^[a-f0-9]{64}$/.test(row.bundleSha256 ?? '') ||
         row.carrierSupplied !== (row.mode === 'opt-in') ||
-        !isDeepStrictEqual(row.fallbackStyle, fallbackStyle) ||
-        row.missingStateDiagnostic !== true ||
-        !isDeepStrictEqual(row.hover, { opacity: 0.5, paddingTop: 21 }),
+        !hasHandleObservation(row),
     ) ||
     pending.size !== 0
   ) {
@@ -60,5 +90,6 @@ export function assessMetroBundleEvidence(receipt, expectedManifestSha256) {
     bundleBuilds: metroBundleBuilds,
     ordinaryControl: assessOrdinaryControls(receipt.builds, 'ordinaryControl', true),
     uncapturedControl: assessOrdinaryControls(receipt.builds, 'uncapturedControl'),
+    budgetFallback: assessBudgetFallbacks(receipt.budgetFallbacks),
   }
 }
