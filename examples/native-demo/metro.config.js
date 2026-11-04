@@ -46,5 +46,7 @@ config.serializer.getModulesRunBeforeMainModule = () => [
 module.exports = withHozo(config, {
   root: projectRoot,
   css: 'global.css',
+  // Bundle probes under scripts/ name fixture files that resemble utilities.
+  content: { exclude: ['scripts/**'] },
   sources: ['@hozo/core'],
 })
