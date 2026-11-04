@@ -17,7 +17,7 @@ const { getDefaultConfig } = fromMetro('metro-config')
 const fromTransformer = createRequire(require.resolve('@react-native/metro-babel-transformer'))
 const fromPreset = createRequire(fromTransformer.resolve('@react-native/babel-preset'))
 
-test('production Metro bundle delivers the opt-in carrier and the generated fallback map', async (t) => {
+test('production Metro bundle delivers partial and fallback styles to real BottomSheet code', async (t) => {
   for (const platform of ['android', 'ios']) {
     const f = ownerMetroFixture(t)
     const file = path.join(f.root, 'App.tsx')
@@ -40,7 +40,57 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       writeFileSync(path.join(root, 'index.js'), code)
       return root
     }
-    install('react-native', 'exports.StyleSheet = {create: styles => styles};')
+    install(
+      'react-native',
+      `
+      exports.Modal = 'Modal';
+      exports.View = 'View';
+      exports.StyleSheet = {
+        create: styles => styles,
+        flatten: value => Array.isArray(value)
+          ? Object.assign({}, ...value.map(exports.StyleSheet.flatten))
+          : value,
+      };
+    `,
+    )
+    const react = install(
+      'react',
+      `
+      exports.useMemo = fn => fn();
+      exports.useCallback = fn => fn;
+      exports.useEffect = () => {};
+      exports.useState = value => [value, () => {}];
+      exports.useRef = current => ({current});
+    `,
+    )
+    writeFileSync(
+      path.join(react, 'jsx-runtime.js'),
+      `
+      exports.jsx = exports.jsxs = (type, props) => ({type, props});
+    `,
+    )
+    const behaviors = install(
+      '@hozo/behaviors',
+      `
+      exports.hozoTextChildren = value => value;
+      exports.useHozoMessage = () => (key, args, label) => label ?? key;
+    `,
+    )
+    writeFileSync(path.join(behaviors, 'native.js'), 'exports.useDrag1D = () => ({handlers:{}});')
+    const engine = install('@hozo/engine', '', {
+      exports: {
+        '.': './index.js',
+        './generated/gap-styles': './gap.js',
+        './generated/safe-area': './safe-area.js',
+      },
+    })
+    const engineFile = (name) => new URL(`../../../packages/engine/dist/${name}`, import.meta.url)
+    copyFileSync(engineFile('text-style.js'), path.join(engine, 'index.js'))
+    copyFileSync(engineFile('authored-gap.js'), path.join(engine, 'gap.js'))
+    writeFileSync(
+      path.join(engine, 'safe-area.js'),
+      'exports.useHozoProvidedSafeArea = () => ({top:0,right:0,bottom:0,left:0});',
+    )
     // Metro resolves asyncRequire during serialization even without a dynamic
     // import. Model it as a real declared dependency of this isolated app.
     const runtime = install('metro-runtime', '')
@@ -52,16 +102,30 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
     )
     const patterns = install(
       '@hozo/patterns',
-      `
-      const {hozoClasses} = require('@hozo/engine/project');
-      exports.BottomSheet = props => ({
-        interactive: props.hozoInteractiveHandleStyle?.({
-          hovered: true, focused: false, pressed: false, focusVisible: false,
-        }) ?? null,
-        fallback: hozoClasses(props.handleClassName),
-      });
-    `,
-      { hozo: { manifest: 'owner.json' } },
+      "export { BottomSheet } from './bottom-sheet.native.js';",
+      {
+        hozo: { manifest: 'owner.json' },
+        dependencies: {
+          react: '1',
+          'react-native': '1',
+          '@hozo/behaviors': '1',
+          '@hozo/engine': '1',
+        },
+      },
+    )
+    for (const name of [
+      'bottom-sheet.native.js',
+      'sheet-rules.js',
+      'safe-area-padding.native.js',
+      'text-style.native.js',
+    ])
+      copyFileSync(
+        new URL(`../../../packages/patterns/dist/${name}`, import.meta.url),
+        path.join(patterns, name),
+      )
+    writeFileSync(
+      path.join(patterns, 'pressable.native.js'),
+      "export const Pressable = 'Pressable';",
     )
     copyFileSync(
       new URL('../../../packages/patterns/hozo.manifest.json', import.meta.url),
@@ -81,8 +145,27 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       file,
       `
       import {BottomSheet as Sheet} from '@hozo/patterns';
-      const h = (Component, props) => Component(props);
-      globalThis.partialResult = <Sheet handleClassName="p-2 opacity-100 hover:opacity-50" />;
+      const h = (Component, props) => {
+        globalThis.carrierSupplied = typeof props.hozoInteractiveHandleStyle === 'function';
+        return Component(props);
+      };
+      const render = detents => <Sheet open detents={detents}
+        handleClassName="p-2 opacity-100 hover:opacity-50" handleStyle={{paddingTop: 21}} />;
+      function find(node, predicate) {
+        if (Array.isArray(node)) return node.map(child => find(child, predicate)).find(Boolean);
+        if (!node?.props) return;
+        if (typeof node.type === 'function') return find(node.type(node.props), predicate);
+        if (predicate(node.props)) return node.props;
+        return find(node.props.children, predicate);
+      }
+      const interactive = find(render([0.5, 1]), props => props.accessibilityRole === 'button');
+      const decorative = find(render([1]), props =>
+        props.importantForAccessibility === 'no-hide-descendants' && Array.isArray(props.style));
+      globalThis.partialResult = {
+        interactive: interactive.style({hovered:true,focused:false,pressed:false,focusVisible:false}),
+        fallback: decorative.style,
+        carrierSupplied: globalThis.carrierSupplied,
+      };
     `,
     )
     writeFileSync(path.join(f.root, 'global.css'), '@theme {--spacing:7px;} @tailwind utilities;')
@@ -123,10 +206,16 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
     const preflight = collectMetroOwnerPreflight(f.context, f.delegate, {
       platform,
       epoch: 'partial-owner-bundle',
-      origins: [file],
+      origins: [file, path.join(patterns, 'index.js')],
       additionalImports: [
         { importer: file, specifier: '@hozo/core/generated/class-resolver' },
         { importer: file, specifier: asyncRequireSpecifier },
+        ...[
+          'react/jsx-runtime',
+          '@hozo/behaviors/native',
+          '@hozo/engine/generated/gap-styles',
+          '@hozo/engine/generated/safe-area',
+        ].map((specifier) => ({ importer: path.join(patterns, 'index.js'), specifier })),
       ],
     })
     assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
@@ -143,9 +232,10 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       const warnings = []
       const globals = { console: { ...console, warn: (message) => warnings.push(message) } }
       runInNewContext(code, globals, { timeout: 5000 })
-      const { interactive, fallback } = globals.partialResult
-      assert.deepEqual(Object.assign({}, ...fallback), {
-        paddingTop: 14,
+      const { interactive, fallback, carrierSupplied } = globals.partialResult
+      assert.equal(carrierSupplied, partial)
+      assert.deepEqual(Object.assign({}, ...fallback.flat(Infinity)), {
+        paddingTop: 21,
         paddingRight: 14,
         paddingBottom: 14,
         paddingLeft: 14,
@@ -154,8 +244,9 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
       assert.ok(
         warnings.some((message) => /hover:opacity-50.*hands its classes no state/.test(message)),
       )
-      if (partial) assert.equal(Object.assign({}, ...[interactive].flat()).opacity, 0.5)
-      else assert.equal(interactive, null)
+      const hovered = Object.assign({}, ...interactive.flat(Infinity))
+      assert.equal(hovered.opacity, 0.5)
+      assert.equal(hovered.paddingTop, 21)
     }
   }
 })
