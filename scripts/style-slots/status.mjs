@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { components, ownerShadow } from './catalog.mjs'
 import { evidenceSource } from './evidence-source.mjs'
 import { scopedDenominators } from './scoped-denominators.mjs'
+import { assessViteEvidence, viteCapturedScope, viteFallbackScope } from './vite-evidence.mjs'
 
 const browserStates = ['false:rest', 'true:rest', 'true:hover', 'true:focus', 'true:pressed']
 const contractScope = 'box-and-owned-label-host-delivery'
@@ -91,6 +92,8 @@ function assess(receipt, commit, expectedManifestSha256, trackedChanges) {
     return { ...base, status: 'invalid', reason: 'Missing compatible schema/source identity' }
   if (!commit || receipt.sourceCommit !== commit) return { ...base, status: 'stale' }
   if (receipt.passed !== true) return { ...base, status: 'failed' }
+  if (receipt.scope === viteCapturedScope || receipt.scope === viteFallbackScope)
+    return assessViteEvidence(receipt, expectedManifestSha256)
   if (receipt.scope === 'bounded-handle-delivery-evidence') {
     const domains = [
       ['webLifetime', 'web-handle-style-lifetime', 30],

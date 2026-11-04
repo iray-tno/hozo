@@ -1,12 +1,29 @@
 // This inventory is a contract for the dashboard, not a global feature universe.
 // Inputs are status observations that have already passed their own assessors.
 import { handleInputCases, tabInputCases } from './owner-input-cases.mjs'
+import { viteCapturedScope, viteComparableRows, viteFallbackScope } from './vite-evidence.mjs'
 
 const handle = 'bounded-handle-delivery-evidence'
 const tabs = 'box-and-owned-label-host-delivery'
 const bundle = 'explicit-component-bundle-react-native-peers-external'
 
 const domains = [
+  [
+    viteCapturedScope,
+    'vite-captured-vs-tailwind',
+    'web',
+    'matched fixture pair',
+    viteComparableRows,
+    (row) => row.matchedPairs,
+  ],
+  [
+    viteFallbackScope,
+    'vite-fallback-and-ordinary-vs-tailwind',
+    'web',
+    'matched fixture pair',
+    viteComparableRows * 2,
+    (row) => row.matchedPairs,
+  ],
   [handle, 'handle-web-state', 'web', 'host-state row', 15, (row) => handleCount(row, 'webStates')],
   [
     handle,
