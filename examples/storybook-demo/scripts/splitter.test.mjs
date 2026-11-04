@@ -54,6 +54,24 @@ test('captured drags, final release, cancellation, keys, RTL and collapsed focus
     } catch (error) {
       throw new Error(`${error.message}\nBrowser errors: ${errors.join('\n')}`)
     }
+    // The reach is the same either side of the handle, over the pane and
+    // over a positioned surface after it, which used to be hit instead.
+    await page.evaluate(() => {
+      const surface = document.createElement('div')
+      surface.style.cssText = 'position:relative;width:200px;height:100px'
+      document.querySelector('#root').style.display = 'flex'
+      document.querySelector('#root').append(surface)
+    })
+    assert.deepEqual(
+      await handle.evaluate((node) => {
+        const box = node.getBoundingClientRect()
+        const y = box.top + box.height / 2
+        return [box.left - 3, box.right + 3].map((x) =>
+          node.contains(document.elementFromPoint(x, y)),
+        )
+      }),
+      [true, true],
+    )
     await handle.focus()
     await handle.press('ArrowRight')
     assert.equal(await handle.getAttribute('aria-valuenow'), '208')

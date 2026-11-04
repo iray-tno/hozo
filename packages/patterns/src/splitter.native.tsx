@@ -101,7 +101,13 @@ function Handle({
           )
       }}
       hitSlop={vertical ? { left: 22, right: 22 } : { top: 22, bottom: 22 }}
-      style={[hozoClasses(className, facts), hozoAuthoredStyle(style)]}
+      // Above its neighbours, so `hitSlop` reaches over the pane when the pane
+      // comes after the handle (`side` end or bottom): React Native gives an
+      // overlapping touch to the sibling with the higher `zIndex`. `hitSlop`
+      // never reaches past the parent's bounds, so on the surface's side of
+      // the pane it is cut off there whatever the order. Before the classes,
+      // so an explicit class or style can still say otherwise.
+      style={[{ zIndex: 1 }, hozoClasses(className, facts), hozoAuthoredStyle(style)]}
       onFocus={handlers.focus}
       onBlur={handlers.blur}
       onPointerEnter={handlers.hoverIn}

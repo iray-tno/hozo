@@ -70,7 +70,17 @@ function Handle({
         valueText?.(state.current) ?? message('hozo.splitter.value', { size: state.current })
       }
       className={className}
-      style={{ ...style, touchAction: 'none', userSelect: 'none' }}
+      // Above its neighbours, so the reach below can be grabbed over them and
+      // a focus ring drawn past the handle's edges is not painted under them.
+      // Inline rather than a class, so a caller's classes cannot reorder it;
+      // an explicit `style` still can.
+      style={{
+        position: 'relative',
+        zIndex: 1,
+        ...style,
+        touchAction: 'none',
+        userSelect: 'none',
+      }}
       data-dragging={drag.dragging ? '' : undefined}
       data-collapsed={state.collapsed ? '' : undefined}
       {...drag.handlers}
@@ -85,9 +95,25 @@ function Handle({
         )
           event.preventDefault()
       }}
-    />
+    >
+      {/* What a pointer grabs, apart from what is painted: the Web half of
+          Native's `hitSlop`. It reaches the same distance either side of the
+          handle, so a handle drawn as a thin line is grabbed around that line
+          and not beside it. A child of the handle, so its presses are the
+          handle's. */}
+      <span
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: vertical ? `0 -${HANDLE_REACH}px` : `-${HANDLE_REACH}px 0`,
+        }}
+      />
+    </div>
   )
 }
+
+/** How far past each edge of a handle a pointer can grab it on Web, in px. */
+const HANDLE_REACH = 4
 
 export function Splitter(props: SplitterProps) {
   const state = useSplitterState(props)
@@ -137,6 +163,14 @@ export function ResizablePane(props: ResizablePaneProps) {
     <div
       className={className}
       style={{
+        // One layer above the surface beside the pane, so the handle's reach
+        // and focus ring extend over that surface too. A `View` is positioned,
+        // so without this the surface, coming later, is painted and hit over
+        // them. One layer and no more: the handle's own `zIndex` is decided in
+        // here, so it does not rise over the page's menus and dialogs. Before
+        // `style`, so an explicit style can say otherwise.
+        position: 'relative',
+        zIndex: 1,
         ...style,
         display: 'flex',
         flexDirection: vertical ? 'row' : 'column',
@@ -161,6 +195,9 @@ export function ResizablePane(props: ResizablePaneProps) {
             minWidth: 0,
             minHeight: 0,
             overflow: 'hidden',
+            // Whatever `zIndex` the pane's content uses stays inside the pane,
+            // so none of it rises over the handle's reach.
+            isolation: 'isolate',
           } as CSSProperties
         }
       >
