@@ -20,6 +20,13 @@ ordinary/fallback comparisons against Tailwind: 15 and 30 matched
 widget/phase/route pairs respectively. Stylesheet-removal controls are
 required but do not count as matching pairs.
 
+Metro has a separate four-build denominator: Android and iOS, each with the
+partial-owner opt-in and the ordinary build. The production bundles run
+BottomSheet styling code with Native host stand-ins. The receipt records carrier
+delivery, decorative fallback, the missing-state diagnostic, and the
+interactive hover result. It does not certify device behavior or count towards
+the external-peer size comparison.
+
 These are fixture observations, not the §6 denominators
 for global coverage, fidelity, diagnostic completeness or contract audit.
 In particular, a measured Native partial delivery does not turn the

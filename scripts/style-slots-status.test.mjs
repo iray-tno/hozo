@@ -9,6 +9,7 @@ import {
   assessHandlePartialDelivery,
   assessHandleWebLifetime,
 } from './style-slots/handle-contract-assessment.mjs'
+import { metroBundleScope } from './style-slots/metro-bundle-evidence.mjs'
 import { auditOwnerInputs } from './style-slots/owner-input-audit.mjs'
 import {
   expectedIdleTabInputs,
@@ -32,6 +33,65 @@ import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-
 import { viteCapturedScope, viteFallbackScope, vitePhases } from './style-slots/vite-evidence.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('Metro denominator requires all four current platform/route builds and their observations', () => {
+  const hash = 'b'.repeat(64)
+  const receipt = {
+    schema: 1,
+    scope: metroBundleScope,
+    passed: true,
+    trackedChanges: false,
+    sourceCommit: commit,
+    manifestSha256: hash,
+    builds: ['android', 'ios'].flatMap((platform) =>
+      ['opt-in', 'ordinary'].map((mode) => ({
+        platform,
+        mode,
+        bundleSha256: hash,
+        carrierSupplied: mode === 'opt-in',
+        fallbackStyle: {
+          paddingTop: 21,
+          paddingRight: 14,
+          paddingBottom: 14,
+          paddingLeft: 14,
+          opacity: 1,
+        },
+        missingStateDiagnostic: true,
+        hover: { opacity: 0.5, paddingTop: 21 },
+      })),
+    ),
+  }
+  const row = (receipts, trackedChanges = false) =>
+    stylingFactStatus({
+      commit,
+      expectedManifestSha256: hash,
+      receipts,
+      trackedChanges,
+    }).scopedDenominators.find(({ scope }) => scope === metroBundleScope)
+
+  assert.equal(row([receipt]).verified, 4)
+  assert.equal(row([]).status, 'missing')
+  assert.equal(row([receipt, receipt]).status, 'conflicting')
+  assert.equal(row([receipt], true).status, 'uncommitted')
+  assert.equal(row([{ ...receipt, sourceCommit: 'c'.repeat(40) }]).status, 'stale')
+  assert.equal(row([{ ...receipt, passed: false }]).status, 'failed')
+  for (const [field, value] of [
+    ['carrierSupplied', false],
+    ['bundleSha256', 'not a hash'],
+    ['missingStateDiagnostic', false],
+    ['fallbackStyle', {}],
+    ['hover', { opacity: 1, paddingTop: 21 }],
+  ]) {
+    const changed = [{ ...receipt.builds[0], [field]: value }, ...receipt.builds.slice(1)]
+    assert.equal(row([{ ...receipt, builds: changed }]).status, 'invalid', field)
+  }
+  assert.equal(row([{ ...receipt, builds: receipt.builds.slice(1) }]).status, 'invalid')
+  assert.equal(
+    row([{ ...receipt, builds: [receipt.builds[1], ...receipt.builds.slice(1)] }]).status,
+    'invalid',
+  )
+  assert.equal(row([{ ...receipt, manifestSha256: 'c'.repeat(64) }]).status, 'invalid')
+})
 
 test('Vite evidence counts matched cases and rejects invented or stale build receipts', () => {
   const hash = 'b'.repeat(64)

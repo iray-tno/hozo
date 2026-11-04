@@ -6,6 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { components, ownerShadow } from './catalog.mjs'
 import { evidenceSource } from './evidence-source.mjs'
+import { assessMetroBundleEvidence, metroBundleScope } from './metro-bundle-evidence.mjs'
 import { scopedDenominators } from './scoped-denominators.mjs'
 import { assessViteEvidence, viteCapturedScope, viteFallbackScope } from './vite-evidence.mjs'
 
@@ -94,6 +95,8 @@ function assess(receipt, commit, expectedManifestSha256, trackedChanges) {
   if (receipt.passed !== true) return { ...base, status: 'failed' }
   if (receipt.scope === viteCapturedScope || receipt.scope === viteFallbackScope)
     return assessViteEvidence(receipt, expectedManifestSha256)
+  if (receipt.scope === metroBundleScope)
+    return assessMetroBundleEvidence(receipt, expectedManifestSha256)
   if (receipt.scope === 'bounded-handle-delivery-evidence') {
     const domains = [
       ['webLifetime', 'web-handle-style-lifetime', 30],
