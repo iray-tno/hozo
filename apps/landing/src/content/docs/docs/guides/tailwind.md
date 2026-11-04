@@ -44,6 +44,14 @@ Three details of that resolution matter across platforms:
 
 On the Web, variants compile to real CSS selectors and media queries (`:hover`, `:focus-visible`, `@media (min-width: 768px)`, `@media (prefers-color-scheme: dark)`).
 
+`dark:` follows the OS unless your stylesheet declares its own `dark` variant. A site with a theme switch writes Tailwind's declaration, and Hozo compiles `dark:` and paired `--dark` tokens to that selector, as Tailwind does for the classes it generates:
+
+```css
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+```
+
+A selector with `&` for the element and a single at-rule are both read. React Native keeps following the OS (`useColorScheme()`); an app with its own switch sets it with `Appearance.setColorScheme`.
+
 On React Native, there is no selector engine. Hozo bridges variants through two mechanisms:
 
 1. **Interaction states (`hover:`, `active:`, `focus:`, `focus-visible:`, `disabled:`):** lowered into state callbacks on interactive primitives (`Pressable`, `Button`, `Link`, `TextInput`) and into registered style-slot callbacks on `@hozo/patterns` and `@hozo/form` widgets.

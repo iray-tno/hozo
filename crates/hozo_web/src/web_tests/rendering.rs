@@ -505,6 +505,47 @@ fn a_utility_in_the_candidate_sheet_is_paired_too() {
 }
 
 #[test]
+fn a_project_dark_variant_puts_dark_rules_under_its_selector() {
+    // A page with its own theme switch -- the docs set `data-theme` -- and
+    // the `@custom-variant dark` Tailwind reads for it. Hozo compiles the
+    // same classes, so it has to follow the same rule (#1654): the paired
+    // token's dark half, a written `dark:` and the dark copy of a
+    // conditional rule, on both paths a class reaches the output by.
+    let selector = "&:where([data-theme=dark], [data-theme=dark] *)";
+    let theme = paired_theme().with_dark_selector(Some(selector.to_string()));
+    let source = "import { View } from '@hozo/core'\nconst el = <View className=\"bg-brand hover:bg-brand dark:p-2\">x</View>";
+    let parsed = hozo_parser::parse_tsx(source);
+    let output = lower(&parsed.roots[0].node, source, &theme);
+    let sheet = render_candidate_stylesheet(&["hover:bg-brand".to_string()], &theme);
+    for css in [&output.css, &sheet] {
+        assert!(!css.contains("prefers-color-scheme"), "{css}");
+        assert!(
+            css.contains(":where([data-theme=dark], [data-theme=dark] *)"),
+            "{css}"
+        );
+        assert!(css.contains("oklch(0.2 0.05 266)"), "{css}");
+    }
+    // The hover copy keeps its `:hover` beside the theme selector.
+    assert!(
+        sheet.contains(":hover:where([data-theme=dark], [data-theme=dark] *)"),
+        "{sheet}"
+    );
+}
+
+#[test]
+fn a_project_dark_variant_may_be_an_at_rule() {
+    // The other form Tailwind accepts: `@custom-variant dark (@media ...)`.
+    let theme = paired_theme().with_dark_selector(Some(
+        "@media (prefers-color-scheme: dark) and (prefers-contrast: more)".to_string(),
+    ));
+    let css = render_candidate_stylesheet(&["bg-brand".to_string()], &theme);
+    assert!(
+        css.contains("@media (prefers-color-scheme: dark) and (prefers-contrast: more)"),
+        "{css}"
+    );
+}
+
+#[test]
 fn an_unpaired_token_emits_nothing_extra() {
     // What keeps this from doubling every stylesheet. A project with no
     // pairs renders exactly what it rendered before.

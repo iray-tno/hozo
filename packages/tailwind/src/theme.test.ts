@@ -400,3 +400,35 @@ test('a frame declaration Native cannot read is named, not dropped in silence', 
   )
   assert.ok(native.prelude.some((line) => line.includes('useHozoKeyframes(')))
 })
+
+test("a project's own dark variant is read, in each form Tailwind accepts (#1654)", async () => {
+  const read = async (variant: string) =>
+    (await themeFrom(`@import "tailwindcss";\n${variant}`)).darkSelector
+  assert.equal(await read(''), undefined)
+  assert.equal(
+    await read('@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));'),
+    '&:where([data-theme=dark], [data-theme=dark] *)',
+  )
+  assert.equal(await read('@custom-variant dark (.dark &);'), '.dark &')
+  assert.equal(
+    await read('@custom-variant dark { &:where(.dark *) { @slot; } }'),
+    '&:where(.dark *)',
+  )
+  assert.equal(
+    await read('@custom-variant dark (@media (prefers-contrast: more));'),
+    '@media (prefers-contrast: more)',
+  )
+})
+
+test('a dark variant reaches the compiled CSS in place of prefers-color-scheme', async () => {
+  const theme = await themeFrom(`@import "tailwindcss";
+    @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+    @theme { --color-brand: oklch(62% 0.19 259); --color-brand--dark: oklch(80% 0.1 259); }`)
+  const source =
+    `import { View } from '@hozo/core'\n` +
+    `export function C() { return <View className="bg-brand dark:p-2" /> }\n`
+  const css = createCompiler(theme).compile(source)[0].css
+  assert.doesNotMatch(css, /prefers-color-scheme/)
+  assert.match(css, /:where\(\[data-theme=dark\], \[data-theme=dark\] \*\)/)
+  assert.match(css, /oklch\(80% 0\.1 259\)/)
+})

@@ -92,6 +92,12 @@ export interface Theme {
   radii?: ThemeRadius[]
   /** Values remain visible even when a Native font cannot represent them. */
   fontWeights?: { name: string; value: string }[]
+  /**
+   * The project's `dark` variant, when it declared its own with
+   * `@custom-variant dark`: a selector with `&` for the element, or an
+   * at-rule. Absent for Tailwind's default, `prefers-color-scheme` (#1654).
+   */
+  darkSelector?: string
 }
 
 export interface ThemeRadius {
@@ -337,8 +343,47 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
         name: name.slice('--font-weight-'.length),
         value: dereference(value, declared),
       })),
+    ...readDarkSelector(design),
   }
 }
+
+/**
+ * The project's `dark` variant, read by asking Tailwind to write one.
+ *
+ * Tailwind accepts `@custom-variant dark` as a selector, an at-rule or a
+ * block with `@slot`, and resolves all three into the rule it emits for a
+ * candidate. So this asks it for `dark:flex` and reads where the class
+ * ended up, rather than parsing the declaration a second, worse way. The
+ * default is left out, so a project that never mentions it sends nothing.
+ *
+ * Only the shapes a backend can apply are read: one selector around the
+ * class, or one at-rule around it. A variant that is both, or nested more
+ * deeply, is left out and so stays `prefers-color-scheme`.
+ */
+function readDarkSelector(design: Awaited<ReturnType<typeof __unstable__loadDesignSystem>>): {
+  darkSelector?: string
+} {
+  const css = design.candidatesToCss(['dark:flex'])[0] ?? ''
+  const lines = css
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.endsWith('{'))
+    .map((line) => line.slice(0, -1).trim())
+  const at = lines.findIndex((line) => line.includes(DARK_PROBE))
+  const line = lines[at]
+  if (line === undefined) return {}
+  const selector = line.replaceAll(DARK_PROBE, '&')
+  const [wrapper, ...more] = lines.slice(0, at)
+  if (wrapper === undefined && selector !== '&') return { darkSelector: selector }
+  if (wrapper?.startsWith('@') && more.length === 0 && selector === '&') {
+    return wrapper === DEFAULT_DARK ? {} : { darkSelector: wrapper }
+  }
+  return {}
+}
+
+/** How `dark:flex`'s class is spelled in the CSS Tailwind writes for it. */
+const DARK_PROBE = '.dark\\:flex'
+const DEFAULT_DARK = '@media (prefers-color-scheme: dark)'
 
 /** @internal Captured CSS, not the process-wide entry-text cache. A new
  * design system per universe prevents Tailwind's mutable variant registry

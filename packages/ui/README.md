@@ -176,6 +176,14 @@ Re-theming still means redefining one line, and now there are two of them:
 
 The dark values are not the light ones inverted. The accent goes *up* the scale — `indigo-600` to `indigo-400` — because a 600 on a dark surface is too dim to read, and `on-accent` flips from white to `slate-950` for the same reason. Every pair clears 4.5:1 on the surface it sits on, which is the rule the light half already followed.
 
+By default dark follows the OS. A page with its own theme switch declares Tailwind's `dark` variant in the stylesheet it passes to Hozo, and the Web output follows that instead — for the token pairs and for any `dark:` written by hand:
+
+```css
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+```
+
+React Native keeps following `useColorScheme()`, which an app overrides with `Appearance.setColorScheme`.
+
 One limitation, inherited rather than introduced: a class resolved at *runtime* on React Native carries no conditions at all — that path has never supported `dark:` either — so a paired token reaches it as its light value. A statically written `className`, which is every component here, is unaffected.
 
 ## Status
