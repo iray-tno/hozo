@@ -308,8 +308,11 @@ async function checkBundles(t, evidence, manifest) {
       preflight.routes.some((row) => row.importer === file && row.specifier === '@hozo/patterns'),
     )
     assert.ok(!preflight.routes.some((row) => row.importer === uncapturedFile))
+    // Ordinary Metro modularizes Hozo barrels before resolution. Observe an
+    // import that stays in the graph, then prove the owner route in the
+    // captured declaration closure instead of assuming the barrel survives.
     const observer = observeMetroOwnerPreflight(
-      { importer: file, specifier: '@hozo/patterns' },
+      { importer: file, specifier: 'handle-input' },
       capture,
     )
     const observingConfig = {
@@ -354,6 +357,14 @@ async function checkBundles(t, evidence, manifest) {
         livePreflight = observer.result()
         assert.equal(livePreflight?.status, 'complete', JSON.stringify(livePreflight))
         assert.ok(!livePreflight.routes.some((route) => route.importer === uncapturedFile))
+        assert.ok(
+          livePreflight.routes.some(
+            (route) =>
+              route.importer === file &&
+              route.specifier === '@hozo/patterns' &&
+              route.entry === path.join(patterns, 'index.js'),
+          ),
+        )
         assert.ok(
           livePreflight.routes.some(
             (route) =>
