@@ -10,6 +10,8 @@ crates.io is written. Keep the run link with the release notes.
    packaged-crate verification, real Native demo dev/production bundle guards,
    Android and iOS showcase build/device checks and
    showcase asset/evidence assembly must succeed, with publish jobs skipped.
+   The workflow checks for a nonempty root changelog section matching the
+   package version before it starts those jobs.
 3. Dispatch `packed-consumer.yml`. Node 22 and 24 consume fresh local tarballs
    outside the workspace, with no module aliases or development binding override.
 

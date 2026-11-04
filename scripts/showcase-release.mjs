@@ -186,13 +186,16 @@ export function prepareAssets(root, identity, releaseSigning) {
   return manifest
 }
 
-function releaseNotes(root, identity) {
+export function releaseNotes(root, identity) {
   const changelog = readFileSync(path.join(root, 'CHANGELOG.md'), 'utf8')
   const entry = new RegExp(
     `^## ${identity.version.replaceAll('.', '\\.')}\\r?\\n([\\s\\S]*?)(?=^## |$(?![\\s\\S]))`,
     'm',
   ).exec(changelog)?.[1]
-  assert.ok(entry?.trim(), 'release changelog entry is missing')
+  assert.ok(
+    entry?.trim(),
+    `release changelog entry is missing: add a nonempty ## ${identity.version} section to CHANGELOG.md`,
+  )
   const linked = entry
     .trim()
     .replace(
@@ -456,7 +459,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       readJson(path.join(root, 'packages/core/package.json')).version,
       env,
     )
-    if (command === 'version') {
+    if (command === 'check-notes') releaseNotes(root, identity)
+    else if (command === 'version') {
       assert.ok(!env.HOZO_REUSE_BUILD_RUN, 'release versioning requires a fresh build')
       const file = path.join(root, 'examples/native-showcase/app.json')
       const next = `${JSON.stringify(configureVersion(readJson(file), identity, env.GITHUB_RUN_NUMBER), null, 2)}\n`
