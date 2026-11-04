@@ -283,7 +283,11 @@ test('incomplete input or unavailable CSS context cannot publish a partial candi
 }, async (t) => {
   const f = fixture(t)
   await assert.rejects(
-    withHozoOwnerCandidates(f.config, { status: 'incomplete', issues: ['missing'] }, f.options),
+    withHozoOwnerCandidates(
+      f.config,
+      { status: 'incomplete', reason: 'untrusted', issues: ['missing'] },
+      f.options,
+    ),
     /INCOMPLETE/,
   )
   writeFileSync(path.join(f.root, 'global.css'), '@import "./missing.css";')

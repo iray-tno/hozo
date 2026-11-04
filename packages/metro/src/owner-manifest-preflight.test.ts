@@ -74,24 +74,42 @@ test('resolver-backed declaration closure visits cycles once, preserves two inst
 })
 test('missing context, unsupported resolutions and bounded closures never expose a partial seed', (t) => {
   const f = fixture(t)
-  for (const result of [
-    collectMetroOwnerPreflight(
-      { originModulePath: f.context.originModulePath },
-      f.delegate,
-      f.options,
-    ),
-    collectMetroOwnerPreflight(f.context, () => ({ type: 'empty' }), f.options),
-    collectMetroOwnerPreflight(
-      f.context,
-      () => {
-        throw new Error('not installed optional peer')
-      },
-      f.options,
-    ),
-    collectMetroOwnerPreflight(f.context, f.delegate, { ...f.options, maxEdges: 1 }),
-    collectMetroOwnerPreflight(f.context, f.delegate, { ...f.options, maxPackages: 1 }),
-  ]) {
+  for (const [reason, result] of [
+    [
+      'no-context',
+      collectMetroOwnerPreflight(
+        { originModulePath: f.context.originModulePath },
+        f.delegate,
+        f.options,
+      ),
+    ],
+    [
+      'no-origins',
+      collectMetroOwnerPreflight(f.context, f.delegate, { ...f.options, origins: [] }),
+    ],
+    ['untrusted', collectMetroOwnerPreflight(f.context, () => ({ type: 'empty' }), f.options)],
+    [
+      'untrusted',
+      collectMetroOwnerPreflight(
+        f.context,
+        () => {
+          throw new Error('Metro owner preflight: edge-budget')
+        },
+        f.options,
+      ),
+    ],
+    [
+      'edge-budget',
+      collectMetroOwnerPreflight(f.context, f.delegate, { ...f.options, maxEdges: 1 }),
+    ],
+    [
+      'package-budget',
+      collectMetroOwnerPreflight(f.context, f.delegate, { ...f.options, maxPackages: 1 }),
+    ],
+    ['untrusted', collectMetroOwnerPreflight(f.context, f.delegate, { ...f.options, maxEdges: 0 })],
+  ] as const) {
     assert.equal(result.status, 'incomplete')
+    assert.equal(result.reason, reason)
     assert.ok(!('request' in result) && !('routes' in result))
   }
 })
@@ -113,4 +131,18 @@ test('metadata replacement during or after collection invalidates preflight adop
     f.options,
   )
   assert.equal(changed.status, 'incomplete')
+  assert.equal(changed.reason, 'untrusted')
+
+  writeFileSync(file, original)
+  const changedThenExhausted = collectMetroOwnerPreflight(
+    f.context,
+    (ctx, name, platform) => {
+      writeFileSync(file, `${original}\n`)
+      return f.delegate(ctx, name, platform)
+    },
+    { ...f.options, maxEdges: 1 },
+  )
+  assert.equal(changedThenExhausted.status, 'incomplete')
+  assert.equal(changedThenExhausted.reason, 'untrusted')
+  assert.match(changedThenExhausted.issues[0], /metadata changed/)
 })

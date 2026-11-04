@@ -148,7 +148,7 @@ test('an incomplete preflight fails before normal config or candidate state is p
   await assert.rejects(
     withHozoOwnerShadow(
       f.config,
-      { status: 'incomplete', issues: ['unresolved dependency'] },
+      { status: 'incomplete', reason: 'untrusted', issues: ['unresolved dependency'] },
       f.options,
     ),
     /INCOMPLETE/,

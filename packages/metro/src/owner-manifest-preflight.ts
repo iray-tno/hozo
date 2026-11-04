@@ -24,8 +24,13 @@ interface Route {
   readonly entry: string
   readonly declaredManifest: string | null
 }
+type ScopeRefusal = 'no-context' | 'no-origins' | 'package-budget' | 'edge-budget'
 export type MetroOwnerPreflight =
-  | { readonly status: 'incomplete'; readonly issues: readonly string[] }
+  | {
+      readonly status: 'incomplete'
+      readonly reason: ScopeRefusal | 'untrusted'
+      readonly issues: readonly string[]
+    }
   | {
       readonly status: 'complete'
       readonly platform: string
@@ -43,9 +48,17 @@ function fail(reason: string): never {
   throw new Error(`Metro owner preflight: ${reason}`)
 }
 
+class ScopeLimit extends Error {
+  readonly reason: ScopeRefusal
+  constructor(reason: ScopeRefusal) {
+    super(`Metro owner preflight: ${reason}`)
+    this.reason = reason
+  }
+}
+
 /** @internal Recheck on config/worker adoption, never on each warm transform. */
 export function assertMetroOwnerPreflightCurrent(
-  value: Extract<MetroOwnerPreflight, { status: 'complete' }>,
+  value: Pick<Extract<MetroOwnerPreflight, { status: 'complete' }>, 'metadata'>,
 ) {
   for (const row of value.metadata)
     if (hash(readBoundedUtf8File(row.file, 65_536)) !== row.sha256)
@@ -69,12 +82,11 @@ export function collectMetroOwnerPreflight(
     maxEdges?: number
   },
 ): MetroOwnerPreflight {
+  const metadata = new Map<string, { file: string; sha256: string }>()
   try {
     const maxPackages = options.maxPackages ?? 128,
       maxEdges = options.maxEdges ?? 512
     if (
-      !context.getPackageForModule ||
-      !options.origins.length ||
       options.origins.length > 128 ||
       !options.platform ||
       !options.epoch ||
@@ -85,8 +97,9 @@ export function collectMetroOwnerPreflight(
       maxEdges < 1 ||
       maxEdges > 512
     )
-      fail('context/origins/budget unavailable')
-    const metadata = new Map<string, { file: string; sha256: string }>()
+      fail('invalid origins/platform/epoch/budget')
+    if (!context.getPackageForModule) throw new ScopeLimit('no-context')
+    if (!options.origins.length) throw new ScopeLimit('no-origins')
     const additional = new Map<string, Map<string, string>>()
     if ((options.additionalImports?.length ?? 0) > maxEdges) fail('additional import budget')
     const originEntries = new Set(
@@ -173,12 +186,12 @@ export function collectMetroOwnerPreflight(
       const current = queue.shift()!
       const id = JSON.stringify([current.root, current.entry])
       if (visited.has(id)) continue
-      if (visited.size >= maxPackages) fail('package budget')
+      if (visited.size >= maxPackages) throw new ScopeLimit('package-budget')
       visited.add(id)
       for (const specifier of current.names) {
         const key = JSON.stringify([current.entry, specifier])
         if (routes.has(key)) continue
-        if (routes.size >= maxEdges) fail('edge budget')
+        if (routes.size >= maxEdges) throw new ScopeLimit('edge-budget')
         const resolution = delegate(
           { ...context, originModulePath: current.entry },
           specifier,
@@ -237,9 +250,22 @@ export function collectMetroOwnerPreflight(
     assertMetroOwnerPreflightCurrent(result)
     return result
   } catch (error) {
+    let reason: ScopeRefusal | 'untrusted' = 'untrusted'
+    let issue = error
+    if (error instanceof ScopeLimit) {
+      // A later budget boundary must not conceal a change to facts already
+      // observed. No partially collected routes escape either outcome.
+      try {
+        assertMetroOwnerPreflightCurrent({ metadata: [...metadata.values()] })
+        reason = error.reason
+      } catch (changed) {
+        issue = changed
+      }
+    }
     return Object.freeze({
       status: 'incomplete' as const,
-      issues: Object.freeze([String(error).slice(0, 1000)]),
+      reason,
+      issues: Object.freeze([String(issue).slice(0, 1000)]),
     })
   }
 }
