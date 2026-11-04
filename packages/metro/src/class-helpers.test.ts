@@ -43,11 +43,10 @@ test("a declared helper keeps the pressable's own pressed style", async () => {
 })
 
 const UTILS = `import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+export function cn(...inputs: ClassValue[]) { return clsx(inputs) }
 `
 
-/** A project with shadcn's `cn` behind a tsconfig `@/` alias, on disk. */
+/** A project with a `cn` behind a tsconfig `@/` alias, on disk. */
 async function detected(options: Parameters<typeof withHozo>[1]) {
   const root = mkdtempSync(path.join(tmpdir(), 'hozo-metro-found-'))
   try {
@@ -76,7 +75,7 @@ async function detected(options: Parameters<typeof withHozo>[1]) {
   }
 }
 
-test("shadcn/ui's cn is found through the tsconfig alias, with no declaration", async () => {
+test('a cn that wraps clsx is found through the tsconfig alias, with no declaration', async () => {
   const found = await detected({})
   assert.match(found.output, /hozo\w*_pressed:/)
   assert.match(found.output, /hozoClasses\(className, /)

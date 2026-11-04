@@ -30,7 +30,13 @@ pub(crate) use evaluation::{capture_evaluation, capture_template_parts};
 /// detected, since this checks the module's top-level import table rather
 /// than doing full scope resolution. Rare in practice; falls back safely if
 /// the name isn't imported from one of these packages at all.
-const RECOGNIZED_CX_MODULES: [&str; 3] = ["clsx", "classnames", "tailwind-merge"];
+///
+/// Not `tailwind-merge` (#1668). It drops an earlier class that a later one
+/// conflicts with, so `twMerge('px-3', className)` with a caller's `px-2`
+/// pads by `px-2`. Read as a join, the `px-3` compiles to a rule that a
+/// caller's Tailwind utility, layered, can never beat. The whole call stays
+/// at runtime, where the real `twMerge` decides.
+const RECOGNIZED_CX_MODULES: [&str; 2] = ["clsx", "classnames"];
 
 /// Hozo's own helper (#873), so merging a caller's `className` needs no
 /// dependency. Engine owns it and core re-exports it, so both are read.
@@ -718,8 +724,8 @@ mod tests {
             const el = <View className={cn('p-4', active && 'flex-1')} />
             "#,
         );
-        // `cn` is locally defined here, not imported from clsx/classnames/
-        // tailwind-merge, so the whole call must fall back rather than be
+        // `cn` is locally defined here, not imported from clsx or
+        // classnames, so the whole call must fall back rather than be
         // silently (mis)compiled as if it behaved like clsx.
         assert_eq!(out.declarations.len(), 0);
         assert_eq!(out.fallback.len(), 1);

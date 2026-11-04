@@ -68,8 +68,7 @@ test('a helper is found by following the import to the file it resolves to', asy
     writeFileSync(
       utils,
       `import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+export function cn(...inputs: ClassValue[]) { return clsx(inputs) }
 export function format(n: number) { return String(n) }
 `,
     )

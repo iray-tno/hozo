@@ -1,10 +1,13 @@
 //! Finding a project's own class-joining functions (#964).
 //!
-//! shadcn/ui's `cn` is the common case:
+//! A `cn` that only wraps `clsx` is the common case:
 //!
 //! ```ts
-//! export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+//! export function cn(...inputs: ClassValue[]) { return clsx(inputs) }
 //! ```
+//!
+//! shadcn/ui's, which also hands the result to `twMerge`, is not one: it
+//! resolves conflicts between classes, and a join does not (#1668).
 //!
 //! The compiler reads one file at a time, so a caller of `cn` cannot see
 //! this. Two halves make it visible without a type checker:
@@ -32,8 +35,10 @@ use oxc_span::SourceType;
 use oxc_syntax::module_record::{ExportExportName, ImportImportName, ModuleRecord};
 
 /// The joiners a helper may hand its arguments to: the modules
-/// `dynamic_class` already trusts, and `cx`.
-const JOIN_MODULES: [&str; 3] = ["clsx", "classnames", "tailwind-merge"];
+/// `dynamic_class` already trusts, and `cx`. Not `tailwind-merge`, for the
+/// reason given there: shadcn/ui's `cn` resolves conflicts, so it is not a
+/// join.
+const JOIN_MODULES: [&str; 2] = ["clsx", "classnames"];
 const HOZO_JOIN_MODULES: [&str; 2] = ["@hozo/core", "@hozo/engine"];
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -324,13 +329,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn shadcns_cn_is_a_helper() {
+    fn a_cn_that_wraps_clsx_is_a_helper() {
+        let source = "import { clsx, type ClassValue } from 'clsx'
+export function cn(...inputs: ClassValue[]) {
+  return clsx(inputs)
+}";
+        assert_eq!(summarize_class_helpers(source), ["cn"]);
+    }
+
+    #[test]
+    fn shadcns_cn_is_not_since_tailwind_merge_resolves_conflicts() {
+        // #1668: read as a join, a caller's `px-2` could not override the
+        // compiled `px-3`, where `twMerge` would have dropped the `px-3`.
         let source = "import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }";
-        assert_eq!(summarize_class_helpers(source), ["cn"]);
+        assert!(summarize_class_helpers(source).is_empty());
     }
 
     #[test]
