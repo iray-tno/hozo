@@ -70,13 +70,11 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
     const core = install('@hozo/core', '', {
       exports: { '.': './index.js', './generated/class-resolver': './resolver.js' },
     })
-    // Observe the generated map, not the real RN renderer or engine resolver.
-    writeFileSync(
+    // Keep the host stub, but execute the same resolver implementation that
+    // the generated map imports through the core facade in a real app.
+    copyFileSync(
+      new URL('../../../packages/engine/dist/class-resolver.js', import.meta.url),
       path.join(core, 'resolver.js'),
-      `
-      exports.createClassResolver = input => names =>
-        names.split(' ').map(name => (input.styles || input)[name]).filter(Boolean);
-    `,
     )
     writeFileSync(appMetadata, JSON.stringify(app))
     writeFileSync(
@@ -142,10 +140,20 @@ test('production Metro bundle delivers the opt-in carrier and the generated fall
         dev: false,
         minify: true,
       })
-      const globals = { console }
+      const warnings = []
+      const globals = { console: { ...console, warn: (message) => warnings.push(message) } }
       runInNewContext(code, globals, { timeout: 5000 })
       const { interactive, fallback } = globals.partialResult
-      assert.equal(Object.assign({}, ...fallback).paddingTop, 14)
+      assert.deepEqual(Object.assign({}, ...fallback), {
+        paddingTop: 14,
+        paddingRight: 14,
+        paddingBottom: 14,
+        paddingLeft: 14,
+        opacity: 1,
+      })
+      assert.ok(
+        warnings.some((message) => /hover:opacity-50.*hands its classes no state/.test(message)),
+      )
       if (partial) assert.equal(Object.assign({}, ...[interactive].flat()).opacity, 0.5)
       else assert.equal(interactive, null)
     }
