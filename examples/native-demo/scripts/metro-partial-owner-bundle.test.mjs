@@ -153,17 +153,32 @@ async function checkBundles(t, evidence, manifest) {
       new URL('../../../packages/engine/dist/class-resolver.js', import.meta.url),
       path.join(core, 'resolver.js'),
     )
+    // Model a regular installed dependency with platform exports, but no
+    // owner manifest. Its runtime-selected classes must stay on the ordinary
+    // resolver even when a neighboring literal gets a prepared carrier.
+    const handleInput = install('handle-input', 'throw new Error("Expected a platform export")', {
+      exports: { '.': { android: './android.js', ios: './ios.js', default: './index.js' } },
+    })
+    for (const target of ['android', 'ios'])
+      writeFileSync(
+        path.join(handleInput, `${target}.js`),
+        `export const inputPlatform = ${JSON.stringify(target)};
+        export const readHandleClass = () => globalThis.handleInput;`,
+      )
     writeFileSync(appMetadata, JSON.stringify(app))
     writeFileSync(
       file,
       `
       import {BottomSheet as Sheet} from '@hozo/patterns';
+      import {inputPlatform, readHandleClass} from 'handle-input';
       const h = (Component, props) => {
         globalThis.carrierSupplied = typeof props.hozoInteractiveHandleStyle === 'function';
         return Component(props);
       };
       const render = detents => <Sheet open detents={detents}
         handleClassName="p-2 opacity-100 hover:opacity-50" handleStyle={{paddingTop: 21}} />;
+      const renderOpaque = detents => <Sheet open detents={detents}
+        handleClassName={readHandleClass()} handleStyle={{paddingTop: 21}} />;
       function find(node, predicate) {
         if (Array.isArray(node)) return node.map(child => find(child, predicate)).find(Boolean);
         if (!node?.props) return;
@@ -171,13 +186,24 @@ async function checkBundles(t, evidence, manifest) {
         if (predicate(node.props)) return node.props;
         return find(node.props.children, predicate);
       }
-      const interactive = find(render([0.5, 1]), props => props.accessibilityRole === 'button');
-      const decorative = find(render([1]), props =>
-        props.importantForAccessibility === 'no-hide-descendants' && Array.isArray(props.style));
+      function observe(renderHandle) {
+        const interactive = find(renderHandle([0.5, 1]), props => props.accessibilityRole === 'button');
+        const interactiveCarrier = globalThis.carrierSupplied;
+        const decorative = find(renderHandle([1]), props =>
+          props.importantForAccessibility === 'no-hide-descendants' && Array.isArray(props.style));
+        const rest = {hovered:false,focused:false,pressed:false,focusVisible:false};
+        return {
+          interactive: interactive.style({...rest, hovered: true}),
+          rest: interactive.style(rest),
+          fallback: decorative.style,
+          carrierSupplied: interactiveCarrier,
+          decorativeCarrierSupplied: globalThis.carrierSupplied,
+        };
+      }
       globalThis.partialResult = {
-        interactive: interactive.style({hovered:true,focused:false,pressed:false,focusVisible:false}),
-        fallback: decorative.style,
-        carrierSupplied: globalThis.carrierSupplied,
+        inputPlatform,
+        literal: observe(render),
+        opaque: observe(renderOpaque),
       };
     `,
     )
@@ -253,11 +279,20 @@ async function checkBundles(t, evidence, manifest) {
         minify: true,
       })
       const warnings = []
-      const globals = { console: { ...console, warn: (message) => warnings.push(message) } }
+      const globals = {
+        console: { ...console, warn: (message) => warnings.push(message) },
+        handleInput: 'p-2 opacity-100 hover:opacity-50',
+      }
       runInNewContext(code, globals, { timeout: 5000 })
-      const { interactive, fallback, carrierSupplied } = globals.partialResult
+      const { inputPlatform, literal, opaque } = globals.partialResult
+      const { carrierSupplied } = literal
+      const flatten = (style) => Object.assign({}, ...style.flat(Infinity))
+      assert.equal(inputPlatform, platform)
       assert.equal(carrierSupplied, partial)
-      const fallbackStyle = Object.assign({}, ...fallback.flat(Infinity))
+      assert.equal(literal.decorativeCarrierSupplied, partial)
+      assert.equal(opaque.carrierSupplied, false)
+      assert.equal(opaque.decorativeCarrierSupplied, false)
+      const fallbackStyle = flatten(literal.fallback)
       assert.deepEqual(fallbackStyle, {
         paddingTop: 21,
         paddingRight: 14,
@@ -269,9 +304,13 @@ async function checkBundles(t, evidence, manifest) {
         /hover:opacity-50.*hands its classes no state/.test(message),
       )
       assert.ok(missingStateDiagnostic)
-      const hovered = Object.assign({}, ...interactive.flat(Infinity))
+      const hovered = flatten(literal.interactive)
       assert.equal(hovered.opacity, 0.5)
       assert.equal(hovered.paddingTop, 21)
+      assert.deepEqual(flatten(literal.rest), fallbackStyle)
+      assert.deepEqual(flatten(opaque.rest), fallbackStyle)
+      assert.deepEqual(flatten(opaque.fallback), fallbackStyle)
+      assert.deepEqual(flatten(opaque.interactive), hovered)
       evidence.builds.push({
         platform,
         mode: partial ? 'opt-in' : 'ordinary',
@@ -280,6 +319,14 @@ async function checkBundles(t, evidence, manifest) {
         fallbackStyle,
         missingStateDiagnostic,
         hover: { opacity: hovered.opacity, paddingTop: hovered.paddingTop },
+        ordinaryControl: {
+          inputPlatform,
+          carrierSupplied: opaque.carrierSupplied,
+          decorativeCarrierSupplied: opaque.decorativeCarrierSupplied,
+          rest: flatten(opaque.rest),
+          hover: flatten(opaque.interactive),
+          fallback: flatten(opaque.fallback),
+        },
       })
     }
   }
