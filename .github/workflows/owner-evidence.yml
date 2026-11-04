@@ -21,6 +21,7 @@ on:
       - 'scripts/style-slots/status.mjs'
       - 'scripts/style-slots/scoped-denominators.mjs'
       - 'scripts/style-slots/status-summary.mjs'
+      - 'scripts/style-slots/vite-evidence.mjs'
       - 'scripts/style-slots-status.test.mjs'
       - 'scripts/style-slots/owner-shadow.json'
       - 'scripts/style-slots/catalog.mjs'
@@ -97,6 +98,8 @@ jobs:
           artifacts/style-fact-model/tabs-contract-audit.json
           artifacts/style-fact-model/handle-contract-assessment.json
           artifacts/style-fact-model/handle-bundle.json
+          artifacts/style-fact-model/vite-owner-browser.json
+          artifacts/style-fact-model/vite-owner-fallback-browser.json
         if: always()
       - name: Summarize scoped styling evidence
         if: always()

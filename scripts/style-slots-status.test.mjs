@@ -29,8 +29,108 @@ import {
   tabsDeclaration,
 } from './style-slots/tabs-contract-audit.mjs'
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
+import { viteCapturedScope, viteFallbackScope, vitePhases } from './style-slots/vite-evidence.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('Vite evidence counts matched cases and rejects invented or stale build receipts', () => {
+  const hash = 'b'.repeat(64)
+  const modules = ['pkg/patterns/dist/bottom-sheet.js', 'pkg/patterns/dist/tabs.js']
+  for (const fallback of [false, true]) {
+    const routes = fallback ? ['fallback', 'ordinary', 'tailwind'] : ['vite', 'tailwind']
+    const phases = Object.entries(vitePhases)
+    const build = {
+      configuredPackages: ['owner-consumer'],
+      sourceSha256: hash,
+      entrySha256: hash,
+      preparedNamespacesAbsent: true,
+      modules,
+      owners: [],
+    }
+    const receipt = {
+      schema: 1,
+      scope: fallback ? viteFallbackScope : viteCapturedScope,
+      passed: true,
+      trackedChanges: false,
+      sourceCommit: commit,
+      sourceSha256: hash,
+      modules,
+      capture: { fingerprint: hash },
+      owners: [
+        ['BottomSheet.handle', 2],
+        ['Tabs.Tab', 1],
+      ].map(([owner, count]) => ({
+        identity: {
+          owner,
+          platform: 'web',
+          specifier: '@hozo/patterns',
+          manifestSha256: hash,
+          captureFingerprint: hash,
+        },
+        findings: Array.from({ length: count }, () => ({ disposition: 'prepared-literal' })),
+      })),
+      fallbackBuild: { ...build, admission: { route: 'ordinary-fallback' } },
+      ordinaryBuild: { ...build, admission: null },
+      observations: phases.flatMap(([kind, names]) =>
+        routes.flatMap((route) =>
+          names.map((phase) => ({
+            kind,
+            route,
+            phase,
+            rows: Array.from({ length: kind === 'tabs' ? 3 : 1 }, () => ({
+              padding: phase === 'sheet-removed' ? 0 : 4,
+              opacity: 1,
+              background: 'transparent',
+              selected: null,
+              disabled: false,
+              rowGap: 'normal',
+              columnGap: 'normal',
+            })),
+          })),
+        ),
+      ),
+      controls: phases.flatMap(([kind]) =>
+        routes.map((route) => ({
+          kind,
+          route,
+          sameOwner: true,
+          absentStylesheetDetected: true,
+        })),
+      ),
+    }
+    const assess = (value) =>
+      stylingFactStatus({ commit, expectedManifestSha256: hash, receipts: [value] })
+    const report = assess(receipt)
+    assert.equal(report.observations[0].matchedPairs, fallback ? 30 : 15)
+    assert.equal(
+      report.scopedDenominators.find((row) => row.scope === receipt.scope).verified,
+      fallback ? 30 : 15,
+    )
+    for (const mutate of [
+      (value) => {
+        value.observations[0].rows[0].padding = 7
+      },
+      (value) => {
+        value.observations.push(value.observations[0])
+      },
+      (value) => {
+        value.controls.pop()
+      },
+      (value) => {
+        if (fallback) value.ordinaryBuild.entrySha256 = 'c'.repeat(64)
+        else value.owners[0].identity.manifestSha256 = 'c'.repeat(64)
+      },
+    ]) {
+      const invalid = structuredClone(receipt)
+      mutate(invalid)
+      assert.equal(assess(invalid).observations[0].status, 'invalid')
+    }
+    assert.equal(
+      assess({ ...receipt, sourceCommit: 'c'.repeat(40) }).observations[0].status,
+      'stale',
+    )
+  }
+})
 
 test('partial handle evidence requires the same capture and only decorative resolution', () => {
   const identity = {
