@@ -228,7 +228,17 @@ async function checkBundles(t, evidence, manifest) {
       watchFolders: [f.root, metroRuntimeRoot, ...defaults.watchFolders],
       maxWorkers: 1,
       resetCache: true,
-      resolver: { ...defaults.resolver, useWatchman: false },
+      resolver: {
+        ...defaults.resolver,
+        useWatchman: false,
+        // Keep build resolution aligned with the preflight fixture's explicit
+        // package-export conditions. Metro's stock Native config does not
+        // assert the Android/iOS condition names for this package by default.
+        unstable_conditionsByPlatform: {
+          ...defaults.resolver.unstable_conditionsByPlatform,
+          ...f.context.unstable_conditionsByPlatform,
+        },
+      },
       transformer: {
         ...defaults.transformer,
         babelTransformerPath: upstream,
