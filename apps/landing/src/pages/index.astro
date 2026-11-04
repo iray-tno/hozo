@@ -66,6 +66,22 @@ const codeSamples = await buildCodeShowcase(codeThemeSource)
         },
       ]}
     />
+    {/* Dark is `data-theme` on this site (`@custom-variant dark`, #1654), which
+        Starlight sets in /docs from its theme selector. This page has no
+        selector, so its UI showcase keeps following the OS: the attribute
+        mirrors `prefers-color-scheme`, set before first paint and kept in
+        step. Here and not in SiteHead, because the other pages show no
+        component and some are checked to ship no script at all. */}
+    <script is:inline>
+      {
+        const scheme = matchMedia('(prefers-color-scheme: dark)')
+        const apply = () => {
+          document.documentElement.dataset.theme = scheme.matches ? 'dark' : 'light'
+        }
+        apply()
+        scheme.addEventListener('change', apply)
+      }
+    </script>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
