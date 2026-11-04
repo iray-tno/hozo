@@ -95,11 +95,15 @@ test('component audit retains network failures and the original failed verdict b
               fetch('/slow').catch(() => {})
             }),
           ])
+          // What the exercise saw when it gave up survives beside the
+          // page's own diagnostics (#1603).
+          sentinel.diagnostics = { state: { chosen: ['Chosen: #ef4444'] } }
           throw sentinel
         },
       }),
       (error) => {
         assert.equal(error, sentinel)
+        assert.deepEqual(error.diagnostics.state, { chosen: ['Chosen: #ef4444'] })
         assert.equal(error.diagnostics.requests.pending[0].url, `${base}/slow`)
         assert.ok(error.diagnostics.requests.pending[0].elapsedMs >= 0)
         return true

@@ -24,7 +24,15 @@ export async function auditComponentPage(page, { name, url, exercise }) {
     // Snapshot before closing the page; close-induced cancellations describe
     // cleanup rather than the failure that stopped the audit.
     const failure = error instanceof Error ? error : new Error(String(error), { cause: error })
-    failure.diagnostics = { name, url, consoleErrors: [...errors], requests: requests.snapshot() }
+    // An exercise can attach what its page looked like when it gave up
+    // (`failure.diagnostics.state`); it is kept beside the page's own.
+    failure.diagnostics = {
+      ...failure.diagnostics,
+      name,
+      url,
+      consoleErrors: [...errors],
+      requests: requests.snapshot(),
+    }
     throw failure
   } finally {
     requests.stop()
