@@ -286,10 +286,23 @@ async function checkBundles(t, evidence, manifest) {
       ],
     }
     const preflight = collectMetroOwnerPreflight(f.context, f.delegate, capture)
-    const limited = collectMetroOwnerPreflight(f.context, f.delegate, { ...capture, maxEdges: 1 })
-    assert.equal(limited.status, 'incomplete')
-    assert.equal(limited.reason, 'edge-budget')
     assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
+    // Keep the explicit subpath inventory valid, then exhaust the budget
+    // while traversing the larger dependency closure.
+    const maxEdges = capture.additionalImports.length
+    assert.ok(preflight.routes.length > maxEdges)
+    let resolvedEdges = 0
+    const limited = collectMetroOwnerPreflight(
+      f.context,
+      (...args) => {
+        resolvedEdges++
+        return f.delegate(...args)
+      },
+      { ...capture, maxEdges },
+    )
+    assert.equal(limited.status, 'incomplete', JSON.stringify(limited))
+    assert.equal(limited.reason, 'edge-budget', JSON.stringify(limited))
+    assert.equal(resolvedEdges, maxEdges)
     assert.ok(
       preflight.routes.some((row) => row.importer === file && row.specifier === '@hozo/patterns'),
     )
