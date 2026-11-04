@@ -19,6 +19,7 @@ on:
       - 'scripts/style-slots/tabs-contract-audit.mjs'
       - 'scripts/style-slots/handle-contract-assessment.mjs'
       - 'scripts/style-slots/status.mjs'
+      - 'scripts/style-slots/scoped-denominators.mjs'
       - 'scripts/style-slots-status.test.mjs'
       - 'scripts/style-slots/owner-shadow.json'
       - 'scripts/style-slots/catalog.mjs'
@@ -31,6 +32,7 @@ on:
       - 'packages/tailwind-conformance/src/text-child-containers.test.ts'
       - 'packages/behaviors/src/text-child.native.tsx'
       - 'packages/tailwind-conformance/src/bottom-sheet-prepared-handle.test.ts'
+      - 'packages/tailwind-conformance/src/owner-bundle.test.ts'
       - 'packages/compiler/src/owner-*.ts'
       - 'crates/hozo_native/src/owner_style.rs'
       - 'crates/hozo_web/src/owner_class.rs'
@@ -73,6 +75,7 @@ jobs:
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/tabs-owner-state.test.ts packages/tailwind-conformance/src/tabs-prepared-owner.test.ts packages/tailwind-conformance/src/tabs-compiled-owner.test.ts examples/storybook-demo/scripts/owner-tabs.test.mjs
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-vite.test.mjs
       - run: node --test --test-concurrency=1 examples/native-demo/scripts/metro-partial-owner-bundle.test.mjs
+      - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/owner-bundle.test.ts
       # Read real receipts from this checkout; a missing/stale probe fails the
       # bounded audit rather than quietly inheriting a previous green report.
       - run: node scripts/style-slots/owner-input-audit.mjs --output artifacts/style-fact-model/owner-input-audit.json
@@ -87,7 +90,12 @@ jobs:
           name: handle-contract-assessment
           path: artifacts/style-fact-model/handle-contract-assessment.json
           if-no-files-found: error
-      - run: node scripts/style-slots/status.mjs --output artifacts/style-fact-model/styling-fact-status.json artifacts/style-fact-model/tabs-contract-audit.json artifacts/style-fact-model/handle-contract-assessment.json
+      - run: >-
+          node scripts/style-slots/status.mjs
+          --output artifacts/style-fact-model/styling-fact-status.json
+          artifacts/style-fact-model/tabs-contract-audit.json
+          artifacts/style-fact-model/handle-contract-assessment.json
+          artifacts/style-fact-model/handle-bundle.json
         if: always()
       - uses: actions/upload-artifact@v4
         if: always()
@@ -117,6 +125,7 @@ jobs:
             artifacts/style-fact-model/handle-inputs-native.json
             artifacts/style-fact-model/handle-states-native.json
             artifacts/style-fact-model/handle-inputs-browser.json
+            artifacts/style-fact-model/handle-bundle.json
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: always()
