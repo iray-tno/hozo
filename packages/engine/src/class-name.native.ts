@@ -43,6 +43,16 @@ declare module 'react-native' {
   interface ImagePropsBase {
     /** Tailwind classes the compiler lowers to a `StyleSheet` entry. */
     className?: string
+    // Unlike `className`, these reach the component, and React Native's
+    // `Image` ignores them. Declared so that shared source passing the Web
+    // `<img>` hints also type-checks against React Native (#1674). React
+    // Native declares `width` and `height` itself.
+    /** Web only. */
+    loading?: 'eager' | 'lazy'
+    /** Web only. */
+    decoding?: 'async' | 'auto' | 'sync'
+    /** Web only. */
+    fetchPriority?: 'auto' | 'high' | 'low'
   }
   interface FlatListProps<ItemT> {
     /** Tailwind classes the compiler lowers to a `StyleSheet` entry. */

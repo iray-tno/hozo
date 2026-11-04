@@ -161,3 +161,27 @@ test('uncompiled Image falls back to defaultSource on pre-hydration failure, ski
   assert.equal(failed.root.findByType('img').props.src, '/fallback.png')
   await testRenderer.act(async () => failed.unmount())
 })
+
+test('uncompiled Image forwards intrinsic size and loading hints as the compiled img does (#1674)', () => {
+  const html = renderToStaticMarkup(
+    createElement(Image, {
+      src: '/shot.png',
+      alt: 'Shot',
+      width: 1200,
+      height: 800,
+      loading: 'lazy',
+      decoding: 'async',
+      fetchPriority: 'high',
+      className: 'w-full',
+    }),
+  )
+  for (const attribute of [
+    'width="1200"',
+    'height="800"',
+    'loading="lazy"',
+    'decoding="async"',
+    'fetchPriority="high"',
+  ]) {
+    assert.ok(html.includes(attribute), `${attribute} missing from ${html}`)
+  }
+})
