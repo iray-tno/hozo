@@ -26,6 +26,9 @@ export const MAX_STEPS = 60
 /** Fewer non-empty phrases than this means the reader never read the page. */
 export const MIN_SPOKEN = 3
 
+/** How long VoiceOver waits before speaking a hint; see `startOptions`. */
+export const VOICEOVER_HINT_DELAY_S = 3600
+
 // NVDA stays in browse mode when focus moves.
 //
 // Guidepup enters the page by tabbing to its first focusable element. In five
@@ -48,7 +51,20 @@ export const startOptions = onWindows
         },
       },
     }
-  : { capture: 'initial' as const }
+  : {
+      capture: 'initial' as const,
+      // VoiceOver speaks a usage hint ("You are currently on a vertical
+      // splitter, inside of web content. To start interacting ...") after the
+      // cursor has rested for this long, 1s by default. `spokenAfter` waits
+      // for 1.2s of quiet before the next key, so the hint could start in that
+      // gap. VoiceOver logs it as one phrase and goes on speaking it for
+      // seconds, so the next key was pressed into it and its announcement was
+      // dropped, and every key after that alternated between the hint and
+      // nothing (#1642). An hour is longer than any test rests anywhere.
+      // Merged into Guidepup's own VoiceOver preferences, where the probe in
+      // #1646 found this key at 1.
+      settings: { SCRContextualHelpDelayInSeconds: VOICEOVER_HINT_DELAY_S },
+    }
 
 /** Starts a recording of one page's reading, and returns the stop function. */
 export function startRecording(id: string): () => void {
