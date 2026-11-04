@@ -148,6 +148,8 @@ const projectionPresent = {
 }
 const classOnly = [
   'packages/form/src/field.native.tsx',
+  // The player's box only, on top of its default size (#1674).
+  'packages/media/src/video.native.tsx',
   'packages/patterns/src/control-indicator.native.tsx',
 ]
 const pending = [
