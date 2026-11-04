@@ -14,8 +14,13 @@ The external-peer component bundle reports bytes separately from its two-build
 denominator; it is neither the Metro bundle proof nor an application budget.
 
 The registry can accept further assessed scopes without changing the report
-format. The initial rows cover the current BottomSheet and Tabs evidence and a
-component build pair. They are fixture observations, not the §6 denominators
+format. The rows cover the current BottomSheet and Tabs evidence, a component
+build pair and actual Vite browser fixtures. Vite has separate captured and
+ordinary/fallback comparisons against Tailwind: 15 and 30 matched
+widget/phase/route pairs respectively. Stylesheet-removal controls are
+required but do not count as matching pairs.
+
+These are fixture observations, not the §6 denominators
 for global coverage, fidelity, diagnostic completeness or contract audit.
 In particular, a measured Native partial delivery does not turn the
 decorative shape into a stateful host or certify operating-system behavior.
