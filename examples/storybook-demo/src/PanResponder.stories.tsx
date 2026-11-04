@@ -56,21 +56,20 @@ function Draggable() {
   return (
     <View className="space-y-3">
       <View className="relative h-48 overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
-        {/* A plain `div`, not a `View`. The offset is a number that
-            changes every frame, and Hozo's primitives take `className`
-            rather than `style` -- there is no class for "37 pixels right
-            of where you were". Carrying an unmodelled element with the
-            tree around it still compiled is the escape hatch working as
-            designed, and a gesture demo is exactly what it is for. */}
-        <div
+        {/* A `View`, as React Native code would write it. The responder
+            props are React Native's, and only a primitive connects them to
+            pointer events: on a plain `div` the browser ignored them and
+            the card never moved (#1678). The offset changes every frame,
+            so it is a `style` transform rather than a class. */}
+        <View
           {...responder.panHandlers}
-          className={`absolute w-fit rounded-xl px-5 py-4 select-none ${
+          className={`absolute w-fit touch-none rounded-xl px-5 py-4 select-none ${
             dragging ? 'bg-indigo-600' : 'bg-slate-900'
           }`}
-          style={{ transform: `translate(${offset.x}px, ${offset.y}px)`, touchAction: 'none' }}
+          style={{ transform: [{ translateX: offset.x }, { translateY: offset.y }] }}
         >
           <Text className="text-sm font-semibold text-white">Drag me</Text>
-        </div>
+        </View>
       </View>
       <View className="flex flex-row flex-wrap gap-4">
         {(
