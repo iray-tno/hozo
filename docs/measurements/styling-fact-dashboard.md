@@ -36,6 +36,12 @@ to enable the route by default. The dashboard reports these controls
 separately: older build-only receipts cannot satisfy them, and partial or
 wrong-platform controls have no verified count.
 
+A second exclusion control checks a local Metro-reachable sibling omitted
+from caller preflight. Even an identical literal class must stay ordinary
+there, while its captured neighbor may receive the carrier. This separates
+caller identity from the opaque-input restriction; it is not general graph
+discovery evidence.
+
 These are fixture observations, not the §6 denominators
 for global coverage, fidelity, diagnostic completeness or contract audit.
 In particular, a measured Native partial delivery does not turn the

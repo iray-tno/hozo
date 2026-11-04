@@ -165,18 +165,31 @@ async function checkBundles(t, evidence, manifest) {
         `export const inputPlatform = ${JSON.stringify(target)};
         export const readHandleClass = () => globalThis.handleInput;`,
       )
+    // Identical literal input in a real Metro-reachable sibling is still not
+    // eligible: the current partial transform requires an exact caller route.
+    const uncapturedFile = path.join(f.root, 'Uncaptured.tsx')
+    const handleClass = 'p-2 opacity-100 hover:opacity-50'
+    writeFileSync(
+      uncapturedFile,
+      `
+      import {BottomSheet as Sheet} from '@hozo/patterns';
+      export const renderUncaptured = (h, detents) => <Sheet open detents={detents}
+        handleClassName="${handleClass}" handleStyle={{paddingTop: 21}} />;
+    `,
+    )
     writeFileSync(appMetadata, JSON.stringify(app))
     writeFileSync(
       file,
       `
       import {BottomSheet as Sheet} from '@hozo/patterns';
       import {inputPlatform, readHandleClass} from 'handle-input';
+      import {renderUncaptured} from './Uncaptured';
       const h = (Component, props) => {
         globalThis.carrierSupplied = typeof props.hozoInteractiveHandleStyle === 'function';
         return Component(props);
       };
       const render = detents => <Sheet open detents={detents}
-        handleClassName="p-2 opacity-100 hover:opacity-50" handleStyle={{paddingTop: 21}} />;
+        handleClassName="${handleClass}" handleStyle={{paddingTop: 21}} />;
       const renderOpaque = detents => <Sheet open detents={detents}
         handleClassName={readHandleClass()} handleStyle={{paddingTop: 21}} />;
       function find(node, predicate) {
@@ -204,6 +217,7 @@ async function checkBundles(t, evidence, manifest) {
         inputPlatform,
         literal: observe(render),
         opaque: observe(renderOpaque),
+        uncaptured: observe(detents => renderUncaptured(h, detents)),
       };
     `,
     )
@@ -268,6 +282,10 @@ async function checkBundles(t, evidence, manifest) {
       ],
     })
     assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
+    assert.ok(
+      preflight.routes.some((row) => row.importer === file && row.specifier === '@hozo/patterns'),
+    )
+    assert.ok(!preflight.routes.some((row) => row.importer === uncapturedFile))
     for (const partial of [false, true]) {
       const configured = partial
         ? await withHozoPartialOwners(config, preflight, options)
@@ -291,17 +309,15 @@ async function checkBundles(t, evidence, manifest) {
       const warnings = []
       const globals = {
         console: { ...console, warn: (message) => warnings.push(message) },
-        handleInput: 'p-2 opacity-100 hover:opacity-50',
+        handleInput: handleClass,
       }
       runInNewContext(code, globals, { timeout: 5000 })
-      const { inputPlatform, literal, opaque } = globals.partialResult
+      const { inputPlatform, literal, opaque, uncaptured } = globals.partialResult
       const { carrierSupplied } = literal
       const flatten = (style) => Object.assign({}, ...style.flat(Infinity))
       assert.equal(inputPlatform, platform)
       assert.equal(carrierSupplied, partial)
       assert.equal(literal.decorativeCarrierSupplied, partial)
-      assert.equal(opaque.carrierSupplied, false)
-      assert.equal(opaque.decorativeCarrierSupplied, false)
       const fallbackStyle = flatten(literal.fallback)
       assert.deepEqual(fallbackStyle, {
         paddingTop: 21,
@@ -318,9 +334,23 @@ async function checkBundles(t, evidence, manifest) {
       assert.equal(hovered.opacity, 0.5)
       assert.equal(hovered.paddingTop, 21)
       assert.deepEqual(flatten(literal.rest), fallbackStyle)
-      assert.deepEqual(flatten(opaque.rest), fallbackStyle)
-      assert.deepEqual(flatten(opaque.fallback), fallbackStyle)
-      assert.deepEqual(flatten(opaque.interactive), hovered)
+      function ordinaryControl(control) {
+        const result = {
+          carrierSupplied: control.carrierSupplied,
+          decorativeCarrierSupplied: control.decorativeCarrierSupplied,
+          rest: flatten(control.rest),
+          hover: flatten(control.interactive),
+          fallback: flatten(control.fallback),
+        }
+        assert.deepEqual(result, {
+          carrierSupplied: false,
+          decorativeCarrierSupplied: false,
+          rest: fallbackStyle,
+          hover: hovered,
+          fallback: fallbackStyle,
+        })
+        return result
+      }
       evidence.builds.push({
         platform,
         mode: partial ? 'opt-in' : 'ordinary',
@@ -331,12 +361,9 @@ async function checkBundles(t, evidence, manifest) {
         hover: { opacity: hovered.opacity, paddingTop: hovered.paddingTop },
         ordinaryControl: {
           inputPlatform,
-          carrierSupplied: opaque.carrierSupplied,
-          decorativeCarrierSupplied: opaque.decorativeCarrierSupplied,
-          rest: flatten(opaque.rest),
-          hover: flatten(opaque.interactive),
-          fallback: flatten(opaque.fallback),
+          ...ordinaryControl(opaque),
         },
+        uncapturedControl: ordinaryControl(uncaptured),
       })
     }
   }

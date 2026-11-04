@@ -134,6 +134,26 @@ test('Metro denominator requires all four current platform/route builds and thei
       .status,
     'invalid',
   )
+  const uncapturedRow = (value) => row([value], false, 'metro-uncaptured-owner-ordinary-control')
+  assert.equal(uncapturedRow(withControls).status, 'missing')
+  const withUncaptured = {
+    ...withControls,
+    builds: withControls.builds.map(({ ordinaryControl, ...build }) => {
+      const { inputPlatform: _inputPlatform, ...uncapturedControl } = ordinaryControl
+      return { ...build, ordinaryControl, uncapturedControl }
+    }),
+  }
+  assert.equal(uncapturedRow(withUncaptured).verified, 4)
+  const [first, ...otherBuilds] = withUncaptured.builds
+  const leaked = {
+    ...withUncaptured,
+    builds: [
+      { ...first, uncapturedControl: { ...first.uncapturedControl, carrierSupplied: true } },
+      ...otherBuilds,
+    ],
+  }
+  assert.equal(uncapturedRow(leaked).status, 'invalid')
+  assert.equal(controlRow(leaked).verified, 4)
 })
 
 test('Vite evidence counts matched cases and rejects invented or stale build receipts', () => {

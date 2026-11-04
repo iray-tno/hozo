@@ -108,6 +108,15 @@ const domains = [
     (row) => row.ordinaryControl?.verified,
     (row) => row.ordinaryControl?.status,
   ],
+  [
+    metroBundleScope,
+    'metro-uncaptured-owner-ordinary-control',
+    'native-build',
+    'uncaptured caller exclusion control',
+    metroBundleBuilds,
+    (row) => row.uncapturedControl?.verified,
+    (row) => row.uncapturedControl?.status,
+  ],
 ]
 
 function handleCount(row, domain) {

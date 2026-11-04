@@ -11,14 +11,14 @@ const fallbackStyle = {
   opacity: 1,
 }
 
-function assessOrdinaryControls(builds) {
-  if (builds.every((row) => !Object.hasOwn(row, 'ordinaryControl'))) return { status: 'missing' }
+function assessOrdinaryControls(builds, key, checkInputPlatform = false) {
+  if (builds.every((row) => !Object.hasOwn(row, key))) return { status: 'missing' }
   const hover = { ...fallbackStyle, opacity: 0.5 }
   if (
     !builds.every(
-      ({ platform, ordinaryControl: control }) =>
-        control?.inputPlatform === platform &&
-        control.carrierSupplied === false &&
+      ({ platform, [key]: control }) =>
+        control?.carrierSupplied === false &&
+        (!checkInputPlatform || control.inputPlatform === platform) &&
         control.decorativeCarrierSupplied === false &&
         isDeepStrictEqual(control.rest, fallbackStyle) &&
         isDeepStrictEqual(control.hover, hover) &&
@@ -58,6 +58,7 @@ export function assessMetroBundleEvidence(receipt, expectedManifestSha256) {
     owner: 'BottomSheet.handle',
     manifestSha256: receipt.manifestSha256,
     bundleBuilds: metroBundleBuilds,
-    ordinaryControl: assessOrdinaryControls(receipt.builds),
+    ordinaryControl: assessOrdinaryControls(receipt.builds, 'ordinaryControl', true),
+    uncapturedControl: assessOrdinaryControls(receipt.builds, 'uncapturedControl'),
   }
 }
