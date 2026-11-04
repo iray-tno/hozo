@@ -29,6 +29,7 @@ import {
   withHozo,
   withHozoOwnerCandidates,
   withHozoPartialOwners,
+  withHozoPartialOwnersOrOrdinary,
 } from './config.ts'
 import { getCacheKey, transform } from './index.ts'
 import { collectMetroOwnerPreflight } from './owner-manifest-preflight.ts'
@@ -75,6 +76,49 @@ function resolver(root: string) {
     { createClassResolver },
   ) as ReturnType<typeof createClassResolver>
 }
+
+test('explicit partial-owner fallback selects the unchanged ordinary worker only for bounded refusals', async (t) => {
+  const f = fixture(t)
+  const ordinary = await withHozo(f.config, f.options)
+  const candidate = readFileSync(candidateModulePath(f.root), 'utf8')
+  const key = getCacheKey({ projectRoot: f.root })
+  const output = await transform(f.params)
+  assert.match(String(output), /paddingTop:\s*28/)
+  const capture = (options = {}) =>
+    collectMetroOwnerPreflight(f.context, f.delegate, {
+      origins: [f.context.originModulePath],
+      platform: 'android',
+      epoch: 'admission',
+      ...options,
+    })
+  const refusal = capture({ maxEdges: 1 })
+  await assert.rejects(withHozoPartialOwners(f.config, refusal, f.options), /INCOMPLETE/)
+  const fallback = await withHozoPartialOwnersOrOrdinary(f.config, refusal, f.options)
+  assert.deepEqual(fallback.admission, { route: 'ordinary-fallback', reason: 'edge-budget' })
+  assert.deepEqual(fallback.config.transformer, ordinary.transformer)
+  assert.equal(readMetroState(f.root)?.ownerShadow, undefined)
+  assert.equal(readFileSync(candidateModulePath(f.root), 'utf8'), candidate)
+  assert.equal(getCacheKey({ projectRoot: f.root }), key)
+  assert.equal(await transform(f.params), output)
+
+  await assert.rejects(
+    withHozoPartialOwnersOrOrdinary(f.config, capture({ maxEdges: 0 }), f.options),
+    /INCOMPLETE/,
+  )
+  const current = capture()
+  assert.equal(current.status, 'complete')
+  const admitted = await withHozoPartialOwnersOrOrdinary(f.config, current, f.options)
+  assert.deepEqual(admitted.admission, { route: 'partial-owners' })
+  assert.equal(readMetroState(f.root)?.ownerShadow?.mode, 'partial-owner-transform')
+  const metadata = path.join(f.root, 'package.json')
+  writeFileSync(metadata, `${readFileSync(metadata, 'utf8')}\n`)
+  const before = readFileSync(metroStatePath(f.root), 'utf8')
+  await assert.rejects(
+    withHozoPartialOwnersOrOrdinary(f.config, current, f.options),
+    /metadata changed/,
+  )
+  assert.equal(readFileSync(metroStatePath(f.root), 'utf8'), before)
+})
 
 test('two actual Metro-resolved package instances feed the real themed resolver and static worker', {
   timeout: 10000,
