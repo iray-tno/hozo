@@ -112,12 +112,32 @@ Medians at 1000 lines, 8 tokens a line, line numbers on:
 | --- | --- | --- | --- |
 | Scroll UI frame p95 within +10% of the plain list | 102.7 vs 103.7 ms | 88.0 vs 86.5 ms (+1.7%) | Met |
 | One-line edit at most 100 ms | 86 ms | 84 ms | Met |
-| Settled mount: a recorded ceiling, not yet reduced | 1176 vs 206 ms (5.7x, ceiling 6x) | 237 vs 20 ms (11.9x, ceiling 12x) | Recorded |
+| Settled mount: a recorded ceiling, not yet reduced | 1176 vs 206 ms (5.7x, ceiling 6x) | 237 vs 20 ms (11.9x, ceiling 25x) | Recorded |
 
 - Scroll and mount are from runs 40820765315 (whole) and 40820767773 (windowed).
 - Edits are from runs 40816119756 and 40816122978. A line an edit leaves alone keeps its row (#1396).
 - Scrolling frames are the same for the block and for plain text, so the 67–104 ms frames belong to SwiftShader, not to CodeBlock. The block's extra cost is on the JS thread: scroll rAF p95 is 46 against 19 ms whole, and 23 against 17 ms windowed.
 - A mount ratio past its ceiling, measured in one run, is a regression. Lowering the ratios is [#1420](https://github.com/iray-tno/hozo/issues/1420).
+- The windowed ceiling was 12x, set from one run, and was widened to 25x after four more. A windowed plain list mounts in 19–26 ms with no measurable JS busy time, whatever the host, so it does not cancel the host's speed the way the whole list's 206 ms does. The same block's ratio moved between 9.9x and 21.2x (runs 41791514712, 41845019237, 41910312579, 41915512341), and 21.2x and 14.9x on the same CPU model. Windowing itself still cuts the block's mount from 1176 to 255–455 ms.
+
+### What each part costs at mount, windowed
+
+Medians of 12 mounts at 1000 lines, three rounds in each of the four runs above. The busy column is the JS thread's busy time until settled, which moves less than the elapsed time; ranges are still wide, so read differences under about 50 ms as noise.
+
+| Block | Elapsed ms (range) | JS busy ms |
+| --- | --- | --- |
+| Whole: gutter, 8 tokens a line, wrapped | 341 (208–805) | 270 |
+| `unwrapped`: `wrap` off | 297 (203–750) | 247 |
+| `no-gutter`: no line numbers | 272 (170–379) | 219 |
+| `unwrapped-no-gutter` | 320 (70–392) | 222 |
+| `one-token`: each line one string | 229 (36–267) | 135 |
+| `highlighted`: Shiki output for real source | 111 (52–352) | 96 |
+| `bare`: one string, no gutter | 154 (35–279) | 82 |
+| Plain list | 23 (19–556) | 0 |
+
+- Tokens drawn as nested `Text` are the largest part, about 135 ms of 270 busy. Real highlighter output costs much less than the fixture, since its neighbouring tokens often draw the same and a line drawn in one style needs no nested `Text` (#1431).
+- The gutter is about 50 ms; `wrap` makes no difference that this noise can show.
+- `bare` still costs 82 ms against the plain list's 0. Not yet measured apart, the candidates are the row `View`, each row's style resolution and accessibility label, and the work over all 1000 lines that windowing does not skip (normalizing them and the row key).
 - An update that replaces every line was not given a target. It still costs about 900 ms whole at 1000 lines.
 
 ## Measured limit and application guidance
