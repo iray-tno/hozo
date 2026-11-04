@@ -71,8 +71,9 @@ const PATTERN_HOSTS: [(&str, &str, bool); 3] = [
 ];
 
 /// The `cx`-shaped helpers whose arguments are read one by one, as
-/// `dynamic_class` reads them.
-const JOIN_MODULES: [&str; 3] = ["clsx", "classnames", "tailwind-merge"];
+/// `dynamic_class` reads them. Not `tailwind-merge`, for the reason given
+/// there.
+const JOIN_MODULES: [&str; 2] = ["clsx", "classnames"];
 const HOZO_JOIN_MODULES: [&str; 2] = ["@hozo/core", "@hozo/engine"];
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]

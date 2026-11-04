@@ -45,20 +45,26 @@ in the stylesheet, on the Web, and over `StyleSheet` entries on React Native.
 </CompiledExample>
 
 The shapes it reads are a string, `&&`, a ternary, a template literal, and a
-call to `cx` from `@hozo/core`, or to a function imported from `clsx`,
-`classnames` or `tailwind-merge`. Inside them, a part it cannot read, such as
+call to `cx` from `@hozo/core`, or to a function imported from `clsx` or
+`classnames`. Inside them, a part it cannot read, such as
 a caller's `className`, falls back alone and the rest still compiles.
 
 A project's own helper is not one of them, even when it only wraps those
-libraries, as shadcn/ui's `cn` in `@/lib/utils` does. The compiler reads one
+libraries, as a `cn` in `@/lib/utils` often does. The compiler reads one
 file at a time, so it cannot see what `cn` does, and the whole call takes the
 runtime fallback below. On the Web the classes still apply. On React Native,
 `hover:`, `active:`, `disabled:` and `focus-visible:` cannot be carried by
 the fallback, so the component loses its state styles.
 
 So Hozo follows the import to the helper's file and reads it. A
-function that only hands its arguments to `clsx`, `classnames`,
-`tailwind-merge` or `cx`, as `cn` does, is then read as `clsx` is (#964).
+function that only hands its arguments to `clsx`, `classnames` or `cx` is
+then read as `clsx` is (#964).
+
+`tailwind-merge` is not read this way, nor is shadcn/ui's `cn`, which hands
+its result to it. It drops a class that a later one conflicts with, so a
+caller's `px-2` replaces the component's `px-3`. Compiled, the `px-3` would
+win instead (#1668). Those calls stay at runtime, where `twMerge` decides.
+
 Anything else can be declared, and a declaration wins over what was found:
 
 ```ts

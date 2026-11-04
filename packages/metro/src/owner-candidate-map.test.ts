@@ -349,7 +349,7 @@ test('manifest-backed instances stop candidate extraction while StyleX, helper a
   )
   writeFileSync(
     path.join(f.first, 'helper.ts'),
-    `import {clsx} from 'clsx';import {twMerge} from 'tailwind-merge';export function cn(...inputs){return twMerge(clsx(inputs))}`,
+    `import {clsx} from 'clsx';export function cn(...inputs){return clsx(inputs)}`,
   )
   const caller = path.join(f.first, 'Row.tsx')
   writeFileSync(

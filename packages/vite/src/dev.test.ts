@@ -769,14 +769,13 @@ export const Card = ({ className }) => <View className={cn('p-4 hover:p-6', clas
   assert.match(companion, /:hover/)
 })
 
-test("shadcn/ui's cn is found with no declaration, and recognize: false undoes it (#964)", async () => {
+test('a cn that wraps clsx is found with no declaration, and recognize: false undoes it (#964)', async () => {
   const card = `import { View } from '@hozo/core'
 import { cn } from '@/lib/utils'
 export const Card = ({ className }) => <View className={cn('p-4 hover:p-6', className)} />
 `
   const utils = `import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
-export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+export function cn(...inputs: ClassValue[]) { return clsx(inputs) }
 `
   const transformCard = async (options: HozoOptions) => {
     const root = project({ 'Card.tsx': card, 'lib/utils.ts': utils })
@@ -793,4 +792,22 @@ export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
     /\bcn\(/,
     'the declaration did not override what was found',
   )
+})
+
+test("shadcn/ui's cn stays at runtime, so a caller's utility still overrides it (#1668)", async () => {
+  const card = `import { View } from '@hozo/core'
+import { cn } from '@/lib/utils'
+export const Card = ({ className }) => <View className={cn('px-3 uppercase', className)} />
+`
+  const utils = `import { clsx, type ClassValue } from 'clsx'
+import { twMerge } from 'tailwind-merge'
+export function cn(...inputs: ClassValue[]) { return twMerge(clsx(inputs)) }
+`
+  const root = project({ 'Card.tsx': card, 'lib/utils.ts': utils })
+  const server = await serve(root, {}, { '@/lib/utils': path.join(root, 'lib', 'utils.ts') })
+  const result = await server.transformRequest('/Card.tsx')
+  assert.ok(result, 'the module was not transformed')
+  // Compiled, `px-3` would be a rule a caller's layered `px-2` cannot beat.
+  // Carried, the real twMerge drops it.
+  assert.match(result.code, /\bcn\(["']px-3 uppercase["'], className\)/)
 })

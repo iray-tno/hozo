@@ -271,9 +271,10 @@ export interface HozoProjectOptions {
    * automatically.
    *
    * Declaring one is a promise that it only joins its truthy string
-   * arguments. A helper that also resolves conflicts, as `tailwind-merge`
-   * does, is read the same way: both classes are compiled, and the later
-   * one wins in the cascade.
+   * arguments. A helper that also resolves conflicts, as shadcn/ui's `cn`
+   * does through `tailwind-merge`, is not found automatically (#1668).
+   * Declared, its classes compile, and a caller's Tailwind utility no
+   * longer overrides them.
    */
   classHelpers?: readonly ClassHelperOption[]
 }
