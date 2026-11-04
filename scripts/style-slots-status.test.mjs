@@ -22,6 +22,7 @@ import {
   tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
+import { renderStylingFactSummary } from './style-slots/status-summary.mjs'
 import {
   assessDeclaredAudits,
   assessTabsContract,
@@ -1006,6 +1007,21 @@ test('bundle deltas are derived from measured rows, not trusted headline or inve
     bytes: 100,
     gzipBytes: 10,
   })
+  const report = stylingFactStatus({ commit, receipts: [receipt] })
+  const summary = renderStylingFactSummary(report)
+  assert.match(
+    summary,
+    /native-component-bundle \| native-build \| bundle build \| 2 \| 2 \| measured/,
+  )
+  assert.match(
+    summary,
+    /tabs-native-inputs \| native-host-model \| input\/route row \| — \| 32 \| missing/,
+  )
+  assert.match(summary, /100 bytes, 10 gzip bytes/)
+  assert.match(
+    summary,
+    /Global coverage, fidelity, diagnostic completeness and contract audit are not established/,
+  )
   receipt.measurements[1].bytes = -1
   assert.equal(stylingFactStatus({ commit, receipts: [receipt] }).observations[0].status, 'invalid')
 })
