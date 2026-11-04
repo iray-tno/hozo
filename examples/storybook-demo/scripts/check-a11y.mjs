@@ -25,6 +25,10 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { chromium } from 'playwright-core'
+import {
+  captureAuditState,
+  observePageRequests,
+} from '../../../scripts/browser-audit-diagnostics.mjs'
 import { auditPage } from './a11y-audit.mjs'
 import { createAuditReport, runAuditCatalogue, summarizeAudit } from './a11y-catalogue.mjs'
 
@@ -133,6 +137,7 @@ try {
       return {
         close: () => page.close(),
         async audit(id, onStage) {
+          const requests = observePageRequests(page)
           const errors = []
           const onError = (error) => errors.push(error.message)
           page.on('pageerror', onError)
@@ -144,7 +149,14 @@ try {
             const result = await auditPage(page, axeSource, 10000, onStage)
             if (errors.length) throw new Error(errors.join('\n'))
             return result
+          } catch (error) {
+            error.diagnostics = {
+              browser: error.diagnostics?.browser ?? (await captureAuditState(page)),
+              requests: requests.snapshot(),
+            }
+            throw error
           } finally {
+            requests.stop()
             page.off('pageerror', onError)
           }
         },
@@ -181,10 +193,12 @@ console.log(
   `[a11y] ${verdict.audited}/${verdict.expected} story/scheme cases audited in ${Math.round(report.elapsedMs)}ms`,
 )
 for (const error of report.errors) console.error(`[a11y] ${error.kind}: ${error.help}`)
-for (const entry of verdict.errors)
+for (const entry of verdict.errors) {
   console.error(
     `[a11y] execution error: ${entry.id} (${entry.scheme}), ${entry.stage}: ${entry.error}`,
   )
+  if (entry.diagnostics) console.error(`[a11y] failure state: ${JSON.stringify(entry.diagnostics)}`)
+}
 if (verdict.notRun.length)
   console.error(
     `[a11y] ${verdict.notRun.length} cases not audited (not axe violations); see _a11y-result.json`,
