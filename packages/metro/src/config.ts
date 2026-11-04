@@ -263,6 +263,31 @@ export async function withHozoPartialOwners<T extends MetroConfigShape>(
   return configureHozo(configOrPromise, options, preflight, 'partial-owner-transform')
 }
 
+/** @internal Explicit fallback experiment. Choose before installing owner
+ * candidates or resolver state; never recover by catching a failed build. */
+export async function withHozoPartialOwnersOrOrdinary<T extends MetroConfigShape>(
+  configOrPromise: T | Promise<T>,
+  preflight: MetroOwnerPreflight,
+  options: HozoMetroOptions = {},
+) {
+  if (
+    preflight.status === 'incomplete' &&
+    (preflight.reason === 'no-context' ||
+      preflight.reason === 'no-origins' ||
+      preflight.reason === 'package-budget' ||
+      preflight.reason === 'edge-budget')
+  ) {
+    return {
+      config: await withHozo(configOrPromise, options),
+      admission: { route: 'ordinary-fallback', reason: preflight.reason } as const,
+    }
+  }
+  return {
+    config: await withHozoPartialOwners(configOrPromise, preflight, options),
+    admission: { route: 'partial-owners' } as const,
+  }
+}
+
 async function configureHozo<T extends MetroConfigShape>(
   configOrPromise: T | Promise<T>,
   options: HozoMetroOptions,
