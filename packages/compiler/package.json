@@ -1,6 +1,6 @@
 {
   "name": "@hozo/compiler",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "JS-facing entry point for the Hozo Rust compiler (TSX analysis, Hozo IR, Web/Native lowering, diagnostics).",
   "keywords": [
     "react-native",

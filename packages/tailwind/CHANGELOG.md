@@ -1,5 +1,15 @@
 # @hozo/tailwind
 
+## 0.4.0
+
+### Minor Changes
+
+- [#1655](https://github.com/iray-tno/hozo/pull/1655) [`6d7b200`](https://github.com/iray-tno/hozo/commit/6d7b2001be9bc9093da5bee389f929c7a94e381e) Thanks [@iray-tno](https://github.com/iray-tno)! - `dark:` and paired `--dark` theme tokens now follow the project's own `@custom-variant dark (...)` on Web. Before, they always compiled to `@media (prefers-color-scheme: dark)`, so a site with a theme switch could not reach Hozo's output. Tailwind already honoured the variant for the classes it generates, which left one `dark:` following two rules on the same page. `loadTheme` reads the variant into the new `darkSelector` theme field, and the Web backend emits dark rules under that selector, or under that at-rule if the variant is one. Projects that do not declare the variant get the same output as before. React Native is unchanged.
+
+### Patch Changes
+
+- [#1111](https://github.com/iray-tno/hozo/pull/1111) [`0413a61`](https://github.com/iray-tno/hozo/commit/0413a61d029b3dd5dcdb48ef7f4d268fcb0a3089) Thanks [@iray-tno](https://github.com/iray-tno)! - The injected base layer no longer ships Tailwind's `--theme()` calls, which browsers drop. `html` gets its sans-serif stack and `code`/`pre` their monospace stack again, instead of the browser's default serif.
+
 ## 0.3.0
 
 ### Minor Changes
