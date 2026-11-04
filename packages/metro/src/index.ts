@@ -358,8 +358,13 @@ export async function transform(params: TransformParams): Promise<unknown> {
   // After everything else, so it sees the imports the compiler left standing
   // as well as files it did not touch at all (`modular-imports.ts`).
   const before = withFonts ?? params.src
-  const absolute = absoluteFile
-  const modular = modularizeHozoImports(before, absolute)
+  // Partial-owner preflight captures package specifiers, not relative edges
+  // into another package's implementation. Keep the resolver in charge of
+  // those imports throughout this explicit mode, including dependencies.
+  const modular =
+    state?.ownerShadow?.mode === 'partial-owner-transform'
+      ? before
+      : modularizeHozoImports(before, absoluteFile)
   const nextParams = modular === params.src ? params : { ...params, src: modular }
   const output = loadUpstream(projectRoot).transform(nextParams)
   if (!ownerSession) return output
