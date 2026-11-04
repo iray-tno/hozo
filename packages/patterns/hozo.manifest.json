@@ -438,6 +438,7 @@
       "hidden",
       "inline-block",
       "inline-flex",
+      "isolate",
       "relative",
       "visible",
       "z-50"
