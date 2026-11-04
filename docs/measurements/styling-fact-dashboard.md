@@ -32,7 +32,9 @@ dependency without a manifest. The dependency must resolve its Android/iOS
 export, receive no prepared carrier, and agree with the neighboring literal
 on rest, hover, decorative fallback, and the authored padding override. This
 is an exclusion control inside each build, not four more builds or permission
-to enable the route by default.
+to enable the route by default. The dashboard reports these controls
+separately: older build-only receipts cannot satisfy them, and partial or
+wrong-platform controls have no verified count.
 
 These are fixture observations, not the §6 denominators
 for global coverage, fidelity, diagnostic completeness or contract audit.

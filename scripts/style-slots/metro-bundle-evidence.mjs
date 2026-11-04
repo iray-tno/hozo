@@ -11,6 +11,24 @@ const fallbackStyle = {
   opacity: 1,
 }
 
+function assessOrdinaryControls(builds) {
+  if (builds.every((row) => !Object.hasOwn(row, 'ordinaryControl'))) return { status: 'missing' }
+  const hover = { ...fallbackStyle, opacity: 0.5 }
+  if (
+    !builds.every(
+      ({ platform, ordinaryControl: control }) =>
+        control?.inputPlatform === platform &&
+        control.carrierSupplied === false &&
+        control.decorativeCarrierSupplied === false &&
+        isDeepStrictEqual(control.rest, fallbackStyle) &&
+        isDeepStrictEqual(control.hover, hover) &&
+        isDeepStrictEqual(control.fallback, fallbackStyle),
+    )
+  )
+    return { status: 'invalid' }
+  return { status: 'measured', verified: builds.length }
+}
+
 export function assessMetroBundleEvidence(receipt, expectedManifestSha256) {
   const base = { scope: metroBundleScope, sourceCommit: receipt.sourceCommit }
   const pending = new Set(['android:opt-in', 'android:ordinary', 'ios:opt-in', 'ios:ordinary'])
@@ -40,5 +58,6 @@ export function assessMetroBundleEvidence(receipt, expectedManifestSha256) {
     owner: 'BottomSheet.handle',
     manifestSha256: receipt.manifestSha256,
     bundleBuilds: metroBundleBuilds,
+    ordinaryControl: assessOrdinaryControls(receipt.builds),
   }
 }

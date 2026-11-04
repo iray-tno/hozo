@@ -61,13 +61,13 @@ test('Metro denominator requires all four current platform/route builds and thei
       })),
     ),
   }
-  const row = (receipts, trackedChanges = false) =>
+  const row = (receipts, trackedChanges = false, id = 'metro-bottom-sheet-production-bundle') =>
     stylingFactStatus({
       commit,
       expectedManifestSha256: hash,
       receipts,
       trackedChanges,
-    }).scopedDenominators.find(({ scope }) => scope === metroBundleScope)
+    }).scopedDenominators.find((entry) => entry.id === id)
 
   assert.equal(row([receipt]).verified, 4)
   assert.equal(row([]).status, 'missing')
@@ -91,6 +91,49 @@ test('Metro denominator requires all four current platform/route builds and thei
     'invalid',
   )
   assert.equal(row([{ ...receipt, manifestSha256: 'c'.repeat(64) }]).status, 'invalid')
+
+  const controlRow = (value) => row([value], false, 'metro-opaque-owner-ordinary-control')
+  assert.equal(controlRow(receipt).status, 'missing')
+  const withControls = {
+    ...receipt,
+    builds: receipt.builds.map((build) => ({
+      ...build,
+      ordinaryControl: {
+        inputPlatform: build.platform,
+        carrierSupplied: false,
+        decorativeCarrierSupplied: false,
+        rest: build.fallbackStyle,
+        hover: { ...build.fallbackStyle, opacity: 0.5 },
+        fallback: build.fallbackStyle,
+      },
+    })),
+  }
+  assert.equal(controlRow(withControls).verified, 4)
+  assert.equal(controlRow({ ...withControls, sourceCommit: 'c'.repeat(40) }).status, 'stale')
+  for (const [field, value] of [
+    ['inputPlatform', 'ios'],
+    ['carrierSupplied', true],
+    ['decorativeCarrierSupplied', true],
+    ['rest', {}],
+    ['hover', {}],
+    ['fallback', {}],
+  ]) {
+    const [first, ...rest] = withControls.builds
+    const changed = {
+      ...withControls,
+      builds: [
+        { ...first, ordinaryControl: { ...first.ordinaryControl, [field]: value } },
+        ...rest,
+      ],
+    }
+    assert.equal(controlRow(changed).status, 'invalid', field)
+    assert.equal(row([changed]).verified, 4)
+  }
+  assert.equal(
+    controlRow({ ...withControls, builds: [receipt.builds[0], ...withControls.builds.slice(1)] })
+      .status,
+    'invalid',
+  )
 })
 
 test('Vite evidence counts matched cases and rejects invented or stale build receipts', () => {
