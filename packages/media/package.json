@@ -100,6 +100,9 @@
     "typecheck": "tsc -p . --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test --test-concurrency=1 .test-build/*.test.js tests/*.test.mjs"
   },
+  "dependencies": {
+    "@hozo/engine": "workspace:^"
+  },
   "peerDependencies": {
     "react": "^19.0.0",
     "react-native": ">=0.87",

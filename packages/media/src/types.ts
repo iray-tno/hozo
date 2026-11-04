@@ -94,8 +94,34 @@ export interface VideoProps extends VideoOptions, VideoCallbacks {
   playsInline?: boolean
   fit?: 'contain' | 'cover' | 'fill'
   style?: VideoStyle
+  /**
+   * Classes for the player's box (#1674). On Web they reach the element as
+   * written, and the box drops its default 100% × 180 so the classes can
+   * size it. On Native they resolve at runtime through the project's
+   * candidate map, after the defaults, so state variants do not apply.
+   */
+  className?: string
+  /**
+   * The source's intrinsic size, in pixels. Given both, the box takes their
+   * aspect ratio instead of the default 180 height, unless `style.height`
+   * says otherwise. On Web they are also the `<video>`'s own attributes.
+   */
+  width?: number
+  height?: number
+  /**
+   * Web only: how much to fetch before playback is asked for. Default
+   * `metadata`. Native's engine decides for itself.
+   */
+  preload?: 'none' | 'metadata' | 'auto'
+  /** The `<video>`'s `id` on Web, the box's `nativeID` on Native. */
+  nativeID?: string
   testID?: string
   ref?: Ref<VideoHandle>
+}
+
+/** `aspectRatio` from an intrinsic size, when both sides are given. */
+export function videoAspectRatio({ width, height }: Pick<VideoProps, 'width' | 'height'>) {
+  return width !== undefined && height !== undefined ? width / height : undefined
 }
 
 export function validateVideoProps(props: VideoProps) {
@@ -106,5 +132,10 @@ export function validateVideoProps(props: VideoProps) {
   mediaPlaybackOptions(props)
   if (poster !== undefined && (typeof poster !== 'string' || !poster.trim())) {
     throw new TypeError('Video poster must be a nonempty URL or URI')
+  }
+  for (const side of ['width', 'height'] as const) {
+    const value = props[side]
+    if (value !== undefined && !(Number.isFinite(value) && value > 0))
+      throw new TypeError(`Video ${side} must be a positive finite number`)
   }
 }
