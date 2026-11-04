@@ -22,6 +22,7 @@ import {
   tabModalityCases,
 } from './style-slots/owner-input-cases.mjs'
 import { stylingFactStatus } from './style-slots/status.mjs'
+import { renderStylingFactSummary } from './style-slots/status-summary.mjs'
 import {
   assessDeclaredAudits,
   assessTabsContract,
@@ -122,6 +123,21 @@ test('bounded handle evidence is visible without upgrading its audit declaration
     })
   const report = assess(receipt)
   assert.equal(report.observations[0].status, 'measured')
+  const partial = report.scopedDenominators.find((row) => row.id === 'handle-native-partial')
+  assert.deepEqual(partial, {
+    id: 'handle-native-partial',
+    scope: receipt.scope,
+    platform: 'native-host-model',
+    unit: 'phase/platform row',
+    expected: 6,
+    verified: 6,
+    status: 'measured',
+  })
+  assert.equal(
+    assess({ ...receipt, passed: false }).scopedDenominators.find((row) => row.id === partial.id)
+      .verified,
+    null,
+  )
   assert.ok(
     report.observations[0].domains.some(
       (row) => row.key === 'nativePartial' && row.observations === 6,
@@ -693,6 +709,18 @@ test('status separates a declared audit from one unambiguous current host proof'
   const duplicate = stylingFactStatus({ ...options, receipts: [receipt, receipt] })
   assert.deepEqual(duplicate.contractEvidence.verifiedOwners, [])
   assert.deepEqual(duplicate.contractEvidence.conflictingOwners, ['Tabs.Tab'])
+  const nativeInputs = (value) =>
+    value.scopedDenominators.find((row) => row.id === 'tabs-native-inputs')
+  assert.equal(nativeInputs(report).verified, 32)
+  assert.equal(nativeInputs(duplicate).status, 'conflicting')
+  assert.equal(nativeInputs(duplicate).verified, null)
+  assert.equal(nativeInputs(stylingFactStatus(options)).status, 'missing')
+  assert.equal(
+    nativeInputs(
+      stylingFactStatus({ ...options, receipts: [{ ...receipt, sourceCommit: 'c'.repeat(40) }] }),
+    ).status,
+    'stale',
+  )
   assert.deepEqual(
     stylingFactStatus({ ...options, trackedChanges: true, receipts: [receipt] }).contractEvidence
       .verifiedOwners,
@@ -979,6 +1007,21 @@ test('bundle deltas are derived from measured rows, not trusted headline or inve
     bytes: 100,
     gzipBytes: 10,
   })
+  const report = stylingFactStatus({ commit, receipts: [receipt] })
+  const summary = renderStylingFactSummary(report)
+  assert.match(
+    summary,
+    /native-component-bundle \| native-build \| bundle build \| 2 \| 2 \| measured/,
+  )
+  assert.match(
+    summary,
+    /tabs-native-inputs \| native-host-model \| input\/route row \| — \| 32 \| missing/,
+  )
+  assert.match(summary, /100 bytes, 10 gzip bytes/)
+  assert.match(
+    summary,
+    /Global coverage, fidelity, diagnostic completeness and contract audit are not established/,
+  )
   receipt.measurements[1].bytes = -1
   assert.equal(stylingFactStatus({ commit, receipts: [receipt] }).observations[0].status, 'invalid')
 })

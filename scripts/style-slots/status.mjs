@@ -6,6 +6,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { components, ownerShadow } from './catalog.mjs'
 import { evidenceSource } from './evidence-source.mjs'
+import { scopedDenominators } from './scoped-denominators.mjs'
 
 const browserStates = ['false:rest', 'true:rest', 'true:hover', 'true:focus', 'true:pressed']
 const contractScope = 'box-and-owned-label-host-delivery'
@@ -62,6 +63,7 @@ export function stylingFactStatus({
         'No complete pinned feature/diagnostic/audit denominator is established by these inventories.',
     },
     observations,
+    scopedDenominators: scopedDenominators(observations, trackedChanges),
     contractEvidence: {
       scope: 'selected-shadow-contracts-not-global-coverage',
       declaredOwners: declared,
@@ -165,6 +167,7 @@ function assess(receipt, commit, expectedManifestSha256, trackedChanges) {
       owner: receipt.owner,
       manifestSha256: receipt.manifestSha256,
       rungs: receipt.rungs,
+      inputDomain: receipt.inputDomain,
       fidelityLimits: receipt.fidelity.limits,
       denominatorKind: 'one independently assessed shadow host/ABI contract, not all public owners',
     }
@@ -263,6 +266,7 @@ function assess(receipt, commit, expectedManifestSha256, trackedChanges) {
     return {
       ...base,
       status: 'measured',
+      bundleBuilds: rows.length,
       delta: {
         bytes: rows[1].bytes - rows[0].bytes,
         gzipBytes: rows[1].gzipBytes - rows[0].gzipBytes,
