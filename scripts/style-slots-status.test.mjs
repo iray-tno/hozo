@@ -122,6 +122,21 @@ test('bounded handle evidence is visible without upgrading its audit declaration
     })
   const report = assess(receipt)
   assert.equal(report.observations[0].status, 'measured')
+  const partial = report.scopedDenominators.find((row) => row.id === 'handle-native-partial')
+  assert.deepEqual(partial, {
+    id: 'handle-native-partial',
+    scope: receipt.scope,
+    platform: 'native-host-model',
+    unit: 'phase/platform row',
+    expected: 6,
+    verified: 6,
+    status: 'measured',
+  })
+  assert.equal(
+    assess({ ...receipt, passed: false }).scopedDenominators.find((row) => row.id === partial.id)
+      .verified,
+    null,
+  )
   assert.ok(
     report.observations[0].domains.some(
       (row) => row.key === 'nativePartial' && row.observations === 6,
@@ -693,6 +708,18 @@ test('status separates a declared audit from one unambiguous current host proof'
   const duplicate = stylingFactStatus({ ...options, receipts: [receipt, receipt] })
   assert.deepEqual(duplicate.contractEvidence.verifiedOwners, [])
   assert.deepEqual(duplicate.contractEvidence.conflictingOwners, ['Tabs.Tab'])
+  const nativeInputs = (value) =>
+    value.scopedDenominators.find((row) => row.id === 'tabs-native-inputs')
+  assert.equal(nativeInputs(report).verified, 32)
+  assert.equal(nativeInputs(duplicate).status, 'conflicting')
+  assert.equal(nativeInputs(duplicate).verified, null)
+  assert.equal(nativeInputs(stylingFactStatus(options)).status, 'missing')
+  assert.equal(
+    nativeInputs(
+      stylingFactStatus({ ...options, receipts: [{ ...receipt, sourceCommit: 'c'.repeat(40) }] }),
+    ).status,
+    'stale',
+  )
   assert.deepEqual(
     stylingFactStatus({ ...options, trackedChanges: true, receipts: [receipt] }).contractEvidence
       .verifiedOwners,
