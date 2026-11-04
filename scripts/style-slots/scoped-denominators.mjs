@@ -99,6 +99,24 @@ const domains = [
     metroBundleBuilds,
     (row) => row.bundleBuilds,
   ],
+  [
+    metroBundleScope,
+    'metro-opaque-owner-ordinary-control',
+    'native-build',
+    'opaque input exclusion control',
+    metroBundleBuilds,
+    (row) => row.ordinaryControl?.verified,
+    (row) => row.ordinaryControl?.status,
+  ],
+  [
+    metroBundleScope,
+    'metro-uncaptured-owner-ordinary-control',
+    'native-build',
+    'uncaptured caller exclusion control',
+    metroBundleBuilds,
+    (row) => row.uncapturedControl?.verified,
+    (row) => row.uncapturedControl?.status,
+  ],
 ]
 
 function handleCount(row, domain) {
@@ -112,17 +130,19 @@ export function scopedDenominators(observations, trackedChanges) {
     matching.push(row)
     byScope.set(row.scope, matching)
   }
-  return domains.map(([scope, id, platform, unit, expected, count]) => {
+  return domains.map(([scope, id, platform, unit, expected, count, scopeStatus]) => {
     const rows = byScope.get(scope) ?? []
     const row = rows[0]
+    const measuredStatus =
+      row?.status === 'measured' ? (scopeStatus?.(row) ?? 'measured') : row?.status
     const status = trackedChanges
       ? 'uncommitted'
       : rows.length > 1
         ? 'conflicting'
         : !row
           ? 'missing'
-          : row.status !== 'measured'
-            ? row.status
+          : measuredStatus !== 'measured'
+            ? measuredStatus
             : count(row) === expected
               ? 'measured'
               : 'invalid'

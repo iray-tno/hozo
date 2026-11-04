@@ -27,6 +27,21 @@ delivery, decorative fallback, the missing-state diagnostic, and the
 interactive hover result. It does not certify device behavior or count towards
 the external-peer size comparison.
 
+The same Metro probe also checks an opaque class value from an installed
+dependency without a manifest. The dependency must resolve its Android/iOS
+export, receive no prepared carrier, and agree with the neighboring literal
+on rest, hover, decorative fallback, and the authored padding override. This
+is an exclusion control inside each build, not four more builds or permission
+to enable the route by default. The dashboard reports these controls
+separately: older build-only receipts cannot satisfy them, and partial or
+wrong-platform controls have no verified count.
+
+A second exclusion control checks a local Metro-reachable sibling omitted
+from caller preflight. Even an identical literal class must stay ordinary
+there, while its captured neighbor may receive the carrier. This separates
+caller identity from the opaque-input restriction; it is not general graph
+discovery evidence.
+
 These are fixture observations, not the §6 denominators
 for global coverage, fidelity, diagnostic completeness or contract audit.
 In particular, a measured Native partial delivery does not turn the
