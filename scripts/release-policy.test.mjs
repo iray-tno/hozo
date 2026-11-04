@@ -37,6 +37,12 @@ test('native showcase evidence and binaries are a pre-publication release gate',
       ([, name, body]) => [name, body],
     ),
   )
+  assert.match(jobs.get('release-preflight'), /node scripts\/showcase-release.mjs check-notes/)
+  assert.doesNotMatch(jobs.get('release-preflight'), /if:|continue-on-error/)
+  for (const name of ['build', 'showcase', 'native-integration', 'crates-dry-run']) {
+    assert.match(jobs.get(name), /^ {4}needs: release-preflight\r?$/m)
+    assert.doesNotMatch(jobs.get(name), /^ {4}(?:if:.*always\(\)|continue-on-error:)/m)
+  }
   assert.match(jobs.get('showcase'), /uses: \.\/\.github\/workflows\/native-showcase.yml/)
   assert.match(jobs.get('showcase'), /release-assets: true/)
   assert.match(jobs.get('showcase'), /release-signing: .*startsWith\(github.ref, 'refs\/tags\/v'\)/)

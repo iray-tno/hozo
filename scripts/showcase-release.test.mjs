@@ -20,6 +20,7 @@ import {
   prepareIos,
   publishAssets,
   releaseIdentity,
+  releaseNotes,
   SHOWCASE_CHECKS,
   signingCertificateSha256,
   signingCredentials,
@@ -106,6 +107,24 @@ test('release identity rejects wrong tags, missing provenance and unsafe version
   assert.throws(() => releaseIdentity('0.3.0', env), /disagree/)
   assert.throws(() => releaseIdentity('0.2.0', { ...env, GITHUB_SHA: undefined }))
   assert.deepEqual(releaseIdentity('0.2.0', { ...env, GITHUB_REF: 'refs/heads/main' }), identity)
+})
+
+test('release notes preflight rejects missing or empty sections before any binary exists', (t) => {
+  const root = mkdtempSync(path.join(tmpdir(), 'hozo-release-notes-test-'))
+  t.after(() => rmSync(root, { recursive: true, force: true }))
+  const changelog = path.join(root, 'CHANGELOG.md')
+  for (const notes of ['## 0.1.0\n\nOld release.\n', '## 0.2.0\n\n## 0.1.0\n\nOld release.\n']) {
+    writeFileSync(changelog, notes)
+    assert.throws(() => releaseNotes(root, identity), /nonempty ## 0\.2\.0 section/)
+  }
+  writeFileSync(
+    changelog,
+    '## 0.2.0\r\n\r\n- [Guide](docs/guide.md)\r\n## 0.1.0\r\nOld release.\r\n',
+  )
+  const notes = releaseNotes(root, identity)
+  assert.match(notes, /github\.com\/iray-tno\/hozo\/blob\/v0\.2\.0\/docs\/guide\.md/)
+  assert.doesNotMatch(notes, /Old release/)
+  assert.equal(existsSync(path.join(root, 'artifacts')), false)
 })
 
 test('every full and SVG proof rejects failure, omissions, partial and reused evidence', () => {
