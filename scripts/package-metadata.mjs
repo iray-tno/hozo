@@ -205,6 +205,9 @@ const PACKAGES = {
     keywords: ['react-native', 'react', 'webview', 'iframe', 'embed'],
   },
   media: {
+    // Native Video resolves its `className` through the project's candidate
+    // map, `@hozo/engine/project` (#1674).
+    dependencyOverrides: { '@hozo/engine': 'workspace:^' },
     description:
       'Universal video and audio playback with shared controls and platform-owned engines.',
     exports: {

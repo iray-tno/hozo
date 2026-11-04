@@ -36,6 +36,9 @@ its engine. Neither `@hozo/core` nor a non-media screen gains this dependency.
 - `autoPlay`, `muted`, `loop`: false by default. Autoplay is attempted once per
   source when ready; browser policy can deny it. Denial is reported, not retried
   forever or treated as a successful start. Changing loop/mute does not reload.
+  On Web all three are also the `<video>`'s own attributes, so a server-rendered
+  page plays without hydration. A page that hydrates later observes playback
+  the attribute already started.
 - `volume`: player gain from 0 to 1 inclusive, default 1. Nonfinite/out-of-range
   values throw before creating a host; they are not clamped differently by each
   engine. Updating it does not reload, seek, play or pause. Mute is independent:
@@ -51,8 +54,18 @@ its engine. Neither `@hozo/core` nor a non-media screen gains this dependency.
   establish effective output on every browser/device.
 - `fit`: contain (default), cover, fill. `style` is a deliberately shared subset
   (`width`, `height`, `borderRadius`, `backgroundColor`), defaulting to 100% × 180.
-  Put the player inside a styled Hozo View for Tailwind layout; this first slice
-  does not compile `Video` classes or replace author HTML video/audio tags.
+- `width` and `height`: the source's intrinsic size. Given both, the box takes
+  their aspect ratio instead of the 180 height, unless `style.height` is set.
+  On Web they are also the `<video>`'s attributes.
+- `className`: classes for the player's box. They are not compiled. On Web they
+  reach the element as written, and the 100% × 180 default steps aside so they can
+  size it. On Native they resolve at runtime through the project's candidate map,
+  on top of the default, so state variants such as `hover:` do not apply.
+- `preload`: Web only, `metadata` by default. `nativeID` is the `<video>`'s `id`
+  on Web, so page scripts can address it, and the box's `nativeID` on Native.
+- `poster` is the `<video>`'s own `poster` attribute on Web as well. The covering
+  image that waits for a first frame joins only once mounted, so a page that
+  never hydrates is not left with it on top of the video.
 - `ref`: `play(): Promise<void>`, `pause()`, `seekTo(seconds)`, `getStatus()`.
   Play resolving means the engine accepted the request, **not** a decoded frame
   or proof it was heard/seen. Observe `onPlay` and the status. Seeking requires

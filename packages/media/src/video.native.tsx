@@ -1,3 +1,4 @@
+import { hozoClasses } from '@hozo/engine/project'
 import { createVideoPlayer, type VideoPlayer, VideoView } from 'expo-video'
 import {
   useCallback,
@@ -9,7 +10,7 @@ import {
 } from 'react'
 import { View } from 'react-native'
 import { NativeVideoSession } from './native-session.ts'
-import { type VideoHandle, type VideoProps, validateVideoProps } from './types.ts'
+import { type VideoHandle, type VideoProps, validateVideoProps, videoAspectRatio } from './types.ts'
 import { useVideoPresentation } from './use-video-presentation.ts'
 import { VideoControls } from './video-controls.native.tsx'
 import { VideoPoster } from './video-poster.native.tsx'
@@ -122,11 +123,23 @@ function SourceVideo(props: VideoProps) {
     props.preservesPitch,
   ])
 
+  const aspectRatio = videoAspectRatio(props)
   return (
     <>
       <View
         accessible={false}
-        style={{ width: '100%', height: 180, ...props.style, overflow: 'hidden' }}
+        nativeID={props.nativeID}
+        // A box with no height never lays out, and the player starts only
+        // after layout, so a default stays under the classes rather than
+        // giving way to them as on Web.
+        style={[
+          aspectRatio === undefined
+            ? { width: '100%', height: 180 }
+            : { width: '100%', aspectRatio },
+          hozoClasses(props.className),
+          props.style,
+          { overflow: 'hidden' },
+        ]}
       >
         <VideoView
           key={resource?.viewKey ?? 0}

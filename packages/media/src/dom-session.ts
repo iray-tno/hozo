@@ -75,6 +75,10 @@ export class DomMediaSession implements VideoHandle {
       this.observer.fail('load', new Error(this.element.error.message || 'Video could not load'))
     } else if (this.element.readyState >= 1) {
       ready()
+      // An `autoplay` attribute can start playback before this session
+      // listens, as it does on a server-rendered page (#1674). `play()` on a
+      // playing element fires no `play` event, so say so here.
+      if (!this.element.paused) this.observer.update({ playing: true })
     } else {
       this.observer.update(times())
     }
