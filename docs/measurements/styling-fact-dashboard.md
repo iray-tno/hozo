@@ -51,6 +51,13 @@ four-build count, including the refusal reason, absence of carriers,
 and continued opaque and uncaptured input behavior. The experiment is
 not the default.
 
+The partial-owner opt-in bundle consumes a capture observed from the
+preceding ordinary Metro bundle's actual resolver context. The fixture
+still supplies an exact anchor, origin list, and explicit subpaths; it
+does not discover them automatically. The observer does not change the
+ordinary build's output. Capture identity and route count are retained
+in the raw opt-in rows.
+
 These are fixture observations, not the §6 denominators
 for global coverage, fidelity, diagnostic completeness or contract audit.
 In particular, a measured Native partial delivery does not turn the

@@ -14,6 +14,7 @@ import {
 import Metro from 'metro'
 import { ownerMetroFixture } from '../../../packages/metro/fixtures/owner-metro-resolver.mjs'
 import { collectMetroOwnerPreflight } from '../../../packages/metro/src/owner-manifest-preflight.ts'
+import { observeMetroOwnerPreflight } from '../../../packages/metro/src/owner-preflight-observer.ts'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 
 const require = createRequire(import.meta.url)
@@ -307,6 +308,19 @@ async function checkBundles(t, evidence, manifest) {
       preflight.routes.some((row) => row.importer === file && row.specifier === '@hozo/patterns'),
     )
     assert.ok(!preflight.routes.some((row) => row.importer === uncapturedFile))
+    const observer = observeMetroOwnerPreflight(
+      { importer: file, specifier: '@hozo/patterns' },
+      capture,
+    )
+    const observingConfig = {
+      ...config,
+      resolver: {
+        ...config.resolver,
+        resolveRequest: (context, specifier, target) =>
+          observer.resolve(context, specifier, target, context.resolveRequest),
+      },
+    }
+    let livePreflight
     for (const mode of ['ordinary', 'opt-in', 'budget-fallback']) {
       const partial = mode === 'opt-in'
       const fallback =
@@ -318,8 +332,8 @@ async function checkBundles(t, evidence, manifest) {
       const configured =
         fallback?.config ??
         (partial
-          ? await withHozoPartialOwners(config, preflight, options)
-          : await withHozo(config, options))
+          ? await withHozoPartialOwners(config, livePreflight, options)
+          : await withHozo(observingConfig, options))
       const resolve = configured.resolver.resolveRequest
       configured.resolver.resolveRequest = (context, specifier, target) => {
         try {
@@ -336,6 +350,19 @@ async function checkBundles(t, evidence, manifest) {
         dev: false,
         minify: true,
       })
+      if (mode === 'ordinary') {
+        livePreflight = observer.result()
+        assert.equal(livePreflight?.status, 'complete', JSON.stringify(livePreflight))
+        assert.ok(!livePreflight.routes.some((route) => route.importer === uncapturedFile))
+        assert.ok(
+          livePreflight.routes.some(
+            (route) =>
+              route.importer === file &&
+              route.specifier === 'handle-input' &&
+              route.entry === path.join(handleInput, `${platform}.js`),
+          ),
+        )
+      }
       const warnings = []
       const globals = {
         console: { ...console, warn: (message) => warnings.push(message) },
@@ -394,6 +421,13 @@ async function checkBundles(t, evidence, manifest) {
           ...ordinaryControl(opaque),
         },
         uncapturedControl: ordinaryControl(uncaptured),
+        ...(partial && {
+          capture: {
+            source: 'ordinary-metro-resolver',
+            fingerprint: livePreflight.fingerprint,
+            routes: livePreflight.routes.length,
+          },
+        }),
       }
       if (fallback) evidence.budgetFallbacks.push({ ...row, admission: fallback.admission })
       else evidence.builds.push(row)
