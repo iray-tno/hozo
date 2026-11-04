@@ -243,9 +243,10 @@ test('opt-in Metro transformer only prepares a caller captured by preflight', as
   )
   const output = await transform(params)
   assert.match(String(output), /handleClassName="p-2 hover:opacity-50" hozoInteractiveHandleStyle=/)
+  assert.match(String(output), /from '@hozo\/patterns'/)
   assert.equal(
     await transform({ ...params, filename: path.join(f.root, 'src', 'Uncaptured.tsx') }),
-    ordinary,
+    source,
   )
   await withHozo(f.config, f.options)
   assert.equal(readMetroState(f.root)?.ownerShadow, undefined)

@@ -223,6 +223,16 @@ test('production Metro bundle delivers partial and fallback styles to real Botto
       const configured = partial
         ? await withHozoPartialOwners(config, preflight, options)
         : await withHozo(config, options)
+      const resolve = configured.resolver.resolveRequest
+      configured.resolver.resolveRequest = (context, specifier, target) => {
+        try {
+          return resolve(context, specifier, target)
+        } catch (error) {
+          throw new Error(`Bundle dependency ${specifier} from ${context.originModulePath}`, {
+            cause: error,
+          })
+        }
+      }
       const { code } = await Metro.runBuild(configured, {
         entry: file,
         platform,
