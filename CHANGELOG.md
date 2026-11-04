@@ -1,5 +1,109 @@
 # Hozo changelog
 
+## 0.4.0
+
+Hozo 0.4.0 adds code blocks and resizable panes, follows a site's own dark-mode
+switch, moves the React Native floor to 0.87, and fixes a long list of Native
+layout and spread-prop bugs. Public npm packages and Rust library crates
+continue to release together.
+
+### Breaking changes
+
+- **React Native 0.87 is the lowest supported version** (`react-native: >=0.87`).
+  `@hozo/media`'s Expo peers move to SDK 58 (`expo-video`, `expo-audio` and
+  `expo-asset` `>=58 <59`). Native gradients are read from `backgroundImage`
+  again; the `experimental_backgroundImage` spelling only existed for 0.86.
+- **`HozoAnimated` and `PresenceContext` move** from `@hozo/primitives` to
+  `@hozo/engine` (`@hozo/engine/generated/animated`).
+  `@hozo/primitives/generated/animated` is gone. Compiled output still imports
+  them through `@hozo/core/generated/animated`.
+- **Changed markup:**
+  - `Del` renders a semantic `<del>` on Web instead of `<s>`.
+  - Accordion wraps each panel's content in a node of its own
+    (`panelContentClassName`).
+  - The `@hozo/ui` Slider draws its rail with the new `railClassName` element
+    rather than the track's `::before`.
+
+### Components
+
+- Add **CodeLines and CodeBlock**. The application supplies the tokens; the
+  blocks handle:
+  - semantic line marks;
+  - hidden gutters and line numbers;
+  - wrapping, accessible scrolling and copy feedback;
+  - a `maxHeight` that windows long content on both platforms, while a screen
+    reader can still read every line.
+
+  Native clipboard access comes through `CodeClipboardProvider`. The model, the
+  Shiki connection and fence metadata are separate subpaths; no highlighter is
+  bundled.
+- Add **Splitter and ResizablePane** on a portable one-axis drag behaviour. They
+  support pointer drags, Web keys and Native accessibility actions, logical
+  sides, collapse/restore and change/commit callbacks. The `@hozo/ui` handle is
+  a 1px divider with its focus ring centred on it.
+- **Animation:**
+  - Accordion panels animate opening and closing.
+  - Switch's thumb slides.
+  - Native control indicators animate to their new look through `HozoAnimated`
+    when their classes ask for a transition, and respect reduced motion.
+  - `HozoAnimated` can animate position and size, for the properties its
+    transition spec names.
+- **New props:**
+  - `Menu` and `Combobox` take `defaultOpen`.
+  - `BottomSheet` takes `handleBarClassName`.
+  - `Accordion` takes an `indicator`.
+  - A `Tree` branch opens and closes on press.
+- **Web layering:** Tooltip and the date pickers render in the top layer, and
+  Dialog centres itself even under a CSS reset.
+- **Look:** SegmentedControl, CommandPalette, CodeBlock and BottomSheet have
+  refined default looks.
+
+### Compiler, styling and Native runtime
+
+- **Dark mode** follows a project's own `@custom-variant dark (...)` on Web, for
+  `dark:` and for paired `--dark` tokens. Without one, it is
+  `prefers-color-scheme`, as before.
+- **Native transitions:** the Native candidate module emits a transition table
+  for `transition-*`, `duration-*`, `delay-*` and `ease-*`, instead of reporting
+  them as Web-only.
+- **Spread props on Web:** props that reach `Button`, `TextInput`, `View`,
+  `Text`, `Image` and the document primitives through a spread are translated
+  as on the uncompiled primitive. `onPress`, `onChangeText` and the
+  accessibility props work again, and a prop written after a spread wins. On
+  Native, a caller's spread `style` composes with the compiled classes rather
+  than replacing them.
+- **Native layout fixes:**
+  - The BottomSheet, Drawer and Menu sheets sit at the right edges and clear
+    safe areas and notches.
+  - FloatingPositioner places panels against their parent and the real window.
+  - String children of overlays, Accordion and Tabs are drawn.
+  - The ColorPicker tracks, Avatar status dots, SegmentedControl labels and
+    dashed rounded borders on Android all draw correctly.
+- **Smaller Native bundles:** Metro rewrites `@hozo/engine` imports to their
+  defining modules too.
+- **Native diagnostics:** `CLASS_NOT_DRAWN_ON_NATIVE` and `nativeClassReport`
+  report the classes React Native cannot draw, with a reason, including those in
+  class props the compiler does not lower.
+
+### Migration audit
+
+The Markdown report opens with a **Next steps** section. `--fix` prints, as a
+diff, the `react-native` imports that the Web build moves to `@hozo/rn-compat`.
+`--write` refuses files Git does not track.
+
+### Upgrading and remaining boundaries
+
+Update your installed `@hozo/*` packages together to 0.4.0, and React Native to
+0.87 or later. If you import `HozoAnimated` from
+`@hozo/primitives/generated/animated`, import it from `@hozo/core/generated/animated`.
+
+The RFC 010 owner-contract work in this release, partial owner transforms and
+the published handle carriers among it, is opt-in and changes no default output.
+Native static state-slot coverage, device styling acceptance and Native
+screen-reader checks of a windowed CodeBlock (#1643) remain tracked work.
+Compiler conformance and successful builds are not claims of universal device
+behaviour.
+
 ## 0.3.0
 
 Hozo 0.3.0 adds opt-in media and embedded web content, project-aware migration
