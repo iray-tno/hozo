@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { unappliedOnNative } from '../apps/landing/scripts/ui-native-unapplied.mjs'
 import { nonControlClassFacts } from '../packages/form/src/class-facts.native.ts'
 import { nonControlSlotFacts } from '../packages/patterns/src/non-control-facts.native.ts'
+import * as patternFacts from '../packages/patterns/src/slot-facts.native.ts'
 import {
   components,
   formComponents,
@@ -23,6 +24,31 @@ import {
 import { checkPublicProps } from './style-slots/public-props.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
+
+test('pattern runtime constants come from the same profiles as compiler facts without capturing live aliases', () => {
+  const generatedProfiles = new Map(Object.entries(patternFacts))
+  assert.equal(generatedProfiles.size, Object.keys(profiles).length)
+  for (const [name, profile] of Object.entries(profiles)) {
+    const generated = generatedProfiles.get(`${name[0].toLowerCase()}${name.slice(1)}SlotConstants`)
+    assert.deepEqual(
+      generated,
+      Object.fromEntries(
+        Object.entries(profile.facts).filter(([, value]) => typeof value === 'boolean'),
+      ),
+      name,
+    )
+    for (const [fact, value] of Object.entries(profile.facts))
+      if (typeof value !== 'boolean')
+        assert.equal(Object.hasOwn(generated, fact), false, `${name}.${fact} stays live`)
+    for (const event of ['hovered', 'pressed', 'focused', 'focusVisible'])
+      assert.equal(
+        Object.hasOwn(generated, event),
+        false,
+        `${name}.${event} is not an inferred constant`,
+      )
+  }
+  assert.equal(nonControlSlotFacts, patternFacts.nonControlSlotConstants)
+})
 
 test('generated form facts separate live state from constants and unavailable events', () => {
   assert.ok(formFactProfiles.TextAreaField.live.includes('readOnly'))
@@ -169,13 +195,17 @@ test('ColorPicker thumb focus belongs to each slider, separate from swatch point
   assert.deepEqual(profiles.SliderThumb.facts['aria-disabled'], { alias: '__hozoSlotAriaDisabled' })
 })
 
-test('the one catalog generates current IR mappings, Native callback contracts and type-only facts', () => {
+test('the one catalog generates current IR mappings, Native callback contracts and constant/live facts', () => {
   assert.deepEqual(checkGenerated(), [])
   const rendered = outputs()
   const facts = rendered['packages/patterns/src/slot-facts.native.ts']
   assert.ok(
-    !/^import |^export (const|function|class) /m.test(facts),
+    !/^import |^export (function|class) |=>/m.test(facts),
     'no runtime registry or evaluator',
+  )
+  assert.equal(
+    (facts.match(/^export const [a-zA-Z]+SlotConstants = \{$/gm) ?? []).length,
+    Object.keys(profiles).length,
   )
   assert.ok(facts.includes('readOnly: true'), 'constant truth is distinct from an unavailable fact')
   assert.ok(

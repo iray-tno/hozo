@@ -9,15 +9,15 @@ const header =
 const quoted = JSON.stringify
 const key = (name) => (name.includes('-') ? `'${name}'` : name)
 
-function constantNonControl(facts, name, note, checked = false) {
+function constantNonControl(facts, name, note) {
   const entries = Object.entries(facts.NonControl.facts)
   if (entries.some(([, value]) => typeof value !== 'boolean'))
     throw new Error('NonControl runtime facts must be constant booleans')
-  return `${header}${checked ? "import type { NonControlSlotFacts } from './slot-facts.native.ts'\n" : ''}
+  return `${header}
 ${note}
 export const ${name} = {
 ${entries.map(([fact, value]) => `  ${key(fact)}: ${value},`).join('\n')}
-} as const${checked ? ' satisfies NonControlSlotFacts' : ''}
+} as const
 `
 }
 
@@ -323,12 +323,20 @@ ${backdropProps.join('\n')}
     }
 }
 `
-  const ts = `${header}// Type-only facts. Absence from a profile is unavailable, not false. Actual
+  const ts = `${header}// Constants and type-only live facts share the compiler's catalog. Absence
+// from a profile is unavailable, not false. Actual
 // components still calculate facts from their own host/shape and existing events.
 ${Object.entries(facts)
   .map(
     ([name, profile]) =>
-      `\n/** ${profile.note} */\nexport interface ${name}SlotFacts {\n  readonly [fact: string]: unknown\n${Object.entries(
+      `\n/** ${profile.note} */\nexport const ${name[0].toLowerCase()}${name.slice(1)}SlotConstants = {\n${Object.entries(
+        profile.facts,
+      )
+        .filter(([, binding]) => typeof binding === 'boolean')
+        .map(([fact, binding]) => `  ${key(fact)}: ${binding},`)
+        .join(
+          '\n',
+        )}\n} as const\n\nexport interface ${name}SlotFacts {\n  readonly [fact: string]: unknown\n${Object.entries(
         profile.facts,
       )
         .map(
@@ -349,12 +357,11 @@ ${Object.entries(facts)
       "// Non-editable Web wrappers/counters do not borrow the contained field's\n// disabled or focus state. Omit unobserved event keys, rather than reporting\n// a surrounding control's interaction as the decoration's own.",
     ),
     'packages/form/src/owner-facts.native.ts': formFactSource(),
-    'packages/patterns/src/non-control-facts.native.ts': constantNonControl(
-      facts,
-      'nonControlSlotFacts',
-      '// Facts of the actual non-editable Web child, not of its surrounding button. Do not\n// fill missing event keys with false: neither direction of an unobserved\n// pointer/focus predicate is supported by this Native decoration.',
-      true,
-    ),
+    'packages/patterns/src/non-control-facts.native.ts': `${header}
+// Existing consumers keep their import; the catalog-generated constant is
+// the only definition. Missing pointer/focus keys remain unavailable.
+export { nonControlSlotConstants as nonControlSlotFacts } from './slot-facts.native.ts'
+`,
   }
 }
 
