@@ -63,6 +63,7 @@ import {
 import { preflightCss } from '@hozo/tailwind'
 import { type Plugin, type ResolvedConfig, transformWithOxc, type ViteDevServer } from 'vite'
 import { contentRevision, ViteCandidateInventory } from './candidate-inventory.ts'
+import { injectedDependencies } from './injected-deps.ts'
 import { captureViteOwnerCandidates, type ViteOwnerCandidatePlan } from './owner-candidates.ts'
 import { ViteOwnerPreflightUnavailable } from './owner-preflight.ts'
 import { discoverViteOwnerSourcePlan, guardViteOwnerFallbackRoots } from './owner-source-plan.ts'
@@ -720,6 +721,11 @@ function configureHozo(
     {
       name: 'hozo',
       enforce: 'pre',
+
+      config(config) {
+        const include = injectedDependencies(path.resolve(options.root ?? config.root ?? '.'))
+        return include.length > 0 ? { optimizeDeps: { include } } : undefined
+      },
 
       configResolved(config) {
         if ((ownerPlan || discoverOwnerSources) && config.command !== 'build')
