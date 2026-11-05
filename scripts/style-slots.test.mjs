@@ -1,10 +1,56 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
 import test from 'node:test'
+import { fileURLToPath } from 'node:url'
+import { unappliedOnNative } from '../apps/landing/scripts/ui-native-unapplied.mjs'
 import { nonControlSlotFacts } from '../packages/patterns/src/non-control-facts.native.ts'
 import { components, ownerShadow, profiles } from './style-slots/catalog.mjs'
 import { checkGenerated, outputs, validateCatalog } from './style-slots/generate.mjs'
 import { checkPublicProps } from './style-slots/public-props.mjs'
+
+const root = fileURLToPath(new URL('../', import.meta.url))
+
+test('UI sources add no definitely unused Native class props beyond the known drag-only slot', () => {
+  const directory = path.join(root, 'packages/ui/src')
+  const findings = readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /(?<!\.test)\.tsx$/.test(entry.name))
+    .flatMap(({ name }) =>
+      unappliedOnNative(root, path.join(directory, name)).map(({ element, prop }) => [
+        name,
+        element,
+        prop,
+      ]),
+    )
+  // Web file-drag activity has no Native equivalent; keep the residual
+  // visible until there is actual Native file-drag delivery.
+  assert.deepEqual(findings, [['file-dropzone.tsx', 'FileDropzone', 'activeClassName']])
+})
+
+test('slot usage keeps findings for distinct imported JSX names and narrows by preview element', (t) => {
+  const directory = mkdtempSync(path.join(tmpdir(), 'hozo-slot-usage-'))
+  t.after(() => rmSync(directory, { recursive: true, force: true }))
+  const file = path.join(directory, 'Example.tsx')
+  writeFileSync(
+    file,
+    `
+    import {FileDropzone, HozoFileDropzone as Alias} from '@hozo/form'
+    export const Example = () => <>
+      <FileDropzone activeClassName="bg-red-500" />
+      <Alias activeClassName="bg-red-500" />
+      <Alias activeClassName="bg-blue-500" />
+    </>
+  `,
+  )
+  assert.deepEqual(unappliedOnNative(root, file), [
+    { element: 'FileDropzone', prop: 'activeClassName' },
+    { element: 'Alias', prop: 'activeClassName' },
+  ])
+  assert.deepEqual(unappliedOnNative(root, file, 'Alias'), [
+    { element: 'Alias', prop: 'activeClassName' },
+  ])
+})
 
 test('the owner shadow replaces spike JSON without promoting pending catalog slots', () => {
   const rendered = outputs()

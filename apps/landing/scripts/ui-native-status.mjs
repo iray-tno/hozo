@@ -114,7 +114,7 @@ for (const page of readdirSync(pages)
       .filter((finding) => finding.kind === kind)
       .map(({ className, reason }) => ({ className, reason }))
   // The other way a look goes missing: class props the pattern's Native half
-  // accepts and does not apply (`ui-native-unapplied.mjs`).
+  // accepts and does not apply (the shared Native slot usage check).
   const unapplied = [
     ...new Set(
       (SOURCES[page] ?? [{ file: `${page}.tsx` }]).flatMap(({ file, element }) =>

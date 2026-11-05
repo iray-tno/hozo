@@ -176,7 +176,8 @@ export function unappliedOnNative(repo, uiFile, element) {
             continue
           if (webOnly.has(`${origin.imported}.${prop}`)) continue
           if (!target || usesProp(target.file, prop)) continue
-          if (!found.some((entry) => entry.prop === prop)) found.push({ element: tag, prop })
+          if (!found.some((entry) => entry.element === tag && entry.prop === prop))
+            found.push({ element: tag, prop })
         }
       }
     }
