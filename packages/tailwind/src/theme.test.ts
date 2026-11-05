@@ -3,8 +3,14 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { test } from 'node:test'
 
-import { compile, compileNative, createCompiler, openCandidateCache } from '@hozo/compiler'
-import { loadTheme, stylesheetPath, toHex } from './theme.ts'
+import {
+  compile,
+  compileNative,
+  createCompiler,
+  openCandidateCache,
+  prepareFinalTailwindContext,
+} from '@hozo/compiler'
+import { loadTheme, prepareTailwindOrder, stylesheetPath, toHex } from './theme.ts'
 
 /** Writes a stylesheet somewhere Tailwind can resolve imports from. */
 async function themeFrom(css: string) {
@@ -85,6 +91,68 @@ test('project theme colours stay live in compiled and candidate CSS', async () =
   assert.match(native, /color: '#e6edf3'/)
   assert.match(native, /backgroundColor: 'rgba\(255, 0, 0, 0\.1\)'/)
   assert.match(native, /borderColor: '#ff0000'/)
+})
+
+test('default and inline theme colors have the same semantics on ready, retained and candidate paths', async () => {
+  const css = `@import "tailwindcss";
+    @theme { --color-project: #e6edf3; }
+    @theme default { --color-defaulted: #ff0000; }
+    @theme inline {
+      --color-literal: #123456;
+      --color-alias: var(--color-defaulted);
+    }`
+  const names = [
+    'text-red-500',
+    'bg-defaulted/10',
+    'text-project',
+    'border-literal',
+    'outline-alias',
+  ]
+  const source = `import { Text } from '@hozo/core'; export const C = () => <>
+    ${names.map((name) => `<Text className="${name}" />`).join('\n')}
+  </>`
+  const theme = await themeFrom(css)
+  const compiler = createCompiler(theme)
+  const context = async (candidates: string[]) =>
+    prepareFinalTailwindContext(
+      JSON.stringify((await prepareTailwindOrder(css, import.meta.dirname, candidates)).snapshot),
+    )
+  const complete = await context(names)
+  const ready = compiler.compileWebOrPrepare(source, complete)
+  assert.ok(Array.isArray(ready), 'a complete context must use direct ready emission')
+  const retained = compiler.compileWebOrPrepare(source, await context([]))
+  assert.ok(!Array.isArray(retained), 'an incomplete context must retain the parse')
+  const preview = retained.preview()
+  const emitted = retained.emit(complete)
+  const cache = openCandidateCache()
+  cache.scanFile('classes.ts', JSON.stringify(names.join(' ')), 1)
+
+  for (const output of [
+    compiler
+      .compile(source)
+      .map((part) => part.css)
+      .join('\n'),
+    ready.map((part) => part.css).join('\n'),
+    preview.map((part) => part.css).join('\n'),
+    emitted.map((part) => part.css).join('\n'),
+    cache.renderCss(theme),
+  ]) {
+    assert.match(output, /color: var\(--color-red-500, oklch\(63\.7% 0\.237 25\.331\)\)/)
+    assert.match(
+      output,
+      /color-mix\(in oklab, var\(--color-defaulted, #ff0000\) 10%, transparent\)/,
+    )
+    assert.match(output, /color: var\(--color-project, #e6edf3\)/)
+    assert.match(output, /border-color: #123456/)
+    assert.match(output, /outline-color: var\(--color-defaulted, #ff0000\)/)
+    assert.doesNotMatch(output, /var\(--color-(?:literal|alias)[,)]/)
+  }
+  const native = compiler
+    .compileNative(source)
+    .map((part) => part.styles)
+    .join('\n')
+  assert.match(native, /color: '#fb2c36'/)
+  assert.match(native, /backgroundColor: 'rgba\(255, 0, 0, 0\.1\)'/)
 })
 
 test('without a theme the same source is unresolved, not wrong', async () => {

@@ -55,6 +55,13 @@ copy, as JSX's last-wins says.
 There are two resolution engines: ahead-of-time compilation and the
 candidate resolver at run time (`docs/rfcs/style-slot-contracts.md`).
 
+Compilation extracts the style structure the build can establish while
+preserving values and predicates that can change. A literal `text-fg` can
+compile to a CSS rule whose value reads `var(--color-fg)`. Its initial value
+supplies a fallback, and the variable reference preserves runtime overrides.
+For `@theme inline`, Tailwind chooses the declaration's value, including
+any variable references inside it.
+
 - **A literal class compiles.** That includes its state variants: `hover:` on
   a literal has static style data and only a runtime predicate. It is not an
   opaque string.

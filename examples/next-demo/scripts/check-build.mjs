@@ -74,10 +74,10 @@ const checks = [
   [!/class="[^"]*\bp-8\b/.test(html), 'an authored utility class survived to the DOM'],
   // The compiler's own output reached the browser as CSS.
   [GENERATED_CLASS.test(output), 'no Hozo-generated CSS in the build output'],
-  // The project theme was read: `bg-brand` only resolves through
-  // src/theme.css, which nothing imports.
+  // The entry is read without being bundled. Keep both the runtime reference
+  // and its build-time fallback, including the bundler's color conversion.
   [
-    /background-color:\s*(?:#3082f6|lab\(|oklch\(62%)/.test(output),
+    /background-color:\s*var\(--color-brand,\s*(?:#3082f6|lab\(|oklch\(62%)/.test(output),
     'project theme token bg-brand did not resolve',
   ],
   [/margin-top:\s*37px/.test(output), 'aliased StyleX sheet did not lower'],

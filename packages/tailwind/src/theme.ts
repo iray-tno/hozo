@@ -320,16 +320,14 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
     const paired = declared.get(`--color-${darkToken}`)
     const darkOklch = paired === undefined ? null : dereference(paired, declared)
     const darkHex = darkOklch === null ? null : toHex(darkOklch)
-    // The stock palette already has a standalone representation. Keep the
-    // browser's indirection for project declarations and palette overrides.
-    if (!design.theme.hasDefault(name)) {
-      const value = webColor(design, token, hex === null ? declaration : oklch)
-      const dark =
-        hex !== null && darkHex !== null && darkOklch !== null
-          ? webColor(design, darkToken, darkOklch)
-          : undefined
-      if (value !== undefined) webColors.push({ token, value, ...(dark && { dark }) })
-    }
+    // A default is still a CSS variable a selector can override. Tailwind's
+    // resolver decides whether to reference it or use an inline declaration.
+    const value = webColor(design, token, hex === null ? declaration : oklch)
+    const dark =
+      hex !== null && darkHex !== null && darkOklch !== null
+        ? webColor(design, darkToken, darkOklch)
+        : undefined
+    if (value !== undefined) webColors.push({ token, value, ...(dark && { dark }) })
     // Native and Canvas still need a color that can be resolved at build time.
     if (hex === null) continue
     colors.push({
