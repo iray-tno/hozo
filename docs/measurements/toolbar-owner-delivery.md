@@ -158,3 +158,17 @@ partial failures separately; the existing Owner Evidence upload includes both.
 This fixture is delegated to CI, not run locally under the CPU-1 constraint.
 Adding its expectations is not a claim that those builds already passed,
 and neither receipt changes scoped admission, `audit: unknown` or defaults.
+
+The follow-up receipt reader runs in Owner Evidence CI and is reproducible as:
+
+```sh
+node scripts/style-slots/toolbar-metro-evidence.mjs artifacts/style-fact-model/metro-toolbar-owner-bundle.json
+```
+
+It rejects dirty/stale/failed receipts, missing or duplicated platform/mode
+rows, changed manifest identity, disconnected ordinary captures and any
+incorrect positive or negative observation. Its 24-observation denominator is
+only this fixture: two prepared literal deliveries and 22 ordinary controls,
+not a new global coverage denominator or an audited contract declaration.
+The reader and mutation regressions are permanent test infrastructure; they
+add no runtime machinery and do not change the existing status dashboard.

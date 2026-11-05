@@ -30,9 +30,141 @@ import {
   tabsDeclaration,
 } from './style-slots/tabs-contract-audit.mjs'
 import { expectedTabRows, tabLabelClasses, tabPhases } from './style-slots/tabs-probe.mjs'
+import {
+  assessToolbarMetroEvidence,
+  toolbarMetroScope,
+} from './style-slots/toolbar-metro-evidence.mjs'
 import { viteCapturedScope, viteFallbackScope, vitePhases } from './style-slots/vite-evidence.mjs'
 
 const commit = 'a'.repeat(40)
+
+test('Toolbar Metro receipts require current source, all routes and negative controls without audit promotion', () => {
+  // Synthetic receipts exercise the reader, not the Metro production claim.
+  const hash = 'b'.repeat(64)
+  const receipt = {
+    schema: 1,
+    scope: toolbarMetroScope,
+    sourceCommit: commit,
+    manifestSha256: hash,
+    passed: true,
+    trackedChanges: false,
+    builds: ['android', 'ios'].flatMap((platform) =>
+      ['ordinary', 'opt-in', 'budget-fallback', 'toolbar-opt-in'].map((mode) => ({
+        platform,
+        mode,
+        inputPlatform: platform,
+        bundleSha256: hash,
+        bundleBytes: 100,
+        capture: {
+          source: 'ordinary-metro-resolver',
+          fingerprint: hash,
+          routes: 4,
+          ordinaryBundleSha256: hash,
+        },
+        routes: Object.fromEntries(
+          ['literal', 'opaque', 'uncaptured'].map((route) => [
+            route,
+            {
+              carrierSupplied: mode === 'toolbar-opt-in' && route === 'literal',
+              style: {
+                paddingTop: 21,
+                paddingRight: 14,
+                paddingBottom: 14,
+                paddingLeft: 14,
+                rowGap: 5,
+                columnGap: 21,
+              },
+              role: 'toolbar',
+              label: 'Tools',
+              privateLeak: false,
+              itemKeys: [],
+              runtimeReads: route === 'opaque' ? 1 : 0,
+              authorReads: 1,
+              actions: 1,
+            },
+          ]),
+        ),
+      })),
+    ),
+  }
+  assert.deepEqual(assessToolbarMetroEvidence(receipt, commit, hash), {
+    scope: toolbarMetroScope,
+    owner: 'Toolbar.root',
+    sourceCommit: commit,
+    passed: true,
+    builds: 8,
+    observations: 24,
+    prepared: 2,
+    ordinary: 22,
+  })
+  const mutations = [
+    (r) => {
+      r.sourceCommit = 'c'.repeat(40)
+    },
+    (r) => {
+      r.manifestSha256 = 'c'.repeat(64)
+    },
+    (r) => {
+      r.trackedChanges = true
+    },
+    (r) => {
+      r.passed = false
+    },
+    (r) => {
+      r.error = 'retained failure'
+    },
+    (r) => {
+      r.scope = 'device'
+    },
+    (r) => {
+      r.builds.pop()
+    },
+    (r) => {
+      r.builds[1] = structuredClone(r.builds[0])
+    },
+    (r) => {
+      r.builds[3].capture.fingerprint = 'c'.repeat(64)
+    },
+    (r) => {
+      r.builds[3].capture.ordinaryBundleSha256 = 'c'.repeat(64)
+    },
+    (r) => {
+      r.builds[3].inputPlatform = 'web'
+    },
+    (r) => {
+      r.builds[3].bundleSha256 = 'missing'
+    },
+    (r) => {
+      r.builds[3].bundleBytes = 0
+    },
+    (r) => {
+      r.builds[3].capture.routes = 513
+    },
+    (r) => {
+      r.builds[3].routes.literal.carrierSupplied = false
+    },
+    (r) => {
+      r.builds[3].routes.opaque.carrierSupplied = true
+    },
+    (r) => {
+      r.builds[3].routes.uncaptured.carrierSupplied = true
+    },
+    (r) => {
+      delete r.builds[3].routes.uncaptured
+    },
+    ...['privateLeak', 'authorReads', 'runtimeReads', 'actions', 'role', 'itemKeys', 'style'].map(
+      (key) => (r) => {
+        r.builds[3].routes.opaque[key] = null
+      },
+    ),
+  ]
+  for (const mutate of mutations) {
+    const copy = structuredClone(receipt)
+    mutate(copy)
+    assert.equal(assessToolbarMetroEvidence(copy, commit, hash).passed, false)
+  }
+  assert.equal(assessToolbarMetroEvidence(null, commit, hash).passed, false)
+})
 
 test('Metro denominator requires all four current platform/route builds and their observations', () => {
   const hash = 'b'.repeat(64)
