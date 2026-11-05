@@ -16,7 +16,12 @@ import { colorThumbs, colorTracks, type Hsla, hexToHsla, hslaToHex } from './col
 import { describedColor, spokenName } from './color-words.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { HozoSlider, type SliderThumbState } from './slider.native.tsx'
-import type { ColorPickerSlotFacts, TextInputSlotFacts } from './slot-facts.native.ts'
+import {
+  type ColorPickerSlotFacts,
+  colorPickerSlotConstants,
+  type TextInputSlotFacts,
+  textInputSlotConstants,
+} from './slot-facts.native.ts'
 
 type Style = StyleProp<ViewStyle | TextStyle>
 type SwatchState = InteractionState & ColorPickerSlotFacts
@@ -155,14 +160,12 @@ export function HozoColorPicker({
   // actual owner composes it, rather than projecting once for all tracks here.
   const thumb = thumbStyle as StyleProp<ViewStyle>
   const inputFacts = {
+    ...textInputSlotConstants,
     focused: !disabled && inputInteraction.focused,
     focusVisible: !disabled && inputInteraction.focusVisible,
     disabled: Boolean(disabled),
     enabled: !disabled,
     readOnly: Boolean(disabled),
-    'aria-disabled': false,
-    'aria-selected': false,
-    'aria-checked': false,
   } satisfies TextInputSlotFacts
   // As on Web, a radio group has one checked preset, not every equivalent
   // spelling of its colour. An invalid preset's visual fallback is not a match.
@@ -199,12 +202,11 @@ export function HozoColorPicker({
                   // Native's disabled announcement does not write aria-disabled
                   // on the Web button; checked is the radio's actual attribute.
                   const state = {
+                    ...colorPickerSlotConstants,
                     ...interaction,
                     disabled: Boolean(disabled),
                     enabled: !disabled,
                     'aria-checked': checked,
-                    'aria-disabled': false,
-                    'aria-selected': false,
                   } satisfies ColorPickerSlotFacts
                   return [
                     hozoClasses(swatchClassName, state),

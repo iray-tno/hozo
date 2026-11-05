@@ -689,6 +689,12 @@ lowering. Phase A, owner audit and default routing remain open.
   `disabled: false` with live `aria-disabled`; time values do not acquire
   a pressed fact. Shared constants replace local definitions, not the
   components' event handlers or their state calculations.
+  Pattern profiles now generate runtime constants alongside the existing
+  compiler facts and Native types. The input/option/menu/OTP and
+  chip/pagination/stepper/slider/color owners consume those same constants;
+  the old `non-control-facts.native.ts` definition/import shim is deleted.
+  [The scoped consolidation receipt](../measurements/pattern-fact-consolidation.md)
+  records the retained state tests and bounded bundle cost, not new audits.
 - Turn the catalog's prose `gate`s and `composition`s into `shapes` data.
 - Audit the 55 `pending-audit` owners, the 32 component-managed slots first.
   Each audit writes a contract **and** its third-rung test (§4.6).

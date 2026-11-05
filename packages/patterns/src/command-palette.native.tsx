@@ -16,10 +16,15 @@ import {
 } from 'react-native'
 import type { HozoCommand } from './command-palette.tsx'
 import { currentCommand, rankCommands } from './command-rules.ts'
-import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { PatternScrollContainer } from './scroll-container.native.tsx'
-import type { CommandInputSlotFacts, CommandPaletteSlotFacts } from './slot-facts.native.ts'
+import {
+  type CommandInputSlotFacts,
+  type CommandPaletteSlotFacts,
+  commandInputSlotConstants,
+  commandPaletteSlotConstants,
+  nonControlSlotConstants as nonControlSlotFacts,
+} from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { HozoCommand }
@@ -176,15 +181,9 @@ export function HozoCommandPalette({
   // The Web input is editable and aria-expanded while the palette is mounted.
   // Omit unmeasured pointer facts, even from a compiled residual callback.
   const inputFacts = {
+    ...commandInputSlotConstants,
     focused: inputInteraction.focused,
     focusVisible: inputInteraction.focusVisible,
-    disabled: false,
-    enabled: true,
-    readOnly: false,
-    'aria-disabled': false,
-    'aria-selected': false,
-    'aria-checked': false,
-    'aria-expanded': true,
   } satisfies CommandInputSlotFacts
 
   return (
@@ -267,11 +266,9 @@ export function HozoCommandPalette({
                       focusVisible: false,
                       // CSS facts describe the Web option div, not this Native
                       // button's announcement or actual activation guard below.
-                      disabled: false,
-                      enabled: false,
+                      ...commandPaletteSlotConstants,
                       'aria-disabled': Boolean(command.disabled),
                       'aria-selected': index === current,
-                      'aria-checked': false,
                     }) satisfies CommandPaletteSlotFacts
                   // The active command is the return-key target, not a press.
                   // Its look reads the actual host facts. The decorative

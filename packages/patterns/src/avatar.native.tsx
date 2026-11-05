@@ -12,7 +12,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { avatarInitials, avatarLabel, type HozoAvatarStatus } from './avatar-initials.ts'
-import { nonControlSlotFacts } from './non-control-facts.native.ts'
+import { nonControlSlotConstants as nonControlSlotFacts } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { HozoAvatarStatus }

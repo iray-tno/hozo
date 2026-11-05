@@ -11,7 +11,7 @@ import {
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
 import { useChipRowInteraction } from './chip-row-interaction.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import type { ChipSlotFacts } from './slot-facts.native.ts'
+import { type ChipSlotFacts, chipSlotConstants } from './slot-facts.native.ts'
 import { splitTextStyle as split } from './text-style.native.ts'
 
 type ChipSlotState = InteractionState & ChipSlotFacts
@@ -110,11 +110,10 @@ export function HozoChip({
   // neither a composite row nor removal borrows the toggle's aria-pressed.
   const slotState = (interaction: InteractionState, button: boolean): ChipSlotState => ({
     ...interaction,
+    ...chipSlotConstants,
     disabled: button && Boolean(disabled),
     enabled: button && !disabled,
     'aria-pressed': button && selectable && !onRemove && on,
-    'aria-checked': false,
-    'aria-disabled': false,
   })
   const look = (interaction: InteractionState) => {
     const state = slotState(interaction, selectable && !onRemove)

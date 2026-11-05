@@ -32,7 +32,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { fractionAt, fractionOf, type SliderRange, snap, valueAt } from './slider-rules.ts'
-import type { SliderThumbSlotFacts } from './slot-facts.native.ts'
+import { type SliderThumbSlotFacts, sliderThumbSlotConstants } from './slot-facts.native.ts'
 
 export type SliderThumbState = SliderThumbSlotFacts & { focused: boolean; focusVisible: boolean }
 
@@ -100,16 +100,12 @@ export function HozoSlider({
     focusVisible: 'keyboard-input',
   })
   const thumbFacts = {
+    ...sliderThumbSlotConstants,
     // aria-disabled is not a form-disabled host and does not imply blur.
     // Follow actual host events rather than inventing a lost focus fact.
     focused: interaction.focused,
     focusVisible: interaction.focusVisible,
-    disabled: false,
-    enabled: false,
-    readOnly: true,
     'aria-disabled': Boolean(disabled),
-    'aria-selected': false,
-    'aria-checked': false,
   } satisfies SliderThumbState
   const range: SliderRange = { min, max, step, bigStep }
   const vertical = orientation === 'vertical'

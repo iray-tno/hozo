@@ -6,7 +6,12 @@ import { type ComponentRef, useLayoutEffect, useRef, useState } from 'react'
 import { type StyleProp, Text, TextInput, type TextStyle, View, type ViewStyle } from 'react-native'
 import { type OtpSelection, type OtpType, otpActiveIndex, otpCaret, otpValue } from './otp-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import type { OtpDecorationSlotFacts, TextInputSlotFacts } from './slot-facts.native.ts'
+import {
+  type OtpDecorationSlotFacts,
+  otpDecorationSlotConstants,
+  type TextInputSlotFacts,
+  textInputSlotConstants,
+} from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 export type { OtpType }
@@ -116,14 +121,12 @@ export function HozoOtpInput({
   // attribute was written. A disabled field is read-only too. Announcing it
   // as disabled on Native does not create an aria-disabled Web attribute.
   const inputFacts = {
+    ...textInputSlotConstants,
     focused: inputInteraction.focused,
     focusVisible: inputInteraction.focusVisible,
     disabled: Boolean(disabled),
     enabled: !disabled,
     readOnly: Boolean(disabled || readOnly),
-    'aria-disabled': false,
-    'aria-selected': false,
-    'aria-checked': false,
   } satisfies TextInputSlotFacts
   const [inputBox, inputText] = splitTextStyle([
     hozoClasses(inputClassName, inputFacts),
@@ -138,12 +141,7 @@ export function HozoOtpInput({
       focused: false,
       focusVisible: false,
       // The corresponding Web div/spans are not form controls or editable.
-      disabled: false,
-      enabled: false,
-      readOnly: true,
-      'aria-disabled': false,
-      'aria-selected': false,
-      'aria-checked': false,
+      ...otpDecorationSlotConstants,
     }) satisfies OtpDecorationSlotFacts
   const look = (interaction: InteractionState) =>
     splitTextStyle([hozoClasses(className, wrapperFacts(interaction)), hozoAuthoredStyle(style)])
