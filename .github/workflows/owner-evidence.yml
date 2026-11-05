@@ -30,6 +30,7 @@ on:
       - 'examples/storybook-demo/scripts/owner-tabs.test.mjs'
       - 'examples/storybook-demo/scripts/owner-vite.test.mjs'
       - 'packages/tailwind-conformance/src/tabs-owner-state.test.ts'
+      - 'packages/tailwind-conformance/src/toolbar-owner.test.ts'
       - 'packages/tailwind-conformance/src/tabs-prepared-owner.test.ts'
       - 'packages/tailwind-conformance/src/tabs-compiled-owner.test.ts'
       - 'packages/tailwind-conformance/src/text-child-containers.test.ts'
@@ -46,6 +47,7 @@ on:
       - 'crates/hozo_napi/src/prepared_module.rs'
       - 'packages/patterns/src/bottom-sheet*'
       - 'packages/patterns/src/tabs*'
+      - 'packages/patterns/src/toolbar*'
       - '.github/workflows/owner-evidence.yml'
   workflow_dispatch:
 permissions:
@@ -76,6 +78,7 @@ jobs:
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-handle.test.mjs
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/bottom-sheet-prepared-handle.test.ts packages/tailwind-conformance/src/text-child-containers.test.ts
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/tabs-owner-state.test.ts packages/tailwind-conformance/src/tabs-prepared-owner.test.ts packages/tailwind-conformance/src/tabs-compiled-owner.test.ts examples/storybook-demo/scripts/owner-tabs.test.mjs
+      - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/toolbar-owner.test.ts
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-vite.test.mjs
       - run: node --test --test-concurrency=1 examples/native-demo/scripts/metro-partial-owner-bundle.test.mjs
       - uses: actions/upload-artifact@v4
@@ -162,4 +165,10 @@ jobs:
             artifacts/style-fact-model/tabs-browser.json
             artifacts/style-fact-model/tabs-native.json
             artifacts/style-fact-model/tabs-compiled-native.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owner-toolbar-evidence
+          path: artifacts/style-fact-model/toolbar-native.json
           if-no-files-found: warn
