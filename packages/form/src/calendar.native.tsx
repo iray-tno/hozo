@@ -33,6 +33,12 @@ import {
   firstDayOfWeek as weekStartFor,
 } from './calendar-rules.ts'
 import { nonControlClassFacts } from './class-facts.native.ts'
+import {
+  type CalendarDayClassFacts,
+  calendarDayClassConstants,
+  type FormButtonClassFacts,
+  formButtonClassConstants,
+} from './owner-facts.native.ts'
 
 export interface HozoCalendarDay {
   date: CalendarDate
@@ -306,7 +312,7 @@ function CalendarDay({
     StyleSheet.flatten([
       { flex: 1 },
       hozoClasses(className, {
-        ...nonControlClassFacts,
+        ...calendarDayClassConstants,
         ...state,
         'aria-selected': day.selected,
         'aria-disabled': day.disabled,
@@ -315,7 +321,7 @@ function CalendarDay({
         'data-hozo-range-start': day.rangeStart,
         'data-hozo-range-end': day.rangeEnd,
         'data-hozo-in-range': day.inRange,
-      }),
+      } satisfies CalendarDayClassFacts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )
@@ -379,14 +385,14 @@ function CalendarMonthButton({
   const [box, text] = hozoSplitTextStyle(
     StyleSheet.flatten([
       hozoClasses(className, {
-        ...nonControlClassFacts,
+        ...formButtonClassConstants,
         ...state,
         disabled,
         enabled: !disabled,
         pressed: !disabled && state.pressed,
         focused: !disabled && state.focused,
         focusVisible: !disabled && state.focusVisible,
-      }),
+      } satisfies FormButtonClassFacts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )

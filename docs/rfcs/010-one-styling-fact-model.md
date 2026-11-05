@@ -684,6 +684,11 @@ lowering. Phase A, owner audit and default routing remain open.
   constant facts plus exact live-state types. The components still compute
   the state themselves; options do not acquire focus/hover facts or the
   control's state, and no owner audit is promoted by type equality.
+  Picker/month/file buttons, calendar days and time values also consume
+  generated constants and exact live-state types. Calendar days keep
+  `disabled: false` with live `aria-disabled`; time values do not acquire
+  a pressed fact. Shared constants replace local definitions, not the
+  components' event handlers or their state calculations.
 - Turn the catalog's prose `gate`s and `composition`s into `shapes` data.
 - Audit the 55 `pending-audit` owners, the 32 component-managed slots first.
   Each audit writes a contract **and** its third-rung test (§4.6).
