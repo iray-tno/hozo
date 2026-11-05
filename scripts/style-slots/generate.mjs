@@ -36,6 +36,7 @@ export function formFactSource(definitions = formFactProfiles) {
     'aria-expanded',
     'aria-selected',
     'aria-checked',
+    'aria-busy',
   ])
   return (
     header +
@@ -46,7 +47,9 @@ export function formFactSource(definitions = formFactProfiles) {
           !Array.isArray(live) ||
           new Set(live).size !== live.length ||
           Object.values(constants).some((value) => typeof value !== 'boolean') ||
-          [...Object.keys(constants), ...live].some((fact) => !allowed.has(fact)) ||
+          [...Object.keys(constants), ...live].some(
+            (fact) => !allowed.has(fact) && !/^data-[a-z][a-z0-9-]*(?:=[a-z0-9-]+)?$/.test(fact),
+          ) ||
           live.some((fact) => Object.hasOwn(constants, fact))
         )
           throw new Error('Invalid form fact profile')

@@ -27,7 +27,47 @@ const nonControlFacts = {
 
 // Actual Native consumers supply live values; these definitions do not
 // observe events, infer state, or declare an owner audited.
+const buttonConstantFacts = { readOnly: true, ...absentAriaFacts }
+const buttonLiveFacts = ['hovered', 'pressed', 'focused', 'focusVisible', 'disabled', 'enabled']
 export const formFactProfiles = {
+  FormButton: {
+    constants: buttonConstantFacts,
+    live: buttonLiveFacts,
+  },
+  PickerButton: {
+    constants: buttonConstantFacts,
+    live: [...buttonLiveFacts, 'aria-expanded'],
+  },
+  FilePicker: {
+    constants: { ...buttonConstantFacts, 'aria-busy': false },
+    live: buttonLiveFacts,
+  },
+  CalendarDay: {
+    constants: { disabled: false, enabled: false, readOnly: true, 'aria-checked': false },
+    live: [
+      'hovered',
+      'pressed',
+      'focused',
+      'focusVisible',
+      'aria-selected',
+      'aria-disabled',
+      'data-hozo-outside',
+      'data-hozo-disabled',
+      'data-hozo-range-start',
+      'data-hozo-range-end',
+      'data-hozo-in-range',
+    ],
+  },
+  TimeValue: {
+    constants: {
+      disabled: false,
+      enabled: false,
+      readOnly: true,
+      'aria-selected': false,
+      'aria-checked': false,
+    },
+    live: ['hovered', 'focused', 'focusVisible', 'aria-disabled', 'data-hozo-disabled'],
+  },
   TextAreaField: {
     constants: absentAriaFacts,
     live: [

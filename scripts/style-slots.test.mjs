@@ -31,11 +31,18 @@ test('generated form facts separate live state from constants and unavailable ev
   assert.ok(!formFactProfiles.SelectOption.live.includes('focused'))
   assert.ok(!formFactProfiles.SelectOption.live.includes('hovered'))
   assert.ok(!formFactProfiles.TextAreaField.live.includes('hovered'))
+  assert.equal(formFactProfiles.CalendarDay.constants.disabled, false)
+  assert.ok(formFactProfiles.CalendarDay.live.includes('aria-disabled'))
+  assert.ok(!formFactProfiles.TimeValue.live.includes('pressed'))
+  assert.equal(formFactProfiles.FilePicker.constants['aria-busy'], false)
+  assert.ok(!Object.hasOwn(formFactProfiles.PickerButton.constants, 'aria-expanded'))
+  assert.ok(formFactProfiles.PickerButton.live.includes('aria-expanded'))
   for (const bad of [
     { constants: { focused: false }, live: ['focused'] },
     { constants: { focused: 'live' }, live: [] },
     { constants: {}, live: ['pressed', 'pressed'] },
     { constants: {}, live: ['arbitraryFact'] },
+    { constants: {}, live: ['data-injected";'] },
   ])
     assert.throws(() => formFactSource({ Test: bad }), /Invalid form fact profile/)
   assert.doesNotMatch(formFactSource(), /createContext|useState|function|=>/)
