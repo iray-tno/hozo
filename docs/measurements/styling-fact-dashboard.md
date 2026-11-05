@@ -56,7 +56,8 @@ preceding ordinary Metro bundle's actual resolver context. The fixture
 still supplies an exact anchor, origin list, and explicit subpaths; it
 does not discover them automatically. The observer does not change the
 ordinary build's output. Capture identity and route count are retained
-in the raw opt-in rows.
+in the raw opt-in rows. A failed ordinary build does not publish a capture
+even when its resolver reached the anchor before failing.
 
 These are fixture observations, not the §6 denominators
 for global coverage, fidelity, diagnostic completeness or contract audit.
