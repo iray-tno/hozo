@@ -180,6 +180,38 @@ test('Metro denominator requires all four current platform/route builds and thei
     assert.equal(budgetRow(changed).status, 'invalid')
     assert.equal(row([changed]).verified, 4)
   }
+
+  const liveRow = (value) => row([value], false, 'metro-owner-live-capture')
+  assert.equal(liveRow(receipt).status, 'missing')
+  const withLive = {
+    ...receipt,
+    builds: receipt.builds.map((build) => {
+      const ordinaryBundleSha256 = (build.platform === 'android' ? 'a' : 'b').repeat(64)
+      if (build.mode === 'ordinary') return { ...build, bundleSha256: ordinaryBundleSha256 }
+      return {
+        ...build,
+        capture: {
+          source: 'ordinary-metro-resolver',
+          fingerprint: hash,
+          routes: 8,
+          ordinaryBundleSha256,
+        },
+      }
+    }),
+  }
+  assert.equal(liveRow(withLive).verified, 2)
+  const [optIn, ...otherLiveBuilds] = withLive.builds
+  for (const capture of [
+    undefined,
+    { ...optIn.capture, source: 'fixture' },
+    { ...optIn.capture, fingerprint: 'bad' },
+    { ...optIn.capture, routes: 513 },
+    { ...optIn.capture, ordinaryBundleSha256: 'b'.repeat(64) },
+  ]) {
+    const changed = { ...withLive, builds: [{ ...optIn, capture }, ...otherLiveBuilds] }
+    assert.equal(liveRow(changed).status, 'invalid')
+    assert.equal(row([changed]).verified, 4)
+  }
 })
 
 test('Vite evidence counts matched cases and rejects invented or stale build receipts', () => {

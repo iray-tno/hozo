@@ -4,6 +4,7 @@ import {
   metroBudgetFallbackBuilds,
   metroBundleBuilds,
   metroBundleScope,
+  metroLiveCaptureBuilds,
 } from './metro-bundle-evidence.mjs'
 import { handleInputCases, tabInputCases } from './owner-input-cases.mjs'
 import { viteCapturedScope, viteComparableRows, viteFallbackScope } from './vite-evidence.mjs'
@@ -129,6 +130,15 @@ const domains = [
     metroBudgetFallbackBuilds,
     (row) => row.budgetFallback?.verified,
     (row) => row.budgetFallback?.status,
+  ],
+  [
+    metroBundleScope,
+    'metro-owner-live-capture',
+    'native-build',
+    'opt-in build linked to an ordinary resolver capture',
+    metroLiveCaptureBuilds,
+    (row) => row.liveCapture?.verified,
+    (row) => row.liveCapture?.status,
   ],
 ]
 

@@ -316,6 +316,7 @@ async function checkBundles(t, evidence, manifest) {
       capture,
     )
     let livePreflight
+    let ordinaryBundleSha256
     for (const mode of ['ordinary', 'opt-in', 'budget-fallback']) {
       const partial = mode === 'opt-in'
       const fallback =
@@ -354,6 +355,7 @@ async function checkBundles(t, evidence, manifest) {
         mode === 'ordinary' ? await observer.run(build) : { output: await build() }
       const { code } = output
       if (mode === 'ordinary') {
+        ordinaryBundleSha256 = digest(code)
         livePreflight = observed
         assert.equal(livePreflight?.status, 'complete', JSON.stringify(livePreflight))
         assert.ok(!livePreflight.routes.some((route) => route.importer === uncapturedFile))
@@ -437,6 +439,7 @@ async function checkBundles(t, evidence, manifest) {
             source: 'ordinary-metro-resolver',
             fingerprint: livePreflight.fingerprint,
             routes: livePreflight.routes.length,
+            ordinaryBundleSha256,
           },
         }),
       }
