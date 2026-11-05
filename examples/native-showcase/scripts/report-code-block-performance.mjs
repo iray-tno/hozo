@@ -37,7 +37,10 @@ const result = {
 for (const count of [10, 100, 300, 1000, ...(based ? ['baseline'] : []), ...variants]) {
   for (const phase of ['mount', 'update', 'edit', 'scroll']) {
     const cases = evidence.cases.filter(
-      (sample) => sample.name.startsWith(`${count}-`) && sample.name.includes(`-${phase}`),
+      // The run index after the name, so `variant-unwrapped` does not also
+      // take `variant-unwrapped-no-gutter`'s cases.
+      (sample) =>
+        new RegExp(`^${count}-\\d+-`).test(sample.name) && sample.name.includes(`-${phase}`),
     )
     if (!cases.length) {
       assert.ok(
