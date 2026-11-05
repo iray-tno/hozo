@@ -39,6 +39,15 @@ export { prepareOwnerLowerModule } from './owner-caller-lower.ts'
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
 
 /**
+ * Every module compiled output can import, for a bundler that has to know
+ * them before it has seen any output: Vite's dependency scan reads the
+ * untransformed source, where none of these appear (#1698).
+ */
+export const GENERATED_SPECIFIERS: readonly string[] = [
+  ...new Set(Object.values(GENERATED_ABI)),
+].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+
+/**
  * Render the imports compiled output needs, one statement per leaf module.
  *
  * The table is generated from the leaf modules themselves
