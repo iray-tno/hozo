@@ -70,6 +70,8 @@ export interface Theme {
   colors: ThemeColor[]
   /** Web declarations for project colors, including colors resolved only by CSS. */
   webColors?: { token: string; value: string; dark?: string }[]
+  /** Theme declarations eligible for delivery at their root scope when referenced. */
+  webVariables?: { name: string; value: string }[]
   /**
    * The project's own animations. Tailwind's four (`spin`, `ping`,
    * `pulse`, `bounce`) are left out: Hozo implements those itself, on
@@ -108,6 +110,8 @@ export interface ThemeRadius {
 }
 
 const toRgb = converter('rgb')
+// ThemeOptions.REFERENCE in Tailwind's design-system API has no runtime export.
+const THEME_REFERENCE = 2
 
 /**
  * One design system per stylesheet, because two callers want it now.
@@ -307,6 +311,15 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
 
   const colors: ThemeColor[] = []
   const webColors: NonNullable<Theme['webColors']> = []
+  const webVariables: NonNullable<Theme['webVariables']> = []
+  for (const [name, value] of declared) {
+    // Inline declarations can still be dependencies of other variables.
+    // Reference-only imports leave declaration delivery to their stylesheet.
+    const key = design.theme.prefix ? name.replace(`--${design.theme.prefix}-`, '--') : name
+    if (!(design.theme.getOptions(key) & THEME_REFERENCE)) {
+      webVariables.push({ name, value })
+    }
+  }
   for (const [name, declaration] of declared) {
     if (!name.startsWith('--color-')) continue
     // The dark half of a pair is not a colour of its own: it is read below,
@@ -322,12 +335,12 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
     const darkHex = darkOklch === null ? null : toHex(darkOklch)
     // A default is still a CSS variable a selector can override. Tailwind's
     // resolver decides whether to reference it or use an inline declaration.
-    const value = webColor(design, token, hex === null ? declaration : oklch)
+    const value = design.theme.resolve(token, ['--color'])
     const dark =
       hex !== null && darkHex !== null && darkOklch !== null
-        ? webColor(design, darkToken, darkOklch)
+        ? design.theme.resolve(darkToken, ['--color'])
         : undefined
-    if (value !== undefined) webColors.push({ token, value, ...(dark && { dark }) })
+    if (value !== null) webColors.push({ token, value, ...(dark && { dark }) })
     // Native and Canvas still need a color that can be resolved at build time.
     if (hex === null) continue
     colors.push({
@@ -345,6 +358,7 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
   return {
     colors,
     ...(webColors.length > 0 && { webColors }),
+    ...(webVariables.length > 0 && { webVariables }),
     spacingPx: readSpacing(design),
     animations: readAnimations(design, declared),
     radii: readRadii(declared),
@@ -356,20 +370,6 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
       })),
     ...readDarkSelector(design),
   }
-}
-
-function webColor(
-  design: Awaited<ReturnType<typeof __unstable__loadDesignSystem>>,
-  token: string,
-  fallback: string,
-): string | undefined {
-  // Tailwind chooses the token reference for @theme and the declaration for
-  // @theme inline. Hozo can consume the entry without bundling its CSS, so a
-  // reference with no authored fallback needs the build-time color as well.
-  const value = design.theme.resolve(token, ['--color'])
-  if (value === null) return undefined
-  const ref = VAR_REFERENCE.exec(value)
-  return ref && ref[2] === undefined && value !== fallback ? `var(${ref[1]}, ${fallback})` : value
 }
 
 /**

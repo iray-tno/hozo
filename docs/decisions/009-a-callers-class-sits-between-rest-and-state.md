@@ -57,8 +57,10 @@ candidate resolver at run time (`docs/rfcs/style-slot-contracts.md`).
 
 Compilation extracts the style structure the build can establish while
 preserving values and predicates that can change. A literal `text-fg` can
-compile to a CSS rule whose value reads `var(--color-fg)`. Its initial value
-supplies a fallback, and the variable reference preserves runtime overrides.
+compile to a CSS rule whose value reads `var(--color-fg)`. The referenced
+declaration and its dependencies are delivered in the theme layer at
+`:root, :host`, preserving the scope where aliases resolve and providing
+defaults when the theme entry is only read at build time.
 For `@theme inline`, Tailwind chooses the declaration's value, including
 any variable references inside it.
 

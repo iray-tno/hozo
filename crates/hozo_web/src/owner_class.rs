@@ -56,14 +56,9 @@ pub fn lower_owner_class(root: &Node, source: &str, theme: &Theme, evidence: boo
     }
     output.owner_class = carrier.map(|class_name| OwnerClass {
         class_name,
-        // This prefix is the renderer's own shared primitive defaults, not
-        // authored CSS to parse or a host dependency to install on the owner.
-        // Keep required content/leading/keyframe globals from the same emit.
-        css: output
-            .css
-            .strip_prefix(VIEW_BASE_CSS)
-            .unwrap_or(&output.css)
-            .to_string(),
+        // Remove the renderer's own synthetic-host defaults while keeping
+        // required theme/content/leading/keyframe globals from the same emit.
+        css: output.css.replacen(VIEW_BASE_CSS, "", 1),
     });
     output
 }

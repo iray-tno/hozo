@@ -49,7 +49,8 @@ test('a token the project redefines wins over the built-in copy', async () => {
     `import { View } from '@hozo/core'\n` +
     `export function C() { return <View className="bg-blue-500" /> }\n`
   const css = createCompiler(theme).compile(source)[0].css
-  assert.match(css, /background-color: var\(--color-blue-500, oklch\(50% 0\.2 200\)\)/)
+  assert.match(css, /background-color: var\(--color-blue-500\)/)
+  assert.match(css, /--color-blue-500: oklch\(50% 0\.2 200\)/)
 })
 
 test('a custom colour reaches both backends in the spelling each needs', async () => {
@@ -59,10 +60,10 @@ test('a custom colour reaches both backends in the spelling each needs', async (
     `import { View } from '@hozo/core'\n` +
     `export function C() { return <View className="bg-brand" /> }\n`
 
-  // Web keeps the variable live with an oklch fallback; React Native
-  // takes the resolved hex.
+  // Web delivers the declaration at its root scope; React Native takes hex.
   const css = createCompiler(theme).compile(source)[0].css
-  assert.match(css, /background-color: var\(--color-brand, oklch\(62% 0\.19 259\)\)/)
+  assert.match(css, /background-color: var\(--color-brand\)/)
+  assert.match(css, /--color-brand: oklch\(62% 0\.19 259\)/)
   assert.match(createCompiler(theme).compileNative(source)[0].styles, /backgroundColor: '#3581f6'/)
 })
 
@@ -82,10 +83,12 @@ test('project theme colours stay live in compiled and candidate CSS', async () =
   cache.scanFile('classes.ts', `export const classes = '${classes}'`, 1)
 
   for (const css of [compiler.compile(source)[0].css, cache.renderCss(theme)]) {
-    assert.match(css, /color: var\(--color-fg, #e6edf3\)/)
-    assert.match(css, /color-mix\(in oklab, var\(--color-accent, #ff0000\) 10%, transparent\)/)
-    assert.match(css, /border-color: var\(--color-accent, #ff0000\)/)
-    assert.match(css, /outline-color: var\(--color-from-runtime, var\(--runtime-color\)\)/)
+    assert.match(css, /color: var\(--color-fg\)/)
+    assert.match(css, /--color-fg: #e6edf3/)
+    assert.match(css, /color-mix\(in oklab, var\(--color-accent\) 10%, transparent\)/)
+    assert.match(css, /border-color: var\(--color-accent\)/)
+    assert.match(css, /outline-color: var\(--color-from-runtime\)/)
+    assert.match(css, /--color-from-runtime: var\(--runtime-color\)/)
   }
   const native = compiler.compileNative(source)[0].styles
   assert.match(native, /color: '#e6edf3'/)
@@ -137,14 +140,12 @@ test('default and inline theme colors have the same semantics on ready, retained
     emitted.map((part) => part.css).join('\n'),
     cache.renderCss(theme),
   ]) {
-    assert.match(output, /color: var\(--color-red-500, oklch\(63\.7% 0\.237 25\.331\)\)/)
-    assert.match(
-      output,
-      /color-mix\(in oklab, var\(--color-defaulted, #ff0000\) 10%, transparent\)/,
-    )
-    assert.match(output, /color: var\(--color-project, #e6edf3\)/)
+    assert.match(output, /color: var\(--color-red-500\)/)
+    assert.match(output, /--color-red-500: oklch\(63\.7% 0\.237 25\.331\)/)
+    assert.match(output, /color-mix\(in oklab, var\(--color-defaulted\) 10%, transparent\)/)
+    assert.match(output, /color: var\(--color-project\)/)
     assert.match(output, /border-color: #123456/)
-    assert.match(output, /outline-color: var\(--color-defaulted, #ff0000\)/)
+    assert.match(output, /outline-color: var\(--color-defaulted\)/)
     assert.doesNotMatch(output, /var\(--color-(?:literal|alias)[,)]/)
   }
   const native = compiler
@@ -525,6 +526,8 @@ test('a dark variant reaches the compiled CSS in place of prefers-color-scheme',
   const css = createCompiler(theme).compile(source)[0].css
   assert.doesNotMatch(css, /prefers-color-scheme/)
   assert.match(css, /:where\(\[data-theme=dark\], \[data-theme=dark\] \*\)/)
-  assert.match(css, /var\(--color-brand, oklch\(62% 0\.19 259\)\)/)
-  assert.match(css, /var\(--color-brand--dark, oklch\(80% 0\.1 259\)\)/)
+  assert.match(css, /var\(--color-brand\)/)
+  assert.match(css, /--color-brand: oklch\(62% 0\.19 259\)/)
+  assert.match(css, /var\(--color-brand--dark\)/)
+  assert.match(css, /--color-brand--dark: oklch\(80% 0\.1 259\)/)
 })

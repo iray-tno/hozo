@@ -133,6 +133,8 @@ const reads = {
     'crates/hozo_ir/src/tailwind_plan.rs',
     'crates/hozo_parser/src/tailwind_plan.rs',
     'crates/hozo_web/src/lib.rs',
+    'crates/hozo_web/src/theme_variables.rs',
+    'crates/hozo_web/src/owner_class.rs',
     'crates/hozo_native/src/conditions.rs',
     'crates/hozo_napi/Cargo.toml',
     'crates/hozo_napi/src/lib.rs',
