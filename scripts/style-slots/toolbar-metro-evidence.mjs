@@ -15,7 +15,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
   try {
     assert.match(sourceCommit, /^[a-f0-9]{40}$/)
     assert.match(manifestSha256, hash)
-    assert.equal(receipt?.schema, 1)
+    assert.equal(receipt?.schema, 2)
     assert.equal(receipt.scope, toolbarMetroScope)
     assert.equal(receipt.sourceCommit, sourceCommit)
     assert.equal(receipt.manifestSha256, manifestSha256)
@@ -29,6 +29,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       assert.equal(row.inputPlatform, row.platform)
       assert.match(row.bundleSha256, hash)
       assert.ok(Number.isSafeInteger(row.bundleBytes) && row.bundleBytes > 0)
+      assert.equal(row.sharedAliasPlan, row.mode === 'toolbar-opt-in')
       assert.equal(row.capture?.source, 'ordinary-metro-resolver')
       assert.match(row.capture.fingerprint, hash)
       assert.ok(
@@ -45,12 +46,12 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
         ordinary?.capture,
         'Builds must share the successful ordinary capture',
       )
-      assert.deepEqual(Object.keys(row.routes).sort(), ['literal', 'opaque', 'uncaptured'])
+      assert.deepEqual(Object.keys(row.routes).sort(), ['alias', 'literal', 'opaque', 'uncaptured'])
       for (const [route, observed] of Object.entries(row.routes)) {
         assert.deepEqual(
           observed,
           {
-            carrierSupplied: row.mode === 'toolbar-opt-in' && route === 'literal',
+            carrierSupplied: row.mode === 'toolbar-opt-in' && ['literal', 'alias'].includes(route),
             style: {
               paddingTop: 21,
               paddingRight: 14,
@@ -72,7 +73,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       }
     }
     assert.equal(pending.size, 0)
-    return { ...base, passed: true, builds: 8, observations: 24, prepared: 2, ordinary: 22 }
+    return { ...base, passed: true, builds: 8, observations: 32, prepared: 4, ordinary: 28 }
   } catch (error) {
     return { ...base, passed: false, reason: error.message }
   }

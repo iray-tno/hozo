@@ -195,11 +195,14 @@ async function checkBundles(t, evidence, manifest) {
     writeFileSync(
       file,
       `
-      import {BottomSheet as Sheet,Toolbar} from '@hozo/patterns';
+      import {BottomSheet as Sheet,Toolbar,HozoToolbar as Alias} from '@hozo/patterns';
       import {inputPlatform, readHandleClass, readToolbarClass} from 'handle-input';
       import {renderUncaptured,renderUncapturedToolbar} from './Uncaptured';
       const h = (Component, props) => {
-        if(Component===Toolbar) globalThis.toolbarCarrierSupplied = typeof props.hozoToolbarStyle === 'function';
+        if(Component===Toolbar) {
+          globalThis.toolbarCarrierSupplied = typeof props.hozoToolbarStyle === 'function';
+          globalThis.toolbarPlan=props.hozoToolbarStyle;
+        }
         else globalThis.carrierSupplied = typeof props.hozoInteractiveHandleStyle === 'function';
         return Component(props);
       };
@@ -240,11 +243,14 @@ async function checkBundles(t, evidence, manifest) {
       const toolbarAuthor={get value(){globalThis.toolbarAuthorReads++;return {paddingTop:21,rowGap:5}}};
       const renderToolbar=()=> <Toolbar accessibilityLabel="Tools" items={toolbarItems}
         className="p-2 gap-x-3 gap-y-4" style={toolbarAuthor.value}/>;
+      const renderAliasToolbar=()=> <Alias accessibilityLabel="Tools" items={toolbarItems}
+        className="p-2 gap-x-3 gap-y-4" style={toolbarAuthor.value}/>;
       const renderOpaqueToolbar=()=> <Toolbar accessibilityLabel="Tools" items={toolbarItems}
         className={readToolbarClass()} style={toolbarAuthor.value}/>;
       function observeToolbar(render){
         globalThis.toolbarRuntimeReads=0;globalThis.toolbarAuthorReads=0;globalThis.toolbarActions=0;
         const tree=render();const owner=find(tree,props=>props.accessibilityRole==='toolbar');
+        (globalThis.toolbarPlans??=[]).push(globalThis.toolbarPlan);
         const action=find(tree,props=>props.accessibilityLabel==='Toolbar action');action.onPress();
         return {carrierSupplied:globalThis.toolbarCarrierSupplied,style:owner.style,
           role:owner.accessibilityRole,label:owner.accessibilityLabel,
@@ -252,8 +258,10 @@ async function checkBundles(t, evidence, manifest) {
           runtimeReads:globalThis.toolbarRuntimeReads,authorReads:globalThis.toolbarAuthorReads,
           actions:globalThis.toolbarActions};
       }
-      globalThis.toolbarResult={literal:observeToolbar(renderToolbar),opaque:observeToolbar(renderOpaqueToolbar),
+      globalThis.toolbarResult={literal:observeToolbar(renderToolbar),alias:observeToolbar(renderAliasToolbar),opaque:observeToolbar(renderOpaqueToolbar),
         uncaptured:observeToolbar(()=>renderUncapturedToolbar(h,toolbarItems,toolbarAuthor))};
+      globalThis.sharedToolbarPlan=typeof globalThis.toolbarPlans[0]==='function' &&
+        globalThis.toolbarPlans[0]===globalThis.toolbarPlans[1];
     `,
     )
     writeFileSync(path.join(f.root, 'global.css'), '@theme {--spacing:7px;} @tailwind utilities;')
@@ -428,6 +436,7 @@ async function checkBundles(t, evidence, manifest) {
         inputPlatform,
         bundleSha256: digest(code),
         bundleBytes: Buffer.byteLength(code),
+        sharedAliasPlan: globals.sharedToolbarPlan,
         routes: observedToolbar,
         capture: {
           source: 'ordinary-metro-resolver',
@@ -451,7 +460,10 @@ async function checkBundles(t, evidence, manifest) {
           },
           `${platform}/${mode}/${route}`,
         )
-        assert.equal(control.carrierSupplied, mode === 'toolbar-opt-in' && route === 'literal')
+        assert.equal(
+          control.carrierSupplied,
+          mode === 'toolbar-opt-in' && ['literal', 'alias'].includes(route),
+        )
         assert.equal(control.role, 'toolbar')
         assert.equal(control.label, 'Tools')
         assert.equal(control.privateLeak, false)
@@ -460,6 +472,7 @@ async function checkBundles(t, evidence, manifest) {
         assert.equal(control.runtimeReads, route === 'opaque' ? 1 : 0)
         assert.equal(control.actions, 1)
       }
+      assert.equal(globals.sharedToolbarPlan, mode === 'toolbar-opt-in')
       assert.equal(inputPlatform, platform)
       assert.equal(carrierSupplied, partial)
       assert.equal(literal.decorativeCarrierSupplied, partial)
@@ -549,7 +562,7 @@ test('production Metro bundles deliver selected BottomSheet and Toolbar owners a
       toolbarEvidenceFile,
       `${JSON.stringify(
         {
-          schema: 1,
+          schema: 2,
           sourceCommit: evidence.sourceCommit,
           trackedChanges: evidence.trackedChanges,
           scope: 'metro-production-toolbar-owner-host-standins',

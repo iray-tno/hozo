@@ -40,6 +40,19 @@ the opaque site and a locally shadowed name keep their original class props.
 The ordinary `withHozo` configuration and its byte-identical restoration,
 frozen runtime map and invalidation fences are unchanged.
 
+The integration layer extends the existing eight production-Metro builds,
+not their platform/mode count. A fourth route executes `HozoToolbar` beside
+`Toolbar`, with an identical recipe and a separate authored render. Only in
+Toolbar-selected mode must their actual emitted plan functions be identical.
+This yields 32 observations: four prepared alias deliveries and 28 ordinary
+controls. The Toolbar receipt moves to schema 2, so an older 24-observation
+receipt cannot satisfy this new requirement. The historical schema-1 result
+remains evidence for its original narrower boundary, not a failed old run.
+
+Both the real Metro execution and its current-source receipt reader run in
+Owner Evidence CI. The integration build is not run locally under CPU-1/Idle
+constraints; the publishing reader's synthetic tests only test the reader.
+
 No default routing, audit promotion, general multi-owner composition or global
 coverage/maturity change is implied. Supported runtime paths and independent
 expected styles stay as permanent regressions, not deletion targets.

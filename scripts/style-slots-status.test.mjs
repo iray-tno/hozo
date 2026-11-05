@@ -42,7 +42,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
   // Synthetic receipts exercise the reader, not the Metro production claim.
   const hash = 'b'.repeat(64)
   const receipt = {
-    schema: 1,
+    schema: 2,
     scope: toolbarMetroScope,
     sourceCommit: commit,
     manifestSha256: hash,
@@ -55,6 +55,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
         inputPlatform: platform,
         bundleSha256: hash,
         bundleBytes: 100,
+        sharedAliasPlan: mode === 'toolbar-opt-in',
         capture: {
           source: 'ordinary-metro-resolver',
           fingerprint: hash,
@@ -62,10 +63,10 @@ test('Toolbar Metro receipts require current source, all routes and negative con
           ordinaryBundleSha256: hash,
         },
         routes: Object.fromEntries(
-          ['literal', 'opaque', 'uncaptured'].map((route) => [
+          ['literal', 'alias', 'opaque', 'uncaptured'].map((route) => [
             route,
             {
-              carrierSupplied: mode === 'toolbar-opt-in' && route === 'literal',
+              carrierSupplied: mode === 'toolbar-opt-in' && ['literal', 'alias'].includes(route),
               style: {
                 paddingTop: 21,
                 paddingRight: 14,
@@ -93,11 +94,23 @@ test('Toolbar Metro receipts require current source, all routes and negative con
     sourceCommit: commit,
     passed: true,
     builds: 8,
-    observations: 24,
-    prepared: 2,
-    ordinary: 22,
+    observations: 32,
+    prepared: 4,
+    ordinary: 28,
   })
   const mutations = [
+    (r) => {
+      r.schema = 1
+    },
+    (r) => {
+      r.builds[3].sharedAliasPlan = false
+    },
+    (r) => {
+      r.builds[0].sharedAliasPlan = true
+    },
+    (r) => {
+      r.builds[3].routes.alias.carrierSupplied = false
+    },
     (r) => {
       r.sourceCommit = 'c'.repeat(40)
     },
