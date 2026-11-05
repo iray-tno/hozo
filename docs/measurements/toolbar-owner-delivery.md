@@ -38,11 +38,22 @@ Native reads the real selected package entry/manifest through a capture,
 epoch and lease. Both aliases share one project preparation. The actual
 emitted caller executes through Metro's source transformer and the actual
 Toolbar source, against Android/iOS host stand-ins. Raw, literal, opaque,
-prepared and alias routes, each with an author and after its removal, give
-20 observations. Tests require preserved root identity/structure, working
+prepared and alias routes, plus minified distributed ordinary/prepared bundles,
+each with an author and after its removal, give 28 observations. Tests require preserved root identity/structure, working
 child actions, authored gap precedence, once-per-render author access and
 invalidated-session refusal. Resolver instrumentation has a raw positive
-control; prepared literal names must not reach it.
+control; source-prepared literal names must not reach it. The two distributed
+bundles inline the same captured map, execute with external React/RN peers
+and stand-in RN hosts, and must include `patterns/dist/toolbar.native.js`,
+exclude compiler/Tailwind/manifest machinery and retain identical peer sets.
+Their minified/gzip bytes and SHA-256 are retained in the Native receipt.
+This is a production component bundle, not a Metro app or device binary.
+
+At the same source, ordinary versus prepared component bundles measured
+5,260 → 5,412 minified bytes and 2,529 → 2,558 gzip bytes (+152 / +29),
+with the same React, React JSX-runtime and RN external peers. This compares
+the two routes after adding the seam, not the seam's cost versus old main,
+an application bundle size or execution speed.
 
 Web uses the existing ordinary-lowering composition/session fixture, not a
 new pipeline. The production browser bundle must include the actual built
@@ -62,6 +73,13 @@ check. Actual browser execution is delegated to Owner Evidence CI. The
 existing compiler-owner selection passed 100 tests with one existing
 platform-specific skip; catalog/status/publication/contract checks passed 54.
 These overlapping selections are not a global coverage denominator.
+
+[Owner Evidence run 42043426988](https://github.com/iray-tno/hozo/actions/runs/42043426988)
+passed at clean PR merge checkout `5dcbbfa6d9644c3f7f52c4fd08f7441e1ca6be0f`.
+Its retained JSON verifies 20 source-host Native observations, 12 Web
+observations and six Web controls. The later eight distributed-bundle Native
+observations are not retroactively attributed to that run; they need the
+follow-up head's CI.
 
 ## Failed observations and measurement correction
 
