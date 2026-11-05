@@ -166,7 +166,8 @@ export function HozoSlider({
     },
     onStart() {
       move(0)
-      thumb.current?.focus()
+      // A press, not a key: no keyboard focus ring (#1714).
+      thumb.current?.focus({ focusVisible: false })
     },
     onMove: move,
     onEnd(delta) {
