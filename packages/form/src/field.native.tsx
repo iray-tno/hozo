@@ -27,6 +27,7 @@ import { useHozoMessage } from '@hozo/behaviors'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useEffect, useId } from 'react'
 import { AccessibilityInfo, Text, View } from 'react-native'
+import { nonControlClassFacts } from './class-facts.native.ts'
 
 /** What a control needs to be part of a field, on React Native. */
 export interface HozoFieldControl {
@@ -98,11 +99,11 @@ export function HozoField({
   }, [errorText])
 
   return (
-    <View style={hozoClasses(className)}>
-      <Text nativeID={labelId} style={hozoClasses(labelClassName)}>
+    <View style={hozoClasses(className, nonControlClassFacts)}>
+      <Text nativeID={labelId} style={hozoClasses(labelClassName, nonControlClassFacts)}>
         {label}
         {required ? (
-          <Text aria-hidden style={hozoClasses(requiredClassName)}>
+          <Text aria-hidden style={hozoClasses(requiredClassName, nonControlClassFacts)}>
             {' *'}
           </Text>
         ) : null}
@@ -112,9 +113,11 @@ export function HozoField({
         accessibilityLabelledBy: labelId,
         accessibilityHint: hint,
       })}
-      {error === undefined ? null : <Text style={hozoClasses(errorClassName)}>{error}</Text>}
+      {error === undefined ? null : (
+        <Text style={hozoClasses(errorClassName, nonControlClassFacts)}>{error}</Text>
+      )}
       {description === undefined ? null : (
-        <Text style={hozoClasses(descriptionClassName)}>{description}</Text>
+        <Text style={hozoClasses(descriptionClassName, nonControlClassFacts)}>{description}</Text>
       )}
     </View>
   )

@@ -678,6 +678,8 @@ lowering. Phase A, owner audit and default routing remain open.
   These are pending owners, not new Primitive mappings or audited contracts.
   Form and pattern non-control constants are generated from the catalog's
   shared profile; live component-specific facts still remain to be migrated.
+  Field's five non-control owners now consume those generated constants;
+  the contained input's disabled state remains the input's, not its labels'.
 - Turn the catalog's prose `gate`s and `composition`s into `shapes` data.
 - Audit the 55 `pending-audit` owners, the 32 component-managed slots first.
   Each audit writes a contract **and** its third-rung test (§4.6).
