@@ -163,7 +163,7 @@ Snapping is not free, and it changed two things worth knowing about. Rows that d
 
 Every colour token has a `--dark` twin in `theme.css`, and that is the whole of it. `bg-hozo-surface` emits its light rule and a `prefers-color-scheme: dark` one on the Web, and a second `StyleSheet` entry behind `__hozoDark` on React Native. **Not one class list in this package says `dark:`.**
 
-Which is what Tailwind and StyleX both do — a token holds both values and the component holds neither. It took two compiler changes to be able to, because Hozo resolves a token into the rule where Tailwind emits `var()`, and redefining a variable nothing reads does nothing.
+Web rules reference the light token or its dark twin and carry a fallback for projects that read the theme stylesheet only at build time.
 
 Re-theming still means redefining one line, and now there are two of them:
 

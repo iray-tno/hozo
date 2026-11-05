@@ -43,7 +43,7 @@ test('a token the project redefines wins over the built-in copy', async () => {
     `import { View } from '@hozo/core'\n` +
     `export function C() { return <View className="bg-blue-500" /> }\n`
   const css = createCompiler(theme).compile(source)[0].css
-  assert.match(css, /background-color: oklch\(50% 0\.2 200\)/)
+  assert.match(css, /background-color: var\(--color-blue-500, oklch\(50% 0\.2 200\)\)/)
 })
 
 test('a custom colour reaches both backends in the spelling each needs', async () => {
@@ -53,11 +53,38 @@ test('a custom colour reaches both backends in the spelling each needs', async (
     `import { View } from '@hozo/core'\n` +
     `export function C() { return <View className="bg-brand" /> }\n`
 
-  // Web keeps the oklch Tailwind itself would emit; React Native has no
-  // `oklch()`, so it takes the hex.
+  // Web keeps the variable live with an oklch fallback; React Native
+  // takes the resolved hex.
   const css = createCompiler(theme).compile(source)[0].css
-  assert.match(css, /background-color: oklch\(62% 0\.19 259\)/)
+  assert.match(css, /background-color: var\(--color-brand, oklch\(62% 0\.19 259\)\)/)
   assert.match(createCompiler(theme).compileNative(source)[0].styles, /backgroundColor: '#3581f6'/)
+})
+
+test('project theme colours stay live in compiled and candidate CSS', async () => {
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme {
+      --color-fg: #e6edf3;
+      --color-accent: #ff0000;
+      --color-from-runtime: var(--runtime-color);
+    }
+    @theme inline { --color-inline-accent: var(--color-accent); }
+    .light { --color-fg: #1f2328; --color-accent: #0000ff; }`)
+  const classes = 'text-fg bg-accent/10 border-inline-accent outline-from-runtime'
+  const source = `import { Text } from '@hozo/core'; export const C = () => <Text className="${classes}" />`
+  const compiler = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('classes.ts', `export const classes = '${classes}'`, 1)
+
+  for (const css of [compiler.compile(source)[0].css, cache.renderCss(theme)]) {
+    assert.match(css, /color: var\(--color-fg, #e6edf3\)/)
+    assert.match(css, /color-mix\(in oklab, var\(--color-accent, #ff0000\) 10%, transparent\)/)
+    assert.match(css, /border-color: var\(--color-accent, #ff0000\)/)
+    assert.match(css, /outline-color: var\(--color-from-runtime, var\(--runtime-color\)\)/)
+  }
+  const native = compiler.compileNative(source)[0].styles
+  assert.match(native, /color: '#e6edf3'/)
+  assert.match(native, /backgroundColor: 'rgba\(255, 0, 0, 0\.1\)'/)
+  assert.match(native, /borderColor: '#ff0000'/)
 })
 
 test('without a theme the same source is unresolved, not wrong', async () => {
@@ -430,5 +457,6 @@ test('a dark variant reaches the compiled CSS in place of prefers-color-scheme',
   const css = createCompiler(theme).compile(source)[0].css
   assert.doesNotMatch(css, /prefers-color-scheme/)
   assert.match(css, /:where\(\[data-theme=dark\], \[data-theme=dark\] \*\)/)
-  assert.match(css, /oklch\(80% 0\.1 259\)/)
+  assert.match(css, /var\(--color-brand, oklch\(62% 0\.19 259\)\)/)
+  assert.match(css, /var\(--color-brand--dark, oklch\(80% 0\.1 259\)\)/)
 })

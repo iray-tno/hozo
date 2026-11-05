@@ -8,7 +8,7 @@ Used by every Hozo integration; a project does not normally import it directly.
 
 Tailwind 4 defines a theme in CSS — `@theme { --color-brand: oklch(62% 0.19 258); }` — with `@import`, `@plugin` and cascade layers all in play. Working out what `bg-brand` means from the file text would mean reimplementing that resolution, and being subtly wrong about it in ways that look reasonable from both sides.
 
-So this loads the stylesheet through Tailwind's own resolver and reads the answer. The colours come back in three forms — token name, `oklch()`, and a hex fallback — because Native has no `oklch()` and the compiler needs to pick per backend.
+This loads the stylesheet through Tailwind's own resolver. Web styles keep references to project-defined `@theme` colours, so a selector can override the corresponding CSS variable at runtime. The reference carries a fallback for builds that only read the theme stylesheet. With `@theme inline`, Web uses the declaration's value, which can itself reference a CSS variable. Native uses the build-time hex colour.
 
 Spacing is carried as the project's *step*, not as pixels: `p-4` means "four spacing units", and a project that sets `--spacing` to something other than `0.25rem` moves every one of them together. Resolving to pixels at this layer would silently freeze the scale.
 

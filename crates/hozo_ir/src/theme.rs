@@ -14,9 +14,8 @@
 
 use std::collections::HashMap;
 
-/// A color resolved to both representations each backend needs: `oklch`
-/// is emitted as-is on Web (byte-for-byte what Tailwind's own CSS would
-/// produce), `hex` is what Native uses since RN's style system doesn't
+/// A color resolved at build time: `oklch` is the CSS spelling,
+/// and `hex` is what Native uses since RN's style system doesn't
 /// understand the `oklch()` CSS function.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ThemeColor {
@@ -57,6 +56,8 @@ pub struct Theme {
     /// because every existing reader of a colour wants the light one and
     /// should keep getting it without being changed. See `dark()`.
     dark_colors: HashMap<String, ThemeColor>,
+    /// CSS values may refer to runtime variables unavailable to Native.
+    web_colors: HashMap<String, (String, Option<String>)>,
     /// One spacing step in pixels. Tailwind's `--spacing` is 0.25rem, and
     /// the root font size is 16px, so a step is 4px unless a project says
     /// otherwise.
@@ -122,6 +123,7 @@ impl Default for Theme {
         Theme {
             colors: HashMap::new(),
             dark_colors: HashMap::new(),
+            web_colors: HashMap::new(),
             spacing_px: DEFAULT_SPACING_PX,
             preflight: false,
             animations: HashMap::new(),
@@ -150,6 +152,7 @@ impl Theme {
         Theme {
             colors,
             dark_colors,
+            web_colors: HashMap::new(),
             spacing_px: spacing_px.unwrap_or(DEFAULT_SPACING_PX),
             preflight,
             animations: HashMap::new(),
@@ -169,6 +172,15 @@ impl Theme {
     /// see the field.
     pub fn dark_selector(&self) -> Option<&str> {
         self.dark_selector.as_deref()
+    }
+
+    pub fn with_web_colors(mut self, colors: HashMap<String, (String, Option<String>)>) -> Self {
+        self.web_colors = colors;
+        self
+    }
+
+    pub fn web_color(&self, token: &str) -> Option<&str> {
+        self.web_colors.get(token).map(|(value, _)| value.as_str())
     }
 
     /// The same theme with the project's own animations.
@@ -266,9 +278,16 @@ impl Theme {
         for (token, color) in &self.dark_colors {
             colors.insert(token.clone(), color.clone());
         }
+        let mut web_colors = self.web_colors.clone();
+        for token in self.dark_colors.keys() {
+            if let Some((_, Some(dark))) = web_colors.remove(token) {
+                web_colors.insert(token.clone(), (dark, None));
+            }
+        }
         Some(Theme {
             colors,
             dark_colors: HashMap::new(),
+            web_colors,
             spacing_px: self.spacing_px,
             preflight: self.preflight,
             animations: self.animations.clone(),
