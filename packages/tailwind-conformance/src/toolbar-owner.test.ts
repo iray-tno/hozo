@@ -1,11 +1,14 @@
 // Real emitted caller -> published package contract -> actual Toolbar source.
 // RN hosts are stand-ins; this does not establish device or text inheritance fidelity.
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire, registerHooks } from 'node:module'
 import path from 'node:path'
 import test from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { gzipSync } from 'node:zlib'
+import { build } from 'esbuild'
 import { evidenceSource } from '../../../scripts/style-slots/evidence-source.mjs'
 import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
 import { createCompiler, openCandidateCache } from '../../compiler/src/index.ts'
@@ -62,6 +65,13 @@ test('published Toolbar callers preserve the real wrapper, item actions and auth
     identity: null as unknown,
     fingerprint: '',
     observations: [] as unknown[],
+    bundles: [] as {
+      mode: string
+      bytes: number
+      gzipBytes: number
+      sha256: string
+      peers: string[]
+    }[],
   }
   let session: InstanceOwnerCallerProject | undefined
   let hook: ReturnType<typeof registerHooks> | undefined
@@ -146,6 +156,96 @@ test('published Toolbar callers preserve the real wrapper, item actions and auth
       assert.equal(current.preview.code.split('author.value').length - 1, 1)
     }
     assert.ok(runtime)
+    const bundled: (readonly [string, unknown])[] = []
+    for (const [mode, contents] of [
+      ['bundled-ordinary', input],
+      ['bundled-prepared', result.preview.code],
+    ]) {
+      const output = await build({
+        stdin: {
+          contents,
+          loader: 'tsx',
+          resolveDir: path.join(root, 'packages/tailwind-conformance'),
+        },
+        bundle: true,
+        minify: true,
+        treeShaking: true,
+        write: false,
+        metafile: true,
+        format: 'cjs',
+        platform: 'neutral',
+        jsx: 'automatic',
+        conditions: ['react-native'],
+        mainFields: ['react-native', 'module', 'main'],
+        resolveExtensions: ['.native.tsx', '.native.ts', '.tsx', '.ts', '.js'],
+        external: [
+          'react',
+          'react/*',
+          'react-native',
+          'react-native-*',
+          '@react-native/*',
+          'expo-*',
+          '@expo/*',
+        ],
+        define: { 'process.env.NODE_ENV': '"production"' },
+        logLevel: 'silent',
+        plugins: [
+          {
+            name: 'captured-toolbar-map',
+            setup(builder) {
+              builder.onResolve({ filter: /^@hozo\/engine\/project$/ }, () => ({
+                path: 'map',
+                namespace: 'toolbar-map',
+              }))
+              builder.onLoad({ filter: /.*/, namespace: 'toolbar-map' }, () => ({
+                contents: runtime,
+                loader: 'js',
+                resolveDir: path.join(root, 'packages/tailwind-conformance'),
+              }))
+            },
+          },
+        ],
+      })
+      const files = Object.keys(output.metafile!.inputs).map((file) => file.replaceAll('\\', '/'))
+      assert.ok(
+        files.some((file) => file.endsWith('patterns/dist/toolbar.native.js')),
+        'The distributed Native owner, not its source stand-in',
+      )
+      assert.ok(!files.some((file) => /packages\/(compiler|tailwind)\//.test(file)))
+      const code = output.outputFiles[0]!.text
+      assert.doesNotMatch(code, /rfc010-owner-shadow-0|explicit-instance-owner-preview/)
+      assert.ok(
+        output.warnings.every(
+          (warning) =>
+            warning.id === 'ignored-bare-import' &&
+            warning.location?.file.endsWith('engine/dist/index.native.js') &&
+            warning.text.includes('class-name.native.js'),
+        ),
+        'Only the erased RN type augmentation may warn',
+      )
+      const module = { exports: {} as Record<string, unknown> }
+      new Function('require', 'module', 'exports', code)(require, module, module.exports)
+      assert.equal(typeof module.exports.Caller, 'function')
+      bundled.push([mode, module.exports.Caller])
+      evidence.bundles.push({
+        mode,
+        bytes: Buffer.byteLength(code),
+        gzipBytes: gzipSync(code).length,
+        sha256: createHash('sha256').update(code).digest('hex'),
+        peers: [
+          ...new Set(
+            Object.values(output.metafile!.outputs).flatMap((value) =>
+              value.imports.filter((item) => item.external).map((item) => item.path),
+            ),
+          ),
+        ].sort(),
+      })
+    }
+    assert.deepEqual(
+      evidence.bundles[0]!.peers,
+      evidence.bundles[1]!.peers,
+      'No new runtime peer dependency',
+    )
     const sheet = path.join(project, 'node_modules/.hozo/candidates.native.js')
     const trace = path.join(path.dirname(sheet), 'trace.js')
     mkdirSync(path.dirname(sheet), { recursive: true })
@@ -192,6 +292,7 @@ export function Opaque({items,author,names}){return <Tools accessibilityLabel="T
         ['opaque', ordinary.Opaque],
         ['prepared', compiled.Caller],
         ['alias', aliased.Caller],
+        ...bundled,
       ] as const) {
         let authorReads = 0
         let presses = 0
@@ -296,7 +397,7 @@ export function Opaque({items,author,names}){return <Tools accessibilityLabel="T
         }
       }
     }
-    assert.equal(observations, 20)
+    assert.equal(observations, 28)
     session.invalidate()
     await assert.rejects(
       () => session!.emit(input, { ...edge, entry, imported: 'Toolbar', classProp: 'className' }),
@@ -320,6 +421,9 @@ test('Toolbar shadow preparation retains unavailable interaction and ambiguous a
   const options = { source: '@hozo/patterns', imported: 'Toolbar', shadow }
   for (const input of [
     caller().replace(names, 'p-[8px] hover:opacity-50'),
+    caller().replace(names, 'p-[8px] text-[#112233]'),
+    caller().replace(names, 'p-[8px] text-[18px]'),
+    caller().replace(names, 'read-only:p-[8px]'),
     caller().replace(`className="${names}"`, 'className={runtimeNames}'),
     caller().replace(`className="${names}"`, `className="${names}" {...rest}`),
     caller().replace(`className="${names}"`, `className="${names}" hozoToolbarStyle={other}`),
