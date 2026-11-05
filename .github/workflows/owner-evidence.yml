@@ -28,6 +28,7 @@ on:
       - 'scripts/style-slots/catalog.mjs'
       - 'examples/storybook-demo/scripts/owner-handle.test.mjs'
       - 'examples/storybook-demo/scripts/owner-tabs.test.mjs'
+      - 'examples/storybook-demo/scripts/owner-toolbar.test.mjs'
       - 'examples/storybook-demo/scripts/owner-vite.test.mjs'
       - 'packages/tailwind-conformance/src/tabs-owner-state.test.ts'
       - 'packages/tailwind-conformance/src/toolbar-owner.test.ts'
@@ -79,6 +80,7 @@ jobs:
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/bottom-sheet-prepared-handle.test.ts packages/tailwind-conformance/src/text-child-containers.test.ts
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/tabs-owner-state.test.ts packages/tailwind-conformance/src/tabs-prepared-owner.test.ts packages/tailwind-conformance/src/tabs-compiled-owner.test.ts examples/storybook-demo/scripts/owner-tabs.test.mjs
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/toolbar-owner.test.ts
+      - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-toolbar.test.mjs
       - run: node --test --test-concurrency=1 examples/storybook-demo/scripts/owner-vite.test.mjs
       - run: node --test --test-concurrency=1 examples/native-demo/scripts/metro-partial-owner-bundle.test.mjs
       - uses: actions/upload-artifact@v4
@@ -170,5 +172,7 @@ jobs:
         if: always()
         with:
           name: owner-toolbar-evidence
-          path: artifacts/style-fact-model/toolbar-native.json
+          path: |
+            artifacts/style-fact-model/toolbar-native.json
+            artifacts/style-fact-model/toolbar-browser.json
           if-no-files-found: warn
