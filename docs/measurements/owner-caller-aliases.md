@@ -28,11 +28,17 @@ node --test --test-concurrency=1 packages/compiler/src/owner-caller-plan.test.ts
 
 ## Adapter follow-up
 
-The next layer replaces Metro's `used.size !== 1` whole-module fallback only
+The Metro layer replaces the `used.size !== 1` whole-module fallback only
 for aliases that share that exact captured owner/edge. It must keep ordinary
 mixed-lowering, opaque/unsupported recipes and foreign/uncaptured bindings on
 their existing paths. Production Metro delivery of both aliases belongs to
 the subsequent integration fixture; compiler tests alone do not close it.
+
+The real resolver/source-worker regression uses both captured Toolbar exports
+in one module. Both static sites must refer to the same hoisted plan, while
+the opaque site and a locally shadowed name keep their original class props.
+The ordinary `withHozo` configuration and its byte-identical restoration,
+frozen runtime map and invalidation fences are unchanged.
 
 No default routing, audit promotion, general multi-owner composition or global
 coverage/maturity change is implied. Supported runtime paths and independent

@@ -322,6 +322,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
           selectedOwner.request,
           selectedOwner.disposition,
           compilerState.stylexModules,
+          selectedOwner.aliases,
         )
       : compilerState.worker
         ? await compilerState.worker.transform(

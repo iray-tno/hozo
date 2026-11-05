@@ -104,13 +104,12 @@ test('one explicitly selected captured Toolbar alias gets a full carrier, not an
   }
 })
 
-test('ambiguous aliases, opaque recipes, foreign names, mixed lowering and uncaptured importers stay ordinary', async (t) => {
+test('captured aliases share one plan while opaque recipes, foreign names, mixed lowering and uncaptured importers stay ordinary', async (t) => {
   const f = fixture(t, 'android')
   await withHozoOwnerCallers(f.config, f.preflight, 'Toolbar.root', f.options)
   for (const input of [
     source().replace('className="p-2"', 'className={names}'),
     source().replace('className="p-2"', 'className="p-2 hover:opacity-50"'),
-    `import {Toolbar,HozoToolbar} from '@hozo/patterns';export const A=()=> <><Toolbar items={[]} className="p-2"/><HozoToolbar items={[]} className="p-2"/></>`,
     `import * as P from '@hozo/patterns';export const A=()=> <P.Toolbar items={[]} className="p-2"/>`,
     `/* @hozo/patterns */import {Toolbar} from 'kit';export const A=()=> <Toolbar className="p-2"/>`,
     `import {View} from '@hozo/core';${source().replace('<Tools', '<View><Tools').replace('/>', '/></View>')}`,
@@ -123,6 +122,22 @@ test('ambiguous aliases, opaque recipes, foreign names, mixed lowering and uncap
   const filename = path.join(f.root, 'src', 'Uncaptured.tsx')
   writeFileSync(filename, source())
   assert.doesNotMatch(String(await transform({ ...f.params, filename })), /hozoToolbarStyle=/)
+  const input = `import {Toolbar as Tools,HozoToolbar as Alias} from '@hozo/patterns';
+    export const A=()=> <><Tools items={[]} className="p-2" style={first.value}/>
+    <Alias items={[]} className="p-2" style={second.value}/><Alias items={[]} className={opaque.value}/></>;
+    function Shadow(Alias){return <Alias items={[]} className="p-2"/>}`
+  const output = String(await transform({ ...f.params, src: input }))
+  const names = [...output.matchAll(/hozoToolbarStyle=\{(\w+)\}/g)].map((m) => m[1])
+  assert.equal(names.length, 2)
+  assert.equal(names[0], names[1], 'both public aliases must use one plan')
+  assert.equal(output.match(/\.create\(/g)?.length, 1)
+  for (const value of ['first.value', 'second.value', 'opaque.value'])
+    assert.equal(output.split(value).length - 1, 1)
+  assert.match(
+    output,
+    /function Shadow\(Alias\)\{return <Alias items=\{\[\]\} className="p-2"\/>\}/,
+  )
+  assert.match(output, /className=\{opaque.value\}/)
 })
 
 test('invalid targets and inconsistent serialized modes fail before replacing configured state', async (t) => {

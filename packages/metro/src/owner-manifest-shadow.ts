@@ -176,13 +176,25 @@ export class MetroOwnerShadowSession {
     )
     if (inspection.diagnostics.length) return undefined
     const used = new Set(inspection.sites.map((site) => site.target))
-    // One request per existing worker participant. Multiple used public aliases
-    // remain wholly ordinary rather than rewriting just one half of the module.
-    if (used.size !== 1) return undefined
-    const request = eligible[[...used][0]!]!.request
+    if (!used.size) return undefined
+    const selected = [...used].map((index) => eligible[index]!.request)
+    const request = selected[0]!
+    // Only public aliases on the same captured edge may share a plan. The
+    // participant verifies their exact contract before collecting any IR.
+    if (
+      selected.some(
+        (alias) =>
+          alias.importer !== request.importer ||
+          alias.specifier !== request.specifier ||
+          alias.entry !== request.entry ||
+          alias.classProp !== request.classProp,
+      )
+    )
+      return undefined
     return {
       lease,
       request,
+      aliases: selected.slice(1).map((request) => request.imported),
       disposition:
         this.#target === 'BottomSheet.handle'
           ? ('prepared-partial' as const)
