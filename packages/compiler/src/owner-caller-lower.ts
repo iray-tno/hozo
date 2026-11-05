@@ -10,7 +10,7 @@ import {
 import { prepareInstanceOwnerCallers } from './owner-caller-participant.ts'
 import type { InstanceOwnerCallerPreview } from './owner-caller-project.ts'
 import type { OwnerManifestLease } from './owner-manifest-epoch.ts'
-import type { OwnerContractRequest } from './owner-package-selection.ts'
+import { type OwnerContractRequest, selectOwnerPackageContract } from './owner-package-selection.ts'
 import { type SourceEdit, SourceProvenance } from './source-provenance.ts'
 import type { StylexModuleCache } from './stylex-project.ts'
 
@@ -51,8 +51,29 @@ export function prepareOwnerLowerModule(
     ordinary = undefined
   }
   try {
-    for (const request of requests)
-      owned.push(prepareInstanceOwnerCallers(lease, source, compiler, request))
+    const groups: { request: OwnerContractRequest; imports: Set<string> }[] = []
+    const latest = new Map<string, (typeof groups)[number]>()
+    for (const request of requests) {
+      const selected = selectOwnerPackageContract(lease, request)
+      if (selected.status !== 'selected')
+        throw new Error(`OWNER_CONTRACT_UNASSESSED: ${selected.reason}`)
+      const { imported, ...identity } = selected.identity
+      const key = JSON.stringify(identity)
+      const previous = latest.get(key)
+      // Distinct public names share a bounded plan. Repeated requests must
+      // still reach the existing overlap refusal, not silently disappear.
+      if (previous && previous.imports.size < 8 && !previous.imports.has(imported))
+        previous.imports.add(imported)
+      else {
+        const group = { request: { ...request }, imports: new Set([imported]) }
+        groups.push(group)
+        latest.set(key, group)
+      }
+    }
+    for (const { request, imports } of groups)
+      owned.push(
+        prepareInstanceOwnerCallers(lease, source, compiler, request, false, [...imports].slice(1)),
+      )
     ordinary = prepareLowerModule(source, id, file, compiler, root, stylexModules, {
       ...options,
       observe(event) {

@@ -661,6 +661,42 @@ test('owner edits compose with ordinary lowering through exact source copies wit
   }
 })
 
+test('Web lowering groups captured owner aliases before collecting recipes and companion CSS', () => {
+  const { lease } = fixture('web', false, ['Alias'])
+  const compiler = createCompiler()
+  const original = compiler.prepareWebModule.bind(compiler)
+  let plans = 0,
+    ordinary = 0
+  compiler.prepareWebModule = (input, ...rest) => {
+    if (input.includes('function Plan()')) plans++
+    else ordinary++
+    return original(input, ...rest)
+  }
+  const input = `import {Sheet,Alias} from 'kit';import {View} from '@hozo/primitives';
+    export const A=()=> <View className="p-3"><Sheet handleClassName="p-2" handleStyle={first.value}/>
+      <Alias handleClassName="p-2" handleStyle={second.value}/></View>`
+  const current = { ...request, entry: '/package/web.js' }
+  const module = prepareOwnerLowerModule(input, a.importer, a.importer, compiler, '/app', lease, [
+    current,
+    { ...current, imported: 'Alias' },
+  ])
+  const output = module.emit(prepareFinalTailwindContext(snapshot(module.candidates)))
+  assert.equal(plans, 2, 'one recipe across two shapes, not one pair per alias')
+  assert.equal(ordinary, 1)
+  assert.equal(output.owners.length, 1)
+  assert.equal(output.owners[0]!.preview.findings.length, 2)
+  assert.ok(output.owners[0]!.preview.findings.every((f) => f.disposition === 'prepared-literal'))
+  assert.equal(output.lowered!.code.match(/handleClassName=\{"hozo-owner-/g)?.length, 2)
+  assert.equal(
+    output.lowered!.css.match(/padding-top: 8px/g)?.length,
+    1,
+    'one companion owner stylesheet',
+  )
+  for (const value of ['first.value', 'second.value'])
+    assert.equal(output.lowered!.code.split(value).length - 1, 1)
+  module.dispose()
+})
+
 test('opaque, unmappable or overlapping owner edits retain the whole ordinary route without companion owner CSS', () => {
   for (const kind of ['opaque', 'missing-copies', 'overlap']) {
     const { lease } = fixture('web')

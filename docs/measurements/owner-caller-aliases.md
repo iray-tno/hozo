@@ -78,3 +78,20 @@ Deletion receipt: Metro's own source-binding inspector import, target-building
 loop and extra inspection are removed. Opaque, shadowed, unavailable-state and
 uncaptured-source regressions remain. The instance selection, lease and frozen
 runtime candidate checks still precede delivery; no default or audit changes.
+
+## Web composition consolidation
+
+The existing Web owner/ordinary-lowering participant groups distinct public
+names only when the complete selected identity (excluding the public name)
+matches. Each group uses the same bounded alias plan. Repeated requests still
+reach the existing overlap refusal instead of being deduplicated into success;
+different owners/entries stay separate. All group identities are selected
+before any owner IR is allocated, with no additional project context/cache.
+
+For the controlled two-shape/two-alias Web probe, the old path prepared four
+shape modules; the grouped path prepares two. Ordinary lowering remains one
+parse, both copied owner sites are rewritten, both authored expressions are
+retained once and the companion owner stylesheet is emitted once. These are
+operation/output-count observations, not browser fidelity or latency numbers.
+The missing-copy and overlapping-edit refusal regressions still pass. The
+following browser layer exercises actual Toolbar aliases and independent CSS.
