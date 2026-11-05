@@ -9,13 +9,15 @@ type CaptureOptions = Parameters<typeof collectMetroOwnerPreflight>[2]
 type Resolution = { type: string; filePath?: string }
 
 /** @internal One observation per ordinary build. It never changes a resolver
- * return value, config, or worker state. The caller must wait for the ordinary
- * build to succeed before considering the observation for a later build. */
+ * return value, config, or worker state. Only a successful build returns a
+ * capture for a later build. */
 export function observeMetroOwnerPreflight(
   anchor: { importer: string; specifier: string },
   capture: CaptureOptions,
 ) {
   let attempted = false
+  let used = false
+  let active = false
   let observed: MetroOwnerPreflight | undefined
 
   function resolve<Context extends OwnerMetroContext, Result extends Resolution>(
@@ -26,6 +28,7 @@ export function observeMetroOwnerPreflight(
   ): Result {
     const result = delegate(context, specifier, platform)
     if (
+      !active ||
       attempted ||
       platform !== capture.platform ||
       context.originModulePath !== anchor.importer ||
@@ -61,5 +64,17 @@ export function observeMetroOwnerPreflight(
     return result
   }
 
-  return { resolve, result: () => observed }
+  return {
+    async run<Output>(build: (observe: typeof resolve) => Promise<Output>) {
+      if (used) throw new Error('Metro owner preflight observation requires a fresh build')
+      used = active = true
+      try {
+        const output = await build(resolve)
+        return { output, preflight: observed }
+      } finally {
+        active = false
+        observed = undefined
+      }
+    },
+  }
 }

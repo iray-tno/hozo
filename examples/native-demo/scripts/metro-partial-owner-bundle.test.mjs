@@ -315,15 +315,8 @@ async function checkBundles(t, evidence, manifest) {
       { importer: file, specifier: 'handle-input' },
       capture,
     )
-    const observingConfig = {
-      ...config,
-      resolver: {
-        ...config.resolver,
-        resolveRequest: (context, specifier, target) =>
-          observer.resolve(context, specifier, target, context.resolveRequest),
-      },
-    }
     let livePreflight
+    let ordinaryBundleSha256
     for (const mode of ['ordinary', 'opt-in', 'budget-fallback']) {
       const partial = mode === 'opt-in'
       const fallback =
@@ -332,29 +325,38 @@ async function checkBundles(t, evidence, manifest) {
           : undefined
       if (fallback)
         assert.deepEqual(fallback.admission, { route: 'ordinary-fallback', reason: 'edge-budget' })
-      const configured =
-        fallback?.config ??
-        (partial
-          ? await withHozoPartialOwners(config, livePreflight, options)
-          : await withHozo(observingConfig, options))
-      const resolve = configured.resolver.resolveRequest
-      configured.resolver.resolveRequest = (context, specifier, target) => {
-        try {
-          return resolve(context, specifier, target)
-        } catch (error) {
-          throw new Error(`Bundle dependency ${specifier} from ${context.originModulePath}`, {
-            cause: error,
-          })
+      async function build(observe) {
+        const observingConfig = observe && {
+          ...config,
+          resolver: {
+            ...config.resolver,
+            resolveRequest: (context, specifier, target) =>
+              observe(context, specifier, target, context.resolveRequest),
+          },
         }
+        const configured =
+          fallback?.config ??
+          (partial
+            ? await withHozoPartialOwners(config, livePreflight, options)
+            : await withHozo(observingConfig, options))
+        const resolve = configured.resolver.resolveRequest
+        configured.resolver.resolveRequest = (context, specifier, target) => {
+          try {
+            return resolve(context, specifier, target)
+          } catch (error) {
+            throw new Error(`Bundle dependency ${specifier} from ${context.originModulePath}`, {
+              cause: error,
+            })
+          }
+        }
+        return Metro.runBuild(configured, { entry: file, platform, dev: false, minify: true })
       }
-      const { code } = await Metro.runBuild(configured, {
-        entry: file,
-        platform,
-        dev: false,
-        minify: true,
-      })
+      const { output, preflight: observed } =
+        mode === 'ordinary' ? await observer.run(build) : { output: await build() }
+      const { code } = output
       if (mode === 'ordinary') {
-        livePreflight = observer.result()
+        ordinaryBundleSha256 = digest(code)
+        livePreflight = observed
         assert.equal(livePreflight?.status, 'complete', JSON.stringify(livePreflight))
         assert.ok(!livePreflight.routes.some((route) => route.importer === uncapturedFile))
         assert.ok(
@@ -437,6 +439,7 @@ async function checkBundles(t, evidence, manifest) {
             source: 'ordinary-metro-resolver',
             fingerprint: livePreflight.fingerprint,
             routes: livePreflight.routes.length,
+            ordinaryBundleSha256,
           },
         }),
       }

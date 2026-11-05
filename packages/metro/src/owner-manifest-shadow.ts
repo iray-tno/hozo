@@ -24,6 +24,7 @@ export interface MetroOwnerShadowState {
   transfer: MetroOwnerManifestReference
 }
 const schema = 'metro-owner-preflight-record-0'
+const serializerAsyncRequire = 'metro-runtime/src/modules/asyncRequire'
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')
 function fail(reason: string): never {
   throw new Error(`[hozo] owner shadow ${reason}; restart with a fresh preflight`)
@@ -156,11 +157,21 @@ export class MetroOwnerShadowSession {
         '@hozo/core/generated/transform-slots',
         'react-native',
       ].includes(name)
-    const fromRoot = generatedDependency
-      ? generated.root
-      : origin
-        ? path.resolve(origin.rootPath)
-        : null
+    // Metro serializes asyncRequire from the synthetic `projectRoot/.`
+    // importer. Some hosts cannot attach a package owner to that spelling.
+    // Grant only the already captured runtime subpath at that exact root,
+    // never all bare imports made without package ownership.
+    const serializerDependency =
+      generated &&
+      !origin &&
+      name === serializerAsyncRequire &&
+      context.originModulePath === generated.root + '/.'
+    const fromRoot =
+      generatedDependency || serializerDependency
+        ? generated.root
+        : origin
+          ? path.resolve(origin.rootPath)
+          : null
     const key = JSON.stringify([fromRoot, name])
     const route = this.#routes
       .get(key)

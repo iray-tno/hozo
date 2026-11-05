@@ -88,6 +88,45 @@ test('generated Native candidate map can only resolve its captured app subpath',
   writeFileSync(neighbor, '')
   assert.throws(() => resolve(neighbor), /unassessed or changed package resolution/)
 })
+
+test('the unowned Metro serializer origin can resolve only its captured asyncRequire subpath', async (t) => {
+  const f = fixture(t)
+  const runtime = path.join(f.root, 'node_modules', 'metro-runtime')
+  f.roots.push(runtime)
+  const appFile = path.join(f.root, 'package.json')
+  const app = JSON.parse(readFileSync(appFile, 'utf8'))
+  app.dependencies['metro-runtime'] = '1'
+  writeFileSync(appFile, JSON.stringify(app))
+  const subpath = 'src/modules/asyncRequire'
+  const specifier = `metro-runtime/${subpath}`
+  mkdirSync(path.join(runtime, 'src', 'modules'), { recursive: true })
+  writeFileSync(path.join(runtime, 'package.json'), '{"name":"metro-runtime","main":"./index.js"}')
+  writeFileSync(path.join(runtime, 'index.js'), '')
+  const entry = path.join(runtime, `${subpath}.js`)
+  writeFileSync(entry, '')
+  const importer = f.context.originModulePath
+  const preflight = collectMetroOwnerPreflight(f.context, f.delegate, {
+    platform: 'android',
+    epoch: 'serializer-origin',
+    origins: [importer],
+    additionalImports: [{ importer, specifier }],
+  })
+  assert.equal(preflight.status, 'complete', JSON.stringify(preflight))
+  const config = await withHozoPartialOwners(f.config, preflight, f.options)
+  const origin = `${f.root}/.`
+  const context = {
+    ...f.context,
+    originModulePath: origin,
+    getPackageForModule(file: string) {
+      return file === origin ? null : f.context.getPackageForModule(file)
+    },
+  }
+  assert.equal(config.resolver.resolveRequest(context, specifier, 'android').filePath, entry)
+  assert.throws(
+    () => config.resolver.resolveRequest(context, 'kit', 'android'),
+    /unassessed or changed package resolution/,
+  )
+})
 test('explicit shadow connects config, cache and real transform without changing legacy candidate/output bytes', {
   timeout: 10000,
 }, async (t) => {

@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util'
 export const metroBundleScope = 'metro-production-owner-bundle-host-standins'
 export const metroBundleBuilds = 4
 export const metroBudgetFallbackBuilds = 2
+export const metroLiveCaptureBuilds = 2
 
 const fallbackStyle = {
   paddingTop: 21,
@@ -37,6 +38,27 @@ function hasHandleObservation(row) {
     row.missingStateDiagnostic === true &&
     isDeepStrictEqual(row.hover, { opacity: 0.5, paddingTop: 21 })
   )
+}
+
+function assessLiveCaptures(builds) {
+  const optIn = builds.filter((row) => row.mode === 'opt-in')
+  if (optIn.every((row) => !Object.hasOwn(row, 'capture'))) return { status: 'missing' }
+  const ordinaryByPlatform = new Map(
+    builds.filter((row) => row.mode === 'ordinary').map((row) => [row.platform, row.bundleSha256]),
+  )
+  if (
+    !optIn.every(
+      ({ platform, capture }) =>
+        capture?.source === 'ordinary-metro-resolver' &&
+        /^[a-f0-9]{64}$/.test(capture.fingerprint ?? '') &&
+        Number.isSafeInteger(capture.routes) &&
+        capture.routes > 0 &&
+        capture.routes <= 512 &&
+        capture.ordinaryBundleSha256 === ordinaryByPlatform.get(platform),
+    )
+  )
+    return { status: 'invalid' }
+  return { status: 'measured', verified: optIn.length }
 }
 
 function assessBudgetFallbacks(builds) {
@@ -91,5 +113,6 @@ export function assessMetroBundleEvidence(receipt, expectedManifestSha256) {
     ordinaryControl: assessOrdinaryControls(receipt.builds, 'ordinaryControl', true),
     uncapturedControl: assessOrdinaryControls(receipt.builds, 'uncapturedControl'),
     budgetFallback: assessBudgetFallbacks(receipt.budgetFallbacks),
+    liveCapture: assessLiveCaptures(receipt.builds),
   }
 }
