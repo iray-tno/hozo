@@ -56,3 +56,25 @@ constraints; the publishing reader's synthetic tests only test the reader.
 No default routing, audit promotion, general multi-owner composition or global
 coverage/maturity change is implied. Supported runtime paths and independent
 expected styles stay as permanent regressions, not deletion targets.
+
+## Binding-inspection consolidation
+
+After aliases share one plan, Metro does not need to parse source bindings
+before the planner parses the same bindings. The selector now returns only
+the bounded, same-edge declared exports. The compiler remains the authority
+for actual lexical bindings, unsafe sites and per-recipe preparation. Unused
+exports acquire no recipes; passing their spelling does not authorize a
+foreign import or locally shadowed component.
+
+The `owner-callers.test.ts` regression instruments only the real N-API
+`inspectOwnerClassSlots` entry in its isolated test worker and restores it
+afterward. The pre-change Android probe observed two calls and failed the
+one-call requirement. The replacement requires one call for the two-alias
+Toolbar module on both Native platforms. This counts that inspection only,
+not all compiler parses and not a wall-clock speedup. The separate partial
+handle inspections are not removed or folded into a full-root claim.
+
+Deletion receipt: Metro's own source-binding inspector import, target-building
+loop and extra inspection are removed. Opaque, shadowed, unavailable-state and
+uncaptured-source regressions remain. The instance selection, lease and frozen
+runtime candidate checks still precede delivery; no default or audit changes.

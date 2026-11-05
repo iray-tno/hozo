@@ -2,7 +2,6 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { inspectOwnerClassSlots } from '@hozo/compiler'
 import {
   CACHE_DIR,
   discoverOwnerPackageCallers,
@@ -151,7 +150,7 @@ export class MetroOwnerShadowSession {
       this.#routes.set(key, rows)
     }
   }
-  ownerCaller(importer: string, source: string) {
+  ownerCaller(importer: string) {
     if (!this.#target) return undefined
     const lease = this.worker.lease()
     const { requests } = discoverOwnerPackageCallers(lease, importer)
@@ -159,30 +158,14 @@ export class MetroOwnerShadowSession {
       if (request.specifier !== '@hozo/patterns') return []
       const selected = selectOwnerPackageContract(lease, request)
       if (selected.status !== 'selected' || selected.identity.owner !== this.#target) return []
-      // This is the bounded reader's already validated data, never package code.
-      const contract = JSON.parse(selected.shadow).contracts[0]
-      return [{ request, preparedProp: contract.abi.nativePreparedProp }]
+      return [request]
     })
     if (!eligible.length || eligible.length > 8) return undefined
-    const inspection = inspectOwnerClassSlots(
-      source,
-      eligible.map(({ request, preparedProp }) => ({
-        source: request.specifier,
-        imported: request.imported,
-        classProp: request.classProp,
-        preparedProp,
-      })),
-      importer,
-    )
-    if (inspection.diagnostics.length) return undefined
-    const used = new Set(inspection.sites.map((site) => site.target))
-    if (!used.size) return undefined
-    const selected = [...used].map((index) => eligible[index]!.request)
-    const request = selected[0]!
+    const request = eligible[0]!
     // Only public aliases on the same captured edge may share a plan. The
     // participant verifies their exact contract before collecting any IR.
     if (
-      selected.some(
+      eligible.some(
         (alias) =>
           alias.importer !== request.importer ||
           alias.specifier !== request.specifier ||
@@ -194,7 +177,10 @@ export class MetroOwnerShadowSession {
     return {
       lease,
       request,
-      aliases: selected.slice(1).map((request) => request.imported),
+      // The planner is the sole authority for actual source bindings/sites.
+      // Unused captured exports acquire no recipes and cannot authorize a
+      // foreign or locally shadowed binding merely by sharing its spelling.
+      aliases: eligible.slice(1).map((request) => request.imported),
       disposition:
         this.#target === 'BottomSheet.handle'
           ? ('prepared-partial' as const)

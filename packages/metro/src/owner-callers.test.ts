@@ -1,6 +1,7 @@
 // Real Metro resolver/preflight and source worker, not a Metro app or device.
 import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import test, { type TestContext } from 'node:test'
 import { ownerMetroFixture } from '../fixtures/owner-metro-resolver.mjs'
@@ -101,6 +102,34 @@ test('one explicitly selected captured Toolbar alias gets a full carrier, not an
     assert.equal(readMetroState(f.root)?.ownerShadow, undefined)
     assert.equal(await transform(f.params), ordinary)
     assert.equal(getCacheKey({ projectRoot: f.root }), ordinaryKey)
+  }
+})
+
+test('one planner owns binding inspection for all captured aliases', async (t) => {
+  // Observe only this N-API operation in this isolated test worker, not all
+  // compiler parses. Restore it even when a regression assertion fails.
+  const native = createRequire(import.meta.url)('../../compiler/hozo_napi.node')
+  const original = native.inspectOwnerClassSlots
+  let calls = 0
+  native.inspectOwnerClassSlots = (...args: unknown[]) => {
+    calls++
+    return original(...args)
+  }
+  t.after(() => {
+    native.inspectOwnerClassSlots = original
+  })
+  for (const platform of ['android', 'ios']) {
+    const f = fixture(t, platform)
+    await withHozoOwnerCallers(f.config, f.preflight, 'Toolbar.root', f.options)
+    const input = `import {Toolbar,HozoToolbar} from '@hozo/patterns';export const A=()=> <><Toolbar items={[]} className="p-2"/><HozoToolbar items={[]} className="p-2"/></>`
+    calls = 0
+    const output = String(await transform({ ...f.params, src: input }))
+    assert.equal(output.match(/hozoToolbarStyle=/g)?.length, 2)
+    assert.equal(
+      calls,
+      1,
+      `${platform}: selector must not parse the same bindings before the planner`,
+    )
   }
 })
 

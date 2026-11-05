@@ -310,7 +310,7 @@ export async function transform(params: TransformParams): Promise<unknown> {
     state?.ownerShadow?.mode === 'owner-caller-transform' &&
     semanticModuleEligible(absoluteFile, 'native') &&
     params.src.includes('@hozo/patterns')
-      ? ownerSession?.ownerCaller(absoluteFile, params.src)
+      ? ownerSession?.ownerCaller(absoluteFile)
       : undefined
   const rewritten =
     compilerState.worker && selectedOwner
