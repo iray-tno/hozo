@@ -673,6 +673,13 @@ lowering. Phase A, owner audit and default routing remain open.
   `Form`'s root, to the catalog. Replace duplicated semantic definitions in
   `class-facts.native.ts` and inline objects with generated contracts;
   components still compute and supply their own live state/events.
+  The separate `formComponents` inventory now covers ten public components
+  and 51 class props, checked against both Web and Native exported types.
+  These are pending owners, not new Primitive mappings or audited contracts.
+  Form and pattern non-control constants are generated from the catalog's
+  shared profile; live component-specific facts still remain to be migrated.
+  Field's five non-control owners now consume those generated constants;
+  the contained input's disabled state remains the input's, not its labels'.
 - Turn the catalog's prose `gate`s and `composition`s into `shapes` data.
 - Audit the 55 `pending-audit` owners, the 32 component-managed slots first.
   Each audit writes a contract **and** its third-rung test (§4.6).

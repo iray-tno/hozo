@@ -9,6 +9,18 @@ const header =
 const quoted = JSON.stringify
 const key = (name) => (name.includes('-') ? `'${name}'` : name)
 
+function constantNonControl(facts, name, note, checked = false) {
+  const entries = Object.entries(facts.NonControl.facts)
+  if (entries.some(([, value]) => typeof value !== 'boolean'))
+    throw new Error('NonControl runtime facts must be constant booleans')
+  return `${header}${checked ? "import type { NonControlSlotFacts } from './slot-facts.native.ts'\n" : ''}
+${note}
+export const ${name} = {
+${entries.map(([fact, value]) => `  ${key(fact)}: ${value},`).join('\n')}
+} as const${checked ? ' satisfies NonControlSlotFacts' : ''}
+`
+}
+
 export function validateCatalog(catalog = components, facts = profiles) {
   for (const [component, slots] of Object.entries(catalog)) {
     if (!/^[A-Z][A-Za-z]+$/.test(component)) throw new Error(`Invalid component: ${component}`)
@@ -279,6 +291,17 @@ ${Object.entries(facts)
     'crates/hozo_ir/src/class_slots.rs': ir,
     'crates/hozo_native/src/pattern_contracts.rs': native,
     'packages/patterns/src/slot-facts.native.ts': ts,
+    'packages/form/src/class-facts.native.ts': constantNonControl(
+      facts,
+      'nonControlClassFacts',
+      "// Non-editable Web wrappers/counters do not borrow the contained field's\n// disabled or focus state. Omit unobserved event keys, rather than reporting\n// a surrounding control's interaction as the decoration's own.",
+    ),
+    'packages/patterns/src/non-control-facts.native.ts': constantNonControl(
+      facts,
+      'nonControlSlotFacts',
+      '// Facts of the actual non-editable Web child, not of its surrounding button. Do not\n// fill missing event keys with false: neither direction of an unobserved\n// pointer/focus predicate is supported by this Native decoration.',
+      true,
+    ),
   }
 }
 

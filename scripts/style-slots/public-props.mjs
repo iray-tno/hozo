@@ -11,7 +11,8 @@ const root = fileURLToPath(new URL('../../', import.meta.url))
 const require = createRequire(import.meta.url)
 const quote = JSON.stringify
 
-export function publicPropsProbe(catalog = components) {
+export function publicPropsProbe(catalog = components, packageName = 'patterns') {
+  if (!['patterns', 'form'].includes(packageName)) throw new Error('Unsupported slot probe package')
   const rows = Object.entries(catalog).map(
     ([name, slots]) => `  ${name}: ${slots.map((slot) => quote(slot.classProp)).join(' | ')}`,
   )
@@ -44,7 +45,7 @@ export function publicPropsProbe(catalog = components) {
   return `import type { JSXElementConstructor } from 'react'
 import type * as W from '../src/index.ts'
 import type * as N from '../src/index.native.ts'
-import type * as Facts from '../src/slot-facts.native.ts'
+${callbacks.length ? "import type * as Facts from '../src/slot-facts.native.ts'" : ''}
 type PropsOf<T> = T extends JSXElementConstructor<infer P> ? P : never
 type ClassKeys<P> = P extends unknown ? Extract<keyof P, 'className' | \`\${string}ClassName\`> : never
 type Canonical<K> = K extends \`Hozo\${infer Name}\` ? Name : K
@@ -87,10 +88,11 @@ export const controlUnresolved: 'Extra: unresolved export' = null as unknown as 
 `
 }
 
-export function checkPublicProps(catalog = components) {
-  const directory = mkdtempSync(path.join(root, 'packages/patterns/.style-slot-props-'))
+export function checkPublicProps(catalog = components, packageName = 'patterns') {
+  if (!['patterns', 'form'].includes(packageName)) throw new Error('Unsupported slot probe package')
+  const directory = mkdtempSync(path.join(root, `packages/${packageName}/.style-slot-props-`))
   try {
-    writeFileSync(path.join(directory, 'probe.ts'), publicPropsProbe(catalog))
+    writeFileSync(path.join(directory, 'probe.ts'), publicPropsProbe(catalog, packageName))
     writeFileSync(
       path.join(directory, 'tsconfig.json'),
       JSON.stringify({
