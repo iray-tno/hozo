@@ -1050,22 +1050,18 @@ fn resolve_theme_color(color: &Color, theme: &Theme) -> String {
     // the project theme and the unresolved fallback all see the name
     // Tailwind actually defines.
     let (token, alpha) = hozo_ir::split_color_alpha(token);
-    let resolved = match theme.color(token) {
-        Some(resolved) => resolved.oklch,
+    let resolved = theme
+        .web_color(token)
+        .map(str::to_owned)
+        .or_else(|| theme.color(token).map(|resolved| resolved.oklch))
         // Not in the project's theme either. Still a reference rather than
         // a guess: correct-but-unresolved, which is what this has always
         // done for a token nothing defines.
-        None => format!("{UNRESOLVED_COLOR_PREFIX}{token})"),
-    };
+        .unwrap_or_else(|| format!("{UNRESOLVED_COLOR_PREFIX}{token})"));
     match alpha {
         None => resolved,
-        // What Tailwind emits for the modifier, and it emits two: an
-        // `in srgb` fallback holding the literal colour, then an
-        // `in oklab` holding the theme variable. Hozo resolves the
-        // literal already, so the second form with the resolved colour
-        // in it is the one that says the same thing -- and it is the one
-        // the conformance normaliser compares against, because a later
-        // declaration of the same property wins.
+        // Keep the variable inside the mix so opacity does not freeze the
+        // color to the theme's build-time fallback.
         Some(alpha) => format!(
             "color-mix(in oklab, {resolved} {}%, transparent)",
             alpha * 100.0

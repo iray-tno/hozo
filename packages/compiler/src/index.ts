@@ -527,6 +527,8 @@ export interface Theme {
      */
     dark?: { oklch: string; hex: string }
   }[]
+  /** Web declarations for project colors, including colors resolved only by CSS. */
+  webColors?: { token: string; value: string; dark?: string }[]
   /** One spacing step in pixels; Tailwind's `--spacing`, 0.25rem by default. */
   spacingPx?: number
   /**

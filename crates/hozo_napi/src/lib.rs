@@ -1732,10 +1732,9 @@ pub struct JsTheme {
     /// default). Absent means the default, which is what every project
     /// that does not change it has.
     pub spacing_px: Option<f64>,
-    /// Token name (`"brand"`, `"blue-500"`) to its two spellings. Web takes
-    /// the `oklch`, React Native the `hex`, which is why both are carried
-    /// rather than converting at the boundary.
+    /// Build-time spellings of a color for CSS/Canvas and React Native.
     pub colors: Vec<JsThemeColor>,
+    pub web_colors: Option<Vec<JsWebThemeColor>>,
     /// Whether this project ships a CSS reset over the browser’s own
     /// stylesheet -- the resolved `preflight` option, not `usesTailwind`.
     ///
@@ -1755,6 +1754,13 @@ pub struct JsTheme {
     /// The selector of the project's `@custom-variant dark (...)`, with `&`
     /// for the element. Absent means `prefers-color-scheme` (#1654).
     pub dark_selector: Option<String>,
+}
+
+#[napi(object)]
+pub struct JsWebThemeColor {
+    pub token: String,
+    pub value: String,
+    pub dark: Option<String>,
 }
 
 #[napi(object)]
@@ -1895,6 +1901,14 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
         .with_radii(radii)
         .with_font_weights(font_weights)
         .with_dark_selector(theme.dark_selector)
+        .with_web_colors(
+            theme
+                .web_colors
+                .unwrap_or_default()
+                .into_iter()
+                .map(|color| (color.token, (color.value, color.dark)))
+                .collect(),
+        )
 }
 
 /// Every binding a source file imports from one module, by local name.

@@ -23,7 +23,7 @@ import { assertStaticStylesheet, ExecutableStylesheetError } from './static-css.
 
 export interface ThemeColor {
   token: string
-  /** As Tailwind writes it, which is what the Web backend emits verbatim. */
+  /** Resolved CSS color, also used for Canvas paint. */
   oklch: string
   /** React Native's style system has no `oklch()`, so it takes this. */
   hex: string
@@ -68,6 +68,8 @@ export interface ThemeAnimation {
 
 export interface Theme {
   colors: ThemeColor[]
+  /** Web declarations for project colors, including colors resolved only by CSS. */
+  webColors?: { token: string; value: string; dark?: string }[]
   /**
    * The project's own animations. Tailwind's four (`spin`, `ping`,
    * `pulse`, `bounce`) are left out: Hozo implements those itself, on
@@ -304,24 +306,34 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
   }
 
   const colors: ThemeColor[] = []
+  const webColors: NonNullable<Theme['webColors']> = []
   for (const [name, declaration] of declared) {
     if (!name.startsWith('--color-')) continue
     // The dark half of a pair is not a colour of its own: it is read below,
     // through the token it belongs to, and listing it as well would offer
     // `bg-brand--dark` as a utility beside `bg-brand`.
     if (name.endsWith(DARK_SUFFIX)) continue
+    const token = name.slice('--color-'.length)
     const oklch = dereference(declaration, declared)
     const hex = toHex(oklch)
-    // A colour that won't convert is left out rather than guessed at. The
-    // backends already have a defined answer for a token they can't
-    // resolve -- a CSS variable reference on Web, a marker on Native --
-    // and that is better than a colour that is nearly right.
-    if (hex === null) continue
-    const paired = declared.get(`${name}${DARK_SUFFIX}`)
+    const darkToken = `${token}${DARK_SUFFIX}`
+    const paired = declared.get(`--color-${darkToken}`)
     const darkOklch = paired === undefined ? null : dereference(paired, declared)
     const darkHex = darkOklch === null ? null : toHex(darkOklch)
+    // The stock palette already has a standalone representation. Keep the
+    // browser's indirection for project declarations and palette overrides.
+    if (!design.theme.hasDefault(name)) {
+      const value = webColor(design, token, hex === null ? declaration : oklch)
+      const dark =
+        hex !== null && darkHex !== null && darkOklch !== null
+          ? webColor(design, darkToken, darkOklch)
+          : undefined
+      if (value !== undefined) webColors.push({ token, value, ...(dark && { dark }) })
+    }
+    // Native and Canvas still need a color that can be resolved at build time.
+    if (hex === null) continue
     colors.push({
-      token: name.slice('--color-'.length),
+      token,
       oklch,
       hex,
       // A dark value that will not convert is left out for the same reason
@@ -334,6 +346,7 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
   }
   return {
     colors,
+    ...(webColors.length > 0 && { webColors }),
     spacingPx: readSpacing(design),
     animations: readAnimations(design, declared),
     radii: readRadii(declared),
@@ -345,6 +358,20 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
       })),
     ...readDarkSelector(design),
   }
+}
+
+function webColor(
+  design: Awaited<ReturnType<typeof __unstable__loadDesignSystem>>,
+  token: string,
+  fallback: string,
+): string | undefined {
+  // Tailwind chooses the token reference for @theme and the declaration for
+  // @theme inline. Hozo can consume the entry without bundling its CSS, so a
+  // reference with no authored fallback needs the build-time color as well.
+  const value = design.theme.resolve(token, ['--color'])
+  if (value === null) return undefined
+  const ref = VAR_REFERENCE.exec(value)
+  return ref && ref[2] === undefined && value !== fallback ? `var(${ref[1]}, ${fallback})` : value
 }
 
 /**
