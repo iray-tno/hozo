@@ -13,7 +13,6 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { activeAfter, filterOptions } from './combobox-rules.ts'
-import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { PatternScrollContainer } from './scroll-container.native.tsx'
 import {
@@ -21,6 +20,7 @@ import {
   comboboxInputSlotConstants,
   type ListOptionSlotFacts,
   listOptionSlotConstants,
+  nonControlSlotConstants as nonControlSlotFacts,
 } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 

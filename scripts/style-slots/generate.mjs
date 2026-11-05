@@ -357,11 +357,6 @@ ${Object.entries(facts)
       "// Non-editable Web wrappers/counters do not borrow the contained field's\n// disabled or focus state. Omit unobserved event keys, rather than reporting\n// a surrounding control's interaction as the decoration's own.",
     ),
     'packages/form/src/owner-facts.native.ts': formFactSource(),
-    'packages/patterns/src/non-control-facts.native.ts': `${header}
-// Existing consumers keep their import; the catalog-generated constant is
-// the only definition. Missing pointer/focus keys remain unavailable.
-export { nonControlSlotConstants as nonControlSlotFacts } from './slot-facts.native.ts'
-`,
   }
 }
 

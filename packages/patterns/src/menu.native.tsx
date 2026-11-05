@@ -3,7 +3,6 @@ import { useHozoProvidedSafeArea } from '@hozo/engine/generated/safe-area'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useState } from 'react'
 import { Modal, type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
-import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { insetPadding } from './safe-area-padding.native.ts'
 import {
@@ -11,6 +10,7 @@ import {
   type MenuTriggerSlotFacts,
   menuItemSlotConstants,
   menuTriggerSlotConstants,
+  nonControlSlotConstants as nonControlSlotFacts,
 } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 

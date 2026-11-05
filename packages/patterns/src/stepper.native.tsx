@@ -2,9 +2,12 @@ import { useHozoMessage } from '@hozo/behaviors'
 import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type StyleProp, Text, type TextStyle, View, type ViewStyle } from 'react-native'
-import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import { type StepperSlotFacts, stepperSlotConstants } from './slot-facts.native.ts'
+import {
+  nonControlSlotConstants as nonControlSlotFacts,
+  type StepperSlotFacts,
+  stepperSlotConstants,
+} from './slot-facts.native.ts'
 import {
   type HozoStep,
   type HozoStepStatus,

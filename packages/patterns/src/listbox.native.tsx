@@ -2,11 +2,14 @@ import { hozoAuthoredStyle } from '@hozo/engine/generated/gap-styles'
 import { hozoClasses } from '@hozo/engine/project'
 import { type ReactNode, useCallback, useState } from 'react'
 import { type StyleProp, Text, type TextStyle, type ViewStyle } from 'react-native'
-import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { optionKey } from './option-key.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { PatternScrollContainer } from './scroll-container.native.tsx'
-import { type ListOptionSlotFacts, listOptionSlotConstants } from './slot-facts.native.ts'
+import {
+  type ListOptionSlotFacts,
+  listOptionSlotConstants,
+  nonControlSlotConstants as nonControlSlotFacts,
+} from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 type Style = StyleProp<ViewStyle | TextStyle>

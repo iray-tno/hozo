@@ -16,7 +16,6 @@ import {
 } from 'react-native'
 import type { HozoCommand } from './command-palette.tsx'
 import { currentCommand, rankCommands } from './command-rules.ts'
-import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { PatternScrollContainer } from './scroll-container.native.tsx'
 import {
@@ -24,6 +23,7 @@ import {
   type CommandPaletteSlotFacts,
   commandInputSlotConstants,
   commandPaletteSlotConstants,
+  nonControlSlotConstants as nonControlSlotFacts,
 } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
