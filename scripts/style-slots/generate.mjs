@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { components, ownerShadow, profiles } from './catalog.mjs'
+import { components, formFactProfiles, ownerShadow, profiles } from './catalog.mjs'
 
 const root = fileURLToPath(new URL('../../', import.meta.url))
 const header =
@@ -19,6 +19,55 @@ export const ${name} = {
 ${entries.map(([fact, value]) => `  ${key(fact)}: ${value},`).join('\n')}
 } as const${checked ? ' satisfies NonControlSlotFacts' : ''}
 `
+}
+
+export function formFactSource(definitions = formFactProfiles) {
+  const allowed = new Set([
+    'hovered',
+    'pressed',
+    'focused',
+    'focusVisible',
+    'disabled',
+    'enabled',
+    'readOnly',
+    'aria-invalid',
+    'aria-required',
+    'aria-disabled',
+    'aria-expanded',
+    'aria-selected',
+    'aria-checked',
+  ])
+  return (
+    header +
+    Object.entries(definitions)
+      .map(([name, { constants, live }]) => {
+        if (
+          !/^[A-Z][A-Za-z]+$/.test(name) ||
+          !Array.isArray(live) ||
+          new Set(live).size !== live.length ||
+          Object.values(constants).some((value) => typeof value !== 'boolean') ||
+          [...Object.keys(constants), ...live].some((fact) => !allowed.has(fact)) ||
+          live.some((fact) => Object.hasOwn(constants, fact))
+        )
+          throw new Error('Invalid form fact profile')
+        const constantName = `${name[0].toLowerCase()}${name.slice(1)}ClassConstants`
+        return `
+export const ${constantName} = {
+${Object.entries(constants)
+  .map(([fact, value]) => `  ${key(fact)}: ${value},`)
+  .join('\n')}
+} as const
+
+export interface ${name}ClassFacts {
+${Object.entries(constants)
+  .map(([fact, value]) => `  readonly ${key(fact)}: ${value}`)
+  .join('\n')}
+${live.map((fact) => `  readonly ${key(fact)}: boolean`).join('\n')}
+}
+`
+      })
+      .join('')
+  )
 }
 
 export function validateCatalog(catalog = components, facts = profiles) {
@@ -296,6 +345,7 @@ ${Object.entries(facts)
       'nonControlClassFacts',
       "// Non-editable Web wrappers/counters do not borrow the contained field's\n// disabled or focus state. Omit unobserved event keys, rather than reporting\n// a surrounding control's interaction as the decoration's own.",
     ),
+    'packages/form/src/owner-facts.native.ts': formFactSource(),
     'packages/patterns/src/non-control-facts.native.ts': constantNonControl(
       facts,
       'nonControlSlotFacts',

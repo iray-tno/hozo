@@ -680,6 +680,10 @@ lowering. Phase A, owner audit and default routing remain open.
   shared profile; live component-specific facts still remain to be migrated.
   Field's five non-control owners now consume those generated constants;
   the contained input's disabled state remains the input's, not its labels'.
+  TextArea's field and NativeSelect's control/options consume generated
+  constant facts plus exact live-state types. The components still compute
+  the state themselves; options do not acquire focus/hover facts or the
+  control's state, and no owner audit is promoted by type equality.
 - Turn the catalog's prose `gate`s and `composition`s into `shapes` data.
 - Audit the 55 `pending-audit` owners, the 32 component-managed slots first.
   Each audit writes a contract **and** its third-rung test (§4.6).
