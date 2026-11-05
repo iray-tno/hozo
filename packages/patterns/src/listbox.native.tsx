@@ -6,7 +6,7 @@ import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { optionKey } from './option-key.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { PatternScrollContainer } from './scroll-container.native.tsx'
-import type { ListOptionSlotFacts } from './slot-facts.native.ts'
+import { type ListOptionSlotFacts, listOptionSlotConstants } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 type Style = StyleProp<ViewStyle | TextStyle>
@@ -133,7 +133,7 @@ export function HozoListbox<T>(props: HozoListboxProps<T>) {
         const look = (interaction: InteractionState) => {
           const facts = {
             ...interaction,
-            ...nonControlSlotFacts,
+            ...listOptionSlotConstants,
             'aria-selected': selected,
             'aria-disabled': Boolean(option.disabled),
           } satisfies OptionState

@@ -16,7 +16,12 @@ import { activeAfter, filterOptions } from './combobox-rules.ts'
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
 import { PatternScrollContainer } from './scroll-container.native.tsx'
-import type { ComboboxInputSlotFacts, ListOptionSlotFacts } from './slot-facts.native.ts'
+import {
+  type ComboboxInputSlotFacts,
+  comboboxInputSlotConstants,
+  type ListOptionSlotFacts,
+  listOptionSlotConstants,
+} from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 type Style = StyleProp<ViewStyle | TextStyle>
@@ -132,14 +137,9 @@ export function HozoCombobox<T>({
       ])
     : []
   const inputFacts = {
+    ...comboboxInputSlotConstants,
     focused: inputInteraction.focused,
     focusVisible: inputInteraction.focusVisible,
-    disabled: false,
-    enabled: true,
-    readOnly: false,
-    'aria-disabled': false,
-    'aria-selected': false,
-    'aria-checked': false,
     'aria-expanded': open,
     'aria-invalid': String(invalid) === 'true',
   } satisfies ComboboxInputSlotFacts
@@ -205,7 +205,7 @@ export function HozoCombobox<T>({
                   const facts = {
                     hovered: interaction.hovered,
                     pressed: interaction.pressed,
-                    ...nonControlSlotFacts,
+                    ...listOptionSlotConstants,
                     'aria-selected': at === active,
                     'aria-disabled': Boolean(option.disabled),
                   } satisfies OptionState
