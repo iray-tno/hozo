@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   assertReusableCodeInputs,
   frameSummary,
+  profileRows,
   STALE_AFTER_MS,
   timingRecords,
   waitForCompletedFrames,
@@ -190,4 +191,37 @@ test('only a row frozen for STALE_AFTER_MS before the deadline is stale (#1381)'
     [[frozen], STALE_AFTER_MS - 100],
   ])
     await assert.rejects(() => run(() => dump(rows), deadline), /original measurement window/)
+})
+
+test('a simpleperf report reads as thread and library rows, thread names with spaces included', () => {
+  const report = [
+    'Cmdline: /system/bin/simpleperf record -p 1234 -e cpu-clock -f 1000',
+    'Arch: x86_64',
+    'Event: cpu-clock (type 1, config 0)',
+    'Samples: 1000',
+    'Event count: 1000000000',
+    '',
+    'Overhead  Sample  Command          Shared Object',
+    '45.50%    455     mqt_v_js         /data/app/~~x==/dev.hozo.showcase-y==/lib/x86_64/libhermes.so',
+    '20.00%    200     dev.hozo.showca  /apex/com.android.art/lib64/libart.so',
+    '10.00%    100     Jit thread pool  [JIT app cache]',
+    '4.50%     45      RenderThread     [kernel.kallsyms]',
+  ].join('\n')
+  assert.deepEqual(profileRows(report), [
+    {
+      percent: 45.5,
+      samples: 455,
+      thread: 'mqt_v_js',
+      dso: '/data/app/~~x==/dev.hozo.showcase-y==/lib/x86_64/libhermes.so',
+    },
+    {
+      percent: 20,
+      samples: 200,
+      thread: 'dev.hozo.showca',
+      dso: '/apex/com.android.art/lib64/libart.so',
+    },
+    { percent: 10, samples: 100, thread: 'Jit thread pool', dso: '[JIT app cache]' },
+    { percent: 4.5, samples: 45, thread: 'RenderThread', dso: '[kernel.kallsyms]' },
+  ])
+  assert.deepEqual(profileRows('Samples: 0\n'), [])
 })
