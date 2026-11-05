@@ -186,7 +186,15 @@ fn rgb_channels(hex: &str) -> Option<(u8, u8, u8)> {
 /// generated file that didn't parse -- 76 of them, found by type-checking
 /// the output against React Native rather than by anything reading it.
 pub fn js_string(value: &str) -> String {
-    let escaped = value.replace('\\', "\\\\").replace('\'', "\\'");
+    // A line terminator ends a single-quoted literal, and a theme value can
+    // carry one: Tailwind writes its default `--font-sans` across lines.
+    let escaped = value
+        .replace('\\', "\\\\")
+        .replace('\'', "\\'")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\u{2028}', "\\u2028")
+        .replace('\u{2029}', "\\u2029");
     format!("'{escaped}'")
 }
 
@@ -841,6 +849,16 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_js_string_survives_line_terminators() {
+        let input = "a,\n'b'\r\u{2028}\u{2029}\\";
+        let expected = [
+            "'a,", "\\n", "\\'b\\'", "\\r", "\\u2028", "\\u2029", "\\\\", "'",
+        ]
+        .concat();
+        assert_eq!(js_string(input), expected);
+    }
 
     #[test]
     fn a_logical_border_width_lowers_and_its_solid_style_asks_nothing() {

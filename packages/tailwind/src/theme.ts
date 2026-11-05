@@ -576,7 +576,9 @@ function readFontFamilies(
     const web = design.theme.resolve(name, ['--font'])
     return declaration === undefined || web === null
       ? []
-      : [{ name, web, value: dereference(declaration, declared) }]
+      : // Tailwind writes its default stacks across lines, which in CSS
+        // is only whitespace.
+        [{ name, web, value: dereference(declaration, declared).replace(/\s+/g, ' ') }]
   })
 }
 

@@ -122,6 +122,12 @@ test("font-sans, font-serif and font-mono follow the project's --font-* tokens (
 
   const native = compiler.compileNative(source('font-mono'))[0].styles
   assert.match(native, /fontFamily: '"Cascadia Code", "Fira Code", "Consolas", monospace'/)
+  // Tailwind writes its default stack across lines; a line break inside the
+  // literal is a module that does not parse.
+  assert.match(
+    compiler.compileNative(source('font-sans'))[0].styles,
+    /fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", [^'\n]*'/,
+  )
 })
 
 test('default and inline theme colors have the same semantics on ready, retained and candidate paths', async () => {
