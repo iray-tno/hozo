@@ -1735,6 +1735,7 @@ pub struct JsTheme {
     /// Build-time spellings of a color for CSS/Canvas and React Native.
     pub colors: Vec<JsThemeColor>,
     pub web_colors: Option<Vec<JsWebThemeColor>>,
+    pub web_variables: Option<Vec<JsWebThemeVariable>>,
     /// Whether this project ships a CSS reset over the browser’s own
     /// stylesheet -- the resolved `preflight` option, not `usesTailwind`.
     ///
@@ -1761,6 +1762,12 @@ pub struct JsWebThemeColor {
     pub token: String,
     pub value: String,
     pub dark: Option<String>,
+}
+
+#[napi(object)]
+pub struct JsWebThemeVariable {
+    pub name: String,
+    pub value: String,
 }
 
 #[napi(object)]
@@ -1907,6 +1914,14 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
                 .unwrap_or_default()
                 .into_iter()
                 .map(|color| (color.token, (color.value, color.dark)))
+                .collect(),
+        )
+        .with_web_variables(
+            theme
+                .web_variables
+                .unwrap_or_default()
+                .into_iter()
+                .map(|variable| (variable.name, variable.value))
                 .collect(),
         )
 }

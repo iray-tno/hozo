@@ -9,6 +9,7 @@
 mod css;
 mod markup;
 mod owner_class;
+mod theme_variables;
 pub use owner_class::lower_owner_class;
 mod source_evidence;
 use source_evidence::Rendered;
@@ -201,6 +202,8 @@ const CONTENT_BASE_CSS: &str = "@property --hozo-content {
 const LEADING_BASE_CSS: &str =
     "@property --tw-leading {\n  syntax: \"*\";\n  inherits: false;\n}\n\n";
 
+const TAILWIND_LAYER_ORDER: &str = "@layer theme, base, components, utilities;\n";
+
 const POINTER_EVENTS_BASE_CSS: &str =
     "[data-hozo-pointer-events='none'] { pointer-events: none; }\n\
 [data-hozo-pointer-events='auto'] { pointer-events: auto; }\n\
@@ -333,6 +336,10 @@ fn lower_capturing(
         css.push_str("\n\n");
     }
     css.push_str(&rules);
+    let variables = theme_variables::render(&css, theme);
+    if !variables.is_empty() {
+        css.insert_str(0, &format!("{TAILWIND_LAYER_ORDER}{variables}"));
+    }
 
     let mut runtime_imports = if uses_key_activation {
         KEY_ACTIVATION_IMPORTS.to_vec()
@@ -676,7 +683,10 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     // The unlayered, marked copy preserves compiled + fallback precedence on
     // Hozo targets; a bare layered copy would let compiled static declarations
     // beat Native's later dynamic style. Keyframes are shared, not duplicated.
-    format!("@layer theme, base, components, utilities;\n@layer utilities.hozo-candidates {{\n{out}}}\n\n{owned}")
+    let variables = theme_variables::render(&format!("{out}{owned}"), theme);
+    format!(
+        "{TAILWIND_LAYER_ORDER}{variables}@layer utilities.hozo-candidates {{\n{out}}}\n\n{owned}"
+    )
 }
 
 /// Every distinct `@keyframes` block the tree's animations need, in

@@ -13,6 +13,7 @@
 //! holds the answer and looks things up in it.
 
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// A color resolved at build time: `oklch` is the CSS spelling,
 /// and `hex` is what Native uses since RN's style system doesn't
@@ -58,6 +59,7 @@ pub struct Theme {
     dark_colors: HashMap<String, ThemeColor>,
     /// CSS values may refer to runtime variables unavailable to Native.
     web_colors: HashMap<String, (String, Option<String>)>,
+    web_variables: Arc<HashMap<String, String>>,
     /// One spacing step in pixels. Tailwind's `--spacing` is 0.25rem, and
     /// the root font size is 16px, so a step is 4px unless a project says
     /// otherwise.
@@ -124,6 +126,7 @@ impl Default for Theme {
             colors: HashMap::new(),
             dark_colors: HashMap::new(),
             web_colors: HashMap::new(),
+            web_variables: Arc::default(),
             spacing_px: DEFAULT_SPACING_PX,
             preflight: false,
             animations: HashMap::new(),
@@ -153,6 +156,7 @@ impl Theme {
             colors,
             dark_colors,
             web_colors: HashMap::new(),
+            web_variables: Arc::default(),
             spacing_px: spacing_px.unwrap_or(DEFAULT_SPACING_PX),
             preflight,
             animations: HashMap::new(),
@@ -181,6 +185,15 @@ impl Theme {
 
     pub fn web_color(&self, token: &str) -> Option<&str> {
         self.web_colors.get(token).map(|(value, _)| value.as_str())
+    }
+
+    pub fn with_web_variables(mut self, variables: HashMap<String, String>) -> Self {
+        self.web_variables = Arc::new(variables);
+        self
+    }
+
+    pub fn web_variables(&self) -> &HashMap<String, String> {
+        &self.web_variables
     }
 
     /// The same theme with the project's own animations.
@@ -288,6 +301,7 @@ impl Theme {
             colors,
             dark_colors: HashMap::new(),
             web_colors,
+            web_variables: self.web_variables.clone(),
             spacing_px: self.spacing_px,
             preflight: self.preflight,
             animations: self.animations.clone(),

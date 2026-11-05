@@ -8,16 +8,18 @@ Used by every Hozo integration; a project does not normally import it directly.
 
 Tailwind 4 defines a theme in CSS — `@theme { --color-brand: oklch(62% 0.19 258); }` — with `@import`, `@plugin` and cascade layers all in play. Working out what `bg-brand` means from the file text would mean reimplementing that resolution, and being subtly wrong about it in ways that look reasonable from both sides.
 
-This loads the stylesheet through Tailwind's own resolver. Web styles keep references to `@theme` colours, including the standard palette and `@theme default`, so a selector can override the corresponding CSS variable at runtime. The reference carries a fallback for builds that only read the theme stylesheet. With `@theme inline`, Web uses the declaration's value, which can itself reference a CSS variable. Native uses the build-time hex colour.
+This loads the stylesheet through Tailwind's own resolver. Web styles keep references to `@theme` colours, including the standard palette and `@theme default`, so a selector can override the corresponding CSS variable at runtime. Hozo emits referenced theme declarations and their dependencies in the `theme` layer at `:root, :host`, including for builds that only read the theme entry. Native uses the build-time hex colour.
 
-Knowing a colour at build time supplies a fallback. It does not prove that its
-CSS variable is constant. Tailwind's resolver chooses the reference or inline
-value for every colour, and the Web compiler preserves that choice across
-ordinary, ready, retained and candidate stylesheet emission.
+Ordinary aliases resolve at their declaration scope. A descendant that
+overrides an alias's dependency inherits the alias value computed at the
+root. With `@theme inline`, Tailwind chooses the declaration's value, so a
+variable inside it resolves at the consuming element. Inline declarations
+are delivered when another value references them. Reference-only imports
+leave declaration delivery to the imported stylesheet.
 
-For an ordinary theme alias in a build-time-only entry, overriding the
-referenced variable can leave the alias at its build-time fallback. Dependency
-delivery and variable-resolution scopes are tracked in [#1722](https://github.com/iray-tno/hozo/issues/1722).
+The Web compiler applies this dependency delivery to ordinary, ready,
+retained, owner-class and candidate stylesheet emission. Only declarations
+reachable from the generated CSS are included.
 
 Spacing is carried as the project's *step*, not as pixels: `p-4` means "four spacing units", and a project that sets `--spacing` to something other than `0.25rem` moves every one of them together. Resolving to pixels at this layer would silently freeze the scale.
 

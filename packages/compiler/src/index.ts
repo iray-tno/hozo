@@ -529,6 +529,8 @@ export interface Theme {
   }[]
   /** Web declarations for project colors, including colors resolved only by CSS. */
   webColors?: { token: string; value: string; dark?: string }[]
+  /** Theme declarations eligible for delivery at their root scope when referenced. */
+  webVariables?: { name: string; value: string }[]
   /** One spacing step in pixels; Tailwind's `--spacing`, 0.25rem by default. */
   spacingPx?: number
   /**

@@ -1,6 +1,5 @@
-/* Read by Hozo for its design tokens, and deliberately not imported by the
-   app: Hozo compiles the utilities itself, so nothing here needs to reach
-   the bundler. Tailwind's own PostCSS pipeline is not installed. */
+/* Hozo reads the entry without an app import and delivers the declarations
+   its generated CSS references. Tailwind's PostCSS pipeline is not installed. */
 @import "tailwindcss";
 
 @theme {

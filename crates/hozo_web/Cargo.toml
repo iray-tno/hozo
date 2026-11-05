@@ -15,3 +15,4 @@ hozo_ir.workspace = true
 # Not just for tests: the fallback path emits CSS for candidate classes
 # found by `hozo_parser::scan_class_candidates`.
 hozo_parser.workspace = true
+cssparser = { version = "0.37", default-features = false }

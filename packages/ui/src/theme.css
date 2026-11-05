@@ -38,8 +38,8 @@
  * a second `StyleSheet` entry behind `__hozoDark` on React Native. Not one
  * class list in this package says `dark:`.
  *
- * Web rules reference the light token or its dark twin and carry a fallback
- * for projects that read this stylesheet only at build time.
+ * Web rules reference the light token or its dark twin. Referenced theme
+ * declarations and their dependencies are delivered at :root and :host.
  *
  * The dark values are not the light ones inverted. A surface goes to
  * `slate-900` and not to `slate-50`'s opposite, the accent goes *up* the
