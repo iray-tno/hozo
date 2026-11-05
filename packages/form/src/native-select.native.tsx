@@ -18,6 +18,12 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { nonControlClassFacts } from './class-facts.native.ts'
+import {
+  type SelectControlClassFacts,
+  type SelectOptionClassFacts,
+  selectControlClassConstants,
+  selectOptionClassConstants,
+} from './owner-facts.native.ts'
 
 export interface HozoNativeSelectOption {
   value: string
@@ -207,20 +213,16 @@ export function HozoNativeSelect({
   // field. Its implicit popup state is not an authored aria-expanded
   // attribute on the Web select, so do not borrow Native's expanded state.
   const facts = {
+    ...selectControlClassConstants,
     hovered: interaction.hovered,
     pressed: !disabled && interaction.pressed,
     focused: !disabled && interaction.focused,
     focusVisible: !disabled && interaction.focusVisible,
     disabled: Boolean(disabled),
     enabled: !disabled,
-    readOnly: true,
     'aria-invalid': Boolean(invalid),
     'aria-required': Boolean(required),
-    'aria-disabled': false,
-    'aria-expanded': false,
-    'aria-selected': false,
-    'aria-checked': false,
-  }
+  } satisfies SelectControlClassFacts
   const [controlBox, controlText] = hozoSplitTextStyle(
     StyleSheet.flatten([hozoClasses(className, facts), hozoAuthoredStyle(style)]) ?? {},
   )
@@ -245,14 +247,13 @@ export function HozoNativeSelect({
     hozoSplitTextStyle(
       StyleSheet.flatten([
         hozoClasses(optionClassName, {
+          ...selectOptionClassConstants,
           pressed: !option.disabled && pressed,
           disabled: Boolean(option.disabled),
           enabled: !option.disabled,
-          readOnly: true,
           'aria-selected': option.value === current,
           'aria-disabled': Boolean(option.disabled),
-          'aria-checked': false,
-        }),
+        } satisfies SelectOptionClassFacts),
         hozoAuthoredStyle(optionStyle),
       ]) ?? {},
     )
