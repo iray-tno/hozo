@@ -676,7 +676,10 @@ lowering. Phase A, owner audit and default routing remain open.
 - Turn the catalog's prose `gate`s and `composition`s into `shapes` data.
 - Audit the 55 `pending-audit` owners, the 32 component-managed slots first.
   Each audit writes a contract **and** its third-rung test (§4.6).
-- Move F9 from the landing into CI as the second rung.
+- Run the shared F9 source check in PR CI as a bounded second-rung check
+  for direct class props supplied by UI sources; the landing report uses
+  the same scanner. It proves definite non-use only, not dynamic delivery
+  or independent owner audit.
 - Move `PATTERN_HOSTS`' state-sharing flag into `textPublish`.
 - Give Toolbar and RadioGroup contracts (#1152's leftovers).
 

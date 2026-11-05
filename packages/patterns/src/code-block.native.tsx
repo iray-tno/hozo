@@ -62,9 +62,18 @@ export function CodeBlock(props: CodeBlockProps) {
     ((props.lineNumbers ? String(start + lines.length - 1).length : 0) + (hasMarks ? 2 : 0) + 1) *
     fontSize
   const rows = useCodeLineRows({
-    ...props,
     lines,
-    className: undefined,
+    tabSize: props.tabSize,
+    theme: props.theme,
+    wrap: props.wrap,
+    lineClassName: props.lineClassName,
+    insClassName: props.insClassName,
+    delClassName: props.delClassName,
+    markClassName: props.markClassName,
+    lineStyle: props.lineStyle,
+    insStyle: props.insStyle,
+    delStyle: props.delStyle,
+    markStyle: props.markStyle,
     style: [{ fontFamily: 'monospace', fontSize, lineHeight }, text],
     gutterKey: codeRowKey(
       [
