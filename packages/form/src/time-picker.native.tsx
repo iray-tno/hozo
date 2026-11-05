@@ -14,6 +14,7 @@ import {
 } from 'react-native'
 
 import { nonControlClassFacts } from './class-facts.native.ts'
+import { type TimeValueClassFacts, timeValueClassConstants } from './owner-facts.native.ts'
 import { PickerButton } from './picker-button.native.tsx'
 import { hourLabel, minuteLabel, timeLabel, usesTwelveHour } from './time-format.ts'
 import {
@@ -134,13 +135,13 @@ function TimePickerValue({
   const [box, ownText] = hozoSplitTextStyle(
     StyleSheet.flatten(
       hozoClasses(className, {
-        ...nonControlClassFacts,
+        ...timeValueClassConstants,
         hovered: state.hovered,
         focused: state.focused,
         focusVisible: state.focusVisible,
         'aria-disabled': disabled,
         'data-hozo-disabled': disabled,
-      }),
+      } satisfies TimeValueClassFacts),
     ) ?? {},
   )
   return (
