@@ -306,21 +306,21 @@ export async function transform(params: TransformParams): Promise<unknown> {
   compilerState.compiler.setClassHelpers(
     resolveClassHelpers(state?.classHelpers, state?.foundClassHelpers?.[absoluteFile]),
   )
-  const partial =
-    state?.ownerShadow?.mode === 'partial-owner-transform' &&
+  const selectedOwner =
+    state?.ownerShadow?.mode === 'owner-caller-transform' &&
     semanticModuleEligible(absoluteFile, 'native') &&
-    params.src.includes('@hozo/patterns') &&
-    params.src.includes('handleClassName')
-      ? ownerSession?.partialHandle(absoluteFile)
+    params.src.includes('@hozo/patterns')
+      ? ownerSession?.ownerCaller(absoluteFile, params.src)
       : undefined
   const rewritten =
-    compilerState.worker && partial
-      ? await compilerState.worker.transformPartialOwner(
+    compilerState.worker && selectedOwner
+      ? await compilerState.worker.transformOwnerCaller(
           params.src,
           params.filename,
           projectRoot!,
-          partial.lease,
-          partial.request,
+          selectedOwner.lease,
+          selectedOwner.request,
+          selectedOwner.disposition,
           compilerState.stylexModules,
         )
       : compilerState.worker
@@ -358,11 +358,11 @@ export async function transform(params: TransformParams): Promise<unknown> {
   // After everything else, so it sees the imports the compiler left standing
   // as well as files it did not touch at all (`modular-imports.ts`).
   const before = withFonts ?? params.src
-  // Partial-owner preflight captures package specifiers, not relative edges
+  // Owner-caller preflight captures package specifiers, not relative edges
   // into another package's implementation. Keep the resolver in charge of
   // those imports throughout this explicit mode, including dependencies.
   const modular =
-    state?.ownerShadow?.mode === 'partial-owner-transform'
+    state?.ownerShadow?.mode === 'owner-caller-transform'
       ? before
       : modularizeHozoImports(before, absoluteFile)
   const nextParams = modular === params.src ? params : { ...params, src: modular }

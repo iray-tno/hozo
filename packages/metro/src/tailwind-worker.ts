@@ -82,17 +82,18 @@ export class MetroTailwindWorker {
 
   /** @internal Explicit one-owner worker experiment. Until Native has source
    * provenance for mixed output, never splice edits into rewritten code. */
-  async transformPartialOwner(
+  async transformOwnerCaller(
     source: string,
     filename: string,
     root: string,
     lease: OwnerManifestLease,
     request: OwnerContractRequest,
+    disposition: 'prepared-partial' | 'prepared-literal',
     stylexModules?: StylexModuleCache,
   ) {
     const file = path.resolve(root, filename)
     if (request.importer !== file || !['ios', 'android'].includes(lease.capture.platform))
-      throw new Error('METRO_PARTIAL_OWNER_REQUEST_MISMATCH')
+      throw new Error('METRO_OWNER_CALLER_REQUEST_MISMATCH')
     lease.check()
     const runtime = this.#nativeRuntime
     if (!runtime) return this.transform(source, filename, root, stylexModules)
@@ -102,7 +103,7 @@ export class MetroTailwindWorker {
           .update(readFileSync(candidateModulePath(root)))
           .digest('hex') !== runtime.sha256
       )
-        throw new Error('METRO_PARTIAL_OWNER_RUNTIME_CHANGED')
+        throw new Error('METRO_OWNER_CALLER_RUNTIME_CHANGED')
     }
     checkRuntime()
     const output = await this.session.runModule(file, this.#universe, (compiler, context) => {
@@ -117,7 +118,13 @@ export class MetroTailwindWorker {
       if (ordinary.kind === 'complete' && ordinary.output !== null) return ordinary
       let owner: ReturnType<typeof prepareInstanceOwnerCallers>
       try {
-        owner = prepareInstanceOwnerCallers(lease, source, compiler, request, true)
+        owner = prepareInstanceOwnerCallers(
+          lease,
+          source,
+          compiler,
+          request,
+          disposition === 'prepared-partial',
+        )
       } catch (error) {
         if (ordinary.kind === 'prepared') ordinary.module.dispose()
         throw error
@@ -136,8 +143,11 @@ export class MetroTailwindWorker {
           if (lowered !== null) return lowered
           const { preview } = owner.emit(context)
           if (
-            !preview.findings.some((finding) => finding.disposition === 'prepared-partial') ||
-            preview.findings.some((finding) => finding.disposition === 'prepared-literal')
+            !preview.findings.some((finding) => finding.disposition === disposition) ||
+            preview.findings.some(
+              (finding) =>
+                finding.disposition !== 'retained' && finding.disposition !== disposition,
+            )
           )
             return null
           return preview.code

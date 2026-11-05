@@ -2,7 +2,13 @@
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { CACHE_DIR, discoverOwnerPackageCallers, readBoundedUtf8File } from '@hozo/compiler/project'
+import { inspectOwnerClassSlots } from '@hozo/compiler'
+import {
+  CACHE_DIR,
+  discoverOwnerPackageCallers,
+  readBoundedUtf8File,
+  selectOwnerPackageContract,
+} from '@hozo/compiler/project'
 import {
   assertMetroOwnerPreflightCurrent,
   type MetroOwnerPreflight,
@@ -16,8 +22,14 @@ import {
 import { candidateModulePath } from './project.ts'
 
 type Complete = Extract<MetroOwnerPreflight, { status: 'complete' }>
+const callerTargets = ['BottomSheet.handle', 'Toolbar.root'] as const
+export type MetroOwnerCallerTarget = (typeof callerTargets)[number]
+export function isMetroOwnerCallerTarget(value: unknown): value is MetroOwnerCallerTarget {
+  return callerTargets.some((target) => target === value)
+}
 export interface MetroOwnerShadowState {
-  mode: 'assessment-only' | 'candidate-consumption' | 'partial-owner-transform'
+  mode: 'assessment-only' | 'candidate-consumption' | 'owner-caller-transform'
+  target?: MetroOwnerCallerTarget
   platform: string
   context: string
   preflight: { file: string; sha256: string }
@@ -42,7 +54,10 @@ export function prepareMetroOwnerShadow(
   preflight: Complete,
   projectState: unknown,
   mode: MetroOwnerShadowState['mode'] = 'assessment-only',
+  target?: MetroOwnerCallerTarget,
 ): MetroOwnerShadowState {
+  if (mode === 'owner-caller-transform' ? !isMetroOwnerCallerTarget(target) : target !== undefined)
+    fail('invalid caller target')
   assertMetroOwnerShadowScope(root, preflight)
   assertMetroOwnerPreflightCurrent(preflight)
   const body = JSON.stringify({ schema, value: preflight })
@@ -57,7 +72,13 @@ export function prepareMetroOwnerShadow(
   // Combine with actual configured CSS/preflight/sources/font facts, not only
   // the test/user label used while collecting the declaration closure.
   const context = hash(
-    JSON.stringify(['owner-shadow-context-0', mode, projectState, preflight.fingerprint]),
+    JSON.stringify([
+      'owner-shadow-context-0',
+      mode,
+      target ?? null,
+      projectState,
+      preflight.fingerprint,
+    ]),
   )
   const request = JSON.parse(preflight.request)
   request.epoch = context
@@ -65,6 +86,7 @@ export function prepareMetroOwnerShadow(
   assertMetroOwnerPreflightCurrent(preflight)
   return Object.freeze({
     mode,
+    ...(target && { target }),
     platform: preflight.platform,
     context,
     preflight: Object.freeze({ file, sha256 }),
@@ -74,6 +96,7 @@ export function prepareMetroOwnerShadow(
 export function ownerShadowIdentity(state: MetroOwnerShadowState): string {
   return JSON.stringify([
     state.mode,
+    state.target ?? null,
     state.platform,
     state.context,
     state.preflight,
@@ -86,11 +109,19 @@ export class MetroOwnerShadowSession {
   #routes = new Map<string, Complete['routes'][number][]>()
   #manifests = new Map<string, string>()
   readonly #generatedOrigin?: { file: string; root: string }
+  readonly #target?: MetroOwnerCallerTarget
   constructor(state: MetroOwnerShadowState, root?: string) {
     if (
-      !['assessment-only', 'candidate-consumption', 'partial-owner-transform'].includes(state.mode)
+      !['assessment-only', 'candidate-consumption', 'owner-caller-transform'].includes(state.mode)
     )
       fail('invalid assessment mode')
+    if (
+      state.mode === 'owner-caller-transform'
+        ? !isMetroOwnerCallerTarget(state.target)
+        : state.target !== undefined
+    )
+      fail('invalid caller target')
+    this.#target = state.target
     const body = readBoundedUtf8File(state.preflight.file, 8_388_608)
     if (hash(body) !== state.preflight.sha256) fail('preflight record hash mismatch')
     const data = JSON.parse(body)
@@ -102,7 +133,7 @@ export class MetroOwnerShadowSession {
       fail('invalid preflight record')
     const preflight = data.value as Complete
     assertMetroOwnerPreflightCurrent(preflight)
-    if (root && state.mode === 'partial-owner-transform') {
+    if (root && state.mode === 'owner-caller-transform') {
       assertMetroOwnerShadowScope(root, preflight)
       const canonicalRoot = realpathSync(root)
       this.#generatedOrigin = { root: canonicalRoot, file: candidateModulePath(canonicalRoot) }
@@ -120,13 +151,43 @@ export class MetroOwnerShadowSession {
       this.#routes.set(key, rows)
     }
   }
-  partialHandle(importer: string) {
+  ownerCaller(importer: string, source: string) {
+    if (!this.#target) return undefined
     const lease = this.worker.lease()
-    const { requests } = discoverOwnerPackageCallers(lease, importer, [
-      { source: '@hozo/patterns', imported: 'BottomSheet' },
-    ])
-    const request = requests.find(({ classProp }) => classProp === 'handleClassName')
-    return request ? { lease, request } : undefined
+    const { requests } = discoverOwnerPackageCallers(lease, importer)
+    const eligible = requests.flatMap((request) => {
+      if (request.specifier !== '@hozo/patterns') return []
+      const selected = selectOwnerPackageContract(lease, request)
+      if (selected.status !== 'selected' || selected.identity.owner !== this.#target) return []
+      // This is the bounded reader's already validated data, never package code.
+      const contract = JSON.parse(selected.shadow).contracts[0]
+      return [{ request, preparedProp: contract.abi.nativePreparedProp }]
+    })
+    if (!eligible.length || eligible.length > 8) return undefined
+    const inspection = inspectOwnerClassSlots(
+      source,
+      eligible.map(({ request, preparedProp }) => ({
+        source: request.specifier,
+        imported: request.imported,
+        classProp: request.classProp,
+        preparedProp,
+      })),
+      importer,
+    )
+    if (inspection.diagnostics.length) return undefined
+    const used = new Set(inspection.sites.map((site) => site.target))
+    // One request per existing worker participant. Multiple used public aliases
+    // remain wholly ordinary rather than rewriting just one half of the module.
+    if (used.size !== 1) return undefined
+    const request = eligible[[...used][0]!]!.request
+    return {
+      lease,
+      request,
+      disposition:
+        this.#target === 'BottomSheet.handle'
+          ? ('prepared-partial' as const)
+          : ('prepared-literal' as const),
+    }
   }
   observe(
     context: OwnerMetroContext,

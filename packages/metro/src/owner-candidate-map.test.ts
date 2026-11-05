@@ -109,7 +109,8 @@ test('explicit partial-owner fallback selects the unchanged ordinary worker only
   assert.equal(current.status, 'complete')
   const admitted = await withHozoPartialOwnersOrOrdinary(f.config, current, f.options)
   assert.deepEqual(admitted.admission, { route: 'partial-owners' })
-  assert.equal(readMetroState(f.root)?.ownerShadow?.mode, 'partial-owner-transform')
+  assert.equal(readMetroState(f.root)?.ownerShadow?.mode, 'owner-caller-transform')
+  assert.equal(readMetroState(f.root)?.ownerShadow?.target, 'BottomSheet.handle')
   const metadata = path.join(f.root, 'package.json')
   writeFileSync(metadata, `${readFileSync(metadata, 'utf8')}\n`)
   const before = readFileSync(metroStatePath(f.root), 'utf8')
@@ -219,7 +220,7 @@ test('explicit Metro partial worker requires the published fallback map and refu
   })
   const request = { ...edge, entry, imported: 'BottomSheet', classProp: 'handleClassName' }
   const transformPartial = (input: string) =>
-    worker.transformPartialOwner(input, file, f.root, lease, request)
+    worker.transformOwnerCaller(input, file, f.root, lease, request, 'prepared-partial')
   assert.equal(await worker.transform(source, file, f.root), null)
   assert.match(
     (await transformPartial(source)) ?? '',

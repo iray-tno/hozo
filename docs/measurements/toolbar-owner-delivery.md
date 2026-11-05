@@ -103,3 +103,27 @@ and can replace that owner route without shrinking support. In particular,
 the caller preview is not permission to broaden Metro partial-owner admission.
 There is no audit promotion, default change, conformance headline or global
 six-view score increase from the existence of this new contract.
+
+## Explicit Metro caller-selection follow-up
+
+The internal config entry `withHozoOwnerCallers(config, preflight, target,
+options)` selects one bounded target: `Toolbar.root` or `BottomSheet.handle`.
+It is not a normal `withHozo` option, inferred contract trust or a per-widget
+family of flags. The existing BottomSheet helper delegates to this same path.
+Target identity participates in the config/context/cache identity; the former
+`partialHandle` selector and `partial-owner-transform` mode are replaced by
+the shared owner-caller selection path.
+
+Selection requires the exact captured importer/package entry and validated
+owner identity. One bounded parser inspection associates actual JSX sites
+with captured public export aliases. No namespace/name-text inference is
+used. More than one used request/alias, an uncaptured importer, opaque or
+unassessed styles and ordinary mixed lowering keep the ordinary module.
+The worker requires the selected full/partial disposition and preserves its
+existing frozen-runtime-map and late-invalidation fences.
+
+The resolver/source-worker tests cover both Native platforms, both Toolbar
+aliases, target/cache separation, invalid serialized targets and return to
+byte-identical ordinary output/cache identity. These are not yet production
+Metro bundle observations; the next fixture must execute the real built
+Toolbar through Metro. No default route or audit declaration changes here.
