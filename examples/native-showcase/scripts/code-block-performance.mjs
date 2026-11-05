@@ -348,6 +348,16 @@ try {
         evidence.profile.cases.push({ name, settled, rows })
         json('evidence.json', evidence)
         console.log(`${name}: ${rows.reduce((sum, row) => sum + row.samples, 0)} samples`)
+        // What each block drew, so a change measured here can be seen not to
+        // have changed the drawing.
+        if (round === 1)
+          writeFileSync(
+            resolve(output, `${target}-profile.png`),
+            execFileSync('adb', ['exec-out', 'screencap', '-p'], {
+              timeout: 30_000,
+              maxBuffer: 32 * 1024 * 1024,
+            }),
+          )
       }
   }
   // One unmeasured mount first. The first one after launch drew a single
