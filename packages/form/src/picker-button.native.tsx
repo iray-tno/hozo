@@ -11,7 +11,7 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native'
-import { nonControlClassFacts } from './class-facts.native.ts'
+import { type PickerButtonClassFacts, pickerButtonClassConstants } from './owner-facts.native.ts'
 
 /** The date/time picker buttons share the same real Web button owner,
  * not subtly different interpretations of interaction and text styles.
@@ -53,7 +53,7 @@ export function PickerButton({
   const [box, text] = hozoSplitTextStyle(
     StyleSheet.flatten([
       hozoClasses(className, {
-        ...nonControlClassFacts,
+        ...pickerButtonClassConstants,
         ...dataFacts,
         ...state,
         disabled,
@@ -62,7 +62,7 @@ export function PickerButton({
         focused: !disabled && state.focused,
         focusVisible: !disabled && state.focusVisible,
         'aria-expanded': expanded ?? false,
-      }),
+      } satisfies PickerButtonClassFacts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )

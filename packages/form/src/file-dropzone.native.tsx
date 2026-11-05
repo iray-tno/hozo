@@ -13,7 +13,6 @@ import {
   type TextStyle,
   type ViewStyle,
 } from 'react-native'
-import { nonControlClassFacts } from './class-facts.native.ts'
 import {
   type FileRules,
   type HozoFileRejection,
@@ -21,6 +20,7 @@ import {
   sortFiles,
 } from './file-rules.ts'
 import { pickAnnouncement } from './file-words.ts'
+import { type FilePickerClassFacts, filePickerClassConstants } from './owner-facts.native.ts'
 
 export type { HozoFileRejection, HozoPickedFile }
 
@@ -146,17 +146,16 @@ export function HozoFileDropzone({
   const [box, text] = hozoSplitTextStyle(
     StyleSheet.flatten([
       hozoClasses(className, {
-        ...nonControlClassFacts,
+        ...filePickerClassConstants,
         ...state,
         disabled: isDisabled,
         enabled: !isDisabled,
         pressed: !isDisabled && state.pressed,
         focused: !isDisabled && state.focused,
         focusVisible: !isDisabled && state.focusVisible,
-        // The Web button authors neither attribute. Native's busy/disabled
-        // announcements do not manufacture extra ARIA styling predicates.
-        'aria-busy': false,
-      }),
+        // Native's busy/disabled announcements do not manufacture extra
+        // ARIA styling predicates: those constants come from the catalog.
+      } satisfies FilePickerClassFacts),
       hozoAuthoredStyle(style),
     ]) ?? {},
   )
