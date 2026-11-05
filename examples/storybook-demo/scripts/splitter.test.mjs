@@ -112,6 +112,15 @@ test('captured drags, final release, cancellation, keys, RTL and collapsed focus
           String(200 + sign * 60),
           `${side}, RTL=${rtl}`,
         )
+        // Focused, so the keys work straight after, but not focus-visible:
+        // a mouse drag must not light up the keyboard focus ring (#1714).
+        assert.deepEqual(
+          await handle.evaluate((node) => [
+            node === document.activeElement,
+            node.matches(':focus-visible'),
+          ]),
+          [true, false],
+        )
         assert.deepEqual(
           await page.evaluate(() => events.filter(([event]) => event === 'commit')),
           [['commit', 200 + sign * 60]],

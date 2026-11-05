@@ -84,7 +84,12 @@ export function useDrag1D(options: Drag1DOptions) {
           return
         }
         host.setPointerCapture(event.pointerId)
-        host.focus()
+        // preventDefault below also stops the browser's own focus on press, so
+        // the host focuses itself, for the keys to work straight after a drag.
+        // Chromium counts a script focus with no keyboard before it as
+        // focus-visible, which would light the keyboard focus ring on every
+        // mouse drag (#1714); Chromium and Firefox honour the opt-out.
+        host.focus({ focusVisible: false })
         event.preventDefault()
         setDragging(true)
       },

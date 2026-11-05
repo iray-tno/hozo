@@ -93,7 +93,14 @@ test('Web Slider captures input, flushes release, preserves direction and cancel
       for (const rtl of [false, true]) {
         await remount({ vertical, rtl })
         await start(0.2, vertical, rtl)
-        assert.equal(await thumb.evaluate((node) => node === document.activeElement), true)
+        assert.deepEqual(
+          await thumb.evaluate((node) => [
+            node === document.activeElement,
+            node.matches(':focus-visible'),
+          ]),
+          [true, false],
+          'a press focuses the thumb without the keyboard focus ring (#1714)',
+        )
         const at = await point(0.8, vertical, rtl)
         await page.mouse.move(at.x, at.y)
         assert.equal(await value(), '20', 'moves wait for a frame')
