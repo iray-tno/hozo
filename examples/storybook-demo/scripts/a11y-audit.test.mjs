@@ -288,19 +288,28 @@ test('a paused finite entrance retains its state and still fails within the orig
   try {
     await page.setContent(content)
     await page.evaluate(() => {
-      const animation = document
+      window.entrance = document
         .getElementById('panel')
         .animate([{ opacity: 0 }, { opacity: 1 }], { duration: 800 })
-      animation.pause()
+      entrance.pause()
     })
+    let frozen
     await assert.rejects(auditPage(page, axeSource, 100), (error) => {
       assert.match(error.message, /story did not settle/)
       const state = error.diagnostics.browser
       assert.ok(['frames', 'animations'].includes(state.phase), JSON.stringify(state))
       assert.ok(state.animations.some((animation) => animation.playState === 'paused'))
       assert.equal(state.rootPresent, true)
+      frozen = state.stateAtFailure
+      assert.ok(frozen.animations.some((animation) => animation.playState === 'paused'))
+      assert.equal(frozen.rootChildren, 1)
       return true
     })
+    await page.evaluate(() => entrance.finish())
+    await page.waitForFunction(() => window.__hozoAuditPreparation.phase === 'settled')
+    const late = await captureAuditState(page)
+    assert.equal(late.animationCount, 0)
+    assert.deepEqual(late.stateAtFailure, frozen)
   } finally {
     await page.close()
   }
@@ -312,10 +321,16 @@ test('a missing story cannot pass as an empty accessibility tree', {
   const page = await browser.newPage()
   try {
     await page.setContent('<div id="storybook-root"></div>')
+    let frozen
     await assert.rejects(auditPage(page, axeSource, 100), (error) => {
       assert.match(error.message, /story did not settle/)
       assert.equal(error.diagnostics.browser.phase, 'root')
       assert.equal(error.diagnostics.browser.rootChildren, 0)
+      frozen = error.diagnostics.browser.stateAtFailure
+      assert.equal(frozen.phase, 'root')
+      assert.equal(frozen.rootChildren, 0)
+      assert.ok(frozen.elapsedMs >= 100)
+      assert.ok(frozen.phaseElapsedMs >= 100)
       return true
     })
     // A late render cannot rewrite which wait actually reached its deadline.
@@ -326,8 +341,86 @@ test('a missing story cannot pass as an empty accessibility tree', {
     const late = await captureAuditState(page)
     assert.equal(late.phase, 'root')
     assert.equal(late.phaseAtCapture, 'settled')
+    assert.equal(late.rootChildren, 1)
+    assert.deepEqual(late.stateAtFailure, frozen)
     assert.ok(late.captureDelayMs >= 0)
   } finally {
+    await page.close()
+  }
+})
+
+test('a withheld frame is distinguished from a missing root or finite animation at failure', {
+  skip: !executablePath,
+}, async () => {
+  const page = await browser.newPage()
+  try {
+    await page.setContent(content)
+    await page.evaluate(() => {
+      window.requestAnimationFrame = () => 1
+    })
+    await assert.rejects(auditPage(page, axeSource, 100), (error) => {
+      const state = error.diagnostics.browser.stateAtFailure
+      assert.equal(state.phase, 'frames')
+      assert.equal(state.rootChildren, 1)
+      assert.equal(state.fonts, 'loaded')
+      assert.equal(state.animationCount, 0)
+      assert.equal(state.framesRequested, 1)
+      assert.equal(state.framesCompleted, 0)
+      return true
+    })
+  } finally {
+    await page.close()
+  }
+})
+
+test('font and stylesheet loading at failure survive their later completion', {
+  skip: !executablePath,
+}, async () => {
+  const page = await browser.newPage()
+  let release
+  const gate = new Promise((resolve) => {
+    release = resolve
+  })
+  try {
+    await page.setContent(content)
+    await page.route('http://audit.test/*', async (route) => {
+      await gate
+      if (route.request().url().endsWith('.woff2')) await route.abort()
+      else await route.fulfill({ contentType: 'text/css', body: '#panel { padding: 24px }' })
+    })
+    const requested = Promise.all([
+      page.waitForRequest('http://audit.test/font.woff2'),
+      page.waitForRequest('http://audit.test/delayed.css'),
+    ])
+    await page.evaluate(() => {
+      const font = new FontFace('AuditDeferred', 'url(http://audit.test/font.woff2)')
+      document.fonts.add(font)
+      document.getElementById('panel').style.fontFamily = 'AuditDeferred'
+      font.load().catch(() => {})
+      const link = document.createElement('link')
+      link.rel = 'stylesheet'
+      link.href = 'http://audit.test/delayed.css'
+      document.head.append(link)
+    })
+    await requested
+    let frozen
+    await assert.rejects(auditPage(page, axeSource, 100), (error) => {
+      frozen = error.diagnostics.browser.stateAtFailure
+      assert.equal(frozen.phase, 'fonts')
+      assert.equal(frozen.fonts, 'loading')
+      assert.deepEqual(frozen.stylesheets, [
+        { url: 'http://audit.test/delayed.css', loaded: false },
+      ])
+      return true
+    })
+    release()
+    await page.waitForFunction(() => window.__hozoAuditPreparation.phase === 'settled')
+    const late = await captureAuditState(page)
+    assert.equal(late.fonts, 'loaded')
+    assert.equal(late.stylesheets[0].loaded, true)
+    assert.deepEqual(late.stateAtFailure, frozen)
+  } finally {
+    release()
     await page.close()
   }
 })

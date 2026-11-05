@@ -65,6 +65,7 @@ export async function captureAuditState(page) {
           visibility: document.visibilityState,
           phase: preparation?.failurePhase ?? preparation?.phase ?? null,
           phaseAtCapture: preparation?.phase ?? null,
+          stateAtFailure: preparation?.failureState ?? null,
           captureDelayMs:
             preparation?.failedAt == null
               ? null
