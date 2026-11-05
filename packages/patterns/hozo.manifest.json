@@ -128,6 +128,38 @@
               }
             }
           ]
+        },
+        {
+          "owner": "Toolbar.root",
+          "classProp": "className",
+          "audit": "unknown",
+          "bindings": [
+            "present"
+          ],
+          "abi": {
+            "nativePreparedProp": "hozoToolbarStyle",
+            "webClassProp": "className"
+          },
+          "authoredStyles": [
+            {
+              "prop": "style",
+              "order": 0
+            }
+          ],
+          "shapes": [
+            {
+              "id": "root",
+              "when": {
+                "eq": [
+                  "present",
+                  true
+                ]
+              },
+              "nativeHost": "View",
+              "webHost": "div",
+              "events": []
+            }
+          ]
         }
       ]
     },
@@ -276,7 +308,9 @@
       },
       {
         "name": "HozoToolbar",
-        "owners": []
+        "owners": [
+          "Toolbar.root"
+        ]
       },
       {
         "name": "HozoTree",
@@ -338,7 +372,9 @@
       },
       {
         "name": "Toolbar",
-        "owners": []
+        "owners": [
+          "Toolbar.root"
+        ]
       },
       {
         "name": "Tooltip",

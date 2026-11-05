@@ -676,6 +676,23 @@ export const ownerShadow = {
         },
       ],
     },
+    {
+      owner: 'Toolbar.root',
+      classProp: 'className',
+      audit: 'unknown',
+      bindings: ['present'],
+      abi: { nativePreparedProp: 'hozoToolbarStyle', webClassProp: 'className' },
+      authoredStyles: [{ prop: 'style', order: 0 }],
+      shapes: [
+        {
+          id: 'root',
+          when: { eq: ['present', true] },
+          nativeHost: 'View',
+          webHost: 'div',
+          events: [],
+        },
+      ],
+    },
   ],
 }
 
@@ -684,6 +701,11 @@ export const ownerShadow = {
 // value exports is checked against each package's actual entry by the producer.
 // This declaration does not certify that an alias implements the contract.
 export const ownerPublications = [
+  {
+    owner: 'Toolbar.root',
+    package: '@hozo/patterns',
+    exports: ['Toolbar', 'HozoToolbar'],
+  },
   {
     owner: 'BottomSheet.handle',
     package: '@hozo/patterns',
