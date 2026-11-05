@@ -40,8 +40,10 @@ export async function prepareWebOwnerPublication(
   const compiler = createCompiler()
   const original = compiler.prepareWebModule.bind(compiler)
   let ordinaryParses = 0
+  let ownerShapeParses = 0
   compiler.prepareWebModule = (source, ...args) => {
     if (!source.includes('function Plan()')) ordinaryParses++
+    else ownerShapeParses++
     return original(source, ...args)
   }
   // One ordinary primitive in the same module forces the real composition
@@ -65,9 +67,20 @@ export function OrdinaryOwnerEvidence(){return <OrdinaryOwnerControl className="
       edge.importer,
       [
         (compiler) =>
-          prepareOwnerLowerModule(input, edge.importer, edge.importer, compiler, root, lease, [
-            { ...edge, entry, imported, classProp },
-          ]),
+          prepareOwnerLowerModule(
+            input,
+            edge.importer,
+            edge.importer,
+            compiler,
+            root,
+            lease,
+            (Array.isArray(imported) ? imported : [imported]).map((imported) => ({
+              ...edge,
+              entry,
+              imported,
+              classProp,
+            })),
+          ),
       ],
       packages.candidates,
     )
@@ -92,6 +105,7 @@ export function OrdinaryOwnerEvidence(){return <OrdinaryOwnerControl className="
       fingerprint: result.preview.contextFingerprint,
       preparations,
       ordinaryParses,
+      ownerShapeParses,
       delivery: 'composed-ordinary-lowering',
     }
   } finally {

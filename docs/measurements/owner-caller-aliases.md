@@ -95,3 +95,19 @@ retained once and the companion owner stylesheet is emitted once. These are
 operation/output-count observations, not browser fidelity or latency numbers.
 The missing-copy and overlapping-edit refusal regressions still pass. The
 following browser layer exercises actual Toolbar aliases and independent CSS.
+
+The sixth layer reuses `prepareWebOwnerPublication` and the existing Toolbar
+browser harness with both actual distributed exports in one source module.
+Node-only preparation checks one shape preparation, one ordinary parse, one
+context and a shared namespaced class; the bundle includes the real Toolbar
+and no compiler/Tailwind machinery.
+
+CI additionally compares both widgets against candidate CSS and independent
+Tailwind CSS across resting, item-action and rerender phases (18 computed-style
+observations), then removes/restores each stylesheet (12 controls). Each widget
+must retain its own arrow-key/activation wiring and root identity. Partial
+failures and build hashes are retained in `toolbar-alias-browser.json` under
+the existing `owner-toolbar-evidence` artifact. The old single-owner receipt
+is unchanged, and no new audit/status denominator consumes the alias receipt.
+These are required CI observations, not a claim that Node-only checks ran a
+browser or proved Native pixels/events.
