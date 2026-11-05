@@ -639,7 +639,9 @@ pub(super) fn render_node(
         // stylesheet; a `Text` has none to give.
         Primitive::Code | Primitive::Preformatted => vec![StyleDeclaration {
             source: Default::default(),
-            property: StyleProperty::FontFamily("monospace".to_string()),
+            property: StyleProperty::FontFamily(hozo_ir::FontFamily::Literal(
+                "monospace".to_string(),
+            )),
             condition: Condition::Always,
         }],
         // The rule itself, which the browser draws and React Native does

@@ -794,7 +794,7 @@ pub fn property_and_value<'a>(prop: &'a StyleProperty, theme: &Theme) -> Vec<(&'
         | StyleProperty::FilterRaw(..)
         | StyleProperty::BackdropFilter(..)
         | StyleProperty::DropShadowColor(_) => vec![],
-        StyleProperty::FontFamily(value) => vec![("fontFamily", js_string(value))],
+        StyleProperty::FontFamily(value) => vec![("fontFamily", js_string(&value.native(theme)))],
         StyleProperty::FontVariant(values) => vec![(
             "fontVariant",
             format!(

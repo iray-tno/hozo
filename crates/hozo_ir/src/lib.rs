@@ -2196,10 +2196,9 @@ pub enum StyleProperty {
     BackdropFilter(FilterFunction, String),
 
     // Typography
-    /// A complete font-family value. Static StyleX declarations use one
-    /// portable family name; Tailwind's named utilities retain their CSS
-    /// fallback stack for Web.
-    FontFamily(String),
+    /// A font-family value. Static StyleX declarations use one portable
+    /// family name; Tailwind's named utilities keep their theme token.
+    FontFamily(FontFamily),
     /// The intersection of CSS font-variant keywords and React Native's
     /// `FontVariant[]`, retained in authored order.
     FontVariant(Vec<&'static str>),
@@ -3924,6 +3923,42 @@ pub enum FontWeight {
     Absolute(u16),
     /// A named Tailwind utility retains its token until backend theme resolution.
     Theme { name: &'static str, fallback: u16 },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum FontFamily {
+    /// A family written out, which no theme changes.
+    Literal(String),
+    /// `font-sans`, `font-serif`, `font-mono`: `--font-<name>` from the
+    /// project's theme, or Tailwind's default stack when there is no theme
+    /// to ask. A project's `@theme` override of the token is what
+    /// Tailwind's own utility follows (#1691).
+    Theme {
+        name: &'static str,
+        fallback: &'static str,
+    },
+}
+
+impl FontFamily {
+    pub fn css(&self, theme: &Theme) -> String {
+        match self {
+            Self::Literal(value) => value.clone(),
+            Self::Theme { name, fallback } => theme
+                .font_family(name)
+                .map_or(*fallback, |(web, _)| web)
+                .to_owned(),
+        }
+    }
+
+    pub fn native(&self, theme: &Theme) -> String {
+        match self {
+            Self::Literal(value) => value.clone(),
+            Self::Theme { name, fallback } => theme
+                .font_family(name)
+                .map_or(*fallback, |(_, native)| native)
+                .to_owned(),
+        }
+    }
 }
 
 impl FontWeight {

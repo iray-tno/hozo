@@ -96,6 +96,8 @@ export interface Theme {
   radii?: ThemeRadius[]
   /** Values remain visible even when a Native font cannot represent them. */
   fontWeights?: { name: string; value: string }[]
+  /** `--font-<name>` for `font-sans`, `font-serif` and `font-mono` (#1691). */
+  fontFamilies?: { name: string; web: string; value: string }[]
   /**
    * The project's `dark` variant, when it declared its own with
    * `@custom-variant dark`: a selector with `&` for the element, or an
@@ -368,6 +370,7 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
         name: name.slice('--font-weight-'.length),
         value: dereference(value, declared),
       })),
+    fontFamilies: readFontFamilies(design, declared),
     ...readDarkSelector(design),
   }
 }
@@ -555,6 +558,28 @@ function immutable<T>(value: T): T {
  * `--radius-*` in pixels, each through its `var()` chain:
  * `--radius-control: var(--radius-lg)` is 8.
  */
+/**
+ * The three families Hozo compiles, `font-sans`, `font-serif` and
+ * `font-mono`, as the project's theme has them.
+ *
+ * The Web spelling is asked of Tailwind, as a colour's is, so it is the same
+ * `var(--font-mono)` Tailwind's own utility writes when the variable is
+ * delivered, and the value itself for an `inline` theme. Before this they
+ * were Tailwind's default stacks whatever `@theme` said (#1691).
+ */
+function readFontFamilies(
+  design: Awaited<ReturnType<typeof __unstable__loadDesignSystem>>,
+  declared: ReadonlyMap<string, string>,
+): NonNullable<Theme['fontFamilies']> {
+  return ['sans', 'serif', 'mono'].flatMap((name) => {
+    const declaration = declared.get(`--font-${name}`)
+    const web = design.theme.resolve(name, ['--font'])
+    return declaration === undefined || web === null
+      ? []
+      : [{ name, web, value: dereference(declaration, declared) }]
+  })
+}
+
 function readRadii(declared: ReadonlyMap<string, string>): ThemeRadius[] {
   const radii: ThemeRadius[] = []
   for (const [name, declaration] of declared) {

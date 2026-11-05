@@ -6458,7 +6458,9 @@ fn direct_properties(property: &str, value: &StaticValue) -> Option<Vec<StylePro
             if value.is_empty() || value.contains(',') || value.contains("var(") {
                 return None;
             }
-            vec![StyleProperty::FontFamily(value.to_string())]
+            vec![StyleProperty::FontFamily(hozo_ir::FontFamily::Literal(
+                value.to_string(),
+            ))]
         }
         "fontVariant" => {
             let StaticValue::String(value) = value else {

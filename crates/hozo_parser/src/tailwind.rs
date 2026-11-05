@@ -10,9 +10,9 @@ use std::collections::HashMap;
 use hozo_ir::{
     Align, AlignSelf, Angle, Animation, Axis, BorderStyle, Breakpoint, Clamp, Color, ColumnCount,
     Condition, DecorationStyle, Dimension, Display, Edge, Em, Environment, FilterFunction,
-    FlexDirection, FlexShorthand, FontWeight, FormState, GradientKind, GradientStop, GridLine,
-    GridSpan, GridTracks, Justify, Length, LetterSpacing, LineHeight, MaskSlot, MaskStop, Origin,
-    Overflow, Position, PseudoElement, Radius, Scale, Structural, StyleProperty, TextAlign,
+    FlexDirection, FlexShorthand, FontFamily, FontWeight, FormState, GradientKind, GradientStop,
+    GridLine, GridSpan, GridTracks, Justify, Length, LetterSpacing, LineHeight, MaskSlot, MaskStop,
+    Origin, Overflow, Position, PseudoElement, Radius, Scale, Structural, StyleProperty, TextAlign,
     TextOverflow, TextShadowValue, TextTransform, WhiteSpace,
 };
 
@@ -2601,13 +2601,16 @@ fn keyword_utility(token: &str) -> Option<StyleProperty> {
         return Some(StyleProperty::TransformOrigin(value.to_string()));
     }
     let family = match token {
-        "font-mono" => Some("ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace"),
-        "font-sans" => Some("-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'"),
-        "font-serif" => Some("ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif"),
+        "font-mono" => Some(("mono", "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace")),
+        "font-sans" => Some(("sans", "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji'")),
+        "font-serif" => Some(("serif", "ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif")),
         _ => None,
     };
-    if let Some(family) = family {
-        return Some(StyleProperty::FontFamily(family.to_string()));
+    if let Some((name, fallback)) = family {
+        return Some(StyleProperty::FontFamily(FontFamily::Theme {
+            name,
+            fallback,
+        }));
     }
     KEYWORD_UTILITIES
         .iter()
