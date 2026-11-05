@@ -96,6 +96,40 @@ test('project theme colours stay live in compiled and candidate CSS', async () =
   assert.match(native, /borderColor: '#ff0000'/)
 })
 
+test("font-sans, font-serif and font-mono follow the project's --font-* tokens (#1691)", async () => {
+  const theme = await themeFrom(`@import "tailwindcss";
+    @theme { --font-mono: "Cascadia Code", "Fira Code", "Consolas", monospace; }
+    @theme inline { --font-serif: Georgia, serif; }`)
+  const classes = 'font-mono font-sans font-serif'
+  const source = (name: string) =>
+    `import { Text } from '@hozo/core'; export const C = () => <Text className="${name}" />`
+  const compiler = createCompiler(theme)
+  const cache = openCandidateCache()
+  cache.scanFile('classes.ts', `export const classes = '${classes}'`, 1)
+
+  for (const css of [compiler.compile(source('font-mono'))[0].css, cache.renderCss(theme)]) {
+    // Tailwind's own spelling, and the project's value delivered beside it.
+    assert.match(css, /font-family: var\(--font-mono\)/)
+    assert.match(css, /--font-mono: "Cascadia Code", "Fira Code", "Consolas", monospace/)
+    assert.doesNotMatch(css, /SFMono-Regular/)
+  }
+  // An untouched token is still Tailwind's, read from its theme.
+  const sans = compiler.compile(source('font-sans'))[0].css
+  assert.match(sans, /font-family: var\(--font-sans\)/)
+  assert.match(sans, /--font-sans: -apple-system, BlinkMacSystemFont/)
+  // An inline token is written out, as Tailwind writes it.
+  assert.match(compiler.compile(source('font-serif'))[0].css, /font-family: Georgia, serif/)
+
+  const native = compiler.compileNative(source('font-mono'))[0].styles
+  assert.match(native, /fontFamily: '"Cascadia Code", "Fira Code", "Consolas", monospace'/)
+  // Tailwind writes its default stack across lines; a line break inside the
+  // literal is a module that does not parse.
+  assert.match(
+    compiler.compileNative(source('font-sans'))[0].styles,
+    /fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", [^'\n]*'/,
+  )
+})
+
 test('default and inline theme colors have the same semantics on ready, retained and candidate paths', async () => {
   const css = `@import "tailwindcss";
     @theme { --color-project: #e6edf3; }

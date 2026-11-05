@@ -1752,6 +1752,9 @@ pub struct JsTheme {
     /// pixels by `@hozo/tailwind`.
     pub radii: Option<Vec<JsThemeRadius>>,
     pub font_weights: Option<Vec<JsThemeFontWeight>>,
+    /// `--font-<name>`, which `font-sans`, `font-serif` and `font-mono`
+    /// read (#1691).
+    pub font_families: Option<Vec<JsThemeFontFamily>>,
     /// The selector of the project's `@custom-variant dark (...)`, with `&`
     /// for the element. Absent means `prefers-color-scheme` (#1654).
     pub dark_selector: Option<String>,
@@ -1773,6 +1776,15 @@ pub struct JsWebThemeVariable {
 #[napi(object)]
 pub struct JsThemeFontWeight {
     pub name: String,
+    pub value: String,
+}
+
+#[napi(object)]
+pub struct JsThemeFontFamily {
+    pub name: String,
+    /// What a Web rule writes: a `var()` when Tailwind delivers the variable.
+    pub web: String,
+    /// The declaration's value, for a backend with no CSS variables.
     pub value: String,
 }
 
@@ -1907,6 +1919,14 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
         .with_animations(animations)
         .with_radii(radii)
         .with_font_weights(font_weights)
+        .with_font_families(
+            theme
+                .font_families
+                .unwrap_or_default()
+                .into_iter()
+                .map(|family| (family.name, (family.web, family.value)))
+                .collect(),
+        )
         .with_dark_selector(theme.dark_selector)
         .with_web_colors(
             theme

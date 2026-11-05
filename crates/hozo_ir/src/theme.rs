@@ -103,6 +103,11 @@ pub struct Theme {
     /// which the parser resolves itself.
     radii: HashMap<String, f64>,
     font_weights: HashMap<String, String>,
+    /// `--font-<name>` by name, as `(web, native)`: what a Web rule writes,
+    /// which is `var(--font-mono)` when Tailwind delivers the variable, and
+    /// the declaration's own value for a backend with no CSS variables
+    /// (#1691).
+    font_families: HashMap<String, (String, String)>,
     /// Where dark rules apply on Web, when the project says: the selector in
     /// its `@custom-variant dark (...)`, such as
     /// `&:where([data-theme=dark], [data-theme=dark] *)`. Absent means
@@ -132,6 +137,7 @@ impl Default for Theme {
             animations: HashMap::new(),
             radii: HashMap::new(),
             font_weights: HashMap::new(),
+            font_families: HashMap::new(),
             dark_selector: None,
         }
     }
@@ -162,6 +168,7 @@ impl Theme {
             animations: HashMap::new(),
             radii: HashMap::new(),
             font_weights: HashMap::new(),
+            font_families: HashMap::new(),
             dark_selector: None,
         }
     }
@@ -221,6 +228,19 @@ impl Theme {
 
     pub fn font_weight(&self, name: &str) -> Option<&str> {
         self.font_weights.get(name).map(String::as_str)
+    }
+
+    pub fn with_font_families(mut self, families: HashMap<String, (String, String)>) -> Self {
+        self.font_families = families;
+        self
+    }
+
+    /// The Web and Native spellings of `--font-<name>`, when the project's
+    /// theme declares it.
+    pub fn font_family(&self, name: &str) -> Option<(&str, &str)> {
+        self.font_families
+            .get(name)
+            .map(|(web, native)| (web.as_str(), native.as_str()))
     }
 
     /// Resolve a built-in scale against the project, keeping the theme-free
@@ -307,6 +327,7 @@ impl Theme {
             animations: self.animations.clone(),
             radii: self.radii.clone(),
             font_weights: self.font_weights.clone(),
+            font_families: self.font_families.clone(),
             // Still where the dark rules go: this theme renders them.
             dark_selector: self.dark_selector.clone(),
         })

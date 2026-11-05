@@ -543,6 +543,12 @@ export interface Theme {
   /** Named Tailwind font weights, kept separate from authored numeric weights. */
   fontWeights?: { name: string; value: string }[]
   /**
+   * `--font-<name>`, which `font-sans`, `font-serif` and `font-mono` read:
+   * `web` is what a Web rule writes, `var(--font-mono)` when Tailwind
+   * delivers the variable, and `value` the declaration for Native (#1691).
+   */
+  fontFamilies?: { name: string; web: string; value: string }[]
+  /**
    * Where dark rules apply on Web, from the project's own
    * `@custom-variant dark (...)`: a selector with `&` for the element, or an
    * at-rule. `@hozo/tailwind`'s `loadTheme` reads it. Omitted means
