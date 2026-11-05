@@ -87,7 +87,9 @@ jobs:
         if: always()
         with:
           name: metro-partial-owner-bundle
-          path: artifacts/style-fact-model/metro-partial-owner-bundle.json
+          path: |
+            artifacts/style-fact-model/metro-partial-owner-bundle.json
+            artifacts/style-fact-model/metro-toolbar-owner-bundle.json
           if-no-files-found: warn
       - run: node --test --test-concurrency=1 packages/tailwind-conformance/src/owner-bundle.test.ts
       # Read real receipts from this checkout; a missing/stale probe fails the

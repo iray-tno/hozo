@@ -124,6 +124,37 @@ existing frozen-runtime-map and late-invalidation fences.
 
 The resolver/source-worker tests cover both Native platforms, both Toolbar
 aliases, target/cache separation, invalid serialized targets and return to
-byte-identical ordinary output/cache identity. These are not yet production
-Metro bundle observations; the next fixture must execute the real built
-Toolbar through Metro. No default route or audit declaration changes here.
+byte-identical ordinary output/cache identity. Those source-worker tests alone
+are not production Metro bundle observations; the fixture below adds that
+required boundary. No default route or audit declaration changes here.
+
+## Production Metro fixture
+
+The next stack layer extends the existing production Metro fixture rather
+than adding another build harness:
+
+```sh
+node --test --test-concurrency=1 examples/native-demo/scripts/metro-partial-owner-bundle.test.mjs
+```
+
+It requires eight minified Metro builds: Android/iOS, each ordinary,
+BottomSheet opt-in, exhausted-preflight ordinary fallback and Toolbar opt-in.
+All execute the actual distributed Toolbar, real captured candidate resolver
+and generated carrier in an isolated installed app. React and RN hosts remain
+stand-ins, not a renderer, device, Yoga or event-delivery measurement.
+
+Each build observes the literal, runtime-selected and uncaptured-sibling
+Toolbar. Only the explicitly selected literal may receive a carrier. All
+24 observations must preserve padding/gap author precedence, root role/name,
+one author evaluation, runtime input evaluation and a working item action;
+no private prop or Web item wiring may escape. Each build records its hash,
+bytes and the ordinary resolver capture; the capture references the actual
+ordinary bundle from that platform. Controls remain ordinary while selecting
+the other owner, and exhaustion must not opt Toolbar in.
+
+The old BottomSheet receipt keeps its four-build/two-fallback denominator.
+The new `metro-toolbar-owner-bundle.json` retains Toolbar observations and
+partial failures separately; the existing Owner Evidence upload includes both.
+This fixture is delegated to CI, not run locally under the CPU-1 constraint.
+Adding its expectations is not a claim that those builds already passed,
+and neither receipt changes scoped admission, `audit: unknown` or defaults.
