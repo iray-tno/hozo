@@ -7,7 +7,7 @@ import { Linking, type StyleProp, Text, type TextStyle, View, type ViewStyle } f
 import { nonControlSlotFacts } from './non-control-facts.native.ts'
 import { paginationItems } from './pagination-rules.ts'
 import { type InteractionState, Pressable } from './pressable.native.tsx'
-import type { PaginationSlotFacts } from './slot-facts.native.ts'
+import { type PaginationSlotFacts, paginationSlotConstants } from './slot-facts.native.ts'
 import { splitTextStyle } from './text-style.native.ts'
 
 type PaginationSlotState = InteractionState & PaginationSlotFacts
@@ -119,9 +119,9 @@ export function HozoPagination({
       // pseudo-class. The current-page slot is gated independently below.
       const facts: PaginationSlotState = {
         ...interaction,
+        ...paginationSlotConstants,
         disabled: !getPageHref && state === 'disabled',
         enabled: !getPageHref && state !== 'disabled',
-        'aria-selected': false,
         'aria-disabled': Boolean(getPageHref) && state === 'disabled',
       }
       return splitTextStyle([
