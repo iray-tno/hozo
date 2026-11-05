@@ -7,6 +7,7 @@ import { resolve } from 'node:path'
 const root = resolve(process.argv[2])
 const evidence = JSON.parse(readFileSync(resolve(root, 'evidence.json'), 'utf8'))
 assert.equal(evidence.passed, true, 'an incomplete run is not a completed matrix')
+assert.ok(!evidence.profiling, 'a profiling run samples mounts and times no matrix')
 // 84 before the one-line edits and the settle records were added.
 const edited = evidence.cases.some((sample) => sample.name.includes('-edit-'))
 // And 15 more once a plain list was measured beside the 1000-line block.

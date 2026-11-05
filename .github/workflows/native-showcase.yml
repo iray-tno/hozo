@@ -52,6 +52,10 @@ on:
         description: 'Collect startup and input-tool diagnostics; iOS also exercises Settings'
         type: boolean
         default: false
+      code-block-profile:
+        description: 'Android code-block scenarios: sample each 1000-line mount with simpleperf instead of timing the matrix (#1420)'
+        type: boolean
+        default: false
       android-target:
         description: 'Android system image for a controlled comparison'
         type: choice
@@ -191,6 +195,7 @@ jobs:
           HOZO_ANDROID_TARGET: ${{ inputs.android-target || 'google_apis' }}
           HOZO_ANDROID_CANVAS_ROUNDS: ${{ inputs.android-canvas-rounds || '1' }}
           HOZO_ANDROID_SCENARIO: ${{ inputs.android-scenario || 'full' }}
+          HOZO_CODE_BLOCK_PROFILE: ${{ inputs.code-block-profile && '1' || '' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

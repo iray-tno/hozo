@@ -176,3 +176,19 @@ export function timingRecords(log) {
     return [result]
   })
 }
+
+/**
+ * The rows of `simpleperf report --sort comm,dso -n`: what share of the
+ * samples landed in each thread and library. A thread name can contain
+ * spaces (`Jit thread pool`), so the library is read from the end: a path, or
+ * a bracketed pseudo-object such as `[kernel.kallsyms]` or `[JIT app cache]`.
+ */
+export function profileRows(report) {
+  const rows = []
+  for (const line of report.split(/\r?\n/)) {
+    const row = line.match(/^\s*([\d.]+)%\s+(\d+)\s+(.+?)\s+(\/\S+|\[[^\]]+\])\s*$/)
+    if (row)
+      rows.push({ percent: Number(row[1]), samples: Number(row[2]), thread: row[3], dso: row[4] })
+  }
+  return rows
+}

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -11,6 +11,7 @@ import { prepareAndroid } from './android-startup.mjs'
 import { waitForAndroidControl } from './android-ui-wait.mjs'
 import {
   assertReusableCodeInputs,
+  profileRows,
   timingRecords,
   waitForCompletedFrames,
 } from './code-block-frames.mjs'
@@ -33,6 +34,7 @@ const app = 'dev.hozo.showcase'
 // `code-block-windowed` measures the same matrix with `maxHeight` set, so the
 // block is its own scroller and mounts only the lines near the visible ones.
 const windowed = process.env.HOZO_ANDROID_SCENARIO === 'code-block-windowed'
+const profiling = process.env.HOZO_CODE_BLOCK_PROFILE === '1'
 const apk = resolve(root, 'android/app/build/outputs/apk/release/app-release.apk')
 mkdirSync(output, { recursive: true })
 const adb = (...args) =>
@@ -56,6 +58,7 @@ const evidence = {
   ),
   build: 'standalone release / Hermes; SwiftShader emulator GPU in CI',
   variant: windowed ? 'windowed (maxHeight)' : 'whole block',
+  profiling,
 }
 
 async function control(name) {
@@ -258,6 +261,95 @@ try {
     } else scrollTiming.scrollFrames = 'not measured: small baseline fits the viewport'
     json(`${name}-scroll-js.json`, scrollTiming)
   }
+  // Where a mount's time goes, JS or native (#1420): the app's threads sampled
+  // by simpleperf while each block mounts and settles, attributed to the
+  // thread and the library the sample landed in. Sampling slows what it
+  // watches, so a profiling run reports no timing matrix.
+  async function profileMounts() {
+    adb('root')
+    execFileSync('adb', ['wait-for-device'], { timeout: 60_000 })
+    await pause(2000)
+    let simpleperf = adb('shell', 'command -v simpleperf || true').trim()
+    if (!simpleperf) {
+      const ndk = process.env.ANDROID_NDK_HOME ?? process.env.ANDROID_NDK_LATEST_HOME
+      assert.ok(ndk, 'no simpleperf on the device and no NDK to push one from')
+      adb('push', resolve(ndk, 'simpleperf/bin/android/x86_64/simpleperf'), '/data/local/tmp/')
+      simpleperf = '/data/local/tmp/simpleperf'
+    }
+    const pid = adb('shell', 'pidof', app).trim()
+    assert.match(pid, /^\d+$/, 'the showcase is not running')
+    evidence.profile = { simpleperf, event: 'cpu-clock', frequencyHz: 1000, cases: [] }
+    const targets = [
+      ['1000', 'Mount 1000 lines', 'mount-1000'],
+      ['baseline', 'Mount plain list', 'baseline-mount'],
+      ...VARIANTS.map((variant) => [
+        `variant-${variant}`,
+        `Mount variant ${variant}`,
+        `variant-${variant}-mount`,
+      ]),
+    ]
+    for (let round = 1; round <= 3; round++)
+      for (const [target, label, timing] of targets) {
+        const name = `${target}-${round}-profile`
+        tap('Clear block')
+        await control('Block cleared')
+        const data = `/data/local/tmp/${name}.data`
+        const recorder = spawn('adb', [
+          'shell',
+          simpleperf,
+          'record',
+          '-p',
+          pid,
+          '-e',
+          'cpu-clock',
+          '-f',
+          '1000',
+          '-o',
+          data,
+        ])
+        let recorded = ''
+        recorder.stdout.on('data', (chunk) => {
+          recorded += chunk
+        })
+        recorder.stderr.on('data', (chunk) => {
+          recorded += chunk
+        })
+        const exited = new Promise((done) => recorder.on('exit', done))
+        // Attached before the tap, so the mount's first batch is sampled.
+        await pause(1500)
+        adb('logcat', '-c')
+        const started = Date.now()
+        tap(label)
+        const settled = await waitForTiming(`settle-${timing}`, started + 60_000)
+        adb('shell', 'pkill', '-INT', 'simpleperf')
+        await exited
+        save(`${name}-record.txt`, recorded)
+        const report = adb('shell', simpleperf, 'report', '-i', data, '--sort', 'comm,dso', '-n')
+        save(`${name}.txt`, report)
+        // By symbol too, for where inside a library; exported names only,
+        // since the APK's libraries are stripped.
+        save(
+          `${name}-symbols.txt`,
+          adb(
+            'shell',
+            simpleperf,
+            'report',
+            '-i',
+            data,
+            '--sort',
+            'comm,dso,symbol',
+            '-n',
+            '--percent-limit',
+            '0.5',
+          ),
+        )
+        const rows = profileRows(report)
+        assert.ok(rows.length, `${name}: simpleperf recorded no samples`)
+        evidence.profile.cases.push({ name, settled, rows })
+        json('evidence.json', evidence)
+        console.log(`${name}: ${rows.reduce((sum, row) => sum + row.samples, 0)} samples`)
+      }
+  }
   // One unmeasured mount first. The first one after launch drew a single
   // 81ms frame that gfxinfo counted in its totals and never listed in
   // framestats, before or after the window, so the run stopped on an empty
@@ -266,7 +358,7 @@ try {
   // than relaxing the empty-measurement check.
   tap('Mount 10 lines')
   await waitForTiming('settle-mount-10')
-  for (const count of [10, 100, 300, 1000]) {
+  for (const count of profiling ? [] : [10, 100, 300, 1000]) {
     for (let round = 1; round <= 3; round++) {
       tap('Clear block')
       await control('Block cleared')
@@ -323,6 +415,7 @@ try {
       }
     }
   }
+  if (profiling) await profileMounts()
   evidence.passed = true
 } catch (error) {
   evidence.error = String(error.stack)
