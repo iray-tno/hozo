@@ -18,6 +18,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { nonControlClassFacts } from './class-facts.native.ts'
+import { type TextAreaFieldClassFacts, textAreaFieldClassConstants } from './owner-facts.native.ts'
 
 import {
   clampedSize,
@@ -140,6 +141,7 @@ export function HozoTextArea({
   // A disabled textarea is not editable either; a read-only textarea can
   // still receive focus. Neither fact belongs to the wrapper or counter.
   const fieldFacts = {
+    ...textAreaFieldClassConstants,
     focused: !disabled && interaction.focused,
     focusVisible: !disabled && interaction.focusVisible,
     disabled: Boolean(disabled),
@@ -147,10 +149,7 @@ export function HozoTextArea({
     readOnly: Boolean(disabled || readOnly),
     'aria-invalid': Boolean(invalid),
     'aria-required': Boolean(required),
-    'aria-disabled': false,
-    'aria-selected': false,
-    'aria-checked': false,
-  }
+  } satisfies TextAreaFieldClassFacts
   useEffect(() => {
     if (disabled) handlers.blur()
   }, [disabled, handlers])

@@ -399,6 +399,7 @@ const reads = {
     'packages/form/src/file-dropzone.native.tsx',
     'packages/form/src/index.native.ts',
     'packages/form/src/class-facts.native.ts',
+    'packages/form/src/owner-facts.native.ts',
     'packages/form/src/text-area-rules.ts',
     'packages/form/src/file-rules.ts',
     'packages/form/src/file-words.ts',
