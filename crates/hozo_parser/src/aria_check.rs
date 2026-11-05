@@ -1093,11 +1093,7 @@ mod variant_tests {
     fn a_tailwind_variant_hozo_does_not_compile_is_named() {
         // These produced no CSS, reached the DOM as nothing, and said
         // nothing. `group-hover:` is not an exotic class.
-        for class_name in [
-            "checked:bg-blue-500",
-            "open:bg-blue-500",
-            "indeterminate:bg-blue-500",
-        ] {
+        for class_name in ["checked:bg-blue-500", "indeterminate:bg-blue-500"] {
             assert_eq!(
                 codes(class_name),
                 vec![DiagnosticCode::TailwindVariantNotSupported],
@@ -1128,6 +1124,17 @@ mod variant_tests {
         assert!(codes("empty:bg-blue-500").is_empty());
         assert!(codes("odd:bg-blue-500").is_empty());
         assert!(codes("nth-[2n+1]:bg-blue-500").is_empty());
+        // `open:` was in that list until a compiled `hidden` beside
+        // `group-open:inline` hid a `<details>` body for good (#1692).
+        // On a `View` itself it compiles and can never match, which is
+        // its own report.
+        assert_eq!(
+            codes("open:bg-blue-500"),
+            vec![DiagnosticCode::TailwindVariantCannotMatch]
+        );
+        assert!(codes("not-open:bg-blue-500").is_empty());
+        assert!(codes("group-open:inline").is_empty());
+        assert!(codes("peer-open:inline").is_empty());
     }
 
     #[test]
@@ -1223,27 +1230,22 @@ mod enabled_tests {
 
     #[test]
     fn a_variant_whose_selector_could_never_match_is_still_reported() {
-        // `open:` and `checked:` are real Tailwind and deliberately not
-        // implemented: they compile to `:open` and `:checked`, which match
-        // form controls and a `<details>`, and Hozo emits neither. A
-        // faithful implementation would generate CSS that cannot apply,
-        // which is precisely the bug `disabled:` used to be. The
-        // diagnostic is the more useful answer.
-        let source = |class_name: &str| {
-            format!("import {{ View }} from '@hozo/core'\nconst el = <View className=\"{class_name}\">x</View>\n")
-        };
-        for class_name in ["open:p-4", "checked:p-4"] {
-            let codes: Vec<_> = crate::parse_tsx(&source(class_name))
-                .diagnostics
-                .into_iter()
-                .map(|d| d.code)
-                .collect();
-            assert_eq!(
-                codes,
-                vec![DiagnosticCode::TailwindVariantNotSupported],
-                "{class_name}"
-            );
-        }
+        // `checked:` is real Tailwind and deliberately not implemented:
+        // it compiles to `:checked`, which matches a form control, and no
+        // primitive is one. A faithful implementation would generate CSS
+        // that cannot apply, which is precisely the bug `disabled:` used
+        // to be. The diagnostic is the more useful answer.
+        //
+        // `open:` was here too, until `@hozo/semantics`' `Details` became
+        // a real `<details>` and `group-open:` the way to read it (#1692).
+        let source =
+            "import { View } from '@hozo/core'\nconst el = <View className=\"checked:p-4\">x</View>\n";
+        let codes: Vec<_> = crate::parse_tsx(source)
+            .diagnostics
+            .into_iter()
+            .map(|d| d.code)
+            .collect();
+        assert_eq!(codes, vec![DiagnosticCode::TailwindVariantNotSupported]);
     }
 }
 

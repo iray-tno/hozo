@@ -685,6 +685,17 @@ fn form_state_atom(condition: &hozo_ir::Condition) -> Option<hozo_ir::FormState>
     }
 }
 
+/// Whether `condition` asks this element itself to be open. Looks through
+/// `md:open:` but not `not-open:`, which on an element that is never open
+/// always applies rather than never.
+fn open_atom(condition: &hozo_ir::Condition) -> bool {
+    match condition {
+        hozo_ir::Condition::Open => true,
+        hozo_ir::Condition::All(conditions) => conditions.iter().any(open_atom),
+        _ => false,
+    }
+}
+
 /// What this primitive becomes on Web, for a message that has to say why
 /// a selector cannot reach it.
 fn web_tag_hint(primitive: Primitive) -> &'static str {
@@ -1290,6 +1301,21 @@ fn build_node(
                                         });
                                     }
                                 }
+                            }
+                            // No primitive is a `<details>`, a `<dialog>` or
+                            // a popover, so `open:` on one is the form-state
+                            // case again. `group-open:` is the useful
+                            // spelling and is not looked through.
+                            if groups.iter().any(|(condition, _)| open_atom(condition)) {
+                                diagnostics.push(Diagnostic {
+                                    code: DiagnosticCode::TailwindVariantCannotMatch,
+                                    severity: Severity::Warning,
+                                    message: format!(
+                                        "`open:` compiles to `:is([open], :popover-open, :open)`, which matches an open `<details>`, `<dialog>` or popover. This is a <{}>, so the rule is generated and can never apply. To style something inside an open `Details`, put `group` on the `Details` and write `group-open:` here.",
+                                        web_tag_hint(primitive),
+                                    ),
+                                    span: to_span(literal.span()),
+                                });
                             }
                             if let Some(variant) = unsupported {
                                 diagnostics.push(Diagnostic {
@@ -2353,7 +2379,7 @@ mod class_slot_expression_tests {
                 "fallback must remain scannable: {expression}"
             );
         }
-        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx('p-2 open:p-4', other())} />";
+        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx('p-2 checked:p-4', other())} />";
         assert!(crate::parse_tsx(source)
             .diagnostics
             .iter()

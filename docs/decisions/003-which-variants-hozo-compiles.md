@@ -33,6 +33,16 @@ nothing, the diagnostic is the more useful answer — and the trap is worse
 here than in plain Tailwind, because Hozo's audience writes
 `<Pressable accessibilityRole="checkbox">` rather than `<input>`.
 
+*Amended for `open:` (#1692).* `@hozo/semantics`' `Details` is a real
+`<details>`, so `group-open:` on something inside it can match, and
+refusing it did not leave it unstyled: it was carried to Tailwind, whose
+rule sits in a layer, and a compiled unlayered `hidden` beside it won
+whether the disclosure was open or not. `open:` is compiled now. Written
+on a primitive itself it still cannot match, and that is reported as
+`TAILWIND_VARIANT_CANNOT_MATCH`, the way a form-state variant off a
+`TextInput` is. The rule stands for `checked:`: `<input type="checkbox">`
+is still not something any primitive becomes.
+
 **3. A concept one platform has is better implemented there and named
 absent on the other than left out of both.**
 
@@ -390,9 +400,9 @@ Groups ② through ⑤ are done. What remains of Tailwind's 83 names is
 either refused with a reason or compiled:
 
 **Refused under rule 2**, because no Hozo primitive becomes the element
-the selector needs: `checked` `indeterminate` `default` `open`. Those four
+the selector needs: `checked` `indeterminate` `default`. Those three
 are the whole of what is left, and each is a decision rather than a
-backlog item.
+backlog item. (`open` was the fourth until #1692; see rule 2.)
 
 Container queries are a feature of their own and are done; nothing here
 is a variant left to add, and with `visited:` and `starting:` compiled
