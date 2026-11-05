@@ -3,7 +3,15 @@ import test from 'node:test'
 import { ownerPublications, ownerShadow } from './style-slots/catalog.mjs'
 import { packageOwnerChannels } from './style-slots/package-owners.mjs'
 
-const exports = ['Other', 'HozoBottomSheet', 'BottomSheet', 'Tabs', 'HozoTabs']
+const exports = [
+  'Other',
+  'HozoBottomSheet',
+  'BottomSheet',
+  'Tabs',
+  'HozoTabs',
+  'Toolbar',
+  'HozoToolbar',
+]
 test('catalog publication owns the contract once and attaches only actual package export aliases', () => {
   const result = packageOwnerChannels('@hozo/patterns', exports)
   assert.deepEqual(result.owners, ownerShadow)
@@ -12,15 +20,18 @@ test('catalog publication owns the contract once and attaches only actual packag
     { name: 'BottomSheet', owners: ['BottomSheet.handle'] },
     { name: 'HozoBottomSheet', owners: ['BottomSheet.handle'] },
     { name: 'HozoTabs', owners: ['Tabs.Tab'] },
+    { name: 'HozoToolbar', owners: ['Toolbar.root'] },
     { name: 'Other', owners: [] },
     { name: 'Tabs', owners: ['Tabs.Tab'] },
+    { name: 'Toolbar', owners: ['Toolbar.root'] },
   ])
-  assert.equal(result.owners.contracts.length, 2)
+  assert.equal(result.owners.contracts.length, 3)
   assert.deepEqual(
     result.owners.contracts.map((row) => [row.owner, row.audit]),
     [
       ['BottomSheet.handle', 'unknown'],
       ['Tabs.Tab', 'audited'],
+      ['Toolbar.root', 'unknown'],
     ],
   )
   const tab = result.owners.contracts.find((row) => row.owner === 'Tabs.Tab')
@@ -40,7 +51,7 @@ test('catalog publication owns the contract once and attaches only actual packag
 
 test('fixtures explicitly select one catalog owner without alias or first-contract inference', async () => {
   const { ownerFixtureShadow } = await import('./style-slots/owner-fixture.mjs')
-  for (const owner of ['Tabs.Tab', 'BottomSheet.handle']) {
+  for (const owner of ['Tabs.Tab', 'BottomSheet.handle', 'Toolbar.root']) {
     const selected = JSON.parse(ownerFixtureShadow(owner))
     assert.deepEqual(selected, {
       schema: ownerShadow.schema,

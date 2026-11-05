@@ -14,6 +14,28 @@ const text = readFileSync(
 )
 const parsed = () => parseOwnerContractShadow(text)
 const contract = () => parsed().contracts[0]!
+test('Toolbar root is one unknown-audit non-interactive shape, not an item event owner', () => {
+  const toolbar = parsed().contracts.find((row) => row.owner === 'Toolbar.root')!
+  assert.ok(toolbar)
+  assert.equal(toolbar.audit, 'unknown')
+  assert.deepEqual(toolbar.abi, {
+    nativePreparedProp: 'hozoToolbarStyle',
+    webClassProp: 'className',
+  })
+  assert.deepEqual(toolbar.authoredStyles, [{ prop: 'style', order: 0 }])
+  assert.deepEqual(toolbar.shapes, [
+    {
+      id: 'root',
+      when: { eq: ['present', true] },
+      nativeHost: 'View',
+      webHost: 'div',
+      events: [],
+    },
+  ])
+  assert.equal(selectOwnerShape(toolbar, { present: true }).status, 'selected')
+  assert.equal(selectOwnerShape(toolbar, { present: false }).status, 'absent')
+  assert.equal(selectOwnerShape(toolbar, {}).status, 'unresolved')
+})
 function rejects(change: (value: ReturnType<typeof parsed>) => void, reason: RegExp) {
   const value = parsed()
   change(value)

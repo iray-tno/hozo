@@ -99,6 +99,7 @@ const reads = {
     'packages/ui/src/theme.css',
   ],
   '@hozo/example-storybook#test': [
+    'packages/patterns/src/toolbar.tsx',
     'scripts/style-slots/vite-owner-publication.mjs',
     'packages/vite/src/index.ts',
     'packages/vite/src/owner-candidates.ts',
@@ -350,6 +351,7 @@ const reads = {
     'examples/showcase/src/video-probe.tsx',
   ],
   '@hozo/tailwind-conformance#test': [
+    'packages/patterns/src/toolbar.native.tsx',
     'packages/behaviors/src/text-child.native.tsx',
     'scripts/style-slots/owner-input-cases.mjs',
     'packages/patterns/hozo.manifest.json',

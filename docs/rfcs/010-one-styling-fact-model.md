@@ -704,6 +704,10 @@ lowering. Phase A, owner audit and default routing remain open.
   or independent owner audit.
 - Move `PATTERN_HOSTS`' state-sharing flag into `textPublish`.
 - Give Toolbar and RadioGroup contracts (#1152's leftovers).
+  Toolbar now has an unknown-audit single-root shadow contract, private Native
+  carrier and [bounded delivery checks](../measurements/toolbar-owner-delivery.md).
+  This does not admit it to the ordinary adapter or complete its owner audit;
+  RadioGroup and broader Toolbar semantics remain separate work.
 
 *Exit per owner:* independent shape delivery and facts; its E migration can
 start without waiting for all other B owners. *Final B exit:* invariants 2

@@ -911,7 +911,7 @@ test('every declared audited shadow contract needs its own current independent h
   const gate = assessDeclaredAudits(args)
   assert.equal(gate.passed, true)
   assert.deepEqual(gate.verifiedOwners, ['Tabs.Tab'])
-  assert.deepEqual(gate.unknownOwners, ['BottomSheet.handle'])
+  assert.deepEqual(gate.unknownOwners, ['BottomSheet.handle', 'Toolbar.root'])
   assert.equal(gate.rollout, 'unchanged')
   for (const mutate of [
     (v) => {
@@ -978,8 +978,8 @@ test('status separates a declared audit from one unambiguous current host proof'
     verifiedOwners: ['Tabs.Tab'],
     unverifiedDeclaredOwners: [],
     conflictingOwners: [],
-    unknownOwners: ['BottomSheet.handle'],
-    counts: { declared: 1, verified: 1, unverified: 0, conflicting: 0, unknown: 1 },
+    unknownOwners: ['BottomSheet.handle', 'Toolbar.root'],
+    counts: { declared: 1, verified: 1, unverified: 0, conflicting: 0, unknown: 2 },
   })
   assert.equal(report.observations[0].status, 'measured')
   assert.ok(report.observations[0].fidelityLimits.includes('device pixels'))
@@ -1244,8 +1244,8 @@ test('inventory stays separate from scoped evidence and missing global measures 
     pendingOwners: 56,
     componentManaged: 33,
     componentManagedPending: 33,
-    shadowContributions: 2,
-    shadowAuditUnknown: 1,
+    shadowContributions: 3,
+    shadowAuditUnknown: 2,
     shadowAuditDeclared: 1,
   })
   assert.equal(report.observations[0].status, 'measured')

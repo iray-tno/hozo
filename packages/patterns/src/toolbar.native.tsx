@@ -35,14 +35,29 @@ export interface HozoToolbarProps {
   items: readonly HozoToolbarItem[]
   accessibilityLabel?: string
   style?: StyleProp<ViewStyle>
+  /** @internal Complete prepared root class contribution (RFC010).
+   * The non-interactive wrapper supplies no child interaction state.
+   */
+  hozoToolbarStyle?: () => StyleProp<ViewStyle>
 }
 
-export function HozoToolbar({ className, items, accessibilityLabel, style }: HozoToolbarProps) {
+export function HozoToolbar({
+  className,
+  items,
+  accessibilityLabel,
+  style,
+  hozoToolbarStyle,
+}: HozoToolbarProps) {
+  if (hozoToolbarStyle && className !== undefined)
+    throw new Error('Prepared Toolbar root styles must consume className')
   return (
     <View
       accessibilityRole="toolbar"
       accessibilityLabel={accessibilityLabel}
-      style={[hozoClasses(className), hozoAuthoredStyle(style)]}
+      style={[
+        hozoToolbarStyle ? hozoToolbarStyle() : hozoClasses(className),
+        hozoAuthoredStyle(style),
+      ]}
     >
       {items.map((item, at) => (
         // Identified by position and nothing else: `defaultIndex`,
