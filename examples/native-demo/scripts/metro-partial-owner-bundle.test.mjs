@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { runInNewContext } from 'node:vm'
 import {
   withHozo,
+  withHozoOwnerCallers,
   withHozoPartialOwners,
   withHozoPartialOwnersOrOrdinary,
 } from '@hozo/metro/config'
@@ -28,6 +29,10 @@ const fromPreset = createRequire(fromTransformer.resolve('@react-native/babel-pr
 const manifestFile = new URL('../../../packages/patterns/hozo.manifest.json', import.meta.url)
 const evidenceFile = new URL(
   '../../../artifacts/style-fact-model/metro-partial-owner-bundle.json',
+  import.meta.url,
+)
+const toolbarEvidenceFile = new URL(
+  '../../../artifacts/style-fact-model/metro-toolbar-owner-bundle.json',
   import.meta.url,
 )
 const digest = (input) => createHash('sha256').update(input).digest('hex')
@@ -123,7 +128,7 @@ async function checkBundles(t, evidence, manifest) {
     )
     const patterns = install(
       '@hozo/patterns',
-      "export { BottomSheet } from './bottom-sheet.native.js';",
+      "export { BottomSheet } from './bottom-sheet.native.js';export {Toolbar,HozoToolbar} from './toolbar.native.js';",
       {
         hozo: { manifest: 'owner.json' },
         dependencies: {
@@ -136,6 +141,7 @@ async function checkBundles(t, evidence, manifest) {
     )
     for (const name of [
       'bottom-sheet.native.js',
+      'toolbar.native.js',
       'sheet-rules.js',
       'safe-area-padding.native.js',
       textStyle('.native.js'),
@@ -168,7 +174,8 @@ async function checkBundles(t, evidence, manifest) {
       writeFileSync(
         path.join(handleInput, `${target}.js`),
         `export const inputPlatform = ${JSON.stringify(target)};
-        export const readHandleClass = () => globalThis.handleInput;`,
+        export const readHandleClass = () => globalThis.handleInput;
+        export const readToolbarClass = () => {globalThis.toolbarRuntimeReads++;return globalThis.toolbarInput};`,
       )
     // Identical literal input in a real Metro-reachable sibling is still not
     // eligible: the current partial transform requires an exact caller route.
@@ -177,20 +184,23 @@ async function checkBundles(t, evidence, manifest) {
     writeFileSync(
       uncapturedFile,
       `
-      import {BottomSheet as Sheet} from '@hozo/patterns';
+      import {BottomSheet as Sheet,Toolbar} from '@hozo/patterns';
       export const renderUncaptured = (h, detents) => <Sheet open detents={detents}
         handleClassName="${handleClass}" handleStyle={{paddingTop: 21}} />;
+      export const renderUncapturedToolbar = (h, items, author) => <Toolbar accessibilityLabel="Tools" items={items}
+        className="p-2 gap-x-3 gap-y-4" style={author.value}/>;
     `,
     )
     writeFileSync(appMetadata, JSON.stringify(app))
     writeFileSync(
       file,
       `
-      import {BottomSheet as Sheet} from '@hozo/patterns';
-      import {inputPlatform, readHandleClass} from 'handle-input';
-      import {renderUncaptured} from './Uncaptured';
+      import {BottomSheet as Sheet,Toolbar} from '@hozo/patterns';
+      import {inputPlatform, readHandleClass, readToolbarClass} from 'handle-input';
+      import {renderUncaptured,renderUncapturedToolbar} from './Uncaptured';
       const h = (Component, props) => {
-        globalThis.carrierSupplied = typeof props.hozoInteractiveHandleStyle === 'function';
+        if(Component===Toolbar) globalThis.toolbarCarrierSupplied = typeof props.hozoToolbarStyle === 'function';
+        else globalThis.carrierSupplied = typeof props.hozoInteractiveHandleStyle === 'function';
         return Component(props);
       };
       const render = detents => <Sheet open detents={detents}
@@ -224,6 +234,26 @@ async function checkBundles(t, evidence, manifest) {
         opaque: observe(renderOpaque),
         uncaptured: observe(detents => renderUncaptured(h, detents)),
       };
+      const toolbarItems=[{render:wiring=>{globalThis.toolbarItemKeys=Object.keys(wiring);return {
+        type:'Pressable',props:{accessibilityLabel:'Toolbar action',onPress:()=>{globalThis.toolbarActions++}}
+      }}}];
+      const toolbarAuthor={get value(){globalThis.toolbarAuthorReads++;return {paddingTop:21,rowGap:5}}};
+      const renderToolbar=()=> <Toolbar accessibilityLabel="Tools" items={toolbarItems}
+        className="p-2 gap-x-3 gap-y-4" style={toolbarAuthor.value}/>;
+      const renderOpaqueToolbar=()=> <Toolbar accessibilityLabel="Tools" items={toolbarItems}
+        className={readToolbarClass()} style={toolbarAuthor.value}/>;
+      function observeToolbar(render){
+        globalThis.toolbarRuntimeReads=0;globalThis.toolbarAuthorReads=0;globalThis.toolbarActions=0;
+        const tree=render();const owner=find(tree,props=>props.accessibilityRole==='toolbar');
+        const action=find(tree,props=>props.accessibilityLabel==='Toolbar action');action.onPress();
+        return {carrierSupplied:globalThis.toolbarCarrierSupplied,style:owner.style,
+          role:owner.accessibilityRole,label:owner.accessibilityLabel,
+          privateLeak:Object.hasOwn(owner,'hozoToolbarStyle'),itemKeys:globalThis.toolbarItemKeys,
+          runtimeReads:globalThis.toolbarRuntimeReads,authorReads:globalThis.toolbarAuthorReads,
+          actions:globalThis.toolbarActions};
+      }
+      globalThis.toolbarResult={literal:observeToolbar(renderToolbar),opaque:observeToolbar(renderOpaqueToolbar),
+        uncaptured:observeToolbar(()=>renderUncapturedToolbar(h,toolbarItems,toolbarAuthor))};
     `,
     )
     writeFileSync(path.join(f.root, 'global.css'), '@theme {--spacing:7px;} @tailwind utilities;')
@@ -317,7 +347,7 @@ async function checkBundles(t, evidence, manifest) {
     )
     let livePreflight
     let ordinaryBundleSha256
-    for (const mode of ['ordinary', 'opt-in', 'budget-fallback']) {
+    for (const mode of ['ordinary', 'opt-in', 'budget-fallback', 'toolbar-opt-in']) {
       const partial = mode === 'opt-in'
       const fallback =
         mode === 'budget-fallback'
@@ -336,9 +366,11 @@ async function checkBundles(t, evidence, manifest) {
         }
         const configured =
           fallback?.config ??
-          (partial
-            ? await withHozoPartialOwners(config, livePreflight, options)
-            : await withHozo(observingConfig, options))
+          (mode === 'toolbar-opt-in'
+            ? await withHozoOwnerCallers(config, livePreflight, 'Toolbar.root', options)
+            : partial
+              ? await withHozoPartialOwners(config, livePreflight, options)
+              : await withHozo(observingConfig, options))
         const resolve = configured.resolver.resolveRequest
         configured.resolver.resolveRequest = (context, specifier, target) => {
           try {
@@ -380,11 +412,54 @@ async function checkBundles(t, evidence, manifest) {
       const globals = {
         console: { ...console, warn: (message) => warnings.push(message) },
         handleInput: handleClass,
+        toolbarInput: 'p-2 gap-x-3 gap-y-4',
       }
       runInNewContext(code, globals, { timeout: 5000 })
       const { inputPlatform, literal, opaque, uncaptured } = globals.partialResult
       const { carrierSupplied } = literal
       const flatten = (style) => Object.assign({}, ...style.flat(Infinity))
+      const toolbar = globals.toolbarResult
+      const observedToolbar = {}
+      // Store the actual controls before asserting so a failed platform/mode
+      // remains inspectable instead of disappearing from the receipt.
+      evidence.toolbarBuilds.push({
+        platform,
+        mode,
+        inputPlatform,
+        bundleSha256: digest(code),
+        bundleBytes: Buffer.byteLength(code),
+        routes: observedToolbar,
+        capture: {
+          source: 'ordinary-metro-resolver',
+          fingerprint: livePreflight.fingerprint,
+          routes: livePreflight.routes.length,
+          ordinaryBundleSha256,
+        },
+      })
+      for (const [route, control] of Object.entries(toolbar)) {
+        const style = flatten(control.style)
+        observedToolbar[route] = { ...control, style, itemKeys: [...control.itemKeys] }
+        assert.deepEqual(
+          style,
+          {
+            paddingTop: 21,
+            paddingRight: 14,
+            paddingBottom: 14,
+            paddingLeft: 14,
+            rowGap: 5,
+            columnGap: 21,
+          },
+          `${platform}/${mode}/${route}`,
+        )
+        assert.equal(control.carrierSupplied, mode === 'toolbar-opt-in' && route === 'literal')
+        assert.equal(control.role, 'toolbar')
+        assert.equal(control.label, 'Tools')
+        assert.equal(control.privateLeak, false)
+        assert.deepEqual([...control.itemKeys], [])
+        assert.equal(control.authorReads, 1)
+        assert.equal(control.runtimeReads, route === 'opaque' ? 1 : 0)
+        assert.equal(control.actions, 1)
+      }
       assert.equal(inputPlatform, platform)
       assert.equal(carrierSupplied, partial)
       assert.equal(literal.decorativeCarrierSupplied, partial)
@@ -444,12 +519,12 @@ async function checkBundles(t, evidence, manifest) {
         }),
       }
       if (fallback) evidence.budgetFallbacks.push({ ...row, admission: fallback.admission })
-      else evidence.builds.push(row)
+      else if (mode !== 'toolbar-opt-in') evidence.builds.push(row)
     }
   }
 }
 
-test('production Metro bundle delivers partial and fallback styles to real BottomSheet code', async (t) => {
+test('production Metro bundles deliver selected BottomSheet and Toolbar owners and ordinary controls', async (t) => {
   const evidence = {
     schema: 1,
     ...evidenceSource(),
@@ -457,6 +532,7 @@ test('production Metro bundle delivers partial and fallback styles to real Botto
     passed: false,
     builds: [],
     budgetFallbacks: [],
+    toolbarBuilds: [],
   }
   try {
     const manifest = readFileSync(manifestFile)
@@ -469,5 +545,22 @@ test('production Metro bundle delivers partial and fallback styles to real Botto
   } finally {
     mkdirSync(path.dirname(fileURLToPath(evidenceFile)), { recursive: true })
     writeFileSync(evidenceFile, `${JSON.stringify(evidence, null, 2)}\n`)
+    writeFileSync(
+      toolbarEvidenceFile,
+      `${JSON.stringify(
+        {
+          schema: 1,
+          sourceCommit: evidence.sourceCommit,
+          trackedChanges: evidence.trackedChanges,
+          scope: 'metro-production-toolbar-owner-host-standins',
+          passed: evidence.passed,
+          manifestSha256: evidence.manifestSha256,
+          builds: evidence.toolbarBuilds,
+          ...(evidence.error && { error: evidence.error }),
+        },
+        null,
+        2,
+      )}\n`,
+    )
   }
 })

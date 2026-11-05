@@ -103,3 +103,72 @@ and can replace that owner route without shrinking support. In particular,
 the caller preview is not permission to broaden Metro partial-owner admission.
 There is no audit promotion, default change, conformance headline or global
 six-view score increase from the existence of this new contract.
+
+## Explicit Metro caller-selection follow-up
+
+The internal config entry `withHozoOwnerCallers(config, preflight, target,
+options)` selects one bounded target: `Toolbar.root` or `BottomSheet.handle`.
+It is not a normal `withHozo` option, inferred contract trust or a per-widget
+family of flags. The existing BottomSheet helper delegates to this same path.
+Target identity participates in the config/context/cache identity; the former
+`partialHandle` selector and `partial-owner-transform` mode are replaced by
+the shared owner-caller selection path.
+
+Selection requires the exact captured importer/package entry and validated
+owner identity. One bounded parser inspection associates actual JSX sites
+with captured public export aliases. No namespace/name-text inference is
+used. More than one used request/alias, an uncaptured importer, opaque or
+unassessed styles and ordinary mixed lowering keep the ordinary module.
+The worker requires the selected full/partial disposition and preserves its
+existing frozen-runtime-map and late-invalidation fences.
+
+The resolver/source-worker tests cover both Native platforms, both Toolbar
+aliases, target/cache separation, invalid serialized targets and return to
+byte-identical ordinary output/cache identity. Those source-worker tests alone
+are not production Metro bundle observations; the fixture below adds that
+required boundary. No default route or audit declaration changes here.
+
+## Production Metro fixture
+
+The next stack layer extends the existing production Metro fixture rather
+than adding another build harness:
+
+```sh
+node --test --test-concurrency=1 examples/native-demo/scripts/metro-partial-owner-bundle.test.mjs
+```
+
+It requires eight minified Metro builds: Android/iOS, each ordinary,
+BottomSheet opt-in, exhausted-preflight ordinary fallback and Toolbar opt-in.
+All execute the actual distributed Toolbar, real captured candidate resolver
+and generated carrier in an isolated installed app. React and RN hosts remain
+stand-ins, not a renderer, device, Yoga or event-delivery measurement.
+
+Each build observes the literal, runtime-selected and uncaptured-sibling
+Toolbar. Only the explicitly selected literal may receive a carrier. All
+24 observations must preserve padding/gap author precedence, root role/name,
+one author evaluation, runtime input evaluation and a working item action;
+no private prop or Web item wiring may escape. Each build records its hash,
+bytes and the ordinary resolver capture; the capture references the actual
+ordinary bundle from that platform. Controls remain ordinary while selecting
+the other owner, and exhaustion must not opt Toolbar in.
+
+The old BottomSheet receipt keeps its four-build/two-fallback denominator.
+The new `metro-toolbar-owner-bundle.json` retains Toolbar observations and
+partial failures separately; the existing Owner Evidence upload includes both.
+This fixture is delegated to CI, not run locally under the CPU-1 constraint.
+Adding its expectations is not a claim that those builds already passed,
+and neither receipt changes scoped admission, `audit: unknown` or defaults.
+
+The follow-up receipt reader runs in Owner Evidence CI and is reproducible as:
+
+```sh
+node scripts/style-slots/toolbar-metro-evidence.mjs artifacts/style-fact-model/metro-toolbar-owner-bundle.json
+```
+
+It rejects dirty/stale/failed receipts, missing or duplicated platform/mode
+rows, changed manifest identity, disconnected ordinary captures and any
+incorrect positive or negative observation. Its 24-observation denominator is
+only this fixture: two prepared literal deliveries and 22 ordinary controls,
+not a new global coverage denominator or an audited contract declaration.
+The reader and mutation regressions are permanent test infrastructure; they
+add no runtime machinery and do not change the existing status dashboard.

@@ -21,6 +21,8 @@ import {
 } from './owner-manifest-preflight.ts'
 import {
   assertMetroOwnerShadowScope,
+  isMetroOwnerCallerTarget,
+  type MetroOwnerCallerTarget,
   MetroOwnerShadowSession,
   type MetroOwnerShadowState,
   ownerShadowSession,
@@ -256,11 +258,24 @@ export async function withHozoPartialOwners<T extends MetroConfigShape>(
   preflight: MetroOwnerPreflight,
   options: HozoMetroOptions = {},
 ): Promise<T> {
+  return withHozoOwnerCallers(configOrPromise, preflight, 'BottomSheet.handle', options)
+}
+
+/** @internal Explicit bounded owner target, not a normal option or an audit.
+ * Whole-module fallback is retained when one captured request cannot own it.
+ */
+export async function withHozoOwnerCallers<T extends MetroConfigShape>(
+  configOrPromise: T | Promise<T>,
+  preflight: MetroOwnerPreflight,
+  target: MetroOwnerCallerTarget,
+  options: HozoMetroOptions = {},
+): Promise<T> {
+  if (!isMetroOwnerCallerTarget(target)) throw new Error('[hozo] Invalid owner caller target')
   if (preflight.status !== 'complete') throw new Error('[hozo] owner preflight INCOMPLETE')
   if (!['android', 'ios'].includes(preflight.platform))
-    throw new Error('[hozo] Partial owners require an Android or iOS preflight')
+    throw new Error('[hozo] Owner callers require an Android or iOS preflight')
   assertMetroOwnerPreflightCurrent(preflight)
-  return configureHozo(configOrPromise, options, preflight, 'partial-owner-transform')
+  return configureHozo(configOrPromise, options, preflight, 'owner-caller-transform', target)
 }
 
 /** @internal Explicit fallback experiment. Choose before installing owner
@@ -293,6 +308,7 @@ async function configureHozo<T extends MetroConfigShape>(
   options: HozoMetroOptions,
   ownerPreflight?: Extract<MetroOwnerPreflight, { status: 'complete' }>,
   ownerMode: MetroOwnerShadowState['mode'] = 'assessment-only',
+  ownerTarget?: MetroOwnerCallerTarget,
 ): Promise<T> {
   const config = await configOrPromise
   const projectRoot = path.resolve(options.root ?? config.projectRoot ?? process.cwd())
@@ -342,7 +358,13 @@ async function configureHozo<T extends MetroConfigShape>(
     fontAvailability: options.fontAvailability,
   }
   if (ownerPreflight)
-    state.ownerShadow = prepareMetroOwnerShadow(projectRoot, ownerPreflight, state, ownerMode)
+    state.ownerShadow = prepareMetroOwnerShadow(
+      projectRoot,
+      ownerPreflight,
+      state,
+      ownerMode,
+      ownerTarget,
+    )
   if (initialOwners && state.ownerShadow) {
     const fresh = new MetroOwnerShadowSession(state.ownerShadow).worker.contributions
     // Fingerprints include the context epoch, which is intentionally different
