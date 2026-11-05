@@ -63,6 +63,15 @@ available. The run log distinguishes actual violations from harness failures
 and includes the audited/expected denominator. No shorter reading-order golden
 or unchanged-state check is approved by this audit.
 
+Preparation errors retain `diagnostics.browser.stateAtFailure` from the moment
+the waiter rejects, alongside the later browser capture. This includes phase
+and elapsed time, requested/completed frame callbacks, root/font/stylesheet
+state, Storybook's current render, and up to 50 animation records with explicit
+counts. A late render or completed transition cannot overwrite this receipt.
+The original unexplained preparation deadline remains tracked in
+[#1494](https://github.com/iray-tno/hozo/issues/1494); diagnostic fixture failures
+identify their controlled conditions, not the cause of that historical run.
+
 And **`check-appearance.mjs`**, which asks the two questions none of the others can — axe reads the accessibility tree, the utterance goldens read text, and `@hozo/ui`'s own rules read class lists out of the source:
 
 - **Target size**, WCAG 2.5.8: every pointer target at least 24×24, with the *Inline* and *user agent* exceptions implemented and the three that are judgements left to `KNOWN`.

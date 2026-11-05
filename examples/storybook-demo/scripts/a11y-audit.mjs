@@ -8,10 +8,81 @@ import { captureAuditState } from '../../../scripts/browser-audit-diagnostics.mj
 export async function waitForSettledStory(timeout = 10000) {
   // A separate object per invocation prevents a late, failed waiter from
   // changing the phase recorded for a later audit in the same document.
-  const preparation = { phase: 'root', failurePhase: null, failedAt: null }
+  const startedAt = performance.now()
+  const preparation = {
+    phase: 'root',
+    phaseStartedAt: startedAt,
+    failurePhase: null,
+    failedAt: null,
+    failureState: null,
+    framesRequested: 0,
+    framesCompleted: 0,
+  }
   window.__hozoAuditPreparation = preparation
   const frames = () =>
-    new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    new Promise((resolve) => {
+      preparation.framesRequested++
+      requestAnimationFrame(() => {
+        preparation.framesCompleted++
+        preparation.framesRequested++
+        requestAnimationFrame(() => {
+          preparation.framesCompleted++
+          resolve()
+        })
+      })
+    })
+  const phase = (value) => {
+    preparation.phase = value
+    preparation.phaseStartedAt = performance.now()
+  }
+  const fail = () => {
+    if (preparation.failedAt !== null) return
+    preparation.failurePhase = preparation.phase
+    preparation.failedAt = performance.now()
+    // Playwright's later capture can see a late render or a finished animation.
+    // Retain the state the deadline actually rejected before yielding to it.
+    try {
+      const root = document.getElementById('storybook-root')
+      const animations = document.getAnimations()
+      const render = window.__STORYBOOK_PREVIEW__?.currentRender
+      preparation.failureState = {
+        phase: preparation.phase,
+        elapsedMs: Math.round(preparation.failedAt - startedAt),
+        phaseElapsedMs: Math.round(preparation.failedAt - preparation.phaseStartedAt),
+        framesRequested: preparation.framesRequested,
+        framesCompleted: preparation.framesCompleted,
+        url: location.href,
+        readyState: document.readyState,
+        visibility: document.visibilityState,
+        rootPresent: Boolean(root),
+        rootChildren: root?.childElementCount ?? null,
+        fonts: document.fonts.status,
+        renderedStory: render?.story?.id ?? null,
+        renderPhase: render?.phase ?? null,
+        stylesheets: [...document.querySelectorAll('link[rel="stylesheet"]')].map((link) => ({
+          url: link.href,
+          loaded: Boolean(link.sheet),
+        })),
+        animationCount: animations.length,
+        animationsTruncated: Math.max(0, animations.length - 50),
+        animations: animations.slice(0, 50).map((animation) => {
+          const timing = animation.effect?.getComputedTiming()
+          const target = animation.effect?.target
+          return {
+            playState: animation.playState,
+            pending: animation.pending,
+            currentTime: animation.currentTime == null ? null : String(animation.currentTime),
+            endTime: timing?.endTime == null ? null : String(timing.endTime),
+            transitionProperty: animation.transitionProperty ?? null,
+            animationName: animation.animationName ?? null,
+            target: target ? { tag: target.tagName, id: target.id } : null,
+          }
+        }),
+      }
+    } catch (error) {
+      preparation.failureState = { captureError: error.message }
+    }
+  }
   let timer
   try {
     await Promise.race([
@@ -23,10 +94,10 @@ export async function waitForSettledStory(timeout = 10000) {
             throw new Error('Storybook failed to render')
           await frames()
         }
-        preparation.phase = 'fonts'
+        phase('fonts')
         await document.fonts.ready
         while (true) {
-          preparation.phase = 'frames'
+          phase('frames')
           await frames()
           const finite = document.getAnimations().filter((animation) => {
             const end = animation.effect?.getComputedTiming().endTime
@@ -38,27 +109,23 @@ export async function waitForSettledStory(timeout = 10000) {
             )
           })
           if (finite.length === 0) {
-            preparation.phase = 'settled'
+            phase('settled')
             return
           }
           // Cancelled transitions may be replaced by a new one; inspect again.
-          preparation.phase = 'animations'
+          phase('animations')
           await Promise.all(finite.map((animation) => animation.finished.catch(() => {})))
         }
       })(),
       new Promise((_, reject) => {
         timer = setTimeout(() => {
-          preparation.failurePhase = preparation.phase
-          preparation.failedAt = performance.now()
+          fail()
           reject(new Error('story did not settle before the accessibility audit'))
         }, timeout)
       }),
     ])
   } catch (error) {
-    if (preparation.failedAt === null) {
-      preparation.failurePhase = preparation.phase
-      preparation.failedAt = performance.now()
-    }
+    fail()
     throw error
   } finally {
     clearTimeout(timer)
