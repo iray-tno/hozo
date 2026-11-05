@@ -7,11 +7,41 @@ import { fileURLToPath } from 'node:url'
 import { unappliedOnNative } from '../apps/landing/scripts/ui-native-unapplied.mjs'
 import { nonControlClassFacts } from '../packages/form/src/class-facts.native.ts'
 import { nonControlSlotFacts } from '../packages/patterns/src/non-control-facts.native.ts'
-import { components, ownerShadow, profiles } from './style-slots/catalog.mjs'
+import { components, formComponents, ownerShadow, profiles } from './style-slots/catalog.mjs'
 import { checkGenerated, outputs, validateCatalog } from './style-slots/generate.mjs'
 import { checkPublicProps } from './style-slots/public-props.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
+
+test('the form inventory matches every public Web and Native class prop without inventing compiler slots', () => {
+  validateCatalog(formComponents)
+  assert.equal(checkPublicProps(formComponents, 'form'), '')
+  assert.equal(Object.keys(formComponents).length, 10)
+  assert.equal(Object.values(formComponents).flat().length, 51)
+  assert.ok(
+    Object.values(formComponents)
+      .flat()
+      .every(
+        (slot) =>
+          slot.lowering === 'component-managed' &&
+          slot.owner === 'pending-audit' &&
+          !slot.callback &&
+          !slot.profile,
+      ),
+  )
+  assert.ok(!outputs()['crates/hozo_ir/src/class_slots.rs'].includes('Self::Calendar'))
+})
+
+test('form slot type discovery rejects missing, spurious and missing-component inventory', () => {
+  const changed = structuredClone(formComponents)
+  changed.Calendar = changed.Calendar.filter((slot) => slot.classProp !== 'dayClassName')
+  delete changed.Form
+  changed.TextArea.push({ ...changed.TextArea[0], classProp: 'inventedClassName' })
+  const error = checkPublicProps(changed, 'form')
+  assert.match(error, /Calendar\.dayClassName/)
+  assert.match(error, /Form\.\*/)
+  assert.match(error, /TextArea\.inventedClassName/)
+})
 
 test('form and pattern runtime facts are generated from one NonControl profile without event claims', () => {
   const expected = {

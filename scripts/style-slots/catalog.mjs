@@ -162,6 +162,55 @@ const owned = (
   } = {},
 ) => ({ owner, profile, callback, focus, pointer, optionalOwner, gate, composition })
 
+// Form inventory is deliberately separate from the closed Primitive mappings.
+// A named slot here is not an assessed owner or a new compiler callback ABI.
+function formSlots(names, paired = 'className') {
+  const styles = new Set(paired.split(' '))
+  return slots(names).map((slot) => ({
+    ...slot,
+    lowering: 'component-managed',
+    ...(styles.has(slot.classProp)
+      ? {}
+      : {
+          styleProp: null,
+          reason: 'No paired public Native style prop; inventory does not invent a carrier ABI.',
+        }),
+  }))
+}
+const pickerClasses =
+  'className triggerClassName dialogClassName calendarClassName dayClassName headerClassName gridClassName monthButtonClassName'
+
+export const formComponents = {
+  Calendar: formSlots(
+    'className dayClassName headerClassName gridClassName monthButtonClassName',
+    'className dayClassName headerClassName monthButtonClassName',
+  ),
+  DatePicker: formSlots(pickerClasses, 'className triggerClassName dialogClassName'),
+  DateRangePicker: formSlots(pickerClasses, 'className triggerClassName dialogClassName'),
+  DateTimePicker: formSlots(
+    `${pickerClasses} doneClassName`,
+    'className triggerClassName dialogClassName doneClassName',
+  ),
+  Field: formSlots(
+    'className labelClassName requiredClassName descriptionClassName errorClassName',
+    '',
+  ),
+  FileDropzone: formSlots('className activeClassName'),
+  Form: formSlots('className'),
+  NativeSelect: formSlots(
+    'className indicatorClassName sheetClassName scrimClassName optionClassName',
+    'className sheetClassName scrimClassName optionClassName',
+  ),
+  TextArea: formSlots(
+    'className fieldClassName countClassName',
+    'className fieldClassName countClassName',
+  ),
+  TimePicker: formSlots(
+    'className fieldClassName valueClassName periodClassName stepClassName',
+    'className fieldClassName stepClassName',
+  ),
+}
+
 // Root and secondary props share the catalog even though this first slice
 // deliberately preserves their existing, separate code-generation routes.
 export const components = {
