@@ -1,13 +1,16 @@
 // Build-time source of truth, never imported by an application. A slot's
 // presence is an inventory entry, not a claim that its owner has been audited.
 const supplied = (alias) => ({ alias })
+const absentAriaFacts = {
+  'aria-disabled': false,
+  'aria-selected': false,
+  'aria-checked': false,
+}
 const textInputFacts = {
   disabled: supplied('__hozoSlotDisabled'),
   enabled: supplied('__hozoSlotEnabled'),
   readOnly: supplied('__hozoSlotReadOnly'),
-  'aria-disabled': false,
-  'aria-selected': false,
-  'aria-checked': false,
+  ...absentAriaFacts,
 }
 const editableInputFacts = {
   ...textInputFacts,
@@ -19,9 +22,41 @@ const nonControlFacts = {
   disabled: false,
   enabled: false,
   readOnly: true,
-  'aria-disabled': false,
-  'aria-selected': false,
-  'aria-checked': false,
+  ...absentAriaFacts,
+}
+
+// Actual Native consumers supply live values; these definitions do not
+// observe events, infer state, or declare an owner audited.
+export const formFactProfiles = {
+  TextAreaField: {
+    constants: absentAriaFacts,
+    live: [
+      'focused',
+      'focusVisible',
+      'disabled',
+      'enabled',
+      'readOnly',
+      'aria-invalid',
+      'aria-required',
+    ],
+  },
+  SelectControl: {
+    constants: { readOnly: true, ...absentAriaFacts, 'aria-expanded': false },
+    live: [
+      'hovered',
+      'pressed',
+      'focused',
+      'focusVisible',
+      'disabled',
+      'enabled',
+      'aria-invalid',
+      'aria-required',
+    ],
+  },
+  SelectOption: {
+    constants: { readOnly: true, 'aria-checked': false },
+    live: ['pressed', 'disabled', 'enabled', 'aria-selected', 'aria-disabled'],
+  },
 }
 export const profiles = {
   NonControl: {

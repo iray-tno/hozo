@@ -7,11 +7,39 @@ import { fileURLToPath } from 'node:url'
 import { unappliedOnNative } from '../apps/landing/scripts/ui-native-unapplied.mjs'
 import { nonControlClassFacts } from '../packages/form/src/class-facts.native.ts'
 import { nonControlSlotFacts } from '../packages/patterns/src/non-control-facts.native.ts'
-import { components, formComponents, ownerShadow, profiles } from './style-slots/catalog.mjs'
-import { checkGenerated, outputs, validateCatalog } from './style-slots/generate.mjs'
+import {
+  components,
+  formComponents,
+  formFactProfiles,
+  ownerShadow,
+  profiles,
+} from './style-slots/catalog.mjs'
+import {
+  checkGenerated,
+  formFactSource,
+  outputs,
+  validateCatalog,
+} from './style-slots/generate.mjs'
 import { checkPublicProps } from './style-slots/public-props.mjs'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
+
+test('generated form facts separate live state from constants and unavailable events', () => {
+  assert.ok(formFactProfiles.TextAreaField.live.includes('readOnly'))
+  assert.equal(formFactProfiles.SelectControl.constants.readOnly, true)
+  assert.equal(formFactProfiles.SelectControl.constants['aria-expanded'], false)
+  assert.ok(!formFactProfiles.SelectOption.live.includes('focused'))
+  assert.ok(!formFactProfiles.SelectOption.live.includes('hovered'))
+  assert.ok(!formFactProfiles.TextAreaField.live.includes('hovered'))
+  for (const bad of [
+    { constants: { focused: false }, live: ['focused'] },
+    { constants: { focused: 'live' }, live: [] },
+    { constants: {}, live: ['pressed', 'pressed'] },
+    { constants: {}, live: ['arbitraryFact'] },
+  ])
+    assert.throws(() => formFactSource({ Test: bad }), /Invalid form fact profile/)
+  assert.doesNotMatch(formFactSource(), /createContext|useState|function|=>/)
+})
 
 test('the form inventory matches every public Web and Native class prop without inventing compiler slots', () => {
   validateCatalog(formComponents)

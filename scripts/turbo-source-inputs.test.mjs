@@ -198,6 +198,7 @@ const reads = {
     'packages/form/src/text-area.tsx',
     'packages/behaviors/src/live-region.tsx',
     'packages/form/src/class-facts.native.ts',
+    'packages/form/src/owner-facts.native.ts',
     'packages/form/src/text-area-rules.ts',
     'packages/ui/src/form.tsx',
     'packages/ui/src/text-area.tsx',
