@@ -8,6 +8,49 @@ const shadow = ownerFixtureShadow('BottomSheet.handle')
 const options = { source: '@hozo/patterns', imported: 'BottomSheet', shadow }
 const compiler = createCompiler()
 
+test('one owner plan shares recipes across exported aliases without touching opaque or shadowed callers', () => {
+  const source = `#!/usr/bin/env node\n'use client';
+import {BottomSheet as Sheet,HozoBottomSheet as Alias} from '@hozo/patterns';
+export function X(__hozoOwnerPlan1){return <><Sheet handleStyle={left.value} handleClassName="p-2"/>
+<Alias handleStyle={right.value} handleClassName="p-2"/><Alias handleClassName={opaque.value}/></>}
+function Shadow(Alias){return <Alias handleClassName="p-2"/>}`
+  for (const target of ['native', 'web'] as const) {
+    const result = previewOwnerLiteralCallers(source, compiler, {
+      ...options,
+      target,
+      imported: ['BottomSheet', 'HozoBottomSheet'],
+    })
+    assert.deepEqual(result.diagnostics, [])
+    assert.equal(result.findings.filter((f) => f.disposition === 'prepared-literal').length, 2)
+    assert.equal(result.findings.filter((f) => f.disposition === 'retained').length, 1)
+    assert.ok(result.code.startsWith("#!/usr/bin/env node\n'use client';"))
+    for (const value of ['left.value', 'right.value', 'opaque.value'])
+      assert.equal(result.code.split(value).length - 1, 1)
+    assert.match(result.code, /function Shadow\(Alias\)\{return <Alias handleClassName="p-2"\/>\}/)
+    if (target === 'native') {
+      assert.equal(result.code.match(/\.create\(/g)?.length, 1)
+      const plans = [...result.code.matchAll(/hozoHandleStyle=\{(\w+)\}/g)].map((m) => m[1])
+      assert.equal(plans.length, 2)
+      assert.equal(plans[0], plans[1])
+      assert.notEqual(plans[0], '__hozoOwnerPlan1')
+    } else {
+      const plans = [...result.code.matchAll(/handleClassName=\{"([^"]+)"\}/g)].map((m) => m[1])
+      assert.equal(plans.length, 2)
+      assert.equal(plans[0], plans[1])
+      assert.ok(result.css)
+    }
+  }
+  for (const imported of [
+    [],
+    ['BottomSheet', 'BottomSheet'],
+    Array.from({ length: 9 }, (_, i) => `Alias${i}`),
+  ])
+    assert.throws(
+      () => previewOwnerLiteralCallers(source, compiler, { ...options, imported }),
+      /ALIAS_BUDGET_OR_DUPLICATE/,
+    )
+})
+
 test('a declared audit neither widens class eligibility nor changes explicit preview output', () => {
   const audited = JSON.parse(shadow)
   audited.contracts[0].audit = 'audited'

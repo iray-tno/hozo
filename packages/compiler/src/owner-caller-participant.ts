@@ -24,15 +24,27 @@ export function prepareInstanceOwnerCallers(
   compiler: Compiler,
   request: OwnerContractRequest,
   experimentalNativePartial = false,
+  aliases: readonly string[] = [],
 ): PreparedModule<InstanceOwnerCallerPreview> {
   const target = ownerCallerTarget(lease)
   const selected = selectOwnerPackageContract(lease, { ...request })
   if (selected.status !== 'selected')
     throw new Error(`OWNER_CONTRACT_UNASSESSED: ${selected.reason}`)
+  // Every additional public name must select this exact owner's contract on
+  // the same captured edge before any IR is allocated. This is one plan, not
+  // sequential source rewrites whose inserted declarations could collide.
+  const imports = [selected.identity.imported, ...aliases]
+  if (imports.length > 8 || new Set(imports).size !== imports.length)
+    throw new Error('OWNER_CALLER_ALIAS_BUDGET_OR_DUPLICATE')
+  for (const imported of imports.slice(1)) {
+    const alias = selectOwnerPackageContract(lease, { ...selected.identity, imported })
+    if (alias.status !== 'selected' || alias.shadow !== selected.shadow)
+      throw new Error('OWNER_CALLER_ALIAS_CONTRACT_MISMATCH')
+  }
   const module = prepareOwnerLiteralCallers(source, compiler, {
     target,
     source: selected.identity.specifier,
-    imported: selected.identity.imported,
+    imported: imports,
     shadow: selected.shadow,
     sourceFile: selected.identity.importer,
     experimentalNativePartial,

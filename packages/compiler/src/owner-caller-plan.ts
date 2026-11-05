@@ -46,7 +46,7 @@ export interface OwnerCallerPreview {
 interface OwnerCallerOptions {
   target?: 'native' | 'web'
   source: string
-  imported: string
+  imported: string | readonly string[]
   shadow: string
   sourceFile?: string
   experimentalNativePartial?: boolean
@@ -159,18 +159,16 @@ function collectOwnerLiteralCallers(
   const shadow = parseOwnerContractShadow(options.shadow)
   if (shadow.contracts.length !== 1) throw new Error('Select exactly one shadow owner contribution')
   const contract = shadow.contracts[0]!
-  const inspection = inspectOwnerClassSlots(
-    source,
-    [
-      {
-        source: options.source,
-        imported: options.imported,
-        classProp: contract.classProp,
-        preparedProp: contract.abi.nativePreparedProp,
-      },
-    ],
-    options.sourceFile,
-  )
+  const imported = typeof options.imported === 'string' ? [options.imported] : [...options.imported]
+  if (!imported.length || imported.length > 8 || new Set(imported).size !== imported.length)
+    throw new Error('OWNER_CALLER_ALIAS_BUDGET_OR_DUPLICATE')
+  const targets = imported.map((name) => ({
+    source: options.source,
+    imported: name,
+    classProp: contract.classProp,
+    preparedProp: contract.abi.nativePreparedProp,
+  }))
+  const inspection = inspectOwnerClassSlots(source, targets, options.sourceFile)
   const result: OwnerCallerPreview = {
     scope: 'explicit-direct-compiler-preview',
     code: source,
@@ -184,14 +182,7 @@ function collectOwnerLiteralCallers(
   const partialSites = partial
     ? inspectOwnerClassSlots(
         source,
-        [
-          {
-            source: options.source,
-            imported: options.imported,
-            classProp: contract.classProp,
-            preparedProp: partial.prop,
-          },
-        ],
+        targets.map((target) => ({ ...target, preparedProp: partial.prop })),
         options.sourceFile,
       )
     : undefined
