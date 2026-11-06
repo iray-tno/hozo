@@ -96,3 +96,55 @@ fn forgetting_a_scope_keeps_the_requested_empty_evidence_and_ordinary_bytes() {
     assert_eq!(rendered.text, "(abc)");
     assert_eq!(rendered.copies, Some(Vec::new()));
 }
+
+#[test]
+fn passthrough_props_keep_exact_copies_through_nested_lowering_and_duplicate_text() {
+    let source = "// 😀 日本語\r\nimport { View, Text } from '@hozo/core'; const x = <View className=\"p-2\" header={<Tools title=\"同じ😀\" />} renderItem={item => <Text className=\"font-bold\"><Tools title=\"同じ😀\" /></Text>}><Tools title=\"同じ😀\" /></View>";
+    let (jsx, copies) = checked_copies(source);
+    let carried = copies
+        .iter()
+        .map(|copy| &source[copy.span.start as usize..copy.span.end as usize])
+        .collect::<String>();
+    assert_eq!(carried.matches("<Tools title=\"同じ😀\" />").count(), 3);
+    assert!(carried.contains("header={"));
+    assert!(carried.contains("renderItem={item => "));
+    assert!(!carried.contains("className=\"font-bold\""));
+    assert!(!carried.contains("className=\"p-2\""));
+    assert!(!jsx.contains("className=\"font-bold\""));
+}
+
+#[test]
+fn grouped_spread_arguments_do_not_certify_syntax_the_prop_writer_reconstructed() {
+    let source = "import { View } from '@hozo/core'; const x = <View className=\"p-2\" before={<Tools id=\"before\" />} {...a} middle={<Tools id=\"middle\" />} {...b} after={<Tools id=\"after\" />}><Tools id=\"child\" /></View>";
+    let (jsx, copies) = checked_copies(source);
+    assert!(jsx.contains("hozoSpreadStyles"), "{jsx}");
+    assert!(jsx.contains("id=\"middle\""));
+    let carried = copies
+        .iter()
+        .map(|copy| &source[copy.span.start as usize..copy.span.end as usize])
+        .collect::<String>();
+    for value in ["before", "after", "child"] {
+        assert!(carried.contains(&format!("id=\"{value}\"")), "{carried}");
+    }
+    assert!(!carried.contains("middle"));
+}
+
+#[test]
+fn self_closing_hosts_keep_emitted_props_not_discarded_children_or_normalized_values() {
+    let source = "import { Image } from '@hozo/core'; const x = <Image src={asset} accessory={<Tools id=\"prop\" />}><Tools id=\"child\" /></Image>";
+    let (jsx, copies) = checked_copies(source);
+    assert!(jsx.contains("hozoImageSource(asset)"));
+    let carried = copies
+        .iter()
+        .map(|copy| &source[copy.span.start as usize..copy.span.end as usize])
+        .collect::<String>();
+    assert!(carried.contains("id=\"prop\""));
+    assert!(!carried.contains("child"));
+    assert!(!carried.contains("asset"));
+    let source = "import { View } from '@hozo/core'; const x = <View className=\"@sm:p-2\" header={<Tools />} />";
+    let (_, copies) = checked_copies(source);
+    assert!(
+        copies.is_empty(),
+        "new lexical scopes still erase prop evidence"
+    );
+}

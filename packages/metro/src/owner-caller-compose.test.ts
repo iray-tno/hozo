@@ -108,3 +108,54 @@ test('missing, stale, overlapping or unmarked edits never produce a partly compo
     assert.equal(composeNativeOwnerCaller(source, f.ordinary, f.map, preview), f.ordinary)
   }
 })
+
+test('passthrough JSX props and render callbacks compose using actual Native copy ranges', () => {
+  for (const expression of [
+    '<Toolbar className="p-4" style={first.value}/>',
+    '() => <Toolbar className="p-4" style={first.value}/>',
+    '() => <View className="p-8"><Toolbar className="p-4" style={first.value}/></View>',
+  ]) {
+    const source = `// 😀 original UTF-16 spans
+      import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+      export const A=()=> <View className="p-2" content={${expression}}/>`
+    const f = fixture(source)
+    const output = composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview)
+    assert.notEqual(output, f.ordinary)
+    assert.equal(output!.match(/hozoToolbarStyle=/g)?.length, 1)
+    assert.equal(output!.split('first.value').length - 1, 1)
+    assert.doesNotMatch(output!, /className="p-[248]"/)
+  }
+})
+
+test('one rewritten spread-group prop keeps the whole module on ordinary Native output', () => {
+  const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+    export const A=()=> <Toolbar className="p-4"/>;
+    export const B=()=> <View className="p-2" {...first} content={<Toolbar className="p-4"/>} {...last}/>`
+  const f = fixture(source)
+  assert.match(f.ordinary, /hozoSpreadStyles/)
+  assert.equal(composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview), f.ordinary)
+})
+
+test('FlatList renderItem retains its authored callback scope while the Toolbar carrier composes', () => {
+  const source = `import {FlatList} from 'react-native';import {Toolbar} from '@hozo/patterns';
+    export const A=()=> <FlatList data={rows} className="p-2"
+      renderItem={({item}) => <Toolbar items={item.actions} className="p-4" style={item.style}/>}/>`
+  const f = fixture(source)
+  const output = composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview)
+  assert.notEqual(output, f.ordinary)
+  assert.match(output!, /HozoFlatList/)
+  assert.match(output!, /hozoToolbarStyle=/)
+  assert.equal(output!.split('item.actions').length - 1, 1)
+  assert.equal(output!.split('item.style').length - 1, 1)
+  assert.doesNotMatch(output!, /className="p-[24]"/)
+})
+
+test('a partial BottomSheet insertion also maps inside an untouched JSX prop', () => {
+  const source = `import {View} from '@hozo/core';import {BottomSheet} from '@hozo/patterns';
+    export const A=()=> <View className="p-4" content={<BottomSheet open handleClassName="p-2 hover:opacity-50"/>}/>`
+  const f = fixture(source, true)
+  const output = composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview)
+  assert.notEqual(output, f.ordinary)
+  assert.match(output!, /hozoInteractiveHandleStyle=/)
+  assert.match(output!, /handleClassName="p-2 hover:opacity-50"/)
+})

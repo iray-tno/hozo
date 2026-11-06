@@ -42,7 +42,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
   // Synthetic receipts exercise the reader, not the Metro production claim.
   const hash = 'b'.repeat(64)
   const receipt = {
-    schema: 4,
+    schema: 5,
     scope: toolbarMetroScope,
     sourceCommit: commit,
     manifestSha256: hash,
@@ -57,6 +57,14 @@ test('Toolbar Metro receipts require current source, all routes and negative con
         bundleBytes: 100,
         sharedAliasPlan: mode === 'toolbar-opt-in',
         nestedCaptured: true,
+        listCaptured: true,
+        listControl: {
+          host: 'FlatList',
+          style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
+          dataLength: 1,
+          authorDeferred: true,
+          classNameLeaked: false,
+        },
         ordinaryPrimitive: {
           host: 'View',
           style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
@@ -69,11 +77,12 @@ test('Toolbar Metro receipts require current source, all routes and negative con
           ordinaryBundleSha256: hash,
         },
         routes: Object.fromEntries(
-          ['literal', 'alias', 'nested', 'opaque', 'uncaptured'].map((route) => [
+          ['literal', 'alias', 'nested', 'opaque', 'renderItem', 'uncaptured'].map((route) => [
             route,
             {
               carrierSupplied:
-                mode === 'toolbar-opt-in' && ['literal', 'alias', 'nested'].includes(route),
+                mode === 'toolbar-opt-in' &&
+                ['literal', 'alias', 'nested', 'renderItem'].includes(route),
               style: {
                 paddingTop: 21,
                 paddingRight: 14,
@@ -101,12 +110,34 @@ test('Toolbar Metro receipts require current source, all routes and negative con
     sourceCommit: commit,
     passed: true,
     builds: 8,
-    observations: 40,
-    prepared: 6,
-    ordinary: 34,
+    observations: 48,
+    prepared: 8,
+    ordinary: 40,
     primitiveControls: 8,
+    listControls: 8,
   })
   const mutations = [
+    (r) => {
+      r.schema = 4
+    },
+    (r) => {
+      r.builds[3].listCaptured = false
+    },
+    (r) => {
+      r.builds[3].listControl.authorDeferred = false
+    },
+    (r) => {
+      r.builds[3].listControl.host = 'View'
+    },
+    (r) => {
+      r.builds[3].listControl.classNameLeaked = true
+    },
+    (r) => {
+      r.builds[3].routes.renderItem.carrierSupplied = false
+    },
+    (r) => {
+      r.builds[0].routes.renderItem.carrierSupplied = true
+    },
     (r) => {
       r.builds[3].nestedCaptured = false
     },

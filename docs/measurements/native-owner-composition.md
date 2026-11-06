@@ -177,3 +177,53 @@ ordinary controls instead of schema 3's four/36. Old schema-3 results cannot
 certify the newly implemented path. This changes neither the BottomSheet build
 denominator nor any owner audit/default; the production fixture still uses
 React/RN host stand-ins, not Yoga or device pixels.
+
+## Native passthrough-prop composition
+
+The ordinary Native prop writer now carries the evidence from `render_verbatim`
+when it actually appends an unchanged prop, including JSX values and authored
+render callbacks. A nested primitive can still lower inside that value; only
+its surviving raw fragments are certified. The existing prop formatting and
+evaluation order are unchanged. Ordinary rendering allocates no copy vectors.
+At the final host, prop-copy offsets shift by the actual opening-tag length and
+precede the already shifted child copies. Image/TextInput retain their emitted
+prop copies but still discard all child evidence.
+
+This removes the blanket omission of passthrough-prop evidence, not the guard
+against generated syntax. Props between a pair of spreads may become
+`hozoSpreadStyles` arguments. That rewritten range remains unproven; unchanged
+props before/after it retain their own evidence. Button's normalized spread,
+image-source normalization and the existing new-scope guards remain unassessed.
+One unproven owner still keeps the **whole** module ordinary, even if a separate
+sibling could prepare.
+
+Rust tests check byte/diagnostic/import/style parity, UTF-8 source slices,
+duplicate JSX, nested primitives, grouped-spread exclusions, void-host props
+and lexical-scope refusal. Binding tests check the corresponding UTF-16 ranges.
+Actual compiler/compositor and source-worker tests include an authored FlatList
+`renderItem` callback without inventing another binder or evaluating its author
+early. Production Metro execution of that callback remains a separate receipt;
+these local tests do not claim list windowing, Yoga, device input or pixels.
+
+### Production renderItem delivery
+
+The same eight serial Android/iOS production Metro builds now also execute a
+captured `List.tsx` module. Its ordinary `FlatList.renderItem` callback contains
+the actual distributed Toolbar. The generated FlatList import executes the
+shipped `HozoFlatList` Native adapter against the existing React/RN host
+stand-ins. Constructing the list must not read the author's Toolbar style;
+invoking the retained callback once must read it once and preserve the action,
+role, class/author precedence and absence of a leaked private carrier.
+
+Schema 5 adds this route and a separately counted list-host control: 48 owner
+observations (8 prepared/40 ordinary), eight existing View controls and eight
+FlatList controls over the unchanged eight builds. Every row requires the
+list module's own captured patterns entry edge, the actual FlatList host,
+one data item, compiled padding, deferred author access and no leaked className.
+Older schema-4 receipts cannot certify this additional delivery boundary.
+
+This is compiler/adapter/callback execution, not a VirtualizedList measurement:
+the RN host is still a stand-in and the test deliberately invokes `renderItem`.
+It says nothing new about list scrolling, windowing, Yoga or device pixels.
+The actual distributed widget, adapter and minified module graph are retained;
+synthetic reader fixtures alone cannot establish production success.

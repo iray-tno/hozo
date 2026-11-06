@@ -1,4 +1,4 @@
-//! Children carried through Native rendering. Generated props are deliberately
+//! Fragments carried through Native rendering. Generated/normalized props are
 //! not certified here: equal text alone cannot prove an authored expression.
 
 use hozo_ir::{SourceCopy, SourceSpan};
@@ -35,14 +35,21 @@ impl Rendered {
     }
 
     pub fn append(&mut self, other: Self) {
-        if let (Some(copies), Some(incoming)) = (&mut self.copies, other.copies) {
+        other.append_into(&mut self.text, &mut self.copies);
+    }
+
+    /// Used by the existing prop writer too: generated prefix props retain
+    /// their String path, while a surviving passthrough fragment carries its
+    /// own emission evidence. Transformed spread arguments do not call this.
+    pub fn append_into(self, text: &mut String, copies: &mut Option<Vec<SourceCopy>>) {
+        if let (Some(copies), Some(incoming)) = (copies, self.copies) {
             copies.extend(incoming.into_iter().map(|copy| SourceCopy {
-                emitted_start: copy.emitted_start + self.text.len(),
-                emitted_end: copy.emitted_end + self.text.len(),
+                emitted_start: copy.emitted_start + text.len(),
+                emitted_end: copy.emitted_end + text.len(),
                 ..copy
             }));
         }
-        self.text.push_str(&other.text);
+        text.push_str(&self.text);
     }
 
     /// The branch supplies its complete output and known suffix length. This
