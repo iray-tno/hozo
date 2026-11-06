@@ -11,6 +11,12 @@ export interface DialogProps {
   onClose?: () => void
   /** The dialog's accessible name. */
   accessibilityLabel?: string
+  /**
+   * The id of an element inside that names it, usually its heading, so the
+   * name is not written twice (#1715). `aria-labelledby` here, and it wins
+   * over `accessibilityLabel`, as on `Popover`.
+   */
+  accessibilityLabelledBy?: string
   accessibilityHint?: string
   /**
    * The control to return focus to when the dialog closes, when it should not
@@ -50,6 +56,7 @@ export function Dialog({
   open = false,
   onClose,
   accessibilityLabel,
+  accessibilityLabelledBy,
   accessibilityHint,
   restoreFocusTo,
   className,
@@ -114,7 +121,8 @@ export function Dialog({
     <dialog
       ref={setRef}
       className={className}
-      aria-label={accessibilityLabel}
+      aria-label={accessibilityLabelledBy ? undefined : accessibilityLabel}
+      aria-labelledby={accessibilityLabelledBy}
       aria-description={accessibilityHint}
       data-testid={testID}
       data-state={presence.state}

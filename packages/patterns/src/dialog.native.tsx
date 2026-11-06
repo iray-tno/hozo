@@ -63,6 +63,12 @@ export interface DialogProps {
   open?: boolean
   onClose?: () => void
   accessibilityLabel?: string
+  /**
+   * The `nativeID` of a view inside that names it. React Native carries it to
+   * Android only; iOS has no such relationship, so a dialog read there needs
+   * `accessibilityLabel` as well, which this half keeps beside it.
+   */
+  accessibilityLabelledBy?: string
   accessibilityHint?: string
   /**
    * The control to put accessibility focus back on when the dialog closes.
@@ -110,6 +116,7 @@ export function Dialog({
   open = false,
   onClose,
   accessibilityLabel,
+  accessibilityLabelledBy,
   accessibilityHint,
   restoreFocusTo,
   className,
@@ -196,6 +203,7 @@ export function Dialog({
       accessibilityViewIsModal
       accessibilityRole="none"
       accessibilityLabel={accessibilityLabel}
+      accessibilityLabelledBy={accessibilityLabelledBy}
       accessibilityHint={accessibilityHint}
       testID={testID}
     >
