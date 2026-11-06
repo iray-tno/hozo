@@ -20,11 +20,11 @@ const request = {
 }
 const source = (classes = 'p-2') =>
   `import {Sheet} from 'kit'; export const App=()=> <Sheet handleClassName="${classes}"/>`
-function fixture(platform = 'ios', ownerOnly = false) {
+function fixture(platform = 'ios', ownerOnly = false, aliases: string[] = []) {
   const manifest = {
     schema: 'rfc010-package-shadow-0',
     owners,
-    exports: [{ name: 'Sheet', owners: ['BottomSheet.handle'] }],
+    exports: ['Sheet', ...aliases].map((name) => ({ name, owners: ['BottomSheet.handle'] })),
     helpers: [],
     candidates: ['p-4'],
     compiledByConsumer: false,
@@ -117,6 +117,72 @@ function deferred() {
   })
   return { pending, started, finish, begin }
 }
+
+test('captured aliases share collected IR and one context, and reject unselected names before allocating', async () => {
+  const { lease, epoch } = fixture('ios', false, ['Alias'])
+  const state = tracked()
+  const input = `import {Sheet,Alias} from 'kit';export const A=()=> <><Sheet handleClassName="p-2"/><Alias handleClassName="p-2"/></>`
+  const module = prepareInstanceOwnerCallers(lease, input, state.compiler, request, false, [
+    'Alias',
+  ])
+  assert.equal(
+    state.rows.length,
+    2,
+    'one recipe across the two declared shapes, not twice per alias',
+  )
+  const context = prepareFinalTailwindContext(snapshot(module.candidates))
+  const result = module.emit(context)
+  assert.equal(
+    result.preview.findings.filter((f) => f.disposition === 'prepared-literal').length,
+    2,
+  )
+  assert.ok(state.rows.every((r) => r.emitted.length === 1 && r.emitted[0] === context))
+  assert.ok(state.rows.every((r) => r.disposed === 1))
+  module.dispose()
+  assert.ok(
+    state.rows.every((r) => r.disposed === 1),
+    'disposal stays idempotent',
+  )
+  for (const aliases of [
+    ['Missing'],
+    ['Sheet'],
+    Array.from({ length: 8 }, (_, i) => `Alias${i}`),
+  ]) {
+    const before = state.rows.length
+    assert.throws(
+      () => prepareInstanceOwnerCallers(lease, input, state.compiler, request, false, aliases),
+      /ALIAS_/,
+    )
+    assert.equal(state.rows.length, before, 'all identities must validate before collecting')
+  }
+  const pending = prepareInstanceOwnerCallers(lease, input, state.compiler, request, false, [
+    'Alias',
+  ])
+  epoch.invalidate()
+  assert.throws(() => pending.emit(context))
+  assert.ok(state.rows.every((r) => r.disposed === 1))
+
+  const other = fixture('ios', false, ['Alias'])
+  for (const row of other.rows) {
+    if (row.status !== 'resolved' || row.manifest.kind !== 'present')
+      throw new Error('Fixture lost manifest')
+    const data = JSON.parse(row.manifest.text)
+    data.owners.contracts.push({ ...data.owners.contracts[0], owner: 'Other.handle' })
+    data.exports.find((e) => e.name === 'Alias').owners = ['Other.handle']
+    row.manifest.text = JSON.stringify(data)
+  }
+  const otherEpoch = new OwnerManifestEpoch()
+  otherEpoch.adopt(other.capture())
+  const before = state.rows.length
+  assert.throws(
+    () =>
+      prepareInstanceOwnerCallers(otherEpoch.lease(), input, state.compiler, request, false, [
+        'Alias',
+      ]),
+    /ALIAS_CONTRACT_MISMATCH/,
+  )
+  assert.equal(state.rows.length, before, 'a declared different owner cannot join the plan')
+})
 
 test('instance callers collect before one shared exact context and retain package provenance on cache hits', async () => {
   const { lease } = fixture()
@@ -593,6 +659,42 @@ test('owner edits compose with ordinary lowering through exact source copies wit
     assert.throws(() => module.emit(context), /already been emitted or disposed/)
     module.dispose()
   }
+})
+
+test('Web lowering groups captured owner aliases before collecting recipes and companion CSS', () => {
+  const { lease } = fixture('web', false, ['Alias'])
+  const compiler = createCompiler()
+  const original = compiler.prepareWebModule.bind(compiler)
+  let plans = 0,
+    ordinary = 0
+  compiler.prepareWebModule = (input, ...rest) => {
+    if (input.includes('function Plan()')) plans++
+    else ordinary++
+    return original(input, ...rest)
+  }
+  const input = `import {Sheet,Alias} from 'kit';import {View} from '@hozo/primitives';
+    export const A=()=> <View className="p-3"><Sheet handleClassName="p-2" handleStyle={first.value}/>
+      <Alias handleClassName="p-2" handleStyle={second.value}/></View>`
+  const current = { ...request, entry: '/package/web.js' }
+  const module = prepareOwnerLowerModule(input, a.importer, a.importer, compiler, '/app', lease, [
+    current,
+    { ...current, imported: 'Alias' },
+  ])
+  const output = module.emit(prepareFinalTailwindContext(snapshot(module.candidates)))
+  assert.equal(plans, 2, 'one recipe across two shapes, not one pair per alias')
+  assert.equal(ordinary, 1)
+  assert.equal(output.owners.length, 1)
+  assert.equal(output.owners[0]!.preview.findings.length, 2)
+  assert.ok(output.owners[0]!.preview.findings.every((f) => f.disposition === 'prepared-literal'))
+  assert.equal(output.lowered!.code.match(/handleClassName=\{"hozo-owner-/g)?.length, 2)
+  assert.equal(
+    output.lowered!.css.match(/padding-top: 8px/g)?.length,
+    1,
+    'one companion owner stylesheet',
+  )
+  for (const value of ['first.value', 'second.value'])
+    assert.equal(output.lowered!.code.split(value).length - 1, 1)
+  module.dispose()
 })
 
 test('opaque, unmappable or overlapping owner edits retain the whole ordinary route without companion owner CSS', () => {

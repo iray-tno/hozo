@@ -180,4 +180,5 @@ jobs:
           path: |
             artifacts/style-fact-model/toolbar-native.json
             artifacts/style-fact-model/toolbar-browser.json
+            artifacts/style-fact-model/toolbar-alias-browser.json
           if-no-files-found: warn

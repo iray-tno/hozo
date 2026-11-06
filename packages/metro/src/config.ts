@@ -262,7 +262,7 @@ export async function withHozoPartialOwners<T extends MetroConfigShape>(
 }
 
 /** @internal Explicit bounded owner target, not a normal option or an audit.
- * Whole-module fallback is retained when one captured request cannot own it.
+ * Same-edge public aliases share a plan; unassessed/mixed output stays ordinary.
  */
 export async function withHozoOwnerCallers<T extends MetroConfigShape>(
   configOrPromise: T | Promise<T>,

@@ -19,6 +19,10 @@ const root = fileURLToPath(new URL('../../../', import.meta.url))
 const names = 'p-[8px] gap-x-[4px] gap-y-[6px] w-[96px] bg-[#112233]'
 const source = `import {Toolbar} from '@hozo/patterns';
 export function ToolbarFixture({items}){return <Toolbar accessibilityLabel="Tools" items={items} className="${names}"/>}`
+const aliasSource = `import {Toolbar as Left,HozoToolbar as Right} from '@hozo/patterns';
+export function ToolbarAliasesFixture({items}){return <>
+  <Left accessibilityLabel="First tools" items={items} className="${names}"/>
+  <Right accessibilityLabel="Second tools" items={items} className="${names}"/></>}`
 const require = createRequire(import.meta.url)
 const executablePath = [
   process.env.CHROME_PATH,
@@ -28,16 +32,21 @@ const executablePath = [
 ].find((file) => file && existsSync(file))
 if (process.env.CI) assert.ok(executablePath, 'CI requires actual Toolbar browser evidence')
 
-async function fixture() {
-  const prepared = await prepareWebOwnerPublication(source, {
-    fixture: 'OwnerToolbarFixture',
-    imported: 'Toolbar',
+async function fixture(
+  input = source,
+  imported = 'Toolbar',
+  sites = 1,
+  fixtureName = 'OwnerToolbarFixture',
+) {
+  const prepared = await prepareWebOwnerPublication(input, {
+    fixture: fixtureName,
+    imported,
     classProp: 'className',
     owner: 'Toolbar.root',
-    sites: 1,
+    sites,
   })
   const cache = openCandidateCache()
-  cache.scanFile('Toolbar.tsx', source, 1)
+  cache.scanFile('Toolbar.tsx', input, 1)
   const { compile } = require('tailwindcss')
   const oracle = await compile(
     `${readFileSync(path.join(tailwindPackageDir(), 'theme.css'), 'utf8')}\n@tailwind utilities;`,
@@ -45,7 +54,7 @@ async function fixture() {
   return { prepared, candidateCss: cache.renderCss(), oracleCss: oracle.build(names.split(' ')) }
 }
 
-async function appBundle(input) {
+async function appBundle(input, component = 'ToolbarFixture') {
   return build({
     stdin: {
       contents: `${input}
@@ -53,7 +62,7 @@ import {Toolbar as Raw,HozoToolbar as Alias} from '@hozo/patterns';
 import {useState} from 'react';import {createRoot} from 'react-dom/client';import {flushSync} from 'react-dom';
 window.aliasesSameOwner=Raw===Alias;window.actions=[];
 function App(){const [revision,setRevision]=useState(0);window.refresh=()=>flushSync(()=>setRevision(v=>v+1));
-return <ToolbarFixture items={['One','Two'].map(label=>({render:props=><button {...props} onClick={()=>window.actions.push(label)}>{label+revision}</button>}))}/>}
+return <${component} items={['One','Two'].map(label=>({render:props=><button {...props} onClick={()=>window.actions.push(label)}>{label+revision}</button>}))}/>}
 flushSync(()=>createRoot(document.querySelector('#root')).render(<App/>));`,
       resolveDir: fileURLToPath(new URL('../', import.meta.url)),
       loader: 'tsx',
@@ -96,6 +105,22 @@ test('Toolbar publication bundles the actual Web owner without compiler or manif
     }).code,
     unresolved,
   )
+})
+
+test('Toolbar alias publication bundles both rewritten sites with one shape preparation', async () => {
+  const f = await fixture(aliasSource, ['Toolbar', 'HozoToolbar'], 2, 'OwnerToolbarAliasesFixture')
+  assert.equal(f.prepared.ownerShapeParses, 1)
+  assert.equal(f.prepared.preparations, 1)
+  assert.equal(f.prepared.ordinaryParses, 1)
+  const classes = [...f.prepared.code.matchAll(/className=\{"(hozo-owner-[^"]+)"\}/g)].map(
+    (m) => m[1],
+  )
+  assert.equal(classes.length, 2)
+  assert.equal(classes[0], classes[1])
+  const bundle = await appBundle(f.prepared.code, 'ToolbarAliasesFixture')
+  const files = Object.keys(bundle.metafile.inputs).map((file) => file.replaceAll('\\', '/'))
+  assert.ok(files.some((file) => file.endsWith('patterns/dist/toolbar.js')))
+  assert.ok(!files.some((file) => /packages\/(compiler|tailwind)\//.test(file)))
 })
 
 test('real Toolbar candidate and prepared root styles agree with Tailwind while item wiring stays intact', {
@@ -207,6 +232,145 @@ test('real Toolbar candidate and prepared root styles agree with Tailwind while 
   } finally {
     await browser?.close()
     const file = path.join(root, 'artifacts/style-fact-model/toolbar-browser.json')
+    mkdirSync(path.dirname(file), { recursive: true })
+    writeFileSync(file, `${JSON.stringify(evidence, null, 2)}\n`)
+  }
+})
+
+test('real Toolbar aliases share prepared CSS while both widgets keep their own keyboard and actions', {
+  skip: !executablePath,
+  timeout: 60_000,
+}, async () => {
+  const evidence = {
+    schema: 1,
+    ...evidenceSource(),
+    scope: 'web-toolbar-alias-owner-delivery',
+    passed: false,
+    audit: 'unknown',
+    identity: null,
+    fingerprint: '',
+    builds: [],
+    observations: [],
+    controls: [],
+  }
+  let browser
+  try {
+    const f = await fixture(
+      aliasSource,
+      ['Toolbar', 'HozoToolbar'],
+      2,
+      'OwnerToolbarAliasesFixture',
+    )
+    assert.equal(f.prepared.ownerShapeParses, 1)
+    evidence.identity = f.prepared.identity
+    evidence.fingerprint = f.prepared.fingerprint
+    browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-gpu'] })
+    const expected = {
+      padding: ['8px', '8px', '8px', '8px'],
+      rowGap: '6px',
+      columnGap: '4px',
+      width: '96px',
+      background: 'rgb(17, 34, 51)',
+    }
+    for (const [kind, css, input] of [
+      ['candidate', f.candidateCss, aliasSource],
+      ['tailwind', f.oracleCss, aliasSource],
+      ['prepared', f.prepared.css, f.prepared.code],
+    ]) {
+      const page = await browser.newPage(),
+        errors = []
+      page.on('pageerror', (error) => errors.push(error.message))
+      try {
+        const bundle = await appBundle(input, 'ToolbarAliasesFixture')
+        evidence.builds.push({
+          kind,
+          bundleSha256: createHash('sha256').update(bundle.outputFiles[0].text).digest('hex'),
+        })
+        await page.setContent(
+          '<style>*{box-sizing:border-box}</style><style id="sheet"></style><div id="root"></div>',
+        )
+        await page.locator('#sheet').evaluate((node, css) => {
+          node.textContent = css
+        }, css)
+        await page.addScriptTag({ content: bundle.outputFiles[0].text })
+        const owners = ['First tools', 'Second tools'].map((name) => ({
+          name,
+          owner: page.getByRole('toolbar', { name, exact: true }),
+        }))
+        const read = (owner) =>
+          owner.evaluate((node) => {
+            const look = getComputedStyle(node)
+            return {
+              padding: [look.paddingTop, look.paddingRight, look.paddingBottom, look.paddingLeft],
+              rowGap: look.rowGap,
+              columnGap: look.columnGap,
+              width: look.width,
+              background: look.backgroundColor,
+            }
+          })
+        const observe = async (phase) => {
+          for (const { name, owner } of owners) {
+            const style = await read(owner)
+            evidence.observations.push({ kind, owner: name, phase, style })
+            assert.deepEqual(style, expected, `${kind}/${name}/${phase}`)
+          }
+        }
+        for (const { owner } of owners) assert.equal(await owner.count(), 1)
+        await page.evaluate(() => {
+          window.originalAliasToolbars = [...document.querySelectorAll('[role="toolbar"]')]
+        })
+        await observe('rest')
+        for (const { owner } of owners) {
+          const buttons = owner.getByRole('button')
+          assert.equal(await buttons.count(), 2)
+          await buttons.nth(0).focus()
+          await page.keyboard.press('ArrowRight')
+          assert.equal(
+            await buttons.nth(1).evaluate((node) => node === document.activeElement),
+            true,
+          )
+          await page.keyboard.press('Enter')
+        }
+        assert.deepEqual(await page.evaluate(() => window.actions), ['Two', 'Two'])
+        await observe('child-action')
+        await page.evaluate(() => window.refresh())
+        for (const [at, { owner }] of owners.entries())
+          assert.equal(
+            await owner.evaluate((node, at) => node === window.originalAliasToolbars[at], at),
+            true,
+          )
+        await observe('rerender')
+        await page.locator('#sheet').evaluate((node) => {
+          node.textContent = ''
+        })
+        for (const { name, owner } of owners) {
+          const style = await read(owner)
+          evidence.controls.push({ kind, owner: name, phase: 'removed', style })
+          assert.notDeepEqual(style, expected, 'Removing CSS must affect both owners')
+        }
+        await page.locator('#sheet').evaluate((node, css) => {
+          node.textContent = css
+        }, css)
+        for (const { name, owner } of owners) {
+          const style = await read(owner)
+          evidence.controls.push({ kind, owner: name, phase: 'restored', style })
+          assert.deepEqual(style, expected)
+        }
+        assert.deepEqual(errors, [])
+      } finally {
+        await page.close()
+      }
+    }
+    assert.equal(evidence.builds.length, 3)
+    assert.equal(evidence.observations.length, 18)
+    assert.equal(evidence.controls.length, 12)
+    evidence.passed = true
+  } catch (error) {
+    evidence.error = String(error)
+    throw error
+  } finally {
+    await browser?.close()
+    const file = path.join(root, 'artifacts/style-fact-model/toolbar-alias-browser.json')
     mkdirSync(path.dirname(file), { recursive: true })
     writeFileSync(file, `${JSON.stringify(evidence, null, 2)}\n`)
   }

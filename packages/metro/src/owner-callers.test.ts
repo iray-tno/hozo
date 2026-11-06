@@ -1,6 +1,7 @@
 // Real Metro resolver/preflight and source worker, not a Metro app or device.
 import assert from 'node:assert/strict'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import path from 'node:path'
 import test, { type TestContext } from 'node:test'
 import { ownerMetroFixture } from '../fixtures/owner-metro-resolver.mjs'
@@ -104,13 +105,40 @@ test('one explicitly selected captured Toolbar alias gets a full carrier, not an
   }
 })
 
-test('ambiguous aliases, opaque recipes, foreign names, mixed lowering and uncaptured importers stay ordinary', async (t) => {
+test('one planner owns binding inspection for all captured aliases', async (t) => {
+  // Observe only this N-API operation in this isolated test worker, not all
+  // compiler parses. Restore it even when a regression assertion fails.
+  const native = createRequire(import.meta.url)('../../compiler/hozo_napi.node')
+  const original = native.inspectOwnerClassSlots
+  let calls = 0
+  native.inspectOwnerClassSlots = (...args: unknown[]) => {
+    calls++
+    return original(...args)
+  }
+  t.after(() => {
+    native.inspectOwnerClassSlots = original
+  })
+  for (const platform of ['android', 'ios']) {
+    const f = fixture(t, platform)
+    await withHozoOwnerCallers(f.config, f.preflight, 'Toolbar.root', f.options)
+    const input = `import {Toolbar,HozoToolbar} from '@hozo/patterns';export const A=()=> <><Toolbar items={[]} className="p-2"/><HozoToolbar items={[]} className="p-2"/></>`
+    calls = 0
+    const output = String(await transform({ ...f.params, src: input }))
+    assert.equal(output.match(/hozoToolbarStyle=/g)?.length, 2)
+    assert.equal(
+      calls,
+      1,
+      `${platform}: selector must not parse the same bindings before the planner`,
+    )
+  }
+})
+
+test('captured aliases share one plan while opaque recipes, foreign names, mixed lowering and uncaptured importers stay ordinary', async (t) => {
   const f = fixture(t, 'android')
   await withHozoOwnerCallers(f.config, f.preflight, 'Toolbar.root', f.options)
   for (const input of [
     source().replace('className="p-2"', 'className={names}'),
     source().replace('className="p-2"', 'className="p-2 hover:opacity-50"'),
-    `import {Toolbar,HozoToolbar} from '@hozo/patterns';export const A=()=> <><Toolbar items={[]} className="p-2"/><HozoToolbar items={[]} className="p-2"/></>`,
     `import * as P from '@hozo/patterns';export const A=()=> <P.Toolbar items={[]} className="p-2"/>`,
     `/* @hozo/patterns */import {Toolbar} from 'kit';export const A=()=> <Toolbar className="p-2"/>`,
     `import {View} from '@hozo/core';${source().replace('<Tools', '<View><Tools').replace('/>', '/></View>')}`,
@@ -123,6 +151,22 @@ test('ambiguous aliases, opaque recipes, foreign names, mixed lowering and uncap
   const filename = path.join(f.root, 'src', 'Uncaptured.tsx')
   writeFileSync(filename, source())
   assert.doesNotMatch(String(await transform({ ...f.params, filename })), /hozoToolbarStyle=/)
+  const input = `import {Toolbar as Tools,HozoToolbar as Alias} from '@hozo/patterns';
+    export const A=()=> <><Tools items={[]} className="p-2" style={first.value}/>
+    <Alias items={[]} className="p-2" style={second.value}/><Alias items={[]} className={opaque.value}/></>;
+    function Shadow(Alias){return <Alias items={[]} className="p-2"/>}`
+  const output = String(await transform({ ...f.params, src: input }))
+  const names = [...output.matchAll(/hozoToolbarStyle=\{(\w+)\}/g)].map((m) => m[1])
+  assert.equal(names.length, 2)
+  assert.equal(names[0], names[1], 'both public aliases must use one plan')
+  assert.equal(output.match(/\.create\(/g)?.length, 1)
+  for (const value of ['first.value', 'second.value', 'opaque.value'])
+    assert.equal(output.split(value).length - 1, 1)
+  assert.match(
+    output,
+    /function Shadow\(Alias\)\{return <Alias items=\{\[\]\} className="p-2"\/>\}/,
+  )
+  assert.match(output, /className=\{opaque.value\}/)
 })
 
 test('invalid targets and inconsistent serialized modes fail before replacing configured state', async (t) => {

@@ -144,8 +144,10 @@ and generated carrier in an isolated installed app. React and RN hosts remain
 stand-ins, not a renderer, device, Yoga or event-delivery measurement.
 
 Each build observes the literal, runtime-selected and uncaptured-sibling
-Toolbar. Only the explicitly selected literal may receive a carrier. All
-24 observations must preserve padding/gap author precedence, root role/name,
+Toolbar. The alias follow-up adds the same recipe through `HozoToolbar`;
+only the explicitly selected literal/alias may receive a carrier, and those
+two actual callback objects must be identical. All 32 observations preserve
+padding/gap author precedence, root role/name,
 one author evaluation, runtime input evaluation and a working item action;
 no private prop or Web item wiring may escape. Each build records its hash,
 bytes and the ordinary resolver capture; the capture references the actual
@@ -167,8 +169,13 @@ node scripts/style-slots/toolbar-metro-evidence.mjs artifacts/style-fact-model/m
 
 It rejects dirty/stale/failed receipts, missing or duplicated platform/mode
 rows, changed manifest identity, disconnected ordinary captures and any
-incorrect positive or negative observation. Its 24-observation denominator is
-only this fixture: two prepared literal deliveries and 22 ordinary controls,
+incorrect positive or negative observation. Its schema-2, 32-observation denominator is
+only this fixture: four prepared alias deliveries and 28 ordinary controls,
 not a new global coverage denominator or an audited contract declaration.
 The reader and mutation regressions are permanent test infrastructure; they
 add no runtime machinery and do not change the existing status dashboard.
+
+The earlier schema-1 fixture measured three routes (24 observations). Its
+historical receipts remain valid for that narrower result; they cannot satisfy
+the alias follow-up's schema-2 reader. No extra Metro build or broader audit
+denominator is introduced by adding the alias to each existing bundle.

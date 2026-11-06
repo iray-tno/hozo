@@ -90,6 +90,7 @@ export class MetroTailwindWorker {
     request: OwnerContractRequest,
     disposition: 'prepared-partial' | 'prepared-literal',
     stylexModules?: StylexModuleCache,
+    aliases: readonly string[] = [],
   ) {
     const file = path.resolve(root, filename)
     if (request.importer !== file || !['ios', 'android'].includes(lease.capture.platform))
@@ -124,6 +125,7 @@ export class MetroTailwindWorker {
           compiler,
           request,
           disposition === 'prepared-partial',
+          aliases,
         )
       } catch (error) {
         if (ordinary.kind === 'prepared') ordinary.module.dispose()
