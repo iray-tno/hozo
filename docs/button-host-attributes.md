@@ -28,8 +28,8 @@ prop identity are retained, but no Native consumer/DOM metadata capability is
 claimed. Use shared callbacks for portable behavior. Buttons without metadata
 need no new host component, event machine or subscription.
 
-The action Button keeps `type="button"` on Web. This slice does not add HTML
+The action Button keeps `type="button"` on Web. It does not add HTML
 submit/reset semantics to Native or infer submission from surrounding forms.
-Use the existing form abstraction or an explicitly Web-owned form control for
-that contract. Navigation remains a link; metadata changes neither its role
+`SubmitButton` in `@hozo/form` is the submit button: `type="submit"` on Web,
+`useFormSubmit()` on Native (#1704). Navigation remains a link; metadata changes neither its role
 nor its router behavior.

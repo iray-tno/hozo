@@ -90,3 +90,18 @@ test('nothing carries a class it was not given', () => {
   assert.equal(count(html, 'class="T"'), 1)
   assert.equal(count(html, 'class="P"'), 1)
 })
+
+// #1716: an icon-only trigger needs a name of its own, and a test a handle.
+test('the trigger takes its own name, description and test id', () => {
+  const html = render({
+    trigger: '⋯',
+    triggerAccessibilityLabel: 'More options',
+    triggerAccessibilityHint: 'Account and settings',
+    triggerTestID: 'header-more-trigger',
+  })
+  const trigger = html.match(/<button[^>]*>/)?.[0] ?? ''
+  assert.match(trigger, / aria-label="More options"/)
+  assert.match(trigger, / aria-description="Account and settings"/)
+  assert.match(trigger, / data-testid="header-more-trigger"/)
+  assert.doesNotMatch(render(), /aria-label=|data-testid=/)
+})

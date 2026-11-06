@@ -325,3 +325,21 @@ test('native popover: opens with a fade in, and fades out before it goes', () =>
   assert.equal(popover(root).panel, undefined, 'still there after the fade ended')
   renderer.act(() => root.unmount())
 })
+
+// #1716: an icon-only trigger's own name, description and test id.
+test('native popover: the trigger takes its own name, description and test id', () => {
+  const root = mount(
+    react.createElement(HozoPopover, {
+      trigger: '⋯',
+      accessibilityLabel: 'Shipping',
+      triggerAccessibilityLabel: 'More options',
+      triggerAccessibilityHint: 'Account and settings',
+      triggerTestID: 'header-more-trigger',
+    }),
+  )
+  const { trigger } = popover(root)
+  assert.equal(trigger?.props.accessibilityLabel, 'More options')
+  assert.equal(trigger?.props.accessibilityHint, 'Account and settings')
+  assert.equal(trigger?.props.testID, 'header-more-trigger')
+  renderer.act(() => root.unmount())
+})

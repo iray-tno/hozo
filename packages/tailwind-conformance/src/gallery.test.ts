@@ -68,6 +68,11 @@ const NOT_ON_THE_SCREEN = new Map([
   ],
   ['Listbox', 'As `Combobox`.'],
   ['Menu', 'As `Combobox`, driven by `items`.'],
+  [
+    'Popover',
+    'Its panel opens on a press, and the census screen never opens anything. The trigger and ' +
+      'its text are covered by native-text-slots and presence.test.ts.',
+  ],
   ['RadioGroup', 'As `Combobox`.'],
   ['Tabs', 'As `Combobox`, driven by `tabs`.'],
   ['Toolbar', 'As `Combobox`, driven by `items`.'],
@@ -93,6 +98,7 @@ const NOT_ON_THE_SCREEN = new Map([
   ['HozoCombobox', 'The same component under its other published name.'],
   ['HozoListbox', 'The same component under its other published name.'],
   ['HozoMenu', 'The same component under its other published name.'],
+  ['HozoPopover', 'The same component under its other published name.'],
   ['HozoRadioGroup', 'The same component under its other published name.'],
   ['HozoTabs', 'The same component under its other published name.'],
   ['HozoToolbar', 'The same component under its other published name.'],

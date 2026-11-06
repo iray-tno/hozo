@@ -51,6 +51,16 @@ export interface HozoPopoverProps {
   className?: string
   triggerClassName?: string
   panelClassName?: string
+  /**
+   * The trigger's own name, for a trigger with no words in it: an icon-only
+   * "more options" button (#1716). `aria-label` on the Web,
+   * `accessibilityLabel` on React Native, as on `Button`.
+   */
+  triggerAccessibilityLabel?: string
+  /** The trigger's description: `aria-description`, `accessibilityHint`. */
+  triggerAccessibilityHint?: string
+  /** The trigger's test id: `data-testid`, `testID`. */
+  triggerTestID?: string
 }
 
 /**
@@ -96,6 +106,9 @@ export function HozoPopover({
   className,
   triggerClassName,
   panelClassName,
+  triggerAccessibilityLabel,
+  triggerAccessibilityHint,
+  triggerTestID,
 }: HozoPopoverProps) {
   const base = useId()
   const triggerRef = useRef<HTMLButtonElement>(null)
@@ -141,6 +154,9 @@ export function HozoPopover({
         data-hozo-disabled={disabled ? '' : undefined}
         data-hozo-state={open ? 'open' : 'closed'}
         className={triggerClassName}
+        aria-label={triggerAccessibilityLabel}
+        aria-description={triggerAccessibilityHint}
+        data-testid={triggerTestID}
         onClick={() => change(!open)}
         onKeyDown={onTriggerKeyDown}
       >

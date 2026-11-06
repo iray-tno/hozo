@@ -57,6 +57,10 @@ export interface HozoPopoverProps {
   style?: StyleProp<ViewStyle>
   triggerStyle?: StyleProp<ViewStyle>
   panelStyle?: StyleProp<ViewStyle>
+  /** The trigger's own name, description and test id; see the Web half. */
+  triggerAccessibilityLabel?: string
+  triggerAccessibilityHint?: string
+  triggerTestID?: string
 }
 
 /**
@@ -98,6 +102,9 @@ export function HozoPopover({
   style,
   triggerStyle,
   panelStyle,
+  triggerAccessibilityLabel,
+  triggerAccessibilityHint,
+  triggerTestID,
 }: HozoPopoverProps) {
   const anchorRef = useRef<NativeMeasurable | null>(null)
   const [uncontrolled, setUncontrolled] = useState(defaultOpen)
@@ -149,6 +156,9 @@ export function HozoPopover({
         // thing with `aria-expanded`, and this is the prop React Native routes
         // into both platforms' node info.
         accessibilityState={{ expanded: open, disabled: Boolean(disabled) }}
+        accessibilityLabel={triggerAccessibilityLabel}
+        accessibilityHint={triggerAccessibilityHint}
+        testID={triggerTestID}
         disabled={disabled}
         style={(interaction) => [triggerLook(interaction)[0], hozoAuthoredStyle(triggerStyle)]}
         onPress={() => change(!open)}

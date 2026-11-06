@@ -57,7 +57,7 @@ The universal props follow React Native's names — `accessibilityLabel`, `acces
 | [`@hozo/primitives`](https://github.com/iray-tno/hozo/tree/main/packages/primitives) | `View`, `Text`, `Pressable`, `Button`, `Link`, `Image`, `TextInput`, `ScrollView`, `FlatList` |
 | [`@hozo/semantics`](https://github.com/iray-tno/hozo/tree/main/packages/semantics) | Landmarks and document structure: `Main`, `Header`, `Section`, `Article`, `Nav`, `List`, `Details`, and more |
 | [`@hozo/typography`](https://github.com/iray-tno/hozo/tree/main/packages/typography) | `Heading`, `Paragraph`, inline text semantics, and accessible CJK `Ruby` |
-| [`@hozo/patterns`](https://github.com/iray-tno/hozo/tree/main/packages/patterns) | `Dialog`, `Tabs`, `Menu`, `Listbox`, `Combobox`, `RadioGroup`, `Toolbar`, `Tree`, `Tooltip` |
+| [`@hozo/patterns`](https://github.com/iray-tno/hozo/tree/main/packages/patterns) | `Dialog`, `Tabs`, `Menu`, `Popover`, `Listbox`, `Combobox`, `RadioGroup`, `Toolbar`, `Tree`, `Tooltip` |
 
 Every primitive, and what it compiles to on each platform, is generated into [docs/primitives.md](https://github.com/iray-tno/hozo/blob/main/docs/primitives.md).
 

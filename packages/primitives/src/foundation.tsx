@@ -385,13 +385,25 @@ export interface ButtonProps extends ButtonDataProps {
   'aria-describedby'?: string
   /** A roving tab stop, as `Toolbar` hands its items. */
   tabIndex?: number
+  /**
+   * The same state `View` and `Pressable` take: a menu or disclosure trigger
+   * says whether what it opens is open with `expanded` (#1704). Becomes
+   * `aria-*` on the Web and `accessibilityState` on React Native.
+   * `disabled` here disables the button as the `disabled` prop does.
+   */
+  accessibilityState?: UniversalProps['accessibilityState']
+  /**
+   * The id of what this button opens or changes, beside `expanded`. Web
+   * only: React Native has no relationship between views to put it in, and
+   * dropping it changes nothing that can be seen or pressed there.
+   */
+  'aria-controls'?: string
 }
 
 export function Button({
   className,
   children,
   onPress,
-  disabled,
   accessibilityLabel,
   accessibilityHint,
   href,
@@ -403,11 +415,21 @@ export function Button({
   download,
   testID,
   nativeID,
+  accessibilityState: state,
+  'aria-controls': controls,
+  disabled: disabledProp,
   ...metadata
 }: ButtonProps) {
+  // Either spelling disables it, as the compiled element does.
+  const disabled = state?.disabled === true ? true : disabledProp
   const data = {
     ...buttonDataProps(metadata),
     ...buttonTriggerProps(metadata, BUTTON_TRIGGER_PROPS_WEB),
+    'aria-selected': state?.selected,
+    'aria-checked': state?.checked,
+    'aria-busy': state?.busy,
+    'aria-expanded': state?.expanded,
+    'aria-controls': controls,
   }
   if (href != null) {
     return (

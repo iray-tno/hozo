@@ -22,6 +22,44 @@ a real `<button>`, or an `<a>` when it has an `href`; on React Native it is a
 - **`disabled`:** sets the real `disabled` attribute, and the disabled look is
   styled from that attribute, so the two cannot disagree.
 - **`href`:** makes it a link that looks like a button.
+- **`accessibilityState={{ expanded }}`** and **`aria-controls`:** for a button
+  that opens a menu or a panel. `expanded` says whether it is open, on both
+  platforms. `aria-controls` names the id of what it opens; React Native has
+  no equivalent and drops it.
 
 Everything else, such as `onPress` and `accessibilityLabel`, is the
-primitive's and passes straight through.
+primitive's and passes straight through. To submit a `Form`, use
+`SubmitButton` from `@hozo/form`; see [Form](../form/).
+
+## No `title`
+
+`Button` has no `title`. On the Web it is a tooltip only a mouse can see, and
+on React Native it does nothing. Use what each `title` was doing:
+
+| What the `title` was for | Use |
+| --- | --- |
+| The name of an icon-only button | `accessibilityLabel`, plus a `Tooltip` to show it |
+| A longer description | `accessibilityHint`, plus a `Tooltip` if it should be visible |
+| The full text of something truncated | Nothing for screen readers, which read the full text already; a `Tooltip` around the `Text` to show it |
+| Why the button is disabled | See below |
+
+## Why a button is disabled
+
+A disabled button cannot be focused, on either platform; see
+[decision 001](https://github.com/iray-tno/hozo/blob/main/docs/decisions/001-disabled-and-focus.md).
+Say why in two places:
+
+```tsx
+<Tooltip content="Add a name first">
+  <Button disabled accessibilityHint="Add a name first">Save</Button>
+</Tooltip>
+```
+
+- **`accessibilityHint`** reaches anyone who finds the button with a screen
+  reader.
+- **`Tooltip`** shows the reason on hover. A disabled button still receives
+  the pointer, so the tooltip opens, and a press does nothing.
+
+A keyboard user who does not use a screen reader cannot reach either. If the
+reason must reach everyone, write it on the page beside the button, or leave
+the button enabled and say what is missing when it is pressed.

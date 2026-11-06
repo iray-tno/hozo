@@ -16,6 +16,18 @@ import { type HozoDomStyle, hozoDomStyle } from '@hozo/engine'
 
 type Props = Record<string, unknown>
 
+interface AccessibilityState {
+  disabled?: boolean
+  selected?: boolean
+  checked?: boolean | 'mixed'
+  busy?: boolean
+  expanded?: boolean
+}
+
+/** `accessibilityState.disabled` disables a Button as the `disabled` prop does. */
+const stateDisabled = (props: Props) =>
+  (props.accessibilityState as AccessibilityState | undefined)?.disabled === true
+
 const prevent = (event: { preventDefault(): void }) => event.preventDefault()
 
 function common(props: Props, out: Props, name: string, value: unknown): boolean {
@@ -44,8 +56,19 @@ function common(props: Props, out: Props, name: string, value: unknown): boolean
     case 'onPointerEnter':
     case 'onPointerLeave':
     case 'aria-describedby':
+    // A disclosure trigger names what it opens (#1704).
+    case 'aria-controls':
       out[name] = value
       return true
+    case 'accessibilityState': {
+      // `disabled` is the element's own business, read by each caller.
+      const state = value as AccessibilityState | undefined
+      out['aria-selected'] = state?.selected
+      out['aria-checked'] = state?.checked
+      out['aria-busy'] = state?.busy
+      out['aria-expanded'] = state?.expanded
+      return true
+    }
     case 'style':
       out.style = hozoDomStyle(value as HozoDomStyle)
       return true
@@ -79,6 +102,10 @@ export function hozoButtonDomProps<T>(props: T): T {
     // Anything else -- link-only props with no href, unknown keys -- the
     // uncompiled Button does not forward either.
   }
+  if (stateDisabled(source)) {
+    out.disabled = true
+    out['data-hozo-disabled'] = ''
+  }
   return out as T
 }
 
@@ -92,8 +119,19 @@ export function hozoButtonDomProps<T>(props: T): T {
 export function hozoLinkDomProps<T>(props: T, disabled?: unknown): T {
   if (!props || typeof props !== 'object') return props
   const source = props as Props
-  const off = Boolean(disabled ?? source.disabled)
+  const fromState = stateDisabled(source)
+  const off = Boolean(disabled ?? source.disabled) || fromState
   const out: Props = {}
+  const disable = (value: unknown) => {
+    out['aria-disabled'] = value ? true : undefined
+    out['data-hozo-disabled'] = value ? '' : undefined
+    if (value) out.tabIndex = -1
+    else if (!Object.hasOwn(source, 'tabIndex')) out.tabIndex = undefined
+    if (value) {
+      out.onClick ??= prevent
+      out.onAuxClick = prevent
+    }
+  }
   for (const name in source) {
     if (!Object.hasOwn(source, name)) continue
     const value = source[name]
@@ -107,14 +145,7 @@ export function hozoLinkDomProps<T>(props: T, disabled?: unknown): T {
         out.tabIndex = off ? -1 : value
         break
       case 'disabled':
-        out['aria-disabled'] = value ? true : undefined
-        out['data-hozo-disabled'] = value ? '' : undefined
-        if (value) out.tabIndex = -1
-        else if (!Object.hasOwn(source, 'tabIndex')) out.tabIndex = undefined
-        if (value) {
-          out.onClick ??= prevent
-          out.onAuxClick = prevent
-        }
+        disable(value || fromState)
         break
       case 'target':
       case 'rel':
@@ -123,5 +154,6 @@ export function hozoLinkDomProps<T>(props: T, disabled?: unknown): T {
         break
     }
   }
+  if (fromState && !Object.hasOwn(source, 'disabled')) disable(true)
   return out as T
 }

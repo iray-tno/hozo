@@ -284,7 +284,9 @@ async function bundleExport(packageName, exportName) {
 const treeShakingProbes = [
   { owner: 'primitives', name: 'Text', maxRaw: 6_000 },
   { owner: 'primitives', name: 'Link', maxRaw: 3_000 },
-  { owner: 'primitives', name: 'Button', maxRaw: 2_500 },
+  // 2,633 bytes once Button took accessibilityState and aria-controls (#1704):
+  // about 230 bytes of real props, not barrel weight.
+  { owner: 'primitives', name: 'Button', maxRaw: 2_700 },
   // Windowing is real functionality rather than accidental barrel weight.
   { owner: 'primitives', name: 'FlatList', maxRaw: 24_000 },
   { owner: 'patterns', name: 'Dialog', maxRaw: 2_000 },
