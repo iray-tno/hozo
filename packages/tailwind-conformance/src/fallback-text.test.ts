@@ -68,6 +68,10 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['Combobox', 'Driven by `options`, not children.'],
   ['Listbox', 'Driven by `options`, not children.'],
   ['Menu', 'Driven by `items`, not children.'],
+  [
+    'Popover',
+    'Its label is `trigger`, not children; covered by the popover cases in native-text-slots.',
+  ],
   ['RadioGroup', 'Driven by `options`, not children.'],
   ['Tabs', 'Driven by `tabs`, not children.'],
   ['Toolbar', 'Driven by `items`, not children.'],
@@ -79,6 +83,7 @@ const NEEDS_MORE_THAN_CHILDREN = new Map([
   ['HozoCombobox', 'The same component under its other published name.'],
   ['HozoListbox', 'The same component under its other published name.'],
   ['HozoMenu', 'The same component under its other published name.'],
+  ['HozoPopover', 'The same component under its other published name.'],
   ['HozoRadioGroup', 'The same component under its other published name.'],
   ['HozoTabs', 'The same component under its other published name.'],
   ['HozoToolbar', 'The same component under its other published name.'],
