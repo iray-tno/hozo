@@ -124,6 +124,12 @@ export {
   useNativeSelectPresenter,
 } from './native-select.tsx'
 export {
+  HozoSubmitButton,
+  HozoSubmitButton as SubmitButton,
+  type HozoSubmitButtonProps,
+  type HozoSubmitButtonProps as SubmitButtonProps,
+} from './submit-button.tsx'
+export {
   HozoTextArea as TextArea,
   HozoTextArea,
   type HozoTextAreaProps as TextAreaProps,

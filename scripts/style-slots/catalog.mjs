@@ -272,6 +272,7 @@ export const formComponents = {
   ),
   FileDropzone: formSlots('className activeClassName'),
   Form: formSlots('className'),
+  SubmitButton: formSlots('className'),
   NativeSelect: formSlots(
     'className indicatorClassName sheetClassName scrimClassName optionClassName',
     'className sheetClassName scrimClassName optionClassName',
