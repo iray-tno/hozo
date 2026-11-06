@@ -43,6 +43,13 @@ const digest = (input) => createHash('sha256').update(input).digest('hex')
 // theme check rejects.
 const textStyle = (suffix) => ['text', `style${suffix}`].join('-')
 
+function fixtureProps(props, children) {
+  const base = props ?? {}
+  return children.length
+    ? { ...base, children: children.length === 1 ? children[0] : children }
+    : base
+}
+
 async function checkBundles(t, evidence, manifest) {
   for (const platform of ['android', 'ios']) {
     const f = ownerMetroFixture(t)
@@ -209,7 +216,9 @@ async function checkBundles(t, evidence, manifest) {
       import {inputPlatform, readHandleClass, readToolbarClass} from 'handle-input';
       import {renderUncaptured,renderUncapturedToolbar} from './Uncaptured';
       import {renderNestedToolbar} from './Nested';
-      const h = (Component, props) => {
+      const withChildren=${fixtureProps.toString()};
+      const h = (Component, props, ...children) => {
+        props=withChildren(props,children);
         if(Component===Toolbar) {
           globalThis.toolbarCarrierSupplied = typeof props.hozoToolbarStyle === 'function';
           globalThis.toolbarPlan=props.hozoToolbarStyle;
@@ -600,4 +609,18 @@ test('production Metro bundles deliver selected BottomSheet and Toolbar owners a
       )}\n`,
     )
   }
+})
+
+test('fixture preserves classic JSX children instead of losing the nested owner tree', () => {
+  const first = { type: 'Toolbar', props: { onPress: () => true } },
+    second = { type: 'View' }
+  const props = { style: { paddingTop: 14 } }
+  assert.equal(fixtureProps(props, []), props)
+  assert.deepEqual(fixtureProps(props, [first]), { ...props, children: first })
+  assert.deepEqual(fixtureProps(null, [first, second]), { children: [first, second] })
+  assert.equal(fixtureProps(props, [first]).children.props.onPress(), true)
+  assert.equal(Object.hasOwn(props, 'children'), false)
+  // The exact serialized helper is what the real Metro fixture executes.
+  const emitted = runInNewContext(`(${fixtureProps.toString()})`)
+  assert.equal(emitted(props, [first]).children, first)
 })

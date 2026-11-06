@@ -98,3 +98,11 @@ The fixture still executes actual distributed widgets and a real candidate
 resolver through minified Metro bundles with React/RN host stand-ins. It is
 not Yoga, device events or pixel evidence. Execution is delegated to Owner
 Evidence CI; synthetic reader tests do not establish production success.
+
+The first mixed-fixture CI failed on its ordinary build before collecting any
+owner observations: the tiny classic-JSX `h` stand-in discarded Babel's third
+`children` argument, so the new nested host lost its entire child/action tree.
+The fixture now embeds a tested pure props/children helper and forwards those
+arguments, including null props and multiple children. Its serialized form is
+also tested. No application code, style expectation or timeout is changed to
+hide that failed run; its partial receipt remains a failure with zero builds.
