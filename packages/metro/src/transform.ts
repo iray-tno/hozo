@@ -27,13 +27,42 @@ import {
 } from '@hozo/compiler'
 import { lowerCanvasPaints } from '@hozo/compiler/canvas'
 import { reportDiagnostics } from '@hozo/compiler/diagnostics'
-import { assertRuntimeImportsUnbound, generatedRuntimeImports } from '@hozo/compiler/lower'
+import {
+  assertRuntimeImportsUnbound,
+  generatedRuntimeImports,
+  type SourceEdit,
+} from '@hozo/compiler/lower'
 import type { StylexModuleCache, TailwindModuleAttempt } from '@hozo/compiler/project'
 import { importSpecifier, semanticModuleEligible } from '@hozo/compiler/project'
 import { candidateModulePath } from './project.ts'
 
 const HOZO_AUTHOR_IMPORT_RE =
   /import\s*\{([^}]*)\}\s*from\s*['"](@hozo\/(?:core|patterns|primitives|rn-compat|semantics|svg|typography))['"]\s*\n?/g
+
+/** @internal Actual stage input and UTF-16 edits, not a reconstructed source map. */
+export type NativeRewriteObserver = (source: string, edits: readonly SourceEdit[]) => void
+
+function prependNativeSource(source: string, prefix: string, observe?: NativeRewriteObserver) {
+  if (prefix) observe?.(source, [{ spanStart: 0, spanEnd: 0, replacement: prefix }])
+  return prefix + source
+}
+
+function nativeRewriteEdits(edits: { start: number; end: number; text: string }[]): SourceEdit[] {
+  const result: SourceEdit[] = []
+  const insertions = new Map<number, SourceEdit>()
+  for (const { start, end, text } of edits) {
+    const previous = start === end ? insertions.get(start) : undefined
+    // The actual back-to-front rewriter prepends later insertions at an equal
+    // offset. Publish that exact combined edit, not an ambiguous tie ordering.
+    if (previous) previous.replacement = text + previous.replacement
+    else {
+      const edit = { spanStart: start, spanEnd: end, replacement: text }
+      result.push(edit)
+      if (start === end) insertions.set(start, edit)
+    }
+  }
+  return result
+}
 /// Renames this component's `hozoN`/`hozoN_suffix` style/JSX identifiers
 /// to be unique across every component in the file -- each `compileNative`
 /// call starts counting from `hozo0` independently per root, so two
@@ -73,6 +102,7 @@ export function transformHozoSource(
   projectRoot?: string,
   compiler: Compiler = defaultCompiler(),
   stylexModules?: StylexModuleCache,
+  observe?: NativeRewriteObserver,
 ): string | null {
   return transformWithModule(
     code,
@@ -81,6 +111,7 @@ export function transformHozoSource(
     compiler,
     stylexModules,
     (source, bindings, finish) => finish(compiler.compileNativeModule(source, bindings)),
+    observe,
   )
 }
 
@@ -95,6 +126,7 @@ export function transformHozoSourceOrPrepare(
   compiler: Compiler,
   context?: PreparedTailwindContext,
   stylexModules?: StylexModuleCache,
+  observe?: NativeRewriteObserver,
 ): TailwindModuleAttempt<string | null> {
   const result = transformWithModule(
     code,
@@ -109,6 +141,7 @@ export function transformHozoSourceOrPrepare(
       if ('components' in parsed) return { kind: 'complete', output: finish(parsed) }
       return { kind: 'prepared', module: ownNativeTransform(parsed, finish) }
     },
+    observe,
   )
   return typeof result === 'object' && result !== null
     ? result
@@ -151,6 +184,7 @@ function transformWithModule<T>(
     bindings: StylexExternalBinding[] | undefined,
     finish: (module: CompiledNativeModule) => string | null,
   ) => T,
+  observe?: NativeRewriteObserver,
 ): T | string | null {
   if (!semanticModuleEligible(filename, 'native')) {
     return null
@@ -161,6 +195,7 @@ function transformWithModule<T>(
     return null
   }
   const canvas = lowerCanvasPaints(code, compiler, true)
+  if (canvas.changed) observe?.(code, canvas.edits)
   code = canvas.code
   reportDiagnostics(
     canvas.diagnostics,
@@ -182,9 +217,9 @@ function transformWithModule<T>(
     ? stylexModules?.bindingsFor(path.resolve(filename))
     : undefined
   if (!hasSemanticCandidate)
-    return finishNativeTransform(code, filename, projectRoot, undefined, canvas.touched)
+    return finishNativeTransform(code, filename, projectRoot, undefined, canvas.touched, observe)
   return compile(code, stylexBindings, (compiled) =>
-    finishNativeTransform(code, filename, projectRoot, compiled, canvas.touched),
+    finishNativeTransform(code, filename, projectRoot, compiled, canvas.touched, observe),
   )
 }
 
@@ -194,6 +229,7 @@ function finishNativeTransform(
   projectRoot: string | undefined,
   compiled: CompiledNativeModule | undefined,
   canvasTouched: boolean,
+  observe?: NativeRewriteObserver,
 ): string | null {
   // A class React Native cannot draw, in a class prop no component lowered
   // -- one handed to a pattern (#1166). Before the early return: a file that
@@ -333,6 +369,7 @@ function finishNativeTransform(
   for (const edit of [...edits].sort((a, b) => b.start - a.start)) {
     next = next.slice(0, edit.start) + edit.text + next.slice(edit.end)
   }
+  observe?.(code, nativeRewriteEdits(edits))
 
   // The import goes, except for the names still standing in the output.
   //
@@ -352,7 +389,8 @@ function finishNativeTransform(
   // names the bindings, so the survivors are whichever of those the
   // rewritten source still mentions. A hand-written list of primitives is
   // what let `Del` through in the first place.
-  const declaredByAuthor = [...next.matchAll(HOZO_AUTHOR_IMPORT_RE)].flatMap((match) => {
+  const authorImports = [...next.matchAll(HOZO_AUTHOR_IMPORT_RE)]
+  const declaredByAuthor = authorImports.flatMap((match) => {
     const source = match[2] as `@hozo/${string}`
     return (match[1] ?? '')
       .split(',')
@@ -363,6 +401,14 @@ function finishNativeTransform(
         return { imported, local, source }
       })
   })
+  observe?.(
+    next,
+    authorImports.map((match) => ({
+      spanStart: match.index!,
+      spanEnd: match.index! + match[0].length,
+      replacement: '',
+    })),
+  )
   next = next.replace(HOZO_AUTHOR_IMPORT_RE, '')
 
   // Only the bindings the file does not already have. These came from the
@@ -413,7 +459,7 @@ function finishNativeTransform(
   const styleDeclaration = hasStyles
     ? `const hozoStyles = StyleSheet.create(${mergedStyles})\n`
     : ''
-  next = `${rnImport}${fallbackImports}${styleDeclaration}${next}`
+  next = prependNativeSource(next, `${rnImport}${fallbackImports}${styleDeclaration}`, observe)
   // SVG has a domain owner because `react-native-svg` is needed only by
   // projects that draw SVG on Native. Merge compiler-emitted names with a
   // namespace binding the compiler carried so one file never declares the
@@ -428,10 +474,14 @@ function finishNativeTransform(
     // The same refusal as the Web half (#670), asked of the module before
     // anything is prepended to it.
     assertRuntimeImportsUnbound(next, rest, filename)
-    next = `${generatedRuntimeImports(rest)}${next}`
+    next = prependNativeSource(next, generatedRuntimeImports(rest), observe)
   }
   if (svgSpecifiers.length > 0) {
-    next = `import { ${svgSpecifiers.join(', ')} } from '@hozo/svg'\n${next}`
+    next = prependNativeSource(
+      next,
+      `import { ${svgSpecifiers.join(', ')} } from '@hozo/svg'\n`,
+      observe,
+    )
   }
 
   // Only when something actually calls it. The candidate module is
@@ -446,7 +496,7 @@ function finishNativeTransform(
       )
     }
     const specifier = importSpecifier(filename, candidateModulePath(projectRoot))
-    next = `import { hozoClasses } from '${specifier}'\n${next}`
+    next = prependNativeSource(next, `import { hozoClasses } from '${specifier}'\n`, observe)
   }
 
   return next
