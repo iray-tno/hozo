@@ -289,7 +289,10 @@ const treeShakingProbes = [
   { owner: 'primitives', name: 'Button', maxRaw: 2_700 },
   // Windowing is real functionality rather than accidental barrel weight.
   { owner: 'primitives', name: 'FlatList', maxRaw: 24_000 },
-  { owner: 'patterns', name: 'Dialog', maxRaw: 2_000 },
+  // 907 bytes until Dialog kept itself shown through its exit (#1715): that
+  // brought in `usePresence` (2,313), the same hook Popover already ships, so
+  // an app with both pays for it once. The backdrop press makes it 2,714.
+  { owner: 'patterns', name: 'Dialog', maxRaw: 3_000 },
   { owner: 'patterns', name: 'Tree', maxRaw: 5_000 },
   { owner: 'typography', name: 'Heading', maxRaw: 1_500 },
   { owner: 'semantics', name: 'Main', maxRaw: 1_500 },
