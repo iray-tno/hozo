@@ -115,8 +115,8 @@ test('generated form facts separate live state from constants and unavailable ev
 test('the form inventory matches every public Web and Native class prop without inventing compiler slots', () => {
   validateCatalog(formComponents)
   assert.equal(checkPublicProps(formComponents, 'form'), '')
-  assert.equal(Object.keys(formComponents).length, 10)
-  assert.equal(Object.values(formComponents).flat().length, 51)
+  assert.equal(Object.keys(formComponents).length, 11)
+  assert.equal(Object.values(formComponents).flat().length, 52)
   assert.ok(
     Object.values(formComponents)
       .flat()

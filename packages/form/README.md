@@ -1,6 +1,6 @@
 # @hozo/form
 
-Accessible universal form and date-selection components for Hozo: `Form`, `TextArea`, `NativeSelect`, `Calendar`, `DatePicker`, `TimePicker`, `DateTimePicker` and `DateRangePicker`.
+Accessible universal form and date-selection components for Hozo: `Form`, `SubmitButton`, `TextArea`, `NativeSelect`, `Calendar`, `DatePicker`, `TimePicker`, `DateTimePicker` and `DateRangePicker`.
 
 A separate package rather than part of [`@hozo/patterns`](https://www.npmjs.com/package/@hozo/patterns), for two reasons that are specific to this domain. Its platform-native variants reach for the operating system's own pickers — `UIDatePicker` on iOS, Material's `DatePickerDialog` on Android, the iOS wheel picker behind a select — which is an optional dependency on native code that an application using only Tabs and Tree should not acquire. And its locale and calendar data changes on a schedule of its own, which a stable widget package should not be versioned against.
 
@@ -256,6 +256,8 @@ And it **declines to submit past a control already marked `aria-invalid`**, focu
 The decision itself is `firstInvalid` and `shouldSubmit`, two exported functions over plain records — shaped after `initialFocusIndex` in `@hozo/behaviors`, which is the house pattern for this: the component does the DOM query and the rule is testable without a document. They are two functions rather than one because an invalid control that cannot be focused is a real case, and the right answer to it is "do not move focus" *and* "do not submit".
 
 `useFormSubmit` is the half that crosses platforms. A Web form submits itself when a button inside it is pressed and when Enter is typed in a single-line field; React Native has neither, so the submit button's `onPress` and the last field's `onSubmitEditing` both need something to call. On the Web the hook calls `requestSubmit()` rather than `onSubmit` directly, so a press through the hook, a press on a real submit button and Enter in a field all arrive at one handler with the platform's own behaviour intact.
+
+`SubmitButton` is the submit button, for when that is what a form has. On the Web it is a real `<button type="submit">`, and that matters beyond the press: a form with a submit button submits when Enter is typed in *any* of its single-line fields, and a form without one only when it has a single field. Measured in Chromium with two fields, Enter submitted through `SubmitButton` and did nothing beside a `<Button onPress={useFormSubmit()}>`. On React Native it is a `Pressable` that calls `useFormSubmit()`. It takes no `onPress`: what a submission does is `onSubmit`, which runs for Enter as well, and a handler on the button would run for one of the two. This is a component rather than a `type` prop on `Button` because `type` would mean nothing on React Native (#1704).
 
 The platform's validation is left switched on — no `noValidate`. `Field` marks its control with `aria-required` rather than `required`, so the browser has nothing to catch unless the application added a real constraint itself, and silently disabling the feature it reached for is not this component's decision.
 

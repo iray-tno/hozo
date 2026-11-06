@@ -71,7 +71,10 @@ const PATTERN_FILES: Record<string, string> = {
   Listbox: 'listbox',
   Pagination: 'pagination',
 }
-const FORM_FILES: Record<string, string> = { FileDropzone: 'file-dropzone' }
+const FORM_FILES: Record<string, string> = {
+  FileDropzone: 'file-dropzone',
+  SubmitButton: 'submit-button',
+}
 
 const LABEL = 'slot label'
 
@@ -135,6 +138,7 @@ const CASES: Record<string, () => unknown> = {
     react.createElement(patterns.Pagination, { pageCount: 3, defaultPage: 2, nextIcon: LABEL }),
   'form/file-dropzone:children': () =>
     react.createElement(form.FileDropzone, { accessibilityLabel: 'Files' }, LABEL),
+  'form/submit-button:children': () => react.createElement(form.SubmitButton, null, LABEL),
 }
 
 /** What to do after mounting, for a slot drawn only once something opens. */

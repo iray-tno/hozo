@@ -115,6 +115,7 @@ const projectionPresent = {
     'form',
     'native-select',
     'picker-button',
+    'submit-button',
     'text-area',
     'time-picker',
   ],
