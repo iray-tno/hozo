@@ -79,6 +79,13 @@ const reads = {
     'packages/metro/fixtures/owner-candidate-package/not-packed.js',
   ],
   '@hozo/metro#test': [
+    'packages/compiler/src/owner-caller-plan.ts',
+    'packages/compiler/src/owner-caller-carrier.ts',
+    'packages/compiler/src/owner-contract.ts',
+    'packages/compiler/src/index.ts',
+    'scripts/style-slots/owner-fixture.mjs',
+    'packages/patterns/hozo.manifest.json',
+    'packages/patterns/package.json',
     'packages/metro/fixtures/owner-metro-resolver.mjs',
     'packages/metro/fixtures/fixture-process.mjs',
     'packages/metro/fixtures/owner-candidate-package/package.json',

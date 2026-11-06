@@ -32,3 +32,26 @@ and actual production Metro execution before claiming the new delivery path.
 No ordinary routing/default, contract audit, text protocol or global score is
 changed by this instrumentation. The Native showcase's source fingerprint is
 regenerated even though its emitted fixture body remains unchanged.
+
+## Exact edit composition, not generated-text matching
+
+The Native caller planner now explicitly identifies its module prelude. The
+compositor maps every other edit through surviving source runs; insertions
+need one unambiguous authored boundary. A generated gap or duplicated copy
+must not choose an arbitrary side/occurrence. If the planner's module prelude
+is at authored offset zero, it can precede rehomed imports; arbitrary unmarked
+zero-length edits cannot use that exception. Other prologue insertion points
+must map normally. Metadata stays within the same compiler worker, not a JSON
+round-trip that loses its explicit edit identity.
+
+All owner edits must map without overlap and the provenance must match the
+entire ordinary output. One unmappable nested site retains **all** ordinary
+output, including a separate sibling that could otherwise have been prepared.
+This rejects even identical carried JSX inside a replaced Native parent.
+Full-root Toolbar aliases and BottomSheet's partial insertion have real
+compiler/ordinary-transform tests, including authored expressions and a
+directive prefix. No worker path is enabled by this second layer yet.
+
+The new raw-source probe's compiler/helper/manifest inputs are explicit Turbo
+cache inputs. Its compiler-source wildcard includes transitive planner helpers;
+it adds no production dependency merely to invalidate a test cache.

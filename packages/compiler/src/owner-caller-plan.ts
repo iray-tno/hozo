@@ -27,6 +27,8 @@ export interface OwnerCallerPreview {
   css?: string
   /** Actual parser-coordinate replacements, never a diff of generated JSX. */
   edits: SourceEdit[]
+  /** Native-only declarations from this planner. Not an inferred zero-length edit. */
+  modulePrelude?: SourceEdit
   diagnostics: CompileDiagnostic[]
   findings: {
     spanStart: number
@@ -319,12 +321,15 @@ function collectOwnerLiteralCallers(
       })
     }
     if (!edits.length) return result
-    if (!web)
-      edits.push({
+    let modulePrelude: (typeof edits)[number] | undefined
+    if (!web) {
+      modulePrelude = {
         start: inspection.insertionOffset,
         end: inspection.insertionOffset,
         value: `\nimport {StyleSheet as ${sheet}} from 'react-native';\n${declarations.join('\n')}\n`,
-      })
+      }
+      edits.push(modulePrelude)
+    }
     for (const edit of edits.sort((a, b) => b.start - a.start))
       result.code = result.code.slice(0, edit.start) + edit.value + result.code.slice(edit.end)
     result.edits = edits.map(({ start, end, value }) => ({
@@ -332,6 +337,7 @@ function collectOwnerLiteralCallers(
       spanEnd: end,
       replacement: value,
     }))
+    if (modulePrelude) result.modulePrelude = result.edits[edits.indexOf(modulePrelude)]!
     return result
   }
 }
