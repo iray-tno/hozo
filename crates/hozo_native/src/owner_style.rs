@@ -190,10 +190,8 @@ pub fn lower_owner_style_with_inputs(
         forwarded,
         source,
         theme,
-        false,
-        false,
+        RenderOptions::default(),
         eligible.then_some((&mut carrier, inputs)),
-        false,
     );
     // These are the existing owner's supplied state and residual resolver,
     // not wrappers to install. Every other helper/hook needs separate evidence.

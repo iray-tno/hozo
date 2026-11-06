@@ -296,7 +296,17 @@ pub fn lower_forwarded_with_evidence(
     source: &str,
     theme: &Theme,
 ) -> LowerOutput {
-    lower_forwarded_capturing(root, forwarded, source, theme, false, false, None, true)
+    lower_forwarded_capturing(
+        root,
+        forwarded,
+        source,
+        theme,
+        RenderOptions {
+            source_evidence: true,
+            ..Default::default()
+        },
+        None,
+    )
 }
 
 /// RFC 006's opt-in measurement path, not a production fallback. Retain
@@ -390,11 +400,20 @@ fn lower_forwarded_impl(
         forwarded,
         source,
         theme,
-        text_reference,
-        text_inheritance,
+        RenderOptions {
+            text_reference,
+            text_inheritance,
+            ..Default::default()
+        },
         None,
-        false,
     )
+}
+
+#[derive(Default)]
+struct RenderOptions {
+    text_reference: bool,
+    text_inheritance: bool,
+    source_evidence: bool,
 }
 
 fn lower_forwarded_capturing(
@@ -402,11 +421,14 @@ fn lower_forwarded_capturing(
     forwarded: &[StyleDeclaration],
     source: &str,
     theme: &Theme,
-    text_reference: bool,
-    text_inheritance: bool,
+    options: RenderOptions,
     owner: Option<(&mut Option<OwnerStyle>, OwnerStyleInputs<'_>)>,
-    source_evidence: bool,
 ) -> LowerOutput {
+    let RenderOptions {
+        text_reference,
+        text_inheritance,
+        source_evidence,
+    } = options;
     let (owner_style, owner_inputs) = owner
         .map(|(style, inputs)| (Some(style), inputs))
         .unwrap_or((None, OwnerStyleInputs::default()));
