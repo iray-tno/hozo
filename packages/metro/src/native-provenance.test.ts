@@ -62,15 +62,42 @@ test('Native provenance accounts for Canvas edits, generated hooks and runtime/c
     observe(source)
 })
 
-test('Native rewriting does not invent copied source inside a lowered parent', () => {
+test('Native rewriting carries exact backend source evidence inside a lowered parent', () => {
   const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
     export const A=()=> <View className="p-2"><Toolbar items={[]} className="p-4"/></View>`
   const { map, output } = observe(source)
   const start = source.indexOf('className="p-4"')
   assert.ok(output.includes('className="p-4"'), 'the backend may carry identical text')
-  assert.equal(
-    map.emitted(output, start, start + 15),
+  const range = map.emitted(output, start, start + 15)
+  assert.ok(range)
+  assert.equal(output.slice(range.spanStart, range.spanEnd), 'className="p-4"')
+})
+
+test('Native lexical wrappers and absent backend evidence do not grant nested rewrite permission', () => {
+  const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+    export const A=()=> <View className="@sm:p-2"><Toolbar items={[]} className="p-4"/></View>`
+  const { map, output } = observe(source)
+  const start = source.indexOf('className="p-4"')
+  assert.equal(map.emitted(output, start, start + 15), undefined)
+  const compiler = createCompiler(),
+    untraced = compiler.compileNativeModule.bind(compiler)
+  compiler.compileNativeModule = (...args) => {
+    const module = untraced(...args)
+    for (const component of module.components) delete component.sourceCopies
+    return module
+  }
+  const ordinarySource = source.replace('@sm:p-2', 'p-2')
+  const without = new SourceProvenance(ordinarySource)
+  const ordinary = transformHozoSource(
+    ordinarySource,
+    path.resolve('NoCopies.tsx'),
     undefined,
-    'identical generated text is not copy evidence',
+    compiler,
+    undefined,
+    (input, edits) => without.apply(input, edits),
   )
+  assert.ok(ordinary)
+  assert.ok(without.matches(ordinary))
+  const at = ordinarySource.indexOf('className="p-4"')
+  assert.equal(without.emitted(ordinary, at, at + 15), undefined)
 })

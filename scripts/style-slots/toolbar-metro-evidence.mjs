@@ -15,7 +15,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
   try {
     assert.match(sourceCommit, /^[a-f0-9]{40}$/)
     assert.match(manifestSha256, hash)
-    assert.equal(receipt?.schema, 3)
+    assert.equal(receipt?.schema, 4)
     assert.equal(receipt.scope, toolbarMetroScope)
     assert.equal(receipt.sourceCommit, sourceCommit)
     assert.equal(receipt.manifestSha256, manifestSha256)
@@ -63,7 +63,8 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
         assert.deepEqual(
           observed,
           {
-            carrierSupplied: row.mode === 'toolbar-opt-in' && ['literal', 'alias'].includes(route),
+            carrierSupplied:
+              row.mode === 'toolbar-opt-in' && ['literal', 'alias', 'nested'].includes(route),
             style: {
               paddingTop: 21,
               paddingRight: 14,
@@ -90,8 +91,8 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       passed: true,
       builds: 8,
       observations: 40,
-      prepared: 4,
-      ordinary: 36,
+      prepared: 6,
+      ordinary: 34,
       primitiveControls: 8,
     }
   } catch (error) {

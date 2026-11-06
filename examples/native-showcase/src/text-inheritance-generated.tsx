@@ -53,7 +53,9 @@ export const textFixtureManifest = {
       'packages/compiler/src/index.ts':
         '037aa51370f947a59e2411d5d770cd7d993477b2ec1ff9d515ce7769e434e9a3',
       'packages/metro/src/transform.ts':
-        '1438675f6db5ccf55c1010564cccef4629490ea8a24727a64df3641ad8ef5af4',
+        '85bffa328dcf0320248f92e7baffbba774e1a4b6bffd99414bc7e918da570106',
+      'packages/metro/src/native-source-evidence.ts':
+        '693857f1459cc82b9dbc3aabafe5ca2e12be95be61cfc20888fb3d464f0bfe35',
       'crates/hozo_napi/src/lib.rs':
         '840c2994e14ceb1f18ba76059527b7896ff2df053fcc6d94523ab632ced4d6c2',
       'crates/hozo_napi/src/owner_slots.rs':

@@ -483,7 +483,7 @@ async function checkBundles(t, evidence, manifest) {
       assert.equal(
         nestedCaptured,
         true,
-        'nested refusal must be a captured caller, not an uncaptured control',
+        'nested delivery must be a captured caller, not an uncaptured control',
       )
       assert.deepEqual(ordinaryPrimitive, {
         host: 'View',
@@ -507,7 +507,7 @@ async function checkBundles(t, evidence, manifest) {
         )
         assert.equal(
           control.carrierSupplied,
-          mode === 'toolbar-opt-in' && ['literal', 'alias'].includes(route),
+          mode === 'toolbar-opt-in' && ['literal', 'alias', 'nested'].includes(route),
         )
         assert.equal(control.role, 'toolbar')
         assert.equal(control.label, 'Tools')
@@ -607,7 +607,7 @@ test('production Metro bundles deliver selected BottomSheet and Toolbar owners a
       toolbarEvidenceFile,
       `${JSON.stringify(
         {
-          schema: 3,
+          schema: 4,
           sourceCommit: evidence.sourceCommit,
           trackedChanges: evidence.trackedChanges,
           scope: 'metro-production-toolbar-owner-host-standins',

@@ -50,6 +50,7 @@ const reads = {
     'crates/hozo_native/src/owner_style.rs',
     'crates/hozo_native/src/lib.rs',
     'crates/hozo_native/src/render.rs',
+    'crates/hozo_native/src/source_evidence.rs',
     'crates/hozo_native/src/conditions/guards.rs',
     'crates/hozo_napi/src/lib.rs',
     'crates/hozo_napi/src/prepared_module.rs',
@@ -214,6 +215,7 @@ const reads = {
     'packages/ui/src/text-area.tsx',
     'packages/behaviors/src/live-region.native.tsx',
     'packages/metro/src/transform.ts',
+    'packages/metro/src/native-source-evidence.ts',
     'packages/metro/src/project.ts',
     'packages/ui/src/combobox.tsx',
     'packages/ui/src/color-picker.tsx',
@@ -301,6 +303,7 @@ const reads = {
     'packages/svg/src/index.native.tsx',
     'packages/compiler/src/index.ts',
     'packages/metro/src/transform.ts',
+    'packages/metro/src/native-source-evidence.ts',
     'packages/tailwind-conformance/package.json',
     'packages/tailwind-conformance/fixtures/native-text-label.tsx',
     'packages/tailwind-conformance/fixtures/native-text-opaque-label.tsx',
@@ -454,6 +457,7 @@ const reads = {
     'packages/primitives/src/runtime-text-size.native.tsx',
     'packages/primitives/src/inherited-view.native.tsx',
     'packages/metro/src/transform.ts',
+    'packages/metro/src/native-source-evidence.ts',
     // class-name-parity enumerates *all* component packages. Its domain is
     // intentionally wider than media's Slider and interaction-hook sources.
     'packages/form/src/time-picker.native.tsx',

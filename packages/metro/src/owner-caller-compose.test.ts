@@ -63,9 +63,22 @@ test('partial Native carrier insertions keep the raw recipe while an unrelated p
 test('unmapped nested sites keep every owner ordinary even if a sibling site maps', () => {
   const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
     export const A=()=> <Toolbar className="p-4"/>;
-    export const B=()=> <View className="p-2"><Toolbar className="p-4"/></View>`
+    export const B=()=> <View className="@sm:p-2"><Toolbar className="p-4"/></View>`
   const f = fixture(source)
   assert.equal(composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview), f.ordinary)
+})
+
+test('actual copied children compose through regenerated Native parents without matching text', () => {
+  const source = `// 😀 original UTF-16 spans
+    import {View} from '@hozo/core';import {Toolbar,HozoToolbar} from '@hozo/patterns';
+    export const A=()=> <View className="p-2"><Toolbar className="p-4" style={first.value}/><HozoToolbar className="p-4" style={second.value}/></View>`
+  const f = fixture(source)
+  const output = composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview)
+  assert.notEqual(output, f.ordinary)
+  assert.equal(output!.match(/hozoToolbarStyle=/g)?.length, 2)
+  assert.doesNotMatch(output!, /className="p-[24]"/)
+  assert.equal(output!.split('first.value').length - 1, 1)
+  assert.equal(output!.split('second.value').length - 1, 1)
 })
 
 test('missing, stale, overlapping or unmarked edits never produce a partly composed module', () => {
