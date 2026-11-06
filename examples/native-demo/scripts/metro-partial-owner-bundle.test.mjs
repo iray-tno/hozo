@@ -78,6 +78,8 @@ async function checkBundles(t, evidence, manifest) {
       `
       exports.Modal = 'Modal';
       exports.View = 'View';
+      exports.FlatList = 'FlatList';
+      exports.Platform = {OS:${JSON.stringify(platform)}};
       exports.StyleSheet = {
         create: styles => styles,
         flatten: value => Array.isArray(value)
@@ -94,6 +96,7 @@ async function checkBundles(t, evidence, manifest) {
       exports.useEffect = () => {};
       exports.useState = value => [value, () => {}];
       exports.useRef = current => ({current});
+      exports.createElement = (type, props) => ({type, props});
     `,
     )
     writeFileSync(
@@ -163,13 +166,25 @@ async function checkBundles(t, evidence, manifest) {
     )
     writeFileSync(path.join(patterns, 'owner.json'), manifest)
     const core = install('@hozo/core', '', {
-      exports: { '.': './index.js', './generated/class-resolver': './resolver.js' },
+      exports: {
+        '.': './index.js',
+        './generated/class-resolver': './resolver.js',
+        './generated/flat-list': './flat-list.js',
+      },
+      dependencies: { react: '1', 'react-native': '1' },
     })
     // Keep the host stub, but execute the same resolver implementation that
     // the generated map imports through the core facade in a real app.
     copyFileSync(
       new URL('../../../packages/engine/dist/class-resolver.js', import.meta.url),
       path.join(core, 'resolver.js'),
+    )
+    // Execute the actual Native adapter, not a newly invented renderItem
+    // shim. The RN host below remains a stand-in: this proves callback
+    // delivery through HozoFlatList, not VirtualizedList/windowing behavior.
+    copyFileSync(
+      new URL('../../../packages/primitives/dist/flat-list.native.js', import.meta.url),
+      path.join(core, 'flat-list.js'),
     )
     // Model a regular installed dependency with platform exports, but no
     // owner manifest. Its runtime-selected classes must stay on the ordinary
@@ -207,6 +222,17 @@ async function checkBundles(t, evidence, manifest) {
         <Toolbar accessibilityLabel="Tools" items={items} className="p-2 gap-x-3 gap-y-4" style={author.value}/></View>;
     `,
     )
+    const listFile = path.join(f.root, 'List.tsx')
+    writeFileSync(
+      listFile,
+      `
+      import {FlatList} from 'react-native';import {Toolbar} from '@hozo/patterns';
+      export const renderToolbarList=(h,items,author)=> <FlatList data={items}
+        accessibilityLabel="Toolbar list" className="p-2"
+        renderItem={({item})=> <Toolbar accessibilityLabel="Tools" items={[item]}
+          className="p-2 gap-x-3 gap-y-4" style={author.value}/>}/>;
+    `,
+    )
     writeFileSync(appMetadata, JSON.stringify(app))
     writeFileSync(
       file,
@@ -216,6 +242,7 @@ async function checkBundles(t, evidence, manifest) {
       import {inputPlatform, readHandleClass, readToolbarClass} from 'handle-input';
       import {renderUncaptured,renderUncapturedToolbar} from './Uncaptured';
       import {renderNestedToolbar} from './Nested';
+      import {renderToolbarList} from './List';
       const withChildren=${fixtureProps.toString()};
       const h = (Component, props, ...children) => {
         props=withChildren(props,children);
@@ -281,6 +308,12 @@ async function checkBundles(t, evidence, manifest) {
       }
       globalThis.toolbarResult={literal:observeToolbar(renderToolbar),alias:observeToolbar(renderAliasToolbar),opaque:observeToolbar(renderOpaqueToolbar),
         nested:observeToolbar(()=>renderNestedToolbar(h,toolbarItems,toolbarAuthor)),
+        renderItem:observeToolbar(()=>{
+          const list=renderToolbarList(h,toolbarItems,toolbarAuthor);
+          globalThis.toolbarListParent=list;
+          globalThis.toolbarListDeferred=globalThis.toolbarAuthorReads===0;
+          return list.props.renderItem({item:toolbarItems[0],index:0});
+        }),
         uncaptured:observeToolbar(()=>renderUncapturedToolbar(h,toolbarItems,toolbarAuthor))};
       globalThis.sharedToolbarPlan=typeof globalThis.toolbarPlans[0]==='function' &&
         globalThis.toolbarPlans[0]===globalThis.toolbarPlans[1];
@@ -334,9 +367,10 @@ async function checkBundles(t, evidence, manifest) {
     const capture = {
       platform,
       epoch: 'partial-owner-bundle',
-      origins: [file, nestedFile, path.join(patterns, 'index.js')],
+      origins: [file, nestedFile, listFile, path.join(patterns, 'index.js')],
       additionalImports: [
         { importer: file, specifier: '@hozo/core/generated/class-resolver' },
+        { importer: listFile, specifier: '@hozo/core/generated/flat-list' },
         { importer: file, specifier: asyncRequireSpecifier },
         ...[
           'react/jsx-runtime',
@@ -461,6 +495,19 @@ async function checkBundles(t, evidence, manifest) {
           route.specifier === '@hozo/patterns' &&
           route.entry === path.join(patterns, 'index.js'),
       )
+      const listCaptured = livePreflight.routes.some(
+        (route) =>
+          route.importer === listFile &&
+          route.specifier === '@hozo/patterns' &&
+          route.entry === path.join(patterns, 'index.js'),
+      )
+      const listControl = {
+        host: globals.toolbarListParent.type,
+        style: flatten(globals.toolbarListParent.props.style),
+        dataLength: globals.toolbarListParent.props.data.length,
+        authorDeferred: globals.toolbarListDeferred,
+        classNameLeaked: Object.hasOwn(globals.toolbarListParent.props, 'className'),
+      }
       // Store the actual controls before asserting so a failed platform/mode
       // remains inspectable instead of disappearing from the receipt.
       evidence.toolbarBuilds.push({
@@ -472,6 +519,8 @@ async function checkBundles(t, evidence, manifest) {
         sharedAliasPlan: globals.sharedToolbarPlan,
         ordinaryPrimitive,
         nestedCaptured,
+        listCaptured,
+        listControl,
         routes: observedToolbar,
         capture: {
           source: 'ordinary-metro-resolver',
@@ -485,6 +534,14 @@ async function checkBundles(t, evidence, manifest) {
         true,
         'nested delivery must be a captured caller, not an uncaptured control',
       )
+      assert.equal(listCaptured, true, 'renderItem must have its own exact captured import edge')
+      assert.deepEqual(listControl, {
+        host: 'FlatList',
+        style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
+        dataLength: 1,
+        authorDeferred: true,
+        classNameLeaked: false,
+      })
       assert.deepEqual(ordinaryPrimitive, {
         host: 'View',
         style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
@@ -507,7 +564,7 @@ async function checkBundles(t, evidence, manifest) {
         )
         assert.equal(
           control.carrierSupplied,
-          mode === 'toolbar-opt-in' && ['literal', 'alias', 'nested'].includes(route),
+          mode === 'toolbar-opt-in' && ['literal', 'alias', 'nested', 'renderItem'].includes(route),
         )
         assert.equal(control.role, 'toolbar')
         assert.equal(control.label, 'Tools')
@@ -607,7 +664,7 @@ test('production Metro bundles deliver selected BottomSheet and Toolbar owners a
       toolbarEvidenceFile,
       `${JSON.stringify(
         {
-          schema: 4,
+          schema: 5,
           sourceCommit: evidence.sourceCommit,
           trackedChanges: evidence.trackedChanges,
           scope: 'metro-production-toolbar-owner-host-standins',

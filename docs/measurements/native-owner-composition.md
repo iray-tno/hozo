@@ -204,3 +204,26 @@ Actual compiler/compositor and source-worker tests include an authored FlatList
 `renderItem` callback without inventing another binder or evaluating its author
 early. Production Metro execution of that callback remains a separate receipt;
 these local tests do not claim list windowing, Yoga, device input or pixels.
+
+### Production renderItem delivery
+
+The same eight serial Android/iOS production Metro builds now also execute a
+captured `List.tsx` module. Its ordinary `FlatList.renderItem` callback contains
+the actual distributed Toolbar. The generated FlatList import executes the
+shipped `HozoFlatList` Native adapter against the existing React/RN host
+stand-ins. Constructing the list must not read the author's Toolbar style;
+invoking the retained callback once must read it once and preserve the action,
+role, class/author precedence and absence of a leaked private carrier.
+
+Schema 5 adds this route and a separately counted list-host control: 48 owner
+observations (8 prepared/40 ordinary), eight existing View controls and eight
+FlatList controls over the unchanged eight builds. Every row requires the
+list module's own captured patterns entry edge, the actual FlatList host,
+one data item, compiled padding, deferred author access and no leaked className.
+Older schema-4 receipts cannot certify this additional delivery boundary.
+
+This is compiler/adapter/callback execution, not a VirtualizedList measurement:
+the RN host is still a stand-in and the test deliberately invokes `renderItem`.
+It says nothing new about list scrolling, windowing, Yoga or device pixels.
+The actual distributed widget, adapter and minified module graph are retained;
+synthetic reader fixtures alone cannot establish production success.

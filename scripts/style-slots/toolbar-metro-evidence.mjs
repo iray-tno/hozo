@@ -15,7 +15,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
   try {
     assert.match(sourceCommit, /^[a-f0-9]{40}$/)
     assert.match(manifestSha256, hash)
-    assert.equal(receipt?.schema, 4)
+    assert.equal(receipt?.schema, 5)
     assert.equal(receipt.scope, toolbarMetroScope)
     assert.equal(receipt.sourceCommit, sourceCommit)
     assert.equal(receipt.manifestSha256, manifestSha256)
@@ -31,6 +31,14 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       assert.ok(Number.isSafeInteger(row.bundleBytes) && row.bundleBytes > 0)
       assert.equal(row.sharedAliasPlan, row.mode === 'toolbar-opt-in')
       assert.equal(row.nestedCaptured, true)
+      assert.equal(row.listCaptured, true)
+      assert.deepEqual(row.listControl, {
+        host: 'FlatList',
+        style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
+        dataLength: 1,
+        authorDeferred: true,
+        classNameLeaked: false,
+      })
       assert.deepEqual(row.ordinaryPrimitive, {
         host: 'View',
         style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
@@ -57,6 +65,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
         'literal',
         'nested',
         'opaque',
+        'renderItem',
         'uncaptured',
       ])
       for (const [route, observed] of Object.entries(row.routes)) {
@@ -64,7 +73,8 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
           observed,
           {
             carrierSupplied:
-              row.mode === 'toolbar-opt-in' && ['literal', 'alias', 'nested'].includes(route),
+              row.mode === 'toolbar-opt-in' &&
+              ['literal', 'alias', 'nested', 'renderItem'].includes(route),
             style: {
               paddingTop: 21,
               paddingRight: 14,
@@ -90,10 +100,11 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       ...base,
       passed: true,
       builds: 8,
-      observations: 40,
-      prepared: 6,
-      ordinary: 34,
+      observations: 48,
+      prepared: 8,
+      ordinary: 40,
       primitiveControls: 8,
+      listControls: 8,
     }
   } catch (error) {
     return { ...base, passed: false, reason: error.message }
