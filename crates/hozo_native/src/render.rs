@@ -82,7 +82,7 @@ pub(super) fn render_node(
     interaction_context: bool,
     ancestor: AncestorContext<'_>,
     cx: &mut NativeRenderContext<'_>,
-) -> String {
+) -> Rendered {
     let AncestorContext {
         inherited,
         parent_font_size,
@@ -2426,7 +2426,8 @@ pub(super) fn render_node(
                 &descend,
                 child_interaction_context,
                 cx,
-            ),
+            )
+            .text,
         ));
     }
     // Held styles go through the spreads, with whatever sits between them,
@@ -2533,7 +2534,7 @@ pub(super) fn render_node(
     // Every child, in source order. A `Verbatim` is re-emitted from source
     // rather than dropped; a bare string on a non-Text element gets the
     // wrapper described above.
-    let mut inner = String::new();
+    let mut inner = Rendered::new(cx.source_evidence);
     // Tracks whether any earlier sibling could occupy an element position.
     // A `Verbatim` may render nothing, one element, or a hundred
     // (`{items.map(..)}`), so everything after one has no compile-time
@@ -2564,7 +2565,7 @@ pub(super) fn render_node(
         match child {
             hozo_ir::Child::Node(child_node) => {
                 let child_position = positions[index];
-                inner.push_str(&render_node(
+                inner.append(render_node(
                     child_node,
                     child_position,
                     child_interaction_context,
@@ -2599,7 +2600,7 @@ pub(super) fn render_node(
                 // The wrapper exists because a bare string inside a `View`
                 // crashes; inside `<Svg.Text>` there is nothing to fix.
                 let holds_text = renders_text(component) || component == "SvgText";
-                inner.push_str(&if !holds_text {
+                inner.text.push_str(&if !holds_text {
                     wrap_in_text(
                         &escaped,
                         &descend,
@@ -2617,7 +2618,7 @@ pub(super) fn render_node(
                 source: expr_ref,
                 nested,
             } => {
-                inner.push_str(&render_verbatim(
+                inner.append(render_verbatim(
                     *expr_ref,
                     nested,
                     &descend,
@@ -2642,10 +2643,11 @@ pub(super) fn render_node(
             .as_ref()
             .map(|tracks| format!(" rowTracks={{{tracks}}}"))
             .unwrap_or_default();
-        format!(
-            "<HozoGrid tracks={{{}}}{row_tracks} columnGap={{{}}} rowGap={{{}}}>{inner}</HozoGrid>",
-            grid.tracks_js, grid.column_gap, grid.row_gap
-        )
+        let text = format!(
+            "<HozoGrid tracks={{{}}}{row_tracks} columnGap={{{}}} rowGap={{{}}}>{}</HozoGrid>",
+            grid.tracks_js, grid.column_gap, grid.row_gap, inner.text
+        );
+        inner.wrap(text, "</HozoGrid>".len())
     } else {
         spaced_children(inner, &child_declarations, &base_name, node, position, cx)
     };
@@ -2666,16 +2668,27 @@ pub(super) fn render_node(
         || rendered_component == "HozoTextInput"
         || component == "Image"
     {
-        format!("<{tag}{props_text} />")
+        // These hosts discard children, including any evidence computed while
+        // rendering them. The output, not the traversal, defines a copy.
+        let mut rendered = Rendered::new(cx.source_evidence);
+        rendered.text = format!("<{tag}{props_text} />");
+        rendered
     } else {
-        format!("<{tag}{props_text}>{inner}</{tag}>")
+        let text = format!("<{tag}{props_text}>{}</{tag}>", inner.text);
+        inner.wrap(text, 3 + tag.len())
     };
     // Inside the grid item rather than outside it: `HozoGrid` reads its
     // children's types to place them, so anything between the two would
     // make a grid item stop looking like one.
     let rendered = if uses_container_query {
         cx.runtime.need_component("HozoContainerQuery");
-        format!("<HozoContainerQuery>{{(__hozoCq) => ({rendered})}}</HozoContainerQuery>")
+        let text = format!(
+            "<HozoContainerQuery>{{(__hozoCq) => ({})}}</HozoContainerQuery>",
+            rendered.text
+        );
+        let mut rendered = rendered.wrap(text, ")}</HozoContainerQuery>".len());
+        rendered.forget_scope();
+        rendered
     } else {
         rendered
     };
@@ -2694,15 +2707,19 @@ pub(super) fn render_node(
             .row_start
             .map(|start| format!(" rowStart={{{start}}}"))
             .unwrap_or_default();
-        format!(
-            "<HozoGridItem columnSpan={{{}}}{start}{row_span}{row_start}>{rendered}</HozoGridItem>",
-            item.span
-        )
+        let text = format!(
+            "<HozoGridItem columnSpan={{{}}}{start}{row_span}{row_start}>{}</HozoGridItem>",
+            item.span, rendered.text
+        );
+        rendered.wrap(text, "</HozoGridItem>".len())
     } else {
         rendered
     };
     if let Some(evaluation) = node.root_class_evaluation() {
-        evaluation.wrap_subtree(source, &rendered)
+        let mut rendered = rendered;
+        rendered.text = evaluation.wrap_subtree(source, &rendered.text);
+        rendered.forget_scope();
+        rendered
     } else {
         rendered
     }

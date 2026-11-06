@@ -109,3 +109,29 @@ The fixture now embeds a tested pure props/children helper and forwards those
 arguments, including null props and multiple children. Its serialized form is
 also tested. No application code, style expectation or timeout is changed to
 hide that failed run; its partial receipt remains a failure with zero builds.
+
+## Native carried-child emission evidence
+
+The next boundary is a real replacement of a Native parent that carries an
+unknown child. The Native renderer can now explicitly return byte ranges for
+children it copied from source. Appending rendered children and the existing
+Grid/item/spacing/host wrappers shift those ranges by lengths known to the
+emitting branch. Nothing searches generated JSX, and identical repeated child
+text retains distinct source coordinates. The shared `SourceCopy` type lives
+in IR; Web retains its existing re-export and emission behavior.
+
+The request does not change JSX, styles, imports, hooks or diagnostics. An
+ordinary call allocates no copy vectors and retains the existing string
+formatting. This is a structural cost bound, not a throughput benchmark.
+Discarded Image/TextInput children contribute no copies. Generated props are
+not assessed, and container-query callbacks/class-evaluation wrappers erase
+enclosed evidence rather than assume a newly introduced lexical scope is safe.
+
+```sh
+cargo test -p hozo_native source_evidence -- --test-threads=1
+```
+
+This backend layer alone does not enable a new owner route: NAPI UTF-16
+conversion, Native identifier namespacing and the actual Metro observer must
+carry these ranges before nested owner composition can use them. Ordinary
+defaults and owner contract audit status remain unchanged.

@@ -64,6 +64,7 @@ mod pattern;
 mod pattern_layout;
 mod render;
 mod runtime_classes;
+mod source_evidence;
 mod spread_style;
 mod style;
 mod text;
@@ -92,6 +93,7 @@ pub use candidate::{
     CandidateModulePlan, CandidateOrdering, CandidatePriorityEntry, CandidatePriorityGroup,
 };
 use grid::{grid_absorbs, native_grid, native_grid_item};
+pub use hozo_ir::SourceCopy;
 use hozo_ir::{
     AlignSelf, Axis, Breakpoint, Condition, ConditionExpr, Diagnostic, DiagnosticCode, Display,
     Environment, ExprRef, FilterFunction, FormState, Length, Node, Primitive, Severity, Structural,
@@ -105,10 +107,13 @@ pub use runtime_classes::{
     native_class_diagnostics, native_class_report, native_class_verdict,
     native_classes_drawn_statically, NativeClassFinding, NativeClassKind, NativeClassVerdict,
 };
+use source_evidence::Rendered;
 use transition::{ambient_transition, native_driver_transition};
 
 pub struct LowerOutput {
     pub jsx: String,
+    /// Opt-in exact carried children, not generated props or a source map.
+    pub source_copies: Option<Vec<SourceCopy>>,
     /// A `StyleSheet.create({ ... })`-ready JS object literal (without the
     /// `StyleSheet.create(` wrapper -- left to the caller, since whether/how
     /// to wrap and import `StyleSheet` is a codegen-site decision).
@@ -220,6 +225,7 @@ pub(crate) struct NativeRenderContext<'a> {
     /// Only the explicit RFC010 preparation request observes this carrier.
     pub owner_style: Option<&'a mut Option<OwnerStyle>>,
     pub owner_inputs: OwnerStyleInputs<'a>,
+    pub source_evidence: bool,
 }
 
 /// Context passed down from an ancestor to lower layout, text, and tree properties.
@@ -279,6 +285,18 @@ pub fn lower_forwarded(
     theme: &Theme,
 ) -> LowerOutput {
     lower_forwarded_impl(root, forwarded, source, theme, false, false)
+}
+
+/// Same ordinary renderer, with exact surviving child fragments. No default
+/// route, text experiment or owner eligibility is selected by this request.
+#[doc(hidden)]
+pub fn lower_forwarded_with_evidence(
+    root: &Node,
+    forwarded: &[StyleDeclaration],
+    source: &str,
+    theme: &Theme,
+) -> LowerOutput {
+    lower_forwarded_capturing(root, forwarded, source, theme, false, false, None, true)
 }
 
 /// RFC 006's opt-in measurement path, not a production fallback. Retain
@@ -375,6 +393,7 @@ fn lower_forwarded_impl(
         text_reference,
         text_inheritance,
         None,
+        false,
     )
 }
 
@@ -386,6 +405,7 @@ fn lower_forwarded_capturing(
     text_reference: bool,
     text_inheritance: bool,
     owner: Option<(&mut Option<OwnerStyle>, OwnerStyleInputs<'_>)>,
+    source_evidence: bool,
 ) -> LowerOutput {
     let (owner_style, owner_inputs) = owner
         .map(|(style, inputs)| (Some(style), inputs))
@@ -411,6 +431,7 @@ fn lower_forwarded_capturing(
         text_inheritance,
         owner_style,
         owner_inputs,
+        source_evidence,
     };
     let ancestor = AncestorContext {
         inherited: &inherited,
@@ -481,7 +502,8 @@ fn lower_forwarded_capturing(
     styles.push('}');
 
     LowerOutput {
-        jsx,
+        jsx: jsx.text,
+        source_copies: jsx.copies,
         styles,
         prelude,
         runtime_imports,
@@ -784,13 +806,13 @@ fn uses_pressed(condition: &Condition) -> bool {
 /// `HozoSpaced` returns its children rather than an element, so no host
 /// view is added and Yoga sees the tree it would have seen anyway.
 fn spaced_children(
-    inner: String,
+    inner: Rendered,
     child_declarations: &[StyleDeclaration],
     base_name: &str,
     node: &Node,
     position: SiblingPosition,
     cx: &mut NativeRenderContext<'_>,
-) -> String {
+) -> Rendered {
     if child_declarations.is_empty() {
         return inner;
     }
@@ -834,7 +856,8 @@ fn spaced_children(
     } else {
         format!("[{}]", parts.join(", "))
     };
-    format!("<HozoSpaced style={{{style}}}>{inner}</HozoSpaced>")
+    let text = format!("<HozoSpaced style={{{style}}}>{}</HozoSpaced>", inner.text);
+    inner.wrap(text, "</HozoSpaced>".len())
 }
 
 /// Re-emits a carried expression from source, with each Hozo primitive
@@ -855,11 +878,11 @@ fn render_verbatim(
     inherited: &[StyleDeclaration],
     interaction_context: bool,
     cx: &mut NativeRenderContext<'_>,
-) -> String {
-    let mut out = String::new();
+) -> Rendered {
+    let mut out = Rendered::new(cx.source_evidence);
     let mut cursor = expr_ref.0.start as usize;
     for entry in nested {
-        out.push_str(&cx.source[cursor..entry.span.start as usize]);
+        out.copy(cx.source, cursor, entry.span.start as usize);
         // After what the elements above hand down, so a component written
         // in between, and nearer, wins.
         let inherited: Vec<StyleDeclaration> = inherited
@@ -885,7 +908,7 @@ fn render_verbatim(
             grid_columns: None,
             grid_rows: None,
         };
-        out.push_str(&render_node(
+        out.append(render_node(
             &entry.node,
             SiblingPosition::UNKNOWN,
             interaction_context || forwards_interaction(&entry.forwarded),
@@ -894,7 +917,7 @@ fn render_verbatim(
         ));
         cursor = entry.span.end as usize;
     }
-    out.push_str(&cx.source[cursor..expr_ref.0.end as usize]);
+    out.copy(cx.source, cursor, expr_ref.0.end as usize);
     out
 }
 

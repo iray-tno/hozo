@@ -51,6 +51,15 @@ pub struct SourceSpan {
     pub end: u32,
 }
 
+/// Exact bytes copied by an emitting branch, not a search in generated output.
+/// Offsets are bytes in the authored source and the component's emitted JSX.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceCopy {
+    pub span: SourceSpan,
+    pub emitted_start: usize,
+    pub emitted_end: usize,
+}
+
 /// Reference to a source expression Hozo does not evaluate or interpret --
 /// only re-emits verbatim into generated output (an event handler, a prop
 /// value the compiler doesn't model, or the leaf of a `ConditionExpr`).
