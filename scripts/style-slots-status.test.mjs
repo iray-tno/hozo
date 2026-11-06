@@ -56,6 +56,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
         bundleSha256: hash,
         bundleBytes: 100,
         sharedAliasPlan: mode === 'toolbar-opt-in',
+        nestedCaptured: true,
         ordinaryPrimitive: {
           host: 'View',
           style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
@@ -105,6 +106,9 @@ test('Toolbar Metro receipts require current source, all routes and negative con
     primitiveControls: 8,
   })
   const mutations = [
+    (r) => {
+      r.builds[3].nestedCaptured = false
+    },
     (r) => {
       r.schema = 2
     },

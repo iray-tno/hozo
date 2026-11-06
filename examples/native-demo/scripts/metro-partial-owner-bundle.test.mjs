@@ -455,6 +455,12 @@ async function checkBundles(t, evidence, manifest) {
       }
       const toolbar = globals.toolbarResult
       const observedToolbar = {}
+      const nestedCaptured = livePreflight.routes.some(
+        (route) =>
+          route.importer === nestedFile &&
+          route.specifier === '@hozo/patterns' &&
+          route.entry === path.join(patterns, 'index.js'),
+      )
       // Store the actual controls before asserting so a failed platform/mode
       // remains inspectable instead of disappearing from the receipt.
       evidence.toolbarBuilds.push({
@@ -465,6 +471,7 @@ async function checkBundles(t, evidence, manifest) {
         bundleBytes: Buffer.byteLength(code),
         sharedAliasPlan: globals.sharedToolbarPlan,
         ordinaryPrimitive,
+        nestedCaptured,
         routes: observedToolbar,
         capture: {
           source: 'ordinary-metro-resolver',
@@ -473,6 +480,11 @@ async function checkBundles(t, evidence, manifest) {
           ordinaryBundleSha256,
         },
       })
+      assert.equal(
+        nestedCaptured,
+        true,
+        'nested refusal must be a captured caller, not an uncaptured control',
+      )
       assert.deepEqual(ordinaryPrimitive, {
         host: 'View',
         style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },

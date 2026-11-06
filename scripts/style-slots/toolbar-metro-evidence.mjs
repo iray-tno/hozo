@@ -30,6 +30,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       assert.match(row.bundleSha256, hash)
       assert.ok(Number.isSafeInteger(row.bundleBytes) && row.bundleBytes > 0)
       assert.equal(row.sharedAliasPlan, row.mode === 'toolbar-opt-in')
+      assert.equal(row.nestedCaptured, true)
       assert.deepEqual(row.ordinaryPrimitive, {
         host: 'View',
         style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },

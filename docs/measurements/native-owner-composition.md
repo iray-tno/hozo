@@ -87,6 +87,9 @@ alongside both owner aliases. Each build must report the View's lowered style
 and absence of a leaked className. A second explicitly captured module has a
 Toolbar inside an actually regenerated View: that entire module must stay
 ordinary even while its captured neighbor receives a prepared carrier.
+Every row additionally verifies that the successful ordinary resolver capture
+contains that exact nested importer/patterns entry edge. A missing capture is
+not accepted as a successful unproven-parent refusal.
 
 Toolbar receipt schema 3 requires five routes per build (40 observations),
 four prepared alias deliveries, 36 ordinary controls and eight separate
