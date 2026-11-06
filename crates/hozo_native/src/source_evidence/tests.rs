@@ -114,7 +114,7 @@ fn passthrough_props_keep_exact_copies_through_nested_lowering_and_duplicate_tex
 }
 
 #[test]
-fn grouped_spread_arguments_do_not_certify_syntax_the_prop_writer_reconstructed() {
+fn grouped_props_certify_surviving_expressions_not_generated_keys_or_wrappers() {
     let source = "import { View } from '@hozo/core'; const x = <View className=\"p-2\" before={<Tools id=\"before\" />} {...a} middle={<Tools id=\"middle\" />} {...b} after={<Tools id=\"after\" />}><Tools id=\"child\" /></View>";
     let (jsx, copies) = checked_copies(source);
     assert!(jsx.contains("hozoSpreadStyles"), "{jsx}");
@@ -123,10 +123,11 @@ fn grouped_spread_arguments_do_not_certify_syntax_the_prop_writer_reconstructed(
         .iter()
         .map(|copy| &source[copy.span.start as usize..copy.span.end as usize])
         .collect::<String>();
-    for value in ["before", "after", "child"] {
+    for value in ["before", "middle", "after", "child"] {
         assert!(carried.contains(&format!("id=\"{value}\"")), "{carried}");
     }
-    assert!(!carried.contains("middle"));
+    assert!(!carried.contains("middle={"));
+    assert!(!carried.contains("hozoSpreadStyles"));
 }
 
 #[test]
@@ -147,4 +148,34 @@ fn self_closing_hosts_keep_emitted_props_not_discarded_children_or_normalized_va
         copies.is_empty(),
         "new lexical scopes still erase prop evidence"
     );
+}
+
+#[test]
+fn projection_clips_existing_copies_at_multibyte_expression_boundaries() {
+    let source = " ignored {😀ok} ";
+    let mut rendered = Rendered::new(true);
+    rendered.copy(source, 0, source.len());
+    let start = " ignored {".len();
+    let expression = "😀ok";
+    let projected = rendered.project(
+        format!("prefix({expression})"),
+        start..start + expression.len(),
+        "prefix(".len(),
+    );
+    let copies = projected.copies.unwrap();
+    assert_eq!(copies.len(), 1);
+    assert_eq!(copies[0].span.start as usize, start);
+    assert_eq!(
+        &source[copies[0].span.start as usize..copies[0].span.end as usize],
+        &projected.text[copies[0].emitted_start..copies[0].emitted_end],
+    );
+}
+
+#[test]
+fn a_normalized_button_spread_still_grants_no_raw_argument_permission() {
+    let source = "import { Button } from '@hozo/core'; const x = <Button accessibilityLabel=\"Tools\" {...{accessory:<Tools />}} />";
+    let (jsx, copies) = checked_copies(source);
+    assert!(jsx.contains("hozoButtonProps"));
+    assert!(jsx.contains("<Tools />"));
+    assert!(copies.is_empty());
 }

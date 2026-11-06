@@ -227,3 +227,28 @@ the RN host is still a stand-in and the test deliberately invokes `renderItem`.
 It says nothing new about list scrolling, windowing, Yoga or device pixels.
 The actual distributed widget, adapter and minified module graph are retained;
 synthetic reader fixtures alone cannot establish production success.
+
+## Surviving expressions in spread-style helper arguments
+
+The previous grouped-prop refusal is now narrowed to actual missing evidence.
+The existing spread/attribute conversion selects a borrowed expression range;
+that rendering branch projects only its intersections with already certified
+copies into the generated helper argument. A JSX `renderItem={callback}` can
+therefore become `{ "renderItem": (callback) }` without losing callback provenance.
+Generated object keys, parentheses, styles and helper syntax acquire no copies.
+The helper concatenates the same arguments in the same order and introduces no
+lexical binder. Ordinary calls still allocate no copy vectors; no new parser,
+substring search, mutable compiler state or runtime ordering logic is added.
+
+A new regression first failed because only the props before/after the spread
+group survived. It now checks all copied expressions, excluded generated
+syntax, exact output/diagnostic/import/style parity and multibyte clipping.
+Normalized Button spreads still have no upstream evidence: even when their
+strings contain an eligible owner, that one unmappable site retains every
+owner in the module on ordinary output. Container-query/class-evaluation
+scopes and normalized image-source values retain their previous guards.
+
+Source-worker tests check grouped FlatList callbacks on Android and iOS,
+including warm output, plus full Toolbar and partial BottomSheet composition.
+Production execution with getter/read-order controls is the next layer; these
+unit/source tests do not claim real RN list behavior or new device evidence.

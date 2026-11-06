@@ -57,6 +57,7 @@ const productionStaticSources = [
   'crates/hozo_native/src/style.rs',
   'crates/hozo_native/src/render.rs',
   'crates/hozo_native/src/source_evidence.rs',
+  'crates/hozo_native/src/spread_style.rs',
   'crates/hozo_native/src/text.rs',
   'crates/hozo_ir/src/lib.rs',
   'crates/hozo_ir/src/theme.rs',

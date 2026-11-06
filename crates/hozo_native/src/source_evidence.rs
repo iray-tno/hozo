@@ -2,6 +2,7 @@
 //! not certified here: equal text alone cannot prove an authored expression.
 
 use hozo_ir::{SourceCopy, SourceSpan};
+use std::ops::Range;
 
 pub(crate) struct Rendered {
     pub text: String,
@@ -65,6 +66,34 @@ impl Rendered {
         }
         self.text = text;
         self
+    }
+
+    /// Project a range selected by the emitting branch into its new syntax.
+    /// Only the intersections with already certified copies survive. The
+    /// branch supplies the actual input range/output offset, not a text search.
+    pub fn project(&self, text: String, input: Range<usize>, offset: usize) -> Self {
+        let copies = self.copies.as_ref().map(|copies| {
+            copies
+                .iter()
+                .filter_map(|copy| {
+                    let start = copy.emitted_start.max(input.start);
+                    let end = copy.emitted_end.min(input.end);
+                    if start >= end {
+                        return None;
+                    }
+                    let authored = copy.span.start + (start - copy.emitted_start) as u32;
+                    Some(SourceCopy {
+                        span: SourceSpan {
+                            start: authored,
+                            end: authored + (end - start) as u32,
+                        },
+                        emitted_start: offset + start - input.start,
+                        emitted_end: offset + end - input.start,
+                    })
+                })
+                .collect()
+        });
+        Self { text, copies }
     }
 
     /// A newly introduced lexical scope is not just an offset. Until its
