@@ -19,6 +19,11 @@ the address and send again:
 
 - **`onSubmit`** is called with no event. Enter in a field, a real submit
   button and **`useFormSubmit()`** all arrive there, in one order.
+- **`SubmitButton`**, from `@hozo/form`, submits the form it is in. On the Web
+  it is a real `<button type="submit">`, so Enter in any single-line field
+  submits too; a form with several fields and no submit button does not
+  submit on Enter. On React Native it calls `useFormSubmit()`. It has no
+  `onPress`: what a submission does is `onSubmit`, which Enter also reaches.
 - **A `Button` submits through `useFormSubmit()`**, because a Button is not a
   `<button type="submit">`. Call the hook in a component inside the form, as
   the example's `Submit` does.
