@@ -21,6 +21,9 @@ outside it, or Tab out of it:
 - **`accessibilityLabel`** names the panel, or **`accessibilityLabelledBy`**
   points at a heading inside it. A dialog with no name is one a screen reader
   announces and can say nothing about.
+- **`triggerAccessibilityLabel`** names the button, which an icon-only trigger
+  needs. **`triggerAccessibilityHint`** and **`triggerTestID`** are its
+  description and test id.
 - **Not modal by default.** The rest of the page stays reachable, and the panel
   closes when focus leaves it, so it is never left open behind the page. Pass
   **`modal`** when the contents need the keyboard to stay inside, as a date grid
