@@ -37,6 +37,8 @@ import type { TailwindModuleAttempt } from './tailwind-session.ts'
 export { namespaceHozoClasses } from './class-namespace.ts'
 export { prepareOwnerLowerModule } from './owner-caller-lower.ts'
 export type { UnloweredReactNativeJsxPolicy } from './project.ts'
+/** @internal Exact lowering edits for adapter composition, never generated-text diffing. */
+export { type SourceEdit, SourceProvenance } from './source-provenance.ts'
 
 /**
  * Every module compiled output can import, for a bundler that has to know

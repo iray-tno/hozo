@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { type Compiler, type PreparedModule, TAILWIND_SCALAR_ORDER_POLICY } from '@hozo/compiler'
+import { SourceProvenance } from '@hozo/compiler/lower'
 import {
   type OwnerContractRequest,
   type OwnerManifestLease,
@@ -11,6 +12,7 @@ import {
   TailwindProjectSession,
 } from '@hozo/compiler/project'
 import { restoreTailwindStylesheet } from '@hozo/tailwind'
+import { composeNativeOwnerCaller } from './owner-caller-compose.ts'
 import { candidateModulePath, type MetroTailwindReference } from './project.ts'
 import { transformHozoSourceOrPrepare } from './transform.ts'
 
@@ -80,8 +82,8 @@ export class MetroTailwindWorker {
     )
   }
 
-  /** @internal Explicit one-owner worker experiment. Until Native has source
-   * provenance for mixed output, never splice edits into rewritten code. */
+  /** @internal Explicit one-owner worker. Mixed output may compose only where
+   * the actual Native transform preserves the caller's source coordinates. */
   async transformOwnerCaller(
     source: string,
     filename: string,
@@ -108,6 +110,7 @@ export class MetroTailwindWorker {
     }
     checkRuntime()
     const output = await this.session.runModule(file, this.#universe, (compiler, context) => {
+      const provenance = new SourceProvenance(source)
       const ordinary = transformHozoSourceOrPrepare(
         source,
         filename,
@@ -115,8 +118,8 @@ export class MetroTailwindWorker {
         compiler,
         context,
         stylexModules,
+        (input, edits) => provenance.apply(input, edits),
       )
-      if (ordinary.kind === 'complete' && ordinary.output !== null) return ordinary
       let owner: ReturnType<typeof prepareInstanceOwnerCallers>
       try {
         owner = prepareInstanceOwnerCallers(
@@ -141,8 +144,11 @@ export class MetroTailwindWorker {
           ...new Set([...owner.candidates, ...(ownedOrdinary?.candidates ?? [])]),
         ].sort(),
         emit(context) {
-          const lowered = ownedOrdinary?.emit(context) ?? null
-          if (lowered !== null) return lowered
+          const lowered = ownedOrdinary
+            ? ownedOrdinary.emit(context)
+            : ordinary.kind === 'complete'
+              ? ordinary.output
+              : null
           const { preview } = owner.emit(context)
           if (
             !preview.findings.some((finding) => finding.disposition === disposition) ||
@@ -151,8 +157,8 @@ export class MetroTailwindWorker {
                 finding.disposition !== 'retained' && finding.disposition !== disposition,
             )
           )
-            return null
-          return preview.code
+            return lowered
+          return composeNativeOwnerCaller(source, lowered, provenance, preview)
         },
         dispose() {
           owner.dispose()

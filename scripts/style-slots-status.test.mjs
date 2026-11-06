@@ -42,7 +42,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
   // Synthetic receipts exercise the reader, not the Metro production claim.
   const hash = 'b'.repeat(64)
   const receipt = {
-    schema: 2,
+    schema: 3,
     scope: toolbarMetroScope,
     sourceCommit: commit,
     manifestSha256: hash,
@@ -56,6 +56,12 @@ test('Toolbar Metro receipts require current source, all routes and negative con
         bundleSha256: hash,
         bundleBytes: 100,
         sharedAliasPlan: mode === 'toolbar-opt-in',
+        nestedCaptured: true,
+        ordinaryPrimitive: {
+          host: 'View',
+          style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
+          classNameLeaked: false,
+        },
         capture: {
           source: 'ordinary-metro-resolver',
           fingerprint: hash,
@@ -63,7 +69,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
           ordinaryBundleSha256: hash,
         },
         routes: Object.fromEntries(
-          ['literal', 'alias', 'opaque', 'uncaptured'].map((route) => [
+          ['literal', 'alias', 'nested', 'opaque', 'uncaptured'].map((route) => [
             route,
             {
               carrierSupplied: mode === 'toolbar-opt-in' && ['literal', 'alias'].includes(route),
@@ -94,11 +100,30 @@ test('Toolbar Metro receipts require current source, all routes and negative con
     sourceCommit: commit,
     passed: true,
     builds: 8,
-    observations: 32,
+    observations: 40,
     prepared: 4,
-    ordinary: 28,
+    ordinary: 36,
+    primitiveControls: 8,
   })
   const mutations = [
+    (r) => {
+      r.builds[3].nestedCaptured = false
+    },
+    (r) => {
+      r.schema = 2
+    },
+    (r) => {
+      r.builds[3].routes.nested.carrierSupplied = true
+    },
+    (r) => {
+      delete r.builds[3].routes.nested
+    },
+    (r) => {
+      r.builds[3].ordinaryPrimitive.classNameLeaked = true
+    },
+    (r) => {
+      r.builds[3].ordinaryPrimitive.style.paddingTop = 0
+    },
     (r) => {
       r.schema = 1
     },

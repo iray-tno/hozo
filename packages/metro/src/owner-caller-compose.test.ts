@@ -1,0 +1,97 @@
+import assert from 'node:assert/strict'
+import path from 'node:path'
+import test from 'node:test'
+import { createCompiler } from '@hozo/compiler'
+import { SourceProvenance } from '@hozo/compiler/lower'
+import { ownerFixtureShadow } from '../../../scripts/style-slots/owner-fixture.mjs'
+import { previewOwnerLiteralCallers } from '../../compiler/src/owner-caller-plan.ts'
+import { composeNativeOwnerCaller } from './owner-caller-compose.ts'
+import { transformHozoSource } from './transform.ts'
+
+function fixture(source: string, partial = false) {
+  const compiler = createCompiler(),
+    map = new SourceProvenance(source)
+  const ordinary = transformHozoSource(
+    source,
+    path.resolve('Mixed.tsx'),
+    path.resolve('.'),
+    compiler,
+    undefined,
+    (input, edits) => map.apply(input, edits),
+  )
+  assert.ok(ordinary)
+  assert.ok(map.matches(ordinary))
+  const preview = previewOwnerLiteralCallers(source, compiler, {
+    source: '@hozo/patterns',
+    imported: partial ? 'BottomSheet' : ['Toolbar', 'HozoToolbar'],
+    shadow: ownerFixtureShadow(partial ? 'BottomSheet.handle' : 'Toolbar.root'),
+    experimentalNativePartial: partial,
+  })
+  assert.ok(preview.edits.length)
+  assert.ok(preview.modulePrelude)
+  assert.ok(preview.edits.includes(preview.modulePrelude))
+  return { ordinary, map, preview }
+}
+
+test('exact unchanged siblings compose with Native output and an explicit module prelude', () => {
+  for (const directive of ['', "'use client';\n"]) {
+    const source = `${directive}import {View} from '@hozo/core';import {Toolbar,HozoToolbar} from '@hozo/patterns';
+      export const Box=()=> <View className="p-2"/>;
+      export const Tools=()=> <><Toolbar className="p-4" style={first.value}/><HozoToolbar className="p-4" style={second.value}/></>`
+    const f = fixture(source)
+    const code = composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview)
+    assert.notEqual(code, f.ordinary)
+    assert.equal(code!.match(/hozoToolbarStyle=/g)?.length, 2)
+    assert.match(code!, /hozoStyles/)
+    assert.doesNotMatch(code!, /className="p-[24]"/)
+    for (const value of ['first.value', 'second.value'])
+      assert.equal(code!.split(value).length - 1, 1)
+  }
+})
+
+test('partial Native carrier insertions keep the raw recipe while an unrelated primitive lowers', () => {
+  const source = `import {View} from '@hozo/core';import {BottomSheet} from '@hozo/patterns';
+    export const Box=()=> <View className="p-2"/>;
+    export const Sheet=()=> <BottomSheet open handleClassName="p-2 hover:opacity-50"/>`
+  const f = fixture(source, true)
+  const code = composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview)
+  assert.notEqual(code, f.ordinary)
+  assert.match(code!, /hozoInteractiveHandleStyle=/)
+  assert.match(code!, /handleClassName="p-2 hover:opacity-50"/)
+})
+
+test('unmapped nested sites keep every owner ordinary even if a sibling site maps', () => {
+  const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+    export const A=()=> <Toolbar className="p-4"/>;
+    export const B=()=> <View className="p-2"><Toolbar className="p-4"/></View>`
+  const f = fixture(source)
+  assert.equal(composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview), f.ordinary)
+})
+
+test('missing, stale, overlapping or unmarked edits never produce a partly composed module', () => {
+  const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+    export const Box=()=> <View className="p-2"/>;export const Tools=()=> <Toolbar className="p-4"/>`
+  const f = fixture(source)
+  assert.equal(
+    composeNativeOwnerCaller(source, f.ordinary, new SourceProvenance(source), f.preview),
+    f.ordinary,
+  )
+  for (const mutate of [
+    (p) => {
+      delete p.modulePrelude
+    },
+    (p) => {
+      p.modulePrelude = { ...p.modulePrelude }
+    },
+    (p) => {
+      p.edits.push({ ...p.edits.find((e) => e !== p.modulePrelude) })
+    },
+    (p) => {
+      p.edits.push({ spanStart: -1, spanEnd: 0, replacement: 'bad' })
+    },
+  ]) {
+    const preview = structuredClone(f.preview)
+    mutate(preview)
+    assert.equal(composeNativeOwnerCaller(source, f.ordinary, f.map, preview), f.ordinary)
+  }
+})

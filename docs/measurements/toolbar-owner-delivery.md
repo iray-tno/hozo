@@ -179,3 +179,11 @@ The earlier schema-1 fixture measured three routes (24 observations). Its
 historical receipts remain valid for that narrower result; they cannot satisfy
 the alias follow-up's schema-2 reader. No extra Metro build or broader audit
 denominator is introduced by adding the alias to each existing bundle.
+
+The subsequent mixed-Native follow-up is recorded in
+[Native owner composition](native-owner-composition.md). It advances the
+current reader to schema 3: each existing bundle also lowers a styled View
+and executes a captured Toolbar inside regenerated JSX as a retained control.
+Its 40 owner observations and eight primitive controls replace neither the
+historical schema-2 result nor the separate BottomSheet denominator. Production
+success for this added boundary requires its own current-source CI receipt.

@@ -149,6 +149,23 @@ export class SourceProvenance {
     return { spanStart, spanEnd: spanStart + end - start }
   }
 
+  /** An authored insertion point needs one unambiguous surviving boundary.
+   * An inserted/generated gap may split that point into two different places;
+   * copied duplicates must not choose an arbitrary occurrence either.
+   */
+  emittedInsertion(input: string, offset: number) {
+    if (!this.matches(input) || !Number.isInteger(offset) || offset < 0) return undefined
+    const positions = new Set<number>()
+    for (const piece of this.pieces) {
+      if (piece.authoredStart === undefined) continue
+      if (piece.authoredStart <= offset && piece.authoredStart + piece.end - piece.start >= offset)
+        positions.add(piece.start + offset - piece.authoredStart)
+    }
+    if (positions.size !== 1) return undefined
+    const spanStart = [...positions][0]!
+    return { spanStart, spanEnd: spanStart }
+  }
+
   evidence(input: string, start: number, end: number): SourceEvidence | undefined {
     const piece = this.emittedPiece(input, start, end)
     return piece ? (piece.evidence ?? 'unchanged-module-run') : undefined
