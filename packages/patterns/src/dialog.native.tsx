@@ -241,10 +241,17 @@ export function Dialog({
           accessible={false}
           style={[{ flex: 1, justifyContent: 'center', alignItems: 'center' }, hozoBackdropStyle]}
         >
-          {/* Without a blur the scrim holds the panel alone, as before. */}
-          {hozoBackdropBlur ? backdropBlur(hozoBackdropBlur) : null}
-          {dismiss}
-          {panel}
+          {/* With neither a blur nor a backdrop press the scrim holds the
+              panel alone, as before. */}
+          {hozoBackdropBlur || dismiss ? (
+            <>
+              {hozoBackdropBlur ? backdropBlur(hozoBackdropBlur) : null}
+              {dismiss}
+              {panel}
+            </>
+          ) : (
+            panel
+          )}
         </View>
       ) : (
         panel
