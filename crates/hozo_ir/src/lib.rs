@@ -4549,6 +4549,17 @@ pub enum Condition {
     /// element or its environment, which is also why React Native has
     /// nothing resembling it: there is no address bar to disagree with.
     Target,
+    /// `open:`. An open `<details>`, `<dialog>` or popover, matched the
+    /// way Tailwind matches it: `[open]`, `:popover-open` or `:open`.
+    ///
+    /// A state of the element the browser keeps, so Web needs nothing from
+    /// its props. Compiling it is what lets `group-open:` and `peer-open:`
+    /// beat a compiled base: left to Tailwind, the variant sits in a layer
+    /// and an unlayered `hidden` beside it always wins (#1692).
+    ///
+    /// Native has no attribute to read. `Details` tracks its open state
+    /// itself and hands it to nobody, so there this is refused until it does.
+    Open,
     /// `visited:`. A link the user has been to before.
     ///
     /// The one condition whose *declarations* the browser censors. History

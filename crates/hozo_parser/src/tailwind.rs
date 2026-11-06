@@ -3085,6 +3085,9 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     if let Some(rest) = token.strip_prefix("target:") {
         return (Condition::Target, rest);
     }
+    if let Some(rest) = token.strip_prefix("open:") {
+        return (Condition::Open, rest);
+    }
     if let Some(rest) = token.strip_prefix("visited:") {
         return (Condition::Visited, rest);
     }

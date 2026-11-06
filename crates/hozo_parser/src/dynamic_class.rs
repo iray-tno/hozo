@@ -864,7 +864,10 @@ const el = <View className={{{expression}}} />
             carried(&wrap("cond ? 'my-card' : 'p-8'")),
             ["cond ? 'my-card' : 'p-8'"]
         );
-        assert_eq!(carried(&wrap("cn('p-4', 'open:p-4')")), ["'open:p-4'"]);
+        assert_eq!(
+            carried(&wrap("cn('p-4', 'checked:p-4')")),
+            ["'checked:p-4'"]
+        );
     }
 
     #[test]
@@ -894,9 +897,9 @@ const el = <View className={{{expression}}} />
 
     #[test]
     fn a_variant_tailwind_defines_and_hozo_does_not_is_named() {
-        let out = decompose_source(&wrap("cn('open:p-4')"));
+        let out = decompose_source(&wrap("cn('checked:p-4')"));
         assert_eq!(out.unsupported_variants.len(), 1);
-        assert_eq!(out.unsupported_variants[0].variant, "open");
+        assert_eq!(out.unsupported_variants[0].variant, "checked");
         // A project's own class is not a gap in Hozo, so it gets carried
         // without being reported.
         assert!(decompose_source(&wrap("cn('my-card')"))

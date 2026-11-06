@@ -762,6 +762,11 @@ pub(super) fn build_style_entries(
                     Severity::Warning,
                 )),
             },
+            Condition::Open => diagnostics.push(unwired_variant(
+                node,
+                "`open:` matches an open `<details>`, `<dialog>` or popover by its `open` attribute. React Native has no attribute to read, and `Details` keeps its open state to itself, so nothing here can tell this element is open. On Web the same class works.",
+                Severity::Error,
+            )),
             Condition::Target => diagnostics.push(unwired_variant(
                 node,
                 "`target:` matches the element the document's URL fragment points at. React Native has no document and no URL to point with, so there is nothing for this to be true of. On Web the same class works.",

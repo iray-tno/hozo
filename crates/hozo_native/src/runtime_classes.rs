@@ -62,6 +62,7 @@ fn never_on_native(condition: &Condition) -> Option<String> {
         Condition::Supports(_) => Some("`supports-…:` is a CSS feature query".into()),
         Condition::Visited => Some("`visited:` needs a browsing history".into()),
         Condition::Target => Some("`target:` needs a document URL fragment".into()),
+        Condition::Open => Some("`open:` needs an open state Details does not share".into()),
         Condition::FormState(FormState::ReadOnly) => None,
         Condition::FormState(state) => Some(format!(
             "`{}:` is the DOM's constraint validation, which React Native does not have",
