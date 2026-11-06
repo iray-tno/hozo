@@ -42,7 +42,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
   // Synthetic receipts exercise the reader, not the Metro production claim.
   const hash = 'b'.repeat(64)
   const receipt = {
-    schema: 3,
+    schema: 4,
     scope: toolbarMetroScope,
     sourceCommit: commit,
     manifestSha256: hash,
@@ -72,7 +72,8 @@ test('Toolbar Metro receipts require current source, all routes and negative con
           ['literal', 'alias', 'nested', 'opaque', 'uncaptured'].map((route) => [
             route,
             {
-              carrierSupplied: mode === 'toolbar-opt-in' && ['literal', 'alias'].includes(route),
+              carrierSupplied:
+                mode === 'toolbar-opt-in' && ['literal', 'alias', 'nested'].includes(route),
               style: {
                 paddingTop: 21,
                 paddingRight: 14,
@@ -101,8 +102,8 @@ test('Toolbar Metro receipts require current source, all routes and negative con
     passed: true,
     builds: 8,
     observations: 40,
-    prepared: 4,
-    ordinary: 36,
+    prepared: 6,
+    ordinary: 34,
     primitiveControls: 8,
   })
   const mutations = [
@@ -110,10 +111,10 @@ test('Toolbar Metro receipts require current source, all routes and negative con
       r.builds[3].nestedCaptured = false
     },
     (r) => {
-      r.schema = 2
+      r.schema = 3
     },
     (r) => {
-      r.builds[3].routes.nested.carrierSupplied = true
+      r.builds[3].routes.nested.carrierSupplied = false
     },
     (r) => {
       delete r.builds[3].routes.nested

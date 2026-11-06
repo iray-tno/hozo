@@ -47,7 +47,8 @@ round-trip that loses its explicit edit identity.
 All owner edits must map without overlap and the provenance must match the
 entire ordinary output. One unmappable nested site retains **all** ordinary
 output, including a separate sibling that could otherwise have been prepared.
-This rejects even identical carried JSX inside a replaced Native parent.
+At this stage it rejected even identical carried JSX inside a replaced Native
+parent; the carried-child integration below removes that bounded restriction.
 Full-root Toolbar aliases and BottomSheet's partial insertion have real
 compiler/ordinary-transform tests, including authored expressions and a
 directive prefix. No worker path is enabled by this second layer yet.
@@ -69,8 +70,8 @@ Real cold-worker instrumentation records one ordinary and two BottomSheet shape
 modules, all emitted through the same context object and each disposed once.
 The source-worker regression checks both Native platforms, warm output,
 once-only authored expression, ordinary byte restoration and nested refusal.
-An explicitly identical parent edit may retain its source coordinates; a
-parent with an actual JSX replacement does not. The initial old guard used an
+An explicitly identical parent edit may retain its source coordinates. At this
+stage an actual JSX replacement did not. The initial old guard used an
 identical View parent, so its negative fixture was corrected to require a real
 replacement and a separate positive test keeps the identical-parent case.
 
@@ -109,3 +110,70 @@ The fixture now embeds a tested pure props/children helper and forwards those
 arguments, including null props and multiple children. Its serialized form is
 also tested. No application code, style expectation or timeout is changed to
 hide that failed run; its partial receipt remains a failure with zero builds.
+
+## Native carried-child emission evidence
+
+The next boundary is a real replacement of a Native parent that carries an
+unknown child. The Native renderer can now explicitly return byte ranges for
+children it copied from source. Appending rendered children and the existing
+Grid/item/spacing/host wrappers shift those ranges by lengths known to the
+emitting branch. Nothing searches generated JSX, and identical repeated child
+text retains distinct source coordinates. The shared `SourceCopy` type lives
+in IR; Web retains its existing re-export and emission behavior.
+
+The request does not change JSX, styles, imports, hooks or diagnostics. An
+ordinary call allocates no copy vectors and retains the existing string
+formatting. This is a structural cost bound, not a throughput benchmark.
+Discarded Image/TextInput children contribute no copies. Generated props are
+not assessed, and container-query callbacks/class-evaluation wrappers erase
+enclosed evidence rather than assume a newly introduced lexical scope is safe.
+
+```sh
+cargo test -p hozo_native source_evidence -- --test-threads=1
+```
+
+This backend layer alone does not enable a new owner route: NAPI UTF-16
+conversion, Native identifier namespacing and the actual Metro observer must
+carry these ranges before nested owner composition can use them. Ordinary
+defaults and owner contract audit status remain unchanged.
+
+### Binding delivery
+
+`NativeCompileOptions.sourceEvidence` carries this ordinary-only request through
+direct compilation and retained Native IR. NAPI converts both original byte
+spans and component-relative emitted byte offsets to JavaScript UTF-16 units.
+The ordinary call after an observed call is unchanged. Combining this request
+with owner-style/text experiments is rejected explicitly, rather than returning
+missing evidence under a different renderer. Cold preparation snapshots the
+request; mutating its original JS options cannot change later emission.
+
+```sh
+node --test --test-concurrency=1 packages/compiler/src/native-source-evidence.test.ts
+```
+
+The binding does not turn ranges into Metro rewrite permission. Its consumer
+still must account for the actual identifier-renaming pass and any intervening
+Canvas/import/hook edits before composition.
+
+### Metro carried-owner integration
+
+The ordinary transform requests evidence only when its explicit observer is
+present, on direct compilation, cold preparation and warm emission. The actual
+existing identifier-renaming pass records its edits: untouched child fragments
+shift by preceding replacement lengths, while a rename touching a copied
+fragment invalidates that whole fragment. Generated offsets are not searched,
+and observations do not change ordinary bytes or add a Native parse.
+
+Both full Toolbar carriers (including aliases) and partial BottomSheet handle
+insertions can now compose inside a genuinely regenerated Native View. The
+all-or-nothing module guard remains: an unproven container-query scope or
+missing backend evidence cannot prepare even a separate otherwise eligible
+sibling. Existing candidate-map freeze and consumed-IR lifecycle checks remain.
+
+The same eight production Metro builds now expect the captured nested Toolbar
+to receive its carrier only in `toolbar-opt-in` mode. Toolbar receipt schema 4
+retains 40 observations and eight primitive controls, with six prepared and 34
+ordinary controls instead of schema 3's four/36. Old schema-3 results cannot
+certify the newly implemented path. This changes neither the BottomSheet build
+denominator nor any owner audit/default; the production fixture still uses
+React/RN host stand-ins, not Yoga or device pixels.

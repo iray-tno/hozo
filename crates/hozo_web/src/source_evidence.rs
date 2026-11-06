@@ -1,11 +1,5 @@
+pub use hozo_ir::SourceCopy;
 use hozo_ir::SourceSpan;
-
-/// Exact bytes copied by a rendering branch, not a search in its output.
-pub struct SourceCopy {
-    pub span: SourceSpan,
-    pub emitted_start: usize,
-    pub emitted_end: usize,
-}
 
 pub(crate) struct Rendered {
     pub text: String,

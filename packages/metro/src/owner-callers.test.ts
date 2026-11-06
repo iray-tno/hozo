@@ -133,7 +133,7 @@ test('one planner owns binding inspection for all captured aliases', async (t) =
   }
 })
 
-test('captured aliases share one plan while opaque recipes, foreign names, mixed lowering and uncaptured importers stay ordinary', async (t) => {
+test('captured aliases share one plan while opaque recipes, foreign names, unproven scopes and uncaptured importers stay ordinary', async (t) => {
   const f = fixture(t, 'android')
   await withHozoOwnerCallers(f.config, f.preflight, 'Toolbar.root', f.options)
   for (const input of [
@@ -141,7 +141,7 @@ test('captured aliases share one plan while opaque recipes, foreign names, mixed
     source().replace('className="p-2"', 'className="p-2 hover:opacity-50"'),
     `import * as P from '@hozo/patterns';export const A=()=> <P.Toolbar items={[]} className="p-2"/>`,
     `/* @hozo/patterns */import {Toolbar} from 'kit';export const A=()=> <Toolbar className="p-2"/>`,
-    `import {View} from '@hozo/core';${source().replace('<Tools', '<View className="p-2"><Tools').replace('/>', '/></View>')}`,
+    `import {View} from '@hozo/core';${source().replace('<Tools', '<View className="@sm:p-2"><Tools').replace('/>', '/></View>')}`,
   ])
     assert.doesNotMatch(
       String(await transform({ ...f.params, src: input })),
@@ -189,7 +189,7 @@ test('invalid targets and inconsistent serialized modes fail before replacing co
   )
 })
 
-test('mixed Native files prepare untouched owner siblings but retain nested unproven sites', async (t) => {
+test('mixed Native files prepare siblings and copied children but retain unproven scopes', async (t) => {
   for (const platform of ['android', 'ios']) {
     const f = fixture(t, platform)
     const input = `import {View} from '@hozo/core';${source()}
@@ -218,7 +218,15 @@ test('mixed Native files prepare untouched owner siblings but retain nested unpr
       'an explicitly identical parent edit preserves its source range',
     )
     const mixed = identityParent.replace('<View><Tools', '<View className="p-2"><Tools')
-    assert.doesNotMatch(String(await transform({ ...f.params, src: mixed })), /hozoToolbarStyle=/)
+    assert.match(String(await transform({ ...f.params, src: mixed })), /hozoToolbarStyle=/)
+    const unproven = mixed.replace(
+      '<View className="p-2"><Tools',
+      '<View className="@sm:p-2"><Tools',
+    )
+    assert.doesNotMatch(
+      String(await transform({ ...f.params, src: unproven })),
+      /hozoToolbarStyle=/,
+    )
     await withHozo(f.config, f.options)
     assert.equal(
       String(await transform({ ...f.params, src: input })),

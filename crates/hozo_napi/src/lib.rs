@@ -690,6 +690,8 @@ pub struct TextForwardingModule {
 #[derive(Default)]
 #[napi(object)]
 pub struct NativeCompileOptions {
+    /// Exact surviving child fragments from ordinary Native rendering only.
+    pub source_evidence: Option<bool>,
     pub owner_style: Option<bool>,
     pub owner_facts: Option<Vec<String>>,
     pub owner_text: Option<String>,
@@ -732,6 +734,16 @@ impl NativeCompileOptions {
     }
 
     fn validate_owner_style(&self) -> napi::Result<()> {
+        if self.source_evidence.unwrap_or(false)
+            && (self.owner_style.unwrap_or(false)
+                || self.text_reference.unwrap_or(false)
+                || self.text_inheritance.unwrap_or(false)
+                || self.text_static.unwrap_or(false))
+        {
+            return Err(napi::Error::from_reason(
+                "Internal sourceEvidence requires ordinary Native lowering",
+            ));
+        }
         self.owner_facts()?;
         if let Some(target) = &self.owner_text {
             if target != "split" || !self.owner_style.unwrap_or(false) {
@@ -893,6 +905,7 @@ impl Compiler {
             Some((&self.stylex, &bindings)),
             NativeModuleOptions {
                 source_file: source_file.as_deref(),
+                source_evidence: options.source_evidence.unwrap_or(false),
                 owner_facts: options.owner_facts()?,
                 owner_split_text: options.owner_text.is_some(),
                 text_reference: options.text_reference.unwrap_or(false),
@@ -1227,6 +1240,8 @@ impl CandidateCache {
 
 #[napi(object)]
 pub struct CompiledNativeComponent {
+    /// Authored UTF-16 ranges, with emitted UTF-16 offsets relative to `jsx`.
+    pub source_copies: Option<Vec<CompiledSourceCopy>>,
     /// Explicit RFC010 preparation only, never inferred from a package claim.
     pub owner_style: Option<CompiledOwnerStyle>,
     pub tailwind_plan: Option<TailwindCompilePlan>,
@@ -1493,6 +1508,7 @@ fn lower_native(
 /// become mutable Compiler state or change later ordinary compilations.
 #[derive(Default)]
 struct NativeModuleOptions<'a> {
+    source_evidence: bool,
     owner_style: bool,
     owner_facts: Vec<hozo_native::OwnerFact>,
     owner_split_text: bool,
@@ -1676,6 +1692,13 @@ fn lower_native_components(
                 hozo_native::lower_text_inheritance(&root.node, &root.forwarded, source, theme)
             } else if options.text_reference {
                 hozo_native::lower_text_reference(&root.node, &root.forwarded, source, theme)
+            } else if options.source_evidence {
+                hozo_native::lower_forwarded_with_evidence(
+                    &root.node,
+                    &root.forwarded,
+                    source,
+                    theme,
+                )
             } else {
                 hozo_native::lower_forwarded(&root.node, &root.forwarded, source, theme)
             };
@@ -1689,7 +1712,22 @@ fn lower_native_components(
             if options.owner_style && diagnostics.iter().any(|d| d.severity == "error") {
                 carrier = None;
             }
+            // Only the explicit request pays for emitted-coordinate conversion.
+            // The backend's byte spans must not leak into JavaScript offsets.
+            let source_copies = output.source_copies.map(|copies| {
+                let emitted_offsets = Utf16Offsets::new(&output.jsx);
+                copies
+                    .into_iter()
+                    .map(|copy| CompiledSourceCopy {
+                        span_start: offsets.at(copy.span.start),
+                        span_end: offsets.at(copy.span.end),
+                        emitted_start: emitted_offsets.at(copy.emitted_start as u32),
+                        emitted_end: emitted_offsets.at(copy.emitted_end as u32),
+                    })
+                    .collect()
+            });
             CompiledNativeComponent {
+                source_copies,
                 owner_style: carrier,
                 tailwind_plan: plans
                     .next()

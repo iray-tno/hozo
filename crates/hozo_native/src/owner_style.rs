@@ -190,8 +190,7 @@ pub fn lower_owner_style_with_inputs(
         forwarded,
         source,
         theme,
-        false,
-        false,
+        RenderOptions::default(),
         eligible.then_some((&mut carrier, inputs)),
     );
     // These are the existing owner's supplied state and residual resolver,

@@ -34,6 +34,7 @@ import {
 } from '@hozo/compiler/lower'
 import type { StylexModuleCache, TailwindModuleAttempt } from '@hozo/compiler/project'
 import { importSpecifier, semanticModuleEligible } from '@hozo/compiler/project'
+import { namespaceHozoIdentifiers, namespaceNativeJsx } from './native-source-evidence.ts'
 import { candidateModulePath } from './project.ts'
 
 const HOZO_AUTHOR_IMPORT_RE =
@@ -47,31 +48,29 @@ function prependNativeSource(source: string, prefix: string, observe?: NativeRew
   return prefix + source
 }
 
-function nativeRewriteEdits(edits: { start: number; end: number; text: string }[]): SourceEdit[] {
+function nativeRewriteEdits(
+  edits: { start: number; end: number; text: string; copies?: SourceEdit['copies'] }[],
+): SourceEdit[] {
   const result: SourceEdit[] = []
   const insertions = new Map<number, SourceEdit>()
-  for (const { start, end, text } of edits) {
+  for (const { start, end, text, copies } of edits) {
     const previous = start === end ? insertions.get(start) : undefined
     // The actual back-to-front rewriter prepends later insertions at an equal
     // offset. Publish that exact combined edit, not an ambiguous tie ordering.
     if (previous) previous.replacement = text + previous.replacement
     else {
-      const edit = { spanStart: start, spanEnd: end, replacement: text }
+      const edit = {
+        spanStart: start,
+        spanEnd: end,
+        replacement: text,
+        ...(copies ? { copies } : {}),
+      }
       result.push(edit)
       if (start === end) insertions.set(start, edit)
     }
   }
   return result
 }
-/// Renames this component's `hozoN`/`hozoN_suffix` style/JSX identifiers
-/// to be unique across every component in the file -- each `compileNative`
-/// call starts counting from `hozo0` independently per root, so two
-/// components in the same source file would otherwise collide when their
-/// styles are merged into one `StyleSheet.create({...})`.
-function namespaceHozoIdentifiers(text: string, rootIndex: number): string {
-  return text.replace(/\bhozo(\d+)/g, `hozo_r${rootIndex}_$1`)
-}
-
 function mergeStyleObjects(blocks: string[]): string {
   if (blocks.length === 1) {
     return blocks[0]!
@@ -110,7 +109,15 @@ export function transformHozoSource(
     projectRoot,
     compiler,
     stylexModules,
-    (source, bindings, finish) => finish(compiler.compileNativeModule(source, bindings)),
+    (source, bindings, finish) =>
+      finish(
+        compiler.compileNativeModule(
+          source,
+          bindings,
+          undefined,
+          observe ? { sourceEvidence: true } : undefined,
+        ),
+      ),
     observe,
   )
 }
@@ -136,8 +143,19 @@ export function transformHozoSourceOrPrepare(
     stylexModules,
     (source, bindings, finish): TailwindModuleAttempt<string | null> => {
       const parsed = context
-        ? compiler.compileNativeOrPrepare(source, context, bindings)
-        : compiler.prepareNativeModule(source, bindings)
+        ? compiler.compileNativeOrPrepare(
+            source,
+            context,
+            bindings,
+            undefined,
+            observe ? { sourceEvidence: true } : undefined,
+          )
+        : compiler.prepareNativeModule(
+            source,
+            bindings,
+            undefined,
+            observe ? { sourceEvidence: true } : undefined,
+          )
       if ('components' in parsed) return { kind: 'complete', output: finish(parsed) }
       return { kind: 'prepared', module: ownNativeTransform(parsed, finish) }
     },
@@ -306,7 +324,7 @@ function finishNativeTransform(
   // earlier offsets stay valid. Two kinds share the list: replacing a
   // component's JSX, and inserting its hook declarations at the top of the
   // enclosing function.
-  const edits: { start: number; end: number; text: string }[] = []
+  const edits: { start: number; end: number; text: string; copies?: SourceEdit['copies'] }[] = []
   const runtimeImports = new Set<string>()
   // Two components can live in one function, and both may need the same
   // hook. The binding is function-scoped, so a second `const` would be a
@@ -317,7 +335,7 @@ function finishNativeTransform(
     edits.push({
       start: component.spanStart,
       end: component.spanEnd,
-      text: namespaceHozoIdentifiers(component.jsx, index),
+      ...namespaceNativeJsx(component.jsx, index, observe ? component.sourceCopies : undefined),
     })
 
     // Collected before the prelude check, not inside it. Runtime imports

@@ -282,6 +282,7 @@ impl PreparedNativeModule {
             &state.theme,
             &mut state.parsed,
             NativeModuleOptions {
+                source_evidence: self.options.source_evidence.unwrap_or(false),
                 owner_style: self.options.owner_style.unwrap_or(false),
                 owner_facts: self.options.owner_facts()?,
                 owner_split_text: self.options.owner_text.is_some(),

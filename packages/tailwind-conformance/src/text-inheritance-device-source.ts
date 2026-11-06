@@ -31,6 +31,7 @@ const productionSources = [
 const productionStaticSources = [
   'packages/compiler/src/index.ts',
   'packages/metro/src/transform.ts',
+  'packages/metro/src/native-source-evidence.ts',
   'crates/hozo_napi/src/lib.rs',
   'crates/hozo_napi/src/owner_slots.rs',
   'crates/hozo_napi/src/tailwind_order.rs',
@@ -55,6 +56,7 @@ const productionStaticSources = [
   'crates/hozo_native/src/text_region.rs',
   'crates/hozo_native/src/style.rs',
   'crates/hozo_native/src/render.rs',
+  'crates/hozo_native/src/source_evidence.rs',
   'crates/hozo_native/src/text.rs',
   'crates/hozo_ir/src/lib.rs',
   'crates/hozo_ir/src/theme.rs',

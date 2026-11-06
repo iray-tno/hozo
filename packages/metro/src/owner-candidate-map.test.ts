@@ -186,7 +186,7 @@ test('candidate consumption transfers only emitted Native fallback candidates', 
   assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
 })
 
-test('explicit Metro partial worker composes proven siblings and retains unproven parents with the same frozen map', async (t) => {
+test('explicit Metro partial worker composes proven siblings and children but retains unproven scopes with the same frozen map', async (t) => {
   const f = fixture(t)
   const file = f.params.filename
   const source = `import {BottomSheet} from '@hozo/patterns'; export const Row=()=> <BottomSheet open handleClassName="p-2 hover:opacity-50"/>`
@@ -235,7 +235,9 @@ test('explicit Metro partial worker composes proven siblings and retains unprove
   assert.match(composed ?? '', /hozoInteractiveHandleStyle=/)
   assert.match(composed ?? '', /paddingTop: 28/)
   const nested = `${source.replace('<BottomSheet', '<View className="p-4"><BottomSheet').replace('/>', '/></View>')}\nimport {View} from '@hozo/core';`
-  assert.equal(await transformPartial(nested), await worker.transform(nested, file, f.root))
+  assert.match((await transformPartial(nested)) ?? '', /hozoInteractiveHandleStyle=/)
+  const unproven = nested.replace('<View className="p-4">', '<View className="@sm:p-4">')
+  assert.equal(await transformPartial(unproven), await worker.transform(unproven, file, f.root))
 
   const tracked = createCompiler({ ...transfer.snapshot.theme, preflight: true })
   const original = tracked.prepareNativeModule.bind(tracked)
