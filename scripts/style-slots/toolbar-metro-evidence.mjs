@@ -15,7 +15,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
   try {
     assert.match(sourceCommit, /^[a-f0-9]{40}$/)
     assert.match(manifestSha256, hash)
-    assert.equal(receipt?.schema, 2)
+    assert.equal(receipt?.schema, 3)
     assert.equal(receipt.scope, toolbarMetroScope)
     assert.equal(receipt.sourceCommit, sourceCommit)
     assert.equal(receipt.manifestSha256, manifestSha256)
@@ -30,6 +30,11 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       assert.match(row.bundleSha256, hash)
       assert.ok(Number.isSafeInteger(row.bundleBytes) && row.bundleBytes > 0)
       assert.equal(row.sharedAliasPlan, row.mode === 'toolbar-opt-in')
+      assert.deepEqual(row.ordinaryPrimitive, {
+        host: 'View',
+        style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
+        classNameLeaked: false,
+      })
       assert.equal(row.capture?.source, 'ordinary-metro-resolver')
       assert.match(row.capture.fingerprint, hash)
       assert.ok(
@@ -46,7 +51,13 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
         ordinary?.capture,
         'Builds must share the successful ordinary capture',
       )
-      assert.deepEqual(Object.keys(row.routes).sort(), ['alias', 'literal', 'opaque', 'uncaptured'])
+      assert.deepEqual(Object.keys(row.routes).sort(), [
+        'alias',
+        'literal',
+        'nested',
+        'opaque',
+        'uncaptured',
+      ])
       for (const [route, observed] of Object.entries(row.routes)) {
         assert.deepEqual(
           observed,
@@ -73,7 +84,15 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       }
     }
     assert.equal(pending.size, 0)
-    return { ...base, passed: true, builds: 8, observations: 32, prepared: 4, ordinary: 28 }
+    return {
+      ...base,
+      passed: true,
+      builds: 8,
+      observations: 40,
+      prepared: 4,
+      ordinary: 36,
+      primitiveControls: 8,
+    }
   } catch (error) {
     return { ...base, passed: false, reason: error.message }
   }

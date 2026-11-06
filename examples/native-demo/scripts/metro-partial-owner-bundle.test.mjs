@@ -191,21 +191,33 @@ async function checkBundles(t, evidence, manifest) {
         className="p-2 gap-x-3 gap-y-4" style={author.value}/>;
     `,
     )
+    const nestedFile = path.join(f.root, 'Nested.tsx')
+    writeFileSync(
+      nestedFile,
+      `
+      import {View} from 'react-native';import {Toolbar} from '@hozo/patterns';
+      export const renderNestedToolbar=(h,items,author)=> <View className="p-2">
+        <Toolbar accessibilityLabel="Tools" items={items} className="p-2 gap-x-3 gap-y-4" style={author.value}/></View>;
+    `,
+    )
     writeFileSync(appMetadata, JSON.stringify(app))
     writeFileSync(
       file,
       `
       import {BottomSheet as Sheet,Toolbar,HozoToolbar as Alias} from '@hozo/patterns';
+      import {View} from 'react-native';
       import {inputPlatform, readHandleClass, readToolbarClass} from 'handle-input';
       import {renderUncaptured,renderUncapturedToolbar} from './Uncaptured';
+      import {renderNestedToolbar} from './Nested';
       const h = (Component, props) => {
         if(Component===Toolbar) {
           globalThis.toolbarCarrierSupplied = typeof props.hozoToolbarStyle === 'function';
           globalThis.toolbarPlan=props.hozoToolbarStyle;
         }
         else globalThis.carrierSupplied = typeof props.hozoInteractiveHandleStyle === 'function';
-        return Component(props);
+        return typeof Component==='function' ? Component(props) : {type:Component,props};
       };
+      globalThis.ordinaryRoot=<View accessibilityLabel="Ordinary box" className="p-2"/>;
       const render = detents => <Sheet open detents={detents}
         handleClassName="${handleClass}" handleStyle={{paddingTop: 21}} />;
       const renderOpaque = detents => <Sheet open detents={detents}
@@ -259,6 +271,7 @@ async function checkBundles(t, evidence, manifest) {
           actions:globalThis.toolbarActions};
       }
       globalThis.toolbarResult={literal:observeToolbar(renderToolbar),alias:observeToolbar(renderAliasToolbar),opaque:observeToolbar(renderOpaqueToolbar),
+        nested:observeToolbar(()=>renderNestedToolbar(h,toolbarItems,toolbarAuthor)),
         uncaptured:observeToolbar(()=>renderUncapturedToolbar(h,toolbarItems,toolbarAuthor))};
       globalThis.sharedToolbarPlan=typeof globalThis.toolbarPlans[0]==='function' &&
         globalThis.toolbarPlans[0]===globalThis.toolbarPlans[1];
@@ -312,7 +325,7 @@ async function checkBundles(t, evidence, manifest) {
     const capture = {
       platform,
       epoch: 'partial-owner-bundle',
-      origins: [file, path.join(patterns, 'index.js')],
+      origins: [file, nestedFile, path.join(patterns, 'index.js')],
       additionalImports: [
         { importer: file, specifier: '@hozo/core/generated/class-resolver' },
         { importer: file, specifier: asyncRequireSpecifier },
@@ -425,7 +438,12 @@ async function checkBundles(t, evidence, manifest) {
       runInNewContext(code, globals, { timeout: 5000 })
       const { inputPlatform, literal, opaque, uncaptured } = globals.partialResult
       const { carrierSupplied } = literal
-      const flatten = (style) => Object.assign({}, ...style.flat(Infinity))
+      const flatten = (style) => Object.assign({}, ...[style].flat(Infinity))
+      const ordinaryPrimitive = {
+        host: globals.ordinaryRoot.type,
+        style: flatten(globals.ordinaryRoot.props.style),
+        classNameLeaked: Object.hasOwn(globals.ordinaryRoot.props, 'className'),
+      }
       const toolbar = globals.toolbarResult
       const observedToolbar = {}
       // Store the actual controls before asserting so a failed platform/mode
@@ -437,6 +455,7 @@ async function checkBundles(t, evidence, manifest) {
         bundleSha256: digest(code),
         bundleBytes: Buffer.byteLength(code),
         sharedAliasPlan: globals.sharedToolbarPlan,
+        ordinaryPrimitive,
         routes: observedToolbar,
         capture: {
           source: 'ordinary-metro-resolver',
@@ -444,6 +463,11 @@ async function checkBundles(t, evidence, manifest) {
           routes: livePreflight.routes.length,
           ordinaryBundleSha256,
         },
+      })
+      assert.deepEqual(ordinaryPrimitive, {
+        host: 'View',
+        style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
+        classNameLeaked: false,
       })
       for (const [route, control] of Object.entries(toolbar)) {
         const style = flatten(control.style)
@@ -562,7 +586,7 @@ test('production Metro bundles deliver selected BottomSheet and Toolbar owners a
       toolbarEvidenceFile,
       `${JSON.stringify(
         {
-          schema: 2,
+          schema: 3,
           sourceCommit: evidence.sourceCommit,
           trackedChanges: evidence.trackedChanges,
           scope: 'metro-production-toolbar-owner-host-standins',

@@ -78,3 +78,23 @@ This removes a mixed-file restriction in the explicit route, not the ordinary
 default. Full/partial prepared destinations, aliases and unsupported/dynamic
 fallbacks retain their existing semantics. Actual production Metro execution
 of the mixed file remains the next integration layer.
+
+## Production Metro integration fixture
+
+The fourth layer extends the existing eight serial Android/iOS Metro builds,
+not the build-mode count. The app now executes an ordinary styled Native View
+alongside both owner aliases. Each build must report the View's lowered style
+and absence of a leaked className. A second explicitly captured module has a
+Toolbar inside an actually regenerated View: that entire module must stay
+ordinary even while its captured neighbor receives a prepared carrier.
+
+Toolbar receipt schema 3 requires five routes per build (40 observations),
+four prepared alias deliveries, 36 ordinary controls and eight separate
+primitive controls. Earlier schema-1/2 receipts remain historical evidence for
+their narrower owner-only boundaries; they cannot satisfy the new mixed-file
+reader. The BottomSheet build/fallback denominators are unchanged.
+
+The fixture still executes actual distributed widgets and a real candidate
+resolver through minified Metro bundles with React/RN host stand-ins. It is
+not Yoga, device events or pixel evidence. Execution is delegated to Owner
+Evidence CI; synthetic reader tests do not establish production success.
