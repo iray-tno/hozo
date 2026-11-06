@@ -77,23 +77,23 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/interaction_order.rs':
         '7b91f5ba55ac795a003f9c95325dbdb851d8d27b938db4000dbd7addf483428d',
       'crates/hozo_parser/src/jsx.rs':
-        '5d414ff2ed1d1421b5f928a9fca9126cc6cd1557a9b0a7a02769fb7921f71daf',
+        '1995d73ced36f03e271d7b4dd79a68f9a1cb221b957ef5767c20d0d5e1801227',
       'crates/hozo_parser/src/stylex.rs':
         '3a26cde813b2405026a619926a42cda003377c7382436869d5e6d837bbb9861f',
       'crates/hozo_parser/src/tailwind_variants.rs':
         '582cd58c34c68a3f0b6ca705a179b349bd037bb7af680eb1760136cee48c964f',
       'crates/hozo_parser/src/tailwind.rs':
-        'f3b2cac1777a7a7c38bdf33c9e603ffec305b5e378c8533afe3bac2d33fd17e8',
+        'f34cbb3d944f03c13a3d4985d890fbb607f30945124642a86e4b032f70a1f96a',
       'crates/hozo_parser/src/text_regions.rs':
         '0615cf249f3e52fc860131783e6ff1d5bba67f7a9a04a1a37ba5da533ca5ad0d',
       'crates/hozo_native/src/lib.rs':
-        'cd610a8db72c0889532ee4156413bf1e69ab7da4045299e841bf1422360ccae0',
+        '853f5a9fae421c105a50db899bd9cd411f83f3793f4208f2eaa73b090204bf15',
       'crates/hozo_native/src/owner_style.rs':
         '1ec0dd323b7ded1a1ca7c83d2160b2e1c9ebdaa717e8c82b64298b174bc7287e',
       'crates/hozo_native/src/runtime_classes.rs':
-        'd47e472c5042734c1b386ea4e712fe0dffba832a88a6882e75e2759c16d62bae',
+        'a052fc4bf15646b729ec749cb9db4f4ee998559c8f1332ccb433afd02163e464',
       'crates/hozo_native/src/conditions.rs':
-        'd9e14f8cf1eb8d621188aecd079327ce1c096907524e3163b377a6f63d261507',
+        'f01b0abb793d6aa0617acb68d608319bf5b5c537fce8f186e771cc3ee09e1eee',
       'crates/hozo_native/src/conditions/guards.rs':
         'dd34ae4567c841bb4c830caba937836ecb29ef5db81440fd7dafed96b8198f13',
       'crates/hozo_native/src/text_region.rs':
@@ -105,7 +105,7 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/text.rs':
         '74c04433e9e410335def93b6e4ab37955cc5ae7c88fb4c4555d3bfe65534d9d0',
       'crates/hozo_ir/src/lib.rs':
-        '1581b0895dcefa052f4a1dc55b8cb6da4bcf6d4754e13bae4eb6b2a6139a5d84',
+        '831d4b53eccc671d6888c96e3fefafbfb203d47313075d3108797851d7797098',
       'crates/hozo_ir/src/theme.rs':
         '824032026fb205ecaa33d2b21fa81f1df106e000548b49cc4938a3f199c488ce',
       'crates/hozo_ir/src/tailwind_units.rs':
