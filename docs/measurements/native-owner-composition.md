@@ -135,3 +135,21 @@ This backend layer alone does not enable a new owner route: NAPI UTF-16
 conversion, Native identifier namespacing and the actual Metro observer must
 carry these ranges before nested owner composition can use them. Ordinary
 defaults and owner contract audit status remain unchanged.
+
+### Binding delivery
+
+`NativeCompileOptions.sourceEvidence` carries this ordinary-only request through
+direct compilation and retained Native IR. NAPI converts both original byte
+spans and component-relative emitted byte offsets to JavaScript UTF-16 units.
+The ordinary call after an observed call is unchanged. Combining this request
+with owner-style/text experiments is rejected explicitly, rather than returning
+missing evidence under a different renderer. Cold preparation snapshots the
+request; mutating its original JS options cannot change later emission.
+
+```sh
+node --test --test-concurrency=1 packages/compiler/src/native-source-evidence.test.ts
+```
+
+The binding does not turn ranges into Metro rewrite permission. Its consumer
+still must account for the actual identifier-renaming pass and any intervening
+Canvas/import/hook edits before composition.

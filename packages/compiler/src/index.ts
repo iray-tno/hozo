@@ -118,6 +118,8 @@ export interface CompiledTagDecision {
 }
 
 export interface CompiledNativeComponent {
+  /** @internal Actual carried child fragments; emitted UTF-16 offsets are relative to `jsx`. */
+  sourceCopies?: CompiledSourceCopy[]
   /** @internal RFC010: style-only preparation, absent on ordinary output. */
   ownerStyle?: {
     /** Requires the destination's existing box/owned-label split, not a host style. */
@@ -621,6 +623,8 @@ export interface CompileEvidence {
 }
 
 export interface NativeCompileOptions extends CompileEvidence {
+  /** @internal Exact carried-child ranges; ordinary lowering only, per call. */
+  sourceEvidence?: boolean
   /** @internal RFC010 leaf-owner preparation; not a project/bundler mode. */
   ownerStyle?: boolean
   /** @internal Explicit existing-owner booleans, requires ownerStyle. Literal Pressable only. */
@@ -744,6 +748,11 @@ export function prepareFinalTailwindContext(snapshot: string): PreparedTailwindC
 }
 
 function validateNativeOptions(options: NativeCompileOptions | undefined) {
+  if (
+    options?.sourceEvidence &&
+    (options.ownerStyle || options.textReference || options.textInheritance || options.textStatic)
+  )
+    throw new Error('Internal sourceEvidence requires ordinary Native lowering')
   if (
     options?.ownerStyle &&
     (options.textReference || options.textInheritance || options.textStatic)
