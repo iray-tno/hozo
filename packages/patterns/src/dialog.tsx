@@ -1,5 +1,13 @@
 import { shouldRestoreFocus, usePresence } from '@hozo/behaviors'
-import { type ReactNode, type RefObject, useCallback, useEffect, useRef } from 'react'
+import {
+  type MouseEvent,
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef,
+} from 'react'
 
 export interface DialogProps {
   /** Whether the dialog is showing. Render is driven by this, not by mounting. */
@@ -9,6 +17,14 @@ export interface DialogProps {
    * form's own dismiss.
    */
   onClose?: () => void
+  /**
+   * Call `onClose` when the backdrop behind the panel is pressed (#1715).
+   *
+   * Off by default, as the browser's own `<dialog>` is: a press beside a form
+   * that throws its contents away is the surprise. Escape and `onClose` are
+   * still the way every user closes it; this is one more, for a pointer.
+   */
+  closeOnBackdropPress?: boolean
   /** The dialog's accessible name. */
   accessibilityLabel?: string
   /**
@@ -55,6 +71,7 @@ export interface DialogProps {
 export function Dialog({
   open = false,
   onClose,
+  closeOnBackdropPress = false,
   accessibilityLabel,
   accessibilityLabelledBy,
   accessibilityHint,
@@ -108,6 +125,27 @@ export function Dialog({
     return () => dialog.removeEventListener('cancel', onCancel)
   }, [onClose])
 
+  /**
+   * A press on `::backdrop` arrives as a click on the `<dialog>` itself, and
+   * so does one on the panel's own padding. Only a point outside the panel's
+   * box is the backdrop. A click from the keyboard has no point (`detail` 0)
+   * and is never one.
+   *
+   * The press has to start there too. Selecting text in a field and letting
+   * go past the panel's edge clicks the `<dialog>` outside its box, and that
+   * is not a request to throw the form away.
+   */
+  const pressedBackdrop = useRef(false)
+  const onBackdropPointerDown = (event: PointerEvent<HTMLDialogElement>) => {
+    pressedBackdrop.current = onBackdrop(event)
+  }
+  const onBackdropClick = (event: MouseEvent<HTMLDialogElement>) => {
+    const pressed = pressedBackdrop.current
+    pressedBackdrop.current = false
+    if (pressed && event.detail !== 0 && onBackdrop(event)) onClose?.()
+  }
+  const backdrop = closeOnBackdropPress && open
+
   const { ref: presenceRef } = presence
   const setRef = useCallback(
     (node: HTMLDialogElement | null) => {
@@ -128,9 +166,24 @@ export function Dialog({
       data-state={presence.state}
       onTransitionEnd={presence.onTransitionEnd}
       onAnimationEnd={presence.onAnimationEnd}
+      onPointerDown={backdrop ? onBackdropPointerDown : undefined}
+      onClick={backdrop ? onBackdropClick : undefined}
     >
       {children}
     </dialog>
+  )
+}
+
+/** Whether a pointer event on the `<dialog>` landed outside the panel's box. */
+function onBackdrop(event: MouseEvent<HTMLDialogElement>) {
+  const dialog = event.currentTarget
+  if (event.target !== dialog) return false
+  const box = dialog.getBoundingClientRect()
+  return (
+    event.clientX < box.left ||
+    event.clientX > box.right ||
+    event.clientY < box.top ||
+    event.clientY > box.bottom
   )
 }
 

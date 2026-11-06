@@ -142,3 +142,39 @@ test('unmounted while open, it gives focus back', { skip: !executablePath }, asy
     await p.close()
   }
 })
+
+// #1715: a press on ::backdrop arrives as a click on the <dialog> itself.
+test('closeOnBackdropPress closes on a backdrop press, and only on one', {
+  skip: !executablePath,
+}, async () => {
+  const PANEL = `dialog{width:200px;height:120px;padding:24px;margin:auto}`
+  for (const closeOnBackdropPress of [false, true]) {
+    const p = await browser.newPage()
+    try {
+      await p.setContent(
+        `<!doctype html><style>${PANEL}</style><button id="opener">Open</button><div id="root"></div>`,
+      )
+      await p.addScriptTag({ content: script })
+      await p.evaluate((closeOnBackdropPress) => {
+        window.dismissed = 0
+        window.render({ open: true, closeOnBackdropPress, onClose: () => window.dismissed++ })
+      }, closeOnBackdropPress)
+      await p.waitForFunction(() => document.querySelector('dialog')?.open === true)
+      const box = await p.locator('dialog').boundingBox()
+      const closed = () => p.evaluate(() => window.dismissed)
+      // The panel's own padding is the <dialog> too, and is not the backdrop.
+      await p.mouse.click(box.x + 4, box.y + 4)
+      assert.equal(await closed(), 0, 'a press on the panel padding closed it')
+      // A press that starts in the panel and ends outside is a text selection.
+      await p.mouse.move(box.x + 10, box.y + 10)
+      await p.mouse.down()
+      await p.mouse.move(5, 5)
+      await p.mouse.up()
+      assert.equal(await closed(), 0, 'a drag out of the panel closed it')
+      await p.mouse.click(5, 5)
+      assert.equal(await closed(), closeOnBackdropPress ? 1 : 0)
+    } finally {
+      await p.close()
+    }
+  }
+})
