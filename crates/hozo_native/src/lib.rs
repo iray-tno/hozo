@@ -112,7 +112,8 @@ use transition::{ambient_transition, native_driver_transition};
 
 pub struct LowerOutput {
     pub jsx: String,
-    /// Opt-in exact carried children, not generated props or a source map.
+    /// Opt-in exact carried children/passthrough props, not generated syntax
+    /// or a general source map.
     pub source_copies: Option<Vec<SourceCopy>>,
     /// A `StyleSheet.create({ ... })`-ready JS object literal (without the
     /// `StyleSheet.create(` wrapper -- left to the caller, since whether/how

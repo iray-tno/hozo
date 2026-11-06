@@ -91,3 +91,29 @@ test('Native source evidence cannot silently switch to an owner or text experime
         /sourceEvidence requires ordinary Native lowering/,
       )
 })
+
+test('Native passthrough-prop copies keep UTF-16 ranges through a nested primitive', () => {
+  const input = `// 😀 日本語\r\nimport {View,Text} from '@hozo/core';
+    export const C=()=> <View className="p-2" header={<Tools title="同じ😀"/>}
+    renderItem={item => <Text className="font-bold"><Tools title="同じ😀"/></Text>}/>`
+  const compiler = createCompiler()
+  const plain = compiler.compileNativeModule(input)
+  const observed = compiler.compileNativeModule(input, undefined, undefined, {
+    sourceEvidence: true,
+  })
+  const { sourceCopies, ...actual } = observed.components[0]!
+  const { sourceCopies: absent, ...ordinary } = plain.components[0]!
+  assert.equal(absent, undefined)
+  assert.deepEqual(actual, ordinary)
+  assert.ok(sourceCopies?.length)
+  for (const copy of sourceCopies)
+    assert.equal(
+      input.slice(copy.spanStart, copy.spanEnd),
+      actual.jsx.slice(copy.emittedStart, copy.emittedEnd),
+    )
+  const carried = sourceCopies.map((copy) => input.slice(copy.spanStart, copy.spanEnd)).join('')
+  assert.equal(carried.match(/<Tools title="同じ😀"\/>/g)?.length, 2)
+  assert.ok(carried.includes('renderItem={item => '))
+  assert.ok(!carried.includes('className="font-bold"'))
+  assert.deepEqual(compiler.compileNativeModule(input), plain)
+})

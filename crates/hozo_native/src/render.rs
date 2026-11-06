@@ -2344,7 +2344,7 @@ pub(super) fn render_node(
     // Everything Hozo doesn't model, re-emitted verbatim and last so JSX's
     // last-wins duplicate resolution keeps matching the source's own
     // ordering semantics.
-    let mut rendered: Vec<(&hozo_ir::PassthroughProp, String)> = Vec::new();
+    let mut rendered: Vec<(&hozo_ir::PassthroughProp, Rendered)> = Vec::new();
     for prop in &node.props.passthrough {
         if node.primitive == Primitive::Button {
             if prop
@@ -2368,7 +2368,13 @@ pub(super) fn render_node(
                     .and_then(|text| text.trim().strip_prefix("..."))
                 {
                     cx.runtime.need_component("hozoButtonProps");
-                    rendered.push((prop, format!("{{...hozoButtonProps({expression})}}")));
+                    rendered.push((
+                        prop,
+                        Rendered {
+                            text: format!("{{...hozoButtonProps({expression})}}"),
+                            copies: None,
+                        },
+                    ));
                     continue;
                 }
             }
@@ -2426,8 +2432,7 @@ pub(super) fn render_node(
                 &descend,
                 child_interaction_context,
                 cx,
-            )
-            .text,
+            ),
         ));
     }
     // Held styles go through the spreads, with whatever sits between them,
@@ -2444,9 +2449,9 @@ pub(super) fn render_node(
             let mut refused = None;
             for (prop, text) in &rendered[first..=last] {
                 let arg = if prop.is_spread {
-                    crate::spread_style::spread_expression(text).map(str::to_string)
+                    crate::spread_style::spread_expression(&text.text).map(str::to_string)
                 } else {
-                    crate::spread_style::attribute_object(text)
+                    crate::spread_style::attribute_object(&text.text)
                 };
                 match arg {
                     Some(arg) => args.push(arg),
@@ -2482,6 +2487,7 @@ pub(super) fn render_node(
         }
         _ => None,
     };
+    let mut prop_copies = cx.source_evidence.then(Vec::new);
     match group {
         Some((first, last, args)) => {
             let after = rendered[last].0.span.0.start;
@@ -2503,28 +2509,31 @@ pub(super) fn render_node(
                 "hozoSpreadStyles"
             };
             cx.runtime.need_component(helper);
-            for (_, text) in &rendered[..first] {
-                props_text.push(' ');
-                props_text.push_str(text);
-            }
-            props_text.push_str(&crate::spread_style::helper_call(
-                &held.held,
-                &written_last,
-                &args,
-                helper,
-            ));
-            for (_, text) in &rendered[last + 1..] {
-                props_text.push(' ');
-                props_text.push_str(text);
+            for (index, (_, text)) in rendered.into_iter().enumerate() {
+                if index == first {
+                    props_text.push_str(&crate::spread_style::helper_call(
+                        &held.held,
+                        &written_last,
+                        &args,
+                        helper,
+                    ));
+                }
+                if index < first || index > last {
+                    props_text.push(' ');
+                    text.append_into(&mut props_text, &mut prop_copies);
+                }
+                // Grouped attributes were rewritten into helper arguments,
+                // not copied as props. Keep their bytes, but not permission
+                // to rewrite inside that newly generated syntax.
             }
         }
         None => {
             for (name, value) in &held.held {
                 props_text.push_str(&format!(" {name}={{{value}}}"));
             }
-            for (_, text) in &rendered {
+            for (_, text) in rendered {
                 props_text.push(' ');
-                props_text.push_str(text);
+                text.append_into(&mut props_text, &mut prop_copies);
             }
         }
     }
@@ -2664,7 +2673,7 @@ pub(super) fn render_node(
     } else {
         rendered_component
     };
-    let rendered = if component == "TextInput"
+    let mut rendered = if component == "TextInput"
         || rendered_component == "HozoTextInput"
         || component == "Image"
     {
@@ -2677,6 +2686,16 @@ pub(super) fn render_node(
         let text = format!("<{tag}{props_text}>{}</{tag}>", inner.text);
         inner.wrap(text, 3 + tag.len())
     };
+    if let Some(mut copies) = prop_copies {
+        for copy in &mut copies {
+            copy.emitted_start += 1 + tag.len();
+            copy.emitted_end += 1 + tag.len();
+        }
+        if let Some(children) = rendered.copies.take() {
+            copies.extend(children);
+        }
+        rendered.copies = Some(copies);
+    }
     // Inside the grid item rather than outside it: `HozoGrid` reads its
     // children's types to place them, so anything between the two would
     // make a grid item stop looking like one.

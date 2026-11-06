@@ -177,3 +177,30 @@ ordinary controls instead of schema 3's four/36. Old schema-3 results cannot
 certify the newly implemented path. This changes neither the BottomSheet build
 denominator nor any owner audit/default; the production fixture still uses
 React/RN host stand-ins, not Yoga or device pixels.
+
+## Native passthrough-prop composition
+
+The ordinary Native prop writer now carries the evidence from `render_verbatim`
+when it actually appends an unchanged prop, including JSX values and authored
+render callbacks. A nested primitive can still lower inside that value; only
+its surviving raw fragments are certified. The existing prop formatting and
+evaluation order are unchanged. Ordinary rendering allocates no copy vectors.
+At the final host, prop-copy offsets shift by the actual opening-tag length and
+precede the already shifted child copies. Image/TextInput retain their emitted
+prop copies but still discard all child evidence.
+
+This removes the blanket omission of passthrough-prop evidence, not the guard
+against generated syntax. Props between a pair of spreads may become
+`hozoSpreadStyles` arguments. That rewritten range remains unproven; unchanged
+props before/after it retain their own evidence. Button's normalized spread,
+image-source normalization and the existing new-scope guards remain unassessed.
+One unproven owner still keeps the **whole** module ordinary, even if a separate
+sibling could prepare.
+
+Rust tests check byte/diagnostic/import/style parity, UTF-8 source slices,
+duplicate JSX, nested primitives, grouped-spread exclusions, void-host props
+and lexical-scope refusal. Binding tests check the corresponding UTF-16 ranges.
+Actual compiler/compositor and source-worker tests include an authored FlatList
+`renderItem` callback without inventing another binder or evaluating its author
+early. Production Metro execution of that callback remains a separate receipt;
+these local tests do not claim list windowing, Yoga, device input or pixels.

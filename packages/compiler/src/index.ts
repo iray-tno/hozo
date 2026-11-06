@@ -118,7 +118,7 @@ export interface CompiledTagDecision {
 }
 
 export interface CompiledNativeComponent {
-  /** @internal Actual carried child fragments; emitted UTF-16 offsets are relative to `jsx`. */
+  /** @internal Actual carried child/passthrough fragments; emitted UTF-16 offsets are relative to `jsx`. */
   sourceCopies?: CompiledSourceCopy[]
   /** @internal RFC010: style-only preparation, absent on ordinary output. */
   ownerStyle?: {
@@ -623,7 +623,7 @@ export interface CompileEvidence {
 }
 
 export interface NativeCompileOptions extends CompileEvidence {
-  /** @internal Exact carried-child ranges; ordinary lowering only, per call. */
+  /** @internal Exact carried child/passthrough ranges; ordinary lowering only, per call. */
   sourceEvidence?: boolean
   /** @internal RFC010 leaf-owner preparation; not a project/bundler mode. */
   ownerStyle?: boolean

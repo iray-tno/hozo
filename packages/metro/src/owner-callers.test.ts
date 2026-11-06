@@ -219,6 +219,16 @@ test('mixed Native files prepare siblings and copied children but retain unprove
     )
     const mixed = identityParent.replace('<View><Tools', '<View className="p-2"><Tools')
     assert.match(String(await transform({ ...f.params, src: mixed })), /hozoToolbarStyle=/)
+    const prop = input
+      .replace(
+        'export const A=()=> <Tools',
+        'export const A=()=> <View className="p-2" content={() => <Tools',
+      )
+      .replace('className="p-2"/>', 'className="p-2"/>}/>')
+    const deliveredProp = String(await transform({ ...f.params, src: prop }))
+    assert.match(deliveredProp, /hozoToolbarStyle=/)
+    assert.equal(deliveredProp.split('author.value').length - 1, 1)
+    assert.equal(String(await transform({ ...f.params, src: prop })), deliveredProp)
     const unproven = mixed.replace(
       '<View className="p-2"><Tools',
       '<View className="@sm:p-2"><Tools',

@@ -690,7 +690,7 @@ pub struct TextForwardingModule {
 #[derive(Default)]
 #[napi(object)]
 pub struct NativeCompileOptions {
-    /// Exact surviving child fragments from ordinary Native rendering only.
+    /// Exact surviving child/passthrough fragments from ordinary Native rendering only.
     pub source_evidence: Option<bool>,
     pub owner_style: Option<bool>,
     pub owner_facts: Option<Vec<String>>,
