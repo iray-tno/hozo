@@ -78,3 +78,39 @@ test('Native IDs survive compilation and value rendering; DOM metadata is diagno
     warn.mock.restore()
   }
 })
+
+// #1704: a menu trigger's open state, compiled or not, named or spread.
+test('a Button carries accessibilityState to the Native host, and drops aria-controls', () => {
+  const { Button: Fallback } = require('@hozo/primitives')
+  const { Named, Spread } = loadNativeModule(`import {Button} from '@hozo/core';
+    export function Named({ open }) {return <Button accessibilityState={{ expanded: open }} aria-controls="menu">Open</Button>}
+    export function Spread(props) {return <Button { ... props } />}`)
+  const host = (element: unknown) => {
+    let tree: ReturnType<typeof renderer.create>
+    renderer.act(() => {
+      tree = renderer.create(element as never)
+    })
+    try {
+      return tree.root.findByType('Pressable').props
+    } finally {
+      renderer.act(() => tree.unmount())
+    }
+  }
+  const trigger = { accessibilityState: { expanded: true }, 'aria-controls': 'menu' }
+  for (const C of [Fallback, Spread]) {
+    const props = host(react.createElement(C, trigger, 'Open'))
+    assert.equal(props.accessibilityState.expanded, true)
+    assert.equal(props.accessibilityRole, 'button')
+  }
+  assert.equal(host(react.createElement(Named, { open: true })).accessibilityState.expanded, true)
+  assert.equal(
+    host(react.createElement(Fallback, trigger, 'Open'))['aria-controls'],
+    undefined,
+    'React Native has nothing to put it in',
+  )
+  const off = host(
+    react.createElement(Fallback, { accessibilityState: { disabled: true } }, 'Save'),
+  )
+  assert.equal(off.disabled, true)
+  assert.equal(off.accessibilityState.disabled, true)
+})

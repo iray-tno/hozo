@@ -3,6 +3,7 @@ import { HozoTextSizeContext } from '@hozo/engine'
 import React, { type ComponentRef, type ComponentType, type ReactNode, type Ref } from 'react'
 import {
   type AccessibilityRole,
+  type AccessibilityState,
   Pressable as RNPressable,
   type PressableProps as RNPressableProps,
   Text as RNText,
@@ -176,6 +177,13 @@ export interface ButtonProps extends ButtonDataProps {
   onHoverIn?: RNPressableProps['onHoverIn']
   onHoverOut?: RNPressableProps['onHoverOut']
   onLongPress?: RNPressableProps['onLongPress']
+  /** As the Web half: `expanded` and the rest, `disabled` merged with the prop. */
+  accessibilityState?: AccessibilityState
+  /**
+   * Accepted so one source type-checks on both platforms, and dropped: React
+   * Native has no relationship between views to carry it (#1704).
+   */
+  'aria-controls'?: string
 }
 
 export type ButtonNativeProps = ButtonProps
@@ -193,15 +201,19 @@ export function Button({
   style,
   testID,
   nativeID,
+  accessibilityState: state,
+  'aria-controls': _controls,
   ...metadata
 }: ButtonProps) {
+  const off = state?.disabled === true ? true : disabled
   const shared = {
     ...hozoButtonProps(buttonDataProps(metadata)),
     ...buttonTriggerProps(metadata, BUTTON_TRIGGER_PROPS_NATIVE),
-    disabled,
+    disabled: off,
     accessibilityLabel,
     accessibilityHint,
-    accessibilityState: disabled === undefined ? undefined : { disabled },
+    accessibilityState:
+      state === undefined && off === undefined ? undefined : { ...state, disabled: off },
     style,
     testID,
     nativeID,

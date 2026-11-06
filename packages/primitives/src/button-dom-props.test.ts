@@ -122,3 +122,44 @@ test('a roving tabIndex reaches the element, and a disabled link still leaves th
     /tabindex="-1"/i,
   )
 })
+
+// #1704: a menu or disclosure trigger says what it opens and whether it is open.
+test('accessibilityState and aria-controls reach the element, compiled or not', () => {
+  const trigger = { accessibilityState: { expanded: true }, 'aria-controls': 'menu' }
+  for (const dom of [
+    hozoButtonDomProps(trigger) as Record<string, unknown>,
+    hozoLinkDomProps(trigger) as Record<string, unknown>,
+  ]) {
+    assert.equal(dom['aria-expanded'], true)
+    assert.equal(dom['aria-controls'], 'menu')
+    assert.equal(dom.accessibilityState, undefined)
+  }
+  for (const href of [undefined, '/docs']) {
+    const html = renderToStaticMarkup(createElement(Button, { href, ...trigger }, 'Open'))
+    assert.match(html, /aria-expanded="true"/)
+    assert.match(html, /aria-controls="menu"/)
+  }
+  const closed = renderToStaticMarkup(
+    createElement(Button, { accessibilityState: { expanded: false } }, 'Open'),
+  )
+  assert.match(closed, /aria-expanded="false"/)
+})
+
+test('accessibilityState.disabled disables a Button as the disabled prop does', () => {
+  const state = { accessibilityState: { disabled: true }, onPress }
+  const button = hozoButtonDomProps(state) as Record<string, unknown>
+  assert.equal(button.disabled, true)
+  assert.equal(button['data-hozo-disabled'], '')
+
+  const link = hozoLinkDomProps(state) as Record<string, unknown>
+  assert.notEqual(link.onClick, onPress)
+  assert.equal(link['aria-disabled'], true)
+  assert.equal(link.tabIndex, -1)
+
+  const html = renderToStaticMarkup(createElement(Button, state, 'Save'))
+  assert.match(html, / disabled=""/)
+  assert.match(html, /aria-disabled="true"/)
+  assert.doesNotMatch(html.match(/<button[^>]*>/)?.[0] ?? '', /data-hozo-pressable/)
+  const anchor = renderToStaticMarkup(createElement(Button, { ...state, href: '/x' }, 'Save'))
+  assert.match(anchor, /aria-disabled="true"/)
+})
