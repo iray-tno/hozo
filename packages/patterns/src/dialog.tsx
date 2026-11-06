@@ -1,5 +1,5 @@
-import { shouldRestoreFocus } from '@hozo/behaviors'
-import { type ReactNode, type RefObject, useEffect, useRef } from 'react'
+import { shouldRestoreFocus, usePresence } from '@hozo/behaviors'
+import { type ReactNode, type RefObject, useCallback, useEffect, useRef } from 'react'
 
 export interface DialogProps {
   /** Whether the dialog is showing. Render is driven by this, not by mounting. */
@@ -34,6 +34,18 @@ export interface DialogProps {
   children?: ReactNode
 }
 
+/**
+ * A modal dialog, the browser's own `<dialog>` opened with `showModal()`.
+ *
+ * ## Closing is the end of its exit, not the moment `open` turns false
+ *
+ * `close()` takes the element out of the top layer and the UA hides a
+ * `dialog:not([open])`, so nothing can animate after it (#1715). So `open`
+ * turning false first sets `data-state="closed"` and leaves the dialog shown,
+ * and `close()` and the focus restore wait for the transition or animation that
+ * state starts -- the presence `Popover` has, decision 007. With no exit in the
+ * stylesheet, which is the default, it closes at once, as before.
+ */
 export function Dialog({
   open = false,
   onClose,
@@ -46,6 +58,10 @@ export function Dialog({
 }: DialogProps) {
   const ref = useRef<HTMLDialogElement | null>(null)
   const opener = useRef<Element | null>(null)
+  const presence = usePresence(open)
+  const shown = presence.mounted
+  const restoreTo = useRef(restoreFocusTo)
+  restoreTo.current = restoreFocusTo
 
   useEffect(() => {
     const dialog = ref.current
@@ -56,20 +72,23 @@ export function Dialog({
       dialog.showModal()
       return
     }
-    if (!open && dialog.open) {
+    if (!shown && dialog.open) {
       dialog.close()
-      const previous = restoreFocusTo?.current ?? opener.current
-      if (
-        previous instanceof HTMLElement &&
-        shouldRestoreFocus({
-          focusable: previous.isConnected && !previous.hasAttribute('disabled'),
-        })
-      ) {
-        previous.focus()
-      }
+      restore(restoreTo.current?.current ?? opener.current)
       opener.current = null
     }
-  }, [open, restoreFocusTo])
+  }, [open, shown])
+
+  // Unmounted while open, or while it is still animating out: the element
+  // leaves the top layer with it, and focus goes back as a close would send it.
+  // The element is read at mount: React has cleared the ref by the time this
+  // cleanup runs.
+  useEffect(() => {
+    const dialog = ref.current
+    return () => {
+      if (dialog?.open) restore(restoreTo.current?.current ?? opener.current)
+    }
+  }, [])
 
   useEffect(() => {
     const dialog = ref.current
@@ -82,17 +101,40 @@ export function Dialog({
     return () => dialog.removeEventListener('cancel', onCancel)
   }, [onClose])
 
+  const { ref: presenceRef } = presence
+  const setRef = useCallback(
+    (node: HTMLDialogElement | null) => {
+      ref.current = node
+      presenceRef(node)
+    },
+    [presenceRef],
+  )
+
   return (
     <dialog
-      ref={ref}
+      ref={setRef}
       className={className}
       aria-label={accessibilityLabel}
       aria-description={accessibilityHint}
       data-testid={testID}
+      data-state={presence.state}
+      onTransitionEnd={presence.onTransitionEnd}
+      onAnimationEnd={presence.onAnimationEnd}
     >
       {children}
     </dialog>
   )
+}
+
+function restore(previous: Element | null) {
+  if (
+    previous instanceof HTMLElement &&
+    shouldRestoreFocus({
+      focusable: previous.isConnected && !previous.hasAttribute('disabled'),
+    })
+  ) {
+    previous.focus()
+  }
 }
 
 export { Dialog as HozoDialog, type DialogProps as HozoDialogProps }
