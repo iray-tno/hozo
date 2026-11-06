@@ -186,7 +186,7 @@ test('candidate consumption transfers only emitted Native fallback candidates', 
   assert.equal(Object.assign({}, ...resolver(f.root)('p-2')).paddingTop, 14)
 })
 
-test('explicit Metro partial worker requires the published fallback map and refuses mixed rewrites', async (t) => {
+test('explicit Metro partial worker composes proven siblings and retains unproven parents with the same frozen map', async (t) => {
   const f = fixture(t)
   const file = f.params.filename
   const source = `import {BottomSheet} from '@hozo/patterns'; export const Row=()=> <BottomSheet open handleClassName="p-2 hover:opacity-50"/>`
@@ -231,7 +231,47 @@ test('explicit Metro partial worker requires the published fallback map and refu
   const mixed = `${source}\nimport {View} from '@hozo/core'; export const Other=()=> <View className="p-4"/>`
   const ordinary = await worker.transform(mixed, file, f.root)
   assert.ok(ordinary?.includes('paddingTop: 28'))
-  assert.equal(await transformPartial(mixed), ordinary)
+  const composed = await transformPartial(mixed)
+  assert.match(composed ?? '', /hozoInteractiveHandleStyle=/)
+  assert.match(composed ?? '', /paddingTop: 28/)
+  const nested = `${source.replace('<BottomSheet', '<View className="p-4"><BottomSheet').replace('/>', '/></View>')}\nimport {View} from '@hozo/core';`
+  assert.equal(await transformPartial(nested), await worker.transform(nested, file, f.root))
+
+  const tracked = createCompiler({ ...transfer.snapshot.theme, preflight: true })
+  const original = tracked.prepareNativeModule.bind(tracked)
+  const records: { owner: boolean; contexts: unknown[]; disposed: number }[] = []
+  tracked.prepareNativeModule = (input, ...rest) => {
+    const module = original(input, ...rest)
+    const row = { owner: input.includes('function Plan()'), contexts: [] as unknown[], disposed: 0 }
+    records.push(row)
+    return {
+      ...module,
+      emit(context) {
+        row.contexts.push(context)
+        return module.emit(context)
+      },
+      dispose() {
+        row.disposed++
+        module.dispose()
+      },
+    }
+  }
+  const cold = new MetroTailwindWorker(tracked, transfer)
+  t.after(() => cold.invalidate())
+  assert.match(
+    (await cold.transformOwnerCaller(mixed, file, f.root, lease, request, 'prepared-partial')) ??
+      '',
+    /hozoInteractiveHandleStyle=/,
+  )
+  assert.equal(records.filter((r) => r.owner).length, 2)
+  assert.equal(records.filter((r) => !r.owner).length, 1)
+  assert.ok(
+    records.every((r) => r.contexts.length === 1 && r.contexts[0] === records[0]!.contexts[0]),
+  )
+  assert.ok(
+    records.every((r) => r.disposed === 1),
+    'both ordinary and owner IR are released once',
+  )
   writeFileSync(candidateModulePath(f.root), '// replaced')
   await assert.rejects(transformPartial(source), /RUNTIME_CHANGED/)
 })

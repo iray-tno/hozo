@@ -55,3 +55,26 @@ directive prefix. No worker path is enabled by this second layer yet.
 The new raw-source probe's compiler/helper/manifest inputs are explicit Turbo
 cache inputs. Its compiler-source wildcard includes transitive planner helpers;
 it adds no production dependency merely to invalidate a test cache.
+
+## Worker integration
+
+The internal explicit owner-caller worker now observes ordinary lowering and
+collects the owner plan into its existing module/session. It removes the early
+return on any non-null ordinary output. Warm complete output and cold retained
+ordinary IR both use the same composition guard; a refusal returns that entire
+ordinary result. Runtime candidate-map hash checks and the manifest lease still
+fence emission, and missing frozen candidates retain the original route.
+
+Real cold-worker instrumentation records one ordinary and two BottomSheet shape
+modules, all emitted through the same context object and each disposed once.
+The source-worker regression checks both Native platforms, warm output,
+once-only authored expression, ordinary byte restoration and nested refusal.
+An explicitly identical parent edit may retain its source coordinates; a
+parent with an actual JSX replacement does not. The initial old guard used an
+identical View parent, so its negative fixture was corrected to require a real
+replacement and a separate positive test keeps the identical-parent case.
+
+This removes a mixed-file restriction in the explicit route, not the ordinary
+default. Full/partial prepared destinations, aliases and unsupported/dynamic
+fallbacks retain their existing semantics. Actual production Metro execution
+of the mixed file remains the next integration layer.

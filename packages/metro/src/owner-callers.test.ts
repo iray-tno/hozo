@@ -141,7 +141,7 @@ test('captured aliases share one plan while opaque recipes, foreign names, mixed
     source().replace('className="p-2"', 'className="p-2 hover:opacity-50"'),
     `import * as P from '@hozo/patterns';export const A=()=> <P.Toolbar items={[]} className="p-2"/>`,
     `/* @hozo/patterns */import {Toolbar} from 'kit';export const A=()=> <Toolbar className="p-2"/>`,
-    `import {View} from '@hozo/core';${source().replace('<Tools', '<View><Tools').replace('/>', '/></View>')}`,
+    `import {View} from '@hozo/core';${source().replace('<Tools', '<View className="p-2"><Tools').replace('/>', '/></View>')}`,
   ])
     assert.doesNotMatch(
       String(await transform({ ...f.params, src: input })),
@@ -187,4 +187,43 @@ test('invalid targets and inconsistent serialized modes fail before replacing co
     () => new MetroOwnerShadowSession({ ...state, mode: 'assessment-only' }, f.root),
     /target/,
   )
+})
+
+test('mixed Native files prepare untouched owner siblings but retain nested unproven sites', async (t) => {
+  for (const platform of ['android', 'ios']) {
+    const f = fixture(t, platform)
+    const input = `import {View} from '@hozo/core';${source()}
+      export const Box=()=> <View className="p-2"/>;`
+    await withHozo(f.config, f.options)
+    const ordinary = String(await transform({ ...f.params, src: input }))
+    assert.doesNotMatch(ordinary, /hozoToolbarStyle=/)
+    await withHozoOwnerCallers(f.config, f.preflight, 'Toolbar.root', f.options)
+    const output = String(await transform({ ...f.params, src: input }))
+    assert.match(output, /hozoToolbarStyle=/)
+    assert.doesNotMatch(output, /className="p-2"/)
+    assert.match(output, /hozoStyles/)
+    assert.match(output, /paddingTop:\s*14/)
+    assert.equal(output.split('author.value').length - 1, 1)
+    assert.equal(
+      String(await transform({ ...f.params, src: input })),
+      output,
+      'warm output uses the same proven route',
+    )
+    const identityParent = input
+      .replace('export const A=()=> <Tools', 'export const A=()=> <View><Tools')
+      .replace('className="p-2"/>', 'className="p-2"/></View>')
+    assert.match(
+      String(await transform({ ...f.params, src: identityParent })),
+      /hozoToolbarStyle=/,
+      'an explicitly identical parent edit preserves its source range',
+    )
+    const mixed = identityParent.replace('<View><Tools', '<View className="p-2"><Tools')
+    assert.doesNotMatch(String(await transform({ ...f.params, src: mixed })), /hozoToolbarStyle=/)
+    await withHozo(f.config, f.options)
+    assert.equal(
+      String(await transform({ ...f.params, src: input })),
+      ordinary,
+      'ordinary restoration is byte-identical',
+    )
+  }
 })
