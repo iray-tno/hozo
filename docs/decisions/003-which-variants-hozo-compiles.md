@@ -55,6 +55,14 @@ itself they are reported as `TAILWIND_VARIANT_CANNOT_MATCH`, except
 has no `value`. React Native has none of these elements and reports them as
 not wired; `aria-checked:` is the spelling that works on both platforms.
 
+*Amended for the last nine (#1777).* The three `pointer-*` and three
+`any-pointer-*` queries, `inert`, `in-*` and `details-content` had the same
+gap. They are compiled now. `inert:` is reported nowhere: no primitive
+writes `inert`, but `[inert] *` matches under an ancestor the page marks.
+`details-content:` matches only a `<details>`, which `Details` is, so
+anywhere else it is reported as `TAILWIND_VARIANT_CANNOT_MATCH`. So is
+`open:`, which had been reported on `Details` too, where it matches.
+
 What is left of this rule is its warning. Any variant Hozo does not compile
 is carried to the project's Tailwind, where it loses to a compiled token
 that sets the same property. So the `TAILWIND_VARIANT_NOT_SUPPORTED` report
@@ -78,13 +86,14 @@ Web to no one's benefit.
 | Container | `@3xs`…`@7xl`, `@min-…`/`@max-…`, arbitrary lengths, and the `/name` form of each |
 | Colour scheme | `dark` |
 | ARIA state | `aria-busy` `aria-checked` `aria-disabled` `aria-expanded` `aria-hidden` `aria-pressed` `aria-readonly` `aria-required` `aria-selected` |
-| Relational | `group-…` `peer-…` `has-…`, wrapping any of the above |
-| Environment | `motion-safe` `motion-reduce` `portrait` `landscape` `inverted-colors` `ltr` `rtl` `contrast-more` `contrast-less` `forced-colors` `print` `noscript` |
+| Relational | `group-…` `peer-…` `in-…` `has-…`, wrapping any of the above |
+| Environment | `motion-safe` `motion-reduce` `portrait` `landscape` `inverted-colors` `ltr` `rtl` `contrast-more` `contrast-less` `forced-colors` `print` `noscript` `pointer-fine` `pointer-coarse` `pointer-none` `any-pointer-fine` `any-pointer-coarse` `any-pointer-none` |
 | Platform setting | `reduce-transparency` `bold-text` `grayscale` `screen-reader` — not Tailwind's; see below |
 | Compositional | `not-…` `data-…` `supports-…` |
 | Form state | `required` `optional` `valid` `invalid` `user-valid` `user-invalid` `in-range` `out-of-range` `read-only` `placeholder-shown` `autofill` |
 | Subtree | `*` `**` |
-| Pseudo-element | `before` `after` `placeholder` `selection` `marker` `first-letter` `first-line` `file` `backdrop` |
+| Pseudo-element | `before` `after` `placeholder` `selection` `marker` `first-letter` `first-line` `file` `backdrop` `details-content` |
+| Element state | `open` `checked` `indeterminate` `default` `inert` |
 | Document | `target` `visited` |
 | Transition | `starting` |
 | Arbitrary | `[&_p]:`, `[@supports…]:` |
@@ -92,10 +101,10 @@ Web to no one's benefit.
 The platform-setting row is the one place Native compiles more than Web
 does: three of those four have no CSS query at all. Everywhere else it is
 the other way round, and Native compiles all of the above except `peer-…`,
-`has-…`, unsupported `not-…` predicates, `data-…`, `supports-…`, `focus-within`, `target`,
+`in-…`, `has-…`, unsupported `not-…` predicates, `data-…`, `supports-…`, `focus-within`, `target`,
 `visited`, the `-of-type` family, the form states other than `read-only`,
-every pseudo-element, `contrast-less`, `forced-colors`, `print`
-and `noscript`, and reports each one it cannot. Container queries it does compile, through a component
+the element states, every pseudo-element, `contrast-less`, `forced-colors`, `print`,
+`noscript` and the pointer queries, and reports each one it cannot. Container queries it does compile, through a component
 that measures itself. `starting` it compiles on a `View` that also has a
 `transition-*` class, as the first frame `HozoAnimated` enters from
 (decision 007), and reports elsewhere.
@@ -422,11 +431,15 @@ Container queries are a feature of their own and are done.
 
 This section used to say that, with `visited:` and `starting:` compiled,
 nothing was left unbuilt. That was not true when #1752 checked each name
-against the parser. Nine names are carried and reported: the three
-`pointer-*`, the three `any-pointer-*`, `inert`, `details-content` and
-`in-*`. They are backlog,
-not decisions. Until they are compiled, the report on each one names the
-compiled token it loses to.
+against the parser: nine were still carried. They were compiled in #1777,
+and asking the parser about every name Tailwind defines now finds none
+carried except the functional ones, which need an argument to be a variant
+at all.
+
+Some arguments are still carried and reported: `aria-[…]:` with anything
+other than `invalid=true`, such as `aria-[sort=ascending]:`, and a named
+group or peer, such as `group-hover/item:`. Each report names the compiled
+token it loses to. They are backlog, not decisions.
 
 ## `@starting-style` is an at-rule that is not a query
 

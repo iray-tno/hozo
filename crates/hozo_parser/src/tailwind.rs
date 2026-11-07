@@ -2926,6 +2926,12 @@ const ENVIRONMENT_VARIANTS: &[(&str, Environment)] = &[
     ("forced-colors:", Environment::ForcedColors),
     ("print:", Environment::Print),
     ("noscript:", Environment::Noscript),
+    ("pointer-fine:", Environment::PointerFine),
+    ("pointer-coarse:", Environment::PointerCoarse),
+    ("pointer-none:", Environment::PointerNone),
+    ("any-pointer-fine:", Environment::AnyPointerFine),
+    ("any-pointer-coarse:", Environment::AnyPointerCoarse),
+    ("any-pointer-none:", Environment::AnyPointerNone),
     // Not Tailwind's. These four are the accessibility settings React
     // Native reports and Tailwind has no name for, and they are spelled
     // the way Tailwind spells the ones it does have -- after the user
@@ -3005,6 +3011,15 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     // are parsed by recursion rather than by a list of the combinations.
     // An inner variant Hozo does not know leaves `Always`, and the token
     // falls through to the unsupported-variant diagnostic whole.
+    // `in-` is the same relation with no marker. `in-range:` is a form
+    // state of its own; `range:` is not a variant, so the recursion leaves
+    // `Always` and it falls through to the table below.
+    if let Some(inner) = token.strip_prefix("in-") {
+        let (condition, tail) = parse_one_variant(inner);
+        if condition.is_elemental() {
+            return (Condition::In(Box::new(condition)), tail);
+        }
+    }
     for (prefix, wrap) in [("group-", true), ("peer-", false)] {
         if let Some(inner) = token.strip_prefix(prefix) {
             let (condition, tail) = parse_one_variant(inner);
@@ -3099,6 +3114,9 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
         {
             return (Condition::Control(state), rest);
         }
+    }
+    if let Some(rest) = token.strip_prefix("inert:") {
+        return (Condition::Inert, rest);
     }
     if let Some(rest) = token.strip_prefix("visited:") {
         return (Condition::Visited, rest);
@@ -4001,6 +4019,7 @@ const PSEUDO_ELEMENTS: &[(&str, PseudoElement)] = &[
     ("marker:", PseudoElement::Marker),
     ("after:", PseudoElement::After),
     ("file:", PseudoElement::File),
+    ("details-content:", PseudoElement::DetailsContent),
 ];
 
 /// The named breakpoints, and the widths they stand for.

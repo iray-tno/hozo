@@ -822,6 +822,20 @@ pub(super) fn build_style_entries(
                  a sibling has nowhere to hand it. On Web the same class works.",
                 Severity::Error,
             )),
+            Condition::In(_) => diagnostics.push(unwired_variant(
+                node,
+                "`in-…:` asks whether any ancestor is in a state, through a selector. React \
+                 Native has no selectors, and with no `group` marker there is no ancestor to hand \
+                 the state down from. Put `group` on the ancestor and write `group-…:`. On Web \
+                 the same class works.",
+                Severity::Error,
+            )),
+            Condition::Inert => diagnostics.push(unwired_variant(
+                node,
+                "`inert:` matches an element under the `inert` attribute, which React Native \
+                 does not have. On Web the same class works.",
+                Severity::Error,
+            )),
             Condition::Expr(expr) => {
                 let guard = render_condition_expr(source, expr);
                 conditional.extend(guarded(&format!("({guard}) && ")));

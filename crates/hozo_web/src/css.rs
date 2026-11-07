@@ -1648,6 +1648,12 @@ fn environment_at_rule(query: Environment) -> &'static str {
         Environment::ForcedColors => "@media (forced-colors: active)",
         Environment::Print => "@media print",
         Environment::Noscript => "@media (scripting: none)",
+        Environment::PointerFine => "@media (pointer: fine)",
+        Environment::PointerCoarse => "@media (pointer: coarse)",
+        Environment::PointerNone => "@media (pointer: none)",
+        Environment::AnyPointerFine => "@media (any-pointer: fine)",
+        Environment::AnyPointerCoarse => "@media (any-pointer: coarse)",
+        Environment::AnyPointerNone => "@media (any-pointer: none)",
         Environment::ReduceTransparency => "@media (prefers-reduced-transparency: reduce)",
         // Native only. The Web has no query for the first two and refuses
         // the third -- see `Environment` -- so they reach here only if
@@ -1968,6 +1974,18 @@ fn condition_shapes_for(
         Condition::Target => one(Vec::new(), "&:target"),
         Condition::Open => one(Vec::new(), "&:is([open], :popover-open, :open)"),
         Condition::Control(state) => one(Vec::new(), format!("&{}", state.selector())),
+        Condition::Inert => one(Vec::new(), "&:is([inert], [inert] *)"),
+        // Tailwind writes `:where(*:hover) &`. This is the same match and
+        // the same weight -- `:is()` takes its argument's, which `:where()`
+        // makes nothing -- spelled from `&` so `has-` and `not-` can wrap
+        // it the way they wrap `group-`.
+        Condition::In(inner) => condition_shapes_for(inner, portable_disabled, dark)
+            .into_iter()
+            .filter_map(|(at_rules, suffix)| {
+                let rest = suffix.strip_prefix('&').filter(|rest| !rest.is_empty())?;
+                Some((at_rules, format!("&:is(:where(*{rest}) *)")))
+            })
+            .collect(),
         Condition::Visited => one(Vec::new(), "&:visited"),
         // The only at-rule here that is not a query, and the only reason
         // that matters to this function is that it still has to nest in
@@ -2249,6 +2267,7 @@ pub(super) fn needs_form_owner(condition: &Condition) -> bool {
         Condition::Not(inner)
         | Condition::Group(inner)
         | Condition::Peer(inner)
+        | Condition::In(inner)
         | Condition::Has(inner) => needs_form_owner(inner),
         _ => false,
     }
@@ -2963,6 +2982,7 @@ pub fn inexpressible_on_web(condition: &Condition) -> Option<Environment> {
         Condition::Not(inner)
         | Condition::Group(inner)
         | Condition::Peer(inner)
+        | Condition::In(inner)
         | Condition::Has(inner) => inexpressible_on_web(inner),
         _ => None,
     }
