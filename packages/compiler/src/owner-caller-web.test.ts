@@ -167,3 +167,19 @@ test('collected Web callers own one parse per distinct shape and consume the sam
   assert.ok(rows.every((row) => row.disposed === 1))
   assert.throws(() => failed.emit(exact), /already been emitted or disposed/)
 })
+
+test('a group or peer marker is kept on the prepared Web class, and a project class still retains the caller', () => {
+  // They write no style and exist to be selected against, so preparing the
+  // literal must not drop them -- and must not refuse it either.
+  const compiler = createCompiler()
+  const input = caller('handleClassName="p-2 group peer/field"')
+  const result = previewOwnerLiteralCallers(input, compiler, options)
+  assert.deepEqual(result.diagnostics, [])
+  assert.equal(result.findings[0]!.disposition, 'prepared-literal')
+  const [name] = [...result.code.matchAll(/handleClassName=\{"([^"]+)"\}/g)].map((row) => row[1])
+  assert.match(name!, /^hozo-owner-[0-9a-f]+-r0-0 group peer\/field$/)
+  assert.ok(result.css!.includes(`.${name!.split(' ')[0]}`))
+
+  const mixed = caller('handleClassName="p-2 group my-card"')
+  assert.equal(previewOwnerLiteralCallers(mixed, compiler, options).code, mixed)
+})

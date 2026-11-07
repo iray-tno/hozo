@@ -1253,8 +1253,25 @@ fn build_node(
         match attr_name.name.as_str() {
             "className" => {
                 seen_class_name = true;
-                match &attr.value {
-                    Some(JSXAttributeValue::StringLiteral(literal)) => {
+                // `className={"p-2 group"}` is the same list as
+                // `className="p-2 group"`, and is read the same way. Read
+                // as an expression, one class Hozo does not compile sent
+                // the whole literal back to runtime -- the compiled ones
+                // with it -- where the attribute form carries just that
+                // class. The owner-class path builds every caller's list in
+                // this form, so it refused `group` and `peer`.
+                let literal = match &attr.value {
+                    Some(JSXAttributeValue::StringLiteral(literal)) => Some(&**literal),
+                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                        match &container.expression {
+                            JSXExpression::StringLiteral(literal) => Some(&**literal),
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                };
+                match (literal, &attr.value) {
+                    (Some(literal), _) => {
                         // Every token here is compiled unconditionally, so
                         // the whole literal is accounted for and the
                         // candidate scan skips it (see `crate::scan`).
@@ -1528,7 +1545,7 @@ fn build_node(
                             }
                         }
                     }
-                    Some(JSXAttributeValue::ExpressionContainer(container)) => {
+                    (None, Some(JSXAttributeValue::ExpressionContainer(container))) => {
                         let mut decomposed =
                             class_expression(&container.expression, scope, diagnostics, false)
                                 .expect("root className retains opaque fallback leaves");
@@ -3291,5 +3308,46 @@ mod enter_motion_tests {
             .expect("the diagnostic fires");
         assert_eq!(found.severity, Severity::Info);
         assert!(found.message.contains("motion-safe:starting:"));
+    }
+}
+
+#[cfg(test)]
+mod literal_in_braces_tests {
+    use hozo_ir::DiagnosticCode;
+
+    fn root(attribute: &str) -> (hozo_ir::Node, Vec<DiagnosticCode>) {
+        let source = format!(
+            "import {{ View }} from '@hozo/core'\nconst el = <View className={attribute} />\n"
+        );
+        let parsed = crate::parse_tsx(&source);
+        (
+            parsed.roots[0].node.clone(),
+            parsed.diagnostics.into_iter().map(|d| d.code).collect(),
+        )
+    }
+
+    #[test]
+    fn a_string_in_braces_is_the_same_list_as_the_attribute_string() {
+        for (braced, plain) in [
+            ("{\"p-2 group\"}", "\"p-2 group\""),
+            ("{'peer my-card'}", "\"peer my-card\""),
+            (
+                "{\"p-2 aria-[sort=ascending]:p-4\"}",
+                "\"p-2 aria-[sort=ascending]:p-4\"",
+            ),
+        ] {
+            let (braced_node, braced_codes) = root(braced);
+            let (plain_node, plain_codes) = root(plain);
+            assert_eq!(
+                braced_node.carried_classes, plain_node.carried_classes,
+                "{braced}"
+            );
+            assert!(braced_node.class_name_fallback.is_empty(), "{braced}");
+            assert_eq!(braced_node.style.len(), plain_node.style.len(), "{braced}");
+            assert_eq!(braced_codes, plain_codes, "{braced}");
+        }
+        // Anything else in braces is still an expression.
+        let (node, _) = root("{`p-2 ${tone}`}");
+        assert!(!node.class_name_fallback.is_empty() || node.root_class_evaluation().is_some());
     }
 }
