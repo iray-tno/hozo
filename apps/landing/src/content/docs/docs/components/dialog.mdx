@@ -28,9 +28,39 @@ z-index to manage.
   close it (Escape). Keep `open` in your state and set it to `false` there.
 - **`accessibilityLabel`** is the dialog's accessible name. A screen reader
   announces it when the dialog opens.
+- **`accessibilityLabelledBy`** names it from an element inside, usually its
+  heading, so the name is not written twice. Give the heading that `nativeID`.
+  On React Native only Android reads it, so keep `accessibilityLabel` too if
+  the dialog is used on iOS.
+- **`closeOnBackdropPress`** closes it when the scrim is pressed. It is off by
+  default, as the browser's `<dialog>` is: a press beside a form should not
+  throw the form away unless you decide it should.
+- **It animates out on the Web.** When `open` turns false the dialog gets
+  `data-state="closed"` and stays shown until the transition or animation that
+  starts has ended, then closes and gives focus back. Style the exit with
+  `data-[state=closed]:` classes. With none, it closes at once. On React
+  Native the `Modal` fades out.
 - **There is no close button.** A dismiss control needs a name and a place in
   the reading order, so it is yours to put in the children, as the example
   does. Escape works without one.
 - **On React Native** it is a `Modal`. Pass `restoreFocusTo` with a ref to the
   opener so TalkBack and VoiceOver land back on it, since React Native cannot
   report what had focus.
+
+## Testing under jsdom
+
+jsdom does not implement `HTMLDialogElement.showModal()`, so a unit test that
+opens a `Dialog` throws. Stub it, and `close()` with it, before the test
+renders one:
+
+```ts
+HTMLDialogElement.prototype.showModal ??= function () {
+  this.setAttribute('open', '')
+}
+HTMLDialogElement.prototype.close ??= function () {
+  this.removeAttribute('open')
+}
+```
+
+The stub does not make the page inert, move focus or fire `transitionend`, so
+what a test can assert is the markup: `open`, `data-state` and the names.

@@ -16,6 +16,7 @@ import {
   findNodeHandle,
   Modal,
   Platform,
+  Pressable,
   type StyleProp,
   StyleSheet,
   View,
@@ -62,7 +63,19 @@ export interface DialogProps {
   className?: string
   open?: boolean
   onClose?: () => void
+  /**
+   * Call `onClose` when the screen around the panel is pressed. Off by
+   * default, as on the Web. The back button and `onClose` stay the way every
+   * user closes it, so the backdrop is hidden from screen readers.
+   */
+  closeOnBackdropPress?: boolean
   accessibilityLabel?: string
+  /**
+   * The `nativeID` of a view inside that names it. React Native carries it to
+   * Android only; iOS has no such relationship, so a dialog read there needs
+   * `accessibilityLabel` as well, which this half keeps beside it.
+   */
+  accessibilityLabelledBy?: string
   accessibilityHint?: string
   /**
    * The control to put accessibility focus back on when the dialog closes.
@@ -109,7 +122,9 @@ export interface DialogProps {
 export function Dialog({
   open = false,
   onClose,
+  closeOnBackdropPress = false,
   accessibilityLabel,
+  accessibilityLabelledBy,
   accessibilityHint,
   restoreFocusTo,
   className,
@@ -196,6 +211,7 @@ export function Dialog({
       accessibilityViewIsModal
       accessibilityRole="none"
       accessibilityLabel={accessibilityLabel}
+      accessibilityLabelledBy={accessibilityLabelledBy}
       accessibilityHint={accessibilityHint}
       testID={testID}
     >
@@ -207,17 +223,30 @@ export function Dialog({
       )}
     </PatternScrollContainer>
   )
+  // A press beside the panel, under it in the stack so the panel's own
+  // presses never reach it.
+  const dismiss = closeOnBackdropPress ? (
+    <Pressable
+      onPress={onClose}
+      accessible={false}
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={StyleSheet.absoluteFill}
+    />
+  ) : null
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      {hozoScrollY || hozoBackdropStyle || hozoBackdropBlur ? (
+      {hozoScrollY || hozoBackdropStyle || hozoBackdropBlur || closeOnBackdropPress ? (
         <View
           accessible={false}
           style={[{ flex: 1, justifyContent: 'center', alignItems: 'center' }, hozoBackdropStyle]}
         >
-          {/* Without a blur the scrim holds the panel alone, as before. */}
-          {hozoBackdropBlur ? (
+          {/* With neither a blur nor a backdrop press the scrim holds the
+              panel alone, as before. */}
+          {hozoBackdropBlur || dismiss ? (
             <>
-              {backdropBlur(hozoBackdropBlur)}
+              {hozoBackdropBlur ? backdropBlur(hozoBackdropBlur) : null}
+              {dismiss}
               {panel}
             </>
           ) : (
