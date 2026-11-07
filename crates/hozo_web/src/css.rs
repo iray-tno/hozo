@@ -1998,6 +1998,15 @@ fn condition_shapes_for(
         // browser may well support, and the author reached past the design
         // system on purpose. Validating it here would mean maintaining a
         // second, worse copy of the CSS selector grammar.
+        //
+        // One exception, which is Tailwind v4's: a selector with no `&` is
+        // a condition on the element, `&:is(…)`. Passed through bare,
+        // `[.x]:` was a rule on every `.x` on the page and `[:hover]:` on
+        // everything hovered; and `group-`, `peer-`, `in-` and `not-`,
+        // which need the `&` to find the element, wrote nothing (#1781).
+        Condition::ArbitrarySelector(selector) if !selector.contains('&') => {
+            one(Vec::new(), format!("&:is({selector})"))
+        }
         Condition::ArbitrarySelector(selector) => one(Vec::new(), selector.clone()),
         Condition::ArbitraryAtRule(rule) => one(vec![rule.clone()], "&"),
         Condition::Expr(expr) => one(Vec::new(), format!("&{}", condition_expr_selector(expr))),
