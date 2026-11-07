@@ -96,3 +96,42 @@ fn details_content_is_the_pseudo_element_and_matches_only_a_details() {
     assert_eq!(codes, [DiagnosticCode::TailwindVariantCannotMatch]);
     assert!(css.contains("::details-content {"), "{css}");
 }
+
+#[test]
+fn the_owner_class_path_now_takes_what_it_used_to_refuse() {
+    // `lower_owner_class` refuses an element with a carried class or any
+    // diagnostic. Carried, these nine kept their element off that path;
+    // compiled, it captures the same CSS the ordinary path emits.
+    let source = "import { View } from '@hozo/core'\nconst el = <View className=\"bg-white inert:bg-blue-500 in-focus:p-4 pointer-coarse:p-2 any-pointer-fine:m-1\" />\n";
+    let parsed = hozo_parser::parse_tsx(source);
+    let root = &parsed.roots[0].node;
+    assert!(root.carried_classes.is_empty());
+    let ordinary = lower(root, source, &Theme::default());
+    let prepared = crate::lower_owner_class(root, source, &Theme::default(), false);
+    assert!(
+        prepared.diagnostics.is_empty(),
+        "{:?}",
+        prepared.diagnostics
+    );
+    let carrier = prepared.owner_class.expect("captured");
+    assert!(ordinary.css.ends_with(&carrier.css));
+    for selector in [
+        ":is([inert], [inert] *)",
+        ":is(:where(*:focus) *)",
+        "@media (pointer: coarse)",
+        "@media (any-pointer: fine)",
+    ] {
+        assert!(
+            carrier.css.contains(selector),
+            "{selector}: {}",
+            carrier.css
+        );
+    }
+
+    // One that is still carried keeps the element off it, as before.
+    let source = "import { View } from '@hozo/core'\nconst el = <View className=\"bg-white aria-[sort=ascending]:bg-blue-500\" />\n";
+    let parsed = hozo_parser::parse_tsx(source);
+    let prepared =
+        crate::lower_owner_class(&parsed.roots[0].node, source, &Theme::default(), false);
+    assert!(prepared.owner_class.is_none());
+}
