@@ -127,12 +127,24 @@ test('passthrough JSX props and render callbacks compose using actual Native cop
   }
 })
 
-test('one rewritten spread-group prop keeps the whole module on ordinary Native output', () => {
+test('a rewritten spread-group prop composes its certified expression alongside a sibling owner', () => {
   const source = `import {View} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
     export const A=()=> <Toolbar className="p-4"/>;
     export const B=()=> <View className="p-2" {...first} content={<Toolbar className="p-4"/>} {...last}/>`
   const f = fixture(source)
   assert.match(f.ordinary, /hozoSpreadStyles/)
+  const output = composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview)
+  assert.notEqual(output, f.ordinary)
+  assert.equal(output!.match(/hozoToolbarStyle=/g)?.length, 2)
+  assert.doesNotMatch(output!, /className="p-4"/)
+})
+
+test('one normalized Button spread still preserves every owner on the ordinary route', () => {
+  const source = `import {View,Button} from '@hozo/core';import {Toolbar} from '@hozo/patterns';
+    export const A=()=> <Toolbar className="p-4"/>;
+    export const B=()=> <Button accessibilityLabel="Tools" {...{accessory:<Toolbar className="p-4"/>}}/>`
+  const f = fixture(source)
+  assert.match(f.ordinary, /hozoButtonProps/)
   assert.equal(composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview), f.ordinary)
 })
 
@@ -158,4 +170,15 @@ test('a partial BottomSheet insertion also maps inside an untouched JSX prop', (
   assert.notEqual(output, f.ordinary)
   assert.match(output!, /hozoInteractiveHandleStyle=/)
   assert.match(output!, /handleClassName="p-2 hover:opacity-50"/)
+})
+
+test('a partial BottomSheet insertion maps through the generated spread helper argument', () => {
+  const source = `import {View} from '@hozo/core';import {BottomSheet} from '@hozo/patterns';
+    export const A=()=> <View className="p-4" {...first}
+      content={<BottomSheet open handleClassName="p-2 hover:opacity-50"/>} {...last}/>`
+  const f = fixture(source, true)
+  const output = composeNativeOwnerCaller(source, f.ordinary, f.map, f.preview)
+  assert.notEqual(output, f.ordinary)
+  assert.match(output!, /hozoSpreadStyles/)
+  assert.match(output!, /hozoInteractiveHandleStyle=/)
 })

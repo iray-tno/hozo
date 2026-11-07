@@ -2449,9 +2449,9 @@ pub(super) fn render_node(
             let mut refused = None;
             for (prop, text) in &rendered[first..=last] {
                 let arg = if prop.is_spread {
-                    crate::spread_style::spread_expression(&text.text).map(str::to_string)
+                    crate::spread_style::spread_argument(text)
                 } else {
-                    crate::spread_style::attribute_object(&text.text)
+                    crate::spread_style::attribute_object(text)
                 };
                 match arg {
                     Some(arg) => args.push(arg),
@@ -2509,22 +2509,26 @@ pub(super) fn render_node(
                 "hozoSpreadStyles"
             };
             cx.runtime.need_component(helper);
+            let mut group = Some(crate::spread_style::helper_call(
+                &held.held,
+                &written_last,
+                args,
+                helper,
+                cx.source_evidence,
+            ));
             for (index, (_, text)) in rendered.into_iter().enumerate() {
                 if index == first {
-                    props_text.push_str(&crate::spread_style::helper_call(
-                        &held.held,
-                        &written_last,
-                        &args,
-                        helper,
-                    ));
+                    group
+                        .take()
+                        .expect("one first spread")
+                        .append_into(&mut props_text, &mut prop_copies);
                 }
                 if index < first || index > last {
                     props_text.push(' ');
                     text.append_into(&mut props_text, &mut prop_copies);
                 }
-                // Grouped attributes were rewritten into helper arguments,
-                // not copied as props. Keep their bytes, but not permission
-                // to rewrite inside that newly generated syntax.
+                // Grouped props retain only their actual surviving argument
+                // fragments, never the generated keys/braces/helper prefix.
             }
         }
         None => {

@@ -229,6 +229,14 @@ test('mixed Native files prepare siblings and copied children but retain unprove
     assert.match(deliveredProp, /hozoToolbarStyle=/)
     assert.equal(deliveredProp.split('author.value').length - 1, 1)
     assert.equal(String(await transform({ ...f.params, src: prop })), deliveredProp)
+    const grouped = `import {FlatList} from 'react-native';import {Toolbar} from '@hozo/patterns';
+      export const A=()=> <FlatList data={rows} className="p-2" {...before}
+        renderItem={({item})=><Toolbar items={item.actions} className="p-2" style={item.style}/>} {...after}/>`
+    const deliveredGroup = String(await transform({ ...f.params, src: grouped }))
+    assert.match(deliveredGroup, /hozoSpreadStyles/)
+    assert.match(deliveredGroup, /hozoToolbarStyle=/)
+    assert.equal(deliveredGroup.split('item.style').length - 1, 1)
+    assert.equal(String(await transform({ ...f.params, src: grouped })), deliveredGroup)
     const unproven = mixed.replace(
       '<View className="p-2"><Tools',
       '<View className="@sm:p-2"><Tools',

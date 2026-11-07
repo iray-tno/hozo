@@ -24,6 +24,7 @@
 //! (`({ style, ...rest })`), is emitted as before: nothing is held back and
 //! no helper is imported.
 
+use crate::source_evidence::Rendered;
 use hozo_ir::PassthroughProp;
 
 /// Whether an attribute the renderer emits carries a style. `style`, and
@@ -91,31 +92,46 @@ pub(crate) fn spread_expression(raw: &str) -> Option<&str> {
         .map(str::trim)
 }
 
+pub(crate) fn spread_argument(raw: &Rendered) -> Option<Rendered> {
+    let expression = spread_expression(&raw.text)?;
+    let start = expression.as_ptr() as usize - raw.text.as_ptr() as usize;
+    Some(raw.project(expression.to_string(), start..start + expression.len(), 0))
+}
+
 /// A non-spread attribute between two spreads, as a one-entry object, so
 /// it keeps its place among them. `None` for a shape this does not take
 /// apart (an entity in a string, a value that is an element); the caller
 /// then falls back to emitting the styles as before.
-pub(crate) fn attribute_object(raw: &str) -> Option<String> {
-    let raw = raw.trim();
-    let Some((name, value)) = raw.split_once('=') else {
-        return Some(format!("{{ {}: true }}", quote(raw)));
+pub(crate) fn attribute_object(raw: &Rendered) -> Option<Rendered> {
+    let trimmed = raw.text.trim();
+    let Some((name, value)) = trimmed.split_once('=') else {
+        return Some(Rendered {
+            text: format!("{{ {}: true }}", quote(trimmed)),
+            copies: raw.copies.as_ref().map(|_| Vec::new()),
+        });
     };
     let value = value.trim();
-    let value = if let Some(inner) = value.strip_prefix('{').and_then(|v| v.strip_suffix('}')) {
-        format!("({})", inner.trim())
-    } else if (value.starts_with('"') && value.ends_with('"'))
-        || (value.starts_with('\'') && value.ends_with('\''))
-    {
-        // A JSX string is not a JS string: it has entities and no escapes.
-        // The plain ones mean the same either way.
-        if value.len() < 2 || value[1..value.len() - 1].contains(['&', '\\', '\n']) {
+    let (value, text, suffix) =
+        if let Some(inner) = value.strip_prefix('{').and_then(|v| v.strip_suffix('}')) {
+            let value = inner.trim();
+            (value, format!("{{ {}: ({value}) }}", quote(name.trim())), 3)
+        } else if (value.starts_with('"') && value.ends_with('"'))
+            || (value.starts_with('\'') && value.ends_with('\''))
+        {
+            // A JSX string is not a JS string: it has entities and no escapes.
+            // The plain ones mean the same either way.
+            if value.len() < 2 || value[1..value.len() - 1].contains(['&', '\\', '\n']) {
+                return None;
+            }
+            (value, format!("{{ {}: {value} }}", quote(name.trim())), 2)
+        } else {
             return None;
-        }
-        value.to_string()
-    } else {
-        return None;
-    };
-    Some(format!("{{ {}: {value} }}", quote(name.trim())))
+        };
+    // `value` is a borrowed range selected by this existing prop conversion.
+    // Parentheses/object keys add syntax, not a lexical binder or a new read.
+    let start = value.as_ptr() as usize - raw.text.as_ptr() as usize;
+    let offset = text.len() - value.len() - suffix;
+    Some(raw.project(text, start..start + value.len(), offset))
 }
 
 fn quote(name: &str) -> String {
@@ -129,9 +145,10 @@ fn quote(name: &str) -> String {
 pub(crate) fn helper_call(
     held: &[(String, String)],
     last: &[String],
-    args: &[String],
+    args: Vec<Rendered>,
     helper: &str,
-) -> String {
+    evidence: bool,
+) -> Rendered {
     let styles = held
         .iter()
         .map(|(name, value)| format!("{name}: {value}"))
@@ -142,15 +159,34 @@ pub(crate) fn helper_call(
         .map(|name| quote(name))
         .collect::<Vec<_>>()
         .join(", ");
-    format!(
+    let mut arguments = Rendered::new(evidence);
+    arguments.text.reserve(
+        args.iter().map(|arg| arg.text.len()).sum::<usize>() + args.len().saturating_sub(1) * 2,
+    );
+    for (index, arg) in args.into_iter().enumerate() {
+        if index > 0 {
+            arguments.text.push_str(", ");
+        }
+        arguments.append(arg);
+    }
+    let text = format!(
         " {{...{helper}({{ {styles} }}, [{last}], {})}}",
-        args.join(", ")
-    )
+        arguments.text
+    );
+    arguments.wrap(text, 2)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn object(raw: &str) -> Option<String> {
+        attribute_object(&Rendered {
+            text: raw.to_string(),
+            copies: None,
+        })
+        .map(|value| value.text)
+    }
 
     #[test]
     fn only_style_attributes_split() {
@@ -170,19 +206,19 @@ mod tests {
     #[test]
     fn attributes_between_spreads_keep_their_meaning_or_refuse() {
         assert_eq!(
-            attribute_object("disabled").as_deref(),
+            object("disabled").as_deref(),
             Some("{ \"disabled\": true }")
         );
         assert_eq!(
-            attribute_object("aria-label=\"Go\"").as_deref(),
+            object("aria-label=\"Go\"").as_deref(),
             Some("{ \"aria-label\": \"Go\" }")
         );
         assert_eq!(
-            attribute_object("onPress={() => go({ a: 1 })}").as_deref(),
+            object("onPress={() => go({ a: 1 })}").as_deref(),
             Some("{ \"onPress\": (() => go({ a: 1 })) }")
         );
-        assert_eq!(attribute_object("title=\"a &amp; b\""), None);
-        assert_eq!(attribute_object("icon=<X />"), None);
+        assert_eq!(object("title=\"a &amp; b\""), None);
+        assert_eq!(object("icon=<X />"), None);
     }
 
     #[test]
