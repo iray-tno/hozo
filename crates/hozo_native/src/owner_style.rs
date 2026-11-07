@@ -175,6 +175,11 @@ pub fn lower_owner_style_with_inputs(
         && root.props.passthrough.is_empty()
         && root.props.stylex_residuals.is_empty()
         && root.root_class_evaluation().is_none()
+        // A class Hozo did not compile has no style here to carry, and is
+        // not this preparation's to drop. Callers' lists arrive as
+        // `className={"…"}`, which used to send such a class back whole as
+        // a fallback; read like the attribute form now, it arrives here.
+        && root.carried_classes.is_empty()
         && root
             .class_name_fallback
             .iter()
