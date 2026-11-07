@@ -170,6 +170,7 @@ async function checkBundles(t, evidence, manifest) {
         '.': './index.js',
         './generated/class-resolver': './resolver.js',
         './generated/flat-list': './flat-list.js',
+        './generated/spread-styles': './spread-styles.js',
       },
       dependencies: { react: '1', 'react-native': '1' },
     })
@@ -186,6 +187,7 @@ async function checkBundles(t, evidence, manifest) {
       new URL('../../../packages/primitives/dist/flat-list.native.js', import.meta.url),
       path.join(core, 'flat-list.js'),
     )
+    copyFileSync(engineFile('spread-styles.js'), path.join(core, 'spread-styles.js'))
     // Model a regular installed dependency with platform exports, but no
     // owner manifest. Its runtime-selected classes must stay on the ordinary
     // resolver even when a neighboring literal gets a prepared carrier.
@@ -231,6 +233,10 @@ async function checkBundles(t, evidence, manifest) {
         accessibilityLabel="Toolbar list" className="p-2"
         renderItem={({item})=> <Toolbar accessibilityLabel="Tools" items={[item]}
           className="p-2 gap-x-3 gap-y-4" style={author.value}/>}/>;
+      export const renderGroupedToolbarList=(h,items,author,before,after,track)=> <FlatList data={items}
+        accessibilityLabel="Grouped toolbar list" className="p-2" {...before.value}
+        renderItem={track(({item})=> <Toolbar accessibilityLabel="Tools" items={[item]}
+          className="p-2 gap-x-3 gap-y-4" style={author.value}/>)} {...after.value}/>;
     `,
     )
     writeFileSync(appMetadata, JSON.stringify(app))
@@ -242,7 +248,7 @@ async function checkBundles(t, evidence, manifest) {
       import {inputPlatform, readHandleClass, readToolbarClass} from 'handle-input';
       import {renderUncaptured,renderUncapturedToolbar} from './Uncaptured';
       import {renderNestedToolbar} from './Nested';
-      import {renderToolbarList} from './List';
+      import {renderToolbarList,renderGroupedToolbarList} from './List';
       const withChildren=${fixtureProps.toString()};
       const h = (Component, props, ...children) => {
         props=withChildren(props,children);
@@ -314,6 +320,17 @@ async function checkBundles(t, evidence, manifest) {
           globalThis.toolbarListDeferred=globalThis.toolbarAuthorReads===0;
           return list.props.renderItem({item:toolbarItems[0],index:0});
         }),
+        groupedRenderItem:observeToolbar(()=>{
+          const order=[];
+          const before={get value(){order.push('before');return {style:{paddingTop:70,paddingLeft:35}}}};
+          const after={get value(){order.push('after');return {style:{paddingTop:84,paddingRight:42}}}};
+          const track=callback=>{order.push('callback');return callback};
+          const list=renderGroupedToolbarList(h,toolbarItems,toolbarAuthor,before,after,track);
+          globalThis.toolbarGroupedParent=list;
+          globalThis.toolbarGroupedDeferred=globalThis.toolbarAuthorReads===0;
+          globalThis.toolbarGroupedOrder=order;
+          return list.props.renderItem({item:toolbarItems[0],index:0});
+        }),
         uncaptured:observeToolbar(()=>renderUncapturedToolbar(h,toolbarItems,toolbarAuthor))};
       globalThis.sharedToolbarPlan=typeof globalThis.toolbarPlans[0]==='function' &&
         globalThis.toolbarPlans[0]===globalThis.toolbarPlans[1];
@@ -371,6 +388,7 @@ async function checkBundles(t, evidence, manifest) {
       additionalImports: [
         { importer: file, specifier: '@hozo/core/generated/class-resolver' },
         { importer: listFile, specifier: '@hozo/core/generated/flat-list' },
+        { importer: listFile, specifier: '@hozo/core/generated/spread-styles' },
         { importer: file, specifier: asyncRequireSpecifier },
         ...[
           'react/jsx-runtime',
@@ -508,6 +526,14 @@ async function checkBundles(t, evidence, manifest) {
         authorDeferred: globals.toolbarListDeferred,
         classNameLeaked: Object.hasOwn(globals.toolbarListParent.props, 'className'),
       }
+      const groupedControl = {
+        host: globals.toolbarGroupedParent.type,
+        style: flatten(globals.toolbarGroupedParent.props.style),
+        dataLength: globals.toolbarGroupedParent.props.data.length,
+        authorDeferred: globals.toolbarGroupedDeferred,
+        evaluationOrder: [...globals.toolbarGroupedOrder],
+        classNameLeaked: Object.hasOwn(globals.toolbarGroupedParent.props, 'className'),
+      }
       // Store the actual controls before asserting so a failed platform/mode
       // remains inspectable instead of disappearing from the receipt.
       evidence.toolbarBuilds.push({
@@ -521,6 +547,7 @@ async function checkBundles(t, evidence, manifest) {
         nestedCaptured,
         listCaptured,
         listControl,
+        groupedControl,
         routes: observedToolbar,
         capture: {
           source: 'ordinary-metro-resolver',
@@ -540,6 +567,14 @@ async function checkBundles(t, evidence, manifest) {
         style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
         dataLength: 1,
         authorDeferred: true,
+        classNameLeaked: false,
+      })
+      assert.deepEqual(groupedControl, {
+        host: 'FlatList',
+        style: { paddingTop: 84, paddingRight: 42, paddingBottom: 14, paddingLeft: 14 },
+        dataLength: 1,
+        authorDeferred: true,
+        evaluationOrder: ['before', 'callback', 'after'],
         classNameLeaked: false,
       })
       assert.deepEqual(ordinaryPrimitive, {
@@ -564,7 +599,8 @@ async function checkBundles(t, evidence, manifest) {
         )
         assert.equal(
           control.carrierSupplied,
-          mode === 'toolbar-opt-in' && ['literal', 'alias', 'nested', 'renderItem'].includes(route),
+          mode === 'toolbar-opt-in' &&
+            ['literal', 'alias', 'nested', 'renderItem', 'groupedRenderItem'].includes(route),
         )
         assert.equal(control.role, 'toolbar')
         assert.equal(control.label, 'Tools')
@@ -664,7 +700,7 @@ test('production Metro bundles deliver selected BottomSheet and Toolbar owners a
       toolbarEvidenceFile,
       `${JSON.stringify(
         {
-          schema: 5,
+          schema: 6,
           sourceCommit: evidence.sourceCommit,
           trackedChanges: evidence.trackedChanges,
           scope: 'metro-production-toolbar-owner-host-standins',

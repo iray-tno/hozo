@@ -42,7 +42,7 @@ test('Toolbar Metro receipts require current source, all routes and negative con
   // Synthetic receipts exercise the reader, not the Metro production claim.
   const hash = 'b'.repeat(64)
   const receipt = {
-    schema: 5,
+    schema: 6,
     scope: toolbarMetroScope,
     sourceCommit: commit,
     manifestSha256: hash,
@@ -65,6 +65,14 @@ test('Toolbar Metro receipts require current source, all routes and negative con
           authorDeferred: true,
           classNameLeaked: false,
         },
+        groupedControl: {
+          host: 'FlatList',
+          style: { paddingTop: 84, paddingRight: 42, paddingBottom: 14, paddingLeft: 14 },
+          dataLength: 1,
+          authorDeferred: true,
+          evaluationOrder: ['before', 'callback', 'after'],
+          classNameLeaked: false,
+        },
         ordinaryPrimitive: {
           host: 'View',
           style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
@@ -77,12 +85,20 @@ test('Toolbar Metro receipts require current source, all routes and negative con
           ordinaryBundleSha256: hash,
         },
         routes: Object.fromEntries(
-          ['literal', 'alias', 'nested', 'opaque', 'renderItem', 'uncaptured'].map((route) => [
+          [
+            'literal',
+            'alias',
+            'nested',
+            'opaque',
+            'renderItem',
+            'groupedRenderItem',
+            'uncaptured',
+          ].map((route) => [
             route,
             {
               carrierSupplied:
                 mode === 'toolbar-opt-in' &&
-                ['literal', 'alias', 'nested', 'renderItem'].includes(route),
+                ['literal', 'alias', 'nested', 'renderItem', 'groupedRenderItem'].includes(route),
               style: {
                 paddingTop: 21,
                 paddingRight: 14,
@@ -110,13 +126,35 @@ test('Toolbar Metro receipts require current source, all routes and negative con
     sourceCommit: commit,
     passed: true,
     builds: 8,
-    observations: 48,
-    prepared: 8,
-    ordinary: 40,
+    observations: 56,
+    prepared: 10,
+    ordinary: 46,
     primitiveControls: 8,
     listControls: 8,
+    groupedControls: 8,
   })
   const mutations = [
+    (r) => {
+      r.schema = 5
+    },
+    (r) => {
+      r.builds[3].routes.groupedRenderItem.carrierSupplied = false
+    },
+    (r) => {
+      r.builds[0].routes.groupedRenderItem.carrierSupplied = true
+    },
+    (r) => {
+      r.builds[3].groupedControl.evaluationOrder = ['callback', 'before', 'after']
+    },
+    (r) => {
+      r.builds[3].groupedControl.evaluationOrder.push('after')
+    },
+    (r) => {
+      r.builds[3].groupedControl.authorDeferred = false
+    },
+    (r) => {
+      r.builds[3].groupedControl.style.paddingLeft = 35
+    },
     (r) => {
       r.schema = 4
     },
