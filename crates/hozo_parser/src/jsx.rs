@@ -731,6 +731,8 @@ fn web_tag_hint(primitive: Primitive) -> &'static str {
         Primitive::Separator => "hr",
         Primitive::Progress => "progress",
         Primitive::Meter => "meter",
+        Primitive::Details => "details",
+        Primitive::Summary => "summary",
         _ => "div",
     }
 }
@@ -1400,11 +1402,31 @@ fn build_node(
                                     }
                                 }
                             }
-                            // No primitive is a `<details>`, a `<dialog>` or
-                            // a popover, so `open:` on one is the form-state
-                            // case again. `group-open:` is the useful
-                            // spelling and is not looked through.
-                            if groups.iter().any(|(condition, _)| open_atom(condition)) {
+                            // `Details` is the one primitive that is a
+                            // `<details>`, and no primitive is a `<dialog>`
+                            // or a popover, so `open:` and
+                            // `details-content:` anywhere else are the
+                            // form-state case again. `group-open:` is the
+                            // useful spelling and is not looked through.
+                            if primitive != Primitive::Details
+                                && groups.iter().any(|(condition, _)| {
+                                    condition.pseudo_element()
+                                        == Some(hozo_ir::PseudoElement::DetailsContent)
+                                })
+                            {
+                                diagnostics.push(Diagnostic {
+                                    code: DiagnosticCode::TailwindVariantCannotMatch,
+                                    severity: Severity::Warning,
+                                    message: format!(
+                                        "`details-content:` compiles to `::details-content`, the part of a `<details>` that opens and closes. This is a <{}>, so the rule is generated and can never apply. Write it on the `Details` itself.",
+                                        web_tag_hint(primitive),
+                                    ),
+                                    span: to_span(literal.span()),
+                                });
+                            }
+                            if primitive != Primitive::Details
+                                && groups.iter().any(|(condition, _)| open_atom(condition))
+                            {
                                 diagnostics.push(Diagnostic {
                                     code: DiagnosticCode::TailwindVariantCannotMatch,
                                     severity: Severity::Warning,
@@ -2515,7 +2537,7 @@ mod class_slot_expression_tests {
                 "fallback must remain scannable: {expression}"
             );
         }
-        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx('p-2 inert:p-4', other())} />";
+        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx('p-2 aria-[sort=ascending]:p-4', other())} />";
         assert!(crate::parse_tsx(source)
             .diagnostics
             .iter()

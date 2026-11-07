@@ -1093,7 +1093,10 @@ mod variant_tests {
     fn a_tailwind_variant_hozo_does_not_compile_is_named() {
         // These produced no CSS, reached the DOM as nothing, and said
         // nothing. `group-hover:` is not an exotic class.
-        for class_name in ["inert:bg-blue-500", "pointer-coarse:bg-blue-500"] {
+        for class_name in [
+            "aria-[sort=ascending]:bg-blue-500",
+            "group-aria-[sort=ascending]:bg-blue-500",
+        ] {
             assert_eq!(
                 codes(class_name),
                 vec![DiagnosticCode::TailwindVariantNotSupported],
@@ -1313,6 +1316,29 @@ mod relational_tests {
     }
 
     #[test]
+    fn in_is_group_without_the_marker() {
+        // #1777. The same recursion, so `in-focus:` and `in-aria-checked:`
+        // need nothing of their own.
+        assert!(conditions("in-focus:p-4").contains(&Condition::In(Box::new(Condition::Focus))));
+        assert!(
+            conditions("in-aria-checked:p-4").contains(&Condition::In(Box::new(Condition::Aria(
+                "checked".to_string()
+            ))))
+        );
+        assert!(codes("in-focus:p-4").is_empty());
+        // `in-range:` is a form state of its own, not `in-` around `range:`.
+        assert!(
+            conditions("in-range:p-4").contains(&Condition::FormState(hozo_ir::FormState::InRange))
+        );
+        // Like `group-dark:`, a query has no subject to move.
+        assert!(conditions("in-dark:p-4").is_empty());
+        assert!(codes("inert:p-4").is_empty());
+        assert!(
+            conditions("group-inert:p-4").contains(&Condition::Group(Box::new(Condition::Inert)))
+        );
+    }
+
+    #[test]
     fn a_condition_about_the_environment_cannot_be_related() {
         // Tailwind refuses `group-dark:` too: a colour-scheme preference
         // or a viewport width is true of the page, so asking it of an
@@ -1331,10 +1357,11 @@ mod relational_tests {
 
     #[test]
     fn an_inner_variant_hozo_lacks_is_reported_rather_than_swallowed() {
-        // `inert:` is not compiled yet, so `peer-inert:` is not either --
-        // and says so. (`peer-checked:` was the example until #1752.)
+        // Only Tailwind's boolean ARIA states are compiled, so `peer-` around
+        // `aria-[sort=ascending]:` is not either -- and says so. (`peer-checked:`
+        // until #1752, then `peer-inert:` until #1777.)
         assert_eq!(
-            codes("peer-inert:p-4"),
+            codes("peer-aria-[sort=ascending]:p-4"),
             vec![DiagnosticCode::TailwindVariantNotSupported]
         );
     }
@@ -1371,6 +1398,12 @@ mod environment_tests {
             ("forced-colors:p-4", Environment::ForcedColors),
             ("print:p-4", Environment::Print),
             ("noscript:p-4", Environment::Noscript),
+            ("pointer-fine:p-4", Environment::PointerFine),
+            ("pointer-coarse:p-4", Environment::PointerCoarse),
+            ("pointer-none:p-4", Environment::PointerNone),
+            ("any-pointer-fine:p-4", Environment::AnyPointerFine),
+            ("any-pointer-coarse:p-4", Environment::AnyPointerCoarse),
+            ("any-pointer-none:p-4", Environment::AnyPointerNone),
         ] {
             assert!(
                 conditions(class_name).contains(&Condition::Environment(query)),
@@ -1386,6 +1419,7 @@ mod environment_tests {
         // refuses these too.
         assert!(conditions("group-motion-reduce:p-4").is_empty());
         assert!(conditions("peer-print:p-4").is_empty());
+        assert!(conditions("in-pointer-coarse:p-4").is_empty());
         // Except direction, which is inherited and therefore has a subject
         // an ancestor can differ on. Tailwind allows this one too.
         assert!(
@@ -1708,7 +1742,7 @@ mod form_state_tests {
             ""
         };
         let source = format!(
-            "import {{ View, Text, TextInput, Progress }} from '@hozo/core'
+            "import {{ View, Text, TextInput, Progress, Details }} from '@hozo/core'
              const el = <{element}{name} className=\"{class_name}\" />
 "
         );
@@ -1821,6 +1855,22 @@ mod form_state_tests {
         assert!(!cannot("indeterminate:opacity-50"));
         assert!(!cannot("md:indeterminate:opacity-50"));
         assert!(cannot("checked:opacity-50"));
+    }
+
+    #[test]
+    fn a_details_matches_open_and_its_own_details_content() {
+        // #1777. `Details` is a real `<details>`, so `open:` on it is the
+        // spelling that works rather than one that cannot, and
+        // `::details-content` is the part of it that opens.
+        let cannot = |element: &str, class_name: &str| {
+            codes(element, class_name).contains(&DiagnosticCode::TailwindVariantCannotMatch)
+        };
+        assert!(!cannot("Details", "open:bg-blue-500"));
+        assert!(!cannot("Details", "details-content:p-4"));
+        assert!(!cannot("Details", "open:details-content:p-4"));
+        assert!(cannot("View", "open:bg-blue-500"));
+        assert!(cannot("View", "details-content:p-4"));
+        assert!(cannot("View", "md:details-content:p-4"));
     }
 }
 
@@ -2212,11 +2262,11 @@ mod carried_conflict_tests {
 
     #[test]
     fn a_carried_variant_names_the_compiled_token_it_loses_to() {
-        // #1752. `inert:` is carried to Tailwind, whose rule is layered,
+        // #1752. `aria-[sort=ascending]:` is carried to Tailwind, whose rule is layered,
         // so the unlayered `bg-white` beside it always wins.
         for class_name in [
-            "\"bg-white inert:bg-blue-500\"",
-            "\"inert:bg-blue-500 bg-white\"",
+            "\"bg-white aria-[sort=ascending]:bg-blue-500\"",
+            "\"aria-[sort=ascending]:bg-blue-500 bg-white\"",
         ] {
             let message = one(class_name);
             assert!(message.contains("loses to `bg-white`"), "{message}");
@@ -2226,13 +2276,13 @@ mod carried_conflict_tests {
 
     #[test]
     fn a_property_hozo_cannot_name_is_still_a_conflict() {
-        let message = one("\"p-2 inert:p-4\"");
+        let message = one("\"p-2 aria-[sort=ascending]:p-4\"");
         assert!(message.contains("loses to `p-2`"), "{message}");
     }
 
     #[test]
     fn a_carried_variant_that_conflicts_with_nothing_gets_the_plain_report() {
-        let message = one("\"p-2 inert:bg-blue-500\"");
+        let message = one("\"p-2 aria-[sort=ascending]:bg-blue-500\"");
         assert!(!message.contains("loses to"), "{message}");
         assert!(message.contains("will work"), "{message}");
     }
@@ -2240,23 +2290,23 @@ mod carried_conflict_tests {
     #[test]
     fn an_important_carried_utility_wins_from_its_layer() {
         // A layered `!important` beats an unlayered normal declaration.
-        let message = one("\"bg-white inert:!bg-blue-500\"");
+        let message = one("\"bg-white aria-[sort=ascending]:!bg-blue-500\"");
         assert!(!message.contains("loses to"), "{message}");
     }
 
     #[test]
     fn a_joined_class_list_is_compared_the_same_way() {
-        let message = one("{cx('bg-white', 'inert:bg-blue-500')}");
+        let message = one("{cx('bg-white', 'aria-[sort=ascending]:bg-blue-500')}");
         assert!(message.contains("loses to `bg-white`"), "{message}");
         // The compiled base applies whenever the element renders, so a
         // guard on the carried half does not make it win.
-        let message = one("{cx('bg-white', on && 'inert:bg-blue-500')}");
+        let message = one("{cx('bg-white', on && 'aria-[sort=ascending]:bg-blue-500')}");
         assert!(message.contains("loses to `bg-white`"), "{message}");
     }
 
     #[test]
     fn two_branches_that_may_never_apply_together_are_not_called_a_conflict() {
-        let message = one("{on ? 'bg-white' : 'inert:bg-blue-500'}");
+        let message = one("{on ? 'bg-white' : 'aria-[sort=ascending]:bg-blue-500'}");
         assert!(!message.contains("loses to"), "{message}");
     }
 }

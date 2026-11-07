@@ -185,6 +185,15 @@ fn no_variant_is_dropped_without_saying_so() {
         ("group-checked:p-4", hozo_ir::Severity::Error),
         ("indeterminate:p-4", hozo_ir::Severity::Error),
         ("default:p-4", hozo_ir::Severity::Error),
+        // Compiled for Web since #1777. React Native has no pointer
+        // query, no `inert`, no selector for an unmarked ancestor and no
+        // `<details>`.
+        ("pointer-coarse:p-4", hozo_ir::Severity::Error),
+        ("any-pointer-fine:p-4", hozo_ir::Severity::Error),
+        ("inert:p-4", hozo_ir::Severity::Error),
+        ("group-inert:p-4", hozo_ir::Severity::Error),
+        ("in-focus:p-4", hozo_ir::Severity::Error),
+        ("details-content:p-4", hozo_ir::Severity::Error),
     ];
 
     for (candidate, severity) in cases {

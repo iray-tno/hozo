@@ -53,6 +53,12 @@ fn never_on_native(condition: &Condition) -> Option<String> {
         Condition::Peer(_) => {
             Some("`peer-…:` is a sibling selector, and React Native has none".into())
         }
+        Condition::In(_) => {
+            Some("`in-…:` asks about any ancestor, and React Native has no selector to ask".into())
+        }
+        Condition::Inert => {
+            Some("`inert:` needs the `inert` attribute, which React Native does not have".into())
+        }
         Condition::Has(_) | Condition::HasSelector(_) => {
             Some("`has-…:` asks about descendants, which React Native cannot".into())
         }
