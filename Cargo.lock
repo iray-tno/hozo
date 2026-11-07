@@ -245,7 +245,7 @@ dependencies = [
 
 [[package]]
 name = "hozo_cache"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -254,14 +254,14 @@ dependencies = [
 
 [[package]]
 name = "hozo_ir"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "serde",
 ]
 
 [[package]]
 name = "hozo_napi"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "hozo_cache",
  "hozo_ir",
@@ -276,7 +276,7 @@ dependencies = [
 
 [[package]]
 name = "hozo_native"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "hozo_ir",
  "hozo_parser",
@@ -284,7 +284,7 @@ dependencies = [
 
 [[package]]
 name = "hozo_parser"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "hozo_ir",
  "oxc_allocator",
@@ -298,7 +298,7 @@ dependencies = [
 
 [[package]]
 name = "hozo_wasm"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "hozo_ir",
  "hozo_native",
@@ -311,7 +311,7 @@ dependencies = [
 
 [[package]]
 name = "hozo_web"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "cssparser",
  "hozo_ir",

@@ -1,5 +1,13 @@
 # @hozo/navigation
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [[`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`b4cc4f6`](https://github.com/iray-tno/hozo/commit/b4cc4f6b4941ed6f9fb63ff1f942dad781b760e5)]:
+  - @hozo/engine@0.4.1
+  - @hozo/core@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes
