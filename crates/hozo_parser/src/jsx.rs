@@ -237,10 +237,21 @@ fn class_expression(
     // A helper call must not make an unsupported variant disappear without
     // the diagnostic its literal spelling would have produced.
     for report in &decomposed.unsupported_variants {
+        let compiled = decomposed
+            .compiled
+            .iter()
+            .filter(|compiled| {
+                report.unconditional || compiled.unconditional || compiled.span == report.span
+            })
+            .map(|compiled| (compiled.token.as_str(), compiled.properties.as_slice()));
         diagnostics.push(Diagnostic {
             code: DiagnosticCode::TailwindVariantNotSupported,
             severity: Severity::Warning,
-            message: unsupported_variant_message(&report.variant, &report.token),
+            message: unsupported_variant_message(
+                &report.variant,
+                &report.token,
+                loses_to(&report.token, compiled),
+            ),
             span: report.span,
         });
     }
@@ -696,6 +707,18 @@ fn open_atom(condition: &hozo_ir::Condition) -> bool {
     }
 }
 
+/// The checkbox, radio or default-button state `condition` asks this
+/// element itself to be in, the way `open_atom` reads `open:`: through
+/// `md:checked:`, not through `not-checked:`, which on an element that is
+/// never checked always applies.
+fn control_atom(condition: &hozo_ir::Condition) -> Option<hozo_ir::ControlState> {
+    match condition {
+        hozo_ir::Condition::Control(state) => Some(*state),
+        hozo_ir::Condition::All(conditions) => conditions.iter().find_map(control_atom),
+        _ => None,
+    }
+}
+
 /// What this primitive becomes on Web, for a message that has to say why
 /// a selector cannot reach it.
 fn web_tag_hint(primitive: Primitive) -> &'static str {
@@ -718,12 +741,63 @@ fn web_tag_hint(primitive: Primitive) -> &'static str {
 /// this is what gets said. Kept together because the two paths reached the
 /// same conclusion in different words until the dynamic one learned to
 /// report at all.
-fn unsupported_variant_message(variant: &str, token: &str) -> String {
-    format!(
+fn unsupported_variant_message(variant: &str, token: &str, loses_to: Option<Conflict>) -> String {
+    let head = format!(
         "`{variant}:` is a Tailwind variant Hozo does not compile yet, so `{token}` produces \
-         no style. The class is still on the element, so it will work if the project runs \
-         its own Tailwind build over it."
+         no style."
+    );
+    let Some(Conflict {
+        token: compiled,
+        property,
+    }) = loses_to
+    else {
+        return format!(
+            "{head} The class is still on the element, so it will work if the project runs \
+             its own Tailwind build over it."
+        );
+    };
+    let writes = match property {
+        Some(property) => format!("both set `{property}`"),
+        None => "both set the same property".to_string(),
+    };
+    format!(
+        "{head} The class is still on the element for the project's own Tailwind build, but \
+         on Web it loses to `{compiled}`, which Hozo compiles here: {writes}, and Hozo's rule \
+         is unlayered while Tailwind's sits in `@layer utilities`, so wherever both apply \
+         `{token}` never wins. The same condition written as an arbitrary variant \
+         (`[&…]:`) is compiled, and then both rules are Hozo's."
     )
+}
+
+/// The compiled token a carried one loses to on Web, and the property they
+/// share, when Hozo can name it.
+struct Conflict<'a> {
+    token: &'a str,
+    property: Option<&'static str>,
+}
+
+/// The first of `compiled` that writes what `carried` would (#1752).
+///
+/// Every compiled rule beats a carried one wherever both match, whatever
+/// variant the compiled one has, so the first is as good an answer as any;
+/// naming one is what turns "it lost" into something the author can find.
+fn loses_to<'a>(
+    carried: &str,
+    compiled: impl IntoIterator<Item = (&'a str, &'a [StyleProperty])>,
+) -> Option<Conflict<'a>> {
+    let writes = tailwind::carried_writes(carried);
+    if writes.is_empty() {
+        return None;
+    }
+    compiled.into_iter().find_map(|(token, properties)| {
+        let shared = properties
+            .iter()
+            .find(|property| writes.iter().any(|w| w.same_property_as(property)))?;
+        Some(Conflict {
+            token,
+            property: shared.css_property_name(),
+        })
+    })
 }
 
 /// `focusable` on an element that is also `disabled`.
@@ -1183,6 +1257,30 @@ fn build_node(
                         // the whole literal is accounted for and the
                         // candidate scan skips it (see `crate::scan`).
                         consumed.push(to_span(literal.span()));
+                        // What each token Hozo compiles writes, for a
+                        // carried variant to be compared against: it loses
+                        // to any of them on Web wherever both match (#1752).
+                        // The whole list, because the token it loses to may
+                        // come after it; and only once something is
+                        // carried, which most class lists never are.
+                        let compiled_here =
+                            std::cell::OnceCell::<Vec<(&str, Vec<StyleProperty>)>>::new();
+                        let compiled_here = || {
+                            compiled_here.get_or_init(|| {
+                                literal
+                                    .value
+                                    .split_whitespace()
+                                    .filter(|token| !tailwind::has_unstripped_variant(token))
+                                    .map(|token| {
+                                        let properties = tailwind::expand_class(token)
+                                            .into_iter()
+                                            .flat_map(|(_, properties)| properties)
+                                            .collect();
+                                        (token, properties)
+                                    })
+                                    .collect()
+                            })
+                        };
                         for token in literal.value.split_whitespace() {
                             // Several groups only for a shorthand like
                             // `container`, which is a width plus a
@@ -1317,11 +1415,49 @@ fn build_node(
                                     span: to_span(literal.span()),
                                 });
                             }
+                            // No primitive is a checkbox, a radio or a
+                            // submit button, so these are the `open:` case
+                            // again (#1752). A `Progress` is a real
+                            // `<progress>`, which is `:indeterminate` while
+                            // it has no `value`.
+                            for (condition, _) in &groups {
+                                let Some(state) = control_atom(condition) else {
+                                    continue;
+                                };
+                                if state == hozo_ir::ControlState::Indeterminate
+                                    && primitive == Primitive::Progress
+                                {
+                                    continue;
+                                }
+                                diagnostics.push(Diagnostic {
+                                    code: DiagnosticCode::TailwindVariantCannotMatch,
+                                    severity: Severity::Warning,
+                                    message: format!(
+                                        "`{}:` compiles to `{}`, which matches a checkbox, a radio, a selected option or a form's default button. This is a <{}>, so the rule is generated and can never apply. To style by a real control, write `peer-{}:` after one that has `peer`, or `has-{}:` on an element around it; for a control that says its state through ARIA, write `aria-checked:`.",
+                                        state.variant_name(),
+                                        state.selector(),
+                                        web_tag_hint(primitive),
+                                        state.variant_name(),
+                                        state.variant_name(),
+                                    ),
+                                    span: to_span(literal.span()),
+                                });
+                                break;
+                            }
                             if let Some(variant) = unsupported {
                                 diagnostics.push(Diagnostic {
                                     code: DiagnosticCode::TailwindVariantNotSupported,
                                     severity: Severity::Warning,
-                                    message: unsupported_variant_message(variant, token),
+                                    message: unsupported_variant_message(
+                                        variant,
+                                        token,
+                                        loses_to(
+                                            token,
+                                            compiled_here().iter().map(|(token, properties)| {
+                                                (*token, properties.as_slice())
+                                            }),
+                                        ),
+                                    ),
                                     span: to_span(literal.span()),
                                 });
                             }
@@ -2379,7 +2515,7 @@ mod class_slot_expression_tests {
                 "fallback must remain scannable: {expression}"
             );
         }
-        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx('p-2 checked:p-4', other())} />";
+        let source = "import {Chip,cx} from '@hozo/core'; const el = <Chip removeClassName={cx('p-2 inert:p-4', other())} />";
         assert!(crate::parse_tsx(source)
             .diagnostics
             .iter()

@@ -1093,7 +1093,7 @@ mod variant_tests {
     fn a_tailwind_variant_hozo_does_not_compile_is_named() {
         // These produced no CSS, reached the DOM as nothing, and said
         // nothing. `group-hover:` is not an exotic class.
-        for class_name in ["checked:bg-blue-500", "indeterminate:bg-blue-500"] {
+        for class_name in ["inert:bg-blue-500", "pointer-coarse:bg-blue-500"] {
             assert_eq!(
                 codes(class_name),
                 vec![DiagnosticCode::TailwindVariantNotSupported],
@@ -1135,6 +1135,27 @@ mod variant_tests {
         assert!(codes("not-open:bg-blue-500").is_empty());
         assert!(codes("group-open:inline").is_empty());
         assert!(codes("peer-open:inline").is_empty());
+        // `checked:`, `indeterminate:` and `default:` followed for the same
+        // reason: `group-checked:` beside a compiled base always lost (#1752).
+        for state in ["checked", "indeterminate", "default"] {
+            assert_eq!(
+                codes(&format!("{state}:bg-blue-500")),
+                vec![DiagnosticCode::TailwindVariantCannotMatch],
+                "{state}",
+            );
+            assert!(
+                codes(&format!("not-{state}:bg-blue-500")).is_empty(),
+                "{state}"
+            );
+            assert!(
+                codes(&format!("group-{state}:bg-blue-500")).is_empty(),
+                "{state}"
+            );
+            assert!(
+                codes(&format!("peer-{state}:bg-blue-500")).is_empty(),
+                "{state}"
+            );
+        }
     }
 
     #[test]
@@ -1230,14 +1251,13 @@ mod enabled_tests {
 
     #[test]
     fn a_variant_whose_selector_could_never_match_is_still_reported() {
-        // `checked:` is real Tailwind and deliberately not implemented:
-        // it compiles to `:checked`, which matches a form control, and no
-        // primitive is one. A faithful implementation would generate CSS
-        // that cannot apply, which is precisely the bug `disabled:` used
-        // to be. The diagnostic is the more useful answer.
+        // `checked:` compiles to `:checked`, which matches a checkbox, and
+        // no primitive is one. It is emitted as Tailwind would emit it, so
+        // that `peer-checked:` works, and reported here, where it can never
+        // apply: the bug `disabled:` used to be, made visible (#1752).
         //
-        // `open:` was here too, until `@hozo/semantics`' `Details` became
-        // a real `<details>` and `group-open:` the way to read it (#1692).
+        // `open:` took this route first, once `@hozo/semantics`' `Details`
+        // became a real `<details>` (#1692).
         let source =
             "import { View } from '@hozo/core'\nconst el = <View className=\"checked:p-4\">x</View>\n";
         let codes: Vec<_> = crate::parse_tsx(source)
@@ -1245,7 +1265,7 @@ mod enabled_tests {
             .into_iter()
             .map(|d| d.code)
             .collect();
-        assert_eq!(codes, vec![DiagnosticCode::TailwindVariantNotSupported]);
+        assert_eq!(codes, vec![DiagnosticCode::TailwindVariantCannotMatch]);
     }
 }
 
@@ -1311,10 +1331,10 @@ mod relational_tests {
 
     #[test]
     fn an_inner_variant_hozo_lacks_is_reported_rather_than_swallowed() {
-        // `checked:` is deliberately unimplemented, so `peer-checked:` is
-        // too -- and says so.
+        // `inert:` is not compiled yet, so `peer-inert:` is not either --
+        // and says so. (`peer-checked:` was the example until #1752.)
         assert_eq!(
-            codes("peer-checked:p-4"),
+            codes("peer-inert:p-4"),
             vec![DiagnosticCode::TailwindVariantNotSupported]
         );
     }
@@ -1688,7 +1708,7 @@ mod form_state_tests {
             ""
         };
         let source = format!(
-            "import {{ View, Text, TextInput }} from '@hozo/core'
+            "import {{ View, Text, TextInput, Progress }} from '@hozo/core'
              const el = <{element}{name} className=\"{class_name}\" />
 "
         );
@@ -1778,16 +1798,29 @@ mod form_state_tests {
     }
 
     #[test]
-    fn the_three_that_need_a_control_hozo_does_not_have_stay_refused() {
-        // Rule 2 of decision 003, unchanged: no primitive becomes a
-        // checkbox, a radio, or a form's default button.
+    fn the_three_that_need_a_control_cannot_match_on_a_field() {
+        // Compiled since #1752, so `peer-checked:` can read a real
+        // checkbox. On a primitive itself they still cannot match: a field
+        // is not a checkbox, a radio or a form's default button.
         for class_name in ["checked:p-4", "indeterminate:p-4", "default:p-4"] {
             assert_eq!(
                 codes("TextInput", class_name),
-                vec![DiagnosticCode::TailwindVariantNotSupported],
+                vec![DiagnosticCode::TailwindVariantCannotMatch],
                 "{class_name}",
             );
         }
+    }
+
+    #[test]
+    fn indeterminate_can_match_a_progress_without_a_value() {
+        // A `Progress` is a real `<progress>`, which is `:indeterminate`
+        // until it is given a `value`. `checked:` still cannot match it.
+        let cannot = |class_name: &str| {
+            codes("Progress", class_name).contains(&DiagnosticCode::TailwindVariantCannotMatch)
+        };
+        assert!(!cannot("indeterminate:opacity-50"));
+        assert!(!cannot("md:indeterminate:opacity-50"));
+        assert!(cannot("checked:opacity-50"));
     }
 }
 
@@ -2150,5 +2183,80 @@ mod private_attribute_tests {
         // the same `.hozo-0[data-hozo-disabled]` selector, so nobody loses
         // anything by taking the advice.
         assert!(!codes("disabled:opacity-50").contains(&DiagnosticCode::HozoAttributeIsPrivate));
+    }
+}
+
+#[cfg(test)]
+mod carried_conflict_tests {
+    use hozo_ir::DiagnosticCode;
+
+    /// The not-supported messages for `class_name`, the attribute's text as
+    /// written: a string literal, or an expression in braces.
+    fn reports(class_name: &str) -> Vec<String> {
+        let source = format!(
+            "import {{ View, cx }} from '@hozo/core'\nconst el = <View className={class_name}>x</View>\n"
+        );
+        crate::parse_tsx(&source)
+            .diagnostics
+            .into_iter()
+            .filter(|d| d.code == DiagnosticCode::TailwindVariantNotSupported)
+            .map(|d| d.message)
+            .collect()
+    }
+
+    fn one(class_name: &str) -> String {
+        let reports = reports(class_name);
+        assert_eq!(reports.len(), 1, "{class_name}: {reports:?}");
+        reports.into_iter().next().unwrap()
+    }
+
+    #[test]
+    fn a_carried_variant_names_the_compiled_token_it_loses_to() {
+        // #1752. `inert:` is carried to Tailwind, whose rule is layered,
+        // so the unlayered `bg-white` beside it always wins.
+        for class_name in [
+            "\"bg-white inert:bg-blue-500\"",
+            "\"inert:bg-blue-500 bg-white\"",
+        ] {
+            let message = one(class_name);
+            assert!(message.contains("loses to `bg-white`"), "{message}");
+            assert!(message.contains("both set `background-color`"), "{message}");
+        }
+    }
+
+    #[test]
+    fn a_property_hozo_cannot_name_is_still_a_conflict() {
+        let message = one("\"p-2 inert:p-4\"");
+        assert!(message.contains("loses to `p-2`"), "{message}");
+    }
+
+    #[test]
+    fn a_carried_variant_that_conflicts_with_nothing_gets_the_plain_report() {
+        let message = one("\"p-2 inert:bg-blue-500\"");
+        assert!(!message.contains("loses to"), "{message}");
+        assert!(message.contains("will work"), "{message}");
+    }
+
+    #[test]
+    fn an_important_carried_utility_wins_from_its_layer() {
+        // A layered `!important` beats an unlayered normal declaration.
+        let message = one("\"bg-white inert:!bg-blue-500\"");
+        assert!(!message.contains("loses to"), "{message}");
+    }
+
+    #[test]
+    fn a_joined_class_list_is_compared_the_same_way() {
+        let message = one("{cx('bg-white', 'inert:bg-blue-500')}");
+        assert!(message.contains("loses to `bg-white`"), "{message}");
+        // The compiled base applies whenever the element renders, so a
+        // guard on the carried half does not make it win.
+        let message = one("{cx('bg-white', on && 'inert:bg-blue-500')}");
+        assert!(message.contains("loses to `bg-white`"), "{message}");
+    }
+
+    #[test]
+    fn two_branches_that_may_never_apply_together_are_not_called_a_conflict() {
+        let message = one("{on ? 'bg-white' : 'inert:bg-blue-500'}");
+        assert!(!message.contains("loses to"), "{message}");
     }
 }

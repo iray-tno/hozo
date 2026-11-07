@@ -1460,6 +1460,7 @@ fn condition_suffix(condition: &Condition) -> Option<String> {
         Condition::FocusWithin => Some("focuswithin".to_string()),
         Condition::Target => Some("target".to_string()),
         Condition::Open => Some("open".to_string()),
+        Condition::Control(state) => Some(state.variant_name().to_string()),
         Condition::Visited => Some("visited".to_string()),
         Condition::StartingStyle => Some("starting".to_string()),
         // Named by position rather than by content: a selector can hold
