@@ -767,6 +767,14 @@ pub(super) fn build_style_entries(
                 "`open:` matches an open `<details>`, `<dialog>` or popover by its `open` attribute. React Native has no attribute to read, and `Details` keeps its open state to itself, so nothing here can tell this element is open. On Web the same class works.",
                 Severity::Error,
             )),
+            Condition::Control(state) => diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`{}:` matches a checkbox, a radio or a form's default button by the DOM's own state. React Native has none of those elements and no selector to ask with. Style from the state you already hold instead -- `aria-checked:` reads `accessibilityState`, which works on both platforms. On Web the same class works.",
+                    state.variant_name(),
+                ),
+                Severity::Error,
+            )),
             Condition::Target => diagnostics.push(unwired_variant(
                 node,
                 "`target:` matches the element the document's URL fragment points at. React Native has no document and no URL to point with, so there is nothing for this to be true of. On Web the same class works.",

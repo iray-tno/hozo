@@ -179,6 +179,12 @@ fn no_variant_is_dropped_without_saying_so() {
         // Nothing on a bare View drives these at all.
         ("disabled:p-4", hozo_ir::Severity::Error),
         ("pressed:p-4", hozo_ir::Severity::Error),
+        // A checkbox's DOM state, compiled for Web since #1752. Nothing on
+        // Native can ask it; `aria-checked:` is the version that works.
+        ("checked:p-4", hozo_ir::Severity::Error),
+        ("group-checked:p-4", hozo_ir::Severity::Error),
+        ("indeterminate:p-4", hozo_ir::Severity::Error),
+        ("default:p-4", hozo_ir::Severity::Error),
     ];
 
     for (candidate, severity) in cases {

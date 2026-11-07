@@ -1967,6 +1967,7 @@ fn condition_shapes_for(
         Condition::FocusWithin => one(Vec::new(), "&:focus-within"),
         Condition::Target => one(Vec::new(), "&:target"),
         Condition::Open => one(Vec::new(), "&:is([open], :popover-open, :open)"),
+        Condition::Control(state) => one(Vec::new(), format!("&{}", state.selector())),
         Condition::Visited => one(Vec::new(), "&:visited"),
         // The only at-rule here that is not a query, and the only reason
         // that matters to this function is that it still has to nest in

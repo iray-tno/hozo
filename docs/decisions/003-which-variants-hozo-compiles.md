@@ -40,8 +40,25 @@ rule sits in a layer, and a compiled unlayered `hidden` beside it won
 whether the disclosure was open or not. `open:` is compiled now. Written
 on a primitive itself it still cannot match, and that is reported as
 `TAILWIND_VARIANT_CANNOT_MATCH`, the way a form-state variant off a
-`TextInput` is. The rule stands for `checked:`: `<input type="checkbox">`
-is still not something any primitive becomes.
+`TextInput` is.
+
+*Amended for `checked:`, `indeterminate:` and `default:` (#1752).* The same
+gap, for the same reason. No primitive becomes a checkbox, a radio or a
+submit button, but the page around Hozo's elements can have one, and
+`peer-checked:` beside it or `has-checked:` around it can match. Refused,
+they were carried to Tailwind and lost to any compiled base that set the
+same property. Measured in Chromium: with `bg-white` compiled,
+`peer-checked:bg-blue-500` in `@layer utilities` stayed white with the box
+checked, and compiled it turned blue. They are compiled now. On a primitive
+itself they are reported as `TAILWIND_VARIANT_CANNOT_MATCH`, except
+`indeterminate:` on `Progress`, a real `<progress>` that matches while it
+has no `value`. React Native has none of these elements and reports them as
+not wired; `aria-checked:` is the spelling that works on both platforms.
+
+What is left of this rule is its warning. Any variant Hozo does not compile
+is carried to the project's Tailwind, where it loses to a compiled token
+that sets the same property. So the `TAILWIND_VARIANT_NOT_SUPPORTED` report
+names that token and the property.
 
 **3. A concept one platform has is better implemented there and named
 absent on the other than left out of both.**
@@ -324,10 +341,11 @@ the same one that decides which variants `group-` may wrap: they move the
 question onto a different element, and whether *that* one is a form control
 is not something this element's primitive can answer.
 
-`checked:`, `indeterminate:` and `default:` stay refused everywhere, which
-is the original rule still doing its job — no Hozo primitive becomes a
-checkbox, a radio, or a form's default button, so there is no element to
-point the report at.
+`checked:`, `indeterminate:` and `default:` stayed refused everywhere until
+#1752, because no Hozo primitive becomes a checkbox, a radio or a form's
+default button. They now take the same route as the form states: they
+compile, and the element is reported. `indeterminate:` on a `Progress` is
+not reported.
 
 ## A denominator can shrink without saying so
 
@@ -396,17 +414,19 @@ everything in this file.
 
 ## What is left
 
-Groups ② through ⑤ are done. What remains of Tailwind's 83 names is
-either refused with a reason or compiled:
+Groups ② through ⑤ are done. None of Tailwind's 83 names is refused
+any more. `open`, then `checked`, `indeterminate` and `default`, were the
+last four, compiled in #1692 and #1752 (see rule 2).
 
-**Refused under rule 2**, because no Hozo primitive becomes the element
-the selector needs: `checked` `indeterminate` `default`. Those three
-are the whole of what is left, and each is a decision rather than a
-backlog item. (`open` was the fourth until #1692; see rule 2.)
+Container queries are a feature of their own and are done.
 
-Container queries are a feature of their own and are done; nothing here
-is a variant left to add, and with `visited:` and `starting:` compiled
-there is nothing left unbuilt either.
+This section used to say that, with `visited:` and `starting:` compiled,
+nothing was left unbuilt. That was not true when #1752 checked each name
+against the parser. Nine names are carried and reported: the three
+`pointer-*`, the three `any-pointer-*`, `inert`, `details-content` and
+`in-*`. They are backlog,
+not decisions. Until they are compiled, the report on each one names the
+compiled token it loses to.
 
 ## `@starting-style` is an at-rule that is not a query
 
