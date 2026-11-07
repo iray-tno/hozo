@@ -9,11 +9,11 @@ use std::collections::HashMap;
 
 use hozo_ir::{
     Align, AlignSelf, Angle, Animation, Axis, BorderStyle, Breakpoint, Clamp, Color, ColumnCount,
-    Condition, DecorationStyle, Dimension, Display, Edge, Em, Environment, FilterFunction,
-    FlexDirection, FlexShorthand, FontFamily, FontWeight, FormState, GradientKind, GradientStop,
-    GridLine, GridSpan, GridTracks, Justify, Length, LetterSpacing, LineHeight, MaskSlot, MaskStop,
-    Origin, Overflow, Position, PseudoElement, Radius, Scale, Structural, StyleProperty, TextAlign,
-    TextOverflow, TextShadowValue, TextTransform, WhiteSpace,
+    Condition, ControlState, DecorationStyle, Dimension, Display, Edge, Em, Environment,
+    FilterFunction, FlexDirection, FlexShorthand, FontFamily, FontWeight, FormState, GradientKind,
+    GradientStop, GridLine, GridSpan, GridTracks, Justify, Length, LetterSpacing, LineHeight,
+    MaskSlot, MaskStop, Origin, Overflow, Position, PseudoElement, Radius, Scale, Structural,
+    StyleProperty, TextAlign, TextOverflow, TextShadowValue, TextTransform, WhiteSpace,
 };
 
 /// The property lists Tailwind's `transition`/`transition-colors` expand
@@ -2926,6 +2926,12 @@ const ENVIRONMENT_VARIANTS: &[(&str, Environment)] = &[
     ("forced-colors:", Environment::ForcedColors),
     ("print:", Environment::Print),
     ("noscript:", Environment::Noscript),
+    ("pointer-fine:", Environment::PointerFine),
+    ("pointer-coarse:", Environment::PointerCoarse),
+    ("pointer-none:", Environment::PointerNone),
+    ("any-pointer-fine:", Environment::AnyPointerFine),
+    ("any-pointer-coarse:", Environment::AnyPointerCoarse),
+    ("any-pointer-none:", Environment::AnyPointerNone),
     // Not Tailwind's. These four are the accessibility settings React
     // Native reports and Tailwind has no name for, and they are spelled
     // the way Tailwind spells the ones it does have -- after the user
@@ -3005,6 +3011,15 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     // are parsed by recursion rather than by a list of the combinations.
     // An inner variant Hozo does not know leaves `Always`, and the token
     // falls through to the unsupported-variant diagnostic whole.
+    // `in-` is the same relation with no marker. `in-range:` is a form
+    // state of its own; `range:` is not a variant, so the recursion leaves
+    // `Always` and it falls through to the table below.
+    if let Some(inner) = token.strip_prefix("in-") {
+        let (condition, tail) = parse_one_variant(inner);
+        if condition.is_elemental() {
+            return (Condition::In(Box::new(condition)), tail);
+        }
+    }
     for (prefix, wrap) in [("group-", true), ("peer-", false)] {
         if let Some(inner) = token.strip_prefix(prefix) {
             let (condition, tail) = parse_one_variant(inner);
@@ -3087,6 +3102,21 @@ fn parse_one_variant(token: &str) -> (Condition, &str) {
     }
     if let Some(rest) = token.strip_prefix("open:") {
         return (Condition::Open, rest);
+    }
+    for state in [
+        ControlState::Checked,
+        ControlState::Indeterminate,
+        ControlState::Default,
+    ] {
+        if let Some(rest) = token
+            .strip_prefix(state.variant_name())
+            .and_then(|rest| rest.strip_prefix(':'))
+        {
+            return (Condition::Control(state), rest);
+        }
+    }
+    if let Some(rest) = token.strip_prefix("inert:") {
+        return (Condition::Inert, rest);
     }
     if let Some(rest) = token.strip_prefix("visited:") {
         return (Condition::Visited, rest);
@@ -3846,6 +3876,37 @@ pub fn unsupported_variant_name(token: &str) -> Option<&str> {
     crate::tailwind_variants::is_variant(name).then_some(name)
 }
 
+/// What a class Hozo carries would write, read past its variants, for a
+/// carried class whose variant Tailwind defines (#1752).
+///
+/// Every variant Hozo does not compile still reaches the page through the
+/// project's Tailwind, in `@layer utilities`, and a compiled rule is
+/// unlayered, so wherever both match the compiled one wins. Comparing what
+/// the two write is how that gets said. An `!important` utility is left
+/// out: a layered important declaration beats an unlayered normal one.
+pub fn carried_writes(token: &str) -> Vec<StyleProperty> {
+    if unsupported_variant_name(token).is_none() {
+        return Vec::new();
+    }
+    let mut depth = 0usize;
+    let mut base = token;
+    for (index, byte) in token.bytes().enumerate() {
+        match byte {
+            b'[' | b'(' => depth += 1,
+            b']' | b')' => depth = depth.saturating_sub(1),
+            b':' if depth == 0 => base = &token[index + 1..],
+            _ => {}
+        }
+    }
+    if base.starts_with('!') || base.ends_with('!') {
+        return Vec::new();
+    }
+    expand_class(base)
+        .into_iter()
+        .flat_map(|(_, properties)| properties)
+        .collect()
+}
+
 /// The structural variants, in the order their names would shadow one
 /// another.
 ///
@@ -3958,6 +4019,7 @@ const PSEUDO_ELEMENTS: &[(&str, PseudoElement)] = &[
     ("marker:", PseudoElement::Marker),
     ("after:", PseudoElement::After),
     ("file:", PseudoElement::File),
+    ("details-content:", PseudoElement::DetailsContent),
 ];
 
 /// The named breakpoints, and the widths they stand for.

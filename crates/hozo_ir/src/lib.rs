@@ -4569,6 +4569,31 @@ pub enum Condition {
     /// Native has no attribute to read. `Details` tracks its open state
     /// itself and hands it to nobody, so there this is refused until it does.
     Open,
+    /// `checked:`, `indeterminate:` and `default:`. A checkbox, radio or
+    /// option's state, matched by Tailwind's own selector.
+    ///
+    /// Compiled for the reason `Open` is (#1752): no primitive becomes a
+    /// checkbox, but `group-checked:` and `peer-checked:` read an element
+    /// that may be one, and left to Tailwind they sat in a layer where any
+    /// compiled base beside them won.
+    Control(ControlState),
+    /// `inert:`. Tailwind's `:is([inert], [inert] *)`: the element, or an
+    /// ancestor, carries the `inert` attribute.
+    ///
+    /// No primitive writes `inert`, but the page around Hozo's elements
+    /// can, so the ancestor half can match. Compiled for the reason `Open`
+    /// is (#1777): left to Tailwind it sat in a layer, where any compiled
+    /// base beside it won.
+    ///
+    /// Native has no `inert` and reports it as not wired.
+    Inert,
+    /// Tailwind's `in-…:`. The `group-…:` relation without the marker:
+    /// any ancestor in the inner state, as `:where(*:hover) &`.
+    ///
+    /// Web only, like `Peer`. Native hands state down from a `group` it
+    /// can find; an unmarked ancestor is any ancestor at all, and there is
+    /// nothing to hand it.
+    In(Box<Condition>),
     /// `visited:`. A link the user has been to before.
     ///
     /// The one condition whose *declarations* the browser censors. History
@@ -4962,6 +4987,9 @@ pub enum PseudoElement {
     /// `file:`, which is `::file-selector-button`.
     File,
     Backdrop,
+    /// `details-content:`, which is `::details-content`: the part of a
+    /// `<details>` that opens and closes. Only `Details` renders one.
+    DetailsContent,
 }
 
 impl PseudoElement {
@@ -4978,6 +5006,7 @@ impl PseudoElement {
             PseudoElement::FirstLine => vec!["&::first-line"],
             PseudoElement::File => vec!["&::file-selector-button"],
             PseudoElement::Backdrop => vec!["&::backdrop"],
+            PseudoElement::DetailsContent => vec!["&::details-content"],
             // A descendant's and the element's own, because a selection
             // crosses element boundaries and styling only the element
             // would leave its children unstyled mid-drag.
@@ -5015,6 +5044,7 @@ impl PseudoElement {
             PseudoElement::FirstLine => "first-line",
             PseudoElement::File => "file",
             PseudoElement::Backdrop => "backdrop",
+            PseudoElement::DetailsContent => "details-content",
         }
     }
 }
@@ -5025,12 +5055,10 @@ impl PseudoElement {
 /// none to share: these are eleven unrelated questions that happen to be
 /// answerable only of a form control.
 ///
-/// The three Tailwind ships that are missing -- `checked`, `indeterminate`
-/// and `default` -- are refused under rule 2 of decision 003 rather than
-/// unbuilt. They match a checkbox, a radio or a form's default button, and
-/// Hozo has no primitive that becomes one; an author writing
-/// `<Pressable accessibilityRole="checkbox">` would get a rule that could
-/// never apply.
+/// The three Tailwind ships that are not here -- `checked`, `indeterminate`
+/// and `default` -- are `ControlState`. They ask about a checkbox, a radio
+/// or a form's default button rather than about a field, and `TextInput`,
+/// the one primitive these can match, is none of those.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FormState {
     Required,
@@ -5063,6 +5091,36 @@ impl FormState {
             FormState::ReadOnly => ":read-only",
             FormState::PlaceholderShown => ":placeholder-shown",
             FormState::Autofill => ":autofill",
+        }
+    }
+
+    /// Tailwind's name for it, which is the selector without its colon.
+    pub fn variant_name(&self) -> &'static str {
+        &self.selector()[1..]
+    }
+}
+
+/// The state of a checkbox, a radio, an option or a default button, as the
+/// DOM asks about it (#1752).
+///
+/// Apart from `FormState` because the elements are. No primitive is a
+/// checkbox, a radio or a submit button, so on one of these written
+/// directly the rule can never apply. The one exception is
+/// `indeterminate:` on `Progress`, a real `<progress>` that matches while
+/// it has no `value`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ControlState {
+    Checked,
+    Indeterminate,
+    Default,
+}
+
+impl ControlState {
+    pub fn selector(&self) -> &'static str {
+        match self {
+            ControlState::Checked => ":checked",
+            ControlState::Indeterminate => ":indeterminate",
+            ControlState::Default => ":default",
         }
     }
 
@@ -5117,6 +5175,18 @@ pub enum Environment {
     Print,
     /// `@media (scripting: none)`. Web only.
     Noscript,
+    /// `@media (pointer: fine)`, `coarse` and `none`: the primary pointing
+    /// device. Web only. React Native reports no pointer, and a phone
+    /// being touch-first is a guess about the device rather than an answer
+    /// from it.
+    PointerFine,
+    PointerCoarse,
+    PointerNone,
+    /// `@media (any-pointer: …)`: any pointing device the system has.
+    /// Web only, for the same reason.
+    AnyPointerFine,
+    AnyPointerCoarse,
+    AnyPointerNone,
     /// `@media (prefers-reduced-transparency: reduce)`, and React Native's
     /// `isReduceTransparencyEnabled`.
     ///
@@ -5262,9 +5332,10 @@ impl Condition {
             Condition::Hover => true,
             Condition::Environment(query) => !matches!(query, Environment::Ltr | Environment::Rtl),
             // A relation carries its inner condition's at-rules through.
-            Condition::Group(inner) | Condition::Peer(inner) | Condition::Not(inner) => {
-                inner.is_ambient()
-            }
+            Condition::Group(inner)
+            | Condition::Peer(inner)
+            | Condition::In(inner)
+            | Condition::Not(inner) => inner.is_ambient(),
             Condition::All(conditions) => conditions.iter().any(Condition::is_ambient),
             Condition::Supports(_) => true,
             // `has-hover:` carries the media query the hover it wraps has.
@@ -5287,9 +5358,10 @@ impl Condition {
         match self {
             Condition::Dark => true,
             Condition::All(conditions) => conditions.iter().any(Condition::mentions_dark),
-            Condition::Group(inner) | Condition::Peer(inner) | Condition::Has(inner) => {
-                inner.mentions_dark()
-            }
+            Condition::Group(inner)
+            | Condition::Peer(inner)
+            | Condition::In(inner)
+            | Condition::Has(inner) => inner.mentions_dark(),
             _ => false,
         }
     }
@@ -5415,6 +5487,7 @@ impl Condition {
             Condition::Not(inner)
             | Condition::Group(inner)
             | Condition::Peer(inner)
+            | Condition::In(inner)
             | Condition::Has(inner) => inner.hozo_private_attribute(),
             _ => None,
         }
@@ -5427,6 +5500,7 @@ impl Condition {
             Condition::Not(inner)
             | Condition::Group(inner)
             | Condition::Peer(inner)
+            | Condition::In(inner)
             | Condition::Has(inner) => inner.contains_visited(),
             _ => false,
         }
@@ -5612,6 +5686,15 @@ impl StyleProperty {
     /// The key itself stays private so its tuple shape is not frontend API.
     pub fn same_property_as(&self, other: &Self) -> bool {
         self.dedupe_key() == other.dedupe_key()
+    }
+
+    /// The one CSS property this writes, when it is one Hozo can name.
+    ///
+    /// For a message, so `None` is an answer: shorthands and values that
+    /// fold through a custom property are left out, as they are of the
+    /// table this reads.
+    pub fn css_property_name(&self) -> Option<&'static str> {
+        tailwind_assessment::scalar_css_property(self)
     }
 
     /// What makes two declarations "the same property" for last-wins

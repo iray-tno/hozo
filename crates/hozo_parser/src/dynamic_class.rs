@@ -62,6 +62,10 @@ pub struct Decomposed {
     /// diagnostics and the reason is worth keeping: it decomposes an
     /// expression and knows nothing about what a message should say.
     pub unsupported_variants: Vec<UnsupportedVariant>,
+    /// Tokens that compiled, with what each writes: what a carried
+    /// variant is compared against, to say which of them it loses to on Web
+    /// (#1752).
+    pub compiled: Vec<CompiledToken>,
     /// The optional guarded-template proof is irrelevant to other legacy
     /// failures; do not decompose ordinary opaque branches a second time.
     pub guarded_template: bool,
@@ -76,6 +80,22 @@ pub struct UnsupportedVariant {
     pub variant: String,
     pub token: String,
     pub span: SourceSpan,
+    /// Not under a guard of the expression's own, so it applies whenever
+    /// the element renders.
+    pub unconditional: bool,
+}
+
+/// A token that compiled, and what it writes.
+///
+/// `span` and `unconditional` mean what they do on `UnsupportedVariant`.
+/// Two tokens in different branches of a ternary may never apply together,
+/// so a conflict is claimed only when one side is unconditional or both
+/// are in the same string.
+pub struct CompiledToken {
+    pub token: String,
+    pub properties: Vec<hozo_ir::StyleProperty>,
+    pub span: SourceSpan,
+    pub unconditional: bool,
 }
 
 /// A function the project says joins class strings as `clsx` does, by the
@@ -320,9 +340,21 @@ fn decompose_literal(
                         start: span.start,
                         end: span.end,
                     },
+                    unconditional: condition.is_none(),
                 });
             }
             continue;
+        }
+        if token_condition == Condition::Always || condition.is_none() {
+            out.compiled.push(CompiledToken {
+                token: token.to_string(),
+                properties: properties.clone(),
+                span: SourceSpan {
+                    start: span.start,
+                    end: span.end,
+                },
+                unconditional: condition.is_none(),
+            });
         }
         if token_condition == Condition::Always {
             let final_condition = to_condition(condition.clone());
@@ -502,6 +534,15 @@ fn decompose(
                     } else {
                         token_condition
                     };
+                    out.compiled.push(CompiledToken {
+                        token: token.to_string(),
+                        properties: properties.clone(),
+                        span: SourceSpan {
+                            start: quasi.span.start,
+                            end: quasi.span.end,
+                        },
+                        unconditional: condition.is_none(),
+                    });
                     let source = utility_source(token, module_record.units);
                     for property in properties {
                         out.declarations.push(StyleDeclaration {
@@ -524,6 +565,7 @@ fn decompose(
                     out.fallback.extend(part.fallback);
                     out.consumed.extend(part.consumed);
                     out.unsupported_variants.extend(part.unsupported_variants);
+                    out.compiled.extend(part.compiled);
                 }
             } else {
                 for expression in &template.expressions {
@@ -865,8 +907,8 @@ const el = <View className={{{expression}}} />
             ["cond ? 'my-card' : 'p-8'"]
         );
         assert_eq!(
-            carried(&wrap("cn('p-4', 'checked:p-4')")),
-            ["'checked:p-4'"]
+            carried(&wrap("cn('p-4', 'aria-[sort=ascending]:p-4')")),
+            ["'aria-[sort=ascending]:p-4'"]
         );
     }
 
@@ -897,9 +939,9 @@ const el = <View className={{{expression}}} />
 
     #[test]
     fn a_variant_tailwind_defines_and_hozo_does_not_is_named() {
-        let out = decompose_source(&wrap("cn('checked:p-4')"));
+        let out = decompose_source(&wrap("cn('aria-[sort=ascending]:p-4')"));
         assert_eq!(out.unsupported_variants.len(), 1);
-        assert_eq!(out.unsupported_variants[0].variant, "checked");
+        assert_eq!(out.unsupported_variants[0].variant, "aria");
         // A project's own class is not a gap in Hozo, so it gets carried
         // without being reported.
         assert!(decompose_source(&wrap("cn('my-card')"))

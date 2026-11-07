@@ -767,6 +767,14 @@ pub(super) fn build_style_entries(
                 "`open:` matches an open `<details>`, `<dialog>` or popover by its `open` attribute. React Native has no attribute to read, and `Details` keeps its open state to itself, so nothing here can tell this element is open. On Web the same class works.",
                 Severity::Error,
             )),
+            Condition::Control(state) => diagnostics.push(unwired_variant(
+                node,
+                &format!(
+                    "`{}:` matches a checkbox, a radio or a form's default button by the DOM's own state. React Native has none of those elements and no selector to ask with. Style from the state you already hold instead -- `aria-checked:` reads `accessibilityState`, which works on both platforms. On Web the same class works.",
+                    state.variant_name(),
+                ),
+                Severity::Error,
+            )),
             Condition::Target => diagnostics.push(unwired_variant(
                 node,
                 "`target:` matches the element the document's URL fragment points at. React Native has no document and no URL to point with, so there is nothing for this to be true of. On Web the same class works.",
@@ -812,6 +820,20 @@ pub(super) fn build_style_entries(
                 "`peer-…:` has no React Native equivalent. A sibling relationship is a selector, \
                  and there are none here -- a parent can hand its state down through context, and \
                  a sibling has nowhere to hand it. On Web the same class works.",
+                Severity::Error,
+            )),
+            Condition::In(_) => diagnostics.push(unwired_variant(
+                node,
+                "`in-…:` asks whether any ancestor is in a state, through a selector. React \
+                 Native has no selectors, and with no `group` marker there is no ancestor to hand \
+                 the state down from. Put `group` on the ancestor and write `group-…:`. On Web \
+                 the same class works.",
+                Severity::Error,
+            )),
+            Condition::Inert => diagnostics.push(unwired_variant(
+                node,
+                "`inert:` matches an element under the `inert` attribute, which React Native \
+                 does not have. On Web the same class works.",
                 Severity::Error,
             )),
             Condition::Expr(expr) => {

@@ -179,6 +179,21 @@ fn no_variant_is_dropped_without_saying_so() {
         // Nothing on a bare View drives these at all.
         ("disabled:p-4", hozo_ir::Severity::Error),
         ("pressed:p-4", hozo_ir::Severity::Error),
+        // A checkbox's DOM state, compiled for Web since #1752. Nothing on
+        // Native can ask it; `aria-checked:` is the version that works.
+        ("checked:p-4", hozo_ir::Severity::Error),
+        ("group-checked:p-4", hozo_ir::Severity::Error),
+        ("indeterminate:p-4", hozo_ir::Severity::Error),
+        ("default:p-4", hozo_ir::Severity::Error),
+        // Compiled for Web since #1777. React Native has no pointer
+        // query, no `inert`, no selector for an unmarked ancestor and no
+        // `<details>`.
+        ("pointer-coarse:p-4", hozo_ir::Severity::Error),
+        ("any-pointer-fine:p-4", hozo_ir::Severity::Error),
+        ("inert:p-4", hozo_ir::Severity::Error),
+        ("group-inert:p-4", hozo_ir::Severity::Error),
+        ("in-focus:p-4", hozo_ir::Severity::Error),
+        ("details-content:p-4", hozo_ir::Severity::Error),
     ];
 
     for (candidate, severity) in cases {

@@ -53,6 +53,12 @@ fn never_on_native(condition: &Condition) -> Option<String> {
         Condition::Peer(_) => {
             Some("`peer-…:` is a sibling selector, and React Native has none".into())
         }
+        Condition::In(_) => {
+            Some("`in-…:` asks about any ancestor, and React Native has no selector to ask".into())
+        }
+        Condition::Inert => {
+            Some("`inert:` needs the `inert` attribute, which React Native does not have".into())
+        }
         Condition::Has(_) | Condition::HasSelector(_) => {
             Some("`has-…:` asks about descendants, which React Native cannot".into())
         }
@@ -63,6 +69,10 @@ fn never_on_native(condition: &Condition) -> Option<String> {
         Condition::Visited => Some("`visited:` needs a browsing history".into()),
         Condition::Target => Some("`target:` needs a document URL fragment".into()),
         Condition::Open => Some("`open:` needs an open state Details does not share".into()),
+        Condition::Control(state) => Some(format!(
+            "`{}:` needs a checkbox, a radio or a default button, which React Native does not have",
+            state.variant_name()
+        )),
         Condition::FormState(FormState::ReadOnly) => None,
         Condition::FormState(state) => Some(format!(
             "`{}:` is the DOM's constraint validation, which React Native does not have",
