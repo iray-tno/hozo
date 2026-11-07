@@ -1,5 +1,13 @@
 # @hozo/media
 
+## 0.4.1
+
+### Patch Changes
+
+- [#1686](https://github.com/iray-tno/hozo/pull/1686) [`5c488f3`](https://github.com/iray-tno/hozo/commit/5c488f31bbf0d312222a8c290a9e379e674aa908) Thanks [@iray-tno](https://github.com/iray-tno)! - `Video` works on a page that is rendered to static markup and never hydrated ([#1674](https://github.com/iray-tno/hozo/issues/1674)). On Web, `autoPlay`, `muted`, `loop` and `poster` are now also the `<video>`'s own attributes. The poster overlay joins only once mounted. New props: `width` and `height` (intrinsic size: the box takes their aspect ratio instead of the fixed 180 height), `className` for the box, `preload`, and `nativeID`. Given a `className`, the Web box no longer applies its inline 100% × 180 default, so the classes size it. On Native the classes resolve at runtime on top of the default, which is why `@hozo/media` now depends on `@hozo/engine`.
+- Updated dependencies [[`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b)]:
+  - @hozo/engine@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

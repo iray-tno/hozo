@@ -1,5 +1,16 @@
 # @hozo/primitives
 
+## 0.4.1
+
+### Patch Changes
+
+- [#1760](https://github.com/iray-tno/hozo/pull/1760) [`e5c848d`](https://github.com/iray-tno/hozo/commit/e5c848de8f4ff732fc7fc4a2d343e34938df1800) Thanks [@iray-tno](https://github.com/iray-tno)! - `Button` takes `accessibilityState` and `aria-controls`, so a menu or disclosure trigger can say whether what it opens is open and which element that is. On the Web they become `aria-expanded` and its kin and `aria-controls`, compiled or not, named or spread. On React Native `accessibilityState` reaches the Pressable and `aria-controls` is dropped. `accessibilityState.disabled` disables the button as the `disabled` prop does.
+
+- [#1684](https://github.com/iray-tno/hozo/pull/1684) [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b) Thanks [@iray-tno](https://github.com/iray-tno)! - `Image` declares `width`, `height`, `loading`, `decoding` and `fetchPriority`. The uncompiled Web `Image` now forwards them to the `<img>`, as compiled output already did, so a server-rendered page reserves the image's box and lazy-loads it with or without the compiler ([#1674](https://github.com/iray-tno/hozo/issues/1674)). On React Native, `width` and `height` are React Native's own props, and the three loading hints type-check but are ignored.
+- Updated dependencies [[`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b)]:
+  - @hozo/behaviors@0.4.1
+  - @hozo/engine@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

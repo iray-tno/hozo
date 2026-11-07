@@ -1,5 +1,17 @@
 # @hozo/tailwind
 
+## 0.4.1
+
+### Patch Changes
+
+- [#1723](https://github.com/iray-tno/hozo/pull/1723) [`fb83851`](https://github.com/iray-tno/hozo/commit/fb8385140207869e725b86f9f5ed5cbf3af22f16) Thanks [@iray-tno](https://github.com/iray-tno)! - Preserve Web CSS variable references for the standard Tailwind color palette and colors declared with @theme default, so selectors can override their values at runtime.
+
+- [#1703](https://github.com/iray-tno/hozo/pull/1703) [`429a4a3`](https://github.com/iray-tno/hozo/commit/429a4a37b1d0a6a1f4163fefb163a04acfd17657) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep Web color utilities connected to project-defined Tailwind theme variables, including opacity-modified colors. CSS selectors can change those colors at runtime. For projects that only read the theme at build time, the declared color becomes the CSS fallback.
+
+- [#1730](https://github.com/iray-tno/hozo/pull/1730) [`0d563a1`](https://github.com/iray-tno/hozo/commit/0d563a19906a05f09634672053495b4a2a80ae89) Thanks [@iray-tno](https://github.com/iray-tno)! - Deliver referenced Web theme declarations and their variable dependencies at the root scope. Runtime theme switches now update ordinary aliases in builds that read the theme entry without bundling it. Inline and reference-only theme modes keep Tailwind's variable-resolution behavior.
+
+- [#1732](https://github.com/iray-tno/hozo/pull/1732) [`546139a`](https://github.com/iray-tno/hozo/commit/546139ae6ff8c1575e346e15a31e2916fb6f9e16) Thanks [@iray-tno](https://github.com/iray-tno)! - `font-sans`, `font-serif` and `font-mono` now follow the project's `--font-*` theme tokens instead of always compiling to Tailwind's default stacks. On Web they write `var(--font-mono)`, as Tailwind does, and the variable is delivered with the project's value. An `inline` theme token is written out. Native gets the token's value. Without a theme, the default stacks are unchanged.
+
 ## 0.4.0
 
 ### Minor Changes

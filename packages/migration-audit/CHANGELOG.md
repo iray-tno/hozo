@@ -1,5 +1,13 @@
 # @hozo/migration-audit
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [[`700e8c9`](https://github.com/iray-tno/hozo/commit/700e8c9d54306b7d038b4ecb063e877887e5a7ef), [`fb83851`](https://github.com/iray-tno/hozo/commit/fb8385140207869e725b86f9f5ed5cbf3af22f16), [`429a4a3`](https://github.com/iray-tno/hozo/commit/429a4a37b1d0a6a1f4163fefb163a04acfd17657), [`0d563a1`](https://github.com/iray-tno/hozo/commit/0d563a19906a05f09634672053495b4a2a80ae89), [`2063b1f`](https://github.com/iray-tno/hozo/commit/2063b1f298c5d0000b79df43a35dbf466a40a254), [`546139a`](https://github.com/iray-tno/hozo/commit/546139ae6ff8c1575e346e15a31e2916fb6f9e16), [`305ce63`](https://github.com/iray-tno/hozo/commit/305ce6317b385fa7e8c8199cd19ca699032cf2b3)]:
+  - @hozo/compiler@0.4.1
+  - @hozo/tailwind@0.4.1
+
 ## 0.4.0
 
 ### Patch Changes

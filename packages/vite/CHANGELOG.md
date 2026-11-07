@@ -1,5 +1,18 @@
 # @hozo/vite
 
+## 0.4.1
+
+### Patch Changes
+
+- [#1731](https://github.com/iray-tno/hozo/pull/1731) [`305ce63`](https://github.com/iray-tno/hozo/commit/305ce6317b385fa7e8c8199cd19ca699032cf2b3) Thanks [@iray-tno](https://github.com/iray-tno)! - `@hozo/vite` now adds the generated modules compiled output imports, such as `@hozo/core/generated/text-input-dom-props`, to Vite's `optimizeDeps.include`. Vite's dependency scan reads untransformed source and never saw them, so a cold dev server re-optimized and reloaded mid-run, which failed Vitest browser tests on every CI run. The `optimizeDeps.include` workaround is no longer needed. `@hozo/compiler/lower` exports `GENERATED_SPECIFIERS`, the list it is read from.
+- Updated dependencies [[`e5c848d`](https://github.com/iray-tno/hozo/commit/e5c848de8f4ff732fc7fc4a2d343e34938df1800), [`700e8c9`](https://github.com/iray-tno/hozo/commit/700e8c9d54306b7d038b4ecb063e877887e5a7ef), [`1585408`](https://github.com/iray-tno/hozo/commit/1585408e2fa23581c6b4b9a51fc8fc978d7e035b), [`14a5d69`](https://github.com/iray-tno/hozo/commit/14a5d69df011aefe076fe95ce9f4e539e63dbcf6), [`fd2f761`](https://github.com/iray-tno/hozo/commit/fd2f7613690fd5d95a78abc9bbdfd5cf3e7ccec4), [`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b), [`fb83851`](https://github.com/iray-tno/hozo/commit/fb8385140207869e725b86f9f5ed5cbf3af22f16), [`429a4a3`](https://github.com/iray-tno/hozo/commit/429a4a37b1d0a6a1f4163fefb163a04acfd17657), [`b4cc4f6`](https://github.com/iray-tno/hozo/commit/b4cc4f6b4941ed6f9fb63ff1f942dad781b760e5), [`0d563a1`](https://github.com/iray-tno/hozo/commit/0d563a19906a05f09634672053495b4a2a80ae89), [`2063b1f`](https://github.com/iray-tno/hozo/commit/2063b1f298c5d0000b79df43a35dbf466a40a254), [`546139a`](https://github.com/iray-tno/hozo/commit/546139ae6ff8c1575e346e15a31e2916fb6f9e16), [`305ce63`](https://github.com/iray-tno/hozo/commit/305ce6317b385fa7e8c8199cd19ca699032cf2b3)]:
+  - @hozo/primitives@0.4.1
+  - @hozo/compiler@0.4.1
+  - @hozo/patterns@0.4.1
+  - @hozo/engine@0.4.1
+  - @hozo/tailwind@0.4.1
+  - @hozo/rn-compat@0.4.1
+
 ## 0.4.0
 
 ### Patch Changes

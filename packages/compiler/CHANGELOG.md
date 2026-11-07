@@ -1,5 +1,21 @@
 # @hozo/compiler
 
+## 0.4.1
+
+### Patch Changes
+
+- [#1750](https://github.com/iray-tno/hozo/pull/1750) [`700e8c9`](https://github.com/iray-tno/hozo/commit/700e8c9d54306b7d038b4ecb063e877887e5a7ef) Thanks [@iray-tno](https://github.com/iray-tno)! - Compile Tailwind's `open:` variant, so `group-open:` and `peer-open:` override a compiled base such as `hidden` inside an open `Details`. Written on a primitive itself, `open:` is reported as `TAILWIND_VARIANT_CANNOT_MATCH`; on Native it is reported as not wired.
+
+- [#1703](https://github.com/iray-tno/hozo/pull/1703) [`429a4a3`](https://github.com/iray-tno/hozo/commit/429a4a37b1d0a6a1f4163fefb163a04acfd17657) Thanks [@iray-tno](https://github.com/iray-tno)! - Keep Web color utilities connected to project-defined Tailwind theme variables, including opacity-modified colors. CSS selectors can change those colors at runtime. For projects that only read the theme at build time, the declared color becomes the CSS fallback.
+
+- [#1730](https://github.com/iray-tno/hozo/pull/1730) [`0d563a1`](https://github.com/iray-tno/hozo/commit/0d563a19906a05f09634672053495b4a2a80ae89) Thanks [@iray-tno](https://github.com/iray-tno)! - Deliver referenced Web theme declarations and their variable dependencies at the root scope. Runtime theme switches now update ordinary aliases in builds that read the theme entry without bundling it. Inline and reference-only theme modes keep Tailwind's variable-resolution behavior.
+
+- [#1675](https://github.com/iray-tno/hozo/pull/1675) [`2063b1f`](https://github.com/iray-tno/hozo/commit/2063b1f298c5d0000b79df43a35dbf466a40a254) Thanks [@iray-tno](https://github.com/iray-tno)! - A `className` built with `tailwind-merge`, directly or through shadcn/ui's `cn`, is no longer compiled as a plain join. `twMerge` drops a class that a later one conflicts with, so a caller's `px-2` replaces a component's `px-3`. Compiled, the component's `px-3` became a rule that the caller's Tailwind utility could not override ([#1668](https://github.com/iray-tno/hozo/issues/1668)). These calls now stay at runtime, as in 0.3.0, and `twMerge` decides. A `cn` that only wraps `clsx`, `classnames` or `cx` still compiles.
+
+- [#1732](https://github.com/iray-tno/hozo/pull/1732) [`546139a`](https://github.com/iray-tno/hozo/commit/546139ae6ff8c1575e346e15a31e2916fb6f9e16) Thanks [@iray-tno](https://github.com/iray-tno)! - `font-sans`, `font-serif` and `font-mono` now follow the project's `--font-*` theme tokens instead of always compiling to Tailwind's default stacks. On Web they write `var(--font-mono)`, as Tailwind does, and the variable is delivered with the project's value. An `inline` theme token is written out. Native gets the token's value. Without a theme, the default stacks are unchanged.
+
+- [#1731](https://github.com/iray-tno/hozo/pull/1731) [`305ce63`](https://github.com/iray-tno/hozo/commit/305ce6317b385fa7e8c8199cd19ca699032cf2b3) Thanks [@iray-tno](https://github.com/iray-tno)! - `@hozo/vite` now adds the generated modules compiled output imports, such as `@hozo/core/generated/text-input-dom-props`, to Vite's `optimizeDeps.include`. Vite's dependency scan reads untransformed source and never saw them, so a cold dev server re-optimized and reloaded mid-run, which failed Vitest browser tests on every CI run. The `optimizeDeps.include` workaround is no longer needed. `@hozo/compiler/lower` exports `GENERATED_SPECIFIERS`, the list it is read from.
+
 ## 0.4.0
 
 ### Minor Changes

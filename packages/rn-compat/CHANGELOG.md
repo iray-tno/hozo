@@ -1,5 +1,13 @@
 # @hozo/rn-compat
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [[`e5c848d`](https://github.com/iray-tno/hozo/commit/e5c848de8f4ff732fc7fc4a2d343e34938df1800), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b)]:
+  - @hozo/primitives@0.4.1
+  - @hozo/engine@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

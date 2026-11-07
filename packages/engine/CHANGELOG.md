@@ -1,5 +1,11 @@
 # @hozo/engine
 
+## 0.4.1
+
+### Patch Changes
+
+- [#1684](https://github.com/iray-tno/hozo/pull/1684) [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b) Thanks [@iray-tno](https://github.com/iray-tno)! - `Image` declares `width`, `height`, `loading`, `decoding` and `fetchPriority`. The uncompiled Web `Image` now forwards them to the `<img>`, as compiled output already did, so a server-rendered page reserves the image's box and lazy-loads it with or without the compiler ([#1674](https://github.com/iray-tno/hozo/issues/1674)). On React Native, `width` and `height` are React Native's own props, and the three loading hints type-check but are ignored.
+
 ## 0.4.0
 
 ### Minor Changes

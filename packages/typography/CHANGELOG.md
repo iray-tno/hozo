@@ -1,5 +1,14 @@
 # @hozo/typography
 
+## 0.4.1
+
+### Patch Changes
+
+- Updated dependencies [[`e5c848d`](https://github.com/iray-tno/hozo/commit/e5c848de8f4ff732fc7fc4a2d343e34938df1800), [`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d), [`6cf46e3`](https://github.com/iray-tno/hozo/commit/6cf46e30640459d327305ffce8b38d26e27b3a9b)]:
+  - @hozo/primitives@0.4.1
+  - @hozo/behaviors@0.4.1
+  - @hozo/engine@0.4.1
+
 ## 0.4.0
 
 ### Minor Changes

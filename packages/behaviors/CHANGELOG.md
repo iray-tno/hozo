@@ -1,5 +1,11 @@
 # @hozo/behaviors
 
+## 0.4.1
+
+### Patch Changes
+
+- [#1728](https://github.com/iray-tno/hozo/pull/1728) [`43d6add`](https://github.com/iray-tno/hozo/commit/43d6add1b83dce0acda189ce9a1b610fb4a9d70d) Thanks [@iray-tno](https://github.com/iray-tno)! - A mouse press on a `Splitter` or `ResizablePane` handle, a `BottomSheet` drag handle or a `Slider` no longer leaves it `:focus-visible` in Chromium. It is still focused, so the arrow keys work straight after a drag, but a keyboard focus ring no longer stays lit after every mouse drag.
+
 ## 0.4.0
 
 ### Minor Changes
