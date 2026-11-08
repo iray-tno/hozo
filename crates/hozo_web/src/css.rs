@@ -956,71 +956,75 @@ fn translate_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
 
 /// The `@property` rules [`register_split_axes`] relies on.
 ///
-/// Non-inheriting, as Tailwind declares its own `--tw-translate-*` and
-/// `--tw-scale-*`: an ancestor's axis must not reach a child that writes
-/// the other one. The initial values are what an unwritten axis means.
-pub const AXIS_REGISTER_CSS: &str = "@property --hozo-translate-x {
-  syntax: \"*\";
-  inherits: false;
-  initial-value: 0;
+/// Non-inheriting, as Tailwind declares its own `--tw-translate-*`,
+/// `--tw-scale-*` and function registers: an ancestor's axis must not reach
+/// a child that writes another one. An initial value is what an unwritten
+/// axis means; a function register has none, so `var(--r,)` reads nothing.
+pub fn axis_register_css() -> &'static str {
+    const REGISTERS: &[(&str, Option<&str>)] = &[
+        ("translate-x", Some("0")),
+        ("translate-y", Some("0")),
+        ("translate-z", Some("0")),
+        ("scale-x", Some("1")),
+        ("scale-y", Some("1")),
+        ("scale-z", Some("1")),
+        ("rotate-x", None),
+        ("rotate-y", None),
+        ("rotate-z", None),
+        ("skew-x", None),
+        ("skew-y", None),
+        ("blur", None),
+        ("brightness", None),
+        ("contrast", None),
+        ("grayscale", None),
+        ("hue-rotate", None),
+        ("invert", None),
+        ("saturate", None),
+        ("sepia", None),
+        ("backdrop-blur", None),
+        ("backdrop-brightness", None),
+        ("backdrop-contrast", None),
+        ("backdrop-grayscale", None),
+        ("backdrop-hue-rotate", None),
+        ("backdrop-invert", None),
+        ("backdrop-opacity", None),
+        ("backdrop-saturate", None),
+        ("backdrop-sepia", None),
+    ];
+    static CSS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    CSS.get_or_init(|| {
+        REGISTERS
+            .iter()
+            .map(|(name, initial)| {
+                let initial = initial.map_or(String::new(), |value| {
+                    format!("  initial-value: {value};\n")
+                });
+                format!(
+                    "@property --hozo-{name} {{\n  syntax: \"*\";\n  inherits: false;\n{initial}}}\n\n"
+                )
+            })
+            .collect()
+    })
 }
 
-@property --hozo-translate-y {
-  syntax: \"*\";
-  inherits: false;
-  initial-value: 0;
+/// A filter function's place in Tailwind's `filter`/`backdrop-filter` value.
+fn filter_slot(function: FilterFunction, backdrop: bool) -> Option<usize> {
+    use FilterFunction::*;
+    Some(match (function, backdrop) {
+        (Blur, _) => 0,
+        (Brightness, _) => 1,
+        (Contrast, _) => 2,
+        (Grayscale, _) => 3,
+        (HueRotate, _) => 4,
+        (Invert, _) => 5,
+        (Saturate, false) => 6,
+        (Sepia, false) => 7,
+        (Opacity, true) => 6,
+        (Saturate, true) => 7,
+        (Sepia, true) => 8,
+        (Opacity, false) | (DropShadow | None, _) => return Option::None,
+    })
 }
-
-@property --hozo-translate-z {
-  syntax: \"*\";
-  inherits: false;
-  initial-value: 0;
-}
-
-@property --hozo-scale-x {
-  syntax: \"*\";
-  inherits: false;
-  initial-value: 1;
-}
-
-@property --hozo-scale-y {
-  syntax: \"*\";
-  inherits: false;
-  initial-value: 1;
-}
-
-@property --hozo-scale-z {
-  syntax: \"*\";
-  inherits: false;
-  initial-value: 1;
-}
-
-@property --hozo-rotate-x {
-  syntax: \"*\";
-  inherits: false;
-}
-
-@property --hozo-rotate-y {
-  syntax: \"*\";
-  inherits: false;
-}
-
-@property --hozo-rotate-z {
-  syntax: \"*\";
-  inherits: false;
-}
-
-@property --hozo-skew-x {
-  syntax: \"*\";
-  inherits: false;
-}
-
-@property --hozo-skew-y {
-  syntax: \"*\";
-  inherits: false;
-}
-
-";
 
 /// Turn transform axes into registers when an element writes them under
 /// more than one condition. Returns whether it did.
@@ -1132,6 +1136,77 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
             three: |_| false,
             optional: true,
         },
+        // Tailwind's `filter` reads its function registers in this order.
+        Family {
+            name: "filter",
+            axes: &[
+                "--hozo-blur",
+                "--hozo-brightness",
+                "--hozo-contrast",
+                "--hozo-grayscale",
+                "--hozo-hue-rotate",
+                "--hozo-invert",
+                "--hozo-saturate",
+                "--hozo-sepia",
+            ],
+            axis: |p| match p {
+                StyleProperty::Filter(function, _) => filter_slot(*function, false),
+                _ => None,
+            },
+            value: |p, _| match p {
+                StyleProperty::Filter(_, value) => value.clone(),
+                _ => unreachable!(),
+            },
+            // A drop shadow repaints with its own colour register, and
+            // `filter-none`/`filter-[…]` replace the whole chain.
+            blocks: |p| {
+                matches!(
+                    p,
+                    StyleProperty::FilterRaw(_)
+                        | StyleProperty::DropShadowColor(_)
+                        | StyleProperty::Filter(
+                            FilterFunction::None | FilterFunction::DropShadow,
+                            _
+                        )
+                )
+            },
+            three: |_| false,
+            optional: true,
+        },
+        // And `backdrop-filter` in this one, with opacity before saturate.
+        Family {
+            name: "backdrop-filter",
+            axes: &[
+                "--hozo-backdrop-blur",
+                "--hozo-backdrop-brightness",
+                "--hozo-backdrop-contrast",
+                "--hozo-backdrop-grayscale",
+                "--hozo-backdrop-hue-rotate",
+                "--hozo-backdrop-invert",
+                "--hozo-backdrop-opacity",
+                "--hozo-backdrop-saturate",
+                "--hozo-backdrop-sepia",
+            ],
+            axis: |p| match p {
+                StyleProperty::BackdropFilter(function, _) => filter_slot(*function, true),
+                _ => None,
+            },
+            value: |p, _| match p {
+                StyleProperty::BackdropFilter(_, value) => value.clone(),
+                _ => unreachable!(),
+            },
+            blocks: |p| {
+                matches!(
+                    p,
+                    StyleProperty::BackdropFilter(
+                        FilterFunction::None | FilterFunction::DropShadow,
+                        _
+                    )
+                )
+            },
+            three: |_| false,
+            optional: true,
+        },
     ];
     let mut used = false;
     for family in &families {
@@ -1142,9 +1217,9 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
         };
         // Conditions that write the same axes replace each other exactly as
         // Tailwind's registers do, so only differing axis sets need them.
-        let mut written: Vec<(&Condition, u8)> = Vec::new();
+        let mut written: Vec<(&Condition, u16)> = Vec::new();
         for (condition, props) in groups.iter().filter(|(_, props)| touches(props)) {
-            let axes = props.iter().fold(0u8, |axes, p| {
+            let axes = props.iter().fold(0u16, |axes, p| {
                 axes | (family.axis)(p).map_or(0, |index| 1 << index)
                     | if (family.three)(p) { 1 << 2 } else { 0 }
             });

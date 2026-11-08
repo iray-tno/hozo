@@ -1092,8 +1092,8 @@ fn push_rules_using(
         .into_iter()
         .map(|(condition, props)| (condition, hozo_ir::dedupe_last_wins(props)))
         .collect();
-    if css::register_split_axes(&mut groups, theme) && !rules.contains(css::AXIS_REGISTER_CSS) {
-        rules.push_str(css::AXIS_REGISTER_CSS);
+    if css::register_split_axes(&mut groups, theme) && !rules.contains(css::axis_register_css()) {
+        rules.push_str(css::axis_register_css());
     }
     for (condition, props) in groups {
         if props.is_empty() {

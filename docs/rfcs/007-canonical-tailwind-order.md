@@ -376,6 +376,9 @@ register rather than the shared `transform`; see
 Policy v28 adds the filter and backdrop filter functions, each owning its
 register; `filter-none` and drop shadows remain barriers; see
 [filter evidence](../measurements/tailwind-filter-order.md).
+Without a policy change, filter functions written under different
+conditions compose through registers on Web; see
+[conditional filter evidence](../measurements/conditional-filter-functions.md).
 
 ## 1. Restart, not another family-specific patch
 
