@@ -70,6 +70,8 @@ test('real compile evidence maps expanded writes to original rules without chang
     ['hover:focus:p-4', 'padding', 3],
     ['bg-red-500', 'background-color', 1],
     ['w-1/2', 'width', 1],
+    // A query adds no weight; ordering matches it to the write's condition.
+    ['sm:p-2', 'padding', 1],
     ['text-blue-500', 'color', 1],
   ] as const) {
     const matching = forCandidate(name)
@@ -93,7 +95,6 @@ test('real compile evidence maps expanded writes to original rules without chang
   )
   for (const [name, reason] of [
     ['p-3', 'uncollected'],
-    ['sm:p-2', 'unassessed-at-rule'],
     ['text-lg/6', 'unmapped-property'],
   ]) {
     assert.ok(forCandidate(name!).length > 0, name)

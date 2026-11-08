@@ -53,7 +53,12 @@ pub struct AssessedTailwindRule<'a> {
     /// no IDs/types; an unknown selector never receives the default [0,1,0].
     pub specificity: [u32; 3],
     pub properties: Vec<&'a str>,
-    pub media: Vec<&'a str>,
+    /// Every query wrapper, as `(name, params)` in nesting order. Ordering
+    /// matches these against the write's own condition before ranking it.
+    pub media: Vec<(&'a str, &'a str)>,
+    /// Conditions on the element itself outside the owner facts, as written.
+    /// Matched against the write's condition the same way as `media`.
+    pub selectors: Vec<&'a str>,
     /// Multiplicity of independently delivered interaction/ARIA predicates.
     /// Guard equivalence only; precedence still comes from the rule.
     pub owner: [u16; OWNER_PREDICATE_COUNT],
@@ -101,6 +106,7 @@ pub fn assess_tailwind_rule<'a>(
         specificity: [0, 1, 0],
         properties: Vec::new(),
         media: Vec::new(),
+        selectors: Vec::new(),
         owner: [0; OWNER_PREDICATE_COUNT],
     };
     assess_body(nodes, &mut result)?;
@@ -164,6 +170,99 @@ pub(crate) fn property_registration(node: &OrderRuleShape) -> bool {
         })
 }
 
+/// The interaction and boolean ARIA selectors whose facts an owner delivers.
+pub(crate) fn owner_selector(selector: &str) -> Option<usize> {
+    match selector {
+        "&:hover" => Some(0),
+        "&:focus" => Some(1),
+        "&:focus-visible" => Some(2),
+        "&:active" => Some(3),
+        "&:disabled" => Some(4),
+        _ => selector
+            .strip_prefix("&[aria-")
+            .and_then(|tail| tail.strip_suffix("=\"true\"]"))
+            .and_then(aria_owner_index)
+            .or_else(|| {
+                selector
+                    .strip_prefix("&:not(*[aria-")
+                    .and_then(|tail| tail.strip_suffix("=\"true\"])"))
+                    .and_then(negated_aria_owner_index)
+            }),
+    }
+}
+
+/// A condition on the element itself whose weight is read from a closed
+/// set of shapes, never counted from colons (#1230). Anything else -- a
+/// relation, a list, a pseudo-element, `:visited` -- stays unassessed.
+///
+/// - one bare pseudo-class, `&:first-child`: one class weight;
+/// - `&:nth-child(odd)` and the other three `nth` forms: one;
+/// - one `data-` attribute, `&[data-state="open"]`: one;
+/// - Tailwind's own `open:` and `inert:` spellings: one, from the
+///   attribute inside `:is()`;
+/// - Tailwind's `ltr:`/`rtl:`, wrapped in `:where()`: none.
+pub(crate) fn element_selector_weight(selector: &str) -> Option<u32> {
+    const WEIGHTLESS: [&str; 2] = [
+        "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)",
+        "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)",
+    ];
+    const ONE: [&str; 2] = [
+        "&:is([open], :popover-open, :open)",
+        "&:is([inert], [inert] *)",
+    ];
+    if WEIGHTLESS.contains(&selector) {
+        return Some(0);
+    }
+    if ONE.contains(&selector) {
+        return Some(1);
+    }
+    let name = |text: &str| {
+        !text.is_empty()
+            && text
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte == b'-')
+    };
+    if let Some(pseudo) = selector.strip_prefix("&:") {
+        if name(pseudo) && pseudo != "visited" {
+            return Some(1);
+        }
+        for function in [
+            "nth-child(",
+            "nth-last-child(",
+            "nth-of-type(",
+            "nth-last-of-type(",
+        ] {
+            if let Some(formula) = pseudo
+                .strip_prefix(function)
+                .and_then(|rest| rest.strip_suffix(')'))
+            {
+                return (!formula.is_empty()
+                    && formula
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'+' || byte == b'-'))
+                .then_some(1);
+            }
+        }
+        return None;
+    }
+    let attribute = selector.strip_prefix("&[data-")?.strip_suffix(']')?;
+    let (attribute, value) = match attribute.split_once('=') {
+        None => (attribute, None),
+        Some((attribute, value)) => (attribute, Some(value)),
+    };
+    let quoted = |value: &str| {
+        value
+            .strip_prefix('"')
+            .and_then(|value| value.strip_suffix('"'))
+            .is_some_and(|inner| !inner.contains(['"', '\\', ']']))
+    };
+    let plain = !attribute.is_empty()
+        && attribute
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-');
+    (plain && value.is_none_or(quoted)).then_some(1)
+}
+
 fn assess_body<'a>(
     nodes: &'a [OrderRuleShape],
     result: &mut AssessedTailwindRule<'a>,
@@ -195,36 +294,28 @@ fn assess_body<'a>(
             OrderRuleShape::Rule { selector, nodes } => {
                 // Functional/list/relational/pseudo-element selectors require
                 // real assessment, never a colon count or boolean count.
-                let owner = match selector.as_str() {
-                    "&:hover" => 0,
-                    "&:focus" => 1,
-                    "&:focus-visible" => 2,
-                    "&:active" => 3,
-                    "&:disabled" => 4,
-                    _ => selector
-                        .strip_prefix("&[aria-")
-                        .and_then(|tail| tail.strip_suffix("=\"true\"]"))
-                        .and_then(aria_owner_index)
-                        .or_else(|| {
-                            selector
-                                .strip_prefix("&:not(*[aria-")
-                                .and_then(|tail| tail.strip_suffix("=\"true\"])"))
-                                .and_then(negated_aria_owner_index)
-                        })
-                        .ok_or(RuleAssessmentError::Selector)?,
-                };
-                result.owner[owner] = result.owner[owner]
-                    .checked_add(1)
-                    .ok_or(RuleAssessmentError::Selector)?;
-                result.specificity[1] += 1;
+                if let Some(owner) = owner_selector(selector) {
+                    result.owner[owner] = result.owner[owner]
+                        .checked_add(1)
+                        .ok_or(RuleAssessmentError::Selector)?;
+                    result.specificity[1] += 1;
+                } else {
+                    let weight =
+                        element_selector_weight(selector).ok_or(RuleAssessmentError::Selector)?;
+                    result.selectors.push(selector);
+                    result.specificity[1] += weight;
+                }
                 assess_body(nodes, result)?;
             }
+            // A query around the rule adds no selector weight. Which query
+            // it is stays recorded, so a write is ranked only when its own
+            // condition asks the same one -- see `scalar_write_priority`.
             OrderRuleShape::AtRule {
                 name,
                 params,
                 nodes,
-            } if name == "@media" && params == "(hover: hover)" => {
-                result.media.push(params);
+            } if matches!(name.as_str(), "@media" | "@container" | "@supports") => {
+                result.media.push((name, params));
                 assess_body(nodes, result)?;
             }
             OrderRuleShape::Comment => {}
@@ -316,9 +407,23 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         FlexGrow(_) => "flex-grow",
         FlexShrink(_) => "flex-shrink",
         FlexBasis(_) => "flex-basis",
-        Display(crate::Display::Flex | crate::Display::None | crate::Display::Contents) => {
-            "display"
-        }
+        // `Block` is one Native key too: Yoga has no block context, so it
+        // projects to `display: 'flex'`, which still has to beat an earlier
+        // `display: 'none'` in the same order Tailwind's rules do.
+        Display(
+            crate::Display::Flex
+            | crate::Display::None
+            | crate::Display::Contents
+            | crate::Display::Block,
+        ) => "display",
+        // One CSS property and, where Native has it, one Native key each.
+        InsetTop(_) => "top",
+        InsetRight(_) => "right",
+        InsetBottom(_) => "bottom",
+        InsetLeft(_) => "left",
+        AspectRatio(_) => "aspect-ratio",
+        Order(_) => "order",
+        BorderRadius(_) => "border-radius",
         Position(
             crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
         ) => "position",
@@ -488,6 +593,17 @@ mod tests {
             (
                 StyleProperty::Keyword("vertical-align", "middle"),
                 "vertical-align",
+            ),
+            (StyleProperty::Display(crate::Display::Block), "display"),
+            (StyleProperty::InsetTop(crate::Dimension::Auto), "top"),
+            (StyleProperty::InsetRight(crate::Dimension::Auto), "right"),
+            (StyleProperty::InsetBottom(crate::Dimension::Auto), "bottom"),
+            (StyleProperty::InsetLeft(crate::Dimension::Auto), "left"),
+            (StyleProperty::AspectRatio("16 / 9"), "aspect-ratio"),
+            (StyleProperty::Order(1), "order"),
+            (
+                StyleProperty::BorderRadius(crate::Radius::Full),
+                "border-radius",
             ),
         ] {
             assert_eq!(scalar_css_property(&write), Some(property));
@@ -752,6 +868,8 @@ mod tests {
             ("disabled:p-4", 2, 0),
             ("hover:focus:p-4", 3, 1),
             ("hover:p-2!", 2, 1),
+            // A query adds no weight; it is recorded for the write to match.
+            ("sm:p-2", 1, 1),
         ] {
             let candidate = fixture(name);
             assert_eq!(candidate.rules.len(), 1, "{name}");
@@ -762,7 +880,6 @@ mod tests {
         for name in [
             "placeholder:text-red-500",
             "group-hover:p-2",
-            "sm:p-2",
             "[&:where(:hover)]:p-2",
             "[&>span]:p-2",
             "not-hover:p-2",

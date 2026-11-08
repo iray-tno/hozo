@@ -312,6 +312,19 @@ priority table. The dynamic candidate path needed missing negated-ARIA support;
 its encoded predicate is prepared once against the existing owner fact, keeping
 unknown distinct from false and sharing legacy/ordered missing-fact handling.
 See [negation evidence and isolated cost](../measurements/tailwind-negated-aria-order.md).
+Policy v9 admits rules wrapped in `@media`, `@container` and `@supports` when
+the write's own condition asks exactly those queries. `md:p-4 p-2` and
+`lg:p-8 md:p-4` now settle as Tailwind settles them, in either authored order.
+Direction, custom dark selectors and arbitrary at-rules remain barriers; see
+[query evidence](../measurements/tailwind-query-order.md).
+Policy v10 adds conditions on the element itself whose weight is read from a
+closed set of selector shapes: one pseudo-class, an `nth` form, one `data-`
+attribute, `open:`/`inert:` and direction. Relations, pseudo-elements and
+arbitrary selectors remain barriers; see
+[selector evidence](../measurements/tailwind-selector-order.md).
+Policy v11 adds seven one-property writes: `display: block`, the physical
+insets, `aspect-ratio`, `order` and the all-corner radius; see
+[direct property evidence](../measurements/tailwind-direct-property-order.md).
 
 ## 1. Restart, not another family-specific patch
 

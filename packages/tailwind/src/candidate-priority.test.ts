@@ -104,7 +104,10 @@ test('actual candidate objects share original write priorities with static Web a
     }
   }
   assert.equal(entries.get('rotate-45')!.groups[0]!.priorityRank, undefined)
-  assert.equal(entries.get('rtl:p-2')!.groups[0]!.priorityRank, undefined)
+  // Direction is assessed (#1230): the dynamic map ranks it as the static
+  // plans do, and the resolver decides it once as an ambient fact.
+  assert.notEqual(entries.get('rtl:p-2')!.groups[0]!.priorityRank, undefined)
+  assert.equal(entries.get('rtl:p-2')!.groups[0]!.orderable, true)
   assert.deepEqual(entries.get('hover:focus:p-4')!.groups[0]!.stateKeys, ['hovered', 'focused'])
   assert.ok(
     entries.get('active:p-4')!.groups[0]!.priorityRank! <
