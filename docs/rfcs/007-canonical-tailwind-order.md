@@ -358,6 +358,8 @@ values Native lacks stay refused there; see
 [overflow evidence](../measurements/tailwind-overflow-order.md).
 Policy v23 adds `mix-blend-mode` and `background-blend-mode`; see
 [blend mode evidence](../measurements/tailwind-blend-mode-order.md).
+Policy v24 adds `text-start`, `text-end` and `text-justify` to the alignment
+arm; see [text alignment evidence](../measurements/tailwind-text-align-order.md).
 
 ## 1. Restart, not another family-specific patch
 

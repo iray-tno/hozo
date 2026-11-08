@@ -657,9 +657,9 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
             | crate::Justify::Around
             | crate::Justify::Evenly,
         ) => "justify-content",
-        TextAlign(crate::TextAlign::Left | crate::TextAlign::Center | crate::TextAlign::Right) => {
-            "text-align"
-        }
+        // `start`, `end` and `justify` write the same `textAlign` key on
+        // Native as `left`, `center` and `right` do.
+        TextAlign(_) => "text-align",
         TextTransform(_) => "text-transform",
         Keyword("font-style", "normal" | "italic") => "font-style",
         Keyword("flex-wrap", "nowrap" | "wrap" | "wrap-reverse") => "flex-wrap",
@@ -746,6 +746,10 @@ mod tests {
             ),
             (
                 StyleProperty::TextAlign(crate::TextAlign::Center),
+                "text-align",
+            ),
+            (
+                StyleProperty::TextAlign(crate::TextAlign::Css("justify")),
                 "text-align",
             ),
             (
