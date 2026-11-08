@@ -557,11 +557,16 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // `Block` is one Native key too: Yoga has no block context, so it
         // projects to `display: 'flex'`, which still has to beat an earlier
         // `display: 'none'` in the same order Tailwind's rules do.
+        // `InlineFlex` is also `display: 'flex'`; Native adds a synthetic
+        // `alignSelf: 'flex-start'` after ordering, only when no `self-*`
+        // is authored and no later display in the same condition replaces
+        // it, so ranking decides which display is "later" as Tailwind does.
         Display(
             crate::Display::Flex
             | crate::Display::None
             | crate::Display::Contents
-            | crate::Display::Block,
+            | crate::Display::Block
+            | crate::Display::InlineFlex,
         ) => "display",
         // One CSS property and, where Native has it, one Native key each.
         InsetTop(_) => "top",
@@ -752,6 +757,10 @@ mod tests {
             (StyleProperty::Cursor("pointer".into()), "cursor"),
             (StyleProperty::ObjectFit("cover"), "object-fit"),
             (
+                StyleProperty::Display(crate::Display::InlineFlex),
+                "display",
+            ),
+            (
                 StyleProperty::FlexBasis(crate::Dimension::Auto),
                 "flex-basis",
             ),
@@ -831,7 +840,6 @@ mod tests {
             StyleProperty::AlignContent(crate::Justify::Baseline),
             StyleProperty::JustifyContent(crate::Justify::Stretch),
             StyleProperty::Display(crate::Display::Grid),
-            StyleProperty::Display(crate::Display::InlineFlex),
             StyleProperty::Position(crate::Position::Css("fixed")),
             StyleProperty::Overflow(crate::Overflow::Css("clip")),
             StyleProperty::TextDecorationLine("overline"),

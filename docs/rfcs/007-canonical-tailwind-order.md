@@ -350,6 +350,9 @@ which sets `--tw-outline-style`, remains a barrier; see
 [outline evidence](../measurements/tailwind-outline-order.md).
 Policy v20 adds `cursor` and `object-fit`, one declaration each; see
 [cursor and object fit evidence](../measurements/tailwind-cursor-object-fit-order.md).
+Policy v21 adds `inline-flex` to the display arm; Native's synthetic
+`alignSelf` now reads the ordered input; see
+[inline-flex evidence](../measurements/tailwind-inline-flex-order.md).
 
 ## 1. Restart, not another family-specific patch
 
