@@ -38,8 +38,9 @@ Not changed, and why:
 - `ps-2 pl-4` (logical against physical on one edge) still differs on Native:
   CSS lets the later `padding-left` win, Yoga lets `paddingStart` win. That
   was so before this change, in both authored orders.
-- `gap-*` is a separate layer: it also meets the authored-style composition
-  in the [gap alias boundary](tailwind-gap-alias-boundary.md).
+- `gap-*` is a [separate layer](tailwind-gap-order.md): it also meets the
+  authored-style composition in the
+  [gap alias boundary](tailwind-gap-alias-boundary.md).
 
 ## Verification
 

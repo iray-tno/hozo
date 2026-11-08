@@ -329,6 +329,9 @@ Policy v12 adds the logical padding and margin edges and every inset. Yoga
 chooses between logical and physical keys by key, not order, so ranking only
 moves same-key writes and the Web cascade; see
 [logical edge evidence](../measurements/tailwind-logical-property-order.md).
+Policy v13 adds gaps. Ranking stays inside one class input, so the authored
+style composition in the gap alias boundary is unchanged; see
+[gap evidence](../measurements/tailwind-gap-order.md).
 
 ## 1. Restart, not another family-specific patch
 

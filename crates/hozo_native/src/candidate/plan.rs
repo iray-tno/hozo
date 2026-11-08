@@ -307,15 +307,15 @@ mod tests {
         let order = plan.ordering.unwrap();
         assert_eq!(order.schema, 1);
         assert!(order.ranks["p-2"][0] < order.ranks["p-4"][0]);
-        // A logical edge is ranked (policy v12); gap is not yet.
+        // Logical edges (policy v12) and gaps (v13) are ranked.
         assert!(order.ranks.contains_key("ps-2"));
-        assert!(!order.ranks.contains_key("gap-2"));
+        assert!(order.ranks.contains_key("gap-2"));
         assert!(plan.entries[0].groups[0]
             .native_keys
             .iter()
             .any(|key| key == "paddingTop"));
         assert!(plan.entries[2].groups[0].orderable);
-        assert!(!plan.entries[3].groups[0].orderable);
+        assert!(plan.entries[3].groups[0].orderable);
     }
 
     #[test]

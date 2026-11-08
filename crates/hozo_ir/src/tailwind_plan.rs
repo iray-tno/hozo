@@ -6,16 +6,16 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v12";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v13";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
-/// projections share their ownership definition; padding, margin and inset
-/// also admit their already-assessed shorthand expansion. Gap, registers and
+/// projections share their ownership definition; padding, margin, gap and
+/// inset also admit their already-assessed shorthand expansion. Registers and
 /// compound text still need separate evidence.
 ///
 /// Logical and physical edges are both admitted. Ranking them cannot change
-/// which one Yoga applies -- `paddingStart` beats `paddingLeft` by key,
-/// whatever their order -- so it only moves
+/// which one Yoga applies -- `paddingStart` beats `paddingLeft` and
+/// `columnGap` beats `gap` by key, whatever their order -- so it only moves
 /// writes to the same key (`ps-2 px-4`) and the Web cascade, where Tailwind's
 /// order is the answer.
 pub fn scalar_tailwind_property(property: &crate::StyleProperty) -> bool {
@@ -35,6 +35,9 @@ pub fn scalar_tailwind_property(property: &crate::StyleProperty) -> bool {
                 | PaddingInlineEnd(_)
                 | MarginInlineStart(_)
                 | MarginInlineEnd(_)
+                | Gap(_)
+                | RowGap(_)
+                | ColumnGap(_)
                 | InsetInline(_)
                 | InsetInlineStart(_)
                 | InsetInlineEnd(_)

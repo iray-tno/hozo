@@ -1,5 +1,9 @@
 # Gap aliases: ordering is not yet platform equivalence
 
+Since policy v13, gaps are ranked inside one class input; see
+[gap order](./tailwind-gap-order.md). That does not touch the authored-style
+tier this page measures, and its divergences are unchanged.
+
 This records the original #1369 observation. The current probe also retains a
 raw CSS-inline control and now covers the first paired authored-inline fix;
 see [authored gap normalization](./authored-gap-normalization.md). The original

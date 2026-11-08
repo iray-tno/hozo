@@ -465,11 +465,21 @@ mod tests {
                 "{name}: {condition:?}"
             );
         }
+        // `gap-2` owns `gap` and both of its axes, and nothing else.
+        for write in [
+            StyleProperty::Gap(crate::Length::Px(8.0)),
+            StyleProperty::RowGap(crate::Length::Px(8.0)),
+            StyleProperty::ColumnGap(crate::Length::Px(8.0)),
+        ] {
+            assert!(context
+                .scalar_write_priority("gap-2", &Condition::Always, &write)
+                .is_some());
+        }
         assert!(context
             .scalar_write_priority(
                 "gap-2",
                 &Condition::Always,
-                &StyleProperty::Gap(crate::Length::Px(8.0))
+                &StyleProperty::PaddingInlineStart(crate::Length::Px(8.0))
             )
             .is_none());
     }
