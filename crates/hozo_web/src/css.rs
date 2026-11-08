@@ -954,6 +954,330 @@ fn translate_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     })
 }
 
+/// The `@property` rules [`register_split_axes`] relies on.
+///
+/// Non-inheriting, as Tailwind declares its own `--tw-translate-*`,
+/// `--tw-scale-*` and function registers: an ancestor's axis must not reach
+/// a child that writes another one. An initial value is what an unwritten
+/// axis means; a function register has none, so `var(--r,)` reads nothing.
+pub fn axis_register_css() -> &'static str {
+    const REGISTERS: &[(&str, Option<&str>)] = &[
+        ("translate-x", Some("0")),
+        ("translate-y", Some("0")),
+        ("translate-z", Some("0")),
+        ("scale-x", Some("1")),
+        ("scale-y", Some("1")),
+        ("scale-z", Some("1")),
+        ("rotate-x", None),
+        ("rotate-y", None),
+        ("rotate-z", None),
+        ("skew-x", None),
+        ("skew-y", None),
+        ("blur", None),
+        ("brightness", None),
+        ("contrast", None),
+        ("grayscale", None),
+        ("hue-rotate", None),
+        ("invert", None),
+        ("saturate", None),
+        ("sepia", None),
+        ("backdrop-blur", None),
+        ("backdrop-brightness", None),
+        ("backdrop-contrast", None),
+        ("backdrop-grayscale", None),
+        ("backdrop-hue-rotate", None),
+        ("backdrop-invert", None),
+        ("backdrop-opacity", None),
+        ("backdrop-saturate", None),
+        ("backdrop-sepia", None),
+    ];
+    static CSS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    CSS.get_or_init(|| {
+        REGISTERS
+            .iter()
+            .map(|(name, initial)| {
+                let initial = initial.map_or(String::new(), |value| {
+                    format!("  initial-value: {value};\n")
+                });
+                format!(
+                    "@property --hozo-{name} {{\n  syntax: \"*\";\n  inherits: false;\n{initial}}}\n\n"
+                )
+            })
+            .collect()
+    })
+}
+
+/// A filter function's place in Tailwind's `filter`/`backdrop-filter` value.
+fn filter_slot(function: FilterFunction, backdrop: bool) -> Option<usize> {
+    use FilterFunction::*;
+    Some(match (function, backdrop) {
+        (Blur, _) => 0,
+        (Brightness, _) => 1,
+        (Contrast, _) => 2,
+        (Grayscale, _) => 3,
+        (HueRotate, _) => 4,
+        (Invert, _) => 5,
+        (Saturate, false) => 6,
+        (Sepia, false) => 7,
+        (Opacity, true) => 6,
+        (Saturate, true) => 7,
+        (Sepia, true) => 8,
+        (Opacity, false) | (DropShadow | None, _) => return Option::None,
+    })
+}
+
+/// Turn transform axes into registers when an element writes them under
+/// more than one condition. Returns whether it did.
+///
+/// One condition's rule carries the whole joined declaration, so
+/// `md:translate-x-8 translate-y-2` was `translate: 32px 0` at md, dropping
+/// the y axis the base rule wrote, where Tailwind gives `32px 8px`; and
+/// `md:skew-x-12 skew-y-6` lost the base `skewY` from `transform`. Tailwind
+/// keeps each axis in its own register and reads them all in one
+/// declaration; this does the same, but only where conditions write
+/// different axes, so an element whose axes share one condition keeps its
+/// literal `translate: 16px 8px`, and `scale-100 hover:scale-95` its two. A family with an authored whole value or a reset
+/// (`translate-[…]`, `translate-none`) is left as it was.
+pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme: &Theme) -> bool {
+    struct Family {
+        name: &'static str,
+        axes: &'static [&'static str],
+        axis: fn(&StyleProperty) -> Option<usize>,
+        value: fn(&StyleProperty, &Theme) -> String,
+        blocks: fn(&StyleProperty) -> bool,
+        /// A z-form marker that adds the third axis to the declaration.
+        three: fn(&StyleProperty) -> bool,
+        /// Every register is read, an unset one as nothing (`var(--r,)`),
+        /// as Tailwind's `transform` reads its function registers.
+        optional: bool,
+    }
+    let families = [
+        Family {
+            name: "translate",
+            axes: &[
+                "--hozo-translate-x",
+                "--hozo-translate-y",
+                "--hozo-translate-z",
+            ],
+            axis: |p| match p {
+                StyleProperty::TranslateX(_) => Some(0),
+                StyleProperty::TranslateY(_) => Some(1),
+                StyleProperty::TranslateZ(_) => Some(2),
+                _ => None,
+            },
+            value: |p, theme| match p {
+                StyleProperty::TranslateX(d)
+                | StyleProperty::TranslateY(d)
+                | StyleProperty::TranslateZ(d) => dimension_value(d, theme),
+                _ => unreachable!(),
+            },
+            blocks: |p| {
+                matches!(
+                    p,
+                    StyleProperty::Translate(_) | StyleProperty::TranslateNone
+                )
+            },
+            three: |p| matches!(p, StyleProperty::TranslateZ(_)),
+            optional: false,
+        },
+        Family {
+            name: "scale",
+            axes: &["--hozo-scale-x", "--hozo-scale-y", "--hozo-scale-z"],
+            axis: |p| match p {
+                StyleProperty::ScaleX(_) => Some(0),
+                StyleProperty::ScaleY(_) => Some(1),
+                StyleProperty::ScaleZ(_) => Some(2),
+                _ => None,
+            },
+            value: |p, _| match p {
+                StyleProperty::ScaleX(s) | StyleProperty::ScaleY(s) | StyleProperty::ScaleZ(s) => {
+                    s.css()
+                }
+                _ => unreachable!(),
+            },
+            blocks: |p| matches!(p, StyleProperty::Scale(_) | StyleProperty::ScaleNone),
+            three: |p| matches!(p, StyleProperty::Scale3d),
+            optional: false,
+        },
+        Family {
+            name: "transform",
+            axes: &[
+                "--hozo-rotate-x",
+                "--hozo-rotate-y",
+                "--hozo-rotate-z",
+                "--hozo-skew-x",
+                "--hozo-skew-y",
+            ],
+            axis: |p| match p {
+                StyleProperty::RotateX(_) => Some(0),
+                StyleProperty::RotateY(_) => Some(1),
+                StyleProperty::RotateZ(_) => Some(2),
+                StyleProperty::SkewX(_) => Some(3),
+                StyleProperty::SkewY(_) => Some(4),
+                _ => None,
+            },
+            value: |p, _| match p {
+                StyleProperty::RotateX(a) => format!("rotateX({})", a.css()),
+                StyleProperty::RotateY(a) => format!("rotateY({})", a.css()),
+                StyleProperty::RotateZ(a) => format!("rotateZ({})", a.css()),
+                StyleProperty::SkewX(a) => format!("skewX({})", a.css()),
+                StyleProperty::SkewY(a) => format!("skewY({})", a.css()),
+                _ => unreachable!(),
+            },
+            blocks: |p| {
+                matches!(
+                    p,
+                    StyleProperty::Transform(_)
+                        | StyleProperty::TransformNone
+                        | StyleProperty::TransformEmpty
+                        | StyleProperty::TransformGpu
+                )
+            },
+            three: |_| false,
+            optional: true,
+        },
+        // Tailwind's `filter` reads its function registers in this order.
+        Family {
+            name: "filter",
+            axes: &[
+                "--hozo-blur",
+                "--hozo-brightness",
+                "--hozo-contrast",
+                "--hozo-grayscale",
+                "--hozo-hue-rotate",
+                "--hozo-invert",
+                "--hozo-saturate",
+                "--hozo-sepia",
+            ],
+            axis: |p| match p {
+                StyleProperty::Filter(function, _) => filter_slot(*function, false),
+                _ => None,
+            },
+            value: |p, _| match p {
+                StyleProperty::Filter(_, value) => value.clone(),
+                _ => unreachable!(),
+            },
+            // A drop shadow repaints with its own colour register, and
+            // `filter-none`/`filter-[…]` replace the whole chain.
+            blocks: |p| {
+                matches!(
+                    p,
+                    StyleProperty::FilterRaw(_)
+                        | StyleProperty::DropShadowColor(_)
+                        | StyleProperty::Filter(
+                            FilterFunction::None | FilterFunction::DropShadow,
+                            _
+                        )
+                )
+            },
+            three: |_| false,
+            optional: true,
+        },
+        // And `backdrop-filter` in this one, with opacity before saturate.
+        Family {
+            name: "backdrop-filter",
+            axes: &[
+                "--hozo-backdrop-blur",
+                "--hozo-backdrop-brightness",
+                "--hozo-backdrop-contrast",
+                "--hozo-backdrop-grayscale",
+                "--hozo-backdrop-hue-rotate",
+                "--hozo-backdrop-invert",
+                "--hozo-backdrop-opacity",
+                "--hozo-backdrop-saturate",
+                "--hozo-backdrop-sepia",
+            ],
+            axis: |p| match p {
+                StyleProperty::BackdropFilter(function, _) => filter_slot(*function, true),
+                _ => None,
+            },
+            value: |p, _| match p {
+                StyleProperty::BackdropFilter(_, value) => value.clone(),
+                _ => unreachable!(),
+            },
+            blocks: |p| {
+                matches!(
+                    p,
+                    StyleProperty::BackdropFilter(
+                        FilterFunction::None | FilterFunction::DropShadow,
+                        _
+                    )
+                )
+            },
+            three: |_| false,
+            optional: true,
+        },
+    ];
+    let mut used = false;
+    for family in &families {
+        let touches = |props: &[StyleProperty]| {
+            props
+                .iter()
+                .any(|p| (family.axis)(p).is_some() || (family.three)(p) || (family.blocks)(p))
+        };
+        // Conditions that write the same axes replace each other exactly as
+        // Tailwind's registers do, so only differing axis sets need them.
+        let mut written: Vec<(&Condition, u16)> = Vec::new();
+        for (condition, props) in groups.iter().filter(|(_, props)| touches(props)) {
+            let axes = props.iter().fold(0u16, |axes, p| {
+                axes | (family.axis)(p).map_or(0, |index| 1 << index)
+                    | if (family.three)(p) { 1 << 2 } else { 0 }
+            });
+            match written.iter_mut().find(|(seen, _)| *seen == condition) {
+                Some((_, seen)) => *seen |= axes,
+                None => written.push((condition, axes)),
+            }
+        }
+        let split = written.windows(2).any(|pair| pair[0].1 != pair[1].1);
+        let blocked = groups
+            .iter()
+            .any(|(_, props)| props.iter().any(|p| (family.blocks)(p)));
+        if !split || blocked {
+            continue;
+        }
+        let reader = if family.optional {
+            family
+                .axes
+                .iter()
+                .map(|register| format!("var({register},)"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        } else {
+            let three = groups
+                .iter()
+                .any(|(_, props)| props.iter().any(|p| (family.three)(p)));
+            family.axes[..if three { 3 } else { 2 }]
+                .iter()
+                .map(|register| format!("var({register})"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        for (_, props) in groups.iter_mut() {
+            if !touches(props) {
+                continue;
+            }
+            let mut rewritten = Vec::with_capacity(props.len() + 1);
+            for property in props.drain(..) {
+                match (family.axis)(&property) {
+                    Some(index) => rewritten.push(StyleProperty::Arbitrary(
+                        family.axes[index].to_string(),
+                        (family.value)(&property, theme),
+                    )),
+                    None if (family.three)(&property) => {}
+                    None => rewritten.push(property),
+                }
+            }
+            rewritten.push(StyleProperty::Arbitrary(
+                family.name.to_string(),
+                reader.clone(),
+            ));
+            *props = rewritten;
+        }
+        used = true;
+    }
+    used
+}
+
 /// `border-spacing` takes a horizontal and a vertical value in one
 /// declaration, so the two axes compose. An unset axis is `0`, matching
 /// what Tailwind writes for `border-spacing-x-*`.

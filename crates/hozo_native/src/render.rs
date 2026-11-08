@@ -1047,13 +1047,15 @@ pub(super) fn render_node(
     } else {
         None
     };
-    let transform_specs = if own_declarations
+    let transform_specs = if (own_declarations
         .iter()
         .any(|d| crate::transforms::is_control(&d.property))
         && own_declarations
             .iter()
-            .any(|d| d.condition != Condition::Always)
-    {
+            .any(|d| d.condition != Condition::Always))
+        || crate::transforms::split_across_conditions(
+            own_declarations.iter().map(|d| (&d.property, &d.condition)),
+        ) {
         crate::transforms::specs(&cx.style_entries[transform_entry_start..], theme)
     } else {
         String::new()

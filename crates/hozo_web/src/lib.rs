@@ -1088,8 +1088,14 @@ fn push_rules_using(
     diagnostics: &mut Vec<Diagnostic>,
     render: fn(&str, &hozo_ir::Condition, &[hozo_ir::StyleProperty], &Theme) -> String,
 ) {
-    for (condition, props) in hozo_ir::group_by_condition(style) {
-        let props = hozo_ir::dedupe_last_wins(props);
+    let mut groups: Vec<_> = hozo_ir::group_by_condition(style)
+        .into_iter()
+        .map(|(condition, props)| (condition, hozo_ir::dedupe_last_wins(props)))
+        .collect();
+    if css::register_split_axes(&mut groups, theme) && !rules.contains(css::axis_register_css()) {
+        rules.push_str(css::axis_register_css());
+    }
+    for (condition, props) in groups {
         if props.is_empty() {
             continue;
         }

@@ -363,6 +363,22 @@ arm; see [text alignment evidence](../measurements/tailwind-text-align-order.md)
 Policy v25 adds `columns` and `text-underline-offset`; arbitrary passthrough
 writes remain barriers; see
 [columns and underline offset evidence](../measurements/tailwind-columns-underline-offset-order.md).
+Policy v26 adds `rotate` and each translate and scale axis, owning its own
+register rather than the shared declaration that reads it; skews and 3D
+rotations remain barriers; see
+[transform axis evidence](../measurements/tailwind-transform-axis-order.md).
+Without a policy change, translate and scale axes written under different
+conditions compose through registers on Web and transform slots on Native;
+see [conditional axis evidence](../measurements/conditional-transform-axes.md).
+Policy v27 adds the skews and 3D rotations the same way, each owning its
+register rather than the shared `transform`; see
+[skew and 3D rotation evidence](../measurements/tailwind-skew-rotate-axis-order.md).
+Policy v28 adds the filter and backdrop filter functions, each owning its
+register; `filter-none` and drop shadows remain barriers; see
+[filter evidence](../measurements/tailwind-filter-order.md).
+Without a policy change, filter functions written under different
+conditions compose through registers on Web; see
+[conditional filter evidence](../measurements/conditional-filter-functions.md).
 
 ## 1. Restart, not another family-specific patch
 

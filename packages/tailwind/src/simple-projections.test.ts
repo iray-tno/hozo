@@ -107,7 +107,7 @@ test('relative text metrics, border style and transform neighbors still preserve
     'tracking-[1em]',
     'leading-[1em]',
     'border-dashed',
-    'rotate-45',
+    'translate-none',
     'overline',
     'align-baseline',
     'fixed',

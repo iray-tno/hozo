@@ -516,6 +516,30 @@ pub(crate) fn register_bound<'p>(
 /// folding or shared register composition. This is write ownership, never a
 /// utility precedence table: priority still comes from the captured CSS rule.
 /// Keep this definition shared by static planning and candidate generation.
+fn filter_register(function: crate::FilterFunction, backdrop: bool) -> Option<&'static str> {
+    use crate::FilterFunction::*;
+    Some(match (function, backdrop) {
+        (Blur, false) => "--tw-blur",
+        (Brightness, false) => "--tw-brightness",
+        (Contrast, false) => "--tw-contrast",
+        (Grayscale, false) => "--tw-grayscale",
+        (HueRotate, false) => "--tw-hue-rotate",
+        (Invert, false) => "--tw-invert",
+        (Saturate, false) => "--tw-saturate",
+        (Sepia, false) => "--tw-sepia",
+        (Blur, true) => "--tw-backdrop-blur",
+        (Brightness, true) => "--tw-backdrop-brightness",
+        (Contrast, true) => "--tw-backdrop-contrast",
+        (Grayscale, true) => "--tw-backdrop-grayscale",
+        (HueRotate, true) => "--tw-backdrop-hue-rotate",
+        (Invert, true) => "--tw-backdrop-invert",
+        (Saturate, true) => "--tw-backdrop-saturate",
+        (Sepia, true) => "--tw-backdrop-sepia",
+        (Opacity, true) => "--tw-backdrop-opacity",
+        (DropShadow | None | Opacity, _) => return Option::None,
+    })
+}
+
 pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str> {
     fn absolute(length: &crate::Length) -> bool {
         match length {
@@ -681,6 +705,33 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // so both are refused there as before; the gain is the Web cascade.
         Columns(_) => "columns",
         TextUnderlineOffset(_) => "text-underline-offset",
+        // `rotate-*` writes `rotate` itself. Each translate and scale axis
+        // writes its own register, which one `translate`/`scale` declaration
+        // reads; that declaration is in every axis rule, so the register is
+        // what decides which rule owns the axis. Hozo holds each axis as its
+        // own write and joins them at emit time, on Native into one
+        // `transform` in a fixed function order, so ranking only decides
+        // which value each axis keeps.
+        Rotate(_) => "rotate",
+        TranslateX(_) => "--tw-translate-x",
+        TranslateY(_) => "--tw-translate-y",
+        TranslateZ(_) => "--tw-translate-z",
+        ScaleX(_) => "--tw-scale-x",
+        ScaleY(_) => "--tw-scale-y",
+        ScaleZ(_) => "--tw-scale-z",
+        // The same shape for the functions Tailwind reads in one
+        // `transform`: each 3D rotation and skew writes its own register.
+        RotateX(_) => "--tw-rotate-x",
+        RotateY(_) => "--tw-rotate-y",
+        RotateZ(_) => "--tw-rotate-z",
+        SkewX(_) => "--tw-skew-x",
+        SkewY(_) => "--tw-skew-y",
+        // Each filter function writes its register, read by one shared
+        // `filter`/`backdrop-filter`. `filter-none` writes the declaration
+        // itself, and a drop shadow pairs its register with a colour and a
+        // size register, so both stay barriers.
+        Filter(function, _) => filter_register(*function, false)?,
+        BackdropFilter(function, _) => filter_register(*function, true)?,
         _ => return None,
     })
 }
@@ -1046,6 +1097,67 @@ mod tests {
             ["--tw-border-style", "outline-style"].into_iter(),
             &style
         ));
+    }
+
+    #[test]
+    fn each_transform_axis_owns_its_register_not_the_shared_declaration() {
+        let x = crate::Dimension::Length(Length::Px(8.0));
+        let half = crate::Scale::Percent(50.0);
+        for (write, register) in [
+            (StyleProperty::TranslateX(x.clone()), "--tw-translate-x"),
+            (StyleProperty::TranslateY(x.clone()), "--tw-translate-y"),
+            (StyleProperty::ScaleX(half.clone()), "--tw-scale-x"),
+            (StyleProperty::ScaleZ(half.clone()), "--tw-scale-z"),
+            (StyleProperty::Rotate(crate::Angle::Deg(45.0)), "rotate"),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(register, &write), "{write:?}");
+            // Every axis rule also declares the shared `translate`/`scale`;
+            // owning it would make `translate-4` ambiguous between its axes.
+            assert!(!covers("translate", &write), "{write:?}");
+            assert!(!covers("scale", &write), "{write:?}");
+        }
+        // Each 3D rotation and skew owns its register, not the shared
+        // `transform` every one of those rules declares.
+        for (write, register) in [
+            (
+                StyleProperty::RotateX(crate::Angle::Deg(45.0)),
+                "--tw-rotate-x",
+            ),
+            (StyleProperty::SkewY(crate::Angle::Deg(6.0)), "--tw-skew-y"),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(register, &write), "{write:?}");
+            assert!(!covers("transform", &write), "{write:?}");
+        }
+        // `scale-3d` switches the declaration's form and owns no register.
+        assert!(!crate::scalar_tailwind_property(&StyleProperty::Scale3d));
+    }
+
+    #[test]
+    fn each_filter_function_owns_its_register_and_none_or_drop_shadow_does_not() {
+        use crate::FilterFunction;
+        for (write, register) in [
+            (
+                StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".into()),
+                "--tw-blur",
+            ),
+            (
+                StyleProperty::BackdropFilter(FilterFunction::Opacity, "opacity(50%)".into()),
+                "--tw-backdrop-opacity",
+            ),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(register, &write), "{write:?}");
+            assert!(!covers("filter", &write), "{write:?}");
+            assert!(!covers("backdrop-filter", &write), "{write:?}");
+        }
+        for write in [
+            StyleProperty::Filter(FilterFunction::None, "none".into()),
+            StyleProperty::Filter(FilterFunction::DropShadow, "drop-shadow(0 0 1px)".into()),
+        ] {
+            assert!(!crate::scalar_tailwind_property(&write), "{write:?}");
+        }
     }
 
     fn fixture(name: &str) -> OrderCandidateDescriptor {
