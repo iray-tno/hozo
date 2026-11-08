@@ -337,6 +337,8 @@ key; see [corner evidence](../measurements/tailwind-corner-radius-order.md).
 Policy v15 assesses `group-`, `peer-`, `in-` and `has-` around one inner
 compound, weighing what the compound weighs; named and nested relations remain
 barriers; see [relation evidence](../measurements/tailwind-relation-order.md).
+Policy v16 adds the eleven border colour writes, one declaration each; see
+[border colour evidence](../measurements/tailwind-border-color-order.md).
 
 ## 1. Restart, not another family-specific patch
 

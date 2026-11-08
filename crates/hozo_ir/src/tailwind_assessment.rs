@@ -488,6 +488,21 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         BorderStartEndRadius(_) => "border-start-end-radius",
         BorderEndStartRadius(_) => "border-end-start-radius",
         BorderEndEndRadius(_) => "border-end-end-radius",
+        // Border colours, one declaration each. An axis writes two Native
+        // keys (`borderStartColor`/`borderEndColor`), as `px-*` does; a side
+        // beats `borderColor` by key, and Tailwind emits every side after
+        // `border-color`, so the class tier agrees either way.
+        BorderColor(_) => "border-color",
+        BorderTopColor(_) => "border-top-color",
+        BorderRightColor(_) => "border-right-color",
+        BorderBottomColor(_) => "border-bottom-color",
+        BorderLeftColor(_) => "border-left-color",
+        BorderInlineColor(_) => "border-inline-color",
+        BorderBlockColor(_) => "border-block-color",
+        BorderInlineStartColor(_) => "border-inline-start-color",
+        BorderInlineEndColor(_) => "border-inline-end-color",
+        BorderBlockStartColor(_) => "border-block-start-color",
+        BorderBlockEndColor(_) => "border-block-end-color",
         Position(
             crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
         ) => "position",
@@ -676,6 +691,14 @@ mod tests {
             (
                 StyleProperty::BorderEndStartRadius(crate::Radius::Full),
                 "border-end-start-radius",
+            ),
+            (
+                StyleProperty::BorderColor(crate::Color::Token("red-500".into())),
+                "border-color",
+            ),
+            (
+                StyleProperty::BorderInlineStartColor(crate::Color::Token("red-500".into())),
+                "border-inline-start-color",
             ),
         ] {
             assert_eq!(scalar_css_property(&write), Some(property));
