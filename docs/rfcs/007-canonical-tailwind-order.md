@@ -356,6 +356,8 @@ Policy v21 adds `inline-flex` to the display arm; Native's synthetic
 Policy v22 adds every `overflow`, `overflow-x` and `overflow-y` value; the
 values Native lacks stay refused there; see
 [overflow evidence](../measurements/tailwind-overflow-order.md).
+Policy v23 adds `mix-blend-mode` and `background-blend-mode`; see
+[blend mode evidence](../measurements/tailwind-blend-mode-order.md).
 
 ## 1. Restart, not another family-specific patch
 

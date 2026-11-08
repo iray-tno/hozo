@@ -673,6 +673,10 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // Native lacks is refused there, as an unsupported display is.
         Cursor(_) => "cursor",
         ObjectFit(_) => "object-fit",
+        // `mixBlendMode` on Native, apart from `plus-darker`, which is
+        // refused there as before; `bg-blend-*` is refused there whole.
+        MixBlendMode(_) => "mix-blend-mode",
+        BackgroundBlendMode(_) => "background-blend-mode",
         _ => return None,
     })
 }
@@ -771,6 +775,11 @@ mod tests {
             (StyleProperty::Flex(crate::FlexShorthand::None), "flex"),
             (StyleProperty::Cursor("pointer".into()), "cursor"),
             (StyleProperty::ObjectFit("cover"), "object-fit"),
+            (StyleProperty::MixBlendMode("multiply"), "mix-blend-mode"),
+            (
+                StyleProperty::BackgroundBlendMode("screen"),
+                "background-blend-mode",
+            ),
             (
                 StyleProperty::Display(crate::Display::InlineFlex),
                 "display",
