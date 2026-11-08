@@ -516,6 +516,30 @@ pub(crate) fn register_bound<'p>(
 /// folding or shared register composition. This is write ownership, never a
 /// utility precedence table: priority still comes from the captured CSS rule.
 /// Keep this definition shared by static planning and candidate generation.
+fn filter_register(function: crate::FilterFunction, backdrop: bool) -> Option<&'static str> {
+    use crate::FilterFunction::*;
+    Some(match (function, backdrop) {
+        (Blur, false) => "--tw-blur",
+        (Brightness, false) => "--tw-brightness",
+        (Contrast, false) => "--tw-contrast",
+        (Grayscale, false) => "--tw-grayscale",
+        (HueRotate, false) => "--tw-hue-rotate",
+        (Invert, false) => "--tw-invert",
+        (Saturate, false) => "--tw-saturate",
+        (Sepia, false) => "--tw-sepia",
+        (Blur, true) => "--tw-backdrop-blur",
+        (Brightness, true) => "--tw-backdrop-brightness",
+        (Contrast, true) => "--tw-backdrop-contrast",
+        (Grayscale, true) => "--tw-backdrop-grayscale",
+        (HueRotate, true) => "--tw-backdrop-hue-rotate",
+        (Invert, true) => "--tw-backdrop-invert",
+        (Saturate, true) => "--tw-backdrop-saturate",
+        (Sepia, true) => "--tw-backdrop-sepia",
+        (Opacity, true) => "--tw-backdrop-opacity",
+        (DropShadow | None | Opacity, _) => return Option::None,
+    })
+}
+
 pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str> {
     fn absolute(length: &crate::Length) -> bool {
         match length {
@@ -702,6 +726,12 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         RotateZ(_) => "--tw-rotate-z",
         SkewX(_) => "--tw-skew-x",
         SkewY(_) => "--tw-skew-y",
+        // Each filter function writes its register, read by one shared
+        // `filter`/`backdrop-filter`. `filter-none` writes the declaration
+        // itself, and a drop shadow pairs its register with a colour and a
+        // size register, so both stay barriers.
+        Filter(function, _) => filter_register(*function, false)?,
+        BackdropFilter(function, _) => filter_register(*function, true)?,
         _ => return None,
     })
 }
@@ -1102,6 +1132,32 @@ mod tests {
         }
         // `scale-3d` switches the declaration's form and owns no register.
         assert!(!crate::scalar_tailwind_property(&StyleProperty::Scale3d));
+    }
+
+    #[test]
+    fn each_filter_function_owns_its_register_and_none_or_drop_shadow_does_not() {
+        use crate::FilterFunction;
+        for (write, register) in [
+            (
+                StyleProperty::Filter(FilterFunction::Blur, "blur(8px)".into()),
+                "--tw-blur",
+            ),
+            (
+                StyleProperty::BackdropFilter(FilterFunction::Opacity, "opacity(50%)".into()),
+                "--tw-backdrop-opacity",
+            ),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(register, &write), "{write:?}");
+            assert!(!covers("filter", &write), "{write:?}");
+            assert!(!covers("backdrop-filter", &write), "{write:?}");
+        }
+        for write in [
+            StyleProperty::Filter(FilterFunction::None, "none".into()),
+            StyleProperty::Filter(FilterFunction::DropShadow, "drop-shadow(0 0 1px)".into()),
+        ] {
+            assert!(!crate::scalar_tailwind_property(&write), "{write:?}");
+        }
     }
 
     fn fixture(name: &str) -> OrderCandidateDescriptor {

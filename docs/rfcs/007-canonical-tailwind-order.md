@@ -373,6 +373,9 @@ see [conditional axis evidence](../measurements/conditional-transform-axes.md).
 Policy v27 adds the skews and 3D rotations the same way, each owning its
 register rather than the shared `transform`; see
 [skew and 3D rotation evidence](../measurements/tailwind-skew-rotate-axis-order.md).
+Policy v28 adds the filter and backdrop filter functions, each owning its
+register; `filter-none` and drop shadows remain barriers; see
+[filter evidence](../measurements/tailwind-filter-order.md).
 
 ## 1. Restart, not another family-specific patch
 
