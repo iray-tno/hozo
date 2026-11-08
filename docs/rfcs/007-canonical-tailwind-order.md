@@ -353,6 +353,9 @@ Policy v20 adds `cursor` and `object-fit`, one declaration each; see
 Policy v21 adds `inline-flex` to the display arm; Native's synthetic
 `alignSelf` now reads the ordered input; see
 [inline-flex evidence](../measurements/tailwind-inline-flex-order.md).
+Policy v22 adds every `overflow`, `overflow-x` and `overflow-y` value; the
+values Native lacks stay refused there; see
+[overflow evidence](../measurements/tailwind-overflow-order.md).
 
 ## 1. Restart, not another family-specific patch
 

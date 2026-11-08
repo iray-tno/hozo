@@ -613,9 +613,12 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         Position(
             crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
         ) => "position",
-        Overflow(crate::Overflow::Visible | crate::Overflow::Hidden | crate::Overflow::Scroll) => {
-            "overflow"
-        }
+        // `auto`, `clip` and the axes have no Native key and are refused
+        // there, as a cursor Native lacks is; on Web they still cascade in
+        // Tailwind's order, `overflow` before `overflow-x` and `overflow-y`.
+        Overflow(_) => "overflow",
+        OverflowX(_) => "overflow-x",
+        OverflowY(_) => "overflow-y",
         TextDecorationLine("none" | "underline" | "line-through" | "underline line-through") => {
             "text-decoration-line"
         }
@@ -752,6 +755,18 @@ mod tests {
                 "position",
             ),
             (StyleProperty::Overflow(crate::Overflow::Hidden), "overflow"),
+            (
+                StyleProperty::Overflow(crate::Overflow::Css("clip")),
+                "overflow",
+            ),
+            (
+                StyleProperty::OverflowX(crate::Overflow::Css("auto")),
+                "overflow-x",
+            ),
+            (
+                StyleProperty::OverflowY(crate::Overflow::Hidden),
+                "overflow-y",
+            ),
             (StyleProperty::Flex(crate::FlexShorthand::Grow(1.0)), "flex"),
             (StyleProperty::Flex(crate::FlexShorthand::None), "flex"),
             (StyleProperty::Cursor("pointer".into()), "cursor"),
@@ -841,7 +856,6 @@ mod tests {
             StyleProperty::JustifyContent(crate::Justify::Stretch),
             StyleProperty::Display(crate::Display::Grid),
             StyleProperty::Position(crate::Position::Css("fixed")),
-            StyleProperty::Overflow(crate::Overflow::Css("clip")),
             StyleProperty::TextDecorationLine("overline"),
             StyleProperty::UserSelect("contain"),
             StyleProperty::Keyword("vertical-align", "baseline"),
