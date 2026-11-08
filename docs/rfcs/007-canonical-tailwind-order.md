@@ -345,6 +345,9 @@ them; a style utility, which sets `--tw-border-style`, remains a barrier; see
 Policy v18 adds the `flex` shorthand (`flex-1`, `flex-auto`, `flex-initial`,
 `flex-none`), one declaration each; see
 [flex shorthand evidence](../measurements/tailwind-flex-shorthand-order.md).
+Policy v19 adds outline widths, colours and offsets; an outline style utility,
+which sets `--tw-outline-style`, remains a barrier; see
+[outline evidence](../measurements/tailwind-outline-order.md).
 
 ## 1. Restart, not another family-specific patch
 

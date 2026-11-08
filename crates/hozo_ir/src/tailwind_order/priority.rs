@@ -153,7 +153,7 @@ impl TailwindOrderContext {
                 _ => {}
             }
         }
-        if crate::tailwind_assessment::border_edge_properties(property).is_some() {
+        if crate::tailwind_assessment::style_register(property).is_some() {
             let mut properties = Vec::new();
             declarations(&rule.shape, &mut properties);
             if crate::tailwind_assessment::register_bound(properties.into_iter(), property) {

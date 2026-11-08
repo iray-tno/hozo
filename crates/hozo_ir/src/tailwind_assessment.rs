@@ -484,25 +484,32 @@ pub(crate) fn border_edge_properties(write: &StyleProperty) -> Option<[&'static 
     })
 }
 
-/// A border style written by a rule that also sets `--tw-border-style`.
-/// Wherever such a style utility applies, every width utility's style reads
-/// the register and agrees with it, whatever the two rules' order. Hozo's
-/// width utilities write a literal `solid` instead, which ranking would let
-/// override the style utility (`border-dashed md:border-2`), so these writes
-/// stay unranked and keep their input in authored order.
+/// The style register a style write competes with, if any.
+pub(crate) fn style_register(write: &StyleProperty) -> Option<&'static str> {
+    use StyleProperty::*;
+    match write {
+        BorderTopStyle(_)
+        | BorderRightStyle(_)
+        | BorderBottomStyle(_)
+        | BorderLeftStyle(_)
+        | BorderLogicalStyle(..) => Some("--tw-border-style"),
+        OutlineStyle(_) => Some("--tw-outline-style"),
+        _ => None,
+    }
+}
+
+/// A border or outline style written by a rule that also sets that style's
+/// register (`--tw-border-style`, `--tw-outline-style`). Wherever such a
+/// style utility applies, every width utility's style reads the register and
+/// agrees with it, whatever the two rules' order. Hozo's width utilities
+/// write a literal `solid` instead, which ranking would let override the
+/// style utility (`border-dashed md:border-2`), so these writes stay
+/// unranked and keep their input in authored order.
 pub(crate) fn register_bound<'p>(
     mut properties: impl Iterator<Item = &'p str>,
     write: &StyleProperty,
 ) -> bool {
-    use StyleProperty::*;
-    matches!(
-        write,
-        BorderTopStyle(_)
-            | BorderRightStyle(_)
-            | BorderBottomStyle(_)
-            | BorderLeftStyle(_)
-            | BorderLogicalStyle(..)
-    ) && properties.any(|property| property == "--tw-border-style")
+    style_register(write).is_some_and(|register| properties.any(|property| property == register))
 }
 
 /// Single-key projections with no shorthand/longhand alias, font-relative
@@ -590,6 +597,14 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         BorderInlineEndColor(_) => "border-inline-end-color",
         BorderBlockStartColor(_) => "border-block-start-color",
         BorderBlockEndColor(_) => "border-block-end-color",
+        // Outline widths write `outline-style: var(--tw-outline-style)`
+        // beside the width, as border widths do; a style utility's own
+        // write is kept out by `register_bound`. `None` projects to Native's
+        // `outlineWidth: 0`, a width key, so it stays out of the domain.
+        OutlineWidth(length) if absolute(length) => "outline-width",
+        OutlineStyle(style) if *style != crate::BorderStyle::None => "outline-style",
+        OutlineColor(_) => "outline-color",
+        OutlineOffset(length) if absolute(length) => "outline-offset",
         Position(
             crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
         ) => "position",
@@ -938,6 +953,45 @@ mod tests {
         assert!(!register_bound(
             ["--tw-border-style", "border-style"].into_iter(),
             &StyleProperty::BorderTopWidth(px)
+        ));
+    }
+
+    #[test]
+    fn outline_writes_rank_but_its_style_register_and_none_do_not() {
+        use crate::BorderStyle;
+        let px = Length::Px(2.0);
+        for (write, property) in [
+            (StyleProperty::OutlineWidth(px.clone()), "outline-width"),
+            (
+                StyleProperty::OutlineStyle(BorderStyle::Solid),
+                "outline-style",
+            ),
+            (
+                StyleProperty::OutlineColor(crate::Color::Token("red-500".into())),
+                "outline-color",
+            ),
+            (StyleProperty::OutlineOffset(px.clone()), "outline-offset"),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(property, &write), "{write:?}");
+            assert!(!covers("outline", &write), "{write:?}");
+        }
+        // Native writes `outline-none` as `outlineWidth: 0`.
+        assert!(!crate::scalar_tailwind_property(
+            &StyleProperty::OutlineStyle(BorderStyle::None)
+        ));
+        let style = StyleProperty::OutlineStyle(BorderStyle::Dashed);
+        assert!(register_bound(
+            ["--tw-outline-style", "outline-style"].into_iter(),
+            &style
+        ));
+        assert!(!register_bound(
+            ["outline-style", "outline-width"].into_iter(),
+            &style
+        ));
+        assert!(!register_bound(
+            ["--tw-border-style", "outline-style"].into_iter(),
+            &style
         ));
     }
 
