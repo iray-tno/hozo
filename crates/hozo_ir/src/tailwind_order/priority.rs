@@ -5,9 +5,10 @@ use crate::tailwind_assessment::{
     aria_owner_index, negated_aria_owner_index, OWNER_PREDICATE_COUNT,
 };
 use crate::{
-    assess_tailwind_rule, assess_tailwind_write, scalar_tailwind_property, Condition,
+    assess_tailwind_rule, assess_tailwind_write, scalar_tailwind_property, Condition, Environment,
     RuleAssessmentError, StyleProperty, TailwindWriteOwnership,
 };
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TailwindRulePriority {
@@ -179,10 +180,10 @@ impl TailwindOrderContext {
     }
 }
 
-/// A query a write's own condition asks, to be found among the captured
-/// rule's wrappers. Rank still comes from the rule; this only checks that
-/// the rule and the write are the same question (#1230).
-#[derive(Debug, Clone, Copy)]
+/// A condition a write's own IR asks, to be found among the captured rule's
+/// wrappers and nested selectors. Rank still comes from the rule; this only
+/// checks that the rule and the write ask the same question (#1230).
+#[derive(Debug, Clone)]
 enum Query<'c> {
     Exact(&'static str, &'c str),
     /// A width threshold. The value is the theme's, which Tailwind writes
@@ -194,14 +195,26 @@ enum Query<'c> {
         at_least: bool,
     },
     Supports,
+    /// A condition on the element itself, as Tailwind writes the nested
+    /// selector. Compared as text; its weight was read at assessment.
+    Selector(Cow<'c, str>),
 }
 
 impl<'c> Query<'c> {
     fn of(condition: &'c Condition) -> Option<Self> {
+        let selector = |text: &'static str| Self::Selector(Cow::Borrowed(text));
+        let suffix = |text: &str| Self::Selector(Cow::Owned(format!("&{text}")));
         Some(match condition {
             // Only the media strategy. A project's own `@custom-variant
             // dark` is a selector or another query, and does not match.
             Condition::Dark => Self::Exact("@media", "(prefers-color-scheme: dark)"),
+            // Selectors in Tailwind, wrapped in `:where()`.
+            Condition::Environment(Environment::Ltr) => {
+                selector("&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)")
+            }
+            Condition::Environment(Environment::Rtl) => {
+                selector("&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)")
+            }
             Condition::Environment(query) => {
                 let (name, params) = query.web_at_rule().split_once(' ')?;
                 Self::Exact(
@@ -229,13 +242,31 @@ impl<'c> Query<'c> {
                 at_least: *at_least,
             },
             Condition::Supports(_) => Self::Supports,
+            Condition::FirstChild => selector("&:first-child"),
+            Condition::LastChild => selector("&:last-child"),
+            Condition::FocusWithin => selector("&:focus-within"),
+            Condition::Target => selector("&:target"),
+            Condition::Enabled => selector("&:enabled"),
+            Condition::Open => selector("&:is([open], :popover-open, :open)"),
+            Condition::Inert => selector("&:is([inert], [inert] *)"),
+            Condition::Structural(structural) => suffix(&structural.selector()),
+            Condition::FormState(state) => suffix(state.selector()),
+            Condition::Control(state) => suffix(state.selector()),
+            Condition::DataAttribute(attribute) => suffix(attribute),
             _ => return None,
         })
     }
 
-    fn matches(self, name: &str, params: &str) -> bool {
+    fn matches(&self, wrapper: Wrapper<'_>) -> bool {
+        let (name, params) = match (self, wrapper) {
+            (Self::Selector(expected), Wrapper::Selector(selector)) => {
+                return expected.as_ref() == selector
+            }
+            (Self::Selector(_), _) | (_, Wrapper::Selector(_)) => return false,
+            (_, Wrapper::AtRule(name, params)) => (name, params),
+        };
         match self {
-            Self::Exact(expected, query) => name == expected && params == query,
+            Self::Exact(expected, query) => name == *expected && params == *query,
             Self::Width {
                 container,
                 name: label,
@@ -255,38 +286,52 @@ impl<'c> Query<'c> {
                     }
                     _ => return false,
                 };
-                params.starts_with(if at_least { "(width >= " } else { "(width < " })
+                params.starts_with(if *at_least { "(width >= " } else { "(width < " })
             }
             Self::Supports => name == "@supports",
+            Self::Selector(_) => false,
         }
     }
 }
 
-/// Every wrapper on the rule's single chain is one of the write's queries,
-/// and every query is used once. Assessment already refused branching.
+#[derive(Clone, Copy)]
+enum Wrapper<'a> {
+    AtRule(&'a str, &'a str),
+    Selector(&'a str),
+}
+
+/// Every wrapper and non-owner selector on the rule's single chain is one of
+/// the write's queries, and every query is used once. Owner selectors are
+/// compared by the owner counts instead. Assessment already refused
+/// branching.
 fn same_queries(shape: &crate::OrderRuleShape, queries: &[Query<'_>]) -> bool {
     let mut used = 0_u64;
     let mut found = 0;
     let mut node = shape;
+    let mut root = true;
     loop {
-        let nodes = match node {
-            crate::OrderRuleShape::Rule { nodes, .. } => nodes,
+        let (wrapper, nodes) = match node {
+            crate::OrderRuleShape::Rule { selector, nodes } => {
+                let skip = std::mem::take(&mut root)
+                    || crate::tailwind_assessment::owner_selector(selector).is_some();
+                ((!skip).then_some(Wrapper::Selector(selector)), nodes)
+            }
             crate::OrderRuleShape::AtRule {
                 name,
                 params,
                 nodes,
-            } => {
-                let Some(index) = (0..queries.len().min(64)).find(|&index| {
-                    used & (1 << index) == 0 && queries[index].matches(name, params)
-                }) else {
-                    return false;
-                };
-                used |= 1 << index;
-                found += 1;
-                nodes
-            }
+            } => (Some(Wrapper::AtRule(name, params)), nodes),
             _ => break,
         };
+        if let Some(wrapper) = wrapper {
+            let Some(index) = (0..queries.len().min(64))
+                .find(|&index| used & (1 << index) == 0 && queries[index].matches(wrapper))
+            else {
+                return false;
+            };
+            used |= 1 << index;
+            found += 1;
+        }
         let mut next = nodes.iter().filter(|node| {
             matches!(
                 node,
@@ -487,7 +532,7 @@ mod tests {
 
     #[test]
     fn each_query_kind_matches_only_its_own_spelling() {
-        use super::Query;
+        use super::{Query, Wrapper};
         let dark = Condition::Dark;
         let print = Condition::Environment(crate::Environment::Print);
         let motion = Condition::Environment(crate::Environment::MotionSafe);
@@ -531,12 +576,87 @@ mod tests {
         ] {
             let query = Query::of(condition).unwrap();
             assert_eq!(
-                query.matches(name, params),
+                query.matches(Wrapper::AtRule(name, params)),
                 expected,
                 "{condition:?} {params}"
             );
         }
         // Direction is a selector in Tailwind, not a query.
-        assert!(Query::of(&ltr).is_none());
+        let ltr = Query::of(&ltr).unwrap();
+        assert!(!ltr.matches(Wrapper::AtRule("@media", "(dir: ltr)")));
+        assert!(ltr.matches(Wrapper::Selector(
+            "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)"
+        )));
+    }
+
+    #[test]
+    fn an_element_selector_ranks_only_for_the_same_selector() {
+        use super::{Query, Wrapper};
+        use crate::{ControlState, FormState, Structural};
+        for (condition, selector) in [
+            (Condition::FirstChild, "&:first-child"),
+            (Condition::LastChild, "&:last-child"),
+            (Condition::FocusWithin, "&:focus-within"),
+            (Condition::Enabled, "&:enabled"),
+            (Condition::Open, "&:is([open], :popover-open, :open)"),
+            (Condition::Inert, "&:is([inert], [inert] *)"),
+            (
+                Condition::Structural(Structural::Nth {
+                    of_type: false,
+                    from_end: false,
+                    formula: "odd".into(),
+                }),
+                "&:nth-child(odd)",
+            ),
+            (Condition::FormState(FormState::Required), "&:required"),
+            (Condition::Control(ControlState::Checked), "&:checked"),
+            (
+                Condition::DataAttribute("[data-state=\"open\"]".into()),
+                "&[data-state=\"open\"]",
+            ),
+            (
+                Condition::Environment(Environment::Rtl),
+                "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)",
+            ),
+        ] {
+            let query = Query::of(&condition).unwrap();
+            assert!(query.matches(Wrapper::Selector(selector)), "{condition:?}");
+            assert!(
+                !query.matches(Wrapper::Selector("&:hover")),
+                "{condition:?}"
+            );
+            assert!(
+                !query.matches(Wrapper::AtRule("@media", selector)),
+                "{condition:?}"
+            );
+            // Its weight is read from the selector at assessment, never
+            // counted from colons.
+            let weight = crate::tailwind_assessment::element_selector_weight(selector);
+            let expected = if selector.starts_with("&:where(") {
+                0
+            } else {
+                1
+            };
+            assert_eq!(weight, Some(expected), "{selector}");
+        }
+        for unassessed in [
+            "&:visited",
+            "&::before",
+            "&:is(:where(.group):hover *)",
+            ":where(*:focus) &",
+            "&:nth-child(2n + 1)",
+            "&:nth-child(odd of .x)",
+            "&[data-a][data-b]",
+            "&[data-x=\"a\"b\"]",
+            "&[aria-sort=\"ascending\"]",
+            "& > *",
+            "&:first-child:hover",
+        ] {
+            assert_eq!(
+                crate::tailwind_assessment::element_selector_weight(unassessed),
+                None,
+                "{unassessed}"
+            );
+        }
     }
 }
