@@ -402,7 +402,7 @@ fn same_queries(shape: &crate::OrderRuleShape, queries: &[Query<'_>]) -> bool {
             matches!(
                 node,
                 crate::OrderRuleShape::Rule { .. } | crate::OrderRuleShape::AtRule { .. }
-            )
+            ) && !crate::tailwind_assessment::supports_refinement(nodes, node)
         });
         match next.next() {
             Some(child) => node = child,

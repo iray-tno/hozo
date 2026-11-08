@@ -170,6 +170,36 @@ pub(crate) fn property_registration(node: &OrderRuleShape) -> bool {
         })
 }
 
+/// An `@supports` among `siblings` that only re-declares, with the same
+/// importance, properties the siblings already declare -- as
+/// `bg-linear-to-r` re-declares `--tw-gradient-position` for browsers with
+/// `in oklab`. It picks which value a browser uses, not which properties the
+/// rule writes, under which condition, or how much it weighs, so ownership
+/// and order are the same with or without it.
+pub(crate) fn supports_refinement(siblings: &[OrderRuleShape], node: &OrderRuleShape) -> bool {
+    let OrderRuleShape::AtRule { name, nodes, .. } = node else {
+        return false;
+    };
+    let declared = |property: &str, important: bool| {
+        siblings.iter().any(|sibling| {
+            matches!(sibling, OrderRuleShape::Declaration { property: p, important: i }
+                if p == property && *i == important)
+        })
+    };
+    name == "@supports"
+        && nodes
+            .iter()
+            .any(|node| matches!(node, OrderRuleShape::Declaration { .. }))
+        && nodes.iter().all(|node| match node {
+            OrderRuleShape::Declaration {
+                property,
+                important,
+            } => declared(property, *important),
+            OrderRuleShape::Comment => true,
+            _ => false,
+        })
+}
+
 /// The interaction and boolean ARIA selectors whose facts an owner delivers.
 pub(crate) fn owner_selector(selector: &str) -> Option<usize> {
     match selector {
@@ -306,10 +336,15 @@ fn assess_body<'a>(
     result: &mut AssessedTailwindRule<'a>,
 ) -> Result<(), RuleAssessmentError> {
     // A single chain of wrappers followed by declarations has one scope.
-    // Sibling nested rules, or declarations beside a wrapper, do not.
+    // Sibling nested rules, or declarations beside a wrapper, do not; a
+    // `supports_refinement` is neither.
     let branches = nodes
         .iter()
-        .filter(|node| !matches!(node, OrderRuleShape::Comment) && !property_registration(node))
+        .filter(|node| {
+            !matches!(node, OrderRuleShape::Comment)
+                && !property_registration(node)
+                && !supports_refinement(nodes, node)
+        })
         .collect::<Vec<_>>();
     if branches
         .iter()
@@ -747,6 +782,18 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         RingOffsetWidth(_) => "--tw-ring-offset-width",
         RingOffsetColor(_) => "--tw-ring-offset-color",
         RingInset => "--tw-ring-inset",
+        // A constructor (`bg-linear-*`, `bg-radial`), `bg-none` and an
+        // image all declare `background-image` itself; the constructor's
+        // `--tw-gradient-position` rides along. Each stop's colour and
+        // position is a register, read through `--tw-gradient-stops`, which
+        // every colour rule also declares.
+        Gradient(..) | BackgroundImageNone | BackgroundImage(_) => "background-image",
+        GradientStopColor(crate::GradientStop::From, _) => "--tw-gradient-from",
+        GradientStopColor(crate::GradientStop::Via, _) => "--tw-gradient-via",
+        GradientStopColor(crate::GradientStop::To, _) => "--tw-gradient-to",
+        GradientStopPosition(crate::GradientStop::From, _) => "--tw-gradient-from-position",
+        GradientStopPosition(crate::GradientStop::Via, _) => "--tw-gradient-via-position",
+        GradientStopPosition(crate::GradientStop::To, _) => "--tw-gradient-to-position",
         _ => return None,
     })
 }
@@ -1147,6 +1194,46 @@ mod tests {
         }
         // `scale-3d` switches the declaration's form and owns no register.
         assert!(!crate::scalar_tailwind_property(&StyleProperty::Scale3d));
+    }
+
+    #[test]
+    fn an_supports_refinement_of_a_declared_property_is_not_a_branch() {
+        let declaration = |property: &str, important: bool| OrderRuleShape::Declaration {
+            property: property.into(),
+            important,
+        };
+        let supports = |nodes: Vec<OrderRuleShape>| OrderRuleShape::AtRule {
+            name: "@supports".into(),
+            params: "(background-image: linear-gradient(in lab, red, red))".into(),
+            nodes,
+        };
+        let siblings = vec![
+            declaration("--tw-gradient-position", false),
+            declaration("background-image", false),
+        ];
+        assert!(supports_refinement(
+            &siblings,
+            &supports(vec![declaration("--tw-gradient-position", false)])
+        ));
+        // A new property, a different importance, an empty block or a
+        // nested rule is a real branch.
+        for nodes in [
+            vec![declaration("color", false)],
+            vec![declaration("--tw-gradient-position", true)],
+            vec![],
+            vec![OrderRuleShape::Rule {
+                selector: "&:hover".into(),
+                nodes: vec![declaration("background-image", false)],
+            }],
+        ] {
+            assert!(!supports_refinement(&siblings, &supports(nodes)));
+        }
+        let media = OrderRuleShape::AtRule {
+            name: "@media".into(),
+            params: "(width >= 48rem)".into(),
+            nodes: vec![declaration("background-image", false)],
+        };
+        assert!(!supports_refinement(&siblings, &media));
     }
 
     #[test]

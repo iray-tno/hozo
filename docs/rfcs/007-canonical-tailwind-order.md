@@ -385,6 +385,10 @@ Policy v29 adds every shadow and ring layer, colour, the offset width and
 Without a policy change, shadow and ring writes under different conditions
 compose through Tailwind's register structure on Web; see
 [conditional shadow evidence](../measurements/conditional-shadow-layers.md).
+Policy v30 adds gradient constructors, `bg-none` and each stop's colour and
+position register, and stops reading an `@supports` that only re-declares a
+sibling property as a branch; see
+[gradient evidence](../measurements/tailwind-gradient-order.md).
 
 ## 1. Restart, not another family-specific patch
 
