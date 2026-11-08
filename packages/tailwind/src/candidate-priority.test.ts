@@ -18,7 +18,7 @@ const names = [
   'bg-red-500',
   'active:bg-blue-500',
   'hover:bg-red-500!',
-  'skew-x-12',
+  'translate-none',
   'rtl:p-2',
   'sm:p-2',
 ]
@@ -103,7 +103,7 @@ test('actual candidate objects share original write priorities with static Web a
       assert.ok(group.reason)
     }
   }
-  assert.equal(entries.get('skew-x-12')!.groups[0]!.priorityRank, undefined)
+  assert.equal(entries.get('translate-none')!.groups[0]!.priorityRank, undefined)
   // Direction is assessed (#1230): the dynamic map ranks it as the static
   // plans do, and the resolver decides it once as an ambient fact.
   assert.notEqual(entries.get('rtl:p-2')!.groups[0]!.priorityRank, undefined)

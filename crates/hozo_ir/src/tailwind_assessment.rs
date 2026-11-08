@@ -695,6 +695,13 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         ScaleX(_) => "--tw-scale-x",
         ScaleY(_) => "--tw-scale-y",
         ScaleZ(_) => "--tw-scale-z",
+        // The same shape for the functions Tailwind reads in one
+        // `transform`: each 3D rotation and skew writes its own register.
+        RotateX(_) => "--tw-rotate-x",
+        RotateY(_) => "--tw-rotate-y",
+        RotateZ(_) => "--tw-rotate-z",
+        SkewX(_) => "--tw-skew-x",
+        SkewY(_) => "--tw-skew-y",
         _ => return None,
     })
 }
@@ -1080,11 +1087,20 @@ mod tests {
             assert!(!covers("translate", &write), "{write:?}");
             assert!(!covers("scale", &write), "{write:?}");
         }
-        // Skews and 3D rotations compose into `transform` with other
-        // registers and stay barriers.
-        assert!(!crate::scalar_tailwind_property(&StyleProperty::SkewX(
-            crate::Angle::Deg(12.0)
-        )));
+        // Each 3D rotation and skew owns its register, not the shared
+        // `transform` every one of those rules declares.
+        for (write, register) in [
+            (
+                StyleProperty::RotateX(crate::Angle::Deg(45.0)),
+                "--tw-rotate-x",
+            ),
+            (StyleProperty::SkewY(crate::Angle::Deg(6.0)), "--tw-skew-y"),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(register, &write), "{write:?}");
+            assert!(!covers("transform", &write), "{write:?}");
+        }
+        // `scale-3d` switches the declaration's form and owns no register.
         assert!(!crate::scalar_tailwind_property(&StyleProperty::Scale3d));
     }
 

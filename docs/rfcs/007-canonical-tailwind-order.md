@@ -370,6 +370,9 @@ rotations remain barriers; see
 Without a policy change, translate and scale axes written under different
 conditions compose through registers on Web and transform slots on Native;
 see [conditional axis evidence](../measurements/conditional-transform-axes.md).
+Policy v27 adds the skews and 3D rotations the same way, each owning its
+register rather than the shared `transform`; see
+[skew and 3D rotation evidence](../measurements/tailwind-skew-rotate-axis-order.md).
 
 ## 1. Restart, not another family-specific patch
 
