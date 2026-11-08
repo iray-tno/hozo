@@ -30,6 +30,8 @@ import {
 } from './video-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
+// React Native's `fade` Modal animates for about 300ms; wait well past it.
+const DIALOG_PRESENTATION = 1_000
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(process.argv[2] ?? resolve(root, '../../artifacts/native-showcase'))
 mkdirSync(output, { recursive: true })
@@ -195,6 +197,10 @@ async function fullShowcase() {
   adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
   await waitFor(label('Changes: not saved'), 'Android Back cancels without saving')
   await tap(label('Review changes'), 'reopen dialog')
+  // The same `fade` Modal as on iOS: wait out its presentation rather than
+  // tap a control that is in the tree but not yet taking input.
+  await waitFor(label('Confirm save'), 'dialog reopens')
+  await pause(DIALOG_PRESENTATION)
   await tap(label('Confirm save'), 'confirm changes')
   await waitFor(label('Changes: saved'), 'dialog confirmation result')
   screenshot('15-confirmation-saved')

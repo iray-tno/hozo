@@ -13,6 +13,7 @@ import {
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, resolve } from 'node:path'
+import { setTimeout as pause } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 import { PNG } from 'pngjs'
 import { centre, changedFraction, imageRegion } from './device-evidence.mjs'
@@ -39,6 +40,8 @@ import {
 } from './video-evidence.mjs'
 
 const app = 'dev.hozo.showcase'
+// React Native's `fade` Modal animates for about 300ms; wait well past it.
+const DIALOG_PRESENTATION = 1_000
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = resolve(process.argv[2] ?? resolve(root, '../../artifacts/native-showcase-ios'))
 mkdirSync(output, { recursive: true })
@@ -595,6 +598,12 @@ try {
       await tap(label('Cancel changes'), 'cancel changes')
       await waitFor(label('Changes: not saved'), 'dialog cancels without saving')
       await tap(label('Review changes'), 'reopen dialog')
+      // The Native dialog is a `fade` Modal. Its controls reach the
+      // accessibility tree while it is still presenting, and a tap then is
+      // dropped; the first opening only passed because a screenshot sat
+      // between it and the next tap.
+      await waitFor(label('Confirm save'), 'dialog reopens')
+      await pause(DIALOG_PRESENTATION)
       await tap(label('Confirm save'), 'confirm changes')
       await waitFor(label('Changes: saved'), 'dialog confirmation result')
       screenshot('09-confirmation-saved')
