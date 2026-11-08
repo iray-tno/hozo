@@ -221,7 +221,7 @@ test('the compact Rust contract drives a rank-free cached template over the actu
     'focus:bg-[#220000]',
     'active:bg-[#330000]',
     'hover:focus:bg-[#440000]',
-    'gap-2',
+    'border-2',
   ]
   const cache = cacheFor(names)
   const prepared = await prepareTailwindOrder(css, base, cache.candidates())
@@ -230,7 +230,7 @@ test('the compact Rust contract drives a rank-free cached template over the actu
   )
   assert.ok(plan.ordering)
   assert.equal(plan.ordering.schema, 1)
-  assert.equal(plan.ordering.ranks['gap-2'], undefined)
+  assert.equal(plan.ordering.ranks['border-2'], undefined)
   const code = `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')}; hozoClasses`
   const generated = runInNewContext(code, {
     createClassResolver: (styles, unsupported, compose, states, ambient) => ({
@@ -271,8 +271,8 @@ test('the compact Rust contract drives a rank-free cached template over the actu
               : '#110000',
       )
       assert.deepEqual(
-        resolve(`${list} gap-2`, state),
-        legacy(`${list} gap-2`, state),
+        resolve(`${list} border-2`, state),
+        legacy(`${list} border-2`, state),
         'unranked Native shorthand freezes this string, not just the unknown group',
       )
     }

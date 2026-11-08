@@ -200,8 +200,46 @@ pub(crate) fn owner_selector(selector: &str) -> Option<usize> {
 /// - one `data-` attribute, `&[data-state="open"]`: one;
 /// - Tailwind's own `open:` and `inert:` spellings: one, from the
 ///   attribute inside `:is()`;
-/// - Tailwind's `ltr:`/`rtl:`, wrapped in `:where()`: none.
+/// - Tailwind's `ltr:`/`rtl:`, wrapped in `:where()`: none;
+/// - a relation around one of those weighing one, or around an owner
+///   state (`:hover`, `[aria-checked="true"]`): `group-` and `peer-`
+///   inside `:is()` and `has-` inside `:has(*…)` weigh what the inner
+///   compound weighs, one; `in-` is `:where(*…) &` and weighs none.
 pub(crate) fn element_selector_weight(selector: &str) -> Option<u32> {
+    // `:is()` and `:has()` take their argument's weight and `:where(.group)`
+    // adds none, so the relation weighs exactly its inner compound.
+    let inner = |inner: &str| {
+        let compound = format!("&{inner}");
+        (owner_selector(&compound).is_some() || compound_selector_weight(&compound) == Some(1))
+            .then_some(1)
+    };
+    if let Some(rest) = selector
+        .strip_prefix("&:is(:where(.group)")
+        .and_then(|rest| rest.strip_suffix(" *)"))
+        .or_else(|| {
+            selector
+                .strip_prefix("&:is(:where(.peer)")
+                .and_then(|rest| rest.strip_suffix(" ~ *)"))
+        })
+        .or_else(|| {
+            selector
+                .strip_prefix("&:has(*")
+                .and_then(|rest| rest.strip_suffix(')'))
+        })
+    {
+        return inner(rest);
+    }
+    if let Some(rest) = selector
+        .strip_prefix(":where(*")
+        .and_then(|rest| rest.strip_suffix(") &"))
+    {
+        return inner(rest).map(|_| 0);
+    }
+    compound_selector_weight(selector)
+}
+
+/// The element's own compound, without a relation: a relation never nests.
+fn compound_selector_weight(selector: &str) -> Option<u32> {
     const WEIGHTLESS: [&str; 2] = [
         "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)",
         "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)",
@@ -339,10 +377,19 @@ pub enum TailwindWriteOwnership<'a> {
 /// It is not a property-order table. Shorthand/axis ownership does not prove
 /// that Yoga and CSS resolve logical/physical conflicts in the same way.
 pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
+    use StyleProperty::*;
+    // `inset-2` writes all four physical edges from one `inset` declaration.
+    // Each edge is still one Native key, so it stays a scalar projection.
+    match write {
+        InsetTop(_) => return matches!(property, "inset" | "top"),
+        InsetRight(_) => return matches!(property, "inset" | "right"),
+        InsetBottom(_) => return matches!(property, "inset" | "bottom"),
+        InsetLeft(_) => return matches!(property, "inset" | "left"),
+        _ => {}
+    }
     if let Some(expected) = scalar_css_property(write) {
         return property == expected;
     }
-    use StyleProperty::*;
     match write {
         PaddingTop(_) => matches!(property, "padding" | "padding-block" | "padding-top"),
         PaddingBottom(_) => matches!(property, "padding" | "padding-block" | "padding-bottom"),
@@ -364,6 +411,12 @@ pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
             matches!(property, "margin" | "margin-inline" | "margin-inline-start")
         }
         MarginInlineEnd(_) => matches!(property, "margin" | "margin-inline" | "margin-inline-end"),
+        InsetInline(_) => property == "inset-inline",
+        InsetInlineStart(_) => property == "inset-inline-start",
+        InsetInlineEnd(_) => property == "inset-inline-end",
+        InsetBlock(_) => property == "inset-block",
+        InsetBlockStart(_) => property == "inset-block-start",
+        InsetBlockEnd(_) => property == "inset-block-end",
         Gap(_) => property == "gap",
         RowGap(_) => matches!(property, "gap" | "row-gap"),
         ColumnGap(_) => matches!(property, "gap" | "column-gap"),
@@ -424,6 +477,32 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         AspectRatio(_) => "aspect-ratio",
         Order(_) => "order",
         BorderRadius(_) => "border-radius",
+        // Each corner is its own declaration in Tailwind and its own key on
+        // Native. Yoga lets a corner beat `borderRadius` by key, and Tailwind
+        // emits every corner after `border-radius`, so the two agree.
+        BorderTopLeftRadius(_) => "border-top-left-radius",
+        BorderTopRightRadius(_) => "border-top-right-radius",
+        BorderBottomRightRadius(_) => "border-bottom-right-radius",
+        BorderBottomLeftRadius(_) => "border-bottom-left-radius",
+        BorderStartStartRadius(_) => "border-start-start-radius",
+        BorderStartEndRadius(_) => "border-start-end-radius",
+        BorderEndStartRadius(_) => "border-end-start-radius",
+        BorderEndEndRadius(_) => "border-end-end-radius",
+        // Border colours, one declaration each. An axis writes two Native
+        // keys (`borderStartColor`/`borderEndColor`), as `px-*` does; a side
+        // beats `borderColor` by key, and Tailwind emits every side after
+        // `border-color`, so the class tier agrees either way.
+        BorderColor(_) => "border-color",
+        BorderTopColor(_) => "border-top-color",
+        BorderRightColor(_) => "border-right-color",
+        BorderBottomColor(_) => "border-bottom-color",
+        BorderLeftColor(_) => "border-left-color",
+        BorderInlineColor(_) => "border-inline-color",
+        BorderBlockColor(_) => "border-block-color",
+        BorderInlineStartColor(_) => "border-inline-start-color",
+        BorderInlineEndColor(_) => "border-inline-end-color",
+        BorderBlockStartColor(_) => "border-block-start-color",
+        BorderBlockEndColor(_) => "border-block-end-color",
         Position(
             crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
         ) => "position",
@@ -605,6 +684,22 @@ mod tests {
                 StyleProperty::BorderRadius(crate::Radius::Full),
                 "border-radius",
             ),
+            (
+                StyleProperty::BorderTopLeftRadius(crate::Radius::Full),
+                "border-top-left-radius",
+            ),
+            (
+                StyleProperty::BorderEndStartRadius(crate::Radius::Full),
+                "border-end-start-radius",
+            ),
+            (
+                StyleProperty::BorderColor(crate::Color::Token("red-500".into())),
+                "border-color",
+            ),
+            (
+                StyleProperty::BorderInlineStartColor(crate::Color::Token("red-500".into())),
+                "border-inline-start-color",
+            ),
         ] {
             assert_eq!(scalar_css_property(&write), Some(property));
             assert!(crate::scalar_tailwind_property(&write));
@@ -618,7 +713,6 @@ mod tests {
                 crate::LengthUnit::Em,
             ))),
             StyleProperty::LineHeight(crate::LineHeight::Length(Length::Css("var(--line)".into()))),
-            StyleProperty::Gap(Length::Px(8.0)),
             StyleProperty::ZIndex(None),
             StyleProperty::Keyword("font-style", "oblique"),
             StyleProperty::AlignContent(crate::Justify::Baseline),
@@ -634,6 +728,60 @@ mod tests {
         ] {
             assert_eq!(scalar_css_property(&write), None);
             assert!(!crate::scalar_tailwind_property(&write));
+        }
+    }
+
+    #[test]
+    fn axis_and_logical_writes_own_their_shorthands_and_nothing_else() {
+        let px = Length::Px(8.0);
+        let edge = crate::Dimension::Length(px.clone());
+        for (write, owners) in [
+            (
+                StyleProperty::PaddingInlineStart(px.clone()),
+                &["padding", "padding-inline", "padding-inline-start"][..],
+            ),
+            (
+                StyleProperty::MarginInlineEnd(edge.clone()),
+                &["margin", "margin-inline", "margin-inline-end"],
+            ),
+            (StyleProperty::Gap(px.clone()), &["gap"]),
+            (StyleProperty::RowGap(px.clone()), &["gap", "row-gap"]),
+            (StyleProperty::ColumnGap(px.clone()), &["gap", "column-gap"]),
+            (StyleProperty::InsetTop(edge.clone()), &["inset", "top"]),
+            (StyleProperty::InsetLeft(edge.clone()), &["inset", "left"]),
+            (StyleProperty::InsetInline(edge.clone()), &["inset-inline"]),
+            (
+                StyleProperty::InsetInlineStart(edge.clone()),
+                &["inset-inline-start"],
+            ),
+            (StyleProperty::InsetBlockEnd(edge), &["inset-block-end"]),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            for property in [
+                "padding",
+                "padding-inline",
+                "padding-inline-start",
+                "padding-left",
+                "margin",
+                "margin-inline",
+                "margin-inline-end",
+                "gap",
+                "column-gap",
+                "row-gap",
+                "inset",
+                "inset-inline",
+                "inset-inline-start",
+                "inset-block",
+                "inset-block-end",
+                "top",
+                "left",
+            ] {
+                assert_eq!(
+                    covers(property, &write),
+                    owners.contains(&property),
+                    "{write:?} / {property}"
+                );
+            }
         }
     }
 
@@ -870,6 +1018,8 @@ mod tests {
             ("hover:p-2!", 2, 1),
             // A query adds no weight; it is recorded for the write to match.
             ("sm:p-2", 1, 1),
+            // A relation weighs its inner compound and keeps its query.
+            ("group-hover:p-2", 2, 1),
         ] {
             let candidate = fixture(name);
             assert_eq!(candidate.rules.len(), 1, "{name}");
@@ -879,7 +1029,6 @@ mod tests {
         }
         for name in [
             "placeholder:text-red-500",
-            "group-hover:p-2",
             "[&:where(:hover)]:p-2",
             "[&>span]:p-2",
             "not-hover:p-2",

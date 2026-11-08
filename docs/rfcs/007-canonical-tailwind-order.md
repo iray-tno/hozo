@@ -325,6 +325,20 @@ arbitrary selectors remain barriers; see
 Policy v11 adds seven one-property writes: `display: block`, the physical
 insets, `aspect-ratio`, `order` and the all-corner radius; see
 [direct property evidence](../measurements/tailwind-direct-property-order.md).
+Policy v12 adds the logical padding and margin edges and every inset. Yoga
+chooses between logical and physical keys by key, not order, so ranking only
+moves same-key writes and the Web cascade; see
+[logical edge evidence](../measurements/tailwind-logical-property-order.md).
+Policy v13 adds gaps. Ranking stays inside one class input, so the authored
+style composition in the gap alias boundary is unchanged; see
+[gap evidence](../measurements/tailwind-gap-order.md).
+Policy v14 adds the eight corner radii, each one declaration and one Native
+key; see [corner evidence](../measurements/tailwind-corner-radius-order.md).
+Policy v15 assesses `group-`, `peer-`, `in-` and `has-` around one inner
+compound, weighing what the compound weighs; named and nested relations remain
+barriers; see [relation evidence](../measurements/tailwind-relation-order.md).
+Policy v16 adds the eleven border colour writes, one declaration each; see
+[border colour evidence](../measurements/tailwind-border-color-order.md).
 
 ## 1. Restart, not another family-specific patch
 

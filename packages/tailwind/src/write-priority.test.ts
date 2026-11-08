@@ -19,7 +19,7 @@ const names = [
   'bg-red-500',
   'focus:bg-blue-500',
   'active:bg-red-500',
-  'group-hover:p-2',
+  'group-hover/item:p-2',
 ]
 
 test('assessed priorities distinguish importance/specificity from raw rule emission order', async () => {
@@ -29,7 +29,7 @@ test('assessed priorities distinguish importance/specificity from raw rule emiss
   assert.equal(priorities.fingerprint, prepared.snapshot.fingerprint)
   const entry = (name) =>
     priorities.rules.find((row) => row.candidateId === prepared.lookup(name)!.id)!
-  for (const name of names.filter((name) => name !== 'group-hover:p-2')) {
+  for (const name of names.filter((name) => name !== 'group-hover/item:p-2')) {
     assert.equal(typeof entry(name).rank, 'number')
     assert.equal(entry(name).reason, undefined)
   }
@@ -43,7 +43,7 @@ test('assessed priorities distinguish importance/specificity from raw rule emiss
   assert.ok(
     emitted.indexOf(entry('hover:focus:p-4').ruleId) < emitted.indexOf(entry('active:p-4').ruleId),
   )
-  const unknown = entry('group-hover:p-2')
+  const unknown = entry('group-hover/item:p-2')
   assert.equal(unknown.rank, undefined)
   assert.equal(unknown.reason, 'unassessed-selector')
   const ownCopy = context.rulePriorities()
@@ -105,11 +105,11 @@ test('actual Web/Native root and secondary write plans consume identical fingerp
 test('ambiguous multi-rule ownership and unassessed rules keep priority absent in the actual plan', async () => {
   const prepared = await prepareTailwindOrder(`${css}\n@utility p-2 { padding: 99px; }`, base, [
     'p-2',
-    'group-hover:p-2',
+    'group-hover/item:p-2',
   ])
   const compiler = createCompiler()
   compiler.setTailwindOrder(JSON.stringify(prepared.snapshot))
-  const source = `import {Pressable} from '@hozo/core';export const A=()=> <Pressable className="p-2 group-hover:p-2"/>`
+  const source = `import {Pressable} from '@hozo/core';export const A=()=> <Pressable className="p-2 group-hover/item:p-2"/>`
   const result = compiler.compile(source, undefined, { tailwindPlan: true })
   const blocks = result.flatMap(({ tailwindPlan }) =>
     tailwindPlan!.sites.flatMap(({ blocks }) => blocks),
