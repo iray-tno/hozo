@@ -1635,37 +1635,6 @@ fn negate_at_rule(rule: &str) -> String {
     }
 }
 
-/// The at-rule each environment query is, verbatim from Tailwind.
-fn environment_at_rule(query: Environment) -> &'static str {
-    match query {
-        Environment::MotionReduce => "@media (prefers-reduced-motion: reduce)",
-        Environment::MotionSafe => "@media (prefers-reduced-motion: no-preference)",
-        Environment::Portrait => "@media (orientation: portrait)",
-        Environment::Landscape => "@media (orientation: landscape)",
-        Environment::InvertedColors => "@media (inverted-colors: inverted)",
-        Environment::ContrastMore => "@media (prefers-contrast: more)",
-        Environment::ContrastLess => "@media (prefers-contrast: less)",
-        Environment::ForcedColors => "@media (forced-colors: active)",
-        Environment::Print => "@media print",
-        Environment::Noscript => "@media (scripting: none)",
-        Environment::PointerFine => "@media (pointer: fine)",
-        Environment::PointerCoarse => "@media (pointer: coarse)",
-        Environment::PointerNone => "@media (pointer: none)",
-        Environment::AnyPointerFine => "@media (any-pointer: fine)",
-        Environment::AnyPointerCoarse => "@media (any-pointer: coarse)",
-        Environment::AnyPointerNone => "@media (any-pointer: none)",
-        Environment::ReduceTransparency => "@media (prefers-reduced-transparency: reduce)",
-        // Native only. The Web has no query for the first two and refuses
-        // the third -- see `Environment` -- so they reach here only if
-        // something bypassed the refusal, and an empty prelude is the safe
-        // end of that: a rule with no condition applies to everyone, which
-        // is worse than one that does not apply.
-        Environment::BoldText | Environment::Grayscale | Environment::ScreenReader => "",
-        // Selectors, handled by the caller.
-        Environment::Ltr | Environment::Rtl => "",
-    }
-}
-
 /// One rule's worth of shape: the at-rules around it, and the selector
 /// suffix with `&` standing for the element.
 pub type Shape = (Vec<String>, String);
@@ -1802,7 +1771,7 @@ fn condition_shapes_for(
                 Vec::new(),
                 "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)",
             ),
-            _ => one(vec![environment_at_rule(*query).to_string()], "&"),
+            _ => one(vec![query.web_at_rule().to_string()], "&"),
         },
         // `:is(:where(.group):hover *)`, which is Tailwind's own shape --
         // read from it rather than reconstructed. `:where()` is what keeps

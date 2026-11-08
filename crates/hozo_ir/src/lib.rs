@@ -5231,6 +5231,39 @@ pub enum Environment {
 }
 
 impl Environment {
+    /// The at-rule each query is, verbatim from Tailwind. In IR because two
+    /// readers need the same text: the Web backend emits it, and ordering
+    /// checks a captured Tailwind rule is the same query before ranking it.
+    pub fn web_at_rule(self) -> &'static str {
+        match self {
+            Environment::MotionReduce => "@media (prefers-reduced-motion: reduce)",
+            Environment::MotionSafe => "@media (prefers-reduced-motion: no-preference)",
+            Environment::Portrait => "@media (orientation: portrait)",
+            Environment::Landscape => "@media (orientation: landscape)",
+            Environment::InvertedColors => "@media (inverted-colors: inverted)",
+            Environment::ContrastMore => "@media (prefers-contrast: more)",
+            Environment::ContrastLess => "@media (prefers-contrast: less)",
+            Environment::ForcedColors => "@media (forced-colors: active)",
+            Environment::Print => "@media print",
+            Environment::Noscript => "@media (scripting: none)",
+            Environment::PointerFine => "@media (pointer: fine)",
+            Environment::PointerCoarse => "@media (pointer: coarse)",
+            Environment::PointerNone => "@media (pointer: none)",
+            Environment::AnyPointerFine => "@media (any-pointer: fine)",
+            Environment::AnyPointerCoarse => "@media (any-pointer: coarse)",
+            Environment::AnyPointerNone => "@media (any-pointer: none)",
+            Environment::ReduceTransparency => "@media (prefers-reduced-transparency: reduce)",
+            // Native only. The Web has no query for the first two and
+            // refuses the third -- see `Environment` -- so they reach here
+            // only if something bypassed the refusal, and an empty prelude
+            // is the safe end of that: a rule with no condition applies to
+            // everyone, which is worse than one that does not apply.
+            Environment::BoldText | Environment::Grayscale | Environment::ScreenReader => "",
+            // Selectors, handled by the caller.
+            Environment::Ltr | Environment::Rtl => "",
+        }
+    }
+
     /// Whether the Web can express this at all.
     ///
     /// Three of the four React Native settings cannot be asked from CSS.

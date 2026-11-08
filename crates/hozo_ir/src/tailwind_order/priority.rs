@@ -68,10 +68,22 @@ impl TailwindOrderContext {
             return None;
         }
         let mut actual = [0_u16; OWNER_PREDICATE_COUNT];
-        fn collect(condition: &Condition, actual: &mut [u16; OWNER_PREDICATE_COUNT]) -> Option<()> {
+        let mut queries = Vec::new();
+        fn collect<'c>(
+            condition: &'c Condition,
+            actual: &mut [u16; OWNER_PREDICATE_COUNT],
+            queries: &mut Vec<Query<'c>>,
+        ) -> Option<()> {
+            if let Some(query) = Query::of(condition) {
+                queries.push(query);
+                return Some(());
+            }
             let index = match condition {
                 Condition::Always => return Some(()),
-                Condition::Hover => 0,
+                Condition::Hover => {
+                    queries.push(Query::Exact("@media", "(hover: hover)"));
+                    0
+                }
                 Condition::Focus => 1,
                 Condition::FocusVisible => 2,
                 Condition::Pressed => 3,
@@ -83,7 +95,7 @@ impl TailwindOrderContext {
                 },
                 Condition::All(parts) if !parts.is_empty() => {
                     for part in parts {
-                        collect(part, actual)?;
+                        collect(part, actual, queries)?;
                     }
                     return Some(());
                 }
@@ -92,8 +104,8 @@ impl TailwindOrderContext {
             actual[index] = actual[index].checked_add(1)?;
             Some(())
         }
-        collect(condition, &mut actual)?;
-        if priority.owner != actual {
+        collect(condition, &mut actual, &mut queries)?;
+        if priority.owner != actual || !same_queries(&rule.shape, &queries) {
             return None;
         }
         // The cached assessment already validated this single rule's shape.
@@ -165,6 +177,128 @@ impl TailwindOrderContext {
             }
         }
     }
+}
+
+/// A query a write's own condition asks, to be found among the captured
+/// rule's wrappers. Rank still comes from the rule; this only checks that
+/// the rule and the write are the same question (#1230).
+#[derive(Debug, Clone, Copy)]
+enum Query<'c> {
+    Exact(&'static str, &'c str),
+    /// A width threshold. The value is the theme's, which Tailwind writes
+    /// in its own unit (`48rem`) and the IR in another (`768px`), so only
+    /// the side is compared. The candidate name ties the two together.
+    Width {
+        container: bool,
+        name: Option<&'c str>,
+        at_least: bool,
+    },
+    Supports,
+}
+
+impl<'c> Query<'c> {
+    fn of(condition: &'c Condition) -> Option<Self> {
+        Some(match condition {
+            // Only the media strategy. A project's own `@custom-variant
+            // dark` is a selector or another query, and does not match.
+            Condition::Dark => Self::Exact("@media", "(prefers-color-scheme: dark)"),
+            Condition::Environment(query) => {
+                let (name, params) = query.web_at_rule().split_once(' ')?;
+                Self::Exact(
+                    if name == "@media" {
+                        "@media"
+                    } else {
+                        return None;
+                    },
+                    params,
+                )
+            }
+            Condition::Responsive(_) => Self::Width {
+                container: false,
+                name: None,
+                at_least: true,
+            },
+            Condition::Width { at_least, .. } => Self::Width {
+                container: false,
+                name: None,
+                at_least: *at_least,
+            },
+            Condition::Container { name, at_least, .. } => Self::Width {
+                container: true,
+                name: name.as_deref(),
+                at_least: *at_least,
+            },
+            Condition::Supports(_) => Self::Supports,
+            _ => return None,
+        })
+    }
+
+    fn matches(self, name: &str, params: &str) -> bool {
+        match self {
+            Self::Exact(expected, query) => name == expected && params == query,
+            Self::Width {
+                container,
+                name: label,
+                at_least,
+            } => {
+                let params = match (container, label) {
+                    (false, _) if name == "@media" => params,
+                    (true, None) if name == "@container" => params,
+                    (true, Some(label)) if name == "@container" => {
+                        let Some(rest) = params.strip_prefix(label) else {
+                            return false;
+                        };
+                        let Some(rest) = rest.strip_prefix(' ') else {
+                            return false;
+                        };
+                        rest
+                    }
+                    _ => return false,
+                };
+                params.starts_with(if at_least { "(width >= " } else { "(width < " })
+            }
+            Self::Supports => name == "@supports",
+        }
+    }
+}
+
+/// Every wrapper on the rule's single chain is one of the write's queries,
+/// and every query is used once. Assessment already refused branching.
+fn same_queries(shape: &crate::OrderRuleShape, queries: &[Query<'_>]) -> bool {
+    let mut used = 0_u64;
+    let mut found = 0;
+    let mut node = shape;
+    loop {
+        let nodes = match node {
+            crate::OrderRuleShape::Rule { nodes, .. } => nodes,
+            crate::OrderRuleShape::AtRule {
+                name,
+                params,
+                nodes,
+            } => {
+                let Some(index) = (0..queries.len().min(64)).find(|&index| {
+                    used & (1 << index) == 0 && queries[index].matches(name, params)
+                }) else {
+                    return false;
+                };
+                used |= 1 << index;
+                found += 1;
+                nodes
+            }
+            _ => break,
+        };
+        let mut next = nodes.iter().filter(|node| {
+            matches!(
+                node,
+                crate::OrderRuleShape::Rule { .. } | crate::OrderRuleShape::AtRule { .. }
+            )
+        });
+        match next.next() {
+            Some(child) => node = child,
+            None => break,
+        }
+    }
+    found == queries.len()
 }
 
 pub(super) fn prepare(
@@ -241,7 +375,7 @@ mod tests {
     #[test]
     fn unassessed_rules_missing_rules_and_foreign_descriptors_never_receive_priorities() {
         let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
-        for name in ["sm:p-2", "group-hover:p-2", "[&:where(:hover)]:p-2"] {
+        for name in ["group-hover:p-2", "[&:where(:hover)]:p-2"] {
             let candidate = context.lookup(name).unwrap();
             assert!(context
                 .rule_priority(candidate, candidate.rules[0].id)
@@ -293,5 +427,116 @@ mod tests {
                 &StyleProperty::Gap(crate::Length::Px(8.0))
             )
             .is_none());
+    }
+
+    #[test]
+    fn a_query_ranks_only_when_the_write_asks_the_same_query() {
+        // #1230. `sm:p-2` used to be unassessed, so any input containing
+        // it kept its authored order and `sm:p-2 p-4` let the base win.
+        let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
+        let write = StyleProperty::PaddingTop(crate::Length::Px(8.0));
+        let sm = Condition::Responsive(crate::Breakpoint::Sm);
+        let ranked = context
+            .scalar_write_priority("sm:p-2", &sm, &write)
+            .unwrap();
+        // After both unprefixed utilities, as Tailwind emits it.
+        assert!(rank(&context, "p-4") < ranked.rank);
+        assert!(rank(&context, "p-2") < ranked.rank);
+        // The same question asked by another spelling also matches;
+        // `min-sm:` is `sm:` in the IR.
+        for other in [
+            Condition::Width {
+                at_least: true,
+                value: "640px".into(),
+            },
+            Condition::All(vec![sm.clone()]),
+        ] {
+            assert!(context
+                .scalar_write_priority("sm:p-2", &other, &write)
+                .is_some());
+        }
+        // Anything else does not: no query, the other side, a different
+        // kind of query, a second query, or a guard the rule lacks.
+        for condition in [
+            Condition::Always,
+            Condition::Width {
+                at_least: false,
+                value: "640px".into(),
+            },
+            Condition::Dark,
+            Condition::Container {
+                name: None,
+                at_least: true,
+                value: "24rem".into(),
+            },
+            Condition::Environment(crate::Environment::Print),
+            Condition::All(vec![sm.clone(), sm.clone()]),
+            Condition::All(vec![sm.clone(), Condition::Hover]),
+            Condition::All(vec![sm.clone(), Condition::Focus]),
+        ] {
+            assert!(
+                context
+                    .scalar_write_priority("sm:p-2", &condition, &write)
+                    .is_none(),
+                "{condition:?}"
+            );
+        }
+        // And a query never attaches to a rule that has none.
+        assert!(context.scalar_write_priority("p-2", &sm, &write).is_none());
+    }
+
+    #[test]
+    fn each_query_kind_matches_only_its_own_spelling() {
+        use super::Query;
+        let dark = Condition::Dark;
+        let print = Condition::Environment(crate::Environment::Print);
+        let motion = Condition::Environment(crate::Environment::MotionSafe);
+        let ltr = Condition::Environment(crate::Environment::Ltr);
+        let max = Condition::Width {
+            at_least: false,
+            value: "768px".into(),
+        };
+        let card = Condition::Container {
+            name: Some("card".into()),
+            at_least: true,
+            value: "400px".into(),
+        };
+        let any = Condition::Container {
+            name: None,
+            at_least: false,
+            value: "28rem".into(),
+        };
+        let grid = Condition::Supports("display:grid".into());
+        for (condition, name, params, expected) in [
+            (&dark, "@media", "(prefers-color-scheme: dark)", true),
+            (&dark, "@media", "(prefers-color-scheme: light)", false),
+            (&print, "@media", "print", true),
+            (&print, "@media", "screen", false),
+            (
+                &motion,
+                "@media",
+                "(prefers-reduced-motion: no-preference)",
+                true,
+            ),
+            (&max, "@media", "(width < 48rem)", true),
+            (&max, "@media", "(width >= 48rem)", false),
+            (&max, "@container", "(width < 48rem)", false),
+            (&card, "@container", "card (width >= 400px)", true),
+            (&card, "@container", "(width >= 400px)", false),
+            (&card, "@container", "cards (width >= 400px)", false),
+            (&any, "@container", "(width < 28rem)", true),
+            (&any, "@container", "card (width < 28rem)", false),
+            (&grid, "@supports", "(display:grid)", true),
+            (&grid, "@media", "(display:grid)", false),
+        ] {
+            let query = Query::of(condition).unwrap();
+            assert_eq!(
+                query.matches(name, params),
+                expected,
+                "{condition:?} {params}"
+            );
+        }
+        // Direction is a selector in Tailwind, not a query.
+        assert!(Query::of(&ltr).is_none());
     }
 }

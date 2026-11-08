@@ -573,7 +573,7 @@ test('partial handle evidence requires the same capture and only decorative reso
       disposition: 'prepared-partial',
       preparations: 1,
       stylesheetSites: 1,
-      contextFingerprint: `scalar-order-v8:${'c'.repeat(64)}`,
+      contextFingerprint: `scalar-order-v9:${'c'.repeat(64)}`,
       observations: ['android', 'ios'].map((platform) => ({
         platform,
         hovered: sample(0.5, 0),

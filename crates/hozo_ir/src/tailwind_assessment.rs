@@ -53,7 +53,9 @@ pub struct AssessedTailwindRule<'a> {
     /// no IDs/types; an unknown selector never receives the default [0,1,0].
     pub specificity: [u32; 3],
     pub properties: Vec<&'a str>,
-    pub media: Vec<&'a str>,
+    /// Every query wrapper, as `(name, params)` in nesting order. Ordering
+    /// matches these against the write's own condition before ranking it.
+    pub media: Vec<(&'a str, &'a str)>,
     /// Multiplicity of independently delivered interaction/ARIA predicates.
     /// Guard equivalence only; precedence still comes from the rule.
     pub owner: [u16; OWNER_PREDICATE_COUNT],
@@ -219,12 +221,15 @@ fn assess_body<'a>(
                 result.specificity[1] += 1;
                 assess_body(nodes, result)?;
             }
+            // A query around the rule adds no selector weight. Which query
+            // it is stays recorded, so a write is ranked only when its own
+            // condition asks the same one -- see `scalar_write_priority`.
             OrderRuleShape::AtRule {
                 name,
                 params,
                 nodes,
-            } if name == "@media" && params == "(hover: hover)" => {
-                result.media.push(params);
+            } if matches!(name.as_str(), "@media" | "@container" | "@supports") => {
+                result.media.push((name, params));
                 assess_body(nodes, result)?;
             }
             OrderRuleShape::Comment => {}
@@ -752,6 +757,8 @@ mod tests {
             ("disabled:p-4", 2, 0),
             ("hover:focus:p-4", 3, 1),
             ("hover:p-2!", 2, 1),
+            // A query adds no weight; it is recorded for the write to match.
+            ("sm:p-2", 1, 1),
         ] {
             let candidate = fixture(name);
             assert_eq!(candidate.rules.len(), 1, "{name}");
@@ -762,7 +769,6 @@ mod tests {
         for name in [
             "placeholder:text-red-500",
             "group-hover:p-2",
-            "sm:p-2",
             "[&:where(:hover)]:p-2",
             "[&>span]:p-2",
             "not-hover:p-2",

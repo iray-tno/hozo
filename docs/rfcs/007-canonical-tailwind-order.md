@@ -312,6 +312,11 @@ priority table. The dynamic candidate path needed missing negated-ARIA support;
 its encoded predicate is prepared once against the existing owner fact, keeping
 unknown distinct from false and sharing legacy/ordered missing-fact handling.
 See [negation evidence and isolated cost](../measurements/tailwind-negated-aria-order.md).
+Policy v9 admits rules wrapped in `@media`, `@container` and `@supports` when
+the write's own condition asks exactly those queries. `md:p-4 p-2` and
+`lg:p-8 md:p-4` now settle as Tailwind settles them, in either authored order.
+Direction, custom dark selectors and arbitrary at-rules remain barriers; see
+[query evidence](../measurements/tailwind-query-order.md).
 
 ## 1. Restart, not another family-specific patch
 
