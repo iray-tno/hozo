@@ -541,6 +541,12 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         FlexGrow(_) => "flex-grow",
         FlexShrink(_) => "flex-shrink",
         FlexBasis(_) => "flex-basis",
+        // One `flex` declaration on Web. On Native it projects to `flex` or
+        // to `flexGrow`/`flexShrink`, the same keys `grow-*`/`shrink-*`
+        // write. Yoga lets an explicit `flexGrow` beat `flex` by key and
+        // Tailwind emits `flex-grow` after `flex`, so the two agree; where
+        // the keys coincide (`flex-auto grow-0`), the order decides.
+        Flex(_) => "flex",
         // `Block` is one Native key too: Yoga has no block context, so it
         // projects to `display: 'flex'`, which still has to beat an earlier
         // `display: 'none'` in the same order Tailwind's rules do.
@@ -722,6 +728,8 @@ mod tests {
                 "position",
             ),
             (StyleProperty::Overflow(crate::Overflow::Hidden), "overflow"),
+            (StyleProperty::Flex(crate::FlexShorthand::Grow(1.0)), "flex"),
+            (StyleProperty::Flex(crate::FlexShorthand::None), "flex"),
             (
                 StyleProperty::FlexBasis(crate::Dimension::Auto),
                 "flex-basis",

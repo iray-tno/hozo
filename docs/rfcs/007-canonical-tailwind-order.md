@@ -342,6 +342,9 @@ Policy v16 adds the eleven border colour writes, one declaration each; see
 Policy v17 adds border widths and the style each width rule writes beside
 them; a style utility, which sets `--tw-border-style`, remains a barrier; see
 [border width evidence](../measurements/tailwind-border-width-order.md).
+Policy v18 adds the `flex` shorthand (`flex-1`, `flex-auto`, `flex-initial`,
+`flex-none`), one declaration each; see
+[flex shorthand evidence](../measurements/tailwind-flex-shorthand-order.md).
 
 ## 1. Restart, not another family-specific patch
 
