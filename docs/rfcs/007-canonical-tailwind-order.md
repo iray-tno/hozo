@@ -389,6 +389,9 @@ Policy v30 adds gradient constructors, `bg-none` and each stop's colour and
 position register, and stops reading an `@supports` that only re-declares a
 sibling property as a branch; see
 [gradient evidence](../measurements/tailwind-gradient-order.md).
+Without a policy change, gradient writes under different conditions compose
+through Tailwind's register structure on Web; see
+[conditional gradient evidence](../measurements/conditional-gradient-stops.md).
 
 ## 1. Restart, not another family-specific patch
 

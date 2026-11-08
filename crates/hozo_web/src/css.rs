@@ -647,6 +647,124 @@ fn gradient_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     Some(format!("{}({prelude}, {})", kind.css(), stops.join(", ")))
 }
 
+/// Turn gradient writes into Tailwind's registers when conditions write
+/// different ones. Returns whether it did.
+///
+/// `gradient_value` joins constructor and stops per condition, so
+/// `md:from-red-500 bg-linear-to-r from-blue-500` painted nothing new at md:
+/// the md rule had a colour and no constructor. Tailwind writes the position
+/// and a `background-image` reading `--tw-gradient-stops` from the
+/// constructor, and each colour and position into its own register; this
+/// writes the same structure under `--hozo-` names. `bg-none` keeps its
+/// literal declaration, as Tailwind's does. `via-none`, an arbitrary
+/// `bg-[…]`, or a constructor beside `bg-none` in one condition keeps the
+/// old output for the whole element.
+pub fn register_split_gradients(
+    groups: &mut [(Condition, Vec<StyleProperty>)],
+    theme: &Theme,
+) -> bool {
+    fn slot(p: &StyleProperty) -> u16 {
+        match p {
+            StyleProperty::Gradient(..) => 1,
+            StyleProperty::BackgroundImageNone => 1 << 1,
+            StyleProperty::GradientStopColor(stop, _) => 1 << (2 + *stop as u16),
+            StyleProperty::GradientStopPosition(stop, _) => 1 << (5 + *stop as u16),
+            _ => 0,
+        }
+    }
+    let blocked = groups.iter().any(|(_, props)| {
+        props.iter().any(|p| {
+            matches!(p, StyleProperty::BackgroundImage(_))
+                || matches!(p, StyleProperty::GradientStopColor(_, c) if c.is_initial())
+        }) || props
+            .iter()
+            .filter(|p| {
+                matches!(
+                    p,
+                    StyleProperty::Gradient(..) | StyleProperty::BackgroundImageNone
+                )
+            })
+            .count()
+            > 1
+    });
+    if blocked {
+        return false;
+    }
+    let mut written: Vec<(&Condition, u16)> = Vec::new();
+    for (condition, props) in groups.iter() {
+        let slots = props.iter().fold(0, |slots, p| slots | slot(p));
+        if slots == 0 {
+            continue;
+        }
+        match written.iter_mut().find(|(seen, _)| *seen == condition) {
+            Some((_, seen)) => *seen |= slots,
+            None => written.push((condition, slots)),
+        }
+    }
+    if !written.windows(2).any(|pair| pair[0].1 != pair[1].1) {
+        return false;
+    }
+    let set = |name: &str, value: String| StyleProperty::Arbitrary(format!("--hozo-{name}"), value);
+    const STOPS: &str = "var(--hozo-gradient-via-stops, var(--hozo-gradient-position), \
+         var(--hozo-gradient-from) var(--hozo-gradient-from-position), \
+         var(--hozo-gradient-to) var(--hozo-gradient-to-position))";
+    const VIA_STOPS: &str = "var(--hozo-gradient-position), \
+         var(--hozo-gradient-from) var(--hozo-gradient-from-position), \
+         var(--hozo-gradient-via) var(--hozo-gradient-via-position), \
+         var(--hozo-gradient-to) var(--hozo-gradient-to-position)";
+    for (_, props) in groups.iter_mut() {
+        if !props
+            .iter()
+            .any(|p| slot(p) != 0 && !matches!(p, StyleProperty::BackgroundImageNone))
+        {
+            continue;
+        }
+        let mut rewritten = Vec::with_capacity(props.len() + 2);
+        for property in props.drain(..) {
+            match &property {
+                StyleProperty::Gradient(kind, prelude) => {
+                    rewritten.push(set("gradient-position", prelude.clone()));
+                    rewritten.push(StyleProperty::Arbitrary(
+                        "background-image".to_string(),
+                        format!(
+                            "{}(var(--hozo-gradient-stops, var(--hozo-gradient-position)))",
+                            kind.css()
+                        ),
+                    ));
+                }
+                StyleProperty::GradientStopColor(stop, color) => {
+                    let name = match stop {
+                        GradientStop::From => "gradient-from",
+                        GradientStop::Via => "gradient-via",
+                        GradientStop::To => "gradient-to",
+                    };
+                    rewritten.push(set(name, resolve_theme_color(color, theme)));
+                    if *stop == GradientStop::Via {
+                        rewritten.push(set("gradient-via-stops", VIA_STOPS.to_string()));
+                        rewritten.push(set(
+                            "gradient-stops",
+                            "var(--hozo-gradient-via-stops)".to_string(),
+                        ));
+                    } else {
+                        rewritten.push(set("gradient-stops", STOPS.to_string()));
+                    }
+                }
+                StyleProperty::GradientStopPosition(stop, position) => {
+                    let name = match stop {
+                        GradientStop::From => "gradient-from-position",
+                        GradientStop::Via => "gradient-via-position",
+                        GradientStop::To => "gradient-to-position",
+                    };
+                    rewritten.push(set(name, dimension_value(position, theme)));
+                }
+                _ => rewritten.push(property),
+            }
+        }
+        *props = rewritten;
+    }
+    true
+}
+
 fn is_scroll_snap(prop: &StyleProperty) -> bool {
     matches!(
         prop,
@@ -1002,6 +1120,15 @@ pub fn axis_register_css() -> &'static str {
         ("ring-offset-width", Some("0px")),
         ("ring-offset-color", Some("#fff")),
         ("ring-offset-shadow", Some("0 0 #0000")),
+        ("gradient-position", None),
+        ("gradient-from", Some("#0000")),
+        ("gradient-via", Some("#0000")),
+        ("gradient-to", Some("#0000")),
+        ("gradient-stops", None),
+        ("gradient-via-stops", None),
+        ("gradient-from-position", Some("0%")),
+        ("gradient-via-position", Some("50%")),
+        ("gradient-to-position", Some("100%")),
     ];
     static CSS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     CSS.get_or_init(|| {

@@ -1094,7 +1094,8 @@ fn push_rules_using(
         .collect();
     let axes = css::register_split_axes(&mut groups, theme);
     let shadows = css::register_split_shadows(&mut groups, theme);
-    if (axes || shadows) && !rules.contains(css::axis_register_css()) {
+    let gradients = css::register_split_gradients(&mut groups, theme);
+    if (axes || shadows || gradients) && !rules.contains(css::axis_register_css()) {
         rules.push_str(css::axis_register_css());
     }
     for (condition, props) in groups {
