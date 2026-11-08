@@ -339,6 +339,9 @@ compound, weighing what the compound weighs; named and nested relations remain
 barriers; see [relation evidence](../measurements/tailwind-relation-order.md).
 Policy v16 adds the eleven border colour writes, one declaration each; see
 [border colour evidence](../measurements/tailwind-border-color-order.md).
+Policy v17 adds border widths and the style each width rule writes beside
+them; a style utility, which sets `--tw-border-style`, remains a barrier; see
+[border width evidence](../measurements/tailwind-border-width-order.md).
 
 ## 1. Restart, not another family-specific patch
 

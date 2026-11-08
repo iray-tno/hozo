@@ -6,12 +6,14 @@ use std::ops::Range;
 
 /// Output-cache identity changes when the eligible projection domain changes,
 /// even if the underlying CSS descriptors and comparator are unchanged.
-pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v16";
+pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v17";
 
 /// Shared platform-projection boundary, not a utility order table. Single-key
 /// projections share their ownership definition; padding, margin, gap and
-/// inset also admit their already-assessed shorthand expansion. Registers and
-/// compound text still need separate evidence.
+/// inset also admit their already-assessed shorthand expansion, and a border
+/// width admits the style its rule writes beside it. Registers (a border
+/// style utility's `--tw-border-style`) and compound text still need
+/// separate evidence.
 ///
 /// Logical and physical edges are both admitted. Ranking them cannot change
 /// which one Yoga applies -- `paddingStart` beats `paddingLeft` and
@@ -21,6 +23,7 @@ pub const TAILWIND_SCALAR_ORDER_POLICY: &str = "scalar-order-v16";
 pub fn scalar_tailwind_property(property: &crate::StyleProperty) -> bool {
     use crate::StyleProperty::*;
     crate::tailwind_assessment::scalar_css_property(property).is_some()
+        || crate::tailwind_assessment::border_edge_properties(property).is_some()
         || matches!(
             property,
             PaddingTop(_)

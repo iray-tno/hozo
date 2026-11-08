@@ -390,6 +390,9 @@ pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
     if let Some(expected) = scalar_css_property(write) {
         return property == expected;
     }
+    if let Some(owners) = border_edge_properties(write) {
+        return owners.contains(&property);
+    }
     match write {
         PaddingTop(_) => matches!(property, "padding" | "padding-block" | "padding-top"),
         PaddingBottom(_) => matches!(property, "padding" | "padding-block" | "padding-bottom"),
@@ -422,6 +425,84 @@ pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
         ColumnGap(_) => matches!(property, "gap" | "column-gap"),
         _ => false,
     }
+}
+
+/// The CSS declarations that write a border width, or the style Tailwind
+/// writes beside every width (`border-style: var(--tw-border-style)`).
+///
+/// A width utility's style reads the `--tw-border-style` register, so it is
+/// `solid` unless a style utility sets the register -- which Hozo lowers as a
+/// literal `solid`. That literal is only safe to rank against other width
+/// utilities; a style utility (which declares the register itself) stays
+/// unranked, see `register_bound`. Widths in font-relative units fold
+/// through the font size and are left out, as `font-size` is.
+pub(crate) fn border_edge_properties(write: &StyleProperty) -> Option<[&'static str; 2]> {
+    use crate::Edge;
+    use StyleProperty::*;
+    fn absolute(length: &crate::Length) -> bool {
+        match length {
+            crate::Length::Px(_) | crate::Length::Spacing(_) => true,
+            crate::Length::Unit(_, unit) => unit.px().is_some(),
+            crate::Length::Css(_) => false,
+        }
+    }
+    fn logical(edge: Edge, suffix: &'static str) -> Option<&'static str> {
+        Some(match (edge, suffix) {
+            (Edge::Inline, "width") => "border-inline-width",
+            (Edge::Block, "width") => "border-block-width",
+            (Edge::InlineStart, "width") => "border-inline-start-width",
+            (Edge::InlineEnd, "width") => "border-inline-end-width",
+            (Edge::BlockStart, "width") => "border-block-start-width",
+            (Edge::BlockEnd, "width") => "border-block-end-width",
+            (Edge::Inline, _) => "border-inline-style",
+            (Edge::Block, _) => "border-block-style",
+            (Edge::InlineStart, _) => "border-inline-start-style",
+            (Edge::InlineEnd, _) => "border-inline-end-style",
+            (Edge::BlockStart, _) => "border-block-start-style",
+            (Edge::BlockEnd, _) => "border-block-end-style",
+            _ => return None,
+        })
+    }
+    Some(match write {
+        BorderTopWidth(length) if absolute(length) => ["border-width", "border-top-width"],
+        BorderRightWidth(length) if absolute(length) => ["border-width", "border-right-width"],
+        BorderBottomWidth(length) if absolute(length) => ["border-width", "border-bottom-width"],
+        BorderLeftWidth(length) if absolute(length) => ["border-width", "border-left-width"],
+        BorderTopStyle(_) => ["border-style", "border-top-style"],
+        BorderRightStyle(_) => ["border-style", "border-right-style"],
+        BorderBottomStyle(_) => ["border-style", "border-bottom-style"],
+        BorderLeftStyle(_) => ["border-style", "border-left-style"],
+        BorderLogicalWidth(edge, length) if absolute(length) => {
+            let property = logical(*edge, "width")?;
+            [property, property]
+        }
+        BorderLogicalStyle(edge, _) => {
+            let property = logical(*edge, "style")?;
+            [property, property]
+        }
+        _ => return None,
+    })
+}
+
+/// A border style written by a rule that also sets `--tw-border-style`.
+/// Wherever such a style utility applies, every width utility's style reads
+/// the register and agrees with it, whatever the two rules' order. Hozo's
+/// width utilities write a literal `solid` instead, which ranking would let
+/// override the style utility (`border-dashed md:border-2`), so these writes
+/// stay unranked and keep their input in authored order.
+pub(crate) fn register_bound<'p>(
+    mut properties: impl Iterator<Item = &'p str>,
+    write: &StyleProperty,
+) -> bool {
+    use StyleProperty::*;
+    matches!(
+        write,
+        BorderTopStyle(_)
+            | BorderRightStyle(_)
+            | BorderBottomStyle(_)
+            | BorderLeftStyle(_)
+            | BorderLogicalStyle(..)
+    ) && properties.any(|property| property == "--tw-border-style")
 }
 
 /// Single-key projections with no shorthand/longhand alias, font-relative
@@ -575,6 +656,9 @@ pub fn assess_tailwind_write<'a>(
             // cherry-pick a unique-looking owner from the assessed remainder.
             Err(reason) => return TailwindWriteOwnership::Unknown(reason.reason()),
         };
+        if register_bound(assessment.properties.iter().copied(), write) {
+            return TailwindWriteOwnership::Unknown("register-bound-property");
+        }
         for property in assessment.properties {
             if covers(property, write) {
                 if found.is_some() {
@@ -783,6 +867,70 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn border_widths_and_their_style_rank_but_a_style_register_does_not() {
+        use crate::{BorderStyle, Edge};
+        let px = Length::Px(2.0);
+        let solid = BorderStyle::Solid;
+        for (write, owners) in [
+            (
+                StyleProperty::BorderTopWidth(px.clone()),
+                &["border-width", "border-top-width"][..],
+            ),
+            (
+                StyleProperty::BorderLeftStyle(solid),
+                &["border-style", "border-left-style"],
+            ),
+            (
+                StyleProperty::BorderLogicalWidth(Edge::Inline, px.clone()),
+                &["border-inline-width"],
+            ),
+            (
+                StyleProperty::BorderLogicalStyle(Edge::InlineStart, solid),
+                &["border-inline-start-style"],
+            ),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            for property in [
+                "border-width",
+                "border-top-width",
+                "border-left-width",
+                "border-inline-width",
+                "border-style",
+                "border-left-style",
+                "border-inline-start-style",
+                "border-inline-style",
+                "--tw-border-style",
+            ] {
+                assert_eq!(
+                    covers(property, &write),
+                    owners.contains(&property),
+                    "{write:?} / {property}"
+                );
+            }
+        }
+        // A font-relative width folds through the font size.
+        let em = Length::Css("0.5em".into());
+        assert!(!crate::scalar_tailwind_property(
+            &StyleProperty::BorderTopWidth(em)
+        ));
+        // `border-2` declares the style it reads; `border-dashed` sets the
+        // register every width's style reads.
+        let style = StyleProperty::BorderTopStyle(solid);
+        assert!(!register_bound(
+            ["border-style", "border-width"].into_iter(),
+            &style
+        ));
+        assert!(register_bound(
+            ["--tw-border-style", "border-style"].into_iter(),
+            &style
+        ));
+        assert!(!register_bound(
+            ["--tw-border-style", "border-style"].into_iter(),
+            &StyleProperty::BorderTopWidth(px)
+        ));
     }
 
     fn fixture(name: &str) -> OrderCandidateDescriptor {
