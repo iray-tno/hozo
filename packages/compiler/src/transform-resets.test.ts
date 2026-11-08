@@ -366,3 +366,24 @@ test('conditions that write the same axes keep the plain array and literal decla
 export function C() { return <View className="scale-100 md:scale-95" /> }`)[0]!.css
   assert.doesNotMatch(web, /--hozo-scale/)
 })
+
+// The 3D rotations and skews share one `transform` the same way: a
+// conditional rule joined only its own functions.
+test('3D rotations and skews under different conditions compose on Web and Native', () => {
+  const css = compile(`import { View } from '@hozo/core'
+export function C() { return <View className="md:skew-x-12 skew-y-6" /> }`)[0]!.css
+  assert.match(css, /@property --hozo-skew-x \{[^}]*inherits: false/)
+  assert.match(css, /--hozo-skew-y: skewY\(6deg\);/)
+  assert.match(
+    css,
+    /transform: var\(--hozo-rotate-x,\) var\(--hozo-rotate-y,\) var\(--hozo-rotate-z,\) var\(--hozo-skew-x,\) var\(--hozo-skew-y,\);/,
+  )
+  const compiled = compiledStyle('md:skew-x-12 skew-y-6')
+  assert.deepEqual(flatten(compiled.value()).transform, [{ skewY: '6deg' }])
+  assert.deepEqual(flatten(compiled.value(true)).transform, [{ skewX: '12deg' }, { skewY: '6deg' }])
+  // `transform-none` keeps the literal output it had.
+  const reset = compile(`import { View } from '@hozo/core'
+export function C() { return <View className="md:skew-x-12 skew-y-6 lg:transform-none" /> }`)[0]!
+    .css
+  assert.doesNotMatch(reset, /--hozo-skew/)
+})

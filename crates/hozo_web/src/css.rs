@@ -995,14 +995,40 @@ pub const AXIS_REGISTER_CSS: &str = "@property --hozo-translate-x {
   initial-value: 1;
 }
 
+@property --hozo-rotate-x {
+  syntax: \"*\";
+  inherits: false;
+}
+
+@property --hozo-rotate-y {
+  syntax: \"*\";
+  inherits: false;
+}
+
+@property --hozo-rotate-z {
+  syntax: \"*\";
+  inherits: false;
+}
+
+@property --hozo-skew-x {
+  syntax: \"*\";
+  inherits: false;
+}
+
+@property --hozo-skew-y {
+  syntax: \"*\";
+  inherits: false;
+}
+
 ";
 
-/// Turn translate and scale axes into registers when an element writes them
-/// under more than one condition. Returns whether it did.
+/// Turn transform axes into registers when an element writes them under
+/// more than one condition. Returns whether it did.
 ///
 /// One condition's rule carries the whole joined declaration, so
 /// `md:translate-x-8 translate-y-2` was `translate: 32px 0` at md, dropping
-/// the y axis the base rule wrote, where Tailwind gives `32px 8px`. Tailwind
+/// the y axis the base rule wrote, where Tailwind gives `32px 8px`; and
+/// `md:skew-x-12 skew-y-6` lost the base `skewY` from `transform`. Tailwind
 /// keeps each axis in its own register and reads them all in one
 /// declaration; this does the same, but only where conditions write
 /// different axes, so an element whose axes share one condition keeps its
@@ -1011,15 +1037,20 @@ pub const AXIS_REGISTER_CSS: &str = "@property --hozo-translate-x {
 pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme: &Theme) -> bool {
     struct Family {
         name: &'static str,
-        axes: [&'static str; 3],
+        axes: &'static [&'static str],
         axis: fn(&StyleProperty) -> Option<usize>,
+        value: fn(&StyleProperty, &Theme) -> String,
         blocks: fn(&StyleProperty) -> bool,
+        /// A z-form marker that adds the third axis to the declaration.
         three: fn(&StyleProperty) -> bool,
+        /// Every register is read, an unset one as nothing (`var(--r,)`),
+        /// as Tailwind's `transform` reads its function registers.
+        optional: bool,
     }
     let families = [
         Family {
             name: "translate",
-            axes: [
+            axes: &[
                 "--hozo-translate-x",
                 "--hozo-translate-y",
                 "--hozo-translate-z",
@@ -1030,6 +1061,12 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
                 StyleProperty::TranslateZ(_) => Some(2),
                 _ => None,
             },
+            value: |p, theme| match p {
+                StyleProperty::TranslateX(d)
+                | StyleProperty::TranslateY(d)
+                | StyleProperty::TranslateZ(d) => dimension_value(d, theme),
+                _ => unreachable!(),
+            },
             blocks: |p| {
                 matches!(
                     p,
@@ -1037,18 +1074,63 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
                 )
             },
             three: |p| matches!(p, StyleProperty::TranslateZ(_)),
+            optional: false,
         },
         Family {
             name: "scale",
-            axes: ["--hozo-scale-x", "--hozo-scale-y", "--hozo-scale-z"],
+            axes: &["--hozo-scale-x", "--hozo-scale-y", "--hozo-scale-z"],
             axis: |p| match p {
                 StyleProperty::ScaleX(_) => Some(0),
                 StyleProperty::ScaleY(_) => Some(1),
                 StyleProperty::ScaleZ(_) => Some(2),
                 _ => None,
             },
+            value: |p, _| match p {
+                StyleProperty::ScaleX(s) | StyleProperty::ScaleY(s) | StyleProperty::ScaleZ(s) => {
+                    s.css()
+                }
+                _ => unreachable!(),
+            },
             blocks: |p| matches!(p, StyleProperty::Scale(_) | StyleProperty::ScaleNone),
             three: |p| matches!(p, StyleProperty::Scale3d),
+            optional: false,
+        },
+        Family {
+            name: "transform",
+            axes: &[
+                "--hozo-rotate-x",
+                "--hozo-rotate-y",
+                "--hozo-rotate-z",
+                "--hozo-skew-x",
+                "--hozo-skew-y",
+            ],
+            axis: |p| match p {
+                StyleProperty::RotateX(_) => Some(0),
+                StyleProperty::RotateY(_) => Some(1),
+                StyleProperty::RotateZ(_) => Some(2),
+                StyleProperty::SkewX(_) => Some(3),
+                StyleProperty::SkewY(_) => Some(4),
+                _ => None,
+            },
+            value: |p, _| match p {
+                StyleProperty::RotateX(a) => format!("rotateX({})", a.css()),
+                StyleProperty::RotateY(a) => format!("rotateY({})", a.css()),
+                StyleProperty::RotateZ(a) => format!("rotateZ({})", a.css()),
+                StyleProperty::SkewX(a) => format!("skewX({})", a.css()),
+                StyleProperty::SkewY(a) => format!("skewY({})", a.css()),
+                _ => unreachable!(),
+            },
+            blocks: |p| {
+                matches!(
+                    p,
+                    StyleProperty::Transform(_)
+                        | StyleProperty::TransformNone
+                        | StyleProperty::TransformEmpty
+                        | StyleProperty::TransformGpu
+                )
+            },
+            three: |_| false,
+            optional: true,
         },
     ];
     let mut used = false;
@@ -1078,39 +1160,35 @@ pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme
         if !split || blocked {
             continue;
         }
-        let three = groups
-            .iter()
-            .any(|(_, props)| props.iter().any(|p| (family.three)(p)));
-        let reader = family.axes[..if three { 3 } else { 2 }]
-            .iter()
-            .map(|register| format!("var({register})"))
-            .collect::<Vec<_>>()
-            .join(" ");
+        let reader = if family.optional {
+            family
+                .axes
+                .iter()
+                .map(|register| format!("var({register},)"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        } else {
+            let three = groups
+                .iter()
+                .any(|(_, props)| props.iter().any(|p| (family.three)(p)));
+            family.axes[..if three { 3 } else { 2 }]
+                .iter()
+                .map(|register| format!("var({register})"))
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
         for (_, props) in groups.iter_mut() {
             if !touches(props) {
                 continue;
             }
             let mut rewritten = Vec::with_capacity(props.len() + 1);
             for property in props.drain(..) {
-                if (family.three)(&property) && (family.axis)(&property).is_none() {
-                    continue;
-                }
                 match (family.axis)(&property) {
-                    Some(index) => {
-                        let value = match &property {
-                            StyleProperty::TranslateX(d)
-                            | StyleProperty::TranslateY(d)
-                            | StyleProperty::TranslateZ(d) => dimension_value(d, theme),
-                            StyleProperty::ScaleX(s)
-                            | StyleProperty::ScaleY(s)
-                            | StyleProperty::ScaleZ(s) => s.css(),
-                            _ => unreachable!(),
-                        };
-                        rewritten.push(StyleProperty::Arbitrary(
-                            family.axes[index].to_string(),
-                            value,
-                        ));
-                    }
+                    Some(index) => rewritten.push(StyleProperty::Arbitrary(
+                        family.axes[index].to_string(),
+                        (family.value)(&property, theme),
+                    )),
+                    None if (family.three)(&property) => {}
                     None => rewritten.push(property),
                 }
             }

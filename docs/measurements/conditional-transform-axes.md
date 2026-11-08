@@ -57,3 +57,25 @@ Both orders were wrong identically, before and after ordering (#1806).
   (`[{ translateX: 32 }, { translateY: 8 }]` at md); one-condition and
   same-axis inputs do not import the composer; Web CSS has the registers and
   `@property` only for the split input.
+
+## Skews and 3D rotations
+
+A later layer, above [skew and 3D rotation ordering](tailwind-skew-rotate-axis-order.md),
+adds the third family Tailwind reads in one declaration: `transform`, from
+`--tw-rotate-x/y/z` and `--tw-skew-x/y`. On Web, `md:skew-x-12 skew-y-6`
+joined only `skewX(12deg)` under the query and lost the base `skewY` at md.
+Where conditions write different functions, each becomes a non-inheriting
+`--hozo-rotate-*`/`--hozo-skew-*` register with no initial value, read as
+`var(--hozo-rotate-x,) … var(--hozo-skew-y,)` so an unset one contributes
+nothing, as Tailwind's do. An authored `transform-[…]`, `transform-none`,
+`transform-gpu` or the empty control keeps the old output. Native already
+composed these through the slot composer from the previous layer.
+
+- **Chromium oracle**: 7 inputs (one function under `md:` against another,
+  bare `skew-*`, same function, `md:`/`lg:` together, and a translate pair
+  as control) in both orders, 500/1000px, LTR/RTL, reading computed
+  `transform` and `translate`: **56 of 56 agree**. Before, the three
+  motivating pairs disagreed in 12 of 24.
+- `transform-resets.test.ts`: the Web CSS has the registers and the reader;
+  Native executes to `[{ skewX: '12deg' }, { skewY: '6deg' }]` at md; a
+  `transform-none` input keeps literal output.
