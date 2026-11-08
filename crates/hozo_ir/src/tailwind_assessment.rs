@@ -407,9 +407,23 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         FlexGrow(_) => "flex-grow",
         FlexShrink(_) => "flex-shrink",
         FlexBasis(_) => "flex-basis",
-        Display(crate::Display::Flex | crate::Display::None | crate::Display::Contents) => {
-            "display"
-        }
+        // `Block` is one Native key too: Yoga has no block context, so it
+        // projects to `display: 'flex'`, which still has to beat an earlier
+        // `display: 'none'` in the same order Tailwind's rules do.
+        Display(
+            crate::Display::Flex
+            | crate::Display::None
+            | crate::Display::Contents
+            | crate::Display::Block,
+        ) => "display",
+        // One CSS property and, where Native has it, one Native key each.
+        InsetTop(_) => "top",
+        InsetRight(_) => "right",
+        InsetBottom(_) => "bottom",
+        InsetLeft(_) => "left",
+        AspectRatio(_) => "aspect-ratio",
+        Order(_) => "order",
+        BorderRadius(_) => "border-radius",
         Position(
             crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
         ) => "position",
@@ -579,6 +593,17 @@ mod tests {
             (
                 StyleProperty::Keyword("vertical-align", "middle"),
                 "vertical-align",
+            ),
+            (StyleProperty::Display(crate::Display::Block), "display"),
+            (StyleProperty::InsetTop(crate::Dimension::Auto), "top"),
+            (StyleProperty::InsetRight(crate::Dimension::Auto), "right"),
+            (StyleProperty::InsetBottom(crate::Dimension::Auto), "bottom"),
+            (StyleProperty::InsetLeft(crate::Dimension::Auto), "left"),
+            (StyleProperty::AspectRatio("16 / 9"), "aspect-ratio"),
+            (StyleProperty::Order(1), "order"),
+            (
+                StyleProperty::BorderRadius(crate::Radius::Full),
+                "border-radius",
             ),
         ] {
             assert_eq!(scalar_css_property(&write), Some(property));

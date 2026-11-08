@@ -322,6 +322,9 @@ closed set of selector shapes: one pseudo-class, an `nth` form, one `data-`
 attribute, `open:`/`inert:` and direction. Relations, pseudo-elements and
 arbitrary selectors remain barriers; see
 [selector evidence](../measurements/tailwind-selector-order.md).
+Policy v11 adds seven one-property writes: `display: block`, the physical
+insets, `aspect-ratio`, `order` and the all-corner radius; see
+[direct property evidence](../measurements/tailwind-direct-property-order.md).
 
 ## 1. Restart, not another family-specific patch
 
