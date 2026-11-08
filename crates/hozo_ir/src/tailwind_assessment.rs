@@ -681,6 +681,20 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // so both are refused there as before; the gain is the Web cascade.
         Columns(_) => "columns",
         TextUnderlineOffset(_) => "text-underline-offset",
+        // `rotate-*` writes `rotate` itself. Each translate and scale axis
+        // writes its own register, which one `translate`/`scale` declaration
+        // reads; that declaration is in every axis rule, so the register is
+        // what decides which rule owns the axis. Hozo holds each axis as its
+        // own write and joins them at emit time, on Native into one
+        // `transform` in a fixed function order, so ranking only decides
+        // which value each axis keeps.
+        Rotate(_) => "rotate",
+        TranslateX(_) => "--tw-translate-x",
+        TranslateY(_) => "--tw-translate-y",
+        TranslateZ(_) => "--tw-translate-z",
+        ScaleX(_) => "--tw-scale-x",
+        ScaleY(_) => "--tw-scale-y",
+        ScaleZ(_) => "--tw-scale-z",
         _ => return None,
     })
 }
@@ -1046,6 +1060,32 @@ mod tests {
             ["--tw-border-style", "outline-style"].into_iter(),
             &style
         ));
+    }
+
+    #[test]
+    fn each_transform_axis_owns_its_register_not_the_shared_declaration() {
+        let x = crate::Dimension::Length(Length::Px(8.0));
+        let half = crate::Scale::Percent(50.0);
+        for (write, register) in [
+            (StyleProperty::TranslateX(x.clone()), "--tw-translate-x"),
+            (StyleProperty::TranslateY(x.clone()), "--tw-translate-y"),
+            (StyleProperty::ScaleX(half.clone()), "--tw-scale-x"),
+            (StyleProperty::ScaleZ(half.clone()), "--tw-scale-z"),
+            (StyleProperty::Rotate(crate::Angle::Deg(45.0)), "rotate"),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(register, &write), "{write:?}");
+            // Every axis rule also declares the shared `translate`/`scale`;
+            // owning it would make `translate-4` ambiguous between its axes.
+            assert!(!covers("translate", &write), "{write:?}");
+            assert!(!covers("scale", &write), "{write:?}");
+        }
+        // Skews and 3D rotations compose into `transform` with other
+        // registers and stay barriers.
+        assert!(!crate::scalar_tailwind_property(&StyleProperty::SkewX(
+            crate::Angle::Deg(12.0)
+        )));
+        assert!(!crate::scalar_tailwind_property(&StyleProperty::Scale3d));
     }
 
     fn fixture(name: &str) -> OrderCandidateDescriptor {

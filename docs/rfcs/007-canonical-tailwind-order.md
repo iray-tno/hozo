@@ -363,6 +363,10 @@ arm; see [text alignment evidence](../measurements/tailwind-text-align-order.md)
 Policy v25 adds `columns` and `text-underline-offset`; arbitrary passthrough
 writes remain barriers; see
 [columns and underline offset evidence](../measurements/tailwind-columns-underline-offset-order.md).
+Policy v26 adds `rotate` and each translate and scale axis, owning its own
+register rather than the shared declaration that reads it; skews and 3D
+rotations remain barriers; see
+[transform axis evidence](../measurements/tailwind-transform-axis-order.md).
 
 ## 1. Restart, not another family-specific patch
 
