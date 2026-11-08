@@ -367,6 +367,9 @@ Policy v26 adds `rotate` and each translate and scale axis, owning its own
 register rather than the shared declaration that reads it; skews and 3D
 rotations remain barriers; see
 [transform axis evidence](../measurements/tailwind-transform-axis-order.md).
+Without a policy change, translate and scale axes written under different
+conditions compose through registers on Web and transform slots on Native;
+see [conditional axis evidence](../measurements/conditional-transform-axes.md).
 
 ## 1. Restart, not another family-specific patch
 

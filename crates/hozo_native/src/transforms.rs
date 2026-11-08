@@ -18,6 +18,55 @@ pub(crate) fn is_control(property: &StyleProperty) -> bool {
     is_reset(property) || matches!(property, StyleProperty::TransformEmpty)
 }
 
+/// The transform slots a write fills, as bits.
+fn slots(property: &StyleProperty) -> u32 {
+    match property {
+        StyleProperty::TranslateX(_) => 1,
+        StyleProperty::TranslateY(_) => 1 << 1,
+        StyleProperty::TranslateZ(_) => 1 << 2,
+        StyleProperty::Translate(_) => 0b111,
+        StyleProperty::ScaleX(_) => 1 << 3,
+        StyleProperty::ScaleY(_) => 1 << 4,
+        StyleProperty::ScaleZ(_) | StyleProperty::Scale3d => 1 << 5,
+        StyleProperty::Scale(_) => 0b111 << 3,
+        StyleProperty::Rotate(_) => 1 << 6,
+        StyleProperty::RotateX(_) => 1 << 7,
+        StyleProperty::RotateY(_) => 1 << 8,
+        StyleProperty::RotateZ(_) => 1 << 9,
+        StyleProperty::SkewX(_) => 1 << 10,
+        StyleProperty::SkewY(_) => 1 << 11,
+        StyleProperty::Transform(_) => 0b11111 << 7,
+        _ => 0,
+    }
+}
+
+/// Whether two conditions write different transform slots.
+///
+/// Each condition's style object carries a whole `transform` array, and RN
+/// lets the later array replace the earlier one. CSS keeps every slot in its
+/// own property or register instead: `md:translate-x-8 translate-y-2` is
+/// `32px 8px` at md, where the md array alone is `[{ translateX: 32 }]`, and
+/// `md:rotate-45 translate-x-2` keeps the translate. Slots compose them at
+/// runtime. Conditions that all write the same slots (`scale-100
+/// active:scale-95`) replace each other exactly as CSS does, and keep the
+/// plain array.
+pub(crate) fn split_across_conditions<'a>(
+    declarations: impl IntoIterator<Item = (&'a StyleProperty, &'a hozo_ir::Condition)>,
+) -> bool {
+    let mut written: Vec<(&hozo_ir::Condition, u32)> = Vec::new();
+    for (property, condition) in declarations {
+        let bits = slots(property);
+        if bits == 0 {
+            continue;
+        }
+        match written.iter_mut().find(|(seen, _)| *seen == condition) {
+            Some((_, slots)) => *slots |= bits,
+            None => written.push((condition, bits)),
+        }
+    }
+    written.windows(2).any(|pair| pair[0].1 != pair[1].1)
+}
+
 fn array(props: Vec<StyleProperty>, theme: &Theme) -> String {
     style::transform_entry(&props, theme).map_or_else(|| "[]".into(), |(_, value)| value)
 }

@@ -954,6 +954,177 @@ fn translate_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     })
 }
 
+/// The `@property` rules [`register_split_axes`] relies on.
+///
+/// Non-inheriting, as Tailwind declares its own `--tw-translate-*` and
+/// `--tw-scale-*`: an ancestor's axis must not reach a child that writes
+/// the other one. The initial values are what an unwritten axis means.
+pub const AXIS_REGISTER_CSS: &str = "@property --hozo-translate-x {
+  syntax: \"*\";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --hozo-translate-y {
+  syntax: \"*\";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --hozo-translate-z {
+  syntax: \"*\";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --hozo-scale-x {
+  syntax: \"*\";
+  inherits: false;
+  initial-value: 1;
+}
+
+@property --hozo-scale-y {
+  syntax: \"*\";
+  inherits: false;
+  initial-value: 1;
+}
+
+@property --hozo-scale-z {
+  syntax: \"*\";
+  inherits: false;
+  initial-value: 1;
+}
+
+";
+
+/// Turn translate and scale axes into registers when an element writes them
+/// under more than one condition. Returns whether it did.
+///
+/// One condition's rule carries the whole joined declaration, so
+/// `md:translate-x-8 translate-y-2` was `translate: 32px 0` at md, dropping
+/// the y axis the base rule wrote, where Tailwind gives `32px 8px`. Tailwind
+/// keeps each axis in its own register and reads them all in one
+/// declaration; this does the same, but only where conditions write
+/// different axes, so an element whose axes share one condition keeps its
+/// literal `translate: 16px 8px`, and `scale-100 hover:scale-95` its two. A family with an authored whole value or a reset
+/// (`translate-[…]`, `translate-none`) is left as it was.
+pub fn register_split_axes(groups: &mut [(Condition, Vec<StyleProperty>)], theme: &Theme) -> bool {
+    struct Family {
+        name: &'static str,
+        axes: [&'static str; 3],
+        axis: fn(&StyleProperty) -> Option<usize>,
+        blocks: fn(&StyleProperty) -> bool,
+        three: fn(&StyleProperty) -> bool,
+    }
+    let families = [
+        Family {
+            name: "translate",
+            axes: [
+                "--hozo-translate-x",
+                "--hozo-translate-y",
+                "--hozo-translate-z",
+            ],
+            axis: |p| match p {
+                StyleProperty::TranslateX(_) => Some(0),
+                StyleProperty::TranslateY(_) => Some(1),
+                StyleProperty::TranslateZ(_) => Some(2),
+                _ => None,
+            },
+            blocks: |p| {
+                matches!(
+                    p,
+                    StyleProperty::Translate(_) | StyleProperty::TranslateNone
+                )
+            },
+            three: |p| matches!(p, StyleProperty::TranslateZ(_)),
+        },
+        Family {
+            name: "scale",
+            axes: ["--hozo-scale-x", "--hozo-scale-y", "--hozo-scale-z"],
+            axis: |p| match p {
+                StyleProperty::ScaleX(_) => Some(0),
+                StyleProperty::ScaleY(_) => Some(1),
+                StyleProperty::ScaleZ(_) => Some(2),
+                _ => None,
+            },
+            blocks: |p| matches!(p, StyleProperty::Scale(_) | StyleProperty::ScaleNone),
+            three: |p| matches!(p, StyleProperty::Scale3d),
+        },
+    ];
+    let mut used = false;
+    for family in &families {
+        let touches = |props: &[StyleProperty]| {
+            props
+                .iter()
+                .any(|p| (family.axis)(p).is_some() || (family.three)(p) || (family.blocks)(p))
+        };
+        // Conditions that write the same axes replace each other exactly as
+        // Tailwind's registers do, so only differing axis sets need them.
+        let mut written: Vec<(&Condition, u8)> = Vec::new();
+        for (condition, props) in groups.iter().filter(|(_, props)| touches(props)) {
+            let axes = props.iter().fold(0u8, |axes, p| {
+                axes | (family.axis)(p).map_or(0, |index| 1 << index)
+                    | if (family.three)(p) { 1 << 2 } else { 0 }
+            });
+            match written.iter_mut().find(|(seen, _)| *seen == condition) {
+                Some((_, seen)) => *seen |= axes,
+                None => written.push((condition, axes)),
+            }
+        }
+        let split = written.windows(2).any(|pair| pair[0].1 != pair[1].1);
+        let blocked = groups
+            .iter()
+            .any(|(_, props)| props.iter().any(|p| (family.blocks)(p)));
+        if !split || blocked {
+            continue;
+        }
+        let three = groups
+            .iter()
+            .any(|(_, props)| props.iter().any(|p| (family.three)(p)));
+        let reader = family.axes[..if three { 3 } else { 2 }]
+            .iter()
+            .map(|register| format!("var({register})"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        for (_, props) in groups.iter_mut() {
+            if !touches(props) {
+                continue;
+            }
+            let mut rewritten = Vec::with_capacity(props.len() + 1);
+            for property in props.drain(..) {
+                if (family.three)(&property) && (family.axis)(&property).is_none() {
+                    continue;
+                }
+                match (family.axis)(&property) {
+                    Some(index) => {
+                        let value = match &property {
+                            StyleProperty::TranslateX(d)
+                            | StyleProperty::TranslateY(d)
+                            | StyleProperty::TranslateZ(d) => dimension_value(d, theme),
+                            StyleProperty::ScaleX(s)
+                            | StyleProperty::ScaleY(s)
+                            | StyleProperty::ScaleZ(s) => s.css(),
+                            _ => unreachable!(),
+                        };
+                        rewritten.push(StyleProperty::Arbitrary(
+                            family.axes[index].to_string(),
+                            value,
+                        ));
+                    }
+                    None => rewritten.push(property),
+                }
+            }
+            rewritten.push(StyleProperty::Arbitrary(
+                family.name.to_string(),
+                reader.clone(),
+            ));
+            *props = rewritten;
+        }
+        used = true;
+    }
+    used
+}
+
 /// `border-spacing` takes a horizontal and a vertical value in one
 /// declaration, so the two axes compose. An unset axis is `0`, matching
 /// what Tailwind writes for `border-spacing-x-*`.

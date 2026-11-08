@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
-import { compileNative, openCandidateCache } from './index.ts'
+import { compile, compileNative, openCandidateCache } from './index.ts'
 import { generatedRuntimeImports } from './lower.ts'
 
 // Execute the emitted style expression, not just the presence of a helper
@@ -312,4 +312,57 @@ export function C({ classes }) { return <Pressable accessibilityRole="button" cl
     { scaleX: 0.95 },
     { scaleY: 0.95 },
   ])
+})
+
+// #1230. Each condition's style object carried a whole `transform` array, so
+// `md:translate-x-8 translate-y-2` was `[{ translateX: 32 }]` at md, dropping
+// the base y axis Tailwind keeps in its own register.
+test('compiled axes written under different conditions compose instead of replacing each other', () => {
+  for (const [classes, off, on] of [
+    [
+      'md:translate-x-8 translate-y-2',
+      [{ translateY: 8 }],
+      [{ translateX: 32 }, { translateY: 8 }],
+    ],
+    [
+      'translate-y-2 md:translate-x-8',
+      [{ translateY: 8 }],
+      [{ translateX: 32 }, { translateY: 8 }],
+    ],
+    ['md:scale-x-50 scale-y-75', [{ scaleY: 0.75 }], [{ scaleX: 0.5 }, { scaleY: 0.75 }]],
+    ['md:rotate-45 translate-x-2', [{ translateX: 8 }], [{ translateX: 8 }, { rotate: '45deg' }]],
+  ] as const) {
+    const compiled = compiledStyle(classes)
+    assert.match(compiled.result.jsx, /hozoTransformStyles\(/, classes)
+    assert.deepEqual(flatten(compiled.value()).transform, off, classes)
+    assert.deepEqual(flatten(compiled.value(true)).transform, on, classes)
+  }
+})
+
+test('axes under one condition keep the plain style array', () => {
+  const compiled = compiledStyle('translate-x-8 translate-y-2 rotate-45')
+  assert.doesNotMatch(compiled.result.jsx, /hozoTransformStyles/)
+})
+
+test('Web keeps each axis in a register when the axes sit under different conditions', () => {
+  const css = (classes: string) =>
+    compile(`import { View } from '@hozo/core'
+export function C() { return <View className="${classes}" /> }`)[0]!.css
+  const split = css('md:translate-x-8 translate-y-2')
+  assert.match(split, /@property --hozo-translate-x \{[^}]*inherits: false/)
+  assert.match(split, /--hozo-translate-y: 8px;/)
+  assert.match(split, /@media[^{]*\{\s*\.[\w-]+ \{[^}]*--hozo-translate-x: 32px;/)
+  assert.match(split, /translate: var\(--hozo-translate-x\) var\(--hozo-translate-y\);/)
+  // One condition keeps the literal declaration and no registers.
+  const plain = css('translate-x-8 translate-y-2')
+  assert.match(plain, /translate: 32px 8px;/)
+  assert.doesNotMatch(plain, /--hozo-translate/)
+})
+
+test('conditions that write the same axes keep the plain array and literal declarations', () => {
+  const compiled = compiledStyle('scale-100 md:scale-95 translate-x-2 md:translate-x-4')
+  assert.doesNotMatch(compiled.result.jsx, /hozoTransformStyles/)
+  const web = compile(`import { View } from '@hozo/core'
+export function C() { return <View className="scale-100 md:scale-95" /> }`)[0]!.css
+  assert.doesNotMatch(web, /--hozo-scale/)
 })
