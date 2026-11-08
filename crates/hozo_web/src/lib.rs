@@ -1092,7 +1092,9 @@ fn push_rules_using(
         .into_iter()
         .map(|(condition, props)| (condition, hozo_ir::dedupe_last_wins(props)))
         .collect();
-    if css::register_split_axes(&mut groups, theme) && !rules.contains(css::axis_register_css()) {
+    let axes = css::register_split_axes(&mut groups, theme);
+    let shadows = css::register_split_shadows(&mut groups, theme);
+    if (axes || shadows) && !rules.contains(css::axis_register_css()) {
         rules.push_str(css::axis_register_css());
     }
     for (condition, props) in groups {

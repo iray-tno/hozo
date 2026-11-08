@@ -382,6 +382,9 @@ conditions compose through registers on Web; see
 Policy v29 adds every shadow and ring layer, colour, the offset width and
 `ring-inset`, each owning its register rather than `box-shadow`; see
 [shadow and ring evidence](../measurements/tailwind-shadow-ring-order.md).
+Without a policy change, shadow and ring writes under different conditions
+compose through Tailwind's register structure on Web; see
+[conditional shadow evidence](../measurements/conditional-shadow-layers.md).
 
 ## 1. Restart, not another family-specific patch
 
