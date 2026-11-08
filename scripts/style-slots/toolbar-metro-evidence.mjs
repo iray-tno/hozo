@@ -15,7 +15,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
   try {
     assert.match(sourceCommit, /^[a-f0-9]{40}$/)
     assert.match(manifestSha256, hash)
-    assert.equal(receipt?.schema, 5)
+    assert.equal(receipt?.schema, 6)
     assert.equal(receipt.scope, toolbarMetroScope)
     assert.equal(receipt.sourceCommit, sourceCommit)
     assert.equal(receipt.manifestSha256, manifestSha256)
@@ -37,6 +37,14 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
         style: { paddingTop: 14, paddingRight: 14, paddingBottom: 14, paddingLeft: 14 },
         dataLength: 1,
         authorDeferred: true,
+        classNameLeaked: false,
+      })
+      assert.deepEqual(row.groupedControl, {
+        host: 'FlatList',
+        style: { paddingTop: 84, paddingRight: 42, paddingBottom: 14, paddingLeft: 14 },
+        dataLength: 1,
+        authorDeferred: true,
+        evaluationOrder: ['before', 'callback', 'after'],
         classNameLeaked: false,
       })
       assert.deepEqual(row.ordinaryPrimitive, {
@@ -62,6 +70,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       )
       assert.deepEqual(Object.keys(row.routes).sort(), [
         'alias',
+        'groupedRenderItem',
         'literal',
         'nested',
         'opaque',
@@ -74,7 +83,7 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
           {
             carrierSupplied:
               row.mode === 'toolbar-opt-in' &&
-              ['literal', 'alias', 'nested', 'renderItem'].includes(route),
+              ['literal', 'alias', 'nested', 'renderItem', 'groupedRenderItem'].includes(route),
             style: {
               paddingTop: 21,
               paddingRight: 14,
@@ -100,11 +109,12 @@ export function assessToolbarMetroEvidence(receipt, sourceCommit, manifestSha256
       ...base,
       passed: true,
       builds: 8,
-      observations: 48,
-      prepared: 8,
-      ordinary: 40,
+      observations: 56,
+      prepared: 10,
+      ordinary: 46,
       primitiveControls: 8,
       listControls: 8,
+      groupedControls: 8,
     }
   } catch (error) {
     return { ...base, passed: false, reason: error.message }
