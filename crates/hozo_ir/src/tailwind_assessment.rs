@@ -661,6 +661,10 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         Keyword("pointer-events", "auto" | "none") => "pointer-events",
         Keyword("user-select", "auto" | "text" | "none" | "all") => "user-select",
         Keyword("vertical-align", "auto" | "top" | "bottom" | "middle") => "vertical-align",
+        // One declaration and, where Native has it, one key each. A cursor
+        // Native lacks is refused there, as an unsupported display is.
+        Cursor(_) => "cursor",
+        ObjectFit(_) => "object-fit",
         _ => return None,
     })
 }
@@ -745,6 +749,8 @@ mod tests {
             (StyleProperty::Overflow(crate::Overflow::Hidden), "overflow"),
             (StyleProperty::Flex(crate::FlexShorthand::Grow(1.0)), "flex"),
             (StyleProperty::Flex(crate::FlexShorthand::None), "flex"),
+            (StyleProperty::Cursor("pointer".into()), "cursor"),
+            (StyleProperty::ObjectFit("cover"), "object-fit"),
             (
                 StyleProperty::FlexBasis(crate::Dimension::Auto),
                 "flex-basis",

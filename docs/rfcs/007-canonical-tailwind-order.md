@@ -348,6 +348,8 @@ Policy v18 adds the `flex` shorthand (`flex-1`, `flex-auto`, `flex-initial`,
 Policy v19 adds outline widths, colours and offsets; an outline style utility,
 which sets `--tw-outline-style`, remains a barrier; see
 [outline evidence](../measurements/tailwind-outline-order.md).
+Policy v20 adds `cursor` and `object-fit`, one declaration each; see
+[cursor and object fit evidence](../measurements/tailwind-cursor-object-fit-order.md).
 
 ## 1. Restart, not another family-specific patch
 
