@@ -27,7 +27,8 @@ Not added, and why:
 - `inset-x-*` and the logical insets: `inset-inline` is a logical alias,
   the same open question as `px-*` and `gap-*` (see the gap alias boundary).
 - Per-corner radii: Native's `borderTopLeftRadius` beats `borderRadius`
-  whatever the order, which is not CSS's rule.
+  whatever the order, which is not CSS's rule. Added later as
+  [corner radii](tailwind-corner-radius-order.md).
 - `InlineFlex`: two Native keys.
 - Border width and style, shadows, rings, transforms, transitions, filters
   and `grid-cols`: several declarations or registers per utility.

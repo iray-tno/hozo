@@ -332,6 +332,8 @@ moves same-key writes and the Web cascade; see
 Policy v13 adds gaps. Ranking stays inside one class input, so the authored
 style composition in the gap alias boundary is unchanged; see
 [gap evidence](../measurements/tailwind-gap-order.md).
+Policy v14 adds the eight corner radii, each one declaration and one Native
+key; see [corner evidence](../measurements/tailwind-corner-radius-order.md).
 
 ## 1. Restart, not another family-specific patch
 

@@ -439,6 +439,17 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         AspectRatio(_) => "aspect-ratio",
         Order(_) => "order",
         BorderRadius(_) => "border-radius",
+        // Each corner is its own declaration in Tailwind and its own key on
+        // Native. Yoga lets a corner beat `borderRadius` by key, and Tailwind
+        // emits every corner after `border-radius`, so the two agree.
+        BorderTopLeftRadius(_) => "border-top-left-radius",
+        BorderTopRightRadius(_) => "border-top-right-radius",
+        BorderBottomRightRadius(_) => "border-bottom-right-radius",
+        BorderBottomLeftRadius(_) => "border-bottom-left-radius",
+        BorderStartStartRadius(_) => "border-start-start-radius",
+        BorderStartEndRadius(_) => "border-start-end-radius",
+        BorderEndStartRadius(_) => "border-end-start-radius",
+        BorderEndEndRadius(_) => "border-end-end-radius",
         Position(
             crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
         ) => "position",
@@ -619,6 +630,14 @@ mod tests {
             (
                 StyleProperty::BorderRadius(crate::Radius::Full),
                 "border-radius",
+            ),
+            (
+                StyleProperty::BorderTopLeftRadius(crate::Radius::Full),
+                "border-top-left-radius",
+            ),
+            (
+                StyleProperty::BorderEndStartRadius(crate::Radius::Full),
+                "border-end-start-radius",
             ),
         ] {
             assert_eq!(scalar_css_property(&write), Some(property));
