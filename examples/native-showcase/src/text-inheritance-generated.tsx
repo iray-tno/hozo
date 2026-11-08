@@ -51,7 +51,7 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        '4498d8f00c37a8314e9a7000a66b3d0a109c9d6364d9f4a4f3bc4a367ab57cf7',
+        'dea3ccb3562c415c658dd038249f51a2be08f397a3b26747c81d6f0c6edebe06',
       'packages/metro/src/transform.ts':
         '85bffa328dcf0320248f92e7baffbba774e1a4b6bffd99414bc7e918da570106',
       'packages/metro/src/native-source-evidence.ts':
@@ -123,9 +123,9 @@ export const textFixtureManifest = {
       'crates/hozo_ir/src/tailwind_order/priority.rs':
         '5d6552deac4e79de80758a0703a148aa93db3efb079efef212d2b0d1d87110c7',
       'crates/hozo_ir/src/tailwind_plan.rs':
-        '3360be52298034f82a81e31a74b1b1e1bcebba03b9c134660f8725ce517e94b3',
+        '3f1bedba714baf4336344729815e98451541b3fdb41c644c7bbaf1fb50f2f53f',
       'crates/hozo_ir/src/tailwind_assessment.rs':
-        'e50599180ab9e6c242f5ee4a063ab9c2f182be4a67708313863a60864f8e7127',
+        '777cae39f4fa9273dfd89432f6507a0d2a9dfda5f104116fa446879048aad32d',
       'crates/hozo_ir/src/tailwind_portable.rs':
         '5f96e73ecaf5edb6c67737bea38666b04f83c7d1c5b5c53ca3b35c5d3d7224a0',
     },

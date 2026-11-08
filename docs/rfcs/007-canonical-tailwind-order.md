@@ -325,6 +325,10 @@ arbitrary selectors remain barriers; see
 Policy v11 adds seven one-property writes: `display: block`, the physical
 insets, `aspect-ratio`, `order` and the all-corner radius; see
 [direct property evidence](../measurements/tailwind-direct-property-order.md).
+Policy v12 adds the logical padding and margin edges and every inset. Yoga
+chooses between logical and physical keys by key, not order, so ranking only
+moves same-key writes and the Web cascade; see
+[logical edge evidence](../measurements/tailwind-logical-property-order.md).
 
 ## 1. Restart, not another family-specific patch
 

@@ -339,10 +339,19 @@ pub enum TailwindWriteOwnership<'a> {
 /// It is not a property-order table. Shorthand/axis ownership does not prove
 /// that Yoga and CSS resolve logical/physical conflicts in the same way.
 pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
+    use StyleProperty::*;
+    // `inset-2` writes all four physical edges from one `inset` declaration.
+    // Each edge is still one Native key, so it stays a scalar projection.
+    match write {
+        InsetTop(_) => return matches!(property, "inset" | "top"),
+        InsetRight(_) => return matches!(property, "inset" | "right"),
+        InsetBottom(_) => return matches!(property, "inset" | "bottom"),
+        InsetLeft(_) => return matches!(property, "inset" | "left"),
+        _ => {}
+    }
     if let Some(expected) = scalar_css_property(write) {
         return property == expected;
     }
-    use StyleProperty::*;
     match write {
         PaddingTop(_) => matches!(property, "padding" | "padding-block" | "padding-top"),
         PaddingBottom(_) => matches!(property, "padding" | "padding-block" | "padding-bottom"),
@@ -364,6 +373,12 @@ pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
             matches!(property, "margin" | "margin-inline" | "margin-inline-start")
         }
         MarginInlineEnd(_) => matches!(property, "margin" | "margin-inline" | "margin-inline-end"),
+        InsetInline(_) => property == "inset-inline",
+        InsetInlineStart(_) => property == "inset-inline-start",
+        InsetInlineEnd(_) => property == "inset-inline-end",
+        InsetBlock(_) => property == "inset-block",
+        InsetBlockStart(_) => property == "inset-block-start",
+        InsetBlockEnd(_) => property == "inset-block-end",
         Gap(_) => property == "gap",
         RowGap(_) => matches!(property, "gap" | "row-gap"),
         ColumnGap(_) => matches!(property, "gap" | "column-gap"),
@@ -634,6 +649,57 @@ mod tests {
         ] {
             assert_eq!(scalar_css_property(&write), None);
             assert!(!crate::scalar_tailwind_property(&write));
+        }
+    }
+
+    #[test]
+    fn axis_and_logical_writes_own_their_shorthands_and_nothing_else() {
+        let px = Length::Px(8.0);
+        let edge = crate::Dimension::Length(px.clone());
+        for (write, owners) in [
+            (
+                StyleProperty::PaddingInlineStart(px.clone()),
+                &["padding", "padding-inline", "padding-inline-start"][..],
+            ),
+            (
+                StyleProperty::MarginInlineEnd(edge.clone()),
+                &["margin", "margin-inline", "margin-inline-end"],
+            ),
+            (StyleProperty::InsetTop(edge.clone()), &["inset", "top"]),
+            (StyleProperty::InsetLeft(edge.clone()), &["inset", "left"]),
+            (StyleProperty::InsetInline(edge.clone()), &["inset-inline"]),
+            (
+                StyleProperty::InsetInlineStart(edge.clone()),
+                &["inset-inline-start"],
+            ),
+            (StyleProperty::InsetBlockEnd(edge), &["inset-block-end"]),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            for property in [
+                "padding",
+                "padding-inline",
+                "padding-inline-start",
+                "padding-left",
+                "margin",
+                "margin-inline",
+                "margin-inline-end",
+                "gap",
+                "column-gap",
+                "row-gap",
+                "inset",
+                "inset-inline",
+                "inset-inline-start",
+                "inset-block",
+                "inset-block-end",
+                "top",
+                "left",
+            ] {
+                assert_eq!(
+                    covers(property, &write),
+                    owners.contains(&property),
+                    "{write:?} / {property}"
+                );
+            }
         }
     }
 

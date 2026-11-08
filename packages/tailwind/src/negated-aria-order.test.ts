@@ -33,7 +33,7 @@ test('negated boolean ARIA retains original order and polarity in static and dyn
   const cache = openCandidateCache()
   cache.scanFile('negative.ts', JSON.stringify(names.join(' ')), 0)
   const plan = cache.renderNativeModulePlan(context)
-  assert.match(plan.fingerprint, /^scalar-order-v11:/)
+  assert.match(plan.fingerprint, /^scalar-order-v12:/)
   for (const entry of plan.entries) {
     assert.ok(entry.groups.length > 0, entry.candidate)
     assert.ok(
