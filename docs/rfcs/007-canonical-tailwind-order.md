@@ -353,6 +353,16 @@ Policy v20 adds `cursor` and `object-fit`, one declaration each; see
 Policy v21 adds `inline-flex` to the display arm; Native's synthetic
 `alignSelf` now reads the ordered input; see
 [inline-flex evidence](../measurements/tailwind-inline-flex-order.md).
+Policy v22 adds every `overflow`, `overflow-x` and `overflow-y` value; the
+values Native lacks stay refused there; see
+[overflow evidence](../measurements/tailwind-overflow-order.md).
+Policy v23 adds `mix-blend-mode` and `background-blend-mode`; see
+[blend mode evidence](../measurements/tailwind-blend-mode-order.md).
+Policy v24 adds `text-start`, `text-end` and `text-justify` to the alignment
+arm; see [text alignment evidence](../measurements/tailwind-text-align-order.md).
+Policy v25 adds `columns` and `text-underline-offset`; arbitrary passthrough
+writes remain barriers; see
+[columns and underline offset evidence](../measurements/tailwind-columns-underline-offset-order.md).
 
 ## 1. Restart, not another family-specific patch
 

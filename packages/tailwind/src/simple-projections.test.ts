@@ -111,7 +111,6 @@ test('relative text metrics, border style and transform neighbors still preserve
     'overline',
     'align-baseline',
     'fixed',
-    'overflow-clip',
     'inline-block',
   ]) {
     const classes = `p-4 p-2 ${neighbor}`

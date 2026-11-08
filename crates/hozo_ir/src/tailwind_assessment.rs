@@ -613,9 +613,12 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         Position(
             crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
         ) => "position",
-        Overflow(crate::Overflow::Visible | crate::Overflow::Hidden | crate::Overflow::Scroll) => {
-            "overflow"
-        }
+        // `auto`, `clip` and the axes have no Native key and are refused
+        // there, as a cursor Native lacks is; on Web they still cascade in
+        // Tailwind's order, `overflow` before `overflow-x` and `overflow-y`.
+        Overflow(_) => "overflow",
+        OverflowX(_) => "overflow-x",
+        OverflowY(_) => "overflow-y",
         TextDecorationLine("none" | "underline" | "line-through" | "underline line-through") => {
             "text-decoration-line"
         }
@@ -654,9 +657,9 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
             | crate::Justify::Around
             | crate::Justify::Evenly,
         ) => "justify-content",
-        TextAlign(crate::TextAlign::Left | crate::TextAlign::Center | crate::TextAlign::Right) => {
-            "text-align"
-        }
+        // `start`, `end` and `justify` write the same `textAlign` key on
+        // Native as `left`, `center` and `right` do.
+        TextAlign(_) => "text-align",
         TextTransform(_) => "text-transform",
         Keyword("font-style", "normal" | "italic") => "font-style",
         Keyword("flex-wrap", "nowrap" | "wrap" | "wrap-reverse") => "flex-wrap",
@@ -670,6 +673,14 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // Native lacks is refused there, as an unsupported display is.
         Cursor(_) => "cursor",
         ObjectFit(_) => "object-fit",
+        // `mixBlendMode` on Native, apart from `plus-darker`, which is
+        // refused there as before; `bg-blend-*` is refused there whole.
+        MixBlendMode(_) => "mix-blend-mode",
+        BackgroundBlendMode(_) => "background-blend-mode",
+        // Native has neither multi-column layout nor text-decoration metrics,
+        // so both are refused there as before; the gain is the Web cascade.
+        Columns(_) => "columns",
+        TextUnderlineOffset(_) => "text-underline-offset",
         _ => return None,
     })
 }
@@ -742,6 +753,10 @@ mod tests {
                 "text-align",
             ),
             (
+                StyleProperty::TextAlign(crate::TextAlign::Css("justify")),
+                "text-align",
+            ),
+            (
                 StyleProperty::TextTransform(crate::TextTransform::Uppercase),
                 "text-transform",
             ),
@@ -752,10 +767,35 @@ mod tests {
                 "position",
             ),
             (StyleProperty::Overflow(crate::Overflow::Hidden), "overflow"),
+            (
+                StyleProperty::Overflow(crate::Overflow::Css("clip")),
+                "overflow",
+            ),
+            (
+                StyleProperty::OverflowX(crate::Overflow::Css("auto")),
+                "overflow-x",
+            ),
+            (
+                StyleProperty::OverflowY(crate::Overflow::Hidden),
+                "overflow-y",
+            ),
             (StyleProperty::Flex(crate::FlexShorthand::Grow(1.0)), "flex"),
             (StyleProperty::Flex(crate::FlexShorthand::None), "flex"),
             (StyleProperty::Cursor("pointer".into()), "cursor"),
             (StyleProperty::ObjectFit("cover"), "object-fit"),
+            (StyleProperty::MixBlendMode("multiply"), "mix-blend-mode"),
+            (
+                StyleProperty::Columns(crate::ColumnCount::Count(2)),
+                "columns",
+            ),
+            (
+                StyleProperty::TextUnderlineOffset(crate::Dimension::Auto),
+                "text-underline-offset",
+            ),
+            (
+                StyleProperty::BackgroundBlendMode("screen"),
+                "background-blend-mode",
+            ),
             (
                 StyleProperty::Display(crate::Display::InlineFlex),
                 "display",
@@ -841,7 +881,6 @@ mod tests {
             StyleProperty::JustifyContent(crate::Justify::Stretch),
             StyleProperty::Display(crate::Display::Grid),
             StyleProperty::Position(crate::Position::Css("fixed")),
-            StyleProperty::Overflow(crate::Overflow::Css("clip")),
             StyleProperty::TextDecorationLine("overline"),
             StyleProperty::UserSelect("contain"),
             StyleProperty::Keyword("vertical-align", "baseline"),
