@@ -79,6 +79,13 @@ impl TailwindOrderContext {
                 queries.push(query);
                 return Some(());
             }
+            if let Some((hover, query)) = Query::relation(condition) {
+                if hover {
+                    queries.push(Query::Exact("@media", "(hover: hover)"));
+                }
+                queries.push(query);
+                return Some(());
+            }
             let index = match condition {
                 Condition::Always => return Some(()),
                 Condition::Hover => {
@@ -257,6 +264,46 @@ impl<'c> Query<'c> {
         })
     }
 
+    /// `group-`, `peer-`, `in-` and `has-` around one inner condition, as
+    /// Tailwind writes the selector. The inner owner states are part of the
+    /// selector here, not owner facts of the element, and a hovered relation
+    /// keeps `hover:`'s capability query. Anything else is unassessed.
+    fn relation(condition: &'c Condition) -> Option<(bool, Self)> {
+        let inner = match condition {
+            Condition::Group(inner)
+            | Condition::Peer(inner)
+            | Condition::In(inner)
+            | Condition::Has(inner) => inner.as_ref(),
+            _ => return None,
+        };
+        let (hover, rest): (bool, Cow<'c, str>) = match inner {
+            Condition::Hover => (true, Cow::Borrowed(":hover")),
+            Condition::Focus => (false, Cow::Borrowed(":focus")),
+            Condition::FocusVisible => (false, Cow::Borrowed(":focus-visible")),
+            Condition::Pressed => (false, Cow::Borrowed(":active")),
+            Condition::Disabled => (false, Cow::Borrowed(":disabled")),
+            Condition::Aria(state) if aria_owner_index(state).is_some() => {
+                (false, Cow::Owned(format!("[aria-{state}=\"true\"]")))
+            }
+            _ => match Self::of(inner)? {
+                Self::Selector(selector) if !selector.starts_with("&:where(") => match selector {
+                    Cow::Borrowed(text) => (false, Cow::Borrowed(text.strip_prefix('&')?)),
+                    Cow::Owned(text) => (false, Cow::Owned(text.strip_prefix('&')?.to_owned())),
+                },
+                _ => return None,
+            },
+        };
+        Some((
+            hover,
+            Self::Selector(Cow::Owned(match condition {
+                Condition::Group(_) => format!("&:is(:where(.group){rest} *)"),
+                Condition::Peer(_) => format!("&:is(:where(.peer){rest} ~ *)"),
+                Condition::In(_) => format!(":where(*{rest}) &"),
+                _ => format!("&:has(*{rest})"),
+            })),
+        ))
+    }
+
     fn matches(&self, wrapper: Wrapper<'_>) -> bool {
         let (name, params) = match (self, wrapper) {
             (Self::Selector(expected), Wrapper::Selector(selector)) => {
@@ -420,7 +467,7 @@ mod tests {
     #[test]
     fn unassessed_rules_missing_rules_and_foreign_descriptors_never_receive_priorities() {
         let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
-        for name in ["group-hover:p-2", "[&:where(:hover)]:p-2"] {
+        for name in ["not-hover:p-2", "[&:where(:hover)]:p-2"] {
             let candidate = context.lookup(name).unwrap();
             assert!(context
                 .rule_priority(candidate, candidate.rules[0].id)
@@ -482,6 +529,87 @@ mod tests {
                 &StyleProperty::PaddingInlineStart(crate::Length::Px(8.0))
             )
             .is_none());
+    }
+
+    #[test]
+    fn a_relation_ranks_only_for_tailwinds_own_selector() {
+        use crate::tailwind_assessment::element_selector_weight;
+        let boxed = |condition: Condition| Box::new(condition);
+        for (condition, hover, selector, weight) in [
+            (
+                Condition::Group(boxed(Condition::Hover)),
+                true,
+                "&:is(:where(.group):hover *)",
+                1,
+            ),
+            (
+                Condition::Group(boxed(Condition::Aria("checked".into()))),
+                false,
+                "&:is(:where(.group)[aria-checked=\"true\"] *)",
+                1,
+            ),
+            (
+                Condition::Group(boxed(Condition::Open)),
+                false,
+                "&:is(:where(.group):is([open], :popover-open, :open) *)",
+                1,
+            ),
+            (
+                Condition::Peer(boxed(Condition::Pressed)),
+                false,
+                "&:is(:where(.peer):active ~ *)",
+                1,
+            ),
+            (
+                Condition::Peer(boxed(Condition::DataAttribute(
+                    "[data-state=\"open\"]".into(),
+                ))),
+                false,
+                "&:is(:where(.peer)[data-state=\"open\"] ~ *)",
+                1,
+            ),
+            (
+                Condition::In(boxed(Condition::Focus)),
+                false,
+                ":where(*:focus) &",
+                0,
+            ),
+            (
+                Condition::Has(boxed(Condition::FirstChild)),
+                false,
+                "&:has(*:first-child)",
+                1,
+            ),
+            (
+                Condition::Has(boxed(Condition::Hover)),
+                true,
+                "&:has(*:hover)",
+                1,
+            ),
+        ] {
+            let (asks_hover, query) = Query::relation(&condition).unwrap();
+            assert_eq!(asks_hover, hover, "{condition:?}");
+            assert!(query.matches(Wrapper::Selector(selector)), "{condition:?}");
+            assert_eq!(
+                element_selector_weight(selector),
+                Some(weight),
+                "{selector}"
+            );
+        }
+        // Inner conditions with no single Tailwind spelling stay unassessed.
+        for inner in [
+            Condition::Dark,
+            Condition::Environment(Environment::Rtl),
+            Condition::Aria("sort=ascending".into()),
+            Condition::Group(boxed(Condition::Hover)),
+            Condition::All(vec![Condition::Hover, Condition::Focus]),
+            Condition::Visited,
+        ] {
+            assert!(
+                Query::relation(&Condition::Group(boxed(inner.clone()))).is_none(),
+                "{inner:?}"
+            );
+        }
     }
 
     #[test]
@@ -652,8 +780,17 @@ mod tests {
         for unassessed in [
             "&:visited",
             "&::before",
-            "&:is(:where(.group):hover *)",
-            ":where(*:focus) &",
+            ":where(:focus) &",
+            "&:is(:where(.group):visited *)",
+            "&:is(:where(.group):hover)",
+            r"&:is(:where(.group\/item):hover *)",
+            "&:is(:where(.peer):hover *)",
+            "&:is(:where(.group):where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *) *)",
+            "&:is(:where(.group):is(:where(.group):hover *) *)",
+            "&:has(> img)",
+            "&:has(*:hover:focus)",
+            "&:has(:checked)",
+            ":where(*:hover) & > *",
             "&:nth-child(2n + 1)",
             "&:nth-child(odd of .x)",
             "&[data-a][data-b]",

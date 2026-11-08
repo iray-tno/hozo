@@ -200,8 +200,46 @@ pub(crate) fn owner_selector(selector: &str) -> Option<usize> {
 /// - one `data-` attribute, `&[data-state="open"]`: one;
 /// - Tailwind's own `open:` and `inert:` spellings: one, from the
 ///   attribute inside `:is()`;
-/// - Tailwind's `ltr:`/`rtl:`, wrapped in `:where()`: none.
+/// - Tailwind's `ltr:`/`rtl:`, wrapped in `:where()`: none;
+/// - a relation around one of those weighing one, or around an owner
+///   state (`:hover`, `[aria-checked="true"]`): `group-` and `peer-`
+///   inside `:is()` and `has-` inside `:has(*…)` weigh what the inner
+///   compound weighs, one; `in-` is `:where(*…) &` and weighs none.
 pub(crate) fn element_selector_weight(selector: &str) -> Option<u32> {
+    // `:is()` and `:has()` take their argument's weight and `:where(.group)`
+    // adds none, so the relation weighs exactly its inner compound.
+    let inner = |inner: &str| {
+        let compound = format!("&{inner}");
+        (owner_selector(&compound).is_some() || compound_selector_weight(&compound) == Some(1))
+            .then_some(1)
+    };
+    if let Some(rest) = selector
+        .strip_prefix("&:is(:where(.group)")
+        .and_then(|rest| rest.strip_suffix(" *)"))
+        .or_else(|| {
+            selector
+                .strip_prefix("&:is(:where(.peer)")
+                .and_then(|rest| rest.strip_suffix(" ~ *)"))
+        })
+        .or_else(|| {
+            selector
+                .strip_prefix("&:has(*")
+                .and_then(|rest| rest.strip_suffix(')'))
+        })
+    {
+        return inner(rest);
+    }
+    if let Some(rest) = selector
+        .strip_prefix(":where(*")
+        .and_then(|rest| rest.strip_suffix(") &"))
+    {
+        return inner(rest).map(|_| 0);
+    }
+    compound_selector_weight(selector)
+}
+
+/// The element's own compound, without a relation: a relation never nests.
+fn compound_selector_weight(selector: &str) -> Option<u32> {
     const WEIGHTLESS: [&str; 2] = [
         "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)",
         "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)",
@@ -957,6 +995,8 @@ mod tests {
             ("hover:p-2!", 2, 1),
             // A query adds no weight; it is recorded for the write to match.
             ("sm:p-2", 1, 1),
+            // A relation weighs its inner compound and keeps its query.
+            ("group-hover:p-2", 2, 1),
         ] {
             let candidate = fixture(name);
             assert_eq!(candidate.rules.len(), 1, "{name}");
@@ -966,7 +1006,6 @@ mod tests {
         }
         for name in [
             "placeholder:text-red-500",
-            "group-hover:p-2",
             "[&:where(:hover)]:p-2",
             "[&>span]:p-2",
             "not-hover:p-2",
