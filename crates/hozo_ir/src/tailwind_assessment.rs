@@ -677,6 +677,10 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // refused there as before; `bg-blend-*` is refused there whole.
         MixBlendMode(_) => "mix-blend-mode",
         BackgroundBlendMode(_) => "background-blend-mode",
+        // Native has neither multi-column layout nor text-decoration metrics,
+        // so both are refused there as before; the gain is the Web cascade.
+        Columns(_) => "columns",
+        TextUnderlineOffset(_) => "text-underline-offset",
         _ => return None,
     })
 }
@@ -780,6 +784,14 @@ mod tests {
             (StyleProperty::Cursor("pointer".into()), "cursor"),
             (StyleProperty::ObjectFit("cover"), "object-fit"),
             (StyleProperty::MixBlendMode("multiply"), "mix-blend-mode"),
+            (
+                StyleProperty::Columns(crate::ColumnCount::Count(2)),
+                "columns",
+            ),
+            (
+                StyleProperty::TextUnderlineOffset(crate::Dimension::Auto),
+                "text-underline-offset",
+            ),
             (
                 StyleProperty::BackgroundBlendMode("screen"),
                 "background-blend-mode",
