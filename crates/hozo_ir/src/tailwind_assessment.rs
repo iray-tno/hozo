@@ -732,6 +732,21 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // size register, so both stay barriers.
         Filter(function, _) => filter_register(*function, false)?,
         BackdropFilter(function, _) => filter_register(*function, true)?,
+        // Shadows and rings are five layers in one `box-shadow`, and each
+        // layer, colour, offset and the inset flag is a register of its own.
+        // `ring-offset-*` also writes `--tw-ring-offset-shadow`, which reads
+        // the width; the width register is the one Hozo's write sets.
+        BoxShadow(_) => "--tw-shadow",
+        ShadowColor(_) => "--tw-shadow-color",
+        InsetShadow(_) => "--tw-inset-shadow",
+        InsetShadowColor(_) => "--tw-inset-shadow-color",
+        RingWidth(_) => "--tw-ring-shadow",
+        RingColor(_) => "--tw-ring-color",
+        InsetRingWidth(_) => "--tw-inset-ring-shadow",
+        InsetRingColor(_) => "--tw-inset-ring-color",
+        RingOffsetWidth(_) => "--tw-ring-offset-width",
+        RingOffsetColor(_) => "--tw-ring-offset-color",
+        RingInset => "--tw-ring-inset",
         _ => return None,
     })
 }
@@ -1132,6 +1147,35 @@ mod tests {
         }
         // `scale-3d` switches the declaration's form and owns no register.
         assert!(!crate::scalar_tailwind_property(&StyleProperty::Scale3d));
+    }
+
+    #[test]
+    fn each_shadow_layer_and_colour_owns_its_register_not_box_shadow() {
+        let px = Length::Px(2.0);
+        let red = crate::Color::Token("red-500".into());
+        for (write, register) in [
+            (
+                StyleProperty::BoxShadow("0 1px 3px 0".into()),
+                "--tw-shadow",
+            ),
+            (StyleProperty::ShadowColor(red.clone()), "--tw-shadow-color"),
+            (StyleProperty::RingWidth(px.clone()), "--tw-ring-shadow"),
+            (StyleProperty::RingColor(red.clone()), "--tw-ring-color"),
+            (
+                StyleProperty::RingOffsetWidth(px.clone()),
+                "--tw-ring-offset-width",
+            ),
+            (StyleProperty::RingInset, "--tw-ring-inset"),
+        ] {
+            assert!(crate::scalar_tailwind_property(&write), "{write:?}");
+            assert!(covers(register, &write), "{write:?}");
+            assert!(!covers("box-shadow", &write), "{write:?}");
+        }
+        // The offset rule also writes the shadow that reads its width.
+        assert!(!covers(
+            "--tw-ring-offset-shadow",
+            &StyleProperty::RingOffsetWidth(px)
+        ));
     }
 
     #[test]

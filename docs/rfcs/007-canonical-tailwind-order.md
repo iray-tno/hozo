@@ -379,6 +379,9 @@ register; `filter-none` and drop shadows remain barriers; see
 Without a policy change, filter functions written under different
 conditions compose through registers on Web; see
 [conditional filter evidence](../measurements/conditional-filter-functions.md).
+Policy v29 adds every shadow and ring layer, colour, the offset width and
+`ring-inset`, each owning its register rather than `box-shadow`; see
+[shadow and ring evidence](../measurements/tailwind-shadow-ring-order.md).
 
 ## 1. Restart, not another family-specific patch
 
