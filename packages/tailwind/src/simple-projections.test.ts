@@ -99,20 +99,20 @@ test('simple projections acquire actual ownership and common static/fallback win
   }
 })
 
-test('relative text metrics, border width and transform neighbors still preserve their whole old input rather than receive guessed scalar priorities', async () => {
+test('relative text metrics, border style and transform neighbors still preserve their whole old input rather than receive guessed scalar priorities', async () => {
   const theme = await loadTheme(css, base)
   const compiler = createCompiler(theme)
   for (const neighbor of [
     'tracking-wide',
     'tracking-[1em]',
     'leading-[1em]',
-    'border-2',
+    'border-dashed',
     'rotate-45',
     'overline',
     'align-baseline',
     'fixed',
     'overflow-clip',
-    'inline-flex',
+    'inline-block',
   ]) {
     const classes = `p-4 p-2 ${neighbor}`
     const names = classes.split(' ')

@@ -339,6 +339,20 @@ compound, weighing what the compound weighs; named and nested relations remain
 barriers; see [relation evidence](../measurements/tailwind-relation-order.md).
 Policy v16 adds the eleven border colour writes, one declaration each; see
 [border colour evidence](../measurements/tailwind-border-color-order.md).
+Policy v17 adds border widths and the style each width rule writes beside
+them; a style utility, which sets `--tw-border-style`, remains a barrier; see
+[border width evidence](../measurements/tailwind-border-width-order.md).
+Policy v18 adds the `flex` shorthand (`flex-1`, `flex-auto`, `flex-initial`,
+`flex-none`), one declaration each; see
+[flex shorthand evidence](../measurements/tailwind-flex-shorthand-order.md).
+Policy v19 adds outline widths, colours and offsets; an outline style utility,
+which sets `--tw-outline-style`, remains a barrier; see
+[outline evidence](../measurements/tailwind-outline-order.md).
+Policy v20 adds `cursor` and `object-fit`, one declaration each; see
+[cursor and object fit evidence](../measurements/tailwind-cursor-object-fit-order.md).
+Policy v21 adds `inline-flex` to the display arm; Native's synthetic
+`alignSelf` now reads the ordered input; see
+[inline-flex evidence](../measurements/tailwind-inline-flex-order.md).
 
 ## 1. Restart, not another family-specific patch
 

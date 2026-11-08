@@ -22,6 +22,11 @@ also respecting explicit authored `style` would not prove Yoga/CSS equivalence.
 Relative leading/tracking similarly cannot graduate while static folding and
 generated candidates disagree about the inherited font size.
 
+> Later layers graduated some of these: block in v11, logical edges in v12,
+> gap in v13 and inline-flex in v21 ([inline-flex evidence](tailwind-inline-flex-order.md)).
+> Inline-flex's static/generated `alignSelf` difference predates ordering and
+> is unchanged by it; both paths agree on the display it settles to.
+
 The policy advances to `scalar-order-v5` on both sides of the binding, and
 the Metro regression rejects a validly hashed v4 transfer. Reusing an old
 descriptor fingerprint must not silently reuse old output winners.
