@@ -49,7 +49,7 @@ Reading it:
 
 | Mechanism | Where | What it does | Still needed for |
 | --- | --- | --- | --- |
-| Interaction cascade sort | `crates/hozo_parser/src/interaction_order.rs` (`order_tailwind_interactions`) | Sorts owner-interaction conditions (`hover`, `focus`, `focus-visible`, `active`, conjunctions) by Tailwind's variant order within each input, before the plan runs. | Inputs with a barrier, and every compile with no Tailwind context. Redundant for a ranked input: the plan re-sorts it completely. |
+| Interaction cascade sort | `crates/hozo_parser/src/interaction_order.rs` (`order_tailwind_interactions`) | Sorts owner-interaction conditions (`hover`, `focus`, `focus-visible`, `active`, conjunctions) by Tailwind's variant order within each input, before the plan runs. | Inputs with a barrier. Redundant for a ranked input: the plan re-sorts it completely. (Until [#1832](tailwind-builtin-order-default.md) also every compile with no Tailwind context; every compile has an order now.) |
 | Condition-weight group sort | `crates/hozo_ir/src/lib.rs` (`group_by_condition`) | Sorts a node's condition groups by owner-interaction specificity. Skipped only when the node's styles are one ranked input (plus unconditional semantic defaults). | Nodes with an input on the old path, and nodes with several inputs (a class list beside a slot or `style`). |
 | Runtime state rank | `crates/hozo_native/src/candidate.rs` (`StateGroup.order`) and `packages/engine/src/class-resolver.ts` | The generated map gives each state group the same interaction cascade key; the resolver sorts by it once per cached string. Already skipped when the plan's ranks cover the whole string. | Runtime strings with any unranked class. |
 
@@ -68,16 +68,19 @@ when no input reaches the old path, which takes two things:
 
 1. **Every barrier closed** -- the table above, and the full list in
    [known gaps](tailwind-known-gaps.md).
-2. **A context for every compile.** Vite, Metro and Next capture the
-   project's CSS ([default order](tailwind-default-order.md)). A compile with
-   no project -- the standalone compiler API, WASM, tests -- has no context
-   and keeps authored order. Giving it one means shipping a built-in rule
-   order (the portable snapshot is a 90-candidate test fixture, not that),
-   whose payload budget RFC 007 §9 leaves open. That is a decision to make,
-   not an implementation detail.
+2. ~~**A context for every compile.**~~ Done. Vite, Metro and Next capture
+   the project's CSS ([default order](tailwind-default-order.md)), and every
+   other compile -- the standalone compiler API, WASM, preview, tests -- ranks
+   with rule descriptors built into Hozo
+   ([built-in order](tailwind-builtin-order.md),
+   [built-in default](tailwind-builtin-order-default.md)), at about 48 KB of
+   gzipped WASM.
 
-Until then, the useful consolidation is making the old path smaller: each
-barrier graduated moves inputs off it, and this script measures how many.
+So only the barriers are left. The useful consolidation is still making the
+old path smaller: each barrier graduated moves inputs off it. This script
+measures how many of this repository's inputs remain; the
+[inventory](tailwind-order-inventory.md) counts the barriers left among all
+of Tailwind's classes and variants, per domain.
 
 ## Progress
 
