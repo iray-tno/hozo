@@ -405,6 +405,18 @@ height, not a colour; see
 [text slash evidence](../measurements/tailwind-text-slash-order.md).
 Policy v33 adds every text size, relative ones included; see
 [relative text size evidence](../measurements/tailwind-relative-font-size-order.md).
+How much of a real corpus the plan ranks, and every ordering mechanism
+outside it with what it still serves, is measured in
+[coverage](../measurements/tailwind-order-coverage.md).
+Policy v34 adds transitions and font families, the largest barrier the
+coverage script found; see
+[transition and font family evidence](../measurements/tailwind-transition-font-family-order.md).
+Policy v35 ranks classes behind JS guards as present-or-absent, not as
+selectors, and Native keeps them in the plan's order among unconditional
+styles; see [guarded class evidence](../measurements/tailwind-guarded-class-order.md).
+Policy v36 lets Tailwind's rule decide whether `shadow-<name>` is a shadow
+or a colour, and the theme now carries `--shadow-*`; see
+[theme shadow evidence](../measurements/tailwind-theme-shadow.md).
 
 ## 1. Restart, not another family-specific patch
 

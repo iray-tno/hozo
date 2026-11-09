@@ -420,6 +420,15 @@ pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
         InsetRight(_) => return matches!(property, "inset" | "right"),
         InsetBottom(_) => return matches!(property, "inset" | "bottom"),
         InsetLeft(_) => return matches!(property, "inset" | "left"),
+        // The parser has no theme, so `shadow-<name>` is a colour token
+        // until a backend finds a theme shadow of that name
+        // (`Theme::resolve_shadow_tokens`). Tailwind's own rule has already
+        // decided: a size rule declares `--tw-shadow`, a colour rule
+        // `--tw-shadow-color`. Either owns the write; a rule declaring both
+        // is ambiguous and stays a barrier.
+        ShadowColor(crate::Color::Token(_)) => {
+            return matches!(property, "--tw-shadow" | "--tw-shadow-color")
+        }
         _ => {}
     }
     if let Some(expected) = scalar_css_property(write) {
@@ -741,6 +750,16 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // One declaration and, where Native has it, one key each. A cursor
         // Native lacks is refused there, as an unsupported display is.
         Cursor(_) => "cursor",
+        FontFamily(_) => "font-family",
+        // `transition` and `transition-colors` declare all three; `duration-*`
+        // and `ease-*` declare their register and the one property. A
+        // utility's own duration or easing still beats `transition`'s
+        // fallback by provenance (`dedupe_last_wins`), as Tailwind's
+        // `var(--tw-duration, 0s)` does, whichever is ranked later.
+        TransitionProperty(_) => "transition-property",
+        TransitionDuration(..) => "transition-duration",
+        TransitionDelay(..) => "transition-delay",
+        TransitionTimingFunction(..) => "transition-timing-function",
         ObjectFit(_) => "object-fit",
         // `mixBlendMode` on Native, apart from `plus-darker`, which is
         // refused there as before; `bg-blend-*` is refused there whole.

@@ -13,7 +13,7 @@ import { DEFAULT_PRIMITIVE_SOURCES } from './sources.ts'
 export type { FontAvailability } from './font-diagnostics.ts'
 
 /** @internal Must match the native scalar output policy; integration tests verify it. */
-export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v33' as const
+export const TAILWIND_SCALAR_ORDER_POLICY = 'scalar-order-v36' as const
 
 const require = createRequire(import.meta.url)
 
@@ -51,6 +51,8 @@ export interface TailwindCompilePlan {
       candidate?: string
       candidateId?: number
       ruleIds: number[]
+      /** Why this block keeps its input in authored order; absent when every write can be ranked. */
+      barrier?: string
       /** Shared priority facts only, not value/condition equivalence or a new winner. */
       writes: {
         index: number
@@ -542,6 +544,8 @@ export interface Theme {
    * such as `lg`. Missing scale values keep their theme-free defaults.
    */
   radii?: { name: string; px: number }[]
+  /** `--shadow-<name>` as the box-shadow value its `var()` chain reaches; `shadow-<name>` reads it before a colour. */
+  shadows?: { name: string; value: string }[]
   /** Named Tailwind font weights, kept separate from authored numeric weights. */
   fontWeights?: { name: string; value: string }[]
   /**

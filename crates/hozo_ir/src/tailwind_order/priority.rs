@@ -87,7 +87,12 @@ impl TailwindOrderContext {
                 return Some(());
             }
             let index = match condition {
-                Condition::Always => return Some(()),
+                // A JS guard (`size === 'sm' && 'px-3'`) decides whether the
+                // class is present, not which selector matches: Tailwind's
+                // rule is the plain one. Web emits it inside `:where()`, and
+                // Native as `guard && style` in array order, so it weighs
+                // nothing on either side and asks no query.
+                Condition::Always | Condition::Expr(_) => return Some(()),
                 Condition::Hover => {
                     queries.push(Query::Exact("@media", "(hover: hover)"));
                     0

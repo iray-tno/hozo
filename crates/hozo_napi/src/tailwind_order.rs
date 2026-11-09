@@ -33,6 +33,9 @@ pub struct TailwindCompileBlock {
     pub candidate_id: Option<u32>,
     pub rule_ids: Vec<u32>,
     pub writes: Vec<TailwindCompileWrite>,
+    /// Why this block keeps its input in authored order; absent when every
+    /// write can be ranked.
+    pub barrier: Option<String>,
 }
 
 #[napi(object)]
@@ -176,6 +179,7 @@ pub fn compile_plan(
                             candidate: block.candidate,
                             candidate_id: block.candidate_id,
                             rule_ids: block.rule_ids,
+                            barrier: block.barrier.map(str::to_owned),
                             writes: block
                                 .writes
                                 .into_iter()
