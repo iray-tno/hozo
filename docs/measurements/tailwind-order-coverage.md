@@ -88,7 +88,8 @@ here.
 | [Transitions and font families](tailwind-transition-font-family-order.md) | 268 / 320 (83.8%) | `transition-colors`, `font-mono` |
 | [Guarded classes](tailwind-guarded-class-order.md) | 283 / 320 (88.4%) | `cx(base, size === 'sm' && 'px-3')` |
 | [Theme shadow tokens](tailwind-theme-shadow.md) | 288 / 320 (90%) | `shadow-hozo-surface` |
+| [Grid and position](tailwind-grid-position-order.md) | 292 / 320 (91.3%) | `grid`, `fixed`, `row-span-2` |
 
 What remains, in order: `aria-pressed:` and `placeholder:` (selectors that
 need owner-fact or Native prop evidence), `space-y-*` (child-scoped), and a
-few single cases (`grid`, `fixed`, `row-span-2`, `pt-[env(...)]`).
+few single cases (`animate-pulse`, `accent-*`, `pt-[env(...)]`).

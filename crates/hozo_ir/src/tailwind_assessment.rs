@@ -644,8 +644,25 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
             | crate::Display::None
             | crate::Display::Contents
             | crate::Display::Block
-            | crate::Display::InlineFlex,
+            | crate::Display::InlineFlex
+            // Grid goes to the Native grid wrapper, which reads the last
+            // unconditional display, so the ranked winner is the one it
+            // sees. The other keywords are refused on Native as before;
+            // on Web each is one `display` declaration.
+            | crate::Display::Grid
+            | crate::Display::Css(_),
         ) => "display",
+        // One declaration each. Native's grid solver reads the last write
+        // of each, and combines a shorthand with a longhand edge by key, as
+        // Tailwind's order (`grid-column` before `grid-column-start`) does.
+        GridTemplateColumns(_) => "grid-template-columns",
+        GridTemplateRows(_) => "grid-template-rows",
+        GridColumn(_) => "grid-column",
+        GridColumnStart(_) => "grid-column-start",
+        GridColumnEnd(_) => "grid-column-end",
+        GridRow(_) => "grid-row",
+        GridRowStart(_) => "grid-row-start",
+        GridRowEnd(_) => "grid-row-end",
         // One CSS property and, where Native has it, one Native key each.
         InsetTop(_) => "top",
         InsetRight(_) => "right",
@@ -689,7 +706,11 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         OutlineColor(_) => "outline-color",
         OutlineOffset(length) if absolute(length) => "outline-offset",
         Position(
-            crate::Position::Relative | crate::Position::Absolute | crate::Position::Static,
+            crate::Position::Relative
+            | crate::Position::Absolute
+            | crate::Position::Static
+            // `fixed` and `sticky` are refused on Native as before.
+            | crate::Position::Css(_),
         ) => "position",
         // `auto`, `clip` and the axes have no Native key and are refused
         // there, as a cursor Native lacks is; on Web they still cascade in
@@ -1028,8 +1049,6 @@ mod tests {
             StyleProperty::Keyword("font-style", "oblique"),
             StyleProperty::AlignContent(crate::Justify::Baseline),
             StyleProperty::JustifyContent(crate::Justify::Stretch),
-            StyleProperty::Display(crate::Display::Grid),
-            StyleProperty::Position(crate::Position::Css("fixed")),
             StyleProperty::TextDecorationLine("overline"),
             StyleProperty::UserSelect("contain"),
             StyleProperty::Keyword("vertical-align", "baseline"),

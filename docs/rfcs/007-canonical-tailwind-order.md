@@ -423,6 +423,9 @@ per utility root and per variant, for a compile with no project CSS; see
 Every compile without an ordered project context now uses them, so
 Tailwind's order is the default everywhere; see
 [built-in default](../measurements/tailwind-builtin-order-default.md).
+Policy v37 adds grid display, tracks and placement, the remaining display
+keywords, and `fixed`/`sticky`; see
+[grid and position evidence](../measurements/tailwind-grid-position-order.md).
 
 ## 1. Restart, not another family-specific patch
 
