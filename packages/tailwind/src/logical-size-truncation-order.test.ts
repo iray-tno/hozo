@@ -55,8 +55,8 @@ test('logical sizes, origins and truncation settle in Tailwind order, whichever 
   // Tailwind's winner reaches Native: `whitespace-normal` after `truncate`
   // leaves the text wrapping, whichever is written first.
   assert.doesNotMatch(native(text('whitespace-normal truncate')).jsx, /numberOfLines/)
-  // A line clamp keeps authored order (Web emits its `display` after every
-  // other write), and Native now takes the last one, as CSS does.
+  // The clamps are not in this context, so they keep authored order, and
+  // Native takes the last one, as CSS does (ranked: line-clamp-container-order).
   assert.match(native(text('line-clamp-2 line-clamp-3')).jsx, /numberOfLines=\{3\}/)
   assert.match(native(text('line-clamp-3 line-clamp-2')).jsx, /numberOfLines=\{2\}/)
   // A logical size no longer holds a padding conflict on the old path.

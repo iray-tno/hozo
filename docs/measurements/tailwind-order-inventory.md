@@ -67,3 +67,4 @@ a row.
 | [Logical sizes and truncation](tailwind-logical-size-truncation-order.md) | 0 | 517 | 341 | 10 | 23 |
 | [Block spacing and dividers](tailwind-block-spacing-divide-order.md) | 0 | **0** | 341 | 10 | 23 |
 | [Negated variants](tailwind-negated-variant-order.md) | 0 | 0 | 341 | 10 | 4 |
+| [Line clamps and containers](tailwind-line-clamp-container-order.md) | 0 | 0 | 341 | 1 | 4 |

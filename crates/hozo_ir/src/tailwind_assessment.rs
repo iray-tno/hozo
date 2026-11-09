@@ -880,12 +880,16 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         MaxBlockSize(_) => "max-block-size",
         TransformOrigin(_) => "transform-origin",
         // Native carries these as `numberOfLines`/`ellipsizeMode` on Text,
-        // reading the last of each (`truncation_props`). A line clamp stays
-        // out: its rule also declares `display`, and Web emits a clamp's
-        // declarations after every other write, so `line-clamp-2 flex` would
-        // rank as Tailwind does and still emit `flex` first.
+        // reading the last of each (`truncation_props`). A line clamp's rule
+        // also declares `overflow` and `display`; Web emits all four where
+        // the clamp is in the plan's order, so a later `flex` still wins.
         WhiteSpace(_) => "white-space",
         TextOverflow(_) => "text-overflow",
+        LineClamp(_) => "-webkit-line-clamp",
+        // `@container` and `@container/<name>`: a query container for its
+        // descendants' `@<size>:` variants, one declaration each.
+        Keyword("container-type", "inline-size" | "size" | "normal") => "container-type",
+        ContainerName(_) => "container-name",
         AccentColor(_) => "accent-color",
         // On the children, through [`CHILD_SCOPE`]; see `child_scoped`.
         // Each backend joins the parent's last gap behind a child's own

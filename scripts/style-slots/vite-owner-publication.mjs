@@ -114,7 +114,7 @@ export async function buildViteOwnerPublication(route = 'captured') {
       for (const owner of owners) {
         assert.equal(owner.identity.importer, caller)
         assert.equal(owner.identity.platform, 'web')
-        assert.match(owner.fingerprint, /^scalar-order-v45:/)
+        assert.match(owner.fingerprint, /^scalar-order-v46:/)
         assert.ok(owner.findings.every((row) => row.disposition === 'prepared-literal'))
       }
     } else {

@@ -452,6 +452,9 @@ reverse flags, leaving domain 2 with no gap; see
 Policy v45 reads the `not-*` forms of interaction states, element
 selectors and media queries; see
 [negated variant evidence](../measurements/tailwind-negated-variant-order.md).
+Policy v46 adds `line-clamp-*`, now emitted where the plan puts it, and
+`@container`; see
+[line clamp and container evidence](../measurements/tailwind-line-clamp-container-order.md).
 
 ## 1. Restart, not another family-specific patch
 
