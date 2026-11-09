@@ -426,6 +426,9 @@ Tailwind's order is the default everywhere; see
 Policy v37 adds grid display, tracks and placement, the remaining display
 keywords, and `fixed`/`sticky`; see
 [grid and position evidence](../measurements/tailwind-grid-position-order.md).
+Policy v38 assesses every boolean ARIA state Tailwind names, adding
+`pressed`, `hidden`, `readonly` and `required`; see
+[ARIA state evidence](../measurements/tailwind-aria-state-order.md).
 
 ## 1. Restart, not another family-specific patch
 

@@ -5,7 +5,11 @@ use crate::{OrderCandidateDescriptor, OrderRuleDescriptor, OrderRuleShape, Style
 
 /// Interaction facts and the boolean ARIA facts already delivered by Native
 /// owners. This is predicate equivalence, not a variant precedence table.
-const ARIA_FACT_COUNT: usize = 6;
+/// Every state Tailwind names for `aria-…:` is here: each is one attribute
+/// selector of one class weight, and Native resolves each through the same
+/// guard (`accessibilityState`, or a pattern slot's own fact), so ranking
+/// one changes which write wins, never how its guard is delivered.
+const ARIA_FACT_COUNT: usize = 10;
 pub(crate) const OWNER_PREDICATE_COUNT: usize = 5 + 2 * ARIA_FACT_COUNT;
 
 pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
@@ -16,6 +20,10 @@ pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
         "selected" => 8,
         "invalid" => 9,
         "disabled" => 10,
+        "hidden" => 11,
+        "pressed" => 12,
+        "readonly" => 13,
+        "required" => 14,
         _ => return None,
     })
 }
@@ -1357,7 +1365,8 @@ mod tests {
     #[test]
     fn boolean_aria_assessment_matches_actual_independent_owner_facts_not_class_names() {
         for state in [
-            "busy", "checked", "expanded", "selected", "invalid", "disabled",
+            "busy", "checked", "expanded", "selected", "invalid", "disabled", "hidden", "pressed",
+            "readonly", "required",
         ] {
             let mut snapshot = portable_tailwind_snapshot();
             let candidate = snapshot
@@ -1400,7 +1409,8 @@ mod tests {
     #[test]
     fn negated_aria_requires_exact_original_polarity_and_multiplicity() {
         for state in [
-            "busy", "checked", "expanded", "selected", "invalid", "disabled",
+            "busy", "checked", "expanded", "selected", "invalid", "disabled", "hidden", "pressed",
+            "readonly", "required",
         ] {
             let mut snapshot = portable_tailwind_snapshot();
             let candidate = snapshot
@@ -1446,7 +1456,7 @@ mod tests {
             "&:not(*[aria-selected=\"true\" i])",
             "&:not(*[aria-selected=\"true\"]) > *",
             "&:not(*[aria-selected=\"true\"], *[aria-checked=\"true\"])",
-            "&:not(*[aria-hidden=\"true\"])",
+            "&:not(*[aria-current=\"true\"])",
         ] {
             let mut candidate = fixture("p-2");
             let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {
@@ -1474,9 +1484,9 @@ mod tests {
             "&[aria-selected=\"true\" i]",
             "&:not([aria-selected=\"true\"])",
             "&[aria-selected=\"true\"] > *",
-            "&[aria-pressed=\"true\"]",
-            "&[aria-hidden=\"true\"]",
             "&[aria-disabled=\"false\"]",
+            "&[aria-pressed=\"mixed\"]",
+            "&[aria-current=\"true\"]",
         ] {
             let mut candidate = fixture("p-2");
             let OrderRuleShape::Rule { nodes, .. } = &mut candidate.rules[0].shape else {
