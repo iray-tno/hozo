@@ -55,3 +55,13 @@ Domain 1 has no gap: what it still lacks (em leading and tracking in
 arbitrary values, a text size's own line height as a ratio, the generated
 map's relative metrics) is arbitrary or an output difference, listed in
 [known gaps](tailwind-known-gaps.md).
+
+## Progress
+
+Gaps per domain after each layer that closes some. Re-run the script and add
+a row.
+
+| After | 1 | 2 | 3 | 4 | 5 |
+| --- | --- | --- | --- | --- | --- |
+| This page | 0 | 517 | 341 | 445 | 23 |
+| [Logical sizes and truncation](tailwind-logical-size-truncation-order.md) | 0 | 517 | 341 | 10 | 23 |

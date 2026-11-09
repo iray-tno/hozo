@@ -835,6 +835,24 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // condition as a hook; a project's own `animate-<name>` and the
         // `animation-*` longhands are not read yet.
         Animation(_) => "animation",
+        // The logical sizes, one declaration each. Native writes them as the
+        // physical key (`inline-*` is `width`), the same key `w-*` writes,
+        // so ranking decides which one lands last, as CSS's logical property
+        // group does.
+        InlineSize(_) => "inline-size",
+        BlockSize(_) => "block-size",
+        MinInlineSize(_) => "min-inline-size",
+        MinBlockSize(_) => "min-block-size",
+        MaxInlineSize(_) => "max-inline-size",
+        MaxBlockSize(_) => "max-block-size",
+        TransformOrigin(_) => "transform-origin",
+        // Native carries these as `numberOfLines`/`ellipsizeMode` on Text,
+        // reading the last of each (`truncation_props`). A line clamp stays
+        // out: its rule also declares `display`, and Web emits a clamp's
+        // declarations after every other write, so `line-clamp-2 flex` would
+        // rank as Tailwind does and still emit `flex` first.
+        WhiteSpace(_) => "white-space",
+        TextOverflow(_) => "text-overflow",
         AccentColor(_) => "accent-color",
         // On the children, through [`CHILD_SCOPE`]; see `child_scoped`.
         // Each backend joins the parent's last gap behind a child's own

@@ -718,13 +718,20 @@ pub(super) fn truncation_props(node: &Node) -> Option<Vec<(&'static str, String)
     if !is_text_primitive(node.primitive) {
         return None;
     }
-    let has = |want: &StyleProperty| node.style.iter().any(|d| d.property == *want);
+    // The last of each wins, as the later declaration does in CSS; the
+    // declarations are already in the order the cascade gives them.
+    let last = |pick: fn(&StyleProperty) -> bool| {
+        node.style
+            .iter()
+            .rev()
+            .find(|d| pick(&d.property))
+            .map(|d| &d.property)
+    };
     // `line-clamp-<n>` is the same mechanism with a line count: React
     // Native has one prop for both, so the two utilities meet here.
-    if let Some(lines) = node.style.iter().find_map(|d| match &d.property {
-        StyleProperty::LineClamp(lines) => Some(lines),
-        _ => None,
-    }) {
+    if let Some(StyleProperty::LineClamp(lines)) =
+        last(|property| matches!(property, StyleProperty::LineClamp(_)))
+    {
         return match lines {
             // `line-clamp-none` means no clamping, which on this platform
             // is the absence of the prop rather than a value for it.
@@ -738,12 +745,16 @@ pub(super) fn truncation_props(node: &Node) -> Option<Vec<(&'static str, String)
             ),
         };
     }
-    if !has(&StyleProperty::WhiteSpace(WhiteSpace::NoWrap)) {
+    if last(|property| matches!(property, StyleProperty::WhiteSpace(_)))
+        != Some(&StyleProperty::WhiteSpace(WhiteSpace::NoWrap))
+    {
         return None;
     }
 
     let mut props = vec![("numberOfLines", "1".to_string())];
-    if !has(&StyleProperty::TextOverflow(TextOverflow::Ellipsis)) {
+    if last(|property| matches!(property, StyleProperty::TextOverflow(_)))
+        != Some(&StyleProperty::TextOverflow(TextOverflow::Ellipsis))
+    {
         // RN's default `ellipsizeMode` is `tail`, i.e. an ellipsis. Nothing
         // asked for one here, so clipping is the closer match to plain
         // `white-space: nowrap`.
