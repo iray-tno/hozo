@@ -339,6 +339,13 @@ fn compound_selector_weight(selector: &str) -> Option<u32> {
     (plain && value.is_none_or(quoted)).then_some(1)
 }
 
+/// The pseudo-elements whose rule is read as a condition on the element.
+/// Only `::placeholder`: Native carries it as `TextInput`'s
+/// `placeholderTextColor`, which takes the last colour written, so the
+/// ranked winner is the one it sees. Others need their own delivery proof
+/// (`::backdrop` becomes a Native slot's unconditional style).
+const PSEUDO_ELEMENTS: [&str; 1] = ["&::placeholder"];
+
 fn assess_body<'a>(
     nodes: &'a [OrderRuleShape],
     result: &mut AssessedTailwindRule<'a>,
@@ -380,6 +387,10 @@ fn assess_body<'a>(
                         .checked_add(1)
                         .ok_or(RuleAssessmentError::Selector)?;
                     result.specificity[1] += 1;
+                } else if PSEUDO_ELEMENTS.contains(&selector.as_str()) {
+                    // A pseudo-element weighs one type, not one class.
+                    result.selectors.push(selector);
+                    result.specificity[2] += 1;
                 } else {
                     let weight =
                         element_selector_weight(selector).ok_or(RuleAssessmentError::Selector)?;
@@ -776,6 +787,9 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         Keyword("pointer-events", "auto" | "none") => "pointer-events",
         Keyword("user-select", "auto" | "text" | "none" | "all") => "user-select",
         Keyword("vertical-align", "auto" | "top" | "bottom" | "middle") => "vertical-align",
+        // Native has no resize handle: `none` writes nothing there and the
+        // others are refused, whichever wins, as before.
+        Keyword("resize", "none" | "both" | "horizontal" | "vertical") => "resize",
         // One declaration and, where Native has it, one key each. A cursor
         // Native lacks is refused there, as an unsupported display is.
         Cursor(_) => "cursor",
@@ -1598,12 +1612,12 @@ mod tests {
             assert_eq!(assessed.specificity, [0, weight, 0], "{name}");
             assert_eq!(assessed.media.len(), media, "{name}");
         }
-        for name in [
-            "placeholder:text-red-500",
-            "[&:where(:hover)]:p-2",
-            "[&>span]:p-2",
-            "not-hover:p-2",
-        ] {
+        // A pseudo-element weighs one type.
+        let candidate = fixture("placeholder:text-red-500");
+        let assessed =
+            assess_tailwind_rule("placeholder:text-red-500", &candidate.rules[0]).unwrap();
+        assert_eq!(assessed.specificity, [0, 1, 1]);
+        for name in ["[&:where(:hover)]:p-2", "[&>span]:p-2", "not-hover:p-2"] {
             let candidate = fixture(name);
             assert!(!candidate.rules.is_empty());
             assert!(

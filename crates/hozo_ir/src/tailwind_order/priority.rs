@@ -284,6 +284,9 @@ impl<'c> Query<'c> {
             Condition::FormState(state) => suffix(state.selector()),
             Condition::Control(state) => suffix(state.selector()),
             Condition::DataAttribute(attribute) => suffix(attribute),
+            Condition::PseudoElement(crate::PseudoElement::Placeholder) => {
+                selector("&::placeholder")
+            }
             _ => return None,
         })
     }

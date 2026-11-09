@@ -429,6 +429,9 @@ keywords, and `fixed`/`sticky`; see
 Policy v38 assesses every boolean ARIA state Tailwind names, adding
 `pressed`, `hidden`, `readonly` and `required`; see
 [ARIA state evidence](../measurements/tailwind-aria-state-order.md).
+Policy v39 reads `placeholder:` as a condition on the element, a
+pseudo-element weighing one type, and adds `resize-*`; see
+[placeholder evidence](../measurements/tailwind-placeholder-order.md).
 
 ## 1. Restart, not another family-specific patch
 

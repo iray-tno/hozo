@@ -90,7 +90,8 @@ here.
 | [Theme shadow tokens](tailwind-theme-shadow.md) | 288 / 320 (90%) | `shadow-hozo-surface` |
 | [Grid and position](tailwind-grid-position-order.md) | 292 / 320 (91.3%) | `grid`, `fixed`, `row-span-2` |
 | [ARIA states](tailwind-aria-state-order.md) | 296 / 320 (92.5%) | `aria-pressed:` |
+| [Placeholder and resize](tailwind-placeholder-order.md) | 300 / 320 (93.8%) | `placeholder:`, `resize-none` |
 
-What remains, in order: `placeholder:` (a pseudo-element that
-needs Native prop evidence), `space-y-*` (child-scoped), and a
-few single cases (`animate-pulse`, `accent-*`, `pt-[env(...)]`).
+What remains, in order: `space-y-*` (child-scoped), `bg-brand` (not
+generated), and single cases (`backdrop:`, `placeholder-*`,
+`animate-pulse`, `accent-*`, `pt-[env(...)]`).
