@@ -406,6 +406,7 @@ interface NativeBinding {
   prepareTailwindContext(snapshot: string): PreparedTailwindContext
   prepareFinalTailwindContext(snapshot: string): PreparedTailwindContext
   prepareBuiltinTailwindContext(candidates: string[]): PreparedTailwindContext
+  prepareAuthoredTailwindContext(snapshot: string): PreparedTailwindContext
   tailwindClassesRankable(candidates: string[]): boolean[]
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
   analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
@@ -764,6 +765,12 @@ export function prepareBuiltinTailwindContext(
 /** @internal Measurement: whether each class's parsed writes are all in the ranked domain. */
 export function tailwindClassesRankable(candidates: readonly string[]): boolean[] {
   return loadNative().tailwindClassesRankable([...candidates])
+}
+
+/** @internal A negative control for tests: every input keeps its authored
+ * order, as compiles did before Tailwind's order became the default. */
+export function prepareAuthoredTailwindContext(snapshot: string): PreparedTailwindContext {
+  return loadNative().prepareAuthoredTailwindContext(snapshot)
 }
 
 function validateNativeOptions(options: NativeCompileOptions | undefined) {

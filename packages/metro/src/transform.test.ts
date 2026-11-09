@@ -827,8 +827,12 @@ export function Card() {
     output!,
     /import \{[^}]*useHozoDark[^}]*\} from '@hozo\/core\/generated\/environment'/,
   )
-  assert.match(output!, /export function Card\(\) \{\n {2}const __hozoDark = useHozoDark\(\)/)
-  assert.match(output!, /const __hozoBp_md = useHozoBreakpoint\('md'\)/)
+  // Both hooks open the function body, before anything else. Their mutual
+  // order follows the classes' Tailwind order (`md:` before `dark:`).
+  const body = output!.slice(output!.indexOf('export function Card() {\n'))
+  const opening = body.split('\n').slice(1, 3).join('\n')
+  assert.match(opening, /const __hozoDark = useHozoDark\(\)/, body)
+  assert.match(opening, /const __hozoBp_md = useHozoBreakpoint\('md'\)/, body)
   // One declaration, though two elements guard on it -- a second `const`
   // would redeclare the binding and change the hook order.
   assert.equal(output!.match(/const __hozoDark =/g)?.length, 1)

@@ -8,6 +8,9 @@ pub struct PreparedTailwindContext {
     pub(super) context: Box<hozo_ir::TailwindOrderContext>,
     // An immutable output capability, never a mutable compiler default.
     pub(super) ordered: bool,
+    /// Keep authored order: a negative control for tests, never a project
+    /// policy. Every other context without `ordered` uses the built-in order.
+    pub(super) authored: bool,
 }
 
 pub(super) fn final_fingerprint(fingerprint: &str) -> String {
@@ -47,6 +50,7 @@ pub fn prepare_tailwind_context(snapshot: String) -> napi::Result<PreparedTailwi
     Ok(PreparedTailwindContext {
         context: tailwind_order::prepare(&snapshot)?,
         ordered: false,
+        authored: false,
     })
 }
 
@@ -57,6 +61,22 @@ pub fn prepare_final_tailwind_context(snapshot: String) -> napi::Result<Prepared
     Ok(PreparedTailwindContext {
         context: tailwind_order::prepare(&snapshot)?,
         ordered: true,
+        authored: false,
+    })
+}
+
+/// A context that keeps every input in its authored order, as compiles did
+/// before Tailwind's order became the default. Tests use it as a negative
+/// control -- the output a vanished final context would fall back to -- and
+/// nothing else should.
+#[napi]
+pub fn prepare_authored_tailwind_context(
+    snapshot: String,
+) -> napi::Result<PreparedTailwindContext> {
+    Ok(PreparedTailwindContext {
+        context: tailwind_order::prepare(&snapshot)?,
+        ordered: false,
+        authored: true,
     })
 }
 
@@ -69,23 +89,13 @@ pub fn prepare_final_tailwind_context(snapshot: String) -> napi::Result<Prepared
 pub fn prepare_builtin_tailwind_context(
     candidates: Vec<String>,
 ) -> napi::Result<PreparedTailwindContext> {
-    let snapshot = hozo_ir::builtin_tailwind_snapshot(candidates.iter().map(|name| {
-        let writes = hozo_parser::resolve_class_name(name)
-            .map(|utility| {
-                utility
-                    .groups
-                    .into_iter()
-                    .flat_map(|(_, properties)| properties)
-                    .collect()
-            })
-            .unwrap_or_default();
-        (name.as_str(), writes)
-    }));
     Ok(PreparedTailwindContext {
         context: Box::new(
-            hozo_ir::TailwindOrderContext::new(snapshot).map_err(napi::Error::from_reason)?,
+            hozo_parser::builtin_tailwind_context(candidates.iter().map(String::as_str))
+                .map_err(napi::Error::from_reason)?,
         ),
         ordered: true,
+        authored: false,
     })
 }
 
@@ -296,6 +306,7 @@ impl PreparedWebModule {
                     context: Some(&context.context),
                     capture: self.capture,
                     ordered: context.ordered,
+                    authored: context.authored,
                 },
             },
         ))
@@ -342,6 +353,7 @@ impl PreparedNativeModule {
                     context: Some(&context.context),
                     capture: self.options.tailwind_plan.unwrap_or(false),
                     ordered: context.ordered,
+                    authored: context.authored,
                 },
                 ..Default::default()
             },
@@ -477,6 +489,8 @@ mod tests {
                 hozo_ir::TailwindOrderContext::new(hozo_ir::portable_tailwind_snapshot()).unwrap(),
             ),
             ordered: false,
+            // The authored-order control the ordered emission is compared to.
+            authored: true,
         }
     }
 
@@ -504,7 +518,9 @@ mod tests {
         final_context.ordered = true;
         let output = module.emit(&final_context).unwrap();
         assert_eq!(first[0].jsx, output[0].jsx);
-        assert_ne!(first[0].css, output[0].css);
+        // A preview has no project context and already uses the built-in
+        // Tailwind order, which agrees with this final context.
+        assert_eq!(first[0].css, output[0].css);
         assert!(module.preview().is_err());
         assert!(module.emit(&final_context).is_err());
         module.dispose();

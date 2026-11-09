@@ -22,9 +22,9 @@ pub use owner_slots::{
 pub use static_imports::{inspect_static_module_imports, StaticModuleImports};
 mod prepared_module;
 pub use prepared_module::{
-    prepare_builtin_tailwind_context, prepare_final_tailwind_context, prepare_tailwind_context,
-    tailwind_classes_rankable, PreparedNativeModule, PreparedTailwindContext, PreparedWebModule,
-    PreparedWebOptions,
+    prepare_authored_tailwind_context, prepare_builtin_tailwind_context,
+    prepare_final_tailwind_context, prepare_tailwind_context, tailwind_classes_rankable,
+    PreparedNativeModule, PreparedTailwindContext, PreparedWebModule, PreparedWebOptions,
 };
 
 #[napi(object)]
@@ -393,10 +393,21 @@ struct TailwindPlanOptions<'a> {
     context: Option<&'a hozo_ir::TailwindOrderContext>,
     capture: bool,
     ordered: bool,
+    authored: bool,
 }
 
 impl TailwindPlanOptions<'_> {
     fn apply(&self, parsed: &mut hozo_parser::ParseOutput) -> Vec<hozo_parser::TailwindRootPlan> {
+        // Without an ordered project context -- the standalone API, WASM, a
+        // test, or a pass-through context that only reports -- the module is
+        // ordered with descriptors built from the Tailwind facts compiled into
+        // Hozo, so Tailwind's order is the default everywhere rather than only
+        // where a project's CSS was captured (#1230). A pass-through context
+        // still reports its own evidence, over that order, and setting one
+        // never changes output.
+        if !self.ordered && !self.authored {
+            hozo_parser::order_module_tailwind_builtin(parsed);
+        }
         self.context
             .map(|context| {
                 if self.ordered {

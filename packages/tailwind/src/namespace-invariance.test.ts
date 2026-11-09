@@ -6,8 +6,8 @@ import { runInNewContext } from 'node:vm'
 import {
   createCompiler,
   openCandidateCache,
+  prepareAuthoredTailwindContext,
   prepareFinalTailwindContext,
-  prepareTailwindContext,
 } from '@hozo/compiler'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
 import { hozoTransformStyles } from '../../engine/src/transform-slots.ts'
@@ -153,7 +153,7 @@ test('unrelated candidate insertion preserves restricted upstream rule order, bu
   assert.match(b.css, /padding-top: 32px/)
   const old = createCompiler()
     .prepareWebModule(source('p-4 p-2'))
-    .emit(prepareTailwindContext(JSON.stringify(small.snapshot)))[0]!
+    .emit(prepareAuthoredTailwindContext(JSON.stringify(small.snapshot)))[0]!
   assert.notEqual(
     a.css,
     old.css,

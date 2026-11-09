@@ -53,6 +53,48 @@ pub fn order_module_tailwind(output: &mut ParseOutput, context: &TailwindOrderCo
     plan_module(output, context, PlanMode::Scalars);
 }
 
+/// A context for this module's classes built from the Tailwind facts
+/// compiled into Hozo, for a compile with no project CSS (#1230). Each class's
+/// parsed writes choose between a root's bodies; a class the built-in data
+/// cannot describe keeps its input in authored order.
+pub fn builtin_tailwind_context<'a>(
+    names: impl IntoIterator<Item = &'a str>,
+) -> Result<TailwindOrderContext, String> {
+    TailwindOrderContext::new(hozo_ir::builtin_tailwind_snapshot(names.into_iter().map(
+        |name| {
+            let writes = crate::resolve_class_name(name)
+                .map(|utility| {
+                    utility
+                        .groups
+                        .into_iter()
+                        .flat_map(|(_, properties)| properties)
+                        .collect()
+                })
+                .unwrap_or_default();
+            (name, writes)
+        },
+    )))
+}
+
+/// Tailwind's order for a module compiled with no project context: the
+/// standalone API, WASM and tests rank with built-in descriptors, as a
+/// captured project ranks with its own, so Tailwind's order is the default
+/// everywhere rather than only where a project's CSS was captured.
+pub fn order_module_tailwind_builtin(output: &mut ParseOutput) {
+    let names: Vec<String> = output
+        .roots
+        .iter()
+        .filter_map(|root| root.tailwind_units.as_deref())
+        .flat_map(|units| units.iter().map(|(_, name)| name.to_string()))
+        .collect();
+    if names.is_empty() {
+        return;
+    }
+    if let Ok(context) = builtin_tailwind_context(names.iter().map(String::as_str)) {
+        order_module_tailwind(output, &context);
+    }
+}
+
 #[derive(Clone, Copy)]
 enum PlanMode {
     PassThrough { capture: bool },

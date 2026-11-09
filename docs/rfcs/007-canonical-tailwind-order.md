@@ -420,6 +420,9 @@ or a colour, and the theme now carries `--shadow-*`; see
 Rule descriptors can now be built from Tailwind facts compiled into Hozo,
 per utility root and per variant, for a compile with no project CSS; see
 [built-in descriptors](../measurements/tailwind-builtin-order.md).
+Every compile without an ordered project context now uses them, so
+Tailwind's order is the default everywhere; see
+[built-in default](../measurements/tailwind-builtin-order-default.md).
 
 ## 1. Restart, not another family-specific patch
 

@@ -6,8 +6,8 @@ import { runInNewContext } from 'node:vm'
 import {
   createCompiler,
   openCandidateCache,
+  prepareAuthoredTailwindContext,
   prepareFinalTailwindContext,
-  prepareTailwindContext,
   TAILWIND_SCALAR_ORDER_POLICY,
 } from '@hozo/compiler'
 import { createClassResolver } from '../../engine/src/class-resolver.ts'
@@ -60,7 +60,7 @@ test('simple projections acquire actual ownership and common static/fallback win
   const prepared = await prepareTailwindOrder(css, base, names)
   const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
   assert.equal(final.fingerprint.split(':')[0], TAILWIND_SCALAR_ORDER_POLICY)
-  const legacy = prepareTailwindContext(JSON.stringify(prepared.snapshot))
+  const legacy = prepareAuthoredTailwindContext(JSON.stringify(prepared.snapshot))
   const cache = openCandidateCache()
   cache.scanFile('runtime.ts', JSON.stringify(names.join(' ')), 0)
   const plan = cache.renderNativeModulePlan(final, theme)
@@ -116,7 +116,7 @@ test('relative text metrics, border style and transform neighbors still preserve
     const names = classes.split(' ')
     const prepared = await prepareTailwindOrder(css, base, names)
     const final = prepareFinalTailwindContext(JSON.stringify(prepared.snapshot))
-    const legacy = prepareTailwindContext(JSON.stringify(prepared.snapshot))
+    const legacy = prepareAuthoredTailwindContext(JSON.stringify(prepared.snapshot))
     assert.deepEqual(
       compiler.prepareWebModule(source(classes)).emit(final),
       compiler.prepareWebModule(source(classes)).emit(legacy),

@@ -27,9 +27,11 @@ test('each captured block reports the barrier that keeps its input in authored o
     site.blocks.map((block) => [block.candidate, block.barrier ?? null]),
   )
   assert.deepEqual(barriers.slice(0, 4), [
+    // Reported over the built-in Tailwind order, which a reporting context
+    // now uses: the barrier-free input is already ranked, the others are not.
     [
-      ['p-4', null],
       ['p-2', null],
+      ['p-4', null],
     ],
     [
       ['p-4', null],
