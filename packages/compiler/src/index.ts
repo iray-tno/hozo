@@ -408,6 +408,7 @@ interface NativeBinding {
   prepareBuiltinTailwindContext(candidates: string[]): PreparedTailwindContext
   prepareAuthoredTailwindContext(snapshot: string): PreparedTailwindContext
   tailwindClassesRankable(candidates: string[]): boolean[]
+  tailwindClassesNativeRefusal(candidates: string[]): (string | null)[]
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
   analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
   compile(source: string): CompiledComponent[]
@@ -765,6 +766,11 @@ export function prepareBuiltinTailwindContext(
 /** @internal Measurement: whether each class's parsed writes are all in the ranked domain. */
 export function tailwindClassesRankable(candidates: readonly string[]): boolean[] {
   return loadNative().tailwindClassesRankable([...candidates])
+}
+
+/** @internal Measurement only: why React Native refuses each class, if it does. */
+export function tailwindClassesNativeRefusal(candidates: readonly string[]): (string | null)[] {
+  return loadNative().tailwindClassesNativeRefusal([...candidates])
 }
 
 /** @internal A negative control for tests: every input keeps its authored

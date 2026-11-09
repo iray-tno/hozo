@@ -102,6 +102,31 @@ pub fn prepare_builtin_tailwind_context(
 /// Whether every write Hozo parses for each class is in the ranked domain.
 /// Measurement only: a class with any other write is a barrier whatever its
 /// descriptor says, so coverage is counted over the ones that are not.
+/// For each class, the first reason React Native refuses one of the writes
+/// Hozo parses for it, or nothing when every write lowers (or none parses).
+/// Measurement only (`scripts/tailwind-order-inventory.mjs`): it separates a
+/// barrier Native could not express anyway from one that holds back a value
+/// it can.
+#[napi]
+pub fn tailwind_classes_native_refusal(candidates: Vec<String>) -> Vec<Option<String>> {
+    candidates
+        .iter()
+        .map(|name| {
+            hozo_parser::resolve_class_name(name).and_then(|utility| {
+                utility
+                    .groups
+                    .iter()
+                    .flat_map(|(_, properties)| properties)
+                    .find_map(|write| {
+                        write
+                            .unsupported_on_native()
+                            .or_else(|| write.not_wired_on_native())
+                    })
+            })
+        })
+        .collect()
+}
+
 #[napi]
 pub fn tailwind_classes_rankable(candidates: Vec<String>) -> Vec<bool> {
     candidates

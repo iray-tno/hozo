@@ -98,6 +98,10 @@ here.
 | The examples' `@theme` colours in the measured CSS | 315 / 320 (98.4%) | `bg-brand` (measurement, not code) |
 | [Animations and placeholder colours](tailwind-animation-placeholder-colour-order.md) | 318 / 320 (99.4%) | `animate-pulse`, `placeholder-slate-400` |
 
+Coverage counts this repository's own class lists. The
+[inventory](tailwind-order-inventory.md) counts every Tailwind class and
+variant by domain.
+
 What remains: `backdrop:` (Native moves it to a dialog slot's unconditional
 style, which needs its own proof) and `pt-[env(...)]` (an arbitrary
 passthrough value).
