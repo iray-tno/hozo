@@ -405,6 +405,8 @@ interface NativeBinding {
   ): OwnerSlotInspection
   prepareTailwindContext(snapshot: string): PreparedTailwindContext
   prepareFinalTailwindContext(snapshot: string): PreparedTailwindContext
+  prepareBuiltinTailwindContext(candidates: string[]): PreparedTailwindContext
+  tailwindClassesRankable(candidates: string[]): boolean[]
   reactNativeImports(source: string, sourceFile?: string): ReactNativeImports
   analyzeReactNativeUsage(source: string, sourceFile?: string): ReactNativeUsage
   compile(source: string): CompiledComponent[]
@@ -749,6 +751,19 @@ export function prepareTailwindContext(snapshot: string): PreparedTailwindContex
  * Its fingerprint includes the output policy, unlike pass-through contexts. */
 export function prepareFinalTailwindContext(snapshot: string): PreparedTailwindContext {
   return loadNative().prepareFinalTailwindContext(snapshot)
+}
+
+/** @internal An ordered context from the Tailwind facts built into Hozo, for a
+ * compile with no project CSS. Classes it cannot describe keep authored order. */
+export function prepareBuiltinTailwindContext(
+  candidates: readonly string[],
+): PreparedTailwindContext {
+  return loadNative().prepareBuiltinTailwindContext([...candidates])
+}
+
+/** @internal Measurement: whether each class's parsed writes are all in the ranked domain. */
+export function tailwindClassesRankable(candidates: readonly string[]): boolean[] {
+  return loadNative().tailwindClassesRankable([...candidates])
 }
 
 function validateNativeOptions(options: NativeCompileOptions | undefined) {

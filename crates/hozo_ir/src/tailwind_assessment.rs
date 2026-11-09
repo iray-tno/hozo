@@ -66,7 +66,7 @@ pub struct AssessedTailwindRule<'a> {
 
 /// Match Tailwind's escaped root literally, not a substring of another
 /// selector. Only ASCII candidates are assessed in this initial domain.
-fn root_selector(candidate: &str) -> Option<String> {
+pub(crate) fn root_selector(candidate: &str) -> Option<String> {
     if candidate.is_empty() || !candidate.is_ascii() {
         return None;
     }

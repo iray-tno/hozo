@@ -60,6 +60,55 @@ pub fn prepare_final_tailwind_context(snapshot: String) -> napi::Result<Prepared
     })
 }
 
+/// An ordered context for a compile with no project CSS: every class's
+/// descriptor is built from the Tailwind facts compiled into Hozo
+/// (`hozo_ir::builtin_tailwind_snapshot`), choosing between a root's bodies
+/// by the writes Hozo parses for the class. A class it cannot describe keeps
+/// its input in authored order, as an ungenerated class does in a project.
+#[napi]
+pub fn prepare_builtin_tailwind_context(
+    candidates: Vec<String>,
+) -> napi::Result<PreparedTailwindContext> {
+    let snapshot = hozo_ir::builtin_tailwind_snapshot(candidates.iter().map(|name| {
+        let writes = hozo_parser::resolve_class_name(name)
+            .map(|utility| {
+                utility
+                    .groups
+                    .into_iter()
+                    .flat_map(|(_, properties)| properties)
+                    .collect()
+            })
+            .unwrap_or_default();
+        (name.as_str(), writes)
+    }));
+    Ok(PreparedTailwindContext {
+        context: Box::new(
+            hozo_ir::TailwindOrderContext::new(snapshot).map_err(napi::Error::from_reason)?,
+        ),
+        ordered: true,
+    })
+}
+
+/// Whether every write Hozo parses for each class is in the ranked domain.
+/// Measurement only: a class with any other write is a barrier whatever its
+/// descriptor says, so coverage is counted over the ones that are not.
+#[napi]
+pub fn tailwind_classes_rankable(candidates: Vec<String>) -> Vec<bool> {
+    candidates
+        .iter()
+        .map(|name| {
+            hozo_parser::resolve_class_name(name).is_some_and(|utility| {
+                let mut writes = utility.groups.iter().flat_map(|(_, properties)| properties);
+                let mut any = false;
+                writes.all(|write| {
+                    any = true;
+                    hozo_ir::scalar_tailwind_property(write)
+                }) && any
+            })
+        })
+        .collect()
+}
+
 #[napi]
 impl PreparedTailwindContext {
     #[napi(getter)]

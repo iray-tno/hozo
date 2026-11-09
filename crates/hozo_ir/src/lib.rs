@@ -40,6 +40,9 @@ pub use tailwind_assessment::{
 #[rustfmt::skip]
 mod tailwind_portable;
 pub use tailwind_portable::portable_tailwind_snapshot;
+// Generated per-root and per-variant facts for a compile with no project CSS.
+mod tailwind_builtin;
+pub use tailwind_builtin::{builtin_tailwind_snapshot, builtin_tailwind_version};
 
 // ---------------------------------------------------------------------------
 // Source spans / diagnostics

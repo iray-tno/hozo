@@ -22,8 +22,9 @@ pub use owner_slots::{
 pub use static_imports::{inspect_static_module_imports, StaticModuleImports};
 mod prepared_module;
 pub use prepared_module::{
-    prepare_final_tailwind_context, prepare_tailwind_context, PreparedNativeModule,
-    PreparedTailwindContext, PreparedWebModule, PreparedWebOptions,
+    prepare_builtin_tailwind_context, prepare_final_tailwind_context, prepare_tailwind_context,
+    tailwind_classes_rankable, PreparedNativeModule, PreparedTailwindContext, PreparedWebModule,
+    PreparedWebOptions,
 };
 
 #[napi(object)]
