@@ -392,6 +392,9 @@ sibling property as a branch; see
 Without a policy change, gradient writes under different conditions compose
 through Tailwind's register structure on Web; see
 [conditional gradient evidence](../measurements/conditional-gradient-stops.md).
+On Native, the unconditional filter and shadow writes are folded into each
+condition that overrides the family; see
+[Native conditional layer evidence](../measurements/native-conditional-filter-shadow.md).
 
 ## 1. Restart, not another family-specific patch
 
