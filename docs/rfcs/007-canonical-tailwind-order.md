@@ -465,6 +465,8 @@ it never beats a written style; see
 [border style evidence](../measurements/tailwind-border-style-order.md).
 Policy v50 does the same for outline styles and removes the register-bound
 barrier; see [the same page](../measurements/tailwind-border-style-order.md#outline-styles).
+Policy v51 reads `not-hover:`'s two branches as one rule at one place in
+the order; see [not-hover evidence](../measurements/tailwind-not-hover-order.md).
 
 ## 1. Restart, not another family-specific patch
 

@@ -9,8 +9,8 @@ import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 
 // #1230, domain 5 of the inventory (docs/measurements/tailwind-order-inventory.md):
 // the `not-*` forms of states, selectors and queries were unassessed, so an
-// input with one kept its authored order. `not-hover:` stays a barrier:
-// Tailwind writes it as two rules.
+// input with one kept its authored order. `not-hover:`, which Tailwind
+// writes as two branches, is read through its selector branch.
 const css = '@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;'
 const source = (classes: string) =>
   `import {Pressable} from '@hozo/core';export const A=({off})=> <Pressable disabled={off} accessibilityLabel="x" className="${classes}"/>`
@@ -54,10 +54,15 @@ test('negated states, selectors and queries settle in Tailwind order, whichever 
     if (old[0] !== old[1]) differs++
   }
   assert.ok(differs >= 8, `authored order differed in ${differs}`)
-  // `not-hover:` is two rules in Tailwind and keeps authored order.
-  for (const classes of ['not-hover:p-2 p-4 p-2', 'not-hover:p-2 p-2 p-4'])
-    assert.equal(
-      compiler.prepareWebModule(source(classes)).emit(final)[0]!.css,
-      compiler.prepareWebModule(source(classes)).emit(authored)[0]!.css,
-    )
+  // `not-hover:` is two branches in Tailwind at one place in the order; both
+  // now follow the unprefixed rule, so a device that cannot hover gets the
+  // `not-hover:` padding, as in Tailwind.
+  const hoverless = ['not-hover:p-2 p-4', 'p-4 not-hover:p-2'].map(
+    (classes) => compiler.prepareWebModule(source(classes)).emit(final)[0]!.css,
+  )
+  assert.equal(hoverless[0], hoverless[1])
+  assert.ok(
+    hoverless[0]!.indexOf('padding-top: 16px') < hoverless[0]!.indexOf('@media not (hover: hover)'),
+    hoverless[0],
+  )
 })

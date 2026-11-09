@@ -59,7 +59,7 @@ pub struct OrderRuleDescriptor {
     pub shape: OrderRuleShape,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case", deny_unknown_fields)]
 pub enum OrderRuleShape {
     Rule {
@@ -85,7 +85,7 @@ pub enum OrderRuleShape {
     },
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
 pub enum OrderContextValue {
     String(String),

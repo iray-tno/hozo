@@ -104,6 +104,7 @@ impl TailwindOrderContext {
                 Condition::Aria(state) => aria_owner_index(state)?,
                 Condition::Not(inner) => match inner.as_ref() {
                     Condition::Aria(state) => negated_aria_owner_index(state)?,
+                    Condition::Hover => negated_interaction_index(0)?,
                     Condition::Focus => negated_interaction_index(1)?,
                     Condition::FocusVisible => negated_interaction_index(2)?,
                     Condition::Pressed => negated_interaction_index(3)?,
@@ -138,6 +139,13 @@ impl TailwindOrderContext {
                 crate::OrderRuleShape::Declaration { property, .. } => Some(usize::from(
                     crate::tailwind_assessment::covers(property, write),
                 )),
+                // `not-hover:`'s two branches are one body; count it once.
+                crate::OrderRuleShape::Rule { selector, nodes } if selector == "&" => {
+                    let branch = crate::tailwind_assessment::not_hover_branch(nodes)?;
+                    branch.iter().try_fold(0_usize, |count, node| {
+                        count.checked_add(owners(node, write)?)
+                    })
+                }
                 crate::OrderRuleShape::Rule { nodes, .. }
                 | crate::OrderRuleShape::AtRule { nodes, .. } => {
                     nodes.iter().try_fold(0_usize, |count, node| {
@@ -402,6 +410,7 @@ fn same_queries(shape: &crate::OrderRuleShape, queries: &[Query<'_>]) -> bool {
                 // The children's scope is a target, not a condition: a write
                 // reaches it only through ownership (`child_scoped`).
                 let skip = std::mem::take(&mut root)
+                    || selector == "&"
                     || crate::tailwind_assessment::owner_selector(selector).is_some()
                     || selector == crate::tailwind_assessment::CHILD_SCOPE;
                 ((!skip).then_some(Wrapper::Selector(selector)), nodes)
@@ -510,7 +519,7 @@ mod tests {
     #[test]
     fn unassessed_rules_missing_rules_and_foreign_descriptors_never_receive_priorities() {
         let context = TailwindOrderContext::new(portable_tailwind_snapshot()).unwrap();
-        for name in ["not-hover:p-2", "[&:where(:hover)]:p-2"] {
+        for name in ["[&:where(:hover)]:p-2", "[&>span]:p-2"] {
             let candidate = context.lookup(name).unwrap();
             assert!(context
                 .rule_priority(candidate, candidate.rules[0].id)

@@ -15,13 +15,38 @@ const ARIA_FACT_COUNT: usize = 10;
 const NEGATED_INTERACTION: usize = 5 + 2 * ARIA_FACT_COUNT;
 pub(crate) const OWNER_PREDICATE_COUNT: usize = NEGATED_INTERACTION + 5;
 
-/// `not-focus:`, `not-focus-visible:`, `not-active:` and `not-disabled:`.
-/// `not-hover:` is two rules in Tailwind (the selector and a capability
-/// query) and so never reaches here.
+/// `not-hover:`, `not-focus:`, `not-focus-visible:`, `not-active:` and
+/// `not-disabled:`. `not-hover:` is two branches in Tailwind; see
+/// [`not_hover_branch`].
 pub(crate) fn negated_interaction_index(interaction: usize) -> Option<usize> {
-    (1..5)
+    (0..5)
         .contains(&interaction)
         .then_some(NEGATED_INTERACTION + interaction)
+}
+
+/// Tailwind writes `not-hover:` as `& { &:not(*:hover) { … } @media not
+/// (hover: hover) { … } }`: the same declarations, once for a device that
+/// can hover and is not, once for one that cannot hover. Both sit at the
+/// rule's one place in the order, so the rule is ranked by that place, read
+/// through the selector branch; the media branch is the same body. Anything
+/// else in that shape is still branching.
+pub(crate) fn not_hover_branch(nodes: &[OrderRuleShape]) -> Option<&[OrderRuleShape]> {
+    let [OrderRuleShape::Rule {
+        selector,
+        nodes: selected,
+    }, OrderRuleShape::AtRule {
+        name,
+        params,
+        nodes: queried,
+    }] = nodes
+    else {
+        return None;
+    };
+    (selector == "&:not(*:hover)"
+        && name == "@media"
+        && params == "not (hover: hover)"
+        && selected == queried)
+        .then_some(selected.as_slice())
 }
 
 pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
@@ -263,6 +288,7 @@ pub(crate) fn owner_selector(selector: &str) -> Option<usize> {
         "&:focus-visible" => Some(2),
         "&:active" => Some(3),
         "&:disabled" => Some(4),
+        "&:not(*:hover)" => negated_interaction_index(0),
         "&:not(*:focus)" => negated_interaction_index(1),
         "&:not(*:focus-visible)" => negated_interaction_index(2),
         "&:not(*:active)" => negated_interaction_index(3),
@@ -441,6 +467,16 @@ fn assess_body<'a>(
                     return Err(RuleAssessmentError::Importance);
                 }
                 result.properties.push(property);
+            }
+            OrderRuleShape::Rule { selector, nodes } if selector == "&" => {
+                // `not-hover:`'s pair, read through its selector branch.
+                let branch = not_hover_branch(nodes).ok_or(RuleAssessmentError::Branching)?;
+                let index = negated_interaction_index(0).ok_or(RuleAssessmentError::Selector)?;
+                result.owner[index] = result.owner[index]
+                    .checked_add(1)
+                    .ok_or(RuleAssessmentError::Selector)?;
+                result.specificity[1] += 1;
+                assess_body(branch, result)?;
             }
             OrderRuleShape::Rule { selector, nodes } => {
                 // Functional/list/relational/pseudo-element selectors require
@@ -1729,7 +1765,14 @@ mod tests {
         let assessed =
             assess_tailwind_rule("placeholder:text-red-500", &candidate.rules[0]).unwrap();
         assert_eq!(assessed.specificity, [0, 1, 1]);
-        for name in ["[&:where(:hover)]:p-2", "[&>span]:p-2", "not-hover:p-2"] {
+        // `not-hover:` is read through its selector branch: one class, and
+        // the negated hover fact.
+        let candidate = fixture("not-hover:p-2");
+        let assessed = assess_tailwind_rule("not-hover:p-2", &candidate.rules[0]).unwrap();
+        assert_eq!(assessed.specificity, [0, 2, 0]);
+        assert_eq!(assessed.owner[negated_interaction_index(0).unwrap()], 1);
+        assert!(assessed.media.is_empty());
+        for name in ["[&:where(:hover)]:p-2", "[&>span]:p-2"] {
             let candidate = fixture(name);
             assert!(!candidate.rules.is_empty());
             assert!(
