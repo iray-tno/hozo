@@ -18,6 +18,7 @@ State at main `4a9dd648`, policy `scalar-order-v30`.
 | The literal `backdrop-filter` chain puts `opacity` last; Tailwind reads it before `saturate`. Only the register form (conditions split) uses Tailwind's place. | Web | [conditional-filter-functions](conditional-filter-functions.md) |
 | Ratio leading and em tracking in a runtime class string are refused by the generated map (`no-native-output`): there is no font size to multiply by at that point. Static output resolves them against the element's font size. | Native, runtime classes | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
 | A text size's own line height is an absolute length in Hozo (`text-sm`: 20px); Tailwind's is a ratio of the font size (`calc(1.25 / 0.875)`). They agree until another utility changes the font size without a line height: `text-sm text-[2em]` is 32px over 45.71px in Tailwind and 32px over 20px in Hozo. | Web, Native | [tailwind-text-slash-order](tailwind-text-slash-order.md) |
+| A colour on a theme shadow token whose value is a `var()` (`shadow-hozo-surface shadow-red-500`): Tailwind cannot open the `var()` and keeps the shadow's own colour; Hozo follows the chain and repaints it. | Web, Native | [tailwind-theme-shadow](tailwind-theme-shadow.md) |
 | `inline-flex` gets a synthetic `alignSelf: 'flex-start'` in static Native output and not in the generated map. Pre-existing; pinned by a test. | Native | [tailwind-inline-flex-order](tailwind-inline-flex-order.md) |
 
 ## Inputs that keep their authored order

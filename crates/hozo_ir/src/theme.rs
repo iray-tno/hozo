@@ -102,6 +102,11 @@ pub struct Theme {
     /// `--radius-control`. Read for names outside Tailwind's built-in scale,
     /// which the parser resolves itself.
     radii: HashMap<String, f64>,
+    /// The project's own shadow tokens by name -- `surface` for
+    /// `--shadow-surface` -- each as the box-shadow value its `var()` chain
+    /// reaches. Tailwind reads `shadow-<name>` as one of these before it
+    /// tries a colour of the same name, and so does Hozo's emission.
+    shadows: HashMap<String, String>,
     font_weights: HashMap<String, String>,
     /// `--font-<name>` by name, as `(web, native)`: what a Web rule writes,
     /// which is `var(--font-mono)` when Tailwind delivers the variable, and
@@ -136,6 +141,7 @@ impl Default for Theme {
             preflight: false,
             animations: HashMap::new(),
             radii: HashMap::new(),
+            shadows: HashMap::new(),
             font_weights: HashMap::new(),
             font_families: HashMap::new(),
             dark_selector: None,
@@ -167,6 +173,7 @@ impl Theme {
             preflight,
             animations: HashMap::new(),
             radii: HashMap::new(),
+            shadows: HashMap::new(),
             font_weights: HashMap::new(),
             font_families: HashMap::new(),
             dark_selector: None,
@@ -219,6 +226,46 @@ impl Theme {
     /// `rounded-<name>` uses.
     pub fn radius(&self, name: &str) -> Option<f64> {
         self.radii.get(name).copied()
+    }
+
+    pub fn with_shadows(mut self, shadows: HashMap<String, String>) -> Self {
+        self.shadows = shadows;
+        self
+    }
+
+    /// One of the project's own shadow tokens, by the name `shadow-<name>`
+    /// uses, as a box-shadow value.
+    pub fn shadow(&self, name: &str) -> Option<&str> {
+        self.shadows.get(name).map(String::as_str)
+    }
+
+    /// `shadow-<name>` as Tailwind reads it: a shadow when the theme names
+    /// one, before a colour of the same name.
+    ///
+    /// The parser has no theme, so it reads every non-scale `shadow-<name>`
+    /// as a colour. `@hozo/ui` defines both `--color-hozo-surface` and
+    /// `--shadow-hozo-surface`, and `shadow-hozo-surface` -- on its Card,
+    /// BottomSheet, Calendar and CodeBlock -- drew no shadow at all: a colour
+    /// with no shadow to paint. Backends call this before their last-wins
+    /// pass, so a theme shadow and `shadow-lg` in one class list still
+    /// replace each other.
+    pub fn resolve_shadow_tokens(
+        &self,
+        properties: Vec<crate::StyleProperty>,
+    ) -> Vec<crate::StyleProperty> {
+        if self.shadows.is_empty() {
+            return properties;
+        }
+        properties
+            .into_iter()
+            .map(|property| match &property {
+                crate::StyleProperty::ShadowColor(crate::Color::Token(name)) => self
+                    .shadow(name)
+                    .map(|value| crate::StyleProperty::BoxShadow(value.to_string()))
+                    .unwrap_or(property),
+                _ => property,
+            })
+            .collect()
     }
 
     pub fn with_font_weights(mut self, weights: HashMap<String, String>) -> Self {
@@ -326,6 +373,7 @@ impl Theme {
             preflight: self.preflight,
             animations: self.animations.clone(),
             radii: self.radii.clone(),
+            shadows: self.shadows.clone(),
             font_weights: self.font_weights.clone(),
             font_families: self.font_families.clone(),
             // Still where the dark rules go: this theme renders them.

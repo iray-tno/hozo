@@ -1789,6 +1789,9 @@ pub struct JsTheme {
     /// The project's own radius tokens: `--radius-<name>`, resolved to
     /// pixels by `@hozo/tailwind`.
     pub radii: Option<Vec<JsThemeRadius>>,
+    /// The project's own shadow tokens: `--shadow-<name>`, as the value its
+    /// `var()` chain reaches.
+    pub shadows: Option<Vec<JsThemeShadow>>,
     pub font_weights: Option<Vec<JsThemeFontWeight>>,
     /// `--font-<name>`, which `font-sans`, `font-serif` and `font-mono`
     /// read (#1691).
@@ -1823,6 +1826,13 @@ pub struct JsThemeFontFamily {
     /// What a Web rule writes: a `var()` when Tailwind delivers the variable.
     pub web: String,
     /// The declaration's value, for a backend with no CSS variables.
+    pub value: String,
+}
+
+#[napi(object)]
+pub struct JsThemeShadow {
+    /// `surface`, for `--shadow-surface` and `shadow-surface`.
+    pub name: String,
     pub value: String,
 }
 
@@ -1956,6 +1966,14 @@ fn to_theme(theme: Option<JsTheme>) -> hozo_ir::Theme {
     hozo_ir::Theme::with_dark(colors, dark_colors, spacing_px, preflight)
         .with_animations(animations)
         .with_radii(radii)
+        .with_shadows(
+            theme
+                .shadows
+                .unwrap_or_default()
+                .into_iter()
+                .map(|shadow| (shadow.name, shadow.value))
+                .collect(),
+        )
         .with_font_weights(font_weights)
         .with_font_families(
             theme

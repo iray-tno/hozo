@@ -531,9 +531,12 @@ pub fn render_candidate_stylesheet(class_names: &[String], theme: &Theme) -> Str
     let mut uses_leading = false;
     let mut uses_content = false;
     for name in class_names {
-        let Some(utility) = hozo_parser::resolve_class_name(name) else {
+        let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
             continue;
         };
+        for (_, props) in &mut utility.groups {
+            *props = theme.resolve_shadow_tokens(std::mem::take(props));
+        }
         if utility.important {
             // Emitting the normalized value without its importance would be
             // a different utility. Static owners diagnose the original token.
@@ -1090,7 +1093,12 @@ fn push_rules_using(
 ) {
     let mut groups: Vec<_> = hozo_ir::group_by_condition(style)
         .into_iter()
-        .map(|(condition, props)| (condition, hozo_ir::dedupe_last_wins(props)))
+        .map(|(condition, props)| {
+            (
+                condition,
+                hozo_ir::dedupe_last_wins(theme.resolve_shadow_tokens(props)),
+            )
+        })
         .collect();
     let axes = css::register_split_axes(&mut groups, theme);
     let shadows = css::register_split_shadows(&mut groups, theme);

@@ -76,3 +76,19 @@ when no input reaches the old path, which takes two things:
 
 Until then, the useful consolidation is making the old path smaller: each
 barrier graduated moves inputs off it, and this script measures how many.
+
+## Progress
+
+Re-run the script after each layer that graduates a barrier and record it
+here.
+
+| After | Ranked | Moved by |
+| --- | --- | --- |
+| This page | 256 / 320 (80%) | -- |
+| [Transitions and font families](tailwind-transition-font-family-order.md) | 268 / 320 (83.8%) | `transition-colors`, `font-mono` |
+| [Guarded classes](tailwind-guarded-class-order.md) | 283 / 320 (88.4%) | `cx(base, size === 'sm' && 'px-3')` |
+| [Theme shadow tokens](tailwind-theme-shadow.md) | 288 / 320 (90%) | `shadow-hozo-surface` |
+
+What remains, in order: `aria-pressed:` and `placeholder:` (selectors that
+need owner-fact or Native prop evidence), `space-y-*` (child-scoped), and a
+few single cases (`grid`, `fixed`, `row-span-2`, `pt-[env(...)]`).

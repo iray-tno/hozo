@@ -94,6 +94,8 @@ export interface Theme {
    * keep their defaults.
    */
   radii?: ThemeRadius[]
+  /** `--shadow-<name>` as the box-shadow value its `var()` chain reaches. */
+  shadows?: { name: string; value: string }[]
   /** Values remain visible even when a Native font cannot represent them. */
   fontWeights?: { name: string; value: string }[]
   /** `--font-<name>` for `font-sans`, `font-serif` and `font-mono` (#1691). */
@@ -364,6 +366,7 @@ function themeFromDesign(design: Awaited<ReturnType<typeof __unstable__loadDesig
     spacingPx: readSpacing(design),
     animations: readAnimations(design, declared),
     radii: readRadii(declared),
+    shadows: readShadows(declared),
     fontWeights: [...declared]
       .filter(([name]) => name.startsWith('--font-weight-'))
       .map(([name, value]) => ({
@@ -580,6 +583,23 @@ function readFontFamilies(
         // is only whitespace.
         [{ name, web, value: dereference(declaration, declared).replace(/\s+/g, ' ') }]
   })
+}
+
+/**
+ * `--shadow-*` as the box-shadow value each `var()` chain reaches:
+ * `--shadow-surface: var(--shadow-sm)` is Tailwind's small shadow. Only a
+ * project's own names matter -- Hozo has Tailwind's scale built in -- but the
+ * scale is read too, so a project that redefines `--shadow-sm` is honoured.
+ */
+function readShadows(declared: ReadonlyMap<string, string>): { name: string; value: string }[] {
+  const shadows: { name: string; value: string }[] = []
+  for (const [name, declaration] of declared) {
+    if (!name.startsWith('--shadow-')) continue
+    const value = dereference(declaration, declared).replace(/s+/g, ' ').trim()
+    if (value && !value.includes('var('))
+      shadows.push({ name: name.slice('--shadow-'.length), value })
+  }
+  return shadows
 }
 
 function readRadii(declared: ReadonlyMap<string, string>): ThemeRadius[] {

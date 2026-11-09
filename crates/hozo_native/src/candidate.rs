@@ -102,12 +102,15 @@ fn render_candidate_module_impl(
     let mut font_defaults = Vec::new();
     let mut explicit_leading = false;
     for name in class_names {
-        let Some(utility) = hozo_parser::resolve_class_name(name) else {
+        let Some(mut utility) = hozo_parser::resolve_class_name(name) else {
             if let Some(plan) = plan.as_deref_mut() {
                 plan.refused(name, "unrecognized");
             }
             continue;
         };
+        for (_, props) in &mut utility.groups {
+            *props = theme.resolve_shadow_tokens(std::mem::take(props));
+        }
         if utility.important {
             if let Some(plan) = plan.as_deref_mut() {
                 plan.refused(name, "important-not-lowered");

@@ -414,6 +414,9 @@ coverage script found; see
 Policy v35 ranks classes behind JS guards as present-or-absent, not as
 selectors, and Native keeps them in the plan's order among unconditional
 styles; see [guarded class evidence](../measurements/tailwind-guarded-class-order.md).
+Policy v36 lets Tailwind's rule decide whether `shadow-<name>` is a shadow
+or a colour, and the theme now carries `--shadow-*`; see
+[theme shadow evidence](../measurements/tailwind-theme-shadow.md).
 
 ## 1. Restart, not another family-specific patch
 

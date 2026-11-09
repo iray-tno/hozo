@@ -306,7 +306,7 @@ pub(super) fn build_style_entries(
     let mut has_interactive = false;
     let mut groups = hozo_ir::group_by_condition(declarations);
     for (_, props) in &mut groups {
-        *props = hozo_ir::dedupe_last_wins(std::mem::take(props));
+        *props = hozo_ir::dedupe_last_wins(theme.resolve_shadow_tokens(std::mem::take(props)));
     }
     let is_default = |property: &StyleProperty| {
         matches!(
