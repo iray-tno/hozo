@@ -435,6 +435,9 @@ pseudo-element weighing one type, and adds `resize-*`; see
 Policy v40 ranks `space-x-*`/`space-y-*` among themselves, as writes on
 the children owned only by Tailwind's children-scoped rule; see
 [space evidence](../measurements/tailwind-space-order.md).
+Policy v41 adds `caret-*` and `accent-*`, and Native's `cursorColor` takes
+the last caret colour per scheme; see
+[caret and accent evidence](../measurements/tailwind-caret-accent-order.md).
 
 ## 1. Restart, not another family-specific patch
 

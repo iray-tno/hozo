@@ -51,7 +51,7 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        'a415f26cf30f5d0bcb32ec801b6964d8213a3c5371fbdb414c81815c3974d3ab',
+        '991235926d3acb74276af214cabe3362823a7a4a840ff96e91211e489814695f',
       'packages/metro/src/transform.ts':
         '85bffa328dcf0320248f92e7baffbba774e1a4b6bffd99414bc7e918da570106',
       'packages/metro/src/native-source-evidence.ts':
@@ -103,13 +103,13 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/style.rs':
         '165d8979bde0e1be5c15706ea65d9607a3895c249697f49b575afd4e8e6c8b6b',
       'crates/hozo_native/src/render.rs':
-        'dc28790c01244c0c571e9d6a1f3ca5064e74f56ed981b1cddc44b1b763184574',
+        'caf03557a9e4fd7207dd65029a2c36fcb0eeea012c7783c83d29f498b2b33299',
       'crates/hozo_native/src/source_evidence.rs':
         'd0e0209d1e99695c10add6509dc63995016c9f588aba26221b3a70282211880c',
       'crates/hozo_native/src/spread_style.rs':
         'e0740869d9c47eed7055dc55cbb5597fe05a04048a56eb4d45e7c9a756272c93',
       'crates/hozo_native/src/text.rs':
-        '74c04433e9e410335def93b6e4ab37955cc5ae7c88fb4c4555d3bfe65534d9d0',
+        'bdc03dec02d8b2055f34a39f5ffe5b082ef3a8c307a61bfcb3dc0481d2f10dc2',
       'crates/hozo_ir/src/lib.rs':
         'd905c2fee744dd9d488d009a02c5a38b3131ee279d471452a58e2d3bb0584f80',
       'crates/hozo_ir/src/theme.rs':
@@ -123,9 +123,9 @@ export const textFixtureManifest = {
       'crates/hozo_ir/src/tailwind_order/priority.rs':
         'fe32b18becef7061778e585613b37163ccd8cdfe914bbdcf774f3dff87191ed6',
       'crates/hozo_ir/src/tailwind_plan.rs':
-        '32ad71f3c683a1b8366945ae45c884f26fcd0a272369a61df314847935817716',
+        '4a438c90aaaae1c31370063bc3080fd6228f9d5d796e868f8a61e59de70fe5a4',
       'crates/hozo_ir/src/tailwind_assessment.rs':
-        '6d135835b8af15a354d01828bfcfb219eadb0a12c4c499ac1716a1bccd32bdcb',
+        'ccd63da9f3bfd40172c2adcbb7f895244014aff654322458861c11831b45d6e7',
       'crates/hozo_ir/src/tailwind_portable.rs':
         '5f96e73ecaf5edb6c67737bea38666b04f83c7d1c5b5c53ca3b35c5d3d7224a0',
     },

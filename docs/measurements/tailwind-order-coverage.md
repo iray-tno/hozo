@@ -92,6 +92,7 @@ here.
 | [ARIA states](tailwind-aria-state-order.md) | 296 / 320 (92.5%) | `aria-pressed:` |
 | [Placeholder and resize](tailwind-placeholder-order.md) | 300 / 320 (93.8%) | `placeholder:`, `resize-none` |
 | [Space](tailwind-space-order.md) | 308 / 320 (96.3%) | `space-y-*` |
+| [Caret and accent](tailwind-caret-accent-order.md) | 309 / 320 (96.6%) | `accent-emerald-600` |
 
 What remains, in order: `bg-brand` (not generated), and single cases (`backdrop:`, `placeholder-*`,
-`animate-pulse`, `accent-*`, `pt-[env(...)]`).
+`animate-pulse`, `pt-[env(...)]`).

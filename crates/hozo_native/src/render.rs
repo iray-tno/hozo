@@ -151,7 +151,7 @@ pub(super) fn render_node(
     // The caret colour is another TextInput prop rather than a style. Kept
     // separate from placeholder because React Native names the two props
     // independently and either utility may appear alone.
-    let caret = caret_props(node, theme);
+    let caret = caret_props(node, theme, cx.runtime);
 
     // `leading-tight`/`tracking-wide` are relative to the font size, which
     // React Native's equivalents aren't. Resolved here, before the refusal
@@ -411,11 +411,16 @@ pub(super) fn render_node(
             }
         }
         if matches!(declaration.property, StyleProperty::CaretColor(_)) {
-            if caret.is_some() {
+            if caret.is_some() && caret_colour(declaration).is_some() {
                 continue;
             }
+            let reason = if node.primitive == Primitive::TextInput {
+                "conditional caret colours beyond dark mode are not wired to TextInput's cursorColor prop".to_string()
+            } else {
+                caret_only_reason()
+            };
             cx.diagnostics
-                .push(unwired_variant(node, &caret_only_reason(), Severity::Error));
+                .push(unwired_variant(node, &reason, Severity::Error));
             continue;
         }
         if let Some(reason) = truncation_only_reason(&declaration.property) {

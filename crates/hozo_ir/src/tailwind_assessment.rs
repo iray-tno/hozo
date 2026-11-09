@@ -823,6 +823,11 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // Native has no resize handle: `none` writes nothing there and the
         // others are refused, whichever wins, as before.
         Keyword("resize", "none" | "both" | "horizontal" | "vertical") => "resize",
+        // `cursorColor` on a Native `TextInput`, which takes the last light
+        // and dark colour; refused elsewhere. `accent-*` is refused on
+        // Native whatever wins.
+        CaretColor(_) => "caret-color",
+        AccentColor(_) => "accent-color",
         // On the children, through [`CHILD_SCOPE`]; see `child_scoped`.
         // Each backend joins the parent's last gap behind a child's own
         // margin, so ranking only decides which gap that is.
