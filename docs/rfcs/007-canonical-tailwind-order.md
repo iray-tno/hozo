@@ -395,6 +395,16 @@ through Tailwind's register structure on Web; see
 On Native, the unconditional filter and shadow writes are folded into each
 condition that overrides the family; see
 [Native conditional layer evidence](../measurements/native-conditional-filter-shadow.md).
+What still differs from Tailwind, and which inputs keep their authored
+order, is indexed in [known gaps](../measurements/tailwind-known-gaps.md).
+Policy v31 adds ratio leading and em tracking; Native still sizes the winner
+against the font size after ordering; see
+[relative text evidence](../measurements/tailwind-relative-text-order.md).
+Policy v32 follows a parse fix: `text-lg/7` is a size with a fallback line
+height, not a colour; see
+[text slash evidence](../measurements/tailwind-text-slash-order.md).
+Policy v33 adds every text size, relative ones included; see
+[relative text size evidence](../measurements/tailwind-relative-font-size-order.md).
 
 ## 1. Restart, not another family-specific patch
 

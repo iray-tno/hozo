@@ -103,7 +103,6 @@ test('relative text metrics, border style and transform neighbors still preserve
   const theme = await loadTheme(css, base)
   const compiler = createCompiler(theme)
   for (const neighbor of [
-    'tracking-wide',
     'tracking-[1em]',
     'leading-[1em]',
     'border-dashed',

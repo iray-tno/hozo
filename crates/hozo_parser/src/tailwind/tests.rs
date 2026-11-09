@@ -1751,3 +1751,25 @@ fn pressed_variant_is_recognized() {
         (Condition::Pressed, vec![StyleProperty::Opacity(0.5)])
     );
 }
+
+/// `text-lg/7` is a size with its own line height, not the colour `lg` at
+/// 7%. The line height keeps a text size's provenance: Tailwind writes it as
+/// a plain `line-height`, so a `leading-*` still beats it.
+#[test]
+fn a_text_size_slash_is_its_line_height_not_a_colour_opacity() {
+    let size_with = |line_height: Length| {
+        (
+            Condition::Always,
+            vec![
+                StyleProperty::FontSize(Length::Px(18.0)),
+                StyleProperty::LineHeight(LineHeight::FontDefault(line_height)),
+            ],
+        )
+    };
+    assert_eq!(expand_utility("text-lg/7"), size_with(Length::Spacing(7.0)));
+    assert_eq!(expand_utility("text-lg/tight"), size_with(Length::Px(22.5)));
+    assert!(matches!(
+        expand_utility("text-red-500/50").1.as_slice(),
+        [StyleProperty::TextColor(_)]
+    ));
+}

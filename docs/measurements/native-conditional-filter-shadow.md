@@ -47,3 +47,17 @@ the earlier. That needs a runtime composer for filters and shadows like
   shadow at md; `md:blur-lg blur-sm` still gives 16px at md.
 - Compiler 496, tailwind 209, `@hozo/ui` 86, `@hozo/patterns` 165,
   native-showcase 240 and tailwind-conformance 972 pass unchanged.
+
+## Gradients
+
+A later layer adds the gradient family to the same fold: constructors,
+`bg-none`, images and stop colours and positions. On Native each condition's
+style object carried one whole `backgroundImage`, so
+`md:bg-linear-to-b bg-linear-to-r from-red-500` was a stop-less
+`linear-gradient(to bottom)` at md, and `md:from-blue-500 bg-linear-to-r
+from-red-500` a colour with no constructor. Folding the base in gives
+`to bottom` with the red stop, and `to right` with the blue stop; a
+conditional `bg-none` still wins.
+
+`native-conditional-layers.test.ts` executes those three inputs with md off
+and on.

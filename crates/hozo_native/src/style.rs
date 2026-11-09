@@ -205,14 +205,15 @@ pub fn placeholder_color(color: &Color, theme: &Theme) -> String {
     resolve_theme_color(color, theme)
 }
 
-/// Copy the unconditional `boxShadow` and `filter` writes into every other
-/// condition that writes the same family.
+/// Copy the unconditional `boxShadow`, `filter` and `backgroundImage` writes
+/// into every other condition that writes the same family.
 ///
-/// Each condition's style object carries one whole `boxShadow` and one whole
-/// `filter` string, and RN lets the later object replace the earlier one.
+/// Each condition's style object carries one whole `boxShadow`, `filter` and
+/// `backgroundImage` string, and RN lets the later object replace the earlier one.
 /// Tailwind keeps every layer and function in its own register instead, so
 /// `focus:ring-2 shadow-sm` keeps the shadow while focused and
-/// `md:blur-sm grayscale` keeps the grayscale at md. An unconditional style
+/// `md:blur-sm grayscale` keeps the grayscale at md, and a conditional
+/// gradient constructor keeps the base stops. An unconditional style
 /// is active whenever a conditional one is, so composing it into the
 /// conditional object is exactly Tailwind's result when one condition
 /// touches the family. Two conditions active at once still lose each
@@ -246,8 +247,18 @@ pub fn fold_base_layers(
                 | StyleProperty::DropShadowColor(_)
         )
     }
+    fn gradient(p: &StyleProperty) -> bool {
+        matches!(
+            p,
+            StyleProperty::BackgroundImageNone
+                | StyleProperty::BackgroundImage(..)
+                | StyleProperty::Gradient(..)
+                | StyleProperty::GradientStopColor(..)
+                | StyleProperty::GradientStopPosition(..)
+        )
+    }
     let mut declarations = declarations;
-    for family in [shadow as fn(&StyleProperty) -> bool, filter] {
+    for family in [shadow as fn(&StyleProperty) -> bool, filter, gradient] {
         let base: Vec<hozo_ir::StyleDeclaration> = declarations
             .iter()
             .filter(|d| d.condition == hozo_ir::Condition::Always && family(&d.property))
