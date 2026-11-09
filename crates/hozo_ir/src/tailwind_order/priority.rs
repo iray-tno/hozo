@@ -386,8 +386,11 @@ fn same_queries(shape: &crate::OrderRuleShape, queries: &[Query<'_>]) -> bool {
     loop {
         let (wrapper, nodes) = match node {
             crate::OrderRuleShape::Rule { selector, nodes } => {
+                // The children's scope is a target, not a condition: a write
+                // reaches it only through ownership (`child_scoped`).
                 let skip = std::mem::take(&mut root)
-                    || crate::tailwind_assessment::owner_selector(selector).is_some();
+                    || crate::tailwind_assessment::owner_selector(selector).is_some()
+                    || selector == crate::tailwind_assessment::CHILD_SCOPE;
                 ((!skip).then_some(Wrapper::Selector(selector)), nodes)
             }
             crate::OrderRuleShape::AtRule {

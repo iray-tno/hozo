@@ -70,6 +70,19 @@ pub struct AssessedTailwindRule<'a> {
     /// Multiplicity of independently delivered interaction/ARIA predicates.
     /// Guard equivalence only; precedence still comes from the rule.
     pub owner: [u16; OWNER_PREDICATE_COUNT],
+    /// The declarations reach the element's children through
+    /// `:where(& > :not(:last-child))`, not the element itself.
+    pub child_scope: bool,
+}
+
+/// Tailwind's `space-*` selector. It is all inside `:where()`, the class
+/// too, so it weighs nothing.
+pub(crate) const CHILD_SCOPE: &str = ":where(& > :not(:last-child))";
+
+/// Writes that land on the element's children, owned only by a
+/// [`CHILD_SCOPE`] rule and never by the element's own.
+pub(crate) fn child_scoped(write: &StyleProperty) -> bool {
+    matches!(write, StyleProperty::SpaceX(_) | StyleProperty::SpaceY(_))
 }
 
 /// Match Tailwind's escaped root literally, not a substring of another
@@ -116,10 +129,23 @@ pub fn assess_tailwind_rule<'a>(
         media: Vec::new(),
         selectors: Vec::new(),
         owner: [0; OWNER_PREDICATE_COUNT],
+        child_scope: false,
     };
     assess_body(nodes, &mut result)?;
     if result.properties.is_empty() {
         return Err(RuleAssessmentError::Empty);
+    }
+    if result.child_scope {
+        // A state or selector variant moves inside the `:where()` too
+        // (`hover:space-y-4` is `:where(.x:hover > …)`) and weighs nothing,
+        // unlike the same variant on the element. Only queries are read.
+        if result.specificity != [0, 1, 0]
+            || !result.selectors.is_empty()
+            || result.owner.iter().any(|count| *count != 0)
+        {
+            return Err(RuleAssessmentError::Selector);
+        }
+        result.specificity = [0, 0, 0];
     }
     Ok(result)
 }
@@ -382,7 +408,14 @@ fn assess_body<'a>(
             OrderRuleShape::Rule { selector, nodes } => {
                 // Functional/list/relational/pseudo-element selectors require
                 // real assessment, never a colon count or boolean count.
-                if let Some(owner) = owner_selector(selector) {
+                if selector == CHILD_SCOPE {
+                    if std::mem::replace(&mut result.child_scope, true) {
+                        return Err(RuleAssessmentError::Selector);
+                    }
+                } else if result.child_scope {
+                    // Nothing is read inside the children's scope.
+                    return Err(RuleAssessmentError::Selector);
+                } else if let Some(owner) = owner_selector(selector) {
                     result.owner[owner] = result.owner[owner]
                         .checked_add(1)
                         .ok_or(RuleAssessmentError::Selector)?;
@@ -790,6 +823,11 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // Native has no resize handle: `none` writes nothing there and the
         // others are refused, whichever wins, as before.
         Keyword("resize", "none" | "both" | "horizontal" | "vertical") => "resize",
+        // On the children, through [`CHILD_SCOPE`]; see `child_scoped`.
+        // Each backend joins the parent's last gap behind a child's own
+        // margin, so ranking only decides which gap that is.
+        SpaceX(_) => "margin-inline-start",
+        SpaceY(_) => "margin-block-start",
         // One declaration and, where Native has it, one key each. A cursor
         // Native lacks is refused there, as an unsupported display is.
         Cursor(_) => "cursor",
@@ -882,6 +920,11 @@ pub fn assess_tailwind_write<'a>(
             // cherry-pick a unique-looking owner from the assessed remainder.
             Err(reason) => return TailwindWriteOwnership::Unknown(reason.reason()),
         };
+        // A child-scoped write is owned only by a child-scoped rule, and an
+        // element write never by one.
+        if assessment.child_scope != child_scoped(write) {
+            continue;
+        }
         if register_bound(assessment.properties.iter().copied(), write) {
             return TailwindWriteOwnership::Unknown("register-bound-property");
         }

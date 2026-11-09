@@ -9,7 +9,7 @@ import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 const css = '@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;'
 
 test('each captured block reports the barrier that keeps its input in authored order', async () => {
-  const names = ['p-4', 'p-2', 'border-dashed', 'md:p-1', 'translate-none', 'space-y-2']
+  const names = ['p-4', 'p-2', 'border-dashed', 'md:p-1', 'translate-none', 'hover:space-y-2']
   const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const compiler = createCompiler()
   compiler.setTailwindOrder(JSON.stringify(prepared.snapshot))
@@ -17,7 +17,7 @@ test('each captured block reports the barrier that keeps its input in authored o
     <View className="p-4 p-2"/>
     <View className="p-4 border-dashed"/>
     <View className="md:p-1 translate-none"/>
-    <View className="p-2 space-y-2"/>
+    <View className="p-2 hover:space-y-2"/>
     <View className="p-2 nope-not-a-class"/>
   </>`
   const sites = compiler
@@ -43,7 +43,7 @@ test('each captured block reports the barrier that keeps its input in authored o
     ],
     [
       ['p-2', null],
-      ['space-y-2', 'unassessed-selector'],
+      ['hover:space-y-2', 'unassessed-selector'],
     ],
   ])
 })

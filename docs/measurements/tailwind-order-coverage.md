@@ -91,7 +91,7 @@ here.
 | [Grid and position](tailwind-grid-position-order.md) | 292 / 320 (91.3%) | `grid`, `fixed`, `row-span-2` |
 | [ARIA states](tailwind-aria-state-order.md) | 296 / 320 (92.5%) | `aria-pressed:` |
 | [Placeholder and resize](tailwind-placeholder-order.md) | 300 / 320 (93.8%) | `placeholder:`, `resize-none` |
+| [Space](tailwind-space-order.md) | 308 / 320 (96.3%) | `space-y-*` |
 
-What remains, in order: `space-y-*` (child-scoped), `bg-brand` (not
-generated), and single cases (`backdrop:`, `placeholder-*`,
+What remains, in order: `bg-brand` (not generated), and single cases (`backdrop:`, `placeholder-*`,
 `animate-pulse`, `accent-*`, `pt-[env(...)]`).

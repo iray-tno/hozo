@@ -432,6 +432,9 @@ Policy v38 assesses every boolean ARIA state Tailwind names, adding
 Policy v39 reads `placeholder:` as a condition on the element, a
 pseudo-element weighing one type, and adds `resize-*`; see
 [placeholder evidence](../measurements/tailwind-placeholder-order.md).
+Policy v40 ranks `space-x-*`/`space-y-*` among themselves, as writes on
+the children owned only by Tailwind's children-scoped rule; see
+[space evidence](../measurements/tailwind-space-order.md).
 
 ## 1. Restart, not another family-specific patch
 
