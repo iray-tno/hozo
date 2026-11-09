@@ -30,6 +30,11 @@ pub struct TailwindPlanBlock {
     pub candidate_id: Option<u32>,
     pub rule_ids: Vec<u32>,
     pub writes: Vec<TailwindPlanWrite>,
+    /// Why `order_scalars` cannot rank this block, or `None` when every
+    /// write in it can be ranked. An input is ordered only when none of its
+    /// blocks has a barrier; this is what keeps it on the authored-order
+    /// path, reported so a corpus can be counted rather than guessed.
+    pub barrier: Option<&'static str>,
 }
 
 /// One shared module binding, not one rebind per root/element/slot. The report
@@ -113,40 +118,27 @@ fn plan_site(
         *declarations = plan.into_declarations();
         return;
     }
-    let blocks = plan
-        .blocks()
-        .map(|block| {
-            let (status, descriptor) = match block.binding {
-                Some(TailwindRuleBinding::Described(candidate)) => ("described", Some(candidate)),
-                Some(TailwindRuleBinding::NotGenerated(candidate)) => {
-                    ("not-generated", Some(candidate))
-                }
-                Some(TailwindRuleBinding::Uncollected) => ("uncollected", None),
-                None => (
-                    match block.source {
-                        StyleSource::Unspecified => "unspecified",
-                        StyleSource::Stylex(_) => "stylex",
-                        _ => "missing-identity",
-                    },
-                    None,
-                ),
-            };
-            TailwindPlanBlock {
-                start: block.range.start,
-                end: block.range.end,
-                source: block.source,
-                guarded: *block.condition != Condition::Always,
-                status,
-                candidate: block
-                    .source
-                    .utility()
-                    .and_then(|id| bindings.units().candidate(id))
-                    .map(str::to_owned),
-                candidate_id: descriptor.map(|candidate| candidate.id),
-                rule_ids: descriptor.map_or_else(Vec::new, |candidate| {
-                    candidate.rules.iter().map(|rule| rule.id).collect()
-                }),
-                writes: block
+    let blocks =
+        plan.blocks()
+            .map(|block| {
+                let (status, descriptor) = match block.binding {
+                    Some(TailwindRuleBinding::Described(candidate)) => {
+                        ("described", Some(candidate))
+                    }
+                    Some(TailwindRuleBinding::NotGenerated(candidate)) => {
+                        ("not-generated", Some(candidate))
+                    }
+                    Some(TailwindRuleBinding::Uncollected) => ("uncollected", None),
+                    None => (
+                        match block.source {
+                            StyleSource::Unspecified => "unspecified",
+                            StyleSource::Stylex(_) => "stylex",
+                            _ => "missing-identity",
+                        },
+                        None,
+                    ),
+                };
+                let writes: Vec<TailwindPlanWrite> = block
                     .declarations
                     .iter()
                     .enumerate()
@@ -161,10 +153,53 @@ fn plan_site(
                             None => TailwindPlanWrite::unknown(index, status),
                         }
                     })
-                    .collect(),
-            }
-        })
-        .collect();
+                    .collect();
+                // The same question `order_scalars` asks of each write, in the
+                // same order: ownership first, then the scalar domain, then the
+                // write's own condition against the rule's.
+                let barrier =
+                    match descriptor {
+                        None => Some(status),
+                        Some(candidate) => block.declarations.iter().zip(&writes).find_map(
+                            |(declaration, write)| {
+                                if let Some(reason) = write.reason {
+                                    return Some(reason);
+                                }
+                                if !hozo_ir::scalar_tailwind_property(&declaration.property) {
+                                    return Some("not-scalar-property");
+                                }
+                                bindings
+                                    .context()
+                                    .scalar_write_priority(
+                                        &candidate.candidate,
+                                        &declaration.condition,
+                                        &declaration.property,
+                                    )
+                                    .is_none()
+                                    .then_some("unassessed-condition")
+                            },
+                        ),
+                    };
+                TailwindPlanBlock {
+                    start: block.range.start,
+                    end: block.range.end,
+                    source: block.source,
+                    guarded: *block.condition != Condition::Always,
+                    status,
+                    candidate: block
+                        .source
+                        .utility()
+                        .and_then(|id| bindings.units().candidate(id))
+                        .map(str::to_owned),
+                    candidate_id: descriptor.map(|candidate| candidate.id),
+                    rule_ids: descriptor.map_or_else(Vec::new, |candidate| {
+                        candidate.rules.iter().map(|rule| rule.id).collect()
+                    }),
+                    writes,
+                    barrier,
+                }
+            })
+            .collect();
     // This is the plan's actual output consumed by both lowerers, not a
     // side analysis over a second parse or reconstructed author expression.
     *declarations = plan.into_declarations();

@@ -405,6 +405,9 @@ height, not a colour; see
 [text slash evidence](../measurements/tailwind-text-slash-order.md).
 Policy v33 adds every text size, relative ones included; see
 [relative text size evidence](../measurements/tailwind-relative-font-size-order.md).
+How much of a real corpus the plan ranks, and every ordering mechanism
+outside it with what it still serves, is measured in
+[coverage](../measurements/tailwind-order-coverage.md).
 
 ## 1. Restart, not another family-specific patch
 

@@ -51,6 +51,8 @@ export interface TailwindCompilePlan {
       candidate?: string
       candidateId?: number
       ruleIds: number[]
+      /** Why this block keeps its input in authored order; absent when every write can be ranked. */
+      barrier?: string
       /** Shared priority facts only, not value/condition equivalence or a new winner. */
       writes: {
         index: number
