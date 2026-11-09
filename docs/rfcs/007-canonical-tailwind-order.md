@@ -449,6 +449,9 @@ and Native's truncation reads the last of each; see
 Policy v44 adds block-logical spacing, divider widths and colours and the
 reverse flags, leaving domain 2 with no gap; see
 [block spacing and divider evidence](../measurements/tailwind-block-spacing-divide-order.md).
+Policy v45 reads the `not-*` forms of interaction states, element
+selectors and media queries; see
+[negated variant evidence](../measurements/tailwind-negated-variant-order.md).
 
 ## 1. Restart, not another family-specific patch
 

@@ -10,7 +10,19 @@ use crate::{OrderCandidateDescriptor, OrderRuleDescriptor, OrderRuleShape, Style
 /// guard (`accessibilityState`, or a pattern slot's own fact), so ranking
 /// one changes which write wins, never how its guard is delivered.
 const ARIA_FACT_COUNT: usize = 10;
-pub(crate) const OWNER_PREDICATE_COUNT: usize = 5 + 2 * ARIA_FACT_COUNT;
+/// After the ARIA facts and their negations, the negated interaction facts
+/// (`not-focus:` is `&:not(*:focus)`), in the same order as the positive.
+const NEGATED_INTERACTION: usize = 5 + 2 * ARIA_FACT_COUNT;
+pub(crate) const OWNER_PREDICATE_COUNT: usize = NEGATED_INTERACTION + 5;
+
+/// `not-focus:`, `not-focus-visible:`, `not-active:` and `not-disabled:`.
+/// `not-hover:` is two rules in Tailwind (the selector and a capability
+/// query) and so never reaches here.
+pub(crate) fn negated_interaction_index(interaction: usize) -> Option<usize> {
+    (1..5)
+        .contains(&interaction)
+        .then_some(NEGATED_INTERACTION + interaction)
+}
 
 pub(crate) fn aria_owner_index(state: &str) -> Option<usize> {
     Some(match state {
@@ -251,6 +263,10 @@ pub(crate) fn owner_selector(selector: &str) -> Option<usize> {
         "&:focus-visible" => Some(2),
         "&:active" => Some(3),
         "&:disabled" => Some(4),
+        "&:not(*:focus)" => negated_interaction_index(1),
+        "&:not(*:focus-visible)" => negated_interaction_index(2),
+        "&:not(*:active)" => negated_interaction_index(3),
+        "&:not(*:disabled)" => negated_interaction_index(4),
         _ => selector
             .strip_prefix("&[aria-")
             .and_then(|tail| tail.strip_suffix("=\"true\"]"))
@@ -307,6 +323,14 @@ pub(crate) fn element_selector_weight(selector: &str) -> Option<u32> {
         .and_then(|rest| rest.strip_suffix(") &"))
     {
         return inner(rest).map(|_| 0);
+    }
+    // `not-<x>:` is `&:not(*<x>)`, which weighs what its argument does:
+    // one for `*:empty`, none for `*:where(:dir(ltr), …)`.
+    if let Some(rest) = selector
+        .strip_prefix("&:not(*")
+        .and_then(|rest| rest.strip_suffix(')'))
+    {
+        return compound_selector_weight(&format!("&{rest}"));
     }
     compound_selector_weight(selector)
 }
