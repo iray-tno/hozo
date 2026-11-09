@@ -9,14 +9,14 @@ import { prepareTailwindOrder, tailwindPackageDir } from './theme.ts'
 const css = '@import "tailwindcss/theme.css" layer(theme); @tailwind utilities;'
 
 test('each captured block reports the barrier that keeps its input in authored order', async () => {
-  const names = ['p-4', 'p-2', 'divide-dashed', 'md:p-1', 'translate-none', 'hover:space-y-2']
+  const names = ['p-4', 'p-2', 'divide-dashed', 'md:p-1', 'via-none', 'hover:space-y-2']
   const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)
   const compiler = createCompiler()
   compiler.setTailwindOrder(JSON.stringify(prepared.snapshot))
   const source = `import {View} from '@hozo/core';export const A=()=> <>
     <View className="p-4 p-2"/>
     <View className="p-4 divide-dashed"/>
-    <View className="md:p-1 translate-none"/>
+    <View className="md:p-1 via-none"/>
     <View className="p-2 hover:space-y-2"/>
     <View className="p-2 nope-not-a-class"/>
   </>`
@@ -39,7 +39,7 @@ test('each captured block reports the barrier that keeps its input in authored o
     ],
     [
       ['md:p-1', null],
-      ['translate-none', 'unmapped-property'],
+      ['via-none', 'unmapped-property'],
     ],
     [
       ['p-2', null],

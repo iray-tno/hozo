@@ -123,7 +123,7 @@ test('canonical disabled ordering survives actual static/dynamic action and dest
   const cache = openCandidateCache()
   cache.scanFile('disabled-order.ts', JSON.stringify(names.join(' ')), 0)
   const plan = cache.renderNativeModulePlan(context)
-  assert.match(plan.fingerprint!, /^scalar-order-v50:/)
+  assert.match(plan.fingerprint!, /^scalar-order-v52:/)
   assert.ok(plan.entries.every((entry) => entry.groups.every((group) => group.orderable)))
   const resolve = runInNewContext(
     `${plan.code.replace(/^import .*$/gm, '').replaceAll('export const ', 'const ')};\nhozoClasses`,
@@ -192,8 +192,7 @@ test('unassessed ARIA selectors preserve the complete old input, not guessed pri
   for (const neighbor of [
     // Every boolean ARIA state Tailwind names is assessed now
     // (aria-state-order.test.ts); arbitrary values are not parsed at all.
-    'not-hover:p-8',
-    'aria-pressed:not-hover:p-8',
+    'not-group-hover:p-8',
   ]) {
     const names = ['p-4', 'p-2', neighbor]
     const prepared = await prepareTailwindOrder(css, tailwindPackageDir(), names)

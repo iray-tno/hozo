@@ -72,3 +72,5 @@ a row.
 | [Subtree and starting style](tailwind-subtree-starting-order.md) | 0 | 0 | 44 | 1 | 1 |
 | [Border styles](tailwind-border-style-order.md) | 0 | 0 | 40 | 1 | 1 |
 | [Outline styles](tailwind-border-style-order.md#outline-styles) | 0 | 0 | 37 | 1 | 1 |
+| [`not-hover:`](tailwind-not-hover-order.md) | 0 | 0 | 37 | 1 | **0** |
+| [Transform forms](tailwind-transform-form-order.md) | 0 | 0 | 8 | 1 | 0 |

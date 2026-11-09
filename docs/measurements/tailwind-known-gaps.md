@@ -19,6 +19,7 @@ State at main `4a9dd648`, policy `scalar-order-v30`.
 | Ratio leading and em tracking in a runtime class string are refused by the generated map (`no-native-output`): there is no font size to multiply by at that point. Static output resolves them against the element's font size. | Native, runtime classes | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
 | A text size's own line height is an absolute length in Hozo (`text-sm`: 20px); Tailwind's is a ratio of the font size (`calc(1.25 / 0.875)`). They agree until another utility changes the font size without a line height: `text-sm text-[2em]` is 32px over 45.71px in Tailwind and 32px over 20px in Hozo. | Web, Native | [tailwind-text-slash-order](tailwind-text-slash-order.md) |
 | A colour on a theme shadow token whose value is a `var()` (`shadow-hozo-surface shadow-red-500`): Tailwind cannot open the `var()` and keeps the shadow's own colour; Hozo follows the chain and repaints it. | Web, Native | [tailwind-theme-shadow](tailwind-theme-shadow.md) |
+| `container` is one rule in Tailwind holding a `max-width` per breakpoint, so its branches compete with an unprefixed `max-w-*` by the rule's place in the order. Hozo emits every conditional style after the unconditional ones, so `container max-w-5xl` takes the container's width at a breakpoint where Tailwind may take `max-w-5xl`. `container` stays a barrier; ranking it would not fix the emission. | Web, Native | [not-hover-order](tailwind-not-hover-order.md) |
 | `inline-flex` gets a synthetic `alignSelf: 'flex-start'` in static Native output and not in the generated map. Pre-existing; pinned by a test. | Native | [tailwind-inline-flex-order](tailwind-inline-flex-order.md) |
 
 ## Inputs that keep their authored order
@@ -29,9 +30,8 @@ reason, not an oversight.
 
 | Barrier | Why | Found in |
 | --- | --- | --- |
-| Resets: `translate-none`, `scale-none`, `rotate-none`, `transform-none`, `filter-none`, `backdrop-filter-none` | They write the shared declaration itself, not a register, so they need ownership against every register rule (`md:translate-none translate-x-2`: 2 of 8 observations disagree). | [conditional-transform-axes](conditional-transform-axes.md), [tailwind-filter-order](tailwind-filter-order.md) |
+| `filter-none`, `backdrop-filter-none` | They write the shared declaration itself, against every function rule's register chain. The transform resets rank since [transform-form-order](tailwind-transform-form-order.md). | [tailwind-filter-order](tailwind-filter-order.md) |
 | `drop-shadow-none` | Writes `--tw-drop-shadow` itself, which every size and colour rule also sets. | [drop-shadow-order](tailwind-drop-shadow-order.md) |
-| `scale-3d` | Switches the declaration's form; owns no register. | [tailwind-skew-rotate-axis-order](tailwind-skew-rotate-axis-order.md) |
 | Divider style utilities (`divide-dashed`) | They set `--tw-border-style`, read by every divider width; Hozo writes the divider width's style as a literal on the children. Border and outline styles rank since [border-style-order](tailwind-border-style-order.md). | [tailwind-border-width-order](tailwind-border-width-order.md), [tailwind-outline-order](tailwind-outline-order.md) |
 | Arbitrary relative lengths (`leading-[1em]`, `tracking-[1em]`) | An em length is not a ratio; static folding does not resolve it. | [tailwind-relative-text-order](tailwind-relative-text-order.md) |
 | Arbitrary passthrough classes (`columns-[10rem]`, `cursor-[…]`, `text-[150%]`, `text-[length:…]`) | A generic write with an owned name is not modelled (`columns-[10rem] columns-3`: 4 of 8 disagree). | [tailwind-columns-underline-offset-order](tailwind-columns-underline-offset-order.md) |
