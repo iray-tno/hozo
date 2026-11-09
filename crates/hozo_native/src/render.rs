@@ -977,6 +977,7 @@ pub(super) fn render_node(
     });
     let (child_declarations, own_declarations): (Vec<_>, Vec<_>) =
         own_declarations.partition(|d| style::is_child_scoped(&d.property));
+    let own_declarations = style::fold_base_layers(own_declarations);
 
     let mut frames = crate::conditions::AnimatedFrames::default();
     let animates = component == "HozoAnimated";

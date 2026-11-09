@@ -647,6 +647,124 @@ fn gradient_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {
     Some(format!("{}({prelude}, {})", kind.css(), stops.join(", ")))
 }
 
+/// Turn gradient writes into Tailwind's registers when conditions write
+/// different ones. Returns whether it did.
+///
+/// `gradient_value` joins constructor and stops per condition, so
+/// `md:from-red-500 bg-linear-to-r from-blue-500` painted nothing new at md:
+/// the md rule had a colour and no constructor. Tailwind writes the position
+/// and a `background-image` reading `--tw-gradient-stops` from the
+/// constructor, and each colour and position into its own register; this
+/// writes the same structure under `--hozo-` names. `bg-none` keeps its
+/// literal declaration, as Tailwind's does. `via-none`, an arbitrary
+/// `bg-[…]`, or a constructor beside `bg-none` in one condition keeps the
+/// old output for the whole element.
+pub fn register_split_gradients(
+    groups: &mut [(Condition, Vec<StyleProperty>)],
+    theme: &Theme,
+) -> bool {
+    fn slot(p: &StyleProperty) -> u16 {
+        match p {
+            StyleProperty::Gradient(..) => 1,
+            StyleProperty::BackgroundImageNone => 1 << 1,
+            StyleProperty::GradientStopColor(stop, _) => 1 << (2 + *stop as u16),
+            StyleProperty::GradientStopPosition(stop, _) => 1 << (5 + *stop as u16),
+            _ => 0,
+        }
+    }
+    let blocked = groups.iter().any(|(_, props)| {
+        props.iter().any(|p| {
+            matches!(p, StyleProperty::BackgroundImage(_))
+                || matches!(p, StyleProperty::GradientStopColor(_, c) if c.is_initial())
+        }) || props
+            .iter()
+            .filter(|p| {
+                matches!(
+                    p,
+                    StyleProperty::Gradient(..) | StyleProperty::BackgroundImageNone
+                )
+            })
+            .count()
+            > 1
+    });
+    if blocked {
+        return false;
+    }
+    let mut written: Vec<(&Condition, u16)> = Vec::new();
+    for (condition, props) in groups.iter() {
+        let slots = props.iter().fold(0, |slots, p| slots | slot(p));
+        if slots == 0 {
+            continue;
+        }
+        match written.iter_mut().find(|(seen, _)| *seen == condition) {
+            Some((_, seen)) => *seen |= slots,
+            None => written.push((condition, slots)),
+        }
+    }
+    if !written.windows(2).any(|pair| pair[0].1 != pair[1].1) {
+        return false;
+    }
+    let set = |name: &str, value: String| StyleProperty::Arbitrary(format!("--hozo-{name}"), value);
+    const STOPS: &str = "var(--hozo-gradient-via-stops, var(--hozo-gradient-position), \
+         var(--hozo-gradient-from) var(--hozo-gradient-from-position), \
+         var(--hozo-gradient-to) var(--hozo-gradient-to-position))";
+    const VIA_STOPS: &str = "var(--hozo-gradient-position), \
+         var(--hozo-gradient-from) var(--hozo-gradient-from-position), \
+         var(--hozo-gradient-via) var(--hozo-gradient-via-position), \
+         var(--hozo-gradient-to) var(--hozo-gradient-to-position)";
+    for (_, props) in groups.iter_mut() {
+        if !props
+            .iter()
+            .any(|p| slot(p) != 0 && !matches!(p, StyleProperty::BackgroundImageNone))
+        {
+            continue;
+        }
+        let mut rewritten = Vec::with_capacity(props.len() + 2);
+        for property in props.drain(..) {
+            match &property {
+                StyleProperty::Gradient(kind, prelude) => {
+                    rewritten.push(set("gradient-position", prelude.clone()));
+                    rewritten.push(StyleProperty::Arbitrary(
+                        "background-image".to_string(),
+                        format!(
+                            "{}(var(--hozo-gradient-stops, var(--hozo-gradient-position)))",
+                            kind.css()
+                        ),
+                    ));
+                }
+                StyleProperty::GradientStopColor(stop, color) => {
+                    let name = match stop {
+                        GradientStop::From => "gradient-from",
+                        GradientStop::Via => "gradient-via",
+                        GradientStop::To => "gradient-to",
+                    };
+                    rewritten.push(set(name, resolve_theme_color(color, theme)));
+                    if *stop == GradientStop::Via {
+                        rewritten.push(set("gradient-via-stops", VIA_STOPS.to_string()));
+                        rewritten.push(set(
+                            "gradient-stops",
+                            "var(--hozo-gradient-via-stops)".to_string(),
+                        ));
+                    } else {
+                        rewritten.push(set("gradient-stops", STOPS.to_string()));
+                    }
+                }
+                StyleProperty::GradientStopPosition(stop, position) => {
+                    let name = match stop {
+                        GradientStop::From => "gradient-from-position",
+                        GradientStop::Via => "gradient-via-position",
+                        GradientStop::To => "gradient-to-position",
+                    };
+                    rewritten.push(set(name, dimension_value(position, theme)));
+                }
+                _ => rewritten.push(property),
+            }
+        }
+        *props = rewritten;
+    }
+    true
+}
+
 fn is_scroll_snap(prop: &StyleProperty) -> bool {
     matches!(
         prop,
@@ -990,6 +1108,27 @@ pub fn axis_register_css() -> &'static str {
         ("backdrop-opacity", None),
         ("backdrop-saturate", None),
         ("backdrop-sepia", None),
+        ("shadow", Some("0 0 #0000")),
+        ("shadow-color", None),
+        ("inset-shadow", Some("0 0 #0000")),
+        ("inset-shadow-color", None),
+        ("ring-shadow", Some("0 0 #0000")),
+        ("ring-color", None),
+        ("inset-ring-shadow", Some("0 0 #0000")),
+        ("inset-ring-color", None),
+        ("ring-inset", None),
+        ("ring-offset-width", Some("0px")),
+        ("ring-offset-color", Some("#fff")),
+        ("ring-offset-shadow", Some("0 0 #0000")),
+        ("gradient-position", None),
+        ("gradient-from", Some("#0000")),
+        ("gradient-via", Some("#0000")),
+        ("gradient-to", Some("#0000")),
+        ("gradient-stops", None),
+        ("gradient-via-stops", None),
+        ("gradient-from-position", Some("0%")),
+        ("gradient-via-position", Some("50%")),
+        ("gradient-to-position", Some("100%")),
     ];
     static CSS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     CSS.get_or_init(|| {
@@ -2416,6 +2555,147 @@ fn split_layers(value: &str) -> Vec<&str> {
     }
     layers.push(value[start..].trim());
     layers
+}
+
+/// A shadow with each layer's default colour read through `register`, as
+/// Tailwind writes `var(--tw-shadow-color, rgb(0 0 0 / 0.1))`.
+fn shadow_through(shadow: &str, register: &str) -> String {
+    if shadow == "none" {
+        return "0 0 #0000".to_string();
+    }
+    split_layers(shadow)
+        .into_iter()
+        .map(|layer| match layer.rfind("rgb(") {
+            Some(cut) => {
+                let end = close_paren(layer, cut + "rgb(".len() - 1);
+                format!(
+                    "{}var({register}, {}){}",
+                    &layer[..cut],
+                    &layer[cut..=end],
+                    &layer[end + 1..]
+                )
+            }
+            None => layer.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Turn shadow and ring writes into Tailwind's registers when conditions
+/// write different ones. Returns whether it did.
+///
+/// `box_shadow_value` joins the layers per condition, so `focus:ring-2
+/// shadow-sm` was `box-shadow: 0 0 0 2px currentcolor` while focused: the
+/// focus rule replaced the whole declaration and the shadow went with it.
+/// Tailwind keeps every layer, colour, the offset width and the inset flag
+/// in a register and reads the five layers in one `box-shadow`; this writes
+/// the same structure under `--hozo-*` names. Conditions that write the same
+/// slots (`shadow-sm md:shadow-lg`) keep their literal declarations.
+pub fn register_split_shadows(
+    groups: &mut [(Condition, Vec<StyleProperty>)],
+    theme: &Theme,
+) -> bool {
+    fn slot(p: &StyleProperty) -> u16 {
+        match p {
+            StyleProperty::BoxShadow(_) => 1,
+            StyleProperty::ShadowColor(_) => 1 << 1,
+            StyleProperty::InsetShadow(_) => 1 << 2,
+            StyleProperty::InsetShadowColor(_) => 1 << 3,
+            StyleProperty::RingWidth(_) => 1 << 4,
+            StyleProperty::RingColor(_) => 1 << 5,
+            StyleProperty::InsetRingWidth(_) => 1 << 6,
+            StyleProperty::InsetRingColor(_) => 1 << 7,
+            StyleProperty::RingOffsetWidth(_) => 1 << 8,
+            StyleProperty::RingOffsetColor(_) => 1 << 9,
+            StyleProperty::RingInset => 1 << 10,
+            _ => 0,
+        }
+    }
+    let mut written: Vec<(&Condition, u16)> = Vec::new();
+    for (condition, props) in groups.iter() {
+        let slots = props.iter().fold(0, |slots, p| slots | slot(p));
+        if slots == 0 {
+            continue;
+        }
+        match written.iter_mut().find(|(seen, _)| *seen == condition) {
+            Some((_, seen)) => *seen |= slots,
+            None => written.push((condition, slots)),
+        }
+    }
+    if !written.windows(2).any(|pair| pair[0].1 != pair[1].1) {
+        return false;
+    }
+    let color = |c: &Color| {
+        if c.is_initial() {
+            // Guaranteed-invalid, so the reader falls back to its default.
+            "initial".to_string()
+        } else {
+            resolve_theme_color(c, theme)
+        }
+    };
+    let set = |name: &str, value: String| StyleProperty::Arbitrary(format!("--hozo-{name}"), value);
+    for (_, props) in groups.iter_mut() {
+        if !props.iter().any(|p| slot(p) != 0) {
+            continue;
+        }
+        let mut rewritten = Vec::with_capacity(props.len() + 2);
+        for property in props.drain(..) {
+            match &property {
+                StyleProperty::BoxShadow(s) => {
+                    rewritten.push(set("shadow", shadow_through(s, "--hozo-shadow-color")))
+                }
+                StyleProperty::ShadowColor(c) => rewritten.push(set("shadow-color", color(c))),
+                StyleProperty::InsetShadow(s) => rewritten.push(set(
+                    "inset-shadow",
+                    shadow_through(s, "--hozo-inset-shadow-color"),
+                )),
+                StyleProperty::InsetShadowColor(c) => {
+                    rewritten.push(set("inset-shadow-color", color(c)))
+                }
+                StyleProperty::RingWidth(width) => rewritten.push(set(
+                    "ring-shadow",
+                    format!(
+                        "var(--hozo-ring-inset,) 0 0 0 calc({} + var(--hozo-ring-offset-width)) \
+                         var(--hozo-ring-color, currentcolor)",
+                        length_px(width, theme)
+                    ),
+                )),
+                StyleProperty::RingColor(c) => rewritten.push(set("ring-color", color(c))),
+                StyleProperty::InsetRingWidth(width) => rewritten.push(set(
+                    "inset-ring-shadow",
+                    format!(
+                        "inset 0 0 0 {} var(--hozo-inset-ring-color, currentcolor)",
+                        length_px(width, theme)
+                    ),
+                )),
+                StyleProperty::InsetRingColor(c) => {
+                    rewritten.push(set("inset-ring-color", color(c)))
+                }
+                StyleProperty::RingOffsetWidth(width) => {
+                    rewritten.push(set("ring-offset-width", length_px(width, theme)));
+                    rewritten.push(set(
+                        "ring-offset-shadow",
+                        "var(--hozo-ring-inset,) 0 0 0 var(--hozo-ring-offset-width) \
+                         var(--hozo-ring-offset-color)"
+                            .to_string(),
+                    ));
+                }
+                StyleProperty::RingOffsetColor(c) => {
+                    rewritten.push(set("ring-offset-color", color(c)))
+                }
+                StyleProperty::RingInset => rewritten.push(set("ring-inset", "inset".to_string())),
+                _ => rewritten.push(property),
+            }
+        }
+        rewritten.push(StyleProperty::Arbitrary(
+            "box-shadow".to_string(),
+            "var(--hozo-inset-shadow), var(--hozo-inset-ring-shadow), \
+             var(--hozo-ring-offset-shadow), var(--hozo-ring-shadow), var(--hozo-shadow)"
+                .to_string(),
+        ));
+        *props = rewritten;
+    }
+    true
 }
 
 fn box_shadow_value(props: &[&StyleProperty], theme: &Theme) -> Option<String> {

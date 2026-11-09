@@ -379,6 +379,22 @@ register; `filter-none` and drop shadows remain barriers; see
 Without a policy change, filter functions written under different
 conditions compose through registers on Web; see
 [conditional filter evidence](../measurements/conditional-filter-functions.md).
+Policy v29 adds every shadow and ring layer, colour, the offset width and
+`ring-inset`, each owning its register rather than `box-shadow`; see
+[shadow and ring evidence](../measurements/tailwind-shadow-ring-order.md).
+Without a policy change, shadow and ring writes under different conditions
+compose through Tailwind's register structure on Web; see
+[conditional shadow evidence](../measurements/conditional-shadow-layers.md).
+Policy v30 adds gradient constructors, `bg-none` and each stop's colour and
+position register, and stops reading an `@supports` that only re-declares a
+sibling property as a branch; see
+[gradient evidence](../measurements/tailwind-gradient-order.md).
+Without a policy change, gradient writes under different conditions compose
+through Tailwind's register structure on Web; see
+[conditional gradient evidence](../measurements/conditional-gradient-stops.md).
+On Native, the unconditional filter and shadow writes are folded into each
+condition that overrides the family; see
+[Native conditional layer evidence](../measurements/native-conditional-filter-shadow.md).
 
 ## 1. Restart, not another family-specific patch
 
