@@ -150,10 +150,13 @@ export function hozoClasses(value,state){requested.push(value);return resolve(va
     assert.match(web[0]!.css, /padding-top: 16px/)
     assert.match(web[0]!.css, /width: 32px/)
     assert.match(web[0]!.css, /background-color: #223344/)
-    // The direct/legacy comparator disagrees in at least one dimension in each
-    // case. If the final-context connection vanished, this must not stay green.
+    // A direct compile has no project context and orders with the Tailwind
+    // facts built into Hozo; under the same default theme it must agree with
+    // the captured final context. (It used to keep authored order and so
+    // disagree; the final-context connection itself is pinned above by the
+    // single preparation and the one shared context handle.)
     const direct = compiler.compileNativeModule(primitive(classes)).components[0]!
-    assert.notEqual(direct.styles, native.components[0]!.styles)
+    assert.equal(direct.styles, native.components[0]!.styles)
     const exports = loadNativeModule(output.code, project, { root: project, compiler })
     for (const resizable of [false, true]) {
       let own: Record<string, unknown> | undefined = Object.freeze({ paddingTop: 5, width: 41 })

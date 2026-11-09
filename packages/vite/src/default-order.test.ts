@@ -81,11 +81,17 @@ test('actual transformed query modules publish their scalar winners during trans
   assert.doesNotMatch(assetCss(output), /width:16px/)
 })
 
-test('snapshot-unavailable lowering remains warned and does not reuse prior ordered output', async (t) => {
+test('snapshot-unavailable lowering uses the built-in order and does not reuse prior ordered output', async (t) => {
   const root = fixture(t)
-  await tinyBuild(root)
+  writeFileSync(path.join(root, 'tokens.css'), '@theme {--spacing:.5rem;} @tailwind utilities;')
+  assert.match(assetCss(await tinyBuild(root)), /padding(?:-top)?:32px/)
   writeFileSync(path.join(root, 'tokens.css'), '@import "./missing.css";')
-  assert.match(assetCss(await tinyBuild(root)), /padding(?:-top)?:8px/)
+  // No project CSS to capture: Tailwind's order still holds, from the
+  // facts built into Hozo, at the default spacing -- neither the previous
+  // build's 32px nor the authored-last `p-2`.
+  const fallback = assetCss(await tinyBuild(root))
+  assert.match(fallback, /padding(?:-top)?:16px/)
+  assert.doesNotMatch(fallback, /padding(?:-top)?:(?:32|8)px/)
 })
 
 test('late bundle errors remain failures; there is no shadow certificate to mistake for success', async (t) => {

@@ -342,7 +342,17 @@ pub(super) fn build_style_entries(
         defaults.extend(writes);
         groups = defaults;
     }
+    // A ranked input can revisit a condition after another one -- Tailwind's
+    // order put `text-[20px]`, then the other branch's classes, then
+    // `text-red-500` -- and each visit is its own group. Named by condition
+    // alone, the second StyleSheet entry replaced the first and the 20px was
+    // lost, so repeated conditions are named apart as repeated inputs are.
+    let repeats = groups
+        .iter()
+        .enumerate()
+        .any(|(index, (condition, _))| groups[..index].iter().any(|(seen, _)| seen == condition));
     let mut used_names = (projects_metrics
+        || repeats
         || declarations
             .windows(2)
             .any(|pair| pair[0].source.input() != pair[1].source.input()))

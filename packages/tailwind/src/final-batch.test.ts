@@ -7,6 +7,7 @@ import {
   createCompiler,
   openCandidateCache,
   type PreparedModule,
+  prepareAuthoredTailwindContext,
   prepareTailwindContext,
 } from '@hozo/compiler'
 import { lowerModule, prepareLowerModule } from '@hozo/compiler/lower'
@@ -128,8 +129,11 @@ test('a completed batch changes both static targets and the actual generated fac
   const row = runtime('runtime', 'one', classes)
   const snapshot = await order(classes.split(' '))
   const ordinary = prepareTailwindContext(snapshot)
-  const oldWeb = compiler.prepareWebModule(source(classes)).emit(ordinary)[0]!
-  const oldNative = compiler.prepareNativeModule(source(classes)).emit(ordinary).components[0]!
+  // The negative control is authored order: an ordinary session now uses the
+  // built-in Tailwind order too, which agrees with the batch here.
+  const authored = prepareAuthoredTailwindContext(snapshot)
+  const oldWeb = compiler.prepareWebModule(source(classes)).emit(authored)[0]!
+  const oldNative = compiler.prepareNativeModule(source(classes)).emit(authored).components[0]!
   const result = await emitFinalTailwindBatch({
     expected: [
       { id: 'w', revision: 'one' },
@@ -173,7 +177,7 @@ test('a completed batch changes both static targets and the actual generated fac
     result.native.code,
     /scalar-order-v\d+:|candidateId|specificity|propertyOrder/,
   )
-  assert.equal(compiler.prepareWebModule(source(classes)).emit(ordinary)[0]!.css, oldWeb.css)
+  assert.equal(compiler.prepareWebModule(source(classes)).emit(ordinary)[0]!.css, web[0]!.css)
 })
 
 test('empty/static-only/runtime-only batches still prepare once and keep fallback membership exact', async () => {
@@ -241,8 +245,11 @@ test('a ranked rule with a mismatched actual owner is a barrier in both static a
   const classes = 'p-4 p-2 active:p-4'
   const row = runtime('runtime', 'one', classes)
   const compiler = createCompiler()
-  const oldWeb = compiler.compile(source(classes))[0]!
-  const oldNative = compiler.compileNativeModule(source(classes)).components[0]!
+  // A barrier keeps authored order; the built-in default would rank this
+  // input, since its own descriptor for `active:p-4` is not mismatched.
+  const authored = prepareAuthoredTailwindContext(await order(classes.split(' ')))
+  const oldWeb = compiler.prepareWebModule(source(classes)).emit(authored)[0]!
+  const oldNative = compiler.prepareNativeModule(source(classes)).emit(authored).components[0]!
   const result = await emitFinalTailwindBatch({
     expected: [
       { id: 'w', revision: 'one' },

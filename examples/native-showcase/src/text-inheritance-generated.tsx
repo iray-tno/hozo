@@ -51,21 +51,21 @@ export const textFixtureManifest = {
     route: 'per-region proof; runtime fallback on missing proof',
     sourceSha256: {
       'packages/compiler/src/index.ts':
-        'acb415a323c70f08c19c8fa3f94a60c53a8d6f2fd8e0702a962a0a0d5708bf70',
+        'aaf9837a7900dcae433b3eb93ce608338e41abccc24bd6ddd925af7567a2645f',
       'packages/metro/src/transform.ts':
         '85bffa328dcf0320248f92e7baffbba774e1a4b6bffd99414bc7e918da570106',
       'packages/metro/src/native-source-evidence.ts':
         '693857f1459cc82b9dbc3aabafe5ca2e12be95be61cfc20888fb3d464f0bfe35',
       'crates/hozo_napi/src/lib.rs':
-        '7f37ef11c303b3523ed61a84a4728d914cf601fe2dc3e961f7d4f76de2188b3d',
+        'a465da31e7c72b513df17b78dd36f6c579b9ee880dc47d8e841cd4b631c38b4d',
       'crates/hozo_napi/src/owner_slots.rs':
         '32f992813986c3e391d73f3ddcc13c9aec38987c7d3060d482e84b8862f7d9ac',
       'crates/hozo_napi/src/tailwind_order.rs':
         '186924694cb7674b2fdb2d9cd1789ffd997c8fcf23d9b1bcb93b8ed342ccfd63',
       'crates/hozo_napi/src/prepared_module.rs':
-        '26c279c1693a18b3175ea4029f88f0cac7060c2276d6a3978e40d70399bc3036',
+        '0b05047fc5cf21a14644c6ca5b61afb4085907fadcb64e39ee87dc0a6fe3b7c1',
       'crates/hozo_parser/src/lib.rs':
-        'ad0e8ddf1ab3a96818939d2eb3575666235694069c2c62d2fb2ab7b84d109025',
+        '68dc5e628ab0cd3a2d007af89f7e69adfc9e53b37e910d5232c093e7c9427730',
       'crates/hozo_parser/src/owner_slots.rs':
         'f1447d3f60cb13a327be0b89ca55053eb403a297b80f7c8f64f2af101c8095a0',
       'crates/hozo_parser/src/important.rs':
@@ -75,7 +75,7 @@ export const textFixtureManifest = {
       'crates/hozo_parser/src/class_literals.rs':
         '8a3f777d7564e4ce6377287f7555c0d2aec8bcdd87163b72984afbf1d3efb4ad',
       'crates/hozo_parser/src/tailwind_plan.rs':
-        '3bd3f15fdde6e7897117685b91ee071c4d0f2b06b5a8b34d38d5a5ee6f8965d3',
+        '13d1ba3f117599f4dd90160d27cf933413d2faf005e88c7a013e2d38f67e7a2e',
       'crates/hozo_parser/src/interaction_order.rs':
         '7b91f5ba55ac795a003f9c95325dbdb851d8d27b938db4000dbd7addf483428d',
       'crates/hozo_parser/src/jsx.rs':
@@ -95,7 +95,7 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/runtime_classes.rs':
         '67205088936aab9bee84a188f3231b085bd3eef79c4dfd4a92502c0c756e3537',
       'crates/hozo_native/src/conditions.rs':
-        '4741cee39cf01ecad5f4ef7c916b786ec9f0d7eb5580944235446d186c85ab1e',
+        'bf449f3c44dc83cc18b4444dcec259df39f32d3426109d0fd25736444c949612',
       'crates/hozo_native/src/conditions/guards.rs':
         'dd34ae4567c841bb4c830caba937836ecb29ef5db81440fd7dafed96b8198f13',
       'crates/hozo_native/src/text_region.rs':
@@ -111,13 +111,13 @@ export const textFixtureManifest = {
       'crates/hozo_native/src/text.rs':
         '74c04433e9e410335def93b6e4ab37955cc5ae7c88fb4c4555d3bfe65534d9d0',
       'crates/hozo_ir/src/lib.rs':
-        'e702d9169f4fcafa5755d68f642c69d47e4c2e2114c11aff3f72e4e7444dd0e0',
+        'd905c2fee744dd9d488d009a02c5a38b3131ee279d471452a58e2d3bb0584f80',
       'crates/hozo_ir/src/theme.rs':
         '7fa0c39fbf2e4cf429a2b64f7ccd872ce98f23149cb19672e0b85bf2ce674fd1',
       'crates/hozo_ir/src/tailwind_units.rs':
         '83d256020ea813a4fdfd2274186f09d7f2c78666ffcb4eb3a2c80d8c41679923',
       'crates/hozo_ir/src/tailwind_order.rs':
-        'f56a105c23e95dcc1e238daac9fbea16f7e8fe0f92c77a5c1abd11ba514fa497',
+        '33e4b7a1d0213ca182585b40d089f99751b80b1d868aed0e99dbe1b3c9ce94cf',
       'crates/hozo_ir/src/tailwind_order/comparison.rs':
         'feaba43a80a38e8bb3767d21f40bdb3e8de506599c72e20cf9e3779c67dff5f2',
       'crates/hozo_ir/src/tailwind_order/priority.rs':
@@ -125,7 +125,7 @@ export const textFixtureManifest = {
       'crates/hozo_ir/src/tailwind_plan.rs':
         '80c9976a6d27e3f86029f8ddb4262b4cf19683fe4b81bb7f517f1b0c8cd0688c',
       'crates/hozo_ir/src/tailwind_assessment.rs':
-        'cd0aa568c04761156b4af90b9e64a37cc2667307ac7ac4d7e0ed0e2cf08d8d7e',
+        'bb331ca6ba36944edb9cc2ed99eba475a02101f02b22feaf752f1356321267ff',
       'crates/hozo_ir/src/tailwind_portable.rs':
         '5f96e73ecaf5edb6c67737bea38666b04f83c7d1c5b5c53ca3b35c5d3d7224a0',
     },
@@ -135,10 +135,10 @@ export const textFixtureManifest = {
     {
       name: 'static',
       sourceSha256: '886d67b926180efc77d3b7bad19a3cedac27abe47ff7107cf023bc1febe84925',
-      ordinarySha256: '14ad5cc883f2ba28f8df698ed40ba178636fb573dffedd9da3af3ef747c46adb',
-      referenceSha256: '14ad5cc883f2ba28f8df698ed40ba178636fb573dffedd9da3af3ef747c46adb',
-      productionSha256: '0e349fc642d8e3f108248a04cf3a169ec3cd4b95425a676dce231e872a3c75ff',
-      productionStaticSha256: '14ad5cc883f2ba28f8df698ed40ba178636fb573dffedd9da3af3ef747c46adb',
+      ordinarySha256: '9bf4539a58d86019362c229b7b755a492190af771d3a3cd551dddd4d8e98c6a1',
+      referenceSha256: '9bf4539a58d86019362c229b7b755a492190af771d3a3cd551dddd4d8e98c6a1',
+      productionSha256: '67084f8122422fa1ee13d3e30447ef14b1a07b8d688890284d03baf3b281b549',
+      productionStaticSha256: '9bf4539a58d86019362c229b7b755a492190af771d3a3cd551dddd4d8e98c6a1',
       productionStaticRoute: 'plain-native',
       route: 'plain-native',
       proof: {
@@ -172,10 +172,10 @@ export const textFixtureManifest = {
     {
       name: 'runtime',
       sourceSha256: '029a45359695daf034de7568854e765b39ae785a1e6c8c1e642e8fcce94b2273',
-      ordinarySha256: '02c1d6575e3e071422a6f84e26b0f1ea3160b8f59c63d79c104af65b4de27c24',
-      referenceSha256: '02c1d6575e3e071422a6f84e26b0f1ea3160b8f59c63d79c104af65b4de27c24',
-      productionSha256: 'effcdb2975dfb25be3463cfd533d71c881dc8eb4db980c528257401e90bdb841',
-      productionStaticSha256: 'effcdb2975dfb25be3463cfd533d71c881dc8eb4db980c528257401e90bdb841',
+      ordinarySha256: '7d293906940f4ad31672ff43bd7ef98f4d0545a67069790de1afa5acf2013b49',
+      referenceSha256: '7d293906940f4ad31672ff43bd7ef98f4d0545a67069790de1afa5acf2013b49',
+      productionSha256: '0208cb77b44e9d2d3459ad2b9236996271face788f985e8a6e4fd3d2030ba1fc',
+      productionStaticSha256: '0208cb77b44e9d2d3459ad2b9236996271face788f985e8a6e4fd3d2030ba1fc',
       productionStaticRoute: 'context-fallback',
       route: 'context-fallback',
       proof: {
@@ -210,10 +210,10 @@ export const textFixtureManifest = {
     {
       name: 'opaque',
       sourceSha256: '4e4d859a748db43491461aa8d09d9ea29611b87e7dec229c9bea3b269f6c6aa4',
-      ordinarySha256: '02c1d6575e3e071422a6f84e26b0f1ea3160b8f59c63d79c104af65b4de27c24',
-      referenceSha256: 'cb128e860d0578b0048504197d1813ab6d3678ab692ef8d712aa57c676ea0b89',
-      productionSha256: 'b99558ef5cedfee76c484560ff1f254a11b1bb5349d6ae11fe2a9ae7fbe60ebd',
-      productionStaticSha256: 'b99558ef5cedfee76c484560ff1f254a11b1bb5349d6ae11fe2a9ae7fbe60ebd',
+      ordinarySha256: '7d293906940f4ad31672ff43bd7ef98f4d0545a67069790de1afa5acf2013b49',
+      referenceSha256: 'c5a7706e8dbf5d9abc007a09ee1128edc069666b3982cda856eb52bc3c5a0bd0',
+      productionSha256: 'f5a41ca03f9491078a6d7c12772a2fc8190e11dd804aaf8cd5ddb49d70a9d4ac',
+      productionStaticSha256: 'f5a41ca03f9491078a6d7c12772a2fc8190e11dd804aaf8cd5ddb49d70a9d4ac',
       productionStaticRoute: 'context-fallback',
       ordinaryControl: {
         sourceSha256: '029a45359695daf034de7568854e765b39ae785a1e6c8c1e642e8fcce94b2273',
@@ -255,17 +255,17 @@ export const textFixtureManifest = {
 export function createStaticLabel(Text: ComponentType<TextProps & Record<string, unknown>>) {
   const hozoStyles = StyleSheet.create({
     hozo_r0_0: {
-      color: '#111111',
-      fontSize: 22,
-      fontWeight: '600',
-      lineHeight: 32,
-      letterSpacing: 1,
       textAlign: 'left',
+      fontSize: 22,
+      lineHeight: 32,
+      fontWeight: '600',
+      letterSpacing: 1,
+      color: '#111111',
       textTransform: 'uppercase',
     },
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {
@@ -293,17 +293,17 @@ export function createStaticLabel(Text: ComponentType<TextProps & Record<string,
 export function createProductionStaticLabel() {
   const hozoStyles = StyleSheet.create({
     hozo_r0_0: {
-      color: '#111111',
-      fontSize: 22,
-      fontWeight: '600',
-      lineHeight: 32,
-      letterSpacing: 1,
       textAlign: 'left',
+      fontSize: 22,
+      lineHeight: 32,
+      fontWeight: '600',
+      letterSpacing: 1,
+      color: '#111111',
       textTransform: 'uppercase',
     },
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {
@@ -334,17 +334,17 @@ export function createProductionStaticLabel() {
 export function createProductionStaticStaticLabel() {
   const hozoStyles = StyleSheet.create({
     hozo_r0_0: {
-      color: '#111111',
-      fontSize: 22,
-      fontWeight: '600',
-      lineHeight: 32,
-      letterSpacing: 1,
       textAlign: 'left',
+      fontSize: 22,
+      lineHeight: 32,
+      fontWeight: '600',
+      letterSpacing: 1,
+      color: '#111111',
       textTransform: 'uppercase',
     },
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {
@@ -373,17 +373,17 @@ export function createProductionStaticStaticLabel() {
 export function createRuntimeLabel(Text: ComponentType<TextProps & Record<string, unknown>>) {
   const hozoStyles = StyleSheet.create({
     hozo_r0_0: {
-      color: '#111111',
-      fontSize: 22,
-      fontWeight: '600',
-      lineHeight: 32,
-      letterSpacing: 1,
       textAlign: 'left',
+      fontSize: 22,
+      lineHeight: 32,
+      fontWeight: '600',
+      letterSpacing: 1,
+      color: '#111111',
       textTransform: 'uppercase',
     },
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {
@@ -411,17 +411,17 @@ export function createRuntimeLabel(Text: ComponentType<TextProps & Record<string
 export function createProductionRuntimeLabel() {
   const hozoStyles = StyleSheet.create({
     hozo_r0_0: {
-      color: '#111111',
-      fontSize: 22,
-      fontWeight: '600',
-      lineHeight: 32,
-      letterSpacing: 1,
       textAlign: 'left',
+      fontSize: 22,
+      lineHeight: 32,
+      fontWeight: '600',
+      letterSpacing: 1,
+      color: '#111111',
       textTransform: 'uppercase',
     },
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {
@@ -452,17 +452,17 @@ export function createProductionRuntimeLabel() {
 export function createProductionStaticRuntimeLabel() {
   const hozoStyles = StyleSheet.create({
     hozo_r0_0: {
-      color: '#111111',
-      fontSize: 22,
-      fontWeight: '600',
-      lineHeight: 32,
-      letterSpacing: 1,
       textAlign: 'left',
+      fontSize: 22,
+      lineHeight: 32,
+      fontWeight: '600',
+      letterSpacing: 1,
+      color: '#111111',
       textTransform: 'uppercase',
     },
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {
@@ -494,8 +494,8 @@ export function createProductionStaticRuntimeLabel() {
 export function createOpaqueLabel(Text: ComponentType<TextProps & Record<string, unknown>>) {
   const hozoStyles = StyleSheet.create({
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {
@@ -521,8 +521,8 @@ export function createOpaqueLabel(Text: ComponentType<TextProps & Record<string,
 export function createProductionOpaqueLabel() {
   const hozoStyles = StyleSheet.create({
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {
@@ -551,8 +551,8 @@ export function createProductionOpaqueLabel() {
 export function createProductionStaticOpaqueLabel() {
   const hozoStyles = StyleSheet.create({
     hozo_r0_1: {
-      color: '#1355bb',
       fontWeight: '500',
+      color: '#1355bb',
     },
   })
   type LabelProps = {

@@ -19,7 +19,7 @@ const collected = (classes: string, id?: string) => (compiler) =>
   compiler.prepareWebModule(source(classes, id), undefined, options)
 const code = (value: string) => (error) => error?.code === value
 
-test('ordinary project sessions enable shared scalar winners without changing standalone pass-through calls', async () => {
+test('ordinary project sessions enable shared scalar winners, and standalone calls use the built-in order', async () => {
   const compiler = createCompiler()
   const session = new TailwindProjectSession(compiler, order)
   try {
@@ -34,7 +34,8 @@ test('ordinary project sessions enable shared scalar winners without changing st
       assert.match(native.components[0].styles, /paddingTop: 16/)
       assert.doesNotMatch(native.components[0].styles, /paddingTop: 8/)
     }
-    assert.match(compiler.compile(source('p-4 p-2'))[0].css, /padding-top: 8px/)
+    // No project context: Tailwind's order from the facts built into Hozo.
+    assert.match(compiler.compile(source('p-4 p-2'))[0].css, /padding-top: 16px/)
   } finally {
     session.invalidate()
   }

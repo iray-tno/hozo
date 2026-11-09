@@ -70,7 +70,10 @@ fn diagnostics(source: &[hozo_ir::Diagnostic], offsets: &Utf16Offsets) -> Vec<Di
 /// carefully -- see the profile in `Cargo.toml`.
 #[wasm_bindgen(js_name = compileWeb)]
 pub fn compile_web(source: &str) -> String {
-    let parsed = hozo_parser::parse_tsx(source);
+    let mut parsed = hozo_parser::parse_tsx(source);
+    // No project CSS here: Tailwind's order from the built-in facts, as the
+    // standalone native API does.
+    hozo_parser::order_module_tailwind_builtin(&mut parsed);
     let offsets = Utf16Offsets::new(source);
     let theme = Theme::default();
     let components: Vec<WebComponent> = parsed
@@ -92,7 +95,10 @@ pub fn compile_web(source: &str) -> String {
 /// The same source, lowered for React Native.
 #[wasm_bindgen(js_name = compileNative)]
 pub fn compile_native(source: &str) -> String {
-    let parsed = hozo_parser::parse_tsx(source);
+    let mut parsed = hozo_parser::parse_tsx(source);
+    // No project CSS here: Tailwind's order from the built-in facts, as the
+    // standalone native API does.
+    hozo_parser::order_module_tailwind_builtin(&mut parsed);
     let offsets = Utf16Offsets::new(source);
     let theme = Theme::default();
     let components: Vec<NativeComponent> = parsed
