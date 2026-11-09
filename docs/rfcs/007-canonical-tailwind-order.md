@@ -395,6 +395,8 @@ through Tailwind's register structure on Web; see
 On Native, the unconditional filter and shadow writes are folded into each
 condition that overrides the family; see
 [Native conditional layer evidence](../measurements/native-conditional-filter-shadow.md).
+What still differs from Tailwind, and which inputs keep their authored
+order, is indexed in [known gaps](../measurements/tailwind-known-gaps.md).
 
 ## 1. Restart, not another family-specific patch
 
