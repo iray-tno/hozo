@@ -403,6 +403,8 @@ against the font size after ordering; see
 Policy v32 follows a parse fix: `text-lg/7` is a size with a fallback line
 height, not a colour; see
 [text slash evidence](../measurements/tailwind-text-slash-order.md).
+Policy v33 adds every text size, relative ones included; see
+[relative text size evidence](../measurements/tailwind-relative-font-size-order.md).
 
 ## 1. Restart, not another family-specific patch
 

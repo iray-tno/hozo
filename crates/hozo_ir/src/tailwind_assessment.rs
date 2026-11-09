@@ -588,7 +588,10 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         BackgroundColor(_) => "background-color",
         TextColor(_) => "color",
         FontWeight(_) => "font-weight",
-        FontSize(length) if absolute(length) => "font-size",
+        // Any size, absolute or not, is one `font-size`. Native's relative
+        // folds read only pixel sizes and run after ordering, so ranking an
+        // em size decides which size wins without changing what they read.
+        FontSize(_) => "font-size",
         LineHeight(crate::LineHeight::Length(length) | crate::LineHeight::FontDefault(length))
             if absolute(length) =>
         {
