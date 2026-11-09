@@ -741,6 +741,16 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // One declaration and, where Native has it, one key each. A cursor
         // Native lacks is refused there, as an unsupported display is.
         Cursor(_) => "cursor",
+        FontFamily(_) => "font-family",
+        // `transition` and `transition-colors` declare all three; `duration-*`
+        // and `ease-*` declare their register and the one property. A
+        // utility's own duration or easing still beats `transition`'s
+        // fallback by provenance (`dedupe_last_wins`), as Tailwind's
+        // `var(--tw-duration, 0s)` does, whichever is ranked later.
+        TransitionProperty(_) => "transition-property",
+        TransitionDuration(..) => "transition-duration",
+        TransitionDelay(..) => "transition-delay",
+        TransitionTimingFunction(..) => "transition-timing-function",
         ObjectFit(_) => "object-fit",
         // `mixBlendMode` on Native, apart from `plus-darker`, which is
         // refused there as before; `bg-blend-*` is refused there whole.

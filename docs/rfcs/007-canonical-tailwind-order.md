@@ -408,6 +408,9 @@ Policy v33 adds every text size, relative ones included; see
 How much of a real corpus the plan ranks, and every ordering mechanism
 outside it with what it still serves, is measured in
 [coverage](../measurements/tailwind-order-coverage.md).
+Policy v34 adds transitions and font families, the largest barrier the
+coverage script found; see
+[transition and font family evidence](../measurements/tailwind-transition-font-family-order.md).
 
 ## 1. Restart, not another family-specific patch
 
