@@ -337,9 +337,13 @@ pub(crate) fn element_selector_weight(selector: &str) -> Option<u32> {
 
 /// The element's own compound, without a relation: a relation never nests.
 fn compound_selector_weight(selector: &str) -> Option<u32> {
-    const WEIGHTLESS: [&str; 2] = [
+    // `*:` and `**:` move the class inside `:is()`, which weighs what the
+    // class does, so they add nothing to it.
+    const WEIGHTLESS: [&str; 4] = [
         "&:where(:dir(ltr), [dir=\"ltr\"], [dir=\"ltr\"] *)",
         "&:where(:dir(rtl), [dir=\"rtl\"], [dir=\"rtl\"] *)",
+        ":is(& > *)",
+        ":is(& *)",
     ];
     const ONE: [&str; 2] = [
         "&:is([open], :popover-open, :open)",
@@ -472,7 +476,11 @@ fn assess_body<'a>(
                 name,
                 params,
                 nodes,
-            } if matches!(name.as_str(), "@media" | "@container" | "@supports") => {
+            } if matches!(
+                name.as_str(),
+                "@media" | "@container" | "@supports" | "@starting-style"
+            ) =>
+            {
                 result.media.push((name, params));
                 assess_body(nodes, result)?;
             }
@@ -560,11 +568,10 @@ pub(crate) fn covers(property: &str, write: &StyleProperty) -> bool {
 /// writes beside every width (`border-style: var(--tw-border-style)`).
 ///
 /// A width utility's style reads the `--tw-border-style` register, so it is
-/// `solid` unless a style utility sets the register -- which Hozo lowers as a
-/// literal `solid`. That literal is only safe to rank against other width
-/// utilities; a style utility (which declares the register itself) stays
-/// unranked, see `register_bound`. Widths in font-relative units fold
-/// through the font size and are left out, as `font-size` is.
+/// `solid` unless a style utility sets the register. Hozo writes it as
+/// `BorderStyle::Default`, which never beats a written style, so both rank.
+/// Widths in font-relative units fold through the font size and are left
+/// out, as `font-size` is.
 pub(crate) fn border_edge_properties(write: &StyleProperty) -> Option<[&'static str; 2]> {
     use crate::Edge;
     use StyleProperty::*;
@@ -611,34 +618,6 @@ pub(crate) fn border_edge_properties(write: &StyleProperty) -> Option<[&'static 
         }
         _ => return None,
     })
-}
-
-/// The style register a style write competes with, if any.
-pub(crate) fn style_register(write: &StyleProperty) -> Option<&'static str> {
-    use StyleProperty::*;
-    match write {
-        BorderTopStyle(_)
-        | BorderRightStyle(_)
-        | BorderBottomStyle(_)
-        | BorderLeftStyle(_)
-        | BorderLogicalStyle(..) => Some("--tw-border-style"),
-        OutlineStyle(_) => Some("--tw-outline-style"),
-        _ => None,
-    }
-}
-
-/// A border or outline style written by a rule that also sets that style's
-/// register (`--tw-border-style`, `--tw-outline-style`). Wherever such a
-/// style utility applies, every width utility's style reads the register and
-/// agrees with it, whatever the two rules' order. Hozo's width utilities
-/// write a literal `solid` instead, which ranking would let override the
-/// style utility (`border-dashed md:border-2`), so these writes stay
-/// unranked and keep their input in authored order.
-pub(crate) fn register_bound<'p>(
-    mut properties: impl Iterator<Item = &'p str>,
-    write: &StyleProperty,
-) -> bool {
-    style_register(write).is_some_and(|register| properties.any(|property| property == register))
 }
 
 /// Single-key projections with no shorthand/longhand alias, font-relative
@@ -783,9 +762,10 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         BorderBlockStartColor(_) => "border-block-start-color",
         BorderBlockEndColor(_) => "border-block-end-color",
         // Outline widths write `outline-style: var(--tw-outline-style)`
-        // beside the width, as border widths do; a style utility's own
-        // write is kept out by `register_bound`. `None` projects to Native's
-        // `outlineWidth: 0`, a width key, so it stays out of the domain.
+        // beside the width, as border widths do; Hozo writes that as
+        // `BorderStyle::Default`, which never beats a written style. `None`
+        // projects to Native's `outlineWidth: 0`, a width key, so it stays
+        // out of the domain.
         OutlineWidth(length) if absolute(length) => "outline-width",
         OutlineStyle(style) if *style != crate::BorderStyle::None => "outline-style",
         OutlineColor(_) => "outline-color",
@@ -962,6 +942,14 @@ pub(crate) fn scalar_css_property(write: &StyleProperty) -> Option<&'static str>
         // `filter`/`backdrop-filter`. `filter-none` writes the declaration
         // itself, and a drop shadow pairs its register with a colour and a
         // size register, so both stay barriers.
+        // A drop shadow is two registers in Tailwind: the size rule sets
+        // `--tw-drop-shadow-size` (which reads the colour) and the colour
+        // rule `--tw-drop-shadow-color`; each owns its own. `drop-shadow-none`
+        // writes `--tw-drop-shadow` itself and stays a barrier.
+        Filter(crate::FilterFunction::DropShadow, value) if !value.is_empty() => {
+            "--tw-drop-shadow-size"
+        }
+        DropShadowColor(_) => "--tw-drop-shadow-color",
         Filter(function, _) => filter_register(*function, false)?,
         BackdropFilter(function, _) => filter_register(*function, true)?,
         // Shadows and rings are five layers in one `box-shadow`, and each
@@ -1011,9 +999,6 @@ pub fn assess_tailwind_write<'a>(
         // element write never by one.
         if assessment.child_scope != child_scoped(write) {
             continue;
-        }
-        if register_bound(assessment.properties.iter().copied(), write) {
-            return TailwindWriteOwnership::Unknown("register-bound-property");
         }
         for property in assessment.properties {
             if covers(property, write) {
@@ -1266,7 +1251,7 @@ mod tests {
     }
 
     #[test]
-    fn border_widths_and_their_style_rank_but_a_style_register_does_not() {
+    fn border_widths_and_written_styles_rank() {
         use crate::{BorderStyle, Edge};
         let px = Length::Px(2.0);
         let solid = BorderStyle::Solid;
@@ -1312,25 +1297,22 @@ mod tests {
         assert!(!crate::scalar_tailwind_property(
             &StyleProperty::BorderTopWidth(em)
         ));
-        // `border-2` declares the style it reads; `border-dashed` sets the
-        // register every width's style reads.
+        // `border-dashed` sets the register every width's style reads, but a
+        // width's own style is `BorderStyle::Default`, which never beats a
+        // written one, so the written style ranks like any other write.
         let style = StyleProperty::BorderTopStyle(solid);
-        assert!(!register_bound(
-            ["border-style", "border-width"].into_iter(),
-            &style
-        ));
-        assert!(register_bound(
-            ["--tw-border-style", "border-style"].into_iter(),
-            &style
-        ));
-        assert!(!register_bound(
-            ["--tw-border-style", "border-style"].into_iter(),
+        assert_eq!(style.origin(), Some(crate::Origin::Written));
+        assert_eq!(
+            StyleProperty::BorderTopStyle(BorderStyle::Default).origin(),
+            Some(crate::Origin::Default)
+        );
+        assert!(crate::scalar_tailwind_property(
             &StyleProperty::BorderTopWidth(px)
         ));
     }
 
     #[test]
-    fn outline_writes_rank_but_its_style_register_and_none_do_not() {
+    fn outline_writes_and_written_styles_rank_but_none_does_not() {
         use crate::BorderStyle;
         let px = Length::Px(2.0);
         for (write, property) in [
@@ -1353,19 +1335,15 @@ mod tests {
         assert!(!crate::scalar_tailwind_property(
             &StyleProperty::OutlineStyle(BorderStyle::None)
         ));
-        let style = StyleProperty::OutlineStyle(BorderStyle::Dashed);
-        assert!(register_bound(
-            ["--tw-outline-style", "outline-style"].into_iter(),
-            &style
-        ));
-        assert!(!register_bound(
-            ["outline-style", "outline-width"].into_iter(),
-            &style
-        ));
-        assert!(!register_bound(
-            ["--tw-border-style", "outline-style"].into_iter(),
-            &style
-        ));
+        // A width's implied style never beats a written one.
+        assert_eq!(
+            StyleProperty::OutlineStyle(BorderStyle::Dashed).origin(),
+            Some(crate::Origin::Written)
+        );
+        assert_eq!(
+            StyleProperty::OutlineStyle(BorderStyle::Default).origin(),
+            Some(crate::Origin::Default)
+        );
     }
 
     #[test]
@@ -1473,7 +1451,7 @@ mod tests {
     }
 
     #[test]
-    fn each_filter_function_owns_its_register_and_none_or_drop_shadow_does_not() {
+    fn each_filter_function_owns_its_register_and_none_or_drop_shadow_none_does_not() {
         use crate::FilterFunction;
         for (write, register) in [
             (
@@ -1484,6 +1462,10 @@ mod tests {
                 StyleProperty::BackdropFilter(FilterFunction::Opacity, "opacity(50%)".into()),
                 "--tw-backdrop-opacity",
             ),
+            (
+                StyleProperty::Filter(FilterFunction::DropShadow, "drop-shadow(0 0 1px)".into()),
+                "--tw-drop-shadow-size",
+            ),
         ] {
             assert!(crate::scalar_tailwind_property(&write), "{write:?}");
             assert!(covers(register, &write), "{write:?}");
@@ -1492,7 +1474,7 @@ mod tests {
         }
         for write in [
             StyleProperty::Filter(FilterFunction::None, "none".into()),
-            StyleProperty::Filter(FilterFunction::DropShadow, "drop-shadow(0 0 1px)".into()),
+            StyleProperty::Filter(FilterFunction::DropShadow, String::new()),
         ] {
             assert!(!crate::scalar_tailwind_property(&write), "{write:?}");
         }

@@ -49,16 +49,17 @@ test('border widths settle in Tailwind order, whichever is written first', async
   }
 })
 
-test('a border style utility keeps its input in authored order', async () => {
+test('a border style utility ranks, and a conditional width cannot turn it solid', async () => {
   // `border-dashed` sets `--tw-border-style`, which every width's style
-  // reads. Hozo writes the width's style as a literal `solid`, so ranking it
-  // would let `md:border-2` turn a dashed border solid.
+  // reads. A width's own style is `BorderStyle::Default`, emitted at zero
+  // specificity, so `md:border-2` keeps the border dashed in either order.
   const compiler = createCompiler()
   const final = await context(['border-dashed', 'md:border-2'])
   const css = ['border-dashed md:border-2', 'md:border-2 border-dashed'].map(
     (classes) => compiler.prepareWebModule(source(classes)).emit(final)[0]!.css,
   )
-  assert.notEqual(css[0], css[1])
+  assert.equal(css[0], css[1])
+  assert.match(css[0]!, /:where\(\.hozo-0\) \{/)
 })
 
 test('the dynamic Native map ranks the same border width key', async () => {

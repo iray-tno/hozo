@@ -68,3 +68,7 @@ a row.
 | [Block spacing and dividers](tailwind-block-spacing-divide-order.md) | 0 | **0** | 341 | 10 | 23 |
 | [Negated variants](tailwind-negated-variant-order.md) | 0 | 0 | 341 | 10 | 4 |
 | [Line clamps and containers](tailwind-line-clamp-container-order.md) | 0 | 0 | 341 | 1 | 4 |
+| [Drop shadows](tailwind-drop-shadow-order.md) | 0 | 0 | 44 | 1 | 4 |
+| [Subtree and starting style](tailwind-subtree-starting-order.md) | 0 | 0 | 44 | 1 | 1 |
+| [Border styles](tailwind-border-style-order.md) | 0 | 0 | 40 | 1 | 1 |
+| [Outline styles](tailwind-border-style-order.md#outline-styles) | 0 | 0 | 37 | 1 | 1 |

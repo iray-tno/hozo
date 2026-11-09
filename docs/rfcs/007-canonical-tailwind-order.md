@@ -455,6 +455,16 @@ selectors and media queries; see
 Policy v46 adds `line-clamp-*`, now emitted where the plan puts it, and
 `@container`; see
 [line clamp and container evidence](../measurements/tailwind-line-clamp-container-order.md).
+Policy v47 adds `drop-shadow-*` and its colours, each owning its own
+register; see [drop shadow evidence](../measurements/tailwind-drop-shadow-order.md).
+Policy v48 reads `*:`, `**:` and `starting:`; see
+[subtree and starting-style evidence](../measurements/tailwind-subtree-starting-order.md).
+Policy v49 ranks written border styles: a width's implied `solid` is now
+`BorderStyle::Default`, zero specificity on Web and nothing on Native, so
+it never beats a written style; see
+[border style evidence](../measurements/tailwind-border-style-order.md).
+Policy v50 does the same for outline styles and removes the register-bound
+barrier; see [the same page](../measurements/tailwind-border-style-order.md#outline-styles).
 
 ## 1. Restart, not another family-specific patch
 

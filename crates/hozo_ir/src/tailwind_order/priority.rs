@@ -155,25 +155,6 @@ impl TailwindOrderContext {
                 }
             }
         }
-        fn declarations<'s>(shape: &'s crate::OrderRuleShape, out: &mut Vec<&'s str>) {
-            match shape {
-                crate::OrderRuleShape::Declaration { property, .. } => out.push(property),
-                crate::OrderRuleShape::Rule { nodes, .. }
-                | crate::OrderRuleShape::AtRule { nodes, .. } => {
-                    for node in nodes {
-                        declarations(node, out);
-                    }
-                }
-                _ => {}
-            }
-        }
-        if crate::tailwind_assessment::style_register(property).is_some() {
-            let mut properties = Vec::new();
-            declarations(&rule.shape, &mut properties);
-            if crate::tailwind_assessment::register_bound(properties.into_iter(), property) {
-                return None;
-            }
-        }
         (owners(&rule.shape, property)? == 1).then_some(priority)
     }
 
@@ -295,6 +276,9 @@ impl<'c> Query<'c> {
             Condition::FormState(state) => suffix(state.selector()),
             Condition::Control(state) => suffix(state.selector()),
             Condition::DataAttribute(attribute) => suffix(attribute),
+            Condition::Subtree { direct: true } => selector(":is(& > *)"),
+            Condition::Subtree { direct: false } => selector(":is(& *)"),
+            Condition::StartingStyle => Self::Exact("@starting-style", ""),
             // `not-<x>:` around a selector is `&:not(*<x>)`, around a media
             // query `@media not <query>`. Anything else is unassessed.
             Condition::Not(inner) => match Self::of(inner)? {
